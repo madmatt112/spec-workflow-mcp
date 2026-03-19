@@ -30,6 +30,8 @@ interface RunOptions {
   steeringDocs: string[];
   priorPhaseDocs: string[];
   version: number;
+  skipPromptGeneration?: boolean; // Skip step 1 if prompt file already exists
+  model?: string; // Claude model alias or full name (e.g. 'sonnet', 'opus', 'claude-sonnet-4-6')
 }
 
 const JOB_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per step
@@ -96,18 +98,30 @@ export class AdversarialRunner extends EventEmitter {
     if (!job) return;
 
     try {
-      // Step 1: Generate the tailored adversarial prompt
-      job.status = 'generating-prompt';
-      this.emit('job-update', { ...job });
+      // Step 1: Generate the tailored adversarial prompt (skip if prompt already exists)
+      let promptExists = false;
+      if (opts.skipPromptGeneration) {
+        try {
+          await fs.access(opts.promptOutputPath);
+          promptExists = true;
+        } catch {
+          // Prompt doesn't exist despite skipPromptGeneration — fall through to generate it
+        }
+      }
 
-      const promptGenerationInstructions = this.buildPromptGenerationInstructions(opts);
-      await this.runClaude(jobId, opts.projectPath, promptGenerationInstructions);
+      if (!promptExists) {
+        job.status = 'generating-prompt';
+        this.emit('job-update', { ...job });
 
-      // Verify the prompt file was written
-      try {
-        await fs.access(opts.promptOutputPath);
-      } catch {
-        throw new Error(`Prompt generation completed but prompt file was not created at ${opts.promptOutputPath}`);
+        const promptGenerationInstructions = this.buildPromptGenerationInstructions(opts);
+        await this.runClaude(jobId, opts.projectPath, promptGenerationInstructions, opts.model);
+
+        // Verify the prompt file was written
+        try {
+          await fs.access(opts.promptOutputPath);
+        } catch {
+          throw new Error(`Prompt generation completed but prompt file was not created at ${opts.promptOutputPath}`);
+        }
       }
 
       // Step 2: Execute the adversarial review with fresh context
@@ -115,7 +129,7 @@ export class AdversarialRunner extends EventEmitter {
       this.emit('job-update', { ...job });
 
       const reviewInstructions = `Read and execute the instructions in ${opts.promptOutputPath}`;
-      await this.runClaude(jobId, opts.projectPath, reviewInstructions);
+      await this.runClaude(jobId, opts.projectPath, reviewInstructions, opts.model);
 
       // Verify the analysis file was written
       try {
@@ -162,13 +176,15 @@ export class AdversarialRunner extends EventEmitter {
     ].join('\n');
   }
 
-  private runClaude(jobId: string, cwd: string, prompt: string): Promise<void> {
+  private runClaude(jobId: string, cwd: string, prompt: string, model?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn('claude', [
-        '--print',
-        '--dangerously-skip-permissions',
-        prompt,
-      ], {
+      const args = ['--print', '--dangerously-skip-permissions'];
+      if (model) {
+        args.push('--model', model);
+      }
+      args.push(prompt);
+
+      const child = spawn('claude', args, {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },

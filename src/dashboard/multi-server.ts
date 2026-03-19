@@ -756,6 +756,16 @@ export class MultiProjectDashboardServer {
           return reply.code(500).send({ error: result.message || 'Failed to prepare adversarial review' });
         }
 
+        // Read model preference from adversarial settings
+        let model: string | undefined;
+        try {
+          const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
+          const settings = JSON.parse(settingsRaw);
+          if (settings.model && typeof settings.model === 'string') {
+            model = settings.model;
+          }
+        } catch { /* no settings or parse error — use default */ }
+
         // Spawn background Claude subagent to perform the review
         const jobId = await this.adversarialRunner.run({
           projectId,
@@ -769,20 +779,23 @@ export class MultiProjectDashboardServer {
           steeringDocs: result.data.steeringDocs || [],
           priorPhaseDocs: result.data.priorPhaseDocs || [],
           version: result.data.version,
+          model,
         });
 
         // Set approval to needs-revision
         const response = `Adversarial review requested via dashboard. A background review is running (job: ${jobId}).`;
         const commentText = [
-          `An adversarial review has been requested for this document.`,
-          `Use the adversarial-response tool with specName "${approval.categoryName}" and phase "${phase}" to read the analysis, evaluate each finding, and present your assessment to the user before making changes.`,
+          `An adversarial review (v${result.data.version}) has been requested for this document.`,
+          `Use the adversarial-response tool with specName "${approval.categoryName}", phase "${phase}", and version ${result.data.version} to read the analysis, evaluate each finding, and present your assessment to the user before making changes.`,
         ].join(' ');
         const annotations = JSON.stringify({
           decision: 'needs-revision',
           trigger: 'adversarial-review',
           specName: approval.categoryName,
           phase,
+          promptOutputPath: result.data.promptOutputPath,
           analysisOutputPath: result.data.analysisOutputPath,
+          analysisVersion: result.data.version,
           jobId,
           timestamp: new Date().toISOString()
         }, null, 2);
@@ -832,6 +845,102 @@ export class MultiProjectDashboardServer {
       }
 
       return { success: true };
+    });
+
+    // Resume/retry an adversarial review for an approval stuck in needs-revision
+    this.app.post('/api/projects/:projectId/approvals/:id/adversarial-retry', async (request, reply) => {
+      const { projectId, id } = request.params as { projectId: string; id: string };
+
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      try {
+        const approval = await project.approvalStorage.getApproval(id);
+        if (!approval) {
+          return reply.code(404).send({ error: 'Approval not found' });
+        }
+
+        // Parse annotations to get the original review parameters
+        let ann: any;
+        try {
+          ann = approval.annotations ? JSON.parse(approval.annotations) : null;
+        } catch { ann = null; }
+
+        if (!ann || ann.trigger !== 'adversarial-review') {
+          return reply.code(400).send({ error: 'This approval does not have an adversarial review to retry' });
+        }
+
+        const phase = ann.phase;
+        const specName = ann.specName;
+
+        // Re-run the adversarial review handler to get fresh paths/methodology
+        const result = await adversarialReviewHandler(
+          { specName, phase },
+          { projectPath: project.originalProjectPath }
+        );
+
+        if (!result.success || !result.data) {
+          return reply.code(500).send({ error: result.message || 'Failed to prepare adversarial review' });
+        }
+
+        // Check if the prompt file from the previous attempt exists
+        const promptPath = ann.promptOutputPath || result.data.promptOutputPath;
+        let promptExists = false;
+        try {
+          await fs.access(promptPath);
+          promptExists = true;
+        } catch { /* doesn't exist */ }
+
+        // Read model preference from adversarial settings
+        let retryModel: string | undefined;
+        try {
+          const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
+          const settings = JSON.parse(settingsRaw);
+          if (settings.model && typeof settings.model === 'string') {
+            retryModel = settings.model;
+          }
+        } catch { /* use default */ }
+
+        // Spawn background review, skipping prompt generation if prompt already exists
+        const jobId = await this.adversarialRunner.run({
+          projectId,
+          specName,
+          phase,
+          projectPath: project.originalProjectPath,
+          targetFile: result.data.targetFile,
+          promptOutputPath: promptPath,
+          analysisOutputPath: result.data.analysisOutputPath,
+          methodology: result.data.methodology,
+          steeringDocs: result.data.steeringDocs || [],
+          priorPhaseDocs: result.data.priorPhaseDocs || [],
+          version: result.data.version,
+          skipPromptGeneration: promptExists,
+          model: retryModel,
+        });
+
+        // Update annotations with the new job ID and paths
+        const newAnnotations = JSON.stringify({
+          ...ann,
+          promptOutputPath: promptPath,
+          analysisOutputPath: result.data.analysisOutputPath,
+          analysisVersion: result.data.version,
+          jobId,
+          timestamp: new Date().toISOString()
+        }, null, 2);
+        const comments = [{
+          type: 'general' as const,
+          comment: `Adversarial review retried${promptExists ? ' (resuming from existing prompt)' : ''}. Background job: ${jobId}`,
+          timestamp: new Date().toISOString(),
+        }];
+
+        await project.approvalStorage.updateApproval(id, 'needs-revision', approval.response || '', newAnnotations, comments);
+
+        return { jobId, skippedPromptGeneration: promptExists };
+      } catch (error: any) {
+        return reply.code(500).send({ error: error.message || 'Internal server error' });
+      }
     });
 
     // Undo batch operations - revert items back to pending
@@ -1313,49 +1422,6 @@ export class MultiProjectDashboardServer {
       }
     });
 
-    // Deferrals endpoints (read-only)
-    this.app.get('/api/projects/:projectId/deferrals', async (request, reply) => {
-      const { projectId } = request.params as { projectId: string };
-      const project = this.projectManager.getProject(projectId);
-      if (!project) {
-        return reply.code(404).send({ error: 'Project not found' });
-      }
-
-      try {
-        const { DeferralStorage } = await import('../core/deferral-storage.js');
-        const storage = new DeferralStorage(project.projectPath);
-        const query = request.query as { status?: string; originSpec?: string; tag?: string };
-        const deferrals = await storage.list({
-          status: query.status,
-          originSpec: query.originSpec,
-          tag: query.tag,
-        });
-        return deferrals;
-      } catch (error: any) {
-        return reply.code(500).send({ error: `Failed to list deferrals: ${error.message}` });
-      }
-    });
-
-    this.app.get('/api/projects/:projectId/deferrals/:id', async (request, reply) => {
-      const { projectId, id } = request.params as { projectId: string; id: string };
-      const project = this.projectManager.getProject(projectId);
-      if (!project) {
-        return reply.code(404).send({ error: 'Project not found' });
-      }
-
-      try {
-        const { DeferralStorage } = await import('../core/deferral-storage.js');
-        const storage = new DeferralStorage(project.projectPath);
-        const deferral = await storage.get(id);
-        if (!deferral) {
-          return reply.code(404).send({ error: `Deferral ${id} not found` });
-        }
-        return deferral;
-      } catch (error: any) {
-        return reply.code(500).send({ error: `Failed to get deferral: ${error.message}` });
-      }
-    });
-
     // Project-specific changelog endpoint
     this.app.get('/api/projects/:projectId/changelog/:version', async (request, reply) => {
       const { version } = request.params as { version: string };
@@ -1489,6 +1555,7 @@ export class MultiProjectDashboardServer {
         requiredPhases: { requirements: false, design: false, tasks: false },
         reviewMethodology: '',
         responseMethodology: '',
+        model: '',
       };
 
       let saved = {};
@@ -1530,6 +1597,7 @@ export class MultiProjectDashboardServer {
         },
         reviewMethodology: typeof body.reviewMethodology === 'string' ? body.reviewMethodology : '',
         responseMethodology: typeof body.responseMethodology === 'string' ? body.responseMethodology : '',
+        model: typeof body.model === 'string' ? body.model : '',
       };
 
       const settingsDir = join(project.projectPath, '.spec-workflow');
