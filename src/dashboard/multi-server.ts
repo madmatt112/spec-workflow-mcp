@@ -738,17 +738,15 @@ export class MultiProjectDashboardServer {
           return reply.code(404).send({ error: 'Approval not found' });
         }
 
-        if (approval.category !== 'spec') {
-          return reply.code(400).send({ error: 'Adversarial review is only available for spec approvals' });
+        if (approval.category !== 'spec' && approval.category !== 'steering') {
+          return reply.code(400).send({ error: 'Adversarial review is only available for spec and steering approvals' });
         }
 
         const phase = basename(approval.filePath, '.md');
-        if (!['requirements', 'design', 'tasks'].includes(phase)) {
-          return reply.code(400).send({ error: `Invalid phase: ${phase}. Must be requirements, design, or tasks` });
-        }
+        const specName = approval.category === 'steering' ? 'steering' : approval.categoryName;
 
         const result = await adversarialReviewHandler(
-          { specName: approval.categoryName, phase },
+          { specName, phase, filePath: approval.category === 'steering' ? approval.filePath : undefined },
           { projectPath: project.originalProjectPath }
         );
 
@@ -756,20 +754,28 @@ export class MultiProjectDashboardServer {
           return reply.code(500).send({ error: result.message || 'Failed to prepare adversarial review' });
         }
 
-        // Read model preference from adversarial settings
+        // Read preferences from adversarial settings
         let model: string | undefined;
+        let cli: string | undefined;
+        let cliArgs: string[] | undefined;
         try {
           const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
           const settings = JSON.parse(settingsRaw);
           if (settings.model && typeof settings.model === 'string') {
             model = settings.model;
           }
+          if (settings.cli && typeof settings.cli === 'string') {
+            cli = settings.cli;
+          }
+          if (Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0) {
+            cliArgs = settings.cliArgs;
+          }
         } catch { /* no settings or parse error — use default */ }
 
-        // Spawn background Claude subagent to perform the review
+        // Spawn background agent to perform the review
         const jobId = await this.adversarialRunner.run({
           projectId,
-          specName: approval.categoryName,
+          specName,
           phase,
           projectPath: project.originalProjectPath,
           targetFile: result.data.targetFile,
@@ -780,18 +786,20 @@ export class MultiProjectDashboardServer {
           priorPhaseDocs: result.data.priorPhaseDocs || [],
           version: result.data.version,
           model,
+          cli,
+          cliArgs,
         });
 
         // Set approval to needs-revision
         const response = `Adversarial review requested via dashboard. A background review is running (job: ${jobId}).`;
         const commentText = [
           `An adversarial review (v${result.data.version}) has been requested for this document.`,
-          `Use the adversarial-response tool with specName "${approval.categoryName}", phase "${phase}", and version ${result.data.version} to read the analysis, evaluate each finding, and present your assessment to the user before making changes.`,
+          `Use the adversarial-response tool with specName "${specName}", phase "${phase}", and version ${result.data.version} to read the analysis, evaluate each finding, and present your assessment to the user before making changes.`,
         ].join(' ');
         const annotations = JSON.stringify({
           decision: 'needs-revision',
           trigger: 'adversarial-review',
-          specName: approval.categoryName,
+          specName,
           phase,
           promptOutputPath: result.data.promptOutputPath,
           analysisOutputPath: result.data.analysisOutputPath,
@@ -893,13 +901,21 @@ export class MultiProjectDashboardServer {
           promptExists = true;
         } catch { /* doesn't exist */ }
 
-        // Read model preference from adversarial settings
+        // Read preferences from adversarial settings
         let retryModel: string | undefined;
+        let retryCli: string | undefined;
+        let retryCliArgs: string[] | undefined;
         try {
           const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
           const settings = JSON.parse(settingsRaw);
           if (settings.model && typeof settings.model === 'string') {
             retryModel = settings.model;
+          }
+          if (settings.cli && typeof settings.cli === 'string') {
+            retryCli = settings.cli;
+          }
+          if (Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0) {
+            retryCliArgs = settings.cliArgs;
           }
         } catch { /* use default */ }
 
@@ -918,6 +934,8 @@ export class MultiProjectDashboardServer {
           version: result.data.version,
           skipPromptGeneration: promptExists,
           model: retryModel,
+          cli: retryCli,
+          cliArgs: retryCliArgs,
         });
 
         // Update annotations with the new job ID and paths
@@ -1469,19 +1487,17 @@ export class MultiProjectDashboardServer {
           }>;
         }> = [];
 
-        for (const spec of allSpecs) {
-          const reviewsDir = join(specsDir, spec.name, 'reviews');
+        // Helper to scan a reviews directory for adversarial analysis files
+        const scanReviewsDir = async (reviewsDir: string): Promise<Record<string, Array<{ version: number; filename: string; lastModified: string }>>> => {
+          const phaseMap: Record<string, Array<{ version: number; filename: string; lastModified: string }>> = {};
           let files: string[];
           try {
             files = await fs.readdir(reviewsDir);
           } catch {
-            continue; // No reviews dir for this spec
+            return phaseMap;
           }
-
-          const phaseMap: Record<string, Array<{ version: number; filename: string; lastModified: string }>> = {};
-
           for (const file of files) {
-            const match = file.match(/^adversarial-analysis-(requirements|design|tasks)(-r(\d+))?\.md$/);
+            const match = file.match(/^adversarial-analysis-(\w+)(-r(\d+))?\.md$/);
             if (!match) continue;
             const phase = match[1];
             const version = match[3] ? parseInt(match[3], 10) : 1;
@@ -1489,6 +1505,13 @@ export class MultiProjectDashboardServer {
             if (!phaseMap[phase]) phaseMap[phase] = [];
             phaseMap[phase].push({ version, filename: file, lastModified: stat.mtime.toISOString() });
           }
+          return phaseMap;
+        };
+
+        // Scan spec reviews
+        for (const spec of allSpecs) {
+          const reviewsDir = join(specsDir, spec.name, 'reviews');
+          const phaseMap = await scanReviewsDir(reviewsDir);
 
           const phases = Object.entries(phaseMap).map(([phase, versions]) => ({
             phase,
@@ -1498,6 +1521,17 @@ export class MultiProjectDashboardServer {
           if (phases.length > 0) {
             result.push({ specName: spec.name, displayName: spec.displayName || spec.name, phases });
           }
+        }
+
+        // Scan steering reviews
+        const steeringReviewsDir = join(project.projectPath, '.spec-workflow', 'steering', 'reviews');
+        const steeringPhaseMap = await scanReviewsDir(steeringReviewsDir);
+        const steeringPhases = Object.entries(steeringPhaseMap).map(([phase, versions]) => ({
+          phase,
+          versions: versions.sort((a, b) => b.version - a.version),
+        }));
+        if (steeringPhases.length > 0) {
+          result.push({ specName: 'steering', displayName: 'Steering Documents', phases: steeringPhases });
         }
 
         return { specs: result };
@@ -1516,7 +1550,7 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
 
-      if (!['requirements', 'design', 'tasks'].includes(phase)) {
+      if (!phase || typeof phase !== 'string' || !/^\w+$/.test(phase)) {
         return reply.code(400).send({ error: 'Invalid phase' });
       }
 
@@ -1527,7 +1561,10 @@ export class MultiProjectDashboardServer {
 
       const versionSuffix = versionNum === 1 ? '' : `-r${versionNum}`;
       const filename = `adversarial-analysis-${phase}${versionSuffix}.md`;
-      const filePath = join(project.projectPath, '.spec-workflow', 'specs', specName, 'reviews', filename);
+      const baseDir = specName === 'steering'
+        ? join(project.projectPath, '.spec-workflow', 'steering')
+        : join(project.projectPath, '.spec-workflow', 'specs', specName);
+      const filePath = join(baseDir, 'reviews', filename);
 
       try {
         const content = await readFile(filePath, 'utf-8');
@@ -1556,6 +1593,8 @@ export class MultiProjectDashboardServer {
         reviewMethodology: '',
         responseMethodology: '',
         model: '',
+        cli: '',
+        cliArgs: [],
       };
 
       let saved = {};
@@ -1598,6 +1637,8 @@ export class MultiProjectDashboardServer {
         reviewMethodology: typeof body.reviewMethodology === 'string' ? body.reviewMethodology : '',
         responseMethodology: typeof body.responseMethodology === 'string' ? body.responseMethodology : '',
         model: typeof body.model === 'string' ? body.model : '',
+        cli: typeof body.cli === 'string' ? body.cli : '',
+        cliArgs: Array.isArray(body.cliArgs) ? body.cliArgs.filter((a: any) => typeof a === 'string') : [],
       };
 
       const settingsDir = join(project.projectPath, '.spec-workflow');
