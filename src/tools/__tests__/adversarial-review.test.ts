@@ -139,6 +139,89 @@ describe('adversarial-review tool', () => {
     expect(result.data.methodology).toContain('Adversarial Review Methodology');
   });
 
+  // --- Decomposition phase tests ---
+
+  it('prepares review for decomposition document', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    await fs.mkdir(decompDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Spec Decomposition\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.version).toBe(1);
+    expect(result.data.targetFile).toContain('spec-decomposition/decomposition.md');
+    expect(result.data.promptOutputPath).toContain('adversarial-prompt-decomposition.md');
+    expect(result.data.analysisOutputPath).toContain('adversarial-analysis-decomposition.md');
+    expect(result.message).toContain('spec decomposition');
+  });
+
+  it('uses steering docs as prior context for decomposition review', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    const steeringDir = join(project, '.spec-workflow', 'steering');
+    await fs.mkdir(decompDir, { recursive: true });
+    await fs.mkdir(steeringDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+    await fs.writeFile(join(steeringDir, 'product.md'), '# Product\n', 'utf-8');
+    await fs.writeFile(join(steeringDir, 'tech.md'), '# Tech\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.priorPhaseDocs).toHaveLength(2);
+    expect(result.data.priorPhaseDocs[0]).toContain('product.md');
+    expect(result.data.priorPhaseDocs[1]).toContain('tech.md');
+    expect(result.data.steeringDocs).toHaveLength(0);
+  });
+
+  it('creates reviews dir inside spec-decomposition', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    await fs.mkdir(decompDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+
+    await adversarialReviewHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    const stat = await fs.stat(join(decompDir, 'reviews'));
+    expect(stat.isDirectory()).toBe(true);
+  });
+
+  it('includes decomposition attack angles in methodology', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    await fs.mkdir(decompDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.data.methodology).toContain('Decomposition');
+    expect(result.data.methodology).toContain('INVEST violations');
+    expect(result.data.methodology).toContain('vertical slicing');
+  });
+
+  it('still requires specName for non-decomposition phases', async () => {
+    const result = await adversarialReviewHandler(
+      { phase: 'requirements' },
+      ctx('/tmp/fake')
+    );
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('specName is required');
+  });
+
   it('discovers prior phase docs', async () => {
     const project = await createTempProject();
     const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');

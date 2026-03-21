@@ -238,6 +238,10 @@ export class PathUtils {
     return this.safeJoin(projectPath, '.spec-workflow', 'commands');
   }
 
+  static getDecompositionPath(projectPath: string): string {
+    return this.safeJoin(projectPath, '.spec-workflow', 'spec-decomposition');
+  }
+
   static getApprovalsPath(projectPath: string): string {
     return this.safeJoin(projectPath, '.spec-workflow', 'approvals');
   }
@@ -350,7 +354,8 @@ export async function ensureWorkflowDirectory(projectPath: string): Promise<stri
     PathUtils.getSteeringPath(projectPath),
     PathUtils.getTemplatesPath(projectPath),
     PathUtils.getAgentsPath(projectPath),
-    PathUtils.getCommandsPath(projectPath)
+    PathUtils.getCommandsPath(projectPath),
+    PathUtils.getDecompositionPath(projectPath)
   ];
   
   for (const dir of directories) {

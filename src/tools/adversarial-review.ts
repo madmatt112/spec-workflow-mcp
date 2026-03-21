@@ -6,13 +6,15 @@ import { join } from 'path';
 
 export const adversarialReviewTool: Tool = {
   name: 'adversarial-review',
-  description: `Prepare an adversarial review of a spec phase document or steering document.
+  description: `Prepare an adversarial review of a spec phase document, steering document, or spec decomposition.
 
 # Instructions
-Use this tool to set up an adversarial analysis of a requirements, design, tasks, or steering
-document. Returns the methodology, output paths, and context needed to generate a tailored
-adversarial prompt and execute it via a fresh-context subagent. The agent writes the prompt,
-then launches a subagent to execute it — context separation ensures genuinely critical output.`,
+Use this tool to set up an adversarial analysis of a requirements, design, tasks, steering,
+or decomposition document. Returns the methodology, output paths, and context needed to generate
+a tailored adversarial prompt and execute it via a fresh-context subagent. The agent writes the
+prompt, then launches a subagent to execute it — context separation ensures genuinely critical output.
+
+For decomposition reviews, use specName: "decomposition" and phase: "decomposition".`,
   inputSchema: {
     type: 'object',
     properties: {
@@ -55,16 +57,30 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
 
   const workflowRoot = PathUtils.getWorkflowRoot(projectPath);
 
-  // Determine paths based on whether this is a steering doc or a spec phase
+  // Determine paths based on document type
   const isSteering = specName === 'steering';
-  const docDir = isSteering
-    ? join(workflowRoot, 'steering')
-    : join(workflowRoot, 'specs', specName);
-  // For steering docs, filePath may point outside the steering dir (e.g. research/sdd/foo.md)
-  const targetFile = isSteering && args.filePath
-    ? join(projectPath, args.filePath)
-    : join(docDir, `${phase}.md`);
-  const reviewsDir = join(docDir, 'reviews');
+  const isDecomposition = specName === 'decomposition' || phase === 'decomposition'
+    || (args.filePath && args.filePath.includes('spec-decomposition/'));
+
+  let docDir: string;
+  let targetFile: string;
+  let reviewsDir: string;
+
+  if (isDecomposition) {
+    docDir = join(workflowRoot, 'spec-decomposition');
+    targetFile = join(docDir, 'decomposition.md');
+    reviewsDir = join(docDir, 'reviews');
+  } else if (isSteering) {
+    docDir = join(workflowRoot, 'steering');
+    targetFile = args.filePath
+      ? join(projectPath, args.filePath)
+      : join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  } else {
+    docDir = join(workflowRoot, 'specs', specName);
+    targetFile = join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  }
 
   // Validate target file exists
   try {
@@ -80,27 +96,38 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
   await fs.mkdir(reviewsDir, { recursive: true });
 
   // Determine version by scanning existing files
-  const version = await getNextVersion(reviewsDir, phase);
+  const versionPhase = isDecomposition ? 'decomposition' : phase;
+  const version = await getNextVersion(reviewsDir, versionPhase);
   const versionSuffix = version === 1 ? '' : `-r${version}`;
 
-  const promptOutputPath = join(reviewsDir, `adversarial-prompt-${phase}${versionSuffix}.md`);
-  const analysisOutputPath = join(reviewsDir, `adversarial-analysis-${phase}${versionSuffix}.md`);
+  const promptOutputPath = join(reviewsDir, `adversarial-prompt-${versionPhase}${versionSuffix}.md`);
+  const analysisOutputPath = join(reviewsDir, `adversarial-analysis-${versionPhase}${versionSuffix}.md`);
 
   // Find existing steering docs and prior phase docs as context
   const steeringDir = join(workflowRoot, 'steering');
-  const steeringDocs = isSteering
-    ? [] // Don't include the target steering doc as its own context
-    : await findExistingFiles(steeringDir, ['product.md', 'tech.md', 'structure.md']);
-  const priorPhaseDocs = isSteering
-    ? [] // Steering docs don't have phase ordering
-    : await findPriorPhaseDocs(docDir, phase);
+  let steeringDocs: string[];
+  let priorPhaseDocs: string[];
+
+  if (isDecomposition) {
+    // Decomposition reviews use steering docs as prior context
+    steeringDocs = [];
+    priorPhaseDocs = await findExistingFiles(steeringDir, ['product.md', 'tech.md', 'structure.md']);
+  } else if (isSteering) {
+    steeringDocs = [];
+    priorPhaseDocs = [];
+  } else {
+    steeringDocs = await findExistingFiles(steeringDir, ['product.md', 'tech.md', 'structure.md']);
+    priorPhaseDocs = await findPriorPhaseDocs(docDir, phase);
+  }
 
   // Check for methodology override in settings
   const methodology = await getMethodologyOverride(workflowRoot, 'reviewMethodology') || getAdversarialReviewMethodology();
 
   return {
     success: true,
-    message: `Adversarial review prepared for ${specName}/${phase}.md (version ${version})`,
+    message: isDecomposition
+      ? `Adversarial review prepared for spec decomposition (version ${version})`
+      : `Adversarial review prepared for ${specName}/${phase}.md (version ${version})`,
     data: {
       targetFile,
       promptOutputPath,
@@ -214,6 +241,7 @@ be **tailored to the document's actual content**, not generic. For each section:
 | **Requirements** | Completeness, ambiguity, scope | Missing user stories, unstated assumptions, scope creep risk, contradictions between stories, acceptance criteria that can't be tested |
 | **Design** | Feasibility, consistency, edge cases | Conflicts with steering docs, unaddressed failure modes, scaling bottlenecks, missing error paths, alternatives not considered |
 | **Tasks** | Atomicity, ordering, coverage | Tasks too large or too small, missing dependency edges, gaps between tasks and design, unclear completion criteria, tasks that don't map to any requirement |
+| **Decomposition** | Completeness, granularity, ordering | Missing specs, over-scoped specs, wrong dependency order, horizontal instead of vertical slicing, INVEST violations (specs not independently valuable), cross-spec convention gaps, unresolved open questions that block implementation |
 
 If steering docs or prior phase docs exist, read them to ground the attack angles in the
 project's actual constraints and decisions.

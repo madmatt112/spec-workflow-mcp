@@ -742,11 +742,14 @@ export class MultiProjectDashboardServer {
           return reply.code(400).send({ error: 'Adversarial review is only available for spec and steering approvals' });
         }
 
-        const phase = basename(approval.filePath, '.md');
-        const specName = approval.category === 'steering' ? 'steering' : approval.categoryName;
+        // Detect if this is a decomposition document (lives in spec-decomposition/)
+        const isDecompApproval = approval.filePath.includes('spec-decomposition/');
+        const phase = isDecompApproval ? 'decomposition' : basename(approval.filePath, '.md');
+        const specName = isDecompApproval ? 'decomposition'
+          : approval.category === 'steering' ? 'steering' : approval.categoryName;
 
         const result = await adversarialReviewHandler(
-          { specName, phase, filePath: approval.category === 'steering' ? approval.filePath : undefined },
+          { specName, phase, filePath: (!isDecompApproval && approval.category === 'steering') ? approval.filePath : undefined },
           { projectPath: project.originalProjectPath }
         );
 
@@ -880,12 +883,15 @@ export class MultiProjectDashboardServer {
           return reply.code(400).send({ error: 'This approval does not have an adversarial review to retry' });
         }
 
-        const phase = ann.phase;
-        const specName = ann.specName;
+        // Detect decomposition from annotations or approval filePath
+        const isDecompRetry = ann.specName === 'decomposition' || ann.phase === 'decomposition'
+          || approval.filePath.includes('spec-decomposition/');
+        const phase = isDecompRetry ? 'decomposition' : ann.phase;
+        const specName = isDecompRetry ? 'decomposition' : ann.specName;
 
         // Re-run the adversarial review handler to get fresh paths/methodology
         const result = await adversarialReviewHandler(
-          { specName, phase },
+          { specName, phase, filePath: (!isDecompRetry && approval.category === 'steering') ? approval.filePath : undefined },
           { projectPath: project.originalProjectPath }
         );
 
@@ -1534,6 +1540,17 @@ export class MultiProjectDashboardServer {
           result.push({ specName: 'steering', displayName: 'Steering Documents', phases: steeringPhases });
         }
 
+        // Scan decomposition reviews
+        const decompReviewsDir = join(project.projectPath, '.spec-workflow', 'spec-decomposition', 'reviews');
+        const decompPhaseMap = await scanReviewsDir(decompReviewsDir);
+        const decompPhases = Object.entries(decompPhaseMap).map(([phase, versions]) => ({
+          phase,
+          versions: versions.sort((a, b) => b.version - a.version),
+        }));
+        if (decompPhases.length > 0) {
+          result.push({ specName: 'decomposition', displayName: 'Spec Decomposition', phases: decompPhases });
+        }
+
         return { specs: result };
       } catch (error: any) {
         return reply.code(500).send({ error: error.message || 'Internal server error' });
@@ -1561,7 +1578,9 @@ export class MultiProjectDashboardServer {
 
       const versionSuffix = versionNum === 1 ? '' : `-r${versionNum}`;
       const filename = `adversarial-analysis-${phase}${versionSuffix}.md`;
-      const baseDir = specName === 'steering'
+      const baseDir = specName === 'decomposition'
+        ? join(project.projectPath, '.spec-workflow', 'spec-decomposition')
+        : specName === 'steering'
         ? join(project.projectPath, '.spec-workflow', 'steering')
         : join(project.projectPath, '.spec-workflow', 'specs', specName);
       const filePath = join(baseDir, 'reviews', filename);

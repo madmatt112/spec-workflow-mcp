@@ -1002,8 +1002,9 @@ function Content() {
 
   // Helper to find a job for an approval
   const getJobForApproval = useCallback((approval: any) => {
-    const phase = approval.filePath ? approval.filePath.split('/').pop()?.replace('.md', '') || '' : '';
-    const specName = approval.category === 'steering' ? 'steering' : approval.categoryName;
+    const isDecomp = approval.filePath?.includes('spec-decomposition/');
+    const phase = isDecomp ? 'decomposition' : (approval.filePath ? approval.filePath.split('/').pop()?.replace('.md', '') || '' : '');
+    const specName = isDecomp ? 'decomposition' : (approval.category === 'steering' ? 'steering' : approval.categoryName);
     const key = `${specName}:${phase}`;
     return adversarialJobs.get(key);
   }, [adversarialJobs]);

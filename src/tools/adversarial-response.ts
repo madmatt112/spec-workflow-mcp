@@ -6,12 +6,14 @@ import { join } from 'path';
 
 export const adversarialResponseTool: Tool = {
   name: 'adversarial-response',
-  description: `Find the latest adversarial analysis for a spec phase or steering document and return response instructions.
+  description: `Find the latest adversarial analysis for a spec phase, steering document, or spec decomposition and return response instructions.
 
 # Instructions
 Use this tool when responding to an adversarial review — typically triggered by a revision
 comment on an approval request. Returns the path to the latest adversarial analysis and
-structured instructions for evaluating findings.`,
+structured instructions for evaluating findings.
+
+For decomposition reviews, use specName: "decomposition" and phase: "decomposition".`,
   inputSchema: {
     type: 'object',
     properties: {
@@ -55,18 +57,35 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
 
   const workflowRoot = PathUtils.getWorkflowRoot(projectPath);
   const isSteering = specName === 'steering';
-  const docDir = isSteering
-    ? join(workflowRoot, 'steering')
-    : join(workflowRoot, 'specs', specName);
-  const reviewsDir = join(docDir, 'reviews');
-  const targetFile = isSteering && args.filePath
-    ? join(projectPath, args.filePath)
-    : join(docDir, `${phase}.md`);
+  const isDecomposition = specName === 'decomposition' || phase === 'decomposition'
+    || (args.filePath && args.filePath.includes('spec-decomposition/'));
+
+  let docDir: string;
+  let targetFile: string;
+  let reviewsDir: string;
+
+  if (isDecomposition) {
+    docDir = join(workflowRoot, 'spec-decomposition');
+    targetFile = join(docDir, 'decomposition.md');
+    reviewsDir = join(docDir, 'reviews');
+  } else if (isSteering) {
+    docDir = join(workflowRoot, 'steering');
+    targetFile = args.filePath
+      ? join(projectPath, args.filePath)
+      : join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  } else {
+    docDir = join(workflowRoot, 'specs', specName);
+    targetFile = join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  }
+
+  const versionPhase = isDecomposition ? 'decomposition' : phase;
 
   // If a specific version was requested, look for that exact file
   if (requestedVersion) {
     const versionSuffix = requestedVersion === 1 ? '' : `-r${requestedVersion}`;
-    const expectedFile = join(reviewsDir, `adversarial-analysis-${phase}${versionSuffix}.md`);
+    const expectedFile = join(reviewsDir, `adversarial-analysis-${versionPhase}${versionSuffix}.md`);
     try {
       await fs.access(expectedFile);
     } catch {
@@ -101,7 +120,7 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
 
   try {
     const files = await fs.readdir(reviewsDir);
-    const pattern = new RegExp(`^adversarial-analysis-${phase}(-r(\\d+))?\\.md$`);
+    const pattern = new RegExp(`^adversarial-analysis-${versionPhase}(-r(\\d+))?\\.md$`);
 
     for (const file of files) {
       const match = file.match(pattern);
