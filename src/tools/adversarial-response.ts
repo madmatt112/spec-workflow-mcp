@@ -109,7 +109,8 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
         `Read the adversarial analysis at: ${expectedFile}`,
         'Evaluate each finding using the structured format',
         'Present your assessment to the user for discussion',
-        'After alignment, update the document and resubmit for approval'
+        `After alignment, update the document at: ${targetFile}`,
+        `Delete the old approval (approvals action:delete), then resubmit with filePath: ${PathUtils.getRelativePath(projectPath, targetFile)}`
       ]
     };
   }
@@ -162,7 +163,8 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
       `Read the adversarial analysis at: ${latestAnalysis}`,
       'Evaluate each finding using the structured format',
       'Present your assessment to the user for discussion',
-      'After alignment, update the document and resubmit for approval'
+      `After alignment, update the document at: ${targetFile}`,
+      `Delete the old approval (approvals action:delete), then resubmit with filePath: ${PathUtils.getRelativePath(projectPath, targetFile)}`
     ]
   };
 }
@@ -200,6 +202,10 @@ confirms which points to address.
 
 ### Update and resubmit
 
-After alignment with the user, update the document to incorporate the agreed-upon changes
-and resubmit for approval via the approvals tool.`;
+After alignment with the user:
+1. Update the **target document** (the file path returned by this tool) to incorporate the
+   agreed-upon changes. Do NOT create a copy at a different path.
+2. Delete the existing approval using the approvals tool with action:'delete'.
+3. Create a new approval using the approvals tool with action:'request', using the **same
+   filePath** as the original approval (shown in the nextSteps above).`;
 }
