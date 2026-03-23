@@ -36,7 +36,7 @@ interface RunOptions {
   cliArgs?: string[]; // Base CLI args (default: ['--print', '--dangerously-skip-permissions'])
 }
 
-const JOB_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes per step
+const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes per step
 const MAX_CONCURRENT_PER_PROJECT = 2;
 
 export class AdversarialRunner extends EventEmitter {

@@ -907,6 +907,21 @@ export class MultiProjectDashboardServer {
           promptExists = true;
         } catch { /* doesn't exist */ }
 
+        // When reusing an existing prompt, the analysis output path must match
+        // what the prompt tells the agent to write to. Derive from the prompt
+        // filename itself (prompt-X → analysis-X) since annotations may be stale
+        // from previous failed retries.
+        let analysisOutputPath = result.data.analysisOutputPath;
+        let analysisVersion = result.data.version;
+        if (promptExists) {
+          const promptBasename = basename(promptPath);
+          const analysisBasename = promptBasename.replace('adversarial-prompt-', 'adversarial-analysis-');
+          analysisOutputPath = join(dirname(promptPath), analysisBasename);
+          // Extract version from prompt filename (no suffix = v1, -r2 = v2, etc.)
+          const versionMatch = promptBasename.match(/-r(\d+)\.md$/);
+          analysisVersion = versionMatch ? parseInt(versionMatch[1], 10) : 1;
+        }
+
         // Read preferences from adversarial settings
         let retryModel: string | undefined;
         let retryCli: string | undefined;
@@ -933,11 +948,11 @@ export class MultiProjectDashboardServer {
           projectPath: project.originalProjectPath,
           targetFile: result.data.targetFile,
           promptOutputPath: promptPath,
-          analysisOutputPath: result.data.analysisOutputPath,
+          analysisOutputPath,
           methodology: result.data.methodology,
           steeringDocs: result.data.steeringDocs || [],
           priorPhaseDocs: result.data.priorPhaseDocs || [],
-          version: result.data.version,
+          version: analysisVersion,
           skipPromptGeneration: promptExists,
           model: retryModel,
           cli: retryCli,
@@ -948,8 +963,8 @@ export class MultiProjectDashboardServer {
         const newAnnotations = JSON.stringify({
           ...ann,
           promptOutputPath: promptPath,
-          analysisOutputPath: result.data.analysisOutputPath,
-          analysisVersion: result.data.version,
+          analysisOutputPath,
+          analysisVersion,
           jobId,
           timestamp: new Date().toISOString()
         }, null, 2);
