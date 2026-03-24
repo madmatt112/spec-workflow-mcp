@@ -30,6 +30,8 @@ interface RunOptions {
   steeringDocs: string[];
   priorPhaseDocs: string[];
   version: number;
+  memoryFilePath?: string; // Path to the rolling memory file for prior review context
+  latestAnalysisPath?: string | null; // Path to the most recent prior analysis
   skipPromptGeneration?: boolean; // Skip step 1 if prompt file already exists
   model?: string; // Model alias or full name (e.g. 'sonnet', 'opus', 'claude-sonnet-4-6')
   cli?: string; // CLI executable (default: 'claude')
@@ -155,11 +157,20 @@ export class AdversarialRunner extends EventEmitter {
 
   private buildPromptGenerationInstructions(opts: RunOptions): string {
     const filesToRead = [opts.targetFile, ...opts.steeringDocs, ...opts.priorPhaseDocs];
+    const hasMemory = opts.version > 1 && opts.memoryFilePath;
+
+    if (hasMemory) {
+      filesToRead.push(opts.memoryFilePath!);
+      if (opts.latestAnalysisPath) {
+        filesToRead.push(opts.latestAnalysisPath);
+      }
+    }
+
     const readInstructions = filesToRead
       .map(f => `- ${f}`)
       .join('\n');
 
-    return [
+    const sections = [
       `You are generating an adversarial review prompt. Follow the methodology below exactly.`,
       ``,
       `## Files to Read`,
@@ -168,14 +179,36 @@ export class AdversarialRunner extends EventEmitter {
       `## Methodology`,
       opts.methodology,
       ``,
+    ];
+
+    if (hasMemory) {
+      sections.push(
+        `## Prior Review Memory`,
+        `This is review v${opts.version}. Prior reviews exist.`,
+        ``,
+        `1. Read the memory file at ${opts.memoryFilePath} (if it exists on disk — it may not exist yet).`,
+        opts.latestAnalysisPath
+          ? `2. Read the latest analysis at ${opts.latestAnalysisPath} to understand recent findings.`
+          : `2. No prior analysis path available — skip this step.`,
+        `3. Write an UPDATED memory file to ${opts.memoryFilePath} that incorporates the latest analysis findings into the cumulative record. Follow the memory file format described in the methodology.`,
+        `4. In the generated adversarial prompt, include a "## Prior Review Context" section that summarizes what's been found, what was addressed, and what to focus on next. Instruct the reviewer to classify findings as novel, compounding, or recurring.`,
+        ``,
+      );
+    }
+
+    const stepOffset = hasMemory ? 2 : 0;
+    sections.push(
       `## Task`,
       `1. Read all the files listed above.`,
-      `2. Following the methodology, generate a tailored adversarial prompt targeting the ${opts.phase} phase document.`,
-      `3. Write the completed prompt to: ${opts.promptOutputPath}`,
-      `4. The prompt MUST tell the reviewing agent to write its analysis to: ${opts.analysisOutputPath}`,
+      ...(hasMemory ? [`2. Update the memory file as described in the Prior Review Memory section above.`] : []),
+      `${2 + stepOffset}. Following the methodology, generate a tailored adversarial prompt targeting the ${opts.phase} phase document.`,
+      `${3 + stepOffset}. Write the completed prompt to: ${opts.promptOutputPath}`,
+      `${4 + stepOffset}. The prompt MUST tell the reviewing agent to write its analysis to: ${opts.analysisOutputPath}`,
       ``,
       `Do not perform the review yourself. Only generate the prompt file.`,
-    ].join('\n');
+    );
+
+    return sections.join('\n');
   }
 
   private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {

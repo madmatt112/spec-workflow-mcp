@@ -208,5 +208,12 @@ After alignment with the user:
    agreed-upon changes. Do NOT create a copy at a different path.
 2. Delete the existing approval using the approvals tool with action:'delete'.
 3. Create a new approval using the approvals tool with action:'request', using the **same
-   filePath** as the original approval (shown in the nextSteps above).`;
+   filePath** as the original approval (shown in the nextSteps above).
+
+### Recurring Findings
+
+If the adversarial analysis classifies findings as "recurring" (identified in prior reviews
+but not yet resolved), treat these with elevated priority. Recurring findings across multiple
+review iterations may indicate structural issues in the document rather than simple omissions.
+When presenting recurring findings, note that they have persisted across iterations.`;
 }
