@@ -6,9 +6,9 @@ export const decompositionGuideTool: Tool = {
   description: `Load guide for decomposing steering documents into a complete set of specs.
 
 # Instructions
-Call when the user wants to break their project into specs after steering docs are complete.
-Returns the spec decomposition methodology — principles for identifying spec boundaries,
-ordering dependencies, and producing a decomposition document.`,
+Called as part of the spec workflow when steering docs exist. This is a required step before
+starting the first spec. Returns the spec decomposition methodology — principles for identifying
+spec boundaries, ordering dependencies, and producing a decomposition document.`,
   inputSchema: {
     type: 'object',
     properties: {},

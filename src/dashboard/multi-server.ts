@@ -738,8 +738,8 @@ export class MultiProjectDashboardServer {
           return reply.code(404).send({ error: 'Approval not found' });
         }
 
-        if (approval.category !== 'spec' && approval.category !== 'steering') {
-          return reply.code(400).send({ error: 'Adversarial review is only available for spec and steering approvals' });
+        if (approval.category !== 'spec' && approval.category !== 'steering' && approval.category !== 'decomposition') {
+          return reply.code(400).send({ error: 'Adversarial review is only available for spec, steering, and decomposition approvals' });
         }
 
         // Detect if this is a decomposition document (lives in spec-decomposition/)
