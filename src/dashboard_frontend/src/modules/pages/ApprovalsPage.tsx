@@ -467,10 +467,10 @@ function ApprovalItem({ a, selectionMode, isSelected, selectedCount, onToggleSel
     }
   };
 
-  // Adversarial review eligibility: spec or steering category, pending status
+  // Adversarial review eligibility: spec, steering, or decomposition category, pending status
   const phase = a.filePath ? a.filePath.split('/').pop()?.replace('.md', '') || '' : '';
-  const isAdversarialEligible = (a.category === 'spec' || a.category === 'steering') && a.status === 'pending';
-  const canRetryAdversarial = a.category === 'spec' || a.category === 'steering';
+  const isAdversarialEligible = (a.category === 'spec' || a.category === 'steering' || a.category === 'decomposition') && a.status === 'pending';
+  const canRetryAdversarial = a.category === 'spec' || a.category === 'steering' || a.category === 'decomposition';
 
   const handleAdversarialReview = async () => {
     setAdversarialLoading(true);
