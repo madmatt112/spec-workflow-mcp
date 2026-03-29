@@ -20,11 +20,11 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
     properties: {
       specName: {
         type: 'string',
-        description: 'Name of the spec to review (kebab-case), or "steering" for steering documents'
+        description: 'Name of the spec to review (kebab-case), "steering" for steering documents, or "decomposition" for spec decomposition'
       },
       phase: {
         type: 'string',
-        description: 'Which document to target (e.g. requirements, design, tasks for specs; product, tech, structure for steering)'
+        description: 'Which document to target (e.g. requirements, design, tasks for specs; product, tech, structure for steering; decomposition for spec decomposition)'
       },
       filePath: {
         type: 'string',
@@ -59,7 +59,8 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
 
   // Determine paths based on document type
   const isSteering = specName === 'steering';
-  const isDecomposition = specName === 'decomposition' || phase === 'decomposition'
+  const isDecomposition = specName === 'decomposition' || specName === 'spec-decomposition'
+    || phase === 'decomposition'
     || (args.filePath && args.filePath.includes('spec-decomposition/'));
 
   let docDir: string;

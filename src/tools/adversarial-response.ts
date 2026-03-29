@@ -19,11 +19,11 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
     properties: {
       specName: {
         type: 'string',
-        description: 'Name of the spec being reviewed (kebab-case), or "steering" for steering documents'
+        description: 'Name of the spec being reviewed (kebab-case), "steering" for steering documents, or "decomposition" for spec decomposition'
       },
       phase: {
         type: 'string',
-        description: 'Which document was reviewed (e.g. requirements, design, tasks for specs; product, tech, structure for steering)'
+        description: 'Which document was reviewed (e.g. requirements, design, tasks for specs; product, tech, structure for steering; decomposition for spec decomposition)'
       },
       version: {
         type: 'number',
@@ -57,7 +57,8 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
 
   const workflowRoot = PathUtils.getWorkflowRoot(projectPath);
   const isSteering = specName === 'steering';
-  const isDecomposition = specName === 'decomposition' || phase === 'decomposition'
+  const isDecomposition = specName === 'decomposition' || specName === 'spec-decomposition'
+    || phase === 'decomposition'
     || (args.filePath && args.filePath.includes('spec-decomposition/'));
 
   let docDir: string;

@@ -884,7 +884,8 @@ export class MultiProjectDashboardServer {
         }
 
         // Detect decomposition from annotations or approval filePath
-        const isDecompRetry = ann.specName === 'decomposition' || ann.phase === 'decomposition'
+        const isDecompRetry = ann.specName === 'decomposition' || ann.specName === 'spec-decomposition'
+          || ann.phase === 'decomposition'
           || approval.filePath.includes('spec-decomposition/');
         const phase = isDecompRetry ? 'decomposition' : ann.phase;
         const specName = isDecompRetry ? 'decomposition' : ann.specName;
