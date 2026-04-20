@@ -97,8 +97,8 @@ export interface ApprovalRequest {
     reason?: string;
   }[];
   metadata?: Record<string, any>;
-  category: 'spec' | 'steering';
-  categoryName: string; // spec or steering document name
+  category: 'spec' | 'steering' | 'decomposition';
+  categoryName: string; // spec, steering, or decomposition document name
 }
 
 export class ApprovalStorage extends EventEmitter {
@@ -259,7 +259,7 @@ export class ApprovalStorage extends EventEmitter {
   async createApproval(
     title: string,
     filePath: string,
-    category: 'spec' | 'steering',
+    category: 'spec' | 'steering' | 'decomposition',
     categoryName: string,
     type: 'document' | 'action' = 'document',
     metadata?: Record<string, any>

@@ -70,8 +70,8 @@ CRITICAL: Only provide filePath parameter for requests - the dashboard reads fil
       },
       category: {
         type: 'string',
-        enum: ['spec', 'steering'],
-        description: 'Category of the approval request - "spec" for specifications, "steering" for steering documents (required for request)'
+        enum: ['spec', 'steering', 'decomposition'],
+        description: 'Category of the approval request - "spec" for specifications, "steering" for steering documents, "decomposition" for decomposition documents (required for request)'
       },
       categoryName: {
         type: 'string',
@@ -93,7 +93,7 @@ type RequestApprovalArgs = {
   title: string;
   filePath: string;
   type: 'document' | 'action';
-  category: 'spec' | 'steering';
+  category: 'spec' | 'steering' | 'decomposition';
   categoryName: string;
 };
 
@@ -132,7 +132,7 @@ export async function approvalsHandler(
     title?: string;
     filePath?: string;
     type?: 'document' | 'action';
-    category?: 'spec' | 'steering';
+    category?: 'spec' | 'steering' | 'decomposition';
     categoryName?: string;
   },
   context: ToolContext

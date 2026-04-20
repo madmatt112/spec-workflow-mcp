@@ -7,6 +7,7 @@ import { logImplementationTool, logImplementationHandler } from './log-implement
 import { deferralsTool, deferralsHandler } from './deferrals.js';
 import { adversarialReviewTool, adversarialReviewHandler } from './adversarial-review.js';
 import { adversarialResponseTool, adversarialResponseHandler } from './adversarial-response.js';
+import { decompositionGuideTool, decompositionGuideHandler } from './decomposition-guide.js';
 import { ToolContext, ToolResponse, MCPToolResponse, toMCPResponse } from '../types.js';
 
 export function registerTools(): Tool[] {
@@ -18,7 +19,8 @@ export function registerTools(): Tool[] {
     logImplementationTool,
     deferralsTool,
     adversarialReviewTool,
-    adversarialResponseTool
+    adversarialResponseTool,
+    decompositionGuideTool
   ];
 }
 
@@ -51,6 +53,9 @@ export async function handleToolCall(name: string, args: any, context: ToolConte
         break;
       case 'adversarial-response':
         response = await adversarialResponseHandler(args, context);
+        break;
+      case 'decomposition-guide':
+        response = await decompositionGuideHandler(args, context);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

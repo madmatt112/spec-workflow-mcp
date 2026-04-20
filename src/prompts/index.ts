@@ -10,11 +10,13 @@ import { specStatusPrompt } from './spec-status.js';
 import { injectSpecWorkflowGuidePrompt } from './inject-spec-workflow-guide.js';
 import { injectSteeringGuidePrompt } from './inject-steering-guide.js';
 import { refreshTasksPrompt } from './refresh-tasks.js';
+import { createDecompositionPrompt } from './create-decomposition.js';
 
 // Registry of all prompts
 const promptDefinitions: PromptDefinition[] = [
   createSpecPrompt,
   createSteeringDocPrompt,
+  createDecompositionPrompt,
   implementTaskPrompt,
   specStatusPrompt,
   injectSpecWorkflowGuidePrompt,

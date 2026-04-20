@@ -128,6 +128,71 @@ describe('adversarial-response tool', () => {
     expect(result.data.methodology).toBe('Custom response instructions');
   });
 
+  // --- Decomposition phase tests ---
+
+  it('finds decomposition analysis in spec-decomposition/reviews', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    const reviewsDir = join(decompDir, 'reviews');
+    await fs.mkdir(reviewsDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-decomposition.md'), '# Analysis\n', 'utf-8');
+
+    const result = await adversarialResponseHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.version).toBe(1);
+    expect(result.data.analysisFile).toContain('spec-decomposition/reviews/adversarial-analysis-decomposition.md');
+    expect(result.data.targetFile).toContain('spec-decomposition/decomposition.md');
+  });
+
+  it('finds specific version of decomposition analysis', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    const reviewsDir = join(decompDir, 'reviews');
+    await fs.mkdir(reviewsDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-decomposition.md'), 'v1\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-decomposition-r2.md'), 'v2\n', 'utf-8');
+
+    const result = await adversarialResponseHandler(
+      { specName: 'decomposition', phase: 'decomposition', version: 2 },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.version).toBe(2);
+    expect(result.data.analysisFile).toContain('-r2.md');
+  });
+
+  it('picks highest version for decomposition analysis', async () => {
+    const project = await createTempProject();
+    const reviewsDir = join(project, '.spec-workflow', 'spec-decomposition', 'reviews');
+    await fs.mkdir(reviewsDir, { recursive: true });
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-decomposition.md'), 'v1\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-decomposition-r3.md'), 'v3\n', 'utf-8');
+
+    const result = await adversarialResponseHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.version).toBe(3);
+  });
+
+  it('still requires specName for non-decomposition phases', async () => {
+    const result = await adversarialResponseHandler(
+      { phase: 'requirements' },
+      ctx('/tmp/fake')
+    );
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('specName is required');
+  });
+
   it('ignores analysis files for other phases', async () => {
     const project = await createTempProject();
     const reviewsDir = join(project, '.spec-workflow', 'specs', 'test-spec', 'reviews');

@@ -6,7 +6,7 @@ export const specWorkflowGuideTool: Tool = {
   description: `Load essential spec workflow instructions to guide feature development from idea to implementation.
 
 # Instructions
-Call this tool FIRST when users request spec creation, feature development, or mention specifications. This provides the complete workflow sequence (Requirements → Design → Tasks → Implementation) that must be followed. Always load before any other spec tools to ensure proper workflow understanding. Its important that you follow this workflow exactly to avoid errors.`,
+Call this tool FIRST when users request spec creation, feature development, or mention specifications. This provides the complete workflow sequence (Decomposition → Requirements → Design → Tasks → Implementation) that must be followed. Always load before any other spec tools to ensure proper workflow understanding. Its important that you follow this workflow exactly to avoid errors.`,
   inputSchema: {
     type: 'object',
     properties: {},
@@ -33,7 +33,8 @@ export async function specWorkflowGuideHandler(args: any, context: ToolContext):
       dashboardAvailable: !!context.dashboardUrl
     },
     nextSteps: [
-      'Follow sequence: Requirements → Design → Tasks → Implementation',
+      'If steering docs exist, run decomposition first with decomposition-guide',
+      'Follow sequence: Decomposition → Requirements → Design → Tasks → Implementation',
       'Load templates with get-template-context first',
       'Request approval after each document',
       'Use MCP tools only',
@@ -48,15 +49,29 @@ function getSpecWorkflowGuide(): string {
 
 ## Overview
 
-You guide users through spec-driven development using MCP tools. Transform rough ideas into detailed specifications through Requirements → Design → Tasks → Implementation phases. Use web search when available for current best practices (current year: ${currentYear}). Its important that you follow this workflow exactly to avoid errors.
+You guide users through spec-driven development using MCP tools. Transform rough ideas into detailed specifications through Decomposition → Requirements → Design → Tasks → Implementation phases. When steering docs exist, always begin with Decomposition to break the project into ordered specs before starting the first spec's Requirements phase. Use web search when available for current best practices (current year: ${currentYear}). Its important that you follow this workflow exactly to avoid errors.
 Feature names use kebab-case (e.g., user-authentication). Create ONE spec at a time.
 
 ## Workflow Diagram
 \`\`\`mermaid
 flowchart TD
     Start([Start: User requests feature]) --> CheckSteering{Steering docs exist?}
-    CheckSteering -->|Yes| P1_Load[Read steering docs:<br/>.spec-workflow/steering/*.md]
     CheckSteering -->|No| P1_Template
+
+    %% Decomposition
+    CheckSteering -->|Yes| Decomp_Check{Decomposition<br/>exists?}
+    Decomp_Check -->|Yes| P1_Load[Read steering docs +<br/>decomposition.md]
+    Decomp_Check -->|No| Decomp_Guide[Call decomposition-guide]
+    Decomp_Guide --> Decomp_Read[Read all steering docs]
+    Decomp_Read --> Decomp_Create[Create file:<br/>.spec-workflow/spec-decomposition/<br/>decomposition.md]
+    Decomp_Create --> Decomp_Approve[approvals<br/>action: request<br/>filePath only]
+    Decomp_Approve --> Decomp_Status[approvals<br/>action: status<br/>poll status]
+    Decomp_Status --> Decomp_Decision{Status?}
+    Decomp_Decision -->|needs-revision| Decomp_Update[Update document using<br/>user comments as guidance]
+    Decomp_Update --> Decomp_Create
+    Decomp_Decision -->|approved| Decomp_Clean[approvals<br/>action: delete]
+    Decomp_Clean -->|failed| Decomp_Status
+    Decomp_Clean -->|success| P1_Load
 
     %% Phase 1: Requirements
     P1_Load --> P1_Template[Check user-templates first,<br/>then read template:<br/>requirements-template.md]
@@ -110,12 +125,41 @@ flowchart TD
     style P1_Check fill:#ffe6e6
     style P2_Check fill:#ffe6e6
     style P3_Check fill:#ffe6e6
+    style Decomp_Decision fill:#ffe6e6
     style CheckSteering fill:#fff4e6
+    style Decomp_Check fill:#fff4e6
     style P4_More fill:#fff4e6
     style P4_Log fill:#e3f2fd
 \`\`\`
 
 ## Spec Workflow
+
+### Decomposition
+**Purpose**: Break steering documents into an ordered set of specs before starting any spec work.
+
+**When**: Always, when steering docs exist in \`.spec-workflow/steering/\`.
+
+**File Operations**:
+- Read all steering docs: \`.spec-workflow/steering/product.md\`, \`tech.md\`, \`structure.md\`
+- Create document: \`.spec-workflow/spec-decomposition/decomposition.md\`
+
+**Tools**:
+- decomposition-guide: Load the decomposition methodology (principles, process, output structure)
+- approvals: Manage approval workflow (actions: request, status, delete)
+
+**Process**:
+1. Check if \`.spec-workflow/spec-decomposition/decomposition.md\` already exists (if yes, skip to Phase 1)
+2. Call \`decomposition-guide\` to load the decomposition methodology
+3. Read all steering docs in full: product.md, tech.md, structure.md
+4. Apply the methodology: identify capabilities, group into specs, order by dependencies
+5. Surface open questions to the user before finalizing
+6. Create \`decomposition.md\` at \`.spec-workflow/spec-decomposition/decomposition.md\`
+7. Request approval using approvals tool with action:'request' (filePath only, never content)
+8. Poll status using approvals with action:'status' until approved/needs-revision
+9. If needs-revision: update document using comments, create NEW approval, do NOT proceed
+10. Once approved: use approvals with action:'delete' (must succeed) before proceeding
+11. If delete fails: STOP - return to polling
+12. Proceed to Phase 1 for the first spec in the decomposition
 
 ### Phase 1: Requirements
 **Purpose**: Define what to build based on user needs.
@@ -260,11 +304,12 @@ When steering docs exist in \`.spec-workflow/steering/\`, load them selectively 
 
 | Phase | Load in full | Skim or skip |
 |---|---|---|
-| Requirements | product.md | tech.md (skim constraints only), structure.md (skip) |
-| Design | tech.md, structure.md | product.md (skip — internalized via requirements) |
-| Tasks | structure.md, the spec's design.md | tech.md (skip — internalized via design), product.md (skip) |
+| Decomposition | product.md, tech.md, structure.md | (none — load all) |
+| Requirements | product.md, decomposition.md | tech.md (skim constraints only), structure.md (skip) |
+| Design | tech.md, structure.md | product.md (skip — internalized via requirements), decomposition.md (skip) |
+| Tasks | structure.md, the spec's design.md | tech.md (skip — internalized via design), product.md (skip), decomposition.md (skip) |
 
-Each phase's output internalizes the previous phase's primary inputs. The requirements encode the product vision, so the design agent doesn't need to re-read product.md. The design encodes the tech decisions, so the tasks agent doesn't need to re-read tech.md.
+Each phase's output internalizes the previous phase's primary inputs. The decomposition encodes the full project scope, so requirements only needs the decomposition and product docs. The requirements encode the product vision, so the design agent doesn't need to re-read product.md. The design encodes the tech decisions, so the tasks agent doesn't need to re-read tech.md.
 
 ## Adversarial Review (Optional)
 
@@ -291,11 +336,14 @@ These are not part of the core approval flow — they are invoked when requested
 - CRITICAL: Verbal approval is NEVER accepted - dashboard or VS Code extension only
 - NEVER proceed on user saying "approved" - check system status only
 - Steering docs are optional - only create when explicitly requested
+- When steering docs exist, decomposition is required before starting the first spec — call \`decomposition-guide\` for methodology
 - When explicitly deferring a decision in any phase, record it using the deferrals tool. Deferrals are project-level artifacts that persist across specs.
 
 ## File Structure
 \`\`\`
 .spec-workflow/
+├── spec-decomposition/        # Decomposition output
+│   └── decomposition.md
 ├── templates/           # Auto-populated on server start
 │   ├── requirements-template.md
 │   ├── design-template.md

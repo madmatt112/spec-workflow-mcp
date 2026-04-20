@@ -6,22 +6,24 @@ import { join } from 'path';
 
 export const adversarialResponseTool: Tool = {
   name: 'adversarial-response',
-  description: `Find the latest adversarial analysis for a spec phase or steering document and return response instructions.
+  description: `Find the latest adversarial analysis for a spec phase, steering document, or spec decomposition and return response instructions.
 
 # Instructions
 Use this tool when responding to an adversarial review — typically triggered by a revision
 comment on an approval request. Returns the path to the latest adversarial analysis and
-structured instructions for evaluating findings.`,
+structured instructions for evaluating findings.
+
+For decomposition reviews, use specName: "decomposition" and phase: "decomposition".`,
   inputSchema: {
     type: 'object',
     properties: {
       specName: {
         type: 'string',
-        description: 'Name of the spec being reviewed (kebab-case), or "steering" for steering documents'
+        description: 'Name of the spec being reviewed (kebab-case), "steering" for steering documents, or "decomposition" for spec decomposition'
       },
       phase: {
         type: 'string',
-        description: 'Which document was reviewed (e.g. requirements, design, tasks for specs; product, tech, structure for steering)'
+        description: 'Which document was reviewed (e.g. requirements, design, tasks for specs; product, tech, structure for steering; decomposition for spec decomposition)'
       },
       version: {
         type: 'number',
@@ -55,18 +57,36 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
 
   const workflowRoot = PathUtils.getWorkflowRoot(projectPath);
   const isSteering = specName === 'steering';
-  const docDir = isSteering
-    ? join(workflowRoot, 'steering')
-    : join(workflowRoot, 'specs', specName);
-  const reviewsDir = join(docDir, 'reviews');
-  const targetFile = isSteering && args.filePath
-    ? join(projectPath, args.filePath)
-    : join(docDir, `${phase}.md`);
+  const isDecomposition = specName === 'decomposition' || specName === 'spec-decomposition'
+    || phase === 'decomposition'
+    || (args.filePath && args.filePath.includes('spec-decomposition/'));
+
+  let docDir: string;
+  let targetFile: string;
+  let reviewsDir: string;
+
+  if (isDecomposition) {
+    docDir = join(workflowRoot, 'spec-decomposition');
+    targetFile = join(docDir, 'decomposition.md');
+    reviewsDir = join(docDir, 'reviews');
+  } else if (isSteering) {
+    docDir = join(workflowRoot, 'steering');
+    targetFile = args.filePath
+      ? join(projectPath, args.filePath)
+      : join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  } else {
+    docDir = join(workflowRoot, 'specs', specName);
+    targetFile = join(docDir, `${phase}.md`);
+    reviewsDir = join(docDir, 'reviews');
+  }
+
+  const versionPhase = isDecomposition ? 'decomposition' : phase;
 
   // If a specific version was requested, look for that exact file
   if (requestedVersion) {
     const versionSuffix = requestedVersion === 1 ? '' : `-r${requestedVersion}`;
-    const expectedFile = join(reviewsDir, `adversarial-analysis-${phase}${versionSuffix}.md`);
+    const expectedFile = join(reviewsDir, `adversarial-analysis-${versionPhase}${versionSuffix}.md`);
     try {
       await fs.access(expectedFile);
     } catch {
@@ -90,7 +110,8 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
         `Read the adversarial analysis at: ${expectedFile}`,
         'Evaluate each finding using the structured format',
         'Present your assessment to the user for discussion',
-        'After alignment, update the document and resubmit for approval'
+        `After alignment, update the document at: ${targetFile}`,
+        `Delete the old approval (approvals action:delete), then resubmit with filePath: ${PathUtils.getRelativePath(projectPath, targetFile)}`
       ]
     };
   }
@@ -101,7 +122,7 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
 
   try {
     const files = await fs.readdir(reviewsDir);
-    const pattern = new RegExp(`^adversarial-analysis-${phase}(-r(\\d+))?\\.md$`);
+    const pattern = new RegExp(`^adversarial-analysis-${versionPhase}(-r(\\d+))?\\.md$`);
 
     for (const file of files) {
       const match = file.match(pattern);
@@ -143,7 +164,8 @@ export async function adversarialResponseHandler(args: any, context: ToolContext
       `Read the adversarial analysis at: ${latestAnalysis}`,
       'Evaluate each finding using the structured format',
       'Present your assessment to the user for discussion',
-      'After alignment, update the document and resubmit for approval'
+      `After alignment, update the document at: ${targetFile}`,
+      `Delete the old approval (approvals action:delete), then resubmit with filePath: ${PathUtils.getRelativePath(projectPath, targetFile)}`
     ]
   };
 }
@@ -181,6 +203,10 @@ confirms which points to address.
 
 ### Update and resubmit
 
-After alignment with the user, update the document to incorporate the agreed-upon changes
-and resubmit for approval via the approvals tool.`;
+After alignment with the user:
+1. Update the **target document** (the file path returned by this tool) to incorporate the
+   agreed-upon changes. Do NOT create a copy at a different path.
+2. Delete the existing approval using the approvals tool with action:'delete'.
+3. Create a new approval using the approvals tool with action:'request', using the **same
+   filePath** as the original approval (shown in the nextSteps above).`;
 }

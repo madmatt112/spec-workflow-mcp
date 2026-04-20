@@ -5,7 +5,7 @@ import { PathUtils } from '../core/path-utils.js';
 import { SpecParser, ParsedSpec } from './parser.js';
 
 export interface SpecChangeEvent {
-  type: 'spec' | 'steering';
+  type: 'spec' | 'steering' | 'decomposition';
   action: 'created' | 'updated' | 'deleted';
   name: string;
   data?: ParsedSpec | any;

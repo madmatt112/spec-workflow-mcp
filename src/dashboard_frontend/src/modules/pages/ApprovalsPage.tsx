@@ -467,10 +467,10 @@ function ApprovalItem({ a, selectionMode, isSelected, selectedCount, onToggleSel
     }
   };
 
-  // Adversarial review eligibility: spec or steering category, pending status
+  // Adversarial review eligibility: spec, steering, or decomposition category, pending status
   const phase = a.filePath ? a.filePath.split('/').pop()?.replace('.md', '') || '' : '';
-  const isAdversarialEligible = (a.category === 'spec' || a.category === 'steering') && a.status === 'pending';
-  const canRetryAdversarial = a.category === 'spec' || a.category === 'steering';
+  const isAdversarialEligible = (a.category === 'spec' || a.category === 'steering' || a.category === 'decomposition') && a.status === 'pending';
+  const canRetryAdversarial = a.category === 'spec' || a.category === 'steering' || a.category === 'decomposition';
 
   const handleAdversarialReview = async () => {
     setAdversarialLoading(true);
@@ -1002,8 +1002,9 @@ function Content() {
 
   // Helper to find a job for an approval
   const getJobForApproval = useCallback((approval: any) => {
-    const phase = approval.filePath ? approval.filePath.split('/').pop()?.replace('.md', '') || '' : '';
-    const specName = approval.category === 'steering' ? 'steering' : approval.categoryName;
+    const isDecomp = approval.filePath?.includes('spec-decomposition/');
+    const phase = isDecomp ? 'decomposition' : (approval.filePath ? approval.filePath.split('/').pop()?.replace('.md', '') || '' : '');
+    const specName = isDecomp ? 'decomposition' : (approval.category === 'steering' ? 'steering' : approval.categoryName);
     const key = `${specName}:${phase}`;
     return adversarialJobs.get(key);
   }, [adversarialJobs]);
