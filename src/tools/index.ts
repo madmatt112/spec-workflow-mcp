@@ -8,6 +8,8 @@ import { deferralsTool, deferralsHandler } from './deferrals.js';
 import { adversarialReviewTool, adversarialReviewHandler } from './adversarial-review.js';
 import { adversarialResponseTool, adversarialResponseHandler } from './adversarial-response.js';
 import { decompositionGuideTool, decompositionGuideHandler } from './decomposition-guide.js';
+import { reviewTaskTool, reviewTaskHandler } from './review-task.js';
+import { getTaskReviewTool, getTaskReviewHandler } from './get-task-review.js';
 import { ToolContext, ToolResponse, MCPToolResponse, toMCPResponse } from '../types.js';
 
 export function registerTools(): Tool[] {
@@ -20,7 +22,9 @@ export function registerTools(): Tool[] {
     deferralsTool,
     adversarialReviewTool,
     adversarialResponseTool,
-    decompositionGuideTool
+    decompositionGuideTool,
+    reviewTaskTool,
+    getTaskReviewTool
   ];
 }
 
@@ -56,6 +60,12 @@ export async function handleToolCall(name: string, args: any, context: ToolConte
         break;
       case 'decomposition-guide':
         response = await decompositionGuideHandler(args, context);
+        break;
+      case 'review-task':
+        response = await reviewTaskHandler(args, context);
+        break;
+      case 'get-task-review':
+        response = await getTaskReviewHandler(args, context);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

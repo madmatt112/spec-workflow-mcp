@@ -425,9 +425,90 @@ function SpecCard({ spec, onSelect, isSelected }: { spec: any; onSelect: (spec: 
   );
 }
 
+function TaskReviewBadge({ verdict }: { verdict: string }) {
+  const colors: Record<string, string> = {
+    pass: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700',
+    fail: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700',
+    findings: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700',
+  };
+  const icons: Record<string, string> = { pass: '\u2713', fail: '\u2717', findings: '!' };
+  return (
+    <span className={`px-1.5 py-0.5 text-xs rounded border font-medium ${colors[verdict] || ''}`}>
+      {icons[verdict] || '?'} {verdict}
+    </span>
+  );
+}
+
+function TaskReviewProgress({ job, specName, taskId, onRetry }: { job: any; specName: string; taskId: string; onRetry: () => void }) {
+  const { cancelTaskReviewJob } = useApiActions();
+  if (job.status === 'pending' || job.status === 'running') {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+        <span>Reviewing task...</span>
+        <button onClick={() => cancelTaskReviewJob(job.id)} className="ml-1 text-gray-400 hover:text-red-500">Cancel</button>
+      </div>
+    );
+  }
+  if (job.status === 'completed') {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        <TaskReviewBadge verdict={job.verdict || 'pass'} />
+        <span className="text-[var(--text-secondary)]">Review complete (v{job.version})</span>
+      </div>
+    );
+  }
+  if (job.status === 'failed') {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+        <span>Review failed: {job.error?.slice(0, 100)}</span>
+        <button onClick={onRetry} className="text-blue-600 dark:text-blue-400 hover:underline">Retry</button>
+      </div>
+    );
+  }
+  return null;
+}
+
+function TaskReviewFindings({ specName, taskId, version }: { specName: string; taskId: string; version: number }) {
+  const { getTaskReviewContent } = useApiActions();
+  const [review, setReview] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getTaskReviewContent(specName, taskId, version)
+      .then((data: any) => setReview(data.review))
+      .finally(() => setLoading(false));
+  }, [specName, taskId, version, getTaskReviewContent]);
+
+  if (loading) return <div className="text-xs text-[var(--text-secondary)] mt-2">Loading findings...</div>;
+  if (!review || !review.findings || review.findings.length === 0) return null;
+
+  const severityColors: Record<string, string> = {
+    critical: 'text-red-600 dark:text-red-400',
+    warning: 'text-amber-600 dark:text-amber-400',
+    info: 'text-blue-600 dark:text-blue-400',
+  };
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="text-xs text-[var(--text-secondary)] mb-1">{review.summary}</div>
+      {review.findings.map((f: any, i: number) => (
+        <div key={i} className="text-xs border-l-2 border-gray-200 dark:border-gray-700 pl-2">
+          <div className={`font-medium ${severityColors[f.severity] || ''}`}>
+            {f.severity.toUpperCase()}{f.category === 'hygiene' ? ' [hygiene]' : ''}: {f.title}
+          </div>
+          <div className="text-[var(--text-secondary)]">{f.description}</div>
+          {f.file && <div className="text-[var(--text-secondary)] font-mono">{f.file}{f.line ? `:${f.line}` : ''}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TaskList({ specName }: { specName: string }) {
   const { t } = useTranslation();
-  const { getSpecTasksProgress, updateTaskStatus } = useApiActions();
+  const { getSpecTasksProgress, updateTaskStatus, requestTaskReview, retryTaskReview, getTaskReviewSummary, getTaskReviewJobs } = useApiActions();
   const { subscribe, unsubscribe } = useWs();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any | null>(null);
@@ -435,6 +516,12 @@ function TaskList({ specName }: { specName: string }) {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [copiedTaskId, setCopiedTaskId] = useState<string | null>(null);
   const [expandedPrompts, setExpandedPrompts] = useState<Set<string>>(new Set());
+
+  // Task review state
+  const [reviewSummary, setReviewSummary] = useState<Record<string, { verdict: string; version: number }>>({});
+  const [taskReviewJobs, setTaskReviewJobs] = useState<Map<string, any>>(new Map());
+  const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
+  const [reviewLoading, setReviewLoading] = useState<string | null>(null);
 
   // Filter and sort state
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
@@ -488,6 +575,52 @@ function TaskList({ specName }: { specName: string }) {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [getSpecTasksProgress, specName]);
+
+  // Fetch review summary for verdict badges
+  useEffect(() => {
+    getTaskReviewSummary(specName)
+      .then((result) => setReviewSummary(result.summary || {}))
+      .catch(() => {});
+  }, [getTaskReviewSummary, specName]);
+
+  // On mount / spec change: fetch existing task review jobs (handles page reload mid-review)
+  useEffect(() => {
+    getTaskReviewJobs()
+      .then((result) => {
+        const jobs = result.jobs || [];
+        setTaskReviewJobs(prev => {
+          const next = new Map(prev);
+          for (const job of jobs) {
+            if (job.specName === specName) {
+              next.set(`${job.specName}:${job.taskId}`, job);
+            }
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [getTaskReviewJobs, specName]);
+
+  // Subscribe to task review job updates
+  useEffect(() => {
+    const handleTaskReviewUpdate = (jobData: any) => {
+      const key = `${jobData.specName}:${jobData.taskId}`;
+      setTaskReviewJobs(prev => {
+        const next = new Map(prev);
+        next.set(key, jobData);
+        return next;
+      });
+      // Refresh summary on completion
+      if (jobData.status === 'completed' && jobData.specName === specName) {
+        getTaskReviewSummary(specName)
+          .then((result) => setReviewSummary(result.summary || {}))
+          .catch(() => {});
+      }
+    };
+
+    subscribe('task-review-job-update', handleTaskReviewUpdate);
+    return () => { unsubscribe('task-review-job-update', handleTaskReviewUpdate); };
+  }, [subscribe, unsubscribe, specName, getTaskReviewSummary]);
 
   // Subscribe to task status updates via WebSocket
   useEffect(() => {
@@ -1049,6 +1182,40 @@ function TaskList({ specName }: { specName: string }) {
                             </span>
                           </button>
                         )}
+                        {!task.isHeader && task.hasImplLog && (() => {
+                          const activeJob = taskReviewJobs.get(`${specName}:${task.id}`);
+                          const jobRunning = activeJob && (activeJob.status === 'pending' || activeJob.status === 'running');
+                          const disabled = reviewLoading === task.id || jobRunning;
+                          return (
+                            <button
+                              onClick={async () => {
+                                setReviewLoading(task.id);
+                                try {
+                                  const res = await requestTaskReview(specName, task.id);
+                                  if (!res.ok) {
+                                    const errMsg = (res.data && (res.data as any).error) || `Review request failed (${res.status})`;
+                                    alert(`Could not start review: ${errMsg}`);
+                                  }
+                                } finally {
+                                  setReviewLoading(null);
+                                }
+                              }}
+                              disabled={disabled}
+                              className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs rounded-md transition-colors flex items-center gap-1 min-h-[32px] sm:min-h-[36px] border bg-[var(--surface-base)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--surface-raised)] disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={jobRunning ? 'Review already running' : (reviewSummary[task.id] ? 'Re-review implementation' : 'Review implementation')}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                              <span className="hidden sm:inline">
+                                {jobRunning ? 'Reviewing...' : (reviewLoading === task.id ? 'Starting...' : (reviewSummary[task.id] ? 'Re-review' : 'Review'))}
+                              </span>
+                            </button>
+                          );
+                        })()}
+                        {!task.isHeader && reviewSummary[task.id] && (
+                          <TaskReviewBadge verdict={reviewSummary[task.id].verdict} />
+                        )}
                         {task.isHeader && (
                           <span className="px-2 py-1 text-xs bg-[var(--surface-base)] text-[var(--text-secondary)] rounded-md whitespace-nowrap border border-[var(--border-default)] flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-purple-500" />
@@ -1193,6 +1360,50 @@ function TaskList({ specName }: { specName: string }) {
                           </div>
                         )}                      </div>
                     )}
+                    {/* Task Review Progress & Findings */}
+                    {!task.isHeader && (() => {
+                      const jobKey = `${specName}:${task.id}`;
+                      const job = taskReviewJobs.get(jobKey);
+                      const reviewInfo = reviewSummary[task.id];
+                      return (
+                        <>
+                          {job && (job.status === 'pending' || job.status === 'running' || job.status === 'failed' || (job.status === 'completed' && !reviewInfo)) && (
+                            <TaskReviewProgress
+                              job={job}
+                              specName={specName}
+                              taskId={task.id}
+                              onRetry={async () => {
+                                const res = await retryTaskReview(specName, task.id);
+                                if (!res.ok) {
+                                  const errMsg = (res.data && (res.data as any).error) || `Retry failed (${res.status})`;
+                                  alert(`Could not retry review: ${errMsg}`);
+                                }
+                              }}
+                            />
+                          )}
+                          {reviewInfo && reviewInfo.verdict !== 'pass' && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => setExpandedFindings(prev => {
+                                  const next = new Set(prev);
+                                  next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+                                  return next;
+                                })}
+                                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1"
+                              >
+                                <svg className={`w-3 h-3 transition-transform ${expandedFindings.has(task.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                                {expandedFindings.has(task.id) ? 'Hide findings' : 'Show findings'}
+                              </button>
+                              {expandedFindings.has(task.id) && (
+                                <TaskReviewFindings specName={specName} taskId={task.id} version={reviewInfo.version} />
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

@@ -2,6 +2,9 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { SpecParser } from '../core/parser.js';
+import { TaskReviewManager } from '../core/task-review-manager.js';
+import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
+import { parseTasksFromMarkdown } from '../core/task-parser.js';
 
 export const specStatusTool: Tool = {
   name: 'spec-status',
@@ -131,7 +134,9 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
           nextSteps.push(`Read tasks: .spec-workflow/specs/${specName}/tasks.md`);
           nextSteps.push('Edit tasks.md: Change [ ] to [-] for task you start');
           nextSteps.push('Implement the task code');
-          nextSteps.push('Edit tasks.md: Change [-] to [x] when completed');
+          nextSteps.push('MANDATORY: Call log-implementation before marking complete');
+          nextSteps.push('Review implementation (dashboard Review button or review-task tool)');
+          nextSteps.push('Only then: Edit tasks.md: Change [-] to [x]');
         } else {
           nextSteps.push(`Read tasks: .spec-workflow/specs/${specName}/tasks.md`);
           nextSteps.push('Begin implementation by marking first task [-]');
@@ -141,6 +146,60 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
         nextSteps.push('All tasks completed (marked [x])');
         nextSteps.push('Run tests');
         break;
+    }
+
+    // Check implementation log and review coverage for completed tasks
+    let reviewCoverage: { reviewed: number; unreviewed: string[] } | undefined;
+    let logCoverage: { logged: number; unlogged: string[] } | undefined;
+    if (spec.taskProgress && spec.taskProgress.completed > 0) {
+      try {
+        const specPath = PathUtils.getSpecPath(translatedPath, specName);
+        const { promises: fsPromises } = await import('fs');
+        const tasksContent = await fsPromises.readFile(`${specPath}/tasks.md`, 'utf-8');
+        const parseResult = parseTasksFromMarkdown(tasksContent);
+        const completedTasks = parseResult.tasks.filter(t => t.status === 'completed');
+
+        // Check implementation log coverage
+        const logManager = new ImplementationLogManager(specPath);
+        const taskIdsWithLogs = await logManager.getTaskIdsWithLogs();
+        const unlogged: string[] = [];
+        let logged = 0;
+
+        for (const task of completedTasks) {
+          if (taskIdsWithLogs.has(task.id)) {
+            logged++;
+          } else {
+            unlogged.push(task.id);
+          }
+        }
+        logCoverage = { logged, unlogged };
+
+        // Check review coverage
+        const reviewManager = new TaskReviewManager(specPath);
+        const unreviewed: string[] = [];
+        let reviewed = 0;
+
+        for (const task of completedTasks) {
+          const latest = await reviewManager.getLatestReview(task.id);
+          if (latest) {
+            reviewed++;
+          } else {
+            unreviewed.push(task.id);
+          }
+        }
+
+        reviewCoverage = { reviewed, unreviewed };
+      } catch {
+        // Coverage checks are best-effort
+      }
+    }
+
+    // Flag completed tasks missing logs or reviews
+    if (logCoverage && logCoverage.unlogged.length > 0) {
+      nextSteps.push(`WARNING: ${logCoverage.unlogged.length} completed task(s) missing implementation logs: ${logCoverage.unlogged.join(', ')}. Run log-implementation for each.`);
+    }
+    if (reviewCoverage && reviewCoverage.unreviewed.length > 0) {
+      nextSteps.push(`${reviewCoverage.unreviewed.length} completed task(s) without reviews: ${reviewCoverage.unreviewed.join(', ')}. Reviews can be run retroactively — ask user to trigger from dashboard.`);
     }
 
     return {
@@ -158,7 +217,9 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
           total: 0,
           completed: 0,
           pending: 0
-        }
+        },
+        logCoverage,
+        reviewCoverage
       },
       nextSteps,
       projectContext: {

@@ -394,8 +394,9 @@ export async function logImplementationHandler(
         dashboardUrl: `${context.dashboardUrl}/logs?spec=${encodeURIComponent(specName)}&task=${taskId}`
       },
       nextSteps: [
-        'Mark task as completed in tasks.md by changing [-] to [x]',
-        'View implementation log in dashboard under Logs tab',
+        'Ask the user to trigger a code review from the dashboard Tasks page (Review button) — do NOT self-review',
+        'Once review completes, call get-task-review to retrieve findings and discuss with user',
+        'After review passes, mark task as completed in tasks.md by changing [-] to [x]',
         'Continue with next pending task'
       ],
       projectContext: {
