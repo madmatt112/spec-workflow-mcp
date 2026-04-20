@@ -407,6 +407,57 @@ describe('AdversarialRunner', () => {
     });
   });
 
+  describe('prompt generation with memory context', () => {
+    it('includes memory instructions in prompt for v2+ reviews', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+
+      await runner.run(baseOpts({
+        version: 2,
+        memoryFilePath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md',
+        latestAnalysisPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements.md',
+      }));
+
+      // The prompt passed to spawn should contain memory instructions
+      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
+      const prompt = spawnArgs[spawnArgs.length - 1];
+      expect(prompt).toContain('Prior Review Memory');
+      expect(prompt).toContain('adversarial-memory-requirements.md');
+      expect(prompt).toContain('adversarial-analysis-requirements.md');
+    });
+
+    it('does not include memory instructions for v1 reviews', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+
+      await runner.run(baseOpts({
+        version: 1,
+        memoryFilePath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md',
+        latestAnalysisPath: null,
+      }));
+
+      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
+      const prompt = spawnArgs[spawnArgs.length - 1];
+      expect(prompt).not.toContain('Prior Review Memory');
+    });
+
+    it('includes memory file in files-to-read list for v2+', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+
+      const memoryPath = '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md';
+      await runner.run(baseOpts({
+        version: 3,
+        memoryFilePath: memoryPath,
+        latestAnalysisPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements-r2.md',
+      }));
+
+      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
+      const prompt = spawnArgs[spawnArgs.length - 1];
+      expect(prompt).toContain(`- ${memoryPath}`);
+    });
+  });
+
   describe('shutdown', () => {
     it('kills all running processes', async () => {
       const child1 = createFakeChild();

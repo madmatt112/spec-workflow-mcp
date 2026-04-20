@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { adversarialResponseHandler } from '../adversarial-response.js';
+import { adversarialResponseHandler, getAdversarialResponseMethodology } from '../adversarial-response.js';
 import { ToolContext } from '../../types.js';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -207,5 +207,12 @@ describe('adversarial-response tool', () => {
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('No adversarial analysis found');
+  });
+
+  it('response methodology includes recurring findings guidance', () => {
+    const methodology = getAdversarialResponseMethodology();
+    expect(methodology).toContain('Recurring Findings');
+    expect(methodology).toContain('structural issues');
+    expect(methodology).toContain('elevated priority');
   });
 });

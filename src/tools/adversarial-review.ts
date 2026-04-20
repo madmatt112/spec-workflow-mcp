@@ -124,6 +124,12 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
   // Check for methodology override in settings
   const methodology = await getMethodologyOverride(workflowRoot, 'reviewMethodology') || getAdversarialReviewMethodology();
 
+  // Memory context for v2+ reviews
+  const memoryFilePath = join(reviewsDir, `adversarial-memory-${versionPhase}.md`);
+  const latestAnalysisPath = version > 1
+    ? await findLatestAnalysis(reviewsDir, versionPhase)
+    : null;
+
   return {
     success: true,
     message: isDecomposition
@@ -137,7 +143,9 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
       phase,
       steeringDocs,
       priorPhaseDocs,
-      methodology
+      methodology,
+      memoryFilePath,
+      latestAnalysisPath,
     },
     nextSteps: [
       'Read the target document and understand its content',
@@ -166,6 +174,30 @@ async function getNextVersion(reviewsDir: string, phase: string): Promise<number
     return maxVersion === 0 ? 1 : maxVersion + 1;
   } catch {
     return 1;
+  }
+}
+
+async function findLatestAnalysis(reviewsDir: string, phase: string): Promise<string | null> {
+  try {
+    const files = await fs.readdir(reviewsDir);
+    const pattern = new RegExp(`^adversarial-analysis-${phase}(-r(\\d+))?\\.md$`);
+    let maxVersion = 0;
+    let latestFile: string | null = null;
+
+    for (const file of files) {
+      const match = file.match(pattern);
+      if (match) {
+        const ver = match[2] ? parseInt(match[2], 10) : 1;
+        if (ver > maxVersion) {
+          maxVersion = ver;
+          latestFile = join(reviewsDir, file);
+        }
+      }
+    }
+
+    return latestFile;
+  } catch {
+    return null;
   }
 }
 
@@ -278,5 +310,58 @@ the target document path.
 
 After writing the prompt file, launch a fresh-context subagent. The subagent prompt must be
 exactly: "Read and execute the instructions in <path-to-prompt-file>." Do not add any other
-context, summary, or instructions.`;
+context, summary, or instructions.
+
+## Working with Prior Review Context (v2+ Reviews)
+
+When a memory file path and latest analysis path are provided (version 2+), the prompt
+generation step has additional responsibilities:
+
+### Reading Prior Context
+- Read the memory file at the provided path (if it exists on disk — it won't exist for the
+  first v2 review, but will for v3+).
+- Read the latest analysis file to understand what was found in the most recent review.
+
+### Updating the Memory File
+After reading both, write an updated memory file that:
+- Incorporates findings from the latest analysis into a cumulative record.
+- Categorizes findings as: Accepted, Partially Accepted, Rejected, or Unresolved.
+- Notes patterns and themes across iterations.
+- Provides guidance for the next review's focus areas.
+
+Use this format:
+\`\`\`markdown
+# Adversarial Review Memory — {phase}
+Last updated: {date} (after v{N} review)
+
+## Cumulative Findings Summary
+### Accepted
+- [finding]: [brief description, which version identified it]
+
+### Partially Accepted
+- [finding]: [brief description, user's stance]
+
+### Rejected
+- [finding]: [brief description, reason for rejection]
+
+### Unresolved
+- [finding]: [not yet responded to]
+
+## Patterns & Themes
+- [high-level observations about recurring issues]
+
+## Guidance for Next Review
+- Focus areas based on what's been found
+- Areas that have been well-covered and don't need re-examination
+\`\`\`
+
+### Embedding Context in the Generated Prompt
+Add a "## Prior Review Context" section to the generated adversarial prompt containing:
+- A summary of what prior reviews found.
+- Which findings were addressed and which persist.
+- A directive to focus on novel issues, not re-discover known ones.
+- Instruction to classify each finding as one of:
+  - **Novel**: Not identified in any prior review.
+  - **Compounding**: Builds on or deepens a prior finding.
+  - **Recurring**: Same issue identified before but not yet resolved — severity should escalate.`;
 }

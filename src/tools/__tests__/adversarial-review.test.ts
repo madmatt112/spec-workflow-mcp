@@ -74,6 +74,8 @@ describe('adversarial-review tool', () => {
     expect(result.data.methodology).toContain('Adversarial Review Methodology');
     expect(result.data.promptOutputPath).toContain('adversarial-prompt-requirements.md');
     expect(result.data.analysisOutputPath).toContain('adversarial-analysis-requirements.md');
+    expect(result.data.memoryFilePath).toContain('adversarial-memory-requirements.md');
+    expect(result.data.latestAnalysisPath).toBeNull();
 
     // reviews/ directory should have been created
     const stat = await fs.stat(join(specDir, 'reviews'));
@@ -97,6 +99,8 @@ describe('adversarial-review tool', () => {
     expect(result.data.version).toBe(2);
     expect(result.data.promptOutputPath).toContain('-r2.md');
     expect(result.data.analysisOutputPath).toContain('-r2.md');
+    // Points to v1 file (no -rN suffix in filename)
+    expect(result.data.latestAnalysisPath).toMatch(/adversarial-analysis-requirements\.md$/);
   });
 
   it('uses methodology override from settings', async () => {
@@ -239,5 +243,58 @@ describe('adversarial-review tool', () => {
     expect(result.data.priorPhaseDocs).toHaveLength(2);
     expect(result.data.priorPhaseDocs[0]).toContain('requirements.md');
     expect(result.data.priorPhaseDocs[1]).toContain('design.md');
+  });
+
+  // --- Memory context tests ---
+
+  it('returns memoryFilePath for decomposition reviews', async () => {
+    const project = await createTempProject();
+    const decompDir = join(project, '.spec-workflow', 'spec-decomposition');
+    await fs.mkdir(decompDir, { recursive: true });
+    await fs.writeFile(join(decompDir, 'decomposition.md'), '# Decomp\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'decomposition', phase: 'decomposition' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.memoryFilePath).toContain('adversarial-memory-decomposition.md');
+  });
+
+  it('returns latestAnalysisPath pointing to highest version', async () => {
+    const project = await createTempProject();
+    const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
+    const reviewsDir = join(specDir, 'reviews');
+    await fs.mkdir(reviewsDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# Req\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-requirements.md'), 'v1\n', 'utf-8');
+    await fs.writeFile(join(reviewsDir, 'adversarial-analysis-requirements-r2.md'), 'v2\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.version).toBe(3);
+    expect(result.data.latestAnalysisPath).toContain('adversarial-analysis-requirements-r2.md');
+  });
+
+  it('methodology includes prior review context section', async () => {
+    const project = await createTempProject();
+    const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# Req\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      ctx(project)
+    );
+
+    expect(result.data.methodology).toContain('Working with Prior Review Context');
+    expect(result.data.methodology).toContain('Novel');
+    expect(result.data.methodology).toContain('Compounding');
+    expect(result.data.methodology).toContain('Recurring');
   });
 });
