@@ -627,6 +627,15 @@ export class ImplementationLogManager {
   }
 
   /**
+   * Get the set of task IDs that have at least one implementation log.
+   * Single loadLog() call — avoids O(n) file reads when checking many tasks.
+   */
+  async getTaskIdsWithLogs(): Promise<Set<string>> {
+    const log = await this.loadLog();
+    return new Set(log.entries.map(e => e.taskId));
+  }
+
+  /**
    * Get the logs directory path
    */
   getLogsDir(): string {

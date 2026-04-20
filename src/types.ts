@@ -193,6 +193,28 @@ export interface MCPToolResponse {
   _meta?: Record<string, any>;
 }
 
+export interface ReviewFinding {
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  file?: string;
+  line?: number;
+  description: string;
+  taskRequirement?: string;
+  category?: 'spec-compliance' | 'hygiene';
+  classification?: 'novel' | 'compounding' | 'recurring';
+}
+
+export interface TaskReview {
+  id: string;
+  taskId: string;
+  specName: string;
+  version: number;
+  timestamp: string;
+  verdict: 'pass' | 'fail' | 'findings';
+  summary: string;
+  findings: ReviewFinding[];
+}
+
 export interface Deferral {
   id: string;
   status: 'deferred' | 'resolved' | 'superseded';

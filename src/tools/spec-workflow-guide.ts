@@ -115,7 +115,8 @@ flowchart TD
     P4_Status --> P4_Task[Edit tasks.md:<br/>Change [ ] to [-]<br/>for in-progress]
     P4_Task --> P4_Code[Implement code]
     P4_Code --> P4_Log[log-implementation<br/>Record implementation<br/>details]
-    P4_Log --> P4_Complete[Edit tasks.md:<br/>Change [-] to [x]<br/>for completed]
+    P4_Log --> P4_Review[review-task<br/>Review implementation<br/>against spec]
+    P4_Review --> P4_Complete[Edit tasks.md:<br/>Change [-] to [x]<br/>for completed]
     P4_Complete --> P4_More{More tasks?}
     P4_More -->|Yes| P4_Task
     P4_More -->|No| End([Implementation Complete])
@@ -130,6 +131,7 @@ flowchart TD
     style Decomp_Check fill:#fff4e6
     style P4_More fill:#fff4e6
     style P4_Log fill:#e3f2fd
+    style P4_Review fill:#e3f2fd
 \`\`\`
 
 ## Spec Workflow
@@ -259,6 +261,8 @@ flowchart TD
 - Read: Examine implementation log files directly
 - implement-task prompt: Guide for implementing tasks
 - log-implementation: Record implementation details with artifacts after task completion (step 5)
+- review-task: Review implementation against task spec (step 6) — call with action "prepare" then "record"
+- get-task-review: Retrieve findings from a completed review (use after a dashboard-triggered review completes)
 - Direct editing: Mark tasks as in-progress [-] or complete [x] in tasks.md
 
 **Process**:
@@ -295,7 +299,14 @@ flowchart TD
      - Example: "Created API GET /api/todos/:id endpoint and TodoDetail React component with WebSocket real-time updates"
      - This creates a searchable knowledge base for future AI agents to discover existing code
      - Prevents implementation details from being lost in chat history
-   - **Only after log-implementation succeeds**: Edit tasks.md: Change \`[-]\` to \`[x]\`
+   - **After log-implementation succeeds, request a code review**:
+     - ⚠️ Do NOT review your own implementation — self-review is biased and unreliable
+     - Ask the user to trigger a review from the dashboard Tasks page (Review button), which runs a fresh-context agent
+     - Once the dashboard review completes, call \`get-task-review\` with specName and taskId to retrieve the findings
+     - Discuss findings with the user and address any critical or warning items
+     - If verdict is "fail": address critical findings, then ask the user to trigger a re-review from the dashboard
+   - **Only after review passes or has non-critical findings**: Edit tasks.md: Change \`[-]\` to \`[x]\`
+   - **Retroactive reviews**: Reviews can also be run against tasks already marked \`[x]\`. This is useful for reviewing historical tasks, running reviews after adding new review criteria, or catching issues in code that was completed before the review feature existed. Marking a task complete does not lock it from future review.
 4. Continue until all tasks show \`[x]\`
 
 ## Steering Document Loading

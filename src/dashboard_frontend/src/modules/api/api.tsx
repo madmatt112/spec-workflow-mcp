@@ -87,7 +87,13 @@ async function postJson(url: string, body: any) {
 
 async function postJsonWithData<T>(url: string, body: any): Promise<{ ok: boolean; status: number; data?: T }> {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const data = res.ok ? await res.json() : undefined;
+  // Parse body on both success and error paths so callers can show server-provided error messages
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    data = undefined;
+  }
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -141,6 +147,14 @@ type ApiActionsContextType = {
   getAdversarialJobs: () => Promise<{ jobs: any[] }>;
   getAdversarialJob: (jobId: string) => Promise<{ job: any }>;
   cancelAdversarialJob: (jobId: string) => Promise<{ ok: boolean; status: number }>;
+  // Task review
+  requestTaskReview: (specName: string, taskId: string) => Promise<{ ok: boolean; status: number; data?: any }>;
+  retryTaskReview: (specName: string, taskId: string) => Promise<{ ok: boolean; status: number; data?: any }>;
+  getTaskReviewJobs: () => Promise<{ jobs: any[] }>;
+  cancelTaskReviewJob: (jobId: string) => Promise<{ ok: boolean; status: number }>;
+  getTaskReviews: (specName: string, taskId: string) => Promise<{ reviews: any[] }>;
+  getTaskReviewContent: (specName: string, taskId: string, version: number) => Promise<{ review: any }>;
+  getTaskReviewSummary: (specName: string) => Promise<{ summary: Record<string, { verdict: string; version: number }> }>;
 };
 
 const ApiDataContext = createContext<ApiDataContextType | undefined>(undefined);
@@ -320,6 +334,13 @@ export function ApiProvider({ initial, projectId, children }: ApiProviderProps) 
         getAdversarialJobs: async () => ({ jobs: [] }),
         getAdversarialJob: async () => ({ job: null }),
         cancelAdversarialJob: async () => ({ ok: false, status: 400 }),
+        requestTaskReview: async () => ({ ok: false, status: 400 }),
+        retryTaskReview: async () => ({ ok: false, status: 400 }),
+        getTaskReviewJobs: async () => ({ jobs: [] }),
+        cancelTaskReviewJob: async () => ({ ok: false, status: 400 }),
+        getTaskReviews: async () => ({ reviews: [] }),
+        getTaskReviewContent: async () => ({ review: null }),
+        getTaskReviewSummary: async () => ({ summary: {} }),
       };
     }
 
@@ -372,6 +393,19 @@ export function ApiProvider({ initial, projectId, children }: ApiProviderProps) 
       getAdversarialJobs: () => getJson(`${prefix}/adversarial/jobs`),
       getAdversarialJob: (jobId: string) => getJson(`${prefix}/adversarial/jobs/${encodeURIComponent(jobId)}`),
       cancelAdversarialJob: (jobId: string) => postJsonWithData(`${prefix}/adversarial/jobs/${encodeURIComponent(jobId)}/cancel`, {}),
+      // Task review
+      requestTaskReview: (specName: string, taskId: string) =>
+        postJsonWithData(`${prefix}/specs/${encodeURIComponent(specName)}/tasks/${encodeURIComponent(taskId)}/review`, {}),
+      retryTaskReview: (specName: string, taskId: string) =>
+        postJsonWithData(`${prefix}/specs/${encodeURIComponent(specName)}/tasks/${encodeURIComponent(taskId)}/review-retry`, {}),
+      getTaskReviewJobs: () => getJson(`${prefix}/task-reviews/jobs`),
+      cancelTaskReviewJob: (jobId: string) => postJsonWithData(`${prefix}/task-reviews/jobs/${encodeURIComponent(jobId)}/cancel`, {}),
+      getTaskReviews: (specName: string, taskId: string) =>
+        getJson(`${prefix}/specs/${encodeURIComponent(specName)}/tasks/${encodeURIComponent(taskId)}/reviews`),
+      getTaskReviewContent: (specName: string, taskId: string, version: number) =>
+        getJson(`${prefix}/specs/${encodeURIComponent(specName)}/tasks/${encodeURIComponent(taskId)}/reviews/${version}`),
+      getTaskReviewSummary: (specName: string) =>
+        getJson(`${prefix}/specs/${encodeURIComponent(specName)}/task-reviews/summary`),
     };
   }, [projectId, reloadAll]);
 

@@ -15,7 +15,11 @@ import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { ProjectManager } from './project-manager.js';
 import { JobScheduler } from './job-scheduler.js';
 import { AdversarialRunner, AdversarialJob } from './adversarial-runner.js';
+import { TaskReviewRunner, TaskReviewJob } from './task-review-runner.js';
 import { ImplementationLogManager } from './implementation-log-manager.js';
+import { TaskReviewManager } from '../core/task-review-manager.js';
+import { reviewTaskHandler } from '../tools/review-task.js';
+import { PathUtils } from '../core/path-utils.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
 import {
   getSecurityConfig,
@@ -50,6 +54,7 @@ export class MultiProjectDashboardServer {
   private projectManager: ProjectManager;
   private jobScheduler: JobScheduler;
   private adversarialRunner: AdversarialRunner;
+  private taskReviewRunner: TaskReviewRunner;
   private sessionManager: DashboardSessionManager;
   private options: MultiDashboardOptions;
   private bindAddress: string;
@@ -72,6 +77,7 @@ export class MultiProjectDashboardServer {
     this.projectManager = new ProjectManager();
     this.jobScheduler = new JobScheduler(this.projectManager);
     this.adversarialRunner = new AdversarialRunner();
+    this.taskReviewRunner = new TaskReviewRunner();
     this.sessionManager = new DashboardSessionManager();
 
     // Initialize network binding configuration
@@ -396,6 +402,15 @@ export class MultiProjectDashboardServer {
     this.adversarialRunner.on('job-update', (job: AdversarialJob) => {
       this.broadcastToProject(job.projectId, {
         type: 'adversarial-job-update',
+        projectId: job.projectId,
+        data: job
+      });
+    });
+
+    // Broadcast task review job updates
+    this.taskReviewRunner.on('job-update', (job: TaskReviewJob) => {
+      this.broadcastToProject(job.projectId, {
+        type: 'task-review-job-update',
         projectId: job.projectId,
         data: job
       });
@@ -1311,12 +1326,22 @@ export class MultiProjectDashboardServer {
         const completedTasks = parseResult.summary.completed;
         const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
+        // Check which tasks have implementation logs (single loadLog call)
+        const specPath = join(project.projectPath, '.spec-workflow', 'specs', name);
+        const logManager = new ImplementationLogManager(specPath);
+        const taskIdsWithLogs = await logManager.getTaskIdsWithLogs();
+
+        const taskListWithLogInfo = parseResult.tasks.map(t => ({
+          ...t,
+          hasImplLog: taskIdsWithLogs.has(t.id)
+        }));
+
         return {
           total: totalTasks,
           completed: completedTasks,
           inProgress: parseResult.inProgressTask,
           progress: progress,
-          taskList: parseResult.tasks,
+          taskList: taskListWithLogInfo,
           lastModified: spec.phases.tasks.lastModified || spec.lastModified
         };
       } catch (error: any) {
@@ -1688,6 +1713,172 @@ export class MultiProjectDashboardServer {
       }
     });
 
+    // ===== Task Review Endpoints =====
+
+    // Trigger a fresh-context task review
+    this.app.post('/api/projects/:projectId/specs/:specName/tasks/:taskId/review', async (request, reply) => {
+      const { projectId, specName, taskId } = request.params as { projectId: string; specName: string; taskId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+
+      try {
+        // Read settings for CLI/model config
+        const settingsPath = join(project.projectPath, '.spec-workflow', 'adversarial-settings.json');
+        let model: string | undefined;
+        let cli: string | undefined;
+        let cliArgs: string[] | undefined;
+        try {
+          const settingsContent = await readFile(settingsPath, 'utf-8');
+          const settings = JSON.parse(settingsContent);
+          if (settings.model) model = settings.model;
+          if (settings.cli) cli = settings.cli;
+          if (settings.cliArgs && Array.isArray(settings.cliArgs)) cliArgs = settings.cliArgs;
+        } catch {
+          // Use defaults
+        }
+
+        const jobId = await this.taskReviewRunner.run({
+          projectId,
+          specName,
+          taskId,
+          projectPath: project.projectPath,
+          model,
+          cli,
+          cliArgs,
+        });
+
+        return { success: true, jobId };
+      } catch (error: any) {
+        return reply.code(400).send({ error: error.message });
+      }
+    });
+
+    // Retry a failed task review
+    this.app.post('/api/projects/:projectId/specs/:specName/tasks/:taskId/review-retry', async (request, reply) => {
+      const { projectId, specName, taskId } = request.params as { projectId: string; specName: string; taskId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+
+      // Find the failed job for this task
+      const jobs = this.taskReviewRunner.getJobsForProject(projectId);
+      const failedJob = jobs.find(j => j.specName === specName && j.taskId === taskId && j.status === 'failed');
+      if (!failedJob) {
+        return reply.code(404).send({ error: 'No failed review job found for this task' });
+      }
+
+      try {
+        const settingsPath = join(project.projectPath, '.spec-workflow', 'adversarial-settings.json');
+        let model: string | undefined;
+        let cli: string | undefined;
+        let cliArgs: string[] | undefined;
+        try {
+          const settingsContent = await readFile(settingsPath, 'utf-8');
+          const settings = JSON.parse(settingsContent);
+          if (settings.model) model = settings.model;
+          if (settings.cli) cli = settings.cli;
+          if (settings.cliArgs && Array.isArray(settings.cliArgs)) cliArgs = settings.cliArgs;
+        } catch {
+          // Use defaults
+        }
+
+        const jobId = await this.taskReviewRunner.run({
+          projectId,
+          specName,
+          taskId,
+          projectPath: project.projectPath,
+          model,
+          cli,
+          cliArgs,
+        });
+
+        return { success: true, jobId };
+      } catch (error: any) {
+        return reply.code(400).send({ error: error.message });
+      }
+    });
+
+    // List task review jobs
+    this.app.get('/api/projects/:projectId/task-reviews/jobs', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      return { jobs: this.taskReviewRunner.getJobsForProject(projectId) };
+    });
+
+    // Get specific task review job
+    this.app.get('/api/projects/:projectId/task-reviews/jobs/:jobId', async (request, reply) => {
+      const { jobId } = request.params as { projectId: string; jobId: string };
+      const job = this.taskReviewRunner.getJob(jobId);
+      if (!job) return reply.code(404).send({ error: 'Job not found' });
+      return { job };
+    });
+
+    // Cancel task review job
+    this.app.post('/api/projects/:projectId/task-reviews/jobs/:jobId/cancel', async (request, reply) => {
+      const { jobId } = request.params as { projectId: string; jobId: string };
+      const cancelled = this.taskReviewRunner.cancelJob(jobId);
+      if (!cancelled) return reply.code(400).send({ error: 'Job cannot be cancelled (not running or not found)' });
+      return { success: true };
+    });
+
+    // List review versions for a task
+    this.app.get('/api/projects/:projectId/specs/:specName/tasks/:taskId/reviews', async (request, reply) => {
+      const { projectId, specName, taskId } = request.params as { projectId: string; specName: string; taskId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+
+      try {
+        const specPath = join(project.projectPath, '.spec-workflow', 'specs', specName);
+        const reviewManager = new TaskReviewManager(specPath);
+        const reviews = await reviewManager.getReviewsForTask(taskId);
+        return { reviews: reviews.map(r => ({ id: r.id, version: r.version, verdict: r.verdict, timestamp: r.timestamp, summary: r.summary, findingsCount: r.findings.length })) };
+      } catch (error: any) {
+        return reply.code(500).send({ error: error.message });
+      }
+    });
+
+    // Get specific review version (parsed JSON)
+    this.app.get('/api/projects/:projectId/specs/:specName/tasks/:taskId/reviews/:version', async (request, reply) => {
+      const { projectId, specName, taskId, version } = request.params as { projectId: string; specName: string; taskId: string; version: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+
+      try {
+        const specPath = join(project.projectPath, '.spec-workflow', 'specs', specName);
+        const reviewManager = new TaskReviewManager(specPath);
+        const reviews = await reviewManager.getReviewsForTask(taskId);
+        const review = reviews.find(r => r.version === parseInt(version));
+        if (!review) return reply.code(404).send({ error: `Review version ${version} not found for task ${taskId}` });
+        return { review };
+      } catch (error: any) {
+        return reply.code(500).send({ error: error.message });
+      }
+    });
+
+    // Per-spec task review summary
+    this.app.get('/api/projects/:projectId/specs/:specName/task-reviews/summary', async (request, reply) => {
+      const { projectId, specName } = request.params as { projectId: string; specName: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+
+      try {
+        const specPath = join(project.projectPath, '.spec-workflow', 'specs', specName);
+        const reviewManager = new TaskReviewManager(specPath);
+        const allReviews = await reviewManager.loadAllReviews();
+
+        // Group by taskId, keep latest version
+        const summary: Record<string, { verdict: string; version: number }> = {};
+        for (const review of allReviews) {
+          const existing = summary[review.taskId];
+          if (!existing || review.version > existing.version) {
+            summary[review.taskId] = { verdict: review.verdict, version: review.version };
+          }
+        }
+
+        return { summary };
+      } catch (error: any) {
+        return reply.code(500).send({ error: error.message });
+      }
+    });
+
     // Global changelog endpoint
     this.app.get('/api/changelog/:version', async (request, reply) => {
       const { version } = request.params as { version: string };
@@ -1968,8 +2159,9 @@ export class MultiProjectDashboardServer {
     });
     this.clients.clear();
 
-    // Stop adversarial runner
+    // Stop runners
     this.adversarialRunner.shutdown();
+    this.taskReviewRunner.shutdown();
 
     // Stop job scheduler
     await this.jobScheduler.shutdown();
