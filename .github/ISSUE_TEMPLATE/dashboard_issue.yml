@@ -61,7 +61,7 @@ body:
       label: Command or Setup Used
       description: How did you start the MCP server/dashboard or what VSCode version are you using?
       render: shell
-      placeholder: npx @pimzino/spec-workflow-mcp@latest --dashboard
+      placeholder: npx @madmatt112/spec-workflow-mcp@latest --dashboard
 
   - type: textarea
     id: additional-context

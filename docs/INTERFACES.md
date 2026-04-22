@@ -22,20 +22,20 @@ The web dashboard is a real-time web application that provides visual access to 
 #### Standalone Dashboard
 ```bash
 # Uses ephemeral port
-npx -y @pimzino/spec-workflow-mcp@latest /path/to/project --dashboard
+npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project --dashboard
 
 # Custom port
-npx -y @pimzino/spec-workflow-mcp@latest /path/to/project --dashboard --port 3000
+npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project --dashboard --port 3000
 ```
 
 #### With MCP Server
 ```bash
 # Run MCP server and dashboard separately (recommended)
 # Terminal 1: Start dashboard
-npx -y @pimzino/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
 
 # Terminal 2: Start MCP server
-npx -y @pimzino/spec-workflow-mcp@latest /path/to/project
+npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project
 ```
 
 ### Dashboard Features
@@ -248,17 +248,16 @@ Customize view preferences:
 
 ### Installation
 
-Install from VSCode Marketplace:
+This fork is not yet published to the VSCode Marketplace. Build from source and side-install:
 
-1. Open VSCode Extensions (Ctrl+Shift+X)
-2. Search "Spec Workflow MCP"
-3. Click Install
-4. Reload VSCode
-
-Or via command line:
 ```bash
-code --install-extension Pimzino.spec-workflow-mcp
+cd vscode-extension
+npm install
+npm run package    # produces spec-workflow-mcp-<version>.vsix
+code --install-extension spec-workflow-mcp-<version>.vsix
 ```
+
+Reload VSCode once installed.
 
 ### Extension Features
 
@@ -551,10 +550,10 @@ Inherits VSCode accessibility:
 Configure in multiple terminals:
 ```bash
 # Terminal 1: MCP Server
-npx -y @pimzino/spec-workflow-mcp@latest /project
+npx -y @madmatt112/spec-workflow-mcp@latest /project
 
 # Terminal 2: Dashboard
-npx -y @pimzino/spec-workflow-mcp@latest /project --dashboard --port 3000
+npx -y @madmatt112/spec-workflow-mcp@latest /project --dashboard --port 3000
 ```
 
 ### Extension Multi-Root Workspaces

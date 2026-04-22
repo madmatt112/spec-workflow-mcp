@@ -21,10 +21,6 @@
     "dark": "Dark",
     "light": "Light"
   },
-  "support": {
-    "me": "Support Me",
-    "project": "Support the project"
-  },
   "mobile": {
     "menu": "Menu",
     "closeMenu": "Close menu",

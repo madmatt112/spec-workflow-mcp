@@ -20,10 +20,6 @@
     "dark": "Sombre",
     "light": "Clair"
   },
-  "support": {
-    "me": "Me Soutenir",
-    "project": "Soutenir le projet"
-  },
   "mobile": {
     "menu": "Menu",
     "closeMenu": "Fermer le menu",

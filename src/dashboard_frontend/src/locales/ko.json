@@ -20,10 +20,6 @@
     "dark": "다크",
     "light": "라이트"
   },
-  "support": {
-    "me": "나를 지원하기",
-    "project": "프로젝트 지원하기"
-  },
   "mobile": {
     "menu": "메뉴",
     "closeMenu": "메뉴 닫기",

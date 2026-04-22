@@ -1,47 +1,30 @@
-# Spec Workflow MCP
-
-[![npm version](https://img.shields.io/npm/v/@pimzino/spec-workflow-mcp)](https://www.npmjs.com/package/@pimzino/spec-workflow-mcp)
-[![VSCode Extension](https://vsmarketplacebadges.dev/version-short/Pimzino.spec-workflow-mcp.svg)](https://marketplace.visualstudio.com/items?itemName=Pimzino.spec-workflow-mcp)
+# Spec Workflow MCP (madmatt112 fork)
 
 A Model Context Protocol (MCP) server for structured spec-driven development with real-time dashboard and VSCode extension.
 
-## ☕ Support This Project
+## Fork Notice
 
-<a href="https://buymeacoffee.com/Pimzino" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+This is a hard fork of [Pimzino/spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp), diverged from upstream version `2.2.6` on **2026-03-13**. It is **not tracking upstream** and will not be merged back. All issues/PRs should be filed against this repository.
 
-## 📺 Showcase
+The `.spec-workflow/` directory layout, tool names, config keys, and `SPEC_WORKFLOW_HOME` environment variable remain identical to upstream, so existing state from upstream `2.2.x` migrates in place.
 
-### 🔄 Approval System in Action
-<a href="https://www.youtube.com/watch?v=C-uEa3mfxd0" target="_blank">
-  <img src="https://img.youtube.com/vi/C-uEa3mfxd0/maxresdefault.jpg" alt="Approval System Demo" width="600">
-</a>
+## What This Fork Adds
 
-*See how the approval system works: create documents, request approval through the dashboard, provide feedback, and track revisions.*
+Four features not present in upstream:
 
-### 📊 Dashboard & Spec Management
-<a href="https://www.youtube.com/watch?v=g9qfvjLUWf8" target="_blank">
-  <img src="https://img.youtube.com/vi/g9qfvjLUWf8/maxresdefault.jpg" alt="Dashboard Demo" width="600">
-</a>
+- **Adversarial Review** — automated oppositional review of spec documents (requirements / design / tasks / steering / decomposition). Spawns fresh-context CLI subagents (defaults to Claude CLI; configurable for any LLM CLI) to generate and execute adversarial prompts against spec content. Dashboard button, in-card progress stepper, versioning / retry, review memory for tracking prior critiques.
+- **Spec Decomposition** — required workflow phase that forces task breakdown before implementation. New `decomposition-guide` tool with dashboard integration and adversarial-review eligibility.
+- **Deferred Decisions Tracker** — new `deferrals` tool and dashboard UI for recording decisions that are intentionally punted during spec authoring.
+- **Task Review** — new `review-task` and `get-task-review` tools that spawn a fresh-context dashboard agent to review completed task implementations before they're marked done.
 
-*Explore the real-time dashboard: view specs, track progress, navigate documents, and monitor your development workflow.*
+## Key Features
 
-## ✨ Key Features
-
-- **Structured Development Workflow** - Sequential spec creation (Requirements → Design → Tasks)
-- **Real-Time Web Dashboard** - Monitor specs, tasks, and progress with live updates
-- **VSCode Extension** - Integrated sidebar dashboard for VSCode users
-- **Approval Workflow** - Complete approval process with revisions
-- **Task Progress Tracking** - Visual progress bars and detailed status
-- **Implementation Logs** - Searchable logs of all task implementations with code statistics
-- **Multi-Language Support** - Available in 11 languages
-
-## 🌍 Supported Languages
-
-🇺🇸 English • 🇯🇵 日本語 • 🇨🇳 中文 • 🇪🇸 Español • 🇧🇷 Português • 🇩🇪 Deutsch • 🇫🇷 Français • 🇷🇺 Русский • 🇮🇹 Italiano • 🇰🇷 한국어 • 🇸🇦 العربية
-
-**📖 Documentation in your language:**
-
-[English](README.md) | [日本語](README.ja.md) | [中文](README.zh.md) | [Español](README.es.md) | [Português](README.pt.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Русский](README.ru.md) | [Italiano](README.it.md) | [한국어](README.ko.md) | [العربية](README.ar.md)
+- **Structured Development Workflow** — Sequential spec creation (Requirements → Design → Tasks) with required decomposition phase.
+- **Real-Time Web Dashboard** — Monitor specs, tasks, and progress with live updates.
+- **VSCode Extension** — Integrated sidebar dashboard (build-from-source for this fork; see below).
+- **Approval Workflow** — Full approval process with revisions and adversarial review.
+- **Task Progress Tracking** — Visual progress bars and detailed status.
+- **Implementation Logs** — Searchable logs of all task implementations with code statistics.
 
 ## 🚀 Quick Start
 
@@ -54,7 +37,7 @@ Add to your MCP configuration (see client-specific setup below):
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -63,26 +46,34 @@ Add to your MCP configuration (see client-specific setup below):
 ### Step 2: Choose your interface
 
 **Option A: Web Dashboard** (Required for CLI users)
+
 Start the dashboard (runs on port 5000 by default):
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
 ```
 
 The dashboard will be accessible at: http://localhost:5000
 
 > **Note:** Only one dashboard instance is needed. All your projects will connect to the same dashboard.
 
-**Option B: VSCode Extension** (Recommended for VSCode users)
+**Option B: VSCode Extension** (Build from source)
 
-Install [Spec Workflow MCP Extension](https://marketplace.visualstudio.com/items?itemName=Pimzino.spec-workflow-mcp) from the VSCode marketplace.
+The fork's extension is not yet published to the VSCode Marketplace. Build and side-install:
+
+```bash
+cd vscode-extension
+npm install
+npm run package    # produces a .vsix file
+code --install-extension spec-workflow-mcp-<version>.vsix
+```
 
 ## 📝 How to Use
 
 Simply mention spec-workflow in your conversation:
 
-- **"Create a spec for user authentication"** - Creates complete spec workflow
-- **"List my specs"** - Shows all specs and their status
-- **"Execute task 1.2 in spec user-auth"** - Runs a specific task
+- **"Create a spec for user authentication"** — Creates complete spec workflow
+- **"List my specs"** — Shows all specs and their status
+- **"Execute task 1.2 in spec user-auth"** — Runs a specific task
 
 [See more examples →](docs/PROMPTING-GUIDE.md)
 
@@ -97,7 +88,7 @@ Configure in your Augment settings:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -109,7 +100,7 @@ Configure in your Augment settings:
 
 Add to your MCP configuration:
 ```bash
-claude mcp add spec-workflow npx @pimzino/spec-workflow-mcp@latest -- /path/to/your/project
+claude mcp add spec-workflow npx @madmatt112/spec-workflow-mcp@latest -- /path/to/your/project
 ```
 
 **Important Notes:**
@@ -119,7 +110,7 @@ claude mcp add spec-workflow npx @pimzino/spec-workflow-mcp@latest -- /path/to/y
 
 **Alternative for Windows (if the above doesn't work):**
 ```bash
-claude mcp add spec-workflow cmd.exe /c "npx @pimzino/spec-workflow-mcp@latest /path/to/your/project"
+claude mcp add spec-workflow cmd.exe /c "npx @madmatt112/spec-workflow-mcp@latest /path/to/your/project"
 ```
 </details>
 
@@ -132,7 +123,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -151,7 +142,7 @@ Add to your MCP server configuration:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -167,7 +158,7 @@ Add to your Continue configuration:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -183,7 +174,7 @@ Add to your Cursor settings (`settings.json`):
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -200,7 +191,7 @@ Add to your `opencode.json` configuration file:
   "mcp": {
     "spec-workflow": {
       "type": "local",
-      "command": ["npx", "-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"],
+      "command": ["npx", "-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"],
       "enabled": true
     }
   }
@@ -217,7 +208,7 @@ Add to your `~/.codeium/windsurf/mcp_config.json` configuration file:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -231,7 +222,7 @@ Add to your `~/.codex/config.toml` configuration file:
 ```toml
 [mcp_servers.spec-workflow]
 command = "npx"
-args = ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+args = ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
 ```
 </details>
 
@@ -290,13 +281,13 @@ If you need to expose the dashboard beyond localhost, we recommend:
 server {
     listen 443 ssl;
     server_name dashboard.example.com;
-    
+
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
-    
+
     auth_basic "Dashboard Access";
     auth_basic_user_file /etc/nginx/.htpasswd;
-    
+
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
@@ -313,7 +304,7 @@ server {
 For sandboxed environments (e.g., Codex CLI with `sandbox_mode=workspace-write`) where `$HOME` is read-only, use the `SPEC_WORKFLOW_HOME` environment variable to redirect global state files to a writable location:
 
 ```bash
-SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @pimzino/spec-workflow-mcp@latest /workspace
+SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest /workspace
 ```
 
 [See Configuration Guide →](docs/CONFIGURATION.md#environment-variables)
@@ -362,12 +353,6 @@ npm run dev
 
 GPL-3.0
 
-## ⭐ Star History
+## Credit
 
-<a href="https://www.star-history.com/#Pimzino/spec-workflow-mcp&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Pimzino/spec-workflow-mcp&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Pimzino/spec-workflow-mcp&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Pimzino/spec-workflow-mcp&type=Date" />
- </picture>
-</a>
+Originally forked from [Pimzino/spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp) at version `2.2.6`. Upstream did not respond to feature PRs, so this fork carries the work forward independently. Released under the same GPL-3.0 license as upstream.

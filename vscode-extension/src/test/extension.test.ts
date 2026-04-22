@@ -16,7 +16,7 @@ suite('Extension Test Suite', () => {
 	});
 
 	test('Extension should be present', () => {
-		const extension = vscode.extensions.getExtension('Pimzino.spec-workflow-mcp');
+		const extension = vscode.extensions.getExtension('madmatt112.spec-workflow-mcp');
 		assert.ok(extension, 'Extension should be installed');
 	});
 

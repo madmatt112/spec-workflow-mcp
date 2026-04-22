@@ -26,7 +26,7 @@
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/project"]
     }
   }
 }
@@ -34,7 +34,7 @@
 
 **Note**: To use the dashboard, start it separately in a terminal:
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
 ```
 
 ### For Local Development
@@ -270,7 +270,7 @@ npm run compile
 ## 🤝 Getting Help
 
 1. **Check the [Troubleshooting Guide](troubleshooting.md)** first
-2. **Search existing [GitHub Issues](https://github.com/Pimzino/spec-workflow-mcp/issues)**
+2. **Search existing [GitHub Issues](https://github.com/madmatt112/spec-workflow-mcp/issues)**
 3. **Create a new issue** with detailed reproduction steps
 4. **Join the community** for real-time support
 

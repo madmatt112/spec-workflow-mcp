@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-22
+
+### Notes
+- Hard fork from upstream `Pimzino/spec-workflow-mcp@2.2.6`. No longer tracking upstream. See the README "Fork Notice" for background.
+- `.spec-workflow/` state format and all tool / config / env-var identifiers remain wire-compatible with upstream 2.2.6 — existing user state migrates in place.
+
+### Added
+- **Adversarial Review** — automated oppositional review of spec documents (requirements / design / tasks / steering / decomposition). Spawns fresh-context CLI subagents (defaults to Claude CLI; configurable for any LLM CLI) to generate and execute adversarial prompts. Dashboard trigger, in-card progress stepper, versioning / retry, review memory.
+- **Spec Decomposition** — new required workflow phase that forces task breakdown before implementation. New `decomposition-guide` tool with dashboard integration and adversarial-review eligibility.
+- **Deferred Decisions Tracker** — new `deferrals` tool and dashboard UI for recording decisions intentionally punted during spec authoring.
+- **Task Review** — new `review-task` and `get-task-review` tools that spawn a fresh-context dashboard agent to review completed task implementations before they're marked done.
+
+### Changed
+- Renamed npm package: `@pimzino/spec-workflow-mcp` → `@madmatt112/spec-workflow-mcp`.
+- Dashboard version banner now resolves against the new npm scope.
+- VSCode extension publisher renamed `Pimzino` → `madmatt112` (see `vscode-extension/CHANGELOG.md`).
+- Removed "Buy Me a Coffee" buttons from dashboard (desktop + mobile) and VSCode sidebar; dropped associated `support.*` / `header.support` locale keys across all 11 languages.
+- Removed README showcase videos, multi-language translation links, star-history chart, and Pimzino-hosted promotional content.
+
+### Removed
+- 90 non-English documentation translations (README + docs). The English docs are the single source of truth for the fork.
+- Stale PR-draft files `pr-203-description.md` and `pr-204-description.md` (artefacts of the abandoned upstream PR attempt).
+
+---
+
+_Entries below this line predate the fork and were authored by the upstream maintainer._
+
 ## [2.2.6] - 2026-03-07
 
 ### Changed

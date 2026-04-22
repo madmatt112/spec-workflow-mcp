@@ -22,7 +22,7 @@ This guide covers setting up a development environment, building the project, co
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Pimzino/spec-workflow-mcp.git
+git clone https://github.com/madmatt112/spec-workflow-mcp.git
 cd spec-workflow-mcp
 ```
 

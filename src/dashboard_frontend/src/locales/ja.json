@@ -20,10 +20,6 @@
     "dark": "ダーク",
     "light": "ライト"
   },
-  "support": {
-    "me": "サポートする",
-    "project": "プロジェクトをサポート"
-  },
   "mobile": {
     "menu": "メニュー",
     "closeMenu": "メニューを閉じる",

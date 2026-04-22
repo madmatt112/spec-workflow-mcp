@@ -25,7 +25,7 @@ The recommended setup is:
      "mcpServers": {
        "spec-workflow": {
          "command": "npx",
-         "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+         "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
        }
      }
    }
