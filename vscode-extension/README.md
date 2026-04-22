@@ -81,12 +81,10 @@ Initial release of Spec Workflow MCP Extension:
 - **Editor Integration**: Context menu actions and comment system
 - **Modern UI**: React 19 + Tailwind CSS v4 with responsive design
 
-## Support
-
-If you find this extension helpful, consider supporting the development:
-
-[☕ Buy Me a Coffee](https://buymeacoffee.com/pimzino)
-
 ## License
 
 This project is licensed under the GPL-3.0 License.
+
+## Credit
+
+Originally forked from [Pimzino/spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp) at extension version 1.1.7 / MCP 2.2.6.

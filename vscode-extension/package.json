@@ -2,13 +2,13 @@
   "name": "spec-workflow-mcp",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.1.7",
-  "publisher": "Pimzino",
+  "version": "2.0.0",
+  "publisher": "madmatt112",
   "license": "GPL-3.0",
   "icon": "icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Pimzino/spec-workflow-mcp.git"
+    "url": "https://github.com/madmatt112/spec-workflow-mcp.git"
   },
   "engines": {
     "vscode": "^1.99.0"

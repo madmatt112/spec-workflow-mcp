@@ -7,18 +7,18 @@ This guide covers all configuration options for Spec Workflow MCP.
 ### Basic Usage
 
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest [project-path] [options]
+npx -y @madmatt112/spec-workflow-mcp@latest [project-path] [options]
 ```
 
 ### Available Options
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `--help` | Show comprehensive usage information | `npx -y @pimzino/spec-workflow-mcp@latest --help` |
-| `--dashboard` | Run dashboard-only mode (default port: 5000) | `npx -y @pimzino/spec-workflow-mcp@latest --dashboard` |
-| `--port <number>` | Specify custom dashboard port (1024-65535) | `npx -y @pimzino/spec-workflow-mcp@latest --dashboard --port 8080` |
-| `--no-open` | Don't auto-open browser when starting dashboard | `npx -y @pimzino/spec-workflow-mcp@latest --dashboard --no-open` |
-| `--no-shared-worktree-specs` | Disable shared `.spec-workflow` in git worktrees (use workspace-local instead) | `npx -y @pimzino/spec-workflow-mcp@latest ~/worktree --no-shared-worktree-specs` |
+| `--help` | Show comprehensive usage information | `npx -y @madmatt112/spec-workflow-mcp@latest --help` |
+| `--dashboard` | Run dashboard-only mode (default port: 5000) | `npx -y @madmatt112/spec-workflow-mcp@latest --dashboard` |
+| `--port <number>` | Specify custom dashboard port (1024-65535) | `npx -y @madmatt112/spec-workflow-mcp@latest --dashboard --port 8080` |
+| `--no-open` | Don't auto-open browser when starting dashboard | `npx -y @madmatt112/spec-workflow-mcp@latest --dashboard --no-open` |
+| `--no-shared-worktree-specs` | Disable shared `.spec-workflow` in git worktrees (use workspace-local instead) | `npx -y @madmatt112/spec-workflow-mcp@latest ~/worktree --no-shared-worktree-specs` |
 
 ### Important Notes
 
@@ -33,19 +33,19 @@ npx -y @pimzino/spec-workflow-mcp@latest [project-path] [options]
 1. **Start the Dashboard** (do this first, only once):
 ```bash
 # Uses default port 5000
-npx -y @pimzino/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
 ```
 
 2. **Start MCP Servers** (one per project, in separate terminals):
 ```bash
 # Project 1
-npx -y @pimzino/spec-workflow-mcp@latest ~/projects/app1
+npx -y @madmatt112/spec-workflow-mcp@latest ~/projects/app1
 
 # Project 2
-npx -y @pimzino/spec-workflow-mcp@latest ~/projects/app2
+npx -y @madmatt112/spec-workflow-mcp@latest ~/projects/app2
 
 # Project 3
-npx -y @pimzino/spec-workflow-mcp@latest ~/projects/app3
+npx -y @madmatt112/spec-workflow-mcp@latest ~/projects/app3
 ```
 
 All projects will appear in the dashboard at http://localhost:5000
@@ -56,7 +56,7 @@ Only use a custom port if port 5000 is unavailable:
 
 ```bash
 # Start dashboard on port 8080
-npx -y @pimzino/spec-workflow-mcp@latest --dashboard --port 8080
+npx -y @madmatt112/spec-workflow-mcp@latest --dashboard --port 8080
 ```
 
 ## Environment Variables
@@ -80,13 +80,13 @@ Override the default global state directory (`~/.spec-workflow-mcp`). This is us
 
 ```bash
 # Absolute path
-SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @pimzino/spec-workflow-mcp@latest /workspace
+SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest /workspace
 
 # Relative path (resolved against current working directory)
-SPEC_WORKFLOW_HOME=./.spec-workflow-mcp npx -y @pimzino/spec-workflow-mcp@latest .
+SPEC_WORKFLOW_HOME=./.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest .
 
 # For dashboard mode
-SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @pimzino/spec-workflow-mcp@latest --dashboard
+SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
 ```
 
 **Sandboxed environments (e.g., Codex CLI):**
@@ -94,7 +94,7 @@ SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @pimzino/spec-workflow-m
 When running in sandboxed environments like Codex CLI with `sandbox_mode=workspace-write`, set `SPEC_WORKFLOW_HOME` to a writable location within your workspace:
 
 ```bash
-SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @pimzino/spec-workflow-mcp@latest /workspace
+SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest /workspace
 ```
 
 ### SPEC_WORKFLOW_SHARED_ROOT
@@ -117,10 +117,10 @@ Use `SPEC_WORKFLOW_SHARED_ROOT` to override the automatic detection:
 
 ```bash
 # Force specs to be stored in the current worktree (opt-out of sharing)
-SPEC_WORKFLOW_SHARED_ROOT=$(pwd) npx -y @pimzino/spec-workflow-mcp@latest .
+SPEC_WORKFLOW_SHARED_ROOT=$(pwd) npx -y @madmatt112/spec-workflow-mcp@latest .
 
 # Force a specific shared location
-SPEC_WORKFLOW_SHARED_ROOT=/path/to/shared/specs npx -y @pimzino/spec-workflow-mcp@latest ~/my-worktree
+SPEC_WORKFLOW_SHARED_ROOT=/path/to/shared/specs npx -y @madmatt112/spec-workflow-mcp@latest ~/my-worktree
 ```
 
 **Git worktree example:**
@@ -131,7 +131,7 @@ git worktree add ../myproject-feature feature-branch
 
 # Start MCP server in worktree - specs automatically shared with main repo
 cd ../myproject-feature
-npx -y @pimzino/spec-workflow-mcp@latest .
+npx -y @madmatt112/spec-workflow-mcp@latest .
 # Output: Git worktree detected. Using main repo: /home/user/myproject
 
 # Both the main repo and worktree see the same specs in /home/user/myproject/.spec-workflow/
@@ -152,11 +152,11 @@ By default, all worktrees of a repository share the same `.spec-workflow/` direc
 
 ```bash
 # Main repo
-npx -y @pimzino/spec-workflow-mcp@latest ~/myproject
+npx -y @madmatt112/spec-workflow-mcp@latest ~/myproject
 # Dashboard shows: "myproject"
 
 # Worktree
-npx -y @pimzino/spec-workflow-mcp@latest ~/myproject-feature
+npx -y @madmatt112/spec-workflow-mcp@latest ~/myproject-feature
 # Dashboard shows: "myproject · myproject-feature"
 # Specs are shared from ~/myproject/.spec-workflow/
 ```
@@ -166,7 +166,7 @@ npx -y @pimzino/spec-workflow-mcp@latest ~/myproject-feature
 Use `--no-shared-worktree-specs` when you want each worktree to have its own independent `.spec-workflow/` directory:
 
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest ~/myproject-feature --no-shared-worktree-specs
+npx -y @madmatt112/spec-workflow-mcp@latest ~/myproject-feature --no-shared-worktree-specs
 # Output: Shared worktree specs disabled. Using workspace-local .spec-workflow.
 # Specs stored in ~/myproject-feature/.spec-workflow/
 ```
@@ -308,10 +308,10 @@ lang = "en"
 3. Use the configuration:
 ```bash
 # Uses .spec-workflow/config.toml automatically
-npx -y @pimzino/spec-workflow-mcp@latest
+npx -y @madmatt112/spec-workflow-mcp@latest
 
 # Or specify explicitly
-npx -y @pimzino/spec-workflow-mcp@latest --config .spec-workflow/config.toml
+npx -y @madmatt112/spec-workflow-mcp@latest --config .spec-workflow/config.toml
 ```
 
 ## Configuration Precedence
@@ -332,7 +332,7 @@ port = 3000
 
 ```bash
 # Command-line argument overrides config file
-npx -y @pimzino/spec-workflow-mcp@latest --config config.toml --port 4000
+npx -y @madmatt112/spec-workflow-mcp@latest --config config.toml --port 4000
 # Result: port = 4000 (CLI wins)
 ```
 
@@ -353,7 +353,7 @@ verboseLogging = true
 
 Usage:
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest --config dev-config.toml
+npx -y @madmatt112/spec-workflow-mcp@latest --config dev-config.toml
 ```
 
 ### Production Configuration
@@ -371,7 +371,7 @@ verboseLogging = false
 
 Usage:
 ```bash
-npx -y @pimzino/spec-workflow-mcp@latest --config prod-config.toml
+npx -y @madmatt112/spec-workflow-mcp@latest --config prod-config.toml
 ```
 
 ## Port Configuration
@@ -434,7 +434,7 @@ Use a shared configuration with overrides:
 ~/configs/spec-workflow-base.toml
 
 # Project-specific overrides
-npx -y @pimzino/spec-workflow-mcp@latest \
+npx -y @madmatt112/spec-workflow-mcp@latest \
   --config ~/configs/spec-workflow-base.toml \
   --port 3000 \
   /path/to/project-a

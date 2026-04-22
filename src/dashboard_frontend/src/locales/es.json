@@ -20,10 +20,6 @@
     "dark": "Oscuro",
     "light": "Claro"
   },
-  "support": {
-    "me": "Apóyame",
-    "project": "Apoya el proyecto"
-  },
   "mobile": {
     "menu": "Menú",
     "closeMenu": "Cerrar menú",

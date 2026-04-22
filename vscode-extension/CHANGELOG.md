@@ -4,6 +4,20 @@ All notable changes to the "spec-workflow-mcp" extension will be documented in t
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [2.0.0] - 2026-04-21
+
+### Notes
+- Hard fork from upstream `Pimzino/spec-workflow-mcp` extension 1.1.7. Publisher renamed to `madmatt112` for the forked identity. Not yet published to the VSCode Marketplace — install from source until then.
+
+### Changed
+- Publisher: `Pimzino` → `madmatt112`.
+- Removed "Buy Me a Coffee" button from the header toolbar; dropped associated `header.support` locale keys across all 11 languages.
+- Repository URL and fork-credit attribution updated.
+
+---
+
+_Entries below this line predate the fork and were authored by the upstream maintainer._
+
 ## [1.1.7] - 2026-01-28
 
 ### Added

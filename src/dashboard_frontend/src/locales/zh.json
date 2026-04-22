@@ -20,10 +20,6 @@
     "dark": "深色",
     "light": "浅色"
   },
-  "support": {
-    "me": "支持我",
-    "project": "支持项目"
-  },
   "mobile": {
     "menu": "菜单",
     "closeMenu": "关闭菜单",

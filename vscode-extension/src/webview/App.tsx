@@ -17,7 +17,6 @@ import {
   Settings,
   Copy,
   ChevronUp,
-  Coffee,
   Globe,
   ChevronDown,
   ChevronRight,
@@ -844,15 +843,6 @@ Review the existing steering documents (if any) and help me improve or complete 
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => vscodeApi.openExternalUrl('https://buymeacoffee.com/pimzino')}
-                title={t('header.support')}
-                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-              >
-                <Coffee className="h-4 w-4" />
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"

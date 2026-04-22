@@ -404,7 +404,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@pimzino/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -549,14 +549,14 @@ The Docker image implements enterprise-grade security controls:
 - [Main Documentation](../README.md)
 - [User Guide](../docs/USER-GUIDE.md)
 - [Troubleshooting Guide](../docs/TROUBLESHOOTING.md)
-- [GitHub Repository](https://github.com/Pimzino/spec-workflow-mcp)
+- [GitHub Repository](https://github.com/madmatt112/spec-workflow-mcp)
 
 ## Support
 
 If you encounter issues:
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Review logs: `docker logs <container-id>`
-3. Open an issue on [GitHub](https://github.com/Pimzino/spec-workflow-mcp/issues)
+3. Open an issue on [GitHub](https://github.com/madmatt112/spec-workflow-mcp/issues)
 4. Include:
    - Docker version: `docker --version`
    - Operating system
