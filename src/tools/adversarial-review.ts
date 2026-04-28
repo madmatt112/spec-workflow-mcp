@@ -10,9 +10,10 @@ export const adversarialReviewTool: Tool = {
 
 # Instructions
 Use this tool to set up an adversarial analysis of a requirements, design, tasks, steering,
-or decomposition document. Returns the methodology, output paths, and context needed to generate
-a tailored adversarial prompt and execute it via a fresh-context subagent. The agent writes the
-prompt, then launches a subagent to execute it — context separation ensures genuinely critical output.
+or decomposition document. The tool writes a pre-built scaffold prompt to disk with PLACEHOLDER
+blocks for the document-specific content, and returns the methodology, output paths, and context
+needed to fill in the placeholders. The agent fills the placeholder blocks in the scaffold, then
+launches a fresh-context subagent to execute it — context separation ensures genuinely critical output.
 
 For decomposition reviews, use specName: "decomposition" and phase: "decomposition".`,
   inputSchema: {
@@ -130,6 +131,25 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
     ? await findLatestAnalysis(reviewsDir, versionPhase)
     : null;
 
+  const scaffold = buildScaffoldedPrompt({
+    specName: isDecomposition ? 'decomposition' : specName,
+    phase: versionPhase,
+    version,
+    targetFile,
+    analysisOutputPath,
+    memoryFilePath,
+    latestAnalysisPath,
+  });
+
+  try {
+    await fs.writeFile(promptOutputPath, scaffold, 'utf-8');
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to write scaffolded prompt: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
   return {
     success: true,
     message: isDecomposition
@@ -148,11 +168,10 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
       latestAnalysisPath,
     },
     nextSteps: [
-      'Read the target document and understand its content',
-      'Generate a tailored adversarial prompt following the methodology',
-      `Write the prompt to: ${promptOutputPath}`,
-      'Launch a fresh-context subagent with only: "Read and execute the instructions in <prompt-path>"',
-      'The subagent will write its analysis to the analysis output path'
+      'Read the target document',
+      `Fill the PLACEHOLDER blocks in ${promptOutputPath}`,
+      `Launch a fresh-context subagent with only: "Read and execute the instructions in ${promptOutputPath}"`,
+      `The subagent will write its analysis to ${analysisOutputPath}`,
     ]
   };
 }
@@ -234,6 +253,133 @@ async function getMethodologyOverride(workflowRoot: string, key: string): Promis
   }
 }
 
+export type PhaseGuidance = {
+  persona: string;
+  attackSurface: string;
+  exampleAngles: string;
+};
+
+export const PHASE_ATTACK_ANGLES: Record<string, PhaseGuidance> = {
+  requirements: {
+    persona: 'senior technical product manager',
+    attackSurface: 'Completeness, ambiguity, scope',
+    exampleAngles: 'Missing user stories, unstated assumptions, scope creep risk, contradictions between stories, acceptance criteria that can\'t be tested',
+  },
+  design: {
+    persona: 'staff engineer',
+    attackSurface: 'Feasibility, consistency, edge cases',
+    exampleAngles: 'Conflicts with steering docs, unaddressed failure modes, scaling bottlenecks, missing error paths, alternatives not considered',
+  },
+  tasks: {
+    persona: 'senior delivery lead',
+    attackSurface: 'Atomicity, ordering, coverage',
+    exampleAngles: 'Tasks too large or too small, missing dependency edges, gaps between tasks and design, unclear completion criteria, tasks that don\'t map to any requirement',
+  },
+  decomposition: {
+    persona: 'principal architect',
+    attackSurface: 'Completeness, granularity, ordering',
+    exampleAngles: 'Missing specs, over-scoped specs, wrong dependency order, horizontal instead of vertical slicing, INVEST violations (specs not independently valuable), cross-spec convention gaps, unresolved open questions that block implementation',
+  },
+  product: {
+    persona: 'head of product',
+    attackSurface: 'Vision clarity, user value, market fit',
+    exampleAngles: 'Vague target users, unvalidated value propositions, missing success metrics, undifferentiated positioning, overlooked competitor capabilities',
+  },
+  tech: {
+    persona: 'principal engineer',
+    attackSurface: 'Architectural soundness, constraints, tradeoffs',
+    exampleAngles: 'Unjustified technology choices, missing non-functional requirements, hidden integration costs, scalability ceilings, security or compliance gaps',
+  },
+  structure: {
+    persona: 'engineering lead with deep codebase ownership',
+    attackSurface: 'Organization, conventions, maintainability',
+    exampleAngles: 'Inconsistent module layout, ambiguous ownership boundaries, conventions that conflict with the stack, missing patterns for shared concerns, hard-to-navigate hierarchies',
+  },
+};
+
+const GENERIC_PHASE_GUIDANCE: PhaseGuidance = {
+  persona: 'experienced senior reviewer',
+  attackSurface: 'Completeness, consistency, and unstated assumptions',
+  exampleAngles: 'Missing context, contradictions, ambiguous language, unaddressed failure modes, alternatives that were not considered',
+};
+
+export function buildScaffoldedPrompt(args: {
+  specName: string;
+  phase: string;
+  version: number;
+  targetFile: string;
+  analysisOutputPath: string;
+  memoryFilePath: string;
+  latestAnalysisPath: string | null;
+}): string {
+  const { specName, phase, version, targetFile, analysisOutputPath, memoryFilePath, latestAnalysisPath } = args;
+  const guidance = PHASE_ATTACK_ANGLES[phase] ?? GENERIC_PHASE_GUIDANCE;
+
+  const base = `# Adversarial Review — ${specName}/${phase} (v${version})
+
+You are a ${guidance.persona}. Your job is to tear apart this document and find every weakness — gaps, ambiguities, contradictions, unstated assumptions, failure modes that have not been considered. Do not validate or support. Use directive framing throughout.
+
+## Target document
+${targetFile}
+
+## Analysis dimensions
+
+<!-- PLACEHOLDER:ANALYSIS_DIMENSIONS
+Replace this block with 3–6 numbered sections tailored to the target document.
+Each section: a specific topic/decision + 3–5 directive bullets grounded in the
+target document's actual content, not generic advice.
+
+Attack surface for this phase: ${guidance.attackSurface}
+Example angles: ${guidance.exampleAngles}
+-->
+
+## Closing deliverables
+- Top N risks/gaps (3 for short docs, 5 for long)
+- Top 3 conclusions to challenge or reverse, with reasoning
+- What's missing — work that should be done before acting on this document
+
+Be specific and concrete. Cite failure scenarios, not abstract risks. If something
+is actually fine, say so briefly and move on.
+
+## Output
+Write your analysis to: ${analysisOutputPath}
+`;
+
+  if (version <= 1) {
+    return base;
+  }
+
+  return `${base}
+## Prior review context
+
+<!-- PLACEHOLDER:PRIOR_REVIEW_CONTEXT
+Read ${memoryFilePath} (if present) and ${latestAnalysisPath ?? '(no prior analysis on disk)'}. Replace this block with:
+- Summary of prior findings
+- Which were addressed, which persist
+- Directive to focus on novel issues
+- Classification scheme: novel / compounding / recurring
+Then update the memory file per the methodology format.
+-->
+`;
+}
+
+function renderPhaseAttackAnglesTable(): string {
+  const phaseLabels: Record<string, string> = {
+    requirements: 'Requirements',
+    design: 'Design',
+    tasks: 'Tasks',
+    decomposition: 'Decomposition',
+    product: 'Product',
+    tech: 'Tech',
+    structure: 'Structure',
+  };
+  const rows = Object.entries(PHASE_ATTACK_ANGLES).map(([key, guidance]) => {
+    const label = phaseLabels[key] ?? key;
+    return `| **${label}** | ${guidance.attackSurface} | ${guidance.exampleAngles} |`;
+  });
+  return rows.join('\n');
+}
+
 export function getAdversarialReviewMethodology(): string {
   return `# Adversarial Review Methodology
 
@@ -271,10 +417,7 @@ be **tailored to the document's actual content**, not generic. For each section:
 
 | Phase | Primary attack surface | Example angles |
 |---|---|---|
-| **Requirements** | Completeness, ambiguity, scope | Missing user stories, unstated assumptions, scope creep risk, contradictions between stories, acceptance criteria that can't be tested |
-| **Design** | Feasibility, consistency, edge cases | Conflicts with steering docs, unaddressed failure modes, scaling bottlenecks, missing error paths, alternatives not considered |
-| **Tasks** | Atomicity, ordering, coverage | Tasks too large or too small, missing dependency edges, gaps between tasks and design, unclear completion criteria, tasks that don't map to any requirement |
-| **Decomposition** | Completeness, granularity, ordering | Missing specs, over-scoped specs, wrong dependency order, horizontal instead of vertical slicing, INVEST violations (specs not independently valuable), cross-spec convention gaps, unresolved open questions that block implementation |
+${renderPhaseAttackAnglesTable()}
 
 If steering docs or prior phase docs exist, read them to ground the attack angles in the
 project's actual constraints and decisions.

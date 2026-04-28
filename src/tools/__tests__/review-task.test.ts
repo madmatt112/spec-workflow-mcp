@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import path, { join } from 'path';
 import { tmpdir } from 'os';
 import { reviewTaskHandler } from '../review-task.js';
 import { ToolContext } from '../../types.js';
@@ -77,7 +77,7 @@ describe('review-task handler', () => {
       expect(result.success).toBe(true);
       expect(result.data.taskContext).toBeDefined();
       expect(result.data.implementationSummary).toBeDefined();
-      expect(result.data.filesToReview).toContain('src/handler.ts');
+      expect(result.data.filesToReview).toContain(join(tempDir, 'src/handler.ts'));
       expect(result.data.methodology).toContain('Review Methodology');
       expect(result.data.methodology).toContain('No new deps');
       expect(result.data.methodology).toContain('Tests pass');
@@ -94,6 +94,110 @@ describe('review-task handler', () => {
       const reviewsDir = join(specPath, 'reviews');
       const files = await fs.readdir(reviewsDir);
       expect(files.some(f => f.startsWith('.prepare-'))).toBe(true);
+    });
+
+    describe('hygiene signal integration', () => {
+      const ORIGINAL_ITEM_9 = '9. **Hygiene**: Hardcoded secrets, leftover debug code (console.log, TODO/FIXME from this task), commented-out code, unused imports or variables introduced by this task. Mark findings from items 7-9 with category: "hygiene".';
+
+      async function seedLogWithFiles(filesModified: string[], filesCreated: string[] = []) {
+        const logManager = new ImplementationLogManager(specPath);
+        await logManager.addLogEntry({
+          taskId: '1',
+          timestamp: new Date().toISOString(),
+          summary: 'Implemented feature',
+          filesModified,
+          filesCreated,
+          statistics: { linesAdded: 10, linesRemoved: 0, filesChanged: filesModified.length + filesCreated.length },
+          artifacts: {},
+        });
+      }
+
+      it('(a) returns hygieneSignals with correct line numbers and patterns', async () => {
+        const relPath = 'src/dirty.ts';
+        const absPath = join(tempDir, relPath);
+        await fs.mkdir(path.dirname(absPath), { recursive: true });
+        await fs.writeFile(absPath, [
+          'function foo() {',
+          "  console.log('debug');",
+          '  // TODO: x',
+          '}',
+        ].join('\n'));
+        await seedLogWithFiles([relPath]);
+
+        const result = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+
+        expect(result.success).toBe(true);
+        const signals = result.data.hygieneSignals;
+        expect(signals).toHaveLength(2);
+        const consoleSig = signals.find((s: any) => s.pattern === 'console')!;
+        const todoSig = signals.find((s: any) => s.pattern === 'todo')!;
+        expect(consoleSig.line).toBe(2);
+        expect(todoSig.line).toBe(3);
+      });
+
+      it('(b) clean task returns empty hygieneSignals AND original item 9 text', async () => {
+        const relPath = 'src/clean.ts';
+        const absPath = join(tempDir, relPath);
+        await fs.mkdir(path.dirname(absPath), { recursive: true });
+        await fs.writeFile(absPath, [
+          'export function add(a: number, b: number) {',
+          '  return a + b;',
+          '}',
+        ].join('\n'));
+        await seedLogWithFiles([relPath]);
+
+        const result = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data.hygieneSignals).toEqual([]);
+        expect(result.data.methodology).toContain(ORIGINAL_ITEM_9);
+      });
+
+      it('(c) methodology contains triage directive when signals are present', async () => {
+        const relPath = 'src/dirty.ts';
+        const absPath = join(tempDir, relPath);
+        await fs.mkdir(path.dirname(absPath), { recursive: true });
+        await fs.writeFile(absPath, "console.log('hi');");
+        await seedLogWithFiles([relPath]);
+
+        const result = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data.methodology).toContain('Pre-computed hygiene signals are attached in');
+      });
+
+      it('(d) every signal has an absolute file path', async () => {
+        const relPath = 'src/dirty.ts';
+        const absPath = join(tempDir, relPath);
+        await fs.mkdir(path.dirname(absPath), { recursive: true });
+        await fs.writeFile(absPath, [
+          "console.log('a');",
+          '// TODO: y',
+          'debugger;',
+        ].join('\n'));
+        await seedLogWithFiles([relPath]);
+
+        const result = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+
+        expect(result.success).toBe(true);
+        const signals = result.data.hygieneSignals;
+        expect(signals.length).toBeGreaterThan(0);
+        for (const signal of signals) {
+          expect(path.isAbsolute(signal.file)).toBe(true);
+        }
+      });
     });
   });
 

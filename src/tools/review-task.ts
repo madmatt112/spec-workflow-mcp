@@ -1,9 +1,11 @@
+import path from 'path';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse, ReviewFinding } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
+import { computeHygieneSignals } from '../core/hygiene-signals.js';
 
 export const reviewTaskTool: Tool = {
   name: 'review-task',
@@ -174,7 +176,8 @@ async function handlePrepare(
 
     // 5. Build task context
     const latestLog = taskLogs[0]; // Sorted newest first
-    const allFiles = [...new Set([...latestLog.filesModified, ...latestLog.filesCreated])];
+    const allFiles = [...new Set([...latestLog.filesModified, ...latestLog.filesCreated])]
+      .map(p => path.resolve(projectPath, p));
 
     const taskContext = {
       description: task.description,
@@ -192,8 +195,11 @@ async function handlePrepare(
       artifacts: latestLog.artifacts,
     };
 
-    // 6. Build methodology
-    const methodology = buildReviewMethodology(taskContext, steeringExcerpt !== null, hasPriorReviews);
+    // 6. Compute hygiene signals
+    const hygieneSignals = await computeHygieneSignals(allFiles);
+
+    // 7. Build methodology
+    const methodology = buildReviewMethodology(taskContext, steeringExcerpt !== null, hasPriorReviews, hygieneSignals.length > 0);
 
     return {
       success: true,
@@ -203,6 +209,7 @@ async function handlePrepare(
         implementationSummary,
         steeringExcerpt,
         filesToReview: allFiles,
+        hygieneSignals,
         methodology,
       },
       nextSteps: [
@@ -353,7 +360,8 @@ async function handleRecord(
 function buildReviewMethodology(
   taskContext: { description: string; requirements: string[]; leverage: string | null; prompt: string | null; promptStructured: any[] | null },
   hasTechSteering: boolean,
-  hasPriorReviews: boolean
+  hasPriorReviews: boolean,
+  hasHygieneSignals: boolean
 ): string {
   const sections: string[] = [];
 
@@ -411,7 +419,11 @@ function buildReviewMethodology(
   sections.push('');
   sections.push('7. **Error handling**: Check for unhandled error paths, missing try/catch around I/O or network calls, errors that are silently swallowed, and error messages that leak internals. Flag missing validation at system boundaries (user input, API parameters).');
   sections.push('8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores.');
-  sections.push('9. **Hygiene**: Hardcoded secrets, leftover debug code (console.log, TODO/FIXME from this task), commented-out code, unused imports or variables introduced by this task. Mark findings from items 7-9 with category: "hygiene".');
+  if (hasHygieneSignals) {
+    sections.push('9. **Hygiene**: Pre-computed hygiene signals are attached in `hygieneSignals` (file, line, pattern). For each: confirm whether it is a genuine leftover vs. intentional (e.g., an error-path `console.error`). Promote real leftovers to findings with `category: \'hygiene\'`. Also check for hygiene issues the grep cannot find: hardcoded secrets, commented-out code, unused imports or variables introduced by this task.');
+  } else {
+    sections.push('9. **Hygiene**: Hardcoded secrets, leftover debug code (console.log, TODO/FIXME from this task), commented-out code, unused imports or variables introduced by this task. Mark findings from items 7-9 with category: "hygiene".');
+  }
 
   if (hasPriorReviews) {
     sections.push('');
