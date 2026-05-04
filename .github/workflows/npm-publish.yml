@@ -13,8 +13,62 @@ jobs:
   test:
     uses: ./.github/workflows/ci.yml
 
-  publish:
+  preflight:
     needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read-version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Read package.json version
+        id: read-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Package: $NAME@$VERSION"
+
+      - name: Verify version is not already published
+        run: |
+          NAME='${{ steps.read-version.outputs.name }}'
+          VERSION='${{ steps.read-version.outputs.version }}'
+          PUBLISHED=$(npm view "$NAME" versions --json 2>/dev/null || echo '[]')
+          if echo "$PUBLISHED" | grep -q "\"$VERSION\""; then
+            echo "::error::Version $VERSION is already published to npm. Bump package.json before publishing."
+            exit 1
+          fi
+          echo "Version $VERSION is not yet published. OK to proceed."
+
+      - name: Verify matching git tag exists at HEAD
+        run: |
+          VERSION='${{ steps.read-version.outputs.version }}'
+          EXPECTED_TAG="v$VERSION"
+          if ! git rev-parse "$EXPECTED_TAG" >/dev/null 2>&1; then
+            echo "::error::Expected git tag $EXPECTED_TAG does not exist. Create it with: git tag $EXPECTED_TAG && git push origin $EXPECTED_TAG"
+            exit 1
+          fi
+          TAG_SHA=$(git rev-parse "$EXPECTED_TAG^{commit}")
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+            echo "::error::Tag $EXPECTED_TAG points at $TAG_SHA but workflow is running on $HEAD_SHA. Move the tag or run from the tagged commit."
+            exit 1
+          fi
+          echo "Tag $EXPECTED_TAG matches HEAD. OK to proceed."
+
+  publish:
+    needs: preflight
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
