@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { promises as fs, symlinkSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'fs';
+import { promises as fs, symlinkSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
 import path, { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -1284,7 +1284,10 @@ describe('extractDirectiveSentences self-test', () => {
   });
 });
 
-describe('Two-way drift test (R4.10)', () => {
+// Drift tests pin fixtures to the local spec doc at
+// `.spec-workflow/specs/tighter-reviews/requirements.md`, which is gitignored.
+// Skip these tests when the doc isn't present (e.g. CI checkouts).
+describe.skipIf(!existsSync(REQUIREMENTS_MD))('Two-way drift test (R4.10)', () => {
   it('extracted block keyset equals EXPECTED_R4_BLOCK_NAMES', () => {
     const requirementsMd = readFileSync(REQUIREMENTS_MD, 'utf-8');
     const blocks = extractR4BlocksFromRequirements(requirementsMd);
