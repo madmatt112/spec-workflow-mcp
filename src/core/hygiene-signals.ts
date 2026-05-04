@@ -1,4 +1,5 @@
 import { readFile, stat } from 'fs/promises';
+import { partitionPaths } from './path-denylist.js';
 
 export type HygieneSignal = {
   file: string;
@@ -43,6 +44,7 @@ async function scanFile(file: string): Promise<HygieneSignal[]> {
 }
 
 export async function computeHygieneSignals(files: string[]): Promise<HygieneSignal[]> {
-  const results = await Promise.all(files.map(scanFile));
+  const { kept } = partitionPaths(files);
+  const results = await Promise.all(kept.map(scanFile));
   return results.flat();
 }

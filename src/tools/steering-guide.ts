@@ -165,7 +165,7 @@ flowchart TD
 8. If needs-revision: update document using comments, create NEW approval, do NOT proceed
 9. Once approved: use approvals with action:'delete' (must succeed) before proceeding
 10. If delete fails: STOP - return to polling
-11. After successful cleanup: "Steering docs complete. Ready for spec creation?"
+11. After successful cleanup: "Steering docs complete. Ready for spec creation?" — when the user is ready, call \`spec-workflow-guide\` to load the spec workflow (which begins with Decomposition since steering docs now exist).
 
 ## Workflow Rules
 
@@ -175,7 +175,7 @@ flowchart TD
 - Follow exact template structures
 - Get explicit user approval between phases (using approvals tool with action:'request')
 - Complete phases in sequence (no skipping)
-- Approval requests: provide filePath only, never content
+- Approval requests: pass \`filePath\` (and the other required fields: type, category, name, title); do NOT inline document content into the request
 - BLOCKING: Never proceed if approval delete fails
 - CRITICAL: Must have approved status AND successful cleanup before next phase
 - CRITICAL: Verbal approval is NEVER accepted - dashboard or VS Code extension only

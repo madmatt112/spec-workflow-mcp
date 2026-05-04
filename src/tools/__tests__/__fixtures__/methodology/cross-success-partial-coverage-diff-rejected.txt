@@ -1,0 +1,36 @@
+# Scenario: typecheck=success-partial-coverage + diff=rejected (R4.10 cross-axis #6 — closest implementable analog of R4.5 + R4.6b composition)
+# Pins: Track-B cross-axis composite for the "overlapping manual-scan asks" concern from R4.10 #6. The original spec target was R4.5 ("manually scan excluded files") composed with R4.6b ("manually scan the modified TypeScript files"); this requires both R4.5 AND R4.6b to emit from the same `buildReviewMethodology` call, which the v1 implementation cannot produce — `data.typecheckResults[0]` resolves to a single `TypecheckMethodologyState` and `renderTypecheckDirective` emits exactly one branch. Multi-config typecheck (`typecheckResults[1+]`) is forward-compatible at the schema level only (design.md §`data.typecheckResults` shape). The closest implementable analog is `(typecheck=success-partial-coverage, diff=rejected)`: Item 10 emits R4.5 ("manually scan excluded files") and the diff preamble emits R4.2b ("Diff utility rejected unexpectedly"). Both prose pieces include surfacing/manual-scan asks ("Surface this per-file coverage gap" + "Surface the rejection" + "Read every file in `filesToReview`") — the cross-axis fixture exposes the rhetorical overlap of three asks composing without duplication. **Known gap**: R4.6b prose is NOT emitted in this fixture; the original R4.5+R4.6b composition target is captured by Direction A drift (both blocks appear in some single-axis fixture) and motivates either prose alignment or deferring to v2 multi-config typecheck.
+# Canonical input (R4.10): requirements=['1.1', '2.4']; restrictions='Do NOT bypass denylist; do NOT change truncation messages'; success='All listed cases pass; messages emit verbatim'; leverage='src/core/path-denylist.ts'; hasTechSteering=true; hasPriorReviews=false; hasHygieneSignals=true; diffState={ kind: 'rejected', message: '<diff utility error>' }; typecheckState={ kind: 'success-partial-coverage' }.
+---
+# Review Methodology
+
+You are a senior code reviewer whose job is to find problems, not to validate. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.
+
+Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.
+
+**Read first:**
+
+**Diff utility rejected unexpectedly — read full files.** `data.diffRejection.message` contains the rejection reason. The diff was NOT computed because the utility threw an unexpected exception; this is a degraded review surface, not a benign empty diff. Read every file in `filesToReview` and evaluate against the task's described changes from the implementation log. **Surface the rejection in your review summary** (quote `data.diffRejection.message`) so the human reviewer knows the diff path failed and can investigate the underlying cause.
+
+## Primary: Spec Compliance
+
+1. **Requirements compliance**: Verify each referenced requirement is fully implemented: 1.1, 2.4. For each one, trace from the requirement to the specific code that fulfills it. Flag any requirement that is partially met, interpreted loosely, or silently dropped. Check the task description line by line — identify anything promised but not delivered.
+2. **Restriction adherence**: These restrictions were specified: Do NOT bypass denylist; do NOT change truncation messages. Check each one for violations. Look for workarounds that technically comply but violate the spirit. Check imports, dependencies, and patterns that may circumvent restrictions.
+3. **Success criteria**: The success criteria are: All listed cases pass; messages emit verbatim. For each criterion, find concrete evidence in the code that it is met. If a criterion is ambiguous, interpret it strictly. Flag criteria that would fail under edge cases or with unexpected input.
+4. **File scope**: Compare the files actually modified/created against what the task specifies. Flag any files touched that are outside the task's scope (scope creep). Flag any files that should have been modified but weren't (incomplete implementation). Look for changes that introduce coupling to unrelated modules.
+5. **Leverage check**: The task specified reusing: src/core/path-denylist.ts. Verify this code was actually used, not reimplemented. Check for duplicate logic that already exists in the leverage targets. If the leverage was ignored, flag it as a finding — reimplementation creates maintenance burden.
+6. **Tech stack compliance**: Read the tech steering document (in steeringExcerpt) and check the implementation against its conventions. Look for: wrong patterns, deprecated approaches, inconsistent naming, missing error handling conventions, deviations from stated architecture. The steering doc represents project-level decisions — violations are findings even if the code "works".
+
+## Secondary: Correctness & Hygiene
+
+7. **Error handling**: Check for unhandled error paths, missing try/catch around I/O or network calls, errors that are silently swallowed, and error messages that leak internals. Flag missing validation at system boundaries (user input, API parameters).
+8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores.
+9. **Hygiene**: Pre-computed hygiene signals are attached in `hygieneSignals` (file, line, pattern). For each: confirm whether it is a genuine leftover vs. intentional (e.g., an error-path `console.error`). Promote real leftovers to findings with `category: 'hygiene'`. Also check for hygiene issues the grep cannot find: hardcoded secrets, commented-out code, unused imports or variables introduced by this task.
+10. **Partial typecheck coverage — degraded review surface.** `data.typecheckResults[0].coverage.excluded` lists files this task modified that tsc did NOT compile (excluded by tsconfig's `exclude` or never reached via `include`). For these files, the absence of diagnostics is meaningless — they were never checked. **You are operating in pre-spec methodology mode for the excluded files**; manually scan them for type errors and structural issues (missing return types, implicit `any`, mismatched property shapes, unsafe casts). The `compiled` list is the trustworthy coverage set. **Surface this per-file coverage gap in your review summary** so the human reviewer knows the scope of the gap.
+
+## Recording Results
+
+After evaluating, call review-task with action: "record" providing:
+- verdict: "pass" (no findings), "fail" (any critical), or "findings" (warnings/info only)
+- summary: 1-2 sentence summary of the review outcome
+- findings: array of { severity, title, description, file?, line?, taskRequirement?, category? }

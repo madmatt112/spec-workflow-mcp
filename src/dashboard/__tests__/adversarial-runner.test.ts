@@ -343,6 +343,46 @@ describe('AdversarialRunner', () => {
     });
   });
 
+  describe('per-job model storage', () => {
+    it('stores opts.model on the constructed job (getJob.model === opts.model)', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+
+      const jobId = await runner.run(baseOpts({ model: 'opus-4-7' }));
+
+      const job = runner.getJob(jobId);
+      expect(job).toBeDefined();
+      expect(job!.model).toBe('opus-4-7');
+    });
+
+    it('leaves job.model undefined when opts.model is not set', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+
+      const jobId = await runner.run(baseOpts());
+
+      const job = runner.getJob(jobId);
+      expect(job).toBeDefined();
+      expect(job!.model).toBeUndefined();
+    });
+
+    it('does not break getJobsForProject consumers when model is set', async () => {
+      const child1 = createFakeChild();
+      const child2 = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
+
+      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'a', model: 'sonnet' }));
+      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'b' }));
+
+      const jobs = runner.getJobsForProject('proj-1');
+      expect(jobs.length).toBe(2);
+      const withModel = jobs.find(j => j.specName === 'a');
+      const withoutModel = jobs.find(j => j.specName === 'b');
+      expect(withModel!.model).toBe('sonnet');
+      expect(withoutModel!.model).toBeUndefined();
+    });
+  });
+
   describe('cancelJob', () => {
     it('sets failed with "Cancelled by user" and returns true', async () => {
       const child = createFakeChild();

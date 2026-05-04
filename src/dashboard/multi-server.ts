@@ -16,6 +16,7 @@ import { ProjectManager } from './project-manager.js';
 import { JobScheduler } from './job-scheduler.js';
 import { AdversarialRunner, AdversarialJob } from './adversarial-runner.js';
 import { TaskReviewRunner, TaskReviewJob } from './task-review-runner.js';
+import { loadSettings, resolveRunnerModel } from '../core/adversarial-settings.js';
 import { ImplementationLogManager } from './implementation-log-manager.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
@@ -34,6 +35,18 @@ import { SecurityConfig } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const multiServerWarnedKeys = new Set<string>();
+function warnOnce(baseKey: string, instanceId: string, message: string): void {
+  const dedupKey = `${baseKey}:${instanceId}`;
+  if (multiServerWarnedKeys.has(dedupKey)) return;
+  multiServerWarnedKeys.add(dedupKey);
+  console.warn(`[spec-workflow] retry: ${message} (key=${baseKey}, id=${instanceId})`);
+}
+
+export function _resetMultiServerWarningsForTests(): void {
+  multiServerWarnedKeys.clear();
+}
 
 interface WebSocketConnection {
   socket: WebSocket;
@@ -772,43 +785,44 @@ export class MultiProjectDashboardServer {
           return reply.code(500).send({ error: result.message || 'Failed to prepare adversarial review' });
         }
 
-        // Read preferences from adversarial settings
-        let model: string | undefined;
-        let cli: string | undefined;
-        let cliArgs: string[] | undefined;
-        try {
-          const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
-          const settings = JSON.parse(settingsRaw);
-          if (settings.model && typeof settings.model === 'string') {
-            model = settings.model;
-          }
-          if (settings.cli && typeof settings.cli === 'string') {
-            cli = settings.cli;
-          }
-          if (Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0) {
-            cliArgs = settings.cliArgs;
-          }
-        } catch { /* no settings or parse error — use default */ }
+        // Read preferences from adversarial settings (grouped + legacy via shared module)
+        const settings = loadSettings(project.projectPath);
+        const model = resolveRunnerModel(settings, 'adversarial');
+        const cli = typeof settings.cli === 'string' && settings.cli.trim() !== ''
+          ? settings.cli
+          : undefined;
+        const cliArgs = Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0
+          ? settings.cliArgs
+          : undefined;
 
         // Spawn background agent to perform the review
-        const jobId = await this.adversarialRunner.run({
-          projectId,
-          specName,
-          phase,
-          projectPath: project.originalProjectPath,
-          targetFile: result.data.targetFile,
-          promptOutputPath: result.data.promptOutputPath,
-          analysisOutputPath: result.data.analysisOutputPath,
-          methodology: result.data.methodology,
-          steeringDocs: result.data.steeringDocs || [],
-          priorPhaseDocs: result.data.priorPhaseDocs || [],
-          version: result.data.version,
-          memoryFilePath: result.data.memoryFilePath,
-          latestAnalysisPath: result.data.latestAnalysisPath,
-          model,
-          cli,
-          cliArgs,
-        });
+        let jobId: string;
+        try {
+          jobId = await this.adversarialRunner.run({
+            projectId,
+            specName,
+            phase,
+            projectPath: project.originalProjectPath,
+            targetFile: result.data.targetFile,
+            promptOutputPath: result.data.promptOutputPath,
+            analysisOutputPath: result.data.analysisOutputPath,
+            methodology: result.data.methodology,
+            steeringDocs: result.data.steeringDocs || [],
+            priorPhaseDocs: result.data.priorPhaseDocs || [],
+            version: result.data.version,
+            memoryFilePath: result.data.memoryFilePath,
+            latestAnalysisPath: result.data.latestAnalysisPath,
+            model,
+            cli,
+            cliArgs,
+          });
+        } catch (runnerErr: any) {
+          const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
+          if (msg.startsWith('An adversarial review is already running for ')) {
+            return reply.code(409).send({ error: 'in-flight-spec-phase', specName, phase });
+          }
+          throw runnerErr;
+        }
 
         // Set approval to needs-revision
         const response = `Adversarial review requested via dashboard. A background review is running (job: ${jobId}).`;
@@ -940,44 +954,57 @@ export class MultiProjectDashboardServer {
           analysisVersion = versionMatch ? parseInt(versionMatch[1], 10) : 1;
         }
 
-        // Read preferences from adversarial settings
+        // Pin model from prior runner job (R3.9); cli/cliArgs always reflect current settings.
+        const priorJobId: string | undefined = ann?.jobId;
+        const priorJob = priorJobId ? this.adversarialRunner.getJob(priorJobId) : undefined;
+        const settings = loadSettings(project.projectPath);
         let retryModel: string | undefined;
-        let retryCli: string | undefined;
-        let retryCliArgs: string[] | undefined;
-        try {
-          const settingsRaw = await readFile(join(project.projectPath, '.spec-workflow', 'adversarial-settings.json'), 'utf-8');
-          const settings = JSON.parse(settingsRaw);
-          if (settings.model && typeof settings.model === 'string') {
-            retryModel = settings.model;
-          }
-          if (settings.cli && typeof settings.cli === 'string') {
-            retryCli = settings.cli;
-          }
-          if (Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0) {
-            retryCliArgs = settings.cliArgs;
-          }
-        } catch { /* use default */ }
+        if (typeof priorJob?.model === 'string' && priorJob.model.trim() !== '') {
+          retryModel = priorJob.model;
+        } else {
+          warnOnce(
+            'multi-server:retry-prior-job-not-found',
+            priorJobId ?? '<no-jobId>',
+            'prior job not found in runner, re-resolving model from settings'
+          );
+          retryModel = resolveRunnerModel(settings, 'adversarial');
+        }
+        const retryCli = typeof settings.cli === 'string' && settings.cli.trim() !== ''
+          ? settings.cli
+          : undefined;
+        const retryCliArgs = Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0
+          ? settings.cliArgs
+          : undefined;
 
         // Spawn background review, skipping prompt generation if prompt already exists
-        const jobId = await this.adversarialRunner.run({
-          projectId,
-          specName,
-          phase,
-          projectPath: project.originalProjectPath,
-          targetFile: result.data.targetFile,
-          promptOutputPath: promptPath,
-          analysisOutputPath,
-          methodology: result.data.methodology,
-          steeringDocs: result.data.steeringDocs || [],
-          priorPhaseDocs: result.data.priorPhaseDocs || [],
-          version: analysisVersion,
-          memoryFilePath: result.data.memoryFilePath,
-          latestAnalysisPath: result.data.latestAnalysisPath,
-          skipPromptGeneration: promptExists,
-          model: retryModel,
-          cli: retryCli,
-          cliArgs: retryCliArgs,
-        });
+        let jobId: string;
+        try {
+          jobId = await this.adversarialRunner.run({
+            projectId,
+            specName,
+            phase,
+            projectPath: project.originalProjectPath,
+            targetFile: result.data.targetFile,
+            promptOutputPath: promptPath,
+            analysisOutputPath,
+            methodology: result.data.methodology,
+            steeringDocs: result.data.steeringDocs || [],
+            priorPhaseDocs: result.data.priorPhaseDocs || [],
+            version: analysisVersion,
+            memoryFilePath: result.data.memoryFilePath,
+            latestAnalysisPath: result.data.latestAnalysisPath,
+            skipPromptGeneration: promptExists,
+            model: retryModel,
+            cli: retryCli,
+            cliArgs: retryCliArgs,
+          });
+        } catch (runnerErr: any) {
+          const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
+          if (msg.startsWith('An adversarial review is already running for ')) {
+            return reply.code(409).send({ error: 'in-flight-spec-phase', specName, phase });
+          }
+          throw runnerErr;
+        }
 
         // Update annotations with the new job ID and paths
         const newAnnotations = JSON.stringify({
@@ -1726,30 +1753,33 @@ export class MultiProjectDashboardServer {
       if (!project) return reply.code(404).send({ error: 'Project not found' });
 
       try {
-        // Read settings for CLI/model config
-        const settingsPath = join(project.projectPath, '.spec-workflow', 'adversarial-settings.json');
-        let model: string | undefined;
-        let cli: string | undefined;
-        let cliArgs: string[] | undefined;
-        try {
-          const settingsContent = await readFile(settingsPath, 'utf-8');
-          const settings = JSON.parse(settingsContent);
-          if (settings.model) model = settings.model;
-          if (settings.cli) cli = settings.cli;
-          if (settings.cliArgs && Array.isArray(settings.cliArgs)) cliArgs = settings.cliArgs;
-        } catch {
-          // Use defaults
-        }
+        const settings = loadSettings(project.projectPath);
+        const model = resolveRunnerModel(settings, 'taskReview');
+        const cli = typeof settings.cli === 'string' && settings.cli.trim() !== ''
+          ? settings.cli
+          : undefined;
+        const cliArgs = Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0
+          ? settings.cliArgs
+          : undefined;
 
-        const jobId = await this.taskReviewRunner.run({
-          projectId,
-          specName,
-          taskId,
-          projectPath: project.projectPath,
-          model,
-          cli,
-          cliArgs,
-        });
+        let jobId: string;
+        try {
+          jobId = await this.taskReviewRunner.run({
+            projectId,
+            specName,
+            taskId,
+            projectPath: project.projectPath,
+            model,
+            cli,
+            cliArgs,
+          });
+        } catch (runnerErr: any) {
+          const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
+          if (msg.startsWith('A task review is already running for ')) {
+            return reply.code(409).send({ error: 'in-flight-spec-task', specName, taskId });
+          }
+          throw runnerErr;
+        }
 
         return { success: true, jobId };
       } catch (error: any) {
@@ -1763,37 +1793,55 @@ export class MultiProjectDashboardServer {
       const project = this.projectManager.getProject(projectId);
       if (!project) return reply.code(404).send({ error: 'Project not found' });
 
-      // Find the failed job for this task
-      const jobs = this.taskReviewRunner.getJobsForProject(projectId);
-      const failedJob = jobs.find(j => j.specName === specName && j.taskId === taskId && j.status === 'failed');
+      // Find the most recent failed job for this task. Sort by startedAt DESC so
+      // multi-historical-retry picks the most recent model, not insertion-order-first.
+      const failedJobs = this.taskReviewRunner.getJobsForProject(projectId)
+        .filter(j => j.specName === specName && j.taskId === taskId && j.status === 'failed')
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+      const failedJob = failedJobs[0];
       if (!failedJob) {
         return reply.code(404).send({ error: 'No failed review job found for this task' });
       }
 
       try {
-        const settingsPath = join(project.projectPath, '.spec-workflow', 'adversarial-settings.json');
-        let model: string | undefined;
-        let cli: string | undefined;
-        let cliArgs: string[] | undefined;
-        try {
-          const settingsContent = await readFile(settingsPath, 'utf-8');
-          const settings = JSON.parse(settingsContent);
-          if (settings.model) model = settings.model;
-          if (settings.cli) cli = settings.cli;
-          if (settings.cliArgs && Array.isArray(settings.cliArgs)) cliArgs = settings.cliArgs;
-        } catch {
-          // Use defaults
+        // Pin model from prior runner job (R3.9); cli/cliArgs always reflect current settings.
+        const settings = loadSettings(project.projectPath);
+        let retryModel: string | undefined;
+        if (typeof failedJob.model === 'string' && failedJob.model.trim() !== '') {
+          retryModel = failedJob.model;
+        } else {
+          warnOnce(
+            'multi-server:retry-task-review-prior-job-not-found',
+            `${specName}/${taskId}`,
+            'prior job not found in runner, re-resolving model from settings'
+          );
+          retryModel = resolveRunnerModel(settings, 'taskReview');
         }
+        const cli = typeof settings.cli === 'string' && settings.cli.trim() !== ''
+          ? settings.cli
+          : undefined;
+        const cliArgs = Array.isArray(settings.cliArgs) && settings.cliArgs.length > 0
+          ? settings.cliArgs
+          : undefined;
 
-        const jobId = await this.taskReviewRunner.run({
-          projectId,
-          specName,
-          taskId,
-          projectPath: project.projectPath,
-          model,
-          cli,
-          cliArgs,
-        });
+        let jobId: string;
+        try {
+          jobId = await this.taskReviewRunner.run({
+            projectId,
+            specName,
+            taskId,
+            projectPath: project.projectPath,
+            model: retryModel,
+            cli,
+            cliArgs,
+          });
+        } catch (runnerErr: any) {
+          const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
+          if (msg.startsWith('A task review is already running for ')) {
+            return reply.code(409).send({ error: 'in-flight-spec-task', specName, taskId });
+          }
+          throw runnerErr;
+        }
 
         return { success: true, jobId };
       } catch (error: any) {

@@ -52,6 +52,19 @@ function getSpecWorkflowGuide(): string {
 You guide users through spec-driven development using MCP tools. Transform rough ideas into detailed specifications through Decomposition → Requirements → Design → Tasks → Implementation phases. When steering docs exist, always begin with Decomposition to break the project into ordered specs before starting the first spec's Requirements phase. Use web search when available for current best practices (current year: ${currentYear}). Its important that you follow this workflow exactly to avoid errors.
 Feature names use kebab-case (e.g., user-authentication). Create ONE spec at a time.
 
+## Entry Points
+
+Pick the entry point that matches the user's request before stepping through the workflow:
+
+| Situation | Where to enter |
+|---|---|
+| New feature, no spec yet | Start at the top of the diagram (CheckSteering). If steering exists, do Decomposition before Phase 1. |
+| User-provided per-task prompt (e.g. "Implement the task for spec X…") | Skip Phases 1-3 — those documents already exist. Jump to **Phase 4: Implementation** and follow that section. |
+| User asks to revise a document after a 'needs-revision' approval | Re-enter the same phase you were in; update the document, request a NEW approval. |
+| User asks for an adversarial critique of a doc | Use the \`adversarial-review\` tool (it works for any phase: requirements, design, tasks, decomposition, product, tech, structure). See "Adversarial Review" section below. |
+| User asks to respond to an adversarial review (or the approval comment requests it) | Use the \`adversarial-response\` tool. See "Adversarial Review" section below. |
+| User wants to create steering docs | Call \`steering-guide\` instead — that is a separate workflow. |
+
 ## Workflow Diagram
 \`\`\`mermaid
 flowchart TD
@@ -115,7 +128,7 @@ flowchart TD
     P4_Status --> P4_Task[Edit tasks.md:<br/>Change [ ] to [-]<br/>for in-progress]
     P4_Task --> P4_Code[Implement code]
     P4_Code --> P4_Log[log-implementation<br/>Record implementation<br/>details]
-    P4_Log --> P4_Review[review-task<br/>Review implementation<br/>against spec]
+    P4_Log --> P4_Review[Ask user to trigger review<br/>from dashboard;<br/>then get-task-review]
     P4_Review --> P4_Complete[Edit tasks.md:<br/>Change [-] to [x]<br/>for completed]
     P4_Complete --> P4_More{More tasks?}
     P4_More -->|Yes| P4_Task
@@ -156,12 +169,14 @@ flowchart TD
 4. Apply the methodology: identify capabilities, group into specs, order by dependencies
 5. Surface open questions to the user before finalizing
 6. Create \`decomposition.md\` at \`.spec-workflow/spec-decomposition/decomposition.md\`
-7. Request approval using approvals tool with action:'request' (filePath only, never content)
+7. Request approval using approvals tool with action:'request' (pass filePath; do NOT inline document content)
 8. Poll status using approvals with action:'status' until approved/needs-revision
 9. If needs-revision: update document using comments, create NEW approval, do NOT proceed
 10. Once approved: use approvals with action:'delete' (must succeed) before proceeding
 11. If delete fails: STOP - return to polling
 12. Proceed to Phase 1 for the first spec in the decomposition
+
+**Optional**: Run \`adversarial-review\` against the decomposition document (specName: 'decomposition', phase: 'decomposition') if you want a fresh-context critique before requesting approval. Findings can drive revisions before approval is requested.
 
 ### Phase 1: Requirements
 **Purpose**: Define what to build based on user needs.
@@ -180,8 +195,9 @@ flowchart TD
 2. Check for custom template at \`.spec-workflow/user-templates/requirements-template.md\`
 3. If no custom template, read from \`.spec-workflow/templates/requirements-template.md\`
 4. Research market/user expectations (if web search available, current year: ${currentYear})
-5. Generate requirements as user stories with EARS criteria6. Create \`requirements.md\` at \`.spec-workflow/specs/{spec-name}/requirements.md\`
-7. Request approval using approvals tool with action:'request' (filePath only, never content)
+5. Generate requirements as user stories with EARS criteria
+6. Create \`requirements.md\` at \`.spec-workflow/specs/{spec-name}/requirements.md\`
+7. Request approval using approvals tool with action:'request' (pass filePath; do NOT inline document content. Required fields: filePath, type, category, name, title)
 8. Poll status using approvals with action:'status' until approved/needs-revision (NEVER accept verbal approval)
 9. If needs-revision: update document using comments, create NEW approval, do NOT proceed
 10. Once approved: use approvals with action:'delete' (must succeed) before proceeding
@@ -206,11 +222,11 @@ flowchart TD
 5. Generate design with all template sections
 6. When deferring a design decision, record it with the \`deferrals\` tool (action: add) with originSpec and originPhase set
 7. Create \`design.md\` at \`.spec-workflow/specs/{spec-name}/design.md\`
-7. Request approval using approvals tool with action:'request'
-8. Poll status using approvals with action:'status' until approved/needs-revision
-9. If needs-revision: update document using comments, create NEW approval, do NOT proceed
-10. Once approved: use approvals with action:'delete' (must succeed) before proceeding
-11. If delete fails: STOP - return to polling
+8. Request approval using approvals tool with action:'request' (pass filePath; do NOT inline document content)
+9. Poll status using approvals with action:'status' until approved/needs-revision
+10. If needs-revision: update document using comments, create NEW approval, do NOT proceed
+11. Once approved: use approvals with action:'delete' (must succeed) before proceeding
+12. If delete fails: STOP - return to polling
 
 ### Phase 3: Tasks
 **Purpose**: Break design into atomic implementation tasks.
@@ -238,7 +254,7 @@ flowchart TD
    - Instructions related to setting the task in progress in tasks.md, logging the implementation with log-implementation tool after completion, and then marking it as complete when the task is complete.
    - Start the prompt with "Implement the task for spec {spec-name}, first run spec-workflow-guide to get the workflow guide then implement the task:"
 6. Create \`tasks.md\` at \`.spec-workflow/specs/{spec-name}/tasks.md\`
-7. Request approval using approvals tool with action:'request'
+7. Request approval using approvals tool with action:'request' (pass filePath; do NOT inline document content)
 8. Poll status using approvals with action:'status' until approved/needs-revision
 9. If needs-revision: update document using comments, create NEW approval, do NOT proceed
 10. Once approved: use approvals with action:'delete' (must succeed) before proceeding
@@ -261,8 +277,8 @@ flowchart TD
 - Read: Examine implementation log files directly
 - implement-task prompt: Guide for implementing tasks
 - log-implementation: Record implementation details with artifacts after task completion (step 5)
-- review-task: Review implementation against task spec (step 6) — call with action "prepare" then "record"
-- get-task-review: Retrieve findings from a completed review (use after a dashboard-triggered review completes)
+- review-task: Invoked by the dashboard reviewer (a fresh-context agent) — you do NOT call this directly. Listed for awareness only.
+- get-task-review: Retrieve findings after a dashboard-triggered review completes (step 6)
 - Direct editing: Mark tasks as in-progress [-] or complete [x] in tasks.md
 
 **Process**:
@@ -340,7 +356,7 @@ These are not part of the core approval flow — they are invoked when requested
 - Complete phases in sequence (no skipping)
 - One spec at a time
 - Use kebab-case for spec names
-- Approval requests: provide filePath only, never content
+- Approval requests: pass \`filePath\` (and the other required fields: type, category, name, title); do NOT inline document content into the request
 - BLOCKING: Never proceed if approval delete fails
 - CRITICAL: Must have approved status AND successful cleanup before next phase
 - CRITICAL: Every task marked [x] MUST have a corresponding implementation log — call log-implementation BEFORE changing [-] to [x]

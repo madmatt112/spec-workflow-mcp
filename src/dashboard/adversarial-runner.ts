@@ -16,6 +16,7 @@ export interface AdversarialJob {
   analysisOutputPath: string;
   promptOutputPath: string;
   targetFile: string;
+  model?: string;
 }
 
 interface RunOptions {
@@ -84,6 +85,7 @@ export class AdversarialRunner extends EventEmitter {
       analysisOutputPath: opts.analysisOutputPath,
       promptOutputPath: opts.promptOutputPath,
       targetFile: opts.targetFile,
+      model: opts.model,
     };
 
     this.jobs.set(jobId, job);

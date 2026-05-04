@@ -151,6 +151,47 @@ describe('computeHygieneSignals', () => {
     expect(patterns).toEqual(['console', 'todo']);
   });
 
+  it('(i) denylisted files are not scanned and produce no signals', async () => {
+    const lockfile = join(tempDir, 'package-lock.json');
+    const envFile = join(tempDir, '.env');
+    const minified = join(tempDir, 'bundle.min.js');
+    const real = join(tempDir, 'real.ts');
+    await fs.writeFile(lockfile, '// TODO: lockfile content with marker');
+    await fs.writeFile(envFile, '// TODO: secret-bearing');
+    await fs.writeFile(minified, 'console.log("min");');
+    await fs.writeFile(real, 'console.log("real");');
+
+    vi.resetModules();
+    vi.doMock('fs/promises', async () => {
+      const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+      return {
+        ...actual,
+        stat: vi.fn((...args: any[]) => (actual.stat as any)(...args)),
+        readFile: vi.fn((...args: any[]) => (actual.readFile as any)(...args)),
+      };
+    });
+
+    try {
+      const { computeHygieneSignals: scoped } = await import('../hygiene-signals.js');
+      const fsp = await import('fs/promises');
+      const readFileSpy = vi.mocked(fsp.readFile);
+      readFileSpy.mockClear();
+
+      const signals = await scoped([lockfile, envFile, minified, real]);
+
+      const readFilePaths = readFileSpy.mock.calls.map(c => String(c[0]));
+      expect(readFilePaths).not.toContain(lockfile);
+      expect(readFilePaths).not.toContain(envFile);
+      expect(readFilePaths).not.toContain(minified);
+      expect(readFilePaths).toContain(real);
+      expect(signals).toHaveLength(1);
+      expect(signals[0].file).toBe(real);
+    } finally {
+      vi.doUnmock('fs/promises');
+      vi.resetModules();
+    }
+  });
+
   it('(h) scans 50 files of 500 lines each in under 200ms', async () => {
     const files: string[] = [];
     let expectedTodos = 0;

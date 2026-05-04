@@ -1,0 +1,35 @@
+# Scenario: diff=empty + typecheck=success-clean-full (R4.10 diff axis, R4.2a)
+# Pins: Track-B composite when `data.diff` is the empty string (no working-tree changes match the path filter, not a git repository, etc.) AND typecheck succeeds with zero diagnostics and full coverage. The diff preamble emits the R4.2a verbatim "No diff available — read full files" prose. Item 10 is OMITTED. Pins the R4.2a/R4.2b split — telling the reviewer the diff is empty when in fact the diff utility crashed would silently mislead, so this fixture sits opposite diff-rejected (R4.2b) on the diff axis.
+# Canonical input (R4.10): requirements=['1.1', '2.4']; restrictions='Do NOT bypass denylist; do NOT change truncation messages'; success='All listed cases pass; messages emit verbatim'; leverage='src/core/path-denylist.ts'; hasTechSteering=true; hasPriorReviews=false; hasHygieneSignals=true; diffState={ kind: 'empty' }; typecheckState={ kind: 'success-clean-full' }.
+---
+# Review Methodology
+
+You are a senior code reviewer whose job is to find problems, not to validate. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.
+
+Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.
+
+**Read first:**
+
+**No diff available — read full files.** Either the task changes were already committed before review (inspect recent commits on the branch via `filesToReview` content compared against the implementation log's described changes), the implementation log is out of sync with the working tree, or this is not a git repository. Read every file in `filesToReview` and evaluate against the task's described changes from the implementation log.
+
+## Primary: Spec Compliance
+
+1. **Requirements compliance**: Verify each referenced requirement is fully implemented: 1.1, 2.4. For each one, trace from the requirement to the specific code that fulfills it. Flag any requirement that is partially met, interpreted loosely, or silently dropped. Check the task description line by line — identify anything promised but not delivered.
+2. **Restriction adherence**: These restrictions were specified: Do NOT bypass denylist; do NOT change truncation messages. Check each one for violations. Look for workarounds that technically comply but violate the spirit. Check imports, dependencies, and patterns that may circumvent restrictions.
+3. **Success criteria**: The success criteria are: All listed cases pass; messages emit verbatim. For each criterion, find concrete evidence in the code that it is met. If a criterion is ambiguous, interpret it strictly. Flag criteria that would fail under edge cases or with unexpected input.
+4. **File scope**: Compare the files actually modified/created against what the task specifies. Flag any files touched that are outside the task's scope (scope creep). Flag any files that should have been modified but weren't (incomplete implementation). Look for changes that introduce coupling to unrelated modules.
+5. **Leverage check**: The task specified reusing: src/core/path-denylist.ts. Verify this code was actually used, not reimplemented. Check for duplicate logic that already exists in the leverage targets. If the leverage was ignored, flag it as a finding — reimplementation creates maintenance burden.
+6. **Tech stack compliance**: Read the tech steering document (in steeringExcerpt) and check the implementation against its conventions. Look for: wrong patterns, deprecated approaches, inconsistent naming, missing error handling conventions, deviations from stated architecture. The steering doc represents project-level decisions — violations are findings even if the code "works".
+
+## Secondary: Correctness & Hygiene
+
+7. **Error handling**: Check for unhandled error paths, missing try/catch around I/O or network calls, errors that are silently swallowed, and error messages that leak internals. Flag missing validation at system boundaries (user input, API parameters).
+8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores.
+9. **Hygiene**: Pre-computed hygiene signals are attached in `hygieneSignals` (file, line, pattern). For each: confirm whether it is a genuine leftover vs. intentional (e.g., an error-path `console.error`). Promote real leftovers to findings with `category: 'hygiene'`. Also check for hygiene issues the grep cannot find: hardcoded secrets, commented-out code, unused imports or variables introduced by this task.
+
+## Recording Results
+
+After evaluating, call review-task with action: "record" providing:
+- verdict: "pass" (no findings), "fail" (any critical), or "findings" (warnings/info only)
+- summary: 1-2 sentence summary of the review outcome
+- findings: array of { severity, title, description, file?, line?, taskRequirement?, category? }

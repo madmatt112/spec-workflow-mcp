@@ -21,6 +21,7 @@ export interface TaskReviewJob {
   error?: string;
   verdict?: string;
   version?: number;
+  model?: string;
 }
 
 interface RunOptions {
@@ -74,6 +75,7 @@ export class TaskReviewRunner extends EventEmitter {
       taskId: opts.taskId,
       status: 'pending',
       startedAt: new Date().toISOString(),
+      model: opts.model,
     };
 
     this.jobs.set(jobId, job);

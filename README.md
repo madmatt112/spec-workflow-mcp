@@ -309,6 +309,44 @@ SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflo
 
 [See Configuration Guide →](docs/CONFIGURATION.md#environment-variables)
 
+## ⚙️ Reviewer Configuration
+
+The dashboard's adversarial-review and task-review subagents read their per-runner configuration from `.spec-workflow/adversarial-settings.json`. The file uses a **grouped per-runner shape** with a legacy top-level fallback:
+
+```json
+{
+  "adversarial": { "model": "claude-opus-4-7" },
+  "taskReview":  { "model": "claude-haiku-4-5" },
+  "features":    { "typecheck": true },
+  "model":       "claude-sonnet-4-6",
+  "cli":         "claude",
+  "cliArgs":     ["--print", "--output-format", "stream-json", "--verbose"]
+}
+```
+
+- `adversarial.model` / `taskReview.model` — per-runner model overrides. The grouped shape extends naturally for future per-runner settings (e.g. `cliArgs`) without a config migration.
+- `model` — legacy top-level fallback used when a runner's per-runner override is absent. Stays valid indefinitely; there is no deprecation timeline.
+- `features.typecheck` — boolean kill switch for the `tsc --noEmit` pre-computation that `review-task action: prepare` runs against TypeScript projects. Defaults to enabled; set to `false` to disable.
+- `cli` / `cliArgs` — global CLI command and arguments used to spawn both runners. Per-runner overrides are not implemented in v1.
+
+**Precedence ladder** (per-runner): per-runner override (`adversarial.model` / `taskReview.model`) > legacy top-level `model` > undefined (no `--model` flag passed; CLI default applies).
+
+**Empty-string clears the override**: setting `adversarial.model: ""` or `taskReview.model: ""` is treated as "explicitly cleared" — the runner falls back to the legacy `model`, or to undefined if legacy is absent. This is the documented way to disable a per-runner override without removing the key.
+
+### Retry behavior
+
+When a review is retried from the dashboard, the retry runner reuses **the model the initial run was invoked with**, looked up from the prior runner job. This keeps per-review telemetry and billing consistent across the initial and retry attempts. Per-retry model overrides are intentionally not supported.
+
+**Server-restart fallback**: if the dashboard server restarts between an initial review and its retry, the prior runner job is gone (jobs live in an in-memory map that does not persist across restarts). The retry handler falls back to re-resolving the model from current settings, logging `[spec-workflow] retry: prior job not found in runner, re-resolving model from settings` once per process. This is documented degraded behavior; persisting jobs across restarts is out of scope for v1.
+
+Only `model` is pinned across retry; `cli` and `cliArgs` always reflect current settings, so editing `cliArgs` between an initial run and its retry causes the retry to use the edited `cliArgs` while still using the initial run's `model`.
+
+If you upgrade the CLI binary or `claude-cli` package between an initial run and its retry AND the model name from the initial run is no longer valid (deprecated, renamed), the retry will fail inside the spawned process with the CLI's "unknown model" error — recover by clearing the prior job (trigger a fresh initial run, or restart the dashboard server to clear the in-memory job map).
+
+### Limitations
+
+**Concurrent prepare against the same project is unsupported in v1.** Running two `review-task action: prepare` invocations against the same project simultaneously may corrupt the typecheck buildinfo cache. Recovery: `rm <projectPath>/.spec-workflow/.cache/tsc.tsbuildinfo`.
+
 ## 📚 Documentation
 
 - [Configuration Guide](docs/CONFIGURATION.md) - Command-line options, config files

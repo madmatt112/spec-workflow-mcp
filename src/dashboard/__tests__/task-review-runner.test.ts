@@ -258,6 +258,60 @@ describe('TaskReviewRunner', () => {
     });
   });
 
+  describe('per-job model storage', () => {
+    it('stores opts.model on the constructed job (getJob.model === opts.model)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        projectContext: {},
+      });
+      const mockProcess = createMockProcess();
+      (spawn as any).mockReturnValue(mockProcess);
+
+      const jobId = await runner.run({ projectId: 'p1', specName: 's1', taskId: '1', projectPath: '/tmp', model: 'opus-4-7' });
+
+      const job = runner.getJob(jobId);
+      expect(job).toBeDefined();
+      expect(job!.model).toBe('opus-4-7');
+    });
+
+    it('leaves job.model undefined when opts.model is not set', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        projectContext: {},
+      });
+      const mockProcess = createMockProcess();
+      (spawn as any).mockReturnValue(mockProcess);
+
+      const jobId = await runner.run({ projectId: 'p1', specName: 's1', taskId: '1', projectPath: '/tmp' });
+
+      const job = runner.getJob(jobId);
+      expect(job).toBeDefined();
+      expect(job!.model).toBeUndefined();
+    });
+
+    it('does not break getJobsForProject consumers when model is set', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        projectContext: {},
+      });
+      const mockProcess = createMockProcess();
+      (spawn as any).mockReturnValue(mockProcess);
+
+      await runner.run({ projectId: 'p1', specName: 's1', taskId: '1', projectPath: '/tmp', model: 'sonnet' });
+      await runner.run({ projectId: 'p1', specName: 's1', taskId: '2', projectPath: '/tmp' });
+
+      const jobs = runner.getJobsForProject('p1');
+      expect(jobs.length).toBe(2);
+      const withModel = jobs.find(j => j.taskId === '1');
+      const withoutModel = jobs.find(j => j.taskId === '2');
+      expect(withModel!.model).toBe('sonnet');
+      expect(withoutModel!.model).toBeUndefined();
+    });
+  });
+
   describe('memory file naming', () => {
     it('should use a prefix that does not collide with review files', () => {
       // This is a contract test: the memory file prefix `memory-task-` must NOT

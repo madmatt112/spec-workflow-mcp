@@ -1,0 +1,36 @@
+# Scenario: typecheck=timeout + diff=present (R4.10 typecheck axis)
+# Pins: Track-B composite when diff is present + untruncated AND typecheck timed out at 30 seconds. Item 10 emits the R4.7 verbatim "Typecheck timed out at 30 seconds" prose, with the operator-knob hint pointing to `features.typecheck: false` in adversarial-settings.json. Pins the timeout-specific operator hint — the methodology surfaces a recovery action specific to the 30-second budget, distinct from R4.6b's reason-list recovery framing.
+# Canonical input (R4.10): requirements=['1.1', '2.4']; restrictions='Do NOT bypass denylist; do NOT change truncation messages'; success='All listed cases pass; messages emit verbatim'; leverage='src/core/path-denylist.ts'; hasTechSteering=true; hasPriorReviews=false; hasHygieneSignals=true; diffState={ kind: 'present' }; typecheckState={ kind: 'timeout' }.
+---
+# Review Methodology
+
+You are a senior code reviewer whose job is to find problems, not to validate. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.
+
+Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.
+
+**Read first:**
+
+**Read the diff first.** `data.diff` contains a unified diff (10 lines of context per hunk, rename-detected via `-M`) of the task's uncommitted changes vs. the last commit. Read it before opening any file from `filesToReview`. Open files from `filesToReview` only when (a) hunks span more than half the file — measured as `(addedLines + removedLines) / max(preEditLines, postEditLines)` — (b) you need surrounding invariants the hunks don't show, or (c) `data.skippedPaths` lists a file relevant to the task. If `data.diffTruncated` is true, read the full file for the truncated paths. Do NOT rely on the diff to surface renames — explicit pathspec defeats git's rename detection; suspect renames must be verified by reading both files.
+
+## Primary: Spec Compliance
+
+1. **Requirements compliance**: Verify each referenced requirement is fully implemented: 1.1, 2.4. For each one, trace from the requirement to the specific code that fulfills it. Flag any requirement that is partially met, interpreted loosely, or silently dropped. Check the task description line by line — identify anything promised but not delivered.
+2. **Restriction adherence**: These restrictions were specified: Do NOT bypass denylist; do NOT change truncation messages. Check each one for violations. Look for workarounds that technically comply but violate the spirit. Check imports, dependencies, and patterns that may circumvent restrictions.
+3. **Success criteria**: The success criteria are: All listed cases pass; messages emit verbatim. For each criterion, find concrete evidence in the code that it is met. If a criterion is ambiguous, interpret it strictly. Flag criteria that would fail under edge cases or with unexpected input.
+4. **File scope**: Compare the files actually modified/created against what the task specifies. Flag any files touched that are outside the task's scope (scope creep). Flag any files that should have been modified but weren't (incomplete implementation). Look for changes that introduce coupling to unrelated modules.
+5. **Leverage check**: The task specified reusing: src/core/path-denylist.ts. Verify this code was actually used, not reimplemented. Check for duplicate logic that already exists in the leverage targets. If the leverage was ignored, flag it as a finding — reimplementation creates maintenance burden.
+6. **Tech stack compliance**: Read the tech steering document (in steeringExcerpt) and check the implementation against its conventions. Look for: wrong patterns, deprecated approaches, inconsistent naming, missing error handling conventions, deviations from stated architecture. The steering doc represents project-level decisions — violations are findings even if the code "works".
+
+## Secondary: Correctness & Hygiene
+
+7. **Error handling**: Check for unhandled error paths, missing try/catch around I/O or network calls, errors that are silently swallowed, and error messages that leak internals. Flag missing validation at system boundaries (user input, API parameters).
+8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores.
+9. **Hygiene**: Pre-computed hygiene signals are attached in `hygieneSignals` (file, line, pattern). For each: confirm whether it is a genuine leftover vs. intentional (e.g., an error-path `console.error`). Promote real leftovers to findings with `category: 'hygiene'`. Also check for hygiene issues the grep cannot find: hardcoded secrets, commented-out code, unused imports or variables introduced by this task.
+10. **Typecheck timed out at 30 seconds.** The project is large enough that `tsc --noEmit` did not complete within the budget. Pre-computed diagnostics are NOT available for this review. **This is a degraded review surface** — type-error coverage is unverified. Operate in pre-spec methodology mode for type-checking; manually scan the modified TypeScript files. Surface this degradation in your review summary. If this timeout recurs, set `features.typecheck: false` in `.spec-workflow/adversarial-settings.json` to disable typecheck pre-computation; the review proceeds without it.
+
+## Recording Results
+
+After evaluating, call review-task with action: "record" providing:
+- verdict: "pass" (no findings), "fail" (any critical), or "findings" (warnings/info only)
+- summary: 1-2 sentence summary of the review outcome
+- findings: array of { severity, title, description, file?, line?, taskRequirement?, category? }
