@@ -206,7 +206,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     const promise = runProjectTypecheck(tempDir, [], { enabled: true });
     // Wait until spawn happened and the 30s timer was registered.
     while (!timeoutFired) await new Promise((r) => realSetTimeout(r, 5));
-    timeoutFired();
+    (timeoutFired as () => void)();
     const result = await promise;
     expect(result[0].status).toBe('timeout');
     stSpy.mockRestore();
@@ -281,6 +281,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     });
     const result = await runProjectTypecheck(tempDir, [], { enabled: true });
     expect(result[0].status).toBe('success');
+    if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].typecheckWarning).toMatch(/tsbuildinfo rebuild/);
   });
 });
