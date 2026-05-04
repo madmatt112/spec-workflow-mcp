@@ -37,7 +37,7 @@ Add to your MCP configuration (see client-specific setup below):
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -49,7 +49,7 @@ Add to your MCP configuration (see client-specific setup below):
 
 Start the dashboard (runs on port 5000 by default):
 ```bash
-npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112org/spec-workflow-mcp@latest --dashboard
 ```
 
 The dashboard will be accessible at: http://localhost:5000
@@ -88,7 +88,7 @@ Configure in your Augment settings:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -100,7 +100,7 @@ Configure in your Augment settings:
 
 Add to your MCP configuration:
 ```bash
-claude mcp add spec-workflow npx @madmatt112/spec-workflow-mcp@latest -- /path/to/your/project
+claude mcp add spec-workflow npx @madmatt112org/spec-workflow-mcp@latest -- /path/to/your/project
 ```
 
 **Important Notes:**
@@ -110,7 +110,7 @@ claude mcp add spec-workflow npx @madmatt112/spec-workflow-mcp@latest -- /path/t
 
 **Alternative for Windows (if the above doesn't work):**
 ```bash
-claude mcp add spec-workflow cmd.exe /c "npx @madmatt112/spec-workflow-mcp@latest /path/to/your/project"
+claude mcp add spec-workflow cmd.exe /c "npx @madmatt112org/spec-workflow-mcp@latest /path/to/your/project"
 ```
 </details>
 
@@ -123,7 +123,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -142,7 +142,7 @@ Add to your MCP server configuration:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -158,7 +158,7 @@ Add to your Continue configuration:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -174,7 +174,7 @@ Add to your Cursor settings (`settings.json`):
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -191,7 +191,7 @@ Add to your `opencode.json` configuration file:
   "mcp": {
     "spec-workflow": {
       "type": "local",
-      "command": ["npx", "-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"],
+      "command": ["npx", "-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"],
       "enabled": true
     }
   }
@@ -208,7 +208,7 @@ Add to your `~/.codeium/windsurf/mcp_config.json` configuration file:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }
@@ -222,7 +222,7 @@ Add to your `~/.codex/config.toml` configuration file:
 ```toml
 [mcp_servers.spec-workflow]
 command = "npx"
-args = ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+args = ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
 ```
 </details>
 
@@ -304,7 +304,7 @@ server {
 For sandboxed environments (e.g., Codex CLI with `sandbox_mode=workspace-write`) where `$HOME` is read-only, use the `SPEC_WORKFLOW_HOME` environment variable to redirect global state files to a writable location:
 
 ```bash
-SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112/spec-workflow-mcp@latest /workspace
+SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112org/spec-workflow-mcp@latest /workspace
 ```
 
 [See Configuration Guide →](docs/CONFIGURATION.md#environment-variables)

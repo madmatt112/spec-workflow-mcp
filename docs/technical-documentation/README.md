@@ -26,7 +26,7 @@
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/project"]
     }
   }
 }
@@ -34,7 +34,7 @@
 
 **Note**: To use the dashboard, start it separately in a terminal:
 ```bash
-npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112org/spec-workflow-mcp@latest --dashboard
 ```
 
 ### For Local Development

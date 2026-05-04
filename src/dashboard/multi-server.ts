@@ -135,7 +135,7 @@ export class MultiProjectDashboardServer {
 
     // Fetch package version once at startup
     try {
-      const response = await fetch('https://registry.npmjs.org/@madmatt112/spec-workflow-mcp/latest');
+      const response = await fetch('https://registry.npmjs.org/@madmatt112org/spec-workflow-mcp/latest');
       if (response.ok) {
         const packageInfo = await response.json() as { version?: string };
         this.packageVersion = packageInfo.version || 'unknown';

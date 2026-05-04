@@ -404,7 +404,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "spec-workflow": {
       "command": "npx",
-      "args": ["-y", "@madmatt112/spec-workflow-mcp@latest", "/path/to/your/project"]
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
     }
   }
 }

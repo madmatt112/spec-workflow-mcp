@@ -383,7 +383,7 @@ async function main() {
     if (error.message.includes('ENOENT') || error.message.includes('path') || error.message.includes('directory')) {
       console.error('\nProject path troubleshooting:');
       console.error('- Verify the project path exists and is accessible');
-      console.error('- For Claude CLI users, ensure you used: claude mcp add spec-workflow npx -y @madmatt112/spec-workflow-mcp@latest -- /path/to/your/project');
+      console.error('- For Claude CLI users, ensure you used: claude mcp add spec-workflow npx -y @madmatt112org/spec-workflow-mcp@latest -- /path/to/your/project');
       console.error('- Check that the path doesn\'t contain special characters that need escaping');
       console.error(`- Current working directory: ${process.cwd()}`);
     }

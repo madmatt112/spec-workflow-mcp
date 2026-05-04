@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Task Review** — new `review-task` and `get-task-review` tools that spawn a fresh-context dashboard agent to review completed task implementations before they're marked done.
 
 ### Changed
-- Renamed npm package: `@pimzino/spec-workflow-mcp` → `@madmatt112/spec-workflow-mcp`.
+- Renamed npm package: `@pimzino/spec-workflow-mcp` → `@madmatt112org/spec-workflow-mcp`.
 - Dashboard version banner now resolves against the new npm scope.
 - VSCode extension publisher renamed `Pimzino` → `madmatt112` (see `vscode-extension/CHANGELOG.md`).
 - Removed "Buy Me a Coffee" buttons from dashboard (desktop + mobile) and VSCode sidebar; dropped associated `support.*` / `header.support` locale keys across all 11 languages.

@@ -22,20 +22,20 @@ The web dashboard is a real-time web application that provides visual access to 
 #### Standalone Dashboard
 ```bash
 # Uses ephemeral port
-npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project --dashboard
+npx -y @madmatt112org/spec-workflow-mcp@latest /path/to/project --dashboard
 
 # Custom port
-npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project --dashboard --port 3000
+npx -y @madmatt112org/spec-workflow-mcp@latest /path/to/project --dashboard --port 3000
 ```
 
 #### With MCP Server
 ```bash
 # Run MCP server and dashboard separately (recommended)
 # Terminal 1: Start dashboard
-npx -y @madmatt112/spec-workflow-mcp@latest --dashboard
+npx -y @madmatt112org/spec-workflow-mcp@latest --dashboard
 
 # Terminal 2: Start MCP server
-npx -y @madmatt112/spec-workflow-mcp@latest /path/to/project
+npx -y @madmatt112org/spec-workflow-mcp@latest /path/to/project
 ```
 
 ### Dashboard Features
@@ -550,10 +550,10 @@ Inherits VSCode accessibility:
 Configure in multiple terminals:
 ```bash
 # Terminal 1: MCP Server
-npx -y @madmatt112/spec-workflow-mcp@latest /project
+npx -y @madmatt112org/spec-workflow-mcp@latest /project
 
 # Terminal 2: Dashboard
-npx -y @madmatt112/spec-workflow-mcp@latest /project --dashboard --port 3000
+npx -y @madmatt112org/spec-workflow-mcp@latest /project --dashboard --port 3000
 ```
 
 ### Extension Multi-Root Workspaces

@@ -22,7 +22,7 @@ function safeTranslatePath(path: string): string {
     throw new Error(
       `PathUtils.translatePath is not available (got ${typeof PathUtils?.translatePath}). ` +
       'This may indicate a module loading issue. Please reinstall the package with: ' +
-      'npm uninstall @madmatt112/spec-workflow-mcp && npm install @madmatt112/spec-workflow-mcp'
+      'npm uninstall @madmatt112org/spec-workflow-mcp && npm install @madmatt112org/spec-workflow-mcp'
     );
   }
   return PathUtils.translatePath(path);
