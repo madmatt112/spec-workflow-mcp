@@ -387,6 +387,68 @@ npm run dev
 
 [See development guide →](docs/DEVELOPMENT.md)
 
+## 📦 Publishing to npm
+
+This package publishes to npm as `@madmatt112org/spec-workflow-mcp` via a manually-dispatched GitHub Actions workflow. Three gates run before any version reaches the registry.
+
+### Version source
+
+`package.json` `version` is the single source of truth. There is no auto-bump. Use `npm version` (preferred) or edit `package.json` directly:
+
+```bash
+npm version patch    # 3.0.0 → 3.0.1, also creates git tag v3.0.1
+npm version minor    # 3.0.0 → 3.1.0
+npm version major    # 3.0.0 → 4.0.0
+```
+
+`scripts/sync-plugin-version.js` keeps the `.claude-plugin/*.json` manifest versions in sync. After bumping, run `npm run sync:plugin-version` to update the manifests; CI runs `npm run check:plugin-version` and fails if they drift.
+
+### Publish gates
+
+The `Publish to npm` workflow (`.github/workflows/npm-publish.yml`) runs three jobs in sequence — every step must pass before the publish job runs:
+
+1. **`test`** — calls `ci.yml` (typecheck, build, plugin-version sync check, full vitest suite).
+2. **`preflight`**:
+   - **Registry uniqueness**: aborts if `package.json` version is already published.
+   - **Git tag check**: requires a `v<version>` tag pointing at the exact commit being run.
+3. **`publish`** — `npm publish --access public --tag <input>`.
+
+### Publishing steps
+
+```bash
+# 1. Bump version + create matching git tag
+npm version patch          # or minor / major
+
+# 2. Push commit and tag together
+git push origin main --follow-tags
+
+# 3. Trigger the workflow
+#    GitHub → Actions → "Publish to npm" → "Run workflow"
+#    tag input: latest (or beta / next for pre-release routing)
+```
+
+The `tag` input controls the npm dist-tag, not the version. For a first cautious release, dispatch with `next`, then promote later:
+
+```bash
+npm dist-tag add @madmatt112org/spec-workflow-mcp@<version> latest
+```
+
+### Required secrets
+
+Set in `Settings → Secrets and variables → Actions`:
+
+- `NPM_TOKEN` — npm Granular Access Token with read+write on `@madmatt112org/*`. 2FA-for-publish must be enabled on the npm account.
+
+### Common failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Version X.Y.Z is already published` | Forgot to bump | `npm version patch` and re-dispatch |
+| `Expected git tag vX.Y.Z does not exist` | Tag missing or not pushed | `git tag v<ver> && git push origin v<ver>` |
+| `Tag points at <sha> but workflow is running on <sha>` | Tag is on a different commit | Move tag (`git tag -f v<ver>`) or run from the tagged commit |
+| `403 Forbidden` from `npm publish` | Token lacks scope permission, or org membership wrong | Regenerate token with `@madmatt112org/*` scope |
+| `check:plugin-version` fails in CI | Manifest versions drifted | `npm run sync:plugin-version`, commit, push |
+
 ## 📄 License
 
 GPL-3.0
