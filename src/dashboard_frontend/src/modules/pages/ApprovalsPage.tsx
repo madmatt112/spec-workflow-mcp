@@ -98,24 +98,15 @@ function AdversarialProgress({ job, approval, onDismissJob, onRetry }: { job?: a
 
   if (!status) return null;
 
-  const isStep1Active = status === 'pending' || status === 'generating-prompt';
-  const isStep1Done = status === 'running-review' || status === 'completed';
-  const isStep2Active = status === 'running-review';
-  const isStep2Done = status === 'completed';
+  const isRunning = status === 'pending' || status === 'running-review';
+  const isDone = status === 'completed';
   const isFailed = status === 'failed';
   const isIncomplete = status === 'incomplete';
-  const isRunning = isStep1Active || isStep2Active;
 
   const Spinner = () => (
     <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-  );
-
-  const Checkmark = () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
     </svg>
   );
 
@@ -178,7 +169,7 @@ function AdversarialProgress({ job, approval, onDismissJob, onRetry }: { job?: a
     );
   }
 
-  if (isStep2Done) {
+  if (isDone) {
     return (
       <div className="mt-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 max-w-md">
         <div className="flex items-start gap-2">
@@ -194,22 +185,12 @@ function AdversarialProgress({ job, approval, onDismissJob, onRetry }: { job?: a
     );
   }
 
-  // Running state — two-step stepper
+  // Running state
   return (
     <div className="mt-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 max-w-md">
       <div className="flex items-center gap-3">
-        {/* Step 1 */}
-        <div className={`flex items-center gap-1.5 ${isStep1Done ? 'text-green-600 dark:text-green-400' : isStep1Active ? 'text-purple-700 dark:text-purple-300' : 'text-[var(--text-faint)]'}`}>
-          {isStep1Done ? <Checkmark /> : isStep1Active ? <Spinner /> : <span className="w-4 h-4 flex items-center justify-center text-xs font-bold">1</span>}
-          <span className="text-xs font-medium">{t('approvalsPage.adversarialReview.stepGeneratingPrompt')}</span>
-        </div>
-
-        {/* Connector */}
-        <div className={`w-8 h-px ${isStep1Done ? 'bg-green-300 dark:bg-green-700' : 'bg-purple-200 dark:bg-purple-700'}`} />
-
-        {/* Step 2 */}
-        <div className={`flex items-center gap-1.5 ${isStep2Active ? 'text-purple-700 dark:text-purple-300' : 'text-[var(--text-faint)] opacity-50'}`}>
-          {isStep2Active ? <Spinner /> : <span className="w-4 h-4 flex items-center justify-center text-xs font-bold">2</span>}
+        <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+          <Spinner />
           <span className="text-xs font-medium">{t('approvalsPage.adversarialReview.stepRunningReview')}</span>
         </div>
 
@@ -217,7 +198,7 @@ function AdversarialProgress({ job, approval, onDismissJob, onRetry }: { job?: a
         {isRunning && job && (
           <button
             onClick={() => cancelAdversarialJob(job.id)}
-            className="text-purple-400 hover:text-purple-600 dark:hover:text-purple-200 flex-shrink-0 ml-2"
+            className="text-purple-400 hover:text-purple-600 dark:hover:text-purple-200 flex-shrink-0 ml-auto"
             title={t('common.cancel')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

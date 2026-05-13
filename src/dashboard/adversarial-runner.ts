@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
-import { join } from 'path';
 import { randomUUID } from 'crypto';
 
 export interface AdversarialJob {
@@ -9,7 +8,7 @@ export interface AdversarialJob {
   projectId: string;
   specName: string;
   phase: string;
-  status: 'pending' | 'generating-prompt' | 'running-review' | 'completed' | 'failed';
+  status: 'pending' | 'running-review' | 'completed' | 'failed';
   startedAt: string;
   completedAt?: string;
   error?: string;
@@ -27,19 +26,13 @@ interface RunOptions {
   targetFile: string;
   promptOutputPath: string;
   analysisOutputPath: string;
-  methodology: string;
-  steeringDocs: string[];
-  priorPhaseDocs: string[];
   version: number;
-  memoryFilePath?: string; // Path to the rolling memory file for prior review context
-  latestAnalysisPath?: string | null; // Path to the most recent prior analysis
-  skipPromptGeneration?: boolean; // Skip step 1 if prompt file already exists
   model?: string; // Model alias or full name (e.g. 'sonnet', 'opus', 'claude-sonnet-4-6')
   cli?: string; // CLI executable (default: 'claude')
   cliArgs?: string[]; // Base CLI args (default: ['--print', '--dangerously-skip-permissions'])
 }
 
-const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes per step
+const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes per review run
 const MAX_CONCURRENT_PER_PROJECT = 2;
 
 export class AdversarialRunner extends EventEmitter {
@@ -57,7 +50,7 @@ export class AdversarialRunner extends EventEmitter {
 
   getActiveJobsForProject(projectId: string): AdversarialJob[] {
     return this.getJobsForProject(projectId).filter(
-      j => j.status === 'pending' || j.status === 'generating-prompt' || j.status === 'running-review'
+      j => j.status === 'pending' || j.status === 'running-review'
     );
   }
 
@@ -91,7 +84,7 @@ export class AdversarialRunner extends EventEmitter {
     this.jobs.set(jobId, job);
     this.emit('job-update', job);
 
-    // Run the two-step process in the background
+    // Run the review in the background
     this.executeJob(jobId, opts).catch(err => {
       console.error(`[AdversarialRunner] Job ${jobId} failed:`, err);
     });
@@ -104,33 +97,13 @@ export class AdversarialRunner extends EventEmitter {
     if (!job) return;
 
     try {
-      // Step 1: Generate the tailored adversarial prompt (skip if prompt already exists)
-      let promptExists = false;
-      if (opts.skipPromptGeneration) {
-        try {
-          await fs.access(opts.promptOutputPath);
-          promptExists = true;
-        } catch {
-          // Prompt doesn't exist despite skipPromptGeneration — fall through to generate it
-        }
+      // The scaffold prompt is written to disk by adversarialReviewHandler before run() is called.
+      try {
+        await fs.access(opts.promptOutputPath);
+      } catch {
+        throw new Error(`Adversarial prompt file not found at ${opts.promptOutputPath}`);
       }
 
-      if (!promptExists) {
-        job.status = 'generating-prompt';
-        this.emit('job-update', { ...job });
-
-        const promptGenerationInstructions = this.buildPromptGenerationInstructions(opts);
-        await this.runAgent(jobId, opts.projectPath, promptGenerationInstructions, opts);
-
-        // Verify the prompt file was written
-        try {
-          await fs.access(opts.promptOutputPath);
-        } catch {
-          throw new Error(`Prompt generation completed but prompt file was not created at ${opts.promptOutputPath}`);
-        }
-      }
-
-      // Step 2: Execute the adversarial review with fresh context
       job.status = 'running-review';
       this.emit('job-update', { ...job });
 
@@ -155,62 +128,6 @@ export class AdversarialRunner extends EventEmitter {
     } finally {
       this.cleanupProcess(jobId);
     }
-  }
-
-  private buildPromptGenerationInstructions(opts: RunOptions): string {
-    const filesToRead = [opts.targetFile, ...opts.steeringDocs, ...opts.priorPhaseDocs];
-    const hasMemory = opts.version > 1 && opts.memoryFilePath;
-
-    if (hasMemory) {
-      filesToRead.push(opts.memoryFilePath!);
-      if (opts.latestAnalysisPath) {
-        filesToRead.push(opts.latestAnalysisPath);
-      }
-    }
-
-    const readInstructions = filesToRead
-      .map(f => `- ${f}`)
-      .join('\n');
-
-    const sections = [
-      `You are generating an adversarial review prompt. Follow the methodology below exactly.`,
-      ``,
-      `## Files to Read`,
-      readInstructions,
-      ``,
-      `## Methodology`,
-      opts.methodology,
-      ``,
-    ];
-
-    if (hasMemory) {
-      sections.push(
-        `## Prior Review Memory`,
-        `This is review v${opts.version}. Prior reviews exist.`,
-        ``,
-        `1. Read the memory file at ${opts.memoryFilePath} (if it exists on disk — it may not exist yet).`,
-        opts.latestAnalysisPath
-          ? `2. Read the latest analysis at ${opts.latestAnalysisPath} to understand recent findings.`
-          : `2. No prior analysis path available — skip this step.`,
-        `3. Write an UPDATED memory file to ${opts.memoryFilePath} that incorporates the latest analysis findings into the cumulative record. Follow the memory file format described in the methodology.`,
-        `4. In the generated adversarial prompt, include a "## Prior Review Context" section that summarizes what's been found, what was addressed, and what to focus on next. Instruct the reviewer to classify findings as novel, compounding, or recurring.`,
-        ``,
-      );
-    }
-
-    const stepOffset = hasMemory ? 2 : 0;
-    sections.push(
-      `## Task`,
-      `1. Read all the files listed above.`,
-      ...(hasMemory ? [`2. Update the memory file as described in the Prior Review Memory section above.`] : []),
-      `${2 + stepOffset}. Following the methodology, generate a tailored adversarial prompt targeting the ${opts.phase} phase document.`,
-      `${3 + stepOffset}. Write the completed prompt to: ${opts.promptOutputPath}`,
-      `${4 + stepOffset}. The prompt MUST tell the reviewing agent to write its analysis to: ${opts.analysisOutputPath}`,
-      ``,
-      `Do not perform the review yourself. Only generate the prompt file.`,
-    );
-
-    return sections.join('\n');
   }
 
   private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {

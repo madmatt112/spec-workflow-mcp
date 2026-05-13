@@ -806,12 +806,7 @@ export class MultiProjectDashboardServer {
             targetFile: result.data.targetFile,
             promptOutputPath: result.data.promptOutputPath,
             analysisOutputPath: result.data.analysisOutputPath,
-            methodology: result.data.methodology,
-            steeringDocs: result.data.steeringDocs || [],
-            priorPhaseDocs: result.data.priorPhaseDocs || [],
             version: result.data.version,
-            memoryFilePath: result.data.memoryFilePath,
-            latestAnalysisPath: result.data.latestAnalysisPath,
             model,
             cli,
             cliArgs,
@@ -931,28 +926,12 @@ export class MultiProjectDashboardServer {
           return reply.code(500).send({ error: result.message || 'Failed to prepare adversarial review' });
         }
 
-        // Check if the prompt file from the previous attempt exists
-        const promptPath = ann.promptOutputPath || result.data.promptOutputPath;
-        let promptExists = false;
-        try {
-          await fs.access(promptPath);
-          promptExists = true;
-        } catch { /* doesn't exist */ }
-
-        // When reusing an existing prompt, the analysis output path must match
-        // what the prompt tells the agent to write to. Derive from the prompt
-        // filename itself (prompt-X → analysis-X) since annotations may be stale
-        // from previous failed retries.
-        let analysisOutputPath = result.data.analysisOutputPath;
-        let analysisVersion = result.data.version;
-        if (promptExists) {
-          const promptBasename = basename(promptPath);
-          const analysisBasename = promptBasename.replace('adversarial-prompt-', 'adversarial-analysis-');
-          analysisOutputPath = join(dirname(promptPath), analysisBasename);
-          // Extract version from prompt filename (no suffix = v1, -r2 = v2, etc.)
-          const versionMatch = promptBasename.match(/-r(\d+)\.md$/);
-          analysisVersion = versionMatch ? parseInt(versionMatch[1], 10) : 1;
-        }
+        // adversarialReviewHandler always (re)writes a fresh self-contained scaffold
+        // at result.data.promptOutputPath. Use those paths directly — annotations may
+        // be stale from previous failed retries.
+        const promptPath = result.data.promptOutputPath;
+        const analysisOutputPath = result.data.analysisOutputPath;
+        const analysisVersion = result.data.version;
 
         // Pin model from prior runner job (R3.9); cli/cliArgs always reflect current settings.
         const priorJobId: string | undefined = ann?.jobId;
@@ -976,7 +955,7 @@ export class MultiProjectDashboardServer {
           ? settings.cliArgs
           : undefined;
 
-        // Spawn background review, skipping prompt generation if prompt already exists
+        // Spawn background review
         let jobId: string;
         try {
           jobId = await this.adversarialRunner.run({
@@ -987,13 +966,7 @@ export class MultiProjectDashboardServer {
             targetFile: result.data.targetFile,
             promptOutputPath: promptPath,
             analysisOutputPath,
-            methodology: result.data.methodology,
-            steeringDocs: result.data.steeringDocs || [],
-            priorPhaseDocs: result.data.priorPhaseDocs || [],
             version: analysisVersion,
-            memoryFilePath: result.data.memoryFilePath,
-            latestAnalysisPath: result.data.latestAnalysisPath,
-            skipPromptGeneration: promptExists,
             model: retryModel,
             cli: retryCli,
             cliArgs: retryCliArgs,
@@ -1017,13 +990,13 @@ export class MultiProjectDashboardServer {
         }, null, 2);
         const comments = [{
           type: 'general' as const,
-          comment: `Adversarial review retried${promptExists ? ' (resuming from existing prompt)' : ''}. Background job: ${jobId}`,
+          comment: `Adversarial review retried. Background job: ${jobId}`,
           timestamp: new Date().toISOString(),
         }];
 
         await project.approvalStorage.updateApproval(id, 'needs-revision', approval.response || '', newAnnotations, comments);
 
-        return { jobId, skippedPromptGeneration: promptExists };
+        return { jobId };
       } catch (error: any) {
         return reply.code(500).send({ error: error.message || 'Internal server error' });
       }

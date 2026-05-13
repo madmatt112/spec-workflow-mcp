@@ -453,7 +453,6 @@
       "confirmYes": "Yes, start review",
       "started": "Adversarial review started. Progress is shown on the approval card.",
       "error": "Failed to start adversarial review",
-      "stepGeneratingPrompt": "Generating prompt",
       "stepRunningReview": "Running review",
       "reviewComplete": "Adversarial review complete",
       "reviewFailed": "Adversarial review failed",

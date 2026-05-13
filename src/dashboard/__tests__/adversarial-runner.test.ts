@@ -34,18 +34,6 @@ function createFakeChild() {
   return child;
 }
 
-function waitForJobStatus(runner: AdversarialRunner, jobId: string, status: string): Promise<AdversarialJob> {
-  return new Promise((resolve) => {
-    const handler = (job: AdversarialJob) => {
-      if (job.id === jobId && job.status === status) {
-        runner.removeListener('job-update', handler);
-        resolve(job);
-      }
-    };
-    runner.on('job-update', handler);
-  });
-}
-
 function baseOpts(overrides: Partial<Parameters<AdversarialRunner['run']>[0]> = {}) {
   return {
     projectId: 'proj-1',
@@ -55,9 +43,6 @@ function baseOpts(overrides: Partial<Parameters<AdversarialRunner['run']>[0]> = 
     targetFile: '/tmp/project/.spec-workflow/specs/my-spec/requirements.md',
     promptOutputPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-prompt-requirements.md',
     analysisOutputPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements.md',
-    methodology: 'Test methodology',
-    steeringDocs: [],
-    priorPhaseDocs: [],
     version: 1,
     ...overrides,
   };
@@ -159,71 +144,56 @@ describe('AdversarialRunner', () => {
     it('getActiveJobsForProject excludes completed/failed jobs', async () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
-      // Access file checks succeed for both prompt and analysis
       mockedAccess.mockResolvedValue(undefined);
 
       const jobId = await runner.run(baseOpts());
 
-      // Complete step 1 (generating-prompt)
       await vi.waitFor(() => {
         expect(mockedSpawn).toHaveBeenCalled();
       });
+
       child.emit('close', 0);
 
-      // Complete step 2 (running-review)
       await vi.waitFor(() => {
-        expect(mockedSpawn).toHaveBeenCalledTimes(2);
+        expect(runner.getJob(jobId)!.status).toBe('completed');
       });
-      const child2 = mockedSpawn.mock.results[1]?.value;
-      // The second spawn returns a new fake child - but since we mock the return value,
-      // we need a second child
-      // Actually, spawn is called again for step 2, need another fake child
-      // Let's restructure: spawn returns a new fake child each time
+
+      expect(runner.getActiveJobsForProject('proj-1').length).toBe(0);
     });
   });
 
   describe('execution lifecycle', () => {
-    it('transitions pending → generating-prompt → running-review → completed', async () => {
-      const child1 = createFakeChild();
-      const child2 = createFakeChild();
-      mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
-      mockedAccess.mockResolvedValue(undefined); // all file checks pass
+    it('transitions pending → running-review → completed in a single agent run', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child as any);
+      mockedAccess.mockResolvedValue(undefined); // prompt file exists, analysis file exists
 
       const updates: string[] = [];
       runner.on('job-update', (job: AdversarialJob) => updates.push(job.status));
 
       const jobId = await runner.run(baseOpts());
 
-      // Wait for generating-prompt status
-      await vi.waitFor(() => {
-        expect(updates).toContain('generating-prompt');
-      });
-
-      // Complete step 1
-      child1.emit('close', 0);
-
-      // Wait for running-review status
       await vi.waitFor(() => {
         expect(updates).toContain('running-review');
       });
 
-      // Complete step 2
-      child2.emit('close', 0);
+      child.emit('close', 0);
 
-      // Wait for completed
       await vi.waitFor(() => {
         expect(updates).toContain('completed');
       });
 
-      expect(updates).toEqual(['pending', 'generating-prompt', 'running-review', 'completed']);
+      expect(updates).toEqual(['pending', 'running-review', 'completed']);
+      // Only one spawn call — no separate prompt-generation step.
+      expect(mockedSpawn).toHaveBeenCalledTimes(1);
       const job = runner.getJob(jobId);
       expect(job!.status).toBe('completed');
       expect(job!.completedAt).toBeTruthy();
     });
 
     it('sets failed with error on non-zero exit', async () => {
-      const child1 = createFakeChild();
-      mockedSpawn.mockReturnValueOnce(child1 as any);
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
       const jobId = await runner.run(baseOpts());
@@ -232,9 +202,8 @@ describe('AdversarialRunner', () => {
         expect(mockedSpawn).toHaveBeenCalled();
       });
 
-      // Emit stderr then close with error
-      child1.stderr.emit('data', Buffer.from('something went wrong'));
-      child1.emit('close', 1);
+      child.stderr.emit('data', Buffer.from('something went wrong'));
+      child.emit('close', 1);
 
       await vi.waitFor(() => {
         const job = runner.getJob(jobId);
@@ -246,48 +215,12 @@ describe('AdversarialRunner', () => {
       expect(job!.error).toContain('something went wrong');
     });
 
-    it('skips step 1 when skipPromptGeneration=true and file exists', async () => {
-      const child1 = createFakeChild();
-      mockedSpawn.mockReturnValueOnce(child1 as any);
-      mockedAccess.mockResolvedValue(undefined); // prompt file exists, analysis file exists
-
-      const updates: string[] = [];
-      runner.on('job-update', (job: AdversarialJob) => updates.push(job.status));
-
-      await runner.run(baseOpts({ skipPromptGeneration: true }));
-
-      // Should go straight to running-review (skip generating-prompt)
-      await vi.waitFor(() => {
-        expect(updates).toContain('running-review');
-      });
-
-      // Only one spawn call (step 2 only)
-      expect(mockedSpawn).toHaveBeenCalledTimes(1);
-
-      // Complete step 2
-      child1.emit('close', 0);
-
-      await vi.waitFor(() => {
-        expect(updates).toContain('completed');
-      });
-
-      // No generating-prompt in updates
-      expect(updates).not.toContain('generating-prompt');
-    });
-
-    it('fails when prompt file not created after step 1', async () => {
-      const child1 = createFakeChild();
-      mockedSpawn.mockReturnValueOnce(child1 as any);
-      // First access call (post-step-1 verification) fails
+    it('fails when scaffold prompt file is missing on disk', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockRejectedValue(new Error('ENOENT'));
 
       const jobId = await runner.run(baseOpts());
-
-      await vi.waitFor(() => {
-        expect(mockedSpawn).toHaveBeenCalled();
-      });
-
-      child1.emit('close', 0);
 
       await vi.waitFor(() => {
         const job = runner.getJob(jobId);
@@ -295,7 +228,33 @@ describe('AdversarialRunner', () => {
       });
 
       const job = runner.getJob(jobId);
-      expect(job!.error).toContain('prompt file was not created');
+      expect(job!.error).toContain('Adversarial prompt file not found');
+      // Runner must not spawn an agent if the prompt is missing.
+      expect(mockedSpawn).not.toHaveBeenCalled();
+    });
+
+    it('fails when analysis file is not produced by the agent', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child as any);
+      // First access (prompt) succeeds; second access (analysis) fails.
+      mockedAccess
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('ENOENT'));
+
+      const jobId = await runner.run(baseOpts());
+
+      await vi.waitFor(() => {
+        expect(mockedSpawn).toHaveBeenCalled();
+      });
+      child.emit('close', 0);
+
+      await vi.waitFor(() => {
+        const job = runner.getJob(jobId);
+        expect(job!.status).toBe('failed');
+      });
+
+      const job = runner.getJob(jobId);
+      expect(job!.error).toContain('analysis file was not created');
     });
   });
 
@@ -400,18 +359,14 @@ describe('AdversarialRunner', () => {
     });
 
     it('returns false for completed job', async () => {
-      const child1 = createFakeChild();
-      const child2 = createFakeChild();
-      mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
       const jobId = await runner.run(baseOpts());
 
-      // Complete both steps
       await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalled());
-      child1.emit('close', 0);
-      await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalledTimes(2));
-      child2.emit('close', 0);
+      child.emit('close', 0);
       await vi.waitFor(() => expect(runner.getJob(jobId)!.status).toBe('completed'));
 
       expect(runner.cancelJob(jobId)).toBe(false);
@@ -426,6 +381,7 @@ describe('AdversarialRunner', () => {
     it('reports ENOENT as CLI not found', async () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
+      mockedAccess.mockResolvedValue(undefined);
 
       const jobId = await runner.run(baseOpts());
 
@@ -447,65 +403,18 @@ describe('AdversarialRunner', () => {
     });
   });
 
-  describe('prompt generation with memory context', () => {
-    it('includes memory instructions in prompt for v2+ reviews', async () => {
-      const child = createFakeChild();
-      mockedSpawn.mockReturnValue(child as any);
-
-      await runner.run(baseOpts({
-        version: 2,
-        memoryFilePath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md',
-        latestAnalysisPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements.md',
-      }));
-
-      // The prompt passed to spawn should contain memory instructions
-      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
-      const prompt = spawnArgs[spawnArgs.length - 1];
-      expect(prompt).toContain('Prior Review Memory');
-      expect(prompt).toContain('adversarial-memory-requirements.md');
-      expect(prompt).toContain('adversarial-analysis-requirements.md');
-    });
-
-    it('does not include memory instructions for v1 reviews', async () => {
-      const child = createFakeChild();
-      mockedSpawn.mockReturnValue(child as any);
-
-      await runner.run(baseOpts({
-        version: 1,
-        memoryFilePath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md',
-        latestAnalysisPath: null,
-      }));
-
-      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
-      const prompt = spawnArgs[spawnArgs.length - 1];
-      expect(prompt).not.toContain('Prior Review Memory');
-    });
-
-    it('includes memory file in files-to-read list for v2+', async () => {
-      const child = createFakeChild();
-      mockedSpawn.mockReturnValue(child as any);
-
-      const memoryPath = '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-memory-requirements.md';
-      await runner.run(baseOpts({
-        version: 3,
-        memoryFilePath: memoryPath,
-        latestAnalysisPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements-r2.md',
-      }));
-
-      const spawnArgs = mockedSpawn.mock.calls[0][1] as string[];
-      const prompt = spawnArgs[spawnArgs.length - 1];
-      expect(prompt).toContain(`- ${memoryPath}`);
-    });
-  });
-
   describe('shutdown', () => {
     it('kills all running processes', async () => {
       const child1 = createFakeChild();
       const child2 = createFakeChild();
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
+      mockedAccess.mockResolvedValue(undefined);
 
       await runner.run(baseOpts({ specName: 'spec-a' }));
       await runner.run(baseOpts({ specName: 'spec-b', phase: 'design' }));
+
+      // Wait for both children to be spawned before shutdown
+      await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalledTimes(2));
 
       runner.shutdown();
 

@@ -303,9 +303,9 @@ describe('adversarial-review tool', () => {
     expect(result.data.methodology).toContain('Recurring');
   });
 
-  // --- Scaffolded prompt file tests (Task 4) ---
+  // --- Scaffolded prompt file tests ---
 
-  it('writes v1 scaffold with only the analysis-dimensions placeholder', async () => {
+  it('writes a self-contained v1 scaffold with no placeholder blocks', async () => {
     const project = await createTempProject();
     const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specDir, { recursive: true });
@@ -318,14 +318,16 @@ describe('adversarial-review tool', () => {
 
     expect(result.success).toBe(true);
     const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
-    expect(scaffold).toContain('PLACEHOLDER:ANALYSIS_DIMENSIONS');
-    expect(scaffold).not.toContain('PLACEHOLDER:PRIOR_REVIEW_CONTEXT');
+    expect(scaffold).not.toContain('PLACEHOLDER');
+    expect(scaffold).toContain('Before writing your analysis, read the target document');
+    expect(scaffold).toContain('3–6 specific topics');
+    expect(scaffold).not.toContain('## Prior review context');
     const outputParts = scaffold.split('## Output');
     expect(outputParts).toHaveLength(2);
     expect(outputParts[1]).toContain(result.data.analysisOutputPath);
   });
 
-  it('writes v2 scaffold with both placeholder blocks referencing memory + latest analysis', async () => {
+  it('writes a v2 scaffold with an inline prior-review-context section referencing memory + latest analysis', async () => {
     const project = await createTempProject();
     const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
     const reviewsDir = join(specDir, 'reviews');
@@ -345,15 +347,13 @@ describe('adversarial-review tool', () => {
     expect(result.success).toBe(true);
     expect(result.data.version).toBe(2);
     const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
-    expect(scaffold).toContain('PLACEHOLDER:ANALYSIS_DIMENSIONS');
-    expect(scaffold).toContain('PLACEHOLDER:PRIOR_REVIEW_CONTEXT');
-    const priorBlockMatch = scaffold.match(
-      /<!-- PLACEHOLDER:PRIOR_REVIEW_CONTEXT[\s\S]*?-->/
-    );
-    expect(priorBlockMatch).not.toBeNull();
-    const priorBlock = priorBlockMatch![0];
-    expect(priorBlock).toContain(result.data.memoryFilePath);
-    expect(priorBlock).toContain(result.data.latestAnalysisPath);
+    expect(scaffold).not.toContain('PLACEHOLDER');
+    expect(scaffold).toContain('## Prior review context');
+    expect(scaffold).toContain(result.data.memoryFilePath);
+    expect(scaffold).toContain(result.data.latestAnalysisPath);
+    expect(scaffold).toContain('Novel');
+    expect(scaffold).toContain('Compounding');
+    expect(scaffold).toContain('Recurring');
   });
 
   it('writes decomposition scaffold with phase-specific attack-surface and angles', async () => {
@@ -393,8 +393,8 @@ describe('adversarial-review tool', () => {
     expect(scaffold).toMatch(/^# Adversarial Review/);
     expect(scaffold).toContain('You are a experienced senior reviewer');
     expect(scaffold).toContain('## Target document');
-    expect(scaffold).toContain('## Analysis dimensions');
-    expect(scaffold).toContain('PLACEHOLDER:ANALYSIS_DIMENSIONS');
+    expect(scaffold).toContain('## Analysis approach');
+    expect(scaffold).not.toContain('PLACEHOLDER');
     expect(scaffold).toContain('## Closing deliverables');
     expect(scaffold).toContain('## Output');
   });
@@ -443,7 +443,8 @@ describe('adversarial-review tool', () => {
     expect(result.data.methodology).toBe('Custom override text');
     const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
     expect(scaffold).not.toBe(result.data.methodology);
-    expect(scaffold).toContain('PLACEHOLDER:ANALYSIS_DIMENSIONS');
+    expect(scaffold).not.toContain('PLACEHOLDER');
+    expect(scaffold).toContain('Before writing your analysis, read the target document');
   });
 
   it('uses generic persona for unknown phase even when methodology is overridden', async () => {
@@ -476,9 +477,10 @@ describe('adversarial-review tool', () => {
     }
   });
 
-  it('tool description mentions scaffold and placeholder', () => {
+  it('tool description mentions a self-contained prompt and a fresh-context subagent', () => {
     const desc = adversarialReviewTool.description ?? '';
-    expect(desc.toLowerCase()).toContain('scaffold');
-    expect(desc.toLowerCase()).toContain('placeholder');
+    expect(desc.toLowerCase()).toContain('self-contained');
+    expect(desc.toLowerCase()).toContain('fresh-context subagent');
+    expect(desc).not.toContain('PLACEHOLDER');
   });
 });

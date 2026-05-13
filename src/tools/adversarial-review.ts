@@ -10,10 +10,10 @@ export const adversarialReviewTool: Tool = {
 
 # Instructions
 Use this tool to set up an adversarial analysis of a requirements, design, tasks, steering,
-or decomposition document. The tool writes a pre-built scaffold prompt to disk with PLACEHOLDER
-blocks for the document-specific content, and returns the methodology, output paths, and context
-needed to fill in the placeholders. The agent fills the placeholder blocks in the scaffold, then
-launches a fresh-context subagent to execute it — context separation ensures genuinely critical output.
+or decomposition document. The tool writes a self-contained adversarial prompt to disk and returns
+the output paths. Launch a fresh-context subagent with: "Read and execute the instructions in
+<promptOutputPath>." Context separation ensures genuinely critical output — the subagent reads
+the target document and chooses its attack dimensions in its first turn.
 
 For decomposition reviews, use specName: "decomposition" and phase: "decomposition".`,
   inputSchema: {
@@ -168,8 +168,6 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
       latestAnalysisPath,
     },
     nextSteps: [
-      'Read the target document',
-      `Fill the PLACEHOLDER blocks in ${promptOutputPath}`,
       `Launch a fresh-context subagent with only: "Read and execute the instructions in ${promptOutputPath}"`,
       `The subagent will write its analysis to ${analysisOutputPath}`,
     ]
@@ -315,23 +313,62 @@ export function buildScaffoldedPrompt(args: {
   const { specName, phase, version, targetFile, analysisOutputPath, memoryFilePath, latestAnalysisPath } = args;
   const guidance = PHASE_ATTACK_ANGLES[phase] ?? GENERIC_PHASE_GUIDANCE;
 
-  const base = `# Adversarial Review — ${specName}/${phase} (v${version})
+  const priorReviewSection = version > 1
+    ? `## Prior review context
+
+This is review v${version}. Before attacking the target document:
+
+1. Read the rolling memory file at ${memoryFilePath} (it may not exist yet — the file is created/updated by each v2+ review).
+${latestAnalysisPath ? `2. Read the latest prior analysis at ${latestAnalysisPath} to understand what was found most recently.` : `2. No prior analysis is available on disk — proceed without it.`}
+3. Classify each finding you produce as one of:
+   - **Novel**: not identified in any prior review.
+   - **Compounding**: builds on or deepens a prior finding.
+   - **Recurring**: same issue identified before but not yet resolved — escalate severity.
+4. Focus on novel and compounding issues. Do not re-discover known findings unless they remain unresolved.
+5. After completing your analysis, write an UPDATED memory file to ${memoryFilePath} using this format:
+
+\`\`\`markdown
+# Adversarial Review Memory — ${phase}
+Last updated: <today's date> (after v${version} review)
+
+## Cumulative Findings Summary
+### Accepted
+- <finding>: <brief description, which version identified it>
+
+### Partially Accepted
+- <finding>: <brief description, user's stance>
+
+### Rejected
+- <finding>: <brief description, reason for rejection>
+
+### Unresolved
+- <finding>: <not yet responded to>
+
+## Patterns & Themes
+- <high-level observations about recurring issues>
+
+## Guidance for Next Review
+- Focus areas based on what's been found
+- Areas that have been well-covered and don't need re-examination
+\`\`\`
+
+`
+    : '';
+
+  return `# Adversarial Review — ${specName}/${phase} (v${version})
 
 You are a ${guidance.persona}. Your job is to tear apart this document and find every weakness — gaps, ambiguities, contradictions, unstated assumptions, failure modes that have not been considered. Do not validate or support. Use directive framing throughout.
 
 ## Target document
 ${targetFile}
 
-## Analysis dimensions
+${priorReviewSection}## Analysis approach
 
-<!-- PLACEHOLDER:ANALYSIS_DIMENSIONS
-Replace this block with 3–6 numbered sections tailored to the target document.
-Each section: a specific topic/decision + 3–5 directive bullets grounded in the
-target document's actual content, not generic advice.
+Before writing your analysis, read the target document. Then identify **3–6 specific topics, decisions, or sections** to attack — name actual headings, claims, or structures from the document. For each, list **3–5 directive bullets** grounded in the document's concrete content. Frame bullets as directives ("Challenge the claim that…", "Stress-test the assumption that…"), not questions. Do not write generic advice.
 
-Attack surface for this phase: ${guidance.attackSurface}
-Example angles: ${guidance.exampleAngles}
--->
+**Primary attack surface for this phase:** ${guidance.attackSurface}
+
+**Example attack angles to consider:** ${guidance.exampleAngles}
 
 ## Closing deliverables
 - Top N risks/gaps (3 for short docs, 5 for long)
@@ -343,23 +380,6 @@ is actually fine, say so briefly and move on.
 
 ## Output
 Write your analysis to: ${analysisOutputPath}
-`;
-
-  if (version <= 1) {
-    return base;
-  }
-
-  return `${base}
-## Prior review context
-
-<!-- PLACEHOLDER:PRIOR_REVIEW_CONTEXT
-Read ${memoryFilePath} (if present) and ${latestAnalysisPath ?? '(no prior analysis on disk)'}. Replace this block with:
-- Summary of prior findings
-- Which were addressed, which persist
-- Directive to focus on novel issues
-- Classification scheme: novel / compounding / recurring
-Then update the memory file per the methodology format.
--->
 `;
 }
 
