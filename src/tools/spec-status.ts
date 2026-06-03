@@ -56,9 +56,9 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
         success: false,
         message: `Specification '${specName}' not found`,
         nextSteps: [
-          'Check spec name',
-          'Use spec-list for available specs',
-          'Create spec with create-spec-doc'
+          'Check the spec name (kebab-case)',
+          'List existing specs by reading .spec-workflow/specs/',
+          'To create a new spec, call spec-workflow-guide and follow the workflow'
         ]
       };
     }
