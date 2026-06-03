@@ -304,10 +304,12 @@ Requirements and designs often evolve during implementation. When this happens, 
 
 ### Realigning Tasks After Spec Changes
 
-There is no dedicated `refresh-tasks` tool. To realign work, edit the spec documents
-directly (`requirements.md`, `design.md`, then `tasks.md`) and re-request approval for
-the changed documents. Simply inform the AI about your changes and ask it to update the
-affected documents:
+The server provides a **`refresh-tasks` MCP prompt** (not a tool) for exactly this:
+invoke it with `specName` and a `changes` description and it returns a guided
+walkthrough for updating `tasks.md` while preserving completed work. If your client
+doesn't surface MCP prompts, you can drive the same outcome with a plain request —
+edit the spec documents directly (`requirements.md`, `design.md`, then `tasks.md`) and
+re-request approval for the changed documents:
 
 #### Basic Task Realignment
 ```
@@ -489,8 +491,9 @@ This ensures the application remains functional throughout the transition.
 
 ### Driving Realignment Directly
 
-There is no `refresh-tasks` prompt or tool. To drive realignment, describe the change
-and ask the AI to edit the spec documents directly, then re-approve:
+Besides the `refresh-tasks` prompt, you can drive realignment with a plain request —
+describe the change and ask the AI to edit the spec documents directly, then
+re-approve:
 
 ```
 "For the user-auth spec, we switched from JWT to OAuth2 for authentication. Please update requirements.md, design.md, and tasks.md to match, preserving all completed work, then request approval for the changed documents."

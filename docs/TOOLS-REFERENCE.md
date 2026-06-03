@@ -2,10 +2,11 @@
 
 Complete reference for the MCP tools provided by Spec Workflow MCP.
 
-The server registers **11 tools** (see `src/tools/index.ts`). This document is the
-canonical reference for all of them. For the autonomous / non-interactive usage
-patterns these tools support (and the constraints you can safely override when no
-human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).
+The server registers **11 tools** (see `src/tools/index.ts`) and **8 MCP prompts**
+(see `src/prompts/index.ts`). This document is the canonical reference for both — the
+tools first, then the [MCP Prompts](#mcp-prompts) section below. For the autonomous /
+non-interactive usage patterns these tools support (and the constraints you can safely
+override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).
 
 > **Workflow model.** Spec documents are written by the **agent reading the
 > templates from `.spec-workflow/templates/` and writing the spec files directly**
@@ -347,6 +348,30 @@ latest), `projectPath` (optional).
 `get-task-review` only **reads**; it never produces a review.
 
 ---
+
+## MCP Prompts
+
+Separate from the tools above, the server exposes **8 MCP prompts** via the protocol's
+prompts capability (`src/prompts/index.ts`). In MCP clients these surface as
+slash-command-style, user-invokable templates: invoking one returns a ready-made
+message (often with the relevant guide text and your arguments filled in) that kicks
+off a workflow step. They are not called like tools — the client lists them
+(`prompts/list`) and fetches one (`prompts/get`).
+
+> Note: several prompt names echo old upstream tool names (e.g. `create-steering-doc`,
+> `spec-status`). These are **prompts**, not tools — e.g. there is a `create-spec`
+> *prompt* but no `create-spec-doc` *tool*; the agent still writes the files itself.
+
+| Prompt | Arguments | Purpose |
+|--------|-----------|---------|
+| `create-spec` | `specName`, `documentType` (requirements/design/tasks), `description` | Guide for creating a spec document directly in the file system using the templates. |
+| `create-steering-doc` | `docType` (product/tech/structure), `scope` | Guide for creating a steering document directly in the file system. |
+| `create-decomposition` | `researchMode` (default false) | Guide for decomposing the steering docs into an ordered set of specs (the Decomposition phase). |
+| `implement-task` | `specName`, `taskId` | Guide for implementing one task from `tasks.md` — reading the task prompt, marking progress, completion criteria, and logging via `log-implementation`. |
+| `spec-status` | `specName` (optional), `detailed` | Status overview of a spec (or all specs) — documents, tasks, and approvals. |
+| `refresh-tasks` | `specName`, `changes` | Guide for updating `tasks.md` when requirements/design change mid-implementation, preserving completed work while realigning pending tasks. |
+| `inject-spec-workflow-guide` | — | Injects the full spec workflow guide into the conversation context (no separate tool call needed). |
+| `inject-steering-guide` | — | Injects the full steering-doc workflow guide into the conversation context. |
 
 ## Common patterns
 
