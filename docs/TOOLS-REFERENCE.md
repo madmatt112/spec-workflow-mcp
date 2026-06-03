@@ -1,648 +1,374 @@
 # Tools Reference
 
-Complete documentation for all MCP tools provided by Spec Workflow MCP.
+Complete reference for the MCP tools provided by Spec Workflow MCP.
 
-## Overview
+The server registers **11 tools** (see `src/tools/index.ts`). This document is the
+canonical reference for all of them. For the autonomous / non-interactive usage
+patterns these tools support (and the constraints you can safely override when no
+human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).
 
-Spec Workflow MCP provides specialized tools for structured software development. These tools are accessible to AI assistants through the Model Context Protocol.
+> **Workflow model.** Spec documents are written by the **agent reading the
+> templates from `.spec-workflow/templates/` and writing the spec files directly**
+> with its own file tools. There is no `create-spec-doc` / `get-template-context` /
+> `manage-tasks` tool — task status is changed by editing `tasks.md` markers
+> (`[ ]` pending, `[-]` in-progress, `[x]` completed). The tools below provide
+> guidance, approval, status, review, and bookkeeping around that core loop.
 
-## Tool Categories
+## Tool index
 
-1. **Workflow Guides** - Documentation and guidance
-2. **Spec Management** - Create and manage specifications
-3. **Context Tools** - Retrieve project information
-4. **Steering Tools** - Project-level guidance
-5. **Approval Tools** - Document approval workflow
-6. **Adversarial Review Tools** - Independent document critique and response
+| Tool | Purpose | Phase |
+|------|---------|-------|
+| [`spec-workflow-guide`](#spec-workflow-guide) | Load the full workflow methodology | Always first |
+| [`steering-guide`](#steering-guide) | Load steering-doc methodology | Optional (steering) |
+| [`decomposition-guide`](#decomposition-guide) | Load spec-decomposition methodology | Decomposition |
+| [`approvals`](#approvals) | Request / check / delete dashboard approvals | Every phase boundary |
+| [`spec-status`](#spec-status) | Progress overview for a spec | Any time |
+| [`adversarial-review`](#adversarial-review) | Scaffold an independent critique of a document | Optional, per phase |
+| [`adversarial-response`](#adversarial-response) | Get instructions to respond to a critique | Optional, per phase |
+| [`deferrals`](#deferrals) | Track decisions deferred across specs | Cross-phase / cross-spec |
+| [`log-implementation`](#log-implementation) | Record what a task implemented | Implementation |
+| [`review-task`](#review-task) | Review a task's implementation against its spec | Implementation |
+| [`get-task-review`](#get-task-review) | Retrieve stored task-review findings | Implementation |
 
-## Workflow Guide Tools
+Origin note: `spec-workflow-guide`, `steering-guide`, `spec-status`, `approvals`,
+and `log-implementation` are inherited from upstream (Pimzino). `decomposition-guide`,
+`adversarial-review`, `adversarial-response`, `deferrals`, `review-task`, and
+`get-task-review` are **additions in this fork** — see [WORKFLOW.md](WORKFLOW.md).
 
-### spec-workflow-guide
+---
 
-**Purpose**: Provides comprehensive guidance for the spec-driven workflow process.
+## spec-workflow-guide
 
-**Parameters**: None
+**Purpose**: Loads the complete workflow methodology. Call this **first** whenever a
+user requests spec creation or feature development.
 
-**Returns**: Markdown guide explaining the complete workflow
+**Parameters**: none.
 
-**Usage Example**:
-```
-"Show me the spec workflow guide"
-```
+**Returns**: `data.guide` (the full markdown workflow), `data.dashboardUrl`, and
+`data.dashboardAvailable` (`true` only if a dashboard URL is registered — see
+[AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md) for what `false` means), plus a
+`nextSteps` array.
 
-**Response Contains**:
-- Workflow overview
-- Step-by-step process
-- Best practices
-- Example prompts
+The returned guide is authoritative and defines the phase sequence
+**Decomposition → Requirements → Design → Tasks → Implementation**, the per-phase
+approval cycle, and the hard rules below. Treat the guide as the source of truth;
+this doc summarizes it.
 
-### steering-guide
+**Key rules from the guide** (`src/tools/spec-workflow-guide.ts`):
+- "Create ONE spec at a time." Feature names are kebab-case.
+- Verbal approval is **never** accepted — approval status must be read from the
+  dashboard/VS Code extension via `approvals` (`action: status`).
+- After each document, request approval, poll, and **delete the approval before
+  proceeding** to the next phase.
 
-**Purpose**: Guide for creating project steering documents.
+---
 
-**Parameters**: None
+## steering-guide
 
-**Returns**: Markdown guide for steering document creation
+**Purpose**: Loads the methodology for creating the three steering documents
+(`product.md`, `tech.md`, `structure.md`). Call **only** when the user explicitly
+asks for steering docs — it is not part of the standard per-spec flow.
 
-**Usage Example**:
-```
-"Show me how to create steering documents"
-```
+**Parameters**: none.
 
-**Response Contains**:
-- Steering document types
-- Creation process
-- Content guidelines
-- Examples
+**Returns**: `data.guide`, `data.dashboardUrl`, `nextSteps`.
 
-## Spec Management Tools
+Each steering doc goes through the same request → poll → delete approval cycle as a
+spec document. Once steering docs exist, the workflow begins with **Decomposition**.
 
-### create-spec-doc
+---
 
-**Purpose**: Creates or updates specification documents (requirements, design, tasks).
+## decomposition-guide
 
-**Parameters**:
+> **Fork addition.** Not present upstream.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec (kebab-case) |
-| docType | string | Yes | Type: "requirements", "design", or "tasks" |
-| content | string | Yes | Markdown content of the document |
-| revision | boolean | No | Whether this is a revision (default: false) |
+**Purpose**: Loads the spec-decomposition methodology — principles for breaking a
+project (described by its steering docs) into a complete, ordered set of specs. This
+is a **required step before the first spec** when steering docs exist.
 
-**Usage Example**:
-```typescript
-{
-  specName: "user-authentication",
-  docType: "requirements",
-  content: "# User Authentication Requirements\n\n## Overview\n...",
-  revision: false
-}
-```
+**Parameters**: none.
 
-**Returns**:
-```typescript
-{
-  success: true,
-  message: "Requirements document created successfully",
-  path: ".spec-workflow/specs/user-authentication/requirements.md",
-  requestedApproval: true
-}
-```
+**Returns**: `data.guide` (the decomposition methodology), `data.dashboardUrl`, and
+`nextSteps` directing you to read the steering docs, apply the methodology, surface
+open questions, and save the result to
+`.spec-workflow/spec-decomposition/decomposition.md`.
 
-**Notes**:
-- Creates spec directory if it doesn't exist
-- Automatically requests approval for new documents
-- Validates markdown format
-- Preserves existing documents when creating new types
+The decomposition document is itself approvable — submit it via `approvals` with
+`category: 'decomposition'`.
 
-### spec-list
+---
 
-**Purpose**: Lists all specifications with their current status.
+## approvals
 
-**Parameters**: None
-
-**Returns**: Array of spec summaries
-
-**Response Structure**:
-```typescript
-[
-  {
-    name: "user-authentication",
-    status: "in-progress",
-    progress: 45,
-    documents: {
-      requirements: "approved",
-      design: "pending-approval",
-      tasks: "not-created"
-    },
-    taskStats: {
-      total: 15,
-      completed: 7,
-      inProgress: 1,
-      pending: 7
-    }
-  }
-]
-```
-
-**Usage Example**:
-```
-"List all my specs"
-```
-
-### spec-status
-
-**Purpose**: Gets detailed status information for a specific spec.
+**Purpose**: Manage dashboard approval requests. One tool, three actions.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec to check |
+| `action` | `'request' \| 'status' \| 'delete'` | Yes | The operation |
+| `projectPath` | string | No | Project root (defaults to server context) |
+| `approvalId` | string | for `status`/`delete` | The approval ID |
+| `title` | string | for `request` | Brief title of what needs approval |
+| `filePath` | string | for `request` | Path to the file, **relative to project root** |
+| `type` | `'document' \| 'action'` | for `request` | Approval type |
+| `category` | `'spec' \| 'steering' \| 'decomposition'` | for `request` | Approval category |
+| `categoryName` | string | for `request` | Spec name, or `"steering"` for steering docs |
 
-**Returns**: Detailed spec status
+> Only pass `filePath` for requests — the dashboard reads the file itself. **Never**
+> send document content.
 
-**Response Structure**:
-```typescript
-{
-  exists: true,
-  name: "user-authentication",
-  documents: {
-    requirements: {
-      exists: true,
-      approved: true,
-      lastModified: "2024-01-15T10:30:00Z",
-      size: 4523
-    },
-    design: {
-      exists: true,
-      approved: false,
-      pendingApproval: true,
-      lastModified: "2024-01-15T14:20:00Z",
-      size: 6234
-    },
-    tasks: {
-      exists: true,
-      taskCount: 15,
-      completedCount: 7,
-      inProgressCount: 1,
-      progress: 45
-    }
-  },
-  overallProgress: 45,
-  currentPhase: "implementation"
-}
-```
+**What is enforced in code** (handler returns `success: false`):
+- `filePath` must be relative; absolute paths and `..` traversal are rejected.
+- `.md` files are MDX-validated; `tasks.md` is structurally validated. Invalid
+  content blocks the request.
+- `delete` of a **pending** approval is hard-blocked (`BLOCKED: Cannot delete -
+  status is "pending"`).
 
-**Usage Example**:
-```
-"Show me the status of user-authentication spec"
-```
+**What is advisory only** (returned as text, *not* enforced):
+- "Delete the prior approval before submitting the next." `createApproval` mints a
+  new id every call with no uniqueness check, so **coexisting approvals are
+  permitted** by the tool.
+- The `BLOCKED` / `mustWait` / `canProceed:false` flags on `status` responses are
+  guidance, not execution gates — the server does not block subsequent tool calls.
+- "Verbal approval is never accepted." This is a workflow rule the agent is asked to
+  honor; the tool cannot force it.
 
-### manage-tasks
+See [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#enforced-vs-advisory) for the full
+enforced-vs-advisory breakdown an autonomous caller needs.
 
-**Purpose**: Comprehensive task management including updates, status changes, and progress tracking.
+**`status` response flags**: `isCompleted`, `canProceed` (`status === 'approved'`),
+`mustWait`, `blockNext`, plus `nextSteps` and any dashboard reviewer comments
+(surfaced individually for `needs-revision`).
 
-**Parameters**:
+**Revision cycle**: on `needs-revision` or after an adversarial response — update the
+document, **delete** the old approval (`action: delete`, which now succeeds because
+the status left `pending`), then `request` a new one with the **same `filePath`**.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec |
-| action | string | Yes | Action: "update", "complete", "list", "progress" |
-| taskId | string | Sometimes | Task ID (required for update/complete) |
-| status | string | No | New status: "pending", "in-progress", "completed" |
-| notes | string | No | Additional notes for the task |
+---
 
-**Actions**:
+## spec-status
 
-1. **Update Task Status**:
-```typescript
-{
-  specName: "user-auth",
-  action: "update",
-  taskId: "1.2.1",
-  status: "in-progress",
-  notes: "Started implementation"
-}
-```
-
-2. **Complete Task**:
-```typescript
-{
-  specName: "user-auth",
-  action: "complete",
-  taskId: "1.2.1"
-}
-```
-
-3. **List Tasks**:
-```typescript
-{
-  specName: "user-auth",
-  action: "list"
-}
-```
-
-4. **Get Progress**:
-```typescript
-{
-  specName: "user-auth",
-  action: "progress"
-}
-```
-
-**Returns**: Task information or update confirmation
-
-## Context Tools
-
-### get-template-context
-
-**Purpose**: Retrieves markdown templates for all document types.
-
-**Parameters**: None
-
-**Returns**: Object containing all templates
-
-**Response Structure**:
-```typescript
-{
-  requirements: "# Requirements Template\n\n## Overview\n...",
-  design: "# Design Template\n\n## Architecture\n...",
-  tasks: "# Tasks Template\n\n## Implementation Tasks\n...",
-  product: "# Product Steering Template\n...",
-  tech: "# Technical Steering Template\n...",
-  structure: "# Structure Steering Template\n..."
-}
-```
-
-**Usage Example**:
-```
-"Get all document templates"
-```
-
-### get-steering-context
-
-**Purpose**: Retrieves project steering documents and guidance.
+**Purpose**: Progress overview for one spec. Call when resuming work or checking
+completion.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| docType | string | No | Specific doc: "product", "tech", "structure", or "all" |
+| `specName` | string | Yes | Spec name |
+| `projectPath` | string | No | Project root (defaults to server context) |
 
-**Returns**: Steering document content
+**Returns**: `currentPhase`, `overallStatus`, per-phase detail with `approved`
+flags, `taskProgress`, and best-effort `logCoverage` / `reviewCoverage` for completed
+tasks. It will **warn** when completed tasks are missing implementation logs or
+reviews, and its `nextSteps` reiterate the log → review → mark-complete ordering.
 
-**Usage Example**:
-```typescript
-{
-  docType: "tech"  // Returns only technical steering
-}
-```
+After viewing status, read `tasks.md` directly for the task markers.
 
-**Response Structure**:
-```typescript
-{
-  product: "# Product Steering\n\n## Vision\n...",
-  tech: "# Technical Steering\n\n## Architecture\n...",
-  structure: "# Structure Steering\n\n## Organization\n..."
-}
-```
+---
 
-### get-spec-context
+## adversarial-review
 
-**Purpose**: Retrieves complete context for a specific spec.
+> **Fork addition.** Not present upstream.
+
+**Purpose**: Scaffold an independent, oppositional critique of a document
+(requirements / design / tasks / a steering doc / the decomposition). The tool does
+**not** run the review — it writes a self-contained prompt to disk for a
+fresh-context subagent to execute.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec |
-| includeContent | boolean | No | Include document content (default: true) |
+| `specName` | string | Yes | Spec name (kebab-case), `"steering"`, or `"decomposition"` |
+| `phase` | string | Yes | Document to target: `requirements` / `design` / `tasks`; `product` / `tech` / `structure`; or `decomposition` |
+| `filePath` | string | No | Relative path to the target (for steering docs outside the steering dir) |
+| `projectPath` | string | No | Project root |
 
-**Returns**: Complete spec context
+**Returns** (`data`): `version`, `targetFile`, `promptOutputPath`,
+`analysisOutputPath`, `memoryFilePath`, the `methodology`, and context doc lists,
+plus `nextSteps`.
 
-**Response Structure**:
-```typescript
-{
-  name: "user-authentication",
-  exists: true,
-  documents: {
-    requirements: {
-      exists: true,
-      content: "# Requirements\n\n...",
-      approved: true
-    },
-    design: {
-      exists: true,
-      content: "# Design\n\n...",
-      approved: false
-    },
-    tasks: {
-      exists: true,
-      content: "# Tasks\n\n...",
-      stats: {
-        total: 15,
-        completed: 7,
-        progress: 45
-      }
-    }
-  },
-  relatedSpecs: ["user-profile", "session-management"],
-  dependencies: ["database-setup", "auth-library"]
-}
-```
+**Critical behavior** — this trips up callers:
+- **The tool pre-creates the prompt file at `promptOutputPath`.** To tailor it you
+  must Read it first, then overwrite it (a blind write fails with a "file has not
+  been read yet" error). Then launch a fresh subagent with *exactly*:
+  `Read and execute the instructions in <promptOutputPath>` — put any extra
+  directives **inside** the prompt file, not in the launch message.
+- **Rolling memory.** For v2+ reviews the scaffold reads/writes
+  `.spec-workflow/specs/<name>/reviews/adversarial-memory-<phase>.md` and asks the
+  reviewer to classify findings as **Novel / Compounding / Recurring** (recurring →
+  *escalate* severity). This cumulative context is what makes a clean later round
+  meaningful.
+- **Versioning is unbounded.** `getNextVersion` returns `maxVersion + 1` with no cap
+  — files render `v1`, `-r2`, `-r3`, … Any version ceiling (e.g. the v6 cap in the
+  loop prompts) is **caller policy, not server behavior**.
+- **No convergence verdict.** The deliverables are "top risks / what's missing /
+  conclusions to challenge." There is no built-in "converged" / "done" signal — if
+  you want iterate-until-clean, you supply that gate (see
+  [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#iterate-to-converge)).
 
-**Usage Example**:
-```
-"Get full context for user-authentication spec"
-```
+The methodology can be overridden per project via the `reviewMethodology` key in
+`.spec-workflow/adversarial-settings.json` (see [CONFIGURATION.md](CONFIGURATION.md)).
 
-## Steering Document Tools
+---
 
-### create-steering-doc
+## adversarial-response
 
-**Purpose**: Creates project steering documents (product, tech, structure).
+> **Fork addition.** Not present upstream.
+
+**Purpose**: Locate the latest adversarial analysis for a phase and return structured
+instructions for responding to its findings.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| docType | string | Yes | Type: "product", "tech", or "structure" |
-| content | string | Yes | Markdown content of the document |
+| `specName` | string | Yes | Spec name, `"steering"`, or `"decomposition"` |
+| `phase` | string | Yes | Document that was reviewed |
+| `version` | number | No | Specific analysis version (defaults to latest) |
+| `projectPath` | string | No | Project root |
 
-**Usage Example**:
-```typescript
-{
-  docType: "product",
-  content: "# Product Steering\n\n## Vision\nBuild the best..."
-}
-```
+**Returns** (`data`): `analysisFile`, `targetFile`, `version`, the
+`responseMethodology`, and `nextSteps`.
 
-**Returns**:
-```typescript
-{
-  success: true,
-  message: "Product steering document created",
-  path: ".spec-workflow/steering/product.md"
-}
-```
+**Stock instructions assume a human in the loop** — the returned methodology says to
+*present the assessment to the user, not change the document until the user confirms,*
+then *delete the old approval and resubmit*. For autonomous operation the agent makes
+these calls itself; see
+[AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#adversarial-response-non-interactive) for
+the non-interactive override.
 
-**Notes**:
-- Creates steering directory if needed
-- Overwrites existing steering documents
-- No approval required for steering docs
-- Should be created before specs
+Per-finding format: Finding → Assessment (Agree / Partially Agree / Disagree) →
+Reasoning → Proposed action. The methodology can be overridden via the
+`responseMethodology` key in `adversarial-settings.json`.
 
-## Approval System Tools
+---
 
-### request-approval
+## deferrals
 
-**Purpose**: Requests user approval for a document.
+> **Fork addition.** Not present upstream.
 
-**Parameters**:
+**Purpose**: Record decisions that were explicitly deferred during spec work.
+Deferrals are **project-level artifacts that persist across specs** — the channel for
+surfacing "this affects a future spec" discoveries.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec |
-| docType | string | Yes | Document type to approve |
-| documentId | string | Yes | Unique ID for tracking |
-| content | string | Yes | Document content for review |
+**Parameters** (by `action`):
 
-**Usage Example**:
-```typescript
-{
-  specName: "user-auth",
-  docType: "requirements",
-  documentId: "user-auth-req-v1",
-  content: "# Requirements\n\n..."
-}
-```
+| Action | Required | Notable optional |
+|--------|----------|-------------------|
+| `add` | `title`, `context`, `decision`, `revisitTrigger` | `originSpec`, `originPhase` (`requirements`/`design`/`tasks`/`implementation`), `tags`, `supersedes`, `revisitCriteria` |
+| `list` | — | `status` (`deferred`/`resolved`/`superseded`), `originSpec`, `tag` |
+| `get` | `id` | — |
+| `resolve` | `id`, `resolution` | `resolvedInSpec` |
+| `update` | `id` | `title`, `revisitTrigger`, `tags`, `context`, `decision`, `revisitCriteria` |
+| `delete` | `id` | (fails if another deferral references it) |
 
-**Returns**:
-```typescript
-{
-  success: true,
-  approvalId: "user-auth-req-v1",
-  message: "Approval requested. Check dashboard to review."
-}
-```
+`supersedes` auto-marks the older deferral as `superseded`. The workflow guide
+instructs agents to run `deferrals` (`action: list`) at the **start of
+implementation** and resolve any that the current spec addresses. Returns are terse
+status messages — the lifecycle guidance lives in the workflow guide, not here.
 
-### get-approval-status
+---
 
-**Purpose**: Checks the approval status of a document.
+## log-implementation
 
-**Parameters**:
+**Purpose**: Record what a task implemented. This builds a searchable knowledge base
+future agents grep before writing new code.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec |
-| documentId | string | Yes | Document ID to check |
+**Parameters** (abbreviated — see the tool's own description for the full
+`artifacts` schema): `specName`, `taskId`, `summary`, **`artifacts`** (required —
+`apiEndpoints`, `components`, `functions`, `dataModels`, etc.), plus optional
+context fields.
 
-**Returns**:
-```typescript
-{
-  exists: true,
-  status: "pending" | "approved" | "rejected" | "changes-requested",
-  feedback: "Please add more detail about error handling",
-  timestamp: "2024-01-15T10:30:00Z",
-  reviewer: "user"
-}
-```
+**Enforced**: the `artifacts` field is **required** — a missing/empty `artifacts`
+returns `success: false`. This is a hard gate: a task without an implementation log
+is not considered complete, and you must not flip `[-]` → `[x]` until
+`log-implementation` returns success.
 
-**Usage Example**:
-```
-"Check approval status for user-auth requirements"
-```
+**Returns**: success message and `nextSteps` pointing to a code review (do **not**
+self-review) and then marking the task complete.
 
-### delete-approval
+---
 
-**Purpose**: Removes completed, rejected, or needs-revision approval requests to clean up the approval queue. Cannot delete pending approvals.
+## review-task
+
+> **Fork addition.** Not present upstream.
+
+**Purpose**: Review a task's implementation against its spec, then persist the
+findings. Works for in-progress `[-]` and already-completed `[x]` tasks; reviewing
+does not change task status.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec |
-| documentId | string | Yes | Document ID to remove |
+| `action` | `'prepare' \| 'record'` | Yes | Two-step flow |
+| `specName` | string | Yes | Spec name |
+| `taskId` | string | Yes | e.g. `"1"`, `"1.2"`, `"3.1.4"` |
+| `verdict` | `'pass' \| 'fail' \| 'findings'` | for `record` | pass = clean; fail = ≥1 critical; findings = warnings/info only |
+| `summary` | string | for `record` | Brief outcome |
+| `findings` | array | for `record` | `{severity, title, file, line, description, taskRequirement, category}` |
+| `projectPath` | string | No | Project root |
 
-**Returns**:
-```typescript
-{
-  success: true,
-  message: "Approval record deleted"
-}
-```
+**Flow**: `prepare` (gathers task context + an implementation-log summary and
+returns a skeptical-reviewer methodology, and writes a marker) → read the
+implementation files → evaluate → `record`.
 
-**Usage Example**:
-```
-"Clean up completed approvals for user-auth"
-```
+**Enforced**: `record` requires a prior `prepare`; the task and an implementation log
+must exist; verdict/findings consistency is checked. On a `fail` verdict, `nextSteps`
+say do not mark the task `[x]` until critical findings are resolved.
 
-### adversarial-review
+**Who calls it**: The workflow guide steers the implementing agent to **not** call
+`review-task` directly — it expects a *dashboard-triggered fresh-context reviewer* to
+call it, with the implementer retrieving results via `get-task-review`. **With no
+dashboard, an autonomous caller must call `review-task` itself** (prepare → record).
+See [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#task-review-headless).
 
-**Purpose**: Prepares an adversarial review of a spec phase document. Returns the methodology, output paths, and context needed for a subagent to generate and execute the review.
+> Note: `review-task`'s methodology tells reviewers **not** to escalate severity for
+> recurring findings — the opposite of `adversarial-review`'s rule. This is
+> intentional (code review vs. architecture review), but worth knowing.
 
-**Parameters**:
+---
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec (kebab-case) |
-| phase | string | Yes | Phase to review: "requirements", "design", or "tasks" |
-| projectPath | string | No | Absolute path to project root |
+## get-task-review
 
-**Usage Example**:
-```
-"Run an adversarial review on the design phase of payment-gateway"
-```
+> **Fork addition.** Not present upstream.
 
-**Returns**:
-```typescript
-{
-  success: true,
-  data: {
-    specName: "payment-gateway",
-    phase: "design",
-    version: 2,
-    targetFile: ".spec-workflow/specs/payment-gateway/design.md",
-    promptOutputPath: ".spec-workflow/specs/payment-gateway/reviews/adversarial-prompt-design-r2.md",
-    analysisOutputPath: ".spec-workflow/specs/payment-gateway/reviews/adversarial-analysis-design-r2.md",
-    methodology: "...",
-    steeringDocs: ["steering/product.md", "steering/tech.md"],
-    priorPhaseDocs: ["specs/payment-gateway/requirements.md"]
-  }
-}
-```
+**Purpose**: Retrieve the stored findings from a completed task review (dashboard- or
+CLI-triggered, or one recorded via `review-task`).
 
-**Notes**:
-- Automatically versions reviews (v1, v2, v3...) based on existing files
-- Includes steering documents and prior phase documents as context
-- The AI assistant uses the returned data to spawn a subagent for the actual review
+**Parameters**: `specName` (req), `taskId` (req), `version` (optional, defaults to
+latest), `projectPath` (optional).
 
-### adversarial-response
+**Returns**: `verdict`, `summary`, structured `findings`, and verdict-dependent
+`nextSteps`. If no review exists it returns a message telling you to run one first —
+`get-task-review` only **reads**; it never produces a review.
 
-**Purpose**: Retrieves the latest adversarial analysis for a spec phase and returns structured instructions for responding to its findings.
+---
 
-**Parameters**:
+## Common patterns
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| specName | string | Yes | Name of the spec (kebab-case) |
-| phase | string | Yes | Phase that was reviewed: "requirements", "design", or "tasks" |
-| version | number | No | Specific analysis version. Defaults to latest |
-| projectPath | string | No | Absolute path to project root |
+**Per-phase loop** (requirements / design / tasks):
+1. Read the template, write the document.
+2. (Optional) `adversarial-review` → fresh subagent → `adversarial-response` →
+   revise → resubmit, repeated until clean (caller-defined convergence).
+3. `approvals` `request` → poll `status` → on approval, `delete` → next phase.
 
-**Usage Example**:
-```
-"Respond to the adversarial review on user-auth requirements"
-```
+**Per-task loop** (implementation):
+1. Mark `[ ]` → `[-]` in `tasks.md`.
+2. Implement; call `log-implementation` (artifacts required).
+3. Review: dashboard reviewer + `get-task-review`, or `review-task` directly when
+   headless.
+4. On a passing review, mark `[-]` → `[x]`.
+5. Use `deferrals` to capture cross-spec discoveries.
 
-**Returns**:
-```typescript
-{
-  success: true,
-  data: {
-    analysisFile: ".spec-workflow/specs/user-auth/reviews/adversarial-analysis-requirements.md",
-    targetFile: ".spec-workflow/specs/user-auth/requirements.md",
-    version: 1,
-    responseMethodology: "..."
-  }
-}
-```
+**Error shape**: tools return `{ success: false, message }` on failure.
 
-**Notes**:
-- Typically triggered automatically when the AI assistant is told to respond to a revision
-- The response methodology instructs the agent to evaluate each finding, accept valid critiques, and justify any disagreements
-- The agent then revises the document and resubmits for approval
+## Related documentation
 
-## Tool Integration Patterns
-
-### Sequential Workflow
-
-Tools are designed to work in sequence:
-
-1. `steering-guide` → Learn about steering
-2. `create-steering-doc` → Create steering documents
-3. `spec-workflow-guide` → Learn workflow
-4. `create-spec-doc` → Create requirements
-5. `request-approval` → Request review
-6. `adversarial-review` → Independent critique (optional)
-7. `adversarial-response` → Address findings and revise (if reviewed)
-8. `get-approval-status` → Check status
-9. `create-spec-doc` → Create design (after approval)
-10. `manage-tasks` → Track implementation
-
-### Parallel Operations
-
-Some tools can be used simultaneously:
-
-- `spec-list` + `spec-status` → Get overview and details
-- `get-spec-context` + `get-steering-context` → Full project context
-- Multiple `create-spec-doc` → Create multiple specs
-
-### Error Handling
-
-All tools return consistent error structures:
-
-```typescript
-{
-  success: false,
-  error: "Spec not found",
-  details: "No spec named 'invalid-spec' exists",
-  suggestion: "Use spec-list to see available specs"
-}
-```
-
-## Best Practices
-
-### Tool Selection
-
-1. **Information Gathering**:
-   - Use `spec-list` for overview
-   - Use `spec-status` for specific spec
-   - Use `get-spec-context` for implementation
-
-2. **Document Creation**:
-   - Always create requirements first
-   - Wait for approval before design
-   - Create tasks after design approval
-
-3. **Task Management**:
-   - Update status when starting tasks
-   - Mark complete immediately after finishing
-   - Use notes for important context
-
-### Performance Considerations
-
-- **Batch Operations**: Request multiple specs in one conversation
-- **Caching**: Tools cache file reads for performance
-- **Selective Loading**: Use `includeContent: false` for faster status checks
-
-### Security
-
-- **Path Validation**: All paths are validated and sanitized
-- **Project Isolation**: Tools only access project directory
-- **Input Sanitization**: Markdown content is sanitized
-- **No Execution**: Tools never execute code
-
-## Extending Tools
-
-### Custom Tool Development
-
-To add new tools:
-
-1. Create tool module in `src/tools/`
-2. Define parameters schema
-3. Implement handler function
-4. Register with MCP server
-5. Add to exports
-
-Example structure:
-```typescript
-export const customTool = {
-  name: 'custom-tool',
-  description: 'Description',
-  parameters: {
-    // JSON Schema
-  },
-  handler: async (params) => {
-    // Implementation
-  }
-};
-```
-
-## Tool Versioning
-
-Tools maintain backward compatibility:
-
-- Parameter additions are optional
-- Response structures extend, not replace
-- Deprecated features show warnings
-- Migration guides provided
-
-## Related Documentation
-
-- [User Guide](USER-GUIDE.md) - Using tools effectively
-- [Workflow Process](WORKFLOW.md) - Tool usage in workflow
-- [Prompting Guide](PROMPTING-GUIDE.md) - Example tool usage
-- [Development Guide](DEVELOPMENT.md) - Adding new tools
+- [WORKFLOW.md](WORKFLOW.md) — the phase lifecycle end to end
+- [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md) — non-interactive / headless operation
+- [USER-GUIDE.md](USER-GUIDE.md) — driving the workflow as a user
+- [CONFIGURATION.md](CONFIGURATION.md) — adversarial-settings and server config

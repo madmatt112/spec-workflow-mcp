@@ -15,10 +15,18 @@ Spec Workflow MCP is a Model Context Protocol server that provides structured, s
 
 ### Basic Workflow
 
-1. **Create a spec** - Define what you want to build
-2. **Review and approve** - Ensure specifications meet requirements
-3. **Implement tasks** - Execute the implementation plan
-4. **Track progress** - Monitor completion status
+The full phase sequence is:
+
+```
+(Steering) → Decomposition → Requirements → Design → Tasks → Implementation
+```
+
+1. **Steering** (optional, once per project) - High-level product/tech/structure docs
+2. **Decomposition** (when steering exists) - Break the project into a set of specs
+3. **Create a spec** - Requirements → Design → Tasks for one feature
+4. **Review and approve** - Each document is approved in the dashboard before the next
+5. **Implement tasks** - Execute the plan, logging and reviewing each task
+6. **Track progress** - Monitor completion status
 
 ## Creating Specifications
 
@@ -120,10 +128,21 @@ Tasks are organized hierarchically:
 
 ### Task Status
 
-Tasks have three states:
-- ⏳ **Pending** - Not started
-- 🔄 **In Progress** - Currently being worked on
-- ✅ **Completed** - Finished
+Tasks have three states (tracked as markers in `tasks.md`):
+- ⏳ **Pending** `[ ]` - Not started
+- 🔄 **In Progress** `[-]` - Currently being worked on
+- ✅ **Completed** `[x]` - Finished
+
+### Completing a Task
+
+Before a task is marked complete, the workflow requires two steps:
+
+1. **`log-implementation`** — record what was built (the artifacts list is mandatory;
+   it forms a searchable knowledge base future agents use to avoid duplicating code).
+2. **An independent code review** — never self-review. Trigger it from the dashboard
+   *Review* button (a fresh-context agent reviews, then the assistant reads the result
+   with `get-task-review`), or, when running headless, the agent reviews via
+   `review-task`. Only after the review passes is the task marked `[x]`.
 
 ## Approval Workflow
 
@@ -144,10 +163,17 @@ When documents are ready for review:
 
 ### Revision Process
 
-1. Provide specific feedback
-2. AI revises the document
+1. Provide specific feedback (the approval moves to `needs-revision`)
+2. AI revises the document, deletes the old approval, and resubmits with the same file
 3. Review updated version
 4. Approve or request further changes
+
+> **Approval is read from the dashboard, never from chat.** Saying "approved" in the
+> conversation does not advance the workflow — the agent checks approval *status*
+> via the `approvals` tool and only proceeds on a real `approved` record, then
+> deletes that approval before the next phase. For non-interactive / headless
+> operation (where these rules are relaxed), see
+> [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).
 
 ### Adversarial Review
 
@@ -171,31 +197,12 @@ You can also trigger reviews from the CLI:
 
 Browse past reviews and configure methodology on the **Adversarial Analysis** page in the dashboard sidebar.
 
-## Bug Workflow
+## Bug Fixes
 
-### Reporting Bugs
-
-```
-"Create a bug report for login failure when using SSO"
-```
-
-Creates:
-- Bug description
-- Steps to reproduce
-- Expected vs actual behavior
-- Priority and severity
-
-### Bug Resolution
-
-```
-"Create a fix for bug #123 in user-auth spec"
-```
-
-Generates:
-- Root cause analysis
-- Fix implementation plan
-- Testing requirements
-- Deployment steps
+There is no dedicated bug-tracking tool in this server. Handle a bug the same way as
+any change: create a small, focused spec for it (or, for a trivial fix in an existing
+spec, add a task). The normal Requirements → Design → Tasks → Implementation flow,
+including review and `log-implementation`, applies.
 
 ## Template System
 
@@ -205,25 +212,20 @@ Spec Workflow includes templates for:
 - Requirements documents
 - Design documents
 - Task lists
-- Bug reports
 - Steering documents
 
 ### Custom Templates
 
-Create your own templates in `.spec-workflow/templates/`:
+The built-in templates live in `.spec-workflow/templates/` (system-managed — don't
+edit these). To override one, create a file with the **same name** in
+`.spec-workflow/user-templates/`:
 
-```markdown
-# Custom Feature Template
+- `requirements-template.md`, `design-template.md`, `tasks-template.md`
+- `product-template.md`, `tech-template.md`, `structure-template.md`
 
-## Overview
-[Feature description]
-
-## User Stories
-[User stories]
-
-## Technical Requirements
-[Technical details]
-```
+The loader checks `user-templates/` first and falls back to the default in
+`templates/`. For example, to customize the requirements document, create
+`.spec-workflow/user-templates/requirements-template.md`.
 
 ## Advanced Features
 
@@ -239,6 +241,22 @@ Generates:
 - **Product steering** - Vision and goals
 - **Technical steering** - Architecture decisions
 - **Structure steering** - Project organization
+
+### Decomposition
+
+When steering documents exist, the project is first broken into a set of specs via a
+**decomposition** step (the `decomposition-guide` tool), saved to
+`.spec-workflow/spec-decomposition/decomposition.md` and approved like any document.
+Each resulting spec then goes through the standard Requirements → Design → Tasks →
+Implementation flow. See [WORKFLOW.md](WORKFLOW.md#phase-15-decomposition).
+
+### Deferred Decisions
+
+When you consciously postpone a decision — or discover during implementation that
+something affects a *future* spec — record it with the `deferrals` tool. Deferrals are
+project-level and persist across specs, so they survive after the current spec is
+archived. Review open deferrals at the start of new work, and surface unresolved ones
+when planning.
 
 ### Archive System
 
@@ -314,14 +332,6 @@ The dashboard provides:
 6. Implement tasks sequentially
 7. Track progress in dashboard
 
-### Bug Fixing
-
-1. Report bug: `"Create bug report for checkout error"`
-2. Analyze: `"Analyze root cause of bug #45"`
-3. Plan fix: `"Create fix plan for bug #45"`
-4. Implement: `"Implement the fix"`
-5. Verify: `"Create test plan for bug #45 fix"`
-
 ### Refactoring
 
 1. Create spec: `"Create spec for database optimization"`
@@ -383,5 +393,6 @@ The AI maintains context between sessions:
 
 - [Workflow Process](WORKFLOW.md) - Detailed workflow guide
 - [Prompting Guide](PROMPTING-GUIDE.md) - Example prompts
+- [Autonomous Usage](AUTONOMOUS-USAGE.md) - Non-interactive / headless operation
 - [Interfaces Guide](INTERFACES.md) - Dashboard and extension details
 - [Tools Reference](TOOLS-REFERENCE.md) - Complete tool documentation

@@ -155,80 +155,119 @@ Template strings for:
 
 ```typescript
 // src/tools/my-new-tool.ts
-import { Tool } from '@anthropic/mcp-sdk';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { ToolContext, ToolResponse } from '../types.js';
 
 export const myNewTool: Tool = {
   name: 'my-new-tool',
   description: 'Description of what the tool does',
-  parameters: {
+  inputSchema: {
     type: 'object',
     properties: {
       param1: { type: 'string', description: 'Parameter description' },
-      param2: { type: 'number', optional: true }
+      param2: { type: 'number' }
     },
     required: ['param1']
-  },
-  handler: async (params) => {
-    // Tool implementation
-    const { param1, param2 = 0 } = params;
-
-    // Business logic here
-
-    return {
-      success: true,
-      data: 'Tool response'
-    };
   }
 };
+
+export async function myNewToolHandler(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { param1, param2 = 0 } = args;
+
+  // Business logic here
+
+  return {
+    success: true,
+    message: 'Tool response',
+    data: {}
+  };
+}
 ```
 
-2. **Register in index** (`src/tools/index.ts`):
+2. **Register in index** (`src/tools/index.ts`): add the tool to the array returned
+   by `registerTools()` and wire its handler into the `handleToolCall` switch:
 
 ```typescript
-export { myNewTool } from './my-new-tool';
-```
+import { myNewTool, myNewToolHandler } from './my-new-tool.js';
 
-3. **Add to server** (`src/index.ts`):
-
-```typescript
-import { myNewTool } from './tools';
-
-server.registerTool(myNewTool);
+// In registerTools(): include `myNewTool` in the returned array
+// In handleToolCall(): add a `case 'my-new-tool'` that calls myNewToolHandler(args, context)
 ```
 
 ### Adding Dashboard Features
 
-1. **Update HTML** (`dashboard/index.html`):
+The dashboard is a **React** frontend (`src/dashboard_frontend/`) served by a
+**Fastify** backend (`src/dashboard/multi-server.ts`) — not a plain HTML/JS page.
 
-```html
-<div class="new-feature">
-  <h3>New Feature</h3>
-  <button id="new-action">Action</button>
-</div>
+1. **Add a page** (`src/dashboard_frontend/src/modules/pages/MyNewPage.tsx`):
+
+```tsx
+import React from 'react';
+
+export default function MyNewPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">My New Page</h1>
+      {/* Page content */}
+    </div>
+  );
+}
 ```
 
-2. **Add JavaScript** (`dashboard/script.js`):
+2. **Register the route** in the app/router (`src/dashboard_frontend/src/modules/app/`):
 
-```javascript
-document.getElementById('new-action').addEventListener('click', () => {
-  // Feature logic
-  ws.send(JSON.stringify({
-    type: 'new-action',
-    data: { /* ... */ }
-  }));
-});
+```tsx
+<Route path="/my-page" element={<MyNewPage />} />
 ```
 
-3. **Handle in server** (`src/server.ts`):
+3. **Add a backend endpoint** (`src/dashboard/multi-server.ts`). Endpoints are
+   project-scoped under `/api/projects/:projectId/...`:
 
 ```typescript
-ws.on('message', (message) => {
-  const { type, data } = JSON.parse(message);
-  if (type === 'new-action') {
-    // Handle new action
-  }
+this.app.get('/api/projects/:projectId/my-endpoint', async (request, reply) => {
+  const { projectId } = request.params as { projectId: string };
+  const project = this.projectManager.getProject(projectId);
+  if (!project) return reply.code(404).send({ error: 'Project not found' });
+  const data = await this.getMyData(project);
+  return { success: true, data };
 });
 ```
+
+Run the dashboard dev server with hot reload via `npm run dev:dashboard`
+(Vite, default `http://localhost:5173`).
+
+### Working with the VS Code Extension
+
+```bash
+cd vscode-extension
+npm install
+code .          # then press F5 to launch the Extension Development Host
+```
+
+Add a command by registering it in `src/extension.ts` and declaring it under
+`contributes.commands` in `package.json`:
+
+```typescript
+// src/extension.ts
+const myCommand = vscode.commands.registerCommand('spec-workflow.myCommand', async () => {
+  vscode.window.showInformationMessage('My command executed!');
+});
+context.subscriptions.push(myCommand);
+```
+
+### Tool Development Guidelines
+
+- **Validate inputs** and return a structured failure rather than throwing:
+  ```typescript
+  if (!projectPath) {
+    return { success: false, message: 'projectPath is required',
+             nextSteps: ['Provide absolute path to project root'] };
+  }
+  ```
+- **Catch errors** and return `{ success: false, message }` with helpful `nextSteps`.
+- **Use the consistent `ToolResponse` shape**: `{ success, message, data?, nextSteps? }`.
+- **Use `PathUtils`** for all path work (cross-platform):
+  `PathUtils.getSpecPath(projectPath, specName)`, `PathUtils.toUnixPath(filePath)`.
 
 ## Testing
 
@@ -252,28 +291,26 @@ npm run test:watch
 
 Create test files next to source files:
 
+Tests call the exported **handler function** (`myNewToolHandler(args, context)`), not
+a `.handler` property. Handlers return `{ success, message, data? }`.
+
 ```typescript
-// src/tools/my-tool.test.ts
+// src/tools/my-new-tool.test.ts
 import { describe, it, expect } from 'vitest';
-import { myTool } from './my-tool';
+import { myNewToolHandler } from './my-new-tool';
 
-describe('myTool', () => {
+const ctx = { projectPath: '/tmp/project' } as any; // ToolContext
+
+describe('myNewToolHandler', () => {
   it('should process input correctly', async () => {
-    const result = await myTool.handler({
-      param1: 'test'
-    });
-
+    const result = await myNewToolHandler({ param1: 'test' }, ctx);
     expect(result.success).toBe(true);
-    expect(result.data).toContain('expected');
   });
 
   it('should handle errors', async () => {
-    const result = await myTool.handler({
-      param1: null
-    });
-
+    const result = await myNewToolHandler({ param1: null }, ctx);
     expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    expect(result.message).toBeDefined();
   });
 });
 ```
@@ -415,20 +452,11 @@ docs: update configuration guide
 
 ### NPM Package
 
-1. **Update version**:
-   ```bash
-   npm version patch|minor|major
-   ```
-
-2. **Build package**:
-   ```bash
-   npm run build
-   ```
-
-3. **Publish**:
-   ```bash
-   npm publish
-   ```
+Releases do not go through a plain local `npm publish`. The npm package is published
+by a gated GitHub Actions workflow that enforces plugin/package version sync and
+registry uniqueness, requires a matching git tag, and publishes via OIDC. See the
+[Publishing to npm section in the README](../README.md#-publishing-to-npm) and the
+workflows under `.github/workflows/` for the exact gates and dispatch steps.
 
 ### VSCode Extension
 

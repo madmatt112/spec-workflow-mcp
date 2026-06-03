@@ -141,6 +141,19 @@ Browse and configure adversarial reviews:
 
 ![Adversarial Analysis page — Settings tab](screenshots/09-adversarial-settings-tab.png)
 
+#### Tasks & Task Review
+
+The Tasks page lists a spec's tasks with their markers (`[ ]` / `[-]` / `[x]`) and
+drives per-task code review (a fork addition):
+
+- **Copy Prompt** — copy a ready-to-paste implementation prompt for a task
+- **Review** — trigger an independent, **fresh-context** code review of a task's
+  implementation. A background agent reviews the changed files against the task's
+  requirements and records a verdict (pass / fail / findings). The implementing
+  assistant retrieves the result with the `get-task-review` tool.
+- **Implementation logs** — the structured `log-implementation` record for each task
+- Review findings surface per task with severity (critical / warning / info)
+
 #### Steering Documents
 
 Access project guidance:

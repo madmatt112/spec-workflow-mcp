@@ -311,7 +311,7 @@ SPEC_WORKFLOW_HOME=/workspace/.spec-workflow-mcp npx -y @madmatt112org/spec-work
 
 ## ⚙️ Reviewer Configuration
 
-The dashboard's adversarial-review and task-review subagents read their per-runner configuration from `.spec-workflow/adversarial-settings.json`. The file uses a **grouped per-runner shape** with a legacy top-level fallback:
+The dashboard's adversarial-review and task-review subagents read their per-runner configuration from `.spec-workflow/adversarial-settings.json`. This section covers the **runner/model** keys; the same file also holds dashboard-managed keys (`requiredPhases`, `customPreamble`, `reviewMethodology`, `responseMethodology`) documented in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#adversarial-review-settings). The runner config uses a **grouped per-runner shape** with a legacy top-level fallback:
 
 ```json
 {
@@ -352,6 +352,7 @@ If you upgrade the CLI binary or `claude-cli` package between an initial run and
 - [Configuration Guide](docs/CONFIGURATION.md) - Command-line options, config files
 - [User Guide](docs/USER-GUIDE.md) - Comprehensive usage examples
 - [Workflow Process](docs/WORKFLOW.md) - Development workflow and best practices
+- [Autonomous Usage](docs/AUTONOMOUS-USAGE.md) - Non-interactive / headless operation
 - [Interfaces Guide](docs/INTERFACES.md) - Dashboard and VSCode extension details
 - [Prompting Guide](docs/PROMPTING-GUIDE.md) - Advanced prompting examples
 - [Tools Reference](docs/TOOLS-REFERENCE.md) - Complete tools documentation

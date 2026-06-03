@@ -259,6 +259,8 @@ Please revise and resubmit"
 
 ## Bug Workflow
 
+> **Note:** There is no dedicated bug tool in this fork — bugs are handled through the normal spec flow (create a spec, get approval, implement).
+
 ### Reporting Bugs
 
 #### Detailed Report
@@ -300,23 +302,26 @@ Environment: Production"
 
 Requirements and designs often evolve during implementation. When this happens, you need to keep tasks.md aligned with the current spec while preserving completed work.
 
-### Using the Task Refresh Feature
+### Realigning Tasks After Spec Changes
 
-The AI has access to comprehensive task refresh instructions through the refresh-tasks prompt. Simply inform the AI about your changes:
+There is no dedicated `refresh-tasks` tool. To realign work, edit the spec documents
+directly (`requirements.md`, `design.md`, then `tasks.md`) and re-request approval for
+the changed documents. Simply inform the AI about your changes and ask it to update the
+affected documents:
 
-#### Basic Task Refresh
+#### Basic Task Realignment
 ```
-"The requirements have been updated. Please refresh tasks.md to align with the current requirements.md and design.md."
+"The requirements have been updated. Please edit tasks.md to align with the current requirements.md and design.md, then request approval."
 ```
 
-#### Detailed Task Refresh with Context
+#### Detailed Realignment with Context
 ```
 "I've updated the spec with the following changes:
 - Removed the reporting module
 - Changed database from MongoDB to PostgreSQL
 - Added social login feature
 
-Please refresh tasks.md following the task refresh process:
+Please edit tasks.md to realign with these changes (and re-request approval):
 1. Preserve all completed and in-progress tasks
 2. Add migration tasks for the database change
 3. Remove pending tasks for the reporting module
@@ -334,7 +339,7 @@ Please refresh tasks.md following the task refresh process:
 
 ### Expected AI Behavior
 
-When you request a task refresh, the AI will:
+When you request a task realignment, the AI will:
 
 1. **Analyze Current State**
    - Read requirements.md and design.md for current spec
@@ -482,15 +487,17 @@ For major architecture changes, the AI should create tasks that support progress
 
 This ensures the application remains functional throughout the transition.
 
-### Using the Refresh Tasks Prompt
+### Driving Realignment Directly
 
-You can also explicitly invoke the refresh tasks prompt:
+There is no `refresh-tasks` prompt or tool. To drive realignment, describe the change
+and ask the AI to edit the spec documents directly, then re-approve:
 
 ```
-"Use the refresh-tasks prompt for the user-auth spec. The changes are: switched from JWT to OAuth2 for authentication."
+"For the user-auth spec, we switched from JWT to OAuth2 for authentication. Please update requirements.md, design.md, and tasks.md to match, preserving all completed work, then request approval for the changed documents."
 ```
 
-The AI will then follow the comprehensive refresh instructions to update your tasks while preserving all completed work.
+The AI will edit the affected spec documents while preserving all completed work, and
+the updated documents go back through the normal approval gate.
 
 ## Advanced Patterns
 

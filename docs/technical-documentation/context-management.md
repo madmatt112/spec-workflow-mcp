@@ -2,6 +2,15 @@
 
 > **TL;DR**: Smart context loading, caching, and switching to optimize token usage and performance.
 
+> ⚠️ **Conceptual / design document.** This page describes context-management
+> *concepts and aspirations*; the specific interfaces, the chunking/caching classes,
+> and tool names below (e.g. `get-content`, `get-template-context`, `get-spec-context`)
+> are **illustrative and do not match the current implementation**. In the real
+> workflow the agent reads templates and spec files directly with its own file tools
+> — there are no content-fetch tools. Treat the code samples here as explanatory
+> pseudocode, not API reference. For the actual tools see
+> [../TOOLS-REFERENCE.md](../TOOLS-REFERENCE.md).
+
 ## 🧠 Context Strategy Overview
 
 The MCP server implements intelligent context management to minimize token usage while providing relevant information at each workflow phase.

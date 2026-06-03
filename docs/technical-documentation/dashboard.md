@@ -86,7 +86,7 @@ npx -y @madmatt112org/spec-workflow-mcp@latest /project/path
 npm run dev:dashboard
 
 # Available at http://localhost:5173
-# Connects to backend at http://localhost:3456
+# Connects to backend at http://localhost:5000
 ```
 
 ## 📱 User Interface
@@ -175,7 +175,7 @@ const WebSocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [message, setMessage] = useState<any>(null);
   
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3456/ws');
+    const ws = new WebSocket('ws://localhost:5000/ws');
     
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -549,9 +549,9 @@ DEBUG=dashboard:server,dashboard:watcher npm run dev:dashboard
 **API Testing**:
 ```bash
 # Test endpoints directly
-curl -X GET http://localhost:3456/api/specs
-curl -X GET http://localhost:3456/api/health
-curl -X POST http://localhost:3456/api/approvals/test-id/approve
+curl -X GET http://localhost:5000/api/specs
+curl -X GET http://localhost:5000/api/health
+curl -X POST http://localhost:5000/api/approvals/test-id/approve
 ```
 
 ---
