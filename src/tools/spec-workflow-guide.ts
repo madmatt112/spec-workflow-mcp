@@ -35,9 +35,9 @@ export async function specWorkflowGuideHandler(args: any, context: ToolContext):
     nextSteps: [
       'If steering docs exist, run decomposition first with decomposition-guide',
       'Follow sequence: Decomposition → Requirements → Design → Tasks → Implementation',
-      'Load templates with get-template-context first',
+      'Read the document template from .spec-workflow/user-templates/ (falling back to .spec-workflow/templates/) before writing each document',
       'Request approval after each document',
-      'Use MCP tools only',
+      'Write the spec documents directly to files; use the MCP tools for approvals, status, and review',
       dashboardMessage
     ]
   };

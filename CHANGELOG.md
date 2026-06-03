@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.2] - 2026-06-03
+
+### Documentation
+- Realigned `docs/` with the actual 11-tool server. Rewrote the tool reference (removing the non-existent upstream `create-spec-doc` / `spec-list` / `manage-tasks` / `request-approval` surface), documented the six fork tools and the required Decomposition phase, and folded the duplicate `api-reference.md` into a redirect.
+- Added `docs/AUTONOMOUS-USAGE.md` covering non-interactive / headless operation: enforced-vs-advisory constraints, iterate-to-converge, and the headless review path.
+- Documented the 8 MCP prompts (`src/prompts/`) and corrected the claim that `refresh-tasks` does not exist (it is a registered prompt).
+- Corrected the "no automated AI review / no external calls" claim in the technical docs to reflect the adversarial/task review CLI subprocesses; fixed the `adversarial-settings.json` schema, default port (5000), SDK import, broken links, and i18n count; consolidated duplicate troubleshooting and developer guides.
+
+### Fixed
+- Corrected stale upstream tool references in runtime guidance strings that the agent acts on: `spec-workflow-guide` and `spec-status` `nextSteps`, and the `refresh-tasks` prompt body (`get-template-context`, `spec-list`, `create-spec-doc` no longer exist — the agent reads templates and writes files directly).
+- `spec-status` template guidance no longer points at a `*-template-v*.md` glob that matches no files, and now honors the `user-templates/` override; `create-spec` and `create-steering-doc` prompts check `user-templates/` before `templates/`.
+
+## [3.0.1] - 2026-05-15
+
+### Changed
+- Switched the npm publish workflow to OIDC (trusted publishing) and added CI gates: plugin-manifest version sync, npm registry version-uniqueness, and a matching git tag at HEAD.
+
 ## [3.0.0] - 2026-04-22
 
 ### Notes
