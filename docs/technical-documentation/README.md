@@ -14,9 +14,7 @@
 - **[Troubleshooting & FAQ](troubleshooting.md)** - Common issues and solutions
 
 ### Quick Start Guides
-- **[Setting Up Development Environment](setup.md)** - Get up and running quickly
 - **[Contributing Guidelines](contributing.md)** - How to contribute to the project
-- **[Testing Guide](testing.md)** - Running tests and writing new ones
 
 ## 🚀 Quick Start
 
@@ -88,14 +86,23 @@ Based on comprehensive codebase analysis, here are definitive answers to key tec
 | **Project Analysis** | ✅ LLM analyzes project context | ✅ Specialized analysis tools | 🔮 Could add deep code analysis |
 
 #### **Question 4: Auto Review Process**
-**Answer: Human-only approval system - no automated AI review**
+**Answer: Optional automated AI review (adversarial review + task review), with human approval as the final gate**
+
+> **Fork note.** Upstream had no automated review. This fork adds **adversarial
+> review** (independent, fresh-context critique of requirements/design/tasks/steering/
+> decomposition documents) and **task review** (skeptical code review of a task's
+> implementation). These can be driven by the connected LLM spawning a subagent, or
+> run in the background by the dashboard launching a configurable LLM **CLI**
+> subprocess (see `src/dashboard/adversarial-runner.ts`,
+> `src/dashboard/task-review-runner.ts`). Human approval in the dashboard remains the
+> gate that advances a phase.
 
 | Aspect | This MCP | Other AI Agents | Expansion Opportunity |
 |--------|----------|----------------|---------------------|
-| **Review Automation** | ❌ Human approval required | ✅ Multi-stage AI review | 🔮 Could add optional AI gates |
-| **Quality Assurance** | ✅ LLM quality + Human oversight | ❌ AI-only (potential errors) | ✅ Best quality control |
+| **Review Automation** | ✅ Optional AI review (adversarial + task), human approval gate | ✅ Multi-stage AI review | 🔮 Could add more review dimensions |
+| **Quality Assurance** | ✅ AI critique + Human oversight | ❌ AI-only (potential errors) | ✅ Best quality control |
 | **Approval Workflows** | ✅ Dashboard/VS Code integration | ❌ Often CLI-only | ✅ Superior UX |
-| **Review Intelligence** | ✅ LLM can suggest improvements | ✅ Specialized review models | 🔮 Could add review templates |
+| **Review Intelligence** | ✅ Fresh-context adversarial + task review | ✅ Specialized review models | 🔮 Could add review templates |
 
 #### **Question 5: Best Practice Standards**
 **Answer: LLM built-in knowledge - no external standards fetching**
@@ -159,17 +166,18 @@ interface ExpansionRoadmap {
 
 ### What This MCP Does NOT Do
 
-**No Independent External Calls**:
-- ❌ No separate web scraping or API calls by the MCP server
-- ❌ No independent external research by the MCP server
-- ❌ No direct calls to AI services from the MCP server
-- ✅ Leverages connected LLM's built-in web search and knowledge
+**Limited External Calls by the MCP server**:
+- ❌ No web scraping or external research by the MCP *tool* handlers
+- ✅ Tool handlers leverage the connected LLM's built-in knowledge and web search
+- ⚠️ Exception: the **dashboard** can spawn a local LLM **CLI subprocess** to run
+  background adversarial reviews and task reviews (configurable; off unless used).
+  That subprocess in turn calls whatever LLM the CLI is configured for.
 
-**No Separate AI Service Integration**:
-- ❌ No additional calls to OpenAI, Anthropic, or other AI services
-- ❌ No independent AI processing outside the connected LLM
-- ❌ No separate AI models or services
-- ✅ Uses only the LLM provided through MCP connection
+**AI review is opt-in, not absent**:
+- ✅ Adversarial review and task review are first-class features in this fork
+- ✅ They run either via the connected LLM spawning a subagent, or via a dashboard-
+  launched CLI subprocess
+- ❌ No always-on background AI processing — reviews run only when triggered
 
 **No Context Window Management**:
 - ❌ Does not extend or manage AI client context windows
@@ -177,11 +185,11 @@ interface ExpansionRoadmap {
 - ❌ No cross-session AI context preservation
 - ✅ Provides structured project data for AI client consumption
 
-**Human-Only Approval System**:
-- ❌ No automated AI-powered document review
-- ❌ No AI-based approval recommendations
+**Human-Gated Approval System**:
+- ✅ Optional automated AI review (adversarial + task review) informs the human
+- ✅ Reviews can move an approval to `needs-revision` with findings attached
 - ❌ Verbal approval not accepted
-- ✅ All approvals require dashboard or VS Code interaction
+- ✅ The final approve/reject decision requires dashboard or VS Code interaction
 
 ### What This MCP Excels At
 
@@ -212,26 +220,33 @@ interface ExpansionRoadmap {
 ## 🎯 Key Concepts
 
 ### MCP Tools
-The server provides 12 MCP tools for spec-driven development:
-- **Workflow Tools**: `spec-workflow-guide`, `steering-guide`
-- **Content Tools**: `create-spec-doc`, `create-steering-doc`, `get-template-context`
-- **Search Tools**: `get-spec-context`, `get-steering-context`, `spec-list`
-- **Status Tools**: `spec-status`, `manage-tasks`
-- **Approval Tools**: `request-approval`, `get-approval-status`, `delete-approval`
+The server registers **11 MCP tools** (see `src/tools/index.ts`). Spec documents are
+written by the agent reading templates and writing files directly — there is no
+`create-spec-doc` / `manage-tasks` tool. Full details in
+[../TOOLS-REFERENCE.md](../TOOLS-REFERENCE.md).
+- **Guides**: `spec-workflow-guide`, `steering-guide`, `decomposition-guide`
+- **Status**: `spec-status`
+- **Approval**: `approvals` (request / status / delete)
+- **Review** (fork): `adversarial-review`, `adversarial-response`, `review-task`, `get-task-review`
+- **Bookkeeping** (fork): `deferrals`, `log-implementation`
 
 ### File Organization
 ```
 .spec-workflow/
-├── specs/           # Specification documents
-├── steering/        # Project guidance documents
-├── approvals/       # Approval workflow data
-└── archive/         # Archived specifications
+├── specs/                # Specification documents (+ per-spec reviews/)
+├── steering/             # Project guidance documents
+├── spec-decomposition/   # Project-level spec breakdown (fork)
+├── templates/            # Built-in document templates
+├── user-templates/       # Optional custom template overrides
+├── approvals/            # Approval workflow data (grouped by category)
+└── archive/              # Archived specifications
 ```
 
 ### Workflow Phases
-1. **Requirements** → 2. **Design** → 3. **Tasks** → 4. **Implementation**
+1. **(Steering)** → 2. **Decomposition** → 3. **Requirements** → 4. **Design** →
+   5. **Tasks** → 6. **Implementation**
 
-Each phase requires approval before proceeding to the next.
+Each document requires approval before proceeding to the next.
 
 ## 🔧 Development Workflow
 
@@ -288,14 +303,15 @@ This project implements a **pure Model Context Protocol (MCP) server** that:
 | **Context Management** | File-based structure | No LLM context window management |
 | **Content Generation** | LLM-powered with templates | LLM fills templates using built-in knowledge & search |
 | **Planning Process** | LLM reasoning + workflow validation | LLM plans content, MCP enforces structure |
-| **Review System** | Human approval only | Dashboard/VS Code integration for LLM output |
+| **Review System** | Human approval + optional AI review | Adversarial & task review; human approves in dashboard/VS Code |
 | **Best Practices** | LLM built-in knowledge | LLM applies best practices from its training |
-| **External Calls** | NPM version check only | All other capabilities through connected LLM |
+| **External Calls** | NPM version check; optional review CLI subprocess | Dashboard may spawn a local LLM CLI for background reviews |
 
 ### Key Files & Implementation
-- **MCP Tools**: `src/tools/*.ts` - 13 tools for workflow management
+- **MCP Tools**: `src/tools/*.ts` - 11 registered tools (see `src/tools/index.ts`)
 - **Templates**: `src/markdown/templates/*.md` - Static document structures  
-- **Approval System**: `src/dashboard/approval-storage.ts` - Human-only review
+- **Approval System**: `src/dashboard/approval-storage.ts` - Human approval records
+- **Review Runners**: `src/dashboard/adversarial-runner.ts`, `task-review-runner.ts` - Background AI review
 - **Context Loading**: `src/core/*.ts` - File-based context structuring
 - **Web Dashboard**: `src/dashboard_frontend/` - React-based approval UI
 
@@ -465,4 +481,4 @@ interface Phase2Strategy {
 - ✅ **Expansion Potential**: Multiple clear paths for feature enhancement
 - ✅ **Strategic Moat**: Proven workflow methodology that competitors would struggle to replicate
 
-**Last Updated**: December 2024 | **Version**: 0.0.23
+Part of the @madmatt112org/spec-workflow-mcp fork documentation.

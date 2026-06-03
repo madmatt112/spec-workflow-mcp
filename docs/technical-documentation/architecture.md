@@ -101,10 +101,10 @@ graph TB
 **Key Architectural Principles:**
 
 1. **Leverages LLM Built-in Capabilities**: Uses the connected AI's existing knowledge, reasoning, and search capabilities
-2. **No Separate External Calls**: MCP server makes no independent API calls (except NPM version check)
+2. **Limited External Calls**: Tool handlers make no independent API calls (except the NPM version check). The dashboard may optionally spawn a local LLM **CLI subprocess** for background adversarial/task reviews.
 3. **LLM-Powered Content Generation**: The connected LLM generates all content using its built-in understanding
 4. **Structured Workflow**: Provides templates and enforces workflow, letting LLM fill in intelligent content
-5. **Human Approval Gateway**: All LLM-generated content requires human review before proceeding
+5. **Human Approval Gateway**: All LLM-generated content requires human approval before proceeding; optional AI review informs that decision
 
 ### Detailed Capability Analysis & Expansion Opportunities
 
@@ -114,7 +114,7 @@ graph TB
 | **AI-Powered Analysis** | ❌ No independent AI calls | ✅ LLM provides all analysis | 🔮 Could add: Specialized analysis tools, code quality metrics | Other agents: Multiple AI model integration |
 | **Context Window Management** | ❌ No LLM context management | ✅ LLM manages conversation context | 🔮 Could add: Context optimization, memory management | Other agents: Advanced context strategies |
 | **External Integrations** | ❌ Only NPM version check | ✅ LLM can call external APIs | 🔮 Could add: GitHub integration, CI/CD hooks, database connections | Other agents: Extensive API ecosystems |
-| **Auto Review Process** | ❌ Human approval only | ✅ LLM can analyze and review | 🔮 Could add: Automated quality gates, AI-powered approvals | Other agents: Multi-stage AI review |
+| **Auto Review Process** | ✅ Optional adversarial + task review (fork addition); human approval gate | ✅ LLM can analyze and review | 🔮 Could add: more review dimensions, required-review gates | Other agents: Multi-stage AI review |
 | **Best Practice Standards** | ❌ Static templates only | ✅ LLM has current best practices | 🔮 Could add: Dynamic template updates, standards APIs | Other agents: Live standards databases |
 | **Planning & Orchestration** | ❌ Fixed workflow sequence | ✅ LLM can plan and reason | 🔮 Could add: Dynamic workflows, adaptive planning | Other agents: Complex orchestration engines |
 
@@ -132,7 +132,6 @@ interface CompetitiveAnalysis {
     ];
     limitations: [
       "No independent web scraping",
-      "No automated AI review",
       "Fixed workflow templates",
       "Single project scope"
     ];
@@ -217,7 +216,7 @@ export class SpecWorkflowMCPServer {
 ```
 
 **Key Responsibilities:**
-- **Tool Registration**: Manages 13 MCP tools
+- **Tool Registration**: Manages 11 MCP tools (see `src/tools/index.ts`)
 - **Session Tracking**: Monitors dashboard connections
 - **Graceful Shutdown**: Handles client disconnections
 - **Context Coordination**: Provides shared context to tools
@@ -227,23 +226,25 @@ export class SpecWorkflowMCPServer {
 Implements the Model Context Protocol with structured tools:
 
 ```typescript
-// Tool categories
+// Tool categories (the 11 registered tools — see src/tools/index.ts)
 const tools = [
   // Workflow guides
-  'spec-workflow-guide', 'steering-guide',
-  
-  // Document creation  
-  'create-spec-doc', 'create-steering-doc',
-  
-  // Context loading
-  'get-spec-context', 'get-steering-context', 'get-template-context',
-  
-  // Status management
-  'spec-list', 'spec-status', 'manage-tasks',
-  
+  'spec-workflow-guide', 'steering-guide', 'decomposition-guide',
+
+  // Status
+  'spec-status',
+
   // Approval workflow
-  'request-approval', 'get-approval-status', 'delete-approval'
+  'approvals',
+
+  // Review (fork additions)
+  'adversarial-review', 'adversarial-response', 'review-task', 'get-task-review',
+
+  // Bookkeeping (fork additions)
+  'deferrals', 'log-implementation'
 ];
+// Note: spec documents are written by the agent (read template → write file),
+// not via a create-spec-doc tool.
 ```
 
 **Tool Architecture Pattern:**
@@ -293,26 +294,24 @@ sequenceDiagram
     
     AI->>MCP: spec-workflow-guide
     MCP-->>AI: Workflow instructions
-    
-    AI->>MCP: get-template-context (requirements)
-    MCP->>FS: Load template
-    FS-->>MCP: Template content
-    MCP-->>AI: Formatted template
-    
-    AI->>MCP: create-spec-doc
-    MCP->>FS: Write requirements.md
-    MCP-->>AI: File created
-    
-    AI->>MCP: request-approval
+
+    AI->>FS: Read template (.spec-workflow/templates/requirements-template.md)
+    FS-->>AI: Template content
+    AI->>FS: Write requirements.md (agent authors directly)
+
+    AI->>MCP: approvals (action: request, filePath)
     MCP->>DASH: Create approval
     MCP-->>AI: Approval requested
-    
+
     Note over DASH: User reviews in dashboard
-    
-    AI->>MCP: get-approval-status
+
+    AI->>MCP: approvals (action: status)
     MCP->>DASH: Check status
     DASH-->>MCP: Approved
     MCP-->>AI: Status: approved
+
+    AI->>MCP: approvals (action: delete)
+    MCP-->>AI: Cleaned up — proceed to next phase
 ```
 
 ### 2. Real-time Dashboard Updates
@@ -531,16 +530,22 @@ interface MemoryOptimization {
 ### File System Access
 - **Restricted Scope**: Only `.spec-workflow/` directory  
 - **Path Validation**: Prevents directory traversal
-- **Safe Operations**: No arbitrary command execution
+- **Command Execution**: The tool handlers run no commands. The dashboard does
+  spawn a configured LLM **CLI subprocess** when a background review is triggered
+  (`adversarial-runner.ts` / `task-review-runner.ts`).
 
 ### Network Security
 - **Local Only**: Dashboard binds to localhost
-- **No External Calls**: Except version check (optional)
+- **External Calls**: NPM version check; **plus**, when a review runs, the spawned
+  LLM CLI makes its own calls to whatever provider it is configured for
 - **Input Validation**: All parameters sanitized
 
 ### Data Privacy
-- **Local Storage**: All data stays on user's machine
-- **No Telemetry**: No usage data transmitted
+- **Local Storage**: Spec data stays on the user's machine
+- **Review caveat**: When an adversarial/task review runs, the document/diff under
+  review is sent to the LLM behind the configured CLI — data leaves the machine for
+  that call. Reviews are opt-in.
+- **No Telemetry**: No usage data transmitted by the server itself
 - **Session Isolation**: Each project has separate session
 
 ### Enterprise Security Considerations
@@ -548,11 +553,11 @@ interface MemoryOptimization {
 **Network Security**:
 ```typescript
 interface NetworkSecurity {
-  inboundConnections: "Only localhost dashboard (port 3456)";
-  outboundConnections: "Only NPM registry version check";
-  dataTransmission: "No external data transmission";
+  inboundConnections: "Only localhost dashboard (default port 5000)";
+  outboundConnections: "NPM registry version check; LLM provider when a review CLI runs";
+  dataTransmission: "Document/diff sent to the LLM provider during opt-in reviews";
   tlsCertificates: "Not required - localhost only";
-  firewall: "Allow localhost:3456 for dashboard access";
+  firewall: "Allow localhost:5000 for dashboard access";
 }
 ```
 
@@ -563,7 +568,7 @@ interface DataGovernance {
   dataRetention: "Manual - user controls all data lifecycle";
   dataDeletion: "rm -rf .spec-workflow/ removes all MCP data";
   auditTrail: "File system timestamps, no application logging";
-  compliance: "No data leaves local machine (except version check)";
+  compliance: "Data stays local except: NPM version check, and the document/diff sent to the LLM provider during opt-in reviews";
 }
 ```
 
@@ -576,9 +581,9 @@ interface DataGovernance {
 **Enterprise Deployment Considerations**:
 ```bash
 # Corporate firewall rules
-Allow outbound: registry.npmjs.org (443) # Version checking only
+Allow outbound: registry.npmjs.org (443) # Version check; plus the LLM provider endpoint if background reviews are used
 Allow inbound: None required
-Allow localhost: 3456 (dashboard), dynamic ports (MCP)
+Allow localhost: 5000 (dashboard, default), dynamic ports (MCP)
 
 # Security scanning
 Static analysis: TypeScript codebase, no binary dependencies

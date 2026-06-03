@@ -8,24 +8,30 @@
 ```
 project-root/
 ├── .spec-workflow/                    # All MCP workflow data
-│   ├── specs/                         # Specification documents  
+│   ├── specs/                         # Specification documents
 │   │   └── feature-name/              # Individual specification
-│   │       ├── requirements.md        # Phase 1: Requirements
-│   │       ├── design.md             # Phase 2: Design  
-│   │       └── tasks.md              # Phase 3: Tasks
+│   │       ├── requirements.md        # Requirements document
+│   │       ├── design.md              # Design document
+│   │       ├── tasks.md               # Tasks document
+│   │       └── reviews/               # Adversarial prompts/analyses/memory + task reviews
 │   ├── steering/                      # Project guidance documents
-│   │   ├── product.md                # Product vision & strategy
-│   │   ├── tech.md                   # Technical standards
-│   │   └── structure.md              # Code organization
+│   │   ├── product.md                 # Product vision & strategy
+│   │   ├── tech.md                    # Technical standards
+│   │   └── structure.md               # Code organization
+│   ├── spec-decomposition/            # Project-level spec breakdown (fork)
+│   │   └── decomposition.md
+│   ├── templates/                     # Built-in document templates
+│   ├── user-templates/                # Optional custom template overrides
 │   ├── approvals/                     # Approval workflow data
-│   │   └── spec-name/                # Per-spec approvals
-│   │       └── approval-id.json      # Individual approval data
+│   │   └── category-name/             # Grouped by category (spec name / steering / decomposition)
+│   │       └── approval-id.json       # Individual approval data
 │   ├── archive/                       # Completed/archived specs
-│   │   └── specs/                    # Archived specification docs
-│   └── config.toml (optional)        # Project-specific configuration
-├── [your existing project files]     # Your actual project
-├── package.json                      # Your project dependencies
-└── README.md                         # Your project documentation
+│   │   └── specs/                     # Archived specification docs
+│   ├── adversarial-settings.json      # Review/runner config (optional)
+│   └── config.toml                    # Project-specific configuration (optional, deprecated)
+├── [your existing project files]      # Your actual project
+├── package.json                       # Your project dependencies
+└── README.md                          # Your project documentation
 ```
 
 ### MCP Server Source Structure
@@ -34,11 +40,12 @@ project-root/
 
 | File Path | Purpose | Key Features |
 |-----------|---------|--------------|
-| `src/server.ts:74-85` | MCP server initialization | Tool registration, project registry |
-| `src/core/path-utils.ts:12-35` | Cross-platform paths | Windows/Unix path handling |
-| `src/core/project-registry.ts:96-114` | Project registration | Global project tracking |
-| `src/dashboard/approval-storage.ts:20-45` | Human approval system | JSON file persistence |
-| `src/dashboard/multi-server.ts:45-200` | Multi-project dashboard | WebSocket, file watching |
+| `src/server.ts` | MCP server initialization | Tool registration, project registry |
+| `src/tools/index.ts` | Tool registry & dispatcher | Registers all 11 tools |
+| `src/core/path-utils.ts` | Cross-platform paths | Windows/Unix path handling |
+| `src/core/project-registry.ts` | Project registration | Global project tracking |
+| `src/dashboard/approval-storage.ts` | Approval records | JSON file persistence |
+| `src/dashboard/multi-server.ts` | Multi-project dashboard | WebSocket, file watching, review endpoints |
 
 **Template System** (static content, no AI generation):
 ```
@@ -46,34 +53,37 @@ src/
 ├── core/                             # Core business logic
 │   ├── archive-service.ts            # Spec archiving functionality
 │   ├── parser.ts                     # Spec parsing & analysis
-│   ├── path-utils.ts                # Cross-platform path handling
-│   ├── project-registry.ts          # Global project tracking
-│   └── task-parser.ts               # Task management & parsing
-├── tools/                           # MCP tool implementations
-│   ├── index.ts                     # Tool registry & dispatcher
-│   ├── spec-workflow-guide.ts       # Workflow instructions
-│   ├── steering-guide.ts            # Steering doc instructions
-│   ├── create-spec-doc.ts           # Spec document creation
-│   ├── create-steering-doc.ts       # Steering doc creation
-│   ├── get-spec-context.ts          # Load spec context
-│   ├── get-steering-context.ts      # Load steering context
-│   ├── get-template-context.ts      # Load templates
-│   ├── spec-list.ts                 # List all specifications
-│   ├── spec-status.ts               # Get spec status
-│   ├── manage-tasks.ts              # Task management
-│   ├── request-approval.ts          # Create approval requests
-│   ├── get-approval-status.ts       # Check approval status
-│   └── delete-approval.ts           # Clean up approvals
-├── dashboard/                       # Dashboard backend
-│   ├── multi-server.ts              # Multi-project Fastify server
-│   ├── project-manager.ts           # Project lifecycle management
-│   ├── approval-storage.ts          # Approval persistence
-│   ├── parser.ts                    # Dashboard-specific parsing
-│   ├── watcher.ts                   # File system watching
-│   ├── utils.ts                     # Dashboard utilities
-│   └── public/                      # Static assets
-│       ├── claude-icon.svg          # Light mode icon
-│       └── claude-icon-dark.svg     # Dark mode icon
+│   ├── path-utils.ts                 # Cross-platform path handling
+│   ├── project-registry.ts           # Global project tracking
+│   ├── task-parser.ts                # Task management & parsing
+│   ├── adversarial-settings.ts       # Review/runner settings loader (fork)
+│   ├── deferral-storage.ts           # Deferred-decisions store (fork)
+│   ├── task-review-manager.ts        # Task review persistence (fork)
+│   ├── task-diff.ts / typecheck.ts   # Task review signals (fork)
+│   ├── hygiene-signals.ts            # Adversarial hygiene signals (fork)
+│   └── path-denylist.ts              # Review path denylist (fork)
+├── tools/                            # MCP tool implementations (11 tools)
+│   ├── index.ts                      # Tool registry & dispatcher
+│   ├── spec-workflow-guide.ts        # Workflow instructions
+│   ├── steering-guide.ts             # Steering doc instructions
+│   ├── decomposition-guide.ts        # Decomposition methodology (fork)
+│   ├── spec-status.ts                # Get spec status
+│   ├── approvals.ts                  # Request / status / delete approvals
+│   ├── log-implementation.ts         # Record task implementation
+│   ├── deferrals.ts                  # Deferred decisions (fork)
+│   ├── adversarial-review.ts         # Scaffold a document critique (fork)
+│   ├── adversarial-response.ts       # Respond to a critique (fork)
+│   ├── review-task.ts                # Review a task's implementation (fork)
+│   └── get-task-review.ts            # Retrieve task review findings (fork)
+├── dashboard/                        # Dashboard backend
+│   ├── multi-server.ts               # Multi-project Fastify server
+│   ├── approval-storage.ts           # Approval persistence
+│   ├── implementation-log-manager.ts # Implementation log persistence
+│   ├── adversarial-runner.ts         # Background adversarial review runner (fork)
+│   ├── task-review-runner.ts         # Background task review runner (fork)
+│   ├── watcher.ts                    # File system watching
+│   ├── utils.ts                      # Dashboard utilities
+│   └── public/                       # Static assets
 ├── dashboard_frontend/              # React dashboard frontend
 │   ├── src/
 │   │   ├── modules/
@@ -227,6 +237,8 @@ const directories = [
   '.spec-workflow/',
   '.spec-workflow/specs/',
   '.spec-workflow/steering/',
+  '.spec-workflow/templates/',
+  '.spec-workflow/user-templates/',
   '.spec-workflow/archive/',
   '.spec-workflow/archive/specs/'
 ];
@@ -234,8 +246,10 @@ const directories = [
 // Directories created on-demand
 const onDemandDirectories = [
   '.spec-workflow/approvals/',
-  '.spec-workflow/approvals/{spec-name}/',
-  '.spec-workflow/specs/{spec-name}/'
+  '.spec-workflow/approvals/{category-name}/',
+  '.spec-workflow/specs/{spec-name}/',
+  '.spec-workflow/specs/{spec-name}/reviews/',
+  '.spec-workflow/spec-decomposition/'
 ];
 ```
 

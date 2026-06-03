@@ -551,7 +551,3 @@ Contributors are recognized in:
 **Thank you for contributing to Spec Workflow MCP!** 🎉
 
 Every contribution, no matter how small, helps make this project better for everyone.
-
----
-
-**Next**: [Testing Guide →](testing.md)

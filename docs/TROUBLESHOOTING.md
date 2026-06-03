@@ -25,8 +25,8 @@ npx -y @madmatt112org/spec-workflow-mcp@latest /path/to/project
 npx -y @madmatt112org/spec-workflow-mcp@latest /path/to/project --dashboard
 
 # Check port availability
-netstat -an | grep 3000  # macOS/Linux
-netstat -an | findstr :3000  # Windows
+netstat -an | grep 5000  # macOS/Linux
+netstat -an | findstr :5000  # Windows
 ```
 
 ## Common Issues and Solutions
@@ -149,7 +149,7 @@ netstat -an | findstr :3000  # Windows
    ```
 2. Check the URL in browser (note the port):
    ```
-   http://localhost:3000  # Or whatever port is shown
+   http://localhost:5000  # Or whatever port is shown
    ```
 3. Try different browser or incognito mode
 4. Check browser console for errors (F12 → Console)
@@ -157,7 +157,7 @@ netstat -an | findstr :3000  # Windows
 
 ### Port Already in Use
 
-**Error**: `Error: listen EADDRINUSE: address already in use :::3000`
+**Error**: `Error: listen EADDRINUSE: address already in use :::5000`
 
 **Solutions**:
 1. Use a different port:
@@ -167,11 +167,11 @@ netstat -an | findstr :3000  # Windows
 2. Find and kill the process using the port:
    ```bash
    # macOS/Linux
-   lsof -i :3000
+   lsof -i :5000
    kill -9 [PID]
 
    # Windows
-   netstat -ano | findstr :3000
+   netstat -ano | findstr :5000
    taskkill /PID [PID] /F
    ```
 3. Use ephemeral port (omit --port flag):
@@ -222,7 +222,7 @@ netstat -an | findstr :3000  # Windows
    ```
 2. Check approval directory exists:
    ```bash
-   ls -la .spec-workflow/approval/
+   ls -la .spec-workflow/approvals/
    ```
 3. Manually trigger approval request through AI
 
@@ -371,7 +371,7 @@ netstat -an | findstr :3000  # Windows
    ```
 3. Clear old approval records:
    ```bash
-   rm -rf .spec-workflow/approval/completed/*
+   rm -rf .spec-workflow/approvals/*/
    ```
 4. Use specific spec names instead of listing all
 
@@ -529,9 +529,44 @@ npx -y @madmatt112org/spec-workflow-mcp@latest /path --debug
 4. Monitor disk space for logs
 5. Restart services after updates
 
+## Frequently Asked Questions
+
+**Q: Can I use relative paths in MCP configuration?**
+Some MCP clients don't resolve relative paths correctly. Use absolute paths:
+`["-y", "@madmatt112org/spec-workflow-mcp@latest", "/full/path/to/project"]`.
+
+**Q: How do I reset everything and start fresh?**
+Remove the workflow directory — the server recreates it: `rm -rf .spec-workflow/`.
+
+**Q: Can multiple AI clients use the same project?**
+Yes, but only one dashboard per project. Multiple MCP clients can connect and share
+the same approval workflow.
+
+**Q: Why do approval requests need dashboard/VS Code approval?**
+Human oversight is the quality gate; verbal "approved" in chat is not accepted. (For
+non-interactive operation, see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).)
+
+**Q: Can I customize the templates?**
+Yes. Built-in templates live in `.spec-workflow/templates/`; to override one, drop a
+file with the same name in `.spec-workflow/user-templates/` (checked first). See
+[USER-GUIDE.md](USER-GUIDE.md#custom-templates).
+
+**Q: Can I run the dashboard without the MCP server?**
+Yes: `npx -y @madmatt112org/spec-workflow-mcp@latest --dashboard`.
+
+**Q: How do I test the dashboard API directly?**
+```bash
+curl http://localhost:5000/api/specs
+```
+
+**Q: What happens if I modify spec files directly?**
+The file watcher detects the change and updates the dashboard, but editing files
+out-of-band can desync workflow/approval state — prefer the normal flow.
+
 ## Related Documentation
 
 - [Configuration Guide](CONFIGURATION.md) - Detailed configuration options
 - [User Guide](USER-GUIDE.md) - General usage instructions
+- [Autonomous Usage](AUTONOMOUS-USAGE.md) - Non-interactive / headless operation
 - [Development Guide](DEVELOPMENT.md) - For contributing fixes
 - [Interfaces Guide](INTERFACES.md) - Dashboard and extension details

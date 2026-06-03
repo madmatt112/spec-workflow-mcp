@@ -7,10 +7,14 @@ This guide explains the complete spec-driven development workflow and best pract
 The spec-driven workflow follows a structured approach:
 
 ```
-Steering → Specifications → Implementation → Verification
+(Steering) → Decomposition → Requirements → Design → Tasks → Implementation
 ```
 
-Each phase builds on the previous, ensuring systematic and well-documented development.
+Each phase builds on the previous, ensuring systematic and well-documented
+development. Steering documents are optional and created once per project; when they
+exist, the workflow begins with **Decomposition** (breaking the project into a set of
+specs) before any individual spec's Requirements. The canonical sequence is defined by
+the `spec-workflow-guide` tool's returned methodology.
 
 ## Phase 1: Project Setup with Steering Documents
 
@@ -53,6 +57,29 @@ This generates three key documents:
 2. **Keep updated** - Revise as project evolves
 3. **Reference often** - Use for decision making
 4. **Share widely** - Ensure team alignment
+
+## Phase 1.5: Decomposition
+
+> **Fork addition.** Not present in upstream spec-workflow-mcp.
+
+When steering documents exist, the workflow requires a **decomposition** step before
+the first spec. It breaks the project (as described by the steering docs) into a
+complete, ordered set of specs — each one a demonstrable capability you can verify
+end-to-end, not a technical layer.
+
+### How It Works
+
+1. Call `decomposition-guide` to load the decomposition methodology.
+2. Read the steering docs and ask whether there is existing code to account for.
+3. Apply the methodology to produce a spec breakdown, surfacing open questions to the
+   user before finalizing.
+4. Write the result to `.spec-workflow/spec-decomposition/decomposition.md`.
+5. Submit it for approval via `approvals` with `category: 'decomposition'` — it goes
+   through the same approval cycle as any spec document, and can be
+   adversarially reviewed (`specName: "decomposition"`, `phase: "decomposition"`).
+
+Once the decomposition is approved, work the resulting specs in dependency order,
+each through the standard Requirements → Design → Tasks → Implementation flow.
 
 ## Phase 2: Specification Creation
 
@@ -135,12 +162,29 @@ Requirements → Design → Tasks
 
 ### Approval Workflow
 
-1. **Document Creation** - AI generates document
-2. **Review Request** - Approval requested automatically
+1. **Document Creation** - The agent reads the template and writes the document
+2. **Review Request** - The agent calls `approvals` (`action: request`) with the file path
 3. **User Review** - Review in dashboard/extension
-4. **Decision** - Approve, request changes, or reject
-5. **Revision** (if needed) - AI updates based on feedback
-6. **Final Approval** - Document locked for implementation
+4. **Decision** - Approve, request changes (`needs-revision`), or reject
+5. **Revision** (if needed) - The agent updates the document based on feedback
+6. **Final Approval** - The agent confirms `approved` status, then deletes the approval
+
+### Approval Rules the Agent Must Follow
+
+The `spec-workflow-guide` returns these as hard rules:
+
+- **Verbal approval is never accepted.** "Approved" in chat does not count — approval
+  status must be read from the dashboard / VS Code extension via `approvals`
+  (`action: status`).
+- **Delete before proceeding.** After a document is `approved`, delete its approval
+  (`action: delete`) before starting the next phase. Deleting a still-`pending`
+  approval is blocked by the tool.
+- **Revision cycle.** On `needs-revision`: update the document, delete the old
+  approval, then request a new one with the **same** `filePath`.
+
+These rules are written for an interactive, human-approved flow. Autonomous callers
+override several of them — see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md) for which
+constraints are actually enforced by the tools versus advisory.
 
 ### Making Approval Decisions
 
@@ -202,7 +246,19 @@ The adversarial workflow integrates into the standard approval cycle:
 Pending → Adversarial Review → Needs Revision → Revise & Resubmit → Pending → Approve
 ```
 
-Each review is versioned (v1, v2, v3...) so you can run multiple rounds and compare how the document evolved.
+Each review is versioned (v1, v2, v3...) so you can run multiple rounds and compare
+how the document evolved. Versioning is **unbounded** — there is no built-in cap or
+"converged" verdict. For v2+ reviews a rolling memory file
+(`reviews/adversarial-memory-<phase>.md`) carries prior findings forward so later
+rounds attack fresh angles rather than re-discovering known issues.
+
+The review can be triggered from the dashboard **or driven entirely by an agent**
+(call `adversarial-review`, launch a fresh subagent on the generated prompt, then
+`adversarial-response`). An autonomous loop can repeat this until a fresh reviewer
+finds nothing actionable — an "iterate-until-clean" pattern the server supports but
+does not itself enforce. See [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md) and
+[TOOLS-REFERENCE.md](TOOLS-REFERENCE.md#adversarial-review) for the mechanics
+(including the Read-then-overwrite step on the generated prompt file).
 
 #### Configuration
 
@@ -236,6 +292,25 @@ For logical groupings:
 ```
 "Implement all database tasks from the payment spec"
 ```
+
+### Per-Task Completion Loop
+
+Each task follows a fixed sequence. Task status lives in `tasks.md` markers
+(`[ ]` pending, `[-]` in-progress, `[x]` completed) — the agent edits them directly.
+
+1. Mark the task `[ ]` → `[-]`.
+2. Implement it.
+3. Call **`log-implementation`** (the `artifacts` field is **required** — the tool
+   rejects the call without it). A task with no implementation log is not complete.
+4. Get an **independent** code review — do not self-review:
+   - With a dashboard: a human clicks *Review*, a fresh-context agent reviews, and you
+     read the result with `get-task-review`.
+   - Headless: call `review-task` yourself (`prepare` → read files → `record`). See
+     [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#task-review-headless).
+5. Only after the review passes, mark the task `[-]` → `[x]`.
+
+Capture any discovery that affects a **future** spec with the `deferrals` tool
+(`originPhase: implementation`) rather than expanding the current task.
 
 ### Progress Tracking
 
@@ -301,9 +376,12 @@ your-project/
 │   │   └── payment-gateway/
 │   │       ├── requirements.md
 │   │       ├── design.md
-│   │       └── tasks.md
-│   └── approval/
-│       └── [approval tracking files]
+│   │       ├── tasks.md
+│   │       └── reviews/          # adversarial prompts/analyses/memory, task reviews
+│   ├── spec-decomposition/
+│   │   └── decomposition.md
+│   └── approvals/
+│       └── [approval tracking files, grouped by category]
 ├── src/
 │   └── [your implementation]
 └── tests/
@@ -514,6 +592,10 @@ Please revise to include tenant isolation."
 - Deploy completed features
 - Monitor against success metrics
 
+For running the workflow itself non-interactively (CI, cron, autonomous agents),
+including how the human-approval gate behaves when no dashboard is reachable, see
+[AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md).
+
 ### Team Collaboration
 
 - Share dashboard URL
@@ -526,4 +608,5 @@ Please revise to include tenant isolation."
 - [User Guide](USER-GUIDE.md) - General usage instructions
 - [Prompting Guide](PROMPTING-GUIDE.md) - Example prompts and patterns
 - [Tools Reference](TOOLS-REFERENCE.md) - Complete tool documentation
+- [Autonomous Usage](AUTONOMOUS-USAGE.md) - Non-interactive / headless operation
 - [Interfaces Guide](INTERFACES.md) - Dashboard and extension details

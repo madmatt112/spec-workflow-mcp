@@ -491,17 +491,20 @@ Adversarial review settings are stored per-project in `.spec-workflow/adversaria
 
 ### Settings File
 
+This is the shape the dashboard **Adversarial Analysis > Settings** tab reads and
+writes (see `src/dashboard/multi-server.ts`):
+
 ```json
 {
+  "customPreamble": "",
   "requiredPhases": {
     "requirements": false,
     "design": false,
     "tasks": false
   },
-  "preamble": "",
   "reviewMethodology": "",
   "responseMethodology": "",
-  "model": "sonnet",
+  "model": "",
   "cli": "",
   "cliArgs": []
 }
@@ -511,13 +514,38 @@ Adversarial review settings are stored per-project in `.spec-workflow/adversaria
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `requiredPhases` | object | All false | Enforce adversarial review before approval per phase |
-| `preamble` | string | "" | Additional context prepended to review prompts |
-| `reviewMethodology` | string | Built-in | Custom methodology for generating adversarial critiques |
-| `responseMethodology` | string | Built-in | Custom methodology for responding to critiques |
-| `model` | string | "" | Model for reviews: "sonnet", "opus", "haiku", or a full model ID. Empty uses CLI default |
-| `cli` | string | "claude" | CLI executable for background reviews. Any LLM CLI that accepts a prompt as the final argument |
+| `customPreamble` | string | "" | Additional context prepended to review prompts |
+| `requiredPhases` | object | All false | Enforce adversarial review before approval per phase (`requirements`, `design`, `tasks`) |
+| `reviewMethodology` | string | Built-in | Override the methodology returned by `adversarial-review` (top-level key, read by the tool) |
+| `responseMethodology` | string | Built-in | Override the methodology returned by `adversarial-response` |
+| `model` | string | "" | Model for background reviews: `"sonnet"`, `"opus"`, `"haiku"`, or a full model ID. Empty uses the CLI default |
+| `cli` | string | `"claude"` | CLI executable for background reviews. Any LLM CLI that accepts a prompt as the final argument |
 | `cliArgs` | string[] | `["--print", "--dangerously-skip-permissions"]` | Base arguments passed to the CLI before the prompt |
+
+### Advanced: per-runner overrides
+
+Beyond the dashboard-managed keys above, the settings loader
+(`src/core/adversarial-settings.ts`) supports **hand-edited** per-runner overrides.
+These are not exposed in the dashboard UI but take precedence over the flat `model`
+when present:
+
+```json
+{
+  "adversarial": { "model": "opus" },
+  "taskReview":  { "model": "sonnet" },
+  "features":    { "typecheck": true }
+}
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `adversarial.model` | string | falls back to `model` | Model used specifically for adversarial document reviews |
+| `taskReview.model` | string | falls back to `model` | Model used specifically for task (code) reviews |
+| `features.typecheck` | boolean | `true` | Whether `review-task action: prepare` runs a `tsc --noEmit` typecheck signal |
+
+The model precedence ladder (per-runner override > legacy top-level `model` >
+unset), empty-string-clears-override semantics, and retry behavior are documented in
+the [README's "Reviewer Configuration" section](../README.md).
 
 ### Agent CLI
 

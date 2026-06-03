@@ -123,8 +123,19 @@ t('welcome.message', {
 ## Language Support
 
 ### Currently Supported
+
+The project supports 11 languages:
 - **English** (`en`) - Default fallback language
-- **Japanese** (`ja`) - Complete translations
+- **Japanese** (`ja`)
+- **Chinese** (`zh`)
+- **Spanish** (`es`)
+- **Portuguese** (`pt`)
+- **German** (`de`)
+- **French** (`fr`)
+- **Russian** (`ru`)
+- **Italian** (`it`)
+- **Korean** (`ko`)
+- **Arabic** (`ar`)
 
 ### Adding New Languages
 
