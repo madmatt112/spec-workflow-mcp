@@ -46,14 +46,14 @@ ${scope ? `- Scope: ${scope}` : ''}
 ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 
 **Instructions:**
-1. First, read the template at: .spec-workflow/templates/${docType}-template.md
+1. First, read the template: check .spec-workflow/user-templates/${docType}-template.md, falling back to .spec-workflow/templates/${docType}-template.md
 2. Check if steering docs exist at: .spec-workflow/steering/
 3. Create comprehensive content following the template structure
 4. Create the document at: .spec-workflow/steering/${docType}.md
 5. After creating, use approvals tool with action:'request' to get user approval
 
 **File Paths:**
-- Template location: .spec-workflow/templates/${docType}-template.md
+- Template location: .spec-workflow/user-templates/${docType}-template.md (custom override), else .spec-workflow/templates/${docType}-template.md
 - Document destination: .spec-workflow/steering/${docType}.md
 
 **Steering Document Types:**

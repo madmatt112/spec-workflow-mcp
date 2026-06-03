@@ -53,7 +53,7 @@ ${description ? `- Description: ${description}` : ''}
 ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 
 **Instructions:**
-1. First, read the template at: .spec-workflow/templates/${documentType}-template.md
+1. First, read the template: check .spec-workflow/user-templates/${documentType}-template.md, falling back to .spec-workflow/templates/${documentType}-template.md
 2. Follow the template structure exactly - this ensures consistency across the project
 3. Create comprehensive content that follows spec-driven development best practices
 4. Include all required sections from the template
@@ -62,7 +62,7 @@ ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 7. After creating, use approvals tool with action:'request' to get user approval
 
 **File Paths:**
-- Template location: .spec-workflow/templates/${documentType}-template.md
+- Template location: .spec-workflow/user-templates/${documentType}-template.md (custom override), else .spec-workflow/templates/${documentType}-template.md
 - Document destination: .spec-workflow/specs/${specName}/${documentType}.md
 
 **Workflow Guidelines:**

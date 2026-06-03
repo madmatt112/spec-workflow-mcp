@@ -37,7 +37,7 @@ export async function specWorkflowGuideHandler(args: any, context: ToolContext):
       'Follow sequence: Decomposition → Requirements → Design → Tasks → Implementation',
       'Read the document template from .spec-workflow/user-templates/ (falling back to .spec-workflow/templates/) before writing each document',
       'Request approval after each document',
-      'Use MCP tools only',
+      'Write the spec documents directly to files; use the MCP tools for approvals, status, and review',
       dashboardMessage
     ]
   };
