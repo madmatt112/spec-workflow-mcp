@@ -366,6 +366,7 @@ your-project/
   .spec-workflow/
     approvals/
     archive/
+    spec-decomposition/
     specs/
     steering/
     templates/
