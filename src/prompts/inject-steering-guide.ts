@@ -6,7 +6,7 @@ import { steeringGuideHandler } from '../tools/steering-guide.js';
 const prompt: Prompt = {
   name: 'inject-steering-guide',
   title: 'Inject Steering Guide into Context',
-  description: 'Injects the complete steering document workflow guide into the conversation context. This provides instructions for creating project-level guidance documents (product.md, tech.md, structure.md) when explicitly requested by the user.'
+  description: 'Injects the complete steering document workflow guide into the conversation context. This provides instructions for creating project-level guidance documents (product.md, tech.md, structure.md, and the optional design-system.md) when explicitly requested by the user.'
 };
 
 async function handler(args: Record<string, any>, context: ToolContext): Promise<PromptMessage[]> {
@@ -37,7 +37,7 @@ ${nextSteps.map(step => `- ${step}`).join('\n')}
 **Important Instructions:**
 1. This guide has been injected into your context for creating steering documents
 2. Only proceed if the user explicitly requested steering document creation
-3. Follow the sequence exactly: product.md → tech.md → structure.md
+3. Follow the sequence exactly: product.md → tech.md → structure.md → (optional) design-system.md
 4. Read templates from .spec-workflow/templates/ directory
 5. Create documents in .spec-workflow/steering/ directory
 6. Request approval after each document using the approvals tool

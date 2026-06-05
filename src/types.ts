@@ -89,11 +89,8 @@ export interface PhaseStatus {
 
 export interface SteeringStatus {
   exists: boolean;
-  documents: {
-    product: boolean;
-    tech: boolean;
-    structure: boolean;
-  };
+  /** Keyed by steering doc name (see STEERING_DOCS registry), e.g. product, tech, structure, design-system. */
+  documents: Record<string, boolean>;
   lastModified?: string;
 }
 

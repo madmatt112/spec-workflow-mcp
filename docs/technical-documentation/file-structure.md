@@ -17,7 +17,8 @@ project-root/
 │   ├── steering/                      # Project guidance documents
 │   │   ├── product.md                 # Product vision & strategy
 │   │   ├── tech.md                    # Technical standards
-│   │   └── structure.md               # Code organization
+│   │   ├── structure.md               # Code organization
+│   │   └── design-system.md           # Visual design system (optional)
 │   ├── spec-decomposition/            # Project-level spec breakdown (fork)
 │   │   └── decomposition.md
 │   ├── templates/                     # Built-in document templates
@@ -109,7 +110,8 @@ src/
 │       ├── tasks-template.md        # Tasks document template
 │       ├── product-template.md      # Product vision template
 │       ├── tech-template.md         # Technical standards template
-│       └── structure-template.md    # Code structure template
+│       ├── structure-template.md    # Code structure template
+│       └── design-system-template.md # Visual design system template
 ├── server.ts                       # Main MCP server class
 ├── index.ts                        # CLI entry point & argument parsing
 └── types.ts                        # TypeScript type definitions
@@ -166,6 +168,7 @@ vscode-extension/
 - **Product**: `product.md`
 - **Tech**: `tech.md`
 - **Structure**: `structure.md`
+- **Design System** (optional): `design-system.md`
 
 ### Approval Files
 - **Format**: `{spec-name}-{document}-{timestamp}.json`

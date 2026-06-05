@@ -5,7 +5,7 @@ import { ToolContext } from '../types.js';
 const prompt: Prompt = {
   name: 'create-decomposition',
   title: 'Create Spec Decomposition',
-  description: 'Guide for decomposing steering documents into a complete set of specs. Reads product.md, tech.md, and structure.md, then produces a spec breakdown with dependency ordering, cross-spec conventions, and open questions.',
+  description: 'Guide for decomposing steering documents into a complete set of specs. Reads product.md, tech.md, structure.md (and design-system.md if present), then produces a spec breakdown with dependency ordering, cross-spec conventions, and open questions.',
   arguments: [
     {
       name: 'researchMode',
@@ -48,9 +48,11 @@ ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
    - \`product.md\` — project vision, goals, features
    - \`tech.md\` — technology decisions, architecture
    - \`structure.md\` — codebase organization, conventions
+   - \`design-system.md\` — visual design system (optional; only present in some projects)
 
-   If any steering doc is missing, inform the user and ask whether to proceed without it
-   or create it first.
+   product.md, tech.md, and structure.md are the core steering docs. If one of those is missing,
+   inform the user and ask whether to proceed without it or create it first. design-system.md is
+   optional — if it is absent, just proceed (do not prompt to create it).
 
 2. Ask the user: **"Is there existing code in this project that I should account for?"**
    - If yes: scan the codebase to understand what is already built, what patterns exist,

@@ -3,6 +3,7 @@ import { ToolContext, ToolResponse } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { STEERING_DOC_FILES } from '../core/steering-docs.js';
 
 export const adversarialReviewTool: Tool = {
   name: 'adversarial-review',
@@ -113,12 +114,12 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
   if (isDecomposition) {
     // Decomposition reviews use steering docs as prior context
     steeringDocs = [];
-    priorPhaseDocs = await findExistingFiles(steeringDir, ['product.md', 'tech.md', 'structure.md']);
+    priorPhaseDocs = await findExistingFiles(steeringDir, STEERING_DOC_FILES);
   } else if (isSteering) {
     steeringDocs = [];
     priorPhaseDocs = [];
   } else {
-    steeringDocs = await findExistingFiles(steeringDir, ['product.md', 'tech.md', 'structure.md']);
+    steeringDocs = await findExistingFiles(steeringDir, STEERING_DOC_FILES);
     priorPhaseDocs = await findPriorPhaseDocs(docDir, phase);
   }
 
@@ -292,6 +293,11 @@ export const PHASE_ATTACK_ANGLES: Record<string, PhaseGuidance> = {
     persona: 'engineering lead with deep codebase ownership',
     attackSurface: 'Organization, conventions, maintainability',
     exampleAngles: 'Inconsistent module layout, ambiguous ownership boundaries, conventions that conflict with the stack, missing patterns for shared concerns, hard-to-navigate hierarchies',
+  },
+  'design-system': {
+    persona: 'principal product designer',
+    attackSurface: 'Consistency, accessibility, scalability of the visual system',
+    exampleAngles: 'Tokens that contradict stated principles, missing component states, insufficient color contrast, undefined responsive/spacing scale, theming gaps, conventions that will not scale across surfaces',
   },
 };
 

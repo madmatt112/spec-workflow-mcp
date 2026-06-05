@@ -191,6 +191,47 @@ describe('adversarial-review tool', () => {
     expect(result.data.steeringDocs).toHaveLength(0);
   });
 
+  it('prepares a steering review for the design-system doc', async () => {
+    const project = await createTempProject();
+    const steeringDir = join(project, '.spec-workflow', 'steering');
+    await fs.mkdir(steeringDir, { recursive: true });
+    await fs.writeFile(join(steeringDir, 'design-system.md'), '# Design System\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'steering', phase: 'design-system' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.targetFile).toContain('steering/design-system.md');
+    expect(result.data.analysisOutputPath).toContain('adversarial-analysis-design-system.md');
+    // Steering reviews carry no steering docs as separate context
+    expect(result.data.steeringDocs).toHaveLength(0);
+  });
+
+  it('has a tailored attack-angle entry for design-system', () => {
+    expect(PHASE_ATTACK_ANGLES['design-system']).toBeDefined();
+    expect(PHASE_ATTACK_ANGLES['design-system'].persona).toMatch(/design/i);
+  });
+
+  it('includes design-system.md as steering context for spec phase reviews', async () => {
+    const project = await createTempProject();
+    const steeringDir = join(project, '.spec-workflow', 'steering');
+    const specDir = join(project, '.spec-workflow', 'specs', 'demo');
+    await fs.mkdir(steeringDir, { recursive: true });
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(steeringDir, 'design-system.md'), '# Design System\n', 'utf-8');
+    await fs.writeFile(join(specDir, 'design.md'), '# Design\n', 'utf-8');
+
+    const result = await adversarialReviewHandler(
+      { specName: 'demo', phase: 'design' },
+      ctx(project)
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.data.steeringDocs.some((p: string) => p.includes('design-system.md'))).toBe(true);
+  });
+
   it('creates reviews dir inside spec-decomposition', async () => {
     const project = await createTempProject();
     const decompDir = join(project, '.spec-workflow', 'spec-decomposition');

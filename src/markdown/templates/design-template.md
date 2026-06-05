@@ -12,6 +12,12 @@
 ### Project Structure (structure.md)
 [How the implementation will follow project organization conventions]
 
+### Design System (design-system.md) — if applicable
+[If this spec has UI/visual surface, describe how the design honors design-system.md:
+semantic roles, usage rules, component conventions, and the non-negotiable gates
+(accessibility, theme parity). If this spec has no visual surface, or the project has no
+design-system.md, write N/A.]
+
 ## Code Reuse Analysis
 [What existing code will be leveraged, extended, or integrated with this feature]
 

@@ -3,6 +3,7 @@ import { join } from 'path';
 import { PathUtils } from '../core/path-utils.js';
 import { SpecData, SteeringStatus, TaskInfo } from '../types.js';
 import { parseTaskProgress } from '../core/task-parser.js';
+import { STEERING_DOCS } from '../core/steering-docs.js';
 
 export interface ParsedSpec extends SpecData {
   displayName: string;
@@ -231,13 +232,14 @@ export class SpecParser {
 
 
   async getProjectSteeringStatus(): Promise<SteeringStatus> {
+    const documents: Record<string, boolean> = {};
+    for (const doc of STEERING_DOCS) {
+      documents[doc.name] = false;
+    }
+
     const status: SteeringStatus = {
       exists: false,
-      documents: {
-        product: false,
-        tech: false,
-        structure: false
-      }
+      documents
     };
 
     try {
@@ -245,20 +247,12 @@ export class SpecParser {
       status.exists = true;
 
       // Check each steering document
-      try {
-        await access(join(this.steeringPath, 'product.md'));
-        status.documents.product = true;
-      } catch {}
-
-      try {
-        await access(join(this.steeringPath, 'tech.md'));
-        status.documents.tech = true;
-      } catch {}
-
-      try {
-        await access(join(this.steeringPath, 'structure.md'));
-        status.documents.structure = true;
-      } catch {}
+      for (const doc of STEERING_DOCS) {
+        try {
+          await access(join(this.steeringPath, doc.fileName));
+          status.documents[doc.name] = true;
+        } catch {}
+      }
 
       // Get last modified time for steering directory
       const steeringStats = await stat(this.steeringPath);

@@ -21,7 +21,7 @@ The full phase sequence is:
 (Steering) → Decomposition → Requirements → Design → Tasks → Implementation
 ```
 
-1. **Steering** (optional, once per project) - High-level product/tech/structure docs
+1. **Steering** (optional, once per project) - High-level product/tech/structure docs (plus an optional design-system doc)
 2. **Decomposition** (when steering exists) - Break the project into a set of specs
 3. **Create a spec** - Requirements → Design → Tasks for one feature
 4. **Review and approve** - Each document is approved in the dashboard before the next
@@ -221,7 +221,7 @@ edit these). To override one, create a file with the **same name** in
 `.spec-workflow/user-templates/`:
 
 - `requirements-template.md`, `design-template.md`, `tasks-template.md`
-- `product-template.md`, `tech-template.md`, `structure-template.md`
+- `product-template.md`, `tech-template.md`, `structure-template.md`, `design-system-template.md`
 
 The loader checks `user-templates/` first and falls back to the default in
 `templates/`. For example, to customize the requirements document, create
@@ -241,6 +241,11 @@ Generates:
 - **Product steering** - Vision and goals
 - **Technical steering** - Architecture decisions
 - **Structure steering** - Project organization
+- **Design system steering** (optional) - Visual system *direction and rules*: principles, semantic roles, usage rules, accessibility gates (exact values stay in specs/code)
+
+When a `design-system.md` exists, the Design phase of any UI/visual spec is prompted to
+align with it (via a "Design System" subsection in the design document); non-visual specs
+and projects without the doc simply mark it N/A.
 
 ### Decomposition
 

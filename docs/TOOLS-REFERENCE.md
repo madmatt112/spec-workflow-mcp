@@ -66,9 +66,10 @@ this doc summarizes it.
 
 ## steering-guide
 
-**Purpose**: Loads the methodology for creating the three steering documents
-(`product.md`, `tech.md`, `structure.md`). Call **only** when the user explicitly
-asks for steering docs — it is not part of the standard per-spec flow.
+**Purpose**: Loads the methodology for creating the steering documents
+(`product.md`, `tech.md`, `structure.md`, plus an optional `design-system.md`). Call
+**only** when the user explicitly asks for steering docs — it is not part of the
+standard per-spec flow.
 
 **Parameters**: none.
 

@@ -343,7 +343,8 @@ project-root/
 │   ├── steering/                # Project guidance
 │   │   ├── product.md           # Product vision
 │   │   ├── tech.md              # Technical standards
-│   │   └── structure.md         # Code organization
+│   │   ├── structure.md         # Code organization
+│   │   └── design-system.md     # Visual design system (optional)
 │   ├── approvals/               # Approval workflow data
 │   │   └── spec-name/           # Per-spec approvals
 │   └── archive/                 # Archived specs

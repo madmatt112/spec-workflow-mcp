@@ -28,7 +28,7 @@ Steering documents provide high-level guidance that keeps your project aligned a
 "Create steering documents for my project"
 ```
 
-This generates three key documents:
+This generates three core documents, plus an optional fourth:
 
 #### 1. Product Steering (`steering/product.md`)
 - Product vision and mission
@@ -50,6 +50,22 @@ This generates three key documents:
 - Naming standards
 - Module boundaries
 - Documentation structure
+
+#### 4. Design System Steering (`steering/design-system.md`) — optional
+- Design principles
+- Semantic color/typography roles and usage rules
+- Component conventions (naming, required states, variant policy)
+- Accessibility and other non-negotiable gates
+- Pointer to the design-token source of truth
+
+Like the other steering docs, this captures durable **direction and rules** — not concrete
+values. Exact palette/token values, the precise type scale, and per-component decisions belong
+in the design spec / implementation and the token source of truth; a "direction-light" doc
+that defers those is a valid, first-class outcome.
+
+This document is optional and opt-in. It is only created when you ask for it, and
+its absence never affects steering, decomposition, or specs. When present, it is
+loaded during Decomposition and the Design phase.
 
 ### Best Practices for Steering
 
@@ -124,6 +140,7 @@ Requirements → Design → Tasks
 - API specifications
 - Integration points
 - Implementation approach
+- Steering alignment (tech.md, structure.md, and — for UI/visual specs — design-system.md if the project has one; N/A otherwise)
 
 **Automatic Generation**: Created after requirements approval
 
@@ -367,7 +384,8 @@ your-project/
 │   ├── steering/
 │   │   ├── product.md
 │   │   ├── tech.md
-│   │   └── structure.md
+│   │   ├── structure.md
+│   │   └── design-system.md   # optional
 │   ├── specs/
 │   │   ├── user-auth/
 │   │   │   ├── requirements.md

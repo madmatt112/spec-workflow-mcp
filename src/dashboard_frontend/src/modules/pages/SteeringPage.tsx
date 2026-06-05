@@ -250,26 +250,40 @@ function Content() {
 
   useEffect(() => { reloadAll(); }, [reloadAll]);
 
-  const documents: SteeringDocument[] = [
-    {
-      name: 'product',
-      displayName: 'Product',
-      exists: steeringDocuments?.documents?.product || false,
-      lastModified: steeringDocuments?.lastModified
-    },
-    {
-      name: 'tech',
-      displayName: 'Technical',
-      exists: steeringDocuments?.documents?.tech || false,
-      lastModified: steeringDocuments?.lastModified
-    },
-    {
-      name: 'structure',
-      displayName: 'Structure',
-      exists: steeringDocuments?.documents?.structure || false,
-      lastModified: steeringDocuments?.lastModified
-    }
-  ];
+  // Friendly labels for known steering docs; any other doc name falls back to
+  // a title-cased version so new steering types appear without a frontend change.
+  const displayNames: Record<string, string> = {
+    product: 'Product',
+    tech: 'Technical',
+    structure: 'Structure',
+    'design-system': 'Design System'
+  };
+
+  const toDisplayName = (name: string): string =>
+    displayNames[name] ||
+    name
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+  // Render rows from the status payload (keyed in registry order). Fall back to
+  // the known set so the page still renders before the first status arrives.
+  const docEntries: Array<[string, boolean]> =
+    steeringDocuments?.documents && Object.keys(steeringDocuments.documents).length > 0
+      ? Object.entries(steeringDocuments.documents as Record<string, boolean>)
+      : [
+          ['product', false],
+          ['tech', false],
+          ['structure', false],
+          ['design-system', false]
+        ];
+
+  const documents: SteeringDocument[] = docEntries.map(([name, exists]) => ({
+    name,
+    displayName: toDisplayName(name),
+    exists: exists || false,
+    lastModified: steeringDocuments?.lastModified
+  }));
 
   return (
     <div className="grid gap-4">

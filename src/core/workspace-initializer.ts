@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { PathUtils } from './path-utils.js';
 import { ImplementationLogMigrator } from './implementation-log-migrator.js';
 import { getGlobalDir } from './global-dir.js';
+import { STEERING_TEMPLATE_NAMES } from './steering-docs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -57,9 +58,7 @@ export class WorkspaceInitializer {
       'requirements-template',
       'design-template',
       'tasks-template',
-      'product-template',
-      'tech-template',
-      'structure-template'
+      ...STEERING_TEMPLATE_NAMES
     ];
     
     for (const template of templates) {
@@ -101,6 +100,7 @@ This directory allows you to create custom templates that override the default S
    - \`product-template.md\` - Override product steering template
    - \`tech-template.md\` - Override tech steering template
    - \`structure-template.md\` - Override structure steering template
+   - \`design-system-template.md\` - Override design-system steering template
 
 2. **Template Loading Priority**:
    - The system first checks this \`user-templates/\` directory

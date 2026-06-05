@@ -1,15 +1,16 @@
 import { Prompt, PromptMessage } from '@modelcontextprotocol/sdk/types.js';
 import { PromptDefinition } from './types.js';
 import { ToolContext } from '../types.js';
+import { STEERING_DOC_NAMES } from '../core/steering-docs.js';
 
 const prompt: Prompt = {
   name: 'create-steering-doc',
   title: 'Create Steering Document',
-  description: 'Guide for creating project steering documents (product, tech, structure) directly in the file system. These provide high-level project guidance.',
+  description: 'Guide for creating project steering documents (product, tech, structure, design-system) directly in the file system. These provide high-level project guidance.',
   arguments: [
     {
       name: 'docType',
-      description: 'Type of steering document: product, tech, or structure',
+      description: 'Type of steering document: product, tech, structure, or design-system',
       required: true
     },
     {
@@ -27,7 +28,7 @@ async function handler(args: Record<string, any>, context: ToolContext): Promise
     throw new Error('docType is a required argument');
   }
 
-  const validDocTypes = ['product', 'tech', 'structure'];
+  const validDocTypes = STEERING_DOC_NAMES;
   if (!validDocTypes.includes(docType)) {
     throw new Error(`docType must be one of: ${validDocTypes.join(', ')}`);
   }
@@ -60,6 +61,7 @@ ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 - **product**: Defines project vision, goals, and user outcomes
 - **tech**: Documents technology decisions and architecture patterns
 - **structure**: Maps codebase organization and conventions
+- **design-system**: Durable direction and rules for the visual system — principles, semantic roles, usage rules, and non-negotiable gates; exact values stay in specs/code (optional)
 
 **Key Principles:**
 - Be specific and actionable

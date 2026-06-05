@@ -255,7 +255,7 @@
   "steeringPage": {
     "header": {
       "title": "Steering Documents",
-      "subtitle": "View and manage project steering documents for product guidance, technical architecture, and structure"
+      "subtitle": "View and manage project steering documents for product guidance, technical architecture, structure, and design system"
     },
     "table": {
       "document": "Document",
