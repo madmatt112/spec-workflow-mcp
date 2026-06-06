@@ -155,7 +155,7 @@ flowchart TD
 **When**: Always, when steering docs exist in \`.spec-workflow/steering/\`.
 
 **File Operations**:
-- Read all steering docs: \`.spec-workflow/steering/product.md\`, \`tech.md\`, \`structure.md\`
+- Read all steering docs: \`.spec-workflow/steering/product.md\`, \`tech.md\`, \`structure.md\`, and \`design-system.md\` (if present)
 - Create document: \`.spec-workflow/spec-decomposition/decomposition.md\`
 
 **Tools**:
@@ -165,7 +165,7 @@ flowchart TD
 **Process**:
 1. Check if \`.spec-workflow/spec-decomposition/decomposition.md\` already exists (if yes, skip to Phase 1)
 2. Call \`decomposition-guide\` to load the decomposition methodology
-3. Read all steering docs in full: product.md, tech.md, structure.md
+3. Read all steering docs in full: product.md, tech.md, structure.md, and design-system.md (if present)
 4. Apply the methodology: identify capabilities, group into specs, order by dependencies
 5. Surface open questions to the user before finalizing
 6. Create \`decomposition.md\` at \`.spec-workflow/spec-decomposition/decomposition.md\`
@@ -219,7 +219,7 @@ flowchart TD
 2. If no custom template, read from \`.spec-workflow/templates/design-template.md\`
 3. Analyze codebase for patterns to reuse
 4. Research technology choices (if web search available, current year: ${currentYear})
-5. Generate design with all template sections
+5. Generate design with all template sections. For specs with UI/visual surface, align the design with design-system.md if it exists (the "Design System" alignment subsection); mark that subsection N/A otherwise
 6. When deferring a design decision, record it with the \`deferrals\` tool (action: add) with originSpec and originPhase set
 7. Create \`design.md\` at \`.spec-workflow/specs/{spec-name}/design.md\`
 8. Request approval using approvals tool with action:'request' (pass filePath; do NOT inline document content)
@@ -331,10 +331,10 @@ When steering docs exist in \`.spec-workflow/steering/\`, load them selectively 
 
 | Phase | Load in full | Skim or skip |
 |---|---|---|
-| Decomposition | product.md, tech.md, structure.md | (none — load all) |
-| Requirements | product.md, decomposition.md | tech.md (skim constraints only), structure.md (skip) |
-| Design | tech.md, structure.md | product.md (skip — internalized via requirements), decomposition.md (skip) |
-| Tasks | structure.md, the spec's design.md | tech.md (skip — internalized via design), product.md (skip), decomposition.md (skip) |
+| Decomposition | product.md, tech.md, structure.md, design-system.md (if exists) | (none — load all) |
+| Requirements | product.md, decomposition.md | tech.md (skim constraints only), structure.md (skip), design-system.md (skip) |
+| Design | tech.md, structure.md, design-system.md (if exists) | product.md (skip — internalized via requirements), decomposition.md (skip) |
+| Tasks | structure.md, the spec's design.md | tech.md (skip — internalized via design), product.md (skip), design-system.md (skip), decomposition.md (skip) |
 
 Each phase's output internalizes the previous phase's primary inputs. The decomposition encodes the full project scope, so requirements only needs the decomposition and product docs. The requirements encode the product vision, so the design agent doesn't need to re-read product.md. The design encodes the tech decisions, so the tasks agent doesn't need to re-read tech.md.
 
@@ -351,7 +351,7 @@ These are not part of the core approval flow — they are invoked when requested
 
 - Create documents directly at specified file paths
 - Read templates from \`.spec-workflow/templates/\` directory
-- Follow exact template structures
+- Follow exact template structures (sections marked "(optional)" or "(if applicable)" may be omitted or marked N/A when they don't apply)
 - Get explicit user approval between phases (using approvals tool with action:'request')
 - Complete phases in sequence (no skipping)
 - One spec at a time
@@ -377,7 +377,8 @@ These are not part of the core approval flow — they are invoked when requested
 │   ├── tasks-template.md
 │   ├── product-template.md
 │   ├── tech-template.md
-│   └── structure-template.md
+│   ├── structure-template.md
+│   └── design-system-template.md
 ├── deferrals/              # Project-level deferred decisions
 │   ├── d-abc123.md
 │   └── d-def456.md
@@ -396,6 +397,7 @@ These are not part of the core approval flow — they are invoked when requested
 └── steering/
     ├── product.md
     ├── tech.md
-    └── structure.md
+    ├── structure.md
+    └── design-system.md   # Optional
 \`\`\``;
 }

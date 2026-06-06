@@ -32,6 +32,7 @@ import {
   DEFAULT_SECURITY_CONFIG
 } from '../core/security-utils.js';
 import { SecurityConfig } from '../types.js';
+import { STEERING_DOC_NAMES } from '../core/steering-docs.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1254,7 +1255,7 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
 
-      const allowedDocs = ['product', 'tech', 'structure'];
+      const allowedDocs = STEERING_DOC_NAMES;
       if (!allowedDocs.includes(name)) {
         return reply.code(400).send({ error: 'Invalid steering document name' });
       }
@@ -1286,7 +1287,7 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
 
-      const allowedDocs = ['product', 'tech', 'structure'];
+      const allowedDocs = STEERING_DOC_NAMES;
       if (!allowedDocs.includes(name)) {
         return reply.code(400).send({ error: 'Invalid steering document name' });
       }

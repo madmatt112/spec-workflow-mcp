@@ -44,7 +44,7 @@ export function getDecompositionGuide(): string {
 ## Purpose
 
 This guide provides principles for decomposing a project — described by its steering documents
-(product.md, tech.md, structure.md) — into a complete, ordered set of specs. Each spec will
+(product.md, tech.md, structure.md, and design-system.md if present) — into a complete, ordered set of specs. Each spec will
 later go through the standard spec workflow (Requirements → Design → Tasks → Implementation).
 
 ## Core Principle

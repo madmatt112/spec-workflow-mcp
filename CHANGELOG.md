@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-06-05
+
+### Added
+- `design-system` is now a first-class steering document type. The optional `design-system.md` captures the project's visual design system (color, typography, spacing, components, accessibility) as durable, cross-cutting guidance, handled like product/tech/structure across the server and dashboard.
+  - New `design-system-template.md` is auto-populated into `.spec-workflow/templates/` on server start (overridable via `user-templates/`). Like the sibling steering docs, it captures durable **direction and rules** (principles, semantic roles, usage rules, non-negotiable gates) and treats concrete values (exact palette/tokens, type scale, per-component decisions) as deferred to the design spec / token source of truth — a "direction-light" doc with `Deferred:` entries is a first-class outcome.
+  - Added as an optional Phase 4 in the `steering-guide` workflow (after structure; may be skipped).
+  - Loaded in the Decomposition and Design phases when present (see the steering-doc loading table in `spec-workflow-guide`).
+  - Supported by the `approvals` and `adversarial-review` flows (steering category) and rendered on the dashboard Steering page.
+  - Closes the consumption loop: the per-spec design template gained a conditional "Design System (design-system.md)" alignment subsection, so UI/visual specs are prompted to honor the design system. It degrades to N/A for non-visual specs and for projects without the optional doc.
+- Internal `STEERING_DOCS` registry (`src/core/steering-docs.ts`) is now the single source of truth for the steering doc set; the dashboard Steering page renders from the status payload so future steering types need no frontend change.
+
+### Changed
+- **BREAKING:** `SteeringStatus.documents` changed from a fixed `{ product, tech, structure }` object to a `Record<string, boolean>` keyed by steering doc name (now also includes `design-system`). API/WebSocket consumers reading these fields should treat the map as open-ended.
+
+### Notes
+- The new doc is fully optional and opt-in. Existing projects (product/tech/structure only) are unaffected; absence of `design-system.md` never breaks orientation, status, decomposition, or existing specs.
+- The VS Code extension does not yet surface `design-system` (consistent with its existing coverage); a follow-up pass will add it.
+
 ## [3.0.2] - 2026-06-03
 
 ### Documentation

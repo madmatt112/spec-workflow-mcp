@@ -3,6 +3,7 @@ import { join } from 'path';
 import { PathUtils } from './path-utils.js';
 import { SpecData, SteeringStatus, PhaseStatus } from '../types.js';
 import { parseTaskProgress } from './task-parser.js';
+import { STEERING_DOCS } from './steering-docs.js';
 
 export class SpecParser {
   constructor(private projectPath: string) {}
@@ -80,28 +81,25 @@ export class SpecParser {
     
     try {
       const stats = await stat(steeringPath);
-      
-      const productExists = await this.fileExists(join(steeringPath, 'product.md'));
-      const techExists = await this.fileExists(join(steeringPath, 'tech.md'));
-      const structureExists = await this.fileExists(join(steeringPath, 'structure.md'));
-      
+
+      const documents: Record<string, boolean> = {};
+      for (const doc of STEERING_DOCS) {
+        documents[doc.name] = await this.fileExists(join(steeringPath, doc.fileName));
+      }
+
       return {
         exists: stats.isDirectory(),
-        documents: {
-          product: productExists,
-          tech: techExists,
-          structure: structureExists
-        },
+        documents,
         lastModified: stats.mtime.toISOString()
       };
     } catch (error) {
+      const documents: Record<string, boolean> = {};
+      for (const doc of STEERING_DOCS) {
+        documents[doc.name] = false;
+      }
       return {
         exists: false,
-        documents: {
-          product: false,
-          tech: false,
-          structure: false
-        }
+        documents
       };
     }
   }
