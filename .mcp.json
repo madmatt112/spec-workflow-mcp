@@ -2,8 +2,8 @@
   "mcpServers": {
     "spec-workflow": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/home/mcf/reference/spec-workflow-mcp/dist/index.js", "/home/mcf/reference/spec-workflow-mcp"],
+      "command": "npx",
+      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/home/mcf/reference/spec-workflow-mcp"],
       "env": {}
     },
     "clickup": {
