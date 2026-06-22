@@ -397,7 +397,8 @@ your-project/
 │   │       ├── tasks.md
 │   │       └── reviews/          # adversarial prompts/analyses/memory, task reviews
 │   ├── spec-decomposition/
-│   │   └── decomposition.md
+│   │   ├── decomposition.md
+│   │   └── INDEX.md              # auto-generated roadmap roll-up (spec-index tool)
 │   └── approvals/
 │       └── [approval tracking files, grouped by category]
 ├── src/

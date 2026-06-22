@@ -242,6 +242,10 @@ export class PathUtils {
     return this.safeJoin(projectPath, '.spec-workflow', 'spec-decomposition');
   }
 
+  static getIndexPath(projectPath: string): string {
+    return this.safeJoin(projectPath, '.spec-workflow', 'spec-decomposition', 'INDEX.md');
+  }
+
   static getApprovalsPath(projectPath: string): string {
     return this.safeJoin(projectPath, '.spec-workflow', 'approvals');
   }

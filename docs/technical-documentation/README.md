@@ -235,7 +235,7 @@ written by the agent reading templates and writing files directly — there is n
 .spec-workflow/
 ├── specs/                # Specification documents (+ per-spec reviews/)
 ├── steering/             # Project guidance documents
-├── spec-decomposition/   # Project-level spec breakdown (fork)
+├── spec-decomposition/   # Project-level spec breakdown + generated INDEX.md roadmap
 ├── templates/            # Built-in document templates
 ├── user-templates/       # Optional custom template overrides
 ├── approvals/            # Approval workflow data (grouped by category)

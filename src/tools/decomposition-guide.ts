@@ -33,7 +33,8 @@ export async function decompositionGuideHandler(args: any, context: ToolContext)
       'Ask user if there is existing code to account for',
       'Apply the decomposition methodology to produce a spec breakdown',
       'Surface open questions to the user before finalizing',
-      'Save decomposition to .spec-workflow/spec-decomposition/decomposition.md'
+      'Save decomposition to .spec-workflow/spec-decomposition/decomposition.md',
+      'Generate the roadmap: call spec-index (action: generate) to create/refresh INDEX.md'
     ]
   };
 }
@@ -156,6 +157,15 @@ The decomposition document should include (adapt to fit the project):
 - **Cross-spec conventions**: Shared patterns and rules.
 - **What is NOT a spec**: Items absorbed into other specs, with rationale.
 - **Open questions**: Unresolved decisions with context and options.
+
+## Roadmap (INDEX.md)
+
+The decomposition document is the *plan*. Its live status companion is \`.spec-workflow/spec-decomposition/INDEX.md\`,
+an **auto-generated** roadmap that rolls every spec up by status, ordered by each spec's first mention in this
+document. Generate or refresh it with the \`spec-index\` tool (action: generate) — never hand-edit it. Because active
+ordering comes from name mentions here, name specs consistently between this document and their spec directories.
+To postpone a spec in the build order, mark it deferred with \`spec-index\` (action: defer); it then renders in a
+Deferred section instead of the active roadmap.
 
 ## Sources
 
