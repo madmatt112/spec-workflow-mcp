@@ -365,12 +365,14 @@ These are not part of the core approval flow — they are invoked when requested
 - Steering docs are optional - only create when explicitly requested
 - When steering docs exist, decomposition is required before starting the first spec — call \`decomposition-guide\` for methodology
 - When explicitly deferring a decision in any phase, record it using the deferrals tool. Deferrals are project-level artifacts that persist across specs.
+- The roadmap (\`.spec-workflow/spec-decomposition/INDEX.md\`) is auto-generated — never hand-edit it. Refresh it anytime with the \`spec-index\` tool (action: generate). To postpone a whole spec in the build order, mark it with the same tool (action: defer / undefer) — distinct from the \`deferrals\` tool, which is for deferred decisions, not deferred specs.
 
 ## File Structure
 \`\`\`
 .spec-workflow/
-├── spec-decomposition/        # Decomposition output
-│   └── decomposition.md
+├── spec-decomposition/        # Decomposition output + generated roadmap
+│   ├── decomposition.md
+│   └── INDEX.md               # Auto-generated roadmap roll-up (spec-index tool)
 ├── templates/           # Auto-populated on server start
 │   ├── requirements-template.md
 │   ├── design-template.md
@@ -387,6 +389,7 @@ These are not part of the core approval flow — they are invoked when requested
 │       ├── requirements.md
 │       ├── design.md
 │       ├── tasks.md
+│       ├── deferred.json            # Present only if the spec is deferred (spec-index tool)
 │       ├── reviews/                 # Adversarial review artifacts
 │       │   ├── adversarial-prompt-{phase}.md
 │       │   └── adversarial-analysis-{phase}.md

@@ -81,9 +81,29 @@ export interface SpecData {
 
 export interface PhaseStatus {
   exists: boolean;
-  approved?: boolean; // Optional for backwards compatibility  
+  approved?: boolean; // Optional for backwards compatibility
   lastModified?: string;
   content?: string;
+}
+
+/** Marker file (.spec-workflow/specs/<name>/deferred.json) flagging a spec as deferred. */
+export interface DeferredSpecMarker {
+  deferred: true;
+  reason: string;
+  deferredAt: string;
+}
+
+/** One spec's entry in the generated INDEX.md roadmap roll-up. */
+export interface SpecIndexEntry {
+  name: string;
+  currentPhase: string;
+  overallStatus: string;
+  taskProgress: { total: number; completed: number; pending: number };
+  createdAt: string;
+  deferred: boolean;
+  deferredReason?: string;
+  /** True if the spec name is mentioned in decomposition.md. */
+  inDecomposition: boolean;
 }
 
 

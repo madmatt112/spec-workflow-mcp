@@ -5,6 +5,7 @@ import { steeringGuideTool, steeringGuideHandler } from './steering-guide.js';
 import { approvalsTool, approvalsHandler } from './approvals.js';
 import { logImplementationTool, logImplementationHandler } from './log-implementation.js';
 import { deferralsTool, deferralsHandler } from './deferrals.js';
+import { specIndexTool, specIndexHandler } from './spec-index.js';
 import { adversarialReviewTool, adversarialReviewHandler } from './adversarial-review.js';
 import { adversarialResponseTool, adversarialResponseHandler } from './adversarial-response.js';
 import { decompositionGuideTool, decompositionGuideHandler } from './decomposition-guide.js';
@@ -20,6 +21,7 @@ export function registerTools(): Tool[] {
     approvalsTool,
     logImplementationTool,
     deferralsTool,
+    specIndexTool,
     adversarialReviewTool,
     adversarialResponseTool,
     decompositionGuideTool,
@@ -51,6 +53,9 @@ export async function handleToolCall(name: string, args: any, context: ToolConte
         break;
       case 'deferrals':
         response = await deferralsHandler(args, context);
+        break;
+      case 'spec-index':
+        response = await specIndexHandler(args, context);
         break;
       case 'adversarial-review':
         response = await adversarialReviewHandler(args, context);

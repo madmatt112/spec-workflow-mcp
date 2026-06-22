@@ -24,6 +24,7 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 | [`decomposition-guide`](#decomposition-guide) | Load spec-decomposition methodology | Decomposition |
 | [`approvals`](#approvals) | Request / check / delete dashboard approvals | Every phase boundary |
 | [`spec-status`](#spec-status) | Progress overview for a spec | Any time |
+| [`spec-index`](#spec-index) | Generate/maintain INDEX.md, the multi-spec roadmap | Any time |
 | [`adversarial-review`](#adversarial-review) | Scaffold an independent critique of a document | Optional, per phase |
 | [`adversarial-response`](#adversarial-response) | Get instructions to respond to a critique | Optional, per phase |
 | [`deferrals`](#deferrals) | Track decisions deferred across specs | Cross-phase / cross-spec |
@@ -33,7 +34,7 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 
 Origin note: `spec-workflow-guide`, `steering-guide`, `spec-status`, `approvals`,
 and `log-implementation` are inherited from upstream (Pimzino). `decomposition-guide`,
-`adversarial-review`, `adversarial-response`, `deferrals`, `review-task`, and
+`spec-index`, `adversarial-review`, `adversarial-response`, `deferrals`, `review-task`, and
 `get-task-review` are **additions in this fork** — see [WORKFLOW.md](WORKFLOW.md).
 
 ---
@@ -167,6 +168,39 @@ tasks. It will **warn** when completed tasks are missing implementation logs or
 reviews, and its `nextSteps` reiterate the log → review → mark-complete ordering.
 
 After viewing status, read `tasks.md` directly for the task markers.
+
+---
+
+## spec-index
+
+**Purpose**: Generate and maintain `INDEX.md`, the multi-spec roadmap roll-up. Where
+`spec-status` reports one spec, `spec-index` writes a project-wide roadmap of every spec.
+
+`INDEX.md` lives at `.spec-workflow/spec-decomposition/INDEX.md`. It is **auto-generated,
+never hand-edited**: each spec is ordered by its first mention in `decomposition.md`
+(specs not mentioned there are listed under "Other specs"; when there is no
+`decomposition.md`, specs are ordered by creation). Per-spec status uses the same
+derivation as `spec-status`, so the roadmap never drifts from single-spec status.
+Re-running with unchanged state produces a byte-identical file.
+
+**Parameters**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | Yes | `generate`, `defer`, or `undefer` |
+| `specName` | string | For defer/undefer | Spec to defer or undefer |
+| `reason` | string | For defer | Why the spec is deferred |
+| `projectPath` | string | No | Project root (defaults to server context) |
+
+**Actions**:
+- `generate` — (re)write `INDEX.md` from current spec state. Idempotent; safe any time.
+- `defer` — mark a whole spec as deferred (writes `specs/<name>/deferred.json`). It moves
+  to a **Deferred** section and out of the active roadmap. Regenerates `INDEX.md`.
+- `undefer` — clear the deferred marker and return the spec to the active roadmap.
+
+> Deferred **specs** (this tool) are distinct from deferred **decisions** (the
+> [`deferrals`](#deferrals) tool): one postpones a whole spec in the build order, the
+> other records a decision parked within a spec.
 
 ---
 

@@ -5,6 +5,7 @@ import { SpecParser } from '../core/parser.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
+import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 
 export const specStatusTool: Tool = {
   name: 'spec-status',
@@ -63,29 +64,8 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
       };
     }
 
-    // Determine current phase and overall status
-    let currentPhase = 'not-started';
-    let overallStatus = 'not-started';
-    
-    if (!spec.phases.requirements.exists) {
-      currentPhase = 'requirements';
-      overallStatus = 'requirements-needed';
-    } else if (!spec.phases.design.exists) {
-      currentPhase = 'design';
-      overallStatus = 'design-needed';
-    } else if (!spec.phases.tasks.exists) {
-      currentPhase = 'tasks';
-      overallStatus = 'tasks-needed';
-    } else if (spec.taskProgress && spec.taskProgress.pending > 0) {
-      currentPhase = 'implementation';
-      overallStatus = 'implementing';
-    } else if (spec.taskProgress && spec.taskProgress.total > 0 && spec.taskProgress.completed === spec.taskProgress.total) {
-      currentPhase = 'completed';
-      overallStatus = 'completed';
-    } else {
-      currentPhase = 'implementation';
-      overallStatus = 'ready-for-implementation';
-    }
+    // Determine current phase and overall status (shared with the INDEX roll-up generator)
+    const { currentPhase, overallStatus } = deriveSpecStatus(spec);
 
     // Phase details
     const phaseDetails = [

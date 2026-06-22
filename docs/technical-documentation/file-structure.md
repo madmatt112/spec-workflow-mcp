@@ -20,7 +20,8 @@ project-root/
 │   │   ├── structure.md               # Code organization
 │   │   └── design-system.md           # Visual design system (optional)
 │   ├── spec-decomposition/            # Project-level spec breakdown (fork)
-│   │   └── decomposition.md
+│   │   ├── decomposition.md
+│   │   └── INDEX.md                   # Auto-generated roadmap roll-up (spec-index tool)
 │   ├── templates/                     # Built-in document templates
 │   ├── user-templates/                # Optional custom template overrides
 │   ├── approvals/                     # Approval workflow data
