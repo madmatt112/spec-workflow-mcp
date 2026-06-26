@@ -161,6 +161,111 @@ describe('deferrals tool handler', () => {
     });
   });
 
+  describe('duplicate detection on add', () => {
+    it('warns when a near-duplicate already exists for the same originSpec', async () => {
+      const first = await deferralsHandler({
+        ...addArgs,
+        title: 'Streaming market data / live feeds',
+        originSpec: 'market-feed',
+      }, context);
+
+      const second = await deferralsHandler({
+        ...addArgs,
+        title: 'Streaming market data / live price feeds',
+        originSpec: 'market-feed',
+      }, context);
+
+      expect(second.success).toBe(true);
+      expect(second.message).toContain('WARNING');
+      expect(second.message).toContain(first.data.id);
+      expect(second.data.duplicates).toHaveLength(1);
+      expect(second.data.duplicates[0].id).toBe(first.data.id);
+    });
+
+    it('does not warn when explicitly superseding', async () => {
+      const first = await deferralsHandler({
+        ...addArgs,
+        title: 'Streaming market data / live feeds',
+        originSpec: 'market-feed',
+      }, context);
+
+      const second = await deferralsHandler({
+        ...addArgs,
+        title: 'Streaming market data / live price feeds',
+        originSpec: 'market-feed',
+        supersedes: first.data.id,
+      }, context);
+
+      expect(second.success).toBe(true);
+      expect(second.message).not.toContain('WARNING');
+    });
+  });
+
+  describe('merge action', () => {
+    it('folds a duplicate into a canonical record', async () => {
+      const canonical = await deferralsHandler({ ...addArgs, title: 'Canonical decision' }, context);
+      const dup = await deferralsHandler({ ...addArgs, title: 'Canonical decisions' }, context);
+
+      const result = await deferralsHandler({
+        action: 'merge',
+        id: dup.data.id,
+        into: canonical.data.id,
+      }, context);
+      expect(result.success).toBe(true);
+
+      const dupGet = await deferralsHandler({ action: 'get', id: dup.data.id }, context);
+      expect(dupGet.data.status).toBe('superseded');
+      expect(dupGet.data.supersededBy).toBe(canonical.data.id);
+    });
+
+    it('fails with missing fields', async () => {
+      const result = await deferralsHandler({ action: 'merge', id: 'd-123' }, context);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Missing required fields');
+    });
+  });
+
+  describe('reindex action', () => {
+    it('normalizes a legacy single-quoted file so get works again', async () => {
+      const legacy = [
+        "---",
+        "id: 'd-legacy01'",
+        "status: 'deferred'",
+        "title: 'Legacy single-quoted'",
+        "tags: ['legacy']",
+        "---",
+        "",
+        "## Context",
+        "legacy",
+        "",
+        "## Decision Deferred",
+        "legacy",
+        "",
+        "## Revisit Criteria",
+        "legacy",
+        "",
+      ].join('\n');
+      await fs.writeFile(join(tempDir, '.spec-workflow', 'deferrals', 'd-legacy01.md'), legacy, 'utf-8');
+
+      const reindex = await deferralsHandler({ action: 'reindex' }, context);
+      expect(reindex.success).toBe(true);
+      expect(reindex.data.total).toBe(1);
+
+      const got = await deferralsHandler({ action: 'get', id: 'd-legacy01' }, context);
+      expect(got.success).toBe(true);
+      expect(got.data.title).toBe('Legacy single-quoted');
+    });
+  });
+
+  describe('actionable get error for corrupt files', () => {
+    it('points at reindex when a file exists but cannot be parsed', async () => {
+      await fs.writeFile(join(tempDir, '.spec-workflow', 'deferrals', 'd-corrupt1.md'), 'garbage', 'utf-8');
+      const result = await deferralsHandler({ action: 'get', id: 'd-corrupt1' }, context);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('reindex');
+    });
+  });
+
   describe('error handling', () => {
     it('should fail with unknown action', async () => {
       const result = await deferralsHandler({ action: 'unknown' }, context);

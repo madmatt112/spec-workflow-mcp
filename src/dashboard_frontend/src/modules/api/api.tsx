@@ -27,6 +27,34 @@ export type ProjectInfo = {
   version?: string;
 };
 
+export type Deferral = {
+  id: string;
+  status: 'deferred' | 'resolved' | 'superseded';
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  originSpec: string | null;
+  originPhase: 'requirements' | 'design' | 'tasks' | 'implementation' | null;
+  revisitTrigger: string;
+  tags: string[];
+  resolution: string | null;
+  resolvedInSpec: string | null;
+  supersededBy: string | null;
+  supersedes: string | null;
+  body: { context: string; decision: string; revisitCriteria: string };
+};
+
+export type DeferralDuplicateGroup = {
+  originSpec: string | null;
+  members: Array<{ id: string; title: string }>;
+};
+
+export type DeferralsResponse = {
+  deferrals: Deferral[];
+  duplicateGroups: DeferralDuplicateGroup[];
+};
+
 export interface DocumentSnapshot {
   id: string;
   approvalId: string;
@@ -155,6 +183,7 @@ type ApiActionsContextType = {
   getTaskReviews: (specName: string, taskId: string) => Promise<{ reviews: any[] }>;
   getTaskReviewContent: (specName: string, taskId: string, version: number) => Promise<{ review: any }>;
   getTaskReviewSummary: (specName: string) => Promise<{ summary: Record<string, { verdict: string; version: number }> }>;
+  getDeferrals: () => Promise<DeferralsResponse>;
 };
 
 const ApiDataContext = createContext<ApiDataContextType | undefined>(undefined);
@@ -341,6 +370,7 @@ export function ApiProvider({ initial, projectId, children }: ApiProviderProps) 
         getTaskReviews: async () => ({ reviews: [] }),
         getTaskReviewContent: async () => ({ review: null }),
         getTaskReviewSummary: async () => ({ summary: {} }),
+        getDeferrals: async () => ({ deferrals: [], duplicateGroups: [] }),
       };
     }
 
@@ -406,6 +436,7 @@ export function ApiProvider({ initial, projectId, children }: ApiProviderProps) 
         getJson(`${prefix}/specs/${encodeURIComponent(specName)}/tasks/${encodeURIComponent(taskId)}/reviews/${version}`),
       getTaskReviewSummary: (specName: string) =>
         getJson(`${prefix}/specs/${encodeURIComponent(specName)}/task-reviews/summary`),
+      getDeferrals: () => getJson(`${prefix}/deferrals`),
     };
   }, [projectId, reloadAll]);
 

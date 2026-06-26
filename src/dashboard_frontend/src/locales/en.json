@@ -8,6 +8,7 @@
     "specs": "Specs",
     "tasks": "Tasks",
     "approvals": "Approvals",
+    "deferrals": "Deferrals",
     "adversarial": "Adversarial Analysis",
     "settings": "Settings",
     "logs": "Implementation Logs"

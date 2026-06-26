@@ -21,6 +21,7 @@ import { ImplementationLogManager } from './implementation-log-manager.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
 import { PathUtils } from '../core/path-utils.js';
+import { DeferralStorage } from '../core/deferral-storage.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
 import {
   getSecurityConfig,
@@ -651,6 +652,21 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
       return await project.approvalStorage.getAllPendingApprovals();
+    });
+
+    // List deferrals (deferred decisions) with detected duplicate groups
+    this.app.get('/api/projects/:projectId/deferrals', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+      const storage = new DeferralStorage(project.projectPath);
+      const [deferrals, duplicateGroups] = await Promise.all([
+        storage.list(),
+        storage.findDuplicateGroups(),
+      ]);
+      return { deferrals, duplicateGroups };
     });
 
     // Get approval content

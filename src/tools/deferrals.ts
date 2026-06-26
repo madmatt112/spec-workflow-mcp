@@ -11,18 +11,20 @@ export const deferralsTool: Tool = {
 Use this tool to record, query, and resolve deferred decisions. Deferrals are project-level artifacts that persist across specs.
 
 Actions:
-- 'add': Record a new deferred decision (optionally superseding an existing one)
+- 'add': Record a new deferred decision (optionally superseding an existing one). Warns if a likely-duplicate already exists.
 - 'list': List deferrals with optional filters (status, originSpec, tag)
 - 'get': Get full details of a specific deferral
 - 'resolve': Mark a deferral as resolved
 - 'update': Update mutable fields (title, revisitTrigger, tags, context, decision, revisitCriteria)
-- 'delete': Remove a deferral (fails if referenced by another deferral)`,
+- 'merge': Fold a duplicate deferral into a canonical one (marks the duplicate superseded; preserves its context)
+- 'delete': Remove a deferral (fails if referenced by another deferral)
+- 'reindex': Normalize all on-disk deferral files to canonical frontmatter (repairs legacy/quoting drift)`,
   inputSchema: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['add', 'list', 'get', 'resolve', 'update', 'delete'],
+        enum: ['add', 'list', 'get', 'resolve', 'update', 'merge', 'delete', 'reindex'],
         description: 'The action to perform'
       },
       projectPath: {
@@ -68,10 +70,15 @@ Actions:
         type: 'string',
         description: 'ID of deferral this one replaces — automatically marks old one as superseded (optional for add)'
       },
-      // get/resolve/update/delete params
+      // get/resolve/update/delete/merge params
       id: {
         type: 'string',
-        description: 'Deferral ID (required for get, resolve, update, delete)'
+        description: 'Deferral ID (required for get, resolve, update, delete; the duplicate to fold for merge)'
+      },
+      // merge params
+      into: {
+        type: 'string',
+        description: 'Canonical deferral ID to merge into (required for merge) — the deferral named by `id` becomes superseded by this one'
       },
       // resolve params
       resolution: {
@@ -125,10 +132,14 @@ export async function deferralsHandler(
         return await handleResolve(args, storage);
       case 'update':
         return await handleUpdate(args, storage);
+      case 'merge':
+        return await handleMerge(args, storage);
       case 'delete':
         return await handleDelete(args, storage);
+      case 'reindex':
+        return await handleReindex(storage);
       default:
-        return { success: false, message: `Unknown action: ${args.action}. Use 'add', 'list', 'get', 'resolve', 'update', or 'delete'.` };
+        return { success: false, message: `Unknown action: ${args.action}. Use 'add', 'list', 'get', 'resolve', 'update', 'merge', 'delete', or 'reindex'.` };
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -140,6 +151,11 @@ async function handleAdd(args: Record<string, any>, storage: DeferralStorage): P
   if (!args.title || !args.context || !args.decision || !args.revisitTrigger) {
     return { success: false, message: 'Missing required fields for add. Required: title, context, decision, revisitTrigger' };
   }
+
+  // Duplicate detection: only when not already explicitly superseding something.
+  const duplicates = args.supersedes
+    ? []
+    : await storage.findDuplicates(args.title, args.originSpec || null);
 
   const id = await storage.create({
     title: args.title,
@@ -154,6 +170,17 @@ async function handleAdd(args: Record<string, any>, storage: DeferralStorage): P
       revisitCriteria: args.revisitCriteria || args.revisitTrigger,
     },
   }, args.supersedes);
+
+  if (duplicates.length > 0) {
+    const top = duplicates[0];
+    return {
+      success: true,
+      message: `Deferred decision recorded: ${id}. WARNING: ${duplicates.length} likely-duplicate deferral(s) already exist for this originSpec ` +
+        `(closest: ${top.id} "${top.title}"). If this is the same decision, merge it: ` +
+        `deferrals merge id=${id} into=${top.id} (or delete ${id} and supersede instead).`,
+      data: { id, title: args.title, duplicates },
+    };
+  }
 
   return {
     success: true,
@@ -193,6 +220,13 @@ async function handleGet(args: Record<string, any>, storage: DeferralStorage): P
 
   const deferral = await storage.get(args.id);
   if (!deferral) {
+    if (await storage.fileExists(args.id)) {
+      return {
+        success: false,
+        message: `Deferral ${args.id} exists on disk but its frontmatter could not be parsed. ` +
+          `Run the 'reindex' action to normalize the deferrals store, then retry.`,
+      };
+    }
     return { success: false, message: `Deferral ${args.id} not found` };
   }
 
@@ -238,6 +272,31 @@ async function handleUpdate(args: Record<string, any>, storage: DeferralStorage)
     message: `Deferral ${args.id} updated`,
     data: { id: args.id, updatedFields: Object.keys(updates) },
   };
+}
+
+async function handleMerge(args: Record<string, any>, storage: DeferralStorage): Promise<ToolResponse> {
+  if (!args.id || !args.into) {
+    return { success: false, message: 'Missing required fields for merge. Required: id (duplicate to fold), into (canonical deferral)' };
+  }
+
+  await storage.merge(args.id, args.into);
+
+  return {
+    success: true,
+    message: `Deferral ${args.id} merged into ${args.into} (${args.id} marked superseded)`,
+    data: { from: args.id, into: args.into },
+  };
+}
+
+async function handleReindex(storage: DeferralStorage): Promise<ToolResponse> {
+  const result = await storage.reindex();
+
+  let message = `Reindexed ${result.total} deferral(s); ${result.rewritten} normalized.`;
+  if (result.unparseable.length > 0) {
+    message += ` ${result.unparseable.length} file(s) could not be parsed: ${result.unparseable.join(', ')}`;
+  }
+
+  return { success: true, message, data: result };
 }
 
 async function handleDelete(args: Record<string, any>, storage: DeferralStorage): Promise<ToolResponse> {
