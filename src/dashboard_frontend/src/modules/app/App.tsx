@@ -12,6 +12,7 @@ import { SteeringPage } from '../pages/SteeringPage';
 import { TasksPage } from '../pages/TasksPage';
 import { LogsPage } from '../pages/LogsPage';
 import { ApprovalsPage } from '../pages/ApprovalsPage';
+import { DeferralsPage } from '../pages/DeferralsPage';
 import { SpecViewerPage } from '../pages/SpecViewerPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { AdversarialPage } from '../pages/AdversarialPage';
@@ -243,6 +244,7 @@ function AppInner() {
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/logs" element={<LogsPage />} />
                 <Route path="/approvals" element={<ApprovalsPage />} />
+                <Route path="/deferrals" element={<DeferralsPage />} />
                 <Route path="/adversarial" element={<AdversarialPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
