@@ -33,6 +33,7 @@
     "validate:i18n": "node scripts/validate-i18n.js",
     "sync:plugin-version": "node scripts/sync-plugin-version.js",
     "check:plugin-version": "node scripts/sync-plugin-version.js --check",
+    "version": "npm run sync:plugin-version && git add .claude-plugin",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
