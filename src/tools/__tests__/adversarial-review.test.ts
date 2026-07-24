@@ -211,7 +211,16 @@ describe('adversarial-review tool', () => {
 
   it('has a tailored attack-angle entry for design-system', () => {
     expect(PHASE_ATTACK_ANGLES['design-system']).toBeDefined();
-    expect(PHASE_ATTACK_ANGLES['design-system'].persona).toMatch(/design/i);
+    expect(PHASE_ATTACK_ANGLES['design-system'].attackSurface).toMatch(/visual system/i);
+  });
+
+  it('assigns no role or persona in any phase guidance entry', () => {
+    for (const [phase, guidance] of Object.entries(PHASE_ATTACK_ANGLES)) {
+      expect(Object.keys(guidance), `${phase} carries unexpected keys`).toEqual([
+        'attackSurface',
+        'exampleAngles',
+      ]);
+    }
   });
 
   it('includes design-system.md as steering context for spec phase reviews', async () => {
@@ -432,7 +441,8 @@ describe('adversarial-review tool', () => {
     expect(result.success).toBe(true);
     const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
     expect(scaffold).toMatch(/^# Adversarial Review/);
-    expect(scaffold).toContain('You are a experienced senior reviewer');
+    expect(scaffold).toContain('Tear apart this document and find every weakness');
+    expect(scaffold).not.toMatch(/You are an? /);
     expect(scaffold).toContain('## Target document');
     expect(scaffold).toContain('## Analysis approach');
     expect(scaffold).not.toContain('PLACEHOLDER');
@@ -488,7 +498,7 @@ describe('adversarial-review tool', () => {
     expect(scaffold).toContain('Before writing your analysis, read the target document');
   });
 
-  it('uses generic persona for unknown phase even when methodology is overridden', async () => {
+  it('uses generic guidance for unknown phase even when methodology is overridden', async () => {
     const project = await createTempProject();
     const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specDir, { recursive: true });
@@ -507,7 +517,8 @@ describe('adversarial-review tool', () => {
     expect(result.success).toBe(true);
     expect(result.data.methodology).toBe('Custom override text');
     const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
-    expect(scaffold).toContain('You are a experienced senior reviewer');
+    expect(scaffold).toContain('Completeness, consistency, and unstated assumptions');
+    expect(scaffold).not.toMatch(/You are an? /);
   });
 
   it('methodology output contains every PHASE_ATTACK_ANGLES entry verbatim', () => {

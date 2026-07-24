@@ -253,56 +253,46 @@ async function getMethodologyOverride(workflowRoot: string, key: string): Promis
 }
 
 export type PhaseGuidance = {
-  persona: string;
   attackSurface: string;
   exampleAngles: string;
 };
 
 export const PHASE_ATTACK_ANGLES: Record<string, PhaseGuidance> = {
   requirements: {
-    persona: 'senior technical product manager',
     attackSurface: 'Completeness, ambiguity, scope',
     exampleAngles: 'Missing user stories, unstated assumptions, scope creep risk, contradictions between stories, acceptance criteria that can\'t be tested',
   },
   design: {
-    persona: 'staff engineer',
     attackSurface: 'Feasibility, consistency, edge cases',
     exampleAngles: 'Conflicts with steering docs, unaddressed failure modes, scaling bottlenecks, missing error paths, alternatives not considered',
   },
   tasks: {
-    persona: 'senior delivery lead',
     attackSurface: 'Atomicity, ordering, coverage',
     exampleAngles: 'Tasks too large or too small, missing dependency edges, gaps between tasks and design, unclear completion criteria, tasks that don\'t map to any requirement',
   },
   decomposition: {
-    persona: 'principal architect',
     attackSurface: 'Completeness, granularity, ordering',
     exampleAngles: 'Missing specs, over-scoped specs, wrong dependency order, horizontal instead of vertical slicing, INVEST violations (specs not independently valuable), cross-spec convention gaps, unresolved open questions that block implementation',
   },
   product: {
-    persona: 'head of product',
     attackSurface: 'Vision clarity, user value, market fit',
     exampleAngles: 'Vague target users, unvalidated value propositions, missing success metrics, undifferentiated positioning, overlooked competitor capabilities',
   },
   tech: {
-    persona: 'principal engineer',
     attackSurface: 'Architectural soundness, constraints, tradeoffs',
     exampleAngles: 'Unjustified technology choices, missing non-functional requirements, hidden integration costs, scalability ceilings, security or compliance gaps',
   },
   structure: {
-    persona: 'engineering lead with deep codebase ownership',
     attackSurface: 'Organization, conventions, maintainability',
     exampleAngles: 'Inconsistent module layout, ambiguous ownership boundaries, conventions that conflict with the stack, missing patterns for shared concerns, hard-to-navigate hierarchies',
   },
   'design-system': {
-    persona: 'principal product designer',
     attackSurface: 'Consistency, accessibility, scalability of the visual system',
     exampleAngles: 'Tokens that contradict stated principles, missing component states, insufficient color contrast, undefined responsive/spacing scale, theming gaps, conventions that will not scale across surfaces',
   },
 };
 
 const GENERIC_PHASE_GUIDANCE: PhaseGuidance = {
-  persona: 'experienced senior reviewer',
   attackSurface: 'Completeness, consistency, and unstated assumptions',
   exampleAngles: 'Missing context, contradictions, ambiguous language, unaddressed failure modes, alternatives that were not considered',
 };
@@ -363,7 +353,7 @@ Last updated: <today's date> (after v${version} review)
 
   return `# Adversarial Review — ${specName}/${phase} (v${version})
 
-You are a ${guidance.persona}. Your job is to tear apart this document and find every weakness — gaps, ambiguities, contradictions, unstated assumptions, failure modes that have not been considered. Do not validate or support. Use directive framing throughout.
+Tear apart this document and find every weakness — gaps, ambiguities, contradictions, unstated assumptions, failure modes that have not been considered. Do not validate or support. Use directive framing throughout.
 
 ## Target document
 ${targetFile}
@@ -425,8 +415,9 @@ this structure:
 
 ### Opening
 
-- Assign the reviewing agent a **senior expert persona** relevant to the document's domain.
-- State clearly that the agent's job is to find weaknesses, not to validate or support.
+- State clearly that the job is to find weaknesses, not to validate or support.
+- Name the primary attack surface for the document's phase (see the table below) so the
+  analysis is aimed, rather than assigning the reviewing agent a role or persona.
 - Use oppositional framing: "tear apart", "stress-test", "find every gap", etc.
 
 ### Analysis Dimensions

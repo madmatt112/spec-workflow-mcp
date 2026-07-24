@@ -54,7 +54,6 @@ ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 
 3. **Read Task Guidance:**
    - Look for the _Prompt field in the task - it contains structured guidance:
-     - Role: The specialized developer role to assume
      - Task: Clear description with context references
      - Restrictions: What not to do and constraints
      - Success: Specific completion criteria

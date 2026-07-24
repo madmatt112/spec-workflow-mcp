@@ -75,7 +75,7 @@ ${context.dashboardUrl ? `- Dashboard: ${context.dashboardUrl}` : ''}
 ${documentType === 'tasks' ? `
 **Special Instructions for Tasks Document:**
 - For each task, generate a _Prompt field with structured AI guidance
-- Format: _Prompt: Role: [role] | Task: [description] | Restrictions: [constraints] | Success: [criteria]
+- Format: _Prompt: Task: [description] | Restrictions: [constraints] | Success: [criteria]
 - Make prompts specific to the project context and requirements
 - Include _Leverage fields pointing to existing code to reuse
 - Include _Requirements fields showing which requirements each task implements

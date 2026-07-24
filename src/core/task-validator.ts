@@ -191,8 +191,8 @@ export function validateTasksMarkdown(content: string): ValidationResult {
         // Extract prompt content and check structure
         const promptContent = trimmedLine.replace(/_Prompt:\s*/, '').replace(/_$/, '');
 
-        // Check for required prompt sections: Role, Task, Restrictions, Success
-        const requiredSections = ['Role', 'Task', 'Restrictions', 'Success'];
+        // Check for required prompt sections: Task, Restrictions, Success
+        const requiredSections = ['Task', 'Restrictions', 'Success'];
         for (const section of requiredSections) {
           if (promptContent.toLowerCase().includes(section.toLowerCase() + ':')) {
             promptSections.push(section);
@@ -215,7 +215,7 @@ export function validateTasksMarkdown(content: string): ValidationResult {
       }
 
       // Check for missing prompt sections
-      const requiredSections = ['Role', 'Task', 'Restrictions', 'Success'];
+      const requiredSections = ['Task', 'Restrictions', 'Success'];
       const missingSections = requiredSections.filter(s => !promptSections.includes(s));
       if (missingSections.length > 0) {
         warnings.push({
@@ -223,7 +223,7 @@ export function validateTasksMarkdown(content: string): ValidationResult {
           taskId,
           field: 'prompt_structure',
           message: `Prompt missing sections: ${missingSections.join(', ')}`,
-          suggestion: 'Format: Role: ... | Task: ... | Restrictions: ... | Success: ...',
+          suggestion: 'Format: Task: ... | Restrictions: ... | Success: ...',
           severity: 'warning'
         });
       }

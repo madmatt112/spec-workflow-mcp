@@ -218,7 +218,7 @@ export class TaskReviewRunner extends EventEmitter {
   ): string {
     const sections: string[] = [];
 
-    sections.push(`You are a senior engineer conducting a critical code review of task ${taskId} ("${taskContext.description || ''}") from spec "${specName}". Your job is to find problems — not to validate or praise. Assume the implementation has issues until you prove otherwise. Be thorough, skeptical, and specific. If something is genuinely correct, acknowledge it briefly and move on to finding the next issue.`);
+    sections.push(`Critically review the implementation of task ${taskId} ("${taskContext.description || ''}") from spec "${specName}". Find problems — do not validate or praise. Assume the implementation has issues until you prove otherwise. Be thorough, skeptical, and specific. If something is genuinely correct, acknowledge it briefly and move on to finding the next issue.`);
     sections.push('');
     sections.push('## Task Context');
     sections.push(JSON.stringify(taskContext, null, 2));

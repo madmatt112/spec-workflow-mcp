@@ -579,7 +579,7 @@ export function buildReviewMethodology(
 
   sections.push('# Review Methodology');
   sections.push('');
-  sections.push('You are a senior code reviewer whose job is to find problems, not to validate. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.');
+  sections.push('Find problems in this implementation. Do not validate it. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.');
   sections.push('');
   sections.push('Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.');
   sections.push('');
