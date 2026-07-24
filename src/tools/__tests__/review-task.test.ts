@@ -70,7 +70,7 @@ describe('review-task handler', () => {
       '',
       '- [-] 1. Implement feature',
       '  _Requirements: REQ-001_',
-      '  _Prompt: Role: Developer | Task: Build it | Restrictions: No new deps | Success: Tests pass_',
+      '  _Prompt: Task: Build it | Restrictions: No new deps | Success: Tests pass_',
       '',
       '- [ ] 2. Another task',
     ].join('\n'));
@@ -550,6 +550,9 @@ describe('handlePrepare integration', () => {
     '- [-] 1. Implement feature',
     '  - _Leverage: src/core/path-denylist.ts_',
     '  - _Requirements: 1.1, 2.4_',
+    // Deliberately retains the legacy `Role:` segment. `Role` was dropped from the
+    // _Prompt contract, but tasks.md files written before that change still carry it —
+    // this pins that Restrictions/Success are still extracted from such prompts.
     '  - _Prompt: Role: Developer | Task: Build it | Restrictions: Do NOT bypass denylist; do NOT change truncation messages | Success: All listed cases pass; messages emit verbatim_',
     '',
   ].join('\n');

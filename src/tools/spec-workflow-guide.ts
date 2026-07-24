@@ -245,7 +245,6 @@ flowchart TD
 3. Convert design into atomic tasks (1-3 files each)
 4. Include file paths and requirement references
 5. **IMPORTANT**: Generate a _Prompt field for each task with:
-   - Role: specialized developer role for the task
    - Task: clear description with context references
    - Restrictions: what not to do, constraints to follow
    - _Leverage: files/utilities to use

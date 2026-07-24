@@ -11,7 +11,7 @@ describe('task-validator', () => {
   - File: src/types/feature.ts
   - _Requirements: 1.1_
   - _Leverage: src/types/base.ts_
-  - _Prompt: Role: Developer | Task: Create interfaces | Restrictions: None | Success: Compiles_
+  - _Prompt: Task: Create interfaces | Restrictions: None | Success: Compiles_
 
 - [ ] 2. Create model class
   - File: src/models/Model.ts
@@ -147,13 +147,33 @@ describe('task-validator', () => {
       it('should warn on incomplete prompt structure', () => {
         const content = `- [ ] 1. Task with incomplete prompt
   - File: src/test.ts
-  - _Prompt: Role: Developer | Task: Build feature_
+  - _Prompt: Task: Build feature_
 `;
         const result = validateTasksMarkdown(content);
         expect(result.valid).toBe(true);
         expect(result.warnings.some(w => w.field === 'prompt_structure')).toBe(true);
         const promptWarning = result.warnings.find(w => w.field === 'prompt_structure');
         expect(promptWarning?.message).toContain('missing sections');
+      });
+
+      it('should not warn about a missing Role section', () => {
+        const content = `- [ ] 1. Task without a role
+  - File: src/test.ts
+  - _Prompt: Task: Build feature | Restrictions: None | Success: Compiles_
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(true);
+        expect(result.warnings.some(w => w.field === 'prompt_structure')).toBe(false);
+      });
+
+      it('should accept legacy prompts that still carry a Role section', () => {
+        const content = `- [ ] 1. Legacy task
+  - File: src/test.ts
+  - _Prompt: Role: Developer | Task: Build feature | Restrictions: None | Success: Compiles_
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(true);
+        expect(result.warnings.some(w => w.field === 'prompt_structure')).toBe(false);
       });
     });
 
@@ -200,8 +220,7 @@ Just some text.
       it('should handle multi-line prompts', () => {
         const content = `- [ ] 1. Task with multi-line prompt
   - File: src/test.ts
-  - _Prompt: Role: Developer specializing in TypeScript |
-    Task: Create comprehensive interfaces |
+  - _Prompt: Task: Create comprehensive interfaces |
     Restrictions: Do not modify existing code |
     Success: All tests pass_
 `;

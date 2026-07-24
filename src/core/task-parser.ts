@@ -36,7 +36,7 @@ function parseStructuredPrompt(promptText: string): PromptSection[] | undefined 
     // Special handling for the first part - it might contain preamble text before the first key
     if (i === 0) {
       // Look for the last occurrence of a known key pattern in the first part
-      const knownKeys = ['Role', 'Task', 'Context', 'Instructions', 'Requirements', 'Leverage', 'Success', 'Restrictions'];
+      const knownKeys = ['Task', 'Context', 'Instructions', 'Requirements', 'Leverage', 'Success', 'Restrictions'];
       let lastKeyIndex = -1;
       
       for (const key of knownKeys) {
@@ -101,7 +101,7 @@ function parseStructuredPrompt(promptText: string): PromptSection[] | undefined 
   return sections.length > 0 ? sections : undefined;
 }
 export interface PromptSection {
-  key: string;                         // Section name (e.g., "Role", "Task", "Restrictions")
+  key: string;                         // Section name (e.g., "Task", "Restrictions", "Success")
   value: string;                       // Section content
 }
 
