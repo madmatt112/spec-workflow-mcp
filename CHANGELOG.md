@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-07-24
+
+### Changed
+- Removed expert-persona preamble ("You are a senior engineer…") from every prompt the server generates. Current research finds persona assignment does not improve task performance and measurably reduces directness; the behavioural directives it was wrapped around are retained unchanged.
+  - `adversarial-review` no longer carries a `persona` per phase — the domain lens was already expressed, more specifically, by each phase's `attackSurface` and `exampleAngles`. The `PhaseGuidance` type drops the field.
+  - The adversarial review methodology no longer instructs the generating agent to assign the reviewing agent a senior expert persona; it now directs it to name the phase's attack surface instead, so the pattern stops propagating into newly generated prompt files.
+  - The `review-task` methodology and the dashboard task-review runner open with directives rather than role assignments. Task context (id, description, spec name) is unchanged.
+
+### Removed
+- **`Role` is no longer part of the `_Prompt` contract** in `tasks.md`. The field was generated and validated but never consumed — `review-task` reads only `Restrictions` and `Success`, and the dashboard never rendered it. The documented format is now `_Prompt: Task: … | Restrictions: … | Success: …`.
+  - Existing `tasks.md` files remain valid: prompts that still carry a `Role:` segment parse as before for `Task`/`Restrictions`/`Success`, and a missing `Role` no longer produces a validation warning. Generators emitting the old four-field form need no immediate change.
+
 ## [4.0.0] - 2026-06-05
 
 ### Added
