@@ -74,6 +74,9 @@
     "select": "Sélectionner la langue"
   },
   "common": {
+    "refresh": "Actualiser",
+    "all": "Tous",
+    "loading": "Chargement…",
     "viewMode": {
       "rendered": "Rendu",
       "source": "Source",
@@ -438,6 +441,35 @@
       "revisionRequested": "Révisions demandées pour \"{{title}}\"",
       "revisionFailed": "Échec de la demande de révisions pour \"{{title}}\""
     }
+  },
+  "deferrals": {
+    "title": "Reports",
+    "subtitle": "Décisions et spécifications explicitement reportées pendant le travail de spécification. {{deferred}} en cours, {{resolved}} résolues, {{superseded}} remplacées.",
+    "noProject": "Sélectionnez un projet pour afficher les reports.",
+    "specsHeading": "Spécifications reportées ({{count}})",
+    "specsDescription": "Spécifications entières repoussées dans l'ordre de construction. Exclues de la feuille de route active dans INDEX.md.",
+    "deferredAt": "Reportée",
+    "decisionsHeading": "Décisions reportées",
+    "decisionsDescription": "Décisions individuelles repoussées pendant le travail de spécification, consignées avec les conditions devant déclencher un réexamen.",
+    "duplicatesHeading": "Doublons potentiels ({{count}} groupe(s))",
+    "duplicatesHint": "— envisagez de les fusionner",
+    "filterStatus": "Statut",
+    "filterScope": "Portée",
+    "filterTag": "Étiquette",
+    "scopeProject": "Niveau projet",
+    "originSpec": "spéc.",
+    "revisit": "Réexaminer",
+    "created": "Créée",
+    "resolved": "Résolue",
+    "supersedes": "Remplace",
+    "supersededBy": "Remplacée par",
+    "showDetails": "Afficher les détails",
+    "hideDetails": "Masquer les détails",
+    "context": "Contexte",
+    "decision": "Décision reportée",
+    "revisitCriteria": "Critères de réexamen",
+    "empty": "Aucun report enregistré pour ce projet pour le moment.",
+    "emptyFiltered": "Aucun report ne correspond aux filtres actuels."
   },
   "logsPage": {
     "header": {

@@ -93,6 +93,17 @@ export interface DeferredSpecMarker {
   deferredAt: string;
 }
 
+/**
+ * A spec currently marked deferred, resolved from its marker file.
+ * A deferred SPEC is a whole spec postponed in the build order — distinct from a
+ * deferred DECISION (see `Deferral`), which is a choice punted within a spec.
+ */
+export interface DeferredSpec {
+  name: string;
+  reason: string;
+  deferredAt: string;
+}
+
 /** One spec's entry in the generated INDEX.md roadmap roll-up. */
 export interface SpecIndexEntry {
   name: string;

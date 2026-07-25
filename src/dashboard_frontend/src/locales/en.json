@@ -76,6 +76,9 @@
     "select": "Select language"
   },
   "common": {
+    "refresh": "Refresh",
+    "all": "All",
+    "loading": "Loading…",
     "viewMode": {
       "rendered": "Rendered",
       "source": "Source",
@@ -499,6 +502,35 @@
       "usingDefault": "Default",
       "usingCustom": "Custom"
     }
+  },
+  "deferrals": {
+    "title": "Deferrals",
+    "subtitle": "Decisions and specs explicitly deferred during spec work. {{deferred}} open, {{resolved}} resolved, {{superseded}} superseded.",
+    "noProject": "Select a project to view deferrals.",
+    "specsHeading": "Deferred Specs ({{count}})",
+    "specsDescription": "Whole specs postponed in the build order. Excluded from the active roadmap in INDEX.md.",
+    "deferredAt": "Deferred",
+    "decisionsHeading": "Deferred Decisions",
+    "decisionsDescription": "Individual decisions punted during spec work, recorded with the conditions that should trigger a revisit.",
+    "duplicatesHeading": "Potential duplicates ({{count}} group(s))",
+    "duplicatesHint": "— consider merging",
+    "filterStatus": "Status",
+    "filterScope": "Scope",
+    "filterTag": "Tag",
+    "scopeProject": "Project-level",
+    "originSpec": "spec",
+    "revisit": "Revisit",
+    "created": "Created",
+    "resolved": "Resolved",
+    "supersedes": "Supersedes",
+    "supersededBy": "Superseded by",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "context": "Context",
+    "decision": "Decision Deferred",
+    "revisitCriteria": "Revisit Criteria",
+    "empty": "No deferrals recorded for this project yet.",
+    "emptyFiltered": "No deferrals match the current filters."
   },
   "logsPage": {
     "header": {

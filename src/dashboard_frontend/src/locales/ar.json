@@ -74,6 +74,9 @@
     "select": "اختر اللغة"
   },
   "common": {
+    "refresh": "تحديث",
+    "all": "الكل",
+    "loading": "جارٍ التحميل…",
     "viewMode": {
       "rendered": "معروض",
       "source": "المصدر",
@@ -438,6 +441,35 @@
       "revisionRequested": "تم طلب مراجعات لـ \"{{title}}\"",
       "revisionFailed": "فشل في طلب مراجعات لـ \"{{title}}\""
     }
+  },
+  "deferrals": {
+    "title": "المؤجَّلات",
+    "subtitle": "قرارات ومواصفات أُجِّلت صراحةً أثناء العمل على المواصفات. {{deferred}} مفتوحة، {{resolved}} محلولة، {{superseded}} مستبدلة.",
+    "noProject": "اختر مشروعًا لعرض المؤجَّلات.",
+    "specsHeading": "المواصفات المؤجَّلة ({{count}})",
+    "specsDescription": "مواصفات كاملة أُجِّلت في ترتيب البناء. مستبعدة من خارطة الطريق النشطة في INDEX.md.",
+    "deferredAt": "أُجِّلت",
+    "decisionsHeading": "القرارات المؤجَّلة",
+    "decisionsDescription": "قرارات فردية أُجِّلت أثناء العمل على المواصفات، مسجَّلة مع الشروط التي ينبغي أن تستدعي إعادة النظر.",
+    "duplicatesHeading": "تكرارات محتملة ({{count}} مجموعة)",
+    "duplicatesHint": "— فكِّر في الدمج",
+    "filterStatus": "الحالة",
+    "filterScope": "النطاق",
+    "filterTag": "الوسم",
+    "scopeProject": "على مستوى المشروع",
+    "originSpec": "مواصفة",
+    "revisit": "إعادة النظر",
+    "created": "أُنشئت",
+    "resolved": "حُلَّت",
+    "supersedes": "تحل محل",
+    "supersededBy": "استُبدلت بـ",
+    "showDetails": "عرض التفاصيل",
+    "hideDetails": "إخفاء التفاصيل",
+    "context": "السياق",
+    "decision": "القرار المؤجَّل",
+    "revisitCriteria": "معايير إعادة النظر",
+    "empty": "لا توجد مؤجَّلات مسجَّلة لهذا المشروع بعد.",
+    "emptyFiltered": "لا توجد مؤجَّلات تطابق عوامل التصفية الحالية."
   },
   "logsPage": {
     "header": {

@@ -74,6 +74,9 @@
     "select": "Seleziona lingua"
   },
   "common": {
+    "refresh": "Aggiorna",
+    "all": "Tutti",
+    "loading": "Caricamento…",
     "viewMode": {
       "rendered": "Renderizzato",
       "source": "Sorgente",
@@ -438,6 +441,35 @@
       "revisionRequested": "Revisioni richieste per \"{{title}}\"",
       "revisionFailed": "Impossibile richiedere revisioni per \"{{title}}\""
     }
+  },
+  "deferrals": {
+    "title": "Rinvii",
+    "subtitle": "Decisioni e specifiche esplicitamente rinviate durante il lavoro sulle specifiche. {{deferred}} aperte, {{resolved}} risolte, {{superseded}} sostituite.",
+    "noProject": "Seleziona un progetto per visualizzare i rinvii.",
+    "specsHeading": "Specifiche rinviate ({{count}})",
+    "specsDescription": "Specifiche intere posticipate nell'ordine di sviluppo. Escluse dalla roadmap attiva in INDEX.md.",
+    "deferredAt": "Rinviata",
+    "decisionsHeading": "Decisioni rinviate",
+    "decisionsDescription": "Singole decisioni posticipate durante il lavoro sulle specifiche, registrate con le condizioni che dovrebbero motivarne il riesame.",
+    "duplicatesHeading": "Possibili duplicati ({{count}} gruppo/i)",
+    "duplicatesHint": "— valuta di unirle",
+    "filterStatus": "Stato",
+    "filterScope": "Ambito",
+    "filterTag": "Tag",
+    "scopeProject": "Livello progetto",
+    "originSpec": "specifica",
+    "revisit": "Riesaminare",
+    "created": "Creata",
+    "resolved": "Risolta",
+    "supersedes": "Sostituisce",
+    "supersededBy": "Sostituita da",
+    "showDetails": "Mostra dettagli",
+    "hideDetails": "Nascondi dettagli",
+    "context": "Contesto",
+    "decision": "Decisione rinviata",
+    "revisitCriteria": "Criteri di riesame",
+    "empty": "Nessun rinvio registrato per questo progetto.",
+    "emptyFiltered": "Nessun rinvio corrisponde ai filtri attuali."
   },
   "logsPage": {
     "header": {
