@@ -74,6 +74,9 @@
     "select": "Sprache auswählen"
   },
   "common": {
+    "refresh": "Aktualisieren",
+    "all": "Alle",
+    "loading": "Wird geladen…",
     "viewMode": {
       "rendered": "Gerendert",
       "source": "Quelle",
@@ -438,6 +441,35 @@
       "revisionRequested": "Überarbeitung für \"{{title}}\" angefordert",
       "revisionFailed": "Anforderung der Überarbeitung für \"{{title}}\" fehlgeschlagen"
     }
+  },
+  "deferrals": {
+    "title": "Zurückgestellt",
+    "subtitle": "Während der Spec-Arbeit ausdrücklich zurückgestellte Entscheidungen und Specs. {{deferred}} offen, {{resolved}} gelöst, {{superseded}} ersetzt.",
+    "noProject": "Wähle ein Projekt, um zurückgestellte Einträge anzuzeigen.",
+    "specsHeading": "Zurückgestellte Specs ({{count}})",
+    "specsDescription": "Ganze Specs, die in der Build-Reihenfolge verschoben wurden. Von der aktiven Roadmap in INDEX.md ausgenommen.",
+    "deferredAt": "Zurückgestellt",
+    "decisionsHeading": "Zurückgestellte Entscheidungen",
+    "decisionsDescription": "Einzelne Entscheidungen, die während der Spec-Arbeit vertagt wurden – erfasst mit den Bedingungen, die eine erneute Prüfung auslösen sollten.",
+    "duplicatesHeading": "Mögliche Duplikate ({{count}} Gruppe(n))",
+    "duplicatesHint": "— Zusammenführen erwägen",
+    "filterStatus": "Status",
+    "filterScope": "Bereich",
+    "filterTag": "Tag",
+    "scopeProject": "Projektebene",
+    "originSpec": "Spec",
+    "revisit": "Erneut prüfen",
+    "created": "Erstellt",
+    "resolved": "Gelöst",
+    "supersedes": "Ersetzt",
+    "supersededBy": "Ersetzt durch",
+    "showDetails": "Details anzeigen",
+    "hideDetails": "Details ausblenden",
+    "context": "Kontext",
+    "decision": "Zurückgestellte Entscheidung",
+    "revisitCriteria": "Kriterien für erneute Prüfung",
+    "empty": "Für dieses Projekt wurden noch keine zurückgestellten Einträge erfasst.",
+    "emptyFiltered": "Keine zurückgestellten Einträge entsprechen den aktuellen Filtern."
   },
   "logsPage": {
     "header": {

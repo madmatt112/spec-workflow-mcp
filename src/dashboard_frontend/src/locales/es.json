@@ -74,6 +74,9 @@
     "select": "Seleccionar idioma"
   },
   "common": {
+    "refresh": "Actualizar",
+    "all": "Todos",
+    "loading": "Cargando…",
     "viewMode": {
       "rendered": "Renderizado",
       "source": "Fuente",
@@ -438,6 +441,35 @@
       "revisionRequested": "Revisiones solicitadas para \"{{title}}\"",
       "revisionFailed": "Error al solicitar revisiones para \"{{title}}\""
     }
+  },
+  "deferrals": {
+    "title": "Aplazamientos",
+    "subtitle": "Decisiones y especificaciones aplazadas explícitamente durante el trabajo de especificación. {{deferred}} abiertas, {{resolved}} resueltas, {{superseded}} sustituidas.",
+    "noProject": "Selecciona un proyecto para ver los aplazamientos.",
+    "specsHeading": "Especificaciones aplazadas ({{count}})",
+    "specsDescription": "Especificaciones completas pospuestas en el orden de construcción. Excluidas de la hoja de ruta activa en INDEX.md.",
+    "deferredAt": "Aplazada",
+    "decisionsHeading": "Decisiones aplazadas",
+    "decisionsDescription": "Decisiones concretas pospuestas durante el trabajo de especificación, registradas con las condiciones que deberían motivar su revisión.",
+    "duplicatesHeading": "Posibles duplicados ({{count}} grupo(s))",
+    "duplicatesHint": "— considera fusionarlas",
+    "filterStatus": "Estado",
+    "filterScope": "Ámbito",
+    "filterTag": "Etiqueta",
+    "scopeProject": "Nivel de proyecto",
+    "originSpec": "especificación",
+    "revisit": "Revisar",
+    "created": "Creada",
+    "resolved": "Resuelta",
+    "supersedes": "Sustituye a",
+    "supersededBy": "Sustituida por",
+    "showDetails": "Mostrar detalles",
+    "hideDetails": "Ocultar detalles",
+    "context": "Contexto",
+    "decision": "Decisión aplazada",
+    "revisitCriteria": "Criterios de revisión",
+    "empty": "Aún no hay aplazamientos registrados para este proyecto.",
+    "emptyFiltered": "Ningún aplazamiento coincide con los filtros actuales."
   },
   "logsPage": {
     "header": {

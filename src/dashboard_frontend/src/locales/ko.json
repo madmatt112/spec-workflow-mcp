@@ -74,6 +74,9 @@
     "select": "언어 선택"
   },
   "common": {
+    "refresh": "새로고침",
+    "all": "전체",
+    "loading": "불러오는 중…",
     "viewMode": {
       "rendered": "렌더됨",
       "source": "소스",
@@ -438,6 +441,35 @@
       "revisionRequested": "\"{{title}}\"에 대한 수정이 요청되었습니다",
       "revisionFailed": "\"{{title}}\" 수정 요청에 실패했습니다"
     }
+  },
+  "deferrals": {
+    "title": "보류 항목",
+    "subtitle": "사양 작업 중 명시적으로 보류된 결정과 사양입니다. 미해결 {{deferred}}건, 해결 {{resolved}}건, 대체 {{superseded}}건.",
+    "noProject": "보류 항목을 보려면 프로젝트를 선택하세요.",
+    "specsHeading": "보류된 사양 ({{count}})",
+    "specsDescription": "빌드 순서에서 연기된 전체 사양입니다. INDEX.md의 활성 로드맵에서 제외됩니다.",
+    "deferredAt": "보류일",
+    "decisionsHeading": "보류된 결정",
+    "decisionsDescription": "사양 작업 중 미뤄진 개별 결정으로, 재검토를 촉발할 조건과 함께 기록됩니다.",
+    "duplicatesHeading": "중복 가능성 ({{count}}개 그룹)",
+    "duplicatesHint": "— 병합을 고려하세요",
+    "filterStatus": "상태",
+    "filterScope": "범위",
+    "filterTag": "태그",
+    "scopeProject": "프로젝트 수준",
+    "originSpec": "사양",
+    "revisit": "재검토",
+    "created": "생성일",
+    "resolved": "해결일",
+    "supersedes": "대체 대상",
+    "supersededBy": "대체한 항목",
+    "showDetails": "세부 정보 표시",
+    "hideDetails": "세부 정보 숨기기",
+    "context": "배경",
+    "decision": "보류된 결정",
+    "revisitCriteria": "재검토 기준",
+    "empty": "이 프로젝트에는 아직 기록된 보류 항목이 없습니다.",
+    "emptyFiltered": "현재 필터와 일치하는 보류 항목이 없습니다."
   },
   "logsPage": {
     "header": {

@@ -74,6 +74,9 @@
     "select": "言語を選択"
   },
   "common": {
+    "refresh": "更新",
+    "all": "すべて",
+    "loading": "読み込み中…",
     "viewMode": {
       "rendered": "レンダリング",
       "source": "ソース",
@@ -438,6 +441,35 @@
       "revisionRequested": "「{{title}}」の修正が要求されました",
       "revisionFailed": "「{{title}}」の修正要求に失敗しました"
     }
+  },
+  "deferrals": {
+    "title": "保留事項",
+    "subtitle": "仕様作業中に明示的に保留された決定と仕様。未対応 {{deferred}} 件、解決済み {{resolved}} 件、置換済み {{superseded}} 件。",
+    "noProject": "保留事項を表示するにはプロジェクトを選択してください。",
+    "specsHeading": "保留中の仕様 ({{count}})",
+    "specsDescription": "ビルド順序で延期された仕様全体。INDEX.md のアクティブなロードマップから除外されます。",
+    "deferredAt": "保留日",
+    "decisionsHeading": "保留された決定",
+    "decisionsDescription": "仕様作業中に先送りされた個々の決定。再検討のきっかけとなる条件とともに記録されます。",
+    "duplicatesHeading": "重複の可能性 ({{count}} グループ)",
+    "duplicatesHint": "— 統合を検討してください",
+    "filterStatus": "ステータス",
+    "filterScope": "スコープ",
+    "filterTag": "タグ",
+    "scopeProject": "プロジェクトレベル",
+    "originSpec": "仕様",
+    "revisit": "再検討",
+    "created": "作成日",
+    "resolved": "解決日",
+    "supersedes": "置換対象",
+    "supersededBy": "置換元",
+    "showDetails": "詳細を表示",
+    "hideDetails": "詳細を隠す",
+    "context": "背景",
+    "decision": "保留された決定",
+    "revisitCriteria": "再検討の基準",
+    "empty": "このプロジェクトにはまだ保留事項が記録されていません。",
+    "emptyFiltered": "現在のフィルターに一致する保留事項はありません。"
   },
   "logsPage": {
     "header": {

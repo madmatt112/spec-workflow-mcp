@@ -74,6 +74,9 @@
     "select": "Selecionar idioma"
   },
   "common": {
+    "refresh": "Atualizar",
+    "all": "Todos",
+    "loading": "Carregando…",
     "viewMode": {
       "rendered": "Renderizado",
       "source": "Fonte",
@@ -438,6 +441,35 @@
       "revisionRequested": "Revisões solicitadas para \"{{title}}\"",
       "revisionFailed": "Falha ao solicitar revisões para \"{{title}}\""
     }
+  },
+  "deferrals": {
+    "title": "Adiamentos",
+    "subtitle": "Decisões e especificações explicitamente adiadas durante o trabalho de especificação. {{deferred}} em aberto, {{resolved}} resolvidas, {{superseded}} substituídas.",
+    "noProject": "Selecione um projeto para ver os adiamentos.",
+    "specsHeading": "Especificações adiadas ({{count}})",
+    "specsDescription": "Especificações inteiras adiadas na ordem de construção. Excluídas do roteiro ativo em INDEX.md.",
+    "deferredAt": "Adiada",
+    "decisionsHeading": "Decisões adiadas",
+    "decisionsDescription": "Decisões individuais adiadas durante o trabalho de especificação, registradas com as condições que devem motivar uma revisão.",
+    "duplicatesHeading": "Possíveis duplicatas ({{count}} grupo(s))",
+    "duplicatesHint": "— considere mesclar",
+    "filterStatus": "Status",
+    "filterScope": "Escopo",
+    "filterTag": "Tag",
+    "scopeProject": "Nível de projeto",
+    "originSpec": "especificação",
+    "revisit": "Revisar",
+    "created": "Criada",
+    "resolved": "Resolvida",
+    "supersedes": "Substitui",
+    "supersededBy": "Substituída por",
+    "showDetails": "Mostrar detalhes",
+    "hideDetails": "Ocultar detalhes",
+    "context": "Contexto",
+    "decision": "Decisão adiada",
+    "revisitCriteria": "Critérios de revisão",
+    "empty": "Ainda não há adiamentos registrados para este projeto.",
+    "emptyFiltered": "Nenhum adiamento corresponde aos filtros atuais."
   },
   "logsPage": {
     "header": {

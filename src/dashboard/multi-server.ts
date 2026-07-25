@@ -22,6 +22,7 @@ import { TaskReviewManager } from '../core/task-review-manager.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
 import { PathUtils } from '../core/path-utils.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
+import { IndexGenerator } from '../core/index-generator.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
 import {
   getSecurityConfig,
@@ -430,6 +431,40 @@ export class MultiProjectDashboardServer {
         data: job
       });
     });
+
+    // Broadcast deferral changes (deferred decisions and deferred specs)
+    this.projectManager.on('deferral-change', async (event) => {
+      try {
+        const { projectId } = event;
+        const project = this.projectManager.getProject(projectId);
+        if (project) {
+          this.broadcastToProject(projectId, {
+            type: 'deferrals-update',
+            projectId,
+            data: await this.buildDeferralsPayload(project.projectPath)
+          });
+        }
+      } catch (error) {
+        console.error('Error broadcasting deferral changes:', error);
+        // Don't propagate error to prevent event system crash
+      }
+    });
+  }
+
+  /**
+   * Assemble the deferrals view: deferred decisions from the deferral store plus
+   * whole specs marked deferred. Shared by the REST route and the WebSocket
+   * broadcast so both always return the same shape.
+   */
+  private async buildDeferralsPayload(projectPath: string) {
+    const storage = new DeferralStorage(projectPath);
+    const indexGenerator = new IndexGenerator(projectPath);
+    const [deferrals, duplicateGroups, deferredSpecs] = await Promise.all([
+      storage.list(),
+      storage.findDuplicateGroups(),
+      indexGenerator.listDeferredSpecs(),
+    ]);
+    return { deferrals, duplicateGroups, deferredSpecs };
   }
 
   private registerApiRoutes() {
@@ -654,19 +689,14 @@ export class MultiProjectDashboardServer {
       return await project.approvalStorage.getAllPendingApprovals();
     });
 
-    // List deferrals (deferred decisions) with detected duplicate groups
+    // List deferred decisions (with detected duplicate groups) and deferred specs
     this.app.get('/api/projects/:projectId/deferrals', async (request, reply) => {
       const { projectId } = request.params as { projectId: string };
       const project = this.projectManager.getProject(projectId);
       if (!project) {
         return reply.code(404).send({ error: 'Project not found' });
       }
-      const storage = new DeferralStorage(project.projectPath);
-      const [deferrals, duplicateGroups] = await Promise.all([
-        storage.list(),
-        storage.findDuplicateGroups(),
-      ]);
-      return { deferrals, duplicateGroups };
+      return await this.buildDeferralsPayload(project.projectPath);
     });
 
     // Get approval content

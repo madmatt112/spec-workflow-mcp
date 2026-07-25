@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-07-24
+
+### Added
+- The dashboard Deferrals page now covers **deferred specs** as well as deferred decisions. Whole specs postponed in the build order (`specs/<name>/deferred.json`, written by the `spec-index` tool's `defer` action) previously surfaced only in the generated INDEX.md; they now get their own section on the page showing each spec's reason and deferral date.
+- Deferred decisions render the full detail already recorded against them — Context, Decision Deferred and Revisit Criteria — behind a per-card "Show details" toggle. The endpoint had always returned these fields; the page simply never displayed them.
+- The origin-spec filter is now a **Scope** filter with a "Project-level" option, so decisions recorded without an `originSpec` can be isolated rather than being reachable only via "All". Project-level deferrals are labelled as such on their cards instead of showing no scope at all.
+- The Deferrals page updates live. The file watcher now covers `.spec-workflow/deferrals/*.md` and `specs/*/deferred.json`, and the server broadcasts a `deferrals-update` message carrying the whole payload, so the page no longer depends on its manual Refresh button.
+- `IndexGenerator.listDeferredSpecs()` exposes the deferred-spec markers as data, reusing the marker parsing that already feeds the INDEX.md Deferred section.
+
+### Changed
+- `GET /api/projects/:projectId/deferrals` gained a `deferredSpecs` array. The existing `deferrals` and `duplicateGroups` fields are unchanged and existing consumers are unaffected.
+- Every string on the Deferrals page is now translated. The page previously relied on inline English fallbacks, so all ten non-English locales rendered it in English regardless of the selected language.
+
+### Notes
+- Deferred SPECS and deferred DECISIONS remain distinct concepts with separate stores and separate tools (`spec-index` vs `deferrals`). The dashboard presents them in one place but keeps them clearly separated, matching the distinction the `spec-index` tool description already draws.
+- Read-only: the dashboard displays deferrals but does not resolve, merge or delete them. Those remain MCP-tool operations.
+
 ## [4.2.0] - 2026-07-24
 
 ### Changed

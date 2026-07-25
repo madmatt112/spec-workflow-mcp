@@ -114,6 +114,64 @@ describe('IndexGenerator', () => {
     expect(index).not.toContain('## Deferred');
   });
 
+  describe('listDeferredSpecs', () => {
+    it('returns only deferred specs, with their marker details', async () => {
+      await createSpec('alpha');
+      await createSpec('bravo');
+      await generator.defer('bravo', 'Postponed until post-launch');
+
+      const deferred = await generator.listDeferredSpecs();
+
+      expect(deferred).toHaveLength(1);
+      expect(deferred[0].name).toBe('bravo');
+      expect(deferred[0].reason).toBe('Postponed until post-launch');
+      expect(deferred[0].deferredAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('returns an empty array when nothing is deferred', async () => {
+      await createSpec('alpha');
+      expect(await generator.listDeferredSpecs()).toEqual([]);
+    });
+
+    it('returns an empty array when the specs directory is missing', async () => {
+      const bare = await fs.mkdtemp(join(tmpdir(), 'index-gen-bare-'));
+      try {
+        expect(await new IndexGenerator(bare).listDeferredSpecs()).toEqual([]);
+      } finally {
+        await fs.rm(bare, { recursive: true, force: true });
+      }
+    });
+
+    it('sorts by spec name', async () => {
+      for (const name of ['charlie', 'alpha', 'bravo']) {
+        await createSpec(name);
+        await generator.defer(name, `reason for ${name}`);
+      }
+
+      const names = (await generator.listDeferredSpecs()).map(s => s.name);
+      expect(names).toEqual(['alpha', 'bravo', 'charlie']);
+    });
+
+    it('ignores a malformed marker file', async () => {
+      await createSpec('alpha');
+      await fs.writeFile(
+        join(tempDir, '.spec-workflow', 'specs', 'alpha', 'deferred.json'),
+        '{ not valid json'
+      );
+
+      expect(await generator.listDeferredSpecs()).toEqual([]);
+    });
+
+    it('reflects undefer', async () => {
+      await createSpec('alpha');
+      await generator.defer('alpha', 'later');
+      expect(await generator.listDeferredSpecs()).toHaveLength(1);
+
+      await generator.undefer('alpha');
+      expect(await generator.listDeferredSpecs()).toEqual([]);
+    });
+  });
+
   it('lists specs missing from decomposition.md under Other specs', async () => {
     await createSpec('alpha');
     await createSpec('orphan');

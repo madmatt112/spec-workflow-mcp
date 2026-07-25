@@ -5,7 +5,7 @@ import { PathUtils } from '../core/path-utils.js';
 import { SpecParser, ParsedSpec } from './parser.js';
 
 export interface SpecChangeEvent {
-  type: 'spec' | 'steering' | 'decomposition';
+  type: 'spec' | 'steering' | 'decomposition' | 'deferral';
   action: 'created' | 'updated' | 'deleted';
   name: string;
   data?: ParsedSpec | any;
@@ -30,10 +30,14 @@ export class SpecWatcher extends EventEmitter {
     const specsPath = PathUtils.getSpecPath(this.projectPath, '');
     const steeringPath = PathUtils.getSteeringPath(this.projectPath);
 
-    // Watch for changes in specs and steering directories
+    // Watch for changes in specs, steering and deferral directories.
+    // Deferred DECISIONS live in deferrals/*.md; deferred SPECS are marked by a
+    // deferred.json inside the spec directory (not matched by the *.md glob).
     this.watcher = chokidar.watch([
       `${specsPath}/**/*.md`,
-      `${steeringPath}/*.md`
+      `${steeringPath}/*.md`,
+      `${workflowRoot}/deferrals/*.md`,
+      `${specsPath}/*/deferred.json`
     ], {
       ignoreInitial: true,
       persistent: true,
@@ -140,8 +144,12 @@ export class SpecWatcher extends EventEmitter {
         }
       }
 
-      // Determine if this is a spec or steering change
-      if (normalizedPath.includes('/specs/')) {
+      // Determine if this is a deferral, spec or steering change.
+      // Deferrals are checked first: a deferred.json marker lives inside the spec
+      // directory, so it would otherwise be swallowed by the '/specs/' branch.
+      if (normalizedPath.includes('/deferrals/') || normalizedPath.endsWith('/deferred.json')) {
+        this.handleDeferralChange(action, normalizedPath);
+      } else if (normalizedPath.includes('/specs/')) {
         await this.handleSpecChange(action, normalizedPath);
       } else if (normalizedPath.includes('/steering/')) {
         await this.handleSteeringChange(action, normalizedPath);
@@ -186,6 +194,19 @@ export class SpecWatcher extends EventEmitter {
     }
   }
 
+
+  /**
+   * Signal that the deferral store changed. Carries no payload — the dashboard
+   * re-reads the deferrals endpoint, which owns duplicate detection and the
+   * deferred-spec roll-up.
+   */
+  private handleDeferralChange(action: 'created' | 'updated' | 'deleted', filePath: string): void {
+    const name = filePath.split('/').pop()?.replace(/\.(md|json)$/, '') || '';
+
+    const event: SpecChangeEvent = { type: 'deferral', action, name };
+
+    this.emit('deferral-change', event);
+  }
 
   private async handleSteeringChange(action: 'created' | 'updated' | 'deleted', filePath: string): Promise<void> {
     // Extract document name from path like: /path/to/.spec-workflow/steering/tech.md

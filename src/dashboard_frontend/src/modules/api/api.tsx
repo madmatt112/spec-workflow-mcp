@@ -50,9 +50,20 @@ export type DeferralDuplicateGroup = {
   members: Array<{ id: string; title: string }>;
 };
 
+/**
+ * A whole spec postponed in the build order (specs/<name>/deferred.json).
+ * Distinct from a Deferral, which is a decision punted within a spec.
+ */
+export type DeferredSpec = {
+  name: string;
+  reason: string;
+  deferredAt: string;
+};
+
 export type DeferralsResponse = {
   deferrals: Deferral[];
   duplicateGroups: DeferralDuplicateGroup[];
+  deferredSpecs: DeferredSpec[];
 };
 
 export interface DocumentSnapshot {
@@ -370,7 +381,7 @@ export function ApiProvider({ initial, projectId, children }: ApiProviderProps) 
         getTaskReviews: async () => ({ reviews: [] }),
         getTaskReviewContent: async () => ({ review: null }),
         getTaskReviewSummary: async () => ({ summary: {} }),
-        getDeferrals: async () => ({ deferrals: [], duplicateGroups: [] }),
+        getDeferrals: async () => ({ deferrals: [], duplicateGroups: [], deferredSpecs: [] }),
       };
     }
 

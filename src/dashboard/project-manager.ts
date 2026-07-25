@@ -168,6 +168,10 @@ export class ProjectManager extends EventEmitter {
         this.emit('steering-change', { projectId: entry.projectId, ...event });
       });
 
+      watcher.on('deferral-change', (event) => {
+        this.emit('deferral-change', { projectId: entry.projectId, ...event });
+      });
+
       approvalStorage.on('approval-change', () => {
         this.emit('approval-change', { projectId: entry.projectId });
       });
