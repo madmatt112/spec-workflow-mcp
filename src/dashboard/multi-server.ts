@@ -854,7 +854,11 @@ export class MultiProjectDashboardServer {
             projectId,
             specName,
             phase,
-            projectPath: project.originalProjectPath,
+            // Requirement 5.8: the review agent runs in the workspace, and it
+            // must be the TRANSLATED one — `originalProjectPath` is the
+            // untranslated host path, which this process cannot spawn into
+            // under path translation.
+            workspacePath: project.workspacePath,
             targetFile: result.data.targetFile,
             promptOutputPath: result.data.promptOutputPath,
             analysisOutputPath: result.data.analysisOutputPath,
@@ -862,7 +866,7 @@ export class MultiProjectDashboardServer {
             model,
             cli,
             cliArgs,
-          });
+          }, project.projectPath);
         } catch (runnerErr: any) {
           const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
           if (msg.startsWith('An adversarial review is already running for ')) {
@@ -1016,7 +1020,9 @@ export class MultiProjectDashboardServer {
             projectId,
             specName,
             phase,
-            projectPath: project.originalProjectPath,
+            // Requirement 5.8 — the retry route, same reasoning as the primary
+            // route above: the translated workspace, not `originalProjectPath`.
+            workspacePath: project.workspacePath,
             targetFile: result.data.targetFile,
             promptOutputPath: promptPath,
             analysisOutputPath,
@@ -1024,7 +1030,7 @@ export class MultiProjectDashboardServer {
             model: retryModel,
             cli: retryCli,
             cliArgs: retryCliArgs,
-          });
+          }, project.projectPath);
         } catch (runnerErr: any) {
           const msg = typeof runnerErr?.message === 'string' ? runnerErr.message : '';
           if (msg.startsWith('An adversarial review is already running for ')) {
@@ -1795,7 +1801,10 @@ export class MultiProjectDashboardServer {
             projectId,
             specName,
             taskId,
-            projectPath: project.projectPath,
+            // Requirement 5.6: specs come from the shared workflow root, code
+            // from the translated workspace.
+            workflowRoot: project.projectPath,
+            workspacePath: project.workspacePath,
             model,
             cli,
             cliArgs,
@@ -1857,7 +1866,9 @@ export class MultiProjectDashboardServer {
             projectId,
             specName,
             taskId,
-            projectPath: project.projectPath,
+            // Requirement 5.6 — the retry route, same roots as above.
+            workflowRoot: project.projectPath,
+            workspacePath: project.workspacePath,
             model: retryModel,
             cli,
             cliArgs,

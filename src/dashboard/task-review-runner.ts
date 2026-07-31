@@ -28,7 +28,16 @@ interface RunOptions {
   projectId: string;
   specName: string;
   taskId: string;
-  projectPath: string;
+  /**
+   * Shared workflow root — the directory holding `.spec-workflow`. Used for
+   * `getSpecPath` and as `ToolContext.projectPath` (requirement 5.2/5.3).
+   */
+  workflowRoot: string;
+  /**
+   * Worktree whose code is under review. Used as `ToolContext.workspacePath`
+   * and as the review agent's spawn `cwd` (requirement 5.3/5.4).
+   */
+  workspacePath: string;
   model?: string;
   cli?: string;
   cliArgs?: string[];
@@ -92,19 +101,18 @@ export class TaskReviewRunner extends EventEmitter {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
-    const specPath = PathUtils.getSpecPath(opts.projectPath, opts.specName);
+    // Specs live on the shared workflow root, never inside the worktree.
+    const specPath = PathUtils.getSpecPath(opts.workflowRoot, opts.specName);
     const reviewManager = new TaskReviewManager(specPath);
 
     try {
       // Step 1: Call prepare to get review context and methodology
-      // `RunOptions` still carries one path (both callers pass the translated
-      // workflow root), so both fields take it here — equal roots, which
-      // requirement 3.11 pins to pre-change behaviour. Requirement 5.1/5.3
-      // splits `RunOptions` into `workflowRoot` + `workspacePath`; when it
-      // does, `workspacePath` below becomes `opts.workspacePath`.
+      // Requirement 5.3: the workflow root locates `.spec-workflow`; the
+      // workspace is the checkout whose code is read, diffed and typechecked.
+      // In a single checkout the two are equal (requirement 3.11).
       const context: ToolContext = {
-        projectPath: opts.projectPath,
-        workspacePath: opts.projectPath
+        projectPath: opts.workflowRoot,
+        workspacePath: opts.workspacePath
       };
       const prepareResponse = await reviewTaskHandler(
         { action: 'prepare', specName: opts.specName, taskId: opts.taskId },
@@ -149,7 +157,8 @@ export class TaskReviewRunner extends EventEmitter {
       this.emit('job-update', { ...job });
 
       try {
-        await this.runAgent(jobId, opts.projectPath, prompt, opts);
+        // Requirement 5.4: the agent runs in the worktree it is reviewing.
+        await this.runAgent(jobId, opts.workspacePath, prompt, opts);
 
         // Read and parse agent output
         let rawOutput: string;
@@ -359,7 +368,7 @@ export class TaskReviewRunner extends EventEmitter {
     return cleaned;
   }
 
-  private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {
+  private runAgent(jobId: string, workspacePath: string, prompt: string, opts: RunOptions): Promise<void> {
     const cli = opts.cli || 'claude';
     const baseArgs = opts.cliArgs || ['--print', '--dangerously-skip-permissions'];
 
@@ -371,7 +380,7 @@ export class TaskReviewRunner extends EventEmitter {
       args.push(prompt);
 
       const child = spawn(cli, args, {
-        cwd,
+        cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
       });

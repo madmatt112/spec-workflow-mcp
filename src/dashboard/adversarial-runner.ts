@@ -22,7 +22,13 @@ interface RunOptions {
   projectId: string;
   specName: string;
   phase: string;
-  projectPath: string;
+  /**
+   * Worktree the review agent runs in (spawn `cwd`) — the only root this
+   * runner spends. It never resolves a spec path and never builds a
+   * `ToolContext`, so requirement 5.5 keeps `RunOptions` single-rooted; the
+   * workflow root reaches the spawn as an argument to `run`/`runAgent`.
+   */
+  workspacePath: string;
   targetFile: string;
   promptOutputPath: string;
   analysisOutputPath: string;
@@ -54,7 +60,13 @@ export class AdversarialRunner extends EventEmitter {
     );
   }
 
-  async run(opts: RunOptions): Promise<string> {
+  /**
+   * @param workflowRoot Shared workflow root for this job. Not a `RunOptions`
+   * field (requirement 5.5) — it is threaded through to the spawn helper so
+   * that task 8 can set `SPEC_WORKFLOW_SHARED_ROOT` from it (requirement
+   * 2.13). Nothing reads it yet.
+   */
+  async run(opts: RunOptions, workflowRoot: string): Promise<string> {
     // Check concurrency limit
     const activeJobs = this.getActiveJobsForProject(opts.projectId);
     if (activeJobs.length >= MAX_CONCURRENT_PER_PROJECT) {
@@ -85,14 +97,14 @@ export class AdversarialRunner extends EventEmitter {
     this.emit('job-update', job);
 
     // Run the review in the background
-    this.executeJob(jobId, opts).catch(err => {
+    this.executeJob(jobId, opts, workflowRoot).catch(err => {
       console.error(`[AdversarialRunner] Job ${jobId} failed:`, err);
     });
 
     return jobId;
   }
 
-  private async executeJob(jobId: string, opts: RunOptions): Promise<void> {
+  private async executeJob(jobId: string, opts: RunOptions, workflowRoot: string): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
@@ -108,7 +120,8 @@ export class AdversarialRunner extends EventEmitter {
       this.emit('job-update', { ...job });
 
       const reviewInstructions = `Read and execute the instructions in ${opts.promptOutputPath}`;
-      await this.runAgent(jobId, opts.projectPath, reviewInstructions, opts);
+      // Requirement 5.5: cwd is the workspace; the workflow root is spawn-only.
+      await this.runAgent(jobId, opts.workspacePath, workflowRoot, reviewInstructions, opts);
 
       // Verify the analysis file was written
       try {
@@ -130,7 +143,14 @@ export class AdversarialRunner extends EventEmitter {
     }
   }
 
-  private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {
+  /**
+   * @param workspacePath spawn `cwd` — the worktree the agent runs in.
+   * @param workflowRoot the job's shared workflow root. Carried here rather
+   * than on `RunOptions` (requirement 5.5) so that task 8 has the value it
+   * needs to set `SPEC_WORKFLOW_SHARED_ROOT` on the spawn env (requirement
+   * 2.13). Not read yet — this parameter is currently unused.
+   */
+  private runAgent(jobId: string, workspacePath: string, workflowRoot: string, prompt: string, opts: RunOptions): Promise<void> {
     const cli = opts.cli || 'claude';
     const baseArgs = opts.cliArgs || ['--print', '--dangerously-skip-permissions'];
 
@@ -142,8 +162,10 @@ export class AdversarialRunner extends EventEmitter {
       args.push(prompt);
 
       const child = spawn(cli, args, {
-        cwd,
+        cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
+        // Task 8 will set SPEC_WORKFLOW_SHARED_ROOT here from `workflowRoot`
+        // (requirement 2.13); the env is still inherited wholesale today.
         env: { ...process.env },
       });
 

@@ -34,12 +34,18 @@ function createFakeChild() {
   return child;
 }
 
+// Worktree fixture: the two roots are GENUINELY DISTINCT, so a swap of them is
+// observable. Equal roots — which every fixture here used to pass — cannot
+// detect the swap this spec exists to prevent.
+const WORKFLOW_ROOT = '/tmp/project';        // shared checkout holding `.spec-workflow`
+const WORKSPACE_PATH = '/tmp/project-wt-a';  // worktree the review agent runs in
+
 function baseOpts(overrides: Partial<Parameters<AdversarialRunner['run']>[0]> = {}) {
   return {
     projectId: 'proj-1',
     specName: 'my-spec',
     phase: 'requirements',
-    projectPath: '/tmp/project',
+    workspacePath: WORKSPACE_PATH,
     targetFile: '/tmp/project/.spec-workflow/specs/my-spec/requirements.md',
     promptOutputPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-prompt-requirements.md',
     analysisOutputPath: '/tmp/project/.spec-workflow/specs/my-spec/reviews/adversarial-analysis-requirements.md',
@@ -68,7 +74,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
       expect(jobId).toBeTruthy();
 
       const job = runner.getJob(jobId);
@@ -84,7 +90,7 @@ describe('AdversarialRunner', () => {
       const updates: AdversarialJob[] = [];
       runner.on('job-update', (job) => updates.push({ ...job }));
 
-      await runner.run(baseOpts());
+      await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       expect(updates.length).toBeGreaterThanOrEqual(1);
       expect(updates[0].status).toBe('pending');
@@ -96,19 +102,19 @@ describe('AdversarialRunner', () => {
       const child3 = createFakeChild();
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any).mockReturnValueOnce(child3 as any);
 
-      await runner.run(baseOpts({ specName: 'spec-a', phase: 'requirements' }));
-      await runner.run(baseOpts({ specName: 'spec-b', phase: 'design' }));
+      await runner.run(baseOpts({ specName: 'spec-a', phase: 'requirements' }), WORKFLOW_ROOT);
+      await runner.run(baseOpts({ specName: 'spec-b', phase: 'design' }), WORKFLOW_ROOT);
 
-      await expect(runner.run(baseOpts({ specName: 'spec-c', phase: 'tasks' }))).rejects.toThrow('Maximum 2 concurrent');
+      await expect(runner.run(baseOpts({ specName: 'spec-c', phase: 'tasks' }), WORKFLOW_ROOT)).rejects.toThrow('Maximum 2 concurrent');
     });
 
     it('throws for duplicate spec+phase', async () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      await runner.run(baseOpts());
+      await runner.run(baseOpts(), WORKFLOW_ROOT);
 
-      await expect(runner.run(baseOpts())).rejects.toThrow('already running for my-spec/requirements');
+      await expect(runner.run(baseOpts(), WORKFLOW_ROOT)).rejects.toThrow('already running for my-spec/requirements');
     });
 
     it('allows same spec+phase for different projects', async () => {
@@ -116,8 +122,8 @@ describe('AdversarialRunner', () => {
       const child2 = createFakeChild();
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
 
-      const jobId1 = await runner.run(baseOpts({ projectId: 'proj-1' }));
-      const jobId2 = await runner.run(baseOpts({ projectId: 'proj-2' }));
+      const jobId1 = await runner.run(baseOpts({ projectId: 'proj-1' }), WORKFLOW_ROOT);
+      const jobId2 = await runner.run(baseOpts({ projectId: 'proj-2' }), WORKFLOW_ROOT);
 
       expect(jobId1).not.toBe(jobId2);
     });
@@ -133,8 +139,8 @@ describe('AdversarialRunner', () => {
       const child2 = createFakeChild();
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
 
-      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'a' }));
-      await runner.run(baseOpts({ projectId: 'proj-2', specName: 'b' }));
+      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'a' }), WORKFLOW_ROOT);
+      await runner.run(baseOpts({ projectId: 'proj-2', specName: 'b' }), WORKFLOW_ROOT);
 
       expect(runner.getJobsForProject('proj-1').length).toBe(1);
       expect(runner.getJobsForProject('proj-2').length).toBe(1);
@@ -146,7 +152,7 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValue(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         expect(mockedSpawn).toHaveBeenCalled();
@@ -171,7 +177,7 @@ describe('AdversarialRunner', () => {
       const updates: string[] = [];
       runner.on('job-update', (job: AdversarialJob) => updates.push(job.status));
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         expect(updates).toContain('running-review');
@@ -196,7 +202,7 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         expect(mockedSpawn).toHaveBeenCalled();
@@ -220,7 +226,7 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockRejectedValue(new Error('ENOENT'));
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         const job = runner.getJob(jobId);
@@ -241,7 +247,7 @@ describe('AdversarialRunner', () => {
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(new Error('ENOENT'));
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         expect(mockedSpawn).toHaveBeenCalled();
@@ -263,7 +269,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      await runner.run(baseOpts());
+      await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       expect(mockedSpawn).toHaveBeenCalledWith(
         'claude',
@@ -279,7 +285,7 @@ describe('AdversarialRunner', () => {
       await runner.run(baseOpts({
         cli: 'custom-cli',
         cliArgs: ['--custom-arg'],
-      }));
+      }), WORKFLOW_ROOT);
 
       expect(mockedSpawn).toHaveBeenCalledWith(
         'custom-cli',
@@ -292,7 +298,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      await runner.run(baseOpts({ model: 'sonnet' }));
+      await runner.run(baseOpts({ model: 'sonnet' }), WORKFLOW_ROOT);
 
       expect(mockedSpawn).toHaveBeenCalledWith(
         'claude',
@@ -307,7 +313,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      const jobId = await runner.run(baseOpts({ model: 'opus-4-7' }));
+      const jobId = await runner.run(baseOpts({ model: 'opus-4-7' }), WORKFLOW_ROOT);
 
       const job = runner.getJob(jobId);
       expect(job).toBeDefined();
@@ -318,7 +324,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       const job = runner.getJob(jobId);
       expect(job).toBeDefined();
@@ -330,8 +336,8 @@ describe('AdversarialRunner', () => {
       const child2 = createFakeChild();
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
 
-      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'a', model: 'sonnet' }));
-      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'b' }));
+      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'a', model: 'sonnet' }), WORKFLOW_ROOT);
+      await runner.run(baseOpts({ projectId: 'proj-1', specName: 'b' }), WORKFLOW_ROOT);
 
       const jobs = runner.getJobsForProject('proj-1');
       expect(jobs.length).toBe(2);
@@ -347,7 +353,7 @@ describe('AdversarialRunner', () => {
       const child = createFakeChild();
       mockedSpawn.mockReturnValue(child as any);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
       const result = runner.cancelJob(jobId);
 
       expect(result).toBe(true);
@@ -363,7 +369,7 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValueOnce(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalled());
       child.emit('close', 0);
@@ -383,7 +389,7 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValue(child as any);
       mockedAccess.mockResolvedValue(undefined);
 
-      const jobId = await runner.run(baseOpts());
+      const jobId = await runner.run(baseOpts(), WORKFLOW_ROOT);
 
       await vi.waitFor(() => {
         expect(mockedSpawn).toHaveBeenCalled();
@@ -403,6 +409,50 @@ describe('AdversarialRunner', () => {
     });
   });
 
+  describe('root separation: workspace vs workflow root (requirement 5.5)', () => {
+    it('spawns the agent with cwd = the workspace, not the workflow root', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+      mockedAccess.mockResolvedValue(undefined);
+
+      await runner.run(baseOpts(), WORKFLOW_ROOT);
+
+      await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalled());
+
+      const spawnOptions = mockedSpawn.mock.calls[0][2] as { cwd?: string };
+      expect(
+        spawnOptions.cwd,
+        'the adversarial agent must be spawned with cwd = the WORKSPACE (the worktree under review); the workflow root is here instead, which silently reviews the wrong checkout'
+      ).toBe(WORKSPACE_PATH);
+    });
+
+    it('passes the workflow root to the spawn helper as its own argument', async () => {
+      const child = createFakeChild();
+      mockedSpawn.mockReturnValue(child as any);
+      mockedAccess.mockResolvedValue(undefined);
+
+      // Requirement 5.5 keeps `RunOptions` single-rooted, so the workflow root
+      // reaches the spawn only as an argument — pin its position and value.
+      const runAgentSpy = vi.spyOn(runner as any, 'runAgent');
+
+      await runner.run(baseOpts(), WORKFLOW_ROOT);
+
+      await vi.waitFor(() => expect(runAgentSpy).toHaveBeenCalled());
+
+      const args = runAgentSpy.mock.calls[0] as unknown[];
+      expect(
+        args[1],
+        'runAgent argument 2 must be the WORKSPACE (spawn cwd); the workflow root is here instead, so the two roots are swapped at the call site'
+      ).toBe(WORKSPACE_PATH);
+      expect(
+        args[2],
+        'runAgent argument 3 must be the WORKFLOW ROOT (it becomes SPEC_WORKFLOW_SHARED_ROOT); the workspace is here instead, so the two roots are swapped at the call site'
+      ).toBe(WORKFLOW_ROOT);
+
+      runAgentSpy.mockRestore();
+    });
+  });
+
   describe('shutdown', () => {
     it('kills all running processes', async () => {
       const child1 = createFakeChild();
@@ -410,8 +460,8 @@ describe('AdversarialRunner', () => {
       mockedSpawn.mockReturnValueOnce(child1 as any).mockReturnValueOnce(child2 as any);
       mockedAccess.mockResolvedValue(undefined);
 
-      await runner.run(baseOpts({ specName: 'spec-a' }));
-      await runner.run(baseOpts({ specName: 'spec-b', phase: 'design' }));
+      await runner.run(baseOpts({ specName: 'spec-a' }), WORKFLOW_ROOT);
+      await runner.run(baseOpts({ specName: 'spec-b', phase: 'design' }), WORKFLOW_ROOT);
 
       // Wait for both children to be spawned before shutdown
       await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalledTimes(2));
