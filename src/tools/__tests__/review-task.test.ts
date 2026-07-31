@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { promises as fs, symlinkSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
+import { promises as fs, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
 import path, { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -39,15 +39,24 @@ vi.mock('../../core/task-diff.js', async (importOriginal) => {
 
 import {
   reviewTaskHandler,
-  validateAllFiles,
-  safeRealpath,
-  _resetValidateWarnings,
+  _resetReviewWarnings,
   buildReviewMethodology,
   type DiffMethodologyState,
   type TypecheckMethodologyState,
 } from '../review-task.js';
+import { _resetValidateWarnings } from '../../core/file-resolution.js';
 import { ToolContext } from '../../types.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
+
+/**
+ * `safeRealpath` and `resolveLoggedFiles` moved to `src/core/file-resolution.ts`
+ * with their own warn-once ledger, so resetting one no longer resets the other.
+ * Their unit tests live in `src/core/__tests__/file-resolution.test.ts`.
+ */
+function resetAllWarnings(): void {
+  _resetReviewWarnings();
+  _resetValidateWarnings();
+}
 
 describe('review-task handler', () => {
   let tempDir: string;
@@ -58,7 +67,7 @@ describe('review-task handler', () => {
     overrides.typecheck = null;
     overrides.hygiene = null;
     overrides.diff = null;
-    _resetValidateWarnings();
+    resetAllWarnings();
     tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-test-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specPath, { recursive: true });
@@ -81,7 +90,7 @@ describe('review-task handler', () => {
   });
 
   async function createImplLog() {
-    // Materialize the referenced files so validateAllFiles keeps them
+    // Materialize the referenced files so resolveLoggedFiles keeps them
     // (it drops paths whose realpath ENOENTs).
     await fs.mkdir(join(tempDir, 'src'), { recursive: true });
     await fs.writeFile(join(tempDir, 'src/handler.ts'), 'export const x = 1;\n');
@@ -369,165 +378,6 @@ describe('review-task handler', () => {
   });
 });
 
-describe('safeRealpath', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-  let tempDir: string;
-
-  beforeEach(async () => {
-    _resetValidateWarnings();
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'safe-realpath-test-'));
-  });
-
-  afterEach(async () => {
-    warnSpy.mockRestore();
-    await fs.rm(tempDir, { recursive: true, force: true });
-  });
-
-  it('returns the realpath for an existing file', () => {
-    const filePath = join(tempDir, 'a.txt');
-    writeFileSync(filePath, '');
-    const result = safeRealpath(filePath);
-    expect(result).toBeDefined();
-    expect(typeof result).toBe('string');
-  });
-
-  it('returns undefined silently on ENOENT (deleted/missing file)', () => {
-    const missing = join(tempDir, 'does-not-exist.txt');
-    const result = safeRealpath(missing);
-    expect(result).toBeUndefined();
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('warn-once on non-ENOENT error (ELOOP from symlink cycle)', () => {
-    const a = join(tempDir, 'a-link');
-    const b = join(tempDir, 'b-link');
-    symlinkSync(b, a);
-    symlinkSync(a, b);
-
-    const r1 = safeRealpath(a);
-    expect(r1).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/safeRealpath: ELOOP/);
-
-    // Same path + same code: deduped
-    const r2 = safeRealpath(a);
-    expect(r2).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('validateAllFiles', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-  let tempDir: string;
-
-  beforeEach(async () => {
-    _resetValidateWarnings();
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'validate-all-files-test-'));
-  });
-
-  afterEach(async () => {
-    warnSpy.mockRestore();
-    await fs.rm(tempDir, { recursive: true, force: true });
-  });
-
-  function makeFile(rel: string): string {
-    const abs = join(tempDir, rel);
-    mkdirSync(path.dirname(abs), { recursive: true });
-    writeFileSync(abs, '');
-    return abs;
-  }
-
-  it('returns [] and warns on non-array input', () => {
-    expect(validateAllFiles(null as unknown, tempDir)).toEqual([]);
-    expect(validateAllFiles('not-an-array' as unknown, tempDir)).toEqual([]);
-    expect(validateAllFiles({ length: 1, 0: 'x' } as unknown, tempDir)).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-    expect(warnSpy.mock.calls[0][0]).toMatch(/allFiles is not an array/);
-  });
-
-  it('drops NUL-byte paths with warn', () => {
-    makeFile('ok.ts');
-    const result = validateAllFiles(['ok.ts', 'bad\0.ts'], tempDir);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(path.resolve(tempDir, 'ok.ts'));
-    const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-    // NUL-byte handling differs across Node versions: path.resolve may throw
-    // (ERR_INVALID_ARG_VALUE), or realpathSync rejects it. Either way the
-    // entry must be dropped and some warn must fire.
-    expect(warnings).toMatch(/path\.resolve threw|safeRealpath/);
-  });
-
-  it('drops non-string elements (number, Symbol, BigInt, null, undefined) with warn', () => {
-    makeFile('ok.ts');
-    const result = validateAllFiles(
-      [42, Symbol('s'), BigInt(0), null, undefined, 'ok.ts'],
-      tempDir
-    );
-    expect(result).toEqual([path.resolve(tempDir, 'ok.ts')]);
-    const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-    expect(warnings).toMatch(/non-string entry at index 0/);
-  });
-
-  it('keeps relative paths (resolved against projectPath)', () => {
-    makeFile('src/handler.ts');
-    const result = validateAllFiles(['src/handler.ts'], tempDir);
-    expect(result).toEqual([path.resolve(tempDir, 'src/handler.ts')]);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('drops absolute paths resolving outside projectPath with warn', async () => {
-    const otherDir = await fs.mkdtemp(join(tmpdir(), 'validate-other-'));
-    try {
-      const outside = join(otherDir, 'outside.txt');
-      writeFileSync(outside, '');
-      makeFile('inside.ts');
-      const result = validateAllFiles([outside, 'inside.ts'], tempDir);
-      expect(result).toEqual([path.resolve(tempDir, 'inside.ts')]);
-      const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
-    } finally {
-      await fs.rm(otherDir, { recursive: true, force: true });
-    }
-  });
-
-  it('drops symlinks whose target is outside projectPath with warn', async () => {
-    const otherDir = await fs.mkdtemp(join(tmpdir(), 'validate-other-'));
-    try {
-      const outsideTarget = join(otherDir, 'outside.ts');
-      writeFileSync(outsideTarget, '');
-      const linkPath = join(tempDir, 'link.ts');
-      symlinkSync(outsideTarget, linkPath);
-
-      const result = validateAllFiles(['link.ts'], tempDir);
-      expect(result).toEqual([]);
-      const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
-    } finally {
-      await fs.rm(otherDir, { recursive: true, force: true });
-    }
-  });
-
-  it('drops deleted files silently (safeRealpath ENOENT, no warn)', () => {
-    makeFile('exists.ts');
-    const result = validateAllFiles(['exists.ts', 'gone.ts'], tempDir);
-    expect(result).toEqual([path.resolve(tempDir, 'exists.ts')]);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('dedupes duplicates by realpath and preserves first-seen original', () => {
-    makeFile('src/a.ts');
-    const result = validateAllFiles(
-      ['src/a.ts', './src/a.ts', path.resolve(tempDir, 'src/a.ts')],
-      tempDir
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(path.resolve(tempDir, 'src/a.ts'));
-  });
-
-});
-
 // ---------------------------------------------------------------------------
 // handlePrepare integration tests (task 11; Track-A composite-pin block
 // removed in 16.1 — Track-B fixtures + composite/drift/sentinel pins land in
@@ -561,7 +411,7 @@ describe('handlePrepare integration', () => {
     overrides.typecheck = null;
     overrides.hygiene = null;
     overrides.diff = null;
-    _resetValidateWarnings();
+    resetAllWarnings();
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-track-a-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
@@ -765,13 +615,14 @@ describe('handlePrepare integration', () => {
     expect(hyWarnings.some((m: string) => m.includes('hy-other'))).toBe(true);
   });
 
-  it('integration validateAllFiles smoke test: outside-projectPath dropped, valid kept, warn fires', async () => {
+  it('integration resolveLoggedFiles smoke test: out-of-root dropped, valid kept, warn fires', async () => {
     const otherDir = await fs.mkdtemp(join(tmpdir(), 'review-task-outside-'));
     try {
       await materializeFile('src/valid.ts');
       const outside = join(otherDir, 'outside.ts');
       writeFileSync(outside, '');
-      // Seed log with one valid relative path and one absolute outside-projectPath.
+      // Seed log with one valid relative path and one absolute path outside
+      // both roots.
       await seedLog(['src/valid.ts', outside]);
       overrides.typecheck = async () => [
         {
@@ -784,9 +635,17 @@ describe('handlePrepare integration', () => {
 
       const result = await runPrepare();
       expect(result.success).toBe(true);
+      // Unchanged from pre-`resolveLoggedFiles` behaviour: the resolver decides
+      // containment on the realpath but emits the `path.resolve` spelling, so
+      // R3 AC 11 holds here even where `tmpdir()` is a symlink.
       expect(result.data.filesToReview).toEqual([path.resolve(tempDir, 'src/valid.ts')]);
       const warnings = warnSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
+      // The replacement text: "outside projectPath" named a concept that does
+      // not survive two roots.
+      expect(warnings).toMatch(
+        /resolveLoggedFiles: path outside the workspace and the shared \.spec-workflow directory/
+      );
+      expect(warnings).not.toMatch(/outside projectPath/);
     } finally {
       await fs.rm(otherDir, { recursive: true, force: true });
     }

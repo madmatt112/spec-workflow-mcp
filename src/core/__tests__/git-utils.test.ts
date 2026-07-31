@@ -12,6 +12,7 @@ import {
   sameRepository,
   normalizeIdentityPath,
   resolveWorkspaceRoots,
+  scrubbedGitEnv,
   SPEC_WORKFLOW_SHARED_ROOT_ENV
 } from '../git-utils.js';
 
@@ -339,7 +340,11 @@ describe('git environment scrubbing (requirement 1.9)', () => {
   // unverified escape hatch: putting a git-invoking export here fails outright
   // rather than quietly exempting it from the scrubbing assertions.
   const nonGitExports: Array<[name: string, invoke: () => unknown]> = [
-    ['normalizeIdentityPath', () => normalizeIdentityPath('/test/path')]
+    ['normalizeIdentityPath', () => normalizeIdentityPath('/test/path')],
+    // Builds the scrubbed environment for callers that run git themselves —
+    // `runGit` in task-diff.ts and both dashboard agent spawns (requirement
+    // 2.12). It runs no command of its own.
+    ['scrubbedGitEnv', () => scrubbedGitEnv()]
   ];
 
   for (const [name, invoke] of gitInvokingFunctions) {

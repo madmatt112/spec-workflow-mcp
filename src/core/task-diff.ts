@@ -1,5 +1,6 @@
 import { execFile, ExecFileOptions } from 'node:child_process';
 import { partitionPaths } from './path-denylist.js';
+import { scrubbedGitEnv } from './git-utils.js';
 
 export type TaskDiffResult = {
   diff: string;
@@ -18,11 +19,22 @@ const BINARY_MARKER_RE = /^Binary files .* differ$/m;
 
 type GitRun = { stdout: string; ok: boolean };
 
+/**
+ * Runs git in `projectPath` with the four `GIT_*` location variables scrubbed
+ * (requirement 2.12).
+ *
+ * This runs in the **parent** process, so neither runner's spawn-site scrub
+ * reaches it. An inherited `GIT_DIR` pointing at another repository makes
+ * `git diff --numstat -M HEAD -- <paths>` return empty stdout at exit 0, so
+ * this reports `ok: true`, {@link computeTaskDiff} takes the success path with
+ * no rejection, and the reviewing agent is told the changes were already
+ * committed.
+ */
 function runGit(projectPath: string, args: string[]): Promise<GitRun> {
   return new Promise((resolve) => {
     const opts: ExecFileOptions = {
       cwd: projectPath,
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+      env: { ...scrubbedGitEnv(), GIT_OPTIONAL_LOCKS: '0' },
       maxBuffer: MAX_BUFFER,
     };
     execFile('git', args, opts, (err, stdout) => {

@@ -7,6 +7,11 @@ import { randomUUID } from 'crypto';
 import { ReviewFinding } from '../types.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { PathUtils } from '../core/path-utils.js';
+import {
+  scrubbedGitEnv,
+  SPEC_WORKFLOW_SHARED_ROOT_ENV,
+  SPEC_WORKFLOW_WORKSPACE_ENV
+} from '../core/git-utils.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
 import { ToolContext } from '../types.js';
 
@@ -382,7 +387,16 @@ export class TaskReviewRunner extends EventEmitter {
       const child = spawn(cli, args, {
         cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+        // Requirement 2.12/2.13: the four `GIT_*` location variables are
+        // removed so an inherited one cannot point the agent's git at another
+        // repository, and both roots are stated explicitly rather than
+        // inherited. Everything else — including the two path-translation
+        // prefixes — is preserved.
+        env: {
+          ...scrubbedGitEnv(),
+          [SPEC_WORKFLOW_WORKSPACE_ENV]: workspacePath,
+          [SPEC_WORKFLOW_SHARED_ROOT_ENV]: opts.workflowRoot,
+        },
       });
 
       this.processes.set(jobId, child);

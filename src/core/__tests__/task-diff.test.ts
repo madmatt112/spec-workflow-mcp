@@ -369,3 +369,130 @@ describe('computeTaskDiff — env propagation', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Inherited GIT_* location variables (requirement 2.12)
+//
+// `runGit` executes in the PARENT process, so neither runner's spawn-site
+// scrub reaches it. These use a real, unrelated repository rather than a mock:
+// the failure mode is that git succeeds against the wrong repository, which a
+// mocked git cannot reproduce.
+// ---------------------------------------------------------------------------
+
+describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () => {
+  const SCRUBBED = ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'] as const;
+  const PREFIXES = ['SPEC_WORKFLOW_HOST_PATH_PREFIX', 'SPEC_WORKFLOW_CONTAINER_PATH_PREFIX'] as const;
+
+  let unrelatedRepo: string; // a real repository with no relationship to tempDir
+  let target: string;
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(async () => {
+    // Both repositories are built BEFORE the hostile variables are exported:
+    // `gitCmd` inherits `process.env`, so an exported GIT_DIR would corrupt the
+    // setup itself rather than the code under test.
+    unrelatedRepo = await fs.mkdtemp(join(tmpdir(), 'task-diff-unrelated-'));
+    gitInit(unrelatedRepo);
+    await fs.writeFile(join(unrelatedRepo, 'unrelated.ts'), 'export const other = 1;\n');
+    gitCommitAll(unrelatedRepo, 'unrelated init');
+
+    gitInit(tempDir);
+    target = join(tempDir, 'a.ts');
+    await fs.writeFile(target, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(target, 'export const x = 2;\nexport const y = 3;\n');
+
+    for (const name of [...SCRUBBED, ...PREFIXES]) {
+      savedEnv[name] = process.env[name];
+    }
+    process.env.GIT_DIR = join(unrelatedRepo, '.git');
+  });
+
+  afterEach(async () => {
+    for (const [name, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    await fs.rm(unrelatedRepo, { recursive: true, force: true });
+  });
+
+  // Without this control the assertion below could pass merely because git
+  // ignored GIT_DIR in this environment. It pins the exact failure the scrub
+  // prevents: exit 0 with empty output, which `runGit` reports as `ok: true`
+  // and `computeTaskDiff` turns into "no changes — already committed".
+  it('CONTROL: an unscrubbed GIT_DIR empties the diff at exit 0, with no error', () => {
+    const numstat = execFileSync('git', ['diff', '--numstat', '-M', 'HEAD', '--', target], {
+      cwd: tempDir,
+      env: { ...process.env }, // inherited wholesale, as `runGit` once did
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(
+      numstat,
+      'the premise of this suite is that an inherited GIT_DIR silently produces an empty diff; it did not, so the tests below prove nothing'
+    ).toBe('');
+  });
+
+  it('produces the correct diff with GIT_DIR exported to an unrelated repository', async () => {
+    const result = await computeTaskDiff(tempDir, [target]);
+
+    expect(
+      result.diff,
+      'the diff is empty with GIT_DIR pointing at another repository: runGit inherited it, git read the wrong repository, and the reviewing agent is being told the changes were already committed'
+    ).toContain('diff --git');
+    expect(result.diff).toContain('a.ts');
+    expect(result.diff).not.toContain('unrelated.ts');
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 1 });
+    expect(result.rejection).toBeUndefined();
+  });
+
+  it('produces the correct diff with all four GIT_* variables exported', async () => {
+    process.env.GIT_COMMON_DIR = join(unrelatedRepo, '.git');
+    process.env.GIT_WORK_TREE = unrelatedRepo;
+    process.env.GIT_INDEX_FILE = join(unrelatedRepo, '.git', 'index');
+
+    const result = await computeTaskDiff(tempDir, [target]);
+
+    expect(result.diff).toContain('diff --git');
+    expect(result.diff).toContain('a.ts');
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 1 });
+  });
+
+  it('scrubs the four variables from every git invocation while keeping the path-translation prefixes', async () => {
+    process.env.GIT_COMMON_DIR = join(unrelatedRepo, '.git');
+    process.env.GIT_WORK_TREE = unrelatedRepo;
+    process.env.GIT_INDEX_FILE = join(unrelatedRepo, '.git', 'index');
+    process.env.SPEC_WORKFLOW_HOST_PATH_PREFIX = '/Users/dev';
+    process.env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX = '/projects';
+
+    const capturedEnvs: NodeJS.ProcessEnv[] = [];
+    mockedExecFile.mockReset();
+    mockedExecFile.mockImplementation(((
+      file: string,
+      args: readonly string[],
+      opts: { env?: NodeJS.ProcessEnv },
+      cb: unknown,
+    ) => {
+      capturedEnvs.push(opts.env ?? {});
+      return (actualExecFile as unknown as (
+        f: string,
+        a: readonly string[],
+        o: unknown,
+        c: unknown,
+      ) => childProcess.ChildProcess)(file, args, opts, cb);
+    }) as unknown as typeof childProcess.execFile);
+
+    await computeTaskDiff(tempDir, [target]);
+
+    expect(capturedEnvs.length).toBe(2);
+    for (const env of capturedEnvs) {
+      for (const name of SCRUBBED) {
+        expect(env[name], `runGit leaked ${name} to git`).toBeUndefined();
+      }
+      // Dropping these breaks Docker path translation (requirement 2.13).
+      expect(env.SPEC_WORKFLOW_HOST_PATH_PREFIX).toBe('/Users/dev');
+      expect(env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX).toBe('/projects');
+      expect(env.PATH).toBe(process.env.PATH);
+    }
+  });
+});

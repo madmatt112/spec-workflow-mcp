@@ -2,6 +2,7 @@ import { execFile, ExecFileOptions } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { partitionPaths } from './path-denylist.js';
+import { scrubbedGitEnv } from './git-utils.js';
 
 export type TypecheckDiagnostic = {
   file: string;
@@ -150,7 +151,10 @@ export async function runProjectTypecheck(
     '--pretty', 'false',
   ];
 
-  const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
+  // `tsc` does not read the git location variables itself, but it can load
+  // config that shells out; the same shape as `runGit` is scrubbed the same way
+  // (requirement 2.12).
+  const env = { ...scrubbedGitEnv(), FORCE_COLOR: '0', NO_COLOR: '1' };
   const run = await spawnTsc(tscPath, args, env, projectPath);
 
   const rebuilt = TSBUILDINFO_REBUILD_RE.test(run.stderr);

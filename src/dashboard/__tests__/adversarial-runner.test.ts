@@ -451,6 +451,59 @@ describe('AdversarialRunner', () => {
 
       runAgentSpy.mockRestore();
     });
+
+    // Requirement 2.12/2.13: an inherited GIT_DIR makes the review agent's git
+    // read another repository, and inherited roots make it disagree with the
+    // job it was spawned for.
+    it('scrubs the four GIT_* variables and states both roots on the agent env (2.12, 2.13)', async () => {
+      const SCRUBBED = ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
+      const saved: Record<string, string | undefined> = {};
+      const hostile: Record<string, string> = {
+        GIT_DIR: '/elsewhere/.git',
+        GIT_COMMON_DIR: '/elsewhere/.git',
+        GIT_WORK_TREE: '/elsewhere',
+        GIT_INDEX_FILE: '/elsewhere/.git/index',
+        SPEC_WORKFLOW_WORKSPACE: '/stale/workspace',
+        SPEC_WORKFLOW_SHARED_ROOT: '/stale/root',
+        SPEC_WORKFLOW_HOST_PATH_PREFIX: '/Users/dev',
+        SPEC_WORKFLOW_CONTAINER_PATH_PREFIX: '/projects',
+      };
+      for (const [name, value] of Object.entries(hostile)) {
+        saved[name] = process.env[name];
+        process.env[name] = value;
+      }
+
+      try {
+        const child = createFakeChild();
+        mockedSpawn.mockReturnValue(child as any);
+        mockedAccess.mockResolvedValue(undefined);
+
+        await runner.run(baseOpts(), WORKFLOW_ROOT);
+        await vi.waitFor(() => expect(mockedSpawn).toHaveBeenCalled());
+
+        const env = (mockedSpawn.mock.calls[0][2] as { env?: NodeJS.ProcessEnv }).env!;
+        for (const name of SCRUBBED) {
+          expect(env[name], `the adversarial agent inherited ${name}, so its git can read another repository`).toBeUndefined();
+        }
+        expect(
+          env.SPEC_WORKFLOW_WORKSPACE,
+          'SPEC_WORKFLOW_WORKSPACE must be set to this job\'s workspace, not inherited from the dashboard process'
+        ).toBe(WORKSPACE_PATH);
+        expect(
+          env.SPEC_WORKFLOW_SHARED_ROOT,
+          'SPEC_WORKFLOW_SHARED_ROOT must be set to the workflow root argument, not inherited from the dashboard process'
+        ).toBe(WORKFLOW_ROOT);
+        // Dropping these breaks Docker path translation (requirement 2.13).
+        expect(env.SPEC_WORKFLOW_HOST_PATH_PREFIX).toBe('/Users/dev');
+        expect(env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX).toBe('/projects');
+        expect(env.PATH).toBe(process.env.PATH);
+      } finally {
+        for (const [name, value] of Object.entries(saved)) {
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+        }
+      }
+    });
   });
 
   describe('shutdown', () => {

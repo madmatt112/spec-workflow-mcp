@@ -24,7 +24,7 @@ const GIT_EXEC_OPTIONS: ExecSyncOptionsWithStringEncoding = {
  * pattern, where the exported variables *are* the configuration: resolution
  * sees the directory's own repository instead. That is the intended answer here.
  */
-const SCRUBBED_GIT_ENV_VARS = [
+export const SCRUBBED_GIT_ENV_VARS = [
   'GIT_DIR',
   'GIT_COMMON_DIR',
   'GIT_WORK_TREE',
@@ -32,18 +32,29 @@ const SCRUBBED_GIT_ENV_VARS = [
 ] as const;
 
 /**
- * Builds the exec options for a git invocation in `cwd`.
+ * A copy of the environment with the four {@link SCRUBBED_GIT_ENV_VARS}
+ * removed, for any process that runs git or that hands its environment to a
+ * child which will (requirement 2.12).
  *
- * The environment is rebuilt from the live `process.env` on every call rather
- * than snapshotted at module load, so a variable exported after this module was
- * imported is still scrubbed.
+ * The copy is taken from the live `process.env` on every call rather than
+ * snapshotted at module load, so a variable exported after this module was
+ * imported is still scrubbed. Everything else — including
+ * `SPEC_WORKFLOW_HOST_PATH_PREFIX` and `SPEC_WORKFLOW_CONTAINER_PATH_PREFIX`,
+ * which Docker path translation needs (requirement 2.13) — is preserved.
  */
-function gitExecOptions(cwd: string): ExecSyncOptionsWithStringEncoding {
+export function scrubbedGitEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   for (const name of SCRUBBED_GIT_ENV_VARS) {
     delete env[name];
   }
-  return { ...GIT_EXEC_OPTIONS, cwd, env };
+  return env;
+}
+
+/**
+ * Builds the exec options for a git invocation in `cwd`.
+ */
+function gitExecOptions(cwd: string): ExecSyncOptionsWithStringEncoding {
+  return { ...GIT_EXEC_OPTIONS, cwd, env: scrubbedGitEnv() };
 }
 
 /**

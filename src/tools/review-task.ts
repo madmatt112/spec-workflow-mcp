@@ -1,8 +1,8 @@
 import path from 'path';
-import * as nodeFs from 'node:fs';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse, ReviewFinding } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
+import { resolveLoggedFiles } from '../core/file-resolution.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
@@ -11,82 +11,17 @@ import { runProjectTypecheck, TypecheckResult } from '../core/typecheck.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
 import { computeTaskDiff, TaskDiffResult } from '../core/task-diff.js';
 
-const validateWarnedKeys = new Set<string>();
+const reviewWarnedKeys = new Set<string>();
 
-export function _resetValidateWarnings(): void {
-  validateWarnedKeys.clear();
+/** Test-only: clears this module's warn-once ledger. */
+export function _resetReviewWarnings(): void {
+  reviewWarnedKeys.clear();
 }
 
 function warnOnce(key: string, message: string): void {
-  if (validateWarnedKeys.has(key)) return;
-  validateWarnedKeys.add(key);
+  if (reviewWarnedKeys.has(key)) return;
+  reviewWarnedKeys.add(key);
   console.warn(message);
-}
-
-export function safeRealpath(p: string): string | undefined {
-  try {
-    return nodeFs.realpathSync(p);
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code ?? 'UNKNOWN';
-    if (code !== 'ENOENT') {
-      warnOnce(
-        `safeRealpath:${code}:${p}`,
-        `[spec-workflow] safeRealpath: ${code} on ${p}`
-      );
-    }
-    return undefined;
-  }
-}
-
-export function validateAllFiles(input: unknown, projectPath: string): string[] {
-  if (!Array.isArray(input)) {
-    warnOnce(
-      'validateAllFiles:non-array',
-      `[spec-workflow] handlePrepare:validateAllFiles: allFiles is not an array (got ${typeof input})`
-    );
-    return [];
-  }
-  const realProjectPath = safeRealpath(projectPath) ?? projectPath;
-  const seen = new Set<string>();
-  const kept: string[] = [];
-  for (let i = 0; i < input.length; i++) {
-    const entry = input[i];
-    try {
-      if (typeof entry !== 'string') {
-        const typeLabel = entry === null ? 'null' : typeof entry;
-        warnOnce(
-          `validateAllFiles:non-string:${typeLabel}`,
-          `[spec-workflow] handlePrepare:validateAllFiles: non-string entry at index ${i} (type: ${typeLabel})`
-        );
-        continue;
-      }
-      const resolved = path.resolve(projectPath, entry);
-      const realResolved = safeRealpath(resolved);
-      if (realResolved === undefined) {
-        continue;
-      }
-      if (
-        !realResolved.startsWith(realProjectPath + path.sep) &&
-        realResolved !== realProjectPath
-      ) {
-        warnOnce(
-          `validateAllFiles:outside:${realResolved}`,
-          `[spec-workflow] handlePrepare:validateAllFiles: path outside projectPath: ${realResolved}`
-        );
-        continue;
-      }
-      if (seen.has(realResolved)) continue;
-      seen.add(realResolved);
-      kept.push(resolved);
-    } catch (err) {
-      const errMsg = (err as Error).message;
-      warnOnce(
-        `validateAllFiles:throw:${errMsg}`,
-        `[spec-workflow] handlePrepare:validateAllFiles: path.resolve threw at index ${i}: ${errMsg}`
-      );
-    }
-  }
-  return kept;
 }
 
 type HygieneResult = { signals: HygieneSignal[]; rejection?: { message: string } };
@@ -376,8 +311,16 @@ async function handlePrepare(
       artifacts: latestLog.artifacts,
     };
 
-    // 6. Validate inputs and load settings (synchronous prelude)
-    const validatedAllFiles = validateAllFiles(allFiles, projectPath);
+    // 6. Resolve logged paths and load settings (synchronous prelude).
+    // The two roots are passed equal here: `allFiles` is still pre-resolved
+    // against the workflow root above, so handing the resolver a distinct
+    // workspace would anchor every relative entry against the wrong tree. Task
+    // 10 deletes that pre-resolution and splits the roots in one change.
+    const fileResolution = resolveLoggedFiles(allFiles, {
+      workspacePath: projectPath,
+      workflowRoot: projectPath,
+    });
+    const validatedAllFiles = fileResolution.files.map(f => f.path);
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
 

@@ -2,6 +2,11 @@ import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
 import { randomUUID } from 'crypto';
+import {
+  scrubbedGitEnv,
+  SPEC_WORKFLOW_SHARED_ROOT_ENV,
+  SPEC_WORKFLOW_WORKSPACE_ENV
+} from '../core/git-utils.js';
 
 export interface AdversarialJob {
   id: string;
@@ -62,9 +67,8 @@ export class AdversarialRunner extends EventEmitter {
 
   /**
    * @param workflowRoot Shared workflow root for this job. Not a `RunOptions`
-   * field (requirement 5.5) — it is threaded through to the spawn helper so
-   * that task 8 can set `SPEC_WORKFLOW_SHARED_ROOT` from it (requirement
-   * 2.13). Nothing reads it yet.
+   * field (requirement 5.5) — it is threaded through to the spawn helper,
+   * which sets `SPEC_WORKFLOW_SHARED_ROOT` from it (requirement 2.13).
    */
   async run(opts: RunOptions, workflowRoot: string): Promise<string> {
     // Check concurrency limit
@@ -146,9 +150,8 @@ export class AdversarialRunner extends EventEmitter {
   /**
    * @param workspacePath spawn `cwd` — the worktree the agent runs in.
    * @param workflowRoot the job's shared workflow root. Carried here rather
-   * than on `RunOptions` (requirement 5.5) so that task 8 has the value it
-   * needs to set `SPEC_WORKFLOW_SHARED_ROOT` on the spawn env (requirement
-   * 2.13). Not read yet — this parameter is currently unused.
+   * than on `RunOptions` (requirement 5.5); it becomes
+   * `SPEC_WORKFLOW_SHARED_ROOT` on the spawn env (requirement 2.13).
    */
   private runAgent(jobId: string, workspacePath: string, workflowRoot: string, prompt: string, opts: RunOptions): Promise<void> {
     const cli = opts.cli || 'claude';
@@ -164,9 +167,16 @@ export class AdversarialRunner extends EventEmitter {
       const child = spawn(cli, args, {
         cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
-        // Task 8 will set SPEC_WORKFLOW_SHARED_ROOT here from `workflowRoot`
-        // (requirement 2.13); the env is still inherited wholesale today.
-        env: { ...process.env },
+        // Requirement 2.12/2.13: the four `GIT_*` location variables are
+        // removed so an inherited one cannot point the agent's git at another
+        // repository, and both roots are stated explicitly rather than
+        // inherited. Everything else — including the two path-translation
+        // prefixes — is preserved.
+        env: {
+          ...scrubbedGitEnv(),
+          [SPEC_WORKFLOW_WORKSPACE_ENV]: workspacePath,
+          [SPEC_WORKFLOW_SHARED_ROOT_ENV]: workflowRoot,
+        },
       });
 
       this.processes.set(jobId, child);
