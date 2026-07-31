@@ -13,7 +13,7 @@ describe('specIndexHandler', () => {
     tempDir = await fs.mkdtemp(join(tmpdir(), 'spec-index-tool-test-'));
     await fs.mkdir(join(tempDir, '.spec-workflow', 'specs', 'alpha'), { recursive: true });
     await fs.writeFile(join(tempDir, '.spec-workflow', 'specs', 'alpha', 'requirements.md'), '# R\n');
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
   });
 
   afterEach(async () => {
@@ -76,7 +76,11 @@ describe('specIndexHandler', () => {
   });
 
   it('fails when no project path is available', async () => {
-    const result = await specIndexHandler({ action: 'generate' }, {} as ToolContext);
+    // Real values, not `{} as ToolContext` (requirement 3.4): the assertion
+    // compiles and passes `undefined`, so it is invisible to the compiler and
+    // reintroduces the silent default requirement 3.1 forbids. Both roots empty
+    // still exercises the falsy guard this test is about.
+    const result = await specIndexHandler({ action: 'generate' }, { projectPath: '', workspacePath: '' });
     expect(result.success).toBe(false);
     expect(result.message).toContain('Project path is required');
   });

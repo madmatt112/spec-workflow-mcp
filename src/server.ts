@@ -14,6 +14,7 @@ import { validateProjectPath } from './core/path-utils.js';
 import { WorkspaceInitializer } from './core/workspace-initializer.js';
 import { ProjectRegistry } from './core/project-registry.js';
 import { DashboardSessionManager } from './core/dashboard-session.js';
+import { ToolContext } from './types.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -197,9 +198,12 @@ export class SpecWorkflowMCPServer {
         // Dashboard not running, continue without it
       }
 
-      // Create context for tools
-      const context = {
+      // Create context for tools. The annotation is load-bearing: without it
+      // `setupHandlers(context: any)` launders this literal and the compiler
+      // never reports it as a construction site (requirement 3.2).
+      const context: ToolContext = {
         projectPath: this.projectPath,
+        workspacePath: this.workspacePath,
         dashboardUrl: dashboardUrl,
         lang: this.lang
       };
@@ -240,7 +244,7 @@ export class SpecWorkflowMCPServer {
     }
   }
 
-  private setupHandlers(context: any) {
+  private setupHandlers(context: ToolContext) {
     // Tool handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: registerTools()

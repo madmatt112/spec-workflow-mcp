@@ -228,8 +228,9 @@ describe('Adversarial dashboard endpoints', () => {
     });
 
     it('succeeds for steering category approval', async () => {
-      // Create steering doc at workspace root (filePath is project-relative)
-      await fs.writeFile(join(workspacePath, 'product.md'), '# Product\nSteering content.', 'utf-8');
+      // Steering filePath is joined onto the handler's projectPath, which
+      // requirement 5.7 makes the workflow root.
+      await fs.writeFile(join(workflowRootPath, 'product.md'), '# Product\nSteering content.', 'utf-8');
 
       const approvalStorage = new ApprovalStorage(workflowRootPath, {
         originalPath: workflowRootPath,
@@ -251,8 +252,11 @@ describe('Adversarial dashboard endpoints', () => {
     });
 
     it('succeeds and returns jobId for valid spec approval', async () => {
-      // Create spec file under workspacePath (originalProjectPath) where adversarialReviewHandler looks
-      const specDir = join(workspacePath, '.spec-workflow', 'specs', 'test-feat');
+      // Requirement 5.7: the route hands the handler the workflow root, so the
+      // spec lives under `.spec-workflow` there — the same root the
+      // ApprovalStorage below uses. The workspace location pinned the pre-fix
+      // behaviour, in which a worktree review could not find its target.
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', 'test-feat');
       await fs.mkdir(specDir, { recursive: true });
       await fs.writeFile(join(specDir, 'requirements.md'), '# Requirements\nContent here.', 'utf-8');
 
@@ -277,7 +281,7 @@ describe('Adversarial dashboard endpoints', () => {
     });
 
     it('updates approval to needs-revision with annotations', async () => {
-      const specDir = join(workspacePath, '.spec-workflow', 'specs', 'test-feat2');
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', 'test-feat2');
       await fs.mkdir(specDir, { recursive: true });
       await fs.writeFile(join(specDir, 'design.md'), '# Design\nContent.', 'utf-8');
 
@@ -335,7 +339,7 @@ describe('Adversarial dashboard endpoints', () => {
 
     it('succeeds for valid adversarial approval', async () => {
       // Create spec + initial adversarial review
-      const specDir = join(workspacePath, '.spec-workflow', 'specs', 'retry-feat');
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', 'retry-feat');
       await fs.mkdir(specDir, { recursive: true });
       await fs.writeFile(join(specDir, 'requirements.md'), '# Requirements\nContent.', 'utf-8');
 

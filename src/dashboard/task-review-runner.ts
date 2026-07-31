@@ -97,7 +97,15 @@ export class TaskReviewRunner extends EventEmitter {
 
     try {
       // Step 1: Call prepare to get review context and methodology
-      const context: ToolContext = { projectPath: opts.projectPath };
+      // `RunOptions` still carries one path (both callers pass the translated
+      // workflow root), so both fields take it here — equal roots, which
+      // requirement 3.11 pins to pre-change behaviour. Requirement 5.1/5.3
+      // splits `RunOptions` into `workflowRoot` + `workspacePath`; when it
+      // does, `workspacePath` below becomes `opts.workspacePath`.
+      const context: ToolContext = {
+        projectPath: opts.projectPath,
+        workspacePath: opts.projectPath
+      };
       const prepareResponse = await reviewTaskHandler(
         { action: 'prepare', specName: opts.specName, taskId: opts.taskId },
         context

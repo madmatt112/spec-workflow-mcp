@@ -328,7 +328,11 @@ describe('Track-C: per-runner model + per-job storage retry consistency', () => 
 
   describe('adversarial handlers', () => {
     async function setupApproval(specName: string, phase: string): Promise<{ approvalId: string; approvalStorage: ApprovalStorage }> {
-      const specDir = join(workspacePath, '.spec-workflow', 'specs', specName);
+      // Requirement 5.7: the route now hands `adversarialReviewHandler` the
+      // workflow root, so the spec lives under `.spec-workflow` on the workflow
+      // root — the same root the ApprovalStorage below already uses. Placing it
+      // under the workspace pinned the pre-fix behaviour.
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', specName);
       await fs.mkdir(specDir, { recursive: true });
       await fs.writeFile(join(specDir, `${phase}.md`), `# ${phase}\nbody`, 'utf-8');
       const approvalStorage = new ApprovalStorage(workflowRootPath, {

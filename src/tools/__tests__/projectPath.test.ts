@@ -9,6 +9,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises';
 describe('Tool projectPath fallback behavior', () => {
   const mockContext: ToolContext = {
     projectPath: '/test/project/from/context',
+    workspacePath: '/test/project/from/context',
     dashboardUrl: 'http://localhost:5000'
   };
 
@@ -38,7 +39,8 @@ describe('Tool projectPath fallback behavior', () => {
     });
 
     it('should fail if neither args.projectPath nor context.projectPath is provided', async () => {
-      const emptyContext: ToolContext = { projectPath: '' };
+      // Both roots empty: this fixture exercises the "no path at all" arm.
+      const emptyContext: ToolContext = { projectPath: '', workspacePath: '' };
       
       const result = await specStatusHandler(
         { specName: 'test-spec' },
@@ -71,7 +73,8 @@ describe('Tool projectPath fallback behavior', () => {
     });
 
     it('should fail if neither args.projectPath nor context.projectPath is provided', async () => {
-      const emptyContext: ToolContext = { projectPath: '' };
+      // Both roots empty: this fixture exercises the "no path at all" arm.
+      const emptyContext: ToolContext = { projectPath: '', workspacePath: '' };
       
       const result = await logImplementationHandler(
         {
@@ -131,7 +134,8 @@ describe('Tool projectPath fallback behavior', () => {
     });
 
     it('should fail if neither args.projectPath nor context.projectPath is provided', async () => {
-      const emptyContext: ToolContext = { projectPath: '' };
+      // Both roots empty: this fixture exercises the "no path at all" arm.
+      const emptyContext: ToolContext = { projectPath: '', workspacePath: '' };
       
       const result = await approvalsHandler(
         {
@@ -216,7 +220,7 @@ describe('Tool projectPath fallback behavior', () => {
             category: 'spec',
             categoryName: 'test-spec'
           },
-          { projectPath: tempProject }
+          { projectPath: tempProject, workspacePath: tempProject }
         );
 
         expect(result.success).toBe(false);
@@ -245,7 +249,7 @@ describe('Tool projectPath fallback behavior', () => {
             category: 'spec',
             categoryName: 'test-spec'
           },
-          { projectPath: tempProject }
+          { projectPath: tempProject, workspacePath: tempProject }
         );
 
         expect(result.success).toBe(false);

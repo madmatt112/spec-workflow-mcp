@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createSteeringDocPrompt } from '../create-steering-doc.js';
 import { ToolContext } from '../../types.js';
 
-const ctx: ToolContext = { projectPath: '/tmp/project' };
+const ctx: ToolContext = { projectPath: '/tmp/project', workspacePath: '/tmp/project' };
 
 describe('create-steering-doc prompt', () => {
   it('accepts design-system as a valid docType', async () => {

@@ -825,7 +825,12 @@ export class MultiProjectDashboardServer {
 
         const result = await adversarialReviewHandler(
           { specName, phase, filePath: (!isDecompApproval && approval.category === 'steering') ? approval.filePath : undefined },
-          { projectPath: project.originalProjectPath }
+          // Requirement 5.7: the handler calls `getWorkflowRoot` on what it
+          // receives, so this must be the workflow root. `originalProjectPath`
+          // is the untranslated *workspace* path — under a worktree it sends
+          // the `.spec-workflow` lookup into the worktree, and under path
+          // translation it is not even a path this process can read.
+          { projectPath: project.projectPath, workspacePath: project.workspacePath }
         );
 
         if (!result.success || !result.data) {
@@ -966,7 +971,9 @@ export class MultiProjectDashboardServer {
         // Re-run the adversarial review handler to get fresh paths/methodology
         const result = await adversarialReviewHandler(
           { specName, phase, filePath: (!isDecompRetry && approval.category === 'steering') ? approval.filePath : undefined },
-          { projectPath: project.originalProjectPath }
+          // Requirement 5.7 — the retry route, same reasoning as the primary
+          // route above: the workflow root, not `originalProjectPath`.
+          { projectPath: project.projectPath, workspacePath: project.workspacePath }
         );
 
         if (!result.success || !result.data) {

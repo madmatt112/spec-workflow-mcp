@@ -3,7 +3,7 @@ import { decompositionGuideHandler } from '../decomposition-guide.js';
 import { ToolContext } from '../../types.js';
 
 describe('decomposition-guide tool', () => {
-  const context: ToolContext = { projectPath: '/tmp/fake' };
+  const context: ToolContext = { projectPath: '/tmp/fake', workspacePath: '/tmp/fake' };
 
   it('returns success', async () => {
     const result = await decompositionGuideHandler({}, context);

@@ -180,7 +180,7 @@ function makeContext(projectPath: string): ToolContext {
   // construction site including this one. That is a compile-driven addition
   // (the value is this same path — the roots are equal here), not a change to
   // anything asserted below.
-  return { projectPath };
+  return { projectPath, workspacePath: projectPath };
 }
 
 beforeAll(async () => {

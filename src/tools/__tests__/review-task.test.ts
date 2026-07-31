@@ -62,7 +62,7 @@ describe('review-task handler', () => {
     tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-test-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specPath, { recursive: true });
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
 
     // Create a minimal tasks.md
     await fs.writeFile(join(specPath, 'tasks.md'), [
@@ -571,7 +571,7 @@ describe('handlePrepare integration', () => {
     await fs.mkdir(steeringDir, { recursive: true });
     await fs.writeFile(join(steeringDir, 'tech.md'), '# Tech\n');
     await fs.writeFile(join(specPath, 'tasks.md'), CANONICAL_TASKS_MD);
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
   });
 
   afterEach(async () => {
