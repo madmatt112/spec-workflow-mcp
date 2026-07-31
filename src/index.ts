@@ -4,7 +4,12 @@ import { SpecWorkflowMCPServer } from './server.js';
 import { MultiProjectDashboardServer } from './dashboard/multi-server.js';
 import { DashboardSessionManager } from './core/dashboard-session.js';
 import { homedir } from 'os';
-import { resolveGitRoot, resolveGitWorkspaceRoot } from './core/git-utils.js';
+import {
+  resolveGitWorkspaceRoot,
+  resolveWorkspaceRoots,
+  SPEC_WORKFLOW_WORKSPACE_ENV
+} from './core/git-utils.js';
+import type { WorkspaceSource } from './core/git-utils.js';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { realpathSync } from 'fs';
@@ -12,7 +17,7 @@ import { realpathSync } from 'fs';
 // Default dashboard port
 const DEFAULT_DASHBOARD_PORT = 5000;
 
-function showHelp() {
+export function showHelp() {
   console.error(`
 Spec Workflow MCP Server - A Model Context Protocol server for spec-driven development
 
@@ -34,6 +39,16 @@ OPTIONS:
   --no-shared-worktree-specs
                          Disable shared .spec-workflow in git worktrees
                          Use workspace-local .spec-workflow instead of main repo
+  --no-workspace-inference
+                         Don't infer the workspace from the current directory
+                         Use the project path argument's git top-level instead.
+                         The escape hatch when the launch directory is not the
+                         checkout you want reviewed.
+
+ENVIRONMENT:
+  SPEC_WORKFLOW_WORKSPACE Explicit workspace path, overriding inference
+  SPEC_WORKFLOW_SHARED_ROOT
+                         Explicit .spec-workflow root, overriding the git root
 
 IMPORTANT:
   Only ONE dashboard instance runs at a time. All MCP servers connect to the
@@ -96,33 +111,94 @@ function expandTildePath(path: string): string {
   return path;
 }
 
+/**
+ * Every flag the CLI accepts, and whether it takes a value. Single source of
+ * truth: the valid-flag list, the boolean reads, the `--flag=value` rejection
+ * set (requirement 1.17) and the project-path filter are all derived from this
+ * map, so a boolean flag cannot be registered in one place and forgotten in
+ * the others. A hand-written boolean list came up short here once already —
+ * `--dashboard=true` was accepted, read as `false`, and became the project
+ * path, silently flipping the run mode.
+ *
+ * Boolean flags are read by exact string match and therefore MUST be rejected
+ * in `--flag=value` form. Merely stripping the `=value` would be worse: the
+ * reads are exact-string matches, so `--no-workspace-inference=true` would be
+ * removed from the path position and read as `false` — silently discarding the
+ * opt-out whose entire purpose is escaping a bad inference. Failing loudly is
+ * the only outcome that does not mislead.
+ */
+const CLI_FLAGS = {
+  '--dashboard': 'boolean',
+  '--help': 'boolean',
+  '-h': 'boolean',
+  '--no-open': 'boolean',
+  '--no-shared-worktree-specs': 'boolean',
+  '--no-workspace-inference': 'boolean',
+  '--port': 'value'
+} as const;
+
+type CliFlag = keyof typeof CLI_FLAGS;
+type BooleanFlag = { [K in CliFlag]: (typeof CLI_FLAGS)[K] extends 'boolean' ? K : never }[CliFlag];
+type ValueFlag = { [K in CliFlag]: (typeof CLI_FLAGS)[K] extends 'value' ? K : never }[CliFlag];
+
+const VALID_FLAGS: readonly string[] = Object.keys(CLI_FLAGS);
+
+/** Exported so tests enumerate the boolean flags from the registry, not by hand. */
+export const BOOLEAN_FLAGS: readonly BooleanFlag[] = (Object.keys(CLI_FLAGS) as CliFlag[])
+  .filter((flag): flag is BooleanFlag => CLI_FLAGS[flag] === 'boolean');
+
+/** Exported for the same reason as `BOOLEAN_FLAGS`: the path filter must drop a
+ * value flag *and its value* without anyone remembering to name it there. */
+export const VALUE_FLAGS: readonly ValueFlag[] = (Object.keys(CLI_FLAGS) as CliFlag[])
+  .filter((flag): flag is ValueFlag => CLI_FLAGS[flag] === 'value');
+
+/**
+ * Reads every boolean flag in one pass. Reading through this record is what
+ * ties a boolean to the registry: `flags['--whatever']` does not compile unless
+ * `--whatever` is registered above as a boolean, so a new boolean flag cannot
+ * skip the rejection set or the path filter.
+ */
+function readBooleanFlags(args: string[]): Record<BooleanFlag, boolean> {
+  return Object.fromEntries(
+    BOOLEAN_FLAGS.map((flag) => [flag, args.includes(flag)])
+  ) as Record<BooleanFlag, boolean>;
+}
+
 export function parseArguments(args: string[]): {
   workspacePath: string;
   workflowRootPath: string;
   expandedPath: string;
   isDashboardMode: boolean;
   noSharedWorktreeSpecs: boolean;
+  noWorkspaceInference: boolean;
+  workspaceSource: WorkspaceSource;
   port?: number;
   lang?: string;
   noOpen?: boolean;
 } {
-  const isDashboardMode = args.includes('--dashboard');
-  const noOpen = args.includes('--no-open');
-  const noSharedWorktreeSpecs = args.includes('--no-shared-worktree-specs');
+  const flags = readBooleanFlags(args);
+  const isDashboardMode = flags['--dashboard'];
+  const noOpen = flags['--no-open'];
+  const noSharedWorktreeSpecs = flags['--no-shared-worktree-specs'];
+  const noWorkspaceInference = flags['--no-workspace-inference'];
   let customPort: number | undefined;
 
   // Check for invalid flags
-  const validFlags = ['--dashboard', '--port', '--help', '-h', '--no-open', '--no-shared-worktree-specs'];
   for (const arg of args) {
-    if (arg.startsWith('--') && !arg.includes('=')) {
-      if (!validFlags.includes(arg)) {
-        throw new Error(`Unknown option: ${arg}\nUse --help to see available options.`);
-      }
-    } else if (arg.startsWith('--') && arg.includes('=')) {
-      const flagName = arg.split('=')[0];
-      if (!validFlags.includes(flagName)) {
-        throw new Error(`Unknown option: ${flagName}\nUse --help to see available options.`);
-      }
+    const equalsIndex = arg.indexOf('=');
+    const flagName = equalsIndex === -1 ? arg : arg.slice(0, equalsIndex);
+
+    // The boolean check is not conditioned on a `--` prefix: `-h=true` carries
+    // a value on a boolean flag just as `--help=true` does (requirement 1.17).
+    if (equalsIndex !== -1 && (BOOLEAN_FLAGS as readonly string[]).includes(flagName)) {
+      throw new Error(
+        `Unknown option: ${arg}\n${flagName} is a boolean flag and takes no value. ` +
+        `Pass it as ${flagName} on its own.\nUse --help to see available options.`
+      );
+    }
+
+    if (arg.startsWith('--') && !VALID_FLAGS.includes(flagName)) {
+      throw new Error(`Unknown option: ${flagName}\nUse --help to see available options.`);
     }
   }
 
@@ -164,21 +240,28 @@ export function parseArguments(args: string[]): {
 
   // Get project path (filter out flags and their values)
   const filteredArgs = args.filter((arg, index) => {
-    if (arg === '--dashboard') return false;
-    if (arg.startsWith('--port=')) return false;
-    if (arg === '--port') return false;
-    if (arg === '--no-open') return false;
-    if (arg === '--no-shared-worktree-specs') return false;
-    // Check if this arg is a value following --port
-    if (index > 0 && args[index - 1] === '--port') return false;
+    // Wholly derived from the registry so a newly registered flag — boolean or
+    // value-taking — is filtered out of the path position without a second
+    // edit. Naming `--port` by hand here is what let this defect class recur.
+    // The boolean `--flag=value` form never reaches here — it was rejected above.
+    if ((BOOLEAN_FLAGS as readonly string[]).includes(arg)) return false;
+    if (VALUE_FLAGS.some((flag) => arg === flag || arg.startsWith(`${flag}=`))) return false;
+    // ...and the separate-token value that follows a value flag.
+    if (index > 0 && (VALUE_FLAGS as readonly string[]).includes(args[index - 1])) return false;
     return true;
   });
 
   // For dashboard-only mode, use cwd as default (dashboard doesn't need it)
   const rawProjectPath = filteredArgs[0] || process.cwd();
   const expandedPath = expandTildePath(rawProjectPath);
-  const workspacePath = resolveGitWorkspaceRoot(expandedPath);
-  const workflowRootPath = noSharedWorktreeSpecs ? workspacePath : resolveGitRoot(workspacePath);
+  // One decision point for both roots (requirements 1.1-1.3, 2.1-2.11).
+  const { workspacePath, workflowRootPath, source: workspaceSource } = resolveWorkspaceRoots({
+    configuredPath: expandedPath,
+    cwd: process.cwd(),
+    dashboardMode: isDashboardMode,
+    noInference: noWorkspaceInference,
+    noSharedWorktreeSpecs
+  });
 
   // Warn if no explicit path was provided and we're using cwd (but only for MCP server mode)
   if (!filteredArgs[0] && !isDashboardMode) {
@@ -192,18 +275,63 @@ export function parseArguments(args: string[]): {
     expandedPath,
     isDashboardMode,
     noSharedWorktreeSpecs,
+    noWorkspaceInference,
+    workspaceSource,
     port: customPort,
     lang: undefined,
     noOpen
   };
 }
 
+/**
+ * The single workspace-resolution emission (requirement 1.18). One event
+ * produces one log: these are mutually exclusive arms of a chain rather than
+ * independent blocks, so an inferred workspace does not print alongside the
+ * worktree notice it almost always implies, and the final arm carries the
+ * paths for the ordinary case so no run emits them twice or not at all.
+ *
+ * It takes the **settled** roots — the values in force once `initialize` has
+ * had its say. Emitting before `initialize` would be emitting a claim that
+ * `validateInferredWorkspace` can still overturn, and a later correction would
+ * put two contradictory `workspacePath=` lines on stderr. Its single MCP-mode
+ * call site therefore sits in a `finally`, which reaches both outcomes with one
+ * emission; when `initialize` throws, the caller reads the settled roots off the
+ * server, which assigns them before anything else there can fail, so the
+ * throwing path reports the same truth as the returning one.
+ */
+export function logWorkspaceResolution(resolution: {
+  workspacePath: string;
+  workflowRootPath: string;
+  source: WorkspaceSource;
+  noSharedWorktreeSpecs: boolean;
+  noWorkspaceInference: boolean;
+}): void {
+  const { workspacePath, workflowRootPath, source, noSharedWorktreeSpecs, noWorkspaceInference } = resolution;
+
+  if (source === 'inference') {
+    console.error('Workspace inferred from the working directory. Pass --no-workspace-inference to disable.');
+  } else if (source === 'env') {
+    console.error(`Workspace set by ${SPEC_WORKFLOW_WORKSPACE_ENV}.`);
+  } else if (workspacePath !== workflowRootPath) {
+    console.error('Git worktree detected.');
+  } else if (noSharedWorktreeSpecs) {
+    console.error('Shared worktree specs disabled. Using workspace-local .spec-workflow.');
+  } else if (noWorkspaceInference) {
+    console.error('Workspace inference disabled. Using the project path argument.');
+  }
+
+  console.error(`workspacePath=${workspacePath}`);
+  console.error(`workflowRootPath=${workflowRootPath}`);
+}
+
 async function main() {
   try {
     const args = process.argv.slice(2);
 
-    // Check for help flag
-    if (args.includes('--help') || args.includes('-h')) {
+    // Check for help flag. Read through the registry like every other boolean,
+    // so `--help`/`-h` cannot drift out of the rejection set or the path filter.
+    const helpFlags = readBooleanFlags(args);
+    if (helpFlags['--help'] || helpFlags['-h']) {
       showHelp();
       process.exit(0);
     }
@@ -213,16 +341,8 @@ async function main() {
     const workspacePath = cliArgs.workspacePath;
     const workflowRootPath = cliArgs.workflowRootPath;
     const noSharedWorktreeSpecs = cliArgs.noSharedWorktreeSpecs;
-
-    // Log worktree details when workspace and shared workflow roots differ
-    if (workspacePath !== workflowRootPath) {
-      console.error('Git worktree detected.');
-      console.error(`workspacePath=${workspacePath}`);
-      console.error(`workflowRootPath=${workflowRootPath}`);
-    } else if (noSharedWorktreeSpecs) {
-      console.error('Shared worktree specs disabled. Using workspace-local .spec-workflow.');
-      console.error(`workspacePath=${workspacePath}`);
-    }
+    const noWorkspaceInference = cliArgs.noWorkspaceInference;
+    const workspaceSource = cliArgs.workspaceSource;
 
     // Apply configuration from CLI args
     const isDashboardMode = cliArgs.isDashboardMode || false;
@@ -231,6 +351,16 @@ async function main() {
     const noOpen = cliArgs.noOpen || false;
 
     if (isDashboardMode) {
+      // Dashboard mode skips inference (requirement 1.14) and never validates a
+      // workspace, so the resolution is already settled here.
+      logWorkspaceResolution({
+        workspacePath,
+        workflowRootPath,
+        source: workspaceSource,
+        noSharedWorktreeSpecs,
+        noWorkspaceInference
+      });
+
       // Check if a dashboard is already running (always check, regardless of port)
       const sessionManager = new DashboardSessionManager();
       const existingSession = await sessionManager.getDashboardSession();
@@ -356,13 +486,62 @@ async function main() {
 
     } else {
       // MCP server mode
-      console.error(`Starting Spec Workflow MCP Server for project: ${workflowRootPath}`);
-      console.error(`Workspace path: ${workspacePath}`);
+      //
+      // Pathless on purpose. This is the banner, not the resolution: it prints
+      // before `initialize`, and `workflowRootPath` here is still provisional —
+      // under `--no-shared-worktree-specs` it is the inferred workspace, which
+      // a rejected inference moves three lines later (requirements 1.8, 2.8).
+      // Naming it would put a stale path on stderr that the resolution block
+      // then contradicts. That block is the one place the roots are reported
+      // (requirement 1.18), and it reports them settled.
+      console.error('Starting Spec Workflow MCP Server');
       console.error(`Working directory: ${process.cwd()}`);
 
       const server = new SpecWorkflowMCPServer();
 
-      await server.initialize(workflowRootPath, workspacePath, lang);
+      // Requirement 1.8: an *inferred* workspace derives from `process.cwd()`,
+      // which the user did not choose, so it is validated inside `initialize`
+      // where `validateProjectPath` is already awaited. The fallback is the
+      // configured path's git toplevel — the same value resolution would have
+      // produced with inference off — not the raw configured path.
+      const inferredWorkspaceFallback = workspaceSource === 'inference'
+        ? resolveGitWorkspaceRoot(cliArgs.expandedPath)
+        : undefined;
+
+      // Requirement 1.18: exactly one emission, from a `finally` so it happens
+      // on both the returning and the throwing path.
+      //
+      // Not before `initialize`, because `validateInferredWorkspace` can still
+      // reject an inferred path and fall back, and a pre-emission would then be
+      // contradicted by a second one — the duplicate this requirement exists to
+      // remove. Not only after, either: a throwing `initialize` would then emit
+      // nothing, and a failed startup is exactly when the resolved workspace
+      // most needs to be visible. The `finally` runs once either way, so the
+      // count is one whatever happens.
+      //
+      // The values printed are the settled roots on both paths: `initialize`
+      // assigns them before anything there can throw, so a throwing startup
+      // reports what is in force rather than the provisional inference the
+      // preceding rejection notice already contradicted. When the fallback
+      // fires the workspace is the configured path's toplevel, which is what
+      // `argument` means, so the arm reported matches the path printed.
+      try {
+        await server.initialize(
+          workflowRootPath,
+          workspacePath,
+          lang,
+          inferredWorkspaceFallback
+        );
+      } finally {
+        const settledWorkspacePath = server.settledWorkspacePath ?? workspacePath;
+        logWorkspaceResolution({
+          workspacePath: settledWorkspacePath,
+          workflowRootPath: server.settledWorkflowRootPath ?? workflowRootPath,
+          source: settledWorkspacePath === workspacePath ? workspaceSource : 'argument',
+          noSharedWorktreeSpecs,
+          noWorkspaceInference
+        });
+      }
 
       // Handle graceful shutdown
       process.on('SIGINT', async () => {

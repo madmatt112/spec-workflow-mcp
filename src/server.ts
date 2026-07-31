@@ -18,6 +18,68 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+/**
+ * Returns `workspacePath` when it passes `validateProjectPath`, otherwise logs
+ * and returns `fallbackPath` (requirement 1.8).
+ *
+ * Falls back rather than throwing: `initialize` runs before the transport
+ * connects, so a rejected inference must not be able to kill the MCP handshake.
+ * `fallbackPath` is the configured path's git top-level — the value resolution
+ * would have produced with inference off — not the raw configured path
+ * (requirement 1.2).
+ */
+export async function validateInferredWorkspace(
+  workspacePath: string,
+  fallbackPath: string
+): Promise<string> {
+  try {
+    await validateProjectPath(workspacePath);
+    return workspacePath;
+  } catch (error: any) {
+    console.error(
+      `Inferred workspace path "${workspacePath}" was rejected: ${error?.message ?? error}. ` +
+      `Falling back to the configured project path "${fallbackPath}".`
+    );
+    return fallbackPath;
+  }
+}
+
+/** Both roots, once the inferred workspace has had its validation. */
+export interface SettledRoots {
+  workflowRootPath: string;
+  workspacePath: string;
+}
+
+/**
+ * Settles **both** roots together after a rejected inference (requirements 1.8,
+ * 2.8).
+ *
+ * The workspace falls back to the configured path's git top-level. The workflow
+ * root has to move with it whenever it *is* the workspace — which is what
+ * `--no-shared-worktree-specs` makes it (requirement 2.8) — because otherwise
+ * the workflow root keeps the path validation just rejected, and the
+ * `validateProjectPath(this.projectPath)` in `initialize` throws on it: the
+ * startup abort requirement 1.8 exists to prevent, reached through the other
+ * root. A workflow root that resolves independently (the shared main-repo root,
+ * or an explicit `SPEC_WORKFLOW_SHARED_ROOT`) is left alone.
+ */
+export async function settleWorkspaceRoots(
+  workflowRootPath: string,
+  workspacePath: string,
+  inferredWorkspaceFallback?: string
+): Promise<SettledRoots> {
+  if (inferredWorkspaceFallback === undefined) {
+    return { workflowRootPath, workspacePath };
+  }
+
+  const settledWorkspacePath = await validateInferredWorkspace(workspacePath, inferredWorkspaceFallback);
+
+  return {
+    workflowRootPath: workflowRootPath === workspacePath ? settledWorkspacePath : workflowRootPath,
+    workspacePath: settledWorkspacePath
+  };
+}
+
 export class SpecWorkflowMCPServer {
   private server: Server;
   private projectPath!: string;   // workflowRootPath for .spec-workflow operations
@@ -56,9 +118,48 @@ export class SpecWorkflowMCPServer {
     this.projectRegistry = new ProjectRegistry();
   }
 
-  async initialize(projectPath: string, workspacePath: string, lang?: string) {
-    this.projectPath = projectPath;
-    this.workspacePath = workspacePath;
+  /**
+   * The roots in force, or `undefined` before `initialize` has settled them.
+   *
+   * `initialize` assigns both before it can throw, so the caller's `finally`
+   * reports the settled state rather than the provisional one it passed in
+   * (requirement 1.18: one emission, and a true one).
+   */
+  get settledWorkflowRootPath(): string | undefined {
+    return this.projectPath;
+  }
+
+  get settledWorkspacePath(): string | undefined {
+    return this.workspacePath;
+  }
+
+  /**
+   * @param inferredWorkspaceFallback - Set only when `workspacePath` was
+   *   **inferred** from the launch directory (requirement 1.8). Inference
+   *   derives the workspace from `process.cwd()`, which the user did not
+   *   choose, and `validateProjectPath` rejects non-directories, paths without
+   *   write access, and `/var`-prefixed paths — any of which would turn a
+   *   working setup into a failed startup. The check lives here because that
+   *   predicate is async and `resolveWorkspaceRoots` is not.
+   * @returns the **settled** workspace path — `workspacePath` itself, or
+   *   `inferredWorkspaceFallback` when the inferred path was rejected. The
+   *   caller logs the resolution (requirement 1.18) and can only tell the truth
+   *   about which path is in force once this has returned — or, when this
+   *   throws, by reading {@link settledWorkspacePath} and
+   *   {@link settledWorkflowRootPath}, which are assigned before anything below
+   *   can fail.
+   */
+  async initialize(
+    projectPath: string,
+    workspacePath: string,
+    lang?: string,
+    inferredWorkspaceFallback?: string
+  ): Promise<string> {
+    // Both roots settle here, together: a fallback that moved only the
+    // workspace would leave the workflow root on the rejected path.
+    const settled = await settleWorkspaceRoots(projectPath, workspacePath, inferredWorkspaceFallback);
+    this.projectPath = settled.workflowRootPath;
+    this.workspacePath = settled.workspacePath;
     this.lang = lang;
 
     try {
@@ -77,7 +178,12 @@ export class SpecWorkflowMCPServer {
       const projectId = await this.projectRegistry.registerProject(this.workspacePath, process.pid, {
         workflowRootPath: this.projectPath
       });
-      console.error(`Project registered: ${projectId}`);
+      // Requirement 6.4: on lock-budget exhaustion `registerProject` still returns
+      // the id but logs that it is continuing UNREGISTERED, so claiming success
+      // here unconditionally would contradict that banner. Report what the
+      // registry actually holds.
+      const registered = await this.projectRegistry.getProjectById(projectId);
+      console.error(registered ? `Project registered: ${projectId}` : `Project NOT registered: ${projectId}`);
 
       // Try to get the dashboard URL from session manager
       let dashboardUrl: string | undefined = undefined;
@@ -126,6 +232,8 @@ export class SpecWorkflowMCPServer {
       });
 
       // MCP server initialized successfully
+
+      return this.workspacePath;
 
     } catch (error) {
       throw error;

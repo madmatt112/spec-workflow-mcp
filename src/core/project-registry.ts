@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { basename, resolve } from 'path';
 import { createHash } from 'crypto';
 import { getGlobalDir, getPermissionErrorHelp } from './global-dir.js';
+import { withRegistryLock, uniqueTempPath } from './registry-lock.js';
 
 export interface ProjectInstance {
   pid: number;
@@ -51,11 +52,13 @@ export function generateProjectDisplayName(workspacePath: string, workflowRootPa
 export class ProjectRegistry {
   private registryPath: string;
   private registryDir: string;
+  private lockPath: string;
   private needsInitialization: boolean = false;
 
   constructor() {
     this.registryDir = getGlobalDir();
     this.registryPath = join(this.registryDir, 'activeProjects.json');
+    this.lockPath = `${this.registryPath}.lock`;
   }
 
   /**
@@ -150,8 +153,10 @@ export class ProjectRegistry {
     const data = Object.fromEntries(registry);
     const content = JSON.stringify(data, null, 2);
 
-    // Write to temporary file first, then rename for atomic operation
-    const tempPath = `${this.registryPath}.tmp`;
+    // Write to temporary file first, then rename for atomic operation.
+    // The temp name is unique to this process (requirement 6.3) so two
+    // concurrent writers cannot interleave bytes into one shared temp file.
+    const tempPath = uniqueTempPath(this.registryPath);
     await fs.writeFile(tempPath, content, 'utf-8');
     await fs.rename(tempPath, this.registryPath);
   }
@@ -183,8 +188,39 @@ export class ProjectRegistry {
    * Register a project in the global registry
    * Self-healing: If a project exists with dead PIDs, cleans them up and adds new PID
    * Multi-instance: Allows unlimited MCP server instances per project
+   *
+   * The read-modify-write runs under an exclusive lock (requirement 6.1): with
+   * per-worktree identity, N worktrees compute N ids, so two servers starting
+   * together each read a registry without the other and the second write erases
+   * the first. If the lock cannot be acquired within its budget the server logs
+   * prominently and continues UNREGISTERED (requirement 6.4) — this call is
+   * awaited before the MCP transport connects, so throwing kills the handshake.
    */
   async registerProject(projectPath: string, pid: number, options: RegisterProjectOptions = {}): Promise<string> {
+    const result = await withRegistryLock(
+      this.lockPath,
+      () => this.registerProjectLocked(projectPath, pid, options)
+    );
+
+    if (result.acquired) {
+      return result.value;
+    }
+
+    const projectId = generateProjectId(resolve(projectPath));
+    console.error(
+      `[ProjectRegistry] ================================================================\n` +
+      `[ProjectRegistry] WARNING: could not acquire the registry lock at ${this.lockPath}.\n` +
+      `[ProjectRegistry] Continuing UNREGISTERED: ${resolve(projectPath)} will not appear in the dashboard.\n` +
+      `[ProjectRegistry] Remove the lock file if no other instance is running, then restart.\n` +
+      `[ProjectRegistry] ================================================================`
+    );
+    return projectId;
+  }
+
+  /**
+   * The registry read-modify-write. Callers must hold the registry lock.
+   */
+  private async registerProjectLocked(projectPath: string, pid: number, options: RegisterProjectOptions = {}): Promise<string> {
     const registry = await this.readRegistry();
 
     const workspacePath = resolve(projectPath);
