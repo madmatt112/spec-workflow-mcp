@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { computeTaskDiff } from '../task-diff.js';
+import { computeTaskDiff, containmentRejectionMessage } from '../task-diff.js';
 
 const mockedExecFile = vi.mocked(childProcess.execFile);
 
@@ -330,6 +330,145 @@ describe('computeTaskDiff — failure modes', () => {
     // Pin the test's claim: at least one of the two git invocations actually
     // hit ERR_CHILD_PROCESS_STDIO_MAXBUFFER (not some other failure).
     expect(observedErrorCodes).toContain('ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pathspec containment (requirement 4.23, 4.24)
+//
+// The defect: a path that is not inside the workspace makes git fail the whole
+// invocation, `runGit` reports `ok: false`, and the `!ok` arm returns an empty
+// diff with NO rejection — which `computeDiffMethodologyState` classifies as
+// `empty` and the reviewer is told the changes were "already committed before
+// review". One mis-partitioned pathspec therefore discards the entire diff and
+// reads as a clean tree.
+//
+// The assertion runs before git, and is NOT a match on git's stderr: that
+// message is gettext-marked and translates, so a localized git would fall
+// straight back into the benign classification.
+// ---------------------------------------------------------------------------
+
+describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
+  let outsideDir: string;
+
+  beforeEach(async () => {
+    outsideDir = await fs.mkdtemp(join(tmpdir(), 'task-diff-outside-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(outsideDir, { recursive: true, force: true });
+  });
+
+  it('a workflow-root pathspec rejects, names the path, and never invokes git', async () => {
+    gitInit(tempDir);
+    const inWorkspace = join(tempDir, 'a.ts');
+    await fs.writeFile(inWorkspace, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(inWorkspace, 'export const x = 2;\n');
+
+    // A shared `.spec-workflow` document: resolvable, readable, and not in this
+    // workspace's tree — exactly what routing `files` instead of
+    // `workspaceFiles` to the diff would produce.
+    const specDir = join(outsideDir, '.spec-workflow', 'specs', 'demo');
+    await fs.mkdir(specDir, { recursive: true });
+    const specDoc = join(specDir, 'tasks.md');
+    await fs.writeFile(specDoc, '- [x] 1. done\n');
+
+    mockedExecFile.mockReset(); // any git call from here on is a failure
+    const result = await computeTaskDiff(tempDir, [inWorkspace, specDoc]);
+
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain(specDoc);
+    expect(result.rejection!.message).toContain(tempDir);
+    expect(result.diff).toBe('');
+    expect(result.stats).toBeUndefined();
+    expect(mockedExecFile).not.toHaveBeenCalled();
+  });
+
+  it('the rejection text states a containment failure, not a thrown exception', async () => {
+    const outsideFile = join(outsideDir, 'stray.ts');
+    await fs.writeFile(outsideFile, 'export const y = 1;\n');
+
+    const result = await computeTaskDiff(tempDir, [outsideFile]);
+
+    const message = result.rejection!.message;
+    // Stated, not inherited (R4 AC 24). `R4_2B_DIFF_REJECTED` claims the utility
+    // "threw an unexpected exception"; this message must not repeat that claim,
+    // and must say what actually happened instead.
+    expect(message).toContain('DIFF CONTAINMENT ASSERTION FAILED');
+    expect(message).toContain('git was NOT invoked');
+    expect(message).not.toContain('threw an unexpected exception');
+    // The two fabrications the reviewer would otherwise be left holding.
+    expect(message).toContain('already committed before review');
+    expect(message).toContain('not a benign empty diff');
+    expect(message).toBe(containmentRejectionMessage([outsideFile], tempDir));
+  });
+
+  it('a genuinely empty diff still classifies as empty, not as a containment rejection', async () => {
+    gitInit(tempDir);
+    const f = join(tempDir, 'a.ts');
+    await fs.writeFile(f, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+
+    // Clean tree: git runs, returns nothing, and the result must stay
+    // distinguishable from the rejection above by the `rejection` field alone.
+    const result = await computeTaskDiff(tempDir, [f]);
+    expect(result.diff).toBe('');
+    expect(result.rejection).toBeUndefined();
+    expect(mockedExecFile).toHaveBeenCalled();
+  });
+
+  it('an empty file list is not a containment failure (the all-drop path stays empty)', async () => {
+    gitInit(tempDir);
+    const result = await computeTaskDiff(tempDir, []);
+    expect(result.diff).toBe('');
+    expect(result.rejection).toBeUndefined();
+  });
+
+  it('asserts before the all-denylisted short-circuit, so an outside lockfile still rejects', async () => {
+    const outsideLock = join(outsideDir, 'package-lock.json');
+    await fs.writeFile(outsideLock, '{}\n');
+
+    const result = await computeTaskDiff(tempDir, [outsideLock]);
+
+    // Without the ordering this returns the benign all-denylisted empty state
+    // and the mis-partition is invisible.
+    expect(result.rejection).toBeDefined();
+    expect(result.skippedPaths).toContain(outsideLock);
+  });
+
+  it('a relative entry escaping the workspace with `..` rejects', async () => {
+    const result = await computeTaskDiff(tempDir, ['../escape.ts']);
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('../escape.ts');
+  });
+
+  it('a relative entry inside the workspace does not reject (git resolves it against its cwd)', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 2;\n');
+
+    const result = await computeTaskDiff(tempDir, ['a.ts']);
+    expect(result.rejection).toBeUndefined();
+    expect(result.diff).toContain('a.ts');
+  });
+
+  it('a spelling that reaches the workspace through a symlink does not reject', async () => {
+    gitInit(tempDir);
+    const real = join(tempDir, 'a.ts');
+    await fs.writeFile(real, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(real, 'export const x = 2;\n');
+
+    // `resolveLoggedFiles` decides containment on the realpath but emits the
+    // `path.resolve` spelling (R4 AC 17), so a lexical-only test here would
+    // reject a path the resolver deliberately accepted.
+    const link = join(outsideDir, 'link');
+    await fs.symlink(tempDir, link, 'dir');
+
+    const result = await computeTaskDiff(tempDir, [join(link, 'a.ts')]);
+    expect(result.rejection).toBeUndefined();
   });
 });
 

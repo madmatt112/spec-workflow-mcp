@@ -9,13 +9,17 @@ vi.mock('child_process', () => ({
   spawn: vi.fn(),
 }));
 
-// Mock the review-task handler
-vi.mock('../../tools/review-task.js', () => ({
+// Mock the review-task handler. The rest of the module is passed through: the
+// runner also imports `hasNoReviewableFiles` and NO_REVIEWABLE_FILES_DISCLOSURE
+// from it (requirement 4.20), and stubbing those would let the prompt assertions
+// below pass against text the tool never emits.
+vi.mock('../../tools/review-task.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../tools/review-task.js')>()),
   reviewTaskHandler: vi.fn(),
 }));
 
 import { spawn } from 'child_process';
-import { reviewTaskHandler } from '../../tools/review-task.js';
+import { reviewTaskHandler, NO_REVIEWABLE_FILES_DISCLOSURE } from '../../tools/review-task.js';
 
 describe('TaskReviewRunner', () => {
   let runner: TaskReviewRunner;
@@ -548,6 +552,66 @@ describe('TaskReviewRunner', () => {
         section,
         'the steering excerpt is rendered in the methodology slot: `methodology` and `steeringExcerpt` have swapped places'
       ).not.toContain('R4_22_STEERING_MARKER');
+    });
+
+    // Requirements 4.19/4.20: the counts and the all-drop disclosure reach the
+    // spawned reviewer only if `fileResolution` survives the `any`-typed
+    // destructure of `prepareResponse.data`. Dropping it there produces no
+    // compiler error and no test failure anywhere else.
+    it('replaces the read-every-file instruction with the all-drop disclosure in the spawned prompt (4.19, 4.20)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'root split' },
+          implementationSummary: { filesModified: ['src/gone.ts'] },
+          steeringExcerpt: null,
+          filesToReview: [],
+          fileResolution: {
+            workspaceCount: 0,
+            workflowCount: 0,
+            drops: { 'not-array': 0, 'not-string': 0, 'resolve-threw': 0, missing: 1, 'realpath-failed': 0, 'outside-roots': 1 },
+          },
+          methodology: '# Methodology',
+        },
+      });
+
+      await runToCompletion('7');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      expect(
+        prompt,
+        'the counts must be stated to the reviewer: `fileResolution` was dropped by the runner\'s any-typed destructure of prepareResponse.data'
+      ).toContain('File resolution: 0 resolved in the workspace, 0 under the shared .spec-workflow root, 2 dropped (missing: 1, outside-roots: 1).');
+      expect(prompt).toContain(`1. ${NO_REVIEWABLE_FILES_DISCLOSURE}`);
+      expect(
+        prompt,
+        'the read-every-file instruction must be REPLACED, not merely preceded by a note: leaving it renders a pass over unexamined code as the compliant outcome'
+      ).not.toContain('1. Read every file listed in "Files to Review".');
+    });
+
+    it('keeps the read-every-file instruction when files did resolve in the workspace (4.20)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'root split' },
+          implementationSummary: { filesModified: ['src/a.ts'] },
+          steeringExcerpt: null,
+          filesToReview: [{ path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false }],
+          fileResolution: {
+            workspaceCount: 1,
+            workflowCount: 0,
+            drops: { 'not-array': 0, 'not-string': 0, 'resolve-threw': 0, missing: 0, 'realpath-failed': 0, 'outside-roots': 0 },
+          },
+          methodology: '# Methodology',
+        },
+      });
+
+      await runToCompletion('8');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      expect(prompt).toContain('1. Read every file listed in "Files to Review".');
+      expect(prompt).not.toContain(NO_REVIEWABLE_FILES_DISCLOSURE);
+      expect(prompt).toContain('File resolution: 1 resolved in the workspace, 0 under the shared .spec-workflow root, 0 dropped.');
     });
 
     // Requirement 2.12/2.13: an inherited GIT_DIR makes the review agent's git

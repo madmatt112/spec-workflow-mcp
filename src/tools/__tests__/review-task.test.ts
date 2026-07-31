@@ -41,6 +41,8 @@ import {
   reviewTaskHandler,
   _resetReviewWarnings,
   buildReviewMethodology,
+  hasNoReviewableFiles,
+  NO_REVIEWABLE_FILES_DISCLOSURE,
   type DiffMethodologyState,
   type TypecheckMethodologyState,
 } from '../review-task.js';
@@ -559,6 +561,102 @@ describe('handlePrepare with distinct workspace and workflow roots', () => {
     const result = await prepareWith([path.join('src', 'gone.ts')]);
     expect(result.data.filesToReview).toEqual([]);
     expect(diffArgs[1]).toEqual([]);
+  });
+
+  it('publishes the resolved and dropped counts on the response (4.19)', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts'), NOTES_REL, path.join('src', 'never.ts')]);
+    expect(result.data.fileResolution).toEqual({
+      workspaceCount: 1,
+      workflowCount: 1,
+      drops: {
+        'not-array': 0,
+        'not-string': 0,
+        'resolve-threw': 0,
+        missing: 1,
+        'realpath-failed': 0,
+        'outside-roots': 0,
+      },
+    });
+  });
+
+  it('replaces the read-every-file nextStep when nothing resolved in the workspace (4.20)', async () => {
+    // Every logged entry drops: `src/gone.ts` exists only under the workflow
+    // root (containment rejects it) and `src/never.ts` exists nowhere.
+    await fs.mkdir(join(workflowRoot, 'src'), { recursive: true });
+    await fs.writeFile(join(workflowRoot, 'src', 'gone.ts'), 'export const gone = 1;\n');
+
+    const result = await prepareWith([path.join('src', 'gone.ts'), path.join('src', 'never.ts')]);
+    expect(result.data.fileResolution.workspaceCount).toBe(0);
+    expect(result.nextSteps?.[0]).toBe(NO_REVIEWABLE_FILES_DISCLOSURE);
+    expect(
+      result.nextSteps,
+      'the read-every-file step must be REPLACED, not merely preceded by the disclosure: leaving it makes a pass over unexamined code the compliant outcome'
+    ).not.toContain('Read all files listed in filesToReview');
+    // Requirement 4.21: the disclosure states the residual rather than implying
+    // a closure it does not deliver. R4_2A_DIFF_EMPTY fires NECESSARILY here —
+    // an empty workspace file set yields an empty diff with no rejection — so
+    // its "already committed" explanation is in the methodology alongside this.
+    expect(result.data.methodology).toContain('the task changes were already committed before review');
+    expect(result.nextSteps?.[0]).toContain('already committed before review');
+  });
+
+  it('keeps the read-every-file nextStep when a workspace file resolved (4.20)', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.fileResolution.workspaceCount).toBe(1);
+    expect(result.nextSteps?.[0]).toBe('Read all files listed in filesToReview');
+    expect(result.nextSteps).not.toContain(NO_REVIEWABLE_FILES_DISCLOSURE);
+  });
+
+  it('does not disclose when the implementation log listed no files at all (4.20)', async () => {
+    // Zero counts everywhere is an empty log, not an all-drop review: the
+    // predicate reads the counts alone, so it must not mistake one for the other.
+    const result = await prepareWith([]);
+    expect(result.data.fileResolution).toEqual({
+      workspaceCount: 0,
+      workflowCount: 0,
+      drops: {
+        'not-array': 0,
+        'not-string': 0,
+        'resolve-threw': 0,
+        missing: 0,
+        'realpath-failed': 0,
+        'outside-roots': 0,
+      },
+    });
+    expect(result.nextSteps?.[0]).toBe('Read all files listed in filesToReview');
+  });
+});
+
+describe('hasNoReviewableFiles (4.20)', () => {
+  const noDrops = {
+    'not-array': 0,
+    'not-string': 0,
+    'resolve-threw': 0,
+    missing: 0,
+    'realpath-failed': 0,
+    'outside-roots': 0,
+  } as const;
+
+  it('is false for an empty log (all counts zero)', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 0, drops: { ...noDrops } })).toBe(false);
+  });
+
+  it('is true when every logged entry dropped', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 0, drops: { ...noDrops, missing: 2 } })).toBe(true);
+  });
+
+  it('is true when the only resolutions were workflow-rooted documents', () => {
+    // AC 20 asks for an empty WORKSPACE-resolved set, not an empty file list: a
+    // `.spec-workflow` note is readable but is not the implementation.
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 1, drops: { ...noDrops } })).toBe(true);
+  });
+
+  it('is false as soon as one workspace file resolved', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 1, workflowCount: 0, drops: { ...noDrops, missing: 5 } })).toBe(false);
+  });
+
+  it('is false when the counts are absent', () => {
+    expect(hasNoReviewableFiles(undefined)).toBe(false);
   });
 });
 

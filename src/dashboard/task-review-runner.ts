@@ -12,7 +12,12 @@ import {
   SPEC_WORKFLOW_SHARED_ROOT_ENV,
   SPEC_WORKFLOW_WORKSPACE_ENV
 } from '../core/git-utils.js';
-import { reviewTaskHandler } from '../tools/review-task.js';
+import {
+  reviewTaskHandler,
+  hasNoReviewableFiles,
+  NO_REVIEWABLE_FILES_DISCLOSURE,
+  type FileResolutionCounts,
+} from '../tools/review-task.js';
 import type { ResolvedFile } from '../core/file-resolution.js';
 import { ToolContext } from '../types.js';
 
@@ -71,6 +76,13 @@ interface BuildPromptOptions {
    * renderer's use of `.path` a checked one.
    */
   filesToReview: ResolvedFile[];
+  /**
+   * The counts `handlePrepare` publishes (requirement 4.19). Optional because it
+   * arrives through the same `any`-typed destructure and a caller (or an older
+   * prepare response) can omit it; absent means "no disclosure", never
+   * "all-drop".
+   */
+  fileResolution?: FileResolutionCounts;
   methodology: string;
   outputPath: string;
   priorReviewContext?: string | null;
@@ -158,7 +170,11 @@ export class TaskReviewRunner extends EventEmitter {
         throw new Error(`Prepare failed: ${prepareResponse.message}`);
       }
 
-      const { taskContext, implementationSummary, steeringExcerpt, filesToReview, methodology } = prepareResponse.data;
+      // `prepareResponse.data` is an `any`: every field NOT named here is
+      // silently discarded, with no compiler error. `fileResolution` (requirement
+      // 4.19) has to be named for the disclosure to reach a dashboard-spawned
+      // reviewer at all.
+      const { taskContext, implementationSummary, steeringExcerpt, filesToReview, fileResolution, methodology } = prepareResponse.data;
 
       // Load prior reviews and memory for iterative reviews (v2+)
       const priorReviews = await reviewManager.getReviewsForTask(opts.taskId);
@@ -193,6 +209,7 @@ export class TaskReviewRunner extends EventEmitter {
         implementationSummary,
         steeringExcerpt,
         filesToReview,
+        fileResolution,
         methodology,
         outputPath,
         priorReviewContext,
@@ -275,6 +292,7 @@ export class TaskReviewRunner extends EventEmitter {
       implementationSummary,
       steeringExcerpt,
       filesToReview,
+      fileResolution,
       methodology,
       outputPath,
       priorReviewContext = null,
@@ -343,12 +361,36 @@ export class TaskReviewRunner extends EventEmitter {
     // `[object Object]`, and nothing upstream would report it: the field reaches
     // here through an `any`-typed destructure.
     sections.push(filesToReview.map(f => `- ${f.path} (${f.root})`).join('\n'));
+    // Requirement 4.19: the counts, dropped ones included, are stated to the
+    // reviewing agent rather than left implicit in a short list.
+    if (fileResolution) {
+      const dropped = Object.entries(fileResolution.drops ?? {}).filter(([, n]) => n > 0);
+      const total = dropped.reduce((sum, [, n]) => sum + n, 0);
+      const detail = total > 0 ? ` (${dropped.map(([cause, n]) => `${cause}: ${n}`).join(', ')})` : '';
+      sections.push('');
+      sections.push(
+        `File resolution: ${fileResolution.workspaceCount} resolved in the workspace, ` +
+        `${fileResolution.workflowCount} under the shared .spec-workflow root, ` +
+        `${total} dropped${detail}.`
+      );
+    }
     sections.push('');
     sections.push('## Review Methodology');
     sections.push(methodology);
     sections.push('');
     sections.push('## Instructions');
-    sections.push('1. Read every file listed in "Files to Review".');
+    // Requirement 4.20: when nothing resolved inside the workspace, step 1 is
+    // REPLACED by the disclosure — a note added above an unchanged "read every
+    // file" instruction would leave the harm (a passing verdict over unexamined
+    // code) intact. See NO_REVIEWABLE_FILES_DISCLOSURE for the residual this
+    // does NOT close (requirement 4.21, deferral d-f3cb6fd8): the methodology
+    // header and R4_2A_DIFF_EMPTY still say to read every listed file, and
+    // R4_2A fires necessarily on this path.
+    sections.push(
+      hasNoReviewableFiles(fileResolution)
+        ? `1. ${NO_REVIEWABLE_FILES_DISCLOSURE}`
+        : '1. Read every file listed in "Files to Review".'
+    );
     sections.push('2. Evaluate each methodology checklist item. State what you checked and your conclusion.');
     sections.push('3. Determine a verdict:');
     sections.push('   - "pass": no findings at all');

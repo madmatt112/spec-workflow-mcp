@@ -2,7 +2,7 @@ import path from 'path';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse, ReviewFinding } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
-import { resolveLoggedFiles } from '../core/file-resolution.js';
+import { resolveLoggedFiles, type DropCause } from '../core/file-resolution.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
@@ -111,6 +111,25 @@ export function unwrapHygiene(
   return { signals: [], rejection: { message } };
 }
 
+/**
+ * One of TWO producers of `TaskDiffResult.rejection`.
+ *
+ * This arm carries a thrown exception's `.message`. The other is
+ * `computeTaskDiff`'s containment assertion (requirement 4.23), which fills the
+ * same field with its own stated text (`containmentRejectionMessage`) rather
+ * than inheriting the wording used here or in `R4_2B_DIFF_REJECTED` — a
+ * mis-partitioned pathspec is not an unexpected exception (requirement 4.24).
+ * One field, two producers, on purpose: `computeDiffMethodologyState` classifies
+ * both as `rejected`, which is what keeps either from being read as the `empty`
+ * diff — "the task changes were already committed" — that a discarded pathspec
+ * would otherwise produce.
+ *
+ * Either message is READ by the agent only on the direct-call path, as
+ * `data.diffRejection.message`. `TaskReviewRunner` names no diff field in its
+ * destructure of `prepareResponse.data`, so on the dashboard-spawned path the
+ * classification above is all that survives — the wording does not. Residual,
+ * deferred as `d-6e59490b`.
+ */
 export function unwrapDiff(
   settled: PromiseSettledResult<TaskDiffResult>
 ): TaskDiffResult {
@@ -244,6 +263,64 @@ export async function reviewTaskHandler(
   }
 }
 
+/**
+ * The file-resolution counts published with the prepare response (requirement
+ * 4.19), so the reviewing agent learns how many logged paths actually resolved
+ * and how many were dropped, by cause.
+ *
+ * They reach the dashboard-spawned reviewer only because `TaskReviewRunner`
+ * names the field in its destructure of `prepareResponse.data`, which is typed
+ * `any`: every field it does not name is silently discarded, with no compiler
+ * error.
+ */
+export interface FileResolutionCounts {
+  workspaceCount: number;
+  workflowCount: number;
+  drops: Record<DropCause, number>;
+}
+
+/**
+ * True when the task logged files and NONE of them resolved inside the
+ * workspace under review — the case requirement 4.20 makes actionable.
+ *
+ * Stated in terms of the three published counts alone, so the runner can decide
+ * it without a fourth field: every logged entry either resolves (into
+ * `workspaceCount` or `workflowCount`) or increments a drop, and the realpath
+ * dedupe only ever collapses entries that resolved. `workflowCount > 0 ||
+ * totalDrops > 0` is therefore exactly "the log listed at least one file". A log
+ * with no files at all yields zeros throughout and is not a disclosure case.
+ */
+export function hasNoReviewableFiles(counts: FileResolutionCounts | undefined | null): boolean {
+  if (!counts || counts.workspaceCount !== 0) return false;
+  const dropped = Object.values(counts.drops ?? {}).reduce((sum, n) => sum + n, 0);
+  return counts.workflowCount > 0 || dropped > 0;
+}
+
+/**
+ * The all-drop disclosure (requirement 4.20). It REPLACES — never annotates —
+ * the two read-every-file instructions this spec owns: the first `nextSteps`
+ * entry below and the runner's first numbered prompt instruction. Annotating
+ * them would leave the stated harm (a passing verdict over unexamined code)
+ * fully intact.
+ *
+ * RESIDUAL (requirement 4.21, deferral `d-f3cb6fd8`): two further instructions
+ * to read every listed file survive this replacement and are deliberately NOT
+ * changed here — the unconditional methodology header (`buildReviewMethodology`,
+ * this file) and `R4_2A_DIFF_EMPTY`. Both are byte-pinned, by the seventeen
+ * committed fixtures under `src/tools/__tests__/__fixtures__/methodology/` and by
+ * a drift test comparing against a *different* spec's requirements document, so
+ * changing them is cross-spec work this spec does not carry. `R4_2A_DIFF_EMPTY`
+ * additionally fires NECESSARILY on this path: an empty workspace file set
+ * yields an empty diff with no rejection (`src/core/task-diff.ts:41-43`), so its
+ * fabricated "already committed before review" explanation is present alongside
+ * this statement in every all-drop review. The last sentence of the text names
+ * that contradiction rather than leaving the agent to resolve it — but the
+ * contradiction itself is real, and this constant is not a complete closure of
+ * the harm.
+ */
+export const NO_REVIEWABLE_FILES_DISCLOSURE =
+  'NO REVIEWABLE FILES WERE RESOLVED. The implementation log listed files, but none of them resolved inside the workspace under review (see the fileResolution counts: workspaceCount is 0), so the implementation itself is not available to read. Do NOT return a "pass" verdict on that basis — a pass would assert that code was examined when none was read. Report the unresolved files as a critical finding instead. Any entries still shown in filesToReview are shared .spec-workflow documents, not the implementation. Other guidance in this review context still instructs you to read every listed file, and the empty-diff guidance may explain the missing diff as "the task changes were already committed before review"; neither holds here — the diff is empty and the list has no workspace files because resolution dropped them all.';
+
 async function handlePrepare(
   specPath: string,
   specName: string,
@@ -346,6 +423,14 @@ async function handlePrepare(
     // typecheck coverage (4.25), and is not a hygiene subject (4.26). The
     // reviewer-facing list keeps both, labelled with the root that resolved it.
     const workspaceFiles = fileResolution.workspaceFiles;
+    // Requirement 4.19: the counts travel with the response, on both review
+    // paths. `drops` is the resolver's per-cause tally, not a total.
+    const fileResolutionCounts: FileResolutionCounts = {
+      workspaceCount: fileResolution.workspaceFiles.length,
+      workflowCount: fileResolution.workflowFiles.length,
+      drops: fileResolution.drops,
+    };
+    const noReviewableFiles = hasNoReviewableFiles(fileResolutionCounts);
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
 
@@ -388,6 +473,7 @@ async function handlePrepare(
         // Labelled `{ path, root, ambiguous }` (requirement 4.18): the reviewer
         // is told which tree each file came from, not merely handed a path.
         filesToReview: fileResolution.files,
+        fileResolution: fileResolutionCounts,
         hygieneSignals: hygieneResult.signals,
         methodology,
         typecheckResults,
@@ -399,7 +485,11 @@ async function handlePrepare(
         ...(hygieneResult.rejection !== undefined ? { hygieneRejection: hygieneResult.rejection } : {}),
       },
       nextSteps: [
-        'Read all files listed in filesToReview',
+        // Requirement 4.20: on the all-drop path the read-every-file step is
+        // REPLACED by the disclosure, not preceded by it.
+        noReviewableFiles
+          ? NO_REVIEWABLE_FILES_DISCLOSURE
+          : 'Read all files listed in filesToReview',
         'Evaluate implementation against the methodology checklist',
         'Call review-task with action: "record", verdict, summary, and findings'
       ],
