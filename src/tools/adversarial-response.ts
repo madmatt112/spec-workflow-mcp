@@ -32,7 +32,7 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
       },
       projectPath: {
         type: 'string',
-        description: 'Absolute path to the project root (optional - uses server context path if not provided)'
+        description: 'Absolute path to the workspace under review (optional - uses the server context roots if not provided). When provided it replaces the context workspace, and the shared workflow root holding .spec-workflow is derived from it.'
       }
     },
     required: ['specName', 'phase'],
