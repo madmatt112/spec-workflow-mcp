@@ -1,6 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { mkdir, rm } from 'fs/promises';
-import { RegisteredProject, WorktreeHarness } from './helpers/worktree-harness';
+import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './helpers/worktree-harness';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
 
@@ -35,13 +34,21 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
       throw new Error('SPEC_WORKFLOW_HOME must be set by playwright.worktree.config.ts');
     }
 
-    await rm(specWorkflowHome, { recursive: true, force: true });
-    await mkdir(specWorkflowHome, { recursive: true });
+    await resetSpecWorkflowHome(specWorkflowHome);
 
     harness = new WorktreeHarness({
       serverRoot: process.cwd(),
       dashboardApiBaseUrl: DASHBOARD_API_BASE_URL,
-      specWorkflowHome
+      specWorkflowHome,
+      // Explicit: this suite covers `--no-shared-worktree-specs`, where each
+      // worktree carries its own `.spec-workflow`. The fixture names are pinned
+      // here rather than defaulted so the assertions below keep naming the
+      // seeded spec and file directly.
+      mode: 'no-shared',
+      worktrees: [
+        { name: 'wt-a', layout: 'sibling', specName: 'spec-a', sourceFile: 'src/service-a.ts' },
+        { name: 'wt-b', layout: 'sibling', specName: 'spec-b', sourceFile: 'src/service-b.ts' }
+      ]
     });
 
     await harness.setup();

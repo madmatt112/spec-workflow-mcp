@@ -169,6 +169,26 @@ export class GitWorkingDirFixture {
     await writeFile(target, contents, 'utf-8');
     return target;
   }
+
+  /**
+   * Stages everything in *this* working directory and commits. No-ops when there
+   * is nothing to commit.
+   *
+   * Lives on the base rather than on {@link GitRepoFixture} because a linked
+   * worktree needs it just as much: git's index is per-worktree, so this stages
+   * only this directory's tree and the commit lands on the branch *this*
+   * worktree has checked out. Anything that diffs against `HEAD` — the reviewer
+   * diff in `src/core/task-diff.ts` does — sees an empty diff for a file that was
+   * only ever written, never committed.
+   */
+  async commitAll(message: string): Promise<void> {
+    await this.git(['add', '-A']);
+    const status = await this.git(['status', '--porcelain']);
+    if (!status) {
+      return;
+    }
+    await this.git(['commit', '-q', '-m', message]);
+  }
 }
 
 /** A linked worktree of a {@link GitRepoFixture}. */
@@ -206,16 +226,6 @@ export class GitRepoFixture extends GitWorkingDirFixture {
   constructor(fixture: GitFixture, repoPath: string, gitCommonDir: string) {
     super(fixture, repoPath);
     this.gitCommonDir = gitCommonDir;
-  }
-
-  /** Stages everything and commits. No-ops when there is nothing to commit. */
-  async commitAll(message: string): Promise<void> {
-    await this.git(['add', '-A']);
-    const status = await this.git(['status', '--porcelain']);
-    if (!status) {
-      return;
-    }
-    await this.git(['commit', '-q', '-m', message]);
   }
 
   /**
