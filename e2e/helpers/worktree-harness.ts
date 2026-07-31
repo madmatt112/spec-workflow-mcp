@@ -132,6 +132,15 @@ export interface WorktreeHarnessOptions {
    * worktree's own copy of this file.
    */
   sharedApprovalFilePath?: string;
+  /**
+   * Park every spawned server one statement short of registering, until
+   * {@link WorktreeHarness.releaseRegistrationBarrier} lets them all go.
+   *
+   * For concurrency scenarios only. See
+   * `e2e/helpers/registration-barrier-entry.ts` for why the barrier sits at the
+   * critical section rather than at process start.
+   */
+  registrationBarrier?: boolean;
 }
 
 /**
@@ -176,6 +185,15 @@ const DEFAULT_WORKTREES: WorktreeFixtureSpec[] = [
 ];
 
 const MAX_LOG_LINES = 200;
+
+/**
+ * What a barriered server prints once it is parked on the barrier.
+ *
+ * Duplicated by hand from `READY_MARKER` in
+ * `e2e/helpers/registration-barrier-entry.ts`. Importing it from there is not an
+ * option: importing that module starts a server.
+ */
+export const REGISTRATION_BARRIER_READY = 'registration-barrier: ready to register';
 
 /**
  * Markers of `logWorkspaceResolution`'s startup emission in `src/index.ts`.
@@ -460,7 +478,11 @@ export class WorktreeHarness {
     }
 
     const tsxCli = join(this.options.serverRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-    const entryPoint = join(this.options.serverRoot, 'src', 'index.ts');
+    // The barrier entry is a wrapper around this same `src/index.ts`; it claims
+    // the entrypoint and passes the arguments below through unchanged.
+    const entryPoint = this.options.registrationBarrier
+      ? join(this.options.serverRoot, 'e2e', 'helpers', 'registration-barrier-entry.ts')
+      : join(this.options.serverRoot, 'src', 'index.ts');
     for (const required of [tsxCli, entryPoint]) {
       if (!existsSync(required)) {
         throw new Error(`WorktreeHarness cannot spawn the server: ${required} does not exist.`);
@@ -513,6 +535,57 @@ export class WorktreeHarness {
 
     this.processes.set(name, child);
     return child;
+  }
+
+  /**
+   * Waits until every named server is parked on the registration barrier.
+   *
+   * Requires {@link WorktreeHarnessOptions.registrationBarrier}. Waiting on the
+   * marker rather than on a sleep is what makes the release simultaneous *by
+   * construction*: each server has finished transpiling, inferring its
+   * workspace and initializing the workflow root before it prints, so what is
+   * left after the release is the critical section and nothing else.
+   */
+  async waitForRegistrationBarrier(names: string[], timeoutMs = 60000): Promise<void> {
+    if (!this.options.registrationBarrier) {
+      throw new Error(
+        'waitForRegistrationBarrier requires the harness to be constructed with registrationBarrier: true.'
+      );
+    }
+
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      if (names.every((name) => this.getLogsFor(name).includes(REGISTRATION_BARRIER_READY))) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    throw new Error(
+      `Timed out waiting for ${names.join(', ')} to reach the registration barrier.\n` +
+      this.getCapturedLogs()
+    );
+  }
+
+  /**
+   * Releases every named server from the barrier at one shared instant.
+   *
+   * The instant, not the message, is what synchronises them: the writes go out
+   * in one synchronous block, but N processes waking from a blocking read is N
+   * scheduling decisions and on a loaded machine those can land far enough apart
+   * for one contender to finish before the next starts. `leadTimeMs` is the
+   * budget that wake-up gets, after which every contender proceeds off the same
+   * wall clock.
+   */
+  releaseRegistrationBarrier(names: string[], leadTimeMs = 250): void {
+    const releaseAt = Date.now() + leadTimeMs;
+    for (const name of names) {
+      const child = this.processes.get(name);
+      if (!child?.stdin) {
+        throw new Error(`No barriered server is running for worktree "${name}".`);
+      }
+      child.stdin.write(`go ${releaseAt}\n`);
+    }
   }
 
   /**
