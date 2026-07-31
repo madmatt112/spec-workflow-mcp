@@ -45,6 +45,7 @@ import {
   ROOT_SELECTION_CACHE_LIMIT,
   _resetRootSelection,
   _rootSelectionCacheSize,
+  _rootSelectionWarnLedgerSize,
   selectRoots,
 } from '../root-selection.js';
 import { reviewTaskHandler } from '../review-task.js';
@@ -243,6 +244,42 @@ describe('selectRoots — memoization and its bound (requirement 3.9)', () => {
 
     expect(gitCalls.resolveGitRoot).toHaveLength(callsBefore);
     expect(_rootSelectionCacheSize()).toBe(ROOT_SELECTION_CACHE_LIMIT);
+  });
+});
+
+/**
+ * The warn-once ledger is the second map keyed by the agent-supplied override,
+ * so the same bound applies to it: unbounded, it leaks a key per distinct
+ * override for the lifetime of the process even though nothing is memoized.
+ * Each override contributes two keys — the degradation warning and the override
+ * warning — so half the limit's worth of overrides fills it.
+ */
+describe('selectRoots — the warn-once ledger and its bound (requirement 3.9)', () => {
+  it('caps the warn-once ledger, so an agent varying the value cannot grow it without bound', () => {
+    const extra = 8;
+    for (let i = 0; i < ROOT_SELECTION_CACHE_LIMIT + extra; i++) {
+      // Paths that do not exist: git fails immediately, no process is spawned.
+      selectRoots({ projectPath: join(elsewhere, `missing-${i}`) }, ctx(elsewhere));
+    }
+
+    expect(_rootSelectionWarnLedgerSize()).toBe(ROOT_SELECTION_CACHE_LIMIT);
+  });
+
+  it('evicts warn keys oldest-first, so an aged-out override warns again', () => {
+    const aged = join(elsewhere, 'aged-out');
+    selectRoots({ projectPath: aged }, ctx(elsewhere));
+    const before = warnings().filter((message) => message.includes(aged)).length;
+    expect(before).toBeGreaterThan(0);
+
+    for (let i = 0; i < Math.ceil(ROOT_SELECTION_CACHE_LIMIT / 2); i++) {
+      selectRoots({ projectPath: join(elsewhere, `filler-${i}`) }, ctx(elsewhere));
+    }
+    selectRoots({ projectPath: aged }, ctx(elsewhere));
+
+    // Its derivation is still cached — git is not asked again — so the repeated
+    // warnings can only come from the ledger having evicted its keys.
+    expect(warnings().filter((message) => message.includes(aged))).toHaveLength(before * 2);
+    expect(_rootSelectionWarnLedgerSize()).toBe(ROOT_SELECTION_CACHE_LIMIT);
   });
 });
 

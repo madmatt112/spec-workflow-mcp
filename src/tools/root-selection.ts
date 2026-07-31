@@ -106,6 +106,11 @@ export function _rootSelectionCacheSize(): number {
   return derivationCache.size;
 }
 
+/** Test-only: current number of keys in the warn-once ledger. */
+export function _rootSelectionWarnLedgerSize(): number {
+  return warnedKeys.size;
+}
+
 function degradedWarning(override: string, cause: string): string {
   return (
     `[spec-workflow] Could not derive a shared workflow root from the projectPath override ` +
