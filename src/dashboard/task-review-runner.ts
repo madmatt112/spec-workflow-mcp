@@ -13,6 +13,7 @@ import {
   SPEC_WORKFLOW_WORKSPACE_ENV
 } from '../core/git-utils.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
+import type { ResolvedFile } from '../core/file-resolution.js';
 import { ToolContext } from '../types.js';
 
 export interface TaskReviewJob {
@@ -46,6 +47,35 @@ interface RunOptions {
   model?: string;
   cli?: string;
   cliArgs?: string[];
+}
+
+/**
+ * `buildPrompt`'s parameters, as an object rather than a positional list.
+ *
+ * It took eleven positional arguments, several of them mutually assignable
+ * (`string`, `string | null`), so inserting one shifted `methodology` into the
+ * new slot, `outputPath` into `methodology` and the real output path into a
+ * nullable string — all type-checking cleanly, with the only symptom an agent
+ * that never learns where to write its result (requirement 4.22).
+ */
+interface BuildPromptOptions {
+  specName: string;
+  taskId: string;
+  taskContext: any;
+  implementationSummary: any;
+  steeringExcerpt: string | null;
+  /**
+   * The labelled shape `handlePrepare` returns (requirement 4.18), NOT a bare
+   * `string[]`. It arrives through an `any`-typed destructure of
+   * `prepareResponse.data`, so this declaration is the only thing making the
+   * renderer's use of `.path` a checked one.
+   */
+  filesToReview: ResolvedFile[];
+  methodology: string;
+  outputPath: string;
+  priorReviewContext?: string | null;
+  priorMemoryContent?: string | null;
+  memoryFilePath?: string | null;
 }
 
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -156,7 +186,19 @@ export class TaskReviewRunner extends EventEmitter {
       // Step 2: Build prompt and spawn fresh agent
       const timestamp = new Date().toISOString().replace(/[:.Z]/g, '').slice(0, 15);
       const outputPath = join(tmpdir(), `task-review-${opts.specName}-${opts.taskId}-${timestamp}.json`);
-      const prompt = this.buildPrompt(opts.specName, opts.taskId, taskContext, implementationSummary, steeringExcerpt, filesToReview, methodology, outputPath, priorReviewContext, priorMemoryContent, memoryFilePath);
+      const prompt = this.buildPrompt({
+        specName: opts.specName,
+        taskId: opts.taskId,
+        taskContext,
+        implementationSummary,
+        steeringExcerpt,
+        filesToReview,
+        methodology,
+        outputPath,
+        priorReviewContext,
+        priorMemoryContent,
+        memoryFilePath,
+      });
 
       job.status = 'running';
       this.emit('job-update', { ...job });
@@ -225,19 +267,20 @@ export class TaskReviewRunner extends EventEmitter {
     }
   }
 
-  private buildPrompt(
-    specName: string,
-    taskId: string,
-    taskContext: any,
-    implementationSummary: any,
-    steeringExcerpt: string | null,
-    filesToReview: string[],
-    methodology: string,
-    outputPath: string,
-    priorReviewContext: string | null = null,
-    priorMemoryContent: string | null = null,
-    memoryFilePath: string | null = null
-  ): string {
+  private buildPrompt(opts: BuildPromptOptions): string {
+    const {
+      specName,
+      taskId,
+      taskContext,
+      implementationSummary,
+      steeringExcerpt,
+      filesToReview,
+      methodology,
+      outputPath,
+      priorReviewContext = null,
+      priorMemoryContent = null,
+      memoryFilePath = null,
+    } = opts;
     const sections: string[] = [];
 
     sections.push(`Critically review the implementation of task ${taskId} ("${taskContext.description || ''}") from spec "${specName}". Find problems — do not validate or praise. Assume the implementation has issues until you prove otherwise. Be thorough, skeptical, and specific. If something is genuinely correct, acknowledge it briefly and move on to finding the next issue.`);
@@ -296,7 +339,10 @@ export class TaskReviewRunner extends EventEmitter {
 
     sections.push('');
     sections.push('## Files to Review');
-    sections.push(filesToReview.map(f => `- ${f}`).join('\n'));
+    // `- <path> (<root>)`. Interpolating the record itself renders
+    // `[object Object]`, and nothing upstream would report it: the field reaches
+    // here through an `any`-typed destructure.
+    sections.push(filesToReview.map(f => `- ${f.path} (${f.root})`).join('\n'));
     sections.push('');
     sections.push('## Review Methodology');
     sections.push(methodology);

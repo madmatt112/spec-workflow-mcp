@@ -77,7 +77,13 @@ function rejectionMessage(reason: unknown): string {
 
 export function unwrapTypecheck(
   settled: PromiseSettledResult<TypecheckResult[]>,
-  projectPath: string
+  /**
+   * The compiled tree (requirement 4.2). `tsconfigPath` must name the same file
+   * on this arm as on the ones `runProjectTypecheck` returns itself; reporting
+   * the workflow root here would make the rejection arm describe a different
+   * tree than the success arm.
+   */
+  workspacePath: string
 ): TypecheckResult[] {
   if (settled.status === 'fulfilled') return settled.value;
   const message = rejectionMessage(settled.reason);
@@ -86,7 +92,7 @@ export function unwrapTypecheck(
     `[spec-workflow] handlePrepare: typecheck rejected unexpectedly: ${message}`
   );
   return [{
-    tsconfigPath: path.join(projectPath, 'tsconfig.json'),
+    tsconfigPath: path.join(workspacePath, 'tsconfig.json'),
     status: 'unavailable',
     reason: 'rejection',
     rejectionMessage: message,
@@ -217,10 +223,17 @@ export async function reviewTaskHandler(
     };
   }
 
+  // An explicit `projectPath` argument overrides BOTH roots, exactly as it does
+  // today — pairing an override workflow root with the context's workspace would
+  // diff one project's files against another's tree. Task 14 replaces this with
+  // `selectRoots`, which makes the override the workspace and derives the
+  // workflow root from it.
+  const workspacePath = args.projectPath ? projectPath : context.workspacePath;
+
   const specPath = PathUtils.getSpecPath(projectPath, specName);
 
   if (action === 'prepare') {
-    return handlePrepare(specPath, specName, taskId, projectPath, context);
+    return handlePrepare(specPath, specName, taskId, projectPath, workspacePath, context);
   } else if (action === 'record') {
     return handleRecord(specPath, specName, taskId, args, projectPath, context);
   } else {
@@ -235,7 +248,10 @@ async function handlePrepare(
   specPath: string,
   specName: string,
   taskId: string,
+  /** Shared workflow root: specs, steering, settings and the workflow-root report. */
   projectPath: string,
+  /** The checkout whose code is read, diffed and typechecked. */
+  workspacePath: string,
   context: ToolContext
 ): Promise<ToolResponse> {
   const { promises: fs } = await import('fs');
@@ -291,9 +307,14 @@ async function handlePrepare(
     const hasPriorReviews = priorReviews.length > 0;
 
     // 5. Build task context
+    //
+    // The entries stay RAW (requirement 4.7): pre-absolutizing them against the
+    // workflow root makes two-root resolution impossible — every relative entry
+    // would be anchored to the wrong tree and then dropped on containment. The
+    // `new Set` stays: it dedupes raw strings, which is a different job from the
+    // resolver's realpath dedupe (requirement 4.11).
     const latestLog = taskLogs[0]; // Sorted newest first
-    const allFiles = [...new Set([...latestLog.filesModified, ...latestLog.filesCreated])]
-      .map(p => path.resolve(projectPath, p));
+    const allFiles = [...new Set([...latestLog.filesModified, ...latestLog.filesCreated])];
 
     const taskContext = {
       description: task.description,
@@ -312,26 +333,36 @@ async function handlePrepare(
     };
 
     // 6. Resolve logged paths and load settings (synchronous prelude).
-    // The two roots are passed equal here: `allFiles` is still pre-resolved
-    // against the workflow root above, so handing the resolver a distinct
-    // workspace would anchor every relative entry against the wrong tree. Task
-    // 10 deletes that pre-resolution and splits the roots in one change.
+    // Relative entries anchor against the workspace first and the shared
+    // workflow root second; settings still load from the workflow root
+    // (requirement 4.27).
     const fileResolution = resolveLoggedFiles(allFiles, {
-      workspacePath: projectPath,
+      workspacePath,
       workflowRoot: projectPath,
     });
-    const validatedAllFiles = fileResolution.files.map(f => f.path);
+    // Every code operation below reads the WORKSPACE set only: a path that
+    // resolved under the workflow root is a `.spec-workflow` document, which
+    // does not belong in the worktree's diff (4.1/4.23), must not count against
+    // typecheck coverage (4.25), and is not a hygiene subject (4.26). The
+    // reviewer-facing list keeps both, labelled with the root that resolved it.
+    const workspaceFiles = fileResolution.workspaceFiles;
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
 
     // 7. Run typecheck + hygiene + diff concurrently; convert rejections to degraded states.
     // Diff is APPENDED at index 2 — typecheck stays at 0, hygiene at 1.
+    // `computeTaskDiff` runs against the workspace (requirement 4.1), and so
+    // does everything in `runProjectTypecheck` that decides which tree is
+    // compiled (requirement 4.2); the workflow root it takes second owns only
+    // the shared cache directory and the `.gitignore` entry (requirement 4.3).
     const settled = await Promise.allSettled([
-      runProjectTypecheck(projectPath, validatedAllFiles, { enabled: typecheckEnabled }),
-      computeHygieneSignals(validatedAllFiles),
-      computeTaskDiff(projectPath, validatedAllFiles),
+      runProjectTypecheck(workspacePath, projectPath, workspaceFiles, {
+        enabled: typecheckEnabled,
+      }),
+      computeHygieneSignals(workspaceFiles),
+      computeTaskDiff(workspacePath, workspaceFiles),
     ]);
-    const typecheckResults = unwrapTypecheck(settled[0], projectPath);
+    const typecheckResults = unwrapTypecheck(settled[0], workspacePath);
     const hygieneResult = unwrapHygiene(settled[1]);
     const diffResult = unwrapDiff(settled[2]);
 
@@ -354,7 +385,9 @@ async function handlePrepare(
         taskContext,
         implementationSummary,
         steeringExcerpt,
-        filesToReview: validatedAllFiles,
+        // Labelled `{ path, root, ambiguous }` (requirement 4.18): the reviewer
+        // is told which tree each file came from, not merely handed a path.
+        filesToReview: fileResolution.files,
         hygieneSignals: hygieneResult.signals,
         methodology,
         typecheckResults,

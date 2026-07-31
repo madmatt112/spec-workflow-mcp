@@ -10,7 +10,7 @@ vi.mock('node:child_process', async (importOriginal) => {
 
 import * as childProcess from 'node:child_process';
 import { promises as fs } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runProjectTypecheck } from '../typecheck.js';
 
@@ -118,7 +118,7 @@ afterEach(async () => {
 describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
   it('feature-disabled short-circuits before any I/O', async () => {
     // No tsconfig, no tsc — but enabled=false should return immediately.
-    const result = await runProjectTypecheck(tempDir, [], { enabled: false });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: false });
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
@@ -127,7 +127,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
   });
 
   it('no-tsconfig when tsconfig.json is absent', async () => {
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('no-tsconfig');
@@ -135,7 +135,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
 
   it('project-references when references array is non-empty', async () => {
     await writeTsconfig(tempDir, JSON.stringify({ references: [{ path: './pkg' }] }));
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('project-references');
@@ -143,7 +143,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
 
   it('wrapper-config when files=[] and no include', async () => {
     await writeTsconfig(tempDir, JSON.stringify({ files: [] }));
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('wrapper-config');
@@ -151,7 +151,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
 
   it('tsc-not-found when binary is missing', async () => {
     await writeTsconfig(tempDir, '{}');
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('tsc-not-found');
@@ -161,7 +161,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     await writeTsconfig(tempDir, '{}');
     await installFakeTsc(tempDir);
     setNextExecBehavior({ errorCode: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' });
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('output-overflow');
@@ -171,7 +171,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     await writeTsconfig(tempDir, '{}');
     await installFakeTsc(tempDir);
     setNextExecBehavior({ stdout: '', exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('no-parseable-output');
@@ -181,7 +181,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     await writeTsconfig(tempDir, '{}');
     await installFakeTsc(tempDir);
     setNextExecBehavior({ stdout: '/some/path/foo.ts\n', exitCode: 1 });
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');
     expect(result[0].reason).toBe('no-parseable-output');
@@ -203,7 +203,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
         return realSetTimeout(fn, ms, ...args);
       }) as unknown as typeof setTimeout);
     setNextExecBehavior({ hang: true });
-    const promise = runProjectTypecheck(tempDir, [], { enabled: true });
+    const promise = runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     // Wait until spawn happened and the 30s timer was registered.
     while (!timeoutFired) await new Promise((r) => realSetTimeout(r, 5));
     (timeoutFired as () => void)();
@@ -232,7 +232,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
       setImmediate(() => cb(null, '/a/b.ts\n', ''));
       return { kill: vi.fn() } as unknown as childProcess.ChildProcess;
     }) as unknown as typeof childProcess.execFile);
-    await runProjectTypecheck(tempDir, [], { enabled: true });
+    await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(cacheDirAtSpawn).toBe(true);
   });
 
@@ -240,7 +240,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     await writeTsconfig(tempDir, '{}');
     await installFakeTsc(tempDir);
     setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
-    await runProjectTypecheck(tempDir, [], { enabled: true });
+    await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(mockedExecFile).toHaveBeenCalledTimes(1);
     const opts = mockedExecFile.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
     expect(opts.env.FORCE_COLOR).toBe('0');
@@ -252,7 +252,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     await installFakeTsc(tempDir);
     await fs.writeFile(join(tempDir, '.gitignore'), 'node_modules\n');
     setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
-    await runProjectTypecheck(tempDir, [], { enabled: true });
+    await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     const gi = await fs.readFile(join(tempDir, '.gitignore'), 'utf-8');
     expect(gi).toContain('.spec-workflow/.cache/');
   });
@@ -265,7 +265,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
       'node_modules\n.spec-workflow/.cache/\n',
     );
     setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
-    await runProjectTypecheck(tempDir, [], { enabled: true });
+    await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     const gi = await fs.readFile(join(tempDir, '.gitignore'), 'utf-8');
     const occurrences = gi.split('.spec-workflow/.cache/').length - 1;
     expect(occurrences).toBe(1);
@@ -279,7 +279,7 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
       exitCode: 0,
       stderr: 'error TS5083: Cannot read file ./tsc.tsbuildinfo',
     });
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('success');
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].typecheckWarning).toMatch(/tsbuildinfo rebuild/);
@@ -298,7 +298,7 @@ describe('runProjectTypecheck (5.2) — two-pass parser', () => {
 
   async function runWithStdout(stdout: string, allFiles: string[] = []) {
     setNextExecBehavior({ stdout, exitCode: 0 });
-    return runProjectTypecheck(tempDir, allFiles, { enabled: true });
+    return runProjectTypecheck(tempDir, tempDir, allFiles, { enabled: true });
   }
 
   it('parses a single diagnostic header and the listFiles section', async () => {
@@ -388,6 +388,7 @@ describe('runProjectTypecheck (5.2) — two-pass parser', () => {
     setNextExecBehavior({ stdout, exitCode: 0 });
     const result = await runProjectTypecheck(
       tempDir,
+      tempDir,
       [real, leakedPath],
       { enabled: true },
     );
@@ -432,7 +433,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     // tsc compiled only `a.ts`; b.ts was passed in allFiles but not compiled.
     const stdout = [a, ''].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [a, b], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [a, b], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].coverage.compiled).toContain(a);
     expect(result[0].coverage.excluded).toContain(b);
@@ -445,6 +446,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     const stdout = [present, ''].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
     const result = await runProjectTypecheck(
+      tempDir,
       tempDir,
       [present, ghost],
       { enabled: true },
@@ -462,7 +464,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     const loop = join(tempDir, 'loop.ts');
     await fs.symlink(loop, loop);
     setNextExecBehavior({ stdout: [ok, ''].join('\n'), exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [ok, loop], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [ok, loop], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].coverage.excluded).toContain(loop);
     expect(warnSpy).toHaveBeenCalledWith(
@@ -482,7 +484,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
       '',
     ].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [real], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [real], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].diagnostics).toHaveLength(1);
     expect(result[0].diagnostics[0].inScope).toBe(false);
@@ -498,7 +500,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     // normalize to the same realpath and intersect.
     const stdout = [link, ''].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [real], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [real], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].coverage.compiled).toContain(real);
     expect(result[0].coverage.excluded).not.toContain(real);
@@ -517,7 +519,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
       '',
     ].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [a], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [a], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     const inScope = result[0].diagnostics.find((d) => d.file === a)!;
     const oos = result[0].diagnostics.find((d) => d.file === out)!;
@@ -540,7 +542,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     }
     lines.push(a, out, '');
     setNextExecBehavior({ stdout: lines.join('\n'), exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [a], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [a], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].diagnostics).toHaveLength(100);
     expect(result[0].truncated).toBe(true);
@@ -564,13 +566,197 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
       '',
     ].join('\n');
     setNextExecBehavior({ stdout, exitCode: 0 });
-    const result = await runProjectTypecheck(tempDir, [ok, lock], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [ok, lock], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].coverage.compiled).toContain(ok);
     expect(result[0].coverage.compiled).not.toContain(lock);
     expect(result[0].coverage.excluded).not.toContain(lock);
     expect(result[0].diagnostics.some((d) => d.file === lock)).toBe(false);
     expect(result[0].suppressedDenylistedFiles).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 11 — the workspace is compiled; the workflow root holds the cache
+// ---------------------------------------------------------------------------
+
+describe('runProjectTypecheck — two roots', () => {
+  let rootsDir: string;
+  let workflowRoot: string;
+  let workspacePath: string;
+
+  beforeEach(async () => {
+    rootsDir = await fs.mkdtemp(join(tmpdir(), 'typecheck-two-root-'));
+    // The nested worktree layout: the workspace sits under the shared root.
+    workflowRoot = join(rootsDir, 'repo');
+    workspacePath = join(workflowRoot, 'worktrees', 'feature-a');
+    await fs.mkdir(workspacePath, { recursive: true });
+    // BOTH roots carry a tsconfig, so a run rooted at the wrong one still
+    // proceeds and silently compiles the wrong tree rather than failing loudly.
+    await writeTsconfig(workflowRoot, '{}');
+    await writeTsconfig(workspacePath, '{}');
+  });
+
+  afterEach(async () => {
+    await fs.rm(rootsDir, { recursive: true, force: true });
+  });
+
+  it('points -p and the spawn working directory at the workspace (R4 AC 2)', async () => {
+    await installFakeTsc(workspacePath);
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    const result = await runProjectTypecheck(
+      workspacePath,
+      workflowRoot,
+      [],
+      { enabled: true },
+    );
+    expect(result[0].tsconfigPath).toBe(join(workspacePath, 'tsconfig.json'));
+    const call = mockedExecFile.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { cwd: string },
+    ];
+    const args = call[1];
+    expect(args[args.indexOf('-p') + 1]).toBe(workspacePath);
+    expect(call[2].cwd).toBe(workspacePath);
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'compiles the tree named by -p — asserted on the compiled file list',
+    async () => {
+      const workspaceFile = join(workspacePath, 'in-worktree.ts');
+      const workflowFile = join(workflowRoot, 'in-main.ts');
+      await fs.writeFile(workspaceFile, 'export const a = 1;\n');
+      await fs.writeFile(workflowFile, 'export const b = 2;\n');
+
+      // A fake tsc that behaves like a compiler: it lists the `.ts` files of
+      // the directory it was pointed at, and records its working directory.
+      // Reporting the workspace `tsconfigPath` while compiling the main
+      // checkout is the exact defect this asserts against — so the assertion is
+      // on `coverage.compiled`, not on the reported path.
+      const cwdProbe = join(rootsDir, 'cwd.txt');
+      const binDir = join(workspacePath, 'node_modules', '.bin');
+      await fs.mkdir(binDir, { recursive: true });
+      const script = [
+        '#!/bin/sh',
+        `pwd > "${cwdProbe}"`,
+        'root=""',
+        'while [ $# -gt 0 ]; do',
+        '  if [ "$1" = "-p" ]; then root="$2"; fi',
+        '  shift',
+        'done',
+        'for f in "$root"/*.ts; do echo "$f"; done',
+        'exit 0',
+      ].join('\n');
+      await fs.writeFile(join(binDir, 'tsc'), script, { mode: 0o755 });
+
+      const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
+      mockedExecFile.mockImplementationOnce(
+        actual.execFile as unknown as typeof childProcess.execFile,
+      );
+
+      const result = await runProjectTypecheck(
+        workspacePath,
+        workflowRoot,
+        [workspaceFile, workflowFile],
+        { enabled: true },
+      );
+      if (result[0].status !== 'success') throw new Error('narrowing');
+      expect(result[0].coverage.compiled).toEqual([workspaceFile]);
+      expect(result[0].coverage.excluded).toEqual([workflowFile]);
+
+      const observedCwd = (await fs.readFile(cwdProbe, 'utf-8')).trim();
+      expect(await fs.realpath(observedCwd)).toBe(await fs.realpath(workspacePath));
+    },
+  );
+
+  it('resolves the compiler from the workspace, not the workflow root', async () => {
+    // A fresh worktree without `node_modules` reports tsc-not-found rather than
+    // borrowing the main checkout's compiler (design Migration note).
+    await installFakeTsc(workflowRoot);
+    const result = await runProjectTypecheck(
+      workspacePath,
+      workflowRoot,
+      [],
+      { enabled: true },
+    );
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('tsc-not-found');
+    expect(result[0].tsconfigPath).toBe(join(workspacePath, 'tsconfig.json'));
+    expect(mockedExecFile).not.toHaveBeenCalled();
+  });
+
+  it('writes the cache directory and the .gitignore entry to the workflow root only (R4 AC 3)', async () => {
+    await installFakeTsc(workspacePath);
+    await fs.writeFile(join(workflowRoot, '.gitignore'), 'node_modules\n');
+    await fs.writeFile(join(workspacePath, '.gitignore'), 'node_modules\n');
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    await runProjectTypecheck(workspacePath, workflowRoot, [], { enabled: true });
+
+    const cacheDir = join(workflowRoot, '.spec-workflow', '.cache');
+    expect((await fs.stat(cacheDir)).isDirectory()).toBe(true);
+    // The worktree stays clean: no `.spec-workflow` inside it, and its tracked
+    // `.gitignore` is byte-identical to what it was before the run.
+    await expect(fs.stat(join(workspacePath, '.spec-workflow'))).rejects.toThrow();
+    expect(await fs.readFile(join(workspacePath, '.gitignore'), 'utf-8')).toBe(
+      'node_modules\n',
+    );
+    expect(await fs.readFile(join(workflowRoot, '.gitignore'), 'utf-8')).toContain(
+      '.spec-workflow/.cache/',
+    );
+  });
+
+  it('keys the tsbuildinfo per workspace so two worktrees do not share one (R4 AC 4)', async () => {
+    const other = join(workflowRoot, 'worktrees', 'feature-b');
+    await fs.mkdir(other, { recursive: true });
+    await writeTsconfig(other, '{}');
+    await installFakeTsc(workspacePath);
+    await installFakeTsc(other);
+
+    async function tsbuildinfoOf(ws: string): Promise<string> {
+      mockedExecFile.mockReset();
+      setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+      await runProjectTypecheck(ws, workflowRoot, [], { enabled: true });
+      const args = mockedExecFile.mock.calls[0][1] as unknown as string[];
+      return args[args.indexOf('--tsBuildInfoFile') + 1];
+    }
+
+    const a = await tsbuildinfoOf(workspacePath);
+    const b = await tsbuildinfoOf(other);
+    const aAgain = await tsbuildinfoOf(workspacePath);
+
+    const cacheDir = join(workflowRoot, '.spec-workflow', '.cache');
+    expect(dirname(a)).toBe(cacheDir);
+    expect(dirname(b)).toBe(cacheDir);
+    expect(a).not.toBe(b);
+    // Stable per workspace — a key that moved between runs would rebuild every
+    // time, which is the same defect as sharing one file.
+    expect(aAgain).toBe(a);
+  });
+
+  it('reports the workspace tsconfigPath on the success and unavailable arms alike', async () => {
+    const expected = join(workspacePath, 'tsconfig.json');
+
+    const disabled = await runProjectTypecheck(
+      workspacePath,
+      workflowRoot,
+      [],
+      { enabled: false },
+    );
+    expect(disabled[0].status).toBe('unavailable');
+    expect(disabled[0].tsconfigPath).toBe(expected);
+
+    await installFakeTsc(workspacePath);
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    const success = await runProjectTypecheck(
+      workspacePath,
+      workflowRoot,
+      [],
+      { enabled: true },
+    );
+    expect(success[0].status).toBe('success');
+    expect(success[0].tsconfigPath).toBe(expected);
   });
 });
 
@@ -600,7 +786,7 @@ describe('runProjectTypecheck — real spawn integration', () => {
     const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
     mockedExecFile.mockImplementationOnce(actual.execFile as unknown as typeof childProcess.execFile);
 
-    const result = await runProjectTypecheck(tempDir, [], { enabled: true });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('success');
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].diagnostics).toHaveLength(1);

@@ -153,16 +153,19 @@ describe('TaskReviewRunner', () => {
     it('should omit Prior Review Context on v1 (no priors)', () => {
       const runner2 = new TaskReviewRunner();
       const build = (runner2 as any).buildPrompt.bind(runner2);
-      const prompt = build(
-        'test-spec', '1',
-        { description: 'test task' },
-        { filesModified: [] },
-        null,
-        ['src/file.ts'],
-        '# Methodology',
-        '/tmp/output.json',
-        null, null, null
-      );
+      const prompt = build({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test task' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [{ path: 'src/file.ts', root: 'workspace', ambiguous: false }],
+        methodology: '# Methodology',
+        outputPath: '/tmp/output.json',
+        priorReviewContext: null,
+        priorMemoryContent: null,
+        memoryFilePath: null,
+      });
       expect(prompt).not.toContain('## Prior Review Context');
       expect(prompt).not.toContain('## Prior Review Memory');
       expect(prompt).not.toContain('## Memory File Update');
@@ -173,16 +176,19 @@ describe('TaskReviewRunner', () => {
       const runner2 = new TaskReviewRunner();
       const build = (runner2 as any).buildPrompt.bind(runner2);
       const priorContext = '### Version 1 (findings): v1 summary\n- [warning] Some warning (file.ts:10)\n';
-      const prompt = build(
-        'test-spec', '1',
-        { description: 'test task' },
-        { filesModified: [] },
-        null,
-        ['src/file.ts'],
-        '# Methodology',
-        '/tmp/output.json',
-        priorContext, null, '/tmp/memory-task-1.md'
-      );
+      const prompt = build({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test task' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [{ path: 'src/file.ts', root: 'workspace', ambiguous: false }],
+        methodology: '# Methodology',
+        outputPath: '/tmp/output.json',
+        priorReviewContext: priorContext,
+        priorMemoryContent: null,
+        memoryFilePath: '/tmp/memory-task-1.md',
+      });
       expect(prompt).toContain('## Prior Review Context');
       expect(prompt).toContain('Some warning');
       expect(prompt).toContain('## Prior Review Memory');
@@ -195,27 +201,60 @@ describe('TaskReviewRunner', () => {
       const runner2 = new TaskReviewRunner();
       const build = (runner2 as any).buildPrompt.bind(runner2);
       const memoryContent = '# Task Review Memory\n## Existing content from prior iterations';
-      const prompt = build(
-        'test-spec', '1',
-        { description: 'test' },
-        { filesModified: [] },
-        null, [], '# M', '/tmp/out.json',
-        'context', memoryContent, '/tmp/memory.md'
-      );
+      const prompt = build({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [],
+        methodology: '# M',
+        outputPath: '/tmp/out.json',
+        priorReviewContext: 'context',
+        priorMemoryContent: memoryContent,
+        memoryFilePath: '/tmp/memory.md',
+      });
       expect(prompt).toContain('Existing content from prior iterations');
     });
 
     it('should show default memory text when no prior memory exists', () => {
       const runner2 = new TaskReviewRunner();
       const build = (runner2 as any).buildPrompt.bind(runner2);
-      const prompt = build(
-        'test-spec', '1',
-        { description: 'test' },
-        { filesModified: [] },
-        null, [], '# M', '/tmp/out.json',
-        'context', null, '/tmp/memory.md'
-      );
+      const prompt = build({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [],
+        methodology: '# M',
+        outputPath: '/tmp/out.json',
+        priorReviewContext: 'context',
+        priorMemoryContent: null,
+        memoryFilePath: '/tmp/memory.md',
+      });
       expect(prompt).toContain('No memory file yet');
+    });
+
+    it('renders the labelled file list as "- <path> (<root>)" with no object placeholders', () => {
+      const runner2 = new TaskReviewRunner();
+      const build = (runner2 as any).buildPrompt.bind(runner2);
+      const prompt = build({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [
+          { path: '/ws/src/file.ts', root: 'workspace', ambiguous: false },
+          { path: '/root/.spec-workflow/notes.md', root: 'workflow', ambiguous: false },
+        ],
+        methodology: '# M',
+        outputPath: '/tmp/out.json',
+      });
+      expect(prompt).not.toContain('[object Object]');
+      expect(prompt).toContain('- /ws/src/file.ts (workspace)');
+      expect(prompt).toContain('- /root/.spec-workflow/notes.md (workflow)');
     });
   });
 
@@ -344,7 +383,7 @@ describe('TaskReviewRunner', () => {
           taskContext: { description: 'root split' },
           implementationSummary: { filesModified: [] },
           steeringExcerpt: null,
-          filesToReview: ['src/a.ts'],
+          filesToReview: [{ path: 'src/a.ts', root: 'workspace', ambiguous: false }],
           methodology: '# Methodology',
         },
       });
@@ -439,6 +478,76 @@ describe('TaskReviewRunner', () => {
         spawnCalls[0].opts.cwd,
         'the review agent must be spawned with cwd = the WORKSPACE (the worktree under review); the workflow root is here instead, which silently produces a confident review of the wrong checkout'
       ).toBe(workspacePath);
+    });
+
+    // Requirement 4.22: the file list reaches the agent through an `any`-typed
+    // destructure, so nothing but this assertion catches a renderer that still
+    // interpolates the record.
+    it('renders each reviewable file with its root in the spawned prompt (4.18, 4.22)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'root split' },
+          implementationSummary: { filesModified: [] },
+          steeringExcerpt: null,
+          filesToReview: [
+            { path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false },
+            { path: join(workflowRoot, '.spec-workflow', 'notes.md'), root: 'workflow', ambiguous: false },
+          ],
+          methodology: '# Methodology',
+        },
+      });
+
+      await runToCompletion('5');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      expect(
+        prompt,
+        'the labelled file record was interpolated whole: the renderer must read `.path`, not the object'
+      ).not.toContain('[object Object]');
+      expect(prompt).toContain(`- ${join(workspacePath, 'src', 'a.ts')} (workspace)`);
+      expect(prompt).toContain(`- ${join(workflowRoot, '.spec-workflow', 'notes.md')} (workflow)`);
+    });
+
+    // Requirement 4.22: `methodology` and `outputPath` are the two fields the
+    // old positional list could silently shift into each other's slots. The
+    // output path is pinned by the stand-in agent above (it parses the prompt to
+    // learn where to write, so a wrong value fails the job). This is the
+    // equivalent pin for the methodology: it is asserted INSIDE its own section,
+    // because a bare whole-prompt search still passes when the methodology has
+    // merely swapped places with another rendered field.
+    it('renders the methodology returned by prepare under "## Review Methodology" (4.22)', async () => {
+      const METHODOLOGY = [
+        '# Task Review Methodology',
+        '',
+        '- [ ] R4_22_METHODOLOGY_MARKER: the checklist prepare selected for this review.',
+      ].join('\n');
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'root split' },
+          implementationSummary: { filesModified: [] },
+          steeringExcerpt: '## Steering excerpt R4_22_STEERING_MARKER',
+          filesToReview: [{ path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false }],
+          methodology: METHODOLOGY,
+        },
+      });
+
+      await runToCompletion('6');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      const section = prompt.slice(
+        prompt.indexOf('## Review Methodology'),
+        prompt.indexOf('## Instructions')
+      );
+      expect(
+        section,
+        'the methodology prepare selected must be what is rendered under "## Review Methodology": it is not there, so the `methodology` slot received something else — a constant, or a neighbouring field (steeringExcerpt, filesToReview, outputPath) shifted into it'
+      ).toContain('R4_22_METHODOLOGY_MARKER');
+      expect(
+        section,
+        'the steering excerpt is rendered in the methodology slot: `methodology` and `steeringExcerpt` have swapped places'
+      ).not.toContain('R4_22_STEERING_MARKER');
     });
 
     // Requirement 2.12/2.13: an inherited GIT_DIR makes the review agent's git

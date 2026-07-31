@@ -138,7 +138,12 @@ describe('review-task handler', () => {
       expect(result.success).toBe(true);
       expect(result.data.taskContext).toBeDefined();
       expect(result.data.implementationSummary).toBeDefined();
-      expect(result.data.filesToReview).toContain(join(tempDir, 'src/handler.ts'));
+      // Labelled shape (R4 AC 18): `{ path, root, ambiguous }`, not a bare path.
+      expect(result.data.filesToReview).toContainEqual({
+        path: join(tempDir, 'src/handler.ts'),
+        root: 'workspace',
+        ambiguous: false,
+      });
       expect(result.data.methodology).toContain('Review Methodology');
       expect(result.data.methodology).toContain('No new deps');
       expect(result.data.methodology).toContain('Tests pass');
@@ -375,6 +380,185 @@ describe('review-task handler', () => {
       );
       expect(result.data.version).toBe(2);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Two-root partition (requirements 4.1, 4.7, 4.25, 4.26, 4.27).
+//
+// The parity suite covers the equal-roots case; this covers the case it cannot
+// see, where the workspace and the workflow root are different directories.
+// ---------------------------------------------------------------------------
+
+describe('handlePrepare with distinct workspace and workflow roots', () => {
+  let rootsDir: string;
+  let workflowRoot: string;
+  let workspacePath: string;
+  let specPath: string;
+  let context: ToolContext;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  let typecheckArgs: any[];
+  let hygieneArgs: any[];
+  let diffArgs: any[];
+
+  const NOTES_REL = path.join('.spec-workflow', 'specs', 'test-spec', 'notes.md');
+
+  beforeEach(async () => {
+    resetAllWarnings();
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    typecheckArgs = [];
+    hygieneArgs = [];
+    diffArgs = [];
+
+    rootsDir = await fs.mkdtemp(join(tmpdir(), 'review-task-two-root-'));
+    // A NESTED layout: the worktree sits under the workflow root, which is the
+    // arrangement that makes "contained by the workflow root" the wrong test.
+    workflowRoot = join(rootsDir, 'repo');
+    workspacePath = join(workflowRoot, 'worktrees', 'feature-a');
+    specPath = join(workflowRoot, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specPath, { recursive: true });
+    await fs.mkdir(join(workflowRoot, '.spec-workflow', 'steering'), { recursive: true });
+    await fs.mkdir(join(workspacePath, 'src'), { recursive: true });
+
+    await fs.writeFile(join(specPath, 'tasks.md'), [
+      '# Tasks',
+      '',
+      '- [-] 1. Implement feature',
+      '  _Requirements: 4.1_',
+      '',
+    ].join('\n'));
+    // Spec, steering and settings all live on the SHARED root (R4 AC 27).
+    await fs.writeFile(join(specPath, 'notes.md'), 'notes\n');
+    await fs.writeFile(
+      join(workflowRoot, '.spec-workflow', 'steering', 'tech.md'),
+      '# Tech steering from the shared root\n'
+    );
+    await fs.writeFile(
+      join(workflowRoot, '.spec-workflow', 'adversarial-settings.json'),
+      JSON.stringify({ features: { typecheck: false } })
+    );
+    // Code lives in the WORKTREE only.
+    await fs.writeFile(join(workspacePath, 'src', 'code.ts'), 'export const x = 1;\n');
+
+    context = { projectPath: workflowRoot, workspacePath };
+
+    overrides.typecheck = async (...args: any[]) => {
+      typecheckArgs = args;
+      return [{
+        tsconfigPath: join(workspacePath, 'tsconfig.json'),
+        status: 'unavailable',
+        reason: 'feature-disabled',
+      }];
+    };
+    overrides.hygiene = async (...args: any[]) => {
+      hygieneArgs = args;
+      return [];
+    };
+    overrides.diff = async (...args: any[]) => {
+      diffArgs = args;
+      return { diff: '', stats: undefined, skippedPaths: [], truncated: false };
+    };
+  });
+
+  afterEach(async () => {
+    overrides.typecheck = null;
+    overrides.hygiene = null;
+    overrides.diff = null;
+    warnSpy.mockRestore();
+    await fs.rm(rootsDir, { recursive: true, force: true });
+  });
+
+  async function prepareWith(files: string[]) {
+    const logManager = new ImplementationLogManager(specPath);
+    await logManager.addLogEntry({
+      taskId: '1',
+      timestamp: new Date().toISOString(),
+      summary: 'Implemented',
+      filesModified: files,
+      filesCreated: [],
+      statistics: { linesAdded: 1, linesRemoved: 0, filesChanged: files.length },
+      artifacts: {},
+    });
+    const result = await reviewTaskHandler(
+      { action: 'prepare', specName: 'test-spec', taskId: '1' },
+      context
+    );
+    expect(result.success).toBe(true);
+    return result;
+  }
+
+  it('resolves a bare relative entry to the workspace, not the workflow root', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.filesToReview).toEqual([
+      { path: join(workspacePath, 'src', 'code.ts'), root: 'workspace', ambiguous: false },
+    ]);
+  });
+
+  it('labels a .spec-workflow entry as workflow-rooted and keeps it in the list', async () => {
+    const result = await prepareWith([NOTES_REL]);
+    expect(result.data.filesToReview).toEqual([
+      { path: join(specPath, 'notes.md'), root: 'workflow', ambiguous: false },
+    ]);
+  });
+
+  it('routes only workspace files to the diff, the typecheck and the hygiene signals', async () => {
+    await prepareWith([path.join('src', 'code.ts'), NOTES_REL]);
+    const workspaceOnly = [join(workspacePath, 'src', 'code.ts')];
+
+    // R4 AC 25 / 26 / 23: the workflow-rooted document is in the reviewer's
+    // list but in none of the three code-operation inputs.
+    // `runProjectTypecheck` takes two roots, so its file list is at index 2.
+    expect(typecheckArgs[2]).toEqual(workspaceOnly);
+    expect(hygieneArgs[0]).toEqual(workspaceOnly);
+    expect(diffArgs[1]).toEqual(workspaceOnly);
+  });
+
+  it('runs the diff against the workspace root', async () => {
+    await prepareWith([path.join('src', 'code.ts')]);
+    // R4 AC 1. Handing it the workflow root diffs the main checkout.
+    expect(diffArgs[0]).toBe(workspacePath);
+  });
+
+  it('gives the typecheck the workspace first and the workflow root second', async () => {
+    await prepareWith([path.join('src', 'code.ts')]);
+    // R4 AC 2 / AC 3. The compiled tree is the worktree; the shared root is
+    // spent only on the cache directory and the `.gitignore` entry.
+    expect(typecheckArgs[0]).toBe(workspacePath);
+    expect(typecheckArgs[1]).toBe(workflowRoot);
+  });
+
+  it('reports the workspace tsconfigPath when the typecheck rejects', async () => {
+    // R4 AC 2. `tsconfigPath` must name the same file on the rejection arm as
+    // on the arms `runProjectTypecheck` returns itself.
+    overrides.typecheck = async () => { throw new Error('boom'); };
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.typecheckResults[0].reason).toBe('rejection');
+    expect(result.data.typecheckResults[0].tsconfigPath).toBe(
+      join(workspacePath, 'tsconfig.json')
+    );
+  });
+
+  it('reads spec, steering and settings from the shared workflow root', async () => {
+    // R4 AC 27. The spec was found (prepare succeeded) under the workflow root
+    // even though the workspace has no `.spec-workflow` at all; the steering
+    // excerpt and the typecheck-disabling settings file are both read from it.
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.steeringExcerpt).toContain('Tech steering from the shared root');
+    expect(typecheckArgs[3]).toEqual({ enabled: false });
+    expect(result.projectContext?.workflowRoot).toBe(join(workflowRoot, '.spec-workflow'));
+  });
+
+  it('drops a workspace-deleted file rather than substituting the workflow root copy', async () => {
+    // R4 AC 14 through the real call path: `src/gone.ts` exists under the
+    // workflow root but not in the worktree, and containment by
+    // `.spec-workflow` is what keeps it out.
+    await fs.mkdir(join(workflowRoot, 'src'), { recursive: true });
+    await fs.writeFile(join(workflowRoot, 'src', 'gone.ts'), 'export const gone = 1;\n');
+
+    const result = await prepareWith([path.join('src', 'gone.ts')]);
+    expect(result.data.filesToReview).toEqual([]);
+    expect(diffArgs[1]).toEqual([]);
   });
 });
 
@@ -638,7 +822,9 @@ describe('handlePrepare integration', () => {
       // Unchanged from pre-`resolveLoggedFiles` behaviour: the resolver decides
       // containment on the realpath but emits the `path.resolve` spelling, so
       // R3 AC 11 holds here even where `tmpdir()` is a symlink.
-      expect(result.data.filesToReview).toEqual([path.resolve(tempDir, 'src/valid.ts')]);
+      expect(result.data.filesToReview).toEqual([
+        { path: path.resolve(tempDir, 'src/valid.ts'), root: 'workspace', ambiguous: false },
+      ]);
       const warnings = warnSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
       // The replacement text: "outside projectPath" named a concept that does
       // not survive two roots.
