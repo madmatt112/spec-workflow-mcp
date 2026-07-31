@@ -484,6 +484,17 @@ describe('parity baseline — projectId and the path stored beside it', () => {
   // ───────────────────────────────────────────────────────────────────────────
   // THE ONE TEST IN THIS FILE WHOSE EXPECTATIONS ARE ALLOWED TO MOVE.
   //
+  // ┌─ DONE. Task 15 made exactly the two permitted moves described below, and ┐
+  // │ nothing else in this file. The `.not.toBe` became a `toBe`, the stored   │
+  // │ path became `await fs.realpath(linkPath)`, and the title moved with      │
+  // │ them. `expect(projectId).toBe(generateProjectId(linkPath))` was NOT      │
+  // │ touched and stayed green throughout — normalization went inside          │
+  // │ `generateProjectId` (project-registry.ts), so both sides of that         │
+  // │ comparison normalize together. THE PERMISSION IS NOW SPENT: this test    │
+  // │ is off limits to every task, task 15 included. A failure here is a       │
+  // │ regression.                                                             │
+  // └─────────────────────────────────────────────────────────────────────────┘
+  //
   // Today `registerProject` derives BOTH the identity and the stored path from
   // a single `resolve()` of the configured path (project-registry.ts:190-216),
   // so a path that traverses a symlink registers under the id of the *link*
@@ -528,7 +539,7 @@ describe('parity baseline — projectId and the path stored beside it', () => {
   // found a regression.
   // ───────────────────────────────────────────────────────────────────────────
   it.skipIf(process.platform === 'win32')(
-    'registers a symlinked configured path under the id of the link spelling',
+    'registers a symlinked configured path under the id of the physical path',
     async () => {
       const linkPath = await fixture.createSymlink(repo.path, 'parity-main-link');
       const registry = new ProjectRegistry();
@@ -536,11 +547,17 @@ describe('parity baseline — projectId and the path stored beside it', () => {
         workflowRootPath: linkPath,
       });
 
+      // OFF LIMITS (see the block above): normalization is inside
+      // generateProjectId, so this compares two normalized values and holds.
       expect(projectId).toBe(generateProjectId(linkPath));
-      expect(projectId).not.toBe(generateProjectId(repo.path));
+      // MOVED BY TASK 15, permitted move 1 (R1 AC 10): the link and the
+      // physical spelling are now one identity, so this is `toBe`, not `not`.
+      expect(projectId).toBe(generateProjectId(repo.path));
 
       const entry = await registry.getProjectById(projectId);
-      expect(entry?.projectPath).toBe(resolve(linkPath));
+      // MOVED BY TASK 15, permitted move 2 (R1 AC 11): the stored path is the
+      // same spelling the id was computed from — the physical one.
+      expect(entry?.projectPath).toBe(await fs.realpath(linkPath));
       await registry.unregisterProjectById(projectId);
     }
   );

@@ -89,12 +89,24 @@ function gitCapture(command: string, cwd: string): string | null {
  * therefore must not be recomputed from a path that may have gone away since —
  * requirement 1.13 unregisters a project by the identifier cached at
  * registration for exactly this reason.
+ *
+ * `onFallback` is the logging seam for requirement 1.12. This function does not
+ * log on its own: it runs on read paths the dashboard exercises per request, so
+ * an unconditional `console.error` here would emit a line per request for every
+ * registry entry whose directory has gone away. The caller that has an identity
+ * at stake supplies the sink and decides how to rate-limit it — see
+ * `logIdentityFallback` in `project-registry.ts`. Whether it is supplied or not
+ * changes nothing about the returned value.
  */
-export function normalizeIdentityPath(p: string): string {
+export function normalizeIdentityPath(
+  p: string,
+  onFallback?: (error: unknown, absolutePath: string) => void
+): string {
   const absolute = resolve(p);
   try {
     return realpathSync(absolute);
-  } catch {
+  } catch (error) {
+    onFallback?.(error, absolute);
     return absolute;
   }
 }

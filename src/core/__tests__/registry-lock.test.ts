@@ -21,7 +21,11 @@ let testRoot: string;
 let caseCounter = 0;
 
 beforeAll(async () => {
-  testRoot = await fs.mkdtemp(join(tmpdir(), 'specwf-registry-lock-'));
+  // realpath'd: `generateProjectId` normalizes its argument (requirement 1.10),
+  // so on a platform where `tmpdir()` is itself a symlink (macOS `/var`) an
+  // un-normalized root would make a registered path and its stored spelling
+  // differ for reasons that have nothing to do with this suite.
+  testRoot = await fs.realpath(await fs.mkdtemp(join(tmpdir(), 'specwf-registry-lock-')));
 });
 
 // Explicit teardown: vitest's worker pool never emits process 'exit'.
@@ -108,10 +112,19 @@ describe('withRegistryLock — concurrent registration (requirements 6.1, 6.2)',
       const globalDir = caseDir('concurrent-register');
       // Deliberately NOT created: `ensureRegistryDir` runs inside the critical
       // section, so this is the ENOENT-not-EEXIST case of requirement 6.2.
-      const workspaces = Array.from({ length: 6 }, (_, i) => join(globalDir, 'repo', 'worktrees', `feature-${i}`));
+      //
+      // The workspaces therefore live OUTSIDE it — creating them under
+      // `globalDir` would create `globalDir` and destroy that case. They ARE
+      // created, because `generateProjectId` realpath-normalizes its argument
+      // (requirement 1.10) and logs the fallback when that fails; a nonexistent
+      // workspace would put a line on every child's stderr and the
+      // `stderr === ''` assertion below could no longer see a lock warning.
+      const workspaceRoot = caseDir('concurrent-register-workspaces');
+      const workspaces = Array.from({ length: 6 }, (_, i) => join(workspaceRoot, 'repo', 'worktrees', `feature-${i}`));
+      await Promise.all(workspaces.map(p => fs.mkdir(p, { recursive: true })));
 
       const results = await runConcurrently(
-        workspaces.map(workspacePath => ['register', workspacePath, join(globalDir, 'repo')]),
+        workspaces.map(workspacePath => ['register', workspacePath, join(workspaceRoot, 'repo')]),
         { [SPEC_WORKFLOW_HOME_ENV]: globalDir }
       );
 

@@ -87,6 +87,20 @@ export class SpecWorkflowMCPServer {
   private workspacePath!: string; // workspace/worktree path for identity in registry
   private projectRegistry: ProjectRegistry;
   private lang?: string;
+  /**
+   * The projectId returned by `registerProject`, cached for `stop()`
+   * (requirement 1.13).
+   *
+   * `stop()` must not recompute this from `workspacePath`: `generateProjectId`
+   * realpath-normalizes, and `realpath` fails with ENOENT once the directory is
+   * gone. A `git worktree remove` while this server is running would therefore
+   * make shutdown compute a *different* id and delete nothing, leaving the
+   * removed worktree in the registry forever.
+   *
+   * Undefined until registration returns — `stop()` can run after `initialize`
+   * threw earlier than that, and there is then nothing registered to remove.
+   */
+  private registeredProjectId?: string;
 
   constructor() {
     // Get version from package.json
@@ -179,6 +193,7 @@ export class SpecWorkflowMCPServer {
       const projectId = await this.projectRegistry.registerProject(this.workspacePath, process.pid, {
         workflowRootPath: this.projectPath
       });
+      this.registeredProjectId = projectId;
       // Requirement 6.4: on lock-budget exhaustion `registerProject` still returns
       // the id but logs that it is continuing UNREGISTERED, so claiming success
       // here unconditionally would contradict that banner. Report what the
@@ -296,9 +311,13 @@ export class SpecWorkflowMCPServer {
       // In Docker, projects should persist across sessions since we can't verify host PIDs
       if (!this.isDockerMode()) {
         try {
-          // Pass current PID to only remove this specific instance
-          await this.projectRegistry.unregisterProject(this.workspacePath, process.pid);
-          console.error('Project instance unregistered from global registry');
+          // Unregister by the id cached at registration, never by recomputing
+          // one from the path (requirement 1.13) — see registeredProjectId.
+          // Pass current PID to only remove this specific instance.
+          if (this.registeredProjectId) {
+            await this.projectRegistry.unregisterProjectById(this.registeredProjectId, process.pid);
+            console.error('Project instance unregistered from global registry');
+          }
         } catch (error) {
           // Ignore errors during cleanup
         }
