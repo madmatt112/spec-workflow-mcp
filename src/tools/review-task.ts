@@ -10,6 +10,7 @@ import { computeHygieneSignals, HygieneSignal } from '../core/hygiene-signals.js
 import { runProjectTypecheck, TypecheckResult } from '../core/typecheck.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
 import { computeTaskDiff, TaskDiffResult } from '../core/task-diff.js';
+import { selectRoots } from './root-selection.js';
 
 const reviewWarnedKeys = new Set<string>();
 
@@ -233,7 +234,10 @@ export async function reviewTaskHandler(
   context: ToolContext
 ): Promise<ToolResponse> {
   const { action, specName, taskId } = args;
-  const projectPath = args.projectPath || context.projectPath;
+  // An explicit `projectPath` argument is the workspace under review; the
+  // workflow root is derived from it rather than taken verbatim (requirements
+  // 3.5-3.7). With no override both roots come off the context unchanged.
+  const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context);
 
   if (!projectPath) {
     return {
@@ -241,13 +245,6 @@ export async function reviewTaskHandler(
       message: 'Project path is required but not provided in context or arguments'
     };
   }
-
-  // An explicit `projectPath` argument overrides BOTH roots, exactly as it does
-  // today — pairing an override workflow root with the context's workspace would
-  // diff one project's files against another's tree. Task 14 replaces this with
-  // `selectRoots`, which makes the override the workspace and derives the
-  // workflow root from it.
-  const workspacePath = args.projectPath ? projectPath : context.workspacePath;
 
   const specPath = PathUtils.getSpecPath(projectPath, specName);
 

@@ -3,6 +3,7 @@ import { ToolContext, ToolResponse } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { selectRoots } from './root-selection.js';
 
 export const adversarialResponseTool: Tool = {
   name: 'adversarial-response',
@@ -46,7 +47,11 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
 export async function adversarialResponseHandler(args: any, context: ToolContext): Promise<ToolResponse> {
   const { specName, phase } = args;
   const requestedVersion: number | undefined = args.version;
-  const projectPath = args.projectPath || context.projectPath;
+  // Documents only, all under the shared workflow root (the `filePath` join
+  // below included). An `args.projectPath` override names the workspace; the
+  // workflow root is derived from it rather than taken verbatim (requirements
+  // 3.5-3.7).
+  const { workflowRoot: projectPath } = selectRoots(args, context);
 
   if (!specName || typeof specName !== 'string') {
     return { success: false, message: 'specName is required and must be a string' };
