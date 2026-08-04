@@ -199,7 +199,19 @@ export async function runProjectTypecheck(
     return [{ tsconfigPath, status: 'unavailable', reason: 'output-overflow' }];
   }
 
-  const { diagnostics, listFiles } = parseTscOutput(run.stdout);
+  const { diagnostics: parsedDiagnostics, listFiles } = parseTscOutput(run.stdout);
+  // `tsc` prints diagnostic paths relative to its *spawn cwd*, which is the
+  // workspace (see the spawnTsc call above) — not to the `-p` root and not to
+  // this process's cwd. `--listFiles` output is already absolute, which is why
+  // coverage was unaffected. Anchoring here makes `file` the absolute path
+  // requirement 2.3 promises, and lets postProcess compare diagnostic paths
+  // against the normalized `allFiles` set instead of against whatever directory
+  // the server happens to be running from. `path.resolve` is a no-op when tsc
+  // does emit an absolute path (a file outside the workspace tree).
+  const diagnostics = parsedDiagnostics.map((d) => ({
+    ...d,
+    file: path.resolve(workspacePath, d.file),
+  }));
   const cleanExit = run.exitCode === 0;
 
   if (cleanExit && listFiles.length === 0) {
@@ -341,7 +353,9 @@ function parseTscOutput(stdout: string): {
       column: parseInt(colStr, 10),
       code: 'TS' + codeNum,
       message: capMessage(message),
-      // inScope is tagged in task 5.3 (normalization + allFiles intersection).
+      // `file` is left exactly as tsc printed it (usually workspace-relative);
+      // the caller anchors it to the workspace. inScope is tagged in
+      // postProcess (normalization + allFiles intersection).
       inScope: false,
     });
     i = j;

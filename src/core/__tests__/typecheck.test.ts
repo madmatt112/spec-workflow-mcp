@@ -10,9 +10,17 @@ vi.mock('node:child_process', async (importOriginal) => {
 
 import * as childProcess from 'node:child_process';
 import { promises as fs } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { runProjectTypecheck } from '../typecheck.js';
+
+// The repo's own TypeScript install, used by the real-tsc integration below.
+const REAL_TSC_BIN = join(
+  dirname(dirname(createRequire(import.meta.url).resolve('typescript'))),
+  'bin',
+  'tsc',
+);
 
 const mockedExecFile = vi.mocked(childProcess.execFile);
 
@@ -313,7 +321,9 @@ describe('runProjectTypecheck (5.2) — two-pass parser', () => {
     if (result[0].status !== 'success') throw new Error('narrowing');
     expect(result[0].diagnostics).toHaveLength(1);
     expect(result[0].diagnostics[0].code).toBe('TS2322');
-    expect(result[0].diagnostics[0].file).toBe('src/foo.ts');
+    // tsc printed `src/foo.ts` relative to its spawn cwd; the reported `file`
+    // is the workspace-anchored absolute path (requirement 2.3).
+    expect(result[0].diagnostics[0].file).toBe(join(tempDir, 'src', 'foo.ts'));
     expect(result[0].diagnostics[0].line).toBe(3);
     expect(result[0].diagnostics[0].column).toBe(5);
   });
@@ -511,9 +521,13 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     const out = join(tempDir, 'out.ts');
     await fs.writeFile(a, '');
     await fs.writeFile(out, '');
+    // Real `tsc` prints diagnostic paths RELATIVE to its spawn cwd (the
+    // workspace) while `--listFiles` prints absolute paths. Emitting absolute
+    // diagnostic headers here is what let the inert-inScope defect survive 900+
+    // passing tests, so the mock must reproduce the mixed shape.
     const stdout = [
-      `${a}(1,1): error TS2322: bad assign.`,
-      `${out}(1,1): error TS2322: also bad.`,
+      'a.ts(1,1): error TS2322: bad assign.',
+      'out.ts(1,1): error TS2322: also bad.',
       a,
       out,
       '',
@@ -521,10 +535,29 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     setNextExecBehavior({ stdout, exitCode: 0 });
     const result = await runProjectTypecheck(tempDir, tempDir, [a], { enabled: true });
     if (result[0].status !== 'success') throw new Error('narrowing');
+    // The relative form is anchored to the workspace, so `file` is absolute
+    // (requirement 2.3) even though tsc printed a bare `a.ts`.
     const inScope = result[0].diagnostics.find((d) => d.file === a)!;
     const oos = result[0].diagnostics.find((d) => d.file === out)!;
     expect(inScope.inScope).toBe(true);
     expect(oos.inScope).toBe(false);
+  });
+
+  it('anchors relative diagnostic paths to the WORKSPACE, not the server cwd', async () => {
+    // The workspace is a worktree; the server process cwd is the repo running
+    // vitest. Anchoring against process.cwd() would produce a path that does
+    // not exist, realpath would ENOENT, and every diagnostic would be tagged
+    // inScope: false — the exact defect this task re-opened for.
+    expect(tempDir).not.toBe(process.cwd());
+    const a = join(tempDir, 'nested', 'a.ts');
+    await fs.mkdir(dirname(a), { recursive: true });
+    await fs.writeFile(a, '');
+    const stdout = ['nested/a.ts(1,1): error TS2322: bad assign.', a, ''].join('\n');
+    setNextExecBehavior({ stdout, exitCode: 0 });
+    const result = await runProjectTypecheck(tempDir, tempDir, [a], { enabled: true });
+    if (result[0].status !== 'success') throw new Error('narrowing');
+    expect(result[0].diagnostics[0].file).toBe(a);
+    expect(result[0].diagnostics[0].inScope).toBe(true);
   });
 
   it('caps diagnostics at 100 with in-scope ordered first; truncated=true', async () => {
@@ -533,12 +566,13 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     await fs.writeFile(a, '');
     await fs.writeFile(out, '');
     const lines: string[] = [];
-    // 60 in-scope, 60 out-of-scope.
+    // 60 in-scope, 60 out-of-scope — emitted in the workspace-relative form
+    // real tsc uses, so the in-scope-first ordering is genuinely exercised.
     for (let i = 0; i < 60; i++) {
-      lines.push(`${a}(${i + 1},1): error TS2322: in-scope ${i}.`);
+      lines.push(`a.ts(${i + 1},1): error TS2322: in-scope ${i}.`);
     }
     for (let i = 0; i < 60; i++) {
-      lines.push(`${out}(${i + 1},1): error TS2322: out-of-scope ${i}.`);
+      lines.push(`out.ts(${i + 1},1): error TS2322: out-of-scope ${i}.`);
     }
     lines.push(a, out, '');
     setNextExecBehavior({ stdout: lines.join('\n'), exitCode: 0 });
@@ -560,7 +594,7 @@ describe('runProjectTypecheck (5.3) — post-parse normalization', () => {
     await fs.writeFile(ok, '');
     await fs.writeFile(lock, '{}');
     const stdout = [
-      `${lock}(1,1): error TS2322: ignored.`,
+      'package-lock.json(1,1): error TS2322: ignored.',
       ok,
       lock,
       '',
@@ -792,4 +826,125 @@ describe('runProjectTypecheck — real spawn integration', () => {
     expect(result[0].diagnostics).toHaveLength(1);
     expect(result[0].diagnostics[0].code).toBe('TS2322');
   });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5.3 (re-opened) — in-scope tagging proven against the REAL compiler.
+//
+// Every other test in this file feeds `execFile` a hand-written stdout. That is
+// how the inert-`inScope` defect survived: the fixtures used absolute
+// diagnostic headers, which real `tsc` does not emit. This block spawns the
+// repo's actual TypeScript compiler against a throwaway project, from a server
+// cwd that is deliberately NOT the workspace, and asserts the tagging on
+// whatever the compiler really prints.
+// ---------------------------------------------------------------------------
+
+describe('runProjectTypecheck — REAL tsc in-scope tagging', () => {
+  let rootsDir: string;
+  let workflowRoot: string;
+  let workspacePath: string;
+  let badFile: string;
+  const BAD_BASENAME = 'deliberate-type-error.ts';
+
+  beforeEach(async () => {
+    rootsDir = await fs.mkdtemp(join(tmpdir(), 'typecheck-real-tsc-'));
+    // Mirror the worktree layout: the compiled workspace is not the workflow
+    // root, and neither is the process cwd.
+    workflowRoot = join(rootsDir, 'repo');
+    workspacePath = join(workflowRoot, 'worktrees', 'feature-a');
+    await fs.mkdir(join(workspacePath, 'src'), { recursive: true });
+    await writeTsconfig(
+      workspacePath,
+      JSON.stringify({ compilerOptions: { strict: true }, include: ['src'] }),
+    );
+    badFile = join(workspacePath, 'src', BAD_BASENAME);
+    await fs.writeFile(badFile, 'export const x: number = "nope";\n', 'utf-8');
+    // `resolveTscBinary` only looks in <workspace>/node_modules/.bin.
+    const binDir = join(workspacePath, 'node_modules', '.bin');
+    await fs.mkdir(binDir, { recursive: true });
+    await fs.symlink(REAL_TSC_BIN, join(binDir, 'tsc'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(rootsDir, { recursive: true, force: true });
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'tags a genuinely in-scope diagnostic inScope:true from a foreign server cwd',
+    async () => {
+      // Premise guard. If these ever coincide the test proves nothing, because
+      // resolving against the process cwd would accidentally work.
+      expect(process.cwd()).not.toBe(workspacePath);
+      // And the pre-fix behaviour could not have passed: the workspace-relative
+      // path real tsc prints does not exist under the server's cwd, so realpath
+      // ENOENTs and `inScope` falls to false.
+      const asServerCwdWouldSee = resolve(
+        process.cwd(),
+        relative(workspacePath, badFile),
+      );
+      await expect(fs.realpath(asServerCwdWouldSee)).rejects.toThrow();
+
+      const actual =
+        await vi.importActual<typeof import('node:child_process')>('node:child_process');
+      mockedExecFile.mockImplementationOnce(
+        actual.execFile as unknown as typeof childProcess.execFile,
+      );
+
+      const result = await runProjectTypecheck(
+        workspacePath,
+        workflowRoot,
+        [badFile],
+        { enabled: true },
+      );
+      if (result[0].status !== 'success') {
+        throw new Error(`expected success, got ${JSON.stringify(result[0])}`);
+      }
+
+      const diag = result[0].diagnostics.find((d) => d.code === 'TS2322');
+      expect(diag).toBeDefined();
+      // Requirement 2.3: `file` is an absolute path, whatever form tsc used.
+      expect(isAbsolute(diag!.file)).toBe(true);
+      expect(await fs.realpath(diag!.file)).toBe(await fs.realpath(badFile));
+      expect(diag!.inScope).toBe(true);
+      // Not a vacuous pass: the file really was in the compiled program, so
+      // `allFiles ∩ listFiles` had something to intersect.
+      expect(result[0].coverage.compiled).toEqual([badFile]);
+      expect(result[0].coverage.excluded).toEqual([]);
+    },
+    60_000,
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'still tags a compiled-but-unmodified file inScope:false',
+    async () => {
+      // A second erroring file that the task did NOT touch: it must stay out of
+      // scope, so the fix is a correct intersection rather than a blanket true.
+      const untouched = join(workspacePath, 'src', 'untouched.ts');
+      await fs.writeFile(untouched, 'export const y: string = 42;\n', 'utf-8');
+
+      const actual =
+        await vi.importActual<typeof import('node:child_process')>('node:child_process');
+      mockedExecFile.mockImplementationOnce(
+        actual.execFile as unknown as typeof childProcess.execFile,
+      );
+
+      const result = await runProjectTypecheck(
+        workspacePath,
+        workflowRoot,
+        [badFile],
+        { enabled: true },
+      );
+      if (result[0].status !== 'success') {
+        throw new Error(`expected success, got ${JSON.stringify(result[0])}`);
+      }
+
+      const mine = result[0].diagnostics.find((d) => d.file === badFile);
+      const theirs = result[0].diagnostics.find((d) => d.file === untouched);
+      expect(mine?.inScope).toBe(true);
+      expect(theirs?.inScope).toBe(false);
+      // In-scope first under the cap ordering (R2.13).
+      expect(result[0].diagnostics[0].file).toBe(badFile);
+    },
+    60_000,
+  );
 });
