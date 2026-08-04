@@ -15,7 +15,7 @@ describe('get-task-review handler', () => {
     tempDir = await fs.mkdtemp(join(tmpdir(), 'get-task-review-test-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specPath, { recursive: true });
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
   });
 
   afterEach(async () => {

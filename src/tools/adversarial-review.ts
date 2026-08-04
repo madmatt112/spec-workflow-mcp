@@ -4,6 +4,7 @@ import { PathUtils } from '../core/path-utils.js';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { STEERING_DOC_FILES } from '../core/steering-docs.js';
+import { selectRoots } from './root-selection.js';
 
 export const adversarialReviewTool: Tool = {
   name: 'adversarial-review',
@@ -34,7 +35,7 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
       },
       projectPath: {
         type: 'string',
-        description: 'Absolute path to the project root (optional - uses server context path if not provided)'
+        description: 'Absolute path to the workspace under review (optional - uses the server context roots if not provided). When provided it replaces the context workspace, and the shared workflow root holding .spec-workflow is derived from it.'
       }
     },
     required: ['specName', 'phase'],
@@ -48,7 +49,12 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
 
 export async function adversarialReviewHandler(args: any, context: ToolContext): Promise<ToolResponse> {
   const { specName, phase } = args;
-  const projectPath = args.projectPath || context.projectPath;
+  // This tool reads and writes only documents, all of them under the shared
+  // workflow root — including the `filePath` join below, which today anchors a
+  // steering document against the same root `getWorkflowRoot` is given. An
+  // `args.projectPath` override names the workspace; the workflow root is
+  // derived from it rather than taken verbatim (requirements 3.5-3.7).
+  const { workflowRoot: projectPath } = selectRoots(args, context);
 
   if (!specName || typeof specName !== 'string') {
     return { success: false, message: 'specName is required and must be a string' };

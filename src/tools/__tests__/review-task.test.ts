@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { promises as fs, symlinkSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
+import { promises as fs, writeFileSync, readFileSync, readdirSync, existsSync } from 'fs';
 import path, { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -39,15 +39,26 @@ vi.mock('../../core/task-diff.js', async (importOriginal) => {
 
 import {
   reviewTaskHandler,
-  validateAllFiles,
-  safeRealpath,
-  _resetValidateWarnings,
+  _resetReviewWarnings,
   buildReviewMethodology,
+  hasNoReviewableFiles,
+  NO_REVIEWABLE_FILES_DISCLOSURE,
   type DiffMethodologyState,
   type TypecheckMethodologyState,
 } from '../review-task.js';
+import { _resetValidateWarnings } from '../../core/file-resolution.js';
 import { ToolContext } from '../../types.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
+
+/**
+ * `safeRealpath` and `resolveLoggedFiles` moved to `src/core/file-resolution.ts`
+ * with their own warn-once ledger, so resetting one no longer resets the other.
+ * Their unit tests live in `src/core/__tests__/file-resolution.test.ts`.
+ */
+function resetAllWarnings(): void {
+  _resetReviewWarnings();
+  _resetValidateWarnings();
+}
 
 describe('review-task handler', () => {
   let tempDir: string;
@@ -58,11 +69,11 @@ describe('review-task handler', () => {
     overrides.typecheck = null;
     overrides.hygiene = null;
     overrides.diff = null;
-    _resetValidateWarnings();
+    resetAllWarnings();
     tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-test-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
     await fs.mkdir(specPath, { recursive: true });
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
 
     // Create a minimal tasks.md
     await fs.writeFile(join(specPath, 'tasks.md'), [
@@ -81,7 +92,7 @@ describe('review-task handler', () => {
   });
 
   async function createImplLog() {
-    // Materialize the referenced files so validateAllFiles keeps them
+    // Materialize the referenced files so resolveLoggedFiles keeps them
     // (it drops paths whose realpath ENOENTs).
     await fs.mkdir(join(tempDir, 'src'), { recursive: true });
     await fs.writeFile(join(tempDir, 'src/handler.ts'), 'export const x = 1;\n');
@@ -129,7 +140,12 @@ describe('review-task handler', () => {
       expect(result.success).toBe(true);
       expect(result.data.taskContext).toBeDefined();
       expect(result.data.implementationSummary).toBeDefined();
-      expect(result.data.filesToReview).toContain(join(tempDir, 'src/handler.ts'));
+      // Labelled shape (R4 AC 18): `{ path, root, ambiguous }`, not a bare path.
+      expect(result.data.filesToReview).toContainEqual({
+        path: join(tempDir, 'src/handler.ts'),
+        root: 'workspace',
+        ambiguous: false,
+      });
       expect(result.data.methodology).toContain('Review Methodology');
       expect(result.data.methodology).toContain('No new deps');
       expect(result.data.methodology).toContain('Tests pass');
@@ -369,163 +385,279 @@ describe('review-task handler', () => {
   });
 });
 
-describe('safeRealpath', () => {
+// ---------------------------------------------------------------------------
+// Two-root partition (requirements 4.1, 4.7, 4.25, 4.26, 4.27).
+//
+// The parity suite covers the equal-roots case; this covers the case it cannot
+// see, where the workspace and the workflow root are different directories.
+// ---------------------------------------------------------------------------
+
+describe('handlePrepare with distinct workspace and workflow roots', () => {
+  let rootsDir: string;
+  let workflowRoot: string;
+  let workspacePath: string;
+  let specPath: string;
+  let context: ToolContext;
   let warnSpy: ReturnType<typeof vi.spyOn>;
-  let tempDir: string;
+
+  let typecheckArgs: any[];
+  let hygieneArgs: any[];
+  let diffArgs: any[];
+
+  const NOTES_REL = path.join('.spec-workflow', 'specs', 'test-spec', 'notes.md');
 
   beforeEach(async () => {
-    _resetValidateWarnings();
+    resetAllWarnings();
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'safe-realpath-test-'));
+    typecheckArgs = [];
+    hygieneArgs = [];
+    diffArgs = [];
+
+    rootsDir = await fs.mkdtemp(join(tmpdir(), 'review-task-two-root-'));
+    // A NESTED layout: the worktree sits under the workflow root, which is the
+    // arrangement that makes "contained by the workflow root" the wrong test.
+    workflowRoot = join(rootsDir, 'repo');
+    workspacePath = join(workflowRoot, 'worktrees', 'feature-a');
+    specPath = join(workflowRoot, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specPath, { recursive: true });
+    await fs.mkdir(join(workflowRoot, '.spec-workflow', 'steering'), { recursive: true });
+    await fs.mkdir(join(workspacePath, 'src'), { recursive: true });
+
+    await fs.writeFile(join(specPath, 'tasks.md'), [
+      '# Tasks',
+      '',
+      '- [-] 1. Implement feature',
+      '  _Requirements: 4.1_',
+      '',
+    ].join('\n'));
+    // Spec, steering and settings all live on the SHARED root (R4 AC 27).
+    await fs.writeFile(join(specPath, 'notes.md'), 'notes\n');
+    await fs.writeFile(
+      join(workflowRoot, '.spec-workflow', 'steering', 'tech.md'),
+      '# Tech steering from the shared root\n'
+    );
+    await fs.writeFile(
+      join(workflowRoot, '.spec-workflow', 'adversarial-settings.json'),
+      JSON.stringify({ features: { typecheck: false } })
+    );
+    // Code lives in the WORKTREE only.
+    await fs.writeFile(join(workspacePath, 'src', 'code.ts'), 'export const x = 1;\n');
+
+    context = { projectPath: workflowRoot, workspacePath };
+
+    overrides.typecheck = async (...args: any[]) => {
+      typecheckArgs = args;
+      return [{
+        tsconfigPath: join(workspacePath, 'tsconfig.json'),
+        status: 'unavailable',
+        reason: 'feature-disabled',
+      }];
+    };
+    overrides.hygiene = async (...args: any[]) => {
+      hygieneArgs = args;
+      return [];
+    };
+    overrides.diff = async (...args: any[]) => {
+      diffArgs = args;
+      return { diff: '', stats: undefined, skippedPaths: [], truncated: false };
+    };
   });
 
   afterEach(async () => {
+    overrides.typecheck = null;
+    overrides.hygiene = null;
+    overrides.diff = null;
     warnSpy.mockRestore();
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(rootsDir, { recursive: true, force: true });
   });
 
-  it('returns the realpath for an existing file', () => {
-    const filePath = join(tempDir, 'a.txt');
-    writeFileSync(filePath, '');
-    const result = safeRealpath(filePath);
-    expect(result).toBeDefined();
-    expect(typeof result).toBe('string');
+  async function prepareWith(files: string[]) {
+    const logManager = new ImplementationLogManager(specPath);
+    await logManager.addLogEntry({
+      taskId: '1',
+      timestamp: new Date().toISOString(),
+      summary: 'Implemented',
+      filesModified: files,
+      filesCreated: [],
+      statistics: { linesAdded: 1, linesRemoved: 0, filesChanged: files.length },
+      artifacts: {},
+    });
+    const result = await reviewTaskHandler(
+      { action: 'prepare', specName: 'test-spec', taskId: '1' },
+      context
+    );
+    expect(result.success).toBe(true);
+    return result;
+  }
+
+  it('resolves a bare relative entry to the workspace, not the workflow root', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.filesToReview).toEqual([
+      { path: join(workspacePath, 'src', 'code.ts'), root: 'workspace', ambiguous: false },
+    ]);
   });
 
-  it('returns undefined silently on ENOENT (deleted/missing file)', () => {
-    const missing = join(tempDir, 'does-not-exist.txt');
-    const result = safeRealpath(missing);
-    expect(result).toBeUndefined();
-    expect(warnSpy).not.toHaveBeenCalled();
+  it('labels a .spec-workflow entry as workflow-rooted and keeps it in the list', async () => {
+    const result = await prepareWith([NOTES_REL]);
+    expect(result.data.filesToReview).toEqual([
+      { path: join(specPath, 'notes.md'), root: 'workflow', ambiguous: false },
+    ]);
   });
 
-  it('warn-once on non-ENOENT error (ELOOP from symlink cycle)', () => {
-    const a = join(tempDir, 'a-link');
-    const b = join(tempDir, 'b-link');
-    symlinkSync(b, a);
-    symlinkSync(a, b);
+  it('routes only workspace files to the diff, the typecheck and the hygiene signals', async () => {
+    await prepareWith([path.join('src', 'code.ts'), NOTES_REL]);
+    const workspaceOnly = [join(workspacePath, 'src', 'code.ts')];
 
-    const r1 = safeRealpath(a);
-    expect(r1).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/safeRealpath: ELOOP/);
+    // R4 AC 25 / 26 / 23: the workflow-rooted document is in the reviewer's
+    // list but in none of the three code-operation inputs.
+    // `runProjectTypecheck` takes two roots, so its file list is at index 2.
+    expect(typecheckArgs[2]).toEqual(workspaceOnly);
+    expect(hygieneArgs[0]).toEqual(workspaceOnly);
+    expect(diffArgs[1]).toEqual(workspaceOnly);
+  });
 
-    // Same path + same code: deduped
-    const r2 = safeRealpath(a);
-    expect(r2).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
+  it('runs the diff against the workspace root', async () => {
+    await prepareWith([path.join('src', 'code.ts')]);
+    // R4 AC 1. Handing it the workflow root diffs the main checkout.
+    expect(diffArgs[0]).toBe(workspacePath);
+  });
+
+  it('gives the typecheck the workspace first and the workflow root second', async () => {
+    await prepareWith([path.join('src', 'code.ts')]);
+    // R4 AC 2 / AC 3. The compiled tree is the worktree; the shared root is
+    // spent only on the cache directory and the `.gitignore` entry.
+    expect(typecheckArgs[0]).toBe(workspacePath);
+    expect(typecheckArgs[1]).toBe(workflowRoot);
+  });
+
+  it('reports the workspace tsconfigPath when the typecheck rejects', async () => {
+    // R4 AC 2. `tsconfigPath` must name the same file on the rejection arm as
+    // on the arms `runProjectTypecheck` returns itself.
+    overrides.typecheck = async () => { throw new Error('boom'); };
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.typecheckResults[0].reason).toBe('rejection');
+    expect(result.data.typecheckResults[0].tsconfigPath).toBe(
+      join(workspacePath, 'tsconfig.json')
+    );
+  });
+
+  it('reads spec, steering and settings from the shared workflow root', async () => {
+    // R4 AC 27. The spec was found (prepare succeeded) under the workflow root
+    // even though the workspace has no `.spec-workflow` at all; the steering
+    // excerpt and the typecheck-disabling settings file are both read from it.
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.steeringExcerpt).toContain('Tech steering from the shared root');
+    expect(typecheckArgs[3]).toEqual({ enabled: false });
+    expect(result.projectContext?.workflowRoot).toBe(join(workflowRoot, '.spec-workflow'));
+  });
+
+  it('drops a workspace-deleted file rather than substituting the workflow root copy', async () => {
+    // R4 AC 14 through the real call path: `src/gone.ts` exists under the
+    // workflow root but not in the worktree, and containment by
+    // `.spec-workflow` is what keeps it out.
+    await fs.mkdir(join(workflowRoot, 'src'), { recursive: true });
+    await fs.writeFile(join(workflowRoot, 'src', 'gone.ts'), 'export const gone = 1;\n');
+
+    const result = await prepareWith([path.join('src', 'gone.ts')]);
+    expect(result.data.filesToReview).toEqual([]);
+    expect(diffArgs[1]).toEqual([]);
+  });
+
+  it('publishes the resolved and dropped counts on the response (4.19)', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts'), NOTES_REL, path.join('src', 'never.ts')]);
+    expect(result.data.fileResolution).toEqual({
+      workspaceCount: 1,
+      workflowCount: 1,
+      drops: {
+        'not-array': 0,
+        'not-string': 0,
+        'resolve-threw': 0,
+        missing: 1,
+        'realpath-failed': 0,
+        'outside-roots': 0,
+      },
+    });
+  });
+
+  it('replaces the read-every-file nextStep when nothing resolved in the workspace (4.20)', async () => {
+    // Every logged entry drops: `src/gone.ts` exists only under the workflow
+    // root (containment rejects it) and `src/never.ts` exists nowhere.
+    await fs.mkdir(join(workflowRoot, 'src'), { recursive: true });
+    await fs.writeFile(join(workflowRoot, 'src', 'gone.ts'), 'export const gone = 1;\n');
+
+    const result = await prepareWith([path.join('src', 'gone.ts'), path.join('src', 'never.ts')]);
+    expect(result.data.fileResolution.workspaceCount).toBe(0);
+    expect(result.nextSteps?.[0]).toBe(NO_REVIEWABLE_FILES_DISCLOSURE);
+    expect(
+      result.nextSteps,
+      'the read-every-file step must be REPLACED, not merely preceded by the disclosure: leaving it makes a pass over unexamined code the compliant outcome'
+    ).not.toContain('Read all files listed in filesToReview');
+    // Requirement 4.21: the disclosure states the residual rather than implying
+    // a closure it does not deliver. R4_2A_DIFF_EMPTY fires NECESSARILY here —
+    // an empty workspace file set yields an empty diff with no rejection — so
+    // its "already committed" explanation is in the methodology alongside this.
+    expect(result.data.methodology).toContain('the task changes were already committed before review');
+    expect(result.nextSteps?.[0]).toContain('already committed before review');
+  });
+
+  it('keeps the read-every-file nextStep when a workspace file resolved (4.20)', async () => {
+    const result = await prepareWith([path.join('src', 'code.ts')]);
+    expect(result.data.fileResolution.workspaceCount).toBe(1);
+    expect(result.nextSteps?.[0]).toBe('Read all files listed in filesToReview');
+    expect(result.nextSteps).not.toContain(NO_REVIEWABLE_FILES_DISCLOSURE);
+  });
+
+  it('does not disclose when the implementation log listed no files at all (4.20)', async () => {
+    // Zero counts everywhere is an empty log, not an all-drop review: the
+    // predicate reads the counts alone, so it must not mistake one for the other.
+    const result = await prepareWith([]);
+    expect(result.data.fileResolution).toEqual({
+      workspaceCount: 0,
+      workflowCount: 0,
+      drops: {
+        'not-array': 0,
+        'not-string': 0,
+        'resolve-threw': 0,
+        missing: 0,
+        'realpath-failed': 0,
+        'outside-roots': 0,
+      },
+    });
+    expect(result.nextSteps?.[0]).toBe('Read all files listed in filesToReview');
   });
 });
 
-describe('validateAllFiles', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
-  let tempDir: string;
+describe('hasNoReviewableFiles (4.20)', () => {
+  const noDrops = {
+    'not-array': 0,
+    'not-string': 0,
+    'resolve-threw': 0,
+    missing: 0,
+    'realpath-failed': 0,
+    'outside-roots': 0,
+  } as const;
 
-  beforeEach(async () => {
-    _resetValidateWarnings();
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    tempDir = await fs.mkdtemp(join(tmpdir(), 'validate-all-files-test-'));
+  it('is false for an empty log (all counts zero)', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 0, drops: { ...noDrops } })).toBe(false);
   });
 
-  afterEach(async () => {
-    warnSpy.mockRestore();
-    await fs.rm(tempDir, { recursive: true, force: true });
+  it('is true when every logged entry dropped', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 0, drops: { ...noDrops, missing: 2 } })).toBe(true);
   });
 
-  function makeFile(rel: string): string {
-    const abs = join(tempDir, rel);
-    mkdirSync(path.dirname(abs), { recursive: true });
-    writeFileSync(abs, '');
-    return abs;
-  }
-
-  it('returns [] and warns on non-array input', () => {
-    expect(validateAllFiles(null as unknown, tempDir)).toEqual([]);
-    expect(validateAllFiles('not-an-array' as unknown, tempDir)).toEqual([]);
-    expect(validateAllFiles({ length: 1, 0: 'x' } as unknown, tempDir)).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-    expect(warnSpy.mock.calls[0][0]).toMatch(/allFiles is not an array/);
+  it('is true when the only resolutions were workflow-rooted documents', () => {
+    // AC 20 asks for an empty WORKSPACE-resolved set, not an empty file list: a
+    // `.spec-workflow` note is readable but is not the implementation.
+    expect(hasNoReviewableFiles({ workspaceCount: 0, workflowCount: 1, drops: { ...noDrops } })).toBe(true);
   });
 
-  it('drops NUL-byte paths with warn', () => {
-    makeFile('ok.ts');
-    const result = validateAllFiles(['ok.ts', 'bad\0.ts'], tempDir);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(path.resolve(tempDir, 'ok.ts'));
-    const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-    // NUL-byte handling differs across Node versions: path.resolve may throw
-    // (ERR_INVALID_ARG_VALUE), or realpathSync rejects it. Either way the
-    // entry must be dropped and some warn must fire.
-    expect(warnings).toMatch(/path\.resolve threw|safeRealpath/);
+  it('is false as soon as one workspace file resolved', () => {
+    expect(hasNoReviewableFiles({ workspaceCount: 1, workflowCount: 0, drops: { ...noDrops, missing: 5 } })).toBe(false);
   });
 
-  it('drops non-string elements (number, Symbol, BigInt, null, undefined) with warn', () => {
-    makeFile('ok.ts');
-    const result = validateAllFiles(
-      [42, Symbol('s'), BigInt(0), null, undefined, 'ok.ts'],
-      tempDir
-    );
-    expect(result).toEqual([path.resolve(tempDir, 'ok.ts')]);
-    const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-    expect(warnings).toMatch(/non-string entry at index 0/);
+  it('is false when the counts are absent', () => {
+    expect(hasNoReviewableFiles(undefined)).toBe(false);
   });
-
-  it('keeps relative paths (resolved against projectPath)', () => {
-    makeFile('src/handler.ts');
-    const result = validateAllFiles(['src/handler.ts'], tempDir);
-    expect(result).toEqual([path.resolve(tempDir, 'src/handler.ts')]);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('drops absolute paths resolving outside projectPath with warn', async () => {
-    const otherDir = await fs.mkdtemp(join(tmpdir(), 'validate-other-'));
-    try {
-      const outside = join(otherDir, 'outside.txt');
-      writeFileSync(outside, '');
-      makeFile('inside.ts');
-      const result = validateAllFiles([outside, 'inside.ts'], tempDir);
-      expect(result).toEqual([path.resolve(tempDir, 'inside.ts')]);
-      const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
-    } finally {
-      await fs.rm(otherDir, { recursive: true, force: true });
-    }
-  });
-
-  it('drops symlinks whose target is outside projectPath with warn', async () => {
-    const otherDir = await fs.mkdtemp(join(tmpdir(), 'validate-other-'));
-    try {
-      const outsideTarget = join(otherDir, 'outside.ts');
-      writeFileSync(outsideTarget, '');
-      const linkPath = join(tempDir, 'link.ts');
-      symlinkSync(outsideTarget, linkPath);
-
-      const result = validateAllFiles(['link.ts'], tempDir);
-      expect(result).toEqual([]);
-      const warnings = warnSpy.mock.calls.map((c: unknown[]) => c[0] as string).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
-    } finally {
-      await fs.rm(otherDir, { recursive: true, force: true });
-    }
-  });
-
-  it('drops deleted files silently (safeRealpath ENOENT, no warn)', () => {
-    makeFile('exists.ts');
-    const result = validateAllFiles(['exists.ts', 'gone.ts'], tempDir);
-    expect(result).toEqual([path.resolve(tempDir, 'exists.ts')]);
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it('dedupes duplicates by realpath and preserves first-seen original', () => {
-    makeFile('src/a.ts');
-    const result = validateAllFiles(
-      ['src/a.ts', './src/a.ts', path.resolve(tempDir, 'src/a.ts')],
-      tempDir
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBe(path.resolve(tempDir, 'src/a.ts'));
-  });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -561,7 +693,7 @@ describe('handlePrepare integration', () => {
     overrides.typecheck = null;
     overrides.hygiene = null;
     overrides.diff = null;
-    _resetValidateWarnings();
+    resetAllWarnings();
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-track-a-'));
     specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
@@ -571,7 +703,7 @@ describe('handlePrepare integration', () => {
     await fs.mkdir(steeringDir, { recursive: true });
     await fs.writeFile(join(steeringDir, 'tech.md'), '# Tech\n');
     await fs.writeFile(join(specPath, 'tasks.md'), CANONICAL_TASKS_MD);
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
   });
 
   afterEach(async () => {
@@ -765,13 +897,14 @@ describe('handlePrepare integration', () => {
     expect(hyWarnings.some((m: string) => m.includes('hy-other'))).toBe(true);
   });
 
-  it('integration validateAllFiles smoke test: outside-projectPath dropped, valid kept, warn fires', async () => {
+  it('integration resolveLoggedFiles smoke test: out-of-root dropped, valid kept, warn fires', async () => {
     const otherDir = await fs.mkdtemp(join(tmpdir(), 'review-task-outside-'));
     try {
       await materializeFile('src/valid.ts');
       const outside = join(otherDir, 'outside.ts');
       writeFileSync(outside, '');
-      // Seed log with one valid relative path and one absolute outside-projectPath.
+      // Seed log with one valid relative path and one absolute path outside
+      // both roots.
       await seedLog(['src/valid.ts', outside]);
       overrides.typecheck = async () => [
         {
@@ -784,9 +917,19 @@ describe('handlePrepare integration', () => {
 
       const result = await runPrepare();
       expect(result.success).toBe(true);
-      expect(result.data.filesToReview).toEqual([path.resolve(tempDir, 'src/valid.ts')]);
+      // Unchanged from pre-`resolveLoggedFiles` behaviour: the resolver decides
+      // containment on the realpath but emits the `path.resolve` spelling, so
+      // R3 AC 11 holds here even where `tmpdir()` is a symlink.
+      expect(result.data.filesToReview).toEqual([
+        { path: path.resolve(tempDir, 'src/valid.ts'), root: 'workspace', ambiguous: false },
+      ]);
       const warnings = warnSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
-      expect(warnings).toMatch(/path outside projectPath/);
+      // The replacement text: "outside projectPath" named a concept that does
+      // not survive two roots.
+      expect(warnings).toMatch(
+        /resolveLoggedFiles: path outside the workspace and the shared \.spec-workflow directory/
+      );
+      expect(warnings).not.toMatch(/outside projectPath/);
     } finally {
       await fs.rm(otherDir, { recursive: true, force: true });
     }

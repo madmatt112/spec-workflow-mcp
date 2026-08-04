@@ -1,9 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { execSync } from 'child_process';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import * as gitUtils from '../git-utils.js';
 import {
   resolveGitRoot,
   resolveGitWorkspaceRoot,
   isGitWorktree,
+  gitCommonDirAbsolute,
+  gitTopLevel,
+  sameRepository,
+  normalizeIdentityPath,
+  resolveWorkspaceRoots,
+  scrubbedGitEnv,
   SPEC_WORKFLOW_SHARED_ROOT_ENV
 } from '../git-utils.js';
 
@@ -42,6 +51,17 @@ describe('resolveGitRoot', () => {
       const result = resolveGitRoot('/some/project');
 
       expect(result).toBe('/custom/root');
+    });
+
+    it('should resolve a relative env var to an absolute path', () => {
+      // Requirement 2.9: returned verbatim, every `.spec-workflow` path derived
+      // from it resolves against the process working directory instead.
+      process.env[SPEC_WORKFLOW_SHARED_ROOT_ENV] = 'relative/shared/root';
+
+      const result = resolveGitRoot('/some/project');
+
+      expect(result).toBe(resolve('relative/shared/root'));
+      expect(mockedExecSync).not.toHaveBeenCalled();
     });
 
     it('should ignore empty env var', () => {
@@ -254,5 +274,190 @@ describe('isGitWorktree', () => {
     });
 
     expect(isGitWorktree('/some/path')).toBe(false);
+  });
+});
+
+describe('git environment scrubbing (requirement 1.9)', () => {
+  const SCRUBBED = ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env[SPEC_WORKFLOW_SHARED_ROOT_ENV];
+    for (const name of SCRUBBED) {
+      process.env[name] = `/exported/${name}`;
+    }
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  function envOfCall(index: number): NodeJS.ProcessEnv {
+    const call = mockedExecSync.mock.calls[index];
+    const env = (call?.[1] as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+    expect(env, `git invocation #${index} ran without an explicit environment`).toBeDefined();
+    return env!;
+  }
+
+  function envOfLastCall(): NodeJS.ProcessEnv {
+    expect(mockedExecSync.mock.calls.length, 'expected a git invocation').toBeGreaterThan(0);
+    return envOfCall(mockedExecSync.mock.calls.length - 1);
+  }
+
+  // Every recorded invocation, not just the last: a function that runs git more
+  // than once (`sameRepository`) or that grows a second call site later must
+  // have *each* of them scrubbed.
+  function envOfEveryCall(): NodeJS.ProcessEnv[] {
+    expect(
+      mockedExecSync.mock.calls.length,
+      'expected at least one git invocation'
+    ).toBeGreaterThan(0);
+    return mockedExecSync.mock.calls.map((_call, index) => envOfCall(index));
+  }
+
+  // Every exported function in the module that invokes git. `isGitWorktree` has
+  // no production caller today; it is listed because the moment one is added an
+  // unscrubbed call site would be live.
+  const gitInvokingFunctions: Array<[name: string, invoke: () => unknown]> = [
+    ['resolveGitRoot', () => resolveGitRoot('/test/path')],
+    ['resolveGitWorkspaceRoot', () => resolveGitWorkspaceRoot('/test/path')],
+    ['isGitWorktree', () => isGitWorktree('/test/path')],
+    ['gitCommonDirAbsolute', () => gitCommonDirAbsolute('/test/path')],
+    ['gitTopLevel', () => gitTopLevel('/test/path')],
+    ['sameRepository', () => sameRepository('/test/a', '/test/b')],
+    ['resolveWorkspaceRoots', () => resolveWorkspaceRoots({
+      configuredPath: '/test/path',
+      cwd: '/test/cwd',
+      dashboardMode: false,
+      noInference: false,
+      noSharedWorktreeSpecs: false
+    })]
+  ];
+
+  // Every exported function that does *not* invoke git. Each entry is invoked
+  // below and asserted to run no command at all, so this list is not an
+  // unverified escape hatch: putting a git-invoking export here fails outright
+  // rather than quietly exempting it from the scrubbing assertions.
+  const nonGitExports: Array<[name: string, invoke: () => unknown]> = [
+    ['normalizeIdentityPath', () => normalizeIdentityPath('/test/path')],
+    // Builds the scrubbed environment for callers that run git themselves —
+    // `runGit` in task-diff.ts and both dashboard agent spawns (requirement
+    // 2.12). It runs no command of its own.
+    ['scrubbedGitEnv', () => scrubbedGitEnv()]
+  ];
+
+  for (const [name, invoke] of gitInvokingFunctions) {
+    it(`${name} removes the four GIT_* variables from every git invocation`, () => {
+      mockedExecSync.mockReturnValue('/test/path');
+
+      invoke();
+
+      for (const env of envOfEveryCall()) {
+        for (const variable of SCRUBBED) {
+          expect(env[variable], `${name} leaked ${variable}`).toBeUndefined();
+        }
+      }
+    });
+
+    it(`${name} preserves the rest of the environment`, () => {
+      mockedExecSync.mockReturnValue('/test/path');
+      process.env.SPEC_WORKFLOW_SCRUB_PROBE = 'kept';
+
+      invoke();
+
+      for (const env of envOfEveryCall()) {
+        expect(env.SPEC_WORKFLOW_SCRUB_PROBE).toBe('kept');
+        expect(env.PATH).toBe(process.env.PATH);
+      }
+    });
+  }
+
+  for (const [name, invoke] of nonGitExports) {
+    it(`${name} invokes no command, so exempting it from scrubbing is sound`, () => {
+      invoke();
+
+      expect(
+        mockedExecSync,
+        `${name} is listed as non-git but ran a command; move it to gitInvokingFunctions`
+      ).not.toHaveBeenCalled();
+    });
+  }
+
+  it('rebuilds the environment per call, so a variable exported later is still scrubbed', () => {
+    delete process.env.GIT_DIR;
+    mockedExecSync.mockReturnValue('.git');
+    resolveGitRoot('/test/path');
+    expect(envOfLastCall().GIT_DIR).toBeUndefined();
+
+    process.env.GIT_DIR = '/exported/later';
+    resolveGitRoot('/test/path');
+
+    expect(envOfLastCall().GIT_DIR).toBeUndefined();
+  });
+
+  // The assertions above are the real guard: they observe the environment
+  // actually handed to git, so they catch a call site that skips the helper, one
+  // that re-inherits `process.env` after spreading it, and one that scrubs only
+  // some of the variables. They are complete only while the two premises below
+  // hold, and each has its own test.
+  //
+  // Premise 1: every git invocation goes through `execSync`, the only
+  // `child_process` API `vi.mock` replaces here. A call made with `spawnSync` or
+  // `execFileSync` would reach the real git and be invisible to the mock.
+  //
+  // Both checks below are textual scans of the module source, and each covers
+  // the other's hole: the call-shape scan misses `import { spawnSync as run }`
+  // because the call site reads `run(...)`, and the import scan misses
+  // `import * as cp` because no API name appears in the import. What neither
+  // sees is a binding obtained inside a function body — `const { spawnSync: run
+  // } = require('child_process')`, or `await import(...)` — which is the honest
+  // limit of scanning text instead of the module graph.
+  it('invokes git only through execSync, the API these tests observe', () => {
+    const source = readFileSync(new URL('../git-utils.ts', import.meta.url), 'utf-8');
+
+    // Every process-launching `child_process` export except `execSync`.
+    const unobservableApis = ['exec', 'execFile', 'execFileSync', 'spawn', 'spawnSync', 'fork'];
+
+    // Called by name, including through a namespace import (`cp.spawnSync(`).
+    // The trailing `(` is what keeps `exec` from matching `execSync` and keeps
+    // prose like "git rebase --exec" in a comment from failing this.
+    const called = unobservableApis.filter((api) => new RegExp(`\\b${api}\\s*\\(`).test(source));
+    expect(called, 'git call made through an API the mock does not replace').toEqual([]);
+
+    // Imported by name under any local alias, which the call-shape scan cannot
+    // see. Only the name to the left of `as` is checked — that is the
+    // `child_process` export, whatever the call site calls it.
+    const imported = [
+      ...source.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'child_process'/g)
+    ]
+      .flatMap(([, bindings]) => bindings.split(','))
+      .map((binding) => binding.trim().split(/\s+as\s+/)[0].trim())
+      .filter((name) => unobservableApis.includes(name));
+
+    expect(imported, 'unobservable child_process API imported, possibly under an alias').toEqual(
+      []
+    );
+  });
+
+  // Premise 2: every exported function that can invoke git is in
+  // `gitInvokingFunctions`. A new export is not classified automatically, so
+  // this fails until it is listed. Neither list is a way out: one subjects the
+  // export to the scrubbing assertions, the other asserts it runs no command,
+  // so a git-invoking export fails in whichever list it is put.
+  it('classifies every exported function as git-invoking or not', () => {
+    const exported = Object.entries(gitUtils)
+      .filter(([, value]) => typeof value === 'function')
+      .map(([name]) => name)
+      .sort();
+    const classified = [
+      ...gitInvokingFunctions.map(([name]) => name),
+      ...nonGitExports.map(([name]) => name)
+    ].sort();
+
+    expect(
+      exported,
+      'unclassified export: add it to gitInvokingFunctions if it can invoke git, to nonGitExports otherwise — each list asserts the behaviour it claims'
+    ).toEqual(classified);
   });
 });

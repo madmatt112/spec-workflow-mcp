@@ -328,7 +328,11 @@ describe('Track-C: per-runner model + per-job storage retry consistency', () => 
 
   describe('adversarial handlers', () => {
     async function setupApproval(specName: string, phase: string): Promise<{ approvalId: string; approvalStorage: ApprovalStorage }> {
-      const specDir = join(workspacePath, '.spec-workflow', 'specs', specName);
+      // Requirement 5.7: the route now hands `adversarialReviewHandler` the
+      // workflow root, so the spec lives under `.spec-workflow` on the workflow
+      // root — the same root the ApprovalStorage below already uses. Placing it
+      // under the workspace pinned the pre-fix behaviour.
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', specName);
       await fs.mkdir(specDir, { recursive: true });
       await fs.writeFile(join(specDir, `${phase}.md`), `# ${phase}\nbody`, 'utf-8');
       const approvalStorage = new ApprovalStorage(workflowRootPath, {
@@ -446,6 +450,125 @@ describe('Track-C: per-runner model + per-job storage retry consistency', () => 
       expect(body.error).toBe('in-flight-spec-phase');
       expect(body.specName).toBe('adv-conc');
       expect(body.phase).toBe('requirements');
+    });
+  });
+
+  // ============== ROUTE ROOT SEPARATION (R5.6 / R5.7 / R5.8) ==============
+
+  describe('route root separation: all four runner call sites', () => {
+    // The harness already gives the project two distinct real roots
+    // (`<temp>/project` vs `<temp>/workspace`). Path translation is what makes
+    // `originalProjectPath` differ from `workspacePath`; emulate it by stomping
+    // the untranslated fields with host paths this process cannot reach, so a
+    // route that reaches for either one is caught rather than silently equal.
+    function untranslate(): { projectPath: string; workspacePath: string; originalProjectPath: string; workflowRootPath: string } {
+      const project = (server as any).projectManager.getProject(projectId);
+      project.originalProjectPath = '/host-only/untranslated/workspace';
+      project.workflowRootPath = '/host-only/untranslated/project';
+      return project;
+    }
+
+    function spyOnTaskReviewRun() {
+      return vi.spyOn((server as any).taskReviewRunner, 'run' as never).mockResolvedValue('spy-job' as never);
+    }
+    function spyOnAdversarialRun() {
+      return vi.spyOn((server as any).adversarialRunner, 'run' as never).mockResolvedValue('spy-job' as never);
+    }
+
+    function assertRoots(opts: any, workflowRootArg: any, project: { projectPath: string; workspacePath: string; originalProjectPath: string; workflowRootPath: string }, route: string): void {
+      expect(
+        workflowRootArg,
+        `${route}: the runner must receive the TRANSLATED workflow root (project.projectPath); it got the workspace or the untranslated host path instead`
+      ).toBe(project.projectPath);
+      expect(
+        opts.workspacePath,
+        `${route}: the runner must receive the TRANSLATED workspace (project.workspacePath); it got the workflow root or the untranslated originalProjectPath instead`
+      ).toBe(project.workspacePath);
+      expect(
+        opts.workspacePath,
+        `${route}: workspacePath must not be originalProjectPath — that is the untranslated host path this process cannot spawn into`
+      ).not.toBe(project.originalProjectPath);
+    }
+
+    it('task-review route passes the workflow root and the translated workspace (5.6)', async () => {
+      const project = untranslate();
+      const spy = spyOnTaskReviewRun();
+
+      const res = await realFetch(taskReviewUrl('roots-a', '1', 'review'), { method: 'POST' });
+      expect(res.status).toBe(200);
+
+      const opts = (spy.mock.calls[0] as any[])[0];
+      assertRoots(opts, opts.workflowRoot, project, 'task-review route (opts.workflowRoot)');
+    });
+
+    it('task-review retry route passes the workflow root and the translated workspace (5.6)', async () => {
+      const project = untranslate();
+      (server as any).taskReviewRunner.jobs.set('prior-failed', {
+        id: 'prior-failed',
+        projectId,
+        specName: 'roots-b',
+        taskId: '2',
+        status: 'failed',
+        startedAt: new Date().toISOString(),
+        model: 'sonnet-4-6',
+      });
+      const spy = spyOnTaskReviewRun();
+
+      const res = await realFetch(taskReviewUrl('roots-b', '2', 'review-retry'), { method: 'POST' });
+      expect(res.status).toBe(200);
+
+      const opts = (spy.mock.calls[0] as any[])[0];
+      assertRoots(opts, opts.workflowRoot, project, 'task-review retry route (opts.workflowRoot)');
+    });
+
+    it('adversarial route passes the translated workspace and the workflow root (5.7, 5.8)', async () => {
+      const project = untranslate();
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', 'roots-adv');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(join(specDir, 'requirements.md'), '# requirements\nbody', 'utf-8');
+      const approvalStorage = new ApprovalStorage(workflowRootPath, {
+        originalPath: workflowRootPath,
+        fileResolutionPath: workspacePath,
+      });
+      const approvalId = await approvalStorage.createApproval('Review requirements', 'requirements.md', 'spec', 'roots-adv');
+
+      const spy = spyOnAdversarialRun();
+      const res = await realFetch(approvalUrl(approvalId, 'adversarial-review'), { method: 'POST' });
+      expect(res.status).toBe(200);
+
+      const call = spy.mock.calls[0] as any[];
+      assertRoots(call[0], call[1], project, 'adversarial route');
+    });
+
+    it('adversarial retry route passes the translated workspace and the workflow root (5.7, 5.8)', async () => {
+      const project = untranslate();
+      const specDir = join(workflowRootPath, '.spec-workflow', 'specs', 'roots-adv-retry');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(join(specDir, 'requirements.md'), '# requirements\nbody', 'utf-8');
+      const approvalStorage = new ApprovalStorage(workflowRootPath, {
+        originalPath: workflowRootPath,
+        fileResolutionPath: workspacePath,
+      });
+      const approvalId = await approvalStorage.createApproval('Review requirements', 'requirements.md', 'spec', 'roots-adv-retry');
+      // Annotations are the only precondition the retry route checks.
+      await approvalStorage.updateApproval(approvalId, 'needs-revision', 'prior review', JSON.stringify({
+        trigger: 'adversarial-review',
+        specName: 'roots-adv-retry',
+        phase: 'requirements',
+        jobId: 'prior-job',
+      }));
+
+      const spy = spyOnAdversarialRun();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const res = await realFetch(approvalUrl(approvalId, 'adversarial-retry'), { method: 'POST' });
+        expect(res.status).toBe(200);
+
+        const call = spy.mock.calls[0] as any[];
+        assertRoots(call[0], call[1], project, 'adversarial retry route');
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 });

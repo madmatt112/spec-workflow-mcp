@@ -151,5 +151,10 @@ opencodetmp
 spec-workflow-mcp.code-workspace
 
 
+# Playwright / e2e artifacts
+.playwright-mcp
+playwright-report
+test-results
+
 # Other
 social-post.md.mcp.json

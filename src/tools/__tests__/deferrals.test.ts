@@ -12,7 +12,7 @@ describe('deferrals tool handler', () => {
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(join(tmpdir(), 'deferrals-tool-test-'));
     await fs.mkdir(join(tempDir, '.spec-workflow', 'deferrals'), { recursive: true });
-    context = { projectPath: tempDir };
+    context = { projectPath: tempDir, workspacePath: tempDir };
   });
 
   afterEach(async () => {
@@ -274,7 +274,7 @@ describe('deferrals tool handler', () => {
     });
 
     it('should fail without project path', async () => {
-      const result = await deferralsHandler({ action: 'list' }, { projectPath: '' });
+      const result = await deferralsHandler({ action: 'list' }, { projectPath: '', workspacePath: '' });
       expect(result.success).toBe(false);
     });
   });

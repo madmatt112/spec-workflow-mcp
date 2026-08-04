@@ -16,7 +16,8 @@ describe('adversarial-response tool', () => {
   }
 
   function ctx(projectPath: string): ToolContext {
-    return { projectPath };
+    // Single-checkout fixture: the two roots are the same directory.
+    return { projectPath, workspacePath: projectPath };
   }
 
   afterEach(async () => {

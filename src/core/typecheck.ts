@@ -1,7 +1,9 @@
 import { execFile, ExecFileOptions } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { partitionPaths } from './path-denylist.js';
+import { scrubbedGitEnv } from './git-utils.js';
 
 export type TypecheckDiagnostic = {
   file: string;
@@ -105,12 +107,38 @@ type TscRun = {
   overflow: boolean;
 };
 
+/**
+ * A per-workspace discriminator for the incremental cache file (requirement
+ * 4.4). The cache *directory* is shared, so a single `tsc.tsbuildinfo` would be
+ * written by every workspace with `--incremental` against a different `-p`
+ * root — at best a full rebuild every run, at worst a concurrent truncation
+ * that trips the rebuild-detection heuristic on an unrelated review.
+ */
+function workspaceCacheKey(workspacePath: string): string {
+  return createHash('sha256')
+    .update(caseFold(path.resolve(workspacePath)))
+    .digest('hex')
+    .slice(0, 16);
+}
+
 export async function runProjectTypecheck(
-  projectPath: string,
+  /**
+   * The checkout that is compiled. Governs every root use that determines which
+   * tree tsc sees: the tsconfig, the compiler binary, the `-p` argument and the
+   * spawn working directory (requirement 4.2).
+   */
+  workspacePath: string,
+  /**
+   * The shared root that owns the cache directory and the `.gitignore` entry
+   * (requirement 4.3). Taking the workspace for these would create a
+   * `.spec-workflow` directory inside every worktree and leave each with an
+   * uncommitted edit to its tracked `.gitignore`.
+   */
+  workflowRoot: string,
   allFiles: string[],
   opts: { enabled: boolean },
 ): Promise<TypecheckResult[]> {
-  const tsconfigPath = path.join(projectPath, 'tsconfig.json');
+  const tsconfigPath = path.join(workspacePath, 'tsconfig.json');
 
   if (!opts.enabled) {
     return [{ tsconfigPath, status: 'unavailable', reason: 'feature-disabled' }];
@@ -131,27 +159,33 @@ export async function runProjectTypecheck(
     return [{ tsconfigPath, status: 'unavailable', reason: 'wrapper-config' }];
   }
 
-  const tscPath = await resolveTscBinary(projectPath);
+  const tscPath = await resolveTscBinary(workspacePath);
   if (!tscPath) {
     return [{ tsconfigPath, status: 'unavailable', reason: 'tsc-not-found' }];
   }
 
-  const cacheDir = path.join(projectPath, '.spec-workflow', '.cache');
+  const cacheDir = path.join(workflowRoot, '.spec-workflow', '.cache');
   await fs.mkdir(cacheDir, { recursive: true });
-  await ensureGitignoreEntry(projectPath);
+  await ensureGitignoreEntry(workflowRoot);
 
-  const tsbuildinfoPath = path.join(cacheDir, 'tsc.tsbuildinfo');
+  const tsbuildinfoPath = path.join(
+    cacheDir,
+    `tsc-${workspaceCacheKey(workspacePath)}.tsbuildinfo`,
+  );
   const args = [
     '--noEmit',
-    '-p', projectPath,
+    '-p', workspacePath,
     '--incremental',
     '--tsBuildInfoFile', tsbuildinfoPath,
     '--listFiles',
     '--pretty', 'false',
   ];
 
-  const env = { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' };
-  const run = await spawnTsc(tscPath, args, env, projectPath);
+  // `tsc` does not read the git location variables itself, but it can load
+  // config that shells out; the same shape as `runGit` is scrubbed the same way
+  // (requirement 2.12).
+  const env = { ...scrubbedGitEnv(), FORCE_COLOR: '0', NO_COLOR: '1' };
+  const run = await spawnTsc(tscPath, args, env, workspacePath);
 
   const rebuilt = TSBUILDINFO_REBUILD_RE.test(run.stderr);
   const typecheckWarning = rebuilt ? TSBUILDINFO_REBUILD_WARNING : undefined;
@@ -165,7 +199,19 @@ export async function runProjectTypecheck(
     return [{ tsconfigPath, status: 'unavailable', reason: 'output-overflow' }];
   }
 
-  const { diagnostics, listFiles } = parseTscOutput(run.stdout);
+  const { diagnostics: parsedDiagnostics, listFiles } = parseTscOutput(run.stdout);
+  // `tsc` prints diagnostic paths relative to its *spawn cwd*, which is the
+  // workspace (see the spawnTsc call above) — not to the `-p` root and not to
+  // this process's cwd. `--listFiles` output is already absolute, which is why
+  // coverage was unaffected. Anchoring here makes `file` the absolute path
+  // requirement 2.3 promises, and lets postProcess compare diagnostic paths
+  // against the normalized `allFiles` set instead of against whatever directory
+  // the server happens to be running from. `path.resolve` is a no-op when tsc
+  // does emit an absolute path (a file outside the workspace tree).
+  const diagnostics = parsedDiagnostics.map((d) => ({
+    ...d,
+    file: path.resolve(workspacePath, d.file),
+  }));
   const cleanExit = run.exitCode === 0;
 
   if (cleanExit && listFiles.length === 0) {
@@ -307,7 +353,9 @@ function parseTscOutput(stdout: string): {
       column: parseInt(colStr, 10),
       code: 'TS' + codeNum,
       message: capMessage(message),
-      // inScope is tagged in task 5.3 (normalization + allFiles intersection).
+      // `file` is left exactly as tsc printed it (usually workspace-relative);
+      // the caller anchors it to the workspace. inScope is tagged in
+      // postProcess (normalization + allFiles intersection).
       inScope: false,
     });
     i = j;
@@ -358,8 +406,8 @@ function parseTsconfig(text: string): unknown {
   }
 }
 
-async function resolveTscBinary(projectPath: string): Promise<string | null> {
-  const binDir = path.join(projectPath, 'node_modules', '.bin');
+async function resolveTscBinary(workspacePath: string): Promise<string | null> {
+  const binDir = path.join(workspacePath, 'node_modules', '.bin');
   const candidates = process.platform === 'win32'
     ? [path.join(binDir, 'tsc.cmd'), path.join(binDir, 'tsc')]
     : [path.join(binDir, 'tsc')];
@@ -374,8 +422,8 @@ async function resolveTscBinary(projectPath: string): Promise<string | null> {
   return null;
 }
 
-async function ensureGitignoreEntry(projectPath: string): Promise<void> {
-  const gitignorePath = path.join(projectPath, '.gitignore');
+async function ensureGitignoreEntry(workflowRoot: string): Promise<void> {
+  const gitignorePath = path.join(workflowRoot, '.gitignore');
   let content: string;
   try {
     content = await fs.readFile(gitignorePath, 'utf-8');

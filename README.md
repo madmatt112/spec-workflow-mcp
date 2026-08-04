@@ -299,6 +299,25 @@ server {
 
 [See Docker security guide →](containers/README.md#security-configuration)
 
+## 🌳 Git Worktrees
+
+The server tracks two roots. The **workspace** is the checkout whose code is diffed, typechecked and handed to spawned review agents. The **workflow root** is where `.spec-workflow/` lives — specs, approvals and implementation logs — shared across a repository's worktrees. In a single checkout they are the same directory.
+
+The workspace is **inferred from the directory the server was launched in** when that directory is a different checkout of the same repository as the path argument. That is what makes a stock committed `.mcp.json` correct in every worktree: the file is tracked in git and identical across worktrees, so its path argument can never name the current one.
+
+```bash
+git worktree add -b feature-branch ../myproject-feature
+cd ../myproject-feature
+npx -y @madmatt112org/spec-workflow-mcp@latest /home/user/myproject
+# Workspace inferred from the working directory. Pass --no-workspace-inference to disable.
+# workspacePath=/home/user/myproject-feature
+# workflowRootPath=/home/user/myproject
+```
+
+Pass `--no-workspace-inference` when the launch directory is not the checkout you want reviewed; the workspace then comes from the path argument. A fresh worktree needs its own `npm install` before the `review-task` typecheck can run — the compiler is resolved from the workspace, so a worktree without `node_modules` reports `tsc-not-found`. In multi-worktree use, `SPEC_WORKFLOW_HOME` must be an **absolute** path.
+
+[See Configuration Guide →](docs/CONFIGURATION.md#git-worktree-configuration)
+
 ## 🔒 Sandboxed Environments
 
 For sandboxed environments (e.g., Codex CLI with `sandbox_mode=workspace-write`) where `$HOME` is read-only, use the `SPEC_WORKFLOW_HOME` environment variable to redirect global state files to a writable location:
@@ -345,7 +364,9 @@ If you upgrade the CLI binary or `claude-cli` package between an initial run and
 
 ### Limitations
 
-**Concurrent prepare against the same project is unsupported in v1.** Running two `review-task action: prepare` invocations against the same project simultaneously may corrupt the typecheck buildinfo cache. Recovery: `rm <projectPath>/.spec-workflow/.cache/tsc.tsbuildinfo`.
+**Concurrent prepare against the same project is unsupported in v1.** Running two `review-task action: prepare` invocations against the same project simultaneously may corrupt the typecheck buildinfo cache. Recovery: `rm <workflowRoot>/.spec-workflow/.cache/tsc-*.tsbuildinfo`. The cache directory lives on the shared workflow root, but the build-info file is keyed per workspace, so separate worktrees do not contend for it.
+
+**Two worktree servers started at the same moment can leave one missing from the dashboard.** The dashboard watches `activeProjects.json` by path while each registration renames a new file over it, so closely spaced registrations can deliver a single change event. The registry on disk is correct — only the dashboard's live view is short one. Recovery: restart the dashboard, which re-reads the registry on startup. See [Configuration Guide →](docs/CONFIGURATION.md#known-limitation-a-worktree-missing-from-the-dashboard)
 
 ## 📚 Documentation
 

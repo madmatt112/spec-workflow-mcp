@@ -2,6 +2,11 @@ import { EventEmitter } from 'events';
 import { spawn, ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
 import { randomUUID } from 'crypto';
+import {
+  scrubbedGitEnv,
+  SPEC_WORKFLOW_SHARED_ROOT_ENV,
+  SPEC_WORKFLOW_WORKSPACE_ENV
+} from '../core/git-utils.js';
 
 export interface AdversarialJob {
   id: string;
@@ -22,7 +27,13 @@ interface RunOptions {
   projectId: string;
   specName: string;
   phase: string;
-  projectPath: string;
+  /**
+   * Worktree the review agent runs in (spawn `cwd`) — the only root this
+   * runner spends. It never resolves a spec path and never builds a
+   * `ToolContext`, so requirement 5.5 keeps `RunOptions` single-rooted; the
+   * workflow root reaches the spawn as an argument to `run`/`runAgent`.
+   */
+  workspacePath: string;
   targetFile: string;
   promptOutputPath: string;
   analysisOutputPath: string;
@@ -54,7 +65,12 @@ export class AdversarialRunner extends EventEmitter {
     );
   }
 
-  async run(opts: RunOptions): Promise<string> {
+  /**
+   * @param workflowRoot Shared workflow root for this job. Not a `RunOptions`
+   * field (requirement 5.5) — it is threaded through to the spawn helper,
+   * which sets `SPEC_WORKFLOW_SHARED_ROOT` from it (requirement 2.13).
+   */
+  async run(opts: RunOptions, workflowRoot: string): Promise<string> {
     // Check concurrency limit
     const activeJobs = this.getActiveJobsForProject(opts.projectId);
     if (activeJobs.length >= MAX_CONCURRENT_PER_PROJECT) {
@@ -85,14 +101,14 @@ export class AdversarialRunner extends EventEmitter {
     this.emit('job-update', job);
 
     // Run the review in the background
-    this.executeJob(jobId, opts).catch(err => {
+    this.executeJob(jobId, opts, workflowRoot).catch(err => {
       console.error(`[AdversarialRunner] Job ${jobId} failed:`, err);
     });
 
     return jobId;
   }
 
-  private async executeJob(jobId: string, opts: RunOptions): Promise<void> {
+  private async executeJob(jobId: string, opts: RunOptions, workflowRoot: string): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
@@ -108,7 +124,8 @@ export class AdversarialRunner extends EventEmitter {
       this.emit('job-update', { ...job });
 
       const reviewInstructions = `Read and execute the instructions in ${opts.promptOutputPath}`;
-      await this.runAgent(jobId, opts.projectPath, reviewInstructions, opts);
+      // Requirement 5.5: cwd is the workspace; the workflow root is spawn-only.
+      await this.runAgent(jobId, opts.workspacePath, workflowRoot, reviewInstructions, opts);
 
       // Verify the analysis file was written
       try {
@@ -130,7 +147,13 @@ export class AdversarialRunner extends EventEmitter {
     }
   }
 
-  private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {
+  /**
+   * @param workspacePath spawn `cwd` — the worktree the agent runs in.
+   * @param workflowRoot the job's shared workflow root. Carried here rather
+   * than on `RunOptions` (requirement 5.5); it becomes
+   * `SPEC_WORKFLOW_SHARED_ROOT` on the spawn env (requirement 2.13).
+   */
+  private runAgent(jobId: string, workspacePath: string, workflowRoot: string, prompt: string, opts: RunOptions): Promise<void> {
     const cli = opts.cli || 'claude';
     const baseArgs = opts.cliArgs || ['--print', '--dangerously-skip-permissions'];
 
@@ -142,9 +165,18 @@ export class AdversarialRunner extends EventEmitter {
       args.push(prompt);
 
       const child = spawn(cli, args, {
-        cwd,
+        cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+        // Requirement 2.12/2.13: the four `GIT_*` location variables are
+        // removed so an inherited one cannot point the agent's git at another
+        // repository, and both roots are stated explicitly rather than
+        // inherited. Everything else — including the two path-translation
+        // prefixes — is preserved.
+        env: {
+          ...scrubbedGitEnv(),
+          [SPEC_WORKFLOW_WORKSPACE_ENV]: workspacePath,
+          [SPEC_WORKFLOW_SHARED_ROOT_ENV]: workflowRoot,
+        },
       });
 
       this.processes.set(jobId, child);

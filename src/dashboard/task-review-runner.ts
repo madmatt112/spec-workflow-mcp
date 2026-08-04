@@ -7,7 +7,18 @@ import { randomUUID } from 'crypto';
 import { ReviewFinding } from '../types.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { PathUtils } from '../core/path-utils.js';
-import { reviewTaskHandler } from '../tools/review-task.js';
+import {
+  scrubbedGitEnv,
+  SPEC_WORKFLOW_SHARED_ROOT_ENV,
+  SPEC_WORKFLOW_WORKSPACE_ENV
+} from '../core/git-utils.js';
+import {
+  reviewTaskHandler,
+  hasNoReviewableFiles,
+  NO_REVIEWABLE_FILES_DISCLOSURE,
+  type FileResolutionCounts,
+} from '../tools/review-task.js';
+import type { ResolvedFile } from '../core/file-resolution.js';
 import { ToolContext } from '../types.js';
 
 export interface TaskReviewJob {
@@ -28,10 +39,55 @@ interface RunOptions {
   projectId: string;
   specName: string;
   taskId: string;
-  projectPath: string;
+  /**
+   * Shared workflow root — the directory holding `.spec-workflow`. Used for
+   * `getSpecPath` and as `ToolContext.projectPath` (requirement 5.2/5.3).
+   */
+  workflowRoot: string;
+  /**
+   * Worktree whose code is under review. Used as `ToolContext.workspacePath`
+   * and as the review agent's spawn `cwd` (requirement 5.3/5.4).
+   */
+  workspacePath: string;
   model?: string;
   cli?: string;
   cliArgs?: string[];
+}
+
+/**
+ * `buildPrompt`'s parameters, as an object rather than a positional list.
+ *
+ * It took eleven positional arguments, several of them mutually assignable
+ * (`string`, `string | null`), so inserting one shifted `methodology` into the
+ * new slot, `outputPath` into `methodology` and the real output path into a
+ * nullable string — all type-checking cleanly, with the only symptom an agent
+ * that never learns where to write its result (requirement 4.22).
+ */
+interface BuildPromptOptions {
+  specName: string;
+  taskId: string;
+  taskContext: any;
+  implementationSummary: any;
+  steeringExcerpt: string | null;
+  /**
+   * The labelled shape `handlePrepare` returns (requirement 4.18), NOT a bare
+   * `string[]`. It arrives through an `any`-typed destructure of
+   * `prepareResponse.data`, so this declaration is the only thing making the
+   * renderer's use of `.path` a checked one.
+   */
+  filesToReview: ResolvedFile[];
+  /**
+   * The counts `handlePrepare` publishes (requirement 4.19). Optional because it
+   * arrives through the same `any`-typed destructure and a caller (or an older
+   * prepare response) can omit it; absent means "no disclosure", never
+   * "all-drop".
+   */
+  fileResolution?: FileResolutionCounts;
+  methodology: string;
+  outputPath: string;
+  priorReviewContext?: string | null;
+  priorMemoryContent?: string | null;
+  memoryFilePath?: string | null;
 }
 
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -92,12 +148,19 @@ export class TaskReviewRunner extends EventEmitter {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
-    const specPath = PathUtils.getSpecPath(opts.projectPath, opts.specName);
+    // Specs live on the shared workflow root, never inside the worktree.
+    const specPath = PathUtils.getSpecPath(opts.workflowRoot, opts.specName);
     const reviewManager = new TaskReviewManager(specPath);
 
     try {
       // Step 1: Call prepare to get review context and methodology
-      const context: ToolContext = { projectPath: opts.projectPath };
+      // Requirement 5.3: the workflow root locates `.spec-workflow`; the
+      // workspace is the checkout whose code is read, diffed and typechecked.
+      // In a single checkout the two are equal (requirement 3.11).
+      const context: ToolContext = {
+        projectPath: opts.workflowRoot,
+        workspacePath: opts.workspacePath
+      };
       const prepareResponse = await reviewTaskHandler(
         { action: 'prepare', specName: opts.specName, taskId: opts.taskId },
         context
@@ -107,7 +170,11 @@ export class TaskReviewRunner extends EventEmitter {
         throw new Error(`Prepare failed: ${prepareResponse.message}`);
       }
 
-      const { taskContext, implementationSummary, steeringExcerpt, filesToReview, methodology } = prepareResponse.data;
+      // `prepareResponse.data` is an `any`: every field NOT named here is
+      // silently discarded, with no compiler error. `fileResolution` (requirement
+      // 4.19) has to be named for the disclosure to reach a dashboard-spawned
+      // reviewer at all.
+      const { taskContext, implementationSummary, steeringExcerpt, filesToReview, fileResolution, methodology } = prepareResponse.data;
 
       // Load prior reviews and memory for iterative reviews (v2+)
       const priorReviews = await reviewManager.getReviewsForTask(opts.taskId);
@@ -135,13 +202,27 @@ export class TaskReviewRunner extends EventEmitter {
       // Step 2: Build prompt and spawn fresh agent
       const timestamp = new Date().toISOString().replace(/[:.Z]/g, '').slice(0, 15);
       const outputPath = join(tmpdir(), `task-review-${opts.specName}-${opts.taskId}-${timestamp}.json`);
-      const prompt = this.buildPrompt(opts.specName, opts.taskId, taskContext, implementationSummary, steeringExcerpt, filesToReview, methodology, outputPath, priorReviewContext, priorMemoryContent, memoryFilePath);
+      const prompt = this.buildPrompt({
+        specName: opts.specName,
+        taskId: opts.taskId,
+        taskContext,
+        implementationSummary,
+        steeringExcerpt,
+        filesToReview,
+        fileResolution,
+        methodology,
+        outputPath,
+        priorReviewContext,
+        priorMemoryContent,
+        memoryFilePath,
+      });
 
       job.status = 'running';
       this.emit('job-update', { ...job });
 
       try {
-        await this.runAgent(jobId, opts.projectPath, prompt, opts);
+        // Requirement 5.4: the agent runs in the worktree it is reviewing.
+        await this.runAgent(jobId, opts.workspacePath, prompt, opts);
 
         // Read and parse agent output
         let rawOutput: string;
@@ -203,19 +284,21 @@ export class TaskReviewRunner extends EventEmitter {
     }
   }
 
-  private buildPrompt(
-    specName: string,
-    taskId: string,
-    taskContext: any,
-    implementationSummary: any,
-    steeringExcerpt: string | null,
-    filesToReview: string[],
-    methodology: string,
-    outputPath: string,
-    priorReviewContext: string | null = null,
-    priorMemoryContent: string | null = null,
-    memoryFilePath: string | null = null
-  ): string {
+  private buildPrompt(opts: BuildPromptOptions): string {
+    const {
+      specName,
+      taskId,
+      taskContext,
+      implementationSummary,
+      steeringExcerpt,
+      filesToReview,
+      fileResolution,
+      methodology,
+      outputPath,
+      priorReviewContext = null,
+      priorMemoryContent = null,
+      memoryFilePath = null,
+    } = opts;
     const sections: string[] = [];
 
     sections.push(`Critically review the implementation of task ${taskId} ("${taskContext.description || ''}") from spec "${specName}". Find problems — do not validate or praise. Assume the implementation has issues until you prove otherwise. Be thorough, skeptical, and specific. If something is genuinely correct, acknowledge it briefly and move on to finding the next issue.`);
@@ -274,13 +357,40 @@ export class TaskReviewRunner extends EventEmitter {
 
     sections.push('');
     sections.push('## Files to Review');
-    sections.push(filesToReview.map(f => `- ${f}`).join('\n'));
+    // `- <path> (<root>)`. Interpolating the record itself renders
+    // `[object Object]`, and nothing upstream would report it: the field reaches
+    // here through an `any`-typed destructure.
+    sections.push(filesToReview.map(f => `- ${f.path} (${f.root})`).join('\n'));
+    // Requirement 4.19: the counts, dropped ones included, are stated to the
+    // reviewing agent rather than left implicit in a short list.
+    if (fileResolution) {
+      const dropped = Object.entries(fileResolution.drops ?? {}).filter(([, n]) => n > 0);
+      const total = dropped.reduce((sum, [, n]) => sum + n, 0);
+      const detail = total > 0 ? ` (${dropped.map(([cause, n]) => `${cause}: ${n}`).join(', ')})` : '';
+      sections.push('');
+      sections.push(
+        `File resolution: ${fileResolution.workspaceCount} resolved in the workspace, ` +
+        `${fileResolution.workflowCount} under the shared .spec-workflow root, ` +
+        `${total} dropped${detail}.`
+      );
+    }
     sections.push('');
     sections.push('## Review Methodology');
     sections.push(methodology);
     sections.push('');
     sections.push('## Instructions');
-    sections.push('1. Read every file listed in "Files to Review".');
+    // Requirement 4.20: when nothing resolved inside the workspace, step 1 is
+    // REPLACED by the disclosure — a note added above an unchanged "read every
+    // file" instruction would leave the harm (a passing verdict over unexamined
+    // code) intact. See NO_REVIEWABLE_FILES_DISCLOSURE for the residual this
+    // does NOT close (requirement 4.21, deferral d-f3cb6fd8): the methodology
+    // header and R4_2A_DIFF_EMPTY still say to read every listed file, and
+    // R4_2A fires necessarily on this path.
+    sections.push(
+      hasNoReviewableFiles(fileResolution)
+        ? `1. ${NO_REVIEWABLE_FILES_DISCLOSURE}`
+        : '1. Read every file listed in "Files to Review".'
+    );
     sections.push('2. Evaluate each methodology checklist item. State what you checked and your conclusion.');
     sections.push('3. Determine a verdict:');
     sections.push('   - "pass": no findings at all');
@@ -351,7 +461,7 @@ export class TaskReviewRunner extends EventEmitter {
     return cleaned;
   }
 
-  private runAgent(jobId: string, cwd: string, prompt: string, opts: RunOptions): Promise<void> {
+  private runAgent(jobId: string, workspacePath: string, prompt: string, opts: RunOptions): Promise<void> {
     const cli = opts.cli || 'claude';
     const baseArgs = opts.cliArgs || ['--print', '--dangerously-skip-permissions'];
 
@@ -363,9 +473,18 @@ export class TaskReviewRunner extends EventEmitter {
       args.push(prompt);
 
       const child = spawn(cli, args, {
-        cwd,
+        cwd: workspacePath,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
+        // Requirement 2.12/2.13: the four `GIT_*` location variables are
+        // removed so an inherited one cannot point the agent's git at another
+        // repository, and both roots are stated explicitly rather than
+        // inherited. Everything else — including the two path-translation
+        // prefixes — is preserved.
+        env: {
+          ...scrubbedGitEnv(),
+          [SPEC_WORKFLOW_WORKSPACE_ENV]: workspacePath,
+          [SPEC_WORKFLOW_SHARED_ROOT_ENV]: opts.workflowRoot,
+        },
       });
 
       this.processes.set(jobId, child);

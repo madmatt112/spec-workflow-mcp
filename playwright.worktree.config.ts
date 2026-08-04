@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { WORKTREE_SPEC_PATTERN } from './playwright.worktree-pattern.js';
 
 const DASHBOARD_PORT = 5084;
 const FRONTEND_PORT = 5184;
@@ -11,7 +12,14 @@ process.env.SPEC_WORKFLOW_HOME = SPEC_WORKFLOW_HOME;
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: '**/worktree-no-shared.spec.ts',
+  // A pattern, not a filename. Pinning one file by name means the next
+  // worktree suite silently never runs here — and *does* run under the default
+  // config, which sets no SPEC_WORKFLOW_HOME, so its temp worktrees land in the
+  // developer's real global registry.
+  //
+  // The same constant is playwright.config.ts's `testIgnore`, so the two
+  // configs cannot drift apart. See playwright.worktree-pattern.ts.
+  testMatch: WORKTREE_SPEC_PATTERN,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

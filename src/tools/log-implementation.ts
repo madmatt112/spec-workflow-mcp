@@ -3,6 +3,7 @@ import { ToolContext, ToolResponse, ImplementationLogEntry } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
+import { selectRoots } from './root-selection.js';
 
 export const logImplementationTool: Tool = {
   name: 'log-implementation',
@@ -211,7 +212,7 @@ Task: "Implemented logs dashboard with real-time updates"
     properties: {
       projectPath: {
         type: 'string',
-        description: 'Absolute path to the project root (optional - uses server context path if not provided)'
+        description: 'Absolute path to the workspace under review (optional - uses the server context roots if not provided). When provided it replaces the context workspace, and the shared workflow root holding .spec-workflow is derived from it.'
       },
       specName: {
         type: 'string',
@@ -304,8 +305,12 @@ export async function logImplementationHandler(
     artifacts
   } = args;
   
-  // Use context projectPath as default, allow override via args
-  const projectPath = args.projectPath || context.projectPath;
+  // Every path below is a `.spec-workflow` path, so this tool spends only the
+  // workflow root. An `args.projectPath` override names the workspace, and the
+  // workflow root is derived from it rather than taken verbatim (requirements
+  // 3.5-3.7): taken verbatim, a worktree override would write the log into a
+  // `.spec-workflow` directory inside that worktree.
+  const { workflowRoot: projectPath } = selectRoots(args, context);
   
   if (!projectPath) {
     return {

@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { computeTaskDiff } from '../task-diff.js';
+import { computeTaskDiff, containmentRejectionMessage } from '../task-diff.js';
 
 const mockedExecFile = vi.mocked(childProcess.execFile);
 
@@ -334,6 +334,145 @@ describe('computeTaskDiff — failure modes', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pathspec containment (requirement 4.23, 4.24)
+//
+// The defect: a path that is not inside the workspace makes git fail the whole
+// invocation, `runGit` reports `ok: false`, and the `!ok` arm returns an empty
+// diff with NO rejection — which `computeDiffMethodologyState` classifies as
+// `empty` and the reviewer is told the changes were "already committed before
+// review". One mis-partitioned pathspec therefore discards the entire diff and
+// reads as a clean tree.
+//
+// The assertion runs before git, and is NOT a match on git's stderr: that
+// message is gettext-marked and translates, so a localized git would fall
+// straight back into the benign classification.
+// ---------------------------------------------------------------------------
+
+describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
+  let outsideDir: string;
+
+  beforeEach(async () => {
+    outsideDir = await fs.mkdtemp(join(tmpdir(), 'task-diff-outside-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(outsideDir, { recursive: true, force: true });
+  });
+
+  it('a workflow-root pathspec rejects, names the path, and never invokes git', async () => {
+    gitInit(tempDir);
+    const inWorkspace = join(tempDir, 'a.ts');
+    await fs.writeFile(inWorkspace, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(inWorkspace, 'export const x = 2;\n');
+
+    // A shared `.spec-workflow` document: resolvable, readable, and not in this
+    // workspace's tree — exactly what routing `files` instead of
+    // `workspaceFiles` to the diff would produce.
+    const specDir = join(outsideDir, '.spec-workflow', 'specs', 'demo');
+    await fs.mkdir(specDir, { recursive: true });
+    const specDoc = join(specDir, 'tasks.md');
+    await fs.writeFile(specDoc, '- [x] 1. done\n');
+
+    mockedExecFile.mockReset(); // any git call from here on is a failure
+    const result = await computeTaskDiff(tempDir, [inWorkspace, specDoc]);
+
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain(specDoc);
+    expect(result.rejection!.message).toContain(tempDir);
+    expect(result.diff).toBe('');
+    expect(result.stats).toBeUndefined();
+    expect(mockedExecFile).not.toHaveBeenCalled();
+  });
+
+  it('the rejection text states a containment failure, not a thrown exception', async () => {
+    const outsideFile = join(outsideDir, 'stray.ts');
+    await fs.writeFile(outsideFile, 'export const y = 1;\n');
+
+    const result = await computeTaskDiff(tempDir, [outsideFile]);
+
+    const message = result.rejection!.message;
+    // Stated, not inherited (R4 AC 24). `R4_2B_DIFF_REJECTED` claims the utility
+    // "threw an unexpected exception"; this message must not repeat that claim,
+    // and must say what actually happened instead.
+    expect(message).toContain('DIFF CONTAINMENT ASSERTION FAILED');
+    expect(message).toContain('git was NOT invoked');
+    expect(message).not.toContain('threw an unexpected exception');
+    // The two fabrications the reviewer would otherwise be left holding.
+    expect(message).toContain('already committed before review');
+    expect(message).toContain('not a benign empty diff');
+    expect(message).toBe(containmentRejectionMessage([outsideFile], tempDir));
+  });
+
+  it('a genuinely empty diff still classifies as empty, not as a containment rejection', async () => {
+    gitInit(tempDir);
+    const f = join(tempDir, 'a.ts');
+    await fs.writeFile(f, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+
+    // Clean tree: git runs, returns nothing, and the result must stay
+    // distinguishable from the rejection above by the `rejection` field alone.
+    const result = await computeTaskDiff(tempDir, [f]);
+    expect(result.diff).toBe('');
+    expect(result.rejection).toBeUndefined();
+    expect(mockedExecFile).toHaveBeenCalled();
+  });
+
+  it('an empty file list is not a containment failure (the all-drop path stays empty)', async () => {
+    gitInit(tempDir);
+    const result = await computeTaskDiff(tempDir, []);
+    expect(result.diff).toBe('');
+    expect(result.rejection).toBeUndefined();
+  });
+
+  it('asserts before the all-denylisted short-circuit, so an outside lockfile still rejects', async () => {
+    const outsideLock = join(outsideDir, 'package-lock.json');
+    await fs.writeFile(outsideLock, '{}\n');
+
+    const result = await computeTaskDiff(tempDir, [outsideLock]);
+
+    // Without the ordering this returns the benign all-denylisted empty state
+    // and the mis-partition is invisible.
+    expect(result.rejection).toBeDefined();
+    expect(result.skippedPaths).toContain(outsideLock);
+  });
+
+  it('a relative entry escaping the workspace with `..` rejects', async () => {
+    const result = await computeTaskDiff(tempDir, ['../escape.ts']);
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('../escape.ts');
+  });
+
+  it('a relative entry inside the workspace does not reject (git resolves it against its cwd)', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 2;\n');
+
+    const result = await computeTaskDiff(tempDir, ['a.ts']);
+    expect(result.rejection).toBeUndefined();
+    expect(result.diff).toContain('a.ts');
+  });
+
+  it('a spelling that reaches the workspace through a symlink does not reject', async () => {
+    gitInit(tempDir);
+    const real = join(tempDir, 'a.ts');
+    await fs.writeFile(real, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(real, 'export const x = 2;\n');
+
+    // `resolveLoggedFiles` decides containment on the realpath but emits the
+    // `path.resolve` spelling (R4 AC 17), so a lexical-only test here would
+    // reject a path the resolver deliberately accepted.
+    const link = join(outsideDir, 'link');
+    await fs.symlink(tempDir, link, 'dir');
+
+    const result = await computeTaskDiff(tempDir, [join(link, 'a.ts')]);
+    expect(result.rejection).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Env propagation — symmetric to the FORCE_COLOR=0 assertion in typecheck.test.ts
 // ---------------------------------------------------------------------------
 
@@ -366,6 +505,133 @@ describe('computeTaskDiff — env propagation', () => {
     expect(capturedEnvs.length).toBe(2);
     for (const env of capturedEnvs) {
       expect(env.GIT_OPTIONAL_LOCKS).toBe('0');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Inherited GIT_* location variables (requirement 2.12)
+//
+// `runGit` executes in the PARENT process, so neither runner's spawn-site
+// scrub reaches it. These use a real, unrelated repository rather than a mock:
+// the failure mode is that git succeeds against the wrong repository, which a
+// mocked git cannot reproduce.
+// ---------------------------------------------------------------------------
+
+describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () => {
+  const SCRUBBED = ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'] as const;
+  const PREFIXES = ['SPEC_WORKFLOW_HOST_PATH_PREFIX', 'SPEC_WORKFLOW_CONTAINER_PATH_PREFIX'] as const;
+
+  let unrelatedRepo: string; // a real repository with no relationship to tempDir
+  let target: string;
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(async () => {
+    // Both repositories are built BEFORE the hostile variables are exported:
+    // `gitCmd` inherits `process.env`, so an exported GIT_DIR would corrupt the
+    // setup itself rather than the code under test.
+    unrelatedRepo = await fs.mkdtemp(join(tmpdir(), 'task-diff-unrelated-'));
+    gitInit(unrelatedRepo);
+    await fs.writeFile(join(unrelatedRepo, 'unrelated.ts'), 'export const other = 1;\n');
+    gitCommitAll(unrelatedRepo, 'unrelated init');
+
+    gitInit(tempDir);
+    target = join(tempDir, 'a.ts');
+    await fs.writeFile(target, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+    await fs.writeFile(target, 'export const x = 2;\nexport const y = 3;\n');
+
+    for (const name of [...SCRUBBED, ...PREFIXES]) {
+      savedEnv[name] = process.env[name];
+    }
+    process.env.GIT_DIR = join(unrelatedRepo, '.git');
+  });
+
+  afterEach(async () => {
+    for (const [name, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    await fs.rm(unrelatedRepo, { recursive: true, force: true });
+  });
+
+  // Without this control the assertion below could pass merely because git
+  // ignored GIT_DIR in this environment. It pins the exact failure the scrub
+  // prevents: exit 0 with empty output, which `runGit` reports as `ok: true`
+  // and `computeTaskDiff` turns into "no changes — already committed".
+  it('CONTROL: an unscrubbed GIT_DIR empties the diff at exit 0, with no error', () => {
+    const numstat = execFileSync('git', ['diff', '--numstat', '-M', 'HEAD', '--', target], {
+      cwd: tempDir,
+      env: { ...process.env }, // inherited wholesale, as `runGit` once did
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(
+      numstat,
+      'the premise of this suite is that an inherited GIT_DIR silently produces an empty diff; it did not, so the tests below prove nothing'
+    ).toBe('');
+  });
+
+  it('produces the correct diff with GIT_DIR exported to an unrelated repository', async () => {
+    const result = await computeTaskDiff(tempDir, [target]);
+
+    expect(
+      result.diff,
+      'the diff is empty with GIT_DIR pointing at another repository: runGit inherited it, git read the wrong repository, and the reviewing agent is being told the changes were already committed'
+    ).toContain('diff --git');
+    expect(result.diff).toContain('a.ts');
+    expect(result.diff).not.toContain('unrelated.ts');
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 1 });
+    expect(result.rejection).toBeUndefined();
+  });
+
+  it('produces the correct diff with all four GIT_* variables exported', async () => {
+    process.env.GIT_COMMON_DIR = join(unrelatedRepo, '.git');
+    process.env.GIT_WORK_TREE = unrelatedRepo;
+    process.env.GIT_INDEX_FILE = join(unrelatedRepo, '.git', 'index');
+
+    const result = await computeTaskDiff(tempDir, [target]);
+
+    expect(result.diff).toContain('diff --git');
+    expect(result.diff).toContain('a.ts');
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 1 });
+  });
+
+  it('scrubs the four variables from every git invocation while keeping the path-translation prefixes', async () => {
+    process.env.GIT_COMMON_DIR = join(unrelatedRepo, '.git');
+    process.env.GIT_WORK_TREE = unrelatedRepo;
+    process.env.GIT_INDEX_FILE = join(unrelatedRepo, '.git', 'index');
+    process.env.SPEC_WORKFLOW_HOST_PATH_PREFIX = '/Users/dev';
+    process.env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX = '/projects';
+
+    const capturedEnvs: NodeJS.ProcessEnv[] = [];
+    mockedExecFile.mockReset();
+    mockedExecFile.mockImplementation(((
+      file: string,
+      args: readonly string[],
+      opts: { env?: NodeJS.ProcessEnv },
+      cb: unknown,
+    ) => {
+      capturedEnvs.push(opts.env ?? {});
+      return (actualExecFile as unknown as (
+        f: string,
+        a: readonly string[],
+        o: unknown,
+        c: unknown,
+      ) => childProcess.ChildProcess)(file, args, opts, cb);
+    }) as unknown as typeof childProcess.execFile);
+
+    await computeTaskDiff(tempDir, [target]);
+
+    expect(capturedEnvs.length).toBe(2);
+    for (const env of capturedEnvs) {
+      for (const name of SCRUBBED) {
+        expect(env[name], `runGit leaked ${name} to git`).toBeUndefined();
+      }
+      // Dropping these breaks Docker path translation (requirement 2.13).
+      expect(env.SPEC_WORKFLOW_HOST_PATH_PREFIX).toBe('/Users/dev');
+      expect(env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX).toBe('/projects');
+      expect(env.PATH).toBe(process.env.PATH);
     }
   });
 });

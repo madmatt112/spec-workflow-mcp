@@ -56,7 +56,21 @@ export interface JobExecutionLog {
 }
 
 export interface ToolContext {
+  /** Shared workflow root — where `.spec-workflow` lives. Translated, as `workspacePath` is. */
   projectPath: string;
+  /**
+   * Workspace/worktree root — the tree whose code is read, diffed and compiled.
+   * REQUIRED: an optional field would default to `undefined` at every
+   * construction site the compiler would otherwise report.
+   *
+   * Both roots are **translated** paths (`PathUtils.translatePath`), which is
+   * what the dashboard routes supply (`project-manager.ts:116-117`, requirement
+   * 5.6): in-process consumers — diff, typecheck, file resolution — do
+   * filesystem access with them, so they must be in this process's view.
+   * Untranslated host paths are kept separately for display and the registry.
+   * (`design.md:110` says "untranslated host path"; that is wrong.)
+   */
+  workspacePath: string;
   dashboardUrl?: string; // Optional for backwards compatibility
   lang?: string; // Language code for i18n (e.g., 'en', 'ja')
 }
