@@ -24,7 +24,10 @@ export function deriveSpecStatus(spec: SpecData): DerivedSpecStatus {
   if (!spec.phases.tasks.exists) {
     return { currentPhase: 'tasks', overallStatus: 'tasks-needed' };
   }
-  if (spec.taskProgress && spec.taskProgress.pending > 0) {
+  // `inProgress` counts tasks marked `[-]`. Without it, a spec on its *last* task
+  // (pending 0, completed total-1) fell through to 'ready-for-implementation', which
+  // routes to the document loop, which hard-stops back to the implementation loop.
+  if (spec.taskProgress && (spec.taskProgress.pending > 0 || spec.taskProgress.inProgress > 0)) {
     return { currentPhase: 'implementation', overallStatus: 'implementing' };
   }
   if (spec.taskProgress && spec.taskProgress.total > 0 && spec.taskProgress.completed === spec.taskProgress.total) {

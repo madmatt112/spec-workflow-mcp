@@ -135,6 +135,14 @@ export interface TaskParserResult {
     inProgress: number;
     pending: number;
     headers: number;
+    /**
+     * Still-open checkbox lines that produced no task — e.g. `- [ ] Fix the leftover`,
+     * which has no leading task number. These are silently dropped from every other
+     * count, so a spec can look finished while tasks.md still lists open work.
+     * Completed (`[x]`) unparsed lines are excluded: an "Implementation log" of
+     * `- [x] Task 3 — ...` entries is a normal, harmless convention.
+     */
+    unparsed: number;
   };
 }
 
@@ -146,7 +154,13 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
   const lines = content.split('\n');
   const tasks: ParsedTask[] = [];
   let inProgressTask: string | null = null;
-  
+  /**
+   * Open checkbox lines that produced no task. Only unchecked ones are counted:
+   * specs routinely keep an "Implementation log" of `- [x] Task 3 — ...` entries,
+   * which are a record of finished work, not work the counts are missing.
+   */
+  let unparsedOpen = 0;
+
   // Find all lines with checkboxes (supports both - and * list markers)
   const checkboxIndices: number[] = [];
   for (let i = 0; i < lines.length; i++) {
@@ -162,8 +176,12 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
     
     const line = lines[lineNumber];
     const checkboxMatch = line.match(/^(\s*)([-*])\s+\[([ x\-])\]\s+(.+)/);
-    
-    if (!checkboxMatch) continue;
+
+    if (!checkboxMatch) {
+      // A checkbox with no text after it. Counts only if still open.
+      if (!line.match(/^\s*[-*]\s+\[x\]/)) unparsedOpen++;
+      continue;
+    }
 
     const indent = checkboxMatch[1];
     const listMarker = checkboxMatch[2]; // '-' or '*'
@@ -193,6 +211,7 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
       description = taskMatch[2];
     } else {
       // No task number found, skip this task
+      if (statusChar !== 'x') unparsedOpen++;
       continue;
     }
     
@@ -325,7 +344,8 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
     completed: tasks.filter(t => t.status === 'completed').length,
     inProgress: tasks.filter(t => t.status === 'in-progress').length,
     pending: tasks.filter(t => t.status === 'pending').length,
-    headers: tasks.filter(t => t.isHeader).length
+    headers: tasks.filter(t => t.isHeader).length,
+    unparsed: unparsedOpen
   };
   
   return {
@@ -397,15 +417,19 @@ export function getTaskById(tasks: ParsedTask[], taskId: string): ParsedTask | u
 /**
  * Export for backward compatibility with existing code
  */
-export function parseTaskProgress(content: string): { 
-  total: number; 
-  completed: number; 
+export function parseTaskProgress(content: string): {
+  total: number;
+  completed: number;
+  inProgress: number;
   pending: number;
+  unparsed: number;
 } {
   const result = parseTasksFromMarkdown(content);
   return {
     total: result.summary.total,
     completed: result.summary.completed,
-    pending: result.summary.pending
+    inProgress: result.summary.inProgress,
+    pending: result.summary.pending,
+    unparsed: result.summary.unparsed
   };
 }

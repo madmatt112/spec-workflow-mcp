@@ -134,7 +134,9 @@ export class SpecParser {
         spec.taskProgress = {
           total: taskProgress.total,
           completed: taskProgress.completed,
-          pending: taskProgress.pending
+          inProgress: taskProgress.inProgress,
+          pending: taskProgress.pending,
+          unparsed: taskProgress.unparsed
         };
       } catch {}
 
@@ -217,7 +219,9 @@ export class SpecParser {
         spec.taskProgress = {
           total: taskProgress.total,
           completed: taskProgress.completed,
-          pending: taskProgress.pending
+          inProgress: taskProgress.inProgress,
+          pending: taskProgress.pending,
+          unparsed: taskProgress.unparsed
         };
       } catch {}
 
