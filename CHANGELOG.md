@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-08-07
+
+`INDEX.md` now states which spec to work on next, and why. Previously it published three tables and left the choice to whoever read them — a rule that lived only in prose, restated in three separate prompt files, and that had a gap none of them named: it consulted `## Active` and `## Deferred` only. Once every spec named in `decomposition.md` was `Complete`, that rule terminated and reported the roadmap finished, while the `## Other specs` table below it — holding every spec *not* named in `decomposition.md` — went unread. In one project all three in-flight specs sat in that table, one of them being actively worked at the time.
+
+### Added
+- **`## Next` section in `INDEX.md`**, mirrored in the `spec-index` tool result as `routing`. It publishes a `state` rather than a bare spec name, because the four ways there can be no spec to work on are not interchangeable:
+  - `active` — work on `routing.spec`.
+  - `ambiguous` — several unsequenced specs qualify and nothing declares their order. Names the candidates and stops instead of guessing.
+  - `all-on-disk-complete` — every spec **on disk** is Complete. Deliberately not called "roadmap complete": `INDEX.md` is built by scanning `.spec-workflow/specs/`, and specs are created lazily, so `decomposition.md` routinely names the next spec before its directory exists. Such a spec is invisible to the scan, and reporting completion is exactly how the roadmap appears finished while work remains.
+  - `all-deferred` — specs exist but all are deferred. Nothing is complete.
+  - `no-specs` — nothing exists yet.
+- **`routing.warnings`** flags specs whose `tasks.md` holds still-open checkbox lines the task parser dropped (a task needs a leading number). Those lines count toward nothing, so such a spec can read `Complete` while it still lists open work. Completed unparsed lines are not counted — the common `- [x] Task 3 — ...` "Implementation log" convention is a record of finished work, not a gap in the counts, and warning on it fires on most real specs.
+- `parseTaskProgress` now returns `inProgress` and `unparsed` alongside `total`, `completed` and `pending`.
+
+### Fixed
+- **A spec on its last task derived `ready-for-implementation` instead of `implementing`.** A task is marked `[-]` *before* work starts on it, so the final task leaves `pending: 0` with `completed: total - 1` — which matched neither the `pending > 0` branch nor the `completed === total` branch and fell through. Anything other than `implementing` routes to the document loop, which finds all documents approved and hard-stops back to the implementation loop; interrupting a run on its last task made the two ping-pong. `deriveSpecStatus` now counts in-progress tasks.
+- **The residual bucket is no longer ranked by creation time.** `## Other specs` is sorted by directory birthtime, which git does not store and which any fresh clone or `git worktree add` restamps — it encodes no build intent, and routing by it picks whichever spec directory happens to be oldest. Routing now considers only whether a spec has been started, and where that does not single one out it returns `ambiguous` rather than inventing an order.
+
+### Changed
+- Progress no longer competes with declared build order. Within `## Active` the first not-Complete spec still wins outright, because first-mention order in `decomposition.md` is a human-declared *dependency* sequence and a later spec being underway must not pull it ahead of an earlier one. Started-vs-not-started is used only in the residual bucket, which has no declared order at all.
+- `sdd-router.md`, `spec-loop-v3.md` and `task-implementation-loop-v2.md` (maintained outside this repository) should branch on `## Next`. The prose rule stays as a documented fallback rather than being deleted: those files take effect on save, while this server ships through `npx @latest` and needs a publish and a client restart, so a prompt that had lost its rule and called a tool that did not yet exist would be worse than the bug.
+
 ## [5.0.0] - 2026-07-31
 
 Git worktrees now get a correct execution context. The server tracks **two roots** rather than one: a **workspace path** (the checkout whose code is diffed, typechecked and handed to spawned agents) and a **workflow root** (where `.spec-workflow/` lives, shared across a repository's worktrees). Previously both were the same value, so a review triggered from a worktree diffed and compiled the main checkout while reporting the worktree's paths.
