@@ -1,7 +1,14 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
-import { IndexGenerator } from '../core/index-generator.js';
+import { IndexGenerator, IndexResult } from '../core/index-generator.js';
+
+/** One-line summary of the routing decision, for the tool's message line. */
+function describeRouting(result: IndexResult): string {
+  const { state, spec, reason, warnings } = result.routing;
+  const head = state === 'active' ? `${spec} — ${reason}` : `${state} — ${reason}`;
+  return warnings.length > 0 ? `${head} (${warnings.length} warning(s), see data.routing.warnings)` : head;
+}
 
 export const specIndexTool: Tool = {
   name: 'spec-index',
@@ -9,6 +16,15 @@ export const specIndexTool: Tool = {
 
 # Instructions
 INDEX.md lives at .spec-workflow/spec-decomposition/INDEX.md and is the project roadmap: every spec ordered by its first mention in decomposition.md, with status derived from each spec's documents (same derivation as spec-status). It is GENERATED, never hand-edited — regenerate it instead of editing it.
+
+# Deciding what to work on next
+Read the '## Next' section, or the 'routing' field of this tool's result. Do NOT infer the next spec from table order — '## Other specs' is sorted by directory creation time, which encodes no build intent. Branch on 'routing.state':
+- 'active': work on 'routing.spec'.
+- 'ambiguous': several unsequenced specs qualify and nothing declares their order. Stop and ask, or add them to decomposition.md.
+- 'all-on-disk-complete': every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Specs are created lazily, so the next one often does not exist yet and is invisible to this tool.
+- 'all-deferred': specs exist but all are deferred. Nothing is complete.
+- 'no-specs': no specs exist yet.
+Any 'routing.warnings' mean the underlying task counts are unreliable — surface them rather than routing past them.
 
 Actions:
 - 'generate': (Re)write INDEX.md from current spec state. Safe to run anytime; idempotent.
@@ -60,7 +76,9 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
         const result = await generator.generate();
         return {
           success: true,
-          message: `Generated INDEX.md (${result.active} active, ${result.deferred} deferred, ${result.other} not in decomposition.md)`,
+          message:
+            `Generated INDEX.md (${result.active} active, ${result.deferred} deferred, ${result.other} not in decomposition.md). ` +
+            `Next: ${describeRouting(result)}`,
           data: result
         };
       }
@@ -70,7 +88,11 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
         }
         await generator.defer(args.specName, args.reason);
         const result = await generator.generate();
-        return { success: true, message: `Spec '${args.specName}' deferred`, data: result };
+        return {
+          success: true,
+          message: `Spec '${args.specName}' deferred. Next: ${describeRouting(result)}`,
+          data: result
+        };
       }
       case 'undefer': {
         if (!args.specName) {
@@ -78,7 +100,11 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
         }
         await generator.undefer(args.specName);
         const result = await generator.generate();
-        return { success: true, message: `Spec '${args.specName}' returned to active roadmap`, data: result };
+        return {
+          success: true,
+          message: `Spec '${args.specName}' returned to active roadmap. Next: ${describeRouting(result)}`,
+          data: result
+        };
       }
       default:
         return { success: false, message: `Unknown action: ${args.action}. Use 'generate', 'defer', or 'undefer'.` };

@@ -6,7 +6,7 @@ function makeSpec(p: {
   requirements?: boolean;
   design?: boolean;
   tasks?: boolean;
-  progress?: { total: number; completed: number; pending: number };
+  progress?: { total: number; completed: number; pending: number; inProgress?: number; unparsed?: number };
 }): SpecData {
   return {
     name: 'demo',
@@ -18,7 +18,7 @@ function makeSpec(p: {
       tasks: { exists: !!p.tasks },
       implementation: { exists: false },
     },
-    taskProgress: p.progress,
+    taskProgress: p.progress && { inProgress: 0, unparsed: 0, ...p.progress },
   };
 }
 
@@ -60,6 +60,28 @@ describe('deriveSpecStatus', () => {
       tasks: true,
       progress: { total: 3, completed: 3, pending: 0 },
     }))).toEqual({ currentPhase: 'completed', overallStatus: 'completed' });
+  });
+
+  // Regression: the implementation loop marks a task `[-]` before working on it, so the
+  // last task leaves pending 0 and completed total-1. Without counting inProgress this
+  // derived 'ready-for-implementation', which routes to the document loop, which
+  // hard-stops back to the implementation loop — the two ping-pong.
+  it('reports implementing when the only remaining task is in progress', () => {
+    expect(deriveSpecStatus(makeSpec({
+      requirements: true,
+      design: true,
+      tasks: true,
+      progress: { total: 3, completed: 2, pending: 0, inProgress: 1 },
+    }))).toEqual({ currentPhase: 'implementation', overallStatus: 'implementing' });
+  });
+
+  it('reports implementing when the first task is in progress and none are done', () => {
+    expect(deriveSpecStatus(makeSpec({
+      requirements: true,
+      design: true,
+      tasks: true,
+      progress: { total: 3, completed: 0, pending: 2, inProgress: 1 },
+    }))).toEqual({ currentPhase: 'implementation', overallStatus: 'implementing' });
   });
 
   it('reports ready-for-implementation when tasks exist but the list is empty', () => {

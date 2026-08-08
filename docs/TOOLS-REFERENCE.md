@@ -183,6 +183,22 @@ never hand-edited**: each spec is ordered by its first mention in `decomposition
 derivation as `spec-status`, so the roadmap never drifts from single-spec status.
 Re-running with unchanged state produces a byte-identical file.
 
+**Deciding what to work on next**: read the `## Next` section (mirrored in the tool result's
+`routing` field). Do **not** infer it from table order — "Other specs" is sorted by directory
+creation time, which is filesystem birthtime and encodes no build intent. `routing.state` is one of:
+
+| State | Meaning |
+|-------|---------|
+| `active` | Work on `routing.spec`. |
+| `ambiguous` | Several unsequenced specs qualify and nothing declares their order. Stop and ask, or sequence them in `decomposition.md`. |
+| `all-on-disk-complete` | Every spec **on disk** is Complete. Not necessarily roadmap completion — specs are created lazily, so `decomposition.md` may name a spec with no `specs/<name>/` directory. That spec is invisible here and is the next one to build. |
+| `all-deferred` | Specs exist but all are deferred. Nothing is complete. |
+| `no-specs` | No specs exist yet. |
+
+`routing.warnings` flags specs whose `tasks.md` still has open checkbox lines the parser dropped (a task
+needs a leading number). Their progress and status are unreliable — surface these rather than
+routing past them.
+
 **Parameters**:
 
 | Parameter | Type | Required | Description |

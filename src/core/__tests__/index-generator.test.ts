@@ -199,6 +199,77 @@ describe('IndexGenerator', () => {
     expect(index).not.toContain('## Other specs');
   });
 
+  describe('Next section', () => {
+    const COMPLETE = { ...ALL_PHASES, tasks: '- [x] 1. Done task\n' };
+
+    it('renders the routing decision and returns it from generate()', async () => {
+      await createSpec('alpha');
+      await writeDecomposition('alpha\n');
+
+      const result = await generator.generate();
+      expect(result.routing).toMatchObject({ state: 'active', spec: 'alpha' });
+
+      const index = await readIndex();
+      expect(index).toContain('## Next');
+      expect(index).toContain('- **State:** active');
+      expect(index).toContain('- **Spec:** alpha');
+    });
+
+    // The incident this section exists for: every sequenced spec is Complete, so the
+    // old "first not-Complete in ## Active" rule fell through and reported the roadmap
+    // finished while live work sat in ## Other specs.
+    it('names the started residual spec when every sequenced spec is Complete', async () => {
+      await createSpec('shipped', COMPLETE);
+      await createSpec('untouched', { ...ALL_PHASES, tasks: '- [ ] 1. Nothing yet\n' });
+      await createSpec('half-built', { ...ALL_PHASES, tasks: '- [x] 1. Done\n- [ ] 2. Todo\n' });
+      await writeDecomposition('shipped\n');
+
+      const result = await generator.generate();
+      expect(result.routing).toMatchObject({ state: 'active', spec: 'half-built' });
+
+      const index = await readIndex();
+      expect(index).toContain('- **Spec:** half-built');
+    });
+
+    it('reports all-on-disk-complete instead of claiming the roadmap is finished', async () => {
+      await createSpec('shipped', COMPLETE);
+      await writeDecomposition('shipped\n');
+
+      const result = await generator.generate();
+      expect(result.routing.state).toBe('all-on-disk-complete');
+      expect(result.routing.reason).toContain('decomposition.md');
+    });
+
+    it('stops rather than guessing when nothing distinguishes the residual specs', async () => {
+      await createSpec('shipped', COMPLETE);
+      await createSpec('one', { ...ALL_PHASES, tasks: '- [ ] 1. Todo\n' });
+      await createSpec('two', { ...ALL_PHASES, tasks: '- [ ] 1. Todo\n' });
+      await writeDecomposition('shipped\n');
+
+      const result = await generator.generate();
+      expect(result.routing.state).toBe('ambiguous');
+      expect(result.routing.candidates).toEqual(['one (0/1)', 'two (0/1)']);
+    });
+
+    // The heading is '## Next' precisely so that '## Active spec' — a prefix of
+    // '## Active' — never exists. Readers locate sections with indexOf; a colliding
+    // heading would silently widen the window instead of failing.
+    it('does not disturb indexOf-based section slicing', async () => {
+      await createSpec('alpha');
+      await createSpec('bravo');
+      await writeDecomposition('alpha\nbravo\n');
+      await generator.defer('bravo', 'later');
+      await generator.generate();
+
+      const index = await readIndex();
+      const activeSection = index.slice(index.indexOf('## Active'), index.indexOf('## Deferred'));
+      expect(activeSection).toContain('| 1 | alpha |');
+      expect(activeSection).not.toContain('| bravo |');
+      expect(activeSection).not.toContain('## Next');
+      expect(index.indexOf('## Next')).toBeLessThan(index.indexOf('## Active'));
+    });
+  });
+
   it('re-generation is idempotent (byte-identical for unchanged state)', async () => {
     await createSpec('alpha');
     await createSpec('bravo');

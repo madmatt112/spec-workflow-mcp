@@ -167,6 +167,15 @@ ordering comes from name mentions here, name specs consistently between this doc
 To postpone a spec in the build order, mark it deferred with \`spec-index\` (action: defer); it then renders in a
 Deferred section instead of the active roadmap.
 
+INDEX.md's \`## Next\` section names the spec to work on and why. A spec you name here but never create is
+invisible to it — INDEX is built by scanning \`.spec-workflow/specs/\`, so a spec with no directory yet cannot
+appear. That is why \`## Next\` reports \`all-on-disk-complete\` rather than "roadmap complete": when it says so,
+come back to this document and check for a named spec that has not been started.
+
+A spec that exists but is *not* named here lands in "Other specs", which has no build order at all. \`## Next\`
+will pick it only if it is the single one with work already begun; otherwise it reports \`ambiguous\` and stops.
+Adding the spec name to this document is what gives it a position.
+
 ## Sources
 
 These principles are drawn from:

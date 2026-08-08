@@ -89,7 +89,11 @@ export interface SpecData {
   taskProgress?: {
     total: number;
     completed: number;
+    /** Tasks marked `[-]`. A task is marked in-progress *before* work starts on it. */
+    inProgress: number;
     pending: number;
+    /** Still-open checkbox lines the task parser could not read. See TaskParserResult.summary. */
+    unparsed: number;
   };
 }
 
@@ -123,7 +127,7 @@ export interface SpecIndexEntry {
   name: string;
   currentPhase: string;
   overallStatus: string;
-  taskProgress: { total: number; completed: number; pending: number };
+  taskProgress: { total: number; completed: number; inProgress: number; pending: number; unparsed: number };
   createdAt: string;
   deferred: boolean;
   deferredReason?: string;

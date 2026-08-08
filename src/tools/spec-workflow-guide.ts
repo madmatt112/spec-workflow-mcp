@@ -365,6 +365,7 @@ These are not part of the core approval flow — they are invoked when requested
 - When steering docs exist, decomposition is required before starting the first spec — call \`decomposition-guide\` for methodology
 - When explicitly deferring a decision in any phase, record it using the deferrals tool. Deferrals are project-level artifacts that persist across specs.
 - The roadmap (\`.spec-workflow/spec-decomposition/INDEX.md\`) is auto-generated — never hand-edit it. Refresh it anytime with the \`spec-index\` tool (action: generate). To postpone a whole spec in the build order, mark it with the same tool (action: defer / undefer) — distinct from the \`deferrals\` tool, which is for deferred decisions, not deferred specs.
+- To decide what to work on next, read INDEX.md's \`## Next\` section (or the \`routing\` field of the \`spec-index\` result) — never infer it from table order. Note that \`all-on-disk-complete\` is NOT roadmap completion: specs are created lazily, so \`decomposition.md\` may name a spec with no directory yet, which INDEX cannot see. Check there before concluding the work is done.
 
 ## File Structure
 \`\`\`
