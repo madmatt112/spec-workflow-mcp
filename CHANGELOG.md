@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0] - 2026-08-07
 
-`INDEX.md` now states which spec to work on next, and why. Previously it published three tables and left the choice to whoever read them — a rule that lived only in prose, restated in three separate prompt files, and that had a gap none of them named: it consulted `## Active` and `## Deferred` only. Once every spec named in `decomposition.md` was `Complete`, that rule terminated and reported the roadmap finished, while the `## Other specs` table below it — holding every spec *not* named in `decomposition.md` — went unread. In one project all three in-flight specs sat in that table, one of them being actively worked at the time.
+**INDEX.md tells you what's next**
+
+INDEX.md was always a decent inventory. Three tables of what exists, with the choice of what to work on left to you or your agent.
+
+The rule behind that only read the Active and Deferred tables. Once every spec named in `decomposition.md` was complete it called the roadmap finished, never reaching the "Other specs" table below, where every spec added after decomposition lives. One project had three specs in flight, all three in that table, one of them open on screen at the time, and INDEX.md still said there was nothing left to do.
+
+INDEX.md now opens with a `## Next` section naming one spec and the reason, mirrored in the `spec-index` result as `routing`. When it can't tell (two half-built specs, no declared order) you get both candidates and a stop instead of a guess. When everything is finished it says every spec on disk is complete rather than that the roadmap is done, because `decomposition.md` routinely names the next spec before its directory exists. That gap is the whole bug.
+
+Two smaller fixes. A spec on its last task read as not-yet-implementing, so interrupting a run at the wrong moment left the document loop and the implementation loop each waiting on the other; resuming works now. And unreadable open checkboxes in a `tasks.md` now warn instead of counting for nothing.
+
+After updating, run `spec-index` once with `action: generate` in each project. INDEX.md is written to disk rather than computed on read, so your existing file keeps its old shape until something rewrites it.
 
 ### Added
 - **`## Next` section in `INDEX.md`**, mirrored in the `spec-index` tool result as `routing`. It publishes a `state` rather than a bare spec name, because the four ways there can be no spec to work on are not interchangeable:
