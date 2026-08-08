@@ -10,21 +10,30 @@ The `.spec-workflow/` directory layout, tool names, config keys, and `SPEC_WORKF
 
 ## What This Fork Adds
 
-Four features not present in upstream:
+Upstream gives you a place to write specs and track tasks against them. This fork adds the parts that decide whether a spec is any good, which one to build next, and whether a finished task actually did what it claimed — plus the execution context to run all of that from a git worktree.
+
+Not present in upstream:
 
 - **Adversarial Review** — automated oppositional review of spec documents (requirements / design / tasks / steering / decomposition). Spawns fresh-context CLI subagents (defaults to Claude CLI; configurable for any LLM CLI) to generate and execute adversarial prompts against spec content. Dashboard button, in-card progress stepper, versioning / retry, review memory for tracking prior critiques.
 - **Spec Decomposition** — required workflow phase that forces task breakdown before implementation. New `decomposition-guide` tool with dashboard integration and adversarial-review eligibility.
-- **Deferred Decisions Tracker** — new `deferrals` tool and dashboard UI for recording decisions that are intentionally punted during spec authoring.
 - **Task Review** — new `review-task` and `get-task-review` tools that spawn a fresh-context dashboard agent to review completed task implementations before they're marked done.
+- **Deferred Decisions Tracker** — new `deferrals` tool and a live-updating dashboard page covering both decisions intentionally punted during spec authoring and whole specs postponed in the build order, with scope filtering down to project level.
+- **Design System Steering** — optional `design-system.md` as a first-class steering document, loaded during decomposition and design, and covered by the approvals and adversarial-review flows.
+- **Worktree-Aware Execution** — the server tracks the **workspace** (the checkout whose code is diffed, typechecked and handed to spawned agents) separately from the **workflow root** (where `.spec-workflow/` lives, shared across a repository's worktrees). A review triggered from a worktree reviews that worktree. Single-checkout projects are unaffected — the two roots resolve to the same directory.
+- **Spec Routing** — `INDEX.md` opens with a `## Next` section naming the spec to work on and the reason, mirrored in the `spec-index` result as `routing`. It publishes a state rather than a bare name, so "several candidates, no declared order" and "every spec on disk is complete" are distinguishable from a confident pick.
+
+One deliberate removal: every prompt the server generates dropped its expert-persona preamble ("You are a senior engineer…"). Current research finds persona assignment does not improve task performance and measurably reduces directness; the behavioural directives it wrapped are retained unchanged.
 
 ## Key Features
 
 - **Structured Development Workflow** — Sequential spec creation (Requirements → Design → Tasks) with required decomposition phase.
+- **Guided Build Order** — `INDEX.md` states which spec is next and why, and says so when it cannot tell.
 - **Real-Time Web Dashboard** — Monitor specs, tasks, and progress with live updates.
 - **VSCode Extension** — Integrated sidebar dashboard (build-from-source for this fork; see below).
 - **Approval Workflow** — Full approval process with revisions and adversarial review.
 - **Task Progress Tracking** — Visual progress bars and detailed status.
 - **Implementation Logs** — Searchable logs of all task implementations with code statistics.
+- **Git Worktree Support** — One shared `.spec-workflow/` per repository, with each worktree reviewed as itself.
 
 ## 🚀 Quick Start
 
