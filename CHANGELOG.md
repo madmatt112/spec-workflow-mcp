@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0] - 2026-08-07
 
-**INDEX.md tells you what's next**
+**Improved cross-session progress tracking**
 
 INDEX.md was always a decent inventory. Three tables of what exists, with the choice of what to work on left to you or your agent.
 

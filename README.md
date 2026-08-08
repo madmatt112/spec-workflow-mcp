@@ -1,30 +1,37 @@
-# Spec Workflow MCP (madmatt112 fork)
+# Spec Workflow MCP
 
 A Model Context Protocol (MCP) server for structured spec-driven development with real-time dashboard and VSCode extension.
 
-## Fork Notice
+## What It Does
 
-This is a hard fork of [Pimzino/spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp), diverged from upstream version `2.2.6` on **2026-03-13**. It is **not tracking upstream** and will not be merged back. All issues/PRs should be filed against this repository.
-
-The `.spec-workflow/` directory layout, tool names, config keys, and `SPEC_WORKFLOW_HOME` environment variable remain identical to upstream, so existing state from upstream `2.2.x` migrates in place.
-
-## What This Fork Adds
-
-Four features not present in upstream:
+Specs move through requirements, design, decomposition and tasks, with an approval gate at each step. What separates this from a folder of markdown files: it argues with your specs before you build against them, tells you which spec to build next, reviews each finished task in fresh context before it is marked done, and runs all of that against the git worktree you are actually in.
 
 - **Adversarial Review** — automated oppositional review of spec documents (requirements / design / tasks / steering / decomposition). Spawns fresh-context CLI subagents (defaults to Claude CLI; configurable for any LLM CLI) to generate and execute adversarial prompts against spec content. Dashboard button, in-card progress stepper, versioning / retry, review memory for tracking prior critiques.
 - **Spec Decomposition** — required workflow phase that forces task breakdown before implementation. New `decomposition-guide` tool with dashboard integration and adversarial-review eligibility.
-- **Deferred Decisions Tracker** — new `deferrals` tool and dashboard UI for recording decisions that are intentionally punted during spec authoring.
 - **Task Review** — new `review-task` and `get-task-review` tools that spawn a fresh-context dashboard agent to review completed task implementations before they're marked done.
+- **Deferred Decisions Tracker** — new `deferrals` tool and a live-updating dashboard page covering both decisions intentionally punted during spec authoring and whole specs postponed in the build order, with scope filtering down to project level.
+- **Design System Steering** — optional `design-system.md` as a first-class steering document, loaded during decomposition and design, and covered by the approvals and adversarial-review flows.
+- **Worktree-Aware Execution** — the server tracks the **workspace** (the checkout whose code is diffed, typechecked and handed to spawned agents) separately from the **workflow root** (where `.spec-workflow/` lives, shared across a repository's worktrees). A review triggered from a worktree reviews that worktree. Single-checkout projects are unaffected — the two roots resolve to the same directory.
+- **Spec Routing** — `INDEX.md` opens with a `## Next` section naming the spec to work on and the reason, mirrored in the `spec-index` result as `routing`. It publishes a state rather than a bare name, so "several candidates, no declared order" and "every spec on disk is complete" are distinguishable from a confident pick.
+
+One deliberate removal: every prompt the server generates dropped its expert-persona preamble ("You are a senior engineer…"). Current research finds persona assignment does not improve task performance and measurably reduces directness; the behavioural directives it wrapped are retained unchanged.
 
 ## Key Features
 
 - **Structured Development Workflow** — Sequential spec creation (Requirements → Design → Tasks) with required decomposition phase.
+- **Guided Build Order** — `INDEX.md` states which spec is next and why, and says so when it cannot tell.
 - **Real-Time Web Dashboard** — Monitor specs, tasks, and progress with live updates.
-- **VSCode Extension** — Integrated sidebar dashboard (build-from-source for this fork; see below).
+- **VSCode Extension** — Integrated sidebar dashboard (build from source; see below).
 - **Approval Workflow** — Full approval process with revisions and adversarial review.
 - **Task Progress Tracking** — Visual progress bars and detailed status.
 - **Implementation Logs** — Searchable logs of all task implementations with code statistics.
+- **Git Worktree Support** — One shared `.spec-workflow/` per repository, with each worktree reviewed as itself.
+
+## Provenance and Compatibility
+
+This is a hard fork of [Pimzino/spec-workflow-mcp](https://github.com/Pimzino/spec-workflow-mcp), diverged from version `2.2.6` on **2026-03-13**. It is **not tracking upstream** and will not be merged back. All issues and PRs should be filed against this repository.
+
+The `.spec-workflow/` directory layout, tool names, config keys, and the `SPEC_WORKFLOW_HOME` environment variable are unchanged from `2.2.6`, so state from upstream `2.2.x` migrates in place. The npm package is `@madmatt112org/spec-workflow-mcp`.
 
 ## 🚀 Quick Start
 
@@ -58,7 +65,7 @@ The dashboard will be accessible at: http://localhost:5000
 
 **Option B: VSCode Extension** (Build from source)
 
-The fork's extension is not yet published to the VSCode Marketplace. Build and side-install:
+The extension is not yet published to the VSCode Marketplace. Build and side-install:
 
 ```bash
 cd vscode-extension
