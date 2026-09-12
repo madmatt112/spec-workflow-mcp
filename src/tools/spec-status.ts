@@ -6,13 +6,14 @@ import { TaskReviewManager } from '../core/task-review-manager.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
+import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 
 export const specStatusTool: Tool = {
   name: 'spec-status',
   description: `Display comprehensive specification progress overview.
 
 # Instructions
-Call when resuming work on a spec or checking overall completion status. Shows which phases are complete and task implementation progress. After viewing status, read tasks.md directly to see all tasks and their status markers ([ ] pending, [-] in-progress, [x] completed).`,
+Call when resuming work on a spec or checking overall completion status. Shows which phases are complete and task implementation progress. Each document phase (Requirements, Design, Tasks) reports its approval state from the approval records: status "approved" means the newest approval record for that document is approved; "created" means the document exists but its newest record is pending, rejected, needs-revision, or absent. After viewing status, read tasks.md directly to see all tasks and their status markers ([ ] pending, [-] in-progress, [x] completed).`,
   inputSchema: {
     type: 'object',
     properties: {
@@ -67,22 +68,43 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
     // Determine current phase and overall status (shared with the INDEX roll-up generator)
     const { currentPhase, overallStatus } = deriveSpecStatus(spec);
 
+    // Approval state per document, from the approval records on disk. The
+    // phase/status derivation above deliberately ignores approvals (file
+    // existence and task checkboxes only); this is the routing signal an
+    // autonomous harness reads to tell "written" from "approved".
+    const approvals = await deriveDocumentApprovalStates(translatedPath, specName);
+    spec.phases.requirements.approved = approvals.requirements.approved;
+    spec.phases.design.approved = approvals.design.approved;
+    spec.phases.tasks.approved = approvals.tasks.approved;
+
     // Phase details
     const phaseDetails = [
       {
         name: 'Requirements',
         status: spec.phases.requirements.exists ? (spec.phases.requirements.approved ? 'approved' : 'created') : 'missing',
-        lastModified: spec.phases.requirements.lastModified
+        lastModified: spec.phases.requirements.lastModified,
+        approved: approvals.requirements.approved,
+        approvalId: approvals.requirements.approvalId,
+        approvalStatus: approvals.requirements.approvalStatus,
+        approvedAt: approvals.requirements.approvedAt
       },
       {
         name: 'Design',
         status: spec.phases.design.exists ? (spec.phases.design.approved ? 'approved' : 'created') : 'missing',
-        lastModified: spec.phases.design.lastModified
+        lastModified: spec.phases.design.lastModified,
+        approved: approvals.design.approved,
+        approvalId: approvals.design.approvalId,
+        approvalStatus: approvals.design.approvalStatus,
+        approvedAt: approvals.design.approvedAt
       },
       {
         name: 'Tasks',
         status: spec.phases.tasks.exists ? (spec.phases.tasks.approved ? 'approved' : 'created') : 'missing',
-        lastModified: spec.phases.tasks.lastModified
+        lastModified: spec.phases.tasks.lastModified,
+        approved: approvals.tasks.approved,
+        approvalId: approvals.tasks.approvalId,
+        approvalStatus: approvals.tasks.approvalStatus,
+        approvedAt: approvals.tasks.approvedAt
       },
       {
         name: 'Implementation',

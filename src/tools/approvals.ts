@@ -1,11 +1,12 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
-import { ApprovalStorage } from '../dashboard/approval-storage.js';
+import { ApprovalStorage, ApprovalRequest } from '../dashboard/approval-storage.js';
 import { join, isAbsolute } from 'path';
 import { validateProjectPath, PathUtils } from '../core/path-utils.js';
 import { readFile } from 'fs/promises';
 import { validateTasksMarkdown, formatValidationErrors } from '../core/task-validator.js';
 import { validateMarkdownForMdx, formatMdxValidationIssues } from '../core/mdx-validator.js';
+import { normalizeApprovalFilePath } from '../core/approval-records.js';
 
 /**
  * Safely translate a path, with defensive checks to provide better error messages
@@ -28,24 +29,33 @@ function safeTranslatePath(path: string): string {
   return PathUtils.translatePath(path);
 }
 
+const APPROVAL_STATUSES = ['pending', 'approved', 'rejected', 'needs-revision'] as const;
+type ApprovalStatus = typeof APPROVAL_STATUSES[number];
+
 export const approvalsTool: Tool = {
   name: 'approvals',
-  description: `Manage approval requests through the dashboard interface.
+  description: `Manage approval requests.
 
 # Instructions
-Use this tool to request, check status, or delete approval requests. The action parameter determines the operation:
+Use this tool to request, check, list, decide and clean up approval requests. The action parameter determines the operation:
 - 'request': Create a new approval request after creating each document
 - 'status': Check the current status of an approval request
-- 'delete': Clean up completed, rejected, or needs-revision approval requests (cannot delete pending requests)
+- 'delete': Remove an approved, rejected, or needs-revision request (cannot delete pending requests)
+- 'list': List approval records, newest first, with optional categoryName, filePath and status filters
+- 'approve': Set a pending or needs-revision request to approved
+- 'reject': Set a pending or needs-revision request to rejected, with a reason
+- 'prune': Keep one approved record for a document and delete every other record for the same filePath in its category, together with their snapshots
 
-CRITICAL: Only provide filePath parameter for requests - the dashboard reads files directly. Never include document content. Wait for user to review and approve before continuing.`,
+'approve', 'reject', 'list' and 'prune' exist for autonomous harnesses that own the approval decision themselves. Interactive workflows must not call 'approve' or 'reject': the human decides in the dashboard or the VS Code extension.
+
+CRITICAL: Only provide filePath parameter for requests - the dashboard reads files directly. Never include document content. In an interactive workflow, wait for the user to review and approve before continuing.`,
   inputSchema: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['request', 'status', 'delete'],
-        description: 'The action to perform: request, status, or delete'
+        enum: ['request', 'status', 'delete', 'list', 'approve', 'reject', 'prune'],
+        description: 'The action to perform: request, status, delete, list, approve, reject, or prune'
       },
       projectPath: {
         type: 'string',
@@ -53,7 +63,7 @@ CRITICAL: Only provide filePath parameter for requests - the dashboard reads fil
       },
       approvalId: {
         type: 'string',
-        description: 'The ID of the approval request (required for status and delete actions)'
+        description: 'The ID of the approval request (required for status, delete, approve and reject actions)'
       },
       title: {
         type: 'string',
@@ -61,7 +71,7 @@ CRITICAL: Only provide filePath parameter for requests - the dashboard reads fil
       },
       filePath: {
         type: 'string',
-        description: 'Path to the file that needs approval, relative to project root (required for request action)'
+        description: 'Path to the file, relative to project root. Required for request (the file that needs approval) and prune (the document whose records are pruned); optional filter for list.'
       },
       type: {
         type: 'string',
@@ -75,7 +85,20 @@ CRITICAL: Only provide filePath parameter for requests - the dashboard reads fil
       },
       categoryName: {
         type: 'string',
-        description: 'Name of the spec or "steering" for steering documents (required for request)'
+        description: 'Name of the spec or "steering" for steering documents. Required for request and prune; optional filter for list.'
+      },
+      response: {
+        type: 'string',
+        description: 'Decision text recorded on the approval. Required for reject; optional for approve (defaults to a standard note).'
+      },
+      status: {
+        type: 'string',
+        enum: [...APPROVAL_STATUSES],
+        description: 'Optional status filter for list'
+      },
+      keepApprovalId: {
+        type: 'string',
+        description: 'For prune: the ID of the approved record to keep. It must exist, be approved, and belong to the given categoryName and filePath.'
       }
     },
     required: ['action']
@@ -109,7 +132,36 @@ type DeleteApprovalArgs = {
   approvalId: string;
 };
 
-type ApprovalArgs = RequestApprovalArgs | StatusApprovalArgs | DeleteApprovalArgs;
+type ListApprovalsArgs = {
+  action: 'list';
+  projectPath?: string;
+  categoryName?: string;
+  filePath?: string;
+  status?: ApprovalStatus;
+};
+
+type DecideApprovalArgs = {
+  action: 'approve' | 'reject';
+  projectPath?: string;
+  approvalId: string;
+  response?: string;
+};
+
+type PruneApprovalsArgs = {
+  action: 'prune';
+  projectPath?: string;
+  categoryName: string;
+  filePath: string;
+  keepApprovalId: string;
+};
+
+type ApprovalArgs =
+  | RequestApprovalArgs
+  | StatusApprovalArgs
+  | DeleteApprovalArgs
+  | ListApprovalsArgs
+  | DecideApprovalArgs
+  | PruneApprovalsArgs;
 
 // Type guard functions
 function isRequestApproval(args: ApprovalArgs): args is RequestApprovalArgs {
@@ -126,7 +178,7 @@ function isDeleteApproval(args: ApprovalArgs): args is DeleteApprovalArgs {
 
 export async function approvalsHandler(
   args: {
-    action: 'request' | 'status' | 'delete';
+    action: 'request' | 'status' | 'delete' | 'list' | 'approve' | 'reject' | 'prune';
     projectPath?: string;
     approvalId?: string;
     title?: string;
@@ -134,6 +186,9 @@ export async function approvalsHandler(
     type?: 'document' | 'action';
     category?: 'spec' | 'steering' | 'decomposition';
     categoryName?: string;
+    response?: string;
+    status?: ApprovalStatus;
+    keepApprovalId?: string;
   },
   context: ToolContext
 ): Promise<ToolResponse> {
@@ -177,10 +232,41 @@ export async function approvalsHandler(
         return handleDeleteApproval(typedArgs, context);
       }
       break;
+    case 'list':
+      if (args.status && !APPROVAL_STATUSES.includes(args.status)) {
+        return {
+          success: false,
+          message: `Invalid status filter "${args.status}". Use one of: ${APPROVAL_STATUSES.join(', ')}`
+        };
+      }
+      return handleListApprovals(typedArgs as ListApprovalsArgs, context);
+    case 'approve':
+    case 'reject':
+      if (!args.approvalId) {
+        return {
+          success: false,
+          message: `Missing required field for ${typedArgs.action} action. Required: approvalId`
+        };
+      }
+      if (typedArgs.action === 'reject' && !args.response) {
+        return {
+          success: false,
+          message: 'Missing required field for reject action. Required: response (the reason)'
+        };
+      }
+      return handleDecideApproval(typedArgs as DecideApprovalArgs, context);
+    case 'prune':
+      if (!args.categoryName || !args.filePath || !args.keepApprovalId) {
+        return {
+          success: false,
+          message: 'Missing required fields for prune action. Required: categoryName, filePath, keepApprovalId'
+        };
+      }
+      return handlePruneApprovals(typedArgs as PruneApprovalsArgs, context);
     default:
       return {
         success: false,
-        message: `Unknown action: ${(args as any).action}. Use 'request', 'status', or 'delete'.`
+        message: `Unknown action: ${(args as any).action}. Use 'request', 'status', 'delete', 'list', 'approve', 'reject', or 'prune'.`
       };
   }
 
@@ -188,6 +274,37 @@ export async function approvalsHandler(
   return {
     success: false,
     message: 'Invalid action configuration'
+  };
+}
+
+/**
+ * Validate and translate the project path, then open an ApprovalStorage on it.
+ * The caller must `stop()` the storage when done.
+ */
+async function openApprovalStorage(
+  projectPath: string
+): Promise<{ storage: ApprovalStorage; validatedProjectPath: string }> {
+  const validatedProjectPath = await validateProjectPath(projectPath);
+  // Translate path at tool entry point (ApprovalStorage expects pre-translated paths)
+  const translatedPath = safeTranslatePath(validatedProjectPath);
+
+  const storage = new ApprovalStorage(translatedPath, {
+    originalPath: validatedProjectPath,
+    fileResolutionPath: translatedPath
+  });
+  await storage.start();
+  return { storage, validatedProjectPath };
+}
+
+function summarizeApproval(approval: ApprovalRequest) {
+  return {
+    id: approval.id,
+    title: approval.title,
+    filePath: approval.filePath,
+    status: approval.status,
+    createdAt: approval.createdAt,
+    respondedAt: approval.respondedAt,
+    response: approval.response
   };
 }
 
@@ -515,6 +632,7 @@ async function handleDeleteApproval(
     // Check if approval exists and its status
     const approval = await approvalStorage.getApproval(args.approvalId);
     if (!approval) {
+      await approvalStorage.stop();
       return {
         success: false,
         message: `Approval request "${args.approvalId}" not found`,
@@ -528,6 +646,7 @@ async function handleDeleteApproval(
     // Only block deletion of pending requests (still awaiting approval)
     // Allow deletion of: approved, needs-revision, rejected
     if (approval.status === 'pending') {
+      await approvalStorage.stop();
       return {
         success: false,
         message: `BLOCKED: Cannot delete - status is "${approval.status}". This approval is still awaiting review. VERBAL APPROVAL NOT ACCEPTED. Use dashboard or VS Code extension.`,
@@ -593,6 +712,249 @@ async function handleDeleteApproval(
         'Verify permissions',
         'Check approval system'
       ]
+    };
+  }
+}
+
+async function handleListApprovals(
+  args: ListApprovalsArgs,
+  context: ToolContext
+): Promise<ToolResponse> {
+  const projectPath = args.projectPath || context.projectPath;
+  if (!projectPath) {
+    return {
+      success: false,
+      message: 'Project path is required. Please provide projectPath parameter.'
+    };
+  }
+
+  try {
+    const { storage, validatedProjectPath } = await openApprovalStorage(projectPath);
+    try {
+      const wantedPath = args.filePath ? normalizeApprovalFilePath(args.filePath) : null;
+      // getAllApprovals returns newest first
+      const all = await storage.getAllApprovals();
+      const approvals = all.filter(approval =>
+        (!args.categoryName || approval.categoryName === args.categoryName) &&
+        (!wantedPath || normalizeApprovalFilePath(approval.filePath) === wantedPath) &&
+        (!args.status || approval.status === args.status)
+      );
+
+      return {
+        success: true,
+        message: `${approvals.length} approval record(s) found`,
+        data: {
+          count: approvals.length,
+          filters: {
+            categoryName: args.categoryName,
+            filePath: args.filePath,
+            status: args.status
+          },
+          approvals: approvals.map(summarizeApproval)
+        },
+        projectContext: {
+          projectPath: validatedProjectPath,
+          workflowRoot: join(validatedProjectPath, '.spec-workflow'),
+          dashboardUrl: context.dashboardUrl
+        }
+      };
+    } finally {
+      await storage.stop();
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Failed to list approvals: ${errorMessage}`
+    };
+  }
+}
+
+async function handleDecideApproval(
+  args: DecideApprovalArgs,
+  context: ToolContext
+): Promise<ToolResponse> {
+  const target: 'approved' | 'rejected' = args.action === 'approve' ? 'approved' : 'rejected';
+  const projectPath = args.projectPath || context.projectPath;
+  if (!projectPath) {
+    return {
+      success: false,
+      message: 'Project path is required. Please provide projectPath parameter.'
+    };
+  }
+
+  try {
+    const { storage, validatedProjectPath } = await openApprovalStorage(projectPath);
+    try {
+      const approval = await storage.getApproval(args.approvalId);
+      if (!approval) {
+        return {
+          success: false,
+          message: `Approval request not found: ${args.approvalId}`
+        };
+      }
+
+      const projectContext = {
+        projectPath: validatedProjectPath,
+        workflowRoot: join(validatedProjectPath, '.spec-workflow'),
+        dashboardUrl: context.dashboardUrl
+      };
+
+      // Idempotent: the record already has the requested status
+      if (approval.status === target) {
+        return {
+          success: true,
+          message: `Approval request "${args.approvalId}" is already ${target}`,
+          data: { ...summarizeApproval(approval), unchanged: true },
+          projectContext
+        };
+      }
+
+      if (approval.status !== 'pending' && approval.status !== 'needs-revision') {
+        return {
+          success: false,
+          message: `Cannot ${args.action} approval request "${args.approvalId}": its status is "${approval.status}". Only pending or needs-revision requests can be ${target}.`,
+          data: summarizeApproval(approval)
+        };
+      }
+
+      const response = target === 'approved'
+        ? (args.response || 'Approved by the autonomous harness')
+        : (args.response as string);
+
+      // Same path as the dashboard route: snapshots and record fields behave identically
+      await storage.updateApproval(args.approvalId, target, response);
+      const updated = await storage.getApproval(args.approvalId);
+
+      return {
+        success: true,
+        message: `Approval request "${args.approvalId}" ${target}`,
+        data: summarizeApproval(updated ?? { ...approval, status: target, response }),
+        nextSteps: target === 'approved'
+          ? [`Run approvals action:"prune" with keepApprovalId:"${args.approvalId}" to remove superseded records for this document`]
+          : ['Revise the document and request a new approval'],
+        projectContext
+      };
+    } finally {
+      await storage.stop();
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Failed to ${args.action} approval: ${errorMessage}`
+    };
+  }
+}
+
+async function handlePruneApprovals(
+  args: PruneApprovalsArgs,
+  context: ToolContext
+): Promise<ToolResponse> {
+  const projectPath = args.projectPath || context.projectPath;
+  if (!projectPath) {
+    return {
+      success: false,
+      message: 'Project path is required. Please provide projectPath parameter.'
+    };
+  }
+
+  if (args.categoryName.includes('/') || args.categoryName.includes('\\') || args.categoryName.includes('..')) {
+    return {
+      success: false,
+      message: 'Security error: categoryName must be a plain directory name'
+    };
+  }
+  if (isAbsolute(args.filePath) || args.filePath.includes('..')) {
+    return {
+      success: false,
+      message: 'Security error: filePath must be relative to the project root and must not contain ".."'
+    };
+  }
+
+  try {
+    const { storage, validatedProjectPath } = await openApprovalStorage(projectPath);
+    try {
+      const keeper = await storage.getApproval(args.keepApprovalId);
+      if (!keeper) {
+        return {
+          success: false,
+          message: `Keeper approval request not found: ${args.keepApprovalId}`
+        };
+      }
+      if (keeper.status !== 'approved') {
+        return {
+          success: false,
+          message: `Keeper approval request "${args.keepApprovalId}" has status "${keeper.status}", not "approved". Approve it first, or choose an approved record.`,
+          data: summarizeApproval(keeper)
+        };
+      }
+
+      const wantedPath = normalizeApprovalFilePath(args.filePath);
+      if (keeper.categoryName !== args.categoryName || normalizeApprovalFilePath(keeper.filePath) !== wantedPath) {
+        return {
+          success: false,
+          message: `Keeper approval request "${args.keepApprovalId}" belongs to category "${keeper.categoryName}" and file "${keeper.filePath}", not to "${args.categoryName}" / "${args.filePath}".`,
+          data: summarizeApproval(keeper)
+        };
+      }
+
+      const all = await storage.getAllApprovals();
+      const others = all.filter(approval =>
+        approval.id !== keeper.id &&
+        approval.categoryName === args.categoryName &&
+        normalizeApprovalFilePath(approval.filePath) === wantedPath
+      );
+
+      let recordsRejected = 0;
+      let recordsDeleted = 0;
+      const recordsFailed: string[] = [];
+
+      for (const record of others) {
+        if (record.status === 'pending' || record.status === 'needs-revision') {
+          await storage.updateApproval(record.id, 'rejected', `Superseded by ${keeper.title} (${keeper.id})`);
+          recordsRejected++;
+        }
+        const deleted = await storage.deleteApproval(record.id);
+        if (deleted) {
+          recordsDeleted++;
+        } else {
+          recordsFailed.push(record.id);
+        }
+      }
+
+      const snapshots = await storage.pruneSnapshots(args.categoryName, args.filePath, keeper.id);
+
+      return {
+        success: recordsFailed.length === 0,
+        message: recordsFailed.length === 0
+          ? `Pruned ${recordsDeleted} approval record(s) for ${args.filePath} in ${args.categoryName} (${recordsRejected} rejected first); ${snapshots.deleted} snapshot(s) deleted, ${snapshots.kept} kept`
+          : `Prune incomplete: ${recordsFailed.length} record(s) could not be deleted (${recordsFailed.join(', ')})`,
+        data: {
+          keepApprovalId: keeper.id,
+          keeperTitle: keeper.title,
+          categoryName: args.categoryName,
+          filePath: args.filePath,
+          recordsRejected,
+          recordsDeleted,
+          recordsFailed,
+          snapshotsDeleted: snapshots.deleted,
+          snapshotsKept: snapshots.kept
+        },
+        projectContext: {
+          projectPath: validatedProjectPath,
+          workflowRoot: join(validatedProjectPath, '.spec-workflow'),
+          dashboardUrl: context.dashboardUrl
+        }
+      };
+    } finally {
+      await storage.stop();
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Failed to prune approvals: ${errorMessage}`
     };
   }
 }

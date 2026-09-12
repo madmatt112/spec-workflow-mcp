@@ -537,3 +537,55 @@ describe('adversarial-review tool', () => {
     expect(desc).not.toContain('PLACEHOLDER');
   });
 });
+
+describe('adversarial-review tool — verdictBlock', () => {
+  const dirs: string[] = [];
+
+  async function createSpec(): Promise<{ project: string; specDir: string }> {
+    const project = join(tmpdir(), `specwf-adv-verdict-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# Requirements\n', 'utf-8');
+    dirs.push(project);
+    return { project, specDir };
+  }
+
+  afterEach(async () => {
+    for (const dir of dirs) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    dirs.length = 0;
+  });
+
+  it('appends the standing directives and the verdict block when asked', async () => {
+    const { project } = await createSpec();
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements', verdictBlock: true },
+      { projectPath: project, workspacePath: project }
+    );
+    expect(result.success).toBe(true);
+    const prompt = await fs.readFile(result.data.promptOutputPath, 'utf-8');
+    expect(prompt).toContain('## Standing directives');
+    expect(prompt).toContain('automatic MUST_FIX');
+    expect(prompt).toContain('VERDICT: converged | iterate');
+    expect(prompt).toContain('ESCALATE: none | <one-line reason a human should look now>');
+    // The block sits before the output instruction so the reviewer ends the file with it
+    expect(prompt.indexOf('## Verdict block')).toBeLessThan(prompt.indexOf('## Output'));
+  });
+
+  it('leaves the scaffold unchanged by default', async () => {
+    const { project } = await createSpec();
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      { projectPath: project, workspacePath: project }
+    );
+    expect(result.success).toBe(true);
+    const prompt = await fs.readFile(result.data.promptOutputPath, 'utf-8');
+    expect(prompt).not.toContain('## Verdict block');
+    expect(prompt).not.toContain('## Standing directives');
+  });
+
+  it('declares verdictBlock in the input schema', () => {
+    expect((adversarialReviewTool.inputSchema as any).properties.verdictBlock.type).toBe('boolean');
+  });
+});
