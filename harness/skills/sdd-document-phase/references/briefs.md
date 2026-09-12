@@ -78,6 +78,13 @@ verdict block). Append:
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked
   Recurring.
+- Rolling memory file: `<memoryFilePath from the adversarial-review result>`. <D = 1: The
+  scaffold above does not mention it on the first round. Create it after your analysis,
+  in the format later rounds expect: `# Adversarial Review Memory — <PHASE>`, `Last
+  updated`, `## Cumulative Findings Summary` (Accepted / Partially Accepted / Rejected /
+  Unresolved, every finding of this round under Unresolved), `## Patterns & Themes`,
+  `## Guidance for Next Review`.> <D > 1: Read it first and rewrite it after your
+  analysis, as the scaffold says.>
 - Code lives under `<CODE_ROOT>`<; the spec store under `<SPEC_STORE_ROOT>`>. Use
   absolute paths. <Project rules for reading code and running checks:
   `<AGENT_RULES>`.>

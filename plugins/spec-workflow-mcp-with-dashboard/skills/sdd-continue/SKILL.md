@@ -50,7 +50,7 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
   `<main checkout>/.spec-workflow`.
 - Every `.spec-workflow/...` path resolves against the spec store root.
 - **HANDOFF** is `<spec store root>/HANDOFF.md` if it exists, else
-  `<spec store repo root>/HANDOFF.md`.
+  `<spec store repo root>/HANDOFF.md`. You commit your own HANDOFF edits (step 4).
 - **Agent rules** are `<spec store root>/agent-rules.md`, optional. Note whether the
   file exists; pass its path to every orchestrator.
 
@@ -171,7 +171,12 @@ unavailable (headless run), the driver has already put you in a worktree; the st
 check confirms it, and you do not enter another. Subagents inherit the worktree.
 
 After each phase transition, rewrite the HANDOFF routing header (format in
-`references/formats.md`).
+`references/formats.md`) and commit HANDOFF in the spec store repo yourself: the
+orchestrators commit only their own sections, so a header or phase row left uncommitted
+is lost if the next spawn never happens. Use the commit script described in the
+document-phase skill's `references/cleanup.md` (`/tmp/scratchpad/sdd/<spec>/commit-spec-store.sh`,
+written with the Write tool if it does not exist yet), with the message
+`docs(sdd): HANDOFF — <spec> <stage> <PHASE value>`.
 
 ## 5. Retrospective conversation
 
