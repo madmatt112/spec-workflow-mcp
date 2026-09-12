@@ -20,6 +20,8 @@ narrow check when it ran).
      round number
    - `reviews/drafter-brief-<PHASE>.md`, `reviews/reviser-brief-<PHASE>-v*.md`,
      `reviews/adjudication-brief-<PHASE>.md`
+   - legacy names from hand-run loops, when present: `reviews/reviser-prompt-<PHASE>-v*.md`,
+     `reviews/drafter-prompt-<PHASE>*.md`
 3. Keep `reviews/adversarial-memory-<PHASE>.md`.
 4. Append the phase summary to the retro log:
 

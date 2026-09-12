@@ -63,11 +63,14 @@ Use the `routing` field of the `spec-index` result (the same data as INDEX.md's
 
 - `active` ⇒ `routing.spec` is the active spec.
 - `ambiguous` ⇒ report the candidates and stop. Do not pick one.
-- `all-on-disk-complete` ⇒ not roadmap completion. Read
+- `all-on-disk-complete`, `no-specs` or `all-deferred` ⇒ not roadmap completion: specs
+  are created lazily, so the next spec may have no directory yet. Read
   `<spec store root>/spec-decomposition/decomposition.md` and find the first spec named
-  there with no `<spec store root>/specs/<name>/` directory. That spec is active and
-  starts at requirements. If there is none, the roadmap is complete: report and stop.
-- `all-deferred` / `no-specs` ⇒ report and stop.
+  there (in order of first mention; a heading like `## 1. \`greeting-languages\`` or a
+  slug in backticks) with no `<spec store root>/specs/<name>/` directory and no deferred
+  marker. That spec is active and starts at requirements. If there is none: with
+  `all-on-disk-complete` the roadmap is complete; with `no-specs` there is nothing to
+  build; with `all-deferred` everything is deferred. Report which and stop.
 - Any `routing.warnings` ⇒ print them; do not route past them silently.
 
 Deferred specs are never active. If the result has no `routing` field (old server),
