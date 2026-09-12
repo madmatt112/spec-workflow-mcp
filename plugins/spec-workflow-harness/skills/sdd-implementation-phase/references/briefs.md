@@ -21,6 +21,8 @@ Read and obey <AGENT_RULES> first.
   start. The design pins the seams; do not move them.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
+- Compare files with `git diff`, `git diff --no-index`, or `git show`, never with a bare
+  `diff`: a shell hook may rewrite it and print a summary that is not a diff.
 - Before you report, call the spec-workflow `log-implementation` tool with `specName:
   <SPEC>`, `taskId`, a short `summary`, `filesModified`, `filesCreated`, and
   `artifacts` (one flat key, kept short). A task without a log is not complete.
@@ -89,6 +91,9 @@ Read and obey <AGENT_RULES> first.
   `_Leverage`, success criteria, the design, and the actual changed files. Run the
   checks; do not infer from a passing test what a test does not assert. For anything
   visual or geometric, require a real browser and a real number.
+- Compare files and revisions with `git diff`, `git diff --no-index`, or `git show`,
+  never with a bare `diff`: a shell hook may rewrite it and print a summary that is not
+  a diff.
 - Report in 150 words or fewer: findings grouped by severity (critical, warning,
   info), each with file and line; `RETRO:` lines if the process cost you time; and
   the final line `VERDICT: pass | fix-required`. `fix-required` needs at least one

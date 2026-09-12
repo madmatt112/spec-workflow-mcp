@@ -21,7 +21,8 @@ touched, what you loaded, any scope you cut, flags. No file contents.
 2. The decomposition entry for `<SPEC>` in
    `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md`: grep for the slug, read that
    entry only (delivers, verification scenario, notes, decided, depends, design should
-   address). It fixes the scope. Read also the conventions sections it points at.
+   address). It fixes the scope. If the entry points at conventions sections elsewhere
+   in the file, read those too.
 3. This spec's earlier documents: <none | `<spec dir>/requirements.md` |
    `<spec dir>/requirements.md` and `<spec dir>/design.md`>.
 4. The template: `<SPEC_STORE_ROOT>/user-templates/<PHASE>-template.md`, else
