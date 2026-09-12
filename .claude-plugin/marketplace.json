@@ -4,30 +4,41 @@
     "name": "Matthew Field"
   },
   "metadata": {
-    "description": "Spec Workflow MCP provides structured spec-driven development with a sequential workflow (Requirements → Design → Tasks), real-time web dashboard, and VSCode extension support. Includes human approval gates at each stage and project steering guidance."
+    "description": "Spec Workflow MCP provides structured spec-driven development with a sequential workflow (Requirements → Design → Tasks), real-time web dashboard, and VSCode extension support. Includes human approval gates at each stage, project steering guidance, and an autonomous SDD harness plugin."
   },
   "plugins": [
     {
       "name": "spec-workflow-mcp",
-      "version": "5.1.0",
+      "version": "5.2.0",
       "description": "MCP server for structured spec-driven development with real-time web dashboard and VSCode extension.",
       "author": {
         "name": "Matthew Field"
       },
       "license": "GPL-3.0",
       "homepage": "https://github.com/madmatt112/spec-workflow-mcp",
-      "source": "./.claude-plugin"
+      "source": "./plugins/spec-workflow-mcp"
     },
     {
       "name": "spec-workflow-mcp-with-dashboard",
-      "version": "5.1.0",
+      "version": "5.2.0",
       "description": "MCP server with auto-started dashboard for structured spec-driven development.",
       "author": {
         "name": "Matthew Field"
       },
       "license": "GPL-3.0",
       "homepage": "https://github.com/madmatt112/spec-workflow-mcp",
-      "source": "./.claude-plugin/with-dashboard"
+      "source": "./plugins/spec-workflow-mcp-with-dashboard"
+    },
+    {
+      "name": "spec-workflow-harness",
+      "version": "5.2.0",
+      "description": "Autonomous SDD harness: supervisor skill, per-phase orchestrator agents and pinned worker agents. No MCP server; for projects that configure spec-workflow in their own .mcp.json.",
+      "author": {
+        "name": "Matthew Field"
+      },
+      "license": "GPL-3.0",
+      "homepage": "https://github.com/madmatt112/spec-workflow-mcp",
+      "source": "./plugins/spec-workflow-harness"
     }
   ]
 }

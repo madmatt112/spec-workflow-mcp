@@ -15,6 +15,8 @@ The `approvals` tool gains four actions. `approve` and `reject` go through the s
 
 These actions are for a harness whose owner has decided the harness approves. In an interactive workflow the rule is unchanged: the human decides in the dashboard, and verbal approval is never accepted.
 
+The harness that needed all this now ships in the same repository as a Claude Code plugin, `spec-workflow-harness`. "Continue the sdd process" runs a supervisor skill that finds the active spec, spawns one orchestrator agent per phase, and holds a retrospective conversation at the end; the orchestrators drive pinned worker agents for drafting, adversarial review, revision, adjudication past the review cap, implementation and verification. It replaces the three prompt files that ran the same loop by hand. `docs/SDD-HARNESS.md` describes it. To make room for it the plugin layout moved to the one the Claude Code plugins reference documents: each plugin lives under `plugins/<name>/` with its manifest at `.claude-plugin/plugin.json`, and `harness/` at the repository root is the single source that `scripts/sync-plugin-assets.cjs` copies into every plugin.
+
 ### Added
 - **`approvals` `approve` and `reject`.** `approvalId` plus `response` (required for reject, defaulted for approve). Allowed from `pending` and `needs-revision`; idempotent when the record already has the target status; refused otherwise. Both call `ApprovalStorage.updateApproval`, exactly as `POST /api/projects/:id/approvals/:id/:action` does, so an `approved` snapshot is captured.
 - **`approvals` `list`.** Optional `categoryName`, `filePath` and `status` filters. Returns `id`, `title`, `filePath`, `status`, `createdAt`, `respondedAt` and `response`, newest first.
@@ -22,8 +24,13 @@ These actions are for a harness whose owner has decided the harness approves. In
 - **Per-document approval state in `spec-status`.** Each of Requirements, Design and Tasks in `phases` carries `approved`, `approvalId`, `approvalStatus` and `approvedAt`, derived from the newest approval record whose `filePath` matches `.spec-workflow/specs/<name>/<doc>.md`. `PhaseStatus.approved` was declared in the types and never set; it is set now. `currentPhase`, `overallStatus` and the INDEX generator are unchanged.
 - **`adversarial-review` `verdictBlock`.** An optional boolean. When true the scaffolded prompt ends with the standing grounding directives and the machine-readable verdict block (`VERDICT` / `MUST_FIX` / `SHOULD_FIX` / `MINOR` / `DESIGN_READY` / `ESCALATE`), so a harness adds only round-specific text.
 - `src/core/approval-records.ts`: a watcher-free reader for approval records, shared by `spec-status`.
+- **`spec-index` results carry `projectContext`** (`projectPath`, `workflowRoot`, `dashboardUrl`), so a caller's first tool call tells it where the spec store lives.
+- **`spec-workflow-harness` plugin** (`plugins/spec-workflow-harness/`): ten agents (`sdd-document-orchestrator`, `sdd-implementation-orchestrator`, `sdd-retro-orchestrator`, `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`), and five skills (`sdd-continue`, `sdd-document-phase`, `sdd-implementation-phase`, `sdd-retrospective`, `sdd-deferrals`); the supervisor is also the slash command `/spec-workflow-harness:sdd-continue`. The same assets are bundled into `spec-workflow-mcp` and `spec-workflow-mcp-with-dashboard`.
+- `scripts/sync-plugin-assets.cjs` (`npm run sync:plugin-assets`, `npm run check:plugin-assets`): copies `harness/` into every plugin root; `npm run build` runs it and CI checks it.
+- `docs/SDD-HARNESS.md`.
 
 ### Changed
+- **Plugin layout.** `plugins/spec-workflow-mcp/`, `plugins/spec-workflow-mcp-with-dashboard/` and `plugins/spec-workflow-harness/` replace `.claude-plugin/` and `.claude-plugin/with-dashboard/` as plugin roots; the marketplace manifest stays at `.claude-plugin/marketplace.json` and points at them. `claude plugin validate --strict` now passes for the marketplace and all three plugins (the old source directories failed it: a plugin root needs its manifest at `.claude-plugin/plugin.json`).
 - The `approvals` tool description names the four new actions and says who they are for.
 - `docs/TOOLS-REFERENCE.md`, `docs/AUTONOMOUS-USAGE.md` (new "Self-approval mode" section; the worked example's cap corrected from v6 to v9) and `docs/WORKFLOW.md` describe agent-side approval.
 

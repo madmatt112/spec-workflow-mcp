@@ -79,7 +79,12 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
           message:
             `Generated INDEX.md (${result.active} active, ${result.deferred} deferred, ${result.other} not in decomposition.md). ` +
             `Next: ${describeRouting(result)}`,
-          data: result
+          data: result,
+          projectContext: {
+            projectPath,
+            workflowRoot: PathUtils.getWorkflowRoot(projectPath),
+            dashboardUrl: context.dashboardUrl
+          }
         };
       }
       case 'defer': {
@@ -91,7 +96,12 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
         return {
           success: true,
           message: `Spec '${args.specName}' deferred. Next: ${describeRouting(result)}`,
-          data: result
+          data: result,
+          projectContext: {
+            projectPath,
+            workflowRoot: PathUtils.getWorkflowRoot(projectPath),
+            dashboardUrl: context.dashboardUrl
+          }
         };
       }
       case 'undefer': {
@@ -103,7 +113,12 @@ export async function specIndexHandler(args: any, context: ToolContext): Promise
         return {
           success: true,
           message: `Spec '${args.specName}' returned to active roadmap. Next: ${describeRouting(result)}`,
-          data: result
+          data: result,
+          projectContext: {
+            projectPath,
+            workflowRoot: PathUtils.getWorkflowRoot(projectPath),
+            dashboardUrl: context.dashboardUrl
+          }
         };
       }
       default:

@@ -21,9 +21,10 @@ const __dirname = path.dirname(__filename);
 
 // Files that contain version fields to sync
 const PLUGIN_FILES = [
-  '.claude-plugin/plugin.json',
   '.claude-plugin/marketplace.json',
-  '.claude-plugin/with-dashboard/plugin.json',
+  'plugins/spec-workflow-mcp/.claude-plugin/plugin.json',
+  'plugins/spec-workflow-mcp-with-dashboard/.claude-plugin/plugin.json',
+  'plugins/spec-workflow-harness/.claude-plugin/plugin.json',
 ];
 
 function getPackageVersion() {

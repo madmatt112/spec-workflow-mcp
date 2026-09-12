@@ -36,6 +36,13 @@ describe('specIndexHandler', () => {
     expect(await indexExists()).toBe(true);
   });
 
+  it('reports the workflow root in projectContext', async () => {
+    // The harness supervisor reads the spec store root from this call.
+    const result = await specIndexHandler({ action: 'generate' }, context);
+    expect(result.projectContext?.projectPath).toBe(tempDir);
+    expect(result.projectContext?.workflowRoot).toBe(join(tempDir, '.spec-workflow'));
+  });
+
   it('defers a spec and regenerates', async () => {
     const result = await specIndexHandler(
       { action: 'defer', specName: 'alpha', reason: 'later' },
