@@ -85,7 +85,9 @@ entries in `phases` (`approved`, `approvalStatus`, `approvalId`) and `taskProgre
 Apply these rules in order; the first match wins.
 
 1. `overallStatus == completed` and `specs/<spec>/retrospective-log.md` exists and
-   `specs/<spec>/retrospective-plan.md` does not ⇒ phase **retrospective**.
+   `specs/<spec>/retrospective-plan.md` either does not exist or has
+   `Status: DRAFT` ⇒ phase **retrospective**. With an existing `retrospective.md` and
+   `retrospective-proposals.md`, skip the orchestrator and go straight to step 5.
 2. `overallStatus == completed` otherwise ⇒ the spec is finished. Report and stop.
    (Specs completed before this harness have no retrospective.)
 3. Requirements missing or not approved ⇒ document phase **requirements**.
@@ -193,7 +195,10 @@ Then use AskUserQuestion:
 If AskUserQuestion is unavailable or returns an error (headless run): skip the
 conversation, write `specs/<spec>/retrospective-plan.md` with the header
 `Status: DRAFT — decisions needed`, the list of open questions, and every proposal
-marked "awaiting decision". Write a HANDOFF row (`retrospective`, `DRAFT`) and stop.
+marked "awaiting decision". Write a HANDOFF row (`retrospective`, `DRAFT`), commit the
+plan and HANDOFF in the spec store repo (`docs(sdd): <spec> retrospective plan (draft)`),
+and stop. The next interactive run finds the DRAFT plan, holds the conversation, and
+rewrites it as APPROVED.
 
 Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`,
 the approved proposals verbatim, the decisions made, and the rejected proposals with
