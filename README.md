@@ -13,6 +13,7 @@ Specs move through requirements, design, decomposition and tasks, with an approv
 - **Design System Steering** — optional `design-system.md` as a first-class steering document, loaded during decomposition and design, and covered by the approvals and adversarial-review flows.
 - **Worktree-Aware Execution** — the server tracks the **workspace** (the checkout whose code is diffed, typechecked and handed to spawned agents) separately from the **workflow root** (where `.spec-workflow/` lives, shared across a repository's worktrees). A review triggered from a worktree reviews that worktree. Single-checkout projects are unaffected — the two roots resolve to the same directory.
 - **Spec Routing** — `INDEX.md` opens with a `## Next` section naming the spec to work on and the reason, mirrored in the `spec-index` result as `routing`. It publishes a state rather than a bare name, so "several candidates, no declared order" and "every spec on disk is complete" are distinguishable from a confident pick.
+- **SDD Harness** — a Claude Code plugin (`spec-workflow-harness`, also bundled into the two MCP plugins) that runs the whole workflow without a human at the dashboard: say "continue the sdd process" and a supervisor takes the active spec through requirements, design, tasks, implementation (with a PR) and a retrospective conversation, using pinned orchestrator and worker agents. The agent approves its own documents through the `approvals` tool's `approve` and `prune` actions. See [docs/SDD-HARNESS.md](docs/SDD-HARNESS.md).
 
 One deliberate removal: every prompt the server generates dropped its expert-persona preamble ("You are a senior engineer…"). Current research finds persona assignment does not improve task performance and measurably reduces directness; the behavioural directives it wrapped are retained unchanged.
 
@@ -26,6 +27,7 @@ One deliberate removal: every prompt the server generates dropped its expert-per
 - **Task Progress Tracking** — Visual progress bars and detailed status.
 - **Implementation Logs** — Searchable logs of all task implementations with code statistics.
 - **Git Worktree Support** — One shared `.spec-workflow/` per repository, with each worktree reviewed as itself.
+- **Autonomous Harness** — "continue the sdd process" runs a spec end to end with agent-side approval; the retrospective is the one human checkpoint.
 
 ## Provenance and Compatibility
 
@@ -100,6 +102,23 @@ Configure in your Augment settings:
   }
 }
 ```
+</details>
+
+<details>
+<summary><strong>Claude Code plugins</strong></summary>
+
+This repository is a plugin marketplace with three plugins under `plugins/`:
+`spec-workflow-mcp` (server + harness), `spec-workflow-mcp-with-dashboard` (dashboard
+variant) and `spec-workflow-harness` (harness only, for projects that configure the
+server in their own `.mcp.json`).
+
+```bash
+claude plugin marketplace add madmatt112/spec-workflow-mcp
+claude plugin install spec-workflow-mcp@spec-workflow-mcp-marketplace --scope project
+```
+
+See [docs/SDD-HARNESS.md](docs/SDD-HARNESS.md) for what the harness does and which
+plugin to pick.
 </details>
 
 <details>
@@ -381,6 +400,7 @@ If you upgrade the CLI binary or `claude-cli` package between an initial run and
 - [User Guide](docs/USER-GUIDE.md) - Comprehensive usage examples
 - [Workflow Process](docs/WORKFLOW.md) - Development workflow and best practices
 - [Autonomous Usage](docs/AUTONOMOUS-USAGE.md) - Non-interactive / headless operation
+- [SDD Harness](docs/SDD-HARNESS.md) - The Claude Code harness plugin: phase flow, report contract, installing, agent-rules.md, model policy
 - [Interfaces Guide](docs/INTERFACES.md) - Dashboard and VSCode extension details
 - [Prompting Guide](docs/PROMPTING-GUIDE.md) - Advanced prompting examples
 - [Tools Reference](docs/TOOLS-REFERENCE.md) - Complete tools documentation
@@ -431,7 +451,7 @@ npm version minor    # 3.0.0 → 3.1.0
 npm version major    # 3.0.0 → 4.0.0
 ```
 
-`scripts/sync-plugin-version.js` keeps the `.claude-plugin/*.json` manifest versions in sync. After bumping, run `npm run sync:plugin-version` to update the manifests; CI runs `npm run check:plugin-version` and fails if they drift.
+`scripts/sync-plugin-version.js` keeps the plugin manifest versions (`.claude-plugin/marketplace.json` and `plugins/*/.claude-plugin/plugin.json`) in sync. After bumping, run `npm run sync:plugin-version` to update the manifests; CI runs `npm run check:plugin-version` and fails if they drift. `scripts/sync-plugin-assets.cjs` copies `harness/` (agents, skills) into every plugin root; `npm run build` runs it and CI runs `npm run check:plugin-assets`.
 
 ### Publish gates
 
