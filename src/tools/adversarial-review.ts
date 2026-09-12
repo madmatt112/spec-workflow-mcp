@@ -36,6 +36,10 @@ For decomposition reviews, use specName: "decomposition" and phase: "decompositi
       projectPath: {
         type: 'string',
         description: 'Absolute path to the workspace under review (optional - uses the server context roots if not provided). When provided it replaces the context workspace, and the shared workflow root holding .spec-workflow is derived from it.'
+      },
+      verdictBlock: {
+        type: 'boolean',
+        description: 'Optional. When true, the scaffolded prompt ends with the standing grounding directives and the machine-readable verdict block (VERDICT / MUST_FIX / SHOULD_FIX / MINOR / DESIGN_READY / ESCALATE) that autonomous harnesses parse. The caller then adds only round-specific text.'
       }
     },
     required: ['specName', 'phase'],
@@ -146,6 +150,7 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
     analysisOutputPath,
     memoryFilePath,
     latestAnalysisPath,
+    verdictBlock: args.verdictBlock === true,
   });
 
   try {
@@ -303,6 +308,37 @@ const GENERIC_PHASE_GUIDANCE: PhaseGuidance = {
   exampleAngles: 'Missing context, contradictions, ambiguous language, unaddressed failure modes, alternatives that were not considered',
 };
 
+/**
+ * Standing directives and the verdict block appended to the scaffold when the
+ * caller passes `verdictBlock: true`. Autonomous harnesses parse the block, so
+ * its field names and order are a contract.
+ */
+export const HARNESS_VERDICT_SECTION = `## Standing directives
+
+- Ground every claim in the real codebase. Read the files the document cites before you judge them. A misstated artifact (wrong path, wrong line range, wrong signature, wrong behaviour) is an automatic MUST_FIX.
+- Attack the deltas since the previous version first, then apply one fresh lens the prior rounds did not use.
+- Rulings recorded in the document's Revision History are closed. Do not re-open them.
+- Do not pad. MINOR-only findings do not keep the loop alive. A clean round is a valid result: show your work (what you checked and how) and say converged.
+- Severity: MUST_FIX = contradiction, false claim about the codebase, unimplementable requirement, data or security hole. SHOULD_FIX = a real gap that causes rework or a wrong implementation. MINOR = wording, a value safely left to a later phase, nice-to-have.
+- ESCALATE only when a human should look now: security, secrets, auth bypass, data loss, destructive migrations, money, billing, pricing, legal or compliance. Otherwise write \`ESCALATE: none\`.
+
+## Verdict block
+
+End the analysis file with exactly this block, values filled in:
+
+\`\`\`
+VERDICT: converged | iterate
+MUST_FIX: <n>
+SHOULD_FIX: <n>
+MINOR: <n>
+DESIGN_READY: yes | no
+ESCALATE: none | <one-line reason a human should look now>
+\`\`\`
+
+\`converged\` requires MUST_FIX = 0 and SHOULD_FIX = 0.
+
+`;
+
 export function buildScaffoldedPrompt(args: {
   specName: string;
   phase: string;
@@ -311,9 +347,11 @@ export function buildScaffoldedPrompt(args: {
   analysisOutputPath: string;
   memoryFilePath: string;
   latestAnalysisPath: string | null;
+  verdictBlock?: boolean;
 }): string {
   const { specName, phase, version, targetFile, analysisOutputPath, memoryFilePath, latestAnalysisPath } = args;
   const guidance = PHASE_ATTACK_ANGLES[phase] ?? GENERIC_PHASE_GUIDANCE;
+  const verdictSection = args.verdictBlock ? HARNESS_VERDICT_SECTION : '';
 
   const priorReviewSection = version > 1
     ? `## Prior review context
@@ -380,7 +418,7 @@ Before writing your analysis, read the target document. Then identify **3–6 sp
 Be specific and concrete. Cite failure scenarios, not abstract risks. If something
 is actually fine, say so briefly and move on.
 
-## Output
+${verdictSection}## Output
 Write your analysis to: ${analysisOutputPath}
 `;
 }

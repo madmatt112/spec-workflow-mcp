@@ -22,7 +22,7 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 | [`spec-workflow-guide`](#spec-workflow-guide) | Load the full workflow methodology | Always first |
 | [`steering-guide`](#steering-guide) | Load steering-doc methodology | Optional (steering) |
 | [`decomposition-guide`](#decomposition-guide) | Load spec-decomposition methodology | Decomposition |
-| [`approvals`](#approvals) | Request / check / delete dashboard approvals | Every phase boundary |
+| [`approvals`](#approvals) | Request / check / list / decide / prune approvals | Every phase boundary |
 | [`spec-status`](#spec-status) | Progress overview for a spec | Any time |
 | [`spec-index`](#spec-index) | Generate/maintain INDEX.md, the multi-spec roadmap | Any time |
 | [`adversarial-review`](#adversarial-review) | Scaffold an independent critique of a document | Optional, per phase |
@@ -103,20 +103,27 @@ The decomposition document is itself approvable — submit it via `approvals` wi
 
 ## approvals
 
-**Purpose**: Manage dashboard approval requests. One tool, three actions.
+**Purpose**: Manage approval requests. One tool, seven actions: three for the
+interactive flow (`request`, `status`, `delete`), one read-only helper (`list`), and
+three for autonomous harnesses that own the approval decision themselves (`approve`,
+`reject`, `prune`). Interactive workflows must not call `approve` or `reject` — the
+human decides in the dashboard or the VS Code extension.
 
 **Parameters**:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | `'request' \| 'status' \| 'delete'` | Yes | The operation |
+| `action` | `'request' \| 'status' \| 'delete' \| 'list' \| 'approve' \| 'reject' \| 'prune'` | Yes | The operation |
 | `projectPath` | string | No | Project root (defaults to server context) |
-| `approvalId` | string | for `status`/`delete` | The approval ID |
+| `approvalId` | string | for `status`/`delete`/`approve`/`reject` | The approval ID |
 | `title` | string | for `request` | Brief title of what needs approval |
-| `filePath` | string | for `request` | Path to the file, **relative to project root** |
+| `filePath` | string | for `request`/`prune`; filter for `list` | Path to the file, **relative to project root** |
 | `type` | `'document' \| 'action'` | for `request` | Approval type |
 | `category` | `'spec' \| 'steering' \| 'decomposition'` | for `request` | Approval category |
-| `categoryName` | string | for `request` | Spec name, or `"steering"` for steering docs |
+| `categoryName` | string | for `request`/`prune`; filter for `list` | Spec name, or `"steering"` for steering docs |
+| `response` | string | for `reject`; optional for `approve` | Decision text recorded on the approval |
+| `status` | `'pending' \| 'approved' \| 'rejected' \| 'needs-revision'` | filter for `list` | Status filter |
+| `keepApprovalId` | string | for `prune` | The approved record to keep |
 
 > Only pass `filePath` for requests — the dashboard reads the file itself. **Never**
 > send document content.
@@ -127,6 +134,37 @@ The decomposition document is itself approvable — submit it via `approvals` wi
   content blocks the request.
 - `delete` of a **pending** approval is hard-blocked (`BLOCKED: Cannot delete -
   status is "pending"`).
+- `approve` and `reject` accept only `pending` and `needs-revision` records. A record
+  that already has the target status returns success with `unchanged: true`; a
+  `rejected` record cannot be approved and an `approved` record cannot be rejected.
+- `reject` requires `response`.
+- `prune` requires a keeper that exists, is `approved`, and belongs to the given
+  `categoryName` and `filePath`.
+
+### Harness actions
+
+- **`approve`** — `approvalId`, optional `response` (default: `Approved by the
+  autonomous harness`). Goes through the same code path as the dashboard's Approve
+  button (`ApprovalStorage.updateApproval`), so an `approved` snapshot is captured and
+  `respondedAt` is set exactly as a human approval would.
+- **`reject`** — `approvalId`, `response`. Same path as the dashboard's Reject button.
+- **`list`** — optional `categoryName`, `filePath` and `status` filters. `filePath` is
+  compared after normalisation (a leading `./` and backslashes are ignored). Returns
+  `data.count` and `data.approvals`, newest first, each with `id`, `title`, `filePath`,
+  `status`, `createdAt`, `respondedAt` and `response`.
+- **`prune`** — `categoryName`, `filePath`, `keepApprovalId`. For every other record
+  with the same `filePath` in that category: a `pending` or `needs-revision` record is
+  first set to `rejected` with the response `Superseded by <keeper title> (<id>)`, then
+  deleted; any other record is deleted. Every snapshot under
+  `.spec-workflow/approvals/<categoryName>/.snapshots/<basename>/` captured for an
+  approval other than the keeper is deleted and `metadata.json` is rewritten. Returns
+  `recordsRejected`, `recordsDeleted`, `recordsFailed`, `snapshotsDeleted` and
+  `snapshotsKept`. Records for other documents in the same category are untouched.
+
+The intended sequence for a harness is one `request` per document version (so the
+dashboard keeps the version history), `approve` on the final version once its review
+converges, then `prune` with that record as the keeper. See
+[AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#self-approval-mode).
 
 **What is advisory only** (returned as text, *not* enforced):
 - "Delete the prior approval before submitting the next." `createApproval` mints a
@@ -162,10 +200,21 @@ completion.
 | `specName` | string | Yes | Spec name |
 | `projectPath` | string | No | Project root (defaults to server context) |
 
-**Returns**: `currentPhase`, `overallStatus`, per-phase detail with `approved`
-flags, `taskProgress`, and best-effort `logCoverage` / `reviewCoverage` for completed
-tasks. It will **warn** when completed tasks are missing implementation logs or
-reviews, and its `nextSteps` reiterate the log → review → mark-complete ordering.
+**Returns**: `currentPhase`, `overallStatus`, per-phase detail, `taskProgress`, and
+best-effort `logCoverage` / `reviewCoverage` for completed tasks. It will **warn** when
+completed tasks are missing implementation logs or reviews, and its `nextSteps`
+reiterate the log → review → mark-complete ordering.
+
+**Approval state.** Each of the Requirements, Design and Tasks entries in `phases`
+carries `approved`, `approvalId`, `approvalStatus` and `approvedAt`, derived from the
+approval records on disk: the newest record (by `createdAt`) whose `filePath` is
+`.spec-workflow/specs/<name>/<doc>.md` after path normalisation. `status` is
+`approved` only when that newest record is `approved`; it is `created` when the
+document exists but the newest record is pending, rejected, needs-revision, or absent.
+A newer pending record therefore supersedes an older approval. `currentPhase` and
+`overallStatus` are unchanged by approvals — they derive from file existence and task
+checkboxes only, so a `tasks.md` with open tasks reads `implementing` whether or not
+it is approved. An autonomous harness routes on the per-document `approved` flags.
 
 After viewing status, read `tasks.md` directly for the task markers.
 
@@ -237,6 +286,7 @@ fresh-context subagent to execute.
 | `phase` | string | Yes | Document to target: `requirements` / `design` / `tasks`; `product` / `tech` / `structure`; or `decomposition` |
 | `filePath` | string | No | Relative path to the target (for steering docs outside the steering dir) |
 | `projectPath` | string | No | Project root |
+| `verdictBlock` | boolean | No | When `true`, the scaffold ends with the standing grounding directives and the machine-readable verdict block (`VERDICT` / `MUST_FIX` / `SHOULD_FIX` / `MINOR` / `DESIGN_READY` / `ESCALATE`) an autonomous harness parses |
 
 **Returns** (`data`): `version`, `targetFile`, `promptOutputPath`,
 `analysisOutputPath`, `memoryFilePath`, the `methodology`, and context doc lists,
@@ -254,12 +304,14 @@ plus `nextSteps`.
   *escalate* severity). This cumulative context is what makes a clean later round
   meaningful.
 - **Versioning is unbounded.** `getNextVersion` returns `maxVersion + 1` with no cap
-  — files render `v1`, `-r2`, `-r3`, … Any version ceiling (e.g. the v6 cap in the
-  loop prompts) is **caller policy, not server behavior**.
-- **No convergence verdict.** The deliverables are "top risks / what's missing /
-  conclusions to challenge." There is no built-in "converged" / "done" signal — if
-  you want iterate-until-clean, you supply that gate (see
-  [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#iterate-to-converge)).
+  — files render `v1`, `-r2`, `-r3`, … Any version ceiling (e.g. the v9 cap in the
+  harness) is **caller policy, not server behavior**.
+- **No convergence verdict by default.** The deliverables are "top risks / what's
+  missing / conclusions to challenge." The server does not judge "converged" / "done"
+  — if you want iterate-until-clean, you supply that gate (see
+  [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#iterate-to-converge)). Passing
+  `verdictBlock: true` appends the block the harness parses, but the reviewer still
+  fills it in and the caller still decides what to do with it.
 
 The methodology can be overridden per project via the `reviewMethodology` key in
 `.spec-workflow/adversarial-settings.json` (see [CONFIGURATION.md](CONFIGURATION.md)).

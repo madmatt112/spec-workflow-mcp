@@ -19,13 +19,16 @@ advisory.
 
 | | Interactive (stock) | Autonomous |
 |---|---|---|
-| Who approves | A human, in the dashboard | Either a human at phase boundaries, or no one |
+| Who approves | A human, in the dashboard | A human at phase boundaries, or the harness itself (`approvals` `approve`) |
 | Who runs the review | A dashboard-triggered fresh-context agent | A subagent the harness spawns itself |
 | Waiting | The agent polls and waits for approval | The agent does not block on dashboard state |
 | "Done" signal | Human approval | A caller-defined convergence verdict |
 
-The server has **no dedicated autonomous code path**. Autonomy is achieved by the
-caller *overriding* specific stock instructions, all of which are listed below.
+Most autonomy is achieved by the caller *overriding* specific stock instructions, all
+of which are listed below. Two server features exist specifically for it: the
+`approvals` tool's `approve`, `reject`, `list` and `prune` actions, and the
+per-document approval state `spec-status` reports (see
+[Self-approval mode](#self-approval-mode)).
 
 ---
 
@@ -41,7 +44,10 @@ against the handlers in `src/tools/` and `src/dashboard/approval-storage.ts`.)
   traversal are rejected. `.md` files must pass MDX validation; `tasks.md` must pass
   structural validation.
 - `approvals` `delete`: you **cannot** delete an approval whose status is still
-  `pending` (`BLOCKED`).
+  `pending` (`BLOCKED`). `prune` is the way to clear superseded pending records.
+- `approvals` `approve` / `reject`: only `pending` and `needs-revision` records can be
+  decided; `reject` needs a `response`. `prune` needs a keeper that is `approved` and
+  belongs to the given category and file.
 - `log-implementation`: the `artifacts` field is required.
 - `review-task` `record`: requires a prior `prepare`; the task and an implementation
   log must exist; verdict/findings must be consistent.
@@ -112,8 +118,9 @@ loop does this by:
 - Requiring every review subagent to end with a machine-readable verdict block, e.g.
   `VERDICT: converged | iterate` plus `MUST_FIX` / `SHOULD_FIX` / `MINOR` counts.
 - Treating `MUST_FIX = 0 AND SHOULD_FIX = 0` from a **fresh** reviewer as converged.
-- Imposing its own **hard cap (v6)** — a caller policy, since the server enforces no
-  ceiling.
+- Imposing its own **hard cap (v9)** — a caller policy, since the server enforces no
+  ceiling. Past the cap the harness escalates to a stronger model for one corrective
+  pass rather than iterating further.
 - Detecting a **standoff** (the same finding recurs as `MUST_FIX` and is rejected
   across two rounds) and escalating to a human.
 
@@ -182,12 +189,45 @@ worked-example loops:
 - replace the dashboard-triggered task review with an agent-driven one
   ([above](#task-review-headless)).
 
-If you keep a human at phase boundaries (the recommended middle ground), the human
-approves the converged document in the dashboard between runs, and the next run reads
-that `approved` status once during orientation before advancing. Note the ambiguity:
-because callers clean up approval records, an **absent** record must be treated as
-*not approved* (it could be a deleted pending request), so leave an approved record in
-place until the next phase has actually started.
+If you keep a human at phase boundaries, the human approves the converged document in
+the dashboard between runs, and the next run reads the per-document approval state
+from `spec-status` once during orientation before advancing. An **absent** record is
+*not approved*, so leave an approved record in place: `prune` keeps it while removing
+the superseded ones. If nobody is at the dashboard, use
+[self-approval mode](#self-approval-mode) instead.
+
+---
+
+## Self-approval mode
+
+An autonomous harness that owns the approval decision runs each document phase like
+this:
+
+1. Write v1 and `approvals` `request` it. Request again for **every** later version
+   with the same `filePath`; do not delete the earlier records. One record per version
+   is what gives the dashboard its version history.
+2. Iterate with `adversarial-review` (pass `verdictBlock: true` so the scaffold ends
+   with the verdict block) until a fresh reviewer returns `VERDICT: converged`.
+3. `approvals` `approve` on the record of the final version, with a `response` that
+   records what the approval rests on (version, rounds, final verdict counts, rulings
+   made, whether the cap was hit). This is the same code path as the dashboard's
+   Approve button, so the approved snapshot is captured.
+4. `approvals` `prune` with `keepApprovalId` set to that record. Superseded pending
+   records are rejected with `Superseded by …` and deleted, and their snapshots go with
+   them. The approved record and its snapshots stay after the spec is complete.
+
+**Routing on approval state.** `spec-status` reports, for each of `requirements.md`,
+`design.md` and `tasks.md`, whether its newest approval record is `approved`
+(`phases[].approved`, with `approvalId`, `approvalStatus` and `approvedAt`). A
+harness uses that, not `overallStatus`, to decide whether a document phase is
+finished: `overallStatus` derives from file existence and task checkboxes only, so
+`implementing` means "tasks.md exists with open tasks", not "tasks approved". When
+the newest record is `needs-revision`, a human used the dashboard between runs; read
+its comments with `approvals` `status` and treat them as findings.
+
+**Do not use `approve` in an interactive workflow.** The stock guide's rule that
+verbal approval is never accepted still stands there; self-approval is for a harness
+whose owner has decided the harness approves.
 
 > Headless caveat for MCP clients: interactively-authenticated MCP servers may be
 > unavailable in cron/CI contexts. Ensure the spec-workflow server is reachable in
@@ -220,6 +260,9 @@ See [TOOLS-REFERENCE.md](TOOLS-REFERENCE.md#deferrals) for the full action list.
 - [ ] Define your own convergence verdict and version cap; don't expect the server to.
 - [ ] Override `adversarial-response`'s "present to user / wait" instructions.
 - [ ] Don't delete-before-resubmit or block on `BLOCKED` — both are advisory.
+- [ ] Decide who approves. In self-approval mode: one `request` per version,
+      `approve` the final one, `prune` the rest; route on `spec-status`'s per-document
+      `approved` flags.
 - [ ] Call `review-task` directly when headless; use `get-task-review` to read.
 - [ ] Capture cross-spec discoveries via `deferrals`; surface open ones to a human.
 

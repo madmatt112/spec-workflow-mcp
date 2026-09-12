@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0] - 2026-09-12
+
+**The agent can approve its own documents**
+
+Every approval decision needed a human in the dashboard. An autonomous loop could write a document and request approval, and then it could only wait: the `approvals` tool had no way to approve, and `spec-status` never read the approval records, so the phase a spec reported was whatever the files on disk implied. A `tasks.md` with open tasks read as `implementing` whether or not anyone had approved it, and every superseded revision left behind a `pending` record the tool refused to delete. Clearing those meant removing files by hand.
+
+The `approvals` tool gains four actions. `approve` and `reject` go through the same code path as the dashboard buttons, so the snapshot and the version history come out the same. `list` answers "which records exist for this document" without reading the directory. `prune` keeps one approved record for a document and removes every other record for it together with their snapshots, rejecting the pending ones first so the history stays honest. `spec-status` now reports, for each of requirements, design and tasks, whether its newest approval record is `approved`, with the record id and time, so a harness routes on "approved" rather than "exists".
+
+These actions are for a harness whose owner has decided the harness approves. In an interactive workflow the rule is unchanged: the human decides in the dashboard, and verbal approval is never accepted.
+
+### Added
+- **`approvals` `approve` and `reject`.** `approvalId` plus `response` (required for reject, defaulted for approve). Allowed from `pending` and `needs-revision`; idempotent when the record already has the target status; refused otherwise. Both call `ApprovalStorage.updateApproval`, exactly as `POST /api/projects/:id/approvals/:id/:action` does, so an `approved` snapshot is captured.
+- **`approvals` `list`.** Optional `categoryName`, `filePath` and `status` filters. Returns `id`, `title`, `filePath`, `status`, `createdAt`, `respondedAt` and `response`, newest first.
+- **`approvals` `prune`.** `categoryName`, `filePath`, `keepApprovalId`. The keeper must exist, be `approved` and belong to that category and file. Every other record for the file in that category is deleted (`pending` and `needs-revision` ones are first rejected with `Superseded by <keeper title> (<id>)`), every snapshot captured for another approval is deleted, and `.snapshots/<basename>/metadata.json` is rewritten. Returns the counts.
+- **Per-document approval state in `spec-status`.** Each of Requirements, Design and Tasks in `phases` carries `approved`, `approvalId`, `approvalStatus` and `approvedAt`, derived from the newest approval record whose `filePath` matches `.spec-workflow/specs/<name>/<doc>.md`. `PhaseStatus.approved` was declared in the types and never set; it is set now. `currentPhase`, `overallStatus` and the INDEX generator are unchanged.
+- **`adversarial-review` `verdictBlock`.** An optional boolean. When true the scaffolded prompt ends with the standing grounding directives and the machine-readable verdict block (`VERDICT` / `MUST_FIX` / `SHOULD_FIX` / `MINOR` / `DESIGN_READY` / `ESCALATE`), so a harness adds only round-specific text.
+- `src/core/approval-records.ts`: a watcher-free reader for approval records, shared by `spec-status`.
+
+### Changed
+- The `approvals` tool description names the four new actions and says who they are for.
+- `docs/TOOLS-REFERENCE.md`, `docs/AUTONOMOUS-USAGE.md` (new "Self-approval mode" section; the worked example's cap corrected from v6 to v9) and `docs/WORKFLOW.md` describe agent-side approval.
+
+### Fixed
+- `approvals` `delete` no longer leaves its file watcher open when it refuses a pending record or cannot find the record.
+
+### Removed
+- `ApprovalStorage.cleanupOldApprovals`. It scanned `.spec-workflow/approvals/` for `*.json` one level above where records live, so it never matched anything, and nothing called it.
+
 ## [5.1.0] - 2026-08-07
 
 **Improved cross-session progress tracking**

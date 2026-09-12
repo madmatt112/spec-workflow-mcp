@@ -526,31 +526,45 @@ export class ApprovalStorage extends EventEmitter {
     }
   }
 
-  async cleanupOldApprovals(maxAgeDays: number = 7): Promise<void> {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+  /**
+   * Delete every snapshot of `filePath` in `categoryName` that was captured for
+   * an approval other than `keepApprovalId`, and rewrite `metadata.json` to list
+   * only the survivors. `currentVersion` is left alone so later snapshots keep
+   * a monotonic version number.
+   */
+  async pruneSnapshots(
+    categoryName: string,
+    filePath: string,
+    keepApprovalId: string
+  ): Promise<{ deleted: number; kept: number }> {
+    const snapshotsDir = join(this.approvalsDir, categoryName, '.snapshots', basename(filePath));
+    const metadataPath = join(snapshotsDir, 'metadata.json');
 
+    let metadata: FileSnapshotMetadata;
     try {
-      const files = await fs.readdir(this.approvalsDir);
-
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const content = await fs.readFile(join(this.approvalsDir, file), 'utf-8');
-            const approval = JSON.parse(content) as ApprovalRequest;
-
-            const createdAt = new Date(approval.createdAt);
-            if (createdAt < cutoffDate && approval.status !== 'pending') {
-              await fs.unlink(join(this.approvalsDir, file));
-            }
-          } catch (error) {
-            // Error processing approval file
-          }
-        }
-      }
-    } catch (error) {
-      // Error cleaning up old approvals
+      metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
+    } catch {
+      return { deleted: 0, kept: 0 };
     }
+
+    const kept: FileSnapshotMetadata['snapshots'] = [];
+    let deleted = 0;
+    for (const entry of metadata.snapshots) {
+      if (entry.approvalId === keepApprovalId) {
+        kept.push(entry);
+        continue;
+      }
+      try {
+        await fs.unlink(join(snapshotsDir, entry.filename));
+      } catch {
+        // Already gone; drop the metadata entry anyway
+      }
+      deleted++;
+    }
+
+    metadata.snapshots = kept;
+    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+    return { deleted, kept: kept.length };
   }
 
   // Snapshot Management Methods
