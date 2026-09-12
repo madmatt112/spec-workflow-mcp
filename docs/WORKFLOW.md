@@ -203,6 +203,15 @@ These rules are written for an interactive, human-approved flow. Autonomous call
 override several of them — see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md) for which
 constraints are actually enforced by the tools versus advisory.
 
+**Agent-side approval.** An autonomous harness whose owner has decided that the harness
+approves its own documents does not wait on the dashboard. It requests one approval per
+document version, converges the document with adversarial review, then calls `approvals`
+`approve` on the final version and `approvals` `prune` to remove the superseded records
+and their snapshots. `approve` goes through the same code path as the dashboard button,
+so the dashboard shows the result exactly as a human approval. `spec-status` reports the
+per-document approval state so the harness can tell an approved document from one that
+merely exists. See [AUTONOMOUS-USAGE.md — Self-approval mode](AUTONOMOUS-USAGE.md#self-approval-mode).
+
 ### Making Approval Decisions
 
 #### When to Approve
