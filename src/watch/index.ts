@@ -13,6 +13,8 @@ export interface WatchOptions {
   color?: boolean;
   now?: () => Date;
   out?: NodeJS.WriteStream;
+  /** The key source (default `process.stdin`); injectable for tests. */
+  input?: NodeJS.ReadStream;
 }
 
 const ESC = String.fromCharCode(27) + '[';
@@ -86,7 +88,7 @@ export async function runWatch(options: WatchOptions): Promise<void> {
     return;
   }
 
-  const stdin = process.stdin;
+  const stdin = options.input ?? process.stdin;
   const interactive = Boolean(stdin.isTTY && out.isTTY);
   const draw = () => {
     const frame = renderOnce(options.workflowRoot, spec, { now: now(), width: width(), color });
@@ -109,12 +111,21 @@ export async function runWatch(options: WatchOptions): Promise<void> {
   const tick = setInterval(draw, 1000);
 
   await new Promise<void>((resolve) => {
+    const onKey = (key: string) => {
+      if (key === 'q' || key === CTRL_C) stop();
+    };
     const stop = () => {
       clearInterval(tick);
       if (pending) clearTimeout(pending);
-      void watcher.close();
+      process.removeListener('SIGINT', stop);
+      process.removeListener('SIGTERM', stop);
       if (interactive) {
+        // A resumed raw-mode stdin with a listener keeps the event loop alive after the
+        // view is gone; release it so the process exits as soon as the watcher closes.
+        stdin.removeListener('data', onKey);
         stdin.setRawMode?.(false);
+        stdin.pause();
+        stdin.unref?.();
         out.write(ALT_SCREEN_OFF);
       }
       resolve();
@@ -125,9 +136,8 @@ export async function runWatch(options: WatchOptions): Promise<void> {
       stdin.setRawMode?.(true);
       stdin.resume();
       stdin.setEncoding('utf8');
-      stdin.on('data', (key: string) => {
-        if (key === 'q' || key === CTRL_C) stop();
-      });
+      stdin.on('data', onKey);
     }
   });
+  await watcher.close();
 }
