@@ -56,6 +56,15 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 
 Say which roots you resolved in the handoff line (step 6).
 
+**Run ledger.** Once the roots and the active spec are known (after step 2), start the
+run's ledger as `references/formats.md` describes: choose a run id
+(`run-<YYYYMMDD>-<HHMMSS>` UTC), write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
+Write tool (the script text is in formats.md, with the spec dir, run id and spec filled
+in), write the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (two lines:
+the spec dir, the run id), then `bash <event.sh> run.start model=<your model>
+specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>`. Every spawn below
+is bracketed with `spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
+
 ## 2. Active spec
 
 Use the `routing` field of the `spec-index` result (the same data as INDEX.md's
@@ -132,12 +141,17 @@ WORKTREE: <yes | no>
 HANDOFF: <path>
 AGENT_RULES: <path | none>
 AGENT_PREFIX: <prefix>
+EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
 BUDGET: <3 review rounds | 6 tasks | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
 
 followed by the report contract from `references/formats.md`, verbatim, and the line
 `Report exactly in that contract. Never paste file contents.`
+
+Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phase, spawn <n>"
+phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
+result=<PHASE value>` (add `tokens=<n>` if the Agent result states a token count).
 
 Act on the final `PHASE:` line of the orchestrator's report:
 
@@ -211,4 +225,6 @@ in the spec store repo (`docs(sdd): <spec> retrospective plan`; use a script fil
 At every stop, the last line you print is
 `<project>:<spec> <phase> <state> — <one line>`, where `<project>` is the basename
 of the main checkout. Before it, one handoff line naming the roots:
-`roots: spec store <path> · code <path> · worktree <yes|no>`.
+`roots: spec store <path> · code <path> · worktree <yes|no>`. Just before printing it,
+`bash <event.sh> run.end "status=<the status line>"` and remove the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` so the hooks stop recording.

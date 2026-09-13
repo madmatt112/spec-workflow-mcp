@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Copy the harness assets (agents, skills, and commands when present) from `harness/` into every
+ * Copy the harness assets (agents, skills, hooks, and commands when present) from `harness/` into every
  * Claude Code plugin root under `plugins/`.
  *
  * `harness/` is the single source of truth. Each plugin root gets an exact copy
@@ -17,7 +17,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE = path.join(ROOT, 'harness');
 const PLUGINS_DIR = path.join(ROOT, 'plugins');
-const ASSET_DIRS = ['agents', 'skills', 'commands'];
+const ASSET_DIRS = ['agents', 'skills', 'commands', 'hooks'];
 
 function listFiles(dir, base = dir) {
   if (!fs.existsSync(dir)) return [];

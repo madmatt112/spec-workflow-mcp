@@ -37,6 +37,16 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Do not ask questions.
 - Spec store commits go through the script in the document-phase skill's
   `references/cleanup.md` (same script, same path); write it if it does not exist.
+- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
+  as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
+  at the end of Step 0 (`state=tasks <done>/<total>`); `task.pick task=<N> "title=<title>"`
+  when you mark a task `[-]`; `spawn.start` right before every Agent call and `spawn.end`
+  right after its report (`agent=`, `role=implement task <N> | verify task <N> | fix task
+  <N> round <r> | adjudicate task <N> | end-to-end verification`, `phase=implementation`,
+  `task=<N>`, `result=<logged line | VERDICT | VERIFY>`); `task.done task=<N> rounds=<r>
+  outcome=<pass|adjudicated>` when you mark `[x]`; `note` for deferrals, design defects
+  and drift; `phase.end` right before your final report. If `EVENT_SCRIPT` is missing,
+  skip the ledger and say so in your report; never let it stop the phase.
 
 ## Step 0 — Confirm the handoff
 
@@ -150,6 +160,9 @@ When no `[ ]` or `[-]` task remains:
    `fail` report `PHASE: verify-failed` again; the supervisor caps repairs at two.
 
 ## Stop conditions and their reports
+
+Record `phase.end phase=implementation result=<PHASE value> "state=tasks <done>/<total>"
+"note=<one line>"` right before the report.
 
 | Condition | PHASE | REASON |
 | --- | --- | --- |

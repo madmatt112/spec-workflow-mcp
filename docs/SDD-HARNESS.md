@@ -203,6 +203,34 @@ Models are pinned in each agent's frontmatter with full model ids. Skills never 
 `model` parameter to the Agent tool and never use `subagent_type: fork` (a fork runs
 on the parent's model). The `opus` alias is never used: it resolves to the newest Opus.
 
+## Watching a run
+
+`spec-workflow-mcp --watch <spec store repo>` draws the run in progress for the active spec
+in the terminal and redraws on every change: the phases with their verdicts and approvals,
+the live phase expanded to the current orchestrator spawn, the worker under it with its model,
+effort, role, elapsed time, an age badge (minutes since its last tool call: amber at 5, red at
+15) and the tool call it is making now, the next queued tasks, tokens spent so far, and a
+four-line ticker of the latest events. `q` quits. Watch only: it changes nothing.
+
+```bash
+npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted
+npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted --spec tags-and-setups --once
+```
+
+Two append-only files under the spec directory feed it, both committed with the spec store:
+
+- `harness-events.jsonl`: run, phase, spawn, round and task events the supervisor and the
+  orchestrators write through the run's event script (schema in
+  `harness/skills/sdd-continue/references/formats.md`). This is the run's history too.
+- `harness-activity.jsonl`: exact agent start and stop (with tokens) and one line per tool
+  call of every `sdd-*` agent, written by the plugin's `PreToolUse`, `SubagentStart` and
+  `SubagentStop` hooks (`hooks/sdd-activity.sh`). The hook exits at once for any other agent
+  and for sessions without an active run, so it costs nothing outside the harness.
+
+Phases that finished before a ledger existed come from `HANDOFF.md`'s `## Phase log`, so a
+spec built before 5.3.0 still shows its history. Token counts are exact per spawn where the
+stop hook reports them; there is no dollar estimate.
+
 ## Developing the harness
 
 Edit `harness/` only. `npm run sync:plugin-assets` copies it into the three plugin

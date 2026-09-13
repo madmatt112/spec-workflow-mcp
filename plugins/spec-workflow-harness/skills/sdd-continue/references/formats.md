@@ -128,3 +128,49 @@ Printed by the supervisor at every stop:
 ```
 
 `<project>` is the basename of the code root's main checkout.
+
+## Run ledger (`harness-events.jsonl`)
+
+Every run appends events to `<spec dir>/harness-events.jsonl`, one JSON object per line.
+`spec-workflow-mcp --watch <spec store repo>` renders it live, together with the activity
+file the plugin's hooks write (`harness-activity.jsonl`: agent start and stop, tokens, and
+one line per tool call of every `sdd-*` agent). Both files are committed with the spec store
+at each checkpoint; they are the run's history.
+
+Events are written with the event script, never by hand. The supervisor writes the script
+once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (line 1 = spec dir, line 2 = run id),
+which is what lets the hooks find the run. Orchestrators call the script; the launch prompt
+carries its path as `EVENT_SCRIPT`.
+
+```bash
+#!/bin/bash
+# usage: bash event.sh <type> key=value ...   (values may contain spaces; quote them)
+export SDD_LEDGER="<spec dir>/harness-events.jsonl"
+export SDD_RUN="<run id>"
+export SDD_SPEC="<spec>"
+node -e '
+const [type, ...kv] = process.argv.slice(1);
+const e = { ts: new Date().toISOString(), run: process.env.SDD_RUN, spec: process.env.SDD_SPEC, type };
+for (const a of kv) { const i = a.indexOf("="); if (i > 0) e[a.slice(0, i)] = a.slice(i + 1); }
+require("fs").appendFileSync(process.env.SDD_LEDGER, JSON.stringify(e) + "\n");
+' "$@"
+```
+
+Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
+
+| Type | Written by | Keys |
+| --- | --- | --- |
+| `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no) |
+| `run.end` | supervisor | `status` (the status line) |
+| `phase.start` | orchestrator, at Step 0 | `phase`, `mode`, `budget`, `state` (v<N> or tasks a/b at entry) |
+| `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |
+| `spawn.start` | orchestrator, right before an Agent call | `agent` (e.g. `sdd-reviewer`), `role` (one line, e.g. `review v3`, `implement task 13`, `verify task 13`), `phase`, `round` or `task` |
+| `spawn.end` | orchestrator, right after the report | `agent`, `role`, `result` (VERDICT / VERIFY / logged line, or the PHASE value for orchestrators), `tokens` when the Agent result reports them |
+| `round` | document orchestrator | `phase`, `round`, `verdict` (`iterate 1/1/3` or `converged 0/0/1`), `version` |
+| `task.pick` | implementation orchestrator | `task`, `title` |
+| `task.done` | implementation orchestrator | `task`, `rounds`, `outcome` (`pass`, `adjudicated`) |
+| `note` | any | `text` (rulings, escalations, deviations) |
+
+The supervisor also writes `spawn.start` / `spawn.end` for each orchestrator it spawns
+(`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`).

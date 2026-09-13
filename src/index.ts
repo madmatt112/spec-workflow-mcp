@@ -44,6 +44,12 @@ OPTIONS:
                          Use the project path argument's git top-level instead.
                          The escape hatch when the launch directory is not the
                          checkout you want reviewed.
+  --watch                 Watch the SDD harness run of the active spec in the
+                         terminal (no MCP server, no dashboard). The path is
+                         the spec store repo or its .spec-workflow directory.
+  --spec <name>           With --watch: the spec to show (default: the active
+                         spec named in HANDOFF.md, else the newest run)
+  --once                  With --watch: render one frame and exit
 
 ENVIRONMENT:
   SPEC_WORKFLOW_WORKSPACE Explicit workspace path, overriding inference
@@ -134,7 +140,10 @@ const CLI_FLAGS = {
   '--no-open': 'boolean',
   '--no-shared-worktree-specs': 'boolean',
   '--no-workspace-inference': 'boolean',
-  '--port': 'value'
+  '--once': 'boolean',
+  '--port': 'value',
+  '--spec': 'value',
+  '--watch': 'boolean'
 } as const;
 
 type CliFlag = keyof typeof CLI_FLAGS;
@@ -169,6 +178,9 @@ export function parseArguments(args: string[]): {
   workflowRootPath: string;
   expandedPath: string;
   isDashboardMode: boolean;
+  isWatchMode: boolean;
+  watchOnce: boolean;
+  specName?: string;
   noSharedWorktreeSpecs: boolean;
   noWorkspaceInference: boolean;
   workspaceSource: WorkspaceSource;
@@ -178,6 +190,9 @@ export function parseArguments(args: string[]): {
 } {
   const flags = readBooleanFlags(args);
   const isDashboardMode = flags['--dashboard'];
+  const isWatchMode = flags['--watch'];
+  const watchOnce = flags['--once'];
+  let specName: string | undefined;
   const noOpen = flags['--no-open'];
   const noSharedWorktreeSpecs = flags['--no-shared-worktree-specs'];
   const noWorkspaceInference = flags['--no-workspace-inference'];
@@ -235,6 +250,14 @@ export function parseArguments(args: string[]): {
       i++; // Skip the next argument as it's the port value
     } else if (arg === '--port') {
       throw new Error('--port parameter requires a value (e.g., --port 3000)');
+    } else if (arg.startsWith('--spec=')) {
+      specName = arg.slice('--spec='.length);
+      if (!specName) throw new Error('--spec parameter requires a value (e.g., --spec my-feature)');
+    } else if (arg === '--spec' && i + 1 < args.length) {
+      specName = args[i + 1];
+      i++;
+    } else if (arg === '--spec') {
+      throw new Error('--spec parameter requires a value (e.g., --spec my-feature)');
     }
   }
 
@@ -258,13 +281,14 @@ export function parseArguments(args: string[]): {
   const { workspacePath, workflowRootPath, source: workspaceSource } = resolveWorkspaceRoots({
     configuredPath: expandedPath,
     cwd: process.cwd(),
-    dashboardMode: isDashboardMode,
+    // Watch mode reads the spec store only, so like the dashboard it skips inference.
+    dashboardMode: isDashboardMode || isWatchMode,
     noInference: noWorkspaceInference,
     noSharedWorktreeSpecs
   });
 
   // Warn if no explicit path was provided and we're using cwd (but only for MCP server mode)
-  if (!filteredArgs[0] && !isDashboardMode) {
+  if (!filteredArgs[0] && !isDashboardMode && !isWatchMode) {
     console.warn(`Warning: No project path specified, using current directory: ${workspacePath}`);
     console.warn('Consider specifying an explicit path for better clarity.');
   }
@@ -274,6 +298,9 @@ export function parseArguments(args: string[]): {
     workflowRootPath,
     expandedPath,
     isDashboardMode,
+    isWatchMode,
+    watchOnce,
+    specName,
     noSharedWorktreeSpecs,
     noWorkspaceInference,
     workspaceSource,
@@ -349,6 +376,14 @@ async function main() {
     const port = cliArgs.port;
     const lang = cliArgs.lang;
     const noOpen = cliArgs.noOpen || false;
+
+    if (cliArgs.isWatchMode) {
+      const { runWatch } = await import('./watch/index.js');
+      const { PathUtils } = await import('./core/path-utils.js');
+      const root = workflowRootPath.endsWith('.spec-workflow') ? workflowRootPath : PathUtils.getWorkflowRoot(workflowRootPath);
+      await runWatch({ workflowRoot: root, specName: cliArgs.specName, once: cliArgs.watchOnce });
+      return;
+    }
 
     if (isDashboardMode) {
       // Dashboard mode skips inference (requirement 1.14) and never validates a

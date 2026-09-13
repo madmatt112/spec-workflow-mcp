@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] - 2026-09-13
+
+**Watch a harness run from the terminal**
+
+Once the harness runs unattended, the question becomes what it is doing right now. The answer was scattered: the tmux pane of the session, `tasks.md`, the approval records, the retro log, `HANDOFF.md`. Nothing said which agent was up, on what, for how long, or whether it had gone quiet.
+
+`spec-workflow-mcp --watch <spec store>` draws the run in progress for the active spec: the phases with their verdicts and approvals, the live phase expanded to the current orchestrator spawn and the worker under it (model, effort, role, elapsed, tokens), the tool call the worker is making now, an age badge that turns amber after five silent minutes and red after fifteen, the next queued tasks, and a short ticker of recent events. It redraws on every change and does nothing else: watch only, `q` quits.
+
+Two files feed it. The harness skills now append a run ledger (`harness-events.jsonl`: run, phase, spawn, round and task events) through a small event script the supervisor writes at run start. The plugin now ships hooks (`hooks/sdd-activity.sh` on `PreToolUse`, `SubagentStart`, `SubagentStop`) that record exact agent start and stop with tokens and one line per tool call for `sdd-*` agents into `harness-activity.jsonl`. The hook exits immediately for every other agent and for sessions with no active run. Both files are committed with the spec store, so the view is also the run's history; phases finished before either file existed come from `HANDOFF.md`'s phase log.
+
+### Added
+- **`--watch [path]`** CLI mode with `--spec <name>` (default: the active spec from HANDOFF, else the newest ledger) and `--once` (render one frame and exit). Plain ANSI, no new dependencies; `NO_COLOR` respected; non-TTY output is plain text.
+- **Run ledger** (`harness-events.jsonl`) written by the supervisor and orchestrator skills; event types and keys in `harness/skills/sdd-continue/references/formats.md`. The supervisor also writes the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` that the hook uses to find the run, and removes it at the end.
+- **Plugin hooks** (`harness/hooks/hooks.json`, `hooks/sdd-activity.sh`) in all three plugins; `scripts/sync-plugin-assets.cjs` now syncs `hooks/` too.
+- `src/watch/`: the ledger reducer (`buildModel`), the renderer and the watch loop, with tests.
+
+### Changed
+- `docs/SDD-HARNESS.md` gains a "Watching a run" section; the README mentions `--watch`.
+
 ## [5.2.0] - 2026-09-12
 
 **The agent can approve its own documents**
