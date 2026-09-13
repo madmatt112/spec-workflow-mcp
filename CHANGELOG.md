@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.1] - 2026-09-13
+
+**Harness follow-ups from the first close-out**
+
+The tags-and-setups close-out (the first run of the 5.3.0 close-out phase) landed twelve of its own retrospective proposals against the harness in PR #23. One of them is a server fix, so this is a release.
+
+### Fixed
+- `spec-status` reports the Implementation phase as `completed` when every task is done, instead of `in-progress` whenever `tasks.md` exists (P16).
+
+### Changed
+- Harness skills and briefs: no task prompt pins a shape another task in the same document creates (P1); implementers widen an existing assertion the change breaks rather than delete it (P3); forward references name their bridge (P6); the no-`cd` rule is mirrored in the implementer brief (P9); the implementation phase checkpoints HANDOFF after every task and the supervisor writes a missing `interrupted` row (P13); cleanup keeps every adversarial analysis file (P15); checkable claims are probed or omitted (P17); the reviser bumps a `Document version:` header (P18); the default implementation budget is 10 tasks per spawn (P19); a false rationale is deleted, never reworded (P20); drafters flag `RE-DECIDED` departures from a requirement (P25).
+
 ## [5.3.0] - 2026-09-13
 
 **Watch a harness run from the terminal; a CI gate on the PR; a close-out phase that implements the retrospective plan**

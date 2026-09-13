@@ -1,6 +1,6 @@
 {
   "name": "spec-workflow-harness",
-  "version": "5.3.0",
+  "version": "5.3.1",
   "description": "Autonomous SDD harness for Spec Workflow MCP: the 'continue the sdd process' supervisor, one orchestrator agent per phase, and pinned worker agents. Ships no MCP server; use it with a project that configures spec-workflow in its own .mcp.json.",
   "author": {
     "name": "Matthew Field"
