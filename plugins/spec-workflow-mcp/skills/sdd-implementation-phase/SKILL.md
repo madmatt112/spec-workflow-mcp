@@ -43,7 +43,8 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   when you mark a task `[-]`; `spawn.start` right before every Agent call and `spawn.end`
   right after its report (`agent=`, `role=implement task <N> | verify task <N> | fix task
   <N> round <r> | adjudicate task <N> | end-to-end verification`, `phase=implementation`,
-  `task=<N>`, `result=<logged line | VERDICT | VERIFY>`); `spawn.start` roles for a red
+  `task=<N>`, `result=<logged line | VERDICT | VERIFY>`, `tokens=<n>` from the token
+  count the Agent result states in its footer); `spawn.start` roles for a red
   PR: `fix ci <check> round <r>`; `task.done task=<N> rounds=<r> outcome=<pass|adjudicated>`
   when you mark `[x]`; `note` for deferrals, design defects, drift and every red CI
   check; `phase.end` right before your final report. If `EVENT_SCRIPT` is missing,

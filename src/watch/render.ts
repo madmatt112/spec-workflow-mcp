@@ -91,7 +91,7 @@ export function render(model: RunModel, opts: RenderOptions): string {
       if (liveIndex === -1) lines.push(p.dim(`o ${phase}`));
       continue;
     }
-    const mark = row.result === 'approved' || row.result === 'complete' ? p.ok('+')
+    const mark = row.result === 'approved' || row.result === 'complete' || row.result === 'closed' ? p.ok('+')
       : row.result === 'escalate' || row.result === 'error' ? p.bad('x') : p.warn('~');
     const head = `${mark} ${padRight(phase, 15)}${padRight(row.state, 12)}${padRight(row.result, 11)}`;
     lines.push(head + p.dim(fit(row.note, Math.max(10, width - 40))));
@@ -100,7 +100,11 @@ export function render(model: RunModel, opts: RenderOptions): string {
   if (model.livePhase) {
     const lp = model.livePhase;
     const done = model.tasks.filter(t => t.status === 'done').length;
-    const state = lp.phase === 'implementation' && model.tasks.length > 0 ? `tasks ${done}/${model.tasks.length}` : (lp.state ?? '');
+    // `items a/b` is the count at phase.start; items closed since then are picks marked done.
+    const itemsAtStart = (lp.state ?? '').match(/^items (\d+)\/(\d+)$/);
+    const state = lp.phase === 'implementation' && model.tasks.length > 0 ? `tasks ${done}/${model.tasks.length}`
+      : itemsAtStart ? `items ${Number(itemsAtStart[1]) + model.picks.filter(pk => pk.done).length}/${itemsAtStart[2]}`
+      : (lp.state ?? '');
     const orchestrators = model.spawns.filter(s => s.level === 1);
     const orch = orchestrators[orchestrators.length - 1];
     const spawnNo = orchestrators.length > 0 ? `spawn ${orchestrators.length}` : '';
@@ -191,9 +195,10 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
     }
   }
   const tokens = s.tokens ? p.dim(`${formatTokens(s.tokens)} tok`) : '';
-  // Orchestrator names are long; worker names are not. The role takes what is left of the
-  // width after the fixed columns, between 16 and 30 characters, so a line does not wrap.
-  const agentW = level === 1 ? 32 : 18;
+  // The agent column fits the name shown (one orchestrator or one worker at a time); the
+  // role takes what is left of the width after the fixed columns, between 16 and 30
+  // characters, so a line does not wrap.
+  const agentW = Math.max(18, s.agent.length + 1);
   const roleW = Math.max(16, Math.min(30, width - indent.length - agentW - 46));
   const head = `${indent}${mark} ${p.bold(padRight(s.agent, agentW))}${padRight(profile?.model ?? '', 11)}${padRight(profile?.effort ?? '', 7)}${padRight(fit(s.role, roleW), roleW + 1)}${padRight(dur, 8)} ${badge} ${tokens}`.trimEnd();
   const out = [head];

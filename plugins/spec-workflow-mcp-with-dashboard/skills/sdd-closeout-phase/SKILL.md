@@ -41,7 +41,8 @@ start.
   task=<id> "title=<title>"` for every item of a batch when you brief it; `spawn.start`
   right before every Agent call and `spawn.end` right after its report (`agent=`,
   `role=implement <class> batch <b> | verify <class> batch <b> | fix <class> batch <b>
-  round <r> | adjudicate <class> batch <b>`, `phase=closeout`, `result=<one line>`);
+  round <r> | adjudicate <class> batch <b>`, `phase=closeout`, `result=<one line>`,
+  `tokens=<n>` from the token count the Agent result states in its footer);
   `task.done task=<id> outcome=<done|to-do|skipped>` when you write its close-out line;
   `note` for skips and rulings; `phase.end` right before your final report. If
   `EVENT_SCRIPT` is missing, skip the ledger and say so in your report; never let it

@@ -24,8 +24,9 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
 - Do not ask questions.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`:
   `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
-  around the analyst (`agent=sdd-retro-analyst role=proposals`), `phase.end
-  phase=retrospective result=retro-ready` before the report. Skip it if the script is
+  around the analyst (`agent=sdd-retro-analyst role=proposals`, `tokens=<n>` from the
+  Agent result's footer on `spawn.end`), `phase.end phase=retrospective
+  result=retro-ready` before the report. Skip it if the script is
   missing.
 
 ## Step 0 — Preconditions

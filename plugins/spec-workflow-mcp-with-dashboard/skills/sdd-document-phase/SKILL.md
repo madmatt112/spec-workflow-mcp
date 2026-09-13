@@ -38,7 +38,8 @@ at the start.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0; `spawn.start` right before every Agent call and `spawn.end` right
-  after its report (`agent=`, `role=`, `phase=`, `round=` or `task=`, `result=`); `round`
+  after its report (`agent=`, `role=`, `phase=`, `round=` or `task=`, `result=`,
+  `tokens=<n>` from the token count the Agent result states in its footer); `round`
   after every verdict; `note` for rulings and escalations; `phase.end` right before your
   final report. Event types and keys are listed in the supervisor's
   `references/formats.md`. If `EVENT_SCRIPT` is missing, skip the ledger and say so in

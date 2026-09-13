@@ -69,8 +69,9 @@ run's ledger as `references/formats.md` describes: choose a run id
 Write tool (the script text is in formats.md, with the spec dir, run id and spec filled
 in), write the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (two lines:
 the spec dir, the run id), then `bash <event.sh> run.start model=<your model>
-specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>`. Every spawn below
-is bracketed with `spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
+specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>` (`headless=yes` when
+the AskUserQuestion tool is not available to you). Every spawn below is bracketed with
+`spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
 
 ## 2. Active spec
 
@@ -170,7 +171,8 @@ followed by the report contract from `references/formats.md`, verbatim, and the 
 
 Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phase, spawn <n>"
 phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
-result=<PHASE value>` (add `tokens=<n>` if the Agent result states a token count).
+result=<PHASE value> tokens=<n>`, where `<n>` is the token count the Agent result
+states in its footer (omit `tokens` only when it states none).
 
 Act on the final `PHASE:` line of the orchestrator's report:
 
@@ -250,5 +252,7 @@ At every stop, the last line you print is
 `<project>:<spec> <phase> <state> — <one line>`, where `<project>` is the basename
 of the main checkout. Before it, one handoff line naming the roots:
 `roots: spec store <path> · code <path> · worktree <yes|no>`. Just before printing it,
-`bash <event.sh> run.end "status=<the status line>"` and remove the pointer file
+`bash <event.sh> run.end "status=<the status line>"`, commit the ledger with the
+commit script (`docs(sdd): <spec> harness ledger — run end`) so the run's last events
+are in the spec store, and remove the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` so the hooks stop recording.

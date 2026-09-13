@@ -253,14 +253,15 @@ Two append-only files under the spec directory feed it, both committed with the 
 - `harness-events.jsonl`: run, phase, spawn, round and task events the supervisor and the
   orchestrators write through the run's event script (schema in
   `harness/skills/sdd-continue/references/formats.md`). This is the run's history too.
-- `harness-activity.jsonl`: exact agent start and stop (with tokens) and one line per tool
-  call of every `sdd-*` agent, written by the plugin's `PreToolUse`, `SubagentStart` and
+- `harness-activity.jsonl`: exact agent start and stop and one line per tool call of
+  every `sdd-*` agent, written by the plugin's `PreToolUse`, `SubagentStart` and
   `SubagentStop` hooks (`hooks/sdd-activity.sh`). The hook exits at once for any other agent
   and for sessions without an active run, so it costs nothing outside the harness.
 
 Phases that finished before a ledger existed come from `HANDOFF.md`'s `## Phase log`, so a
-spec built before 5.3.0 still shows its history. Token counts are exact per spawn where the
-stop hook reports them; there is no dollar estimate.
+spec built before 5.3.0 still shows its history. Token counts are the ones the orchestrators
+record on `spawn.end` from the Agent result (hook payloads carry no usage); there is no
+dollar estimate.
 
 ## Developing the harness
 

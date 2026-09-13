@@ -123,6 +123,11 @@ describe('buildModel', () => {
     expect(impl.result).toBe('logged: yes/3');
     expect(impl.tokens).toBe(84_000);
     expect(m.tokensTotal).toBe(84_000);
+    // A spawn.end that carries tokens wins over the hook, and every spawn's tokens add up.
+    ev.push({ ts: '2026-09-12T19:11:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', role: 'implementation phase, spawn 2', result: 'resume', tokens: '58851' });
+    const m2 = buildModel({ spec: 's', ledger: ev, activity: act, tasksMd: TASKS });
+    expect(m2.spawns[0].tokens).toBe(58_851);
+    expect(m2.tokensTotal).toBe(84_000 + 58_851);
     expect(m.ticker.map(t => t.text.split(/\s+/)[0]).slice(-2)).toEqual(['spawn.end', 'task.done']);
     expect(m.ticker).toHaveLength(4);
   });
@@ -135,6 +140,16 @@ describe('buildModel', () => {
     expect(m.livePhase).toBeUndefined();
     expect(m.status).toContain('budget');
     expect(m.phases.some(p => p.phase === 'implementation' && p.result === 'resume' && p.state === 'tasks 3/5')).toBe(true);
+  });
+
+  it('treats an orchestrator that has not yet written phase.start as the live phase', () => {
+    const ev: LedgerEvent[] = [
+      { ts: '2026-09-13T10:00:00.000Z', run: 'run-3', spec: 's', type: 'run.start', model: 'fable-5-1' },
+      { ts: '2026-09-13T10:00:01.000Z', run: 'run-3', spec: 's', type: 'spawn.start', agent: 'sdd-closeout-orchestrator', role: 'closeout phase, spawn 1', phase: 'closeout' },
+    ];
+    const m = buildModel({ spec: 's', ledger: ev, activity: [] });
+    expect(m.livePhase?.phase).toBe('closeout');
+    expect(m.livePhase?.state).toBeUndefined();
   });
 
   it('tracks picked items for phases without a task queue (close-out)', () => {

@@ -97,7 +97,7 @@ describe('render', () => {
       { ts: '2026-09-13T10:00:40.000Z', run: 'run-20260913-100000', spec: 's', type: 'spawn.start', agent: 'sdd-implementer', role: 'implement harness batch 1', phase: 'closeout' },
     ];
     const out = render(buildModel({ spec: 's', ledger, activity: [], handoffMd: HANDOFF }), { now: new Date('2026-09-13T10:05:00.000Z'), width: 100, color: false });
-    expect(out).toContain('> closeout       items 0/3      spawn 1 | since');
+    expect(out).toContain('> closeout       items 1/3      spawn 1 | since');
     expect(out).toContain('> sdd-closeout-orchestrator');
     expect(out).toContain('+ 1 done, last P1  Raise the budget');
     expect(out).toContain('> P2 P3  2 items');
@@ -113,5 +113,11 @@ describe('render', () => {
     const out = render(buildModel({ spec: 's', ledger, activity: [], tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 100, color: false });
     expect(out).toContain('# stopped x:s implementation tasks 3/8 - budget');
     expect(out).toContain('~ implementation tasks 3/8   resume     budget');
+    const closed = [...LEDGER,
+      { ts: '2026-09-12T19:10:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'phase.end', phase: 'closeout', result: 'closed', state: 'items 5/5', note: '3 done' },
+      { ts: '2026-09-12T19:10:05.000Z', run: 'run-20260912-190000', spec: 's', type: 'run.end', status: 'x:s closeout items 5/5 - closed' },
+    ];
+    const closedOut = render(buildModel({ spec: 's', ledger: closed, activity: [], tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 100, color: false });
+    expect(closedOut).toContain('+ closeout       items 5/5   closed     3 done');
   });
 });

@@ -211,11 +211,12 @@ export function buildModel(input: {
     if (!dup) phases.push({ date: e.ts.slice(0, 10), phase: e.phase ?? '', state: e.state ?? '', result: e.result ?? '', note: e.note ?? '' });
   }
 
-  // Live phase: the last phase.start without a later phase.end for the same phase.
+  // Live phase: the last phase.start without a later phase.end for the same phase, and
+  // nothing once the run has ended.
   let livePhase: RunModel['livePhase'];
   const starts = runEvents.filter(e => e.type === 'phase.start');
   const lastStart = starts[starts.length - 1];
-  if (lastStart) {
+  if (lastStart && !runEnd) {
     const ended = runEvents.some(e => e.type === 'phase.end' && e.phase === lastStart.phase && ms(e.ts) >= ms(lastStart.ts));
     if (!ended) {
       livePhase = { phase: lastStart.phase ?? '', mode: lastStart.mode, budget: lastStart.budget, state: lastStart.state, startedAt: lastStart.ts };
@@ -247,12 +248,9 @@ export function buildModel(input: {
   }
 
   // Activity joins by agent name and time window: the latest tool event after the spawn
-  // started (and before it ended) is what the agent is doing; the agent.stop in the window
-  // carries the tokens.
-  let tokensTotal = 0;
-  for (const a of runActivity) {
-    if (a.event === 'agent.stop' && typeof a.tokens === 'number') tokensTotal += a.tokens;
-  }
+  // started (and before it ended) is what the agent is doing. Tokens come from spawn.end
+  // (the Agent result's count, recorded by the orchestrator); an agent.stop in the window
+  // fills in when a hook payload ever carries usage.
   for (const s of spawns) {
     const from = ms(s.startedAt);
     const to = s.endedAt ? ms(s.endedAt) + 60_000 : Number.POSITIVE_INFINITY;
@@ -272,6 +270,8 @@ export function buildModel(input: {
     }
   }
 
+  const tokensTotal = spawns.reduce((sum, s) => sum + (s.tokens ?? 0), 0);
+
   const picks: PickRow[] = [];
   for (const e of runEvents) {
     if (e.type === 'task.pick' && e.task) {
@@ -280,6 +280,13 @@ export function buildModel(input: {
       const pick = picks.find(pk => pk.task === e.task && !pk.done);
       if (pick) { pick.done = true; pick.outcome = e.outcome; }
     }
+  }
+
+  // Between an orchestrator's spawn.start and its phase.start (orientation) the phase is
+  // already live from the watcher's point of view: show it, with no state yet.
+  if (!livePhase) {
+    const openOrch = [...spawns].reverse().find(s => s.level === 1 && !s.endedAt && s.phase);
+    if (openOrch && !runEnd) livePhase = { phase: openOrch.phase ?? '', startedAt: openOrch.startedAt };
   }
 
   const rounds: RoundRow[] = runEvents
@@ -298,7 +305,7 @@ export function buildModel(input: {
       e.type === 'phase.start' ? `${e.phase ?? ''}  ${e.mode ?? ''} ${e.state ?? ''}`.trim() :
       e.type === 'phase.end' ? `${e.phase ?? ''}  ${e.result ?? ''}  ${e.state ?? ''}` :
       e.type === 'run.end' ? `${e.status ?? ''}` :
-      e.type === 'note' ? `${e.text ?? ''}` : '';
+      e.type === 'note' ? `${e.text ?? e.note ?? ''}` : '';
     tickerSource.push({ ts: e.ts, text: `${e.type.padEnd(11)} ${detail}`.trimEnd() });
   }
   for (const a of runActivity) {

@@ -54,7 +54,7 @@ ROOT="$1"; MSG="$2"; shift 2
 cd "$ROOT"
 /usr/bin/git add -- "$@"
 if /usr/bin/git diff --cached --quiet; then echo "nothing to commit"; else
-  /usr/bin/git -c core.hooksPath=/dev/null commit -q -s -o "$@" -m "$MSG"
+  /usr/bin/git -c core.hooksPath=/dev/null commit -q -s -m "$MSG" -o -- "$@"
   echo "committed: $(/usr/bin/git rev-parse --short HEAD) $MSG"
 fi
 ```

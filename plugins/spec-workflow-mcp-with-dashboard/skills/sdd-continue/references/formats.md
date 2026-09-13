@@ -167,7 +167,7 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 | `phase.start` | orchestrator, at Step 0 | `phase` (also `closeout`), `mode`, `budget`, `state` (v<N>, tasks a/b or items a/b at entry) |
 | `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |
 | `spawn.start` | orchestrator, right before an Agent call | `agent` (e.g. `sdd-reviewer`), `role` (one line, e.g. `review v3`, `implement task 13`, `verify task 13`, `fix ci e2e round 1`, `implement harness batch 1`), `phase`, `round` or `task` |
-| `spawn.end` | orchestrator, right after the report | `agent`, `role`, `result` (VERDICT / VERIFY / logged line, or the PHASE value for orchestrators), `tokens` when the Agent result reports them |
+| `spawn.end` | orchestrator, right after the report | `agent`, `role`, `result` (VERDICT / VERIFY / logged line, or the PHASE value for orchestrators), `tokens` (the count the Agent result states in its footer; the only source of per-spawn tokens, since hook payloads carry no usage) |
 | `round` | document orchestrator | `phase`, `round`, `verdict` (`iterate 1/1/3` or `converged 0/0/1`), `version` |
 | `task.pick` | implementation or close-out orchestrator | `task` (`<N>` or `P<n>`), `title` |
 | `task.done` | implementation or close-out orchestrator | `task`, `rounds` (implementation), `outcome` (`pass`, `adjudicated`; close-out: `done`, `to-do`, `skipped`) |
