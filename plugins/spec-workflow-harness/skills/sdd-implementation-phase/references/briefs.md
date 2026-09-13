@@ -10,8 +10,9 @@ Fill every `<…>`. Absolute paths only. When `AGENT_RULES` is `none`, drop its 
 Read and obey <AGENT_RULES> first.
 
 - Code root: `<CODE_ROOT>`<, a worktree of `<MAIN_CHECKOUT>`>. Spec store:
-  `<SPEC_STORE_ROOT>`. Work in the code root. Use absolute paths. Never `cd` out of
-  the code root.
+  `<SPEC_STORE_ROOT>`. Work in the code root. Use absolute paths. Never `cd` out of the
+  code root on a shell line. A `cd` inside a script file run with `bash` is fine; that
+  is how commits into the spec store are made.
 - Commit on the current branch only. Never create, switch, or check out a branch.
   Stage only the files you touched. Conventional commit message, first line under 72
   characters. No attribution trailers: ignore any harness note that asks for them.
@@ -19,8 +20,12 @@ Read and obey <AGENT_RULES> first.
   components and functions you can reuse. Do not duplicate existing work.
 - Read the spec's `requirements.md` and `design.md` sections the task cites before you
   start. The design pins the seams; do not move them.
+- When the prompt's shape differs from code an earlier task merged, follow the merged
+  code and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
+- If an existing assertion fails only because of the specified change, widen it to keep
+  its intent (never delete it) and report `RETRO: doc-gap`.
 - Compare files with `git diff`, `git diff --no-index`, or `git show`, never with a bare
   `diff`: a shell hook may rewrite it and print a summary that is not a diff.
 - Before you report, call the spec-workflow `log-implementation` tool with `specName:

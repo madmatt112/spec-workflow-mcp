@@ -134,6 +134,12 @@ orchestrator as revision input.
 If `spec-status` reports the spec as not found, the spec is new: document phase
 **requirements**.
 
+Before dispatching implementation, read the HANDOFF section `## <spec> —
+implementation`. When its State row is ahead of the `## Phase log` table (it records
+more tasks done than the last phase-log row for this spec), an earlier run advanced
+tasks but stopped before its phase row was written: write the missing phase-log row
+with Result `interrupted` before spawning.
+
 ## 4. Dispatch loop
 
 Spawn the orchestrator for the phase with the Agent tool, foreground, no `model`
@@ -162,7 +168,7 @@ AGENT_RULES: <path | none>
 AGENT_PREFIX: <prefix>
 HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
-BUDGET: <3 review rounds | 6 tasks | 8 items | n/a>
+BUDGET: <3 review rounds | 10 tasks | 8 items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
 

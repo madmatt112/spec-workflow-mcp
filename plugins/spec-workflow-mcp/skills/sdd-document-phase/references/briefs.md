@@ -33,10 +33,14 @@ touched, what you loaded, any scope you cut, flags. No file contents.
 - Ground every claim in the real code. Cite `path:line` or `path:start-end` only after
   reading both ends of the range. A misstated artifact is an automatic MUST_FIX for
   the reviewer.
+- A claim about compiler, library or wire behaviour is checkable: probe the installed
+  version under `<CODE_ROOT>` and cite the probe, or leave the claim out.
 - Keep the decomposition entry's scope. If you cut or defer anything it lists, say so
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
   requirements name; tasks cover every design component.
+- When a design departs from a requirement's literal (a widened enum, a defaulted
+  param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
 - End the document with `## Revision History` and the line
   `- **v1** (<today>) — Initial draft.`
 - MDX rule: no bare angle brackets outside code spans. `<name>` fails the approval
@@ -46,7 +50,13 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   line, `_Leverage: …_`, `_Requirements: …_`, and a `_Prompt: Task: … | Restrictions:
   … | Success: …_` line that ends with `_`. Every task numbered, so the parser counts
   it. Order tasks so each step leaves the tree compiling and every existing suite
-  green. State the dependency order in a short preamble.
+  green. State the dependency order in a short preamble. A prompt must not pin a call
+  signature, UI label or helper name that a different task in this document creates;
+  write "the hook task 7 exports" and let the implementer read the merged code. For
+  every existing test file a task names, say whether the change alters a value it
+  asserts exactly. When a task uses an artefact a later task creates (a route, an
+  export), the prompt names the bridge (a cast, a stub) and the later task's prompt
+  says to remove it.
 - Edit only the document. Approvals, deferrals, HANDOFF, INDEX and every other file
   belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
@@ -67,14 +77,18 @@ verdict block). Append:
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>
-- Fresh lens for this round: <one lens the previous rounds did not use, chosen from:
+- Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
+  (router, query params, response shapes, client state), the default first lens for
+  requirements.> <otherwise: one lens the previous rounds did not use, chosen from:
   wire contracts across a boundary (router, query params, response shapes, client
   state); the sub-agent that receives only the task prompt; a cold read for internal
   contradictions and a truth table of the stated cases; every cited artifact re-read
   at both ends of its range; vendor or format facts checked against their source;
   failure, rollback and partial-failure paths; each prescribed test or safety
   mechanism verified against the installed library; the cost of touching an existing
-  component (its tests, fixtures, query keys, e2e assumptions)>.
+  component (its tests, fixtures, query keys, e2e assumptions); intra-document shape
+  consistency: every call a later task makes against an artefact an earlier task
+  defines>.
 - Closed by ruling, do not re-open: <none | `<finding id>: <one line>` …>.
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked
@@ -121,6 +135,8 @@ RI-2: <text>>
 ## Disposition rules
 1. Assess every finding on its merits: accept, partially accept, or reject, each with
    one line of reasoning. Never accept to be agreeable; never reject to save work.
+   When a finding says a rationale clause is false, delete the clause unless you can
+   prove the replacement with a probe; never reword an unproven claim.
 2. Verify every citation you add or change against the real tree under `<CODE_ROOT>`.
    Read both ends of a line range. A misstated artifact is a MUST_FIX next round.
 3. Do not widen scope, and do not re-decide what an earlier phase pinned.
@@ -128,7 +144,8 @@ RI-2: <text>>
    `- **v<D+1>** (<today>) — Round-<A> adversarial response (<analysis file name>,
    verdict iterate <m>/<s>/<k>).` followed by one nested bullet per finding:
    `- **<id> — <Accepted | Partially accepted | Rejected> (<severity>).** <what
-   changed, or why not>`.
+   changed, or why not>`. If the document carries a `Document version:` header, set it
+   to v<D+1>.
 5. Closed by ruling, leave as is: <none | list>.
 6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template's
    task shape; every task numbered; `_Prompt: …_` ends with `_`.

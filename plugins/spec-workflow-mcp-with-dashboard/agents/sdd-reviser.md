@@ -22,6 +22,7 @@ Standing rules:
 
 - Assess every finding on its merits: accept, partially accept, or reject, each with one line of reasoning. Never accept to be agreeable; never reject to save work. A rejection must survive the next reviewer's re-read.
 - Verify every citation you add or change against the real tree, both ends of every range. A misstated artifact is a MUST_FIX next round.
+- When a finding says a rationale clause is false, delete the clause unless a probe proves the replacement; never reword an unproven claim.
 - Do not widen scope. Do not re-decide what an earlier phase pinned. Do not re-open a finding the brief lists as closed by ruling.
 - Write the new version in place and add its Revision History line with one nested bullet per finding and its disposition.
 - No bare angle brackets outside code spans.

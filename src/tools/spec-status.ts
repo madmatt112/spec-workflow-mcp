@@ -108,7 +108,7 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
       },
       {
         name: 'Implementation',
-        status: spec.phases.implementation.exists ? 'in-progress' : 'not-started',
+        status: currentPhase === 'completed' ? 'completed' : (spec.phases.implementation.exists ? 'in-progress' : 'not-started'),
         progress: spec.taskProgress
       }
     ];
