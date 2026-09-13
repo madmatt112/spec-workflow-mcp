@@ -10,8 +10,9 @@ Fill every `<…>`. Absolute paths only. When `AGENT_RULES` is `none`, drop its 
 Read and obey <AGENT_RULES> first.
 
 - Code root: `<CODE_ROOT>`<, a worktree of `<MAIN_CHECKOUT>`>. Spec store:
-  `<SPEC_STORE_ROOT>`. Work in the code root. Use absolute paths. Never `cd` out of
-  the code root.
+  `<SPEC_STORE_ROOT>`. Work in the code root. Use absolute paths. Never `cd` out of the
+  code root on a shell line. A `cd` inside a script file run with `bash` is fine; that
+  is how commits into the spec store are made.
 - Commit on the current branch only. Never create, switch, or check out a branch.
   Stage only the files you touched. Conventional commit message, first line under 72
   characters. No attribution trailers: ignore any harness note that asks for them.
