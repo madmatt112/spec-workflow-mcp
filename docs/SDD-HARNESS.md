@@ -103,7 +103,7 @@ plugin was installed from; the supervisor's preflight also warns when the instal
 plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
 
 Budgets: a document orchestrator runs at most three review rounds per spawn, an
-implementation orchestrator at most six tasks, and a close-out orchestrator at most
+implementation orchestrator at most ten tasks, and a close-out orchestrator at most
 eight items; then it reports `resume` and the supervisor spawns a fresh one. More than twelve spawns for one phase is an error.
 
 ## Report contract

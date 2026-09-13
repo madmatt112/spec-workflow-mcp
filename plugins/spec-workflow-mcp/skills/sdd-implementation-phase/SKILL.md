@@ -13,7 +13,7 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 
 Your launch prompt gives you `SPEC`, `PHASE: implementation`, `MODE` (`normal` or
 `repair`), the roots, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` (tasks per
-spawn, default 6) and `REVISION_INPUT` (repair: the failing scenario).
+spawn, default 10) and `REVISION_INPUT` (repair: the failing scenario).
 
 Brief templates are in `references/briefs.md`. Read it once at the start.
 
