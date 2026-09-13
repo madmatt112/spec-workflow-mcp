@@ -46,7 +46,9 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   line, `_Leverage: …_`, `_Requirements: …_`, and a `_Prompt: Task: … | Restrictions:
   … | Success: …_` line that ends with `_`. Every task numbered, so the parser counts
   it. Order tasks so each step leaves the tree compiling and every existing suite
-  green. State the dependency order in a short preamble.
+  green. State the dependency order in a short preamble. A prompt must not pin a call
+  signature, UI label or helper name that a different task in this document creates;
+  write "the hook task 7 exports" and let the implementer read the merged code.
 - Edit only the document. Approvals, deferrals, HANDOFF, INDEX and every other file
   belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
@@ -74,7 +76,9 @@ verdict block). Append:
   at both ends of its range; vendor or format facts checked against their source;
   failure, rollback and partial-failure paths; each prescribed test or safety
   mechanism verified against the installed library; the cost of touching an existing
-  component (its tests, fixtures, query keys, e2e assumptions)>.
+  component (its tests, fixtures, query keys, e2e assumptions); intra-document shape
+  consistency: every call a later task makes against an artefact an earlier task
+  defines>.
 - Closed by ruling, do not re-open: <none | `<finding id>: <one line>` …>.
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked
