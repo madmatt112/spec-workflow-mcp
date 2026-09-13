@@ -133,6 +133,8 @@ RI-2: <text>>
 ## Disposition rules
 1. Assess every finding on its merits: accept, partially accept, or reject, each with
    one line of reasoning. Never accept to be agreeable; never reject to save work.
+   When a finding says a rationale clause is false, delete the clause unless you can
+   prove the replacement with a probe; never reword an unproven claim.
 2. Verify every citation you add or change against the real tree under `<CODE_ROOT>`.
    Read both ends of a line range. A misstated artifact is a MUST_FIX next round.
 3. Do not widen scope, and do not re-decide what an earlier phase pinned.
