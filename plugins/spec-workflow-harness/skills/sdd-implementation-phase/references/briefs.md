@@ -163,6 +163,43 @@ result, the scenario's outcome, findings by severity, and the final line
 integration failures are what this step exists to catch.
 ```
 
+## CI fix brief — `impl-brief-ci-r<r>.md`
+
+```markdown
+# CI red — fix round <r> (spec <SPEC>)
+
+Read `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md` first and obey it.
+
+The PR's checks failed: <check names>. The failing steps' log tail is in <log file
+path(s)>; read those files. Reproduce the failure locally first, with the command the
+job runs (read its workflow file under `.github/workflows/`). Fix the cause, not the
+symptom: when the spec's change made shared test fixtures or setup stale, fix the
+fixtures. Run the reproduce command until it passes, run the checks the agent rules
+allow for the files you touched, and commit on the current branch. Do not push. Call
+`log-implementation` for the task the fix belongs to when that task's files changed.
+
+If the failure is CI infrastructure and not the code (a runner out of memory, a
+network timeout, a job that passed before on the same commit), change nothing and
+report `INFRA: <one line>`.
+
+Report: files touched one per line, the reproduce command and its result on one line,
+`commit: <sha>`, `RETRO:` lines. No diffs, no log excerpts.
+```
+
+## CI verify brief — `verify-brief-ci-r<r>.md`
+
+```markdown
+# CI red — verification round <r> (spec <SPEC>)
+
+Read `/tmp/scratchpad/sdd/<SPEC>/verify-standing.md` first and obey it.
+
+Checks that failed: <check names>. The implementer's fix is commit <sha>; its reproduce
+command: <command>. Run that command yourself in `<CODE_ROOT>`, then every check the
+agent rules list for the files the fix touched, each as its own command. Report each
+command with its result on one line, findings by severity, and the final line
+`VERIFY: pass | fail`.
+```
+
 ## PR body rules
 
 The body is a public surface when the code repo is public. Before `gh pr create`:

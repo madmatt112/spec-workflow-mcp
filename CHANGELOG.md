@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.3.0] - 2026-09-13
 
-**Watch a harness run from the terminal**
+**Watch a harness run from the terminal; a CI gate on the PR; a close-out phase that implements the retrospective plan**
+
+Three additions to the SDD harness, all from its first full dry run.
 
 Once the harness runs unattended, the question becomes what it is doing right now. The answer was scattered: the tmux pane of the session, `tasks.md`, the approval records, the retro log, `HANDOFF.md`. Nothing said which agent was up, on what, for how long, or whether it had gone quiet.
 
@@ -15,14 +17,23 @@ Once the harness runs unattended, the question becomes what it is doing right no
 
 Two files feed it. The harness skills now append a run ledger (`harness-events.jsonl`: run, phase, spawn, round and task events) through a small event script the supervisor writes at run start. The plugin now ships hooks (`hooks/sdd-activity.sh` on `PreToolUse`, `SubagentStart`, `SubagentStop`) that record exact agent start and stop with tokens and one line per tool call for `sdd-*` agents into `harness-activity.jsonl`. The hook exits immediately for every other agent and for sessions with no active run. Both files are committed with the spec store, so the view is also the run's history; phases finished before either file existed come from `HANDOFF.md`'s phase log.
 
+The dry run's PR reported `complete` with a red `e2e` check: the completion gate runs the local checks the project's rules allow, and CI was the first place that failure could show. The implementation phase now waits for the PR's checks before it reports. A red check starts a reconcile round: the failing job's log tail goes to an implementer with "reproduce locally first", a verifier re-runs the check locally, the orchestrator pushes and watches again; three rounds, then the adjudicator once, then `verify-failed` with `ci: <check>` so the supervisor's repair path takes over. One PR per code repository per spec is now a rule of the phase.
+
+The retrospective conversation used to end a spec with an approved plan that nobody implemented. A **close-out phase** now follows it: `sdd-closeout-orchestrator` (skill `sdd-closeout-phase`) takes every approved proposal, groups them by target (the spec store, the harness's own repository, the product code, `~/.claude`), lands each group by that repository's rules (direct commits in the spec store; a `chore/<spec>-retro` branch in a worktree and one PR per code repository, never merged; in-place edits under `~/.claude`, never `settings.json`), verifies each batch, writes one line per proposal under `## Close-out` in `retrospective-plan.md` (`done`, `to-do (human)` or `skipped`, with the commit or PR) and sets the plan to `CLOSED`. The supervisor routes an `APPROVED` plan to the close-out, also right after an interactive conversation approves one, and a `CLOSED` plan to the next spec.
+
 ### Added
 - **`--watch [path]`** CLI mode with `--spec <name>` (default: the active spec from HANDOFF, else the newest ledger) and `--once` (render one frame and exit). Plain ANSI, no new dependencies; `NO_COLOR` respected; non-TTY output is plain text.
 - **Run ledger** (`harness-events.jsonl`) written by the supervisor and orchestrator skills; event types and keys in `harness/skills/sdd-continue/references/formats.md`. The supervisor also writes the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` that the hook uses to find the run, and removes it at the end.
 - **Plugin hooks** (`harness/hooks/hooks.json`, `hooks/sdd-activity.sh`) in all three plugins; `scripts/sync-plugin-assets.cjs` now syncs `hooks/` too.
 - `src/watch/`: the ledger reducer (`buildModel`), the renderer and the watch loop, with tests.
+- **PR checks gate** in `sdd-implementation-phase` (step 10b): waits for the PR's checks with `gh pr checks --watch` in a script (nine minutes per call, thirty in all); red checks go through reconcile rounds (implementer with the failing job's log tail, verifier, push, watch again; three rounds, then the adjudicator, then `verify-failed` with `REASON: ci: <check>`). CI fix and CI verify brief templates; repair mode understands a `ci:` reason; an open PR is reused. One PR per code repository per spec.
+- **Close-out phase**: agent `sdd-closeout-orchestrator`, skill `sdd-closeout-phase` with its brief templates, worktree script and commit script; report values `PHASE: closed`, `STAGE: closeout`, `STATE: items <done>/<total>`; `retrospective-plan.md` statuses `DRAFT` → `APPROVED` → `CLOSED` with a `## Close-out` section; ledger events with `phase=closeout` and `task=P<n>`; launch-prompt line `HARNESS_REPO`.
+- Supervisor preflight step 4: `references/harness-source.sh` reports which local marketplace checkout the installed plugin came from and whether the installed copy differs from it.
 
 ### Changed
-- `docs/SDD-HARNESS.md` gains a "Watching a run" section; the README mentions `--watch`.
+- `sdd-continue` step 3 routing: an `APPROVED` plan ⇒ close-out; a `CLOSED` plan ⇒ the spec is finished. The launch prompt carries `HARNESS_REPO` and the `8 items` budget.
+- `docs/SDD-HARNESS.md` gains "Watching a run", the PR checks gate and the close-out phase; the README mentions them.
+- `--watch` knows the close-out orchestrator and shows the close-out phase (items picked and done).
 
 ## [5.2.0] - 2026-09-12
 

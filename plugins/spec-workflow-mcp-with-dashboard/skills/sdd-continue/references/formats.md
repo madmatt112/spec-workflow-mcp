@@ -26,10 +26,10 @@ The last lines of every orchestrator's final message. At most 150 words above it
 never file contents.
 
 ```
-PHASE: approved | complete | resume | escalate | design-defect | verify-failed | error | retro-ready
+PHASE: approved | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
 SPEC: <slug>
-STAGE: requirements | design | tasks | implementation | retrospective
-STATE: v<N> | tasks <done>/<total> | n/a
+STAGE: requirements | design | tasks | implementation | retrospective | closeout
+STATE: v<N> | tasks <done>/<total> | items <done>/<total> | n/a
 NEXT: <one line: what a re-spawn does next>
 REASON: <one line, required for escalate, design-defect, verify-failed, error>
 ```
@@ -40,12 +40,13 @@ Meaning of `PHASE`:
 | --- | --- | --- |
 | `approved` | document orchestrator | Write a HANDOFF row; continue to the next phase. |
 | `complete` | implementation orchestrator | Write a HANDOFF row; continue (retrospective). |
+| `closed` | close-out orchestrator | Write a HANDOFF row; the spec is finished. |
 | `resume` | any | Budget spent, phase mid-flight. Spawn a fresh orchestrator for the same phase. |
 | `escalate` | any | Stop. Print the reason. Headless: write it to HANDOFF and exit. |
 | `design-defect` | implementation orchestrator | Re-open design with the defect as revision input; then tasks in revision mode; then resume implementation. At most two loops per spec. |
 | `verify-failed` | implementation orchestrator | Spawn the implementation orchestrator in repair mode. At most two repairs. |
 | `error` | any | Stop and report. |
-| `retro-ready` | retro orchestrator | Run the retrospective conversation. |
+| `retro-ready` | retro orchestrator | Run the retrospective conversation, then the close-out phase. |
 
 ## HANDOFF phase row
 
@@ -163,13 +164,13 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 | --- | --- | --- |
 | `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no) |
 | `run.end` | supervisor | `status` (the status line) |
-| `phase.start` | orchestrator, at Step 0 | `phase`, `mode`, `budget`, `state` (v<N> or tasks a/b at entry) |
+| `phase.start` | orchestrator, at Step 0 | `phase` (also `closeout`), `mode`, `budget`, `state` (v<N>, tasks a/b or items a/b at entry) |
 | `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |
-| `spawn.start` | orchestrator, right before an Agent call | `agent` (e.g. `sdd-reviewer`), `role` (one line, e.g. `review v3`, `implement task 13`, `verify task 13`), `phase`, `round` or `task` |
+| `spawn.start` | orchestrator, right before an Agent call | `agent` (e.g. `sdd-reviewer`), `role` (one line, e.g. `review v3`, `implement task 13`, `verify task 13`, `fix ci e2e round 1`, `implement harness batch 1`), `phase`, `round` or `task` |
 | `spawn.end` | orchestrator, right after the report | `agent`, `role`, `result` (VERDICT / VERIFY / logged line, or the PHASE value for orchestrators), `tokens` when the Agent result reports them |
 | `round` | document orchestrator | `phase`, `round`, `verdict` (`iterate 1/1/3` or `converged 0/0/1`), `version` |
-| `task.pick` | implementation orchestrator | `task`, `title` |
-| `task.done` | implementation orchestrator | `task`, `rounds`, `outcome` (`pass`, `adjudicated`) |
+| `task.pick` | implementation or close-out orchestrator | `task` (`<N>` or `P<n>`), `title` |
+| `task.done` | implementation or close-out orchestrator | `task`, `rounds` (implementation), `outcome` (`pass`, `adjudicated`; close-out: `done`, `to-do`, `skipped`) |
 | `note` | any | `text` (rulings, escalations, deviations) |
 
 The supervisor also writes `spawn.start` / `spawn.end` for each orchestrator it spawns

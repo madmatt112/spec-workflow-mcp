@@ -2,8 +2,8 @@
 
 The SDD harness is a Claude Code plugin that runs the spec-driven development
 workflow of this server without a human at the dashboard. One command takes the active
-spec from wherever it stands to the end of its retrospective, then stops. The next run
-starts the next spec.
+spec from wherever it stands through its retrospective and the close-out of the approved
+retrospective plan, then stops. The next run starts the next spec.
 
 It ships in this repository as the plugin `spec-workflow-harness` and is also bundled
 into the two MCP plugins. Its source of truth is the `harness/` directory at the
@@ -14,10 +14,10 @@ repository root.
 - A **supervisor** skill, `sdd-continue`, that runs in the main session. It resolves
   the roots, finds the active spec and its live phase, spawns one orchestrator agent at
   a time, and holds the retrospective conversation with you.
-- Three **orchestrator** agents, one per phase kind: `sdd-document-orchestrator`
-  (requirements, design, tasks), `sdd-implementation-orchestrator`, and
-  `sdd-retro-orchestrator`. Each is spawned fresh, carries its phase skill, and reports
-  in a fixed contract.
+- Four **orchestrator** agents, one per phase kind: `sdd-document-orchestrator`
+  (requirements, design, tasks), `sdd-implementation-orchestrator`,
+  `sdd-retro-orchestrator` and `sdd-closeout-orchestrator`. Each is spawned fresh,
+  carries its phase skill, and reports in a fixed contract.
 - Seven **worker** agents with pinned models and per-role tool allowlists:
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-implementer`,
   `sdd-verifier`, `sdd-retro-analyst`.
@@ -42,8 +42,9 @@ continue the sdd process
   ├─ requirements ─┐
   ├─ design        ├─ sdd-document-orchestrator ─ drafter → (reviewer → reviser)* → approve → prune → clean
   ├─ tasks        ─┘
-  ├─ implementation ─ sdd-implementation-orchestrator ─ (implementer → verifier → fix*)* → gate → INDEX → PR
-  └─ retrospective  ─ sdd-retro-orchestrator ─ findings → analyst proposals → conversation → plan
+  ├─ implementation ─ sdd-implementation-orchestrator ─ (implementer → verifier → fix*)* → gate → INDEX → PR → CI gate
+  ├─ retrospective  ─ sdd-retro-orchestrator ─ findings → analyst proposals → conversation → plan APPROVED
+  └─ closeout       ─ sdd-closeout-orchestrator ─ per target repo: (implementer → verifier → fix*)* → PR → plan CLOSED
 ```
 
 Document phase, per version:
@@ -65,27 +66,55 @@ Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and log
 `sdd-verifier` reviews through `review-task` (`prepare` then `record`), up to three fix
 rounds, then `sdd-adjudicator` once, then mark `[x]`. Completion gate: end-to-end
 verification, `spec-index generate`, HANDOFF with deferral numbers, commit, push, PR.
-Never merge.
+Never merge. One PR per code repository per spec: a second one is a decomposition
+finding (a retro-log `deviation` and a deferral), never a second PR.
+
+PR checks gate: the orchestrator then waits for the PR's checks (`gh pr checks --watch`
+in a script, at most ten minutes per call and thirty in all). All green ⇒ `complete`.
+A red check starts a reconcile round: the failing job's log tail goes to
+`sdd-implementer` with the instruction to reproduce locally first, `sdd-verifier`
+re-runs that check locally, the orchestrator pushes to the same branch and watches
+again. Cap three rounds, then `sdd-adjudicator` once, then `verify-failed` with
+`REASON: ci: <check>`, which the supervisor's repair path picks up. Each round is a
+retro-log entry (`bug`, or `tool-error` for CI infrastructure).
 
 Retrospective: the orchestrator compiles `retrospective.md` (every finding with an
 evidence reference), `sdd-retro-analyst` writes `retrospective-proposals.md`, the
 supervisor asks you the `DECISION NEEDED` questions and which proposals to approve, and
-writes `retrospective-plan.md`. Nothing from the plan is implemented in the same run.
-Headless runs write the plan as `DRAFT — decisions needed` and stop.
+writes `retrospective-plan.md` as `APPROVED`. The conversation implements nothing; the
+close-out phase does. Headless runs write the plan as `DRAFT — decisions needed` and
+stop; the next interactive run holds the conversation.
 
-Budgets: a document orchestrator runs at most three review rounds per spawn and an
-implementation orchestrator at most six tasks; then it reports `resume` and the
-supervisor spawns a fresh one. More than twelve spawns for one phase is an error.
+Close-out: `sdd-closeout-orchestrator` reads the `APPROVED` plan and works one item per
+approved proposal, grouped by target: the spec store (steering, rules, templates,
+decomposition conventions), the harness's own repository (skills, agents, server code,
+docs), the product code, and `~/.claude` (memory). Each group lands by its repository's
+rules: direct commits on the spec store's branch; a worktree on branch
+`chore/<spec>-retro` and one PR per code repository, never merged; in-place edits under
+`~/.claude`, never `settings.json` (those become to-dos). `sdd-implementer` works a
+batch of up to eight items, `sdd-verifier` checks every item against the proposal's text
+and runs the repository's checks, fix rounds cap at three, then `sdd-adjudicator` once.
+Every proposal gets one line under `## Close-out` in `retrospective-plan.md`
+(`done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`, plus one line per
+PR); when every proposal has one, the plan's status becomes `CLOSED` and the spec is
+finished. A proposal the agent cannot land is an explicit to-do; it never blocks the
+close. The harness's own repository is found through the local marketplace checkout the
+plugin was installed from; the supervisor's preflight also warns when the installed
+plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
+
+Budgets: a document orchestrator runs at most three review rounds per spawn, an
+implementation orchestrator at most six tasks, and a close-out orchestrator at most
+eight items; then it reports `resume` and the supervisor spawns a fresh one. More than twelve spawns for one phase is an error.
 
 ## Report contract
 
 Every orchestrator ends its final message with:
 
 ```
-PHASE: approved | complete | resume | escalate | design-defect | verify-failed | error | retro-ready
+PHASE: approved | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
 SPEC: <slug>
-STAGE: requirements | design | tasks | implementation | retrospective
-STATE: v<N> | tasks <done>/<total> | n/a
+STAGE: requirements | design | tasks | implementation | retrospective | closeout
+STATE: v<N> | tasks <done>/<total> | items <done>/<total> | n/a
 NEXT: <one line>
 REASON: <one line, required for escalate, design-defect, verify-failed, error>
 ```
@@ -110,7 +139,9 @@ Under `.spec-workflow/specs/<spec>/`:
 | `reviews/adversarial-analysis-<phase>[-rN].md` | the reviewer | only the last one per phase |
 | `reviews/adversarial-prompt-<phase>[-rN].md` | the orchestrator | deleted at phase end |
 | `reviews/*-brief-<phase>*.md` | the orchestrator | deleted at phase end |
-| `retrospective.md`, `retrospective-proposals.md`, `retrospective-plan.md` | retro orchestrator, analyst, supervisor | yes |
+| `retrospective.md`, `retrospective-proposals.md` | retro orchestrator, analyst | yes |
+| `retrospective-plan.md` (`Status: DRAFT` → `APPROVED` → `CLOSED`, with a `## Close-out` line per proposal) | supervisor, then the close-out orchestrator | yes |
+| `harness-events.jsonl`, `harness-activity.jsonl` | the run's event script; the plugin hooks | yes |
 
 `HANDOFF.md` (at `.spec-workflow/HANDOFF.md` if it exists, else at the spec store
 repo root): the supervisor owns the routing header and the `## Phase log` table;
@@ -196,7 +227,7 @@ Keep it short and imperative. Every worker reads it on every spawn.
 
 | Role | Model | Effort |
 | --- | --- | --- |
-| Supervisor (main session), the three orchestrators, `sdd-drafter`, `sdd-adjudicator`, `sdd-retro-analyst` | Fable 5.1 (`claude-fable-5-1`) | xhigh |
+| Supervisor (main session), the four orchestrators, `sdd-drafter`, `sdd-adjudicator`, `sdd-retro-analyst` | Fable 5.1 (`claude-fable-5-1`) | xhigh |
 | `sdd-reviewer`, `sdd-reviser`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
 
 Models are pinned in each agent's frontmatter with full model ids. Skills never pass a

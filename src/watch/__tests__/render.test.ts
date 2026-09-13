@@ -85,6 +85,26 @@ describe('render', () => {
     expect(out).toContain('no activity events yet');
   });
 
+  it('draws a close-out phase from the picked items', () => {
+    const ledger: LedgerEvent[] = [
+      { ts: '2026-09-13T10:00:00.000Z', run: 'run-20260913-100000', spec: 's', type: 'run.start', model: 'fable-5-1', codeRoot: '/home/x/tradr', worktree: 'no' },
+      { ts: '2026-09-13T10:00:05.000Z', run: 'run-20260913-100000', spec: 's', type: 'spawn.start', agent: 'sdd-closeout-orchestrator', role: 'closeout phase, spawn 1', phase: 'closeout' },
+      { ts: '2026-09-13T10:00:10.000Z', run: 'run-20260913-100000', spec: 's', type: 'phase.start', phase: 'closeout', mode: 'normal', budget: '8 items', state: 'items 0/3' },
+      { ts: '2026-09-13T10:00:20.000Z', run: 'run-20260913-100000', spec: 's', type: 'task.pick', task: 'P1', title: 'Raise the budget' },
+      { ts: '2026-09-13T10:00:21.000Z', run: 'run-20260913-100000', spec: 's', type: 'task.done', task: 'P1', outcome: 'skipped' },
+      { ts: '2026-09-13T10:00:30.000Z', run: 'run-20260913-100000', spec: 's', type: 'task.pick', task: 'P2', title: 'Keep every analysis file' },
+      { ts: '2026-09-13T10:00:31.000Z', run: 'run-20260913-100000', spec: 's', type: 'task.pick', task: 'P3', title: 'Bump the version header' },
+      { ts: '2026-09-13T10:00:40.000Z', run: 'run-20260913-100000', spec: 's', type: 'spawn.start', agent: 'sdd-implementer', role: 'implement harness batch 1', phase: 'closeout' },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: [], handoffMd: HANDOFF }), { now: new Date('2026-09-13T10:05:00.000Z'), width: 100, color: false });
+    expect(out).toContain('> closeout       items 0/3      spawn 1 | since');
+    expect(out).toContain('> sdd-closeout-orchestrator');
+    expect(out).toContain('+ 1 done, last P1  Raise the budget');
+    expect(out).toContain('> P2 P3  2 items');
+    expect(out).toMatch(/> sdd-implementer\s+opus-4-8\s+xhigh\s+implement harness batch 1/);
+    expect(out).not.toContain('o closeout');
+  });
+
   it('shows a stopped run', () => {
     const ledger = [...LEDGER,
       { ts: '2026-09-12T19:10:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'phase.end', phase: 'implementation', result: 'resume', state: 'tasks 3/8', note: 'budget' },

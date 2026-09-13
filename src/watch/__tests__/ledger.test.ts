@@ -137,6 +137,20 @@ describe('buildModel', () => {
     expect(m.phases.some(p => p.phase === 'implementation' && p.result === 'resume' && p.state === 'tasks 3/5')).toBe(true);
   });
 
+  it('tracks picked items for phases without a task queue (close-out)', () => {
+    const ev: LedgerEvent[] = [
+      { ts: '2026-09-13T10:00:00.000Z', run: 'run-3', spec: 's', type: 'run.start', model: 'fable-5-1' },
+      { ts: '2026-09-13T10:00:05.000Z', run: 'run-3', spec: 's', type: 'phase.start', phase: 'closeout', state: 'items 0/3' },
+      { ts: '2026-09-13T10:00:10.000Z', run: 'run-3', spec: 's', type: 'task.pick', task: 'P1', title: 'Raise the budget' },
+      { ts: '2026-09-13T10:00:11.000Z', run: 'run-3', spec: 's', type: 'task.pick', task: 'P2', title: 'Keep every analysis file' },
+      { ts: '2026-09-13T10:05:00.000Z', run: 'run-3', spec: 's', type: 'task.done', task: 'P1', outcome: 'done' },
+    ];
+    const m = buildModel({ spec: 's', ledger: ev, activity: [] });
+    expect(m.livePhase?.phase).toBe('closeout');
+    expect(m.picks.map(pk => `${pk.task}:${pk.done ? pk.outcome : 'open'}`)).toEqual(['P1:done', 'P2:open']);
+    expect(m.ticker[m.ticker.length - 1].text).toBe('task.done   task P1  done');
+  });
+
   it('works with no ledger at all (a spec built before the harness)', () => {
     const m = buildModel({ spec: 'tags-and-setups', ledger: [], activity: [], tasksMd: TASKS, handoffMd: HANDOFF });
     expect(m.runId).toBeUndefined();

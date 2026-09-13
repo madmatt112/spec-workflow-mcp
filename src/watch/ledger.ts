@@ -42,6 +42,7 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
   'sdd-document-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'runs a document phase' },
   'sdd-implementation-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'runs the task queue' },
   'sdd-retro-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'compiles the retrospective' },
+  'sdd-closeout-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'lands the retro plan' },
   'sdd-drafter': { model: 'fable-5-1', effort: 'xhigh', role: 'writes v1' },
   'sdd-reviewer': { model: 'opus-4-8', effort: 'xhigh', role: 'adversarial review' },
   'sdd-reviser': { model: 'opus-4-8', effort: 'xhigh', role: 'writes the next version' },
@@ -89,6 +90,14 @@ export interface RoundRow {
   version?: string;
 }
 
+/** A `task.pick` of the current run (a task id or a close-out item such as `P3`). */
+export interface PickRow {
+  task: string;
+  title: string;
+  done: boolean;
+  outcome?: string;
+}
+
 export interface TickerLine {
   ts: string;
   text: string;
@@ -109,6 +118,8 @@ export interface RunModel {
   spawns: SpawnNode[];
   rounds: RoundRow[];
   tasks: TaskRow[];
+  /** Items the orchestrator picked in this run; the queue for phases without a tasks.md. */
+  picks: PickRow[];
   ticker: TickerLine[];
   tokensTotal: number;
   /** True when at least one activity event exists for the run (the hook is installed). */
@@ -261,6 +272,16 @@ export function buildModel(input: {
     }
   }
 
+  const picks: PickRow[] = [];
+  for (const e of runEvents) {
+    if (e.type === 'task.pick' && e.task) {
+      picks.push({ task: e.task, title: e.title ?? '', done: false });
+    } else if (e.type === 'task.done' && e.task) {
+      const pick = picks.find(pk => pk.task === e.task && !pk.done);
+      if (pick) { pick.done = true; pick.outcome = e.outcome; }
+    }
+  }
+
   const rounds: RoundRow[] = runEvents
     .filter(e => e.type === 'round')
     .map(e => ({ phase: e.phase ?? '', round: e.round ?? '', verdict: e.verdict ?? '', version: e.version }));
@@ -272,7 +293,7 @@ export function buildModel(input: {
     const detail =
       e.type === 'spawn.start' || e.type === 'spawn.end' ? `${e.agent ?? ''}  ${e.role ?? ''}${e.result ? `  -> ${e.result}` : ''}` :
       e.type === 'task.pick' ? `task ${e.task ?? ''}  ${e.title ?? ''}` :
-      e.type === 'task.done' ? `task ${e.task ?? ''}  ${e.outcome ?? ''} after ${e.rounds ?? '?'} round(s)` :
+      e.type === 'task.done' ? `task ${e.task ?? ''}  ${e.outcome ?? ''}${e.rounds ? ` after ${e.rounds} round(s)` : ''}` :
       e.type === 'round' ? `${e.phase ?? ''} ${e.version ?? ''} round ${e.round ?? ''}  ${e.verdict ?? ''}` :
       e.type === 'phase.start' ? `${e.phase ?? ''}  ${e.mode ?? ''} ${e.state ?? ''}`.trim() :
       e.type === 'phase.end' ? `${e.phase ?? ''}  ${e.result ?? ''}  ${e.state ?? ''}` :
@@ -302,6 +323,7 @@ export function buildModel(input: {
     spawns,
     rounds,
     tasks: parseTasks(input.tasksMd),
+    picks,
     ticker: tickerSource.slice(-4),
     tokensTotal,
     hasActivity: runActivity.length > 0,

@@ -57,7 +57,7 @@ function padRight(s: string, width: number): string {
   return visible >= width ? s : s + ' '.repeat(width - visible);
 }
 
-const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective'];
+const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective', 'closeout'];
 
 export function render(model: RunModel, opts: RenderOptions): string {
   const p = makePalette(opts.color);
@@ -137,6 +137,19 @@ export function render(model: RunModel, opts: RenderOptions): string {
       for (const t of queued.slice(0, 3)) lines.push(p.dim(`  o ${t.id}  ${fit(t.title, width - 12)}`));
       if (queued.length > 3) lines.push(p.dim(`    ... ${queued.length - 3} more queued`));
     } else {
+      // Phases without a tasks.md queue (close-out items, review rounds): what the
+      // orchestrator picked in this run.
+      const donePicks = model.picks.filter(pk => pk.done);
+      const openPicks = model.picks.filter(pk => !pk.done);
+      if (donePicks.length > 0) {
+        const last = donePicks[donePicks.length - 1];
+        lines.push(`  ${p.ok('+')} ${p.dim(`${donePicks.length} done, last`)} ${last.task}  ${fit(last.title, width - 24)}`);
+      }
+      if (openPicks.length === 1) {
+        lines.push(`  ${p.live('>')} ${openPicks[0].task}  ${fit(openPicks[0].title, width - 30)}`);
+      } else if (openPicks.length > 1) {
+        lines.push(`  ${p.live('>')} ${fit(openPicks.map(pk => pk.task).join(' '), width - 24)}  ${p.dim(`${openPicks.length} items`)}`);
+      }
       for (const w of running) lines.push(agentLines(w, 2, opts, p, warnMin, width));
       if (running.length === 0 && finished.length > 0) {
         lines.push(agentLines(finished[finished.length - 1], 2, opts, p, warnMin, width));

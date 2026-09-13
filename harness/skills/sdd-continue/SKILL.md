@@ -6,8 +6,8 @@ description: Continue the spec-driven development (SDD) process for the active s
 # SDD supervisor
 
 You are the supervisor of one SDD run. One run takes the active spec from wherever it
-is to the end of its retrospective conversation, then stops. The next run starts the
-next spec.
+is through its retrospective conversation and the close-out of the approved plan, then
+stops. The next run starts the next spec.
 
 Rules that hold for the whole run:
 
@@ -37,6 +37,13 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
    `Install the spec-workflow-harness plugin (docs/SDD-HARNESS.md), then continue`
    and stop. Every orchestrator gets the prefix in its launch prompt; skills never
    hardcode it.
+4. **Plugin freshness.** This skill's base directory holds `references/harness-source.sh`.
+   Run `bash <base dir>/references/harness-source.sh`. It prints `source: <path | none>`
+   (the local marketplace checkout the plugin was installed from, when there is one) and
+   `drift: yes | no | unknown`. On `yes`, print one line and continue:
+   `warning: the installed plugin differs from <source>/plugins/<plugin>; refresh it
+   (uninstall, then install at this scope) unless that is intended`. Keep the `source`
+   value: it is `HARNESS_REPO` in every launch prompt.
 
 ## 1. Roots (workspace contract v2)
 
@@ -72,8 +79,15 @@ Use the `routing` field of the `spec-index` result (the same data as INDEX.md's
 
 - `active` ⇒ `routing.spec` is the active spec.
 - `ambiguous` ⇒ report the candidates and stop. Do not pick one.
-- `all-on-disk-complete`, `no-specs` or `all-deferred` ⇒ not roadmap completion: specs
-  are created lazily, so the next spec may have no directory yet. Read
+- `all-on-disk-complete` ⇒ first look for a finished spec whose retrospective is not
+  closed: for every `<spec store root>/specs/<name>/` that has a `retrospective-log.md`,
+  read the `Status:` line of its `retrospective-plan.md` (`grep -m1 '^Status:'`). A spec
+  with no plan file, or a plan `DRAFT` or `APPROVED`, is still active: its retrospective
+  or close-out is pending. Take the first such spec in INDEX order as the active spec and
+  go to step 3. A plan `CLOSED`, or no retrospective log, means finished. Only when no
+  spec is pending, apply the next rule.
+- `all-on-disk-complete` with nothing pending, `no-specs` or `all-deferred` ⇒ not roadmap
+  completion: specs are created lazily, so the next spec may have no directory yet. Read
   `<spec store root>/spec-decomposition/decomposition.md` and find the first spec named
   there (in order of first mention; a heading like `## 1. \`greeting-languages\`` or a
   slug in backticks) with no `<spec store root>/specs/<name>/` directory and no deferred
@@ -97,16 +111,19 @@ Apply these rules in order; the first match wins.
    `specs/<spec>/retrospective-plan.md` either does not exist or has
    `Status: DRAFT` ⇒ phase **retrospective**. With an existing `retrospective.md` and
    `retrospective-proposals.md`, skip the orchestrator and go straight to step 5.
-2. `overallStatus == completed` otherwise ⇒ the spec is finished. Report and stop.
-   (Specs completed before this harness have no retrospective.)
-3. Requirements missing or not approved ⇒ document phase **requirements**.
-4. Design missing or not approved ⇒ document phase **design**.
-5. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
+2. `overallStatus == completed` and `retrospective-plan.md` has `Status: APPROVED` ⇒
+   phase **closeout**: the approved plan is implemented before the next spec starts.
+3. `overallStatus == completed` otherwise (`Status: CLOSED`, or no retrospective log:
+   specs completed before this harness have no retrospective) ⇒ the spec is finished.
+   Report and stop.
+4. Requirements missing or not approved ⇒ document phase **requirements**.
+5. Design missing or not approved ⇒ document phase **design**.
+6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
    under the old convention. Treat tasks as approved, append a retro-log entry
    (category `deviation`, "tasks treated as approved: implementation had begun"), and
-   go to rule 6.
-6. Otherwise ⇒ **implementation**.
+   go to rule 7.
+7. Otherwise ⇒ **implementation**.
 
 Revision input: when the live document's `approvalStatus` is `needs-revision`, a human
 used the dashboard between runs. Call `approvals` `status` on that `approvalId` once,
@@ -126,12 +143,13 @@ parameter, `subagent_type` = `<prefix>:<agent>`:
 | requirements / design / tasks | `sdd-document-orchestrator` |
 | implementation | `sdd-implementation-orchestrator` |
 | retrospective | `sdd-retro-orchestrator` |
+| closeout | `sdd-closeout-orchestrator` |
 
 The launch prompt contains, one line each:
 
 ```
 SPEC: <slug>
-PHASE: <requirements | design | tasks | implementation | retrospective>
+PHASE: <requirements | design | tasks | implementation | retrospective | closeout>
 MODE: <normal | revision | repair>
 SPEC_STORE_ROOT: <path ending in .spec-workflow>
 SPEC_STORE_REPO: <its parent>
@@ -141,8 +159,9 @@ WORKTREE: <yes | no>
 HANDOFF: <path>
 AGENT_RULES: <path | none>
 AGENT_PREFIX: <prefix>
+HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
-BUDGET: <3 review rounds | 6 tasks | n/a>
+BUDGET: <3 review rounds | 6 tasks | 8 items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
 
@@ -157,6 +176,9 @@ Act on the final `PHASE:` line of the orchestrator's report:
 
 - `approved` or `complete`: write one HANDOFF phase row. Go back to step 3 for the
   next phase (call `spec-status` again).
+- `closed`: write one HANDOFF phase row (`closeout`, `items <n>/<n>`, `closed`). The
+  spec is finished: rewrite the routing header (a re-run starts the next spec), print
+  the PR URLs and to-dos the orchestrator reported, and stop.
 - `resume`: write a HANDOFF row, then spawn a fresh orchestrator for the same phase
   with the same prompt.
 - `escalate`: write a HANDOFF row, print the `REASON:` line, and stop. Headless (no
@@ -215,10 +237,12 @@ and stop. The next interactive run finds the DRAFT plan, holds the conversation,
 rewrites it as APPROVED.
 
 Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`,
-the approved proposals verbatim, the decisions made, and the rejected proposals with
-the reason. Never implement anything from it in this run. Write a HANDOFF row, commit
-in the spec store repo (`docs(sdd): <spec> retrospective plan`; use a script file if
-`agent-rules.md` requires it), and stop.
+the approved proposals verbatim (each with its `Target:` line and the decision taken),
+the decisions made, and the rejected proposals with the reason. Implement nothing from
+it here: the close-out phase does that. Write a HANDOFF row, commit in the spec store
+repo (`docs(sdd): <spec> retrospective plan`; use a script file if `agent-rules.md`
+requires it), then go back to step 3: the plan is `APPROVED`, so the close-out phase
+runs now, in this run.
 
 ## 6. Status line
 
