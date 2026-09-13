@@ -50,7 +50,9 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   signature, UI label or helper name that a different task in this document creates;
   write "the hook task 7 exports" and let the implementer read the merged code. For
   every existing test file a task names, say whether the change alters a value it
-  asserts exactly.
+  asserts exactly. When a task uses an artefact a later task creates (a route, an
+  export), the prompt names the bridge (a cast, a stub) and the later task's prompt
+  says to remove it.
 - Edit only the document. Approvals, deferrals, HANDOFF, INDEX and every other file
   belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
