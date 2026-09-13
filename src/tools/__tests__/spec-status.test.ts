@@ -76,4 +76,15 @@ describe('specStatusHandler — approval state', () => {
     });
     expect(design.approvedAt).toBeUndefined();
   });
+
+  it('reports Implementation as completed when every task is done', async () => {
+    const specDir = join(tempDir, '.spec-workflow', 'specs', 'alpha');
+    await fs.writeFile(join(specDir, 'tasks.md'), '# Tasks\n\n- [x] 1. Task one\n- [x] 2. Task two\n', 'utf-8');
+
+    const result = await specStatusHandler({ specName: 'alpha' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data.currentPhase).toBe('completed');
+    const implementation = result.data.phases[3];
+    expect(implementation).toMatchObject({ name: 'Implementation', status: 'completed' });
+  });
 });
