@@ -1,6 +1,6 @@
 {
   "name": "spec-workflow-mcp-with-dashboard",
-  "version": "5.3.1",
+  "version": "5.3.2",
   "description": "MCP server with auto-started dashboard for structured spec-driven development.",
   "author": {
     "name": "Matthew Field"
