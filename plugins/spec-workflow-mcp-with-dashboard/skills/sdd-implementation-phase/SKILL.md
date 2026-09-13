@@ -97,7 +97,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
 6. **Complete.** Only with `VERDICT: pass` (or after adjudication) and `logged: yes`:
    edit `tasks.md` `[-]` → `[x]`. Append a retro-log entry for the task:
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
-   with rounds, outcome, cost in spawns. Count it against `BUDGET`.
+   with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
+   section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next
+   task) and commit the spec store. Count it against `BUDGET`.
 7. **Budget.** When the count of tasks completed in this run reaches `BUDGET` and open
    tasks remain: write the HANDOFF section, commit the spec store, report
    `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <next N>`.
