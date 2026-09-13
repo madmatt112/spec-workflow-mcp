@@ -72,7 +72,8 @@ at the start.
 
 1. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template.
 2. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
-   path>`.
+   path>`. From its report, append a retro-log entry (`deviation`) for each
+   `RE-DECIDED: <req> — <one line>` flag it raised.
 3. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
    History has a v1 line.
 4. Request approval: `approvals` `request` with title `<SPEC> <PHASE> v1`, the

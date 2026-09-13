@@ -39,6 +39,8 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
   requirements name; tasks cover every design component.
+- When a design departs from a requirement's literal (a widened enum, a defaulted
+  param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
 - End the document with `## Revision History` and the line
   `- **v1** (<today>) — Initial draft.`
 - MDX rule: no bare angle brackets outside code spans. `<name>` fails the approval
