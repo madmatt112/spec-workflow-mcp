@@ -195,7 +195,7 @@ export function buildModel(input: {
   // Phases: HANDOFF rows first (they cover earlier runs); then ledger phase.end rows the
   // HANDOFF does not have yet.
   const phases = parseHandoffPhaseRows(input.handoffMd, spec);
-  for (const e of runEvents.filter(e => e.type === 'phase.end')) {
+  for (const e of ledger.filter(e => e.type === 'phase.end')) {
     const dup = phases.some(p => p.phase === e.phase && p.result === e.result && p.state === (e.state ?? ''));
     if (!dup) phases.push({ date: e.ts.slice(0, 10), phase: e.phase ?? '', state: e.state ?? '', result: e.result ?? '', note: e.note ?? '' });
   }

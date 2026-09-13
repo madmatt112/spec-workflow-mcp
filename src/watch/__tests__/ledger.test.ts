@@ -123,7 +123,7 @@ describe('buildModel', () => {
     expect(impl.result).toBe('logged: yes/3');
     expect(impl.tokens).toBe(84_000);
     expect(m.tokensTotal).toBe(84_000);
-    expect(m.ticker.map(t => t.text.split(/\s+/)[0]).slice(-2)).toEqual(['agent.stop', 'task.done']);
+    expect(m.ticker.map(t => t.text.split(/\s+/)[0]).slice(-2)).toEqual(['spawn.end', 'task.done']);
     expect(m.ticker).toHaveLength(4);
   });
 

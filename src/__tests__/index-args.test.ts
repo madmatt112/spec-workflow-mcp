@@ -166,7 +166,7 @@ describe('boolean flags in --flag=value form (requirement 1.17)', () => {
   // suite with it automatically.
   it('covers every boolean flag the parser knows about', () => {
     expect([...BOOLEAN_FLAGS].sort()).toEqual(
-      ['--dashboard', '--help', '--no-open', '--no-shared-worktree-specs', '--no-workspace-inference', '-h'].sort()
+      ['--dashboard', '--help', '--no-open', '--no-shared-worktree-specs', '--no-workspace-inference', '--once', '--watch', '-h'].sort()
     );
   });
 
@@ -259,7 +259,7 @@ describe('value flags are kept out of the project-path position by the registry'
   // the separate token carrying its value — would have landed in the project
   // path. Registering one now extends this suite with it automatically.
   it('covers every value flag the parser knows about', () => {
-    expect([...VALUE_FLAGS].sort()).toEqual(['--port']);
+    expect([...VALUE_FLAGS].sort()).toEqual(['--port', '--spec']);
   });
 
   for (const flag of VALUE_FLAGS) {

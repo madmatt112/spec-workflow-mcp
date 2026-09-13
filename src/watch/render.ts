@@ -178,7 +178,11 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
     }
   }
   const tokens = s.tokens ? p.dim(`${formatTokens(s.tokens)} tok`) : '';
-  const head = `${indent}${mark} ${p.bold(padRight(s.agent, 32))}${padRight(profile?.model ?? '', 11)}${padRight(profile?.effort ?? '', 7)}${padRight(fit(s.role, 28), 29)}${padRight(dur, 8)} ${badge} ${tokens}`.trimEnd();
+  // Orchestrator names are long; worker names are not. The role takes what is left of the
+  // width after the fixed columns, between 16 and 30 characters, so a line does not wrap.
+  const agentW = level === 1 ? 32 : 18;
+  const roleW = Math.max(16, Math.min(30, width - indent.length - agentW - 46));
+  const head = `${indent}${mark} ${p.bold(padRight(s.agent, agentW))}${padRight(profile?.model ?? '', 11)}${padRight(profile?.effort ?? '', 7)}${padRight(fit(s.role, roleW), roleW + 1)}${padRight(dur, 8)} ${badge} ${tokens}`.trimEnd();
   const out = [head];
   if (running && s.lastTool) {
     out.push(`${indent}   ${p.dim(padRight(s.lastTool, 6))} ${fit(s.lastSummary ?? '', width - indent.length - 10)}`);

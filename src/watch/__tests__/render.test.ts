@@ -42,18 +42,18 @@ const ACTIVITY: ActivityEvent[] = [
 describe('render', () => {
   it('draws the outline with phases, live spawn tree, queued tasks and the ticker (no colour)', () => {
     const model = buildModel({ spec: 's', ledger: LEDGER, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF });
-    const out = render(model, { now: NOW, width: 100, color: false });
+    const out = render(model, { now: NOW, width: 120, color: false });
     const lines = out.split('\n');
     expect(lines[0]).toContain('s | s | worktree | run 20260912-190000 | up 12:00');
     expect(lines[0]).toMatch(/tokens 0\s*$/);
     expect(out).toContain('+ requirements   v7          approved   7 rounds, converged 0/0/0');
     expect(out).toContain('+ design         v1          approved   converged round 1');
     expect(out).toContain('> implementation tasks 2/8      spawn 1 | since');
-    // Orchestrator: running, its last tool call was 11:45 ago, so the badge is red (3 x 5 min).
-    expect(out).toMatch(/> sdd-implementation-orchestrator\s+fable-5-1\s+xhigh\s+implementation phase, spawn 1\s+11:50 \* 11:45/);
+    // Orchestrator: running, its last tool call was 11:45 ago.
+    expect(out).toMatch(/> sdd-implementation-orchestrator\s+fable-5-1\s+xhigh\s+implementation phase, spawn 1\s+11:50\s+\* 11:45/);
     expect(out).toContain('+ 2 done, last 2  Tables and migration');
     expect(out).toContain('> 3  API errors and query layer');
-    expect(out).toMatch(/> sdd-implementer\s+opus-4-8\s+xhigh\s+implement task 3\s+10:55 \* 7:30/);
+    expect(out).toMatch(/> sdd-implementer\s+opus-4-8\s+xhigh\s+implement task 3\s+10:55\s+\* 7:30/);
     expect(out).toContain('Bash   pnpm vitest run --maxWorkers=2 apps/api/src/features/tags');
     expect(out).toContain('o 4  Tags service');
     expect(out).toContain('... 2 more queued');
@@ -65,10 +65,14 @@ describe('render', () => {
 
   it('colours the age badge by silence', () => {
     const model = buildModel({ spec: 's', ledger: LEDGER, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF });
-    const out = render(model, { now: NOW, width: 100, color: true });
-    // implementer silent 7:30 -> amber (33); orchestrator silent 11:45 -> red (31)
+    const out = render(model, { now: NOW, width: 120, color: true });
+    // implementer silent 7:30 -> amber (33); orchestrator silent 11:45 -> amber too (red is 15 min)
     expect(out).toContain(`${ESC}[33m* 7:30${ESC}[0m`);
-    expect(out).toContain(`${ESC}[31m* 11:45${ESC}[0m`);
+    expect(out).toContain(`${ESC}[33m* 11:45${ESC}[0m`);
+    // Four minutes later the orchestrator crosses 15 min of silence -> red (31); the implementer stays amber.
+    const later = render(model, { now: new Date('2026-09-12T19:16:00.000Z'), width: 120, color: true });
+    expect(later).toContain(`${ESC}[31m* 15:45${ESC}[0m`);
+    expect(later).toContain(`${ESC}[33m* 11:30${ESC}[0m`);
   });
 
   it('says so when there is no ledger and no activity', () => {
