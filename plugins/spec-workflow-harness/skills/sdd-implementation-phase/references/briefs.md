@@ -23,6 +23,8 @@ Read and obey <AGENT_RULES> first.
   code and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
+- If an existing assertion fails only because of the specified change, widen it to keep
+  its intent (never delete it) and report `RETRO: doc-gap`.
 - Compare files with `git diff`, `git diff --no-index`, or `git show`, never with a bare
   `diff`: a shell hook may rewrite it and print a summary that is not a diff.
 - Before you report, call the spec-workflow `log-implementation` tool with `specName:

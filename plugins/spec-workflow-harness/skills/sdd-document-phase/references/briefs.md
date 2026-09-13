@@ -48,7 +48,9 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   it. Order tasks so each step leaves the tree compiling and every existing suite
   green. State the dependency order in a short preamble. A prompt must not pin a call
   signature, UI label or helper name that a different task in this document creates;
-  write "the hook task 7 exports" and let the implementer read the merged code.
+  write "the hook task 7 exports" and let the implementer read the merged code. For
+  every existing test file a task names, say whether the change alters a value it
+  asserts exactly.
 - Edit only the document. Approvals, deferrals, HANDOFF, INDEX and every other file
   belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
