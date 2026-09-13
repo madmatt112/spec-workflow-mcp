@@ -50,7 +50,9 @@ narrow check when it ran).
    While the phase is mid-flight (budget stop), the same table carries `State |
    v<D> in review, round <A> verdict <…>`, the rejection tally, and `Re-run does |
    <one line>`.
-6. Commit in the spec store repo (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
+6. Before committing, check the document's version header: `grep -n 'Document version'
+   <document path>`. On a mismatch with D, `sed` it to `Document version: v<D>`. Then
+   commit in the spec store repo (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
 
 ## Spec store commits
 
