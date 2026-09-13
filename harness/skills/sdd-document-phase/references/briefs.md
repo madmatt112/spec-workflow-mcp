@@ -33,6 +33,8 @@ touched, what you loaded, any scope you cut, flags. No file contents.
 - Ground every claim in the real code. Cite `path:line` or `path:start-end` only after
   reading both ends of the range. A misstated artifact is an automatic MUST_FIX for
   the reviewer.
+- A claim about compiler, library or wire behaviour is checkable: probe the installed
+  version under `<CODE_ROOT>` and cite the probe, or leave the claim out.
 - Keep the decomposition entry's scope. If you cut or defer anything it lists, say so
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
@@ -73,7 +75,9 @@ verdict block). Append:
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>
-- Fresh lens for this round: <one lens the previous rounds did not use, chosen from:
+- Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
+  (router, query params, response shapes, client state), the default first lens for
+  requirements.> <otherwise: one lens the previous rounds did not use, chosen from:
   wire contracts across a boundary (router, query params, response shapes, client
   state); the sub-agent that receives only the task prompt; a cold read for internal
   contradictions and a truth table of the stated cases; every cited artifact re-read
