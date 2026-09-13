@@ -1,0 +1,39 @@
+{
+  "description": "SDD harness activity recorder: appends agent start/stop and tool-call events for sdd-* agents to the active run's activity file, read by `spec-workflow-mcp --watch`.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/sdd-activity.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/sdd-activity.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/sdd-activity.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

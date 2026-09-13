@@ -35,6 +35,15 @@ at the start.
 - Do not ask questions. Make the call, record it in the retro log, continue.
 - Spec store commits go through a script file (see `references/cleanup.md`), never a
   compound shell line.
+- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
+  as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
+  at the end of Step 0; `spawn.start` right before every Agent call and `spawn.end` right
+  after its report (`agent=`, `role=`, `phase=`, `round=` or `task=`, `result=`,
+  `tokens=<n>` from the token count the Agent result states in its footer); `round`
+  after every verdict; `note` for rulings and escalations; `phase.end` right before your
+  final report. Event types and keys are listed in the supervisor's
+  `references/formats.md`. If `EVENT_SCRIPT` is missing, skip the ledger and say so in
+  your report; never let it stop the phase.
 
 ## Step 0 — Orient
 
@@ -56,7 +65,8 @@ at the start.
    - A = D and the verdict is `converged`, or `iterate` with `MUST_FIX: 0` and
      `SHOULD_FIX: 0` ⇒ Step 5.
    - A = D and `iterate` with fuel: D = 9 ⇒ Step 4a; otherwise ⇒ Step 3.
-5. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <step>`.
+5. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <step>`, and
+   record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>`.
 
 ## Step 1 — v1
 
@@ -92,10 +102,11 @@ at the start.
    legal or compliance, write the HANDOFF section, append a retro-log entry
    (`escalation`), and report `PHASE: escalate` with the line as `REASON`. Otherwise
    it is a finding: log it (`gotcha`) and continue.
-7. Append a retro-log entry for the round: category `ruling` if you ruled this round,
+7. Record `round phase=<PHASE> round=<A> version=v<D> "verdict=<iterate m/s/k | converged m/s/k>"`.
+8. Append a retro-log entry for the round: category `ruling` if you ruled this round,
    `inefficiency` if this is round 4 or later or the findings came from the previous
    delta, otherwise `gotcha`; the verdict counts in the body; cost = one reviewer spawn.
-8. Route:
+9. Route:
    - `converged`, or `iterate` with `MUST_FIX: 0` and `SHOULD_FIX: 0` ⇒ Step 5.
    - `iterate` with fuel and D = 9 ⇒ Step 4a.
    - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
@@ -166,8 +177,9 @@ Reached only when v9 was reviewed and still has `MUST_FIX` or `SHOULD_FIX` above
 ## Step 6 — Cleanup, then report
 
 Follow `references/cleanup.md` in order: prune, delete the listed files, keep the
-memory file, retro-log phase summary, HANDOFF section, commit. Then report
-`PHASE: approved`, `STATE: v<D>`, `NEXT: <next phase> v1` (after tasks:
+memory file, retro-log phase summary, HANDOFF section, commit. Record
+`phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`.
+Then report `PHASE: approved`, `STATE: v<D>`, `NEXT: <next phase> v1` (after tasks:
 `NEXT: implementation`). In the 150 words above the contract, name any scope the
 decomposition entry lists that the document cut or deferred, and every ruling.
 
@@ -186,7 +198,8 @@ re-opened this phase after a design defect.
 ## Budget
 
 When the next review round would exceed `BUDGET`: write the HANDOFF section (state,
-D, A, last verdict, rejection tally, rulings), commit, and report `PHASE: resume`,
+D, A, last verdict, rejection tally, rulings), commit, record `phase.end
+phase=<PHASE> result=resume state=v<D>`, and report `PHASE: resume`,
 `STATE: v<D>`, `NEXT: review v<D>` or `NEXT: revise to v<D+1>` depending on where you
 stopped. A fresh orchestrator resumes from Step 0.
 

@@ -37,6 +37,18 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Do not ask questions.
 - Spec store commits go through the script in the document-phase skill's
   `references/cleanup.md` (same script, same path); write it if it does not exist.
+- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
+  as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
+  at the end of Step 0 (`state=tasks <done>/<total>`); `task.pick task=<N> "title=<title>"`
+  when you mark a task `[-]`; `spawn.start` right before every Agent call and `spawn.end`
+  right after its report (`agent=`, `role=implement task <N> | verify task <N> | fix task
+  <N> round <r> | adjudicate task <N> | end-to-end verification`, `phase=implementation`,
+  `task=<N>`, `result=<logged line | VERDICT | VERIFY>`, `tokens=<n>` from the token
+  count the Agent result states in its footer); `spawn.start` roles for a red
+  PR: `fix ci <check> round <r>`; `task.done task=<N> rounds=<r> outcome=<pass|adjudicated>`
+  when you mark `[x]`; `note` for deferrals, design defects, drift and every red CI
+  check; `phase.end` right before your final report. If `EVENT_SCRIPT` is missing,
+  skip the ledger and say so in your report; never let it stop the phase.
 
 ## Step 0 — Confirm the handoff
 
@@ -132,12 +144,70 @@ When no `[ ]` or `[-]` task remains:
    `docs(sdd): <SPEC> implemented, <n> tasks`.
 10. **Push and PR.** In `CODE_ROOT`: if `git remote` lists a remote and the current
     branch is not the default branch (`git symbolic-ref refs/remotes/origin/HEAD`):
-    `git push -u origin HEAD`, then `gh pr create` with a title from the spec's
-    decomposition entry and a body that follows the PR rules in `agent-rules.md`
-    (before creating, grep the body for every term the rules forbid on public
-    surfaces). Never merge. Record the PR URL in HANDOFF.
+    `git push -u origin HEAD`. If the branch already has an open PR (`gh pr view
+    --json number,url`; a repair run or an earlier spawn opened it), reuse it.
+    Otherwise `gh pr create` with a title from the spec's decomposition entry and a
+    body that follows the PR rules in `agent-rules.md` (before creating, grep the body
+    for every term the rules forbid on public surfaces). Never merge. Record the PR
+    URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
+    second PR (a second repository, or a change that must land on its own), do not
+    open it: append a retro-log entry (`deviation`: the decomposition put two
+    deliverables in one spec), add a `deferrals` record for the second deliverable,
+    and name both in the HANDOFF section.
+10b. **PR checks gate.** Wait for the PR's checks before you report `complete`. Write
+    `/tmp/scratchpad/sdd/<SPEC>/pr-checks.sh` once with the Write tool:
+
+    ```bash
+    #!/bin/bash
+    # usage: bash pr-checks.sh <pr number>
+    # Waits up to nine minutes for the PR's checks, then prints the check table.
+    # Exit code: 0 every check passed, 1 one or more failed, 8 still pending.
+    cd "<CODE_ROOT>"
+    timeout 540 gh pr checks "$1" --watch --interval 20 > /dev/null 2>&1
+    gh pr checks "$1"
+    ```
+
+    Run it in the foreground, never in the background, one call at a time. While it
+    exits 8, run it again, up to 30 minutes of waiting in all; after that treat the
+    PR as red with the check named `pending`. A repo with no checks (an empty table,
+    exit 0) passes the gate. The table is the only CI output you read yourself.
+    - Exit 0 ⇒ step 11.
+    - Exit 1 ⇒ record `note "text=ci red: <check names>, round <r>"` and go to
+      **Reconcile a red PR**. When it comes back green ⇒ step 11.
 11. Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT: retrospective`,
     and the PR URL in the 150 words above the contract, with the deferral numbers.
+
+### Reconcile a red PR
+
+Cap 3 rounds per PR. Round r:
+
+1. **Log tail.** For each failing check, take the run id and job id from its URL in
+   the table (`.../actions/runs/<run id>/job/<job id>`) and save the failing steps'
+   log with a script file: `gh run view <run id> --job <job id> --log-failed | tail
+   -80 > /tmp/scratchpad/sdd/<SPEC>/ci-<check>-r<r>.log`. Read nothing of it yourself
+   beyond `wc -l`.
+2. **Fix.** Write `impl-brief-ci-r<r>.md` from the CI fix template in
+   `references/briefs.md` (the check names, the log file paths, "reproduce locally
+   first"). Spawn `sdd-implementer` (`role=fix ci <check> round <r>`). It fixes the
+   cause, commits on the branch without pushing, and reports the command that
+   reproduces the check locally, or `INFRA:` when the failure is not in the code.
+3. **Verify.** Write `verify-brief-ci-r<r>.md` from the CI verify template (the check
+   names, the commit, the reproduce commands from the implementer's report). Spawn
+   `sdd-verifier`. `VERIFY: fail` ⇒ the next round from step 2, without pushing.
+   `VERIFY: pass` (or `INFRA:` from the implementer) ⇒ `git push` in `CODE_ROOT` (on
+   `INFRA:`, rerun the failed jobs instead: `gh run rerun <run id> --failed`) and the
+   gate again (10b).
+4. **Record.** One retro-log entry per round: `bug` when the fix touched product or
+   test code, `tool-error` when the failure was CI infrastructure (runner, network, a
+   flaky job that reran green); evidence = the check name and the commit; cost =
+   spawns and minutes.
+5. After three rounds still red: write `adjudication-brief-ci.md` (each failing check,
+   its last log file, "rule on each: fix it, or state why it cannot be fixed here"),
+   spawn `sdd-adjudicator` once, push, run the gate once more. Still red ⇒ write the
+   HANDOFF section (the PR URL, the red checks, what was tried), append a retro-log
+   entry (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
+   `REASON: ci: <check>`. The supervisor's repair path takes over; its brief carries the
+   check name, and steps 9 to 11 reuse the open PR.
 
 ## Repair
 
@@ -145,18 +215,23 @@ When no `[ ]` or `[-]` task remains:
 
 1. Write `impl-brief-repair-<k>.md` from the fix template: the failing scenario, the
    instruction to reproduce first, fix the cause, add coverage that fails without the
-   fix, and report. Spawn `sdd-implementer`.
+   fix, and report. Spawn `sdd-implementer`. When `REVISION_INPUT` starts with `ci:`,
+   the failing scenario is that PR check: use the CI fix template instead, with the
+   log tail saved as in **Reconcile a red PR** step 1.
 2. Re-run step 8 of the completion gate. On `pass` continue with steps 9–11. On
    `fail` report `PHASE: verify-failed` again; the supervisor caps repairs at two.
 
 ## Stop conditions and their reports
 
+Record `phase.end phase=implementation result=<PHASE value> "state=tasks <done>/<total>"
+"note=<one line>"` right before the report.
+
 | Condition | PHASE | REASON |
 | --- | --- | --- |
-| Every task `[x]`, gate passed, INDEX regenerated, HANDOFF written, PR opened | `complete` | — |
+| Every task `[x]`, gate passed, INDEX regenerated, HANDOFF written, PR opened, checks green | `complete` | — |
 | Budget reached with open tasks | `resume` | — |
 | Implementer flagged a design defect | `design-defect` | the defect |
-| Gate failed | `verify-failed` | the failing scenario or check |
+| Gate failed, or the PR stayed red after three reconcile rounds and an adjudication | `verify-failed` | the failing scenario, or `ci: <check>` |
 | `tasks.md` not approved, drift, a tool error you cannot route around | `error` | the cause |
 
 Every stop writes the HANDOFF section and commits the spec store first.

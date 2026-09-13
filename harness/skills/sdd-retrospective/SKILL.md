@@ -22,6 +22,12 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
   cost estimate. A finding without a reference is not written.
 - Both output files are capped at 2,500 words each. Count before you finish.
 - Do not ask questions.
+- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`:
+  `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
+  around the analyst (`agent=sdd-retro-analyst role=proposals`, `tokens=<n>` from the
+  Agent result's footer on `spawn.end`), `phase.end phase=retrospective
+  result=retro-ready` before the report. Skip it if the script is
+  missing.
 
 ## Step 0 — Preconditions
 

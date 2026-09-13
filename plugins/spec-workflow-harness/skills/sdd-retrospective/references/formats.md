@@ -76,11 +76,11 @@ Written <ISO date> by the retro analyst from retrospective.md.
 ```markdown
 # Retrospective plan — <SPEC>
 
-Status: <APPROVED | DRAFT — decisions needed>
+Status: <APPROVED | DRAFT — decisions needed | CLOSED>
 Date: <ISO date>
 
 ## Approved proposals
-<each approved proposal, verbatim>
+<each approved proposal, verbatim, with its Target: line and the decision taken>
 
 ## Decisions
 <each DECISION NEEDED question with the chosen option, or "open" in a DRAFT>
@@ -90,4 +90,14 @@ Date: <ISO date>
 
 ## Open questions (DRAFT only)
 <the questions a human still needs to answer>
+
+## Close-out
+One line per proposal, written by the close-out phase.
+- P<n>: done — <commit sha>
+- P<n>: to-do (human) — <reason>
+- P<n>: skipped — <reason>
+- <repo basename>: PR <url>
 ```
+
+The close-out phase routes every approved proposal on its `Target:` line, writes one
+`## Close-out` line per proposal, and sets `Status: CLOSED` when every proposal has one.
