@@ -118,7 +118,7 @@ loop does this by:
 - Requiring every review subagent to end with a machine-readable verdict block, e.g.
   `VERDICT: converged | iterate` plus `MUST_FIX` / `SHOULD_FIX` / `MINOR` counts.
 - Treating `MUST_FIX = 0 AND SHOULD_FIX = 0` from a **fresh** reviewer as converged.
-- Imposing its own **hard cap (v9)** — a caller policy, since the server enforces no
+- Imposing its own **hard cap (v4)** — a caller policy, since the server enforces no
   ceiling. Past the cap the harness escalates to a stronger model for one corrective
   pass rather than iterating further.
 - Detecting a **standoff** (the same finding recurs as `MUST_FIX` and is rejected

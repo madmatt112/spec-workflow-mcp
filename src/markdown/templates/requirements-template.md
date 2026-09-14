@@ -1,12 +1,14 @@
 # Requirements Document
 
+[Cap: 3,500 words for the whole document. Every sentence is for an agent that acts on it: a criterion, a decision, a constraint, a citation. Describe the codebase in codebase-context.md, not here.]
+
 ## Introduction
 
-[Provide a brief overview of the feature, its purpose, and its value to users]
+[Three sentences: what the feature is, who it is for, what it changes.]
 
 ## Alignment with Product Vision
 
-[Explain how this feature supports the goals outlined in product.md]
+[Three sentences: which product.md goals this serves and how.]
 
 ## Requirements
 
@@ -31,20 +33,24 @@
 
 ## Non-Functional Requirements
 
-### Code Architecture and Modularity
-- **Single Responsibility Principle**: Each file should have a single, well-defined purpose
-- **Modular Design**: Components, utilities, and services should be isolated and reusable
-- **Dependency Management**: Minimize interdependencies between modules
-- **Clear Interfaces**: Define clean contracts between components and layers
+[Only the ones this feature changes, one line each. Delete the headings that do not apply.]
 
 ### Performance
-- [Performance requirements]
+- [Requirement]
 
 ### Security
-- [Security requirements]
+- [Requirement]
 
 ### Reliability
-- [Reliability requirements]
+- [Requirement]
 
-### Usability
-- [Usability requirements]
+## Decisions taken in this document
+
+[Every call made on the product's behalf, so a human can confirm or overturn it.]
+
+- D1 — [decision]: [options considered]; chosen because [one line]
+- D2 — [decision]: [options considered]; chosen because [one line]
+
+## Scope notes
+
+[What the decomposition entry lists that this document cuts or defers, with the reason. Carried items from an earlier phase that do not apply here, with the reason. Write "none" when empty.]

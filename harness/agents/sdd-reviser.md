@@ -1,8 +1,8 @@
 ---
 name: sdd-reviser
 description: SDD reviser: dispositions the findings of one adversarial analysis (or a human's revision comments) and writes the next version of the document in place from a brief file. Spawned with "Read and execute the instructions in <brief>"; not for direct use.
-model: claude-opus-4-8
-effort: xhigh
+model: claude-sonnet-5
+effort: high
 color: yellow
 tools:
   - Read

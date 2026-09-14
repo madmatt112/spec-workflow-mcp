@@ -168,7 +168,7 @@ AGENT_RULES: <path | none>
 AGENT_PREFIX: <prefix>
 HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
-BUDGET: <3 review rounds | 10 tasks | 8 items | n/a>
+BUDGET: <3 review rounds | 20 tasks | all items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: sdd-document-phase
-description: Runs one SDD document phase (requirements, design, or tasks) of one spec to agent-side approval. Drafts v1, runs adversarial review and revision rounds with pinned worker agents, rules on standoffs, adjudicates past the v9 cap, approves the final version, prunes superseded approval records, cleans the reviews directory, and reports in the orchestrator contract. Used by the sdd-document-orchestrator agent, not directly from a main session.
+description: Runs one SDD document phase (requirements, design, or tasks) of one spec to agent-side approval. Drafts v1, runs adversarial review and revision rounds with pinned worker agents, rules on standoffs, adjudicates past the v4 cap, approves the final version, prunes superseded approval records, cleans the reviews directory, and reports in the orchestrator contract. Used by the sdd-document-orchestrator agent, not directly from a main session.
 ---
 
 # SDD document phase
@@ -9,7 +9,7 @@ You are the document orchestrator for one phase of one spec. Your launch prompt 
 you `SPEC`, `PHASE`, `MODE`, `SPEC_STORE_ROOT`, `SPEC_STORE_REPO`, `CODE_ROOT`,
 `MAIN_CHECKOUT`, `WORKTREE`, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` and
 `REVISION_INPUT`. Workers read and write the document. You hold the state, route on
-verdicts, file approvals, rule on standoffs, and clean up.
+verdicts, file the approval, rule on standoffs, and clean up.
 
 Templates for every brief and prompt are in `references/briefs.md`. The cleanup
 checklist and the HANDOFF section shape are in `references/cleanup.md`. Read both once
@@ -21,20 +21,25 @@ at the start.
   read the Revision History lines (grep), the verdict block of an analysis (`tail`),
   `grep -n '^#'` for structure, and worker reports. Nothing else.
 - Spawn workers with the Agent tool, foreground, `subagent_type:
-  <AGENT_PREFIX>:<agent>`, no `model` parameter, never `fork`. Wait for the report.
+  <AGENT_PREFIX>:<agent>`, no `model` parameter, never `fork`. Workers are
+  `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator` and `sdd-checker`.
+  Wait for the report.
 - Never pass `projectPath` to a spec-workflow MCP tool. Never poll approval status.
   `BLOCKED`, `canProceed: false` and `mustWait` are informational.
 - Commit on the current branch of the spec store repo. Never create or switch branches.
 - Keep a task list with one item per round.
 - Paths: spec dir `<SPEC_STORE_ROOT>/specs/<SPEC>/`; document `<spec dir>/<PHASE>.md`;
-  reviews dir `<spec dir>/reviews/`; retro log `<spec dir>/retrospective-log.md`
-  (create it with the line `# Retrospective log — <SPEC>` if missing); approval
-  `filePath` is always `.spec-workflow/specs/<SPEC>/<PHASE>.md`.
+  context file `<spec dir>/codebase-context.md`; reviews dir `<spec dir>/reviews/`;
+  retro log `<spec dir>/retrospective-log.md` (create it with the line
+  `# Retrospective log — <SPEC>` if missing); approval `filePath` is always
+  `.spec-workflow/specs/<SPEC>/<PHASE>.md`.
 - Every worker brief starts with `Read and obey <AGENT_RULES> first.` when
   `AGENT_RULES` is a path.
 - Do not ask questions. Make the call, record it in the retro log, continue.
 - Spec store commits go through a script file (see `references/cleanup.md`), never a
   compound shell line.
+- **One approval record per phase.** The approval `request` happens once, in Step 5,
+  for the version being approved. Versions live in the checkpoint commits.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0; `spawn.start` right before every Agent call and `spawn.end` right
@@ -51,7 +56,8 @@ at the start.
 2. **D**, the document version: `grep -n -E '^- \*\*v[0-9]+\*\*' <document>` under
    `## Revision History`; D is the highest number (0 when the document does not exist).
    If the document exists but has no Revision History, D is 1 and the reviser adds the
-   section at the next version.
+   section at the next version. **P**, post-cap: true when the line for v<D> contains
+   `Post-cap corrective pass`.
 3. **A**, the latest analysis: list `reviews/adversarial-analysis-<PHASE>*.md`. The file
    with no suffix is r1; `-rN` is rN. A is the highest N (0 when none). Read the verdict
    block of the latest one with `tail -8`. A file whose last lines carry `VERIFIED:`
@@ -59,28 +65,30 @@ at the start.
 4. Decide, first match wins:
    - `MODE: revision` ⇒ Step R.
    - D = 0 ⇒ Step 1.
-   - D = 10 and the latest analysis is the narrow check ⇒ Step 5.
-   - D = 10 and no narrow check ⇒ Step 4b.
+   - P and the latest analysis is the narrow check ⇒ Step 5.
+   - P and no narrow check ⇒ Step 4b.
    - A < D ⇒ Step 2 (review vD).
    - A = D and the verdict is `converged`, or `iterate` with `MUST_FIX: 0` and
      `SHOULD_FIX: 0` ⇒ Step 5.
-   - A = D and `iterate` with fuel: D = 9 ⇒ Step 4a; otherwise ⇒ Step 3.
+   - A = D and `iterate` with fuel: D ≥ 4 ⇒ Step 4a; otherwise ⇒ Step 3.
 5. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <step>`, and
    record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>`.
 
 ## Step 1 — v1
 
-1. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template.
-2. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
+1. **Carried items.** For design, `grep -n 'Carried items' <HANDOFF>` inside the
+   section `## <SPEC> — requirements`; for tasks, inside `## <SPEC> — design`. Take
+   the row's value (`none`, or one line per item). Requirements has none.
+2. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template, with the carried
+   items in its `## Carried from <previous phase>` section.
+3. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
    path>`. From its report, append a retro-log entry (`deviation`) for each
    `RE-DECIDED: <req> — <one line>` flag it raised.
-3. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
-   History has a v1 line.
-4. Request approval: `approvals` `request` with title `<SPEC> <PHASE> v1`, the
-   `filePath` above, `type: document`, `category: spec`, `categoryName: <SPEC>`. If it
-   fails on MDX or tasks-format errors, write a reviser brief whose findings are the
-   error lines, spawn `sdd-reviser`, and request again once. A second failure is
-   `PHASE: error`.
+4. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
+   History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`). A missing
+   context file is `PHASE: error` with `REASON: drafter wrote no codebase-context.md`.
+   Note the word count the report states; over the cap is a finding for round 1
+   (write it into the round section as `Over cap: <n> words`), not a stop.
 5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v1`.
 6. D = 1. Go to Step 2.
 
@@ -109,7 +117,7 @@ at the start.
    delta, otherwise `gotcha`; the verdict counts in the body; cost = one reviewer spawn.
 9. Route:
    - `converged`, or `iterate` with `MUST_FIX: 0` and `SHOULD_FIX: 0` ⇒ Step 5.
-   - `iterate` with fuel and D = 9 ⇒ Step 4a.
+   - `iterate` with fuel and D ≥ 4 ⇒ Step 4a.
    - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
 
 ## Step 3 — Revise to v(D+1)
@@ -121,10 +129,8 @@ at the start.
    <document>` finds the new Revision History line.
 4. From the reviser's report, record which findings it rejected (id and round) in your
    task list. That tally feeds the standoff check.
-5. `approvals` `request` for v<D+1> (title `<SPEC> <PHASE> v<D+1>`). Same failure rule
-   as Step 1.
-6. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v<D+1> after round <A>`.
-7. D = D + 1. Go to Step 2.
+5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v<D+1> after round <A>`.
+6. D = D + 1. Go to Step 2.
 
 ## Standoff check
 
@@ -139,25 +145,30 @@ a retro-log entry (`ruling`). Add the finding to the "Closed by ruling" list in 
 later reviewer prompt and reviser brief for this phase. If you accepted it, it becomes
 a finding for the next reviser brief.
 
-## Step 4a — Cap: corrective pass at v9
+## Step 4a — Cap: corrective pass at v(D+1)
 
-Reached only when v9 was reviewed and still has `MUST_FIX` or `SHOULD_FIX` above zero.
+Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` or
+`SHOULD_FIX` above zero. Nothing reviews the corrective version again.
 
 1. Write `reviews/adjudication-brief-<PHASE>.md` from the adjudication template,
-   listing every open MUST_FIX and SHOULD_FIX item from the r9 analysis by id and title
-   (`grep -n -E 'MUST_FIX|SHOULD_FIX' <r9 analysis>` gives the lines; read only those).
+   listing every open MUST_FIX and SHOULD_FIX item from the r<A> analysis by id, title
+   and severity (`grep -n -E 'MUST_FIX|SHOULD_FIX' <r<A> analysis>` gives the lines;
+   read only those).
 2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`.
-3. Spot-check the v10 Revision History line.
-4. `approvals` `request` for v10. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v10
-   post-cap corrective pass`.
-5. Append a retro-log entry (`inefficiency`: cap hit; list the item ids).
-6. D = 10. Go to Step 4b.
+3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the line and it
+   contains `Post-cap corrective pass`.
+4. From the report, list the **ruled-out SHOULD_FIX** items (id and title). They are the
+   carried items for the next phase: keep them for the HANDOFF section in Step 6.
+5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> post-cap corrective pass`.
+6. Append a retro-log entry (`inefficiency`: cap hit; every item id with `fixed` or
+   `ruled out`).
+7. D = D + 1. Go to Step 4b.
 
 ## Step 4b — Narrow check
 
 1. Call `adversarial-review` (no `verdictBlock`). Read the prompt file, then overwrite
    it with the narrow-check prompt from the template, listing the same items.
-2. Spawn `sdd-reviewer` with exactly `Read and execute the instructions in
+2. Spawn `sdd-checker` with exactly `Read and execute the instructions in
    <promptOutputPath>`.
 3. Read `grep -n '^VERIFIED:' <analysis>` and, if present, the lines from
    `## Deferred findings` to the end (`sed -n '/^## Deferred findings/,$p'`). Copy each
@@ -168,21 +179,29 @@ Reached only when v9 was reviewed and still has `MUST_FIX` or `SHOULD_FIX` above
 
 ## Step 5 — Approve
 
-1. Find the record: `approvals` `list` with `categoryName: <SPEC>`, `filePath` as above,
-   `status: pending`; take the newest whose title ends in `v<D>`. If none exists (a
-   previous run filed nothing for this version), `request` one now.
-2. `approvals` `approve` on it with the response format from
+1. Find a pending record for this version: `approvals` `list` with `categoryName:
+   <SPEC>`, `filePath` as above, `status: pending`; take the newest whose title ends
+   in `v<D>`, if any (a run under the older per-version flow may have left one).
+2. Otherwise `approvals` `request` now, with title `<SPEC> <PHASE> v<D>`, the
+   `filePath` above, `type: document`, `category: spec`, `categoryName: <SPEC>`. If it
+   fails on MDX or tasks-format errors, write a reviser brief whose findings are the
+   error lines (numbered `RI-1`, …), spawn `sdd-reviser`, checkpoint commit `docs(sdd):
+   <SPEC> <PHASE> v<D+1> lint fixes`, D = D + 1, and request again once. A second
+   failure is `PHASE: error`.
+3. `approvals` `approve` on the record with the response format from
    `references/cleanup.md`: version, rounds, final verdict counts, rulings, cap.
-3. Go to Step 6.
+4. Go to Step 6.
 
 ## Step 6 — Cleanup, then report
 
 Follow `references/cleanup.md` in order: prune, delete the listed files, keep the
-memory file, retro-log phase summary, HANDOFF section, commit. Record
+memory file and the context file, retro-log phase summary, HANDOFF section (with the
+carried items from Step 4a, or `none`), commit. Record
 `phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`.
 Then report `PHASE: approved`, `STATE: v<D>`, `NEXT: <next phase> v1` (after tasks:
 `NEXT: implementation`). In the 150 words above the contract, name any scope the
-decomposition entry lists that the document cut or deferred, and every ruling.
+decomposition entry lists that the document cut or deferred, every ruling, and the
+carried items.
 
 ## Step R — Revision input
 
@@ -192,9 +211,10 @@ re-opened this phase after a design defect.
 1. Write `reviews/reviser-brief-<PHASE>-v<D+1>.md` from the reviser template, with
    `REVISION_INPUT` as the findings (numbered `RI-1`, `RI-2`, …) instead of an analysis
    file. Every item is a MUST_FIX; the reviser may still reject one with a reason.
-2. Spawn `sdd-reviser`. Spot-check. `approvals` `request` for v<D+1>. Checkpoint commit.
+2. Spawn `sdd-reviser`. Spot-check. Checkpoint commit.
 3. D = D + 1. Go to Step 2. At least one review round runs before approval, even if
-   the document had converged before.
+   the document had converged before. The cap rule applies as written: a revised
+   document already at v4 or later that iterates goes to Step 4a.
 
 ## Budget
 
