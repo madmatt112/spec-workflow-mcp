@@ -72,9 +72,12 @@ design about 4,000, each task block 150 words plus its prompt. The default templ
 carry the caps; the drafter reports its word count and the reviewer treats an overrun
 as a SHOULD_FIX.
 
-Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs,
-`sdd-verifier` reviews through `review-task` (`prepare` then `record`), up to three fix
-rounds, then `sdd-adjudicator` once, then mark `[x]`. Completion gate: end-to-end
+Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs, then
+the `review-task` gate runs first (`action: gate`) for a deterministic pass/fail verdict
+and a low/high risk score. A `gate: fail` starts a fix round; a `pass` at `risk: low`
+records the review and completes the task; a `pass` at `risk: high` spawns `sdd-verifier`
+to review through `review-task` (`prepare` then `record`). Up to three fix rounds, then
+`sdd-adjudicator` once, then mark `[x]`. Completion gate: end-to-end
 verification, `spec-index generate`, HANDOFF with deferral numbers, commit, push, PR.
 Never merge. One PR per code repository per spec: a second one is a decomposition
 finding (a retro-log `deviation` and a deferral), never a second PR.
@@ -102,8 +105,10 @@ docs), the product code, and `~/.claude` (memory). Each group lands by its repos
 rules: direct commits on the spec store's branch; a worktree on branch
 `chore/<spec>-retro` and one PR per code repository, never merged; in-place edits under
 `~/.claude`, never `settings.json` (those become to-dos). `sdd-implementer` works a
-batch of up to eight items, `sdd-verifier` checks every item against the proposal's text
-and runs the repository's checks, fix rounds cap at three, then `sdd-adjudicator` once.
+batch of up to eight items; the `review-task` gate then runs on every `done` item for a
+pass/fail verdict and a low/high risk; `sdd-verifier` reviews only the `harness`/`code`
+items that pass at `risk: high`, while a `store` or `home` item is `ok` on a gate pass;
+fix rounds cap at three, then `sdd-adjudicator` once.
 Every proposal gets one line under `## Close-out` in `retrospective-plan.md`
 (`done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`, plus one line per
 PR); when every proposal has one, the plan's status becomes `CLOSED` and the spec is
@@ -230,12 +235,14 @@ your repository must know and cannot derive from the code: which git binary and
 commit flags to use, what never to run, where scratch files go, which tools to prefer
 for orientation, what a PR body may and may not say, which test commands are safe.
 
-Two lines are machine-read:
+Three lines are machine-read:
 
 - `worktree-per-change: required` — the supervisor enters a worktree before
   implementation.
 - A `## PR body` section whose bullet list of forbidden terms the implementation
   orchestrator greps the PR body for before `gh pr create`.
+- A `## Sensitive paths` section whose bullet list of repository paths the `review-task`
+  gate reads; a change that touches any listed path scores `risk: high`.
 
 Keep it short and imperative. Every worker reads it on every spawn.
 

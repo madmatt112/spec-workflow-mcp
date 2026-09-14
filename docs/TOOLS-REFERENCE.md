@@ -408,17 +408,36 @@ does not change task status.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | `'prepare' \| 'record'` | Yes | Two-step flow |
+| `action` | `'prepare' \| 'record' \| 'gate'` | Yes | Prepare or record a review, or run the mechanical gate |
 | `specName` | string | Yes | Spec name |
 | `taskId` | string | Yes | e.g. `"1"`, `"1.2"`, `"3.1.4"` |
 | `verdict` | `'pass' \| 'fail' \| 'findings'` | for `record` | pass = clean; fail = ≥1 critical; findings = warnings/info only |
 | `summary` | string | for `record` | Brief outcome |
 | `findings` | array | for `record` | `{severity, title, file, line, description, taskRequirement, category}` |
+| `baseRef` | string | for `gate` | A git revision; the change is everything after it |
+| `commit` | string | for `gate` | One commit sha; the change is that commit alone |
+| `checks` | string[] | for `gate` | Shell command strings to run in order — the task's named checks |
+| `files` | string[] | for `gate` | Paths relative to `root` the change should stay within |
+| `root` | string | for `gate` | Absolute directory; the working tree for the pre-computations, defaulting to the workspace under review |
 | `projectPath` | string | No | Project root |
 
 **Flow**: `prepare` (gathers task context + an implementation-log summary and
 returns a skeptical-reviewer methodology, and writes a marker) → read the
 implementation files → evaluate → `record`.
+
+**Gate**: `action: gate` runs the deterministic mechanical checks and skips the LLM
+review. It computes the change from `baseRef`, `commit`, or `files`, runs the project
+typecheck and the hygiene scan over the touched files, and runs the `checks` commands
+in order. The response `data` holds `gate` (`pass`/`fail`), `risk` (`low`/`high`),
+`reasons`, `checks` (per-command results), `stats` (files and line counts), `touched`
+(`paths` and `total`), `typecheck`, `hygiene` (signal counts), and `recorded` (the
+review id and version, or `null`). The caller routes on `gate` and `risk`:
+
+- `gate: fail` — fix the reasons, then run the gate again. No review is recorded.
+- `pass` and `risk: low` — the gate records a `reviewer: gate` review; mark the task
+  complete.
+- `pass` and `risk: high` — an LLM verifier reviews the change through `prepare` then
+  `record`.
 
 **Enforced**: `record` requires a prior `prepare`; the task and an implementation log
 must exist; verdict/findings consistency is checked. On a `fail` verdict, `nextSteps`
@@ -446,9 +465,10 @@ CLI-triggered, or one recorded via `review-task`).
 **Parameters**: `specName` (req), `taskId` (req), `version` (optional, defaults to
 latest), `projectPath` (optional).
 
-**Returns**: `verdict`, `summary`, structured `findings`, and verdict-dependent
-`nextSteps`. If no review exists it returns a message telling you to run one first —
-`get-task-review` only **reads**; it never produces a review.
+**Returns**: `verdict`, `summary`, structured `findings`, `reviewer` (`'gate'` for a
+gate-recorded review, else `'agent'`), and verdict-dependent `nextSteps`. If no review
+exists it returns a message telling you to run one first — `get-task-review` only
+**reads**; it never produces a review.
 
 ---
 
