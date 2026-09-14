@@ -112,7 +112,7 @@ close. The harness's own repository is found through the local marketplace check
 plugin was installed from; the supervisor's preflight also warns when the installed
 plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
 
-Budgets: a document orchestrator runs at most three review rounds per spawn and an
+Budgets: a document orchestrator runs at most four review rounds per spawn and an
 implementation orchestrator at most twenty tasks; then it reports `resume` and the
 supervisor spawns a fresh one. A close-out orchestrator works every open item of every
 class in one spawn, one implementer batch per class. More than twelve spawns for one
