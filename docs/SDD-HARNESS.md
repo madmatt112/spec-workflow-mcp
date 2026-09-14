@@ -51,11 +51,15 @@ Document phase, per version:
 
 1. v1 by `sdd-drafter`, which also writes or extends `codebase-context.md` (the map
    of the files the spec touches, one line each with a citation; every later worker
-   reads it first). Checkpoint commit.
+   reads it first). Checkpoint commit, then the Lint step — a `spec-lint` pass whose
+   findings a reviser fixes in place, committed `docs(sdd): <SPEC> <PHASE> v<N> lint`
+   (it consumes no version cap).
 2. Round: `adversarial-review` (with `verdictBlock: true`), the orchestrator tailors
-   the prompt, `sdd-reviewer` writes the analysis and the verdict block.
+   the prompt, `sdd-reviewer` writes the analysis and the verdict block. The tailored
+   prompt carries a Machine-verified bullet naming the `spec-lint` checks that ran and a
+   `## Changes since <version>` diff of what changed since the last reviewed version.
 3. `converged` (or MINOR only) ⇒ approve. `iterate` ⇒ `sdd-reviser` writes v(N+1)
-   in place, checkpoint commit, next round. When a round on the second or later reviewed
+   in place, checkpoint commit, the Lint step, next round. When a round on the second or later reviewed
    version returns no MUST_FIX but some SHOULD_FIX, the reviser writes a SHOULD_FIX-only
    corrective version, `sdd-checker` verifies the listed items, and approval follows — no
    further review round.
@@ -72,8 +76,8 @@ Document phase, per version:
 
 Documents are written for agents first and capped: requirements about 3,500 words,
 design about 4,000, each task block 150 words plus its prompt. The default templates
-carry the caps; the drafter reports its word count and the reviewer treats an overrun
-as a SHOULD_FIX.
+carry the caps; the drafter reports its word count, `spec-lint` raises a `doc-words`
+finding on an over-cap document, and the reviewer treats an overrun as a SHOULD_FIX.
 
 Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs, then
 the `review-task` gate runs first (`action: gate`) for a deterministic pass/fail verdict
@@ -238,7 +242,7 @@ your repository must know and cannot derive from the code: which git binary and
 commit flags to use, what never to run, where scratch files go, which tools to prefer
 for orientation, what a PR body may and may not say, which test commands are safe.
 
-Three lines are machine-read:
+Four lines are machine-read:
 
 - `worktree-per-change: required` — the supervisor enters a worktree before
   implementation.
@@ -246,6 +250,8 @@ Three lines are machine-read:
   orchestrator greps the PR body for before `gh pr create`.
 - A `## Sensitive paths` section whose bullet list of repository paths the `review-task`
   gate reads; a change that touches any listed path scores `risk: high`.
+- A `## Word caps` section whose bullets `requirements`, `design` and `task` override the
+  `spec-lint` word caps.
 
 Keep it short and imperative. Every worker reads it on every spawn.
 

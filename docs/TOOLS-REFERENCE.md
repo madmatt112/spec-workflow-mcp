@@ -2,7 +2,7 @@
 
 Complete reference for the MCP tools provided by Spec Workflow MCP.
 
-The server registers **11 tools** (see `src/tools/index.ts`) and **8 MCP prompts**
+The server registers **13 tools** (see `src/tools/index.ts`) and **8 MCP prompts**
 (see `src/prompts/index.ts`). This document is the canonical reference for both — the
 tools first, then the [MCP Prompts](#mcp-prompts) section below. For the autonomous /
 non-interactive usage patterns these tools support (and the constraints you can safely
@@ -25,6 +25,7 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 | [`approvals`](#approvals) | Request / check / list / decide / prune approvals | Every phase boundary |
 | [`spec-status`](#spec-status) | Progress overview for a spec | Any time |
 | [`spec-index`](#spec-index) | Generate/maintain INDEX.md, the multi-spec roadmap | Any time |
+| [`spec-lint`](#spec-lint) | Lint a spec document mechanically (citations, MDX, EARS, word caps, tasks) | Optional, per phase |
 | [`adversarial-review`](#adversarial-review) | Scaffold an independent critique of a document | Optional, per phase |
 | [`adversarial-response`](#adversarial-response) | Get instructions to respond to a critique | Optional, per phase |
 | [`deferrals`](#deferrals) | Track decisions deferred across specs | Cross-phase / cross-spec |
@@ -469,6 +470,60 @@ latest), `projectPath` (optional).
 gate-recorded review, else `'agent'`), and verdict-dependent `nextSteps`. If no review
 exists it returns a message telling you to run one first — `get-task-review` only
 **reads**; it never produces a review.
+
+---
+
+## spec-lint
+
+> **Fork addition.** Not present upstream.
+
+**Purpose**: Lint one spec phase document mechanically before a reviewer round, so the
+reviewer never spends tokens on a wrong citation, an MDX compile error, a non-EARS
+criterion, an over-cap word count or a malformed task. Read-only: it spawns no process
+and reads files only under the workspace, the spec store and the spec directory, all
+through `PathUtils.safeJoin`.
+
+**Parameters**: `specName` (req), `phase` (req, one of `requirements`, `design`,
+`tasks`), `projectPath` (optional).
+
+**Returns**: `findings` (sorted by line then rule; each has `file`, `line`, optional
+`column`, `rule`, `severity`, `message`), `summary` (the `error`, `warning`, `info` and
+`total` counts), `checks` (the rule ids that ran for this phase), and `caps` (the
+`requirements`, `design` and `task` word caps in force).
+
+**Rules** (sixteen, each at a fixed severity):
+
+| Rule | Severity | Fires on |
+|------|----------|----------|
+| `citation-path` | error | a cited path with `..` or a leading `/`, or found under no base |
+| `citation-range` | error | a line range that is `0`, has start greater than end, or is past end of file |
+| `citation-unchecked` | info | a cited path that is a directory, unreadable, or non-UTF-8 |
+| `citation-bare` | info | a `` `:line` `` citation with no earlier path to anchor it |
+| `citation-identifier` | warning | a code identifier in a cited block that is absent from the cited line ranges |
+| `mdx` | error | the document fails to compile as MDX |
+| `ears-shape` | warning | an acceptance criterion missing `SHALL`, or `WHEN`/`IF` without `THEN` |
+| `tasks-format` | error / warning | `validateTasksMarkdown` shape errors (error) or prompt/structure warnings (warning) |
+| `task-requirement-id` | error | a `_Requirements:` id absent from `requirements.md` |
+| `task-requirement-unchecked` | info | `requirements.md` is missing or unreadable on a `tasks` call |
+| `doc-words` | warning | the whole document is over its word cap |
+| `task-words` | warning | a task block is over the task word cap |
+| `caps-invalid` | info | a `## Word caps` bullet whose value is not a positive integer |
+| `coverage-component` | error | a `### Component N` in `design.md` that no task cites |
+| `coverage-unchecked` | info | `design.md` is missing or unreadable on a `tasks` call |
+| `bridge-missing` | warning | a task that names a later task with no bridge word (`bridge`, `stub`, …) |
+
+### Word caps override
+
+The `requirements`, `design` and `task` word caps default to 3,500, 4,000 and 150. A
+`## Word caps` section in `.spec-workflow/agent-rules.md` overrides them; its bullets are
+read up to the next `## ` line, and each value must be a positive integer:
+
+- `- requirements: <n>` — the requirements-document word cap.
+- `- design: <n>` — the design-document word cap.
+- `- task: <n>` — the per-task-block word cap (prompt lines excluded).
+
+Any non-integer value keeps the default and yields one `caps-invalid` finding; unknown
+keys are ignored.
 
 ---
 
