@@ -11,10 +11,14 @@ When `AGENT_RULES` is `none`, drop the first line of each brief.
 Read and obey <AGENT_RULES> first.
 
 ## Job
-Write v1 of `<document path>` in place, then report in 150 words or fewer: files
-touched, what you loaded, any scope you cut, flags. No file contents.
+Write v1 of `<document path>` in place, write or extend `<spec dir>/codebase-context.md`,
+then report in 150 words or fewer: files touched, the document's word count (`wc -w`),
+what you loaded, any scope you cut, flags. No file contents.
 
 ## Load, in this order
+0. <design, tasks: `<spec dir>/codebase-context.md` first: it maps the code the
+   earlier documents cite. Start from it instead of exploring from cold.>
+   <requirements: nothing yet; you write the context file (below).>
 1. Steering: <requirements: `<SPEC_STORE_ROOT>/steering/product.md` | design:
    `<SPEC_STORE_ROOT>/steering/tech.md`, `structure.md`, and `design-system.md` if it
    exists | tasks: `<SPEC_STORE_ROOT>/steering/structure.md`>.
@@ -29,6 +33,31 @@ touched, what you loaded, any scope you cut, flags. No file contents.
    `<SPEC_STORE_ROOT>/templates/<PHASE>-template.md`.
 5. The code under `<CODE_ROOT>` that the document must describe. Read before you cite.
 
+## Carried from <previous phase>
+<none | one line per item: `<id> — <title>: <the ruled-out reason, one line>`>
+Address each carried item in this document, or state in `## Scope notes` why it does
+not apply to this phase.
+
+## Size
+- Cap: <requirements: 3,500 words | design: 4,000 words | tasks: 150 words per task
+  block, excluding its `_Prompt:` line>. Count with `wc -w` before you report.
+- Introduction, overview and alignment sections: three sentences each.
+- Do not describe the codebase inside the document. Cite a path when a claim needs
+  it; the map of the code lives in the context file.
+- Every sentence is for an agent that will act on it: a criterion, a decision, a
+  constraint, a citation. Cut the rest.
+
+## Codebase context
+`<spec dir>/codebase-context.md` is the map of the code this spec touches, written from
+the exploration you do anyway. Create it if it does not exist; append to it if it does
+(never delete a line another phase wrote). Shape:
+- First line `# Codebase context — <SPEC>`.
+- One `## <area>` heading per area (a route, a package, a table, a component tree).
+- Under each, one line per file that matters: `- path:start-end — what it is, one
+  clause`. Cite only after reading both ends of the range.
+- No prose, no design opinions, no requirements. Lists only.
+Every later reviewer, reviser and implementer reads it first.
+
 ## Rules
 - Ground every claim in the real code. Cite `path:line` or `path:start-end` only after
   reading both ends of the range. A misstated artifact is an automatic MUST_FIX for
@@ -41,6 +70,9 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   requirements name; tasks cover every design component.
 - When a design departs from a requirement's literal (a widened enum, a defaulted
   param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
+- Record every call you make on the product's behalf under `## Decisions taken in
+  this document` as `D<n> — <decision>: <options considered>; chosen because <one
+  line>`. A human reads that list.
 - End the document with `## Revision History` and the line
   `- **v1** (<today>) — Initial draft.`
 - MDX rule: no bare angle brackets outside code spans. `<name>` fails the approval
@@ -57,8 +89,8 @@ touched, what you loaded, any scope you cut, flags. No file contents.
   asserts exactly. When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
   says to remove it.
-- Edit only the document. Approvals, deferrals, HANDOFF, INDEX and every other file
-  belong to the orchestrator.
+- Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
+  every other file belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
 ```
 
@@ -70,6 +102,8 @@ verdict block). Append:
 ```markdown
 ## This round
 
+- Read `<spec dir>/codebase-context.md` first; it maps the code this document cites.
+  Start your code reads from it.
 - Version under review: v<D>.
 - <D = 1: First review. Read the decomposition entry for `<SPEC>` in
   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and check the document
@@ -77,6 +111,7 @@ verdict block). Append:
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>
+- <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
   requirements.> <otherwise: one lens the previous rounds did not use, chosen from:
@@ -116,10 +151,15 @@ Read and obey <AGENT_RULES> first.
 ## Job
 Produce v<D+1> of `<document path>` in place from the findings below, then report in
 150 words or fewer: files touched; each finding as `<id>: accepted | partially
-accepted | rejected`; citations verified (count); flags. No file contents.
+accepted | rejected`; citations verified (count); the document's word count; flags.
+No file contents.
 
 ## Inputs
-- Document: `<document path>` (v<D>).
+- Context file: `<spec dir>/codebase-context.md`. Read it first; it maps the code the
+  document cites.
+- Document: `<document path>` (v<D>). Cap: <requirements: 3,500 words | design: 4,000
+  words | tasks: 150 words per task block excluding its prompt>. Do not grow the
+  document past it; a fix that adds a paragraph removes one.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: <`<latest analysis path>` | the list below (revision input)>.
@@ -149,8 +189,8 @@ RI-2: <text>>
 5. Closed by ruling, leave as is: <none | list>.
 6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template's
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
-7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file
-   belong to others.
+7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX, the context file and
+   the memory file belong to others.
 8. Do not ask questions.
 ```
 
@@ -161,40 +201,49 @@ RI-2: <text>>
 
 Read and obey <AGENT_RULES> first.
 
-The review loop reached its cap: v9 of `<document path>` was reviewed in
-`<r9 analysis path>` and still carries MUST_FIX <m> / SHOULD_FIX <s>. You are the
-corrective pass. Fix or rule out each open item, write v10 in place, and stop. Nothing
-reviews v10 again; a narrow check only verifies that each listed item was addressed.
+The review loop reached its cap: v<D> of `<document path>` was reviewed in
+`<r<A> analysis path>` and still carries MUST_FIX <m> / SHOULD_FIX <s>. You are the
+corrective pass. Fix or rule out each open item, write v<D+1> in place, and stop.
+Nothing reviews v<D+1> again; a narrow check only verifies that each listed item was
+addressed. A SHOULD_FIX you rule out is carried into the next phase's drafter brief,
+so its reason must stand on its own.
 
 ## Open items
-<one line per item: `<id> — <title> (<severity>)`>
+<one line per item: `<id> — <title> (<MUST_FIX | SHOULD_FIX>)`>
 
 ## Inputs
-- Document (v9); the r9 analysis; the memory file `<memory file path>`;
+- Context file: `<spec dir>/codebase-context.md`. Read it first.
+- Document (v<D>); the r<A> analysis; the memory file `<memory file path>`;
   <requirements and design as applicable>. Code under `<CODE_ROOT>`.
+- Cap: <requirements: 3,500 words | design: 4,000 words | tasks: 150 words per task
+  block excluding its prompt>. Do not grow the document past it.
 
 ## Rules
 - For each item: fix it in the document, or rule it out with a stated reason. A
   rule-out is a ruling; it is final for this phase.
 - Verify every citation against the real tree, both ends of every range.
-- Revision History line: `- **v10** (<today>) — Post-cap corrective pass, adjudicated,
-  not re-reviewed.` followed by one nested bullet per item: `- **<id> — fixed |
-  ruled out.** <one line>`.
-- Report in 150 words or fewer: each item as `<id>: fixed | ruled out`, files touched,
-  flags. No file contents.
+- Revision History line: `- **v<D+1>** (<today>) — Post-cap corrective pass,
+  adjudicated, not re-reviewed.` followed by one nested bullet per item: `- **<id> —
+  fixed | ruled out (<severity>).** <one line>`. Keep the words `Post-cap corrective
+  pass` exactly; the orchestrator greps for them.
+- Report in 150 words or fewer: each item as `<id>: fixed | ruled out (<severity>) —
+  <reason>`, files touched, flags. No file contents.
 - Edit only the document. Do not ask questions.
 ```
 
 ## Narrow-check prompt — overwrites the scaffold in `reviews/adversarial-prompt-<PHASE>-r<N>.md`
 
-```markdown
-# Narrow check — <SPEC>/<PHASE> v10
+Spawned on `sdd-checker`, not `sdd-reviewer`.
 
-This is not a review. v9 of `<document path>` was reviewed in `<r9 analysis path>`;
-a corrective pass produced v10 and addressed the items below. Verify only that each
-item was addressed in v10: fixed, or ruled out with a stated reason under the v10
-Revision History line. Read the document and the code it cites under `<CODE_ROOT>` as
-needed. <Project rules: `<AGENT_RULES>`.>
+```markdown
+# Narrow check — <SPEC>/<PHASE> v<D>
+
+This is not a review. v<D-1> of `<document path>` was reviewed in `<r<A> analysis
+path>`; a corrective pass produced v<D> and addressed the items below. Verify only that
+each item was addressed in v<D>: fixed, or ruled out with a stated reason under the
+v<D> Revision History line. Read `<spec dir>/codebase-context.md` first, then the
+document, then the code the items cite under `<CODE_ROOT>` as needed. <Project rules:
+`<AGENT_RULES>`.>
 
 ## Items
 <one line per item: `<id> — <title>`>

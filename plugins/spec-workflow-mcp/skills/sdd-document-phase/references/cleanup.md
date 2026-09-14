@@ -3,7 +3,7 @@
 ## Approval response
 
 ```
-v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v10, VERIFIED k/n>
+v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v<D>, VERIFIED k/n>
 ```
 
 `<rounds>` counts every reviewer spawn for this phase across all runs (A, plus the
@@ -20,13 +20,14 @@ narrow check when it ran).
      `reviews/adjudication-brief-<PHASE>.md`
    - legacy names from hand-run loops, when present: `reviews/reviser-prompt-<PHASE>-v*.md`,
      `reviews/drafter-prompt-<PHASE>*.md`
-3. Keep `reviews/adversarial-memory-<PHASE>.md` and every
-   `reviews/adversarial-analysis-<PHASE>*.md`; the retro log cites them.
+3. Keep `reviews/adversarial-memory-<PHASE>.md`, every
+   `reviews/adversarial-analysis-<PHASE>*.md` (the retro log cites them) and
+   `codebase-context.md` (the next phase reads it first).
 4. Append the phase summary to the retro log:
 
    ```
    ## <ISO timestamp> · <PHASE> · phase · cleanup
-   <PHASE> approved at v<D> after <rounds> rounds; verdict trajectory <m/s/k → … → converged>; rulings <n>; cap <hit|not hit>; prune removed <records> records and <snapshots> snapshots.
+   <PHASE> approved at v<D> after <rounds> rounds; verdict trajectory <m/s/k → … → converged>; rulings <n>; cap <hit (carried: <ids>)|not hit>; prune removed <records> records and <snapshots> snapshots.
    Evidence: <approval id>; <kept analysis path>
    Cost: <reviewer spawns> reviewer + <reviser spawns> reviser spawns<, 1 adjudicator>
    ```
@@ -44,7 +45,8 @@ narrow check when it ran).
    | Approval | `<approval id>` |
    | Rulings | <none | list> |
    | Cut scope | <none | list> |
-   | Next phase loads | <one line: what the next drafter must read first> |
+   | Carried items | <none | `<id> — <title>: <ruled-out reason>`, one per line> |
+   | Next phase loads | <one line: what the next drafter must read first, after `codebase-context.md`> |
    ```
 
    While the phase is mid-flight (budget stop), the same table carries `State |

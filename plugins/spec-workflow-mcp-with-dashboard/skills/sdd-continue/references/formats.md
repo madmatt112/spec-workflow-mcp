@@ -117,7 +117,7 @@ Categories: `gotcha`, `bug`, `tool-error`, `mcp-deficiency`, `harness-defect`,
 The `response` given to `approvals approve` on the final version:
 
 ```
-v<N>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | list>; cap: <not hit | hit, adjudicated at v10, VERIFIED k/n>
+v<N>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | list>; cap: <not hit | hit, adjudicated at v<N>, VERIFIED k/n>
 ```
 
 ## Status line

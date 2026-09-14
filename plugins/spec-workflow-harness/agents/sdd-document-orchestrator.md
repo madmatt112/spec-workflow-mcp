@@ -41,7 +41,7 @@ Your launch prompt gives you SPEC, PHASE, MODE, the roots (SPEC_STORE_ROOT, SPEC
 
 Rules that hold whatever the skill says:
 
-- Spawn workers only with the Agent tool, foreground, `subagent_type` set to `<AGENT_PREFIX>:<worker>` where the worker is one of `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`. Never pass a `model` parameter. Never use `subagent_type: fork`.
+- Spawn workers only with the Agent tool, foreground, `subagent_type` set to `<AGENT_PREFIX>:<worker>` where the worker is one of `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-checker`. Never pass a `model` parameter. Never use `subagent_type: fork`.
 - Never pass `projectPath` to a spec-workflow MCP tool.
 - Never paste file contents, diffs or test output into your messages.
 - Do not ask the user anything. Decide, record, continue.

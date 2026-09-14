@@ -13,7 +13,8 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 
 Your launch prompt gives you `SPEC`, `PHASE: closeout`, the roots, `HARNESS_REPO` (the
 local checkout the harness plugin was installed from, or `none`), `HANDOFF`,
-`AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT` and `BUDGET` (items per spawn, default 8).
+`AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT` and `BUDGET` (`all items`: one spawn works
+every open item of every class; `resume` exists only for the error paths).
 
 Brief templates and the two scripts are in `references/briefs.md`. Read it once at the
 start.
@@ -86,15 +87,15 @@ start.
 For each `none` item write its close-out line now (format in Step 4): `skipped — <the
 decision or the reason, one line>` when the plan chose no change or ratified something
 as it stands; `to-do (human) — <what the human does>` when the target is a human action
-or a settings file. `task.pick` then `task.done` for each. They do not count against
-`BUDGET`.
+or a settings file. `task.pick` then `task.done` for each.
 
 ## Step 2 — Batches
 
-Work the remaining classes in order. A **batch** is the open items of one class, at most
-the budget left in this spawn (`BUDGET` minus the items already worked in this spawn).
-When the budget is spent and open items remain: write the HANDOFF section, commit the
-spec store, report `PHASE: resume`, `STATE: items <done>/<total>`, `NEXT: <class> batch`.
+Work the remaining classes in order. A **batch** is every open item of one class: one
+implementer brief per class, however many items it holds. The spawn works every class
+before it reports. If a worker is interrupted or a tool error leaves open items you
+cannot route around in this spawn: write the HANDOFF section, commit the spec store,
+report `PHASE: resume`, `STATE: items <done>/<total>`, `NEXT: <class> batch`.
 
 For each batch:
 
@@ -140,8 +141,7 @@ For each batch:
    `agent-rules.md` and grep the body for every term they forbid first; the harness repo
    has its own conventions and those terms do not apply to it. Add `- <repo basename>:
    PR <url>` under `## Close-out`. Never merge.
-8. **Checkpoint.** Commit the spec store (`docs(sdd): <SPEC> closeout <class> batch <b>`)
-   and count the batch's items against `BUDGET`.
+8. **Checkpoint.** Commit the spec store (`docs(sdd): <SPEC> closeout <class> batch <b>`).
 
 ## Step 3 — Close
 
@@ -177,7 +177,7 @@ Record `phase.end phase=closeout result=<PHASE value> "state=items <done>/<total
 | Condition | PHASE | REASON |
 | --- | --- | --- |
 | Every item has a close-out line, plan `CLOSED`, HANDOFF written, PRs opened | `closed` | — |
-| Budget spent with open items | `resume` | — |
+| Open items remain after an interrupted worker or a routed-around tool error | `resume` | — |
 | Plan not `APPROVED`, spec not completed, drift, a tool error you cannot route around | `error` | the cause |
 
 Every stop writes the HANDOFF section and commits the spec store first.

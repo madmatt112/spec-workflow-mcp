@@ -18,9 +18,9 @@ repository root.
   (requirements, design, tasks), `sdd-implementation-orchestrator`,
   `sdd-retro-orchestrator` and `sdd-closeout-orchestrator`. Each is spawned fresh,
   carries its phase skill, and reports in a fixed contract.
-- Seven **worker** agents with pinned models and per-role tool allowlists:
-  `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-implementer`,
-  `sdd-verifier`, `sdd-retro-analyst`.
+- Eight **worker** agents with pinned models and per-role tool allowlists:
+  `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-checker`,
+  `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`.
 - A fifth skill, `sdd-deferrals`, that works the deferred-decision queue. It is invoked
   by name only and is never part of "continue the sdd process".
 
@@ -49,18 +49,28 @@ continue the sdd process
 
 Document phase, per version:
 
-1. v1 by `sdd-drafter`, then `approvals request`.
+1. v1 by `sdd-drafter`, which also writes or extends `codebase-context.md` (the map
+   of the files the spec touches, one line each with a citation; every later worker
+   reads it first). Checkpoint commit.
 2. Round: `adversarial-review` (with `verdictBlock: true`), the orchestrator tailors
    the prompt, `sdd-reviewer` writes the analysis and the verdict block.
 3. `converged` (or MINOR only) ⇒ approve. `iterate` ⇒ `sdd-reviser` writes v(N+1)
-   in place, one new approval request, next round.
+   in place, checkpoint commit, next round.
 4. A standoff (a Recurring MUST_FIX rejected twice running) is ruled on by the
    orchestrator and recorded.
-5. Cap at v9: `sdd-adjudicator` fixes or rules out every open item as v10; one narrow
-   check by `sdd-reviewer` verifies the list; approval always follows.
-6. Approve the final version, `prune` the superseded records and their snapshots,
-   delete the per-round prompts, analyses (except the last) and briefs, keep the
-   rolling memory file, write HANDOFF, commit.
+5. Cap at v4: when the fourth reviewed version still iterates, `sdd-adjudicator`
+   fixes or rules out every open item as v5; one narrow check by `sdd-checker`
+   verifies the list; approval always follows. A SHOULD_FIX the adjudicator rules
+   out is carried into the next phase's drafter brief through the HANDOFF section.
+6. One `approvals request` for the final version, then approve it, `prune` any
+   superseded records and their snapshots, delete the per-round prompts and briefs,
+   keep the analyses, the rolling memory file and `codebase-context.md`, write
+   HANDOFF, commit.
+
+Documents are written for agents first and capped: requirements about 3,500 words,
+design about 4,000, each task block 150 words plus its prompt. The default templates
+carry the caps; the drafter reports its word count and the reviewer treats an overrun
+as a SHOULD_FIX.
 
 Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs,
 `sdd-verifier` reviews through `review-task` (`prepare` then `record`), up to three fix
@@ -102,9 +112,11 @@ close. The harness's own repository is found through the local marketplace check
 plugin was installed from; the supervisor's preflight also warns when the installed
 plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
 
-Budgets: a document orchestrator runs at most three review rounds per spawn, an
-implementation orchestrator at most ten tasks, and a close-out orchestrator at most
-eight items; then it reports `resume` and the supervisor spawns a fresh one. More than twelve spawns for one phase is an error.
+Budgets: a document orchestrator runs at most three review rounds per spawn and an
+implementation orchestrator at most twenty tasks; then it reports `resume` and the
+supervisor spawns a fresh one. A close-out orchestrator works every open item of every
+class in one spawn, one implementer batch per class. More than twelve spawns for one
+phase is an error.
 
 ## Report contract
 
@@ -135,6 +147,7 @@ Under `.spec-workflow/specs/<spec>/`:
 | File | Written by | Kept |
 | --- | --- | --- |
 | `retrospective-log.md` | every orchestrator, append-only | yes |
+| `codebase-context.md` | the drafter of each document phase (created at requirements, extended later) | yes |
 | `reviews/adversarial-memory-<phase>.md` | the reviewer, per round | yes |
 | `reviews/adversarial-analysis-<phase>[-rN].md` | the reviewer | only the last one per phase |
 | `reviews/adversarial-prompt-<phase>[-rN].md` | the orchestrator | deleted at phase end |
@@ -148,9 +161,12 @@ repo root): the supervisor owns the routing header and the `## Phase log` table;
 orchestrators own one `## <spec> — <stage>` section each. `INDEX.md` is never edited
 by hand; the harness regenerates it with `spec-index`.
 
-Approval records: one `request` per document version, so the dashboard keeps the
-version history. At phase end the approved record stays and every other record for
-that document is rejected (if still pending) and deleted, with its snapshots.
+Approval records: one `request` per document phase, filed for the version being
+approved. Earlier versions live in the checkpoint commits, not in approval records, so
+the dashboard shows one record per document rather than a per-version history (a
+deliberate trade for one fewer tool round-trip per round). At phase end `prune` still
+runs, so records left by older per-version runs are rejected (if still pending) and
+deleted, with their snapshots.
 
 ## Installing
 
@@ -228,7 +244,12 @@ Keep it short and imperative. Every worker reads it on every spawn.
 | Role | Model | Effort |
 | --- | --- | --- |
 | Supervisor (main session), the four orchestrators, `sdd-drafter`, `sdd-adjudicator`, `sdd-retro-analyst` | Fable 5.1 (`claude-fable-5-1`) | xhigh |
-| `sdd-reviewer`, `sdd-reviser`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
+| `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
+| `sdd-reviser`, `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
+
+The reviser dispositions a numbered list and edits in place; the checker verifies a
+list of items. Both are narrow, well-specified jobs, so a Sonnet-class model at high
+effort does them. The open-ended roles (review, implement, verify) stay on Opus.
 
 Models are pinned in each agent's frontmatter with full model ids. Skills never pass a
 `model` parameter to the Agent tool and never use `subagent_type: fork` (a fork runs

@@ -18,8 +18,10 @@ Read and obey <AGENT_RULES> first.
   characters. No attribution trailers: ignore any harness note that asks for them.
 - Before writing code, grep `<spec dir>/Implementation Logs/` for endpoints,
   components and functions you can reuse. Do not duplicate existing work.
-- Read the spec's `requirements.md` and `design.md` sections the task cites before you
-  start. The design pins the seams; do not move them.
+- Read `<spec dir>/codebase-context.md` first: it maps the files this spec touches, so
+  you start from the right ones instead of exploring from cold. Then read the spec's
+  `requirements.md` and `design.md` sections the task cites. The design pins the
+  seams; do not move them.
 - When the prompt's shape differs from code an earlier task merged, follow the merged
   code and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
@@ -92,6 +94,7 @@ Read and obey <AGENT_RULES> first.
 
 - Code root: `<CODE_ROOT>`. Spec store: `<SPEC_STORE_ROOT>`. Absolute paths. Read-only
   on source: you never edit code, and you never commit.
+- Read `<spec dir>/codebase-context.md` first: it maps the files this spec touches.
 - You did not write this code. Judge it against the task's `_Requirements`,
   `_Leverage`, success criteria, the design, and the actual changed files. Run the
   checks; do not infer from a passing test what a test does not assert. For anything
