@@ -32,6 +32,9 @@ narrow check when it ran).
    Cost: <reviewer spawns> reviewer + <reviser spawns> reviser spawns<, 1 adjudicator>
    ```
 
+   The `<ISO timestamp>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ`, run when you
+   append; never typed from memory.
+
 5. Replace the HANDOFF section `## <SPEC> — <PHASE>` (create it after the phase log
    if missing; never touch the routing header or the phase log table) with:
 
