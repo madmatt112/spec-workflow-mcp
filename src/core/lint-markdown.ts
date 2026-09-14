@@ -51,38 +51,50 @@ const ACCEPTANCE_HEADING = '#### Acceptance Criteria';
 
 // --- Exported shapes --------------------------------------------------------
 
-/** A run of consecutive non-blank unfenced lines (requirement 2.5). */
+/**
+ * A run of consecutive non-blank unfenced lines (requirement 2.5). Shape from
+ * design.md Data Models "Scanning types" (`{ start; end }`, 1-based inclusive);
+ * callers slice the document's own `lines` by `start`-`end`.
+ */
 export interface Block {
   /** 1-based line of the block's first line. */
   start: number;
-  /** 1-based line of the block's last line. */
+  /** 1-based line of the block's last line (inclusive). */
   end: number;
-  /** The block's raw lines, in order. */
-  lines: string[];
 }
 
 /** A numbered item under a `#### Acceptance Criteria` heading (requirement 4.1). */
 export interface Criterion {
   /** The `### Requirement N` this sits under, or `null` before any. */
   requirement: number | null;
-  /** The item number (`N` of `N.`). */
-  number: number;
+  /** The item number (`N` of `N.`); `index` per design.md Data Models. */
+  index: number;
   /** 1-based line of the item's first line. */
   line: number;
   /** The item text with its continuation lines joined by one space. */
   text: string;
 }
 
-/** A checkbox task and the lines it owns (requirement 6.2). */
+/**
+ * A checkbox task and the lines it owns (requirement 6.2). Shape from design.md
+ * Data Models "Scanning types" (`{ id; line; start; end; promptLines }`);
+ * callers slice the document's own `lines` by `start`-`end` and exclude the
+ * `promptLines` line numbers.
+ */
 export interface TaskBlock {
   /** 1-based line of the checkbox line. */
   line: number;
   /** The task id (e.g. `2`, `3.1`), or `null` when the checkbox has none. */
   id: string | null;
-  /** The block's raw lines, checkbox line first. */
-  lines: string[];
-  /** The `_Prompt:` line and, when it is multi-line, its continuation lines. */
-  promptLines: string[];
+  /** 1-based line of the block's first line (the checkbox line). */
+  start: number;
+  /** 1-based line of the block's last line (inclusive). */
+  end: number;
+  /**
+   * 1-based line numbers of the `_Prompt:` line and, when it is multi-line, its
+   * continuation lines (design.md Data Models: `number[]`, not the raw text).
+   */
+  promptLines: number[];
 }
 
 // --- Scanners ---------------------------------------------------------------
@@ -135,7 +147,7 @@ export function blocks(lines: string[], fenced: boolean[]): Block[] {
     while (j < lines.length && !fenced[j] && lines[j].trim() !== '' && !isStart(j)) {
       j++;
     }
-    result.push({ start: i + 1, end: j, lines: lines.slice(i, j) });
+    result.push({ start: i + 1, end: j });
     i = j;
   }
   return result;
@@ -183,7 +195,7 @@ export function criteria(lines: string[]): Criterion[] {
       text += ' ' + next.trim();
       j++;
     }
-    result.push({ requirement: currentRequirement, number: Number(itemMatch[1]), line: i + 1, text });
+    result.push({ requirement: currentRequirement, index: Number(itemMatch[1]), line: i + 1, text });
     i = j - 1;
   }
   return result;
@@ -219,23 +231,27 @@ export function taskBlocks(lines: string[]): TaskBlock[] {
       if (idMatch) id = idMatch[1];
     }
 
-    result.push({ line: i + 1, id, lines: blockLines, promptLines: promptLinesOf(blockLines) });
+    result.push({ line: i + 1, id, start: i + 1, end, promptLines: promptLinesOf(blockLines, i) });
   }
   return result;
 }
 
-/** The `_Prompt:` line and its continuation lines within a task block. */
-function promptLinesOf(blockLines: string[]): string[] {
+/**
+ * The 1-based document line numbers of the `_Prompt:` line and its continuation
+ * lines within a task block. `offset` is the block's 0-based start index in the
+ * document, so a block line `k` is document line `offset + k + 1`.
+ */
+function promptLinesOf(blockLines: string[], offset: number): number[] {
   for (let k = 0; k < blockLines.length; k++) {
     if (!blockLines[k].includes('_Prompt:')) continue;
-    const collected = [blockLines[k]];
+    const collected = [offset + k + 1];
     if (!PROMPT_SINGLE_RE.test(blockLines[k].trim())) {
       for (let m = k + 1; m < blockLines.length; m++) {
         const nextTrim = blockLines[m].trim();
         if (!nextTrim || /^[-*]\s/.test(nextTrim) || /^Files?:/i.test(nextTrim) || /^Purpose:/i.test(nextTrim)) {
           break;
         }
-        collected.push(blockLines[m]);
+        collected.push(offset + m + 1);
       }
     }
     return collected;

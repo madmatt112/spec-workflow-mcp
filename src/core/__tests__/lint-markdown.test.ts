@@ -30,26 +30,28 @@ describe('blocks', () => {
   it('starts a block at a non-blank line after a blank line', () => {
     const result = run(['', 'a paragraph', 'still the paragraph', '', 'next'].join('\n'));
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ start: 2, end: 3, lines: ['a paragraph', 'still the paragraph'] });
-    expect(result[1]).toEqual({ start: 5, end: 5, lines: ['next'] });
+    expect(result[0]).toEqual({ start: 2, end: 3 });
+    expect(result[1]).toEqual({ start: 5, end: 5 });
   });
 
   it('starts a block at a non-blank line after a fenced line', () => {
     const result = run(['```', 'code', '```', 'right after fence'].join('\n'));
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ start: 4, end: 4, lines: ['right after fence'] });
+    expect(result[0]).toEqual({ start: 4, end: 4 });
   });
 
   it('starts a new block at each list item even without a blank line', () => {
     const result = run(['- one', '- two', '  continued'].join('\n'));
     expect(result.map((b) => b.start)).toEqual([1, 2]);
-    expect(result[1].lines).toEqual(['- two', '  continued']);
+    // The second block runs from the list item through its continuation line.
+    expect(result[1]).toEqual({ start: 2, end: 3 });
   });
 
   it('starts a new block at a table row and at a heading', () => {
     const result = run(['| a | b |', '| c | d |', '## Heading'].join('\n'));
     expect(result.map((b) => b.start)).toEqual([1, 2, 3]);
-    expect(result[2].lines).toEqual(['## Heading']);
+    // The heading is a one-line block of its own.
+    expect(result[2]).toEqual({ start: 3, end: 3 });
   });
 });
 
@@ -63,8 +65,8 @@ describe('criteria', () => {
     ].join('\n');
     const result = criteria(split(text));
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ requirement: 1, number: 1, line: 3, text: 'The server SHALL do a thing.' });
-    expect(result[1].number).toBe(2);
+    expect(result[0]).toEqual({ requirement: 1, index: 1, line: 3, text: 'The server SHALL do a thing.' });
+    expect(result[1].index).toBe(2);
   });
 
   it('joins continuation lines with a single space', () => {
@@ -90,7 +92,7 @@ describe('criteria', () => {
     ].join('\n');
     const result = criteria(split(text));
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ requirement: null, number: 1, line: 3 });
+    expect(result[0]).toMatchObject({ requirement: null, index: 1, line: 3 });
   });
 });
 
@@ -99,30 +101,32 @@ describe('taskBlocks', () => {
     const text = ['- [ ] 1. First', '  - Purpose: x', '- [ ] 2. Second'].join('\n');
     const result = taskBlocks(split(text));
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ line: 1, id: '1', lines: ['- [ ] 1. First', '  - Purpose: x'] });
-    expect(result[1]).toMatchObject({ line: 3, id: '2' });
+    // First block spans the checkbox line through its Purpose line (lines 1-2).
+    expect(result[0]).toMatchObject({ line: 1, id: '1', start: 1, end: 2 });
+    expect(result[1]).toMatchObject({ line: 3, id: '2', start: 3, end: 3 });
   });
 
   it('bounds a block at the next h2 heading and ignores h3', () => {
     const text = ['- [ ] 3.1 Task', '### Component 1', 'still block', '## Decisions', 'after'].join('\n');
     const result = taskBlocks(split(text));
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ line: 1, id: '3.1' });
-    expect(result[0].lines).toEqual(['- [ ] 3.1 Task', '### Component 1', 'still block']);
+    // Block runs to the line before the `## ` heading (lines 1-3); h3 does not bound it.
+    expect(result[0]).toMatchObject({ line: 1, id: '3.1', start: 1, end: 3 });
   });
 
   it('bounds the last block at EOF and reports null id for an unnumbered checkbox', () => {
     const text = ['- [ ] no number here', '  - File: x.ts'].join('\n');
     const result = taskBlocks(split(text));
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ line: 1, id: null });
-    expect(result[0].lines).toEqual(['- [ ] no number here', '  - File: x.ts']);
+    // Last block runs to EOF (lines 1-2).
+    expect(result[0]).toMatchObject({ line: 1, id: null, start: 1, end: 2 });
   });
 
   it('captures a single-line prompt only', () => {
     const text = ['- [ ] 1. Task', '  - _Prompt: Do it | Restrictions: none | Success: green_', '  - Purpose: x'].join('\n');
     const result = taskBlocks(split(text));
-    expect(result[0].promptLines).toEqual(['  - _Prompt: Do it | Restrictions: none | Success: green_']);
+    // The `_Prompt:` line is document line 2; nothing after it is captured.
+    expect(result[0].promptLines).toEqual([2]);
   });
 
   it('captures a multi-line prompt up to a stop line', () => {
@@ -133,6 +137,7 @@ describe('taskBlocks', () => {
       '  - Purpose: stop here',
     ].join('\n');
     const result = taskBlocks(split(text));
-    expect(result[0].promptLines).toEqual(['  - _Prompt: Do it', '    across two lines']);
+    // The prompt spans document lines 2-3 and stops before the Purpose line.
+    expect(result[0].promptLines).toEqual([2, 3]);
   });
 });
