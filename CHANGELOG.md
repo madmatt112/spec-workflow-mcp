@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.0] - 2026-09-14
+
+**Review gate** (PR #29, the `review-gate` spec, first spec run end to end under the 5.4.0 harness) and its retrospective follow-ups (PR #30).
+
+### Added
+- `review-task` action `gate`: runs the task's named checks (each its own command, one output line each), computes diff stats over a `baseRef` or `commit` range, runs typecheck and hygiene over the touched paths, scores risk with a fixed rule table, and returns `gate: pass | fail`, `risk: low | high` and the reasons. No diff body or file contents leave the tool. Risk is high when a path under `## Sensitive paths` in `agent-rules.md` is touched, more than 200 lines changed, a task that names tests changed no test file, or typecheck or hygiene cannot vouch for the change; with no list, every path is sensitive.
+- `TaskReview.reviewer` (`'gate'` when the gate recorded the verdict itself), so the dashboard, `get-task-review` and `spec-status` still see every task reviewed.
+- New modules `src/core/gate-rules.ts`, `src/core/check-runner.ts` and `computeRangeStats` in `src/core/task-diff.ts`, with unit tests and an end-to-end three-task scenario.
+- The implementation-phase and close-out skills call the gate first: fail gives the implementer one fix round with the gate's output; pass with low risk ticks the task with no verifier spawn; pass with high risk spawns `sdd-verifier` with the gate's results and the instruction not to re-run them. `store` and `home` close-out items never see an LLM verifier.
+
+### Changed
+- Document phase: the per-spawn budget is 4 review rounds, matching the v4 cap. A round with `MUST_FIX: 0` and `SHOULD_FIX > 0` on v2 or later ends with the reviser plus an `sdd-checker` narrow check, then approval. The reviser applies an accepted finding to every sibling with the same construct and to the places the memory file's guidance names; an accepted finding may correct a `codebase-context.md` line, and round 1 re-probes the context file. Each drafter `RE-DECIDED` flag goes to round 1 for a `refinement` or `widening` ruling.
+- Implementation phase: `tasks.md` and HANDOFF are edited with the Edit tool, never `sed -i` or a heredoc on the spec store; implementers report files touched as absolute paths under the code root; the PR summary carries a `Not in this PR` bullet from the document phases' cut-scope rows.
+- Retrospective and supervisor skills: the ledger is always called as `bash <EVENT_SCRIPT> ...` and skipped when missing or unreadable; retro-log timestamps come from `date -u` at append time.
+- `log-implementation` rejects an `integrations` item that lacks `description`, `frontendComponent`, `backendEndpoint` or `dataFlow` instead of rendering `undefined`.
+- This repository now tracks its own `.spec-workflow/` store (only `.cache/`, `session.json` and `harness-activity.jsonl` stay ignored), and carries an `agent-rules.md` with checks, git rules, a PR-body shape and the sensitive-path list.
+
+### Fixed
+- `server-shutdown.test.ts`: the transport close handler's `process.exit(0)` could land after the test restored the real `process.exit` on node 20, failing CI with every test green. The hook now waits for the handler to reach the stub (PR #32).
+
 ## [5.4.0] - 2026-09-13
 
 **Harness diet, step 1** (PR #26). Skills, agents, templates and docs; no server code.
