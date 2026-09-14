@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0] - 2026-09-13
+
+**Harness diet, step 1** (PR #26). Skills, agents, templates and docs; no server code.
+
+### Added
+- `sdd-checker` worker agent (Sonnet 5, effort high): runs the narrow post-cap check on a document.
+- `codebase-context.md` under each spec: the drafter writes the map of the files the spec touches, and every later brief (reviewer round, reviser, adjudicator, checker, implementer, verifier) names it as the first read.
+
+### Changed
+- Document review caps at v4. When the fourth reviewed version still iterates, `sdd-adjudicator` writes v5 and `sdd-checker` verifies the list. The orchestrator recognises the post-cap version by the `Post-cap corrective pass` marker in the Revision History, so the rule also works in revision mode.
+- SHOULD_FIX items the adjudicator rules out are recorded as `Carried items` in the phase's HANDOFF section and go into the next phase's drafter brief.
+- `sdd-reviser` moves to Sonnet 5 at effort high.
+- Drafter briefs carry word caps: requirements 3,500 words, design 4,000, 150 per task block plus its prompt.
+- Default `requirements-template.md`, `design-template.md` and `tasks-template.md` are lean: narrative and boilerplate sections out, caps, `Decisions taken in this document` and `Scope notes` in. Existing spec stores keep their copies until the workspace is re-initialised.
+- One approval request per document phase, filed for the version being approved. Earlier versions live in the checkpoint commits; the dashboard no longer shows per-version records.
+- Budgets: 20 tasks per implementation spawn; a close-out spawn works every open item of every class, one implementer batch per class.
+
 ## [5.3.2] - 2026-09-13
 
 ### Fixed
