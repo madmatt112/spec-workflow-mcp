@@ -107,7 +107,8 @@ verdict block). Append:
 - Version under review: v<D>.
 - <D = 1: First review. Read the decomposition entry for `<SPEC>` in
   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and check the document
-  against its scope.>
+  against its scope. The context file is drafter-written and unreviewed; re-probe any
+  `## Probes` line the document relies on.>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>
@@ -192,8 +193,9 @@ RI-2: <text>>
 5. Closed by ruling, leave as is: <none | list>.
 6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template's
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
-7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX, the context file and
-   the memory file belong to others.
+7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file
+   belong to others. You may replace a context-file line that an accepted finding
+   refutes: same line, corrected text, the probe that proves it.
 8. Do not ask questions.
 ```
 
