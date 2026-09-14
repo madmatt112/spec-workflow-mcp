@@ -56,7 +56,15 @@ describe.skipIf(process.platform === 'win32')('SpecWorkflowMCPServer.stop() — 
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // `stop()` closes the transport, which fires the async `onclose` handler
+    // that `initialize` wired: a second `stop()`, then `process.exit(0)`. Nothing
+    // awaits that handler, so on a slower runtime (CI's node 20) it reaches
+    // `process.exit` after this hook has restored the real one and vitest
+    // reports "process.exit unexpectedly called". Wait for it to land on the
+    // stub before restoring anything.
+    await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(0), { timeout: 10000 });
+
     // `initialize` adds stdin handlers that call `process.exit`, and `stop()`
     // only removes the transport's own. Leaving the rest attached would arm a
     // process kill for the remainder of the worker's life.
