@@ -11,6 +11,7 @@ import { adversarialResponseTool, adversarialResponseHandler } from './adversari
 import { decompositionGuideTool, decompositionGuideHandler } from './decomposition-guide.js';
 import { reviewTaskTool, reviewTaskHandler } from './review-task.js';
 import { getTaskReviewTool, getTaskReviewHandler } from './get-task-review.js';
+import { specLintTool, specLintHandler } from './spec-lint.js';
 import { ToolContext, ToolResponse, MCPToolResponse, toMCPResponse } from '../types.js';
 
 export function registerTools(): Tool[] {
@@ -26,7 +27,8 @@ export function registerTools(): Tool[] {
     adversarialResponseTool,
     decompositionGuideTool,
     reviewTaskTool,
-    getTaskReviewTool
+    getTaskReviewTool,
+    specLintTool
   ];
 }
 
@@ -71,6 +73,9 @@ export async function handleToolCall(name: string, args: any, context: ToolConte
         break;
       case 'get-task-review':
         response = await getTaskReviewHandler(args, context);
+        break;
+      case 'spec-lint':
+        response = await specLintHandler(args, context);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
