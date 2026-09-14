@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { computeTaskDiff, containmentRejectionMessage } from '../task-diff.js';
+import { computeTaskDiff, containmentRejectionMessage, computeRangeStats } from '../task-diff.js';
 
 const mockedExecFile = vi.mocked(childProcess.execFile);
 
@@ -38,6 +38,15 @@ function gitInit(dir: string): void {
 function gitCommitAll(dir: string, msg: string): void {
   gitCmd(dir, ['add', '-A']);
   gitCmd(dir, ['commit', '-q', '-m', msg]);
+}
+
+function gitOutput(dir: string, args: string[]): string {
+  return execFileSync('git', args, {
+    cwd: dir,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
 }
 
 function installPassthrough(): void {
@@ -633,5 +642,154 @@ describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () 
       expect(env.SPEC_WORKFLOW_CONTAINER_PATH_PREFIX).toBe('/projects');
       expect(env.PATH).toBe(process.env.PATH);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeRangeStats — commit mode (design Component 5)
+// ---------------------------------------------------------------------------
+
+describe('computeRangeStats — commit mode', () => {
+  it('a root commit counts every added file', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'line1\nline2\n');
+    gitCommitAll(tempDir, 'root');
+    const sha = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+
+    const result = await computeRangeStats(tempDir, { commit: sha });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.touched).toEqual(['a.ts']);
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 0 });
+  });
+
+  it('a later commit counts only that commit against its parent', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'x\n');
+    gitCommitAll(tempDir, 'root');
+    await fs.writeFile(join(tempDir, 'a.ts'), 'x\ny\n');
+    gitCommitAll(tempDir, 'second');
+    const sha = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+
+    const result = await computeRangeStats(tempDir, { commit: sha });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.touched).toEqual(['a.ts']);
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 1, linesRemoved: 0 });
+  });
+
+  it('a merge commit shows only the first-parent difference', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'base.txt'), 'base\n');
+    gitCommitAll(tempDir, 'A');
+    gitCmd(tempDir, ['checkout', '-q', '-b', 'feature']);
+    await fs.writeFile(join(tempDir, 'feature.txt'), 'f\n');
+    gitCommitAll(tempDir, 'C');
+    gitCmd(tempDir, ['checkout', '-q', 'main']);
+    await fs.writeFile(join(tempDir, 'main.txt'), 'm\n');
+    gitCommitAll(tempDir, 'B');
+    gitCmd(tempDir, ['merge', '--no-ff', '-q', '-m', 'merge', 'feature']);
+    const sha = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+
+    const result = await computeRangeStats(tempDir, { commit: sha });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // First parent is B, so only the branch's file appears — never main.txt.
+    expect(result.touched).toEqual(['feature.txt']);
+    expect(result.stats.filesChanged).toBe(1);
+  });
+
+  it('a rename with --no-renames counts as two paths', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'old.ts'), 'a\nb\nc\n');
+    gitCommitAll(tempDir, 'root');
+    await fs.rename(join(tempDir, 'old.ts'), join(tempDir, 'new.ts'));
+    gitCommitAll(tempDir, 'rename');
+    const sha = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+
+    const result = await computeRangeStats(tempDir, { commit: sha });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.touched).toEqual(['new.ts', 'old.ts']);
+    expect(result.stats).toEqual({ filesChanged: 2, linesAdded: 3, linesRemoved: 3 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeRangeStats — baseRef mode
+// ---------------------------------------------------------------------------
+
+describe('computeRangeStats — baseRef mode', () => {
+  it('counts committed, uncommitted and untracked changes since the ref', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'committed.ts'), 'l1\n');
+    await fs.writeFile(join(tempDir, 'tracked2.ts'), 't1\n');
+    gitCommitAll(tempDir, 'base');
+    const base = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+    // committed change after the base ref
+    await fs.writeFile(join(tempDir, 'committed.ts'), 'l1\nl2\n');
+    gitCommitAll(tempDir, 'second');
+    // uncommitted tracked change
+    await fs.writeFile(join(tempDir, 'tracked2.ts'), 't1\nt2\n');
+    // untracked file, three newlines
+    await fs.writeFile(join(tempDir, 'untracked.ts'), 'u1\nu2\nu3\n');
+
+    const result = await computeRangeStats(tempDir, { baseRef: base });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.touched).toEqual(['committed.ts', 'tracked2.ts', 'untracked.ts']);
+    expect(result.stats).toEqual({ filesChanged: 3, linesAdded: 5, linesRemoved: 0 });
+  });
+
+  it('excludes a gitignored untracked file', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, '.gitignore'), 'ignored.txt\n');
+    await fs.writeFile(join(tempDir, 'kept.ts'), 'k\n');
+    gitCommitAll(tempDir, 'base');
+    const base = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+    await fs.writeFile(join(tempDir, 'ignored.txt'), 'i1\ni2\n');
+    await fs.writeFile(join(tempDir, 'newfile.ts'), 'n\n');
+
+    const result = await computeRangeStats(tempDir, { baseRef: base });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.touched).toEqual(['newfile.ts']);
+    expect(result.touched).not.toContain('ignored.txt');
+    expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 1, linesRemoved: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeRangeStats — non-runnable and empty states
+// ---------------------------------------------------------------------------
+
+describe('computeRangeStats — non-runnable and empty states', () => {
+  it('reports no repository when root is not a git repo', async () => {
+    // tempDir was never `git init`-ed.
+    const result = await computeRangeStats(tempDir, { baseRef: 'HEAD' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBe(`no git repository at ${tempDir}`);
+  });
+
+  it('reports an unresolvable ref with the selector named', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'x\n');
+    gitCommitAll(tempDir, 'init');
+
+    const result = await computeRangeStats(tempDir, { baseRef: 'no-such-ref' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBe(`baseRef no-such-ref does not resolve in ${tempDir}`);
+  });
+
+  it('treats an unborn HEAD as a clean empty range', async () => {
+    gitInit(tempDir); // no commits: HEAD is unborn
+
+    const result = await computeRangeStats(tempDir, { baseRef: 'HEAD' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.stats).toEqual({ filesChanged: 0, linesAdded: 0, linesRemoved: 0 });
+    expect(result.touched).toEqual([]);
   });
 });
