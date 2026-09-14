@@ -55,7 +55,10 @@ Document phase, per version:
 2. Round: `adversarial-review` (with `verdictBlock: true`), the orchestrator tailors
    the prompt, `sdd-reviewer` writes the analysis and the verdict block.
 3. `converged` (or MINOR only) ⇒ approve. `iterate` ⇒ `sdd-reviser` writes v(N+1)
-   in place, checkpoint commit, next round.
+   in place, checkpoint commit, next round. When a round on the second or later reviewed
+   version returns no MUST_FIX but some SHOULD_FIX, the reviser writes a SHOULD_FIX-only
+   corrective version, `sdd-checker` verifies the listed items, and approval follows — no
+   further review round.
 4. A standoff (a Recurring MUST_FIX rejected twice running) is ruled on by the
    orchestrator and recorded.
 5. Cap at v4: when the fourth reviewed version still iterates, `sdd-adjudicator`

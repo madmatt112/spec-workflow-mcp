@@ -3,7 +3,7 @@
 ## Approval response
 
 ```
-v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v<D>, VERIFIED k/n>
+v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v<D>, VERIFIED k/n | SHOULD_FIX-only pass at v<D>, VERIFIED k/n>
 ```
 
 `<rounds>` counts every reviewer spawn for this phase across all runs (A, plus the
