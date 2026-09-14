@@ -31,6 +31,9 @@ tools:
   - mcp__spec-workflow__spec-index
   - mcp__plugin_spec-workflow-mcp_spec-workflow__spec-index
   - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__spec-index
+  - mcp__spec-workflow__review-task
+  - mcp__plugin_spec-workflow-mcp_spec-workflow__review-task
+  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__review-task
   - mcp__spec-workflow__get-task-review
   - mcp__plugin_spec-workflow-mcp_spec-workflow__get-task-review
   - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__get-task-review

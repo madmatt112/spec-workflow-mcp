@@ -111,30 +111,32 @@ Read `/tmp/scratchpad/sdd/<SPEC>/closeout-standing.md` first and obey it.
 
 ## Verify brief — `closeout-verify-<class>-<b>-r<r>.md`
 
+Only `harness`/`code` items at `gate: pass` and `risk: high` reach this brief; list those
+items and no other. When none remain at `risk: high`, write no brief and spawn nothing.
+
 ```markdown
 # Close-out verification — <class> batch <b>, round <r> (spec <SPEC>)
 
 Read and obey <AGENT_RULES> first.
 
 Root: `<path>`, branch `<branch | n/a>`. Read-only: you never edit, and you never
-commit. For each item below, read the proposal text and the implementer's line, then
-look at the change (`git show <sha>`, or the file itself) and judge: does the change do
-what the text and the decision say, no more, no less, in the right file? Then run the
-checks listed, each as its own command.
+commit. The gate already ran the class's checks with `pass`; each item's results are in
+its `## Gate results` block below. Do not re-run the gate's checks. For each item below,
+read the proposal text and the implementer's line, then look at the change
+(`git show <sha>`, or the file itself) and judge: does the change do what the text and
+the decision say, no more, no less, in the right file?
 
 Report in 250 words or fewer: one line per item (`P<n>: ok` | `P<n>: not done — <one
-line>`; an item the implementer reported `to-do` or `skipped` is `ok` when its reason
-holds, else `not done — the reason does not hold: <why>`), each check with its result,
-and the final line `VERDICT: pass | fix-required`. `fix-required` needs at least one
-`not done`. No diffs, no file contents. Do not ask questions.
-
-## Checks
-<list, or none>
+line>`) and the final line `VERDICT: pass | fix-required`. `fix-required` needs at least
+one `not done`. No diffs, no file contents. Do not ask questions.
 
 ## Items
 
 ### <id> — <title> · implementer: <its line>
 <the proposal's text, target and decision, verbatim>
+
+#### Gate results (verbatim)
+<data.reasons, data.checks, data.stats, data.touched, data.typecheck>
 ```
 
 ## Fix brief — `closeout-fix-<class>-<b>-r<r>.md`
@@ -144,16 +146,17 @@ and the final line `VERDICT: pass | fix-required`. `fix-required` needs at least
 
 Read `/tmp/scratchpad/sdd/<SPEC>/closeout-standing.md` first and obey it.
 
-Root: `<path>`, branch `<branch | n/a>`. The verification found the items below not
-done. Do each as its text says, one new commit per item (amend nothing), run the
-checks, and report as the standing instructions say.
+Root: `<path>`, branch `<branch | n/a>`. The gate returned `fail` for the items below, or
+the verification found them not done. Fix each as its text and its reasons say, one new
+commit per item (amend nothing), run the checks, and report as the standing instructions
+say.
 
 ## Checks
 <list, or none>
 
 ## Items
 
-### <id> — <title> · verifier: <its not-done line>
+### <id> — <title> · <gate: <data.reasons>, <data.checks> | verifier: <its not-done line>>
 <the proposal's text, target and decision, verbatim>
 ```
 

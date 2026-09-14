@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { execFile, ExecFileOptions } from 'node:child_process';
 import { partitionPaths } from './path-denylist.js';
 import { scrubbedGitEnv } from './git-utils.js';
@@ -12,6 +13,17 @@ export type TaskDiffResult = {
   truncated: boolean;
   rejection?: { message: string };
 };
+
+/** Which end of the change the gate selects (design Component 5). */
+export type RangeSelector = { commit: string } | { baseRef: string };
+
+export type RangeStatsResult =
+  | {
+      ok: true;
+      stats: { filesChanged: number; linesAdded: number; linesRemoved: number };
+      touched: string[];
+    }
+  | { ok: false; message: string };
 
 const MAX_BUFFER = 16 * 1024 * 1024;
 const PER_FILE_LINE_CAP = 500;
@@ -288,4 +300,107 @@ function parseNumstat(text: string): {
   }
 
   return { perFile, filesChanged, linesAdded, linesRemoved };
+}
+
+/** Sorted, de-duplicated copy of the paths (Component 5, one encoding — R2-1). */
+function sortedUnique(paths: Iterable<string>): string[] {
+  return [...new Set(paths)].sort();
+}
+
+/**
+ * Newline count of a file's bytes, or 0 when it cannot be read (D18). Gives an
+ * untracked file a line count without staging it, so the index stays untouched.
+ */
+function countFileNewlines(filePath: string): number {
+  try {
+    const buf = readFileSync(filePath);
+    let count = 0;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i] === 0x0a) count++;
+    }
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Touched paths and line counts over the range the caller selects — every
+ * changed file, not only the logged ones (Req 1.4, 8.3, design Component 5).
+ *
+ * Placed beside {@link computeTaskDiff} to reuse the file-private {@link runGit}
+ * and {@link parseNumstat} (D15); `computeTaskDiff` itself is unchanged (Req 8.3).
+ * `touched` is returned whole, never capped (R4-1) — the 100-path cap is the
+ * caller's.
+ */
+export async function computeRangeStats(
+  root: string,
+  range: RangeSelector,
+): Promise<RangeStatsResult> {
+  const selector = 'commit' in range ? 'commit' : 'baseRef';
+  const ref = 'commit' in range ? range.commit : range.baseRef;
+
+  // Repo check first, with its own message (R3-1): `--show-toplevel` exits 128
+  // outside a repository, so `runGit` reports `ok: false`.
+  const repo = await runGit(root, ['rev-parse', '--show-toplevel']);
+  if (!repo.ok) {
+    return { ok: false, message: `no git repository at ${root}` };
+  }
+
+  // Resolve the selector. A genuinely bad ref is a caller error (D19); an
+  // unborn `HEAD` is not — it is a clean empty range (R3-5, D12).
+  const resolved = await runGit(root, ['rev-parse', '--verify', `${ref}^{commit}`]);
+  if (!resolved.ok) {
+    if (ref === 'HEAD') {
+      return {
+        ok: true,
+        stats: { filesChanged: 0, linesAdded: 0, linesRemoved: 0 },
+        touched: [],
+      };
+    }
+    return { ok: false, message: `${selector} ${ref} does not resolve in ${root}` };
+  }
+
+  if (selector === 'commit') {
+    // First-parent, one commit, raw UTF-8 (R1-1, R2-1, D16). The empty `--format=`
+    // leaves no sha header, so `parseNumstat`'s three-field guard never fires.
+    const run = await runGit(root, [
+      '-c', 'core.quotePath=false',
+      'log', '--first-parent', '-1', '--numstat', '--format=', '--no-renames', ref,
+    ]);
+    const numstat = parseNumstat(run.stdout);
+    return {
+      ok: true,
+      stats: {
+        filesChanged: numstat.filesChanged,
+        linesAdded: numstat.linesAdded,
+        linesRemoved: numstat.linesRemoved,
+      },
+      touched: sortedUnique(numstat.perFile.keys()),
+    };
+  }
+
+  // baseRef (and the `HEAD` fallback): tracked changes since the ref, committed
+  // or not, from the diff; plus untracked non-ignored files from ls-files, each
+  // adding one file and its newline count (D17, D18). `root` is assumed to
+  // gitignore the spec store and generated artifacts (R2-2).
+  const [diffRun, othersRun] = await Promise.all([
+    runGit(root, ['-c', 'core.quotePath=false', 'diff', '--numstat', '--no-renames', ref]),
+    runGit(root, ['-c', 'core.quotePath=false', 'ls-files', '--others', '--exclude-standard']),
+  ]);
+
+  const numstat = parseNumstat(diffRun.stdout);
+  let { filesChanged, linesAdded, linesRemoved } = numstat;
+
+  const untracked = othersRun.stdout.split('\n').filter((line) => line.length > 0);
+  for (const rel of untracked) {
+    filesChanged += 1;
+    linesAdded += countFileNewlines(path.join(root, rel));
+  }
+
+  return {
+    ok: true,
+    stats: { filesChanged, linesAdded, linesRemoved },
+    touched: sortedUnique([...numstat.perFile.keys(), ...untracked]),
+  };
 }

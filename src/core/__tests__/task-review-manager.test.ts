@@ -202,6 +202,74 @@ describe('TaskReviewManager', () => {
       expect(content).toContain('infoCount: 1');
       expect(content).toContain('verdict: fail');
     });
+
+    it('should round-trip a gate reviewer', async () => {
+      await manager.saveReview({
+        taskId: '1',
+        specName: 'test',
+        verdict: 'pass',
+        summary: 'Gate pass',
+        findings: [],
+        reviewer: 'gate',
+      });
+
+      const loaded = await manager.getLatestReview('1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.reviewer).toBe('gate');
+    });
+
+    it('should serialise reviewer: agent when saving without a reviewer', async () => {
+      await manager.saveReview({
+        taskId: '1',
+        specName: 'test',
+        verdict: 'pass',
+        summary: 'Agent pass',
+        findings: [],
+      });
+
+      const reviewsDir = manager.getReviewsDir();
+      const files = await fs.readdir(reviewsDir);
+      const mdFile = files.find(f => f.startsWith('review-'));
+      const content = await fs.readFile(join(reviewsDir, mdFile!), 'utf-8');
+      expect(content).toContain('reviewer: agent');
+
+      const loaded = await manager.getLatestReview('1');
+      expect(loaded!.reviewer).toBe('agent');
+    });
+
+    it('should parse a review file without a reviewer key as agent', async () => {
+      const reviewsDir = manager.getReviewsDir();
+      await fs.mkdir(reviewsDir, { recursive: true });
+      const legacy = [
+        '---',
+        'id: legacy-id',
+        'taskId: "9"',
+        'specName: legacy',
+        'version: 1',
+        'verdict: pass',
+        'timestamp: 2026-01-01T00:00:00.000Z',
+        'criticalCount: 0',
+        'warningCount: 0',
+        'infoCount: 0',
+        '---',
+        '',
+        '# Task Review: Task 9 (v1)',
+        '',
+        '## Summary',
+        '',
+        'Legacy review without a reviewer key.',
+        '',
+        '## Findings',
+        '',
+        '_No findings — clean review._',
+        '',
+      ].join('\n');
+      await fs.writeFile(join(reviewsDir, 'review-9_v1_legacy.md'), legacy, 'utf-8');
+
+      const loaded = await manager.getLatestReview('9');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.reviewer).toBe('agent');
+    });
   });
 
   describe('classification field round-trip', () => {

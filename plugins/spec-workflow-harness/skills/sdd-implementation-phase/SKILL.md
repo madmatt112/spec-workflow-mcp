@@ -45,7 +45,8 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   <N> round <r> | adjudicate task <N> | end-to-end verification`, `phase=implementation`,
   `task=<N>`, `result=<logged line | VERDICT | VERIFY>`, `tokens=<n>` from the token
   count the Agent result states in its footer); `spawn.start` roles for a red
-  PR: `fix ci <check> round <r>`; `task.done task=<N> rounds=<r> outcome=<pass|adjudicated>`
+  PR: `fix ci <check> round <r>`; `note "text=gate: task <N> <pass|fail> risk <low|high>"`
+  after every gate call; `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>`
   when you mark `[x]`; `note` for deferrals, design defects, drift and every red CI
   check; `phase.end` right before your final report. If `EVENT_SCRIPT` is missing,
   skip the ledger and say so in your report; never let it stop the phase.
@@ -69,7 +70,11 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 Loop until no `[ ]` or `[-]` task remains, or the budget trips.
 
 1. **Pick.** The first `[ ]` task in file order (or the `[-]` task from Step 0).
-   Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work.
+   Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work. Then
+   run `git -C <CODE_ROOT> rev-parse HEAD` and keep the sha as `base=<sha>` on the
+   task-list item; every gate call for this task passes it as `baseRef`, through every
+   fix round. A `[-]` task resumed from Step 0 has no base ref: gate it without
+   `baseRef`, which scores `risk: high`.
 2. **Implement.** Write `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md` from the
    implementer template with the task's full text (every line from its `- [ ]` line to
    the next task line or heading). Spawn `sdd-implementer` with `Read and execute the
@@ -81,21 +86,43 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
    - `RETRO:` ⇒ append a retro-log entry (its category, its line, evidence = task N
      and the implementer's files).
-4. **Verify.** Write `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` from the
-   verifier template (task id, the files the implementer named, round number). Spawn
-   `sdd-verifier` with `Read and execute the instructions in <brief path>`. It runs
-   `review-task` `prepare` then `record`, so the dashboard and `spec-status` see the
-   review, and ends with `VERDICT: pass | fix-required`.
-5. **Fix rounds** (cap 3). On `fix-required`: write `impl-brief-task-<N>-fix-<r>.md`
-   from the fix template with the verifier's findings, spawn a fresh
-   `sdd-implementer`, then re-run step 4. After three fix rounds still `fix-required`:
-   write `adjudication-brief-task-<N>.md`, spawn `sdd-adjudicator` once (it rules on
-   each open finding and fixes what it accepts), then one narrow verification
-   (`verify-brief-task-<N>-narrow.md`: verify only the listed findings; `review-task`
-   `prepare` and `record` again). Append a retro-log entry (`ruling`, with the narrow
-   verdict) and continue to step 6 whatever the narrow verdict says.
-6. **Complete.** Only with `VERDICT: pass` (or after adjudication) and `logged: yes`:
-   edit `tasks.md` `[-]` → `[x]`. Append a retro-log entry for the task:
+4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
+   `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
+   check commands the task block and `agent-rules.md` name for the files the implementer
+   touched, one shell string each, dropping a bare typecheck command (the gate runs the
+   project typecheck itself). Record the ledger note, then route on `data.gate` and
+   `data.risk`:
+   - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
+     gate again.
+   - `pass` and `risk: low` ⇒ **step 6**, with the gate-recorded review as the task's
+     review, `rounds=0` and `task.done ... outcome=gate`.
+   - `pass` and `risk: high` ⇒ **step 4b**.
+   A gate `success: false` after the implementer's `logged: yes` is a tool error, not a
+   fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
+   resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
+   `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
+4b. **Verify** (high risk only). Write `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md`
+   from the verifier template (task id, the files the implementer named, round number,
+   and the `## Gate results` block verbatim). Spawn `sdd-verifier` with `Read and execute
+   the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, so
+   the dashboard and `spec-status` see the review, runs only the checks the gate did not
+   run, and ends with `VERDICT: pass | fix-required`.
+5. **Fix rounds** (cap 3, counting gate fails and verifier `fix-required` alike). Spawn
+   a fresh `sdd-implementer`, then return to step 4 (the gate):
+   - After a `gate: fail`: the gate-fix brief (`impl-brief-task-<N>-fix-<r>.md`) carries
+     `data.reasons` and `data.checks` verbatim; spawn no verifier; re-run the gate.
+   - After a verifier `fix-required`: `impl-brief-task-<N>-fix-<r>.md` from the fix
+     template with the verifier's findings; re-run step 4.
+   After three fix rounds still failing: write `adjudication-brief-task-<N>.md`, spawn
+   `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts), then
+   one narrow verification (`verify-brief-task-<N>-narrow.md`: verify only the listed
+   findings, and when the terminus was a gate fail re-run the checks that were failing;
+   `review-task` `prepare` and `record` again). Append a retro-log entry (`ruling`, with
+   the narrow verdict) and continue to step 6 whatever the narrow verdict says.
+6. **Complete.** Only with a `gate: pass` and `risk: low`, a verifier `VERDICT: pass`,
+   or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
+   `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
+   adjudication). Append a retro-log entry for the task:
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
    with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
    section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next

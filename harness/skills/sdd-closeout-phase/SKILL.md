@@ -44,6 +44,8 @@ start.
   `role=implement <class> batch <b> | verify <class> batch <b> | fix <class> batch <b>
   round <r> | adjudicate <class> batch <b>`, `phase=closeout`, `result=<one line>`,
   `tokens=<n>` from the token count the Agent result states in its footer);
+  `note "text=gate: item <id> <pass|fail> risk <low|high>"` after every gate call, so
+  Step 4 counts the verifier spawns skipped for `store`/`home` items;
   `task.done task=<id> outcome=<done|to-do|skipped>` when you write its close-out line;
   `note` for skips and rulings; `phase.end` right before your final report. If
   `EVENT_SCRIPT` is missing, skip the ledger and say so in your report; never let it
@@ -118,17 +120,32 @@ For each batch:
 3. **Implement.** Spawn `sdd-implementer` with `Read and execute the instructions in
    <brief path>`. Its report has one line per item: `P<n>: done <commit>` | `P<n>: to-do
    — <reason>` | `P<n>: skipped — <reason>`.
-4. **Verify.** Write `closeout-verify-<class>-<b>-r<r>.md` from the verify template (each
-   item with its text and the implementer's line; the checks). Spawn `sdd-verifier`. It
-   reports one line per item (`P<n>: ok` | `P<n>: not done — <one line>`) and
-   `VERDICT: pass | fix-required`.
-5. **Fix rounds** (cap 3 per batch). On `fix-required`: write
-   `closeout-fix-<class>-<b>-r<r>.md` from the fix template with the `not done` items,
-   spawn a fresh `sdd-implementer`, then step 4 again. After three rounds still
-   `fix-required`: write `closeout-adjudication-<class>-<b>.md`, spawn `sdd-adjudicator`
-   once (it lands what it can and marks the rest `skipped — <reason>`), then one narrow
-   verification of the listed items (the verify template with only those items). Append a
-   retro-log entry (`ruling`) and continue whatever the narrow verdict says.
+3b. **Gate.** For each item reported `done <sha>`, call the spec-workflow `review-task`
+   tool with `action: gate`, `specName`, `taskId: <id>`, `commit: <sha>`, `root:` the
+   batch's landing root, `files:` the paths the item's text or `Target:` line names
+   (relative to the root), and `checks:` the class's checks
+   (`references/briefs.md:5-14`), one shell string each. A `home` item passes `files` and
+   no `commit`; an item that names no path gets no gate call and is `ok` as it stands
+   (the tool never receives `files: []`). Only `done` items are gated; `to-do` and
+   `skipped` items skip the gate and close as today (Step 4 of the close-out lines).
+   Record the ledger `note` per call, then route each item on `data.gate` and `data.risk`
+   in steps 4 and 5.
+4. **Verify.** A `gate: pass` item is `ok` — spawn no verifier — when its class is
+   `store` or `home` whatever `data.risk` says, or when it is `harness`/`code` at
+   `risk: low`. Spawn `sdd-verifier` only for `harness`/`code` items that are `pass` and
+   `high`: write `closeout-verify-<class>-<b>-r<r>.md` from the verify template listing
+   only those items with their gate results. When no item remains at `risk: high` after
+   this drop, spawn no verifier. The verifier reports one line per listed item
+   (`P<n>: ok` | `P<n>: not done — <one line>`) and `VERDICT: pass | fix-required`.
+5. **Fix rounds** (cap 3 per batch, counting gate fails and verifier `not done` alike).
+   A `gate: fail` item and a verifier `not done` item both enter the fix brief: write
+   `closeout-fix-<class>-<b>-r<r>.md` from the fix template with those items (a gate-fail
+   item's line is its `data.reasons`/`data.checks`), spawn a fresh `sdd-implementer`,
+   re-gate the fixed items, then step 4 again. After three rounds still failing: write
+   `closeout-adjudication-<class>-<b>.md`, spawn `sdd-adjudicator` once (it lands what it
+   can and marks the rest `skipped — <reason>`), then one narrow verification of the
+   listed items (the verify template with only those items). Append a retro-log entry
+   (`ruling`) and continue whatever the narrow verdict says.
 6. **Close-out lines.** Write one line per item (Step 4) from the final reports:
    `done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`. `task.done` for
    each. Append one retro-log entry per batch (`cleanup`: items done, to-do, skipped,
