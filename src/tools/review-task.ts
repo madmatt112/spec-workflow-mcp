@@ -11,6 +11,7 @@ import { runProjectTypecheck, TypecheckResult } from '../core/typecheck.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
 import { computeTaskDiff, TaskDiffResult } from '../core/task-diff.js';
 import { selectRoots } from './root-selection.js';
+import { handleGate } from './review-gate.js';
 
 const reviewWarnedKeys = new Set<string>();
 
@@ -157,9 +158,10 @@ export const reviewTaskTool: Tool = {
 
 Call after log-implementation succeeds. The task may be in-progress [-] or already completed [x] — reviews work for both. Task status is not modified by reviewing.
 
-Two actions:
+Three actions:
 - **prepare**: Gathers task context (requirements, restrictions, success criteria), implementation log summary, and tech steering. Returns a review methodology to evaluate the implementation against. Also writes a prepare marker to gate the record action.
 - **record**: Persists review findings. Requires prepare to have been called first.
+- **gate**: Runs the deterministic mechanical checks (project typecheck, hygiene scan, diff statistics and the task's named checks) and returns a pass/fail verdict with a low/high risk score, recording a passing review for a low-risk task gate. No LLM review.
 
 # Verdicts
 - **pass**: Clean review, no findings at all
@@ -178,7 +180,7 @@ Note: If a review was triggered from the dashboard (fresh-context review), use g
     properties: {
       action: {
         type: 'string',
-        enum: ['prepare', 'record'],
+        enum: ['prepare', 'record', 'gate'],
         description: 'Action to perform'
       },
       projectPath: {
@@ -219,6 +221,29 @@ Note: If a review was triggered from the dashboard (fresh-context review), use g
           },
           required: ['severity', 'title', 'description']
         }
+      },
+      // gate-only fields
+      baseRef: {
+        type: 'string',
+        description: 'A git revision; the change is everything after it (gate action only)'
+      },
+      commit: {
+        type: 'string',
+        description: 'One commit sha; the change is that commit alone (gate action only)'
+      },
+      checks: {
+        type: 'array',
+        description: "Shell command strings to run in order — the task's named checks (gate action only)",
+        items: { type: 'string' }
+      },
+      files: {
+        type: 'array',
+        description: 'Paths relative to root the change should stay within (gate action only)',
+        items: { type: 'string' }
+      },
+      root: {
+        type: 'string',
+        description: "Absolute directory; the pre-computations' working tree, defaulting to the workspace under review (gate action only)"
       }
     },
     required: ['action', 'specName', 'taskId']
@@ -252,10 +277,12 @@ export async function reviewTaskHandler(
     return handlePrepare(specPath, specName, taskId, projectPath, workspacePath, context);
   } else if (action === 'record') {
     return handleRecord(specPath, specName, taskId, args, projectPath, context);
+  } else if (action === 'gate') {
+    return handleGate(args, specPath, specName, taskId, projectPath, workspacePath, context);
   } else {
     return {
       success: false,
-      message: `Unknown action: ${action}. Use "prepare" or "record".`
+      message: `Unknown action: ${action}. Use "prepare", "record", or "gate".`
     };
   }
 }

@@ -383,6 +383,28 @@ describe('review-task handler', () => {
       expect(result.data.version).toBe(2);
     });
   });
+
+  describe('gate action', () => {
+    it('runs a files-only item gate through the handler and returns data.gate', async () => {
+      // taskId absent from tasks.md + files with no commit/baseRef takes the
+      // files-only item-gate path (D23): no git repository is needed.
+      await fs.writeFile(join(tempDir, 'notes.txt'), 'hello\n');
+      const result = await reviewTaskHandler(
+        { action: 'gate', specName: 'test-spec', taskId: '999', files: ['notes.txt'] },
+        context
+      );
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('pass');
+    });
+
+    it('rejects an unknown action', async () => {
+      const result = await reviewTaskHandler(
+        { action: 'bogus', specName: 'test-spec', taskId: '1' },
+        context
+      );
+      expect(result.success).toBe(false);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
