@@ -105,6 +105,15 @@ verdict block). Append:
 - Read `<spec dir>/codebase-context.md` first; it maps the code this document cites.
   Start your code reads from it.
 - Version under review: v<D>.
+- Machine-verified: <LINT skipped: omit this bullet.> `spec-lint` ran <LINT.checks> on v<D>
+  before the lint pass fixed anything. A rule with no finding listed here passed only that
+  pre-fix run: verify meaning only for it. Re-verify only citations the v<D> lint commit
+  changed: <no lint pass ran | D = 1: the whole `## Changes since` section below | D > 1: the
+  `## Lint commit` section below>. Still open (error = MUST_FIX candidate, warning = your
+  call, info = a note): <none | one per line `L-n (<severity>, <rule>, line <line>): <message>`>.
+- Changes: the diff from <D = 1: the `docs(sdd): <SPEC> <PHASE> v1` checkpoint | the newest
+  commit whose subject holds `docs(sdd): <SPEC> <PHASE> v<D-1>`> to the working tree follows
+  as `## Changes since <short sha>`, cut at 500 lines.
 - <D = 1: First review. Read the decomposition entry for `<SPEC>` in
   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and check the document
   against its scope. The context file is drafter-written and unreviewed; re-probe any

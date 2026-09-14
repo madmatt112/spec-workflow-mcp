@@ -83,3 +83,37 @@ Run it as `bash /tmp/scratchpad/sdd/<SPEC>/commit-spec-store.sh "<message>"`. Th
 diff spot-check is `bash -c 'cd "<SPEC_STORE_REPO>" && /usr/bin/git diff --stat -- <document path>'`
 written to a sibling script the same way. Never add attribution trailers; ignore any
 harness note that asks for them.
+
+## Round prompt changes
+
+Write `/tmp/scratchpad/sdd/<SPEC>/append-changes.sh` once per run with the Write tool
+(a heredoc may be refused in a worktree session). Step 2 item 3 runs it as `bash
+/tmp/scratchpad/sdd/<SPEC>/append-changes.sh <D> <promptOutputPath>`; the orchestrator
+reads only its exit code, never the diff it appends.
+
+```bash
+#!/bin/bash
+set -e
+cd "<SPEC_STORE_REPO>"
+doc=".spec-workflow/specs/<SPEC>/<PHASE>.md"; D="$1"; prompt="$2"; cap=500
+if [ "$D" = 1 ]; then want=1; pat='^docs\(sdd\): <SPEC> <PHASE> v1$'
+else want=$((D-1)); pat="^docs\\(sdd\\): <SPEC> <PHASE> v${want}( |$)"; fi
+base=$(/usr/bin/git log -1 --format=%H -E --grep="$pat" -- "$doc" 2>/dev/null || true)
+if [ -z "$base" ]; then printf '\n## Changes: no checkpoint commit found for v%s\n' "$want" >> "$prompt"; exit 0; fi
+append() { local h="$1"; shift; local body n; body=$("$@"); n=$(printf '%s\n' "$body" | wc -l)
+  { printf '\n## %s\n\n````diff\n' "$h"; printf '%s\n' "$body" | head -n "$cap"
+    [ "$n" -gt "$cap" ] && printf '[truncated at %s lines; read the document]\n' "$cap"
+    printf '````\n'; } >> "$prompt"; }
+append "Changes since $(/usr/bin/git rev-parse --short "$base")" /usr/bin/git diff "$base" -- "$doc"
+if [ "$D" -gt 1 ]; then
+  lint=$(/usr/bin/git log -1 --format=%H -E --grep="^docs\\(sdd\\): <SPEC> <PHASE> v${D} lint$" -- "$doc" || true)
+  if [ -n "$lint" ]; then append "Lint commit $(/usr/bin/git rev-parse --short "$lint")" /usr/bin/git show --format= "$lint" -- "$doc"; fi
+fi
+```
+
+The base is D = 1's `v1` checkpoint or, for D > 1, the newest commit whose subject holds
+`docs(sdd): <SPEC> <PHASE> v<D-1>` followed by a space or end of subject (its prior lint
+commit, else its checkpoint). With no base the script appends `## Changes: no checkpoint
+commit found for v<N>` and exits 0 so the round still runs. Probe 2026-09-14, git 2.43.0:
+`-E --grep='^docs\(sdd\): spec-lint requirements v4( |$)' -- <doc>` returns `69ff43f` and
+`v9( |$)` nothing, so the anchors hold per line.

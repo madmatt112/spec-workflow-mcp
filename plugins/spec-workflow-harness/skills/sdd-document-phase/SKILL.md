@@ -130,6 +130,8 @@ It never changes D.
 3. Read the prompt file (the file tool refuses to overwrite a file it has not read),
    then overwrite it with the scaffold plus the round section from the template. Keep
    everything the scaffold wrote, including its standing directives and verdict block.
+   Run `bash /tmp/scratchpad/sdd/<SPEC>/append-changes.sh <D> <promptOutputPath>`; read
+   only its exit code.
 4. Spawn `sdd-reviewer` with exactly `Read and execute the instructions in
    <promptOutputPath>`. Put nothing else in the launch message.
 5. Read the verdict block: `tail -8 <analysisOutputPath>`. If the file does not exist,
