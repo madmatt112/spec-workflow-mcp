@@ -157,4 +157,5 @@ playwright-report
 test-results
 
 # Other
-social-post.md.mcp.json
+social-post.md
+.mcp.json
