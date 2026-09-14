@@ -159,3 +159,13 @@ Cost: 1 analyst spawn, 133,884 tokens
 Store batch 1 landed P1, P2, G2 and the agent-rules.md half of P22 in `.spec-workflow/agent-rules.md`; verified on round 1, no fix rounds. No commit: `.spec-workflow/` is gitignored on `sdd/review-gate`, so the edits ride into the P3 baseline commit in the harness batch. Six `none` items (P4, P13, P15, P16, P18, P21) skipped as the plan decided; P14 is a human to-do because `docs/harness-efficiency-plan.md` is untracked and outside every landing root.
 Evidence: .spec-workflow/agent-rules.md; .spec-workflow/specs/review-gate/retrospective-plan.md `## Close-out`
 Cost: 1 implementer + 1 verifier spawn, ~47k subagent tokens
+
+## 2026-09-14T12:46:54Z · closeout · harness batch 1 · cleanup
+Harness batch 1 landed 13 items (P5, P6, P7, P8, P9, P10, P11, P12, P17, P19, P20, the skill half of P22, then P3) as 13 commits a0cc349..20b3ab5 on `chore/review-gate-retro`; verified on round 1, no fix rounds. P3's baseline commit tracks the spec store (286 files) and carries the store batch's `agent-rules.md` edits. The verifier accepted two scope notes: P9's "three" to "four" in docs/SDD-HARNESS.md (count consistency) and P12's generalisation of the Step 0 flag and Step 4b item source (needed for cross-spawn resume). Checks: plugin-assets, plugin validate, tsc, vitest log-implementation all pass.
+Evidence: worktree .claude/worktrees/review-gate-retro; retrospective-plan.md `## Close-out`
+Cost: 1 implementer + 1 verifier spawn, ~195k subagent tokens
+
+## 2026-09-14T12:48:22Z · closeout · phase · cleanup
+review-gate closed: 23 items, 16 done (3 store, 13 harness), 1 to-do for the human (P14: the efficiency plan document is untracked), 6 skipped (the plan chose no change). Two batches, 0 fix rounds, 0 adjudications, 4 spawns (2 implementer, 2 verifier). One PR, #30 on `chore/review-gate-retro`, not merged. P3 turned the spec store into tracked files on that branch; the live store in the main checkout is still ignored and newer than the baseline.
+Evidence: .spec-workflow/specs/review-gate/retrospective-plan.md `## Close-out`; https://github.com/madmatt112/spec-workflow-mcp/pull/30; harness-events.jsonl run-20260914-031800
+Cost: 4 spawns, ~242k subagent tokens

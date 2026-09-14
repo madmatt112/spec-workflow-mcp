@@ -1,6 +1,6 @@
 # Retrospective plan — review-gate
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-09-14
 
 All 22 proposals approved as written, with the four decisions below, plus graduation
@@ -234,13 +234,27 @@ None.
 
 ## Close-out
 One line per proposal, written by the close-out phase.
-- P1: done — no commit (`.spec-workflow/` is ignored on `sdd/review-gate`); carried by the P3 baseline commit
-- P2: done — no commit (`.spec-workflow/` is ignored on `sdd/review-gate`); carried by the P3 baseline commit
-- G2: done — no commit (`.spec-workflow/` is ignored on `sdd/review-gate`); carried by the P3 baseline commit
+- P1: done — 20b3ab5 (edit to `.spec-workflow/agent-rules.md`, ignored on `sdd/review-gate`; carried by the P3 baseline commit)
+- P2: done — 20b3ab5 (edit to `.spec-workflow/agent-rules.md`, ignored on `sdd/review-gate`; carried by the P3 baseline commit)
+- P3: done — 20b3ab5
 - P4: skipped — no product change; the v4 ordering shipped in PR #29 and `runGit` stays private
+- P5: done — a0cc349
+- P6: done — 7d14f28
+- P7: done — 5bbad97
+- P8: done — 1e998d0
+- P9: done — 7111f38
+- P10: done — 5f58484
+- P11: done — b6dbaef
+- P12: done — 1f32b72
 - P13: skipped — no change; the gate is measured at plan step 4 once PR #29 merges
 - P14: to-do (human) — `docs/harness-efficiency-plan.md` (plan step 4) is untracked in the main checkout and absent from the retro worktree; add the line comparing reviser tokens per round against the tradr Opus-reviser ledgers by hand
 - P15: skipped — decision (a): no change beyond P9 and P12; measure at plan step 4
 - P16: skipped — no change; the standing brief's doc-gap rule stands
+- P17: done — aaad2bb
 - P18: skipped — no new harness rule; the mechanical half is the spec-lint spec
+- P19: done — 4984951
+- P20: done — a5c8880
 - P21: skipped — no change; one approval per phase stays, the human gates are plan step 3
+- P22: done — dfb26dd (implementation skill) and 20b3ab5 (`agent-rules.md` half, via the P3 baseline)
+- G2: done — 20b3ab5 (edit to `.spec-workflow/agent-rules.md`, ignored on `sdd/review-gate`; carried by the P3 baseline commit)
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/30

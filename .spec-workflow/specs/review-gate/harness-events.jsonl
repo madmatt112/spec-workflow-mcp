@@ -196,3 +196,22 @@
 {"ts":"2026-09-14T12:24:45.903Z","run":"run-20260914-031800","spec":"review-gate","type":"task.pick","task":"P19","title":"Fix the class, not the instance"}
 {"ts":"2026-09-14T12:24:45.923Z","run":"run-20260914-031800","spec":"review-gate","type":"task.pick","task":"P20","title":"The round-1 reviewer rules on RE-DECIDED flags"}
 {"ts":"2026-09-14T12:24:45.944Z","run":"run-20260914-031800","spec":"review-gate","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout"}
+{"ts":"2026-09-14T12:41:42.228Z","run":"run-20260914-031800","spec":"review-gate","type":"spawn.end","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"13/13 done, 13 commits a0cc349..20b3ab5, checks pass","tokens":"136027"}
+{"ts":"2026-09-14T12:41:42.247Z","run":"run-20260914-031800","spec":"review-gate","type":"spawn.start","agent":"sdd-verifier","role":"verify harness batch 1","phase":"closeout"}
+{"ts":"2026-09-14T12:46:54.295Z","run":"run-20260914-031800","spec":"review-gate","type":"spawn.end","agent":"sdd-verifier","role":"verify harness batch 1","phase":"closeout","result":"VERDICT pass, 13/13 ok, 4 checks pass","tokens":"59253"}
+{"ts":"2026-09-14T12:46:54.316Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.339Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.360Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.382Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.403Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.423Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.443Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P10","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.463Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.484Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P12","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.504Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P17","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.525Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P19","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.545Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P20","outcome":"done"}
+{"ts":"2026-09-14T12:46:54.566Z","run":"run-20260914-031800","spec":"review-gate","type":"task.done","task":"P22","outcome":"done"}
+{"ts":"2026-09-14T12:48:59.990Z","run":"run-20260914-031800","spec":"review-gate","type":"phase.end","phase":"closeout","result":"closed","state":"items 23/23","note":"16 done, 1 to-do (P14), 6 skipped; PR #30"}
+{"ts":"2026-09-14T12:49:25.432Z","run":"run-20260914-031800","spec":"review-gate","type":"spawn.end","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","tokens":"109439"}
+{"ts":"2026-09-14T12:49:25.558Z","run":"run-20260914-031800","spec":"review-gate","type":"run.end","status":"spec-workflow-mcp:review-gate closeout items 23/23 — closed; PR #29 and #30 open"}
