@@ -197,6 +197,9 @@ RI-2: <text>>
    belong to others. You may replace a context-file line that an accepted finding
    refutes: same line, corrected text, the probe that proves it.
 8. Do not ask questions.
+9. After you accept a finding, search the document for every other place with the same
+   construct (the same rule table, command, fixture shape or union member) and fix each;
+   list them under the finding's bullet. A sibling left unchanged is next round's finding.
 ```
 
 ## Adjudication brief — `reviews/adjudication-brief-<PHASE>.md`
