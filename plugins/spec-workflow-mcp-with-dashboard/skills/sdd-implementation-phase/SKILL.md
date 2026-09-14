@@ -34,6 +34,9 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
   path.
 - Keep a task list: one item per task in `tasks.md`.
+- Edit `tasks.md` and HANDOFF with the Edit tool. Never `sed -i` on the spec store from
+  a shell line, and never put a heredoc on a shell line; write scripts with the Write
+  tool.
 - Do not ask questions.
 - Spec store commits go through the script in the document-phase skill's
   `references/cleanup.md` (same script, same path); write it if it does not exist.
@@ -177,7 +180,10 @@ When no `[ ]` or `[-]` task remains:
     --json number,url`; a repair run or an earlier spawn opened it), reuse it.
     Otherwise `gh pr create` with a title from the spec's decomposition entry and a
     body that follows the PR rules in `agent-rules.md` (before creating, grep the body
-    for every term the rules forbid on public surfaces). Never merge. Record the PR
+    for every term the rules forbid on public surfaces). The `## Summary` gets one
+    `Not in this PR: …` bullet, built from the `Cut scope` rows of the three
+    document-phase HANDOFF sections (`## <SPEC> — requirements`, `— design`, `— tasks`);
+    omit the bullet only when all three are `none`. Never merge. Record the PR
     URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
     second PR (a second repository, or a change that must land on its own), do not
     open it: append a retro-log entry (`deviation`: the decomposition put two

@@ -107,7 +107,11 @@ verdict block). Append:
 - Version under review: v<D>.
 - <D = 1: First review. Read the decomposition entry for `<SPEC>` in
   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and check the document
-  against its scope.>
+  against its scope. The context file is drafter-written and unreviewed; re-probe any
+  `## Probes` line the document relies on.>
+- <D = 1 with RE-DECIDED flags: the drafter re-decided these requirement literals:
+  <`<req> — <one line>` …>. Rule on each: `refinement` (closed) or `widening` (a
+  MUST_FIX).>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>
@@ -163,7 +167,10 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: <`<latest analysis path>` | the list below (revision input)>.
-- Memory: `<memory file path>` (read; do not write it — the reviewer maintains it).
+- Memory: `<memory file path>` (read; do not write it — the reviewer maintains it). Read
+  `## Guidance for Next Review`. When it names another place where an accepted finding's
+  defect occurs, fix that place under the same finding's bullet as `also applied to
+  <where>`. This is not widening scope.
 - You may call the spec-workflow `adversarial-response` tool (`specName: <SPEC>`,
   `phase: <PHASE>`) for the response methodology. Ignore its instructions to present
   to a user, wait, or delete approvals.
@@ -189,9 +196,13 @@ RI-2: <text>>
 5. Closed by ruling, leave as is: <none | list>.
 6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template's
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
-7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX, the context file and
-   the memory file belong to others.
+7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file
+   belong to others. You may replace a context-file line that an accepted finding
+   refutes: same line, corrected text, the probe that proves it.
 8. Do not ask questions.
+9. After you accept a finding, search the document for every other place with the same
+   construct (the same rule table, command, fixture shape or union member) and fix each;
+   list them under the finding's bullet. A sibling left unchanged is next round's finding.
 ```
 
 ## Adjudication brief — `reviews/adjudication-brief-<PHASE>.md`

@@ -1,0 +1,78 @@
+{
+  "filePath": ".spec-workflow/specs/tighter-reviews/requirements.md",
+  "currentVersion": 9,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-04-28T17:29:08.987Z",
+      "trigger": "initial",
+      "approvalId": "approval_1777397348978_j96dgedrw",
+      "approvalTitle": "tighter-reviews — Requirements"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-04-28T17:29:50.355Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777397348978_j96dgedrw",
+      "approvalTitle": "tighter-reviews — Requirements"
+    },
+    {
+      "version": 3,
+      "filename": "snapshot-003.json",
+      "timestamp": "2026-04-28T18:59:20.855Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777398136434_tu77w501r",
+      "approvalTitle": "tighter-reviews — Requirements (v2, post-adversarial)"
+    },
+    {
+      "version": 4,
+      "filename": "snapshot-004.json",
+      "timestamp": "2026-04-29T01:43:31.120Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777410872210_jdkncm9mg",
+      "approvalTitle": "tighter-reviews — Requirements (v3, post-r2-adversarial)"
+    },
+    {
+      "version": 5,
+      "filename": "snapshot-005.json",
+      "timestamp": "2026-04-29T17:30:31.992Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777475592771_otvedti46",
+      "approvalTitle": "tighter-reviews — Requirements (v4, post-r3-adversarial)"
+    },
+    {
+      "version": 6,
+      "filename": "snapshot-006.json",
+      "timestamp": "2026-04-29T19:52:25.617Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777492308688_96y2t1fgl",
+      "approvalTitle": "tighter-reviews — Requirements (R3.9 + R3.10(h) revision)"
+    },
+    {
+      "version": 7,
+      "filename": "snapshot-007.json",
+      "timestamp": "2026-04-29T20:23:43.793Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777494209849_38m8n8a2g",
+      "approvalTitle": "tighter-reviews — Requirements (round 4 fixes: R2.11 Windows scope + R4.10 cross-axis growth + name-set guard)"
+    },
+    {
+      "version": 8,
+      "filename": "snapshot-008.json",
+      "timestamp": "2026-04-29T20:55:56.852Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777496117035_a25h6hkos",
+      "approvalTitle": "tighter-reviews requirements.md (R3.9 → per-job storage)"
+    },
+    {
+      "version": 9,
+      "filename": "snapshot-009.json",
+      "timestamp": "2026-04-29T23:11:54.822Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777504290811_20nc8bi0c",
+      "approvalTitle": "tighter-reviews requirements.md (NFR thresholds removed; R4.2b data-shape pinned)"
+    }
+  ]
+}

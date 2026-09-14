@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789374518950_4t4vkpi4q",
+  "title": "review-gate tasks v4",
+  "filePath": ".spec-workflow/specs/review-gate/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-14T08:28:38.950Z",
+  "category": "spec",
+  "categoryName": "review-gate",
+  "response": "v4; 4 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-14T08:28:43.185Z"
+}

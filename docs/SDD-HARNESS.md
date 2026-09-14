@@ -55,7 +55,10 @@ Document phase, per version:
 2. Round: `adversarial-review` (with `verdictBlock: true`), the orchestrator tailors
    the prompt, `sdd-reviewer` writes the analysis and the verdict block.
 3. `converged` (or MINOR only) ⇒ approve. `iterate` ⇒ `sdd-reviser` writes v(N+1)
-   in place, checkpoint commit, next round.
+   in place, checkpoint commit, next round. When a round on the second or later reviewed
+   version returns no MUST_FIX but some SHOULD_FIX, the reviser writes a SHOULD_FIX-only
+   corrective version, `sdd-checker` verifies the listed items, and approval follows — no
+   further review round.
 4. A standoff (a Recurring MUST_FIX rejected twice running) is ruled on by the
    orchestrator and recorded.
 5. Cap at v4: when the fourth reviewed version still iterates, `sdd-adjudicator`
@@ -117,7 +120,7 @@ close. The harness's own repository is found through the local marketplace check
 plugin was installed from; the supervisor's preflight also warns when the installed
 plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
 
-Budgets: a document orchestrator runs at most three review rounds per spawn and an
+Budgets: a document orchestrator runs at most four review rounds per spawn and an
 implementation orchestrator at most twenty tasks; then it reports `resume` and the
 supervisor spawns a fresh one. A close-out orchestrator works every open item of every
 class in one spawn, one implementer batch per class. More than twelve spawns for one

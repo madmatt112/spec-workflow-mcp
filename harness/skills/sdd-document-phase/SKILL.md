@@ -56,8 +56,8 @@ at the start.
 2. **D**, the document version: `grep -n -E '^- \*\*v[0-9]+\*\*' <document>` under
    `## Revision History`; D is the highest number (0 when the document does not exist).
    If the document exists but has no Revision History, D is 1 and the reviser adds the
-   section at the next version. **P**, post-cap: true when the line for v<D> contains
-   `Post-cap corrective pass`.
+   section at the next version. **P**, corrective pass: true when the line for v<D>
+   contains `Post-cap corrective pass` or `SHOULD_FIX-only corrective pass`.
 3. **A**, the latest analysis: list `reviews/adversarial-analysis-<PHASE>*.md`. The file
    with no suffix is r1; `-rN` is rN. A is the highest N (0 when none). Read the verdict
    block of the latest one with `tail -8`. A file whose last lines carry `VERIFIED:`
@@ -70,6 +70,8 @@ at the start.
    - A < D ⇒ Step 2 (review vD).
    - A = D and the verdict is `converged`, or `iterate` with `MUST_FIX: 0` and
      `SHOULD_FIX: 0` ⇒ Step 5.
+   - A = D and `iterate` with `MUST_FIX: 0`, `SHOULD_FIX > 0` and D ≥ 2 ⇒ the
+     SHOULD_FIX-only pass in Step 2 item 9.
    - A = D and `iterate` with fuel: D ≥ 4 ⇒ Step 4a; otherwise ⇒ Step 3.
 5. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <step>`, and
    record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>`.
@@ -82,8 +84,11 @@ at the start.
 2. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template, with the carried
    items in its `## Carried from <previous phase>` section.
 3. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
-   path>`. From its report, append a retro-log entry (`deviation`) for each
-   `RE-DECIDED: <req> — <one line>` flag it raised.
+   path>`. Note each `RE-DECIDED: <req> — <one line>` flag it raised and put them into
+   the round-1 reviewer prompt's `## This round` section (Step 2) for a ruling: the
+   reviewer rules each `refinement` (closed) or `widening` (a MUST_FIX). Copy each ruling
+   into the retro log (`ruling`), the HANDOFF Rulings row, and the next phase's drafter
+   brief carried section, so the tasks drafter stops re-flagging it.
 4. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
    History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`). A missing
    context file is `PHASE: error` with `REASON: drafter wrote no codebase-context.md`.
@@ -117,6 +122,12 @@ at the start.
    delta, otherwise `gotcha`; the verdict counts in the body; cost = one reviewer spawn.
 9. Route:
    - `converged`, or `iterate` with `MUST_FIX: 0` and `SHOULD_FIX: 0` ⇒ Step 5.
+   - `iterate` with `MUST_FIX: 0`, `SHOULD_FIX > 0` and D ≥ 2 ⇒ **SHOULD_FIX-only pass**:
+     write a Step 3 reviser brief for the SHOULD_FIX items only, telling the reviser to
+     end the v(D+1) Revision History line `SHOULD_FIX-only corrective pass`; spawn
+     `sdd-reviser`, spot-check, checkpoint commit `docs(sdd): <SPEC> <PHASE> v(D+1)
+     SHOULD_FIX-only corrective pass`, D = D + 1; then Step 4b (narrow check on those
+     items), then Step 5. No further review round.
    - `iterate` with fuel and D ≥ 4 ⇒ Step 4a.
    - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
 
@@ -167,7 +178,9 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 ## Step 4b — Narrow check
 
 1. Call `adversarial-review` (no `verdictBlock`). Read the prompt file, then overwrite
-   it with the narrow-check prompt from the template, listing the same items.
+   it with the narrow-check prompt from the template, listing the items the corrective
+   pass fixed (Step 4a's adjudicated items, or the SHOULD_FIX-only pass's SHOULD_FIX
+   items).
 2. Spawn `sdd-checker` with exactly `Read and execute the instructions in
    <promptOutputPath>`.
 3. Read `grep -n '^VERIFIED:' <analysis>` and, if present, the lines from

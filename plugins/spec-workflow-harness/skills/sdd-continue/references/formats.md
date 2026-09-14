@@ -94,6 +94,9 @@ Cost: <rounds, minutes, spawns, or "unknown">
 Fix idea: <optional one line>
 ```
 
+The `<ISO timestamp>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ`, run when you
+append; never typed from memory.
+
 Categories: `gotcha`, `bug`, `tool-error`, `mcp-deficiency`, `harness-defect`,
 `misunderstanding`, `inefficiency`, `doc-gap`, `model-behaviour`, `ruling`,
 `escalation`, `cleanup`, `deviation`.

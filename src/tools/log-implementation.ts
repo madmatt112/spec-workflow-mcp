@@ -278,7 +278,10 @@ Task: "Implemented logs dashboard with real-time updates"
           integrations: {
             type: 'array',
             description: 'Frontend-backend integration patterns',
-            items: { type: 'object' }
+            items: {
+              type: 'object',
+              required: ['description', 'frontendComponent', 'backendEndpoint', 'dataFlow']
+            }
           }
         }
       }

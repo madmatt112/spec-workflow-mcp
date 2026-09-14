@@ -1,0 +1,46 @@
+{
+  "filePath": ".spec-workflow/specs/tighter-reviews/tasks.md",
+  "currentVersion": 5,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-04-29T19:20:23.118Z",
+      "trigger": "initial",
+      "approvalId": "approval_1777490423084_nxia89rk7",
+      "approvalTitle": "tighter-reviews — Tasks"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-04-29T19:24:20.336Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777490423084_nxia89rk7",
+      "approvalTitle": "tighter-reviews — Tasks"
+    },
+    {
+      "version": 3,
+      "filename": "snapshot-003.json",
+      "timestamp": "2026-04-29T20:35:42.498Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777494880023_6soy604ys",
+      "approvalTitle": "tighter-reviews tasks.md"
+    },
+    {
+      "version": 4,
+      "filename": "snapshot-004.json",
+      "timestamp": "2026-04-29T21:15:15.171Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777497272525_q0qnjxwsl",
+      "approvalTitle": "tighter-reviews tasks.md (per-job storage; v2 review applied)"
+    },
+    {
+      "version": 5,
+      "filename": "snapshot-005.json",
+      "timestamp": "2026-04-30T14:28:05.607Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777504772875_9x23jzuoh",
+      "approvalTitle": "tighter-reviews tasks.md (v3 review fixes: sort-DESC, vi.mock, drift-extractor pin, ordering notes)"
+    }
+  ]
+}

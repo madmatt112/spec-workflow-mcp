@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789362305169_drifuf0rc",
+  "title": "review-gate requirements v4",
+  "filePath": ".spec-workflow/specs/review-gate/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-14T05:05:05.169Z",
+  "category": "spec",
+  "categoryName": "review-gate",
+  "response": "v4; 4 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-14T05:05:11.801Z"
+}

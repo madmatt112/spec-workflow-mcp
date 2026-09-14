@@ -1,0 +1,78 @@
+{
+  "filePath": ".spec-workflow/specs/worktree-execution-context/requirements.md",
+  "currentVersion": 9,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-07-29T17:05:19.772Z",
+      "trigger": "initial",
+      "approvalId": "approval_1785344719759_sb5m004r7",
+      "approvalTitle": "Requirements: worktree-execution-context"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-07-29T17:11:28.496Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785344719759_sb5m004r7",
+      "approvalTitle": "Requirements: worktree-execution-context"
+    },
+    {
+      "version": 3,
+      "filename": "snapshot-003.json",
+      "timestamp": "2026-07-29T17:28:05.588Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785346030338_q2v2ev8t7",
+      "approvalTitle": "Requirements: worktree-execution-context (v2, post-adversarial)"
+    },
+    {
+      "version": 4,
+      "filename": "snapshot-004.json",
+      "timestamp": "2026-07-29T17:51:02.366Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785347375683_8nfkyyysy",
+      "approvalTitle": "Requirements: worktree-execution-context (v3, post-adversarial r2)"
+    },
+    {
+      "version": 5,
+      "filename": "snapshot-005.json",
+      "timestamp": "2026-07-29T18:19:54.015Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785348958266_ciuqhu60m",
+      "approvalTitle": "Requirements: worktree-execution-context (v4, post-design-review)"
+    },
+    {
+      "version": 6,
+      "filename": "snapshot-006.json",
+      "timestamp": "2026-07-29T19:35:01.449Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785353309922_zpz1hmxqj",
+      "approvalTitle": "Requirements: worktree-execution-context (v5, rescoped after 3-way split)"
+    },
+    {
+      "version": 7,
+      "filename": "snapshot-007.json",
+      "timestamp": "2026-07-30T02:25:34.136Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785378120900_lx2lc9rxm",
+      "approvalTitle": "Requirements: worktree-execution-context (v6, post-design-review-v4)"
+    },
+    {
+      "version": 8,
+      "filename": "snapshot-008.json",
+      "timestamp": "2026-07-30T15:21:51.479Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785381485073_nfoypaumj",
+      "approvalTitle": "Requirements: worktree-execution-context (v7, post-tasks-review)"
+    },
+    {
+      "version": 9,
+      "filename": "snapshot-009.json",
+      "timestamp": "2026-07-30T18:08:57.904Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785434801568_qht9722pq",
+      "approvalTitle": "Requirements: worktree-execution-context (v8, narrowed all-drop scope)"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+You are a principal engineer with deep experience in TypeScript build tooling, Node child-process orchestration, git plumbing, and the operational reality of running deterministic pre-checks alongside LLM agents. You have shipped and maintained code that spawns `tsc` and `git` from long-running servers, you have seen process pools deadlock under timeout escalation, you have watched cache invalidation strategies fail on WSL2 and NFS, and you have debugged "why did the LLM say nothing was wrong" reviews that came from a silent parser regression.
+
+Your job here is to **tear apart** the design document at `/home/mcf/reference/spec-workflow-mcp/.spec-workflow/specs/tighter-reviews/design.md`. You are not validating it. You are not balancing strengths and weaknesses. You are looking for the failure modes the author has talked themselves out of, the integration seams that look clean on paper but will deadlock or leak under load, and the places where the abstraction boundaries actively obscure bugs.
+
+Read both `design.md` and `requirements.md` in `/home/mcf/reference/spec-workflow-mcp/.spec-workflow/specs/tighter-reviews/` before starting. The design must satisfy the requirements; if it doesn't, that is itself a finding.
+
+## Analysis Dimensions
+
+Work through every section below. Each one targets a specific architectural decision in the design — not generic concerns.
+
+### 1. The `Promise.all` orchestration shell in `handlePrepare`
+
+The design claims diff, typecheck, and hygiene run "concurrently" via a single `Promise.all`, with the contract that "None throw out of `handlePrepare`."
+
+- Challenge the claim that the three utilities are truly independent. `loadSettings(projectPath)` runs **synchronously before** the `Promise.all`. Quantify what happens to wall-clock latency when settings is read fresh (cache miss, or first call) — is it really negligible, or is the design quietly assuming a warm cache that the very first prepare in a process never has?
+- The "never throws" contract is asserted, not enforced. Identify every code path where a utility could leak an exception out: an `execFile` rejection inside a `.then()` chain, a `realpathSync.native` ENOENT thrown synchronously, a `JSON.parse` on settings that the cache layer doesn't catch, a `path.resolve` on a malformed input. What is the blast radius if any one of these escapes? Does `Promise.all`'s fail-fast semantics mean a single utility bug kills the entire prepare response?
+- The Track-A interim landing uses `Promise.resolve(emptyDiff)` as a placeholder. Stress-test what happens if Track A merges, Track B is delayed beyond the documented one-week window, and a downstream consumer starts depending on `data.diff === ""` always meaning "no changes" rather than "Track B not yet shipped."
+- Settings is read **before** the pool, but `isTypecheckEnabled(settings)` is consumed inside `runProjectTypecheck`. If settings load is slow (large file, locked by an editor), the entire pre-computation pipeline stalls before any utility starts. Is there a deadline on settings load? What happens if the file is being rewritten atomically and the read returns mid-rewrite content?
+
+### 2. Path denylist semantics: invented match logic, two callers, one fixture exception
+
+The design defines its own match semantics ("exact basename + suffix/prefix + path-segment, NOT globs") with a test-fixture escape hatch.
+
+- Challenge the decision to invent custom match semantics rather than use `picomatch`, `minimatch`, or git's own `pathspec` filtering. The justification is "guarantees identical match behavior at both call sites" — but two call sites that share a common module would have identical behavior with **any** match library. What is the real reason for inventing the semantics, and what edge cases does the custom matcher get wrong that a battle-tested library handles?
+- The test-fixture exception keeps any path under `__tests__`, `__fixtures__`, `fixtures`, `test-data`, or `testdata` regardless of what it matches. Construct the attack: a PR adds `src/__tests__/__fixtures__/leaked.env` containing real credentials harvested from `.env`. The denylist's basename rule would normally redact `.env`, but the fixture exception keeps it. The diff surfaces the secrets to the reviewing LLM and any artifact persistence path. Is this attack realistic, and what mitigates it?
+- Case-folding rules are inconsistent. R1.5 says exact basenames are case-folded "on case-insensitive volumes" but path-segment matches are "case-insensitive" unconditionally. The design's match semantics section says "case-folded" without volume qualification. Which wins? On Linux production, does `Secrets/key.pem` get redacted or not?
+- `partitionPaths` and `isDenylisted` are both exported. Two interfaces for the same decision. Show how a caller could pick the wrong one and produce inconsistent behavior — the diff utility uses `partitionPaths`, but a future caller that uses `isDenylisted` element-wise on a pre-filtered list could double-filter or skip differently if the path normalization differs between the two entry points.
+- The denylist applies to diff and hygiene but **explicitly not to typecheck**. Construct the consequence: a TypeScript file at `src/secrets/config.ts` is in `allFiles`. Diff and hygiene skip it (`skippedPaths` lists it). Typecheck compiles it, surfaces diagnostics with the absolute path, and the reviewer gets the file path plus error messages including identifier names. Is this an acceptable inconsistency or a leak path the design has not addressed?
+
+### 3. Truncation, buffers, and what `tsc --listFiles` actually produces
+
+The diff caps at 500 added+removed lines per file and 50,000 bytes total. Typecheck caps diagnostics at 100. `--listFiles` output is parsed for coverage.
+
+- The diff truncation logic replaces a file's hunks with `<diff truncated: <file> exceeded per-file/total cap>` — but the cap can fire for two completely different reasons (this file is huge, or earlier files exhausted the byte budget). The reviewer cannot tell which. Worse, **order of file processing determines which files survive**. If `git diff` returns files alphabetically and the byte budget is consumed by `a-huge.ts`, then `z-tiny.ts` shows as "truncated" with no useful information despite being 5 lines. Challenge whether this fairness is acceptable or whether a per-file pre-budget allocation is needed.
+- `tsc --listFiles` on a moderate project (say 2000 source files) easily produces 200KB+ of stdout. `execFile`'s default `maxBuffer` is 1MB. The design specifies a 30s timeout but does not specify `maxBuffer`. On a large monorepo, `--listFiles` can exceed 1MB and the process rejects with `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`. Does the design's "no-parseable-output" reason cover this case, or does the buffer error escape as an unhandled rejection?
+- `tsc` writes diagnostics and `--listFiles` output to the **same stdout stream** in source order. The parser must distinguish file paths (one per line, absolute) from diagnostics (multi-line, formatted). Walk through the parsing logic the design implies but doesn't specify: what happens when a project file is named `error.ts` and `tsc` emits `error.ts(10,5): error TS2322: ...`? Does the parser confuse the diagnostic prefix with a `--listFiles` entry? `--pretty false` only affects formatting, not the interleaving.
+- The 100-diagnostic cap with "in-scope first" sorting masks out-of-scope diagnostics that may be **upstream causes** of in-scope errors. A real bug introduced by the task in `a.ts` might cause cascading errors in `b.ts` and `c.ts`; if there are 100+ cascade errors and the cap drops them, the reviewer sees in-scope smoke without the upstream fire. Challenge whether 100 is the right number and whether grouping-by-cause would be more useful than partitioning-by-scope.
+- Per-file truncation cap is "500 added+removed lines" but the byte cap is computed on the unified-diff body **including context lines and headers**. A file with 100 added lines but `-U10` context can easily exceed the byte cap before reaching the line cap. The two caps interact in a way that isn't specified — which fires first, and is the message accurate ("exceeded per-file/total cap")?
+
+### 4. Path normalization on the typecheck coverage hot path
+
+R2.4 normalizes both `allFiles` and `--listFiles` output via `fs.realpathSync.native` plus case-fold on case-insensitive volumes.
+
+- `realpathSync.native` is **synchronous** and blocks the event loop. The design calls it on every path in `allFiles` AND every path in `--listFiles` output (potentially thousands of paths). Calculate the worst-case latency: 2000 source files × 1ms per realpath stat ≈ 2 seconds of blocked event loop on every prepare. Why isn't `fs.promises.realpath` used in parallel via `Promise.all`?
+- The design says "case-folded to lowercase on case-insensitive volumes (detected via `process.platform === 'darwin' || process.platform === 'win32'`)." This is wrong on macOS — APFS supports case-sensitive volumes, common on developer machines that use `diskutil apfs createVolume` for Linux compat. Construct the failure: a macOS dev with a case-sensitive APFS volume gets paths case-folded incorrectly, producing false `excluded` entries. The fixture test pins symlink behavior but does not pin volume-case detection.
+- The reported `coverage.compiled` and `coverage.excluded` arrays use the **original `allFiles` paths**. What happens when `allFiles` contains two paths that normalize identically (e.g., a symlink and its target both listed)? Set membership uses normalized form, but the result list duplicates entries from the original. Is this a bug or intended? The design does not say.
+- ENOENT during normalization is not specified. If `allFiles` contains a path that was deleted between `log-implementation` and `prepare`, `realpathSync.native` throws synchronously. Where is this caught? Does it bubble up and break the entire typecheck utility, returning `'no-parseable-output'` for what is actually a recoverable per-path issue?
+
+### 5. Settings cache: `(mtime, size)` keying and the "warn-once" reset rule
+
+R3.7's cache uses `(mtime, size)` to detect changes; malformed-load warnings emit once per process, reset only when `(mtime, size)` advances.
+
+- The cache is **in-process only**. The design acknowledges "users running multiple MCP server instances may see divergent runs." Quantify how realistic this is: do users run multiple instances? When the dashboard reloads or the MCP host restarts, every cache entry is rebuilt. Is the cache actually buying anything beyond the within-request hit between adversarial-initial and adversarial-retry?
+- `(mtime, size)` collisions are possible: edit a file to add a character then delete a character later, both within the same second on a second-resolution filesystem — same mtime, same size, different content. The cache will serve a stale parse forever. The design dismisses this as covered by "size differs at identical mtime" but two equal-size edits hit it. Construct the user pain: user fixes a typo in the model name (`claud-opus` → `claude-opus`), saves, runs prepare — same mtime, same size as a previous broken edit, gets cached broken value. How does the user recover without restarting?
+- The malformed-warn flag clears "if and only if `(mtime, size)` advances." Walk through the case where a user has a malformed file, gets one warning, fixes part but not all (still malformed), `(mtime, size)` advances, gets a second warning. Is this two warnings for the same logical malformation actually intended, or is it a leaky abstraction over per-edit warnings vs. per-issue warnings?
+- The design says settings is read on **every runner construction** — but `loadSettings` returns the cached parse for unchanged files (R3.9). On the first construction in a process, there is no cache. The first prepare pays the full read+parse cost. For users whose first action after dashboard startup is a review, this is the typical case, not the edge case. Is the cache the right optimization, or is the file just being read too often?
+
+### 6. Methodology directive ordering, composition, and the Track-A interim pin
+
+R4.8 prescribes: diff first, items 1–8 unchanged, item 9 hygiene unchanged, item 10 typecheck. Track A's interim pins are deleted by Track B.
+
+- "Diff directives precede everything else" — but the existing methodology has items 1–8. Where exactly does the diff directive sit numerically? Is it item 0? Is it before item 1 with no number? The design doesn't specify the rendered numbering scheme. If a reader of the methodology sees items 1, 2, ..., 8, 9 (hygiene), 10 (typecheck) but the diff directive is unnumbered prose at the top, does that read as a section header or as a numbered step?
+- Track A commits interim composite-pin fixtures. Track B deletes them and adds new ones. **The Track A fixtures are real test-asserted files in the repo between the two PRs.** If Track B is delayed and a Track A fix needs to be made (say, a parser bug in typecheck), the Track A fix must update the interim fixtures. Is the design assuming Track B always lands within a few days? What's the explicit policy if Track A needs more than one PR before Track B starts?
+- "The fixtures are right — update R4 prose to match in the same PR, or update both together." This is a documentation-vs-code ambiguity. R4 is the contract; the fixtures are an implementation artifact. Inverting the authority means a PR that drifts the fixtures silently rewrites the contract. Challenge whether this is correct, and identify the failure mode: a contributor changes a fixture for what they think is a typo fix, the test still passes, but R4 prose now describes behavior the code doesn't emit.
+- The 8-fixture composite pinning is "axis-by-axis, not cross-product." But the design's claim — "interactions between simultaneous-degradations are not a separate concern, each directive is independently triggered by its own signal" — assumes the directives don't interact. Construct a counter-example: typecheck-partial-coverage directive (R4.5) tells the reviewer to "manually scan" excluded files. Diff-empty directive (R4.2) tells the reviewer to read full files. If both fire, do the directives produce contradictory or redundant guidance? The axis-only pins won't catch this because they hold one axis fixed.
+
+### 7. The "never breaks the build" promise and degraded-surface signaling
+
+The design treats every external-process failure as a degraded surface that emits a methodology directive but lets review proceed.
+
+- This is a deliberate choice to favor availability over correctness. Stress-test the consequence: if a project's `tsc` is broken (configuration error, dependency mismatch), every prepare emits R4.6 "typecheck-unavailable." The reviewer gets the directive once, twice, ten times. Is there a point where the system should escalate from "soft degradation" to "fail loud and refuse to prepare until fixed"? The design says no — argue why this could be wrong for projects that have made type-checking a hard precondition for review.
+- The methodology emits the unavailable/timeout/partial-coverage prose, but the reviewing LLM has no way to **prove** to the human reviewer that it actually performed the manual fallback. R4.5 says "surface this per-file coverage gap in your review summary," but if the LLM forgets, there is no enforcement. Compare to the `fast-reviews` hygiene-signal pattern: hygiene findings have a structured tag the dashboard renders. Why doesn't typecheck-degraded surfacing get the same structured-tag treatment?
+- On timeout (30s, SIGTERM → 2s grace → SIGKILL), the user sees no UX signal that prepare took 32 seconds. Worst case, every prepare on a large project hits the timeout: 32-second baseline, every time, with no actionable feedback that turning off `features.typecheck` would restore sub-second prepare. The design acknowledges the kill switch but not the discoverability problem.
+
+### 8. Test strategy gaps
+
+The design specifies unit tests, integration tests, and "manual E2E" — no automated E2E.
+
+- The integration test asserts `Promise.all` ran concurrently by checking "wall-clock < sum of synthetic delays." This is a flaky-test recipe: CI under load has nondeterministic scheduling, and `Promise.all` can serialize for reasons other than the orchestration shell (e.g., shared file I/O contention). Identify a more reliable concurrency assertion.
+- Manual E2E is "the convention" — but the manual E2E checklist for R3 mid-session edits explicitly tests behavior that the in-process settings cache makes unreliable to verify manually. If the cache hits, the mid-session edit appears to be ignored; if it misses, the edit appears to take effect. The manual tester cannot tell which path they exercised. Is manual E2E actually adequate for R3, or does the cache demand an automated test?
+- Composite pins assert byte-equality on `.trimEnd()` per line and `\n` line endings. Windows checkouts with `core.autocrlf=true` will fail every pin. CI is presumably Linux, but local-dev parity on Windows breaks for any contributor running `vitest` natively. Is this an acceptable cost or should the normalization be more aggressive?
+- No mention of property-based or fuzz testing for the path-denylist match logic. The custom semantics have ~15 distinct rules across exact/suffix/prefix/segment dimensions. Hand-written cases will miss the interaction edges (path segment that is also a basename suffix, etc.). Argue for or against fuzz coverage given the security-relevant nature of the matcher.
+
+## Closing Deliverables
+
+After the dimensions above, conclude with:
+
+1. **Top 5 risks/gaps** — ranked by likelihood × blast radius. For each, name the specific design decision, the failure scenario, and what would have to change to fix it.
+2. **Top 3 conclusions to challenge or reverse** — pick three load-bearing claims from the design (e.g., "Promise.all keeps wall-clock bounded by max", "the denylist guarantees identical behavior at both call sites", "the settings cache makes reads negligible") and argue why they are wrong, overstated, or untestable as written.
+3. **What's missing** — concrete work the design has not addressed but should, before code starts. Examples might include: a `maxBuffer` specification for `execFile`, an explicit numbering scheme for the rendered methodology, a recovery path for the `(mtime, size)` cache collision case, or a fail-loud escalation policy for repeated typecheck failures.
+
+Be specific and concrete. Cite failure scenarios, not abstract risks. If something is actually fine, say so briefly and move on. Do not pad with praise or "balance." This is an adversarial review.
+
+Write your analysis to `/home/mcf/reference/spec-workflow-mcp/.spec-workflow/specs/tighter-reviews/reviews/adversarial-analysis-design.md`.

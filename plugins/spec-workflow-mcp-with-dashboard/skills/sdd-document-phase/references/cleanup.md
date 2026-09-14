@@ -3,7 +3,7 @@
 ## Approval response
 
 ```
-v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v<D>, VERIFIED k/n>
+v<D>; <rounds> review rounds; final verdict MUST_FIX <m> / SHOULD_FIX <s> / MINOR <k>; rulings: <none | id: one line, …>; cap: <not hit | hit, adjudicated at v<D>, VERIFIED k/n | SHOULD_FIX-only pass at v<D>, VERIFIED k/n>
 ```
 
 `<rounds>` counts every reviewer spawn for this phase across all runs (A, plus the
@@ -31,6 +31,9 @@ narrow check when it ran).
    Evidence: <approval id>; <kept analysis path>
    Cost: <reviewer spawns> reviewer + <reviser spawns> reviser spawns<, 1 adjudicator>
    ```
+
+   The `<ISO timestamp>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ`, run when you
+   append; never typed from memory.
 
 5. Replace the HANDOFF section `## <SPEC> — <PHASE>` (create it after the phase log
    if missing; never touch the routing header or the phase log table) with:

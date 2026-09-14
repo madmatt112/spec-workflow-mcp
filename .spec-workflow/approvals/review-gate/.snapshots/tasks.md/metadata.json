@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/review-gate/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-14T08:28:38.963Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789374518950_4t4vkpi4q",
+      "approvalTitle": "review-gate tasks v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-14T08:28:43.180Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789374518950_4t4vkpi4q",
+      "approvalTitle": "review-gate tasks v4"
+    }
+  ]
+}
