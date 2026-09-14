@@ -22,6 +22,9 @@ tools:
   - mcp__spec-workflow__deferrals
   - mcp__plugin_spec-workflow-mcp_spec-workflow__deferrals
   - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__deferrals
+  - mcp__spec-workflow__review-task
+  - mcp__plugin_spec-workflow-mcp_spec-workflow__review-task
+  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__review-task
 ---
 
 You run one SDD close-out phase for one spec: the approved retrospective plan is implemented, item by item, and the plan is marked CLOSED. You report in the orchestrator contract.
