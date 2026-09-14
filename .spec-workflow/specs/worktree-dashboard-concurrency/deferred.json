@@ -1,0 +1,5 @@
+{
+  "deferred": true,
+  "reason": "Split from worktree-execution-context after design review v3. Depends on that spec for per-worktree identity, which is what makes N registry entries and N component sets exist. Not a correctness fix for the reviewing path; deferred until spec 1 ships.",
+  "deferredAt": "2026-07-29T19:26:16.213Z"
+}

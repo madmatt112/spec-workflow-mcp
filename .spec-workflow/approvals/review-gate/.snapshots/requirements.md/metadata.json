@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/review-gate/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-14T05:05:05.187Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789362305169_drifuf0rc",
+      "approvalTitle": "review-gate requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-14T05:05:11.792Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789362305169_drifuf0rc",
+      "approvalTitle": "review-gate requirements v4"
+    }
+  ]
+}

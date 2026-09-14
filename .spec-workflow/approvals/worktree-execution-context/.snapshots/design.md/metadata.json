@@ -1,0 +1,62 @@
+{
+  "filePath": ".spec-workflow/specs/worktree-execution-context/design.md",
+  "currentVersion": 7,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-07-29T17:54:38.347Z",
+      "trigger": "initial",
+      "approvalId": "approval_1785347678337_hbvur0159",
+      "approvalTitle": "Design: worktree-execution-context"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-07-29T18:19:40.565Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785347678337_hbvur0159",
+      "approvalTitle": "Design: worktree-execution-context"
+    },
+    {
+      "version": 3,
+      "filename": "snapshot-003.json",
+      "timestamp": "2026-07-29T18:23:32.294Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785349368969_3xrw3261i",
+      "approvalTitle": "Design: worktree-execution-context (v2, post-adversarial)"
+    },
+    {
+      "version": 4,
+      "filename": "snapshot-004.json",
+      "timestamp": "2026-07-29T19:42:23.109Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785353834387_su0xqyktw",
+      "approvalTitle": "Design: worktree-execution-context (rescoped)"
+    },
+    {
+      "version": 5,
+      "filename": "snapshot-005.json",
+      "timestamp": "2026-07-29T19:57:13.317Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1785353834387_su0xqyktw",
+      "approvalTitle": "Design: worktree-execution-context (rescoped)"
+    },
+    {
+      "version": 6,
+      "filename": "snapshot-006.json",
+      "timestamp": "2026-07-30T02:32:14.523Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785378561205_jq60n4dc7",
+      "approvalTitle": "Design: worktree-execution-context (v2, post-review-v4)"
+    },
+    {
+      "version": 7,
+      "filename": "snapshot-007.json",
+      "timestamp": "2026-07-30T17:03:17.520Z",
+      "trigger": "approved",
+      "approvalId": "approval_1785425041184_mp6i0vv51",
+      "approvalTitle": "Design: worktree-execution-context (v3, post-tasks-review)"
+    }
+  ]
+}

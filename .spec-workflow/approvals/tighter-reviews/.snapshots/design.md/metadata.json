@@ -1,0 +1,78 @@
+{
+  "filePath": ".spec-workflow/specs/tighter-reviews/design.md",
+  "currentVersion": 9,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-04-29T17:37:32.705Z",
+      "trigger": "initial",
+      "approvalId": "approval_1777484252694_zo2wxj8ld",
+      "approvalTitle": "Design: tighter-reviews"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-04-29T17:38:42.183Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777484252694_zo2wxj8ld",
+      "approvalTitle": "Design: tighter-reviews"
+    },
+    {
+      "version": 3,
+      "filename": "snapshot-003.json",
+      "timestamp": "2026-04-29T18:06:34.352Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777485932436_f6nrd4462",
+      "approvalTitle": "Design: tighter-reviews (v2)"
+    },
+    {
+      "version": 4,
+      "filename": "snapshot-004.json",
+      "timestamp": "2026-04-29T18:34:58.941Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777487578589_5aqnqkcmq",
+      "approvalTitle": "Design: tighter-reviews (v3)"
+    },
+    {
+      "version": 5,
+      "filename": "snapshot-005.json",
+      "timestamp": "2026-04-29T19:11:16.253Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777489857099_8o9jjcdn7",
+      "approvalTitle": "Design: tighter-reviews (v4)"
+    },
+    {
+      "version": 6,
+      "filename": "snapshot-006.json",
+      "timestamp": "2026-04-29T19:53:24.316Z",
+      "trigger": "revision_requested",
+      "approvalId": "approval_1777492384811_9lnzlsyw4",
+      "approvalTitle": "tighter-reviews — Design (annotation-persistence revision for R3.9)"
+    },
+    {
+      "version": 7,
+      "filename": "snapshot-007.json",
+      "timestamp": "2026-04-29T20:23:14.555Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777494103643_qfck5v2rv",
+      "approvalTitle": "tighter-reviews — Design (round 4 adversarial-review fixes)"
+    },
+    {
+      "version": 8,
+      "filename": "snapshot-008.json",
+      "timestamp": "2026-04-29T21:05:13.894Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777496380062_ixwgweqta",
+      "approvalTitle": "tighter-reviews design.md (per-job storage; 409 rescope; ES rewrite)"
+    },
+    {
+      "version": 9,
+      "filename": "snapshot-009.json",
+      "timestamp": "2026-04-29T23:13:27.446Z",
+      "trigger": "approved",
+      "approvalId": "approval_1777504373426_dvdwc0scl",
+      "approvalTitle": "tighter-reviews design.md (getJob already exists; NFR thresholds removed; sort-by-startedAt-DESC)"
+    }
+  ]
+}
