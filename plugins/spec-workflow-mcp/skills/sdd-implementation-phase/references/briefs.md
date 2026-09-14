@@ -85,6 +85,12 @@ For repair mode replace the middle paragraph with: "The end-to-end verification 
 spec failed. Reproduce the failure first, fix its cause (not the symptom), add
 coverage that fails without the fix, run the scenario again, and report."
 
+For a gate fail (`impl-brief-task-<N>-fix-<r>.md` after `gate: fail`) replace the middle
+paragraph with: "The gate returned `fail`. Fix every reason below, re-run the task's
+checks, update the implementation log with `log-implementation` if files changed, and
+report." and replace the `## Findings (from the verifier)` heading with `## Gate output`
+holding `data.reasons` and `data.checks` verbatim.
+
 ## Standing brief for verifiers — `/tmp/scratchpad/sdd/<SPEC>/verify-standing.md`
 
 ```markdown
@@ -116,23 +122,30 @@ Read and obey <AGENT_RULES> first.
 
 Read `/tmp/scratchpad/sdd/<SPEC>/verify-standing.md` first and obey it.
 
+The gate already passed for this task at `risk: high`; its results are in `## Gate
+results` below. Do not re-run the gate's checks.
+
 1. Call the spec-workflow `review-task` tool with `action: prepare`, `specName:
    <SPEC>`, `taskId: "<N>"`. It returns the task, the implementation log summary and
    the files to review.
 2. Read the files it names and the files the implementer reported:
    <list from the implementer's report>
-   Run the task's checks yourself.
+   Run only checks the gate did not run.
 3. Call `review-task` with `action: record`, the same `specName` and `taskId`, `verdict`
    (`pass` when clean; `fail` when any critical finding; `findings` when only
    warnings or info), a one-line `summary`, and `findings` (severity, title, file,
    line, description, taskRequirement, category).
 4. Report as the standing instructions say. `VERDICT: pass` when the recorded verdict
    is `pass` or `findings` with no warning-or-higher item; otherwise `fix-required`.
+
+## Gate results (from the gate call, verbatim)
+<data.reasons, data.checks, data.stats, data.touched, data.typecheck>
 ```
 
 The narrow verification after adjudication (`verify-brief-task-<N>-narrow.md`) adds:
 "Verify only the findings listed below; each is `addressed` or `not addressed` with
-one line. Record the review the same way. `VERDICT: pass` when every listed finding is
+one line. When the terminus was a gate fail, re-run the checks listed as failing.
+Record the review the same way. `VERDICT: pass` when every listed finding is
 addressed or ruled out with a reason in the adjudicator's report." followed by the
 list.
 
