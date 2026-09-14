@@ -17,7 +17,7 @@ narrow check when it ran).
 2. Delete prompts and briefs only, with `rm -f`:
    - `reviews/adversarial-prompt-<PHASE>.md` and `reviews/adversarial-prompt-<PHASE>-r*.md`
    - `reviews/drafter-brief-<PHASE>.md`, `reviews/reviser-brief-<PHASE>-v*.md`,
-     `reviews/adjudication-brief-<PHASE>.md`
+     `reviews/lint-brief-<PHASE>-v*.md`, `reviews/adjudication-brief-<PHASE>.md`
    - legacy names from hand-run loops, when present: `reviews/reviser-prompt-<PHASE>-v*.md`,
      `reviews/drafter-prompt-<PHASE>*.md`
 3. Keep `reviews/adversarial-memory-<PHASE>.md`, every
