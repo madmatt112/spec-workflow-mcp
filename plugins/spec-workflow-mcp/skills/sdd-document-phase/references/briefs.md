@@ -109,6 +109,9 @@ verdict block). Append:
   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and check the document
   against its scope. The context file is drafter-written and unreviewed; re-probe any
   `## Probes` line the document relies on.>
+- <D = 1 with RE-DECIDED flags: the drafter re-decided these requirement literals:
+  <`<req> — <one line>` …>. Rule on each: `refinement` (closed) or `widening` (a
+  MUST_FIX).>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta.>

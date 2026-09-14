@@ -84,8 +84,11 @@ at the start.
 2. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template, with the carried
    items in its `## Carried from <previous phase>` section.
 3. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
-   path>`. From its report, append a retro-log entry (`deviation`) for each
-   `RE-DECIDED: <req> — <one line>` flag it raised.
+   path>`. Note each `RE-DECIDED: <req> — <one line>` flag it raised and put them into
+   the round-1 reviewer prompt's `## This round` section (Step 2) for a ruling: the
+   reviewer rules each `refinement` (closed) or `widening` (a MUST_FIX). Copy each ruling
+   into the retro log (`ruling`), the HANDOFF Rulings row, and the next phase's drafter
+   brief carried section, so the tasks drafter stops re-flagging it.
 4. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
    History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`). A missing
    context file is `PHASE: error` with `REASON: drafter wrote no codebase-context.md`.
