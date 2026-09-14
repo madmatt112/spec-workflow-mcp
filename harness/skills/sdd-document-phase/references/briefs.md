@@ -163,7 +163,10 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: <`<latest analysis path>` | the list below (revision input)>.
-- Memory: `<memory file path>` (read; do not write it — the reviewer maintains it).
+- Memory: `<memory file path>` (read; do not write it — the reviewer maintains it). Read
+  `## Guidance for Next Review`. When it names another place where an accepted finding's
+  defect occurs, fix that place under the same finding's bullet as `also applied to
+  <where>`. This is not widening scope.
 - You may call the spec-workflow `adversarial-response` tool (`specName: <SPEC>`,
   `phase: <PHASE>`) for the response methodology. Ignore its instructions to present
   to a user, wait, or delete approvals.
