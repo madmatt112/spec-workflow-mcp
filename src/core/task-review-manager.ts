@@ -193,6 +193,7 @@ export class TaskReviewManager {
     md += `specName: ${review.specName}\n`;
     md += `version: ${review.version}\n`;
     md += `verdict: ${review.verdict}\n`;
+    md += `reviewer: ${review.reviewer ?? 'agent'}\n`;
     md += `timestamp: ${review.timestamp}\n`;
     md += `criticalCount: ${criticalCount}\n`;
     md += `warningCount: ${warningCount}\n`;
@@ -250,6 +251,7 @@ export class TaskReviewManager {
       const specName = get('specName');
       const version = parseInt(get('version')) || 0;
       const verdict = get('verdict') as TaskReview['verdict'];
+      const reviewer: 'gate' | 'agent' = get('reviewer') === 'gate' ? 'gate' : 'agent';
       const timestamp = get('timestamp');
 
       if (!id || !taskId || !specName || !verdict) return null;
@@ -304,7 +306,7 @@ export class TaskReviewManager {
         });
       }
 
-      return { id, taskId, specName, version, timestamp, verdict, summary, findings };
+      return { id, taskId, specName, version, timestamp, verdict, summary, findings, reviewer };
     } catch {
       return null;
     }

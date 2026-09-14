@@ -94,4 +94,13 @@ describe('get-task-review handler', () => {
     expect(result.data.review.findings[0].file).toBe('src/handler.ts');
     expect(result.data.review.findings[0].line).toBe(42);
   });
+
+  it('should carry reviewer in the response', async () => {
+    const manager = new TaskReviewManager(specPath);
+    await manager.saveReview({ taskId: '1', specName: 'test-spec', verdict: 'pass', summary: 'Gate pass', findings: [], reviewer: 'gate' });
+
+    const result = await getTaskReviewHandler({ specName: 'test-spec', taskId: '1' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data.review.reviewer).toBe('gate');
+  });
 });

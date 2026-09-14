@@ -259,6 +259,7 @@ export interface TaskReview {
   verdict: 'pass' | 'fail' | 'findings';
   summary: string;
   findings: ReviewFinding[];
+  reviewer?: 'gate' | 'agent';
 }
 
 export interface Deferral {
