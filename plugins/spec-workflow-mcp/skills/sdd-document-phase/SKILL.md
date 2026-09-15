@@ -140,11 +140,11 @@ It never changes D.
    `PHASE: error`.
 6. **ESCALATE.** If the `ESCALATE:` value is not `none`: when it names security,
    secrets, auth bypass, data loss, destructive migrations, money, billing, pricing,
-   legal or compliance, write the HANDOFF section, append a retro-log entry
+   legal or compliance, write the HANDOFF section, append a retro-log entry with `retro.sh`
    (`escalation`), and report `PHASE: escalate` with the line as `REASON`. Otherwise
    it is a finding: log it (`gotcha`) and continue.
 7. Record `round phase=<PHASE> round=<A> version=v<D> "verdict=<iterate m/s/k | converged m/s/k>"`.
-8. Append a retro-log entry for the round: category `ruling` if you ruled this round,
+8. Append a retro-log entry with `retro.sh` for the round: category `ruling` if you ruled this round,
    `inefficiency` if this is round 4 or later or the findings came from the previous
    delta, otherwise `gotcha`; the verdict counts in the body; cost = one reviewer spawn.
 9. Route:
@@ -179,7 +179,7 @@ your rejection tally and `grep -n -i 'recurring' <analysis>`.
 When you find one, rule on it yourself: accept or reject on the merits, in one
 paragraph. Append to the document's Revision History, under the current version's
 line, one bullet `- **Ruling — <finding id>: <accepted | rejected>.** <reason>`. Append
-a retro-log entry (`ruling`). Add the finding to the "Closed by ruling" list in every
+a retro-log entry with `retro.sh` (`ruling`). Add the finding to the "Closed by ruling" list in every
 later reviewer prompt and reviser brief for this phase. If you accepted it, it becomes
 a finding for the next reviser brief.
 
@@ -198,7 +198,7 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 4. From the report, list the **ruled-out SHOULD_FIX** items (id and title). They are the
    carried items for the next phase: keep them for the HANDOFF section in Step 6.
 5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> post-cap corrective pass`.
-6. Append a retro-log entry (`inefficiency`: cap hit; every item id with `fixed` or
+6. Append a retro-log entry with `retro.sh` (`inefficiency`: cap hit; every item id with `fixed` or
    `ruled out`).
 7. D = D + 1. Go to Step 4b.
 

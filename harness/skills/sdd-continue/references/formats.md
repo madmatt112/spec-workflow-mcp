@@ -97,6 +97,24 @@ Fix idea: <optional one line>
 The `<ISO timestamp>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ`, run when you
 append; never typed from memory.
 
+Entries are appended with `retro.sh`, never by hand — which is why every skill's
+"append a retro-log entry" step names it. The script sits next to `event.sh` at
+`/tmp/scratchpad/sdd/<spec>/retro.sh`, written once per run (Write tool) with the spec
+dir filled in. It stamps the time itself and refuses an empty argument:
+
+```bash
+#!/bin/bash
+# usage: bash retro.sh "<stage>" "<vN | task N | phase>" "<category>" "<body>" "<evidence>" "<cost>"
+export SDD_RETRO_LOG="<spec dir>/retrospective-log.md"
+[ "$#" -eq 6 ] || { echo "retro.sh: need 6 arguments" >&2; exit 2; }
+for a in "$@"; do [ -n "$a" ] || { echo "retro.sh: empty argument" >&2; exit 2; }; done
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+{
+  printf '\n## %s · %s · %s · %s\n' "$ts" "$1" "$2" "$3"
+  printf '%s\nEvidence: %s\nCost: %s\n' "$4" "$5" "$6"
+} >> "$SDD_RETRO_LOG"
+```
+
 Categories: `gotcha`, `bug`, `tool-error`, `mcp-deficiency`, `harness-defect`,
 `misunderstanding`, `inefficiency`, `doc-gap`, `model-behaviour`, `ruling`,
 `escalation`, `cleanup`, `deviation`.

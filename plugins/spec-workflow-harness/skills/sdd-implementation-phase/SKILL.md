@@ -91,7 +91,7 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    for task <N> now; the code is done". Flags:
    - `DESIGN-DEFECT` ⇒ **Design defect**.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
-   - `RETRO:` ⇒ append a retro-log entry (its category, its line, evidence = task N
+   - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
      and the implementer's files).
    A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
    has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
@@ -127,12 +127,12 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts), then
    one narrow verification (`verify-brief-task-<N>-narrow.md`: verify only the listed
    findings, and when the terminus was a gate fail re-run the checks that were failing;
-   `review-task` `prepare` and `record` again). Append a retro-log entry (`ruling`, with
+   `review-task` `prepare` and `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with
    the narrow verdict) and continue to step 6 whatever the narrow verdict says.
 6. **Complete.** Only with a `gate: pass` and `risk: low`, a verifier `VERDICT: pass`,
    or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
    `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
-   adjudication). Append a retro-log entry for the task:
+   adjudication). Append a retro-log entry with `retro.sh` for the task:
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
    with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
    section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next
@@ -155,7 +155,7 @@ read the record back once (`deferrals` `get`) and confirm `originSpec` landed.
 
 The implementer says the task cannot be built as written because it contradicts the
 design, the requirements or a decomposition assumption. Do not force it. Revert the
-task to `[ ]`. Append a retro-log entry (`deviation`, the defect in one sentence,
+task to `[ ]`. Append a retro-log entry with `retro.sh` (`deviation`, the defect in one sentence,
 evidence = task N). Write the HANDOFF section. Commit the spec store. Report
 `PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one
 line, from the implementer's flag>`. The supervisor re-opens design.
@@ -170,7 +170,7 @@ When no `[ ]` or `[-]` task remains:
    template (the scenario, plus the full check suite as `agent-rules.md` defines it:
    typecheck, tests, lint, migrations, e2e, each as a separate command). Spawn
    `sdd-verifier`. It ends with `VERIFY: pass | fail`.
-   - `fail` ⇒ write the HANDOFF section, append a retro-log entry (`bug`), commit the
+   - `fail` ⇒ write the HANDOFF section, append a retro-log entry with `retro.sh` (`bug`), commit the
      spec store, report `PHASE: verify-failed`, `REASON: <one line from the report>`.
      Do not mark anything complete.
    - `pass` ⇒ step 9.
@@ -193,7 +193,7 @@ When no `[ ]` or `[-]` task remains:
     omit the bullet only when all three are `none`. Never merge. Record the PR
     URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
     second PR (a second repository, or a change that must land on its own), do not
-    open it: append a retro-log entry (`deviation`: the decomposition put two
+    open it: append a retro-log entry with `retro.sh` (`deviation`: the decomposition put two
     deliverables in one spec), add a `deferrals` record for the second deliverable,
     and name both in the HANDOFF section.
 10b. **PR checks gate.** Wait for the PR's checks before you report `complete`. Write
@@ -247,7 +247,7 @@ Cap 3 rounds per PR. Round r:
    its last log file, "rule on each: fix it, or state why it cannot be fixed here"),
    spawn `sdd-adjudicator` once, push, run the gate once more. Still red ⇒ write the
    HANDOFF section (the PR URL, the red checks, what was tried), append a retro-log
-   entry (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
+   entry with `retro.sh` (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
    `REASON: ci: <check>`. The supervisor's repair path takes over; its brief carries the
    check name, and steps 9 to 11 reuse the open PR.
 

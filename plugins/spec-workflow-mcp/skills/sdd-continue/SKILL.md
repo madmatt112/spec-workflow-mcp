@@ -121,7 +121,7 @@ Apply these rules in order; the first match wins.
 5. Design missing or not approved ⇒ document phase **design**.
 6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
-   under the old convention. Treat tasks as approved, append a retro-log entry
+   under the old convention. Treat tasks as approved, append a retro-log entry with `retro.sh`
    (category `deviation`, "tasks treated as approved: implementation had begun"), and
    go to rule 7.
 7. Otherwise ⇒ **implementation**.

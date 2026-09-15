@@ -93,7 +93,7 @@ candidates`. Count the lines matching `DECISION NEEDED: yes`.
 
 Commit both files in the spec store repo (`docs(sdd): <SPEC> retrospective findings
 and proposals`, through the commit script described in the document-phase skill's
-`references/cleanup.md`). Append one retro-log entry (`cleanup`: retrospective
+`references/cleanup.md`). Append one retro-log entry with `retro.sh` (`cleanup`: retrospective
 compiled, finding and proposal counts).
 
 Report `PHASE: retro-ready`, `STATE: n/a`, `NEXT: retrospective conversation`, and in
