@@ -3,9 +3,10 @@
 #
 # Appends one JSON line per event to <spec dir>/harness-activity.jsonl for agents whose
 # type starts with `sdd-` (plugin-scoped names such as spec-workflow-harness:sdd-reviewer
-# included). The spec dir comes from the pointer file the sdd-continue supervisor writes at
-# run start: ${XDG_STATE_HOME:-~/.local/state}/sdd/active-run (first line = spec dir,
-# second line = run id). Without the pointer, or for any other agent, this exits at once,
+# included). The pointer file the sdd-continue supervisor writes at run start,
+# ${XDG_STATE_HOME:-~/.local/state}/sdd/active-run, holds one tab-separated line per active
+# run, `<main checkout>\t<spec dir>\t<run id>`; this hook uses the line whose first field
+# is a prefix of the hook input's cwd. Without a matching line, or for any other agent, this exits at once,
 # so sessions that are not running the harness pay nothing beyond this check.
 POINTER="${XDG_STATE_HOME:-$HOME/.local/state}/sdd/active-run"
 [ -f "$POINTER" ] || exit 0
@@ -14,8 +15,15 @@ case "$IN" in
   *'"agent_type"'*'sdd-'*) ;;
   *) exit 0 ;;
 esac
-SPEC_DIR=$(sed -n '1p' "$POINTER")
-RUN_ID=$(sed -n '2p' "$POINTER")
+CWD=$(printf '%s' "$IN" | node -e 'try{process.stdout.write(String(JSON.parse(require("fs").readFileSync(0,"utf8")).cwd||""))}catch{}')
+SPEC_DIR=""; RUN_ID=""
+while IFS=$'\t' read -r CHECKOUT SDIR RID || [ -n "$CHECKOUT" ]; do
+  [ -n "$CHECKOUT" ] || continue
+  case "$CWD" in
+    "$CHECKOUT"|"$CHECKOUT"/*) SPEC_DIR="$SDIR"; RUN_ID="$RID"; break ;;
+  esac
+done < "$POINTER"
+[ -n "$SPEC_DIR" ] || exit 0
 [ -d "$SPEC_DIR" ] || exit 0
 export SDD_ACTIVITY_FILE="$SPEC_DIR/harness-activity.jsonl"
 export SDD_RUN_ID="$RUN_ID"

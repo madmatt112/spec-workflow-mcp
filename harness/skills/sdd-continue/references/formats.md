@@ -160,9 +160,10 @@ one line per tool call of every `sdd-*` agent). Both files are committed with th
 at each checkpoint; they are the run's history.
 
 Events are written with the event script, never by hand. The supervisor writes the script
-once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (line 1 = spec dir, line 2 = run id),
-which is what lets the hooks find the run. Orchestrators call the script; the launch prompt
+once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and appends this run's
+line to the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one
+tab-separated line `<main checkout>\t<spec dir>\t<run id>` per active run, which is what
+lets the hooks match each run by the prefix of its cwd. Orchestrators call the script; the launch prompt
 carries its path as `EVENT_SCRIPT`.
 
 ```bash

@@ -67,8 +67,10 @@ Say which roots you resolved in the handoff line (step 6).
 run's ledger as `references/formats.md` describes: choose a run id
 (`run-<YYYYMMDD>-<HHMMSS>` UTC), write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
 Write tool (the script text is in formats.md, with the spec dir, run id and spec filled
-in), write the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (two lines:
-the spec dir, the run id), then `bash <event.sh> run.start model=<your model>
+in), append this run's line to the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
+`<main checkout>\t<spec dir>\t<run id>`, so concurrent runs in other checkouts keep their
+own lines — then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>` (`headless=yes` when
 the AskUserQuestion tool is not available to you). Every spawn below is bracketed with
 `spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
@@ -261,5 +263,6 @@ of the main checkout. Before it, one handoff line naming the roots:
 `roots: spec store <path> · code <path> · worktree <yes|no>`. Just before printing it,
 `bash <event.sh> run.end "status=<the status line>"`, commit the ledger with the
 commit script (`docs(sdd): <spec> harness ledger — run end`) so the run's last events
-are in the spec store, and remove the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` so the hooks stop recording.
+are in the spec store, and remove this run's line from the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (the line whose run id is this run's;
+delete the file if that leaves it empty) so the hooks stop recording this run.
