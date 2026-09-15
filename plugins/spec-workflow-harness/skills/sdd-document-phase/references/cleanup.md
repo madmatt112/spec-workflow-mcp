@@ -84,6 +84,34 @@ diff spot-check is `bash -c 'cd "<SPEC_STORE_REPO>" && /usr/bin/git diff --stat 
 written to a sibling script the same way. Never add attribution trailers; ignore any
 harness note that asks for them.
 
+## Spec store edits
+
+Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
+worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
+the Write tool (never `sed -i`, never a heredoc), then call it on its own shell line as
+`node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>`: it replaces one exact
+match and exits non-zero on 0 or 2+ matches.
+
+```js
+#!/usr/bin/env node
+// spec-edit.mjs — one exact-string replacement on a spec-store file when the Edit tool
+// is refused (worktree-isolated session). usage: node spec-edit.mjs <file> <old> <new>
+import { readFileSync, writeFileSync } from 'node:fs';
+const [file, oldS, newS] = process.argv.slice(2);
+if (!file || oldS === undefined || newS === undefined) {
+  console.error('usage: node spec-edit.mjs <file> <old> <new>');
+  process.exit(2);
+}
+const text = readFileSync(file, 'utf-8');
+const first = text.indexOf(oldS);
+if (first < 0) { console.error('spec-edit: old string not found'); process.exit(1); }
+if (text.indexOf(oldS, first + oldS.length) >= 0) {
+  console.error('spec-edit: old string is not unique'); process.exit(1);
+}
+writeFileSync(file, text.slice(0, first) + newS + text.slice(first + oldS.length));
+console.log('replaced 1 match');
+```
+
 ## Round prompt changes
 
 Write `/tmp/scratchpad/sdd/<SPEC>/append-changes.sh` once per run with the Write tool

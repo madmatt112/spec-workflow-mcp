@@ -34,9 +34,13 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
   path.
 - Keep a task list: one item per task in `tasks.md`.
-- Edit `tasks.md` and HANDOFF with the Edit tool. Never `sed -i` on the spec store from
-  a shell line, and never put a heredoc on a shell line; write scripts with the Write
-  tool.
+- Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
+  worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
+  the Write tool from the script text in the document-phase skill's
+  `references/cleanup.md`, then call it on its own shell line:
+  `node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>` replaces one exact
+  match (non-zero exit on 0 or 2+ matches). Never `sed -i` on the spec store, never a
+  heredoc; write scripts with the Write tool.
 - Do not ask questions.
 - Spec store commits go through the script in the document-phase skill's
   `references/cleanup.md` (same script, same path); write it if it does not exist.

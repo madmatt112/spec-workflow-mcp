@@ -22,6 +22,13 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
   cost estimate. A finding without a reference is not written.
 - Both output files are capped at 2,500 words each. Count before you finish.
 - Do not ask questions.
+- Edit spec-store files (HANDOFF, the retro log) with the Edit tool. When the tool
+  refuses the path (a worktree-isolated session), write
+  `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with the Write tool from the script
+  text in the document-phase skill's `references/cleanup.md`, then call it on its own
+  shell line: `node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>` replaces
+  one exact match (non-zero exit on 0 or 2+ matches). Never `sed -i` on the spec store,
+  never a heredoc; write scripts with the Write tool.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces):
   `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
