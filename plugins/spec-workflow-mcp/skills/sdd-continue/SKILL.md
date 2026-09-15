@@ -211,8 +211,9 @@ Act on the final `PHASE:` line of the orchestrator's report:
 **Worktree rule.** Before the first implementation spawn: if `agent-rules.md` exists
 and contains the line `worktree-per-change: required`, and the worktree check in
 step 1 said `no`, enter a worktree named after the spec with the EnterWorktree tool,
-then rename the branch to `feat/<spec>` (`git branch -m`). Re-run the step 1
-worktree check so the launch prompt carries the new `CODE_ROOT`. If EnterWorktree is
+then rename the branch to `feat/<spec>` (`git branch -m`). If `agent-rules.md`
+carries a `worktree-setup:` line, run its command once in the new worktree. Re-run
+the step 1 worktree check so the launch prompt carries the new `CODE_ROOT`. If EnterWorktree is
 unavailable (headless run), the driver has already put you in a worktree; the step 1
 check confirms it, and you do not enter another. Subagents inherit the worktree.
 

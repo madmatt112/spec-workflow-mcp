@@ -3,6 +3,7 @@
 Read this before you touch the repository. It is short; obey all of it.
 
 worktree-per-change: required
+worktree-setup: npm ci
 
 ## Layout
 
