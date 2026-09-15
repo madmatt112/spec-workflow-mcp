@@ -166,6 +166,57 @@ describe('buildModel', () => {
     expect(m.ticker[m.ticker.length - 1].text).toBe('task.done   task P1  done');
   });
 
+  it('folds a spawn.usage onto the hook-written spawn of the same agent', () => {
+    const ev = ledger();
+    // The hook writes a coarse spawn.start (in ledger()) and a spawn.end with no tokens.
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer' });
+    // The orchestrator writes the precise usage event: role, result, tokens.
+    ev.push({ ts: '2026-09-12T19:10:01.000Z', run: 'run-2', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 3 (v2)', result: 'logged: yes/3', tokens: '84000', phase: 'implementation', task: '3' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    expect(m.spawns).toHaveLength(2); // no synthesized node: the usage claimed the hook node
+    const impl = m.spawns[1];
+    expect(impl.role).toBe('implement task 3 (v2)');
+    expect(impl.result).toBe('logged: yes/3');
+    expect(impl.tokens).toBe(84_000);
+    expect(impl.endedAt).toBe('2026-09-12T19:10:00.000Z');
+    expect(m.tokensTotal).toBe(84_000);
+  });
+
+  it('synthesizes a node for a reused-agent prompt-launched worker whose brief node is claimed', () => {
+    const ev = ledger();
+    // Per-task verifier: brief-launched, so the hook writes spawn.start/spawn.end.
+    ev.push({ ts: '2026-09-12T19:11:00.000Z', run: 'run-2', spec: 's', type: 'spawn.start', agent: 'sdd-verifier', role: 'verify task', phase: 'implementation', task: '3' });
+    ev.push({ ts: '2026-09-12T19:12:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-verifier' });
+    // Its usage claims that hook node.
+    ev.push({ ts: '2026-09-12T19:12:01.000Z', run: 'run-2', spec: 's', type: 'spawn.usage', agent: 'sdd-verifier', role: 'verify task 3', result: 'pass', tokens: '40000', phase: 'implementation', task: '3' });
+    // End-to-end verifier: prompt-launched, no brief node; its usage synthesizes a node.
+    ev.push({ ts: '2026-09-12T19:20:00.000Z', run: 'run-2', spec: 's', type: 'spawn.usage', agent: 'sdd-verifier', role: 'verify end to end', result: 'pass', tokens: '25000', phase: 'implementation' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const verifiers = m.spawns.filter(s => s.agent === 'sdd-verifier');
+    expect(verifiers).toHaveLength(2);
+    const [perTask, e2e] = verifiers;
+    expect(perTask.role).toBe('verify task 3');
+    expect(perTask.tokens).toBe(40_000);
+    expect(perTask.endedAt).toBe('2026-09-12T19:12:00.000Z');
+    expect(e2e.role).toBe('verify end to end');
+    expect(e2e.tokens).toBe(25_000);
+    expect(e2e.level).toBe(2);
+    expect(e2e.startedAt).toBe('2026-09-12T19:20:00.000Z');
+    expect(e2e.endedAt).toBe('2026-09-12T19:20:00.000Z');
+    expect(m.tokensTotal).toBe(40_000 + 25_000);
+  });
+
+  it('leaves an old ledger (spawn.start/end with tokens, no spawn.usage) unchanged', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    // No spawn.usage, so the fold pass is inert: same two nodes, tokens from spawn.end.
+    expect(m.spawns).toHaveLength(2);
+    expect(m.spawns[1].role).toBe('implement task 3');
+    expect(m.spawns[1].tokens).toBe(84_000);
+    expect(m.tokensTotal).toBe(84_000);
+  });
+
   it('works with no ledger at all (a spec built before the harness)', () => {
     const m = buildModel({ spec: 'tags-and-setups', ledger: [], activity: [], tasksMd: TASKS, handoffMd: HANDOFF });
     expect(m.runId).toBeUndefined();
