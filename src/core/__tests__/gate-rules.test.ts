@@ -259,6 +259,15 @@ describe('scoreRisk', () => {
     expect(r.reasons).toContain('tests-not-touched: task names tests; no touched path is a test file');
   });
 
+  it('c: does not fire for a docs-only task with no src source file (P7)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      block: '- [ ] 1. Add tests for the docs',
+      touched: ['docs/guide.md', 'harness/skills/foo/SKILL.md'],
+    });
+    expect(r.reasons.some((x) => x.startsWith('tests-not-touched'))).toBe(false);
+  });
+
   it('d: fires when the touched set is empty', () => {
     const r = scoreRisk({ ...lowRisk, touched: [] });
     expect(r.reasons).toContain('no-diff: no path changed in the range');

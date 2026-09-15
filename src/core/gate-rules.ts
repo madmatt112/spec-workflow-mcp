@@ -257,11 +257,20 @@ export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: st
   }
 
 
-  // c tests-not-touched (task mode)
+  // c tests-not-touched (task mode). Also requires that some touched path is a
+  // non-test, non-generated source file under `src/`, so a docs-only or
+  // verification-only task cannot trip the rule (retro P7).
+  const touchesSource = input.touched.some(
+    (p) =>
+      normalizePath(p).startsWith('src/') &&
+      !isTestPath(p) &&
+      !(input.generated && isGeneratedPath(p, input.generated))
+  );
   if (
     input.mode === 'task' &&
     taskNamesTests(input.block) &&
-    !input.touched.some(isTestPath)
+    !input.touched.some(isTestPath) &&
+    touchesSource
   ) {
     reasons.push('tests-not-touched: task names tests; no touched path is a test file');
   }
