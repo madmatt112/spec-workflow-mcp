@@ -64,7 +64,9 @@ Read, in this order, taking notes rather than copying:
    (`<default branch>..HEAD` in `CODE_ROOT`; if the branch is merged, the commits whose
    message names the spec) and the spec store repo (`-- .spec-workflow/specs/<SPEC>` in
    the spec store repo root) — and the skill then runs it with `bash`. The script uses
-   no `-C`, no glob and no `&&` on any shell line.
+   no `-C`, no glob and no `&&` on any shell line. Run each `ls`, `grep` or `cat` as its
+   own Bash line. The worktree guard refuses a compound line (`&&`, `;`, or a name that
+   could be `git`); never combine listings.
 7. Every earlier `<SPEC_STORE_ROOT>/specs/*/retrospective.md`, for repeat patterns.
 
 Write `<spec dir>/retrospective.md` with the sections in `references/formats.md`, in
