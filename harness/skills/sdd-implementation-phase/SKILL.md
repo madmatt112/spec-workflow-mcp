@@ -136,7 +136,12 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
    with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
    section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next
-   task) and commit the spec store. Count it against `BUDGET`.
+   task) and commit the spec store. Count it against `BUDGET`. A task whose
+   verification is only partly done may still go `[x]`, but only when a `deferrals`
+   record tagged `verification` names the exact command still to run and the evidence
+   it must show; on that, add the row `Deferred verification | <id>` to the HANDOFF
+   `## <SPEC> — implementation` section and carry that item unticked in the PR body's
+   Test plan (step 10). A silent skip is not allowed: no record, no `[x]`.
 7. **Budget.** When the count of tasks completed in this run reaches `BUDGET` and open
    tasks remain: write the HANDOFF section, commit the spec store, report
    `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <next N>`.
@@ -186,7 +191,8 @@ When no `[ ]` or `[-]` task remains:
    `generate`. Call `deferrals` `list` with `status: deferred`: count the records with
    `originSpec: <SPEC>` (added by this spec) and the total. Write the HANDOFF section
    (implemented, date, the two deferral numbers, the two or three deferrals most
-   worth working next, gotchas). Append the phase summary to the retro log (`cleanup`:
+   worth working next, a `Deferred verification | <id>` row for every task that went
+   `[x]` with verification deferred, gotchas). Append the phase summary to the retro log (`cleanup`:
    tasks, fix rounds, adjudications, spawns, deferrals added). Commit the spec store:
    `docs(sdd): <SPEC> implemented, <n> tasks`.
 10. **Push and PR.** In `CODE_ROOT`: if `git remote` lists a remote and the current

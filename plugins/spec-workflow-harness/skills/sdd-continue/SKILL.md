@@ -230,8 +230,11 @@ written with the Write tool if it does not exist yet), with the message
 ## 5. Retrospective conversation
 
 Read exactly two files: `specs/<spec>/retrospective.md` and
-`specs/<spec>/retrospective-proposals.md`. Present a summary: findings by category
-with counts, the proposals with effort and risk, the graduation candidates.
+`specs/<spec>/retrospective-proposals.md`. Call `deferrals` `list` with
+`status: deferred` and keep this spec's records tagged `verification`. Present a
+summary: findings by category with counts, the proposals with effort and risk, the
+graduation candidates, and those open `verification` records as the human's action
+items (each names the exact command to re-run and the evidence it must show).
 
 Then use AskUserQuestion:
 
