@@ -468,7 +468,8 @@ async function handlePrepare(
       runProjectTypecheck(workspacePath, projectPath, workspaceFiles, {
         enabled: typecheckEnabled,
       }),
-      computeHygieneSignals(workspaceFiles),
+      computeHygieneSignals(workspaceFiles, { root: workspacePath, base: ['HEAD'] }),
+
       computeTaskDiff(workspacePath, workspaceFiles),
     ]);
     const typecheckResults = unwrapTypecheck(settled[0], workspacePath);

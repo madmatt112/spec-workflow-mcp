@@ -67,8 +67,10 @@ Say which roots you resolved in the handoff line (step 6).
 run's ledger as `references/formats.md` describes: choose a run id
 (`run-<YYYYMMDD>-<HHMMSS>` UTC), write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
 Write tool (the script text is in formats.md, with the spec dir, run id and spec filled
-in), write the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (two lines:
-the spec dir, the run id), then `bash <event.sh> run.start model=<your model>
+in), append this run's line to the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
+`<main checkout>\t<spec dir>\t<run id>`, so concurrent runs in other checkouts keep their
+own lines — then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>` (`headless=yes` when
 the AskUserQuestion tool is not available to you). Every spawn below is bracketed with
 `spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
@@ -121,7 +123,7 @@ Apply these rules in order; the first match wins.
 5. Design missing or not approved ⇒ document phase **design**.
 6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
-   under the old convention. Treat tasks as approved, append a retro-log entry
+   under the old convention. Treat tasks as approved, append a retro-log entry with `retro.sh`
    (category `deviation`, "tasks treated as approved: implementation had begun"), and
    go to rule 7.
 7. Otherwise ⇒ **implementation**.
@@ -211,8 +213,9 @@ Act on the final `PHASE:` line of the orchestrator's report:
 **Worktree rule.** Before the first implementation spawn: if `agent-rules.md` exists
 and contains the line `worktree-per-change: required`, and the worktree check in
 step 1 said `no`, enter a worktree named after the spec with the EnterWorktree tool,
-then rename the branch to `feat/<spec>` (`git branch -m`). Re-run the step 1
-worktree check so the launch prompt carries the new `CODE_ROOT`. If EnterWorktree is
+then rename the branch to `feat/<spec>` (`git branch -m`). If `agent-rules.md`
+carries a `worktree-setup:` line, run its command once in the new worktree. Re-run
+the step 1 worktree check so the launch prompt carries the new `CODE_ROOT`. If EnterWorktree is
 unavailable (headless run), the driver has already put you in a worktree; the step 1
 check confirms it, and you do not enter another. Subagents inherit the worktree.
 
@@ -227,8 +230,11 @@ written with the Write tool if it does not exist yet), with the message
 ## 5. Retrospective conversation
 
 Read exactly two files: `specs/<spec>/retrospective.md` and
-`specs/<spec>/retrospective-proposals.md`. Present a summary: findings by category
-with counts, the proposals with effort and risk, the graduation candidates.
+`specs/<spec>/retrospective-proposals.md`. Call `deferrals` `list` with
+`status: deferred` and keep this spec's records tagged `verification`. Present a
+summary: findings by category with counts, the proposals with effort and risk, the
+graduation candidates, and those open `verification` records as the human's action
+items (each names the exact command to re-run and the evidence it must show).
 
 Then use AskUserQuestion:
 
@@ -260,5 +266,6 @@ of the main checkout. Before it, one handoff line naming the roots:
 `roots: spec store <path> · code <path> · worktree <yes|no>`. Just before printing it,
 `bash <event.sh> run.end "status=<the status line>"`, commit the ledger with the
 commit script (`docs(sdd): <spec> harness ledger — run end`) so the run's last events
-are in the spec store, and remove the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` so the hooks stop recording.
+are in the spec store, and remove this run's line from the pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (the line whose run id is this run's;
+delete the file if that leaves it empty) so the hooks stop recording this run.

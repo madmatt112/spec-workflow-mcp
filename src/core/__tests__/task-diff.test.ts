@@ -661,6 +661,7 @@ describe('computeRangeStats — commit mode', () => {
     if (!result.ok) return;
     expect(result.touched).toEqual(['a.ts']);
     expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 2, linesRemoved: 0 });
+    expect(result.perFile).toEqual({ 'a.ts': 2 });
   });
 
   it('a later commit counts only that commit against its parent', async () => {
@@ -739,7 +740,9 @@ describe('computeRangeStats — baseRef mode', () => {
     if (!result.ok) return;
     expect(result.touched).toEqual(['committed.ts', 'tracked2.ts', 'untracked.ts']);
     expect(result.stats).toEqual({ filesChanged: 3, linesAdded: 5, linesRemoved: 0 });
+    expect(result.perFile).toEqual({ 'committed.ts': 1, 'tracked2.ts': 1, 'untracked.ts': 3 });
   });
+
 
   it('excludes a gitignored untracked file', async () => {
     gitInit(tempDir);

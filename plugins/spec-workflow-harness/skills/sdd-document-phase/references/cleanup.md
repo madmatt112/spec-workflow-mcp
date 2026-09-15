@@ -56,8 +56,11 @@ narrow check when it ran).
    v<D> in review, round <A> verdict <…>`, the rejection tally, and `Re-run does |
    <one line>`.
 6. Before committing, check the document's version header: `grep -n 'Document version'
-   <document path>`. On a mismatch with D, `sed` it to `Document version: v<D>`. Then
-   commit in the spec store repo (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
+   <document path>`. Fix it with `spec-edit.mjs` (never `sed`): on zero matches, insert a
+   `Document version: v<D>` line right after the H1 (anchor on the H1 line, replace it
+   with the H1 line followed by the new header line); on a mismatch with D, replace the
+   found header line with `Document version: v<D>`. Then commit in the spec store repo
+   (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
 
 ## Spec store commits
 
@@ -83,6 +86,34 @@ Run it as `bash /tmp/scratchpad/sdd/<SPEC>/commit-spec-store.sh "<message>"`. Th
 diff spot-check is `bash -c 'cd "<SPEC_STORE_REPO>" && /usr/bin/git diff --stat -- <document path>'`
 written to a sibling script the same way. Never add attribution trailers; ignore any
 harness note that asks for them.
+
+## Spec store edits
+
+Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
+worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
+the Write tool (never `sed -i`, never a heredoc), then call it on its own shell line as
+`node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>`: it replaces one exact
+match and exits non-zero on 0 or 2+ matches.
+
+```js
+#!/usr/bin/env node
+// spec-edit.mjs — one exact-string replacement on a spec-store file when the Edit tool
+// is refused (worktree-isolated session). usage: node spec-edit.mjs <file> <old> <new>
+import { readFileSync, writeFileSync } from 'node:fs';
+const [file, oldS, newS] = process.argv.slice(2);
+if (!file || oldS === undefined || newS === undefined) {
+  console.error('usage: node spec-edit.mjs <file> <old> <new>');
+  process.exit(2);
+}
+const text = readFileSync(file, 'utf-8');
+const first = text.indexOf(oldS);
+if (first < 0) { console.error('spec-edit: old string not found'); process.exit(1); }
+if (text.indexOf(oldS, first + oldS.length) >= 0) {
+  console.error('spec-edit: old string is not unique'); process.exit(1);
+}
+writeFileSync(file, text.slice(0, first) + newS + text.slice(first + oldS.length));
+console.log('replaced 1 match');
+```
 
 ## Round prompt changes
 

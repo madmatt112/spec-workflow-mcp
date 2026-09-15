@@ -505,7 +505,7 @@ through `PathUtils.safeJoin`.
 | `tasks-format` | error / warning | `validateTasksMarkdown` shape errors (error) or prompt/structure warnings (warning) |
 | `task-requirement-id` | error | a `_Requirements:` id absent from `requirements.md` |
 | `task-requirement-unchecked` | info | `requirements.md` is missing or unreadable on a `tasks` call |
-| `doc-words` | warning | the whole document is over its word cap |
+| `doc-words` | warning | the document body (the H1 to the line before `## Revision History`) is over its word cap |
 | `task-words` | warning | a task block is over the task word cap |
 | `caps-invalid` | info | a `## Word caps` bullet whose value is not a positive integer |
 | `coverage-component` | error | a `### Component N` in `design.md` that no task cites |
