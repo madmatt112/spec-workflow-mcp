@@ -169,10 +169,18 @@ When no `[ ]` or `[-]` task remains:
    scenario. Write `/tmp/scratchpad/sdd/<SPEC>/verify-e2e.md` from the end-to-end
    template (the scenario, plus the full check suite as `agent-rules.md` defines it:
    typecheck, tests, lint, migrations, e2e, each as a separate command). Spawn
-   `sdd-verifier`. It ends with `VERIFY: pass | fail`.
+   `sdd-verifier`. It ends with `VERIFY: pass | fail`, or `VERIFY: pass (deferred: <id>)`
+   for the in-run case below.
    - `fail` ⇒ write the HANDOFF section, append a retro-log entry with `retro.sh` (`bug`), commit the
      spec store, report `PHASE: verify-failed`, `REASON: <one line from the report>`.
      Do not mark anything complete.
+   - When the scenario needs a skill or tool this spec adds that the installed plugin or
+     server still lacks (it lands only when the release republishes), the verifier cannot
+     exercise it end-to-end: it verifies the tool half in-process instead, stages the
+     fixture under `/tmp/scratchpad/sdd/<SPEC>/scratch-store/`, and reports
+     `VERIFY: pass (deferred: <id>)`. On that report add a `deferrals` record tagged
+     `verification` whose `revisitCriteria` is the exact command to re-run once the plugin
+     or server is reinstalled and the evidence it must show, then treat it as `pass`.
    - `pass` ⇒ step 9.
 9. **Close the spec.** Confirm every task in `tasks.md` is `[x]`. Call `spec-index`
    `generate`. Call `deferrals` `list` with `status: deferred`: count the records with
