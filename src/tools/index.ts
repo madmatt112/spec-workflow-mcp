@@ -12,6 +12,7 @@ import { decompositionGuideTool, decompositionGuideHandler } from './decompositi
 import { reviewTaskTool, reviewTaskHandler } from './review-task.js';
 import { getTaskReviewTool, getTaskReviewHandler } from './get-task-review.js';
 import { specLintTool, specLintHandler } from './spec-lint.js';
+import { harnessTool, harnessHandler } from './harness.js';
 import { ToolContext, ToolResponse, MCPToolResponse, toMCPResponse } from '../types.js';
 
 export function registerTools(): Tool[] {
@@ -28,7 +29,8 @@ export function registerTools(): Tool[] {
     decompositionGuideTool,
     reviewTaskTool,
     getTaskReviewTool,
-    specLintTool
+    specLintTool,
+    harnessTool
   ];
 }
 
@@ -76,6 +78,9 @@ export async function handleToolCall(name: string, args: any, context: ToolConte
         break;
       case 'spec-lint':
         response = await specLintHandler(args, context);
+        break;
+      case 'harness':
+        response = await harnessHandler(args, context);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

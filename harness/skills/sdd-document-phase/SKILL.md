@@ -42,38 +42,28 @@ at the start.
   for the version being approved. Versions live in the checkpoint commits.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
-  at the end of Step 0; `spawn.start` right before every Agent call and `spawn.end` right
-  after its report (`agent=`, `role=`, `phase=`, `round=` or `task=`, `result=`,
-  `tokens=<n>` from the token count the Agent result states in its footer); `round`
-  after every verdict; `note` for rulings and escalations; `phase.end` right before your
-  final report. Event types and keys are listed in the supervisor's
+  at the end of Step 0; one `spawn.usage` right after each worker's report (`agent=`,
+  `role=`, `phase=`, `round=` or `task=`, `result=`, `tokens=<n>` from the token count the
+  Agent result states in its footer); `round` after every verdict; `note` for rulings and
+  escalations; `phase.end` right before your final report. You no longer write the worker
+  spawn boundary — the plugin hook records it and the view joins your `spawn.usage` to it
+  by agent and time window. Event types and keys are listed in the supervisor's
   `references/formats.md`. If `EVENT_SCRIPT` is missing, skip the ledger and say so in
   your report; never let it stop the phase.
 
 ## Step 0 — Orient
 
 1. If `HANDOFF` has a section `## <SPEC> — <PHASE>`, read that section only.
-2. **D**, the document version: `grep -n -E '^- \*\*v[0-9]+\*\*' <document>` under
-   `## Revision History`; D is the highest number (0 when the document does not exist).
-   If the document exists but has no Revision History, D is 1 and the reviser adds the
-   section at the next version. **P**, corrective pass: true when the line for v<D>
-   contains `Post-cap corrective pass` or `SHOULD_FIX-only corrective pass`.
-3. **A**, the latest analysis: list `reviews/adversarial-analysis-<PHASE>*.md`. The file
-   with no suffix is r1; `-rN` is rN. A is the highest N (0 when none). Read the verdict
-   block of the latest one with `tail -8`. A file whose last lines carry `VERIFIED:`
-   instead of `VERDICT:` is the narrow check, not a review.
-4. Decide, first match wins:
-   - `MODE: revision` ⇒ Step R.
-   - D = 0 ⇒ Step 1.
-   - P and the latest analysis is the narrow check ⇒ Step 5.
-   - P and no narrow check ⇒ Step 4b.
-   - A < D ⇒ Step 2 (review vD).
-   - A = D and the verdict is `converged`, or `iterate` with `MUST_FIX: 0` and
-     `SHOULD_FIX: 0` ⇒ Step 5.
-   - A = D and `iterate` with `MUST_FIX: 0`, `SHOULD_FIX > 0` and D ≥ 2 ⇒ the
-     SHOULD_FIX-only pass in Step 2 item 9.
-   - A = D and `iterate` with fuel: D ≥ 4 ⇒ Step 4a; otherwise ⇒ Step 3.
-5. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <step>`, and
+2. Call the spec-workflow `harness` tool with `action: orient`, `specName: <SPEC>`,
+   `phase: <PHASE>`, `mode: <MODE>`, and no `projectPath`. It applies the Step 0 decision
+   table server-side and returns `D` (the document version — 0 when the document does not
+   exist), `A` (the latest analysis number), `verdict`, `P` (corrective pass),
+   `narrowCheck` (the latest analysis is the `VERIFIED:` narrow check) and `nextStep`.
+3. Route to the step `nextStep` names, first match already applied: `Step R`, `Step 1`,
+   `Step 5`, `Step 4b`, `Step 2`, `Step 2 item 9` (the SHOULD_FIX-only pass), `Step 4a` or
+   `Step 3`. Keep `D`, `A`, `verdict`, `P` and `narrowCheck` on your task list; the later
+   steps read them and advance `D` as they revise.
+4. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <nextStep>`, and
    record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>`.
 
 ## Step 1 — v1
@@ -81,8 +71,12 @@ at the start.
 1. **Carried items.** For design, `grep -n 'Carried items' <HANDOFF>` inside the
    section `## <SPEC> — requirements`; for tasks, inside `## <SPEC> — design`. Take
    the row's value (`none`, or one line per item). Requirements has none.
-2. Write `reviews/drafter-brief-<PHASE>.md` from the drafter template, with the carried
-   items in its `## Carried from <previous phase>` section.
+2. Call the spec-workflow `harness` tool with `action: brief`, `template: drafter`,
+   `specName: <SPEC>`, and `values` carrying the output path
+   `reviews/drafter-brief-<PHASE>.md` and the drafter fields from `references/briefs.md`
+   (the job, including the carried items for the `## Carried from <previous phase>`
+   section). The tool fills the read-and-obey line and writes the file; keep the path it
+   returns.
 3. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
    path>`. Note each `RE-DECIDED: <req> — <one line>` flag it raised and put them into
    the round-1 reviewer prompt's `## This round` section (Step 2) for a ruling: the
@@ -111,10 +105,12 @@ It never changes D.
    number `data.findings` `L-1`, `L-2`, … in file order. When `summary.error +
    summary.warning` is 0, set `LINT.open` to every `info` finding and end the step here;
    `info` findings alone spawn nothing.
-3. Write `reviews/lint-brief-<PHASE>-v<D>.md` from the lint brief template in
-   `references/briefs.md`.
-4. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`, wrapped
-   in `spawn.start`/`spawn.end` carrying `role="lint v<D>"` and `round=<A+1>`.
+3. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
+   carrying the output path `reviews/lint-brief-<PHASE>-v<D>.md` and the lint brief's
+   fields (job, findings) from `references/briefs.md`.
+4. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`. After its
+   report write one `spawn.usage` carrying `role="lint v<D>"`, `round=<A+1>`, and the
+   result and tokens from its report.
 5. Spot-check: `grep -n 'Lint pass' <document>`.
 6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through the commit script
    (`references/cleanup.md`); D does not change — a lint pass consumes no cap fuel.
@@ -150,8 +146,9 @@ It never changes D.
 9. Route:
    - `converged`, or `iterate` with `MUST_FIX: 0` and `SHOULD_FIX: 0` ⇒ Step 5.
    - `iterate` with `MUST_FIX: 0`, `SHOULD_FIX > 0` and D ≥ 2 ⇒ **SHOULD_FIX-only pass**:
-     write a Step 3 reviser brief for the SHOULD_FIX items only, telling the reviser to
-     end the v(D+1) Revision History line `SHOULD_FIX-only corrective pass`; spawn
+     run Step 3's `harness brief` (`template: reviser`) for the SHOULD_FIX items only,
+     telling the reviser to end the v(D+1) Revision History line `SHOULD_FIX-only
+     corrective pass`; spawn
      `sdd-reviser`, spot-check, checkpoint commit `docs(sdd): <SPEC> <PHASE> v(D+1)
      SHOULD_FIX-only corrective pass`, D = D + 1. Run the Lint step. Then Step 4b
      (narrow check on those items), then Step 5. No further review round.
@@ -160,7 +157,9 @@ It never changes D.
 
 ## Step 3 — Revise to v(D+1)
 
-1. Write `reviews/reviser-brief-<PHASE>-v<D+1>.md` from the reviser template.
+1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
+   carrying the output path `reviews/reviser-brief-<PHASE>-v<D+1>.md` and the reviser
+   fields (job, findings) from `references/briefs.md`.
 2. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`.
 3. Spot-check: `git diff --stat` on the document (through the script in
    `references/cleanup.md`) shows a change, and `grep -n -E '^- \*\*v<D+1>\*\*'
@@ -188,10 +187,11 @@ a finding for the next reviser brief.
 Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` or
 `SHOULD_FIX` above zero. Nothing reviews the corrective version again.
 
-1. Write `reviews/adjudication-brief-<PHASE>.md` from the adjudication template,
-   listing every open MUST_FIX and SHOULD_FIX item from the r<A> analysis by id, title
-   and severity (`grep -n -E 'MUST_FIX|SHOULD_FIX' <r<A> analysis>` gives the lines;
-   read only those).
+1. Call `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, and `values`
+   carrying the output path `reviews/adjudication-brief-<PHASE>.md` and, as the open
+   items, every open MUST_FIX and SHOULD_FIX from the r<A> analysis by id, title and
+   severity (`grep -n -E 'MUST_FIX|SHOULD_FIX' <r<A> analysis>` gives the lines; read only
+   those); the adjudication fields are in `references/briefs.md`.
 2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`.
 3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the line and it
    contains `Post-cap corrective pass`.
@@ -224,8 +224,9 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
    in `v<D>`, if any (a run under the older per-version flow may have left one).
 2. Otherwise `approvals` `request` now, with title `<SPEC> <PHASE> v<D>`, the
    `filePath` above, `type: document`, `category: spec`, `categoryName: <SPEC>`. If it
-   fails on MDX or tasks-format errors, write a reviser brief whose findings are the
-   error lines (numbered `RI-1`, …), spawn `sdd-reviser`, checkpoint commit `docs(sdd):
+   fails on MDX or tasks-format errors, assemble a reviser brief with `harness` `brief`
+   (`template: reviser`, `specName: <SPEC>`) whose findings are the error lines (numbered
+   `RI-1`, …), spawn `sdd-reviser`, checkpoint commit `docs(sdd):
    <SPEC> <PHASE> v<D+1> lint fixes`, D = D + 1, and request again once. A second
    failure is `PHASE: error`.
 3. `approvals` `approve` on the record with the response format from
@@ -248,9 +249,10 @@ carried items.
 `MODE: revision` means a human left `needs-revision` comments, or the supervisor
 re-opened this phase after a design defect.
 
-1. Write `reviews/reviser-brief-<PHASE>-v<D+1>.md` from the reviser template, with
-   `REVISION_INPUT` as the findings (numbered `RI-1`, `RI-2`, …) instead of an analysis
-   file. Every item is a MUST_FIX; the reviser may still reject one with a reason.
+1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
+   carrying the output path `reviews/reviser-brief-<PHASE>-v<D+1>.md` and, as the
+   findings, `REVISION_INPUT` (numbered `RI-1`, `RI-2`, …) instead of an analysis file.
+   Every item is a MUST_FIX; the reviser may still reject one with a reason.
 2. Spawn `sdd-reviser`. Spot-check. Checkpoint commit.
 3. D = D + 1. Run the Lint step. Go to Step 2. At least one review round runs before approval, even if
    the document had converged before. The cap rule applies as written: a revised

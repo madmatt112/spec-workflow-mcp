@@ -105,6 +105,16 @@ describe('render', () => {
     expect(out).not.toContain('o closeout');
   });
 
+  it('renders a spawn.usage ticker line with the precise role, result and tokens', () => {
+    const ledger: LedgerEvent[] = [
+      ...LEDGER,
+      { ts: '2026-09-12T19:06:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-implementer' },
+      { ts: '2026-09-12T19:06:01.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 3 (v2)', result: 'logged: yes/3', tokens: '84000', phase: 'implementation', task: '3' },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false });
+    expect(out).toContain('spawn.usage sdd-implementer  implement task 3 (v2)  -> logged: yes/3  84k tok');
+  });
+
   it('shows a stopped run', () => {
     const ledger = [...LEDGER,
       { ts: '2026-09-12T19:10:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'phase.end', phase: 'implementation', result: 'resume', state: 'tasks 3/8', note: 'budget' },

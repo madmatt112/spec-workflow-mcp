@@ -247,6 +247,49 @@ export function buildModel(input: {
     }
   }
 
+  // Fold each orchestrator spawn.usage, in ts order, onto the nearest earlier same-agent
+  // spawn node no earlier usage has claimed (a once-only unconsumed match, like the
+  // spawn.end pairing above). When none is unconsumed — a prompt-launched worker, a
+  // reused-agent worker whose brief node is already claimed, or a dropped spawn.start —
+  // synthesize a level-2 node so render and tokensTotal still see it. An old ledger has no
+  // spawn.usage, so this pass is inert and its model is unchanged.
+  const usageClaimed = new Set<SpawnNode>();
+  for (const e of runEvents) {
+    if (e.type !== 'spawn.usage') continue;
+    const agent = e.agent ?? 'unknown';
+    const at = ms(e.ts);
+    let match: SpawnNode | undefined;
+    for (const s of spawns) {
+      if (s.agent !== agent || usageClaimed.has(s) || ms(s.startedAt) > at) continue;
+      if (!match || ms(s.startedAt) > ms(match.startedAt)) match = s;
+    }
+    const tokens = e.tokens && !Number.isNaN(Number(e.tokens)) ? Number(e.tokens) : undefined;
+    if (match) {
+      usageClaimed.add(match);
+      if (e.role !== undefined) match.role = e.role;
+      if (e.result !== undefined) match.result = e.result;
+      if (tokens !== undefined) match.tokens = tokens;
+      if (e.phase !== undefined) match.phase = e.phase;
+      if (e.task !== undefined) match.task = e.task;
+      if (e.round !== undefined) match.round = e.round;
+    } else {
+      const node: SpawnNode = {
+        agent,
+        role: e.role ?? '',
+        phase: e.phase,
+        task: e.task,
+        round: e.round,
+        startedAt: e.ts,
+        endedAt: e.ts,
+        result: e.result,
+        tokens,
+        level: 2,
+      };
+      usageClaimed.add(node);
+      spawns.push(node);
+    }
+  }
+
   // Activity joins by agent name and time window: the latest tool event after the spawn
   // started (and before it ended) is what the agent is doing. Tokens come from spawn.end
   // (the Agent result's count, recorded by the orchestrator); an agent.stop in the window
@@ -299,6 +342,7 @@ export function buildModel(input: {
     if (e.type === 'run.start') continue;
     const detail =
       e.type === 'spawn.start' || e.type === 'spawn.end' ? `${e.agent ?? ''}  ${e.role ?? ''}${e.result ? `  -> ${e.result}` : ''}` :
+      e.type === 'spawn.usage' ? `${e.agent ?? ''}  ${e.role ?? ''}${e.result ? `  -> ${e.result}` : ''}${e.tokens ? `  ${formatTokens(Number(e.tokens))} tok` : ''}` :
       e.type === 'task.pick' ? `task ${e.task ?? ''}  ${e.title ?? ''}` :
       e.type === 'task.done' ? `task ${e.task ?? ''}  ${e.outcome ?? ''}${e.rounds ? ` after ${e.rounds} round(s)` : ''}` :
       e.type === 'round' ? `${e.phase ?? ''} ${e.version ?? ''} round ${e.round ?? ''}  ${e.verdict ?? ''}` :

@@ -26,6 +26,8 @@ done < "$POINTER"
 [ -n "$SPEC_DIR" ] || exit 0
 [ -d "$SPEC_DIR" ] || exit 0
 export SDD_ACTIVITY_FILE="$SPEC_DIR/harness-activity.jsonl"
+export SDD_EVENTS_FILE="$SPEC_DIR/harness-events.jsonl"
+export SDD_SPEC="${SPEC_DIR##*/}"
 export SDD_RUN_ID="$RUN_ID"
 printf '%s' "$IN" | node -e '
 const fs = require("fs");
@@ -65,5 +67,22 @@ if (ev === "PreToolUse") {
   process.exit(0);
 }
 fs.appendFileSync(process.env.SDD_ACTIVITY_FILE, JSON.stringify(e) + "\n");
+// Requirement 3: spawn boundary events to harness-events.jsonl (LedgerEvent shape).
+const eventsFile = process.env.SDD_EVENTS_FILE;
+if (eventsFile) {
+  const run = process.env.SDD_RUN_ID || undefined;
+  const spec = process.env.SDD_SPEC || undefined;
+  if (ev === "PreToolUse") {
+    const ti = d.tool_input || {};
+    const sub = String(ti.subagent_type || "");
+    const m = String(ti.prompt || "").match(/([^\s/]+)-brief[^\s/]*\.md/);
+    if (/(^|:)sdd-/.test(sub) && m) {
+      const child = sub.slice(sub.lastIndexOf(":") + 1);
+      fs.appendFileSync(eventsFile, JSON.stringify({ ts: e.ts, type: "spawn.start", run, spec, agent: child, role: m[1] }) + "\n");
+    }
+  } else if (ev === "SubagentStop" && !/-orchestrator$/.test(agent)) {
+    fs.appendFileSync(eventsFile, JSON.stringify({ ts: e.ts, type: "spawn.end", run, spec, agent }) + "\n");
+  }
+}
 '
 exit 0

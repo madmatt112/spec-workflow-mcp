@@ -13,7 +13,10 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 
 Your launch prompt gives you `SPEC`, `PHASE: implementation`, `MODE` (`normal` or
 `repair`), the roots, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` (tasks per
-spawn, default 20) and `REVISION_INPUT` (repair: the failing scenario).
+spawn, default 20) and `REVISION_INPUT` (repair: the failing scenario). The 20-task
+budget assumes the reduced orchestrator context this harness produces: you route only —
+the `orient` action runs Step 0, `harness brief` assembles each brief, and the plugin
+hook writes the worker spawn boundary, so none of that fills your context.
 
 Brief templates are in `references/briefs.md`. Read it once at the start.
 
@@ -47,30 +50,37 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0 (`state=tasks <done>/<total>`); `task.pick task=<N> "title=<title>"`
-  when you mark a task `[-]`; `spawn.start` right before every Agent call and `spawn.end`
-  right after its report (`agent=`, `role=implement task <N> | verify task <N> | fix task
-  <N> round <r> | adjudicate task <N> | end-to-end verification`, `phase=implementation`,
-  `task=<N>`, `result=<logged line | VERDICT | VERIFY>`, `tokens=<n>` from the token
-  count the Agent result states in its footer); `spawn.start` roles for a red
-  PR: `fix ci <check> round <r>`; `note "text=gate: task <N> <pass|fail> risk <low|high>"`
-  after every gate call; `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>`
-  when you mark `[x]`; `note` for deferrals, design defects, drift and every red CI
-  check; `phase.end` right before your final report. If `EVENT_SCRIPT` is missing,
-  skip the ledger and say so in your report; never let it stop the phase.
+  when you mark a task `[-]`; one `spawn.usage` right after each worker's report
+  (`agent=`, `role=implement task <N> | verify task <N> | fix task <N> round <r> |
+  adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
+  `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT | VERIFY>`,
+  `tokens=<n>` from the token count the Agent result states in its footer);
+  `note "text=gate: task <N> <pass|fail> risk <low|high>"` after every gate call;
+  `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>` when you mark `[x]`;
+  `note` for deferrals, design defects, drift and every red CI check; `phase.end` right
+  before your final report. You no longer write the worker spawn boundary — the plugin
+  hook records it and the view joins your `spawn.usage` to it by agent and time window.
+  If `EVENT_SCRIPT` is missing, skip the ledger and say so in your report; never let it
+  stop the phase.
 
-## Step 0 — Confirm the handoff
+## Step 0 — Orient
 
-1. Call `spec-status` for `SPEC` once. Proceed when the Tasks entry in `phases` has
-   `approved: true`, or when `taskProgress.completed > 0` or `taskProgress.inProgress
-   > 0` (implementation already began). Otherwise report `PHASE: error`, `REASON:
-   tasks.md not approved`.
-2. Read `tasks.md`. Note total tasks, done (`[x]`), in progress (`[-]`), open (`[ ]`).
-   A `[-]` task from an interrupted run is worked first, from Step 2 (its implementer
-   may have finished; the verifier decides).
-3. Read the HANDOFF section `## <SPEC> — implementation` if it exists.
-4. `MODE: repair` ⇒ go to **Repair**.
-5. Write `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md` and `verify-standing.md` from
+1. Call the spec-workflow `harness` tool with `action: orient`, `specName: <SPEC>`,
+   `phase: implementation`, `mode: <MODE>`, and no `projectPath`. It returns `tasks`
+   (`total`, `done`, `inProgress`, `open`), `tasksApproved`, `currentPhase` and `nextStep`.
+   Route on `nextStep`:
+   - `error: tasks.md not approved` ⇒ report `PHASE: error`, `REASON: tasks.md not
+     approved`.
+   - `Repair` ⇒ go to **Repair**.
+   - `Per-task loop: resume task <N>` ⇒ the **Per-task loop**, working that `[-]` task
+     first from Step 2 (its implementer may have finished; the verifier decides).
+   - `Per-task loop` ⇒ the **Per-task loop**.
+   - `Completion gate` ⇒ the **Completion gate**.
+2. Read the HANDOFF section `## <SPEC> — implementation` if it exists.
+3. Write `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md` and `verify-standing.md` from
    the templates once per run.
+4. Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET>
+   "state=tasks <done>/<total>"`.
 
 ## Per-task loop
 
@@ -82,10 +92,12 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    task-list item; every gate call for this task passes it as `baseRef`, through every
    fix round. A `[-]` task resumed from Step 0 has no base ref: gate it without
    `baseRef`, which scores `risk: high`.
-2. **Implement.** Write `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md` from the
-   implementer template with the task's full text (every line from its `- [ ]` line to
-   the next task line or heading). Spawn `sdd-implementer` with `Read and execute the
-   instructions in <brief path>`.
+2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
+   `template: implementer`, `specName: <SPEC>`, `taskId: "<N>"`, and `values` carrying the
+   output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md`. The tool fills the
+   task's full text (its `- [ ]` line to the next checkbox, so an intervening `##` heading
+   is included) from `tasks.md` and writes the read-and-obey line. Spawn `sdd-implementer`
+   with `Read and execute the instructions in <the returned path>`.
 3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
    for task <N> now; the code is done". Flags:
@@ -111,24 +123,30 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
    resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
    `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
-4b. **Verify** (high risk only). Write `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md`
-   from the verifier template (task id, the files the implementer named, round number,
-   and the `## Gate results` block verbatim). Spawn `sdd-verifier` with `Read and execute
+4b. **Verify** (high risk only). Call `harness` `brief` with `template: verifier`,
+   `specName: <SPEC>`, and `values` carrying the output path
+   `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` and the verifier job (task id, the
+   files the implementer named, round number, and the `## Gate results` block verbatim)
+   from `references/briefs.md`. Spawn `sdd-verifier` with `Read and execute
    the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, so
    the dashboard and `spec-status` see the review, runs only the checks the gate did not
    run, and ends with `VERDICT: pass | fix-required`.
 5. **Fix rounds** (cap 3, counting gate fails and verifier `fix-required` alike). Spawn
-   a fresh `sdd-implementer`, then return to step 4 (the gate):
-   - After a `gate: fail`: the gate-fix brief (`impl-brief-task-<N>-fix-<r>.md`) carries
-     `data.reasons` and `data.checks` verbatim; spawn no verifier; re-run the gate.
-   - After a verifier `fix-required`: `impl-brief-task-<N>-fix-<r>.md` from the fix
-     template with the verifier's findings; re-run step 4.
-   After three fix rounds still failing: write `adjudication-brief-task-<N>.md`, spawn
+   a fresh `sdd-implementer`, then return to step 4 (the gate). Assemble each fix brief
+   with `harness` `brief`, `template: reviser`, `specName: <SPEC>`, `values` carrying the
+   output path `impl-brief-task-<N>-fix-<r>.md` and the findings:
+   - After a `gate: fail`: the findings are `data.reasons` and `data.checks` verbatim;
+     spawn no verifier; re-run the gate.
+   - After a verifier `fix-required`: the findings are the verifier's findings; re-run
+     step 4.
+   After three fix rounds still failing: assemble `adjudication-brief-task-<N>.md` with
+   `harness` `brief`, `template: adjudicator`, the open findings as its items, spawn
    `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts), then
-   one narrow verification (`verify-brief-task-<N>-narrow.md`: verify only the listed
-   findings, and when the terminus was a gate fail re-run the checks that were failing;
-   `review-task` `prepare` and `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with
-   the narrow verdict) and continue to step 6 whatever the narrow verdict says.
+   one narrow verification (assemble `verify-brief-task-<N>-narrow.md` with `harness`
+   `brief`, `template: verifier`: verify only the listed findings, and when the terminus
+   was a gate fail re-run the checks that were failing; `review-task` `prepare` and
+   `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with the narrow
+   verdict) and continue to step 6 whatever the narrow verdict says.
 6. **Complete.** Only with a `gate: pass` and `risk: low`, a verifier `VERDICT: pass`,
    or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
    `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
@@ -171,8 +189,9 @@ When no `[ ]` or `[-]` task remains:
 
 8. **End-to-end verification.** Grep the decomposition entry for `SPEC` in
    `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and take its verification
-   scenario. Write `/tmp/scratchpad/sdd/<SPEC>/verify-e2e.md` from the end-to-end
-   template (the scenario, plus the full check suite as `agent-rules.md` defines it:
+   scenario. Call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
+   `values` carrying the output path `/tmp/scratchpad/sdd/<SPEC>/verify-e2e.md` and the
+   end-to-end job (the scenario, plus the full check suite as `agent-rules.md` defines it:
    typecheck, tests, lint, migrations, e2e, each as a separate command). Spawn
    `sdd-verifier`. It ends with `VERIFY: pass | fail`, or `VERIFY: pass (deferred: <id>)`
    for the in-run case below.
@@ -242,13 +261,16 @@ Cap 3 rounds per PR. Round r:
    log with a script file: `gh run view <run id> --job <job id> --log-failed | tail
    -80 > /tmp/scratchpad/sdd/<SPEC>/ci-<check>-r<r>.log`. Read nothing of it yourself
    beyond `wc -l`.
-2. **Fix.** Write `impl-brief-ci-r<r>.md` from the CI fix template in
-   `references/briefs.md` (the check names, the log file paths, "reproduce locally
-   first"). Spawn `sdd-implementer` (`role=fix ci <check> round <r>`). It fixes the
-   cause, commits on the branch without pushing, and reports the command that
-   reproduces the check locally, or `INFRA:` when the failure is not in the code.
-3. **Verify.** Write `verify-brief-ci-r<r>.md` from the CI verify template (the check
-   names, the commit, the reproduce commands from the implementer's report). Spawn
+2. **Fix.** Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and
+   `values` carrying the output path `impl-brief-ci-r<r>.md` and, as the findings, the CI
+   fix content from `references/briefs.md` (the check names, the log file paths,
+   "reproduce locally first"). Spawn `sdd-implementer`; its `spawn.usage` carries
+   `role=fix ci <check> round <r>`. It fixes the cause, commits on the branch without
+   pushing, and reports the command that reproduces the check locally, or `INFRA:` when
+   the failure is not in the code.
+3. **Verify.** Call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
+   `values` carrying the output path `verify-brief-ci-r<r>.md` and the CI verify job (the
+   check names, the commit, the reproduce commands from the implementer's report). Spawn
    `sdd-verifier`. `VERIFY: fail` ⇒ the next round from step 2, without pushing.
    `VERIFY: pass` (or `INFRA:` from the implementer) ⇒ `git push` in `CODE_ROOT` (on
    `INFRA:`, rerun the failed jobs instead: `gh run rerun <run id> --failed`) and the
@@ -257,8 +279,9 @@ Cap 3 rounds per PR. Round r:
    test code, `tool-error` when the failure was CI infrastructure (runner, network, a
    flaky job that reran green); evidence = the check name and the commit; cost =
    spawns and minutes.
-5. After three rounds still red: write `adjudication-brief-ci.md` (each failing check,
-   its last log file, "rule on each: fix it, or state why it cannot be fixed here"),
+5. After three rounds still red: assemble `adjudication-brief-ci.md` with `harness`
+   `brief`, `template: adjudicator`, `specName: <SPEC>`, its items each failing check with
+   its last log file ("rule on each: fix it, or state why it cannot be fixed here"),
    spawn `sdd-adjudicator` once, push, run the gate once more. Still red ⇒ write the
    HANDOFF section (the PR URL, the red checks, what was tried), append a retro-log
    entry with `retro.sh` (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
@@ -269,11 +292,12 @@ Cap 3 rounds per PR. Round r:
 
 `MODE: repair` with `REVISION_INPUT` = the failing scenario or check.
 
-1. Write `impl-brief-repair-<k>.md` from the fix template: the failing scenario, the
-   instruction to reproduce first, fix the cause, add coverage that fails without the
-   fix, and report. Spawn `sdd-implementer`. When `REVISION_INPUT` starts with `ci:`,
-   the failing scenario is that PR check: use the CI fix template instead, with the
-   log tail saved as in **Reconcile a red PR** step 1.
+1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
+   carrying the output path `impl-brief-repair-<k>.md` and, as the findings, the failing
+   scenario with the instruction to reproduce first, fix the cause, add coverage that
+   fails without the fix, and report. Spawn `sdd-implementer`. When `REVISION_INPUT`
+   starts with `ci:`, the failing scenario is that PR check: use the CI fix content
+   instead, with the log tail saved as in **Reconcile a red PR** step 1.
 2. Re-run step 8 of the completion gate. On `pass` continue with steps 9–11. On
    `fail` report `PHASE: verify-failed` again; the supervisor caps repairs at two.
 
