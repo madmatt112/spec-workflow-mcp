@@ -8,8 +8,6 @@ skills:
   - sdd-retrospective
 tools:
   - Read
-  - Grep
-  - Glob
   - Bash
   - Write
   - Edit
