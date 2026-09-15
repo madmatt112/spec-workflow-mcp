@@ -2,7 +2,8 @@
  * Word counts and cap override (design Component 6, requirements 6.1-6.3, 10.1).
  * The cap overrun the round prompt's `Over cap` line reports comes from a real
  * count here, not the drafter's report: `wordCount` equals `wc -w` on ASCII
- * whitespace (D5), `checkDocWords` counts the whole document, `checkTaskWords`
+ * whitespace (D5), `checkDocWords` counts the document body (the H1 down to
+ * the line before `## Revision History`), `checkTaskWords`
  * counts each task block minus its prompt lines, and `parseWordCaps` reads a
  * per-project override under `## Word caps` in `agent-rules.md`.
  *
@@ -29,6 +30,9 @@ const KNOWN_KEYS: Array<keyof LintCaps> = ['requirements', 'design', 'task'];
 /** A positive integer with no leading zero (requirement 6.3). */
 const POSITIVE_INT_RE = /^[1-9]\d*$/;
 
+/** The trailing heading the document word count stops before (P22). */
+const REVISION_HISTORY_HEADING = '## Revision History';
+
 /**
  * The whitespace-separated token count of `text` (requirement 6.1). `0` for
  * blank text, else `text.trim().split(/\s+/).length`; this equals GNU `wc -w`
@@ -41,11 +45,24 @@ export function wordCount(text: string): number {
 
 /**
  * The document-level word check for `requirements` and `design` (requirement
- * 6.1). WHEN the whole document's count exceeds `cap`, one `doc-words` warning
- * on line 1, message `<count> words, cap <cap>`. `file` is left empty.
+ * 6.1, P22). The counted body runs from the H1 down to (but not including) the
+ * `## Revision History` heading; with no such heading it runs to the end, and
+ * with no H1 it starts at the top. WHEN that body's count exceeds `cap`, one
+ * `doc-words` warning on line 1, message `<count> words, cap <cap>`. `file` is
+ * left empty.
  */
 export function checkDocWords(content: string, cap: number): LintFinding[] {
-  const count = wordCount(content);
+  const lines = content.split('\n');
+  let start = lines.findIndex((line) => /^#\s/.test(line));
+  if (start === -1) start = 0;
+  let end = lines.length;
+  for (let i = start; i < lines.length; i++) {
+    if (lines[i].trim() === REVISION_HISTORY_HEADING) {
+      end = i;
+      break;
+    }
+  }
+  const count = wordCount(lines.slice(start, end).join('\n'));
   if (count <= cap) return [];
   return [{ file: '', line: 1, rule: 'doc-words', severity: 'warning', message: `${count} words, cap ${cap}` }];
 }

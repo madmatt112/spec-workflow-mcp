@@ -92,8 +92,9 @@ at the start.
 4. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
    History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`). A missing
    context file is `PHASE: error` with `REASON: drafter wrote no codebase-context.md`.
-   Note the word count the report states; over the cap is a finding for round 1
-   (write it into the round section as `Over cap: <n> words`), not a stop.
+   Note the word count the report states (the cap counts the body only — the H1
+   down to the line before `## Revision History`); over the cap is a finding for
+   round 1 (write it into the round section as `Over cap: <n> words`), not a stop.
 5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v1`.
 6. D = 1. Run the Lint step. Go to Step 2.
 
