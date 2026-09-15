@@ -42,8 +42,8 @@ Read and obey <AGENT_RULES> first.
   tool-error, mcp-deficiency, harness-defect, misunderstanding, inefficiency,
   doc-gap, model-behaviour).
 - Report in 150 words or fewer: files touched one per line, as absolute paths under
-  `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`, flags.
-  No diffs, no file contents, no test output beyond one line.
+  `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`,
+  `commit: <sha>`, flags. No diffs, no file contents, no test output beyond one line.
 - Do not touch `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.
 ```
