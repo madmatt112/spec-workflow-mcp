@@ -89,6 +89,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
    - `RETRO:` ⇒ append a retro-log entry (its category, its line, evidence = task N
      and the implementer's files).
+   A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
+   has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
+   part of step 8 (end-to-end verification), then mark it `[x]` with `outcome=gate`.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
