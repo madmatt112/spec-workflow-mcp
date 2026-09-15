@@ -24,6 +24,8 @@ Read and obey <AGENT_RULES> first.
   seams; do not move them.
 - When the prompt's shape differs from code an earlier task merged, follow the merged
   code and report `RETRO: doc-gap`.
+- When the design's prose and its `Data Models` block disagree on a shape, follow the
+  block and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
 - If an existing assertion fails only because of the specified change, widen it to keep
