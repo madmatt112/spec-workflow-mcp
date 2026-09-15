@@ -210,8 +210,8 @@ export type RiskInput = {
 
 /**
  * The changed-line total the `line-count` rule scores: the per-path total with
- * generated paths dropped (P2), or the aggregate when no per-path counts are
- * given. `null` when neither is present.
+ * generated (P2) and test (P14) paths dropped, or the aggregate when no per-path
+ * counts are given. `null` when neither is present.
  */
 function countedLines(input: RiskInput): number | null {
   if (input.perFile) {
@@ -219,6 +219,7 @@ function countedLines(input: RiskInput): number | null {
     let total = 0;
     for (const [p, changed] of Object.entries(input.perFile)) {
       if (generated && isGeneratedPath(p, generated)) continue;
+      if (isTestPath(p)) continue; // source lines only; test paths do not count (P14)
       total += changed;
     }
     return total;
@@ -226,6 +227,7 @@ function countedLines(input: RiskInput): number | null {
   if (input.stats) return input.stats.linesAdded + input.stats.linesRemoved;
   return null;
 }
+
 
 /**
  * Score risk from the touched list and the pre-computations (Data Models risk

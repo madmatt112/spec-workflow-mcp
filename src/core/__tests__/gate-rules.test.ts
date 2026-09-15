@@ -228,6 +228,29 @@ describe('scoreRisk', () => {
     expect(r.reasons).toContain('line-count: 201 changed lines exceed 200');
   });
 
+  it('b: per-path counts drop test paths from the line rule (P14)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 100, 'src/a.test.ts': 300, 'src/__tests__/b.ts': 300 },
+      generated: null,
+      stats: null,
+    });
+    expect(r.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+  });
+
+  it('c/b: a test path satisfies tests-not-touched yet is excluded from the line count (P14)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      block: '- [ ] 1. Add tests for foo',
+      touched: ['src/foo.test.ts'],
+      perFile: { 'src/foo.test.ts': 500 },
+      generated: null,
+      stats: null,
+    });
+    expect(r.reasons).toEqual([]);
+  });
+
+
 
   it('c: fires when the task names tests and no touched path is a test file', () => {
     const r = scoreRisk({ ...lowRisk, block: '- [ ] 1. Add tests for foo', touched: ['src/foo.ts'] });
