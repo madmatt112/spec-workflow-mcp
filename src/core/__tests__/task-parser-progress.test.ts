@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTaskProgress } from '../task-parser.js';
+import { parseTaskProgress, parseTasksFromMarkdown, taskBlock } from '../task-parser.js';
 
 describe('parseTaskProgress', () => {
   it('counts in-progress tasks separately from pending and completed', () => {
@@ -50,5 +50,59 @@ describe('parseTaskProgress', () => {
       pending: 0,
       unparsed: 0,
     });
+  });
+});
+
+describe('taskBlock', () => {
+  const content = [
+    '# Tasks',
+    '',
+    '- [x] 1. First task',
+    '  - _Requirements: 1.1_',
+    '- [ ] 2. Second task',
+    '  - File: src/foo.ts',
+    '  - _Prompt: do the thing_',
+    '',
+    '## A heading between tasks',
+    '',
+    '- [ ] 3. Third task',
+    '  - File: src/bar.ts',
+    '',
+  ].join('\n');
+
+  it('returns the checkbox-to-next-checkbox slice, joined with newlines', () => {
+    expect(taskBlock(content, '2')).toBe(
+      [
+        '- [ ] 2. Second task',
+        '  - File: src/foo.ts',
+        '  - _Prompt: do the thing_',
+        '',
+        '## A heading between tasks',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('runs the last task block to end of content', () => {
+    expect(taskBlock(content, '3')).toBe(
+      ['- [ ] 3. Third task', '  - File: src/bar.ts', ''].join('\n')
+    );
+  });
+
+  it('returns the same slice the parser bounds for each task, byte for byte', () => {
+    const lines = content.split('\n');
+    const { tasks } = parseTasksFromMarkdown(content);
+    const checkboxIndices = lines
+      .map((line, i) => (/^\s*[-*]\s+\[([ x\-])\]/.test(line) ? i : -1))
+      .filter(i => i >= 0);
+    for (const task of tasks) {
+      const idx = checkboxIndices.indexOf(task.lineNumber);
+      const endLine = idx < checkboxIndices.length - 1 ? checkboxIndices[idx + 1] : lines.length;
+      expect(taskBlock(content, task.id)).toBe(lines.slice(task.lineNumber, endLine).join('\n'));
+    }
+  });
+
+  it('returns undefined for an unknown id', () => {
+    expect(taskBlock(content, '99')).toBeUndefined();
   });
 });
