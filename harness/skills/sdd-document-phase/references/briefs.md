@@ -208,7 +208,13 @@ RI-2: <text>>
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
 7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file
    belong to others. You may replace a context-file line that an accepted finding
-   refutes: same line, corrected text, the probe that proves it.
+   refutes: same line, corrected text, the probe that proves it. Tasks phase only:
+   when an accepted finding changes a call signature that `design.md` states, apply
+   the same text to that design component and add to `design.md` a Revision History
+   line `- **v<D> amended** (<date>) — tasks R<A>-<n>: <what>` (v<D> is design.md's
+   current version); list it under the finding's bullet as `also applied to
+   design.md`. This does not widen scope and needs no re-approval — approval records
+   do not hash content.
 8. Do not ask questions.
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
