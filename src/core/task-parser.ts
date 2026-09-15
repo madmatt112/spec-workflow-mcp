@@ -356,6 +356,35 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
 }
 
 /**
+ * Return the raw markdown block for a single task, from its checkbox line up to
+ * (but not including) the next checkbox line. Reuses the same `checkboxIndices`
+ * bounds `parseTasksFromMarkdown` computes, so the slice matches the parser's
+ * own block byte for byte. The block runs to the next checkbox, so an
+ * intervening `##` heading is part of it. Returns undefined for an unknown id.
+ */
+export function taskBlock(content: string, taskId: string): string | undefined {
+  const { tasks } = parseTasksFromMarkdown(content);
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return undefined;
+
+  const lines = content.split('\n');
+
+  // Find all lines with checkboxes (supports both - and * list markers)
+  const checkboxIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(/^\s*[-*]\s+\[([ x\-])\]/)) {
+      checkboxIndices.push(i);
+    }
+  }
+
+  const lineNumber = task.lineNumber;
+  const idx = checkboxIndices.indexOf(lineNumber);
+  const endLine = idx < checkboxIndices.length - 1 ? checkboxIndices[idx + 1] : lines.length;
+
+  return lines.slice(lineNumber, endLine).join('\n');
+}
+
+/**
  * Update task status in markdown content
  * Handles any indentation level and task numbering format
  */

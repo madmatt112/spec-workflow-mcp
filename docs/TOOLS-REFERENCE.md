@@ -2,7 +2,7 @@
 
 Complete reference for the MCP tools provided by Spec Workflow MCP.
 
-The server registers **13 tools** (see `src/tools/index.ts`) and **8 MCP prompts**
+The server registers **14 tools** (see `src/tools/index.ts`) and **8 MCP prompts**
 (see `src/prompts/index.ts`). This document is the canonical reference for both — the
 tools first, then the [MCP Prompts](#mcp-prompts) section below. For the autonomous /
 non-interactive usage patterns these tools support (and the constraints you can safely
@@ -32,11 +32,12 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 | [`log-implementation`](#log-implementation) | Record what a task implemented | Implementation |
 | [`review-task`](#review-task) | Review a task's implementation against its spec | Implementation |
 | [`get-task-review`](#get-task-review) | Retrieve stored task-review findings | Implementation |
+| [`harness`](#harness) | Bookkeeping for the SDD orchestrator skills: `orient` (Step 0 routing state + next step), `brief` (write a worker brief from a template), `phase-log` (regenerate the HANDOFF phase log) | Orchestration (all phases) |
 
 Origin note: `spec-workflow-guide`, `steering-guide`, `spec-status`, `approvals`,
 and `log-implementation` are inherited from upstream (Pimzino). `decomposition-guide`,
-`spec-index`, `adversarial-review`, `adversarial-response`, `deferrals`, `review-task`, and
-`get-task-review` are **additions in this fork** — see [WORKFLOW.md](WORKFLOW.md).
+`spec-index`, `adversarial-review`, `adversarial-response`, `deferrals`, `review-task`,
+`get-task-review`, and `harness` are **additions in this fork** — see [WORKFLOW.md](WORKFLOW.md).
 
 ---
 
@@ -524,6 +525,33 @@ read up to the next `## ` line, and each value must be a positive integer:
 
 Any non-integer value keeps the default and yields one `caps-invalid` finding; unknown
 keys are ignored.
+
+---
+
+## harness
+
+> **Fork addition.** Not present upstream.
+
+**Purpose**: Bookkeeping the SDD orchestrator skills used to do by hand. One tool,
+three actions. It reads only the resolved spec store through `PathUtils.safeJoin` (the
+pattern `spec-lint` uses) and spawns no child process.
+
+**Parameters**: `action` (req, one of `orient`, `brief`, `phase-log`), `specName`
+(req), plus action-specific fields (`phase`, `mode`, `template`, `taskId`, and the
+values a brief template needs).
+
+**Actions**:
+- `orient` — return the Step 0 routing state and the next step for a spec and phase in
+  one call. For a document phase (`requirements`, `design`, `tasks`) it returns the
+  document version `D`, the latest analysis index `A` with its verdict, the post-cap
+  marker `P`, whether the latest analysis is the narrow check, and the next step; for
+  `implementation` the task counts and the next step; for `closeout` the plan-item
+  counts, the open items by target class, and the next step.
+- `brief` — fill a named server-side template and write a worker brief, returning the
+  brief file's absolute path. An implementer brief for a `taskId` gets that task's
+  block from the server tasks parser.
+- `phase-log` — regenerate the HANDOFF `## Phase log` block for one spec from its
+  `phase.end` events.
 
 ---
 
