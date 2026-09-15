@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { performance } from 'perf_hooks';
+import { execFileSync } from 'child_process';
 import { computeHygieneSignals } from '../hygiene-signals.js';
 
 describe('computeHygieneSignals', () => {
@@ -226,3 +227,78 @@ describe('computeHygieneSignals', () => {
     expect(elapsed).toBeLessThan(200);
   });
 });
+
+describe('computeHygieneSignals (ranged, P6)', () => {
+  function git(dir: string, args: string[]): void {
+    execFileSync('git', args, {
+      cwd: dir,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  }
+
+  it('scans only added lines of the range, not a pre-existing console call', async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), 'hygiene-ranged-'));
+    try {
+      git(dir, ['init', '-q', '-b', 'main']);
+      git(dir, ['config', 'user.email', 't@e.com']);
+      git(dir, ['config', 'user.name', 'T']);
+      git(dir, ['config', 'commit.gpgsign', 'false']);
+      const file = join(dir, 'a.ts');
+      // Baseline already carries a console call on line 1.
+      await fs.writeFile(file, ["console.log('old');", 'const x = 1;'].join('\n') + '\n');
+      git(dir, ['add', '-A']);
+      git(dir, ['commit', '-q', '-m', 'base']);
+      const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim();
+      // Add a new TODO line; the pre-existing console must NOT be reported.
+      await fs.writeFile(file, ["console.log('old');", 'const x = 1;', '// TODO: new'].join('\n') + '\n');
+
+      const signals = await computeHygieneSignals([file], { root: dir, base: [base] });
+
+      expect(signals).toHaveLength(1);
+      expect(signals[0].pattern).toBe('todo');
+      expect(signals[0].line).toBe(3);
+      expect(signals[0].file).toBe(file);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('scans a new untracked file whole, since all of its lines are added', async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), 'hygiene-ranged-new-'));
+    try {
+      git(dir, ['init', '-q', '-b', 'main']);
+      git(dir, ['config', 'user.email', 't@e.com']);
+      git(dir, ['config', 'user.name', 'T']);
+      git(dir, ['config', 'commit.gpgsign', 'false']);
+      await fs.writeFile(join(dir, 'seed.ts'), 'const s = 1;\n');
+      git(dir, ['add', '-A']);
+      git(dir, ['commit', '-q', '-m', 'base']);
+      const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim();
+      const created = join(dir, 'new.ts');
+      await fs.writeFile(created, ['const y = 2;', 'debugger;'].join('\n') + '\n');
+
+      const signals = await computeHygieneSignals([created], { root: dir, base: [base] });
+
+      expect(signals).toHaveLength(1);
+      expect(signals[0].pattern).toBe('debugger');
+      expect(signals[0].line).toBe(2);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to a whole-file scan when the root is not a git repo', async () => {
+    const dir = await fs.mkdtemp(join(tmpdir(), 'hygiene-nongit-'));
+    try {
+      const file = join(dir, 'a.ts');
+      await fs.writeFile(file, "console.log('x');");
+      const signals = await computeHygieneSignals([file], { root: dir, base: ['HEAD'] });
+      expect(signals).toHaveLength(1);
+      expect(signals[0].pattern).toBe('console');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+

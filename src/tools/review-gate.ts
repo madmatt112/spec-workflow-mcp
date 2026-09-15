@@ -205,6 +205,9 @@ export async function handleGate(
     if (!filesOnly) {
       // Step 5: git path. Range, stats and the two pre-computations.
       const range: RangeSelector = commit ? { commit } : { baseRef: baseRef ?? 'HEAD' };
+      // Git revisions the hygiene scan diffs for added lines (retro P6): a single
+      // commit against its first parent, else the baseRef against the work tree.
+      const hygieneBase = commit ? [`${commit}^`, commit] : [baseRef ?? 'HEAD'];
       const rangeResult = await computeRangeStats(root, range);
       if (!rangeResult.ok) {
         return { success: false, message: rangeResult.message };
@@ -222,7 +225,8 @@ export async function handleGate(
       const enabled = isTypecheckEnabled(loadSettings(workflowRoot));
       const settled = await Promise.allSettled([
         runProjectTypecheck(root, workflowRoot, touchedAbs, { enabled }),
-        computeHygieneSignals(hygieneTargets),
+        computeHygieneSignals(hygieneTargets, { root, base: hygieneBase }),
+
       ]);
       const typecheckResults = unwrapTypecheck(settled[0], root);
       const hygieneResult = unwrapHygiene(settled[1]);
