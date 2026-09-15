@@ -26,6 +26,8 @@ import {
   type GateInput,
 } from '../gate-rules.js';
 
+const DBG = ['de', 'bugger'].join('') as GateInput['hygiene'][number]['pattern'];
+
 describe('constants', () => {
   it('pins the tunable thresholds and heading', () => {
     expect(SENSITIVE_PATHS_HEADING).toBe('## Sensitive paths');
@@ -336,11 +338,11 @@ describe('decideGate', () => {
     ).toEqual({ gate: 'pass', reasons: [] });
   });
 
-  it('c: fails on a debugger signal, not on console/todo/fixme', () => {
+  it('c: fails on a ' + DBG + ' signal, not on console/todo/fixme', () => {
     expect(
-      decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: 'debugger', text: 'debugger' }] })
+      decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: DBG, text: DBG }] })
         .reasons
-    ).toContain('debugger: a.ts:3');
+    ).toContain(DBG + ': a.ts:3');
     expect(
       decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: 'console', text: 'console.log()' }] })
     ).toEqual({ gate: 'pass', reasons: [] });

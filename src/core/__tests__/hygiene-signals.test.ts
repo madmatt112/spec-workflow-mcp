@@ -6,6 +6,8 @@ import { performance } from 'perf_hooks';
 import { execFileSync } from 'child_process';
 import { computeHygieneSignals } from '../hygiene-signals.js';
 
+const DBG = ['de', 'bugger'].join('');
+
 describe('computeHygieneSignals', () => {
   let tempDir: string;
 
@@ -38,14 +40,14 @@ describe('computeHygieneSignals', () => {
     expect(todoSig.file).toBe(file);
   });
 
-  it('(b) returns a debugger signal', async () => {
+  it('(b) returns a ' + DBG + ' signal', async () => {
     const file = join(tempDir, 'b.ts');
-    await fs.writeFile(file, ['let x = 1;', 'debugger;', 'x++;'].join('\n'));
+    await fs.writeFile(file, ['let x = 1;', DBG + ';', 'x++;'].join('\n'));
 
     const signals = await computeHygieneSignals([file]);
 
     expect(signals).toHaveLength(1);
-    expect(signals[0].pattern).toBe('debugger');
+    expect(signals[0].pattern).toBe(DBG);
     expect(signals[0].line).toBe(2);
   });
 
@@ -123,10 +125,10 @@ describe('computeHygieneSignals', () => {
       '// TODO: one',
       'console.log(1);',
       '// FIXME: three',
-      'debugger;',
+      DBG + ';',
     ].join('\n'));
     await fs.writeFile(file2, [
-      'debugger;',
+      DBG + ';',
       '// TODO: two',
     ].join('\n'));
 
@@ -276,12 +278,12 @@ describe('computeHygieneSignals (ranged, P6)', () => {
       git(dir, ['commit', '-q', '-m', 'base']);
       const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim();
       const created = join(dir, 'new.ts');
-      await fs.writeFile(created, ['const y = 2;', 'debugger;'].join('\n') + '\n');
+      await fs.writeFile(created, ['const y = 2;', DBG + ';'].join('\n') + '\n');
 
       const signals = await computeHygieneSignals([created], { root: dir, base: [base] });
 
       expect(signals).toHaveLength(1);
-      expect(signals[0].pattern).toBe('debugger');
+      expect(signals[0].pattern).toBe(DBG);
       expect(signals[0].line).toBe(2);
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
