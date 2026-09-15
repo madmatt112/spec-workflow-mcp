@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.6.0] - 2026-09-15
+
+**Spec lint** (PR #36, the `spec-lint` spec) and its retrospective follow-ups (PR #38).
+
+### Added
+- `spec-lint` tool: lints one spec phase document mechanically before a reviewer round, so the reviewer never spends tokens on a wrong citation, an MDX compile error, a non-EARS criterion, an over-cap word count or a malformed task. Checks citations (path and line range exist, named identifier in range), MDX brackets, EARS and task shape, word caps, and design-to-task coverage. Read-only: spawns no process and reads only under the workspace, spec store and spec directory through `PathUtils.safeJoin`. Parameters: `specName`, `phase` (`requirements` | `design` | `tasks`), optional `projectPath`.
+- Lint modules under `src/core/` (`lint-citations`, `lint-markdown`, `lint-ears`, `lint-tasks`, `lint-words`, `lint-types`) with unit tests and a tool-level end-to-end fixture test.
+
+### Changed
+- Document phase: the skill runs `spec-lint` after every document write, and the document diff since the last checkpoint is added to the round prompt with Machine-verified / Changes bullets.
+- `doc-words` counts the document body only, from the H1 down to the line before `## Revision History` (retro P22).
+- Retrospective follow-ups: hygiene scans read added lines rather than whole files; the gate skips generated paths and test lines in its line count; retro-log appends go through a script; spec-store edits use a scripted one-shot replacement when the Edit tool is refused in a worktree-isolated session.
+
 ## [5.5.0] - 2026-09-14
 
 **Review gate** (PR #29, the `review-gate` spec, first spec run end to end under the 5.4.0 harness) and its retrospective follow-ups (PR #30).
