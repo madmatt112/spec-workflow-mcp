@@ -56,8 +56,11 @@ narrow check when it ran).
    v<D> in review, round <A> verdict <…>`, the rejection tally, and `Re-run does |
    <one line>`.
 6. Before committing, check the document's version header: `grep -n 'Document version'
-   <document path>`. On a mismatch with D, `sed` it to `Document version: v<D>`. Then
-   commit in the spec store repo (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
+   <document path>`. Fix it with `spec-edit.mjs` (never `sed`): on zero matches, insert a
+   `Document version: v<D>` line right after the H1 (anchor on the H1 line, replace it
+   with the H1 line followed by the new header line); on a mismatch with D, replace the
+   found header line with `Document version: v<D>`. Then commit in the spec store repo
+   (below): `docs(sdd): <SPEC> <PHASE> approved at v<D>`.
 
 ## Spec store commits
 

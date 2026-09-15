@@ -88,7 +88,8 @@ Every later reviewer, reviser and implementer reads it first.
   every existing test file a task names, say whether the change alters a value it
   asserts exactly. When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
-  says to remove it.
+  says to remove it. Start the tasks document with a `Document version: v1` line
+  right after the H1.
 - Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
   every other file belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
