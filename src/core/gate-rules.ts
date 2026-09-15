@@ -16,6 +16,9 @@ import type { HygieneSignal } from './hygiene-signals.js';
 /** The machine-read heading in `agent-rules.md` (requirement 2.2). */
 export const SENSITIVE_PATHS_HEADING = '## Sensitive paths';
 
+/** The machine-read heading listing paths the line rule excludes (retro P2). */
+export const GENERATED_PATHS_HEADING = '## Generated paths';
+
 /** Every touched path is sensitive when no list is present (requirement 2.4). */
 export const NO_LIST_REASON = 'sensitive-paths: no list; every path is sensitive';
 
@@ -66,15 +69,15 @@ function normalizePath(relPath: string): string {
 // --- Component 3: parse and match -------------------------------------------
 
 /**
- * The bullet entries under `## Sensitive paths`, to the next `## ` line or EOF,
- * stripped of backticks, whitespace and a leading `./`; non-bullet lines ignored.
- * No heading, or a heading with no bullet, yields `null` (requirement 2.2, 2.4, D26).
+ * The bullet entries under `heading`, to the next `## ` line or EOF, stripped of
+ * backticks, whitespace and a leading `./`; non-bullet lines ignored. No heading,
+ * or a heading with no bullet, yields `null` (requirement 2.2, 2.4, D26).
  */
-export function parseSensitivePaths(markdown: string): string[] | null {
+function parseHeadingBullets(markdown: string, heading: string): string[] | null {
   const lines = markdown.split('\n');
   let start = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === SENSITIVE_PATHS_HEADING) {
+    if (lines[i].trim() === heading) {
       start = i;
       break;
     }
@@ -92,8 +95,18 @@ export function parseSensitivePaths(markdown: string): string[] | null {
   return entries.length > 0 ? entries : null;
 }
 
+/** The `## Sensitive paths` bullet entries, or `null` (requirement 2.2, 2.4). */
+export function parseSensitivePaths(markdown: string): string[] | null {
+  return parseHeadingBullets(markdown, SENSITIVE_PATHS_HEADING);
+}
+
+/** The `## Generated paths` bullet entries the line rule excludes, or `null` (P2). */
+export function parseGeneratedPaths(markdown: string): string[] | null {
+  return parseHeadingBullets(markdown, GENERATED_PATHS_HEADING);
+}
+
 /** The entry a path matches, or `undefined`: `dir/` by prefix, else by equality. */
-function matchingSensitiveEntry(relPath: string, entries: string[]): string | undefined {
+function matchingEntry(relPath: string, entries: string[]): string | undefined {
   const p = normalizePath(relPath);
   for (const entry of entries) {
     if (entry.endsWith('/')) {
@@ -110,7 +123,12 @@ function matchingSensitiveEntry(relPath: string, entries: string[]): string | un
  * other by equality; forward-slash paths relative to `root` (requirement 2.3).
  */
 export function isSensitivePath(relPath: string, entries: string[]): boolean {
-  return matchingSensitiveEntry(relPath, entries) !== undefined;
+  return matchingEntry(relPath, entries) !== undefined;
+}
+
+/** True when `relPath` matches a `## Generated paths` entry, same matcher (P2). */
+export function isGeneratedPath(relPath: string, entries: string[]): boolean {
+  return matchingEntry(relPath, entries) !== undefined;
 }
 
 // --- Component 4: task-block predicates -------------------------------------
@@ -176,6 +194,10 @@ export type RiskInput = {
   /** Every touched path in the range, relative to `root`, uncapped (R4-1). */
   touched: string[];
   stats: { linesAdded: number; linesRemoved: number } | null;
+  /** Changed lines per touched path, from `computeRangeStats` (P2/P14 line rule). */
+  perFile?: Record<string, number>;
+  /** Parsed `## Generated paths` entries, or `null`/absent when none (P2). */
+  generated?: string[] | null;
   /** The task block; `''` in item mode. */
   block: string;
   /** Whether any of `baseRef`, `commit`, `files` was given. */
@@ -185,6 +207,27 @@ export type RiskInput = {
   /** The hygiene rejection message, or `null` when the scan succeeded. */
   hygieneRejection: string | null;
 };
+
+/**
+ * The changed-line total the `line-count` rule scores: the per-path total with
+ * generated (P2) and test (P14) paths dropped, or the aggregate when no per-path
+ * counts are given. `null` when neither is present.
+ */
+function countedLines(input: RiskInput): number | null {
+  if (input.perFile) {
+    const generated = input.generated ?? null;
+    let total = 0;
+    for (const [p, changed] of Object.entries(input.perFile)) {
+      if (generated && isGeneratedPath(p, generated)) continue;
+      if (isTestPath(p)) continue; // source lines only; test paths do not count (P14)
+      total += changed;
+    }
+    return total;
+  }
+  if (input.stats) return input.stats.linesAdded + input.stats.linesRemoved;
+  return null;
+}
+
 
 /**
  * Score risk from the touched list and the pre-computations (Data Models risk
@@ -198,7 +241,7 @@ export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: st
     reasons.push(NO_LIST_REASON);
   } else {
     for (const p of input.touched) {
-      const entry = matchingSensitiveEntry(p, input.sensitive);
+      const entry = matchingEntry(p, input.sensitive);
       if (entry !== undefined) {
         reasons.push(`sensitive-path: ${p} matches ${entry}`);
         break;
@@ -206,13 +249,13 @@ export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: st
     }
   }
 
-  // b line-count
-  if (input.stats) {
-    const n = input.stats.linesAdded + input.stats.linesRemoved;
-    if (n > RISK_LINE_THRESHOLD) {
-      reasons.push(`line-count: ${n} changed lines exceed ${RISK_LINE_THRESHOLD}`);
-    }
+  // b line-count. Generated paths (`## Generated paths`) do not count toward the
+  // rule; per-path counts drive it when present, else the aggregate (P2).
+  const counted = countedLines(input);
+  if (counted !== null && counted > RISK_LINE_THRESHOLD) {
+    reasons.push(`line-count: ${counted} changed lines exceed ${RISK_LINE_THRESHOLD}`);
   }
+
 
   // c tests-not-touched (task mode)
   if (

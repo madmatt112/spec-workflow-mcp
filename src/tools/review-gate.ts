@@ -28,6 +28,8 @@ import { computeRangeStats, type RangeSelector } from '../core/task-diff.js';
 import { runChecks, type CheckResult } from '../core/check-runner.js';
 import {
   parseSensitivePaths,
+  parseGeneratedPaths,
+  isGeneratedPath,
   taskBlock,
   scoreRisk,
   decideGate,
@@ -175,12 +177,16 @@ export async function handleGate(
     // Step 4: the machine-read sensitive-path list. ENOENT ⇒ every path is
     // sensitive (`null`); any other read error is a hard failure (2.1-2.4, 1.8).
     let sensitive: string[] | null = null;
+    let generated: string[] | null = null;
     const agentRulesPath = path.join(PathUtils.getWorkflowRoot(workflowRoot), 'agent-rules.md');
     try {
-      sensitive = parseSensitivePaths(await fs.readFile(agentRulesPath, 'utf-8'));
+      const agentRules = await fs.readFile(agentRulesPath, 'utf-8');
+      sensitive = parseSensitivePaths(agentRules);
+      generated = parseGeneratedPaths(agentRules);
     } catch (err) {
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
         sensitive = null;
+        generated = null;
       } else {
         const message = err instanceof Error ? err.message : String(err);
         return { success: false, message: `Failed to read agent-rules.md: ${message}` };
@@ -189,6 +195,7 @@ export async function handleGate(
 
     let touched: string[];
     let stats: { filesChanged: number; linesAdded: number; linesRemoved: number } | null;
+    let perFile: Record<string, number> = {};
     let missing: string[] = [];
     let diagnostics: TypecheckDiagnostic[] = [];
     let hygieneSignals: HygieneSignal[] = [];
@@ -198,18 +205,28 @@ export async function handleGate(
     if (!filesOnly) {
       // Step 5: git path. Range, stats and the two pre-computations.
       const range: RangeSelector = commit ? { commit } : { baseRef: baseRef ?? 'HEAD' };
+      // Git revisions the hygiene scan diffs for added lines (retro P6): a single
+      // commit against its first parent, else the baseRef against the work tree.
+      const hygieneBase = commit ? [`${commit}^`, commit] : [baseRef ?? 'HEAD'];
       const rangeResult = await computeRangeStats(root, range);
       if (!rangeResult.ok) {
         return { success: false, message: rangeResult.message };
       }
       stats = rangeResult.stats;
       touched = rangeResult.touched;
+      perFile = rangeResult.perFile;
       const touchedAbs = touched.map((p) => path.join(root, p));
+      // Generated paths (agent-rules `## Generated paths`) stay in `touched` but
+      // are not scanned for hygiene signals (retro P2).
+      const hygieneTargets = generated
+        ? touched.filter((p) => !isGeneratedPath(p, generated!)).map((p) => path.join(root, p))
+        : touchedAbs;
 
       const enabled = isTypecheckEnabled(loadSettings(workflowRoot));
       const settled = await Promise.allSettled([
         runProjectTypecheck(root, workflowRoot, touchedAbs, { enabled }),
-        computeHygieneSignals(touchedAbs),
+        computeHygieneSignals(hygieneTargets, { root, base: hygieneBase }),
+
       ]);
       const typecheckResults = unwrapTypecheck(settled[0], root);
       const hygieneResult = unwrapHygiene(settled[1]);
@@ -247,11 +264,14 @@ export async function handleGate(
           sensitive,
           touched,
           stats,
+          perFile,
+          generated,
           block: mode === 'task' && task ? taskBlock(tasksContent, task.lineNumber) : '',
           rangeGiven: !!(baseRef || hasCommit || hasFiles),
           typecheck: typecheckState,
           hygieneRejection,
         });
+
     const reasons = [...verdict.reasons, ...risk.reasons].map(truncateLine);
 
     // Step 9: record a `reviewer: gate` review for a task-mode pass/low only; no

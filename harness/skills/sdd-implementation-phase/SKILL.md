@@ -34,9 +34,13 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
   path.
 - Keep a task list: one item per task in `tasks.md`.
-- Edit `tasks.md` and HANDOFF with the Edit tool. Never `sed -i` on the spec store from
-  a shell line, and never put a heredoc on a shell line; write scripts with the Write
-  tool.
+- Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
+  worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
+  the Write tool from the script text in the document-phase skill's
+  `references/cleanup.md`, then call it on its own shell line:
+  `node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>` replaces one exact
+  match (non-zero exit on 0 or 2+ matches). Never `sed -i` on the spec store, never a
+  heredoc; write scripts with the Write tool.
 - Do not ask questions.
 - Spec store commits go through the script in the document-phase skill's
   `references/cleanup.md` (same script, same path); write it if it does not exist.
@@ -87,8 +91,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    for task <N> now; the code is done". Flags:
    - `DESIGN-DEFECT` ⇒ **Design defect**.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
-   - `RETRO:` ⇒ append a retro-log entry (its category, its line, evidence = task N
+   - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
      and the implementer's files).
+   A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
+   has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
+   part of step 8 (end-to-end verification), then mark it `[x]` with `outcome=gate`.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
@@ -120,16 +127,21 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts), then
    one narrow verification (`verify-brief-task-<N>-narrow.md`: verify only the listed
    findings, and when the terminus was a gate fail re-run the checks that were failing;
-   `review-task` `prepare` and `record` again). Append a retro-log entry (`ruling`, with
+   `review-task` `prepare` and `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with
    the narrow verdict) and continue to step 6 whatever the narrow verdict says.
 6. **Complete.** Only with a `gate: pass` and `risk: low`, a verifier `VERDICT: pass`,
    or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
    `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
-   adjudication). Append a retro-log entry for the task:
+   adjudication). Append a retro-log entry with `retro.sh` for the task:
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
    with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
    section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next
-   task) and commit the spec store. Count it against `BUDGET`.
+   task) and commit the spec store. Count it against `BUDGET`. A task whose
+   verification is only partly done may still go `[x]`, but only when a `deferrals`
+   record tagged `verification` names the exact command still to run and the evidence
+   it must show; on that, add the row `Deferred verification | <id>` to the HANDOFF
+   `## <SPEC> — implementation` section and carry that item unticked in the PR body's
+   Test plan (step 10). A silent skip is not allowed: no record, no `[x]`.
 7. **Budget.** When the count of tasks completed in this run reaches `BUDGET` and open
    tasks remain: write the HANDOFF section, commit the spec store, report
    `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <next N>`.
@@ -148,7 +160,7 @@ read the record back once (`deferrals` `get`) and confirm `originSpec` landed.
 
 The implementer says the task cannot be built as written because it contradicts the
 design, the requirements or a decomposition assumption. Do not force it. Revert the
-task to `[ ]`. Append a retro-log entry (`deviation`, the defect in one sentence,
+task to `[ ]`. Append a retro-log entry with `retro.sh` (`deviation`, the defect in one sentence,
 evidence = task N). Write the HANDOFF section. Commit the spec store. Report
 `PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one
 line, from the implementer's flag>`. The supervisor re-opens design.
@@ -162,16 +174,25 @@ When no `[ ]` or `[-]` task remains:
    scenario. Write `/tmp/scratchpad/sdd/<SPEC>/verify-e2e.md` from the end-to-end
    template (the scenario, plus the full check suite as `agent-rules.md` defines it:
    typecheck, tests, lint, migrations, e2e, each as a separate command). Spawn
-   `sdd-verifier`. It ends with `VERIFY: pass | fail`.
-   - `fail` ⇒ write the HANDOFF section, append a retro-log entry (`bug`), commit the
+   `sdd-verifier`. It ends with `VERIFY: pass | fail`, or `VERIFY: pass (deferred: <id>)`
+   for the in-run case below.
+   - `fail` ⇒ write the HANDOFF section, append a retro-log entry with `retro.sh` (`bug`), commit the
      spec store, report `PHASE: verify-failed`, `REASON: <one line from the report>`.
      Do not mark anything complete.
+   - When the scenario needs a skill or tool this spec adds that the installed plugin or
+     server still lacks (it lands only when the release republishes), the verifier cannot
+     exercise it end-to-end: it verifies the tool half in-process instead, stages the
+     fixture under `/tmp/scratchpad/sdd/<SPEC>/scratch-store/`, and reports
+     `VERIFY: pass (deferred: <id>)`. On that report add a `deferrals` record tagged
+     `verification` whose `revisitCriteria` is the exact command to re-run once the plugin
+     or server is reinstalled and the evidence it must show, then treat it as `pass`.
    - `pass` ⇒ step 9.
 9. **Close the spec.** Confirm every task in `tasks.md` is `[x]`. Call `spec-index`
    `generate`. Call `deferrals` `list` with `status: deferred`: count the records with
    `originSpec: <SPEC>` (added by this spec) and the total. Write the HANDOFF section
    (implemented, date, the two deferral numbers, the two or three deferrals most
-   worth working next, gotchas). Append the phase summary to the retro log (`cleanup`:
+   worth working next, a `Deferred verification | <id>` row for every task that went
+   `[x]` with verification deferred, gotchas). Append the phase summary to the retro log (`cleanup`:
    tasks, fix rounds, adjudications, spawns, deferrals added). Commit the spec store:
    `docs(sdd): <SPEC> implemented, <n> tasks`.
 10. **Push and PR.** In `CODE_ROOT`: if `git remote` lists a remote and the current
@@ -186,7 +207,7 @@ When no `[ ]` or `[-]` task remains:
     omit the bullet only when all three are `none`. Never merge. Record the PR
     URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
     second PR (a second repository, or a change that must land on its own), do not
-    open it: append a retro-log entry (`deviation`: the decomposition put two
+    open it: append a retro-log entry with `retro.sh` (`deviation`: the decomposition put two
     deliverables in one spec), add a `deferrals` record for the second deliverable,
     and name both in the HANDOFF section.
 10b. **PR checks gate.** Wait for the PR's checks before you report `complete`. Write
@@ -240,7 +261,7 @@ Cap 3 rounds per PR. Round r:
    its last log file, "rule on each: fix it, or state why it cannot be fixed here"),
    spawn `sdd-adjudicator` once, push, run the gate once more. Still red ⇒ write the
    HANDOFF section (the PR URL, the red checks, what was tried), append a retro-log
-   entry (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
+   entry with `retro.sh` (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
    `REASON: ci: <check>`. The supervisor's repair path takes over; its brief carries the
    check name, and steps 9 to 11 reuse the open PR.
 

@@ -3,6 +3,7 @@
 Read this before you touch the repository. It is short; obey all of it.
 
 worktree-per-change: required
+worktree-setup: npm ci
 
 ## Layout
 
@@ -62,3 +63,10 @@ Machine-read by the review gate. A task that touches any of these is high risk.
 - `src/tools/review-task.ts`
 - `harness/hooks/`
 - `.github/workflows/`
+
+## Generated paths
+
+Machine-read by the review gate: changed lines under these paths do not count toward the
+line rule.
+
+- `plugins/`

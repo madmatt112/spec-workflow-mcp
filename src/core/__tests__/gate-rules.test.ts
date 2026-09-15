@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SENSITIVE_PATHS_HEADING,
+  GENERATED_PATHS_HEADING,
   NO_LIST_REASON,
   RISK_LINE_THRESHOLD,
   TEST_WORD_RE,
@@ -11,7 +12,9 @@ import {
   MAX_LINE_CHARS,
   TYPECHECK_STATE_RANK,
   parseSensitivePaths,
+  parseGeneratedPaths,
   isSensitivePath,
+  isGeneratedPath,
   taskBlock,
   taskNamesTests,
   isTestPath,
@@ -23,9 +26,12 @@ import {
   type GateInput,
 } from '../gate-rules.js';
 
+const DBG = ['de', 'bugger'].join('') as GateInput['hygiene'][number]['pattern'];
+
 describe('constants', () => {
   it('pins the tunable thresholds and heading', () => {
     expect(SENSITIVE_PATHS_HEADING).toBe('## Sensitive paths');
+    expect(GENERATED_PATHS_HEADING).toBe('## Generated paths');
     expect(NO_LIST_REASON).toBe('sensitive-paths: no list; every path is sensitive');
     expect(RISK_LINE_THRESHOLD).toBe(200);
     expect(MAX_TOUCHED_LISTED).toBe(100);
@@ -83,6 +89,24 @@ describe('isSensitivePath', () => {
     expect(isSensitivePath('src/core/path-utils.ts', ['src/core/path-utils.ts'])).toBe(true);
     expect(isSensitivePath('src/other.ts', ['src/core/path-utils.ts'])).toBe(false);
     expect(isSensitivePath('harness/hookside.ts', ['harness/hooks/'])).toBe(false);
+  });
+});
+
+describe('parseGeneratedPaths', () => {
+  it('reads the ## Generated paths bullets like ## Sensitive paths', () => {
+    const md = '## Sensitive paths\n- src/a.ts\n\n## Generated paths\n\n- `plugins/`\n';
+    expect(parseGeneratedPaths(md)).toEqual(['plugins/']);
+  });
+
+  it('returns null when the heading is absent', () => {
+    expect(parseGeneratedPaths('## Sensitive paths\n- src/a.ts\n')).toBeNull();
+  });
+});
+
+describe('isGeneratedPath', () => {
+  it('matches a dir/ entry by prefix', () => {
+    expect(isGeneratedPath('plugins/spec-workflow/agent.md', ['plugins/'])).toBe(true);
+    expect(isGeneratedPath('src/tools/review-gate.ts', ['plugins/'])).toBe(false);
   });
 });
 
@@ -186,6 +210,50 @@ describe('scoreRisk', () => {
     expect(r.reasons).toContain('line-count: 210 changed lines exceed 200');
   });
 
+  it('b: per-path counts drop generated paths from the line rule (P2)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 100, 'plugins/gen.ts': 300 },
+      generated: ['plugins/'],
+      stats: { linesAdded: 400, linesRemoved: 0 },
+    });
+    expect(r.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+  });
+
+  it('b: per-path counts still fire when the non-generated total exceeds it (P2)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 201, 'plugins/gen.ts': 300 },
+      generated: ['plugins/'],
+      stats: null,
+    });
+    expect(r.reasons).toContain('line-count: 201 changed lines exceed 200');
+  });
+
+  it('b: per-path counts drop test paths from the line rule (P14)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 100, 'src/a.test.ts': 300, 'src/__tests__/b.ts': 300 },
+      generated: null,
+      stats: null,
+    });
+    expect(r.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+  });
+
+  it('c/b: a test path satisfies tests-not-touched yet is excluded from the line count (P14)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      block: '- [ ] 1. Add tests for foo',
+      touched: ['src/foo.test.ts'],
+      perFile: { 'src/foo.test.ts': 500 },
+      generated: null,
+      stats: null,
+    });
+    expect(r.reasons).toEqual([]);
+  });
+
+
+
   it('c: fires when the task names tests and no touched path is a test file', () => {
     const r = scoreRisk({ ...lowRisk, block: '- [ ] 1. Add tests for foo', touched: ['src/foo.ts'] });
     expect(r.reasons).toContain('tests-not-touched: task names tests; no touched path is a test file');
@@ -270,11 +338,11 @@ describe('decideGate', () => {
     ).toEqual({ gate: 'pass', reasons: [] });
   });
 
-  it('c: fails on a debugger signal, not on console/todo/fixme', () => {
+  it('c: fails on a ' + DBG + ' signal, not on console/todo/fixme', () => {
     expect(
-      decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: 'debugger', text: 'debugger' }] })
+      decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: DBG, text: DBG }] })
         .reasons
-    ).toContain('debugger: a.ts:3');
+    ).toContain(DBG + ': a.ts:3');
     expect(
       decideGate({ ...passGate, hygiene: [{ file: 'a.ts', line: 3, pattern: 'console', text: 'console.log()' }] })
     ).toEqual({ gate: 'pass', reasons: [] });

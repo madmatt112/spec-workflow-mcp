@@ -88,7 +88,8 @@ Every later reviewer, reviser and implementer reads it first.
   every existing test file a task names, say whether the change alters a value it
   asserts exactly. When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
-  says to remove it.
+  says to remove it. Start the tasks document with a `Document version: v1` line
+  right after the H1.
 - Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
   every other file belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
@@ -123,7 +124,9 @@ verdict block). Append:
   MUST_FIX).>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
-  introduced by the previous delta.>
+  introduced by the previous delta. Mark a finding that lands in text the previous
+  delta wrote `Compounds: R<A-1>-<n>`, naming the round-<A-1> finding whose fix wrote
+  the clause.>
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
@@ -207,11 +210,21 @@ RI-2: <text>>
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
 7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file
    belong to others. You may replace a context-file line that an accepted finding
-   refutes: same line, corrected text, the probe that proves it.
+   refutes: same line, corrected text, the probe that proves it. Tasks phase only:
+   when an accepted finding changes a call signature that `design.md` states, apply
+   the same text to that design component and add to `design.md` a Revision History
+   line `- **v<D> amended** (<date>) — tasks R<A>-<n>: <what>` (v<D> is design.md's
+   current version); list it under the finding's bullet as `also applied to
+   design.md`. This does not widen scope and needs no re-approval — approval records
+   do not hash content.
 8. Do not ask questions.
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. A finding marked `Compounds: R<A-1>-<n>` lands in text a previous delta wrote: do
+    not reword the clause again. Write one plain sentence of what the clause must
+    claim, delete the old text, and probe the new claim as round 1 would. A claim you
+    cannot probe is deleted, not kept.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
