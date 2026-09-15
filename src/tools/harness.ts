@@ -8,6 +8,8 @@ import { SpecParser } from '../core/parser.js';
 import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
+import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
+import { handoffPath } from '../watch/index.js';
 
 /**
  * The `harness` tool (design Components 1-4). One tool, three actions:
@@ -16,8 +18,8 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
  * template; `phase-log` regenerates the HANDOFF `## Phase log` rows. It reads
  * only under the resolved spec store through `PathUtils.safeJoin` (the pattern
  * `spec-lint` uses) and spawns no child process. `brief` fills a named
- * server template and writes the worker brief; `phase-log` lands in a later
- * task and returns a not-implemented `success:false`.
+ * server template and writes the worker brief; `phase-log` regenerates the
+ * HANDOFF `## Phase log` block for one spec from its `phase.end` events.
  */
 export const harnessTool: Tool = {
   name: 'harness',
@@ -91,8 +93,7 @@ export async function harnessHandler(args: any, context: ToolContext): Promise<T
     case 'brief':
       return briefAction(args, context);
     case 'phase-log':
-      // Bridge: task 4 implements the phase-log action.
-      return { success: false, message: 'harness action `phase-log` is not yet implemented' };
+      return phaseLogAction(args, context);
     default:
       return { success: false, message: `Unknown action: ${action}. Use 'orient', 'brief', or 'phase-log'.` };
   }
@@ -608,4 +609,223 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
   const absolute = resolve(finalPath);
   return { success: true, message: `brief ${template} → ${absolute}`, data: { path: absolute } };
+}
+
+// --- phase-log ---------------------------------------------------------------
+
+const PHASE_LOG_HEADING = '## Phase log';
+const PHASE_LOG_HEADER = '| Date | Spec | Stage | State | Result | Note |';
+const PHASE_LOG_SEPARATOR = '| --- | --- | --- | --- | --- | --- |';
+
+/** Milliseconds of an ISO timestamp; 0 when absent or unparseable (as `buildModel`). */
+function ms(ts: string | undefined): number {
+  const n = ts ? new Date(ts).getTime() : NaN;
+  return Number.isNaN(n) ? 0 : n;
+}
+
+/**
+ * `phase-log` action: regenerate the HANDOFF `## Phase log` rows for one spec
+ * from its `harness-events.jsonl`, rewriting only that block (design Component 4,
+ * Requirement 5). Rows whose `Spec` cell is another spec stay verbatim, the
+ * routing header and the `## <spec> — <stage>` sections are untouched. A
+ * `phase.end` with no existing row adds a row (dedup as `src/watch/ledger.ts:209-211`),
+ * a pre-ledger hand-written row with no matching `phase.end` is kept (5.3), and a
+ * `phase.start` with no matching `phase.end` that is not the live phase — the run
+ * ended or it belongs to a prior run — emits a row with Result `interrupted` and
+ * its entry-snapshot state (5.4). A live phase is never stamped `interrupted`.
+ */
+async function phaseLogAction(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { specName } = args;
+  const { workflowRoot } = selectRoots(args, context);
+  const specDir = PathUtils.getSpecPath(workflowRoot, specName);
+
+  // The spec directory must exist; a missing one is an error naming the path.
+  try {
+    const s = await stat(specDir);
+    if (!s.isDirectory()) throw new Error('not a directory');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to read ${specDir}: ${message}` };
+  }
+
+  // The spec's ledger; a missing file is an empty ledger (a run never needs one).
+  const ledgerPath = PathUtils.safeJoin(specDir, 'harness-events.jsonl');
+  let ledgerText: string | undefined;
+  try {
+    ledgerText = await readFile(ledgerPath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${ledgerPath}: ${message}` };
+    }
+    ledgerText = undefined;
+  }
+
+  // HANDOFF lives at the spec-store root; a missing file is an error naming it,
+  // because the block is rewritten in place beside the supervisor's own sections.
+  const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
+  const hoPath = handoffPath(specStoreRoot);
+  let handoffMd: string;
+  try {
+    handoffMd = await readFile(hoPath, 'utf-8');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to read ${hoPath}: ${message}` };
+  }
+
+  const events = parseJsonl<LedgerEvent>(ledgerText);
+  const derived = derivePhaseRows(events, parseHandoffPhaseRows(handoffMd, specName));
+  const updated = rewriteHandoffPhaseLog(handoffMd, specName, derived);
+
+  try {
+    await writeFile(hoPath, updated, 'utf-8');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to write ${hoPath}: ${message}` };
+  }
+
+  return {
+    success: true,
+    message: `phase-log ${specName}: ${derived.length} row(s) added to ${hoPath}`,
+    data: { path: hoPath, added: derived.length },
+  };
+}
+
+/**
+ * The rows to append for this spec: a `phase.end` with no existing row (dedup on
+ * phase+result+state, `src/watch/ledger.ts:209-211`) and an `interrupted` row for
+ * each unclosed, not-live `phase.start` (`src/watch/ledger.ts:216-224`). Existing
+ * rows are kept verbatim by the caller, so this returns only the additions.
+ */
+function derivePhaseRows(events: LedgerEvent[], existing: PhaseRow[]): PhaseRow[] {
+  const sorted = [...events].sort((a, b) => ms(a.ts) - ms(b.ts));
+  const derived: PhaseRow[] = [];
+  // `seen` grows so a repeated phase+result+state adds only one row.
+  const seen: PhaseRow[] = [...existing];
+  const isDup = (r: PhaseRow) =>
+    seen.some(p => p.phase === r.phase && p.result === r.result && p.state === r.state);
+  const add = (r: PhaseRow) => { if (!isDup(r)) { derived.push(r); seen.push(r); } };
+
+  // A `phase.end` with no matching existing or already-added row.
+  for (const e of sorted.filter(e => e.type === 'phase.end')) {
+    add({
+      date: (e.ts ?? '').slice(0, 10),
+      phase: e.phase ?? '',
+      state: e.state ?? '',
+      result: e.result ?? '',
+      note: e.note ?? '',
+    });
+  }
+
+  // The live phase.start (never stamped interrupted): the last phase.start of the
+  // current run with no later phase.end for it, and only while the run has not
+  // ended (`src/watch/ledger.ts:216-224`).
+  const runStart = [...sorted].reverse().find(e => e.type === 'run.start');
+  const currentRun = runStart?.run;
+  const currentRunEvents = currentRun ? sorted.filter(e => e.run === currentRun) : sorted;
+  const runEnded = currentRunEvents.some(e => e.type === 'run.end');
+  const currentStarts = currentRunEvents.filter(e => e.type === 'phase.start');
+  const lastStart = currentStarts[currentStarts.length - 1];
+  let livePhaseStart: LedgerEvent | undefined;
+  if (lastStart && !runEnded) {
+    const ended = currentRunEvents.some(
+      e => e.type === 'phase.end' && e.phase === lastStart.phase && ms(e.ts) >= ms(lastStart.ts),
+    );
+    if (!ended) livePhaseStart = lastStart;
+  }
+
+  // An unclosed phase.start that is not live: interrupted, with its entry state.
+  for (const start of sorted.filter(e => e.type === 'phase.start')) {
+    if (start === livePhaseStart) continue;
+    const runScope = start.run ? sorted.filter(e => e.run === start.run) : sorted;
+    const ended = runScope.some(
+      e => e.type === 'phase.end' && e.phase === start.phase && ms(e.ts) >= ms(start.ts),
+    );
+    if (ended) continue;
+    add({
+      date: (start.ts ?? '').slice(0, 10),
+      phase: start.phase ?? '',
+      state: start.state ?? '',
+      result: 'interrupted',
+      note: start.note ?? '',
+    });
+  }
+
+  return derived;
+}
+
+/** Escape free text for one markdown table cell (as `IndexGenerator.cell`). */
+function phaseLogCell(text: string): string {
+  return text.replace(/\|/g, '\\|').replace(/\s*\n+\s*/g, ' ').trim();
+}
+
+/** One `## Phase log` table row for this spec. */
+function serializePhaseRow(spec: string, r: PhaseRow): string {
+  return `| ${phaseLogCell(r.date ?? '')} | ${phaseLogCell(spec)} | ${phaseLogCell(r.phase)} `
+    + `| ${phaseLogCell(r.state)} | ${phaseLogCell(r.result)} | ${phaseLogCell(r.note)} |`;
+}
+
+/**
+ * Rewrite only the `## Phase log` block: keep every existing data row verbatim
+ * (other specs' rows and this spec's pre-ledger rows), then append the derived
+ * rows. The routing header and the `## <spec> — <stage>` sections are untouched.
+ * When the block is absent it is created before the first `## ` section (else at
+ * end), so the sections stay after it (`formats.md:80-81`).
+ */
+function rewriteHandoffPhaseLog(handoff: string, spec: string, derived: PhaseRow[]): string {
+  const lines = handoff.split('\n');
+
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === PHASE_LOG_HEADING) { start = i; break; }
+  }
+
+  // The block runs from its heading to the next `## ` heading (exclusive) or EOF.
+  let end = lines.length;
+  if (start !== -1) {
+    for (let i = start + 1; i < lines.length; i++) {
+      if (lines[i].startsWith('## ')) { end = i; break; }
+    }
+  }
+
+  // Existing data rows (all specs) inside the old block, kept verbatim in order.
+  const existingRaw: string[] = [];
+  if (start !== -1) {
+    for (let i = start + 1; i < end; i++) {
+      const line = lines[i];
+      if (!line.startsWith('|')) continue;
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      if (cells.length < 6 || cells[0] === 'Date' || cells[0].startsWith('---')) continue;
+      existingRaw.push(line);
+    }
+  }
+
+  const block = [
+    PHASE_LOG_HEADING,
+    '',
+    PHASE_LOG_HEADER,
+    PHASE_LOG_SEPARATOR,
+    ...existingRaw,
+    ...derived.map(r => serializePhaseRow(spec, r)),
+  ];
+
+  let out: string[];
+  if (start !== -1) {
+    out = [...lines.slice(0, start), ...block];
+    if (end < lines.length) out.push('');
+    out.push(...lines.slice(end));
+  } else {
+    // No block yet: insert before the first `## ` section, else append at end.
+    let h = lines.findIndex(l => l.startsWith('## '));
+    if (h === -1) h = lines.length;
+    const before = lines.slice(0, h);
+    const after = lines.slice(h);
+    const lead = before.length > 0 && before[before.length - 1].trim() !== '' ? [''] : [];
+    const tail = after.length > 0 ? ['', ...after] : [];
+    out = [...before, ...lead, ...block, ...tail];
+  }
+
+  let text = out.join('\n');
+  if (!text.endsWith('\n')) text += '\n';
+  return text;
 }

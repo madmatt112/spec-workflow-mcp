@@ -34,13 +34,10 @@ describe('harnessHandler', () => {
     expect(res.message).toContain('specName');
   });
 
-  it('bridges phase-log as not implemented; brief now requires a template', async () => {
+  it('brief now requires a template', async () => {
     const brief = await harnessHandler({ action: 'brief', specName: SPEC }, context);
     expect(brief.success).toBe(false);
     expect(brief.message).toContain('template');
-    const log = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
-    expect(log.success).toBe(false);
-    expect(log.message).toContain('phase-log');
   });
 
   it('fails naming the spec dir when it is missing', async () => {
@@ -221,5 +218,114 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(false);
     expect(res.message).toContain('nope');
     await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  // Requirement 5 — the `phase-log` action.
+
+  const handoffPathFile = () => join(tempDir, '.spec-workflow', 'HANDOFF.md');
+  const writeHandoff = (content: string) => fs.writeFile(handoffPathFile(), content);
+  const readHandoff = () => fs.readFile(handoffPathFile(), 'utf-8');
+  const writeLedger = (events: Record<string, unknown>[]) =>
+    fs.writeFile(join(specDir, 'harness-events.jsonl'), events.map(e => JSON.stringify(e)).join('\n') + '\n');
+
+  const HANDOFF_HEADER = [
+    '> **READ FIRST — SDD routing (2026-09-15, harness v4).** Active spec **`my-spec`**.',
+    '',
+    '## Phase log',
+    '',
+    '| Date | Spec | Stage | State | Result | Note |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |',
+    '',
+    '## my-spec — implementation',
+    '',
+    'State: tasks 1/3 done.',
+    '',
+  ].join('\n');
+
+  it('phase-log preserves another spec row and adds a phase.end row', async () => {
+    await writeHandoff(HANDOFF_HEADER);
+    await writeLedger([
+      { ts: '2026-09-15T10:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC },
+      { ts: '2026-09-15T10:01:00Z', type: 'phase.start', run: 'run-1', spec: SPEC, phase: 'requirements', state: 'v0' },
+      { ts: '2026-09-15T10:30:00Z', type: 'phase.end', run: 'run-1', spec: SPEC, phase: 'requirements', state: 'v2', result: 'approved', note: 'converged' },
+      { ts: '2026-09-15T10:31:00Z', type: 'run.end', run: 'run-1', spec: SPEC, status: 'approved' },
+    ]);
+
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+
+    const out = await readHandoff();
+    // The other spec's row survives byte for byte.
+    expect(out).toContain('| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |');
+    // A row for this spec's phase.end is added.
+    expect(out).toContain('| 2026-09-15 | my-spec | requirements | v2 | approved | converged |');
+    // The routing header and the orchestrator section are untouched.
+    expect(out).toContain('Active spec **`my-spec`**');
+    expect(out).toContain('## my-spec — implementation');
+    expect(out).toContain('State: tasks 1/3 done.');
+  });
+
+  it('phase-log emits an interrupted row for an unclosed not-live phase', async () => {
+    await writeHandoff(HANDOFF_HEADER);
+    await writeLedger([
+      { ts: '2026-09-15T09:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC },
+      { ts: '2026-09-15T09:01:00Z', type: 'phase.start', run: 'run-1', spec: SPEC, phase: 'design', state: 'v3' },
+      { ts: '2026-09-15T09:05:00Z', type: 'run.end', run: 'run-1', spec: SPEC, status: 'escalated' },
+    ]);
+
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+
+    const out = await readHandoff();
+    expect(out).toContain('| 2026-09-15 | my-spec | design | v3 | interrupted |');
+    // The other spec's row is still preserved alongside it.
+    expect(out).toContain('| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |');
+  });
+
+  it('phase-log never stamps the live phase interrupted', async () => {
+    await writeHandoff(HANDOFF_HEADER);
+    await writeLedger([
+      { ts: '2026-09-15T11:00:00Z', type: 'run.start', run: 'run-2', spec: SPEC },
+      { ts: '2026-09-15T11:01:00Z', type: 'phase.start', run: 'run-2', spec: SPEC, phase: 'tasks', state: 'v1' },
+    ]);
+
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.added).toBe(0);
+
+    const out = await readHandoff();
+    expect(out).not.toContain('interrupted');
+  });
+
+  it('phase-log keeps a pre-ledger hand-written row with no matching phase.end', async () => {
+    const handoff = HANDOFF_HEADER.replace(
+      '| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |',
+      [
+        '| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |',
+        '| 2026-09-08 | my-spec | requirements | v1 | approved | pre-ledger row |',
+      ].join('\n'),
+    );
+    await writeHandoff(handoff);
+    await writeLedger([
+      { ts: '2026-09-15T10:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC },
+      { ts: '2026-09-15T10:01:00Z', type: 'phase.end', run: 'run-1', spec: SPEC, phase: 'design', state: 'v2', result: 'approved', note: 'ok' },
+    ]);
+
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+
+    const out = await readHandoff();
+    // The hand-written pre-ledger row is untouched.
+    expect(out).toContain('| 2026-09-08 | my-spec | requirements | v1 | approved | pre-ledger row |');
+    // The new ledger-derived design row is added.
+    expect(out).toContain('| 2026-09-15 | my-spec | design | v2 | approved | ok |');
+  });
+
+  it('phase-log fails naming HANDOFF when it is missing', async () => {
+    await writeLedger([{ ts: '2026-09-15T10:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC }]);
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('HANDOFF.md');
   });
 });
