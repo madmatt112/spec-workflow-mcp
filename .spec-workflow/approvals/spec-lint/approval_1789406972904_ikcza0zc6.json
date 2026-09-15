@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789406972904_ikcza0zc6",
+  "title": "spec-lint requirements v4",
+  "filePath": ".spec-workflow/specs/spec-lint/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-14T17:29:32.904Z",
+  "category": "spec",
+  "categoryName": "spec-lint",
+  "response": "v4; 4 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 1 / MINOR 1; rulings: none; cap: SHOULD_FIX-only pass at v4, VERIFIED 1/1",
+  "respondedAt": "2026-09-14T17:29:43.738Z"
+}

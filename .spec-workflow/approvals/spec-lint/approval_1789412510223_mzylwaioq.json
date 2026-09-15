@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789412510223_mzylwaioq",
+  "title": "spec-lint design v3",
+  "filePath": ".spec-workflow/specs/spec-lint/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-14T19:01:50.223Z",
+  "category": "spec",
+  "categoryName": "spec-lint",
+  "response": "v3; 3 review rounds (2 adversarial + 1 narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 1 / MINOR 0 at r2, resolved by the SHOULD_FIX-only pass; rulings: none; cap: not hit; SHOULD_FIX-only pass at v3, VERIFIED 1/1. Word count 4,029 against the 4,000 cap (Revision History bookkeeping), accepted.",
+  "respondedAt": "2026-09-14T19:01:57.939Z"
+}
