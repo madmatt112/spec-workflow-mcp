@@ -124,7 +124,9 @@ verdict block). Append:
   MUST_FIX).>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
-  introduced by the previous delta.>
+  introduced by the previous delta. Mark a finding that lands in text the previous
+  delta wrote `Compounds: R<A-1>-<n>`, naming the round-<A-1> finding whose fix wrote
+  the clause.>
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
@@ -219,6 +221,10 @@ RI-2: <text>>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. A finding marked `Compounds: R<A-1>-<n>` lands in text a previous delta wrote: do
+    not reword the clause again. Write one plain sentence of what the clause must
+    claim, delete the old text, and probe the new claim as round 1 would. A claim you
+    cannot probe is deleted, not kept.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
