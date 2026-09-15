@@ -1,10 +1,11 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile, mkdir } from 'node:fs/promises';
+import { dirname, basename, resolve } from 'node:path';
 import { PathUtils } from '../core/path-utils.js';
 import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
-import { parseTasksFromMarkdown } from '../core/task-parser.js';
+import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 
@@ -14,8 +15,9 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
  * skills compute by hand today; `brief` writes a worker brief from a named
  * template; `phase-log` regenerates the HANDOFF `## Phase log` rows. It reads
  * only under the resolved spec store through `PathUtils.safeJoin` (the pattern
- * `spec-lint` uses) and spawns no child process. `brief` and `phase-log` land
- * in later tasks; here they return a not-implemented `success:false`.
+ * `spec-lint` uses) and spawns no child process. `brief` fills a named
+ * server template and writes the worker brief; `phase-log` lands in a later
+ * task and returns a not-implemented `success:false`.
  */
 export const harnessTool: Tool = {
   name: 'harness',
@@ -87,8 +89,7 @@ export async function harnessHandler(args: any, context: ToolContext): Promise<T
     case 'orient':
       return orientAction(args, context);
     case 'brief':
-      // Bridge: task 3 implements the brief action.
-      return { success: false, message: 'harness action `brief` is not yet implemented' };
+      return briefAction(args, context);
     case 'phase-log':
       // Bridge: task 4 implements the phase-log action.
       return { success: false, message: 'harness action `phase-log` is not yet implemented' };
@@ -435,4 +436,176 @@ function classifyTarget(block: string): TargetClass {
   if (/memory|claude\.md|settings|~\/\.claude/.test(hay)) return 'home';
   if (/\bcode\b|checkout|\brepo\b|src\//.test(hay)) return 'code';
   return 'none';
+}
+
+// --- brief -------------------------------------------------------------------
+
+/**
+ * Named server-side brief templates, one per brief kind the harness spawns
+ * (design Component 3, D2). Placeholders are `{{key}}`, filled from `values`;
+ * an unknown template name or a `{{key}}` with no value fails naming it and
+ * writes nothing (2.3). `{{agentRules}}` is filled with the spec-store
+ * `agent-rules.md` path when that file exists, and its line is dropped when it
+ * does not (2.4, `harness/skills/sdd-document-phase/references/briefs.md:4-11`).
+ * The implementer template's `{{taskBlock}}` is filled by the tasks parser, not
+ * the caller (2.2). Porting the skills' `references/briefs.md` verbatim and
+ * guarding the two in sync is a deferred follow-up (design Scope notes, D2).
+ */
+const BRIEF_TEMPLATES: Record<string, string> = {
+  drafter: [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Job',
+    '{{job}}',
+    '',
+  ].join('\n'),
+  reviser: [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Job',
+    '{{job}}',
+    '',
+    '## Findings',
+    '{{findings}}',
+    '',
+  ].join('\n'),
+  adjudicator: [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Open items',
+    '{{items}}',
+    '',
+  ].join('\n'),
+  verifier: [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Job',
+    '{{job}}',
+    '',
+  ].join('\n'),
+  implementer: [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Task text (from tasks.md)',
+    '',
+    '{{taskBlock}}',
+    '',
+  ].join('\n'),
+};
+
+/** Placeholder keys the server fills itself; never required from `values`. */
+const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
+
+/**
+ * `brief` action: fill a named template's `{{key}}` placeholders from `values`,
+ * write the read-and-obey first line when `agent-rules.md` exists at the spec
+ * store root, fill an implementer brief's task block from the tasks parser, and
+ * write the file through `PathUtils.safeJoin` under the caller-named path,
+ * returning its absolute path (Requirement 2).
+ */
+async function briefAction(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { specName, template, taskId } = args;
+  const values: Record<string, unknown> =
+    args.values && typeof args.values === 'object' ? args.values : {};
+
+  // Missing or unknown template: fail naming it, write nothing (2.3).
+  if (typeof template !== 'string' || template.length === 0) {
+    return {
+      success: false,
+      message: `brief: a template name is required, one of: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
+    };
+  }
+  const templateBody = BRIEF_TEMPLATES[template];
+  if (templateBody === undefined) {
+    return {
+      success: false,
+      message: `brief: unknown template '${template}'. Known templates: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
+    };
+  }
+
+  // The output path the caller names in `values`; a missing one is a missing value.
+  const outPath = values.path;
+  if (typeof outPath !== 'string' || outPath.length === 0) {
+    return {
+      success: false,
+      message: `brief: required value 'path' (the output file path) is missing; no file written`,
+    };
+  }
+
+  const { workflowRoot } = selectRoots(args, context);
+  const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
+  const serverValues: Record<string, string> = {};
+
+  // agent-rules.md at the spec-store root ⇒ keep and fill the read-and-obey line;
+  // otherwise drop that line entirely (2.4, briefs.md:4-11).
+  let body = templateBody;
+  const agentRulesPath = PathUtils.safeJoin(specStoreRoot, 'agent-rules.md');
+  let agentRulesExists = false;
+  try {
+    await stat(agentRulesPath);
+    agentRulesExists = true;
+  } catch {
+    agentRulesExists = false;
+  }
+  if (agentRulesExists) {
+    serverValues.agentRules = agentRulesPath;
+  } else {
+    body = body.split('\n').filter((l) => !l.includes('{{agentRules}}')).join('\n');
+  }
+
+  // The implementer template's task block comes from the parser, byte for byte (2.2).
+  if (body.includes('{{taskBlock}}')) {
+    if (typeof taskId !== 'string' || taskId.length === 0) {
+      return { success: false, message: `brief: template '${template}' needs a taskId; no file written` };
+    }
+    const tasksPath = PathUtils.safeJoin(PathUtils.getSpecPath(workflowRoot, specName), 'tasks.md');
+    let tasksContent: string;
+    try {
+      tasksContent = await readFile(tasksPath, 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${tasksPath}: ${message}` };
+    }
+    const block = taskBlock(tasksContent, taskId);
+    if (block === undefined) {
+      return { success: false, message: `brief: task ${taskId} not found in ${tasksPath}; no file written` };
+    }
+    serverValues.taskBlock = block;
+  }
+
+  // Every remaining {{key}} must have a caller value, else fail naming it (2.3).
+  const keys = new Set((body.match(/\{\{(\w+)\}\}/g) ?? []).map((p) => p.slice(2, -2)));
+  for (const key of keys) {
+    if (SERVER_BRIEF_KEYS.has(key)) continue;
+    if (values[key] === undefined || values[key] === null) {
+      return { success: false, message: `brief: required value '${key}' is missing; no file written` };
+    }
+  }
+
+  const filled = body.replace(/\{\{(\w+)\}\}/g, (_full, key: string) =>
+    key in serverValues ? serverValues[key] : String(values[key]),
+  );
+
+  // Write through safeJoin under the caller-named directory; return the path.
+  const finalPath = PathUtils.safeJoin(dirname(outPath), basename(outPath));
+  try {
+    await mkdir(dirname(finalPath), { recursive: true });
+    await writeFile(finalPath, filled, 'utf-8');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+  }
+
+  const absolute = resolve(finalPath);
+  return { success: true, message: `brief ${template} → ${absolute}`, data: { path: absolute } };
 }

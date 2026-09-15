@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { harnessHandler } from '../harness.js';
+import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
 const SPEC = 'my-spec';
@@ -33,10 +34,10 @@ describe('harnessHandler', () => {
     expect(res.message).toContain('specName');
   });
 
-  it('bridges brief and phase-log as not implemented', async () => {
+  it('bridges phase-log as not implemented; brief now requires a template', async () => {
     const brief = await harnessHandler({ action: 'brief', specName: SPEC }, context);
     expect(brief.success).toBe(false);
-    expect(brief.message).toContain('brief');
+    expect(brief.message).toContain('template');
     const log = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
     expect(log.success).toBe(false);
     expect(log.message).toContain('phase-log');
@@ -133,5 +134,92 @@ describe('harnessHandler', () => {
     expect(res.data.items).toEqual({ total: 3, done: 1, open: 2 });
     expect(res.data.byClass).toEqual({ none: 0, store: 0, harness: 1, code: 1, home: 0 });
     expect(res.data.nextStep).toBe('Step 2');
+  });
+
+  // Requirement 2 — the `brief` action.
+
+  // A tasks fixture whose task-3 block runs to the next checkbox and so includes
+  // an intervening `##` heading (requirements Scope notes / design D5).
+  const TASKS = [
+    '# Tasks',
+    'Document version: v1',
+    '',
+    '- [ ] 1. First task',
+    '  _Prompt: Task: a | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 2. Second task',
+    '  _Prompt: Task: b | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 3. Third task',
+    '  - File: src/foo.ts',
+    '  _Prompt: Task: c | Restrictions: none | Success: ok_',
+    '',
+    '## A heading inside the task 3 block',
+    '',
+    '- [ ] 4. Fourth task',
+    '  _Prompt: Task: d | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
+  const writeAgentRules = () =>
+    fs.writeFile(join(tempDir, '.spec-workflow', 'agent-rules.md'), '# rules\n');
+
+  it('brief writes the implementer task block byte for byte, with the read-and-obey first line', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-brief-task-3.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3', values: { path: outPath, title: 'Task 3' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    expect(res.data.path).toBe(outPath);
+
+    const written = await fs.readFile(outPath, 'utf-8');
+    const expected = taskBlock(TASKS, '3')!;
+    // The parser block includes the intervening `##` heading.
+    expect(expected).toContain('## A heading inside the task 3 block');
+    // The brief carries that block byte for byte.
+    expect(written).toContain(expected);
+    // The first instruction line reads and obeys the spec-store agent-rules.md.
+    expect(written).toMatch(/Read and obey .*[/\\]agent-rules\.md first\./);
+  });
+
+  it('brief fails naming a missing required value and writes no file', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-brief-task-3.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3', values: { path: outPath } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('title');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('brief drops the read-and-obey line when agent-rules.md is absent', async () => {
+    const outPath = join(tempDir, 'drafter-brief.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { path: outPath, title: 'Draft', job: 'write it' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).not.toContain('Read and obey');
+    expect(written).toContain('write it');
+  });
+
+  it('brief fails naming an unknown template and writes no file', async () => {
+    const outPath = join(tempDir, 'nope.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'nope', values: { path: outPath } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('nope');
+    await expect(fs.access(outPath)).rejects.toThrow();
   });
 });
