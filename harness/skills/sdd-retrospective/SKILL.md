@@ -17,6 +17,7 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
 - Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:sdd-retro-analyst`, no
   `model` parameter, never `fork`.
 - Never pass `projectPath` to a spec-workflow MCP tool.
+- Search content with `grep` in Bash; there is no Grep tool here.
 - Every finding carries an evidence reference (a path, an approval id, a commit, a
   deferral id, an analysis section, a retro-log entry timestamp), a frequency and a
   cost estimate. A finding without a reference is not written.
