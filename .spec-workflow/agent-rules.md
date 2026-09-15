@@ -62,3 +62,10 @@ Machine-read by the review gate. A task that touches any of these is high risk.
 - `src/tools/review-task.ts`
 - `harness/hooks/`
 - `.github/workflows/`
+
+## Generated paths
+
+Machine-read by the review gate: changed lines under these paths do not count toward the
+line rule.
+
+- `plugins/`

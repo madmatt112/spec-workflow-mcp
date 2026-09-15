@@ -22,6 +22,8 @@ export type RangeStatsResult =
       ok: true;
       stats: { filesChanged: number; linesAdded: number; linesRemoved: number };
       touched: string[];
+      /** Changed lines (added + removed) per touched path, for per-path line rules. */
+      perFile: Record<string, number>;
     }
   | { ok: false; message: string };
 
@@ -307,6 +309,13 @@ function sortedUnique(paths: Iterable<string>): string[] {
   return [...new Set(paths)].sort();
 }
 
+/** Changed lines (added + removed) per path, for the per-path line rules (retro P2). */
+function changedByPath(map: Map<string, { added: number; removed: number }>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [p, s] of map) out[p] = s.added + s.removed;
+  return out;
+}
+
 /**
  * Newline count of a file's bytes, or 0 when it cannot be read (D18). Gives an
  * untracked file a line count without staging it, so the index stays untouched.
@@ -356,6 +365,7 @@ export async function computeRangeStats(
         ok: true,
         stats: { filesChanged: 0, linesAdded: 0, linesRemoved: 0 },
         touched: [],
+        perFile: {},
       };
     }
     return { ok: false, message: `${selector} ${ref} does not resolve in ${root}` };
@@ -377,6 +387,7 @@ export async function computeRangeStats(
         linesRemoved: numstat.linesRemoved,
       },
       touched: sortedUnique(numstat.perFile.keys()),
+      perFile: changedByPath(numstat.perFile),
     };
   }
 
@@ -391,16 +402,21 @@ export async function computeRangeStats(
 
   const numstat = parseNumstat(diffRun.stdout);
   let { filesChanged, linesAdded, linesRemoved } = numstat;
+  const perFile = changedByPath(numstat.perFile);
 
   const untracked = othersRun.stdout.split('\n').filter((line) => line.length > 0);
   for (const rel of untracked) {
+    const added = countFileNewlines(path.join(root, rel));
     filesChanged += 1;
-    linesAdded += countFileNewlines(path.join(root, rel));
+    linesAdded += added;
+    perFile[rel] = added;
   }
 
   return {
     ok: true,
     stats: { filesChanged, linesAdded, linesRemoved },
     touched: sortedUnique([...numstat.perFile.keys(), ...untracked]),
+    perFile,
   };
+
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   SENSITIVE_PATHS_HEADING,
+  GENERATED_PATHS_HEADING,
   NO_LIST_REASON,
   RISK_LINE_THRESHOLD,
   TEST_WORD_RE,
@@ -11,7 +12,9 @@ import {
   MAX_LINE_CHARS,
   TYPECHECK_STATE_RANK,
   parseSensitivePaths,
+  parseGeneratedPaths,
   isSensitivePath,
+  isGeneratedPath,
   taskBlock,
   taskNamesTests,
   isTestPath,
@@ -26,6 +29,7 @@ import {
 describe('constants', () => {
   it('pins the tunable thresholds and heading', () => {
     expect(SENSITIVE_PATHS_HEADING).toBe('## Sensitive paths');
+    expect(GENERATED_PATHS_HEADING).toBe('## Generated paths');
     expect(NO_LIST_REASON).toBe('sensitive-paths: no list; every path is sensitive');
     expect(RISK_LINE_THRESHOLD).toBe(200);
     expect(MAX_TOUCHED_LISTED).toBe(100);
@@ -83,6 +87,24 @@ describe('isSensitivePath', () => {
     expect(isSensitivePath('src/core/path-utils.ts', ['src/core/path-utils.ts'])).toBe(true);
     expect(isSensitivePath('src/other.ts', ['src/core/path-utils.ts'])).toBe(false);
     expect(isSensitivePath('harness/hookside.ts', ['harness/hooks/'])).toBe(false);
+  });
+});
+
+describe('parseGeneratedPaths', () => {
+  it('reads the ## Generated paths bullets like ## Sensitive paths', () => {
+    const md = '## Sensitive paths\n- src/a.ts\n\n## Generated paths\n\n- `plugins/`\n';
+    expect(parseGeneratedPaths(md)).toEqual(['plugins/']);
+  });
+
+  it('returns null when the heading is absent', () => {
+    expect(parseGeneratedPaths('## Sensitive paths\n- src/a.ts\n')).toBeNull();
+  });
+});
+
+describe('isGeneratedPath', () => {
+  it('matches a dir/ entry by prefix', () => {
+    expect(isGeneratedPath('plugins/spec-workflow/agent.md', ['plugins/'])).toBe(true);
+    expect(isGeneratedPath('src/tools/review-gate.ts', ['plugins/'])).toBe(false);
   });
 });
 
@@ -185,6 +207,27 @@ describe('scoreRisk', () => {
     const r = scoreRisk({ ...lowRisk, stats: { linesAdded: 150, linesRemoved: 60 } });
     expect(r.reasons).toContain('line-count: 210 changed lines exceed 200');
   });
+
+  it('b: per-path counts drop generated paths from the line rule (P2)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 100, 'plugins/gen.ts': 300 },
+      generated: ['plugins/'],
+      stats: { linesAdded: 400, linesRemoved: 0 },
+    });
+    expect(r.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+  });
+
+  it('b: per-path counts still fire when the non-generated total exceeds it (P2)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: { 'src/a.ts': 201, 'plugins/gen.ts': 300 },
+      generated: ['plugins/'],
+      stats: null,
+    });
+    expect(r.reasons).toContain('line-count: 201 changed lines exceed 200');
+  });
+
 
   it('c: fires when the task names tests and no touched path is a test file', () => {
     const r = scoreRisk({ ...lowRisk, block: '- [ ] 1. Add tests for foo', touched: ['src/foo.ts'] });
