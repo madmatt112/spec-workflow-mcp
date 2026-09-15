@@ -22,6 +22,13 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
   cost estimate. A finding without a reference is not written.
 - Both output files are capped at 2,500 words each. Count before you finish.
 - Do not ask questions.
+- Edit spec-store files (HANDOFF, the retro log) with the Edit tool. When the tool
+  refuses the path (a worktree-isolated session), write
+  `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with the Write tool from the script
+  text in the document-phase skill's `references/cleanup.md`, then call it on its own
+  shell line: `node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>` replaces
+  one exact match (non-zero exit on 0 or 2+ matches). Never `sed -i` on the spec store,
+  never a heredoc; write scripts with the Write tool.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces):
   `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
@@ -50,10 +57,14 @@ Read, in this order, taking notes rather than copying:
 4. `<spec dir>/Implementation Logs/` (summaries and file lists; skim).
 5. The task reviews: `get-task-review` for each task that had a fix round (the retro
    log says which), latest version.
-6. The git log of the spec's commits in the code repo (`git log --oneline
-   <default branch>..HEAD` in `CODE_ROOT`; if the branch is merged, the commits whose
-   message names the spec) and in the spec store repo (`git log --oneline --
-   .spec-workflow/specs/<SPEC>` there).
+6. The git log of the spec commits, gathered by a script so that no `git` invocation
+   sits on a shell line. The retro skill writes `/tmp/scratchpad/sdd/<SPEC>/git-log.sh`
+   with the Write tool; inside the script each repo gets one `cd` followed by one
+   `/usr/bin/git log --oneline` call with absolute paths — the code repo
+   (`<default branch>..HEAD` in `CODE_ROOT`; if the branch is merged, the commits whose
+   message names the spec) and the spec store repo (`-- .spec-workflow/specs/<SPEC>` in
+   the spec store repo root) — and the skill then runs it with `bash`. The script uses
+   no `-C`, no glob and no `&&` on any shell line.
 7. Every earlier `<SPEC_STORE_ROOT>/specs/*/retrospective.md`, for repeat patterns.
 
 Write `<spec dir>/retrospective.md` with the sections in `references/formats.md`, in
@@ -82,7 +93,7 @@ candidates`. Count the lines matching `DECISION NEEDED: yes`.
 
 Commit both files in the spec store repo (`docs(sdd): <SPEC> retrospective findings
 and proposals`, through the commit script described in the document-phase skill's
-`references/cleanup.md`). Append one retro-log entry (`cleanup`: retrospective
+`references/cleanup.md`). Append one retro-log entry with `retro.sh` (`cleanup`: retrospective
 compiled, finding and proposal counts).
 
 Report `PHASE: retro-ready`, `STATE: n/a`, `NEXT: retrospective conversation`, and in

@@ -97,6 +97,24 @@ Fix idea: <optional one line>
 The `<ISO timestamp>` is the output of `date -u +%Y-%m-%dT%H:%M:%SZ`, run when you
 append; never typed from memory.
 
+Entries are appended with `retro.sh`, never by hand — which is why every skill's
+"append a retro-log entry" step names it. The script sits next to `event.sh` at
+`/tmp/scratchpad/sdd/<spec>/retro.sh`, written once per run (Write tool) with the spec
+dir filled in. It stamps the time itself and refuses an empty argument:
+
+```bash
+#!/bin/bash
+# usage: bash retro.sh "<stage>" "<vN | task N | phase>" "<category>" "<body>" "<evidence>" "<cost>"
+export SDD_RETRO_LOG="<spec dir>/retrospective-log.md"
+[ "$#" -eq 6 ] || { echo "retro.sh: need 6 arguments" >&2; exit 2; }
+for a in "$@"; do [ -n "$a" ] || { echo "retro.sh: empty argument" >&2; exit 2; }; done
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+{
+  printf '\n## %s · %s · %s · %s\n' "$ts" "$1" "$2" "$3"
+  printf '%s\nEvidence: %s\nCost: %s\n' "$4" "$5" "$6"
+} >> "$SDD_RETRO_LOG"
+```
+
 Categories: `gotcha`, `bug`, `tool-error`, `mcp-deficiency`, `harness-defect`,
 `misunderstanding`, `inefficiency`, `doc-gap`, `model-behaviour`, `ruling`,
 `escalation`, `cleanup`, `deviation`.
@@ -142,9 +160,10 @@ one line per tool call of every `sdd-*` agent). Both files are committed with th
 at each checkpoint; they are the run's history.
 
 Events are written with the event script, never by hand. The supervisor writes the script
-once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (line 1 = spec dir, line 2 = run id),
-which is what lets the hooks find the run. Orchestrators call the script; the launch prompt
+once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and appends this run's
+line to the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one
+tab-separated line `<main checkout>\t<spec dir>\t<run id>` per active run, which is what
+lets the hooks match each run by the prefix of its cwd. Orchestrators call the script; the launch prompt
 carries its path as `EVENT_SCRIPT`.
 
 ```bash

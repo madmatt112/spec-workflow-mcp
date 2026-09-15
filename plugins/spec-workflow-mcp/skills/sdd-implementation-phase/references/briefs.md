@@ -24,6 +24,8 @@ Read and obey <AGENT_RULES> first.
   seams; do not move them.
 - When the prompt's shape differs from code an earlier task merged, follow the merged
   code and report `RETRO: doc-gap`.
+- When the design's prose and its `Data Models` block disagree on a shape, follow the
+  block and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
 - If an existing assertion fails only because of the specified change, widen it to keep
@@ -42,8 +44,8 @@ Read and obey <AGENT_RULES> first.
   tool-error, mcp-deficiency, harness-defect, misunderstanding, inefficiency,
   doc-gap, model-behaviour).
 - Report in 150 words or fewer: files touched one per line, as absolute paths under
-  `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`, flags.
-  No diffs, no file contents, no test output beyond one line.
+  `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`,
+  `commit: <sha>`, flags. No diffs, no file contents, no test output beyond one line.
 - Do not touch `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.
 ```

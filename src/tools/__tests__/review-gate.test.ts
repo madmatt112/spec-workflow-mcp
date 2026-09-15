@@ -277,4 +277,28 @@ describe('handleGate', () => {
     expect(result.data.risk).toBe('high');
     expect(result.data.reasons).toContain('sensitive-path: src/f119.ts matches src/f119.ts');
   });
+
+  it('excludes generated paths from the line count and hygiene, keeps them touched', async () => {
+    await addTask1Log();
+    await fs.writeFile(
+      join(tempDir, '.spec-workflow', 'agent-rules.md'),
+      ['## Sensitive paths', '', '- src/other.ts', '', '## Generated paths', '', '- plugins/', ''].join('\n'),
+    );
+    await fs.mkdir(join(tempDir, 'plugins'), { recursive: true });
+    const generatedLines = Array.from({ length: 260 }, (_, i) => `export const g${i} = ${i};`);
+    generatedLines.push("console.log('generated');");
+    await fs.writeFile(join(tempDir, 'plugins/gen.ts'), generatedLines.join('\n') + '\n');
+    await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+
+    const result = await gate({ baseRef: base }, '1');
+
+    expect(result.success).toBe(true);
+    // plugins/ lines do not count toward the line rule.
+    expect(result.data.reasons.some((r: string) => r.startsWith('line-count'))).toBe(false);
+    // the generated file stays in the touched list.
+    expect(result.data.touched.paths).toContain('plugins/gen.ts');
+    // its console call is not scanned.
+    expect(result.data.hygiene.console ?? 0).toBe(0);
+  });
 });
+

@@ -144,11 +144,11 @@ For each batch:
    re-gate the fixed items, then step 4 again. After three rounds still failing: write
    `closeout-adjudication-<class>-<b>.md`, spawn `sdd-adjudicator` once (it lands what it
    can and marks the rest `skipped — <reason>`), then one narrow verification of the
-   listed items (the verify template with only those items). Append a retro-log entry
+   listed items (the verify template with only those items). Append a retro-log entry with `retro.sh`
    (`ruling`) and continue whatever the narrow verdict says.
 6. **Close-out lines.** Write one line per item (Step 4) from the final reports:
    `done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`. `task.done` for
-   each. Append one retro-log entry per batch (`cleanup`: items done, to-do, skipped,
+   each. Append one retro-log entry with `retro.sh` per batch (`cleanup`: items done, to-do, skipped,
    spawns) and one per skipped item (`deviation`, the reason).
 7. **PR.** When a `harness` or `code` class has no open items left and its branch has
    commits: push with `git push -u origin chore/<SPEC>-retro` in the worktree, then
@@ -166,7 +166,7 @@ When no open item remains: check that every item has a close-out line, then repl
 `Status: APPROVED` with `Status: CLOSED` in the plan (keep the rest of the file). Write
 the HANDOFF section `## <SPEC> — closeout` (items done, to-do and skipped; the PR URLs
 and branches; the to-dos for the human, one line each; gotchas). Append a retro-log
-entry (`cleanup`: the totals and the spawns). Commit the spec store: `docs(sdd): <SPEC>
+entry with `retro.sh` (`cleanup`: the totals and the spawns). Commit the spec store: `docs(sdd): <SPEC>
 closed`. Record `phase.end phase=closeout result=closed "state=items <total>/<total>"`.
 Report `PHASE: closed`, `STATE: items <total>/<total>`, `NEXT: next spec`, and in the
 150 words above the contract: the counts, the PR URLs and the to-dos.

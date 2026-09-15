@@ -48,6 +48,37 @@ describe('checkDocWords', () => {
   it('is silent at or under the cap', () => {
     expect(checkDocWords('one two three four', 4)).toEqual([]);
   });
+
+  it('counts the body from the H1 to before `## Revision History`', () => {
+    const content = [
+      '# Requirements Document',
+      '',
+      'one two three',
+      '',
+      '## Revision History',
+      '- **v1** (2026-09-14) — Initial draft with many extra words that must not count here',
+    ].join('\n');
+    // Body is `# Requirements Document` (3) + `one two three` (3) = 6 words, at the cap.
+    expect(checkDocWords(content, 6)).toEqual([]);
+    // The Revision History line would push it over if it were counted.
+    expect(wordCount(content)).toBeGreaterThan(6);
+  });
+
+  it('flags when the body alone is over the cap and names its count', () => {
+    const content = ['# Title', 'one two three four', '## Revision History', 'ignored ignored ignored'].join('\n');
+    // Body is `# Title` (2) + `one two three four` (4) = 6 words.
+    expect(checkDocWords(content, 5)).toEqual([
+      { file: '', line: 1, rule: 'doc-words', severity: 'warning', message: '6 words, cap 5' },
+    ]);
+  });
+
+  it('counts to the end when there is no `## Revision History`', () => {
+    const content = ['# Title', 'one two three four five'].join('\n');
+    // `# Title` (2) + five words = 7 words, no heading to stop before.
+    expect(checkDocWords(content, 6)).toEqual([
+      { file: '', line: 1, rule: 'doc-words', severity: 'warning', message: '7 words, cap 6' },
+    ]);
+  });
 });
 
 describe('checkTaskWords', () => {
