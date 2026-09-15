@@ -136,11 +136,11 @@ orchestrator as revision input.
 If `spec-status` reports the spec as not found, the spec is new: document phase
 **requirements**.
 
-Before dispatching implementation, read the HANDOFF section `## <spec> —
-implementation`. When its State row is ahead of the `## Phase log` table (it records
-more tasks done than the last phase-log row for this spec), an earlier run advanced
-tasks but stopped before its phase row was written: write the missing phase-log row
-with Result `interrupted` before spawning.
+Before dispatching implementation, call the spec-workflow `harness` tool with
+`action: phase-log` for the active spec. It regenerates this spec's `## Phase log`
+rows from the run ledger, including an `interrupted` row for any earlier phase whose
+`phase.start` never got its `phase.end` — the interrupted-run case an earlier
+supervisor used to detect from the State row and stamp by hand.
 
 ## 4. Dispatch loop
 
@@ -184,13 +184,15 @@ states in its footer (omit `tokens` only when it states none).
 
 Act on the final `PHASE:` line of the orchestrator's report:
 
-- `approved` or `complete`: write one HANDOFF phase row. Go back to step 3 for the
-  next phase (call `spec-status` again).
-- `closed`: write one HANDOFF phase row (`closeout`, `items <n>/<n>`, `closed`). The
-  spec is finished: rewrite the routing header (a re-run starts the next spec), print
-  the PR URLs and to-dos the orchestrator reported, and stop.
-- `resume`: write a HANDOFF row, then spawn a fresh orchestrator for the same phase
-  with the same prompt.
+- `approved` or `complete`: call the spec-workflow `harness` tool with
+  `action: phase-log` for the spec, which regenerates this spec's `## Phase log` rows
+  from the ledger's `phase.end` events. Go back to step 3 for the next phase (call
+  `spec-status` again).
+- `closed`: call `harness` `phase-log` for the spec (the ledger's `closeout` `phase.end`
+  supplies the `closed` row). The spec is finished: rewrite the routing header (a re-run
+  starts the next spec), print the PR URLs and to-dos the orchestrator reported, and stop.
+- `resume`: call `harness` `phase-log` for the spec, then spawn a fresh orchestrator for
+  the same phase with the same prompt.
 - `escalate`: write a HANDOFF row, print the `REASON:` line, and stop. Headless (no
   human can answer): the row is the record; exit.
 - `design-defect`: write a HANDOFF row. Spawn `sdd-document-orchestrator` for `design`

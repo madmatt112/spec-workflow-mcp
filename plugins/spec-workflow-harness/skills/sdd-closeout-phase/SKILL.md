@@ -14,7 +14,10 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 Your launch prompt gives you `SPEC`, `PHASE: closeout`, the roots, `HARNESS_REPO` (the
 local checkout the harness plugin was installed from, or `none`), `HANDOFF`,
 `AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT` and `BUDGET` (`all items`: one spawn works
-every open item of every class; `resume` exists only for the error paths).
+every open item of every class; `resume` exists only for the error paths). The `all
+items` budget assumes the reduced orchestrator context this harness produces: you route
+only — the `orient` action runs Step 0, `harness brief` assembles each brief, and the
+plugin hook writes the worker spawn boundary, so none of that fills your context.
 
 Brief templates and the two scripts are in `references/briefs.md`. Read it once at the
 start.
@@ -39,31 +42,30 @@ start.
 - **Ledger.** `EVENT_SCRIPT` records the run for `--watch`. Call it as
   `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start
   phase=closeout "state=items <done>/<total>"` at the end of Step 0; `task.pick
-  task=<id> "title=<title>"` for every item of a batch when you brief it; `spawn.start`
-  right before every Agent call and `spawn.end` right after its report (`agent=`,
-  `role=implement <class> batch <b> | verify <class> batch <b> | fix <class> batch <b>
-  round <r> | adjudicate <class> batch <b>`, `phase=closeout`, `result=<one line>`,
-  `tokens=<n>` from the token count the Agent result states in its footer);
+  task=<id> "title=<title>"` for every item of a batch when you brief it; one
+  `spawn.usage` right after each worker's report (`agent=`, `role=implement <class> batch
+  <b> | verify <class> batch <b> | fix <class> batch <b> round <r> | adjudicate <class>
+  batch <b>`, `phase=closeout`, `result=<one line>`, `tokens=<n>` from the token count the
+  Agent result states in its footer);
   `note "text=gate: item <id> <pass|fail> risk <low|high>"` after every gate call, so
   Step 4 counts the verifier spawns skipped for `store`/`home` items;
   `task.done task=<id> outcome=<done|to-do|skipped>` when you write its close-out line;
-  `note` for skips and rulings; `phase.end` right before your final report. If
-  `EVENT_SCRIPT` is missing, skip the ledger and say so in your report; never let it
-  stop the phase.
+  `note` for skips and rulings; `phase.end` right before your final report. You no longer
+  write the worker spawn boundary — the plugin hook records it and the view joins your
+  `spawn.usage` to it by agent and time window. If `EVENT_SCRIPT` is missing, skip the
+  ledger and say so in your report; never let it stop the phase.
 
 ## Step 0 — Orient
 
-1. Call `spec-status` for `SPEC` once; require `overallStatus: completed`. Read the
-   plan; require `Status: APPROVED`. Otherwise report `PHASE: error`, `REASON: <what is
-   missing>`.
-2. **Items.** Every bullet under `## Approved proposals` and `## Graduation candidates`
-   that starts with `- **P<n>` or `- **G<n>` is one item: its id, title, text, `Target:`
-   line and `Decision:` text when present. Number them in file order. Rejected proposals
-   are not items.
-3. **Done items.** If the plan has a `## Close-out` section, every `- P<n>:` or `- G<n>:`
-   line in it is done (an earlier spawn wrote it). The open items are the rest.
-4. **Target class** of each open item, from its `Target:` line and its decision, first
-   match wins:
+1. Call `spec-status` for `SPEC` once; require `overallStatus: completed`. Then call the
+   spec-workflow `harness` tool with `action: orient`, `specName: <SPEC>`,
+   `phase: closeout`, and no `projectPath`. It reads the plan and returns `items`
+   (`total`, `done`, `open`), `byClass` (open-item counts for `none`, `store`, `harness`,
+   `code`, `home`) and `nextStep`. A `success: false` (no plan, or the plan is not
+   readable) ⇒ report `PHASE: error`, `REASON: <what is missing>`. The tool selects the
+   open items — every `- **P<n>`/`- **G<n>` bullet under `## Approved proposals` and
+   `## Graduation candidates` that no `## Close-out` line already closes — and classes each
+   by its `Target:` line and decision (first match wins):
 
    | The item says | Class | Lands in |
    | --- | --- | --- |
@@ -73,16 +75,19 @@ start.
    | memory, CLAUDE.md, settings | `home` | `~/.claude/` |
    | product code, or a path under the code repo | `code` | `MAIN_CHECKOUT` |
 
-   A target that fits none of these is class `none` with the reason `unclear target`.
-   With `HARNESS_REPO: none`, every `harness` item is a to-do (`the harness checkout is
-   not on this machine`).
-5. **Order:** `none` first (they cost nothing), then `store`, `harness`, `code`, `home`.
-6. Read the HANDOFF section `## <SPEC> — closeout` if it exists: which worktrees,
+   A target that fits none of these is class `none`. With `HARNESS_REPO: none`, every
+   `harness` item is a to-do (`the harness checkout is not on this machine`).
+2. **Order:** `none` first (they cost nothing), then `store`, `harness`, `code`, `home`.
+   Route on `nextStep`: `Step 1` ⇒ **Step 1** (a `none` item is open); `Step 2` ⇒
+   **Step 2** (only landing classes remain); `Step 3` ⇒ **Step 3** (every item already
+   done — close now).
+3. Read the HANDOFF section `## <SPEC> — closeout` if it exists: which worktrees,
    branches and PRs an earlier spawn left.
-7. Write `/tmp/scratchpad/sdd/<SPEC>/closeout-standing.md` from the template once per
+4. Write `/tmp/scratchpad/sdd/<SPEC>/closeout-standing.md` from the template once per
    run.
-8. Print one line `orient: <SPEC> closeout items <done>/<total>; open: none <a> store <b>
-   harness <c> code <d> home <e>` and record `phase.start`.
+5. Print one line `orient: <SPEC> closeout items <done>/<total>; open: none <a> store <b>
+   harness <c> code <d> home <e>` and record `phase.start phase=closeout
+   "state=items <done>/<total>"`.
 
 ## Step 1 — Items with nothing to land
 
@@ -113,10 +118,12 @@ For each batch:
      and open the one PR for the repo when its class has no open items left. Never merge.
      No remote ⇒ the commits stay on the branch and the close-out lines name it.
    - `home`: in-place edits under `~/.claude/`, no commit.
-2. **Brief.** `task.pick` for every item in the batch. Write
-   `/tmp/scratchpad/sdd/<SPEC>/closeout-brief-<class>-<b>.md` from the batch template:
-   the landing (root, branch, how to commit), the checks for that class, and each item's
-   id, title, text, target and decision, verbatim from the plan.
+2. **Brief.** `task.pick` for every item in the batch. Call the spec-workflow `harness`
+   tool with `action: brief`, `template: reviser`, `specName: <SPEC>`, and `values`
+   carrying the output path `/tmp/scratchpad/sdd/<SPEC>/closeout-brief-<class>-<b>.md`, the
+   job (the landing: root, branch, how to commit, and the checks for that class) and the
+   findings (each item's id, title, text, target and decision, verbatim from the plan);
+   the batch fields are in `references/briefs.md`. The tool writes the read-and-obey line.
 3. **Implement.** Spawn `sdd-implementer` with `Read and execute the instructions in
    <brief path>`. Its report has one line per item: `P<n>: done <commit>` | `P<n>: to-do
    — <reason>` | `P<n>: skipped — <reason>`.
@@ -133,18 +140,22 @@ For each batch:
 4. **Verify.** A `gate: pass` item is `ok` — spawn no verifier — when its class is
    `store` or `home` whatever `data.risk` says, or when it is `harness`/`code` at
    `risk: low`. Spawn `sdd-verifier` only for `harness`/`code` items that are `pass` and
-   `high`: write `closeout-verify-<class>-<b>-r<r>.md` from the verify template listing
-   only those items with their gate results. When no item remains at `risk: high` after
+   `high`: call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
+   `values` for the output path `closeout-verify-<class>-<b>-r<r>.md`, its job listing only
+   those items with their gate results. When no item remains at `risk: high` after
    this drop, spawn no verifier. The verifier reports one line per listed item
    (`P<n>: ok` | `P<n>: not done — <one line>`) and `VERDICT: pass | fix-required`.
 5. **Fix rounds** (cap 3 per batch, counting gate fails and verifier `not done` alike).
-   A `gate: fail` item and a verifier `not done` item both enter the fix brief: write
-   `closeout-fix-<class>-<b>-r<r>.md` from the fix template with those items (a gate-fail
+   A `gate: fail` item and a verifier `not done` item both enter the fix brief: call
+   `harness` `brief` with `template: reviser`, `specName: <SPEC>`, `values` for the output
+   path `closeout-fix-<class>-<b>-r<r>.md` and those items as its findings (a gate-fail
    item's line is its `data.reasons`/`data.checks`), spawn a fresh `sdd-implementer`,
-   re-gate the fixed items, then step 4 again. After three rounds still failing: write
-   `closeout-adjudication-<class>-<b>.md`, spawn `sdd-adjudicator` once (it lands what it
-   can and marks the rest `skipped — <reason>`), then one narrow verification of the
-   listed items (the verify template with only those items). Append a retro-log entry with `retro.sh`
+   re-gate the fixed items, then step 4 again. After three rounds still failing: call
+   `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, output path
+   `closeout-adjudication-<class>-<b>.md` and the listed items, spawn `sdd-adjudicator`
+   once (it lands what it can and marks the rest `skipped — <reason>`), then one narrow
+   verification of the listed items (a `harness brief`, `template: verifier`, with only
+   those items). Append a retro-log entry with `retro.sh`
    (`ruling`) and continue whatever the narrow verdict says.
 6. **Close-out lines.** Write one line per item (Step 4) from the final reports:
    `done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`. `task.done` for
