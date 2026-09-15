@@ -19,6 +19,9 @@ export const SENSITIVE_PATHS_HEADING = '## Sensitive paths';
 /** The machine-read heading listing paths the line rule excludes (retro P2). */
 export const GENERATED_PATHS_HEADING = '## Generated paths';
 
+/** The machine-read heading listing prose `*.md` the line rule excludes (retro P10). */
+export const PROSE_PATHS_HEADING = '## Prose paths';
+
 /** Every touched path is sensitive when no list is present (requirement 2.4). */
 export const NO_LIST_REASON = 'sensitive-paths: no list; every path is sensitive';
 
@@ -105,6 +108,11 @@ export function parseGeneratedPaths(markdown: string): string[] | null {
   return parseHeadingBullets(markdown, GENERATED_PATHS_HEADING);
 }
 
+/** The `## Prose paths` bullet entries whose `*.md` files the line rule excludes (P10). */
+export function parseProsePaths(markdown: string): string[] | null {
+  return parseHeadingBullets(markdown, PROSE_PATHS_HEADING);
+}
+
 /** The entry a path matches, or `undefined`: `dir/` by prefix, else by equality. */
 function matchingEntry(relPath: string, entries: string[]): string | undefined {
   const p = normalizePath(relPath);
@@ -129,6 +137,14 @@ export function isSensitivePath(relPath: string, entries: string[]): boolean {
 /** True when `relPath` matches a `## Generated paths` entry, same matcher (P2). */
 export function isGeneratedPath(relPath: string, entries: string[]): boolean {
   return matchingEntry(relPath, entries) !== undefined;
+}
+
+/**
+ * True when `relPath` is a `*.md` file matching a `## Prose paths` entry (P10).
+ * Only Markdown prose is exempt; a real source file under the same dir still counts.
+ */
+export function isProsePath(relPath: string, entries: string[]): boolean {
+  return normalizePath(relPath).endsWith('.md') && matchingEntry(relPath, entries) !== undefined;
 }
 
 // --- Component 4: task-block predicates -------------------------------------
@@ -198,6 +214,8 @@ export type RiskInput = {
   perFile?: Record<string, number>;
   /** Parsed `## Generated paths` entries, or `null`/absent when none (P2). */
   generated?: string[] | null;
+  /** Parsed `## Prose paths` entries whose `*.md` files are exempt, or `null`/absent (P10). */
+  prose?: string[] | null;
   /** The task block; `''` in item mode. */
   block: string;
   /** Whether any of `baseRef`, `commit`, `files` was given. */
@@ -210,15 +228,17 @@ export type RiskInput = {
 
 /**
  * The changed-line total the `line-count` rule scores: the per-path total with
- * generated (P2) and test (P14) paths dropped, or the aggregate when no per-path
- * counts are given. `null` when neither is present.
+ * generated (P2), prose `*.md` (P10) and test (P14) paths dropped, or the aggregate
+ * when no per-path counts are given. `null` when neither is present.
  */
 function countedLines(input: RiskInput): number | null {
   if (input.perFile) {
     const generated = input.generated ?? null;
+    const prose = input.prose ?? null;
     let total = 0;
     for (const [p, changed] of Object.entries(input.perFile)) {
       if (generated && isGeneratedPath(p, generated)) continue;
+      if (prose && isProsePath(p, prose)) continue; // prose *.md do not count (P10)
       if (isTestPath(p)) continue; // source lines only; test paths do not count (P14)
       total += changed;
     }
