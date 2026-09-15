@@ -95,7 +95,31 @@ at the start.
    Note the word count the report states; over the cap is a finding for round 1
    (write it into the round section as `Over cap: <n> words`), not a stop.
 5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v1`.
-6. D = 1. Go to Step 2.
+6. D = 1. Run the Lint step. Go to Step 2.
+
+## Lint step
+
+Run once per version, right after the checkpoint commit and before any reviewer spawn.
+It never changes D.
+
+1. Call `spec-lint` with `specName: <SPEC>`, `phase: <PHASE>`, and no `projectPath`. If
+   the call fails naming an unknown tool (an older server), record `note
+   text="spec-lint unavailable; lint skipped"`, set `LINT = skipped`, and end the step:
+   no lint pass, no round-prompt bullet.
+2. Keep `LINT = { checks: data.checks, findings: data.findings }` in the task list, and
+   number `data.findings` `L-1`, `L-2`, … in file order. When `summary.error +
+   summary.warning` is 0, set `LINT.open` to every `info` finding and end the step here;
+   `info` findings alone spawn nothing.
+3. Write `reviews/lint-brief-<PHASE>-v<D>.md` from the lint brief template in
+   `references/briefs.md`.
+4. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`, wrapped
+   in `spawn.start`/`spawn.end` carrying `role="lint v<D>"` and `round=<A+1>`.
+5. Spot-check: `grep -n 'Lint pass' <document>`.
+6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through the commit script
+   (`references/cleanup.md`); D does not change — a lint pass consumes no cap fuel.
+7. Set `LINT.open` to every `L-n` the `v<D>` Lint-pass bullet (disposition rule 4) names
+   rejected, plus every `info` finding. The Lint step runs at most once per version;
+   findings left open go to the round prompt.
 
 ## Step 2 — Review round
 
@@ -106,6 +130,8 @@ at the start.
 3. Read the prompt file (the file tool refuses to overwrite a file it has not read),
    then overwrite it with the scaffold plus the round section from the template. Keep
    everything the scaffold wrote, including its standing directives and verdict block.
+   Run `bash /tmp/scratchpad/sdd/<SPEC>/append-changes.sh <D> <promptOutputPath>`; read
+   only its exit code.
 4. Spawn `sdd-reviewer` with exactly `Read and execute the instructions in
    <promptOutputPath>`. Put nothing else in the launch message.
 5. Read the verdict block: `tail -8 <analysisOutputPath>`. If the file does not exist,
@@ -126,8 +152,8 @@ at the start.
      write a Step 3 reviser brief for the SHOULD_FIX items only, telling the reviser to
      end the v(D+1) Revision History line `SHOULD_FIX-only corrective pass`; spawn
      `sdd-reviser`, spot-check, checkpoint commit `docs(sdd): <SPEC> <PHASE> v(D+1)
-     SHOULD_FIX-only corrective pass`, D = D + 1; then Step 4b (narrow check on those
-     items), then Step 5. No further review round.
+     SHOULD_FIX-only corrective pass`, D = D + 1. Run the Lint step. Then Step 4b
+     (narrow check on those items), then Step 5. No further review round.
    - `iterate` with fuel and D ≥ 4 ⇒ Step 4a.
    - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
 
@@ -141,7 +167,7 @@ at the start.
 4. From the reviser's report, record which findings it rejected (id and round) in your
    task list. That tally feeds the standoff check.
 5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v<D+1> after round <A>`.
-6. D = D + 1. Go to Step 2.
+6. D = D + 1. Run the Lint step. Go to Step 2.
 
 ## Standoff check
 
@@ -225,7 +251,7 @@ re-opened this phase after a design defect.
    `REVISION_INPUT` as the findings (numbered `RI-1`, `RI-2`, …) instead of an analysis
    file. Every item is a MUST_FIX; the reviser may still reject one with a reason.
 2. Spawn `sdd-reviser`. Spot-check. Checkpoint commit.
-3. D = D + 1. Go to Step 2. At least one review round runs before approval, even if
+3. D = D + 1. Run the Lint step. Go to Step 2. At least one review round runs before approval, even if
    the document had converged before. The cap rule applies as written: a revised
    document already at v4 or later that iterates goes to Step 4a.
 

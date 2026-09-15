@@ -31,6 +31,9 @@ tools:
   - mcp__spec-workflow__spec-index
   - mcp__plugin_spec-workflow-mcp_spec-workflow__spec-index
   - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__spec-index
+  - mcp__spec-workflow__spec-lint
+  - mcp__plugin_spec-workflow-mcp_spec-workflow__spec-lint
+  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__spec-lint
 ---
 
 You run one SDD document phase (requirements, design, or tasks) for one spec, from wherever it stands to the end of the phase, and you report in the orchestrator contract.

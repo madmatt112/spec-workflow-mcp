@@ -33,8 +33,8 @@
  * the only reason this module asks git a second question, and it asks it only
  * when the returned root equals the override.
  *
- * Only the four tools named in requirement 3.8 use this — `review-task`,
- * `log-implementation`, `adversarial-review` and `adversarial-response`. The
+ * Only these five tools use this — `review-task`, `log-implementation`,
+ * `adversarial-review`, `adversarial-response` and `spec-lint`. The
  * other override-accepting tools (`deferrals`, `get-task-review`, `spec-index`,
  * `spec-status`, `approvals`) read only `.spec-workflow` and are explicitly out
  * of scope for the override rule.
