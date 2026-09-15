@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789415366866_81h8nvknx",
+  "title": "spec-lint tasks v2",
+  "filePath": ".spec-workflow/specs/spec-lint/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-14T19:49:26.866Z",
+  "category": "spec",
+  "categoryName": "spec-lint",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-14T19:49:30.552Z"
+}

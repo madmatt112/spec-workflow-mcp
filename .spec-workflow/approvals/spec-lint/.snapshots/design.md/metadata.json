@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/spec-lint/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-14T19:01:50.239Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789412510223_mzylwaioq",
+      "approvalTitle": "spec-lint design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-14T19:01:57.925Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789412510223_mzylwaioq",
+      "approvalTitle": "spec-lint design v3"
+    }
+  ]
+}
