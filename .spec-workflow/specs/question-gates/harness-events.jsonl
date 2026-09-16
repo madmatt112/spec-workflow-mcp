@@ -75,3 +75,5 @@
 {"ts":"2026-09-16T22:55:01.527Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-16T23:06:13.450Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
 {"ts":"2026-09-16T23:07:27.711Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","task":"v1","result":"drafted","tokens":"156712"}
+{"ts":"2026-09-16T23:08:26.679Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-16T23:13:29.008Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
