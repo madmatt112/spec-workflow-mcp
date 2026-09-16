@@ -103,3 +103,15 @@ From implementation:
 - `src/__tests__/parity-baseline.test.ts` was the regression net throughout. Its one reserved edit — the symlink `projectId` case — was spent by task 15 and the file records it.
 - `src/__tests__/index-entrypoint.test.ts:18` leaks a `/tmp/specwf-entrypoint-*` directory per run. Pre-existing, tracked since `1191755`, unfixed.
 - Untracked `playwright-report/` and `test-results/` are left by e2e runs and are not gitignored.
+
+## question-gates — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-16 |
+| Rounds | 4; verdicts 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
+| Approval | `approval_1789592305465_kil5tyx1t` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | requirements.md, then the gate-A/gate-B server-surface and AskUserQuestion `{header, question, options}` contracts it pins, src/core/gate-rules.ts and src/tools/review-gate.ts, and decomposition spec 7 (steering docs absent, so the decomposition entry is the scope authority) |

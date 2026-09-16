@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789592305465_kil5tyx1t",
+  "title": "question-gates requirements v4",
+  "filePath": ".spec-workflow/specs/question-gates/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-16T20:58:25.465Z",
+  "category": "spec",
+  "categoryName": "question-gates",
+  "response": "v4; 4 review rounds (3 adversarial + 1 narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 3 / MINOR 1 (r3, last adversarial round); rulings: none; cap: SHOULD_FIX-only pass at v4, VERIFIED 3/3",
+  "respondedAt": "2026-09-16T20:58:36.146Z"
+}
