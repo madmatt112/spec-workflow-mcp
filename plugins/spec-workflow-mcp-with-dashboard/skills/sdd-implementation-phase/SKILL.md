@@ -112,7 +112,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
-   project typecheck itself). Record the ledger note, then route on `data.gate` and
+   project typecheck itself). Pass `files` as the exact per-file paths the task
+   changed, from the diff — never a directory, which mis-scores the gate (retro P8). Record the ledger note, then route on `data.gate` and
    `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
