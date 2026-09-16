@@ -64,3 +64,5 @@
 {"ts":"2026-09-16T22:36:52.133Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-16T22:44:11.459Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
 {"ts":"2026-09-16T22:44:19.819Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v3","phase":"design","round":"3","result":"ok","tokens":"unknown"}
+{"ts":"2026-09-16T22:47:11.528Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-checker"}
+{"ts":"2026-09-16T22:47:33.717Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-checker","role":"narrow check","phase":"design","round":"3","result":"VERIFIED 3/3","tokens":"54585"}

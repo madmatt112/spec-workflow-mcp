@@ -126,3 +126,15 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | requirements.md, then the gate-A/gate-B server-surface and AskUserQuestion `{header, question, options}` contracts it pins, src/core/gate-rules.ts and src/tools/review-gate.ts, and decomposition spec 7 (steering docs absent, so the decomposition entry is the scope authority) |
+
+## question-gates — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-16 |
+| Rounds | 3; verdicts 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
+| Approval | `approval_1789598861550_cv4ve6r44` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md, then design.md — the `gate` action ops (class-a / put / get / delete) on src/tools/harness.ts, the new pure module src/core/veto-rules.ts, the gate-A drafter-extraction surface and the gate-B `[gate-b:...]`/`[gate-c:...]` tagged-finding surface, and the AskUserQuestion `{header, question, options}` contract; decomposition spec 7 is the scope authority (no steering docs). Two MINOR design gaps remain open in adversarial-analysis-design-r2.md (R2-4 harness/ plugin-asset checks in Testing Strategy; R2-5 class-a input hygiene) for the tasks phase to weigh. |

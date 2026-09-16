@@ -44,3 +44,13 @@ Cost: 1 reviewer spawn
 Round 2 review: iterate, MUST_FIX 0 / SHOULD_FIX 3 / MINOR 2. R2-1 and R2-2 compound R1-3 (the v2 delta): the narrow drafter re-spawn overwrites gate-a.json and has no observable trigger. R2-3 (novel) gate-B (b)/(c) reads forbidden document bodies. D>=2 with no MUST_FIX routes to a SHOULD_FIX-only corrective pass, no further review round.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-09-16T22:47:33Z · design · v3 · gotcha
+Narrow check VERIFIED 3/3 for the SHOULD_FIX-only pass (R2-1, R2-2, R2-3 all addressed). Deferred: Component 4's gate-A bullet cites sdd-document-phase/SKILL.md:102-105 for where LINT.findings/LINT.open sit on the task list; the actual LINT assignment/numbering is at lines 104-107 (102-105 is the spec-lint-unavailable branch). Citation drift only; R2-2's fix substance unaffected.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design-r3.md
+Cost: 1 checker spawn
+
+## 2026-09-16T22:49:25Z · design · phase · cleanup
+design approved at v3 after 3 rounds; verdict trajectory 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1789598861550_cv4ve6r44; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design-r3.md
+Cost: 1 drafter + 2 reviewer + 1 checker + 5 reviser spawns
