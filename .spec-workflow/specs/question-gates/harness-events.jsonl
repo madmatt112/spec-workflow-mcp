@@ -70,3 +70,8 @@
 {"ts":"2026-09-16T22:51:24.634Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved"}
 {"ts":"2026-09-16T22:52:02.189Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator requirements spawn 1 tokens=195768 (captured post-hoc; spawn.end tokens omitted at write time)"}
 {"ts":"2026-09-16T22:52:02.210Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator design spawn 1 tokens=173000 (captured post-hoc; spawn.end tokens omitted at write time)"}
+{"ts":"2026-09-16T22:52:21.940Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","phase":"tasks"}
+{"ts":"2026-09-16T22:54:01.249Z","run":"run-20260916-225339","spec":"question-gates","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v0"}
+{"ts":"2026-09-16T22:55:01.527Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-16T23:06:13.450Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
+{"ts":"2026-09-16T23:07:27.711Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","task":"v1","result":"drafted","tokens":"156712"}

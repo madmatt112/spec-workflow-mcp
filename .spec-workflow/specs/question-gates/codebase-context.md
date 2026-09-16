@@ -64,3 +64,14 @@
 - harness/agents/sdd-drafter.md:7-13 — drafter `tools:` (no MCP tool today); gains `harness` in three plugin-prefixed forms.
 - harness/agents/sdd-drafter.md:16-26 — drafter body/standing rules; gains one requirements-phase-only gate-A step.
 - harness/agents/sdd-reviser.md:14-16 — reviser's single MCP grant (`adversarial-response`), the pattern the drafter's grant matches.
+
+## Tasks-phase citations (added by the tasks drafter)
+
+- src/core/task-parser.ts:365-385 — `taskBlock(content, taskId)`, the per-task markdown block the `gate class-a` op passes into `TaskVetoInput.block`.
+- src/core/lint-types.ts:17-24 — `LintFinding` with a 1-based `line`, the signal the gate-A reword trigger compares against the Decisions-section range.
+- harness/skills/sdd-document-phase/SKILL.md:80-85 — Step 1 item 3, the round-prompt `## This round` injection point gate B's reviewer tags reuse.
+- harness/skills/sdd-document-phase/SKILL.md:127-131 — Step 2 item 3, the round-section overwrite that carries the gate-B tag instruction.
+- harness/skills/sdd-document-phase/SKILL.md:236-245 — Step 6, the first-`approved` point where gate B's veto list is `put` to slot b.
+- harness/skills/sdd-document-phase/references/briefs.md:194-218 — reviser disposition rules; the Revision-History bullet (:202-207) records a gate-B tag kept or removed.
+- .spec-workflow/agent-rules.md:23-28 — Checks; the harness/ change mandate at :26 (`sync-plugin-assets.cjs`, `check:plugin-assets`, `claude plugin validate . --strict`).
+- scripts/sync-plugin-assets.cjs — regenerates the `plugins/` copies; `package.json:37` (`check:plugin-assets`) proves they match `harness/`.
