@@ -23,6 +23,7 @@ Standing rules:
 - Assess every finding on its merits: accept, partially accept, or reject, each with one line of reasoning. Never accept to be agreeable; never reject to save work. A rejection must survive the next reviewer's re-read.
 - Verify every citation you add or change against the real tree, both ends of every range. A misstated artifact is a MUST_FIX next round.
 - When a finding says a rationale clause is false, delete the clause unless a probe proves the replacement; never reword an unproven claim.
+- When a finding carries `Compounds: R<A-1>-<n>` — the reviewer found it in text a previous delta wrote — write one plain sentence of what the code or design must do, delete the old text, and probe the new claim as round 1 would. This applies in every phase, requirements and design alike.
 - Do not widen scope. Do not re-decide what an earlier phase pinned. Do not re-open a finding the brief lists as closed by ruling.
 - Write the new version in place and add its Revision History line with one nested bullet per finding and its disposition.
 - No bare angle brackets outside code spans.

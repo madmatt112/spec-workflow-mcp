@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   SENSITIVE_PATHS_HEADING,
   GENERATED_PATHS_HEADING,
+  PROSE_PATHS_HEADING,
   NO_LIST_REASON,
   RISK_LINE_THRESHOLD,
   TEST_WORD_RE,
@@ -13,8 +14,10 @@ import {
   TYPECHECK_STATE_RANK,
   parseSensitivePaths,
   parseGeneratedPaths,
+  parseProsePaths,
   isSensitivePath,
   isGeneratedPath,
+  isProsePath,
   taskBlock,
   taskNamesTests,
   isTestPath,
@@ -32,6 +35,7 @@ describe('constants', () => {
   it('pins the tunable thresholds and heading', () => {
     expect(SENSITIVE_PATHS_HEADING).toBe('## Sensitive paths');
     expect(GENERATED_PATHS_HEADING).toBe('## Generated paths');
+    expect(PROSE_PATHS_HEADING).toBe('## Prose paths');
     expect(NO_LIST_REASON).toBe('sensitive-paths: no list; every path is sensitive');
     expect(RISK_LINE_THRESHOLD).toBe(200);
     expect(MAX_TOUCHED_LISTED).toBe(100);
@@ -107,6 +111,27 @@ describe('isGeneratedPath', () => {
   it('matches a dir/ entry by prefix', () => {
     expect(isGeneratedPath('plugins/spec-workflow/agent.md', ['plugins/'])).toBe(true);
     expect(isGeneratedPath('src/tools/review-gate.ts', ['plugins/'])).toBe(false);
+  });
+});
+
+describe('parseProsePaths', () => {
+  it('reads the ## Prose paths bullets like ## Generated paths', () => {
+    const md = '## Generated paths\n- plugins/\n\n## Prose paths\n\n- harness/skills/\n- references/\n';
+    expect(parseProsePaths(md)).toEqual(['harness/skills/', 'references/']);
+  });
+
+  it('returns null when the heading is absent', () => {
+    expect(parseProsePaths('## Generated paths\n- plugins/\n')).toBeNull();
+  });
+});
+
+describe('isProsePath', () => {
+  it('matches a *.md under a dir/ entry but not a real source file there', () => {
+    const prose = ['harness/skills/', 'harness/agents/', 'references/'];
+    expect(isProsePath('harness/skills/foo/SKILL.md', prose)).toBe(true);
+    expect(isProsePath('references/formats.md', prose)).toBe(true);
+    expect(isProsePath('harness/skills/foo/render.ts', prose)).toBe(false);
+    expect(isProsePath('src/core/gate-rules.ts', prose)).toBe(false);
   });
 });
 
@@ -230,6 +255,25 @@ describe('scoreRisk', () => {
     expect(r.reasons).toContain('line-count: 201 changed lines exceed 200');
   });
 
+  it('b: per-path counts drop prose *.md but keep a real source file under a prose dir (P10)', () => {
+    const prose = parseProsePaths('## Prose paths\n- harness/skills/\n- harness/agents/\n- references/\n');
+    const dropped = scoreRisk({
+      ...lowRisk,
+      perFile: { 'harness/skills/foo/SKILL.md': 300 },
+      prose,
+      stats: null,
+    });
+    expect(dropped.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+
+    const kept = scoreRisk({
+      ...lowRisk,
+      perFile: { 'harness/skills/foo/render.ts': 300 },
+      prose,
+      stats: null,
+    });
+    expect(kept.reasons).toContain('line-count: 300 changed lines exceed 200');
+  });
+
   it('b: per-path counts drop test paths from the line rule (P14)', () => {
     const r = scoreRisk({
       ...lowRisk,
@@ -257,6 +301,15 @@ describe('scoreRisk', () => {
   it('c: fires when the task names tests and no touched path is a test file', () => {
     const r = scoreRisk({ ...lowRisk, block: '- [ ] 1. Add tests for foo', touched: ['src/foo.ts'] });
     expect(r.reasons).toContain('tests-not-touched: task names tests; no touched path is a test file');
+  });
+
+  it('c: does not fire for a docs-only task with no src source file (P7)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      block: '- [ ] 1. Add tests for the docs',
+      touched: ['docs/guide.md', 'harness/skills/foo/SKILL.md'],
+    });
+    expect(r.reasons.some((x) => x.startsWith('tests-not-touched'))).toBe(false);
   });
 
   it('d: fires when the touched set is empty', () => {

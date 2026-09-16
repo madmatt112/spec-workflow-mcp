@@ -6,8 +6,6 @@ effort: xhigh
 color: purple
 tools:
   - Read
-  - Grep
-  - Glob
   - Bash
   - Write
   - mcp__spec-workflow__deferrals
