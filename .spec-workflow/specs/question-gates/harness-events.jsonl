@@ -1,0 +1,6 @@
+{"ts":"2026-09-16T19:49:33.256Z","run":"run-20260916-194812","spec":"question-gates","type":"run.start","model":"claude-opus-4-8","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
+{"ts":"2026-09-16T19:50:08.860Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-16T19:51:26.750Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.start","phase":"requirements","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-16T19:52:22.729Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-16T19:58:43.964Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
+{"ts":"2026-09-16T19:59:00.501Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"0","result":"ok","tokens":"94792"}
