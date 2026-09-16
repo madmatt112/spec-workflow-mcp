@@ -19,7 +19,7 @@ No `steering/product.md` exists, so the decomposition entry (`spec-decomposition
 1. WHEN a gate runs THEN the supervisor SHALL read `gates: block | record` from `agent-rules.md` when the key is present.
 2. IF `agent-rules.md` has no `gates:` key THEN the supervisor SHALL default to `block` when AskUserQuestion is available and `record` when it is not.
 3. IF AskUserQuestion is unavailable, returns an error, or returns denied THEN the supervisor SHALL treat the gate as `record` mode and SHALL NOT stall the run.
-4. WHEN the supervisor treats a denied AskUserQuestion call as `record` THEN it SHALL NOT change the run ledger's `headless` flag, because a denial is not evidence of a headless run (`docs/step-0-answers.md:96-107`).
+4. WHEN the supervisor treats a denied AskUserQuestion call as `record` THEN it SHALL NOT change the run ledger's `headless` flag. AskUserQuestion can be denied by a `dontAsk` permission rule even when an allow rule matches (`docs/step-0-answers.md:105`), so a denied call alone does not prove the run is unattended.
 5. WHEN a gate runs in `record` mode THEN the supervisor SHALL write the gate's items to `specs/<spec>/questions.md`, write a HANDOFF `## Phase log` row, and proceed.
 
 ### Requirement 2 — Gate A: requirements direction confirmation (interactive)
@@ -109,3 +109,4 @@ No `steering/product.md` exists, so the decomposition entry (`spec-decomposition
 
 ## Revision History
 - **v1** (2026-09-16) — Initial draft.
+  - **Lint pass.** 2 fixed; rejected: none.

@@ -4,3 +4,5 @@
 {"ts":"2026-09-16T19:52:22.729Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-16T19:58:43.964Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
 {"ts":"2026-09-16T19:59:00.501Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"0","result":"ok","tokens":"94792"}
+{"ts":"2026-09-16T19:59:28.331Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-16T20:01:05.368Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
