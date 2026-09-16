@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-16, harness v4).** Active spec **`question-gates`**.
-> Live phase **design**, state **pending**, last result **approved** (requirements v4).
+> Live phase **tasks**, state **pending**, last result **approved** (design v3).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: run the design phase (requirements approved at v4).
+> A re-run does: run the tasks phase (design approved at v3).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -12,6 +12,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | Date | Spec | Stage | State | Result | Note |
 | --- | --- | --- | --- | --- | --- |
 | 2026-09-16 | question-gates | requirements | v4 | approved | 4 rounds, 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass VERIFIED 3/3 |
+| 2026-09-16 | question-gates | design | v3 | approved | 3 rounds, 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
 
 ## Current state — 2026-08-04
 
