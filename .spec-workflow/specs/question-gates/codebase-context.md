@@ -36,3 +36,31 @@
 - .spec-workflow/agent-rules.md:5-6 — top-of-file `key: value` lines (`worktree-per-change`), where the new `gates: block | record` key sits.
 - .spec-workflow/agent-rules.md:63-70 — `## Sensitive paths` list, the class-(a) match source.
 - docs/step-0-answers.md:96-107 — answer 5: `claude -p` runs still list AskUserQuestion; a bare `-p` run denies the call; a denial is not evidence of headless.
+
+## Server surface — the `harness` tool (where the `gate` action is added, design)
+
+- src/tools/harness.ts:24-82 — the `harnessTool` schema; the `action` enum (`orient|brief|phase-log`) and props gain `gate` and `op`/`slot`/`payload`.
+- src/tools/harness.ts:84-100 — `harnessHandler` action switch; a `case 'gate'` routes to the new handler.
+- src/tools/harness.ts:455-505 — `BRIEF_TEMPLATES`, the named server templates; the pattern for server-owned payload shapes.
+- src/tools/harness.ts:517-612 — `briefAction`: `selectRoots`, `PathUtils.safeJoin`, `mkdir`+`writeFile`, missing-value guard (537-544) — the write pattern `gate put` reuses.
+- src/tools/index.ts:15,33,83 — `harnessTool`/`harnessHandler` import, registration, and dispatch; already wired, no change to add an action.
+
+## Gate-B inputs — the tasks parser and the sensitive-path predicates
+
+- src/core/task-parser.ts:119 — `ParsedTask.files?: string[]`, the declared paths class (a) matches.
+- src/core/task-parser.ts:279-288 — `Files:`/`File:` lines parsed (comma-split, parenthetical stripped) into `files[]`.
+- src/core/gate-rules.ts:101-104 — `parseSensitivePaths`, reused by `gate class-a` to parse `agent-rules.md`.
+- src/core/gate-rules.ts:133-135 — `isSensitivePath`, reused by `veto-rules.ts` `computeClassA` for the path match.
+- src/tools/review-gate.ts:177-194 — existing agent-rules read + ENOENT⇒null pattern `gate class-a` mirrors.
+
+## Where new source and tests land
+
+- src/core/veto-rules.ts — new pure module (class (a) keywords + `computeClassA`), mirrors `gate-rules.ts`.
+- src/core/__tests__/gate-rules.test.ts — sibling suite; new `veto-rules.test.ts` goes next to it.
+- src/tools/__tests__/harness.test.ts — existing harness suite; the `gate` action tests extend it.
+
+## Drafter and reviser frontmatter (the MCP-grant convention gate A follows)
+
+- harness/agents/sdd-drafter.md:7-13 — drafter `tools:` (no MCP tool today); gains `harness` in three plugin-prefixed forms.
+- harness/agents/sdd-drafter.md:16-26 — drafter body/standing rules; gains one requirements-phase-only gate-A step.
+- harness/agents/sdd-reviser.md:14-16 — reviser's single MCP grant (`adversarial-response`), the pattern the drafter's grant matches.

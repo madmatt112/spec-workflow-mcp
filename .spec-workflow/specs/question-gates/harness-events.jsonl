@@ -38,3 +38,8 @@
 {"ts":"2026-09-16T20:58:17.380Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-checker","role":"narrow check","round":"4","result":"verified 3/3","tokens":"44948"}
 {"ts":"2026-09-16T21:01:16.740Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.end","phase":"requirements","result":"approved","state":"v4","note":"4 rounds, 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass VERIFIED 3/3"}
 {"ts":"2026-09-16T21:02:31.160Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"approved"}
+{"ts":"2026-09-16T21:15:22.810Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","phase":"design"}
+{"ts":"2026-09-16T21:16:19.391Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.start","phase":"design","mode":"normal","budget":"4","state":"v0"}
+{"ts":"2026-09-16T21:17:32.801Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-16T21:26:38.562Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
+{"ts":"2026-09-16T21:26:49.418Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"design","task":"v1","result":"ok","tokens":"unknown"}
