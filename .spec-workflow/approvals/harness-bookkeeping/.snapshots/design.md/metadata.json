@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-bookkeeping/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-15T17:25:05.547Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789493105533_hu3xk15p0",
+      "approvalTitle": "harness-bookkeeping design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-15T17:25:14.015Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789493105533_hu3xk15p0",
+      "approvalTitle": "harness-bookkeeping design v3"
+    }
+  ]
+}

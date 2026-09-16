@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789488556690_2j5fb0jwj",
+  "title": "harness-bookkeeping requirements v3",
+  "filePath": ".spec-workflow/specs/harness-bookkeeping/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-15T16:09:16.690Z",
+  "category": "spec",
+  "categoryName": "harness-bookkeeping",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 4 / MINOR 0; rulings: none; cap: SHOULD_FIX-only pass at v3, VERIFIED 4/4",
+  "respondedAt": "2026-09-15T16:09:34.739Z"
+}

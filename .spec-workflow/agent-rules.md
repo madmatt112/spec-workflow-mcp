@@ -75,3 +75,13 @@ Machine-read by the review gate: changed lines under these paths do not count to
 line rule.
 
 - `plugins/`
+
+## Prose paths
+
+Machine-read by the review gate: changed `*.md` lines under these paths are prose, not
+source; they do not count toward the line-count rule. A verifier still runs when a
+sensitive path or a real source file exceeds the threshold.
+
+- harness/skills/
+- harness/agents/
+- references/
