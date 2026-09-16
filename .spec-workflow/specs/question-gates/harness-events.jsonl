@@ -55,3 +55,9 @@
 {"ts":"2026-09-16T22:03:24.230Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-16T22:07:54.679Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
 {"ts":"2026-09-16T22:08:01.854Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","phase":"design","round":"2","result":"ok","tokens":"unknown"}
+{"ts":"2026-09-16T22:20:59.945Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviewer"}
+{"ts":"2026-09-16T22:21:46.749Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"design","round":"2","result":"iterate","tokens":"125041"}
+{"ts":"2026-09-16T22:21:46.770Z","run":"run-20260916-194812","spec":"question-gates","type":"round","phase":"design","round":"2","version":"v2","verdict":"iterate 0/3/2"}
+{"ts":"2026-09-16T22:22:26.800Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-16T22:35:51.463Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
+{"ts":"2026-09-16T22:36:01.406Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"reviser SHOULD_FIX-only","phase":"design","round":"2","result":"ok","tokens":"unknown"}

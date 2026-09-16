@@ -39,3 +39,8 @@ Cost: manual orient/brief every phase; token overhead unquantified this run
 Round 1 review: iterate, MUST_FIX 0 / SHOULD_FIX 4 / MINOR 2. Wire-contract lens found 4 SHOULD_FIX seams (gate-B run-once, gate-put payload location contradiction, Req 2 AC 2 reword actor, AskUserQuestion option/answer round-trip) and 2 MINOR data-model/parser field gaps.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design.md
 Cost: 1 reviewer spawn
+
+## 2026-09-16T22:21:46Z · design · v2 · inefficiency
+Round 2 review: iterate, MUST_FIX 0 / SHOULD_FIX 3 / MINOR 2. R2-1 and R2-2 compound R1-3 (the v2 delta): the narrow drafter re-spawn overwrites gate-a.json and has no observable trigger. R2-3 (novel) gate-B (b)/(c) reads forbidden document bodies. D>=2 with no MUST_FIX routes to a SHOULD_FIX-only corrective pass, no further review round.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn
