@@ -21,3 +21,6 @@
 {"ts":"2026-09-16T20:26:39.515Z","run":"run-20260916-194812","spec":"question-gates","type":"round","phase":"requirements","round":"2","version":"v2","verdict":"iterate 1/2/3"}
 {"ts":"2026-09-16T20:27:06.401Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"reviser"}
 {"ts":"2026-09-16T20:31:14.405Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
+{"ts":"2026-09-16T20:31:28.356Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"requirements","round":"2","result":"ok","tokens":"69710"}
+{"ts":"2026-09-16T20:32:18.852Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-16T20:33:24.034Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
