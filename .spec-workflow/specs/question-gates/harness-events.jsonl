@@ -43,3 +43,6 @@
 {"ts":"2026-09-16T21:17:32.801Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-16T21:26:38.562Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-drafter"}
 {"ts":"2026-09-16T21:26:49.418Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"design","task":"v1","result":"ok","tokens":"unknown"}
+{"ts":"2026-09-16T21:27:41.278Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-16T21:39:37.812Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
+{"ts":"2026-09-16T21:39:45.055Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"design","round":"1","result":"ok","tokens":"unknown"}
