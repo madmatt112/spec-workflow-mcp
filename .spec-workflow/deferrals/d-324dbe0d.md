@@ -1,15 +1,15 @@
 ---
 id: "d-324dbe0d"
-status: "deferred"
+status: "resolved"
 title: "harness-bookkeeping live-plugin e2e half: MCP harness tool + hook spawn events"
 createdAt: "2026-09-15T20:15:44.631Z"
-updatedAt: "2026-09-15T20:15:44.631Z"
-resolvedAt: null
+updatedAt: "2026-09-16T21:07:25.322Z"
+resolvedAt: "2026-09-16T21:07:25.322Z"
 originSpec: "harness-bookkeeping"
 originPhase: "implementation"
 revisitTrigger: "After the release that republishes the server and the spec-workflow-harness plugin is re-installed and sessions restarted."
 tags: ["verification", "harness-bookkeeping"]
-resolution: null
+resolution: "Confirmed live under 5.7.0 in run run-20260916-194812 (question-gates requirements). Part 1 — MCP harness tool responds live: `harness orient` for question-gates/requirements returned D=4 A=4 P=true narrowCheck=true nextStep=Step5. Part 2 — plugin hooks wrote worker spawn.start/spawn.end with roles in .spec-workflow/specs/question-gates/harness-events.jsonl (sdd-drafter role=drafter; sdd-reviser role=lint and role=reviser; sdd-reviewer; sdd-checker). Caveat (separate defect): the four orchestrator agent definitions do not allowlist mcp__spec-workflow__harness, so orchestrators fall back to manual orient/brief; the tool itself is functional."
 resolvedInSpec: null
 supersededBy: null
 supersedes: null

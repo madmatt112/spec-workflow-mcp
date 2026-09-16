@@ -36,3 +36,5 @@
 {"ts":"2026-09-16T20:55:27.700Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v4","round":"4","result":"ok","tokens":"52672"}
 {"ts":"2026-09-16T20:57:43.502Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-checker"}
 {"ts":"2026-09-16T20:58:17.380Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-checker","role":"narrow check","round":"4","result":"verified 3/3","tokens":"44948"}
+{"ts":"2026-09-16T21:01:16.740Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.end","phase":"requirements","result":"approved","state":"v4","note":"4 rounds, 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass VERIFIED 3/3"}
+{"ts":"2026-09-16T21:02:31.160Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"approved"}

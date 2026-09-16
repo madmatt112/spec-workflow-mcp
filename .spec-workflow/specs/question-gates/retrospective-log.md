@@ -29,3 +29,8 @@ Cost: 1 checker spawn
 requirements approved at v4 after 4 rounds; verdict trajectory 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass at v4, narrow check VERIFIED 3/3; rulings 0; cap not hit (exited via SHOULD_FIX-only pass, not the budget cap); prune removed 0 records and 0 snapshots (2 kept).
 Evidence: approval_1789592305465_kil5tyx1t; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-requirements-r3.md
 Cost: 3 reviewer + 7 reviser (4 lint, 3 content) + 1 drafter + 1 narrow-check spawns
+
+## 2026-09-16T21:08:06Z · requirements · phase · harness-defect
+The four SDD orchestrator agent definitions (sdd-document/implementation/closeout/retro-orchestrator.md) do not allowlist the `harness` MCP tool, yet the phase skills call `harness orient` (Step 0) and `harness brief` (Lint step + revise step). Every 5.7.0 orchestrator run silently falls back to manual orient/brief, defeating harness-bookkeeping's core token saving and leaving reviews/lint-brief-<PHASE>-v<D>.md unwritten. Root cause is the missing allowlist entry, not a stale plugin cache.
+Evidence: plugins/spec-workflow-harness/agents/sdd-document-orchestrator.md tools list ends at spec-lint (line 36); sdd-document-phase SKILL.md lines 108,160 call harness brief; run run-20260916-194812 has no lint-brief file and the orchestrator reported briefing manually
+Cost: manual orient/brief every phase; token overhead unquantified this run
