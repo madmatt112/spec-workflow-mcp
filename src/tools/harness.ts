@@ -429,13 +429,13 @@ function parseCloseoutDone(content: string): Set<string> {
 function classifyTarget(block: string): TargetClass {
   const target = (block.match(/Target:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
   const decision = (block.match(/Decision:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
-  const hay = `${target} ${decision}`;
-
-  if (/\bnone\b|human action|ratified|closed|no change/.test(hay)) return 'none';
-  if (/agent-rules|steering|\brules?\b|decomposition|spec[ -]?store|\bstore\b/.test(hay)) return 'store';
-  if (/harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(hay)) return 'harness';
-  if (/memory|claude\.md|settings|~\/\.claude/.test(hay)) return 'home';
-  if (/\bcode\b|checkout|\brepo\b|src\//.test(hay)) return 'code';
+  // `none` reads the whole item — its marker often sits in Decision. The class regexes
+  // match the Target value alone, so Decision text cannot misfile an item (retro P3).
+  if (/\bnone\b|human action|ratified|closed|no change/.test(`${target} ${decision}`)) return 'none';
+  if (/agent-rules|steering|\brules?\b|decomposition|spec[ -]?store|\bstore\b/.test(target)) return 'store';
+  if (/harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(target)) return 'harness';
+  if (/memory|claude\.md|settings|~\/\.claude/.test(target)) return 'home';
+  if (/\bcode\b|checkout|\brepo\b|src\//.test(target)) return 'code';
   return 'none';
 }
 
