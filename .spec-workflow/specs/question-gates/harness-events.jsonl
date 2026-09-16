@@ -84,3 +84,6 @@
 {"ts":"2026-09-16T23:31:03.885Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"reviser"}
 {"ts":"2026-09-16T23:39:42.922Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
 {"ts":"2026-09-16T23:40:10.395Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"tasks","round":"1","result":"v2: R1-1/R1-2/R1-3 accepted, R1-4/R1-5 rejected","tokens":"128214"}
+{"ts":"2026-09-16T23:43:43.281Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-16T23:49:44.674Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
+{"ts":"2026-09-16T23:50:06.651Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","phase":"tasks","round":"2","result":"19 fixed, L-7 rejected; lint clean (1 warning)","tokens":"88998"}
