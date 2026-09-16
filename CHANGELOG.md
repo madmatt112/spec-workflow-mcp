@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.0] - 2026-09-16
+
+**Harness bookkeeping** (PR #41, the `harness-bookkeeping` spec) and its retrospective follow-ups (PRs #42, #43).
+
+### Added
+- `harness` tool with three actions: `orient` returns the routing state a skill's Step 0 computes (document version, latest analysis, last verdict, post-cap marker, tasks done and open, next step) in one call; `brief` writes a worker brief from a named template with values filled, an implementer brief's task block taken from the server's tasks parser; `phase-log` regenerates the HANDOFF `## Phase log` from `harness-events.jsonl`. The orchestrator skills route through these instead of computing Step 0 by hand.
+- Plugin hooks write `spawn.start`/`spawn.end` events from the brief path in an Agent prompt; the `--watch` renderer merges hook-written and orchestrator-written events. The `active-run` pointer holds one line per concurrent run (`<main checkout>\t<spec dir>\t<run id>`), so overlapping runs in different checkouts no longer cross ledgers.
+
+### Changed
+- `classifyTarget` (close-out breakdown) matches the `Target:` value only, so `Decision:` text no longer misfiles an item (retro P3).
+- The implementation-phase gate-call rule states `files` must be the exact per-file paths the task changed, never a directory, which mis-scores the gate (retro P8).
+
 ## [5.6.0] - 2026-09-15
 
 **Spec lint** (PR #36, the `spec-lint` spec) and its retrospective follow-ups (PR #38).
