@@ -54,3 +54,8 @@ Cost: 1 checker spawn
 design approved at v3 after 3 rounds; verdict trajectory 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1789598861550_cv4ve6r44; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-design-r3.md
 Cost: 1 drafter + 2 reviewer + 1 checker + 5 reviser spawns
+
+## 2026-09-16T23:30:19Z · tasks · v1 · gotcha
+Round 1 review: iterate 0 MUST_FIX / 2 SHOULD_FIX / 3 MINOR. First tasks review; lint pass had re-introduced 5 bare-path citations in its own Revision-History bullet, listed as open findings to the round.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
