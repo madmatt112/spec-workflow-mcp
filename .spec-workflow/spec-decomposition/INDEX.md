@@ -16,7 +16,8 @@
 | 1 | worktree-execution-context | Complete | 19/19 |
 | 2 | review-gate | Complete | 10/10 |
 | 3 | spec-lint | Complete | 12/12 |
-| 4 | tighter-reviews | Complete | 29/29 |
+| 4 | harness-bookkeeping | Complete | 8/8 |
+| 5 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
