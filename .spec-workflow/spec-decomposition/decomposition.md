@@ -237,6 +237,216 @@ holds five decisions of which two are direction-setting:
 supervisor's report contract, and on `review-gate` (spec 4) for `gate-rules.ts` and the
 `## Sensitive paths` convention. It is the last harness-efficiency spec; nothing depends on it.
 
+## Harness operations specs
+
+After the efficiency plan (`docs/harness-efficiency-plan.md`, steps 0 to 4). Three specs
+decided on 2026-09-17 from a review of the twelve agents' model and effort settings, a wish
+for a web control pane in place of the TUI for setting up and watching a run, and a wish to
+run some roles on DeepSeek beside the Claude models. Facts settled that day, not to be
+re-checked: `SubagentStop` carries `transcript_path` (the worker's own transcript, under
+`<session>/subagents/agent-<id>.jsonl`) and no usage; that transcript's assistant entries
+carry `message.usage` (input, output, cache creation, cache read) and `message.model`, in a
+format Claude Code calls internal; agent frontmatter `effort` is honoured for plugin agents
+and the Agent tool has a `model` override but no `effort` override; `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_AUTH_TOKEN` and `ANTHROPIC_MODEL` are process-wide, so every Agent-tool spawn in a
+session uses the session's provider; DeepSeek's Anthropic endpoint maps `claude-opus*` to
+`deepseek-v4-pro`, `claude-sonnet*` and `claude-haiku*` to `deepseek-flash`, and any other
+name (so `claude-fable-5-1`) silently to `deepseek-flash`, ignores `budget_tokens`, and lists
+MCP tools as unsupported (`https://api-docs.deepseek.com/guides/anthropic_api`).
+
+### 8. `harness-usage-and-tiers` — tokens from the transcript, cheaper orchestrators (active)
+
+Two things the ledger cannot do today: state what a spawn cost, and show what it ran on.
+`spawn.usage` takes its `tokens` from the count the orchestrator reads off the Agent result
+footer, and in the six runs on this store most of those rows say `unknown` or `na`; the
+watch view shows model and effort from a table in `ledger.ts` that already disagrees with
+the agent files (it shows the reviser as Opus xhigh; the file says Sonnet high; the checker is
+missing). Without numbers, the tier question — are the orchestrators and the retro analyst
+overkill at Fable xhigh — cannot be answered, and neither can spec 10's saving.
+
+**Delivers.**
+
+- **Usage from the transcript.** The plugin's `SubagentStop` hook reads the worker's
+  transcript at `transcript_path`, sums `message.usage` over its assistant entries, and writes
+  the sums on the `spawn.end` row it already emits: `input`, `output`, `cacheWrite`,
+  `cacheRead`, `tokens` (their total), and `model` (the `message.model` seen, the actual model
+  and not the declared one). Orchestrators are `sdd-*` agents spawned by the supervisor, so the
+  same hook covers them. The orchestrator's `spawn.usage` keeps `role` and `result` and drops
+  `tokens`; the skills and `formats.md` stop telling it to read the footer. A transcript the
+  hook cannot parse yields `tokens=unknown`, never a missing row, since the format is internal
+  to Claude Code and may change.
+- **Declared tiers from the agent files.** `scripts/sync-plugin-assets.cjs` also writes
+  `harness/agent-profiles.json` (name, model, effort, one-line role) from the agents'
+  frontmatter, and `ledger.ts` reads that file instead of its hand-kept table. The watch view
+  shows declared model and effort beside the actual model from the ledger, so a substitution
+  (the Opus overlay of 2026-09-16, or a DeepSeek mapping under spec 10) is visible.
+- **A usage report.** `harness` gains action `usage`: for one spec, or two specs side by side,
+  a table of tokens and spawns by phase and by agent with the orchestrator share per phase,
+  read from `harness-events.jsonl`. This is step 4 of the efficiency plan as a tool instead
+  of a prompt.
+- **The tier change.** The four orchestrators (`sdd-document-orchestrator`,
+  `sdd-implementation-orchestrator`, `sdd-closeout-orchestrator`, `sdd-retro-orchestrator`) and
+  `sdd-retro-analyst` move from `claude-fable-5-1` xhigh to `claude-opus-5` high. Nothing else
+  moves: drafter and adjudicator stay Fable xhigh; reviewer, implementer and verifier stay
+  Opus 4.8 xhigh; reviser and checker stay Sonnet 5 high.
+
+**Decided.**
+
+- Token counts come from the transcript, never from an LLM transcribing a footer. The hook
+  is the single writer of per-spawn usage.
+- Cache reads are reported apart from fresh input. The Max plan limit is the cost driver
+  (`docs/harness-efficiency-plan.md`, rules), and the two are not the same thing under it.
+- The orchestrators are the tier to cut: their work is to route (spec 6 took orient, briefs
+  and events off them), they escalate rulings to the adjudicator, and they hold the longest
+  contexts, so xhigh thinking on every tool call is where the spend compounds (one close-out
+  orchestrator spawn on `spec-lint`: 388,958 tokens). Opus 5 high, not Sonnet, on the first
+  cut; a second cut is a retro decision after one measured spec.
+- Effort stays in the agent files; the Agent tool cannot override it. A per-run effort is out
+  of scope here and in spec 9.
+- Old ledgers keep rendering: `spawn.usage` rows that carry `tokens` are still summed when no
+  `spawn.end` on the same spawn carries them.
+
+**End-to-end verification.** (1) A session with the hooks installed spawns one `sdd-*` agent
+with a brief path; its `spawn.end` row carries numeric `input`, `output`, `cacheRead`,
+`cacheWrite`, `tokens` and `model`, and the total equals the sum over that transcript's
+assistant entries, computed independently. (2) The same for an orchestrator spawned by the
+supervisor. (3) `harness usage` on the `question-gates` ledger and on a fixture ledger written
+under this spec prints one table each: tokens by phase and agent, orchestrator share per
+phase, and `unknown` only where the source rows say so. (4) `--watch --once` on the
+`review-gate` ledger renders every token total it renders today, and on the fixture ledger
+shows declared Opus 5 high and actual `claude-opus-5` for an orchestrator row. (5) Agent
+files, `plugins/` copies and `agent-profiles.json` agree: `npm run check:plugin-assets` and
+`claude plugin validate . --strict` pass; `npm test` is green.
+
+**Depends on** `harness-bookkeeping` (spec 6) for the hook-written `spawn.end` rows. Nothing
+in this document depends on it for correctness; 9 and 10 depend on it for their numbers.
+
+### 9. `harness-control-pane` — set up, launch and watch a run in the dashboard (active)
+
+The dashboard (`src/dashboard`, Fastify and a websocket; `src/dashboard_frontend`, React)
+shows specs, approvals and reviews but nothing of a harness run; the run is watched in the
+`--watch` TUI and launched by hand with `continue the sdd process` or a `claude -p` script.
+This spec adds a Harness page that does both, on the data layer the TUI already has.
+
+**Delivers.**
+
+- **Run setup.** The page lists the specs of the project with their state (the roadmap's
+  `INDEX.md` order and the live phase from HANDOFF, as the supervisor reads them) and a form
+  for one run: spec, model per role (declared value from `agent-profiles.json` pre-filled;
+  the Agent tool's aliases and full ids allowed), worktree yes or no, gates block or record.
+  Effort is shown read-only with the reason. Submitting writes `.spec-workflow/harness-run.json`
+  in the spec store.
+- **The supervisor honours it.** `sdd-continue` reads `harness-run.json` at Step 0 when it
+  exists, passes each role's model to the Agent tool's `model` override, records the overrides
+  on `run.start`, and deletes the file when the run ends. A run started from the terminal with
+  no file behaves as today.
+- **Launch and stop.** A route spawns `claude -p` with the `continue the sdd process` prompt
+  through the dashboard's existing child-process pattern (`adversarial-runner.ts`: scrubbed
+  git env, `cwd` the checkout or worktree, both roots on the env), records the pid and run id,
+  and streams stdout and stderr to the page. Stop sends SIGTERM; the supervisor's existing
+  interrupt handling writes `run.end`. One live run per spec store; the hooks' pointer file
+  (`~/.local/state/sdd/active-run`) is the lock the route checks and the page shows.
+- **Live view.** The server watches `harness-events.jsonl`, `harness-activity.jsonl`, HANDOFF
+  and `tasks.md` with the watcher `src/watch/index.ts` uses, builds `RunModel` with
+  `buildModel` from `src/watch/ledger.ts`, and pushes it over the existing websocket on
+  change. The page renders what `render.ts` renders: phase rows, the spawn tree with tokens
+  and model, rounds, task picks, the ticker, plus the recorded answers of a gate that ran in
+  record mode (`questions.md`).
+
+**Decided.**
+
+- Built into the existing dashboard, not a new app or a second server. The TUI stays
+  (`--watch` is must-keep) and shares `ledger.ts`; `render.ts` is not touched.
+- Model per role is per run; effort is not. The Agent tool has no effort override, and a
+  per-run effort would mean rewriting the plugin cache (the 2026-09-16 overlay), which is a
+  workaround and not a feature.
+- A launched run is headless (`claude -p`), so the question gates of spec 7 run in record
+  mode: the pane shows the recorded decisions and veto list, it does not answer them. Gates
+  answered from the pane are a later spec that needs a resume path in the supervisor.
+- The dashboard runs the harness only as a child process, never in-process, so a crashed run
+  cannot take the dashboard down and a stop is a signal.
+- Secrets never pass through the page; the child inherits the dashboard's environment.
+
+**End-to-end verification.** (1) With the dashboard open on a fixture project, the Harness
+page lists the specs in roadmap order with the live spec's phase and the declared model per
+role. (2) Launching the fixture spec with one role's model changed to `sonnet`: `run.start`
+appears on the page within five seconds and carries the override; as the ledger grows, the
+phase row, spawn tree, round rows and ticker update without a reload, and the overridden
+role's spawn row shows actual model `claude-sonnet-5` (spec 8). (3) Stop ends the process,
+`run.end` is written, the pointer line is removed, and the page shows the run as stopped;
+launching again while a run is live is refused with the live run id. (4) `--watch` on the
+same store during (2) shows the same rows as the page. (5) A terminal run with no
+`harness-run.json` produces a ledger identical in shape to today's. (6) `npx tsc --noEmit`,
+`npm run build` and `npm test` are green; the page works at phone width.
+
+**Depends on** spec 8 for tokens and declared tiers on the page (soft: the page renders
+without them) and on `harness-bookkeeping` (spec 6) for the pointer file and hook events.
+
+### 10. `provider-per-role` — DeepSeek for chosen roles, Claude for the rest (active)
+
+Every Agent-tool spawn uses the session's provider, and DeepSeek's endpoint maps every
+Fable name to `deepseek-flash`, so pointing the session at DeepSeek would swap the whole
+harness. What is wanted is one provider per role, per run, with the run ledger and the plan's
+limit accounting telling them apart.
+
+**Delivers.**
+
+- **Provider per role.** `harness-run.json` (spec 9) and, for terminal runs, a
+  `## Providers` block in `agent-rules.md` name a provider per role: `anthropic` (default) or
+  `deepseek`, with the DeepSeek model (`deepseek-v4-pro` or `deepseek-flash`). The supervisor
+  records the map on `run.start`.
+- **A subprocess spawn path.** For a DeepSeek role the orchestrator does not call the Agent
+  tool. It runs a launcher script (written by the supervisor next to `event.sh`) that spawns
+  `claude -p` with the same brief, the agent's definition passed with `--agents` from
+  `agent-profiles.json` and the agent file, the same tools, `--model` the DeepSeek name, and
+  an environment of `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`,
+  `ANTHROPIC_AUTH_TOKEN` from `DEEPSEEK_API_KEY`, and `ANTHROPIC_MODEL` set to the same name.
+  The launcher writes `spawn.start` and `spawn.end` itself (no plugin hook fires in the parent
+  for a separate process), with `provider=deepseek`, `model`, and usage from the child's
+  transcript the way spec 8's hook reads it, and returns the worker's report on stdout so the
+  orchestrator's next step is unchanged.
+- **Eligible roles.** `sdd-reviewer` and `sdd-checker` first: file tools only, no MCP tool,
+  and the reviewer is the most-spawned role per spec. Roles that call an MCP tool (reviser,
+  implementer, verifier, drafter, adjudicator) stay on Anthropic until the preflight below
+  says otherwise.
+- **Accounting.** `harness usage` (spec 8) and the watch view show DeepSeek tokens under
+  their provider and out of the Anthropic total, which is the number the Max plan limit
+  applies to.
+
+**Decided.**
+
+- Provider is never set process-wide on the session that runs the harness. A DeepSeek role
+  is a child process with its own environment; the session stays on Anthropic.
+- The first task of the spec is a preflight, recorded as a step-0-style answer in `docs/`:
+  (a) `claude -p` against DeepSeek with the reviewer definition reads a spec and writes an
+  analysis in the review prompt's format with the verdict block; (b) the same with one MCP
+  tool call (`adversarial-response`), to learn whether "MCP tools unsupported" means the API
+  connector or Claude Code's client tools. (b) decides whether the reviser is eligible; no
+  other role is promoted in this spec.
+- DeepSeek ignores `budget_tokens`, so the agent's `effort` is not carried to it; thinking
+  is on or off. The ledger records the declared effort as not applied.
+- The key comes from the environment of the process that starts the run (terminal or
+  dashboard), never from the spec store or the run file. A DeepSeek role with no key refuses
+  at `run.start` with a `note`; the run does not fall back to Anthropic silently.
+- A DeepSeek worker gets the same brief, the same tools and the same report contract as an
+  Agent-tool worker, so a role can move back with one config line and no skill change.
+
+**End-to-end verification.** (1) Preflight (a) and (b) run and their outcomes are written to
+`docs/`. (2) A fixture requirements round with the reviewer on `deepseek-v4-pro`: the analysis
+file exists in the round's format with a verdict block; the ledger has `spawn.start` and
+`spawn.end` for it with `provider=deepseek`, the model name and numeric tokens; the reviser
+round that follows runs on Anthropic through the Agent tool as today. (3) The same round with
+every role on `anthropic` writes a ledger of today's shape (regression). (4) With
+`DEEPSEEK_API_KEY` unset, a run with one DeepSeek role stops at `run.start` with a `note`
+naming the role and the missing key, and neither the page nor the TUI shows a spawn. (5)
+`harness usage` on the ledger of (2) reports the reviewer's tokens under `deepseek` and the
+Anthropic total without them. (6) `npm test` is green and `claude plugin validate . --strict`
+passes.
+
+**Depends on** spec 8 (usage from the transcript, `agent-profiles.json`, provider-aware
+`harness usage`) and spec 9 (`harness-run.json` and the run setup form). Nothing depends on
+it.
+
 ## Build order
 
 1 → (2 and 3 in either order). 2 and 3 are independent of each other.
@@ -245,12 +455,21 @@ supervisor's report contract, and on `review-gate` (spec 4) for `gate-rules.ts` 
 changes every skill and the hooks, so it lands before 7. Spec 7 (`question-gates`) is the
 plan's step 3 and runs after 6 is released — which it now is (5.7.0).
 
+8 → 9 → 10 in that order, after 2 (`worktree-review-signals`, live on 2026-09-17) closes. 8
+first because 9 and 10 are judged on its numbers; 10 last because it needs 9's run file. Each
+is its own release.
+
 ## Boundary notes
 
 - **`TaskStateStore` belongs to 2, not 1.** Spec 1 records nothing per task.
 - **The registry's *location* belongs to 3**, with its *content* (per-worktree identity, realpath normalization) in 1. Spec 1 registers correctly; spec 3 makes concurrent registration safe and decides where the global directory lives.
 - **Typecheck root selection is in 1** (it must run in the workspace); **typecheck honesty is in 2** (whether its output can be trusted). The split is deliberate: 1 makes it run in the right place, 2 makes it tell the truth about whether it ran.
 - **The execution-context disclosure object is in 2.** Spec 1 emits no new reviewer-facing channel.
+- **Per-spawn usage is in 8, its display is in 8 and 9.** Spec 9 renders `RunModel`; it adds no
+  ledger field. Spec 10 writes the same fields for its child processes and adds `provider`.
+- **Per-run model is in 9, per-role provider is in 10.** The run file is one file; 9 defines
+  it with `model` per role and 10 adds `provider` per role to the same shape.
+- **The TUI is not replaced.** 9 adds a second consumer of `ledger.ts`; `render.ts` stays.
 
 ## Open question deferred to spec 2
 
