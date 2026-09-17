@@ -74,3 +74,8 @@ Cost: 1 drafter + 2 reviewer + 3 reviser spawns
 The tasks document orchestrator re-initialized the run ledger — it overwrote /tmp/scratchpad/sdd/question-gates/event.sh with a new run id (run-20260916-225339) instead of reusing the EVENT_SCRIPT passed by the supervisor, orphaning the supervisor's run id (run-20260916-194812). All tasks-phase events (worker spawns, phase.start, phase.end) plus the supervisor's tasks spawn.end landed under the new id. Requirements and design orchestrators did not do this, so it is manual-fallback variance triggered by the same harness-tool allowlist gap: with harness orient unavailable, the orchestrator improvised ledger setup. Supervisor restored event.sh to the original run id for the remaining phases.
 Evidence: harness-events.jsonl: 83 events under run-20260916-194812, 11 under run-20260916-225339; pointer file /home/mcf/.local/state/sdd/active-run kept the original id
 Cost: one-off; ledger split across two run ids for one logical run
+
+## 2026-09-17T00:16:58Z · implementation · task 1 · gotcha
+Pure veto-rules module landed clean on the first pass; gate pass at risk low, no verifier needed.
+Evidence: task 1; src/core/veto-rules.ts, src/core/__tests__/veto-rules.test.ts
+Cost: 1 implementer spawn, 0 fix rounds

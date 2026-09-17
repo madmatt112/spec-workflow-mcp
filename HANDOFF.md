@@ -152,3 +152,12 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | codebase-context.md, then tasks.md — a 6-task forward-only plan (no bridges): task 1 adds pure src/core/veto-rules.ts (computeClassA), task 2 adds the harness `gate` action (class-a/put/get/delete) to src/tools/harness.ts, tasks 3-6 are harness/ prose (formats.md PHASE `gate-a`, sdd-drafter.md gate-A extraction, document-phase SKILL gate-A/gate-B emission, sdd-continue SKILL gate execution) with `sync-plugin-assets` + `check:plugin-assets` + `claude plugin validate` in each Success. design.md v3 (its Component 5 was amended in place — see design.md's `v3 amended` line — for Req 2 AC 7's resume recheck) and requirements.md v4 are the scope authority; no steering docs. Both open design MINORs are closed: R2-4 by tasks D3, R2-5 by tasks D2. Run-level verification (four gate scenarios with/without AskUserQuestion + `npm run build`/`npm test`) is the gate, not an automated task (D6). |
+
+## question-gates — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/6; last code commit c456110; next task 2 |
+| Fix rounds | task 1: 0 (gate pass, risk low) |
+| Deferred verification | none |
+| Gotchas | none yet |

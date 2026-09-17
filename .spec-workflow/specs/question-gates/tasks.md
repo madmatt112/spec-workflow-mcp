@@ -10,7 +10,7 @@ Each must run `node scripts/sync-plugin-assets.cjs` (committing the `plugins/` c
 
 Task 3 registers the `gate-a` PHASE value; task 4 grants the drafter the tool and its gate-A step; task 5 emits both gates from the document-phase skill (using task 2's ops and re-spawning task 4's drafter); task 6 runs both gates in the supervisor (consuming task 5's emissions and task 2's `get`/`delete`).
 
-- [ ] 1. Add the pure gate-B class (a) module in src/core/veto-rules.ts
+- [x] 1. Add the pure gate-B class (a) module in src/core/veto-rules.ts
   - File: src/core/veto-rules.ts
   - File: src/core/__tests__/veto-rules.test.ts
   - Export `CLASS_A_KEYWORDS` (the six tunable keyword patterns), the `TaskVetoInput` and `ClassAItem` types, and `computeClassA`, mirroring the `gate-rules.ts` pure-module shape with no I/O.
