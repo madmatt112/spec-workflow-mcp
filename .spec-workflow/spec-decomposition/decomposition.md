@@ -163,13 +163,87 @@ produces the rows its hand-written table holds for phases that ran under a ledge
 **Depends on** nothing in this document for correctness. **Last** because it changes every
 skill and the hooks; 4 and 5 land first so their skill changes are not rewritten twice.
 
+### 7. `question-gates` — two bounded human gates, headless-safe (active)
+
+Step 3 of `docs/harness-efficiency-plan.md` (R7 of the Harness Spend Review). Two places
+where a human confirms or overturns the machine's direction: gate A on the requirements'
+recorded decisions, gate B on the task plan's consequential actions. Both read
+`gates: block | record` from `agent-rules.md`, default block when interactive and record
+when headless, and never stall an unattended run.
+
+**Delivers.**
+
+- **Gate A — requirements direction.** After the drafter writes requirements v1, before the
+  first adversarial round, the supervisor presents the `## Decisions taken in this document`
+  items (`requirements-template.md`), ranked by how much each sets direction (what is being
+  built and for whom), and asks at most five with AskUserQuestion. Each changed answer is
+  routed to the (Sonnet) `sdd-reviser` as a revision comment, which writes v2 before round 1;
+  unchanged answers are recorded and dropped. The gate runs in the main session: the document
+  orchestrator returns a new `gate-a` outcome carrying the extracted decisions, and the
+  supervisor — which already owns AskUserQuestion (the retrospective conversation) — asks and
+  re-spawns the orchestrator with the answers. When AskUserQuestion is absent or denied
+  (headless, or the mobile Remote Control auto-deny), the gate writes the decisions and
+  "no answer" to `questions.md`, writes a HANDOFF row, and proceeds to round 1 unchanged.
+
+- **Gate B — task plan veto.** After the tasks document is approved, before implementation,
+  the supervisor presents the task list plus one ranked **veto list**, most consequential
+  first, combining: (a) irreversible / high-blast actions the tasks will perform — the paths a
+  task declares it touches matched against `## Sensitive paths` in `agent-rules.md` (reusing
+  `parseSensitivePaths`/`isSensitivePath` from `gate-rules.ts`), plus action keywords
+  (migration, delete/drop, auth, billing, config, external write); (b) new external
+  dependencies the tasks introduce; (c) tasks doing more than the approved requirements asked
+  for. The human approves or annotates. Annotations run one tasks-revision round (advisory — no
+  hard block, matching the retrospective conversation); an approve proceeds to implementation.
+  Headless or denied: the veto list is written to `questions.md` and a HANDOFF row, and the run
+  proceeds to implementation.
+
+**Decided.**
+
+- Gate A surfaces **direction-setting assumptions only** — the decisions that fix what is
+  built and for whom — not every recorded decision, so five questions are spent where a wrong
+  answer would waste the review rounds.
+- Gate B's veto list is **one ranked list** of all three classes (irreversible actions, new
+  dependencies, out-of-scope), most consequential first — not three separate lists.
+- Objections are **advisory**: an annotation drives one revision round; neither gate
+  hard-blocks the spec. The human's escape hatch is stopping the run.
+- Both gates **proceed when unattended** (record mode): they never halt a headless or
+  auto-denied run. A denied AskUserQuestion call is treated as record mode — it is not
+  evidence of headless (step 0 answer 5, `docs/step-0-answers.md`); the supervisor already
+  records `headless=yes` in the run ledger when the tool is absent.
+- The gates live in the **supervisor** (`sdd-continue`), the only role with AskUserQuestion;
+  the document orchestrator gains a `gate-a` return and the tasks orchestrator returns the
+  computed veto list. Veto-list computation reuses `gate-rules.ts` and stays a pure, tunable
+  module.
+
+**End-to-end verification.** A fixture spec with an `agent-rules.md` carrying `gates: block`,
+a `## Sensitive paths` entry, and requirements whose `## Decisions taken in this document`
+holds five decisions of which two are direction-setting:
+
+1. **Gate A, interactive.** A run reaching requirements v1 pauses and asks at most five
+   questions; changing one direction-setting answer produces a v2 whose `## Decisions` reflect
+   the change before any adversarial round runs, and the unchanged answers appear in
+   `questions.md`.
+2. **Gate A, headless.** The same run under `claude -p` (AskUserQuestion denied) does not
+   stall: it writes the decisions to `questions.md`, a HANDOFF row, and proceeds to round 1 on
+   v1 unchanged.
+3. **Gate B, interactive.** After tasks approval the run shows a ranked veto list in which a
+   task touching the sensitive path ranks above a new-dependency item above an out-of-scope
+   item; an annotation runs exactly one tasks-revision round, then implementation begins.
+4. **Gate B, headless.** The same point under `claude -p` writes the veto list to
+   `questions.md` and a HANDOFF row and proceeds to implementation without stalling.
+5. `npm test` is green and `claude plugin validate . --strict` passes.
+
+**Depends on** `harness-bookkeeping` (spec 6) for the run ledger's `headless` flag and the
+supervisor's report contract, and on `review-gate` (spec 4) for `gate-rules.ts` and the
+`## Sensitive paths` convention. It is the last harness-efficiency spec; nothing depends on it.
+
 ## Build order
 
 1 → (2 and 3 in either order). 2 and 3 are independent of each other.
 
-4 → 5 → 6 in that order. Each is independently shippable and gets its own release; 6 is last
-because it changes every skill and the hooks. Do not start the plan's step 3 before 6 is
-released.
+4 → 5 → 6 → 7 in that order. Each is independently shippable and gets its own release; 6
+changes every skill and the hooks, so it lands before 7. Spec 7 (`question-gates`) is the
+plan's step 3 and runs after 6 is released — which it now is (5.7.0).
 
 ## Boundary notes
 
