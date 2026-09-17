@@ -162,4 +162,4 @@ From implementation:
 | Deferred verification | d-1880d115 |
 | Deferrals added | 1 (d-1880d115, tag verification); project total 15 deferred |
 | Gotchas | Harness/server changes take effect only after the release republishes and the plugin re-installs, so live gate scenarios 1-4 are deferred to d-1880d115 (tool half verified in-process: build + 1260 tests + plugin validate all green, fixture staged at /tmp/scratchpad/sdd/question-gates/scratch-store/). The `harness` orient/brief MCP tool was not granted to this orchestrator, so Step 0 and every worker brief were assembled by hand — same root cause as d-473aa261. |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/46 |
