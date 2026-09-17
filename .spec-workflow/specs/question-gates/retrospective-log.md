@@ -79,3 +79,8 @@ Cost: one-off; ledger split across two run ids for one logical run
 Pure veto-rules module landed clean on the first pass; gate pass at risk low, no verifier needed.
 Evidence: task 1; src/core/veto-rules.ts, src/core/__tests__/veto-rules.test.ts
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:23:24Z · implementation · task 2 · gotcha
+Harness gate action (class-a/put/get/delete) landed on the first pass; gate pass at risk low despite 299 lines, no verifier needed.
+Evidence: task 2; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
+Cost: 1 implementer spawn, 0 fix rounds

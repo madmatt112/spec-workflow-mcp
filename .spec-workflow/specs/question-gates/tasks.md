@@ -20,7 +20,7 @@ Task 3 registers the `gate-a` PHASE value; task 4 grants the drafter the tool an
   - _Requirements: 4.2, 4.4, 4.5_
   - _Prompt: Task: Create src/core/veto-rules.ts per design Component 1 and Data Models: export the six-keyword CLASS_A_KEYWORDS record (migration, delete/drop, auth, billing, config, external write), the TaskVetoInput and ClassAItem types, and computeClassA(tasks, sensitive) reusing isSensitivePath from src/core/gate-rules.ts; keep it pure with no I/O. Add src/core/__tests__/veto-rules.test.ts beside src/core/__tests__/gate-rules.test.ts. | Restrictions: Do not import from src/tools; do not reuse NO_LIST_REASON; a null sensitive list matches no path but still fires keywords. | Success: computeClassA sorts sensitive-path (score 2) before keyword (score 1) items, each of the six keywords is tested, the null-list case emits no path item and no NO_LIST_REASON, npx tsc --noEmit is clean, and npx vitest run src/core/__tests__/veto-rules.test.ts is green; the new test file alters no existing assertion._
 
-- [ ] 2. Add the harness gate action (class-a, put, get, delete) in src/tools/harness.ts
+- [x] 2. Add the harness gate action (class-a, put, get, delete) in src/tools/harness.ts
   - File: src/tools/harness.ts
   - File: src/tools/__tests__/harness.test.ts
   - Add `gate` to the `action` enum plus optional `op`, `slot`, `payload` schema properties, and route a new `case 'gate'` in `harnessHandler` to a `gateAction` with the four ops.
