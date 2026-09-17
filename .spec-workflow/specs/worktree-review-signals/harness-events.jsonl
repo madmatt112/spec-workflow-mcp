@@ -1,0 +1,6 @@
+{"ts":"2026-09-17T17:05:10.478Z","run":"run-20260917-170349","spec":"worktree-review-signals","type":"run.start","model":"claude-opus-4-8","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
+{"ts":"2026-09-17T17:06:12.470Z","run":"run-20260917-170349","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-17T17:09:53.629Z","run":"run-20260917-170349","spec":"worktree-review-signals","type":"phase.start","phase":"requirements","mode":"normal","budget":"4 review rounds","state":"v1","note":"fresh-v1 override: stale split scaffold, orient said Step 2"}
+{"ts":"2026-09-17T17:11:27.546Z","type":"spawn.start","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-17T17:26:01.401Z","type":"spawn.end","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-drafter"}
+{"ts":"2026-09-17T17:26:51.562Z","run":"run-20260917-170349","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter v1","phase":"requirements","round":"0","result":"ok","tokens":"unknown","note":"v1 3497w, context+gate-a(5) written, 3 RE-DECIDED, tighter-reviews reqs tracked not gitignored"}
