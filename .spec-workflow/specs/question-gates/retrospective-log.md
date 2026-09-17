@@ -69,3 +69,8 @@ Cost: 1 reviewer spawn
 tasks approved at v2 after 2 rounds; verdict trajectory 0/2/3 -> converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots. Recurring gotcha: reviser Revision-History bullets that describe citation fixes embed bare file paths/identifiers, which spec-lint re-flags as unresolvable citations; the v2 lint brief added a convergence rule (no path/identifier tokens in the decision log) and lint went from 20 findings to 1. R1-1 also amended design.md Component 5 (v3 amended) for Req 2 AC 7's resume recheck.
 Evidence: approval_1789603132726_81g3nqajw; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-tasks-r2.md
 Cost: 1 drafter + 2 reviewer + 3 reviser spawns
+
+## 2026-09-17T00:04:11Z · tasks · phase · harness-defect
+The tasks document orchestrator re-initialized the run ledger — it overwrote /tmp/scratchpad/sdd/question-gates/event.sh with a new run id (run-20260916-225339) instead of reusing the EVENT_SCRIPT passed by the supervisor, orphaning the supervisor's run id (run-20260916-194812). All tasks-phase events (worker spawns, phase.start, phase.end) plus the supervisor's tasks spawn.end landed under the new id. Requirements and design orchestrators did not do this, so it is manual-fallback variance triggered by the same harness-tool allowlist gap: with harness orient unavailable, the orchestrator improvised ledger setup. Supervisor restored event.sh to the original run id for the remaining phases.
+Evidence: harness-events.jsonl: 83 events under run-20260916-194812, 11 under run-20260916-225339; pointer file /home/mcf/.local/state/sdd/active-run kept the original id
+Cost: one-off; ledger split across two run ids for one logical run
