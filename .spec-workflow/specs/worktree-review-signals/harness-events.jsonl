@@ -4,3 +4,4 @@
 {"ts":"2026-09-17T17:11:27.546Z","type":"spawn.start","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-17T17:26:01.401Z","type":"spawn.end","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-drafter"}
 {"ts":"2026-09-17T17:26:51.562Z","run":"run-20260917-170349","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter v1","phase":"requirements","round":"0","result":"ok","tokens":"unknown","note":"v1 3497w, context+gate-a(5) written, 3 RE-DECIDED, tighter-reviews reqs tracked not gitignored"}
+{"ts":"2026-09-17T17:30:03.312Z","type":"spawn.start","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
