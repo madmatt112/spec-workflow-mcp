@@ -113,3 +113,9 @@
 {"ts":"2026-09-17T00:26:21.583Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3 commit 983951e","tokens":"na"}
 {"ts":"2026-09-17T00:26:33.666Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-17T00:26:39.489Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-17T00:26:57.154Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"4","title":"Grant the drafter the harness tool and add its gate-A extraction step"}
+{"ts":"2026-09-17T00:27:13.113Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-17T00:29:30.351Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer"}
+{"ts":"2026-09-17T00:29:35.571Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4 commit 83f85d2","tokens":"na"}
+{"ts":"2026-09-17T00:29:47.481Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: task 4 pass risk low"}
+{"ts":"2026-09-17T00:29:53.804Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"4","rounds":"0","outcome":"gate"}

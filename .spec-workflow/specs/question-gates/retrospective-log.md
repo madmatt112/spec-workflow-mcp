@@ -89,3 +89,8 @@ Cost: 1 implementer spawn, 0 fix rounds
 formats.md PHASE enum + table row for gate-a; sync regenerated 3 plugins copies; gate pass risk low.
 Evidence: task 3; harness/skills/sdd-continue/references/formats.md and 3 plugins mirrors
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:29:51Z · implementation · task 4 · gotcha
+sdd-drafter gains harness grant (3 forms) + requirements-only gate-A put step; gate pass risk low.
+Evidence: task 4; harness/agents/sdd-drafter.md and 3 plugins mirrors
+Cost: 1 implementer spawn, 0 fix rounds

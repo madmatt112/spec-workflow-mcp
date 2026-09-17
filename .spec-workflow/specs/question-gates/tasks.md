@@ -38,7 +38,7 @@ Task 3 registers the `gate-a` PHASE value; task 4 grants the drafter the tool an
   - _Requirements: 1.6, 2.2_
   - _Prompt: Task: Add the gate-a value to the PHASE enum and a matching PHASE-table row per design Component 6. Run grep -n 'PHASE:' over the file to find every enum listing so no copy is missed. | Restrictions: Change no other field name or order; this is a harness/ prose change; edit only the harness/ source, never the plugins/ copies by hand. | Success: gate-a appears in the enum and the table; node scripts/sync-plugin-assets.cjs regenerates the plugins/ copies (committed in the same commit); npm run check:plugin-assets passes; claude plugin validate . --strict passes._
 
-- [ ] 4. Grant the drafter the harness tool and add its gate-A extraction step
+- [x] 4. Grant the drafter the harness tool and add its gate-A extraction step
   - File: harness/agents/sdd-drafter.md
   - Add the `harness` MCP tool to the frontmatter in the three plugin-prefixed forms that mirror the reviser's `adversarial-response` grant, and add one requirements-phase-only body step.
   - The step extracts and ranks at most five direction-setting decisions from the document's own `## Decisions taken in this document`, builds one header/question/options triple each (options[0] the recorded choice plus at most three rejected alternatives in clause order), and writes `{items}` through the gate action's `put` op (task 2, slot a) before the report; design and tasks phases write nothing.
