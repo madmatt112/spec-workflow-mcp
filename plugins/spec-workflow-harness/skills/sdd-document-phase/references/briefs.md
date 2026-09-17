@@ -126,7 +126,10 @@ verdict block). Append:
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta. Mark a finding that lands in text the previous
   delta wrote `Compounds: R<A-1>-<n>`, naming the round-<A-1> finding whose fix wrote
-  the clause.>
+  the clause. A finding that re-flags a cross-artifact seam an earlier round already
+  raised — a producer-to-consumer wire, or an acceptance criterion that contradicts the
+  component that implements it — is marked `Compounds: R<k>-<n>` for the round `k` that
+  first raised that seam.>
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
@@ -225,6 +228,11 @@ RI-2: <text>>
     not reword the clause again. Write one plain sentence of what the clause must
     claim, delete the old text, and probe the new claim as round 1 would. A claim you
     cannot probe is deleted, not kept.
+11. A MUST_FIX that names a cross-artifact wire (a producer and its consumer) or an
+    acceptance-criterion contradiction (the AC and the component that implements it) is
+    a seam: edit and cite both ends under the finding's bullet, never the symptom on one
+    side. A finding marked `Compounds: R<k>-<n>` re-flags a seam an earlier round left
+    half-fixed; fix both ends now.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
