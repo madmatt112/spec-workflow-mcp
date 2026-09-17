@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-16, harness v4).** **`question-gates`** is CLOSED — no active spec.
-> Live phase **closeout**, state **plan CLOSED (5/5 items landed; PR #47 open, not merged)**, last result **closed**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/question-gates` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/question-gates`).
-> A re-run does: no active spec in the roadmap — question-gates is CLOSED; advance by undeferring the next spec. Human: merge PR #47, then run the post-release deferral sweep (`deferrals list tag=verification`).
+> **READ FIRST — SDD routing (2026-09-17, harness v4).** Active spec **`worktree-review-signals`**.
+> Live phase **requirements**, state **v1**, last result **gate-a**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: gate A is resolved (all five decisions kept, see `specs/worktree-review-signals/questions.md`); re-spawn the requirements orchestrator in revision mode to land the interrupted v1 lint fixes as v2, then run review round 1.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
