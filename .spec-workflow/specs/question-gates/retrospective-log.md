@@ -94,3 +94,13 @@ Cost: 1 implementer spawn, 0 fix rounds
 sdd-drafter gains harness grant (3 forms) + requirements-only gate-A put step; gate pass risk low.
 Evidence: task 4; harness/agents/sdd-drafter.md and 3 plugins mirrors
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:42:11Z · implementation · task 5 · doc-gap
+Design Component 4 named the gate-B veto-list sources but not the source for the payload's compact tasks:[{id,title}] plan; implementer filled it with a permitted task-header grep, consistent with the no-body-read rule.
+Evidence: task 5; harness/skills/sdd-document-phase/SKILL.md, harness/skills/sdd-document-phase/references/briefs.md
+Cost: no extra spawn; noted during implementation
+
+## 2026-09-17T00:42:37Z · implementation · task 5 · gotcha
+Gate A emission (PHASE gate-a + reword trigger) and gate B assembly (tag grep + class-a fold, put slot b) added to document-phase skill and briefs; gate pass risk low across 8 files.
+Evidence: task 5; harness/skills/sdd-document-phase/SKILL.md, references/briefs.md and 6 plugins mirrors
+Cost: 1 implementer spawn, 0 fix rounds

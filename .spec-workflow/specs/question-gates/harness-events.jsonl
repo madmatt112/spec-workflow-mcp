@@ -119,3 +119,9 @@
 {"ts":"2026-09-17T00:29:35.571Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4 commit 83f85d2","tokens":"na"}
 {"ts":"2026-09-17T00:29:47.481Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: task 4 pass risk low"}
 {"ts":"2026-09-17T00:29:53.804Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"4","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-17T00:30:11.636Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"5","title":"Emit gate A and assemble gate B in the document-phase skill"}
+{"ts":"2026-09-17T00:30:29.517Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-17T00:41:56.861Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer"}
+{"ts":"2026-09-17T00:42:13.147Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5 commit a8bc34d RETRO doc-gap","tokens":"na"}
+{"ts":"2026-09-17T00:42:33.285Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: task 5 pass risk low"}
+{"ts":"2026-09-17T00:42:39.391Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
