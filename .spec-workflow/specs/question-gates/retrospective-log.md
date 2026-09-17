@@ -124,3 +124,18 @@ Cost: 7 worker spawns
 Retrospective compiled from the retro log, HANDOFF, deferrals, implementation logs, git log and 3 earlier retrospectives. 8 findings (1 gotcha, 2 harness defects, 1 inefficiency, 1 doc gap, 1 model behaviour, 1 ruling, 1 harness-decision); analyst wrote 8 proposals, 1 decision needed (P4 lint-citation fix), 4 graduation candidates.
 Evidence: retrospective.md; retrospective-proposals.md; deferrals d-1880d115, d-473aa261
 Cost: 1 analyst spawn (45675 tokens)
+
+## 2026-09-17T14:57:39Z · closeout · phase · harness-defect
+Closeout blocked by a worktree-isolation launch mismatch. This closeout session is isolated to the question-gates FEATURE worktree (feat/question-gates), but a closeout must land the harness batch (P1,P2,P3,P4,P6) on chore/question-gates-retro (a separate worktree) and commit the spec store on main. Workers inherit the session isolation, so both commit paths to question-gates-retro are refused (raw /usr/bin/git by the isolation shell guard; closeout-commit.sh by the auto-mode classifier), and committing the spec store on main is likewise unreachable. No spec/design defect: items look implementable. Fix: relaunch closeout isolated to question-gates-retro (already created off origin/main; node_modules missing so run npm ci) with main-checkout access for the docs(sdd) spec-store commit.
+Evidence: worker a7792c756 report (BLOCKED, 0 files touched); git guard refusals in question-gates-retro confirmed twice; docs(sdd) spec-store commits live on main at e7bf693
+Cost: 1 implementer spawn (blocked), 0 items landed, 0 checks run
+
+## 2026-09-17T15:00:49Z · closeout · phase · harness-defect
+Close-out could not run: the supervisor entered the feature worktree (feat/question-gates) before implementation and stayed there, but close-out must land its harness batch on a separate chore/<spec>-retro worktree. Spawned workers inherit the feature-worktree isolation and the git guard blocks committing to a different branch. The sdd-continue worktree rule covers entering the feature worktree before implementation but has no rule to switch to the retro worktree before close-out. Recovered by switching the session to the close-out-created question-gates-retro worktree and re-spawning.
+Evidence: closeout report PHASE error items 0/5; prior specs show the chore/<spec>-retro pattern (review-gate-retro, spec-lint-retro, harness-bookkeeping-retro in git worktree list)
+Cost: one wasted close-out spawn; recovered by re-spawn
+
+## 2026-09-17T15:18:27Z · closeout · harness batch 1 · cleanup
+5 items landed one commit each (P1 a26f246, P2 82064d8, P3 478bf4f, P4 0542178, P6 8156c82); 0 to-do, 0 skipped. Graduation candidates 1-4 folded into their proposals; candidate 1 (allowlist authoring convention) landed in docs/SDD-HARNESS.md.
+Evidence: gate pass risk low x5; sync-plugin-assets + check:plugin-assets + claude plugin validate --strict all green; PR #47 https://github.com/madmatt112/spec-workflow-mcp/pull/47
+Cost: 1 implementer spawn (~92.6k tokens), 0 verifiers (all pass/low), 0 fix rounds, 5 gate calls

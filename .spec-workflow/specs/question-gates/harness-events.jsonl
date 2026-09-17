@@ -147,3 +147,38 @@
 {"ts":"2026-09-17T01:12:13.382Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}
 {"ts":"2026-09-17T01:13:59.708Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator retrospective spawn 1 tokens=94647 (captured post-hoc)"}
 {"ts":"2026-09-17T14:42:40.455Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"retrospective plan APPROVED: P1,P2,P3,P4(a),P6 for close-out; P5/P7/P8 no change; 4 graduation candidates land with their proposals"}
+{"ts":"2026-09-17T14:43:04.094Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-09-17T14:48:53.885Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.start","phase":"closeout","state":"items 0/5"}
+{"ts":"2026-09-17T14:50:33.020Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P1","title":"Mark a compounding finding and fix its seam"}
+{"ts":"2026-09-17T14:50:33.042Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P2","title":"Allowlist the harness tool on the four SDD orchestrators"}
+{"ts":"2026-09-17T14:50:33.068Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P3","title":"One run id per run; reuse EVENT_SCRIPT"}
+{"ts":"2026-09-17T14:50:33.090Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P4","title":"Keep path and identifier tokens out of decision-log bullets"}
+{"ts":"2026-09-17T14:50:33.111Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P6","title":"Revision-History bullet cites post-fix line"}
+{"ts":"2026-09-17T14:50:36.016Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-17T14:54:27.158Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer"}
+{"ts":"2026-09-17T14:57:48.706Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"blocked: session isolated to feature worktree, cannot commit to question-gates-retro","tokens":"37124"}
+{"ts":"2026-09-17T14:57:48.727Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"blocked: closeout session isolated to question-gates feature worktree; harness batch cannot land on chore/question-gates-retro and spec store cannot commit on main; relaunch isolated to question-gates-retro"}
+{"ts":"2026-09-17T14:57:48.749Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.end","phase":"closeout","result":"error","state":"items 0/5","note":"worktree-isolation launch mismatch; relaunch isolated to question-gates-retro"}
+{"ts":"2026-09-17T15:00:49.444Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"error"}
+{"ts":"2026-09-17T15:00:49.469Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"closeout spawn 1 error: session isolated to feature worktree feat/question-gates; close-out needs the chore/question-gates-retro worktree. Recovering: switch session to question-gates-retro, re-spawn."}
+{"ts":"2026-09-17T15:01:03.119Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator closeout spawn 1 (error) tokens=105682 (captured post-hoc)"}
+{"ts":"2026-09-17T15:01:43.157Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","phase":"closeout"}
+{"ts":"2026-09-17T15:04:42.178Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.start","phase":"closeout","state":"items 0/5"}
+{"ts":"2026-09-17T15:04:47.172Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P1","title":"Mark a compounding finding and fix its seam"}
+{"ts":"2026-09-17T15:04:48.583Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P2","title":"Allowlist the harness tool on the four SDD orchestrators"}
+{"ts":"2026-09-17T15:04:50.223Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P3","title":"One run id per run; reuse EVENT_SCRIPT, never re-init"}
+{"ts":"2026-09-17T15:04:51.556Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P4","title":"Keep path and identifier tokens out of decision-log bullets"}
+{"ts":"2026-09-17T15:04:52.894Z","run":"run-20260916-194812","spec":"question-gates","type":"task.pick","task":"P6","title":"Revision-History bullet cites post-fix line, describes fix truthfully"}
+{"ts":"2026-09-17T15:04:59.803Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-17T15:13:07.320Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-implementer"}
+{"ts":"2026-09-17T15:13:56.146Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"5/5 landed P1 a26f246 P2 82064d8 P3 478bf4f P4 0542178 P6 8156c82; checks green","tokens":"unknown"}
+{"ts":"2026-09-17T15:15:01.179Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-09-17T15:15:12.929Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-17T15:15:26.701Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-09-17T15:15:37.390Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-09-17T15:16:05.183Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: item P6 pass risk low"}
+{"ts":"2026-09-17T15:17:29.783Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-09-17T15:17:31.167Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-09-17T15:17:32.586Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-17T15:17:33.968Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-09-17T15:17:35.418Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P6","outcome":"done"}

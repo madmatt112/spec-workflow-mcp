@@ -84,3 +84,14 @@ Approved for promotion, each landing with its proposal:
    Revision-History output rule. Lands with P4.
 4. **Mark a compounding finding; fix the seam once.** → `sdd-document-phase` review step.
    Lands with P1.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P1: done — a26f246
+- P2: done — 82064d8
+- P3: done — 478bf4f
+- P4: done — 0542178
+- P6: done — 8156c82
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/47
