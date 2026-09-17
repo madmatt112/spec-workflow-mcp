@@ -104,3 +104,8 @@ Cost: no extra spawn; noted during implementation
 Gate A emission (PHASE gate-a + reword trigger) and gate B assembly (tag grep + class-a fold, put slot b) added to document-phase skill and briefs; gate pass risk low across 8 files.
 Evidence: task 5; harness/skills/sdd-document-phase/SKILL.md, references/briefs.md and 6 plugins mirrors
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:50:07Z · implementation · task 6 · gotcha
+Supervisor gate execution (mode resolution, Gate A ask/record + step-3 resume recheck, Gate B get/ask/delete) added to sdd-continue SKILL; gate pass risk low.
+Evidence: task 6; harness/skills/sdd-continue/SKILL.md and 3 plugins mirrors
+Cost: 1 implementer spawn, 0 fix rounds

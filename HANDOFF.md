@@ -157,7 +157,7 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 5/6; last code commit a8bc34d; next task 6 |
+| State | tasks 6/6; last code commit 6507cad; next completion gate |
 | Fix rounds | task 1: 0 (gate pass, risk low) |
 | Deferred verification | none |
 | Gotchas | none yet |
