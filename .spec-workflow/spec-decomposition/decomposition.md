@@ -286,7 +286,7 @@ overkill at Fable xhigh — cannot be answered, and neither can spec 10's saving
   of a prompt.
 - **The tier change.** The four orchestrators (`sdd-document-orchestrator`,
   `sdd-implementation-orchestrator`, `sdd-closeout-orchestrator`, `sdd-retro-orchestrator`) and
-  `sdd-retro-analyst` move from `claude-fable-5-1` xhigh to `claude-opus-5` high. Nothing else
+  `sdd-retro-analyst` move from `claude-fable-5-1` xhigh to `claude-opus-4-8` high. Nothing else
   moves: drafter and adjudicator stay Fable xhigh; reviewer, implementer and verifier stay
   Opus 4.8 xhigh; reviser and checker stay Sonnet 5 high.
 
@@ -299,7 +299,7 @@ overkill at Fable xhigh — cannot be answered, and neither can spec 10's saving
 - The orchestrators are the tier to cut: their work is to route (spec 6 took orient, briefs
   and events off them), they escalate rulings to the adjudicator, and they hold the longest
   contexts, so xhigh thinking on every tool call is where the spend compounds (one close-out
-  orchestrator spawn on `spec-lint`: 388,958 tokens). Opus 5 high, not Sonnet, on the first
+  orchestrator spawn on `spec-lint`: 388,958 tokens). Opus 4.8 high, not Sonnet, on the first
   cut; a second cut is a retro decision after one measured spec.
 - Effort stays in the agent files; the Agent tool cannot override it. A per-run effort is out
   of scope here and in spec 9.
@@ -314,7 +314,7 @@ supervisor. (3) `harness usage` on the `question-gates` ledger and on a fixture 
 under this spec prints one table each: tokens by phase and agent, orchestrator share per
 phase, and `unknown` only where the source rows say so. (4) `--watch --once` on the
 `review-gate` ledger renders every token total it renders today, and on the fixture ledger
-shows declared Opus 5 high and actual `claude-opus-5` for an orchestrator row. (5) Agent
+shows declared Opus 4.8 high and actual `claude-opus-4-8` for an orchestrator row. (5) Agent
 files, `plugins/` copies and `agent-profiles.json` agree: `npm run check:plugin-assets` and
 `claude plugin validate . --strict` pass; `npm test` is green.
 
