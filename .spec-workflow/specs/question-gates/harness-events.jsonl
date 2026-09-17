@@ -87,3 +87,6 @@
 {"ts":"2026-09-16T23:43:43.281Z","type":"spawn.start","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-16T23:49:44.674Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviser"}
 {"ts":"2026-09-16T23:50:06.651Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","phase":"tasks","round":"2","result":"19 fixed, L-7 rejected; lint clean (1 warning)","tokens":"88998"}
+{"ts":"2026-09-16T23:58:32.550Z","run":"run-20260916-225339","spec":"question-gates","type":"round","phase":"tasks","round":"2","version":"v2","verdict":"converged 0/0/0"}
+{"ts":"2026-09-16T23:58:40.872Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-reviewer"}
+{"ts":"2026-09-16T23:58:52.627Z","run":"run-20260916-225339","spec":"question-gates","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"2","result":"converged 0/0/0","tokens":"109898"}

@@ -59,3 +59,13 @@ Cost: 1 drafter + 2 reviewer + 1 checker + 5 reviser spawns
 Round 1 review: iterate 0 MUST_FIX / 2 SHOULD_FIX / 3 MINOR. First tasks review; lint pass had re-introduced 5 bare-path citations in its own Revision-History bullet, listed as open findings to the round.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer spawn
+
+## 2026-09-16T23:58:32Z · tasks · v2 · gotcha
+Round 2 review: converged 0/0/0, DESIGN_READY yes. v2 delta (R1-1 resume recheck, R1-2 lint-prose cleanup, R1-3 range fix) held; fresh lens = cost of touching existing components. Lint clean but for the ruled-rejected L-7 bridge-missing warning.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-tasks-r2.md
+Cost: 1 reviewer spawn
+
+## 2026-09-16T23:59:55Z · tasks · phase · cleanup
+tasks approved at v2 after 2 rounds; verdict trajectory 0/2/3 -> converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots. Recurring gotcha: reviser Revision-History bullets that describe citation fixes embed bare file paths/identifiers, which spec-lint re-flags as unresolvable citations; the v2 lint brief added a convergence rule (no path/identifier tokens in the decision log) and lint went from 20 findings to 1. R1-1 also amended design.md Component 5 (v3 amended) for Req 2 AC 7's resume recheck.
+Evidence: approval_1789603132726_81g3nqajw; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/question-gates/reviews/adversarial-analysis-tasks-r2.md
+Cost: 1 drafter + 2 reviewer + 3 reviser spawns

@@ -139,3 +139,15 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | codebase-context.md, then design.md — the `gate` action ops (class-a / put / get / delete) on src/tools/harness.ts, the new pure module src/core/veto-rules.ts, the gate-A drafter-extraction surface and the gate-B `[gate-b:...]`/`[gate-c:...]` tagged-finding surface, and the AskUserQuestion `{header, question, options}` contract; decomposition spec 7 is the scope authority (no steering docs). Two MINOR design gaps remain open in adversarial-analysis-design-r2.md (R2-4 harness/ plugin-asset checks in Testing Strategy; R2-5 class-a input hygiene) for the tasks phase to weigh. |
+
+## question-gates — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-09-16 |
+| Rounds | 2; verdicts 0/2/3 -> converged |
+| Approval | `approval_1789603132726_81g3nqajw` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md, then tasks.md — a 6-task forward-only plan (no bridges): task 1 adds pure src/core/veto-rules.ts (computeClassA), task 2 adds the harness `gate` action (class-a/put/get/delete) to src/tools/harness.ts, tasks 3-6 are harness/ prose (formats.md PHASE `gate-a`, sdd-drafter.md gate-A extraction, document-phase SKILL gate-A/gate-B emission, sdd-continue SKILL gate execution) with `sync-plugin-assets` + `check:plugin-assets` + `claude plugin validate` in each Success. design.md v3 (its Component 5 was amended in place — see design.md's `v3 amended` line — for Req 2 AC 7's resume recheck) and requirements.md v4 are the scope authority; no steering docs. Both open design MINORs are closed: R2-4 by tasks D3, R2-5 by tasks D2. Run-level verification (four gate scenarios with/without AskUserQuestion + `npm run build`/`npm test`) is the gate, not an automated task (D6). |

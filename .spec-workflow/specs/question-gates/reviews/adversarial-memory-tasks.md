@@ -1,59 +1,55 @@
 # Adversarial Review Memory — tasks
-
-Last updated: 2026-09-16 (Round 1)
+Last updated: 2026-09-16 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-(none yet — first round)
+- **R1-1 — SHOULD_FIX** (v1): task 6 covered only Req 2 AC 7's receipt write, not its step-3 resume
+  recheck. Fixed in v2 — resume clause added to task 6 body/Leverage(`SKILL.md:122`)/Prompt/Success
+  and to design Component 5 (v3 amended). **Verified resolved in v2 review**: citation `:122` is
+  exactly step 3 rule 4; requirements/design/tasks agree; control flow is implementable. Not recurring.
+- **R1-2 — SHOULD_FIX** (v1): five unresolvable bare paths in the v1 Lint-pass Revision-History
+  bullet. Fixed in v2 by un-fencing to prose. **Verified resolved**: no open `citation-path` on v2;
+  Revision History carries no bare `file:line`.
+- **R1-3 — MINOR** (v1): task 2 Leverage cited task-parser type range not the function. Fixed to
+  `153-356,365-385`. **Verified accurate** at both ends.
 
 ### Partially Accepted
-(none yet)
+(none)
 
 ### Rejected
-(none yet)
+- **R1-4 — MINOR** (v1): task 5 bundles gate A + gate B. Rejected — one-task-per-component (D1); the
+  two are independently coded/tested in one commit with no shared data/ordering. No new evidence in v2.
+- **R1-5 — MINOR** (v1): "external write" keyword has no pinned regex. Rejected — design D7/NFR
+  Reliability leave it implementer-tunable; task 1 requires each keyword tested. No new evidence in v2.
+- **L-7** (lint, warning, bridge-missing): rejected by ruling across v1 and v2; upheld.
 
 ### Unresolved
-- **R1-1 — SHOULD_FIX** — Task 6 covers only AC 7's receipt write; the step-3 resume recheck
-  ("re-ask or fall to record when the receipt is unanswered", Req 2 AC 7 second sentence,
-  `sdd-continue/SKILL.md:122`) is in neither task 6 nor design Component 5. Interrupted gate A
-  silently proceeds to round 1 unanswered. Root is a design gap; task overstates Req 2.7 coverage.
-- **R1-2 — SHOULD_FIX** — Five open ERROR-level citation-path findings (L-8..L-12) in the v1
-  Lint-pass Revision-History bullet (tasks.md lines 87-90): bare `sdd-reviser.md`, two `SKILL.md`,
-  `references/briefs.md`. Fix = code-fence/qualify without rewriting history. Paired qualified
-  citations already sit beside them, so no artifact is wrong — only unresolvable as written.
-- **R1-3 — MINOR** — `parseTasksFromMarkdown` cited at `task-parser.ts:108-128` (the ParsedTask
-  interface); the function is at 153-356. Inherited from approved design Component 2; identifier
-  appears as a call at line 366 so citation-identifier passed.
-- **R1-4 — MINOR** — Task 5 bundles gate A emission + gate B assembly (six behaviors, two files,
-  two independent features) in one task; least-atomic change, would review cleaner split 5a/5b.
-- **R1-5 — MINOR** — "external write" (sixth class-a keyword) has no regex in design Component 1 /
-  requirements D7; implementer invents pattern and test. Module is tunable, so latitude not blocker.
+(none — v2 is converged: MUST_FIX 0, SHOULD_FIX 0)
 
 ## Patterns & Themes
 
-- **Requirement-to-design drift surfaced at the tasks layer.** The strongest finding (R1-1) is a
-  requirements-v4 acceptance criterion (R3-2's AC 7) that design v3 only half-implemented; the
-  tasks doc inherited the half and claimed full coverage. When a requirement AC was added after the
-  matching design version, check the design actually designed all of it before trusting a task's
-  `_Requirements` line.
-- **Lint pass introduced its own residual errors.** Fully-qualifying task-body citations left bare
-  filenames in the historical bullet describing the fix — a recurring hazard of "describe the fix in
-  prose" Revision History. Prefer code-fenced paths in disposition bullets.
-- **Delta citations were all accurate.** The lint commit's fully-qualified paths (tasks 4/5/6) all
-  resolve at both ends. Ordering DAG and component→task coverage are sound; D1 (no bridge/stub) and
-  D5 (no orchestrator edit) both verified against the tree.
+- **Round-2 delta was clean.** Every artifact the v2 response wrote (R1-1 resume recheck, R1-2 path
+  un-fencing, R1-3 range) resolves against the tree and is consistent across requirements/design/tasks.
+  No new claim error was introduced — the failure mode "the previous delta introduces the next MUST_FIX"
+  did not occur here.
+- **Cross-document citation drift is the only residual.** tasks R1-3 corrected `parseTasksFromMarkdown`
+  to `153-356`, but design Component 2 (`design.md:50`) still cites the stale `108-128`. That is a
+  *design* defect, not a tasks finding; logged as an observation only.
+- **Fresh-lens (cost-of-touching) came up empty.** No vitest test pins the harness action enum or the
+  unknown-action message; no test reads harness prose; the only PHASE-enum copies are `formats.md` +
+  `sdd-continue/SKILL.md`; the drafter's three-form MCP grant matches the reviser. Every disturbed
+  consumer (the `plugins/` copies) is covered by each harness/ task's sync + check Success line.
 
 ## Guidance for Next Review
 
-- Re-check R1-1 first: did the reviser add a step-3 receipt check to task 6, or amend design
-  Component 5? If it only reworded the task without adding the check, the gap persists (mark
-  Recurring). Verify against `sdd-continue/SKILL.md` step-3 routing region (rules 4-7, ~lines 112-137).
-- Re-check R1-2: confirm the five paths in the (now-superseded) v1 Lint-pass bullet are code-fenced
-  or qualified; run the citation-path rule mentally over the current Revision History.
-- Fresh lens already applied (sub-agent-with-only-the-prompt). Round 2 should pick a different lens:
-  e.g. the reviser executing task 5 without design.md in context, or the failure-mode lens on the
-  gate-B grep pipeline (reviewer title tag → reviser Revision-History bullet → orchestrator grep):
-  does a dropped tag silently vanish a veto class?
-- Do not re-open: delta citation accuracy (all verified), D1/D5 (verified), L-1..L-6 warnings
-  (dismissed as scoped-citation false positives), L-7 (rejection upheld).
+- The document is converged. If a round 3 is forced, do **not** re-open: R1-1 (verified resolved),
+  R1-2 (verified resolved), R1-3 (verified accurate), R1-4/R1-5 (rejected, no new evidence), L-7,
+  D1/D5, ordering DAG, coverage matrix, the harness-test enum/unknown-action claim, PHASE-enum copies.
+- Two lenses now spent: "sub-agent with only the prompt" (round 1) and "cost of touching an existing
+  component" (round 2). A round-3 lens, if needed, could be the gate-B veto-tag pipeline end to end
+  (reviewer title tag → reviser Revision-History bullet → orchestrator grep → `put` slot b): does a
+  dropped or malformed `[gate-b:Tid]` tag silently vanish a veto class? This spans design Component 4
+  and task 5, and no prior round has traced a malformed-tag failure.
+- Only remaining real-world nit worth a design-side (not tasks-side) touch-up: design Component 2's
+  stale `parseTasksFromMarkdown:108-128` citation.
