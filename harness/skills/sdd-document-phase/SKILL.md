@@ -90,7 +90,9 @@ at the start.
    down to the line before `## Revision History`); over the cap is a finding for
    round 1 (write it into the round section as `Over cap: <n> words`), not a stop.
 5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v1`.
-6. D = 1. Run the Lint step. Go to Step 2.
+6. D = 1. Run the Lint step. In the `requirements` phase and `MODE: normal`, run the
+   **Gate A** step (below), which returns `PHASE: gate-a`; every other phase and mode
+   goes to Step 2.
 
 ## Lint step
 
@@ -117,6 +119,32 @@ It never changes D.
 7. Set `LINT.open` to every `L-n` the `v<D>` Lint-pass bullet (disposition rule 4) names
    rejected, plus every `info` finding. The Lint step runs at most once per version;
    findings left open go to the round prompt.
+
+## Gate A — emit after the v1 lint (requirements, `MODE: normal` only)
+
+Reached from Step 1 item 6, right after the Lint step, only in the `requirements` phase
+and only in `MODE: normal`. A resume never reaches it: once v1 is checkpointed Step 0's
+`nextStep` is `Step 2`, `Step 3` or `Step R`, never `Step 1`, so a review round or a
+revision pass never re-emits gate A (Req 2 AC 3). The drafter already wrote the ranked
+gate-A triples to the server surface when it drafted v1 (`sdd-drafter` gate-A step); you
+never read them and never read the document body.
+
+1. **Reword trigger.** This pass's fixed findings are `LINT.findings` minus `LINT.open`
+   (both on your task list from the Lint step; when `LINT = skipped` there are none).
+   From `grep -n '^#' <document>` take the line range of the `## Decisions taken in this
+   document` section — its heading line through the line before the next `^#` heading (or
+   end of file). Structure read only; never read the section body.
+2. **Re-spawn the drafter if a fix landed there.** If any fixed finding's `line` falls
+   inside that range, a lint fix may have reworded a ranked decision and the surface is
+   stale. Write the gate-A re-spawn brief (`references/briefs.md`) to
+   `reviews/gate-a-brief-requirements.md` and spawn `sdd-drafter` with `Read and execute
+   the instructions in <brief path>`; it re-reads the lint-corrected section, re-extracts
+   and re-ranks the full set, and re-`put`s the complete list (`gate put` overwrites the
+   whole file). Record one `spawn.usage` with `role="gate-a v1"` from its report. If no
+   fixed finding falls in the range, skip this — the v1 surface still holds.
+3. Record `phase.end phase=requirements result=gate-a state=v1`, then report
+   `PHASE: gate-a`, `STATE: v1`, `NEXT: run gate A, then re-spawn requirements`. Do not
+   run Step 2; the supervisor resolves gate A and re-spawns the phase.
 
 ## Step 2 — Review round
 
@@ -239,10 +267,47 @@ Follow `references/cleanup.md` in order: prune, delete the listed files, keep th
 memory file and the context file, retro-log phase summary, HANDOFF section (with the
 carried items from Step 4a, or `none`), commit. Record
 `phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`.
+In the `tasks` phase and `MODE: normal` only, run the **Gate B** step (below) before you
+report, so the veto surface holds the list for the supervisor.
 Then report `PHASE: approved`, `STATE: v<D>`, `NEXT: <next phase> v1` (after tasks:
 `NEXT: implementation`). In the 150 words above the contract, name any scope the
 decomposition entry lists that the document cut or deferred, every ruling, and the
 carried items.
+
+## Gate B — assemble the veto list (tasks, `MODE: normal`, first approval)
+
+Reached from Step 6, before the report, only in the `tasks` phase and only in
+`MODE: normal` — the first time this spec's tasks phase reaches `approved`. In
+`MODE: revision` (an annotation's advisory round or a design-defect revalidation) write
+no list and skip this step (Req 5 AC 6); the supervisor already holds gate B's result.
+You never read the document body.
+
+1. **Class (a).** Call the `harness` tool with `action: gate`, `op: class-a`,
+   `specName: <SPEC>`. It reads `tasks.md` and the `## Sensitive paths` list server-side
+   and returns `data.items: ClassAItem[]` (`{taskId, title, kind, reason, score}`;
+   `score` 2 for a sensitive-path item, 1 for a keyword item). You compute none of it.
+2. **Classes (b)/(c).** Collect the kept tags the reviser recorded:
+   `grep -n -E '\[gate-(b|c):' <document>` over the Revision History lines (a permitted
+   read, the tracking Step 3 item 4 already does for the standoff tally). For each
+   distinct `[gate-b:T<id>]`/`[gate-c:T<id>]` tag take its most recent bullet; keep it as
+   a VetoCandidateItem `{taskId, class: 'b'|'c', reason}` only when that bullet is marked
+   **Rejected** (the task was intentionally kept) — `taskId` and `class` from the tag,
+   `reason` from the bullet's one line. Drop a tag whose latest bullet is **Accepted**
+   (the task was removed).
+3. **Fold into one ranked list.** Map each `ClassAItem` to a `VetoItem`
+   (`taskId`→`taskId`, `reason`→`summary`, `kind`→`class: 'a'`) and each
+   VetoCandidateItem to a `VetoItem` (`taskId`, `reason`→`summary`, `class`). Order all
+   three classes into one list, most consequential first — class (a) items pre-ordered by
+   `score` descending — and assign each `rank` last (1 = most consequential). One list,
+   not three (Req 4 AC 4).
+4. **Compact plan.** Build `tasks: [{id, title}]` for presentation from the task headers:
+   `grep -n -E '^- \[[ xX-]\] [0-9]' <document>` gives each task's number and title (a
+   structure read like `grep -n '^#'`, never the body); strip any `[gate-b:*]`/
+   `[gate-c:*]` tag from a title.
+5. **Put.** Call the `harness` tool with `action: gate`, `op: put`, `slot: b`,
+   `specName: <SPEC>`, and top-level `payload = { tasks: [...], veto: VetoItem[] }`
+   (`gate put` overwrites the whole file). Then finish the Step 6 report as normal
+   (`PHASE: approved`); the supervisor reads slot b before the first implementation spawn.
 
 ## Step R — Revision input
 
