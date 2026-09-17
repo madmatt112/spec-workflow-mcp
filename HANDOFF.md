@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-16, harness v4).** Active spec **`question-gates`**.
-> Live phase **closeout**, state **plan APPROVED (5 proposals: P1,P2,P3,P4,P6)**, last result **retro-ready**.
+> **READ FIRST — SDD routing (2026-09-16, harness v4).** **`question-gates`** is CLOSED — no active spec.
+> Live phase **closeout**, state **plan CLOSED (5/5 items landed; PR #47 open, not merged)**, last result **closed**.
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/question-gates` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/question-gates`).
-> A re-run does: run the close-out phase (implement the APPROVED retrospective plan).
+> A re-run does: no active spec in the roadmap — question-gates is CLOSED; advance by undeferring the next spec. Human: merge PR #47, then run the post-release deferral sweep (`deferrals list tag=verification`).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -165,3 +165,15 @@ From implementation:
 | Deferrals added | 1 (d-1880d115, tag verification); project total 15 deferred |
 | Gotchas | Harness/server changes take effect only after the release republishes and the plugin re-installs, so live gate scenarios 1-4 are deferred to d-1880d115 (tool half verified in-process: build + 1260 tests + plugin validate all green, fixture staged at /tmp/scratchpad/sdd/question-gates/scratch-store/). The `harness` orient/brief MCP tool was not granted to this orchestrator, so Step 0 and every worker brief were assembled by hand — same root cause as d-473aa261. |
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/46 |
+
+## question-gates — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED 2026-09-17; 5/5 items landed (P1, P2, P3, P4, P6), 0 to-do, 0 skipped |
+| Items | P1 a26f246, P2 82064d8, P3 478bf4f, P4 0542178, P6 8156c82 — all harness prose; gate pass risk low; no verifier, no fix rounds, no adjudication |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/47 (branch `chore/question-gates-retro`) — NOT merged |
+| Graduation | Candidates 1-4 promoted with their proposals; candidate 1 (an orchestrator that calls the harness tool must allowlist it) codified in `docs/SDD-HARNESS.md` |
+| Spec store | Bookkeeping committed on `main` (plan CLOSED, retro-log, ledger); code changes ride PR #47 |
+| To-do (human) | 1) Merge PR #47. 2) The harness prose takes effect only after a release republishes and the plugin re-installs (rides the question-gates release, `d-1880d115`). 3) After re-install run `deferrals list tag=verification` and clear `d-473aa261` (P2/P3 runtime: orchestrator reaches the harness tool; one run id per run) and `d-1880d115` (live gate scenarios 1-4). |
+| Gotcha | This close-out orchestrator still lacked the `harness` MCP tool (exactly what P2 fixes), so Step 0 and the worker brief were the hand-assembled ones the prior spawn staged; this resolves once #47 releases and re-installs. |

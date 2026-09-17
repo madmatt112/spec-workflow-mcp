@@ -1,6 +1,6 @@
 # Retrospective plan — question-gates
 
-Status: APPROVED — 2026-09-17
+Status: CLOSED — 2026-09-17
 
 Decided in the retrospective conversation (run run-20260916-194812). The close-out phase
 implements every APPROVED proposal below. Every `harness/` change is a prose edit that

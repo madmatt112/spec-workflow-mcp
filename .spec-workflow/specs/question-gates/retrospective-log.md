@@ -139,3 +139,8 @@ Cost: one wasted close-out spawn; recovered by re-spawn
 5 items landed one commit each (P1 a26f246, P2 82064d8, P3 478bf4f, P4 0542178, P6 8156c82); 0 to-do, 0 skipped. Graduation candidates 1-4 folded into their proposals; candidate 1 (allowlist authoring convention) landed in docs/SDD-HARNESS.md.
 Evidence: gate pass risk low x5; sync-plugin-assets + check:plugin-assets + claude plugin validate --strict all green; PR #47 https://github.com/madmatt112/spec-workflow-mcp/pull/47
 Cost: 1 implementer spawn (~92.6k tokens), 0 verifiers (all pass/low), 0 fix rounds, 5 gate calls
+
+## 2026-09-17T15:20:20Z · closeout · phase · cleanup
+question-gates CLOSED. 5/5 items landed (all harness prose edits, one commit each), 0 to-do, 0 skipped, 0 fix rounds, 0 adjudications. Graduation candidates 1-4 promoted with their proposals (candidate 1 in docs/SDD-HARNESS.md). Plan Status flipped APPROVED to CLOSED.
+Evidence: PR #47 https://github.com/madmatt112/spec-workflow-mcp/pull/47; retrospective-plan.md Close-out section + Status CLOSED; 5 gate calls pass risk low
+Cost: 1 implementer spawn (~92.6k tokens), 0 verifiers, 5 gate calls, 0 fix/adjudicator spawns
