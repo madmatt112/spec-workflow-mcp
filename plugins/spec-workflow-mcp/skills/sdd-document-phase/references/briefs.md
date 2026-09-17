@@ -95,6 +95,27 @@ Every later reviewer, reviser and implementer reads it first.
 - Do not ask questions. Decide, and record the decision in the document.
 ```
 
+## Gate-A re-spawn brief — `reviews/gate-a-brief-requirements.md`
+
+Written by the orchestrator and used only when a v1 lint fix landed inside the
+`## Decisions taken in this document` section (Gate A step). It re-runs the drafter's
+gate-A extraction against the lint-corrected section; it does not rewrite the document.
+
+```markdown
+# Gate-A re-spawn brief — <SPEC> requirements
+
+Read and obey <AGENT_RULES> first.
+
+## Job
+A lint fix changed `<document path>`'s `## Decisions taken in this document` section
+after you wrote v1. Do only your gate-A step again: re-read that section fresh,
+re-extract and re-rank the full set of up to five direction-setting decisions, and
+re-`put` the complete `{ items: [...] }` list through the `harness` tool's `gate` action
+(`op: put`, `slot: a`). A `gate put` overwrites the whole file, so put the complete list,
+not one triple. Do not edit the document or any other file. Report in 40 words or fewer:
+the decision count you put, flags. No file contents.
+```
+
 ## Round section — appended to the scaffold in `reviews/adversarial-prompt-<PHASE>[-rN].md`
 
 Keep the scaffold as written (it already carries the standing directives and the
@@ -143,6 +164,11 @@ verdict block). Append:
   component (its tests, fixtures, query keys, e2e assumptions); intra-document shape
   consistency: every call a later task makes against an artefact an earlier task
   defines>.
+- <tasks phase, gate B: if a task introduces a new external dependency, number it as a
+  normal finding and append `[gate-b:T<task id>]` to that finding's title; if a task does
+  more than the approved requirements ask, append `[gate-c:T<task id>]`. Judge from the
+  tasks and the approved `<spec dir>/requirements.md` — your normal reviewer read. The
+  orchestrator carries the kept ones to the human's gate B; it never reads the body.>
 - Closed by ruling, do not re-open: <none | `<finding id>: <one line>` …>.
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked
@@ -235,6 +261,13 @@ RI-2: <text>>
     a seam: edit and cite both ends under the finding's bullet, never the symptom on one
     side. A finding marked `Compounds: R<k>-<n>` re-flags a seam an earlier round left
     half-fixed; fix both ends now.
+12. Gate-B tags (tasks phase). When a finding's title carries a `[gate-b:T<id>]` (new
+    external dependency) or `[gate-c:T<id>]` (work beyond the approved requirements)
+    tag, begin that finding's Revision History bullet reasoning (rule 4) with the exact
+    tag, so it sits on the same line as the bullet's `Accepted`/`Rejected` disposition:
+    `Accepted` when you removed the task, `Rejected` when you intentionally kept it —
+    say why either way. The orchestrator greps these lines for gate B; a tag left off
+    its Revision History line drops that task from the veto list.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`

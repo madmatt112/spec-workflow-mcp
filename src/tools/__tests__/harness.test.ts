@@ -328,4 +328,129 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(false);
     expect(res.message).toContain('HANDOFF.md');
   });
+
+  // Requirements 4-5 — the `gate` action (design Component 2).
+
+  const writeSensitiveRules = (paths: string[]) =>
+    fs.writeFile(
+      join(tempDir, '.spec-workflow', 'agent-rules.md'),
+      ['# rules', '', '## Sensitive paths', '', ...paths.map(p => `- \`${p}\``), ''].join('\n'),
+    );
+
+  it('gate put then get round-trips the payload', async () => {
+    const payload = { items: [{ header: 'H', question: 'Q?', options: ['x', 'y'] }] };
+    const put = await harnessHandler({ action: 'gate', specName: SPEC, op: 'put', slot: 'a', payload }, context);
+    expect(put.success).toBe(true);
+
+    const get = await harnessHandler({ action: 'gate', specName: SPEC, op: 'get', slot: 'a' }, context);
+    expect(get.success).toBe(true);
+    expect(get.data.present).toBe(true);
+    expect(get.data.payload).toEqual(payload);
+  });
+
+  it('gate delete then get returns present false', async () => {
+    await harnessHandler(
+      { action: 'gate', specName: SPEC, op: 'put', slot: 'b', payload: { tasks: [], veto: [] } }, context,
+    );
+    const del = await harnessHandler({ action: 'gate', specName: SPEC, op: 'delete', slot: 'b' }, context);
+    expect(del.success).toBe(true);
+
+    const get = await harnessHandler({ action: 'gate', specName: SPEC, op: 'get', slot: 'b' }, context);
+    expect(get.success).toBe(true);
+    expect(get.data.present).toBe(false);
+  });
+
+  it('gate get on an absent file returns present false', async () => {
+    const get = await harnessHandler({ action: 'gate', specName: SPEC, op: 'get', slot: 'a' }, context);
+    expect(get.success).toBe(true);
+    expect(get.data.present).toBe(false);
+    expect(get.data.payload).toBe(null);
+  });
+
+  it('gate put fails naming a missing payload and writes nothing', async () => {
+    const put = await harnessHandler({ action: 'gate', specName: SPEC, op: 'put', slot: 'a' }, context);
+    expect(put.success).toBe(false);
+    expect(put.message).toContain('payload');
+    const get = await harnessHandler({ action: 'gate', specName: SPEC, op: 'get', slot: 'a' }, context);
+    expect(get.data.present).toBe(false);
+  });
+
+  // A class-(a) fixture: task 1 declares a sensitive path with no keyword prose,
+  // task 2 fires the `auth` keyword, task 3 is neither.
+  const CLASS_A_TASKS = [
+    '# Tasks', '',
+    '- [ ] 1. Rework the path helper',
+    '  - File: src/core/path-utils.ts',
+    '  _Prompt: Task: adjust the helper | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 2. Add token check',
+    '  - File: src/tools/widget.ts',
+    '  _Prompt: Task: add auth handling | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 3. Plain refactor',
+    '  - File: src/tools/plain.ts',
+    '  _Prompt: Task: rename things | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
+  it('gate class-a ranks a sensitive-path task above a keyword task', async () => {
+    await writeDoc('tasks.md', CLASS_A_TASKS);
+    await writeSensitiveRules(['src/core/path-utils.ts']);
+
+    const res = await harnessHandler({ action: 'gate', specName: SPEC, op: 'class-a' }, context);
+    expect(res.success).toBe(true);
+    const items = res.data.items;
+    expect(items[0].kind).toBe('sensitive-path');
+    expect(items[0].taskId).toBe('1');
+    expect(items[0].score).toBe(2);
+    // The keyword task ranks below the sensitive-path task.
+    const kw = items.find((i: any) => i.taskId === '2' && i.kind === 'keyword');
+    expect(kw).toBeDefined();
+    expect(items[0].score).toBeGreaterThanOrEqual(items[items.length - 1].score);
+  });
+
+  // A header row (no detail lines) whose title carries keywords still gets scanned.
+  const HEADER_TASKS = [
+    '# Tasks', '',
+    '- [ ] 1. Billing migration umbrella',
+    '',
+    '- [ ] 1.1 Do a small thing',
+    '  _Prompt: Task: small | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
+  it('gate class-a fires a keyword on a header row', async () => {
+    await writeDoc('tasks.md', HEADER_TASKS);
+    await writeAgentRules(); // no `## Sensitive paths` list
+    const res = await harnessHandler({ action: 'gate', specName: SPEC, op: 'class-a' }, context);
+    expect(res.success).toBe(true);
+    const fired = res.data.items.filter((i: any) => i.taskId === '1' && i.kind === 'keyword');
+    expect(fired.length).toBeGreaterThan(0);
+  });
+
+  // A task with no `- File:` line — its `files` coalesce to [].
+  const EMPTY_FILES_TASKS = [
+    '# Tasks', '',
+    '- [ ] 1. A config change with no file line',
+    '  _Prompt: Task: tweak config | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
+  it('gate class-a does not crash on a task with no files', async () => {
+    await writeDoc('tasks.md', EMPTY_FILES_TASKS);
+    await writeSensitiveRules(['src/core/path-utils.ts']);
+    const res = await harnessHandler({ action: 'gate', specName: SPEC, op: 'class-a' }, context);
+    expect(res.success).toBe(true);
+    // No file means no path item, but the `config` keyword still fires.
+    expect(res.data.items.every((i: any) => i.kind === 'keyword')).toBe(true);
+    expect(res.data.items.some((i: any) => i.reason.includes('config'))).toBe(true);
+  });
+
+  it('gate class-a does not fail when the sensitive list is missing', async () => {
+    await writeDoc('tasks.md', EMPTY_FILES_TASKS); // no agent-rules.md written ⇒ ENOENT
+    const res = await harnessHandler({ action: 'gate', specName: SPEC, op: 'class-a' }, context);
+    expect(res.success).toBe(true);
+    // Keywords still fire with no sensitive list.
+    expect(res.data.items.some((i: any) => i.kind === 'keyword')).toBe(true);
+  });
 });

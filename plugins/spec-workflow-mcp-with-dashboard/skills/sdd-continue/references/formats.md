@@ -26,7 +26,7 @@ The last lines of every orchestrator's final message. At most 150 words above it
 never file contents.
 
 ```
-PHASE: approved | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
+PHASE: approved | gate-a | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
 SPEC: <slug>
 STAGE: requirements | design | tasks | implementation | retrospective | closeout
 STATE: v<N> | tasks <done>/<total> | items <done>/<total> | n/a
@@ -39,6 +39,7 @@ Meaning of `PHASE`:
 | Value | Who emits it | Supervisor action |
 | --- | --- | --- |
 | `approved` | document orchestrator | Write a HANDOFF row; continue to the next phase. |
+| `gate-a` | document orchestrator | Run gate A, then re-spawn requirements. |
 | `complete` | implementation orchestrator | Write a HANDOFF row; continue (retrospective). |
 | `closed` | close-out orchestrator | Write a HANDOFF row; the spec is finished. |
 | `resume` | any | Budget spent, phase mid-flight. Spawn a fresh orchestrator for the same phase. |

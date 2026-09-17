@@ -1,29 +1,32 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
-import { readFile, readdir, stat, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { dirname, basename, resolve } from 'node:path';
 import { PathUtils } from '../core/path-utils.js';
 import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
 import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
+import { parseSensitivePaths } from '../core/gate-rules.js';
+import { computeClassA, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
 
 /**
- * The `harness` tool (design Components 1-4). One tool, three actions:
+ * The `harness` tool (design Components 1-4). One tool, four actions:
  * `orient` returns the Step 0 state and the next step the SDD orchestrator
  * skills compute by hand today; `brief` writes a worker brief from a named
- * template; `phase-log` regenerates the HANDOFF `## Phase log` rows. It reads
- * only under the resolved spec store through `PathUtils.safeJoin` (the pattern
- * `spec-lint` uses) and spawns no child process. `brief` fills a named
- * server template and writes the worker brief; `phase-log` regenerates the
- * HANDOFF `## Phase log` block for one spec from its `phase.end` events.
+ * template; `phase-log` regenerates the HANDOFF `## Phase log` rows; `gate`
+ * carries the two human gates' payloads across the spec store (design Component
+ * 2). It reads only under the resolved spec store through `PathUtils.safeJoin`
+ * (the pattern `spec-lint` uses) and spawns no child process. `brief` fills a
+ * named server template and writes the worker brief; `phase-log` regenerates
+ * the HANDOFF `## Phase log` block for one spec from its `phase.end` events.
  */
 export const harnessTool: Tool = {
   name: 'harness',
-  description: `SDD harness bookkeeping: orient, brief and phase-log for the orchestrator skills.
+  description: `SDD harness bookkeeping: orient, brief, phase-log and gate for the orchestrator skills.
 
 # Instructions
 Call \`orient\` at Step 0 to get the routing state and the next step for a spec and phase
@@ -31,14 +34,16 @@ in one call, instead of reading many files by hand. For a document phase (requir
 design, tasks) it returns the document version D, the latest analysis index A with its
 verdict, the post-cap marker P, whether the latest analysis is the narrow check, and the
 next step. For \`implementation\` it returns the task counts and the next step; for
-\`closeout\` the plan item counts, the open items by target class, and the next step. The
-tool reads only the spec store; it never spawns a process.`,
+\`closeout\` the plan item counts, the open items by target class, and the next step. Call
+\`gate\` to carry a human gate's payload across the spec store: \`class-a\` computes the
+gate-B class (a) veto items, \`put\`/\`get\`/\`delete\` manage the \`gate-<slot>.json\` file.
+The tool reads only the spec store; it never spawns a process.`,
   inputSchema: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['orient', 'brief', 'phase-log'],
+        enum: ['orient', 'brief', 'phase-log', 'gate'],
         description: 'Which harness action to run',
       },
       specName: {
@@ -67,6 +72,20 @@ tool reads only the spec store; it never spawns a process.`,
         type: 'string',
         description: 'The task id whose block fills an implementer brief (brief action)',
       },
+      op: {
+        type: 'string',
+        enum: ['class-a', 'put', 'get', 'delete'],
+        description: 'The gate op (gate action): class-a computes gate-B class (a); put/get/delete manage the gate-<slot>.json payload',
+      },
+      slot: {
+        type: 'string',
+        enum: ['a', 'b'],
+        description: 'The gate slot (a | b) for gate put/get/delete',
+      },
+      payload: {
+        type: 'object',
+        description: 'The JSON payload object for gate put',
+      },
       projectPath: {
         type: 'string',
         description: 'Absolute path to the workspace under review (optional - uses the server context roots if not provided). When provided it replaces the context workspace, and the shared workflow root holding .spec-workflow is derived from it.',
@@ -94,8 +113,10 @@ export async function harnessHandler(args: any, context: ToolContext): Promise<T
       return briefAction(args, context);
     case 'phase-log':
       return phaseLogAction(args, context);
+    case 'gate':
+      return gateAction(args, context);
     default:
-      return { success: false, message: `Unknown action: ${action}. Use 'orient', 'brief', or 'phase-log'.` };
+      return { success: false, message: `Unknown action: ${action}. Use 'orient', 'brief', 'phase-log', or 'gate'.` };
   }
 }
 
@@ -828,4 +849,145 @@ function rewriteHandoffPhaseLog(handoff: string, spec: string, derived: PhaseRow
   let text = out.join('\n');
   if (!text.endsWith('\n')) text += '\n';
   return text;
+}
+
+// --- gate --------------------------------------------------------------------
+
+/**
+ * `gate` action (design Component 2): the server surface both human gates'
+ * payloads cross. One action, four ops. `class-a` computes the gate-B class (a)
+ * veto items; `put`/`get`/`delete` manage the `specs/<spec>/gate-<slot>.json`
+ * payload file through `PathUtils.safeJoin`, reusing the `briefAction` write
+ * pattern (`selectRoots`, `mkdir`+`writeFile`). It reads only the spec store and
+ * spawns no process.
+ */
+async function gateAction(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { op } = args;
+
+  if (op === 'class-a') {
+    return gateClassA(args, context);
+  }
+
+  if (op !== 'put' && op !== 'get' && op !== 'delete') {
+    return { success: false, message: `gate: unknown op '${op}'. Use 'class-a', 'put', 'get', or 'delete'.` };
+  }
+
+  // put/get/delete address one payload file; slot is `a` or `b` only.
+  const { specName, slot } = args;
+  if (slot !== 'a' && slot !== 'b') {
+    return { success: false, message: `gate ${op}: slot is required and must be 'a' or 'b'` };
+  }
+
+  const { workflowRoot } = selectRoots(args, context);
+  const specDir = PathUtils.getSpecPath(workflowRoot, specName);
+  const gatePath = PathUtils.safeJoin(specDir, `gate-${slot}.json`);
+
+  if (op === 'put') {
+    // A missing or non-object payload fails naming it and writes nothing — the
+    // same fail-fast shape as briefAction's missing-value guard (Error Handling 6).
+    const { payload } = args;
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      return { success: false, message: `gate put: required argument 'payload' (an object) is missing; no file written` };
+    }
+    try {
+      await mkdir(dirname(gatePath), { recursive: true });
+      await writeFile(gatePath, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to write ${gatePath}: ${message}` };
+    }
+    return { success: true, message: `gate put slot=${slot} → ${gatePath}`, data: { path: gatePath } };
+  }
+
+  if (op === 'get') {
+    // ENOENT ⇒ `present: false`, so the supervisor sees an empty surface without
+    // failing (design Component 2, Error Handling 4).
+    let raw: string;
+    try {
+      raw = await readFile(gatePath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return { success: true, message: `gate get slot=${slot}: present=false`, data: { present: false, payload: null } };
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${gatePath}: ${message}` };
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(raw);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `gate get slot=${slot}: ${gatePath} is not valid JSON: ${message}` };
+    }
+    return { success: true, message: `gate get slot=${slot}: present=true`, data: { present: true, payload } };
+  }
+
+  // op === 'delete': ENOENT is a no-op success (Req 5 AC 6).
+  try {
+    await unlink(gatePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      return { success: true, message: `gate delete slot=${slot}: nothing to remove`, data: { removed: false } };
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to delete ${gatePath}: ${message}` };
+  }
+  return { success: true, message: `gate delete slot=${slot} → removed`, data: { removed: true } };
+}
+
+/**
+ * `gate class-a` op: build one `TaskVetoInput` per parsed task from `tasks.md`
+ * (header rows included, absent `files` coalesced to `[]`, `block` from a second
+ * `taskBlock` call, design Component 2 resolving R2-5), read the `## Sensitive
+ * paths` list from `agent-rules.md` at the spec-store root (ENOENT or no heading
+ * gives `null`, mirroring `src/tools/review-gate.ts:177-194`), and return
+ * `computeClassA` (task 1). Read-only.
+ */
+async function gateClassA(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { specName } = args;
+  const { workflowRoot } = selectRoots(args, context);
+  const specDir = PathUtils.getSpecPath(workflowRoot, specName);
+
+  // tasks.md is required for a class-(a) computation; a missing one is an error.
+  const tasksPath = PathUtils.safeJoin(specDir, 'tasks.md');
+  let tasksContent: string;
+  try {
+    tasksContent = await readFile(tasksPath, 'utf-8');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to read ${tasksPath}: ${message}` };
+  }
+
+  // One TaskVetoInput per parsed task, header rows included, files coalesced to
+  // [] when the task declares none, block from a second taskBlock call.
+  const parsed = parseTasksFromMarkdown(tasksContent);
+  const tasks: TaskVetoInput[] = parsed.tasks.map((t) => ({
+    id: t.id,
+    title: t.description,
+    files: t.files ?? [],
+    block: taskBlock(tasksContent, t.id) ?? '',
+  }));
+
+  // The `## Sensitive paths` list from agent-rules.md at the spec-store root;
+  // ENOENT gives null, which computeClassA reads as no path match (Req 4 AC 5).
+  const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
+  const agentRulesPath = PathUtils.safeJoin(specStoreRoot, 'agent-rules.md');
+  let sensitive: string[] | null = null;
+  try {
+    const agentRules = await readFile(agentRulesPath, 'utf-8');
+    sensitive = parseSensitivePaths(agentRules);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${agentRulesPath}: ${message}` };
+    }
+    sensitive = null;
+  }
+
+  const items = computeClassA(tasks, sensitive);
+  return {
+    success: true,
+    message: `gate class-a: ${items.length} item(s) from ${tasks.length} task(s)`,
+    data: { items },
+  };
 }

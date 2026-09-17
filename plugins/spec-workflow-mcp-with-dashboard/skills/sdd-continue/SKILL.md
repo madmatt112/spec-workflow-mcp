@@ -16,7 +16,9 @@ Rules that hold for the whole run:
 - You spawn one orchestrator at a time, in the foreground, and act on its final
   `PHASE:` line. Never poll. Never pass `subagent_type: fork`.
 - Never pass `projectPath` to any spec-workflow MCP tool.
-- Do not ask the user anything before step 5.
+- Do not ask the user anything before step 5, except the two gates — gate A on a
+  `gate-a` return and gate B before the first implementation spawn — which ask only in
+  `block` mode (step 4) and never stall an unattended run.
 - Every stop ends with the status line from `references/formats.md`.
 
 Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
@@ -120,6 +122,14 @@ Apply these rules in order; the first match wins.
    specs completed before this harness have no retrospective) ⇒ the spec is finished.
    Report and stop.
 4. Requirements missing or not approved ⇒ document phase **requirements**.
+   **Gate-A resume recheck.** Before dispatching this phase, if
+   `specs/<spec>/questions.md` exists and holds a `## Gate A` receipt whose decisions are
+   still unanswered (every `answer:` line empty), gate A was emitted but never resolved —
+   an interrupted run. Run the **Gate A** procedure (step 4) now to resolve it (ask in
+   `block` mode or fall to `record`) exactly as for a fresh `PHASE: gate-a`; that
+   procedure re-spawns the requirements orchestrator itself, so do not also dispatch
+   `MODE: normal` straight to round 1 (Req 2 AC 7). An answered or absent receipt ⇒
+   dispatch requirements normally.
 5. Design missing or not approved ⇒ document phase **design**.
 6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
@@ -206,11 +216,20 @@ Act on the final `PHASE:` line of the orchestrator's report:
   then stop and report.
 - `error`: write a HANDOFF row, print the reason, stop.
 - `retro-ready`: write a HANDOFF row, go to step 5.
+- `gate-a`: run the **Gate A** procedure below. It reads the surface, writes the
+  receipt, asks or records, and re-spawns the requirements orchestrator (`MODE: revision`
+  on any changed decision, else `MODE: normal`); continue the dispatch loop on that
+  orchestrator's report.
 - Anything else, or no `PHASE:` line: treat as `error` with reason
   "orchestrator did not report in contract".
 
 **Runaway guard.** More than 12 orchestrator spawns for one phase in this run is an
 `error`.
+
+**Gate B.** Before the first implementation spawn and before worktree entry, run the
+**Gate B** procedure below once — it asks or records, runs at most one advisory
+tasks-revision round, deletes slot b, and returns here. Then apply the worktree rule and
+spawn implementation.
 
 **Worktree rule.** Before the first implementation spawn: if `agent-rules.md` exists
 and contains the line `worktree-per-change: required`, and the worktree check in
@@ -228,6 +247,92 @@ is lost if the next spawn never happens. Use the commit script described in the
 document-phase skill's `references/cleanup.md` (`/tmp/scratchpad/sdd/<spec>/commit-spec-store.sh`,
 written with the Write tool if it does not exist yet), with the message
 `docs(sdd): HANDOFF — <spec> <stage> <PHASE value>`.
+
+### Gate mode resolution
+
+Each gate resolves its own mode every time it runs:
+
+- If `agent-rules.md` exists and carries a top-of-file `gates: block | record` key — the
+  optional key beside `worktree-per-change`, absent by default — use that value.
+- Otherwise `block` when the AskUserQuestion tool is available to you, `record` when it
+  is not.
+- A `block`-mode AskUserQuestion call that is unavailable, errors, or returns denied
+  falls to `record` for that gate and proceeds. It never changes the run ledger's
+  `headless` flag: a `dontAsk` permission rule can deny a call on an attended run, so a
+  denial alone is not proof the run is unattended.
+
+Neither gate ever stalls an unattended run: `record` always writes the questions to
+`questions.md` and proceeds. Neither gate hard-blocks the spec; the only escape hatch is
+stopping the run.
+
+### Gate A
+
+Run this on a `gate-a` return (step 4) and on the step 3 rule 4 resume recheck. You never
+read the spec document — the drafter already wrote the ranked triples to the surface.
+
+1. **Read the surface.** Call the `harness` tool with `action: gate`, `op: get`,
+   `slot: a`, `specName: <spec>`. `data.payload.items` is up to five `GateADecision`
+   `{header, question, options}`, ranked most direction-setting first; `options[0]` is the
+   recorded choice, the rest are the rejected alternatives (at most four options). On
+   `present: false` there is nothing to ask (should not occur after a `gate-a` return) —
+   re-spawn the requirements orchestrator with `MODE: normal` and stop here.
+2. **Receipt, before asking.** Write `specs/<spec>/questions.md` with a `## Gate A`
+   section: one item per decision with its `question`, its `options`, and an empty
+   `answer:` line. Commit it in the spec store repo with the commit script
+   (`docs(sdd): <spec> gate A receipt`). Best-effort — a write or commit failure is logged
+   and the run proceeds (Req 2 AC 7, Req 1 AC 5).
+3. **Resolve the mode** (see **Gate mode resolution**).
+4. **Block — ask.** Ask the decisions with AskUserQuestion: at most five, across at most
+   two calls (four questions per call), each decision offering its `options` verbatim (at
+   most four). A decision is **approve** when the reply selects `options[0]` with no
+   appended free text; anything else — a different option, added free text, or both — is
+   **needs revision**. If the second call is denied, errors, or times out after the first
+   answered, keep the first call's answers and treat the unreturned decisions as
+   `no answer`.
+5. **Record the answers.** Fill each decision's `answer:` line in `questions.md` with its
+   selected option and any free text (or `no answer`) and commit.
+6. **Route.** If any decision needs revision, re-spawn `sdd-document-orchestrator` for
+   `requirements` once with `MODE: revision` and `REVISION_INPUT` naming, per such
+   decision, its new option (if changed) and its free text (if any), so `sdd-reviser`
+   writes v2 covering all of them before the first review round. Otherwise re-spawn with
+   `MODE: normal` to run round 1 on v1.
+7. **Record mode** (AskUserQuestion absent, errored or denied, or `gates: record`): skip
+   the ask, write every decision's `answer:` line as `no answer` in `questions.md`, write
+   a HANDOFF `## Phase log` row (stage `requirements`, state `v1`, result `gate-a`, note
+   `gate A recorded — no human`), commit both together, and re-spawn
+   `sdd-document-orchestrator` for `requirements` with `MODE: normal` to run round 1 on v1
+   unchanged (Req 3).
+
+### Gate B
+
+Run this before the first implementation spawn and before worktree entry. You never read
+the spec document.
+
+1. **Read the surface.** Call the `harness` tool with `action: gate`, `op: get`,
+   `slot: b`, `specName: <spec>`. On `present: false` there is nothing to veto — skip to
+   step 4 (the delete). This is the expected state on every implementation entry after the
+   first, and on an annotate or design-defect re-approval, so gate B runs at most once
+   (Req 5 AC 6). When present, `data.payload` is `{ tasks: [{id, title}], veto:
+   VetoItem[] }` — `VetoItem` `{rank, class, taskId, summary}`, ranked most consequential
+   first.
+2. **Resolve the mode** (see **Gate mode resolution**).
+3. **Ask or record.**
+   - **Block.** Present the compact `tasks` plan and the ranked `veto` list, then ask with
+     AskUserQuestion to approve or annotate. A reply with no free text is **approve** —
+     proceed to step 4. A reply carrying free text on any option is **annotate**: re-spawn
+     `sdd-document-orchestrator` for `tasks` once with `MODE: revision` and
+     `REVISION_INPUT` = the annotation text (bracket it with `spawn.start`/`spawn.end` and
+     call `harness` `phase-log` on its `approved` report, like any dispatch); when it
+     reports `approved`, proceed to step 4. The round is advisory.
+   - **Record** (AskUserQuestion absent, errored or denied, or `gates: record`): write the
+     `veto` list to `specs/<spec>/questions.md` under a `## Gate B` section, write a
+     HANDOFF `## Phase log` row (stage `tasks`, result `gate-b`, note
+     `gate B recorded — no human`), commit both together, and proceed to step 4.
+4. **Delete slot b.** Call the `harness` tool with `action: gate`, `op: delete`,
+   `slot: b`, `specName: <spec>`. A later implementation entry for this spec — the annotate
+   path's own re-approval, a design-defect re-approval, or a fresh resume before any task
+   has run — then finds `present: false` and skips straight to implementation without
+   asking again (Req 5 AC 6). Return to the worktree rule.
 
 ## 5. Retrospective conversation
 
