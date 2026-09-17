@@ -157,7 +157,9 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 6/6; last code commit 6507cad; next completion gate |
-| Fix rounds | task 1: 0 (gate pass, risk low) |
-| Deferred verification | none |
-| Gotchas | none yet |
+| State | implemented 2026-09-16; tasks 6/6; last code commit 6507cad |
+| Fix rounds | none — all six tasks passed the gate at risk low (0 fix rounds, 0 adjudications, 0 task verifiers) |
+| Deferred verification | d-1880d115 |
+| Deferrals added | 1 (d-1880d115, tag verification); project total 15 deferred |
+| Gotchas | Harness/server changes take effect only after the release republishes and the plugin re-installs, so live gate scenarios 1-4 are deferred to d-1880d115 (tool half verified in-process: build + 1260 tests + plugin validate all green, fixture staged at /tmp/scratchpad/sdd/question-gates/scratch-store/). The `harness` orient/brief MCP tool was not granted to this orchestrator, so Step 0 and every worker brief were assembled by hand — same root cause as d-473aa261. |
+| PR | pending |

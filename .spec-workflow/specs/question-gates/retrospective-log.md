@@ -109,3 +109,13 @@ Cost: 1 implementer spawn, 0 fix rounds
 Supervisor gate execution (mode resolution, Gate A ask/record + step-3 resume recheck, Gate B get/ask/delete) added to sdd-continue SKILL; gate pass risk low.
 Evidence: task 6; harness/skills/sdd-continue/SKILL.md and 3 plugins mirrors
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:55:50Z · implementation · phase · harness-defect
+The harness orient/brief MCP tool was not available to this orchestrator, so Step 0 (orient) and all six worker briefs plus the e2e brief were assembled by hand from tasks.md and references/briefs.md instead of via harness orient / harness brief. Same root cause as d-473aa261: the harness tool is absent from the SDD orchestrator agent allowlist.
+Evidence: run-20260916-194812; 6 task briefs + 1 e2e brief assembled manually
+Cost: orchestrator overhead only, no extra spawn
+
+## 2026-09-17T00:55:52Z · implementation · phase · cleanup
+question-gates implemented: 6 tasks, every task gate-pass at risk low, 0 fix rounds, 0 adjudications, 0 verifier spawns for tasks. Spawns: 6 implementers + 1 e2e verifier = 7. Deferrals added: 1 (d-1880d115, verification). End-to-end tool half green (npm run build, npm test 1260 passed/2 skipped, claude plugin validate . --strict); live gate scenarios 1-4 deferred to the plugin/server reinstall.
+Evidence: tasks.md 6/6 [x]; retrospective-log.md; deferral d-1880d115
+Cost: 7 worker spawns

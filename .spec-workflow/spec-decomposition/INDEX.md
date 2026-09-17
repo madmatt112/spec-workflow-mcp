@@ -17,7 +17,8 @@
 | 2 | review-gate | Complete | 10/10 |
 | 3 | spec-lint | Complete | 12/12 |
 | 4 | harness-bookkeeping | Complete | 8/8 |
-| 5 | tighter-reviews | Complete | 29/29 |
+| 5 | question-gates | Complete | 6/6 |
+| 6 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

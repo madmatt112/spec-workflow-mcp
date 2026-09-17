@@ -131,3 +131,6 @@
 {"ts":"2026-09-17T00:49:51.641Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6 commit 6507cad","tokens":"na"}
 {"ts":"2026-09-17T00:50:03.571Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"gate: task 6 pass risk low"}
 {"ts":"2026-09-17T00:50:09.720Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-17T00:51:22.987Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"e2e: scenarios 1-4 need republished plugin+server; verifying tool half in-process, deferring live half"}
+{"ts":"2026-09-17T00:54:23.737Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-verifier"}
+{"ts":"2026-09-17T00:54:42.327Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","phase":"implementation","task":"e2e","result":"VERIFY: pass (deferred)","tokens":"na"}
