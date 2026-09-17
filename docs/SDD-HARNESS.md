@@ -306,3 +306,7 @@ Edit `harness/` only. `npm run sync:plugin-assets` copies it into the three plug
 roots (`npm run build` does this too); `npm run check:plugin-assets` fails in CI when
 the copies drift. `claude plugin validate <plugin root> --strict` validates each
 plugin; `claude plugin validate . --strict` validates the marketplace.
+
+An orchestrator (or any agent) that calls the `harness` tool must allowlist it in its
+frontmatter `tools:` list, in all three plugin-name variants
+(`mcp__spec-workflow__harness` and its two `mcp__plugin_…__harness` forms).
