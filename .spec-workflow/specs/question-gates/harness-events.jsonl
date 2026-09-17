@@ -182,3 +182,7 @@
 {"ts":"2026-09-17T15:17:32.586Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P3","outcome":"done"}
 {"ts":"2026-09-17T15:17:33.968Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P4","outcome":"done"}
 {"ts":"2026-09-17T15:17:35.418Z","run":"run-20260916-194812","spec":"question-gates","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-09-17T15:20:30.511Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.end","phase":"closeout","result":"closed","state":"items 5/5","note":"5/5 landed; PR #47 open not merged; runtime verify deferred d-473aa261/d-1880d115"}
+{"ts":"2026-09-17T15:21:32.187Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","result":"closed"}
+{"ts":"2026-09-17T15:22:07.466Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator closeout spawn 2 tokens=111310 (captured post-hoc); PR #47 open, 5/5 items landed"}
+{"ts":"2026-09-17T15:22:32.013Z","run":"run-20260916-194812","spec":"question-gates","type":"run.end","status":"spec-workflow-mcp:question-gates closeout closed — SDD run complete; PR #46 (impl) + #47 (harness batch) open, unmerged; runtime verify deferred d-473aa261/d-1880d115"}

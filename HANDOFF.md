@@ -16,6 +16,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-17 | question-gates | tasks | v2 | approved | 2 rounds, 0/2/3 -> converged |
 | 2026-09-17 | question-gates | implementation | tasks 6/6 | complete | 6/6 gate-pass risk low, PR #46 checks green, e2e tool half verified, live gates deferred d-1880d115 |
 | 2026-09-17 | question-gates | retrospective |  | retro-ready |  |
+| 2026-09-17 | question-gates | closeout | items 0/5 | error | worktree-isolation launch mismatch; relaunch isolated to question-gates-retro |
+| 2026-09-17 | question-gates | closeout | items 5/5 | closed | 5/5 landed; PR #47 open not merged; runtime verify deferred d-473aa261/d-1880d115 |
 
 ## Current state — 2026-08-04
 
