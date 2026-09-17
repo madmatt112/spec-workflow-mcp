@@ -8,3 +8,12 @@
 {"ts":"2026-09-17T17:50:42.425Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"run.start","model":"claude-fable-5-1","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
 {"ts":"2026-09-17T17:51:42.854Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"note","text":"gate A run by supervisor from gate-a.json: previous run interrupted before gate-a emit, no receipt existed"}
 {"ts":"2026-09-17T17:55:53.497Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"note","text":"gate A: all five decisions delegated by the human ('you choose'); recorded choices kept; D7 not asked"}
+{"ts":"2026-09-17T17:56:37.022Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-17T17:57:21.262Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"phase.start","phase":"requirements","mode":"revision","budget":"4 review rounds","state":"v1"}
+{"ts":"2026-09-17T17:59:46.582Z","type":"spawn.start","run":"run-20260917-175030","spec":"worktree-review-signals","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-17T18:03:03.683Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"interrupted","note":"session ended during the v2 reviser; brief written, document untouched"}
+{"ts":"2026-09-17T18:03:03.708Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","phase":"requirements"}
+{"ts":"2026-09-17T18:03:57.784Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"phase.start","phase":"requirements","mode":"revision","budget":"4 review rounds","state":"v1"}
+{"ts":"2026-09-17T18:03:57.895Z","type":"spawn.start","run":"run-20260917-175030","spec":"worktree-review-signals","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-17T18:12:35.654Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"note","text":"orchestrators and retro analyst repointed to claude-opus-4-8 high (plugin cache edit 2026-09-17)"}
+{"ts":"2026-09-17T18:15:21.636Z","type":"spawn.end","run":"run-20260917-175030","spec":"worktree-review-signals","agent":"sdd-reviser"}
