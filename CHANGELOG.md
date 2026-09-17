@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.8.0] - 2026-09-17
+
+**Question gates** (PR #46, the `question-gates` spec) and its retrospective follow-ups (PR #47).
+
+### Added
+- Two bounded, headless-safe human review gates in the SDD document phase. **Gate A** fires after requirements v1: it surfaces the direction-setting decisions from `## Decisions taken in this document` and asks up to five with AskUserQuestion before the review rounds run; changed answers route to the reviser for v2. **Gate B** fires after the tasks document is approved: it presents the tasks plus one ranked veto list — irreversible or high-blast actions (matched against `## Sensitive paths`), new external dependencies, and work beyond the approved requirements, most consequential first; annotations run one tasks-revision round. Both read `gates: block | record` from `agent-rules.md`, default block when interactive and record when headless, and never stall an unattended run.
+- `veto-rules` module (`src/core/veto-rules.ts`) and a `harness` `gate` action that computes gate B's ranked veto list from the tasks document, with unit tests.
+
+### Changed
+- The four SDD orchestrator agents (`sdd-document`, `sdd-implementation`, `sdd-closeout`, `sdd-retro-orchestrator`) now allowlist the `harness` MCP tool, so `harness orient` and `harness brief` run through the tool instead of falling back to manual assembly (retro P2). `docs/SDD-HARNESS.md` records the authoring convention.
+- Document-phase reviser rules: a compounding finding is marked and its seam fixed at both ends rather than reworded (retro P1); Revision-History and decision-log bullets carry no path or identifier tokens the citation-identifier rule would misread (retro P4); a bullet cites the exact post-fix line and states what the fix did (retro P6).
+- Orchestrator contract: an orchestrator reuses the supervisor's exported `EVENT_SCRIPT` run id and never re-initialises the ledger mid-run (retro P3).
+
 ## [5.7.0] - 2026-09-16
 
 **Harness bookkeeping** (PR #41, the `harness-bookkeeping` spec) and its retrospective follow-ups (PRs #42, #43).
