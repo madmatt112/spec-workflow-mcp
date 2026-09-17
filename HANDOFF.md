@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-16, harness v4).** Active spec **`question-gates`**.
-> Live phase **retrospective**, state **tasks 6/6 (implementation complete, PR #46)**, last result **complete**.
+> Live phase **closeout**, state **plan APPROVED (5 proposals: P1,P2,P3,P4,P6)**, last result **retro-ready**.
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/question-gates` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/question-gates`).
-> A re-run does: run the retrospective (implementation complete; PR #46 open).
+> A re-run does: run the close-out phase (implement the APPROVED retrospective plan).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -15,6 +15,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-16 | question-gates | design | v3 | approved | 3 rounds, 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
 | 2026-09-17 | question-gates | tasks | v2 | approved | 2 rounds, 0/2/3 -> converged |
 | 2026-09-17 | question-gates | implementation | tasks 6/6 | complete | 6/6 gate-pass risk low, PR #46 checks green, e2e tool half verified, live gates deferred d-1880d115 |
+| 2026-09-17 | question-gates | retrospective |  | retro-ready |  |
 
 ## Current state — 2026-08-04
 

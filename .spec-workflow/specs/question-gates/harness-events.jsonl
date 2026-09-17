@@ -143,3 +143,7 @@
 {"ts":"2026-09-17T01:06:19.043Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals"}
 {"ts":"2026-09-17T01:10:28.218Z","type":"spawn.end","run":"run-20260916-194812","spec":"question-gates","agent":"sdd-retro-analyst"}
 {"ts":"2026-09-17T01:10:49.223Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-retro-analyst","role":"proposals","tokens":"45675"}
+{"ts":"2026-09-17T01:11:33.231Z","run":"run-20260916-194812","spec":"question-gates","type":"phase.end","phase":"retrospective","result":"retro-ready"}
+{"ts":"2026-09-17T01:12:13.382Z","run":"run-20260916-194812","spec":"question-gates","type":"spawn.end","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}
+{"ts":"2026-09-17T01:13:59.708Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"orchestrator retrospective spawn 1 tokens=94647 (captured post-hoc)"}
+{"ts":"2026-09-17T14:42:40.455Z","run":"run-20260916-194812","spec":"question-gates","type":"note","text":"retrospective plan APPROVED: P1,P2,P3,P4(a),P6 for close-out; P5/P7/P8 no change; 4 graduation candidates land with their proposals"}
