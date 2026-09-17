@@ -165,7 +165,7 @@ once per run at `/tmp/scratchpad/sdd/<spec>/event.sh` (Write tool) and appends t
 line to the pointer file `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one
 tab-separated line `<main checkout>\t<spec dir>\t<run id>` per active run, which is what
 lets the hooks match each run by the prefix of its cwd. Orchestrators call the script; the launch prompt
-carries its path as `EVENT_SCRIPT`.
+carries its path as `EVENT_SCRIPT`. An orchestrator reuses that `EVENT_SCRIPT`; it never writes a new run id.
 
 ```bash
 #!/bin/bash
