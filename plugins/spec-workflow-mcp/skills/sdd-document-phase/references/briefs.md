@@ -208,7 +208,8 @@ RI-2: <text>>
    `- **<id> — <Accepted | Partially accepted | Rejected> (<severity>).** <what
    changed, or why not>`. If the document carries a `Document version:` header, set it
    to v<D+1>. A Revision-History or decision-log bullet cites findings by id and prose
-   only; it carries no backticked path or identifier token.
+   only; it carries no backticked path or identifier token. State what the fix did, not
+   what it did not, and cite the exact post-fix line the changed text now reads.
 5. Closed by ruling, leave as is: <none | list>.
 6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template's
    task shape; every task numbered; `_Prompt: …_` ends with `_`.
