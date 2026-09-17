@@ -30,7 +30,7 @@ Task 3 registers the `gate-a` PHASE value; task 4 grants the drafter the tool an
   - _Requirements: 1.6, 4.1, 4.2, 4.3, 4.5, 5.6_
   - _Prompt: Task: Extend the harness tool per design Component 2: add gate to the action enum, add op/slot/payload schema properties, and implement gateAction with ops class-a, put, get and delete over the `specs/<spec>/gate-<slot>.json` files, reusing the briefAction write pattern and the computeClassA that task 1 exports. Build each TaskVetoInput with files ?? [] and include header rows (design Component 2, resolving R2-5). A missing or non-object payload on put fails naming it and writes nothing, mirroring briefAction's missing-value guard. | Restrictions: Do not change orient, brief or phase-log; never pass projectPath through; slot is a or b only. | Success: New tests in src/tools/__tests__/harness.test.ts cover put then get round-trip, delete then get present false, get on an absent file present false, class-a ranking a sensitive-path task above a keyword task, a header-row keyword firing, an empty-files task not crashing, and a missing sensitive list not failing; no existing assertion in that file changes (none pins the action enum or the unknown-action message); npx tsc --noEmit clean; npx vitest run src/tools/__tests__/harness.test.ts green._
 
-- [ ] 3. Register the gate-a PHASE value in the supervisor contract
+- [x] 3. Register the gate-a PHASE value in the supervisor contract
   - File: harness/skills/sdd-continue/references/formats.md
   - Add `gate-a` to the report-contract PHASE enum and one PHASE-table row describing it: `gate-a` | document orchestrator | run gate A, then re-spawn requirements.
   - Purpose: Register the new orchestrator return the supervisor routes on (design Component 6).

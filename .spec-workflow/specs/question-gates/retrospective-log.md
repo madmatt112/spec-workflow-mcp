@@ -84,3 +84,8 @@ Cost: 1 implementer spawn, 0 fix rounds
 Harness gate action (class-a/put/get/delete) landed on the first pass; gate pass at risk low despite 299 lines, no verifier needed.
 Evidence: task 2; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
 Cost: 1 implementer spawn, 0 fix rounds
+
+## 2026-09-17T00:26:37Z · implementation · task 3 · gotcha
+formats.md PHASE enum + table row for gate-a; sync regenerated 3 plugins copies; gate pass risk low.
+Evidence: task 3; harness/skills/sdd-continue/references/formats.md and 3 plugins mirrors
+Cost: 1 implementer spawn, 0 fix rounds
