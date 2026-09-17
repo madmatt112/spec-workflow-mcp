@@ -7,3 +7,4 @@
 {"ts":"2026-09-17T17:30:03.312Z","type":"spawn.start","run":"run-20260917-170349","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-17T17:50:42.425Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"run.start","model":"claude-fable-5-1","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
 {"ts":"2026-09-17T17:51:42.854Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"note","text":"gate A run by supervisor from gate-a.json: previous run interrupted before gate-a emit, no receipt existed"}
+{"ts":"2026-09-17T17:55:53.497Z","run":"run-20260917-175030","spec":"worktree-review-signals","type":"note","text":"gate A: all five decisions delegated by the human ('you choose'); recorded choices kept; D7 not asked"}
