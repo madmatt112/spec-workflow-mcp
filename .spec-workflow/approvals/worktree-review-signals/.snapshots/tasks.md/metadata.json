@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/worktree-review-signals/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-18T20:51:07.132Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789764667108_pozu2vt3a",
+      "approvalTitle": "worktree-review-signals tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-18T20:51:12.693Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789764667108_pozu2vt3a",
+      "approvalTitle": "worktree-review-signals tasks v1"
+    }
+  ]
+}

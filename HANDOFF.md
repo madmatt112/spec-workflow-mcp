@@ -208,3 +208,15 @@ From implementation:
 | Carried items | none |
 | Deferred | R2-3 (malformed→null underspecified: a shape-valid, version-1 record with a wrong-typed field can reach the consumer and throw, vs EH #3) and R2-4 (`isAncestorOfHead` reports a git-infra error as `rejected`, emitting a false `head-degraded` note) — both MINOR, left out of the SHOULD_FIX-only pass. See deferrals tag `worktree-review-signals`. |
 | Next phase loads | tasks drafter reads `codebase-context.md`, then this spec's `design.md` and `requirements.md`, and the decomposition entry for `worktree-review-signals`; `structure.md` if present |
+
+## worktree-review-signals — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-18 |
+| Rounds | 1 review round; verdict converged 0/0/3 (r1) |
+| Approval | `approval_1789764667108_pozu2vt3a` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | implementation reads `codebase-context.md` first, then `tasks.md`; 12 tasks, leaf-first order, task 3 carries a `'HEAD'` bridge removed in task 8 |

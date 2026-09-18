@@ -48,3 +48,13 @@ Cost: one false alarm to the human
 design approved at v3 after 3 rounds; verdict trajectory 0/1/1 -> 0/2/2 -> SHOULD_FIX-only corrective pass -> narrow check VERIFIED 2/2; rulings 2 (D11, D3 both refinements); cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept). Two MINOR honesty edges (R2-3, R2-4) deferred.
 Evidence: approval_1789762159323_qb9brmb19; reviews/adversarial-analysis-design-r2.md; reviews/adversarial-analysis-design-r3.md
 Cost: 3 reviewer spawns (r1, r2, narrow check) + 5 reviser spawns (v2 response, v3 SHOULD_FIX-only, 3 lint) + 1 drafter
+
+## 2026-09-18T20:51:03Z · tasks · v1 · gotcha
+Round 1 converged clean: MUST_FIX 0 / SHOULD_FIX 0 / MINOR 3; no gate-B/C; full coverage (11/11 design components, all _Requirements ids exist).
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
+
+## 2026-09-18T20:51:43Z · tasks · phase · cleanup
+tasks approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1789764667108_pozu2vt3a; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer + 1 reviser (lint) spawns, 1 drafter

@@ -87,3 +87,6 @@
 {"ts":"2026-09-18T20:29:27.806Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-18T20:34:10.588Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
 {"ts":"2026-09-18T20:34:32.216Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"tasks","round":"1","result":"ok","tokens":"unknown"}
+{"ts":"2026-09-18T20:50:46.457Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviewer"}
+{"ts":"2026-09-18T20:50:53.346Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged","tokens":"unknown"}
+{"ts":"2026-09-18T20:50:53.366Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/3"}
