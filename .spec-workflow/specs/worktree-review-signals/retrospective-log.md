@@ -63,3 +63,13 @@ Cost: 1 reviewer + 1 reviser (lint) spawns, 1 drafter
 Encoder bump + strip-undefined + 3 round-trip tests. rounds=0, gate-pass risk low.
 Evidence: task 1; commit b9bd32a
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T22:13:10Z · implementation · task 2 · doc-gap
+Component 1 interface pinned constructor(specPath) but its Testing Strategy needs timeoutMs:50; implementer added optional lockOptions second arg (backward compatible).
+Evidence: task 2; src/core/task-state-store.ts; commit 820b198
+Cost: 0 extra spawns (flagged in implementer report)
+
+## 2026-09-18T22:13:23Z · implementation · task 2 · gotcha
+TaskStateStore new module + 7 unit tests. rounds=0, gate-pass risk low.
+Evidence: task 2; commit 820b198
+Cost: 1 implementer spawn, 1 gate

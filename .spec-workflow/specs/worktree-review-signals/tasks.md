@@ -15,7 +15,7 @@ Dependency order: tasks 1 to 5 are independent leaf changes, each leaving the tr
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
   - _Prompt: Task: Implement design Component 10 per requirements 6.1 to 6.4: bump the encoder dependency to 4.x, strip undefined-valued keys in toMCPResponse, and add the round-trip tests | Restrictions: Do not change the encoding carrier or fall back to JSON; keep the methodology text reaching direct callers in full; do not edit e2e files (the e2e decode workaround is out of scope here) | Success: npx tsc --noEmit passes; npx vitest run on the two named test files and src/tools/__tests__/spec-lint.e2e.test.ts passes; the new cases decode a full prepare response and an adversarial response deep-equal to their sources_
 
-- [ ] 2. Create `TaskStateStore` in src/core/task-state-store.ts
+- [x] 2. Create `TaskStateStore` in src/core/task-state-store.ts
   - File: src/core/task-state-store.ts, src/core/__tests__/task-state-store.test.ts, .gitignore
   - Design Component 1 and its Data Models: `TASK_STATE_FILE`, `TaskStateFile` (`version: 1`, `tasks` map), `TaskStateRecord` (`bases` keyed by `normalizeIdentityPath(workspacePath)`, optional `attribution`), `TaskAttribution`; `read` never throws, returns null on a missing, unreadable, malformed or wrong-version file and warns once per file; `recordBase` and `recordAttribution` run inside `withRegistryLock` on `<specPath>/task-state.json.lock`, mutate one field, write `uniqueTempPath(filePath)` then `fs.rename`; an unacquired lock returns false with `console.warn`; a write failure rejects (design Error Handling 10).
   - Add `.spec-workflow/specs/*/task-state.json*` to `.gitignore` beside `:150`.

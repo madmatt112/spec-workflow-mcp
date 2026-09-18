@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 1/12 |
-| Last code commit | b9bd32a (task 1) |
-| Next task | 2 — Create `TaskStateStore` in src/core/task-state-store.ts |
+| State | tasks 2/12 |
+| Last code commit | 820b198 (task 2) |
+| Next task | 3 — Add git helpers and a required base parameter to computeTaskDiff |

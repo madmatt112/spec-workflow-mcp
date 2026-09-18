@@ -101,3 +101,9 @@
 {"ts":"2026-09-18T22:05:28.636Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"abf3262dec886f02f","role":"implement task 1","phase":"implementation","task":"1","result":"logged yes/1 commit b9bd32a"}
 {"ts":"2026-09-18T22:05:51.281Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 1 pass risk low"}
 {"ts":"2026-09-18T22:05:51.326Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T22:06:53.271Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"2","title":"Create TaskStateStore in src/core/task-state-store.ts"}
+{"ts":"2026-09-18T22:06:57.520Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:12:59.594Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:13:10.006Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a3c0c105f64cf40e7","role":"implement task 2","phase":"implementation","task":"2","result":"logged yes/2 commit 820b198"}
+{"ts":"2026-09-18T22:13:23.457Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 2 pass risk low"}
+{"ts":"2026-09-18T22:13:23.501Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
