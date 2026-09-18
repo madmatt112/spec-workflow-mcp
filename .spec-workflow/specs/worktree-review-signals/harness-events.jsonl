@@ -79,3 +79,8 @@
 {"ts":"2026-09-18T20:09:11.865Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"design","round":"3","version":"v3","verdict":"narrow-check VERIFIED 2/2"}
 {"ts":"2026-09-18T20:10:57.958Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"design","result":"approved","state":"v3","note":"2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2"}
 {"ts": "2026-09-18T20:11:18.860Z", "run": "run-20260918-170520", "spec": "worktree-review-signals", "type": "spawn.end", "agent": "sdd-document-orchestrator", "role": "design phase, spawn 2", "result": "approved", "tokens": "198525"}
+{"ts":"2026-09-18T20:11:31.105Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","phase":"tasks"}
+{"ts":"2026-09-18T20:12:14.651Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"tasks","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-18T20:13:34.209Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-18T20:27:36.548Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter"}
+{"ts":"2026-09-18T20:27:46.631Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","round":"0","result":"ok","tokens":"unknown"}

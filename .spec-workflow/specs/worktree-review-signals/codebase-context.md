@@ -132,3 +132,22 @@
 - .spec-workflow/specs/worktree-execution-context/design.md:297-303 — spec 1 Migration; exported-type-shape position at 303.
 - node_modules/@toon-format/toon/package.json — installed 0.8.0, ESM, no `engines`; 4.1.1 is the npm latest, ESM, no `engines`, exports `ToonDecodeError`.
 - .gitignore:150 — `.spec-workflow/specs/*/harness-activity.jsonl`, a per-spec runtime file already ignored.
+
+## Test and config facts added by the tasks phase
+- tsconfig.json:19 — `include: ["src/**/*"]`, so `npx tsc --noEmit` type-checks the `__tests__` files too.
+- vitest.config.ts:7 — unit tests are `src/**/*.{test,spec}.{js,ts}`; `e2e/` is Playwright only.
+- src/core/__tests__/task-diff.test.ts:260-289 — ENOENT and non-repository cases; 291-342 synthetic maxBuffer case; 23 `computeTaskDiff(` call sites.
+- src/core/__tests__/typecheck.test.ts:126-196 — failure-mode taxonomy asserting `reason` with `toBe`; 127-135 `feature-disabled` with `not.toHaveBeenCalled()` at 134; fixtures write no `package.json`.
+- src/tools/__tests__/review-task.test.ts:470-476 — typecheck override literal `feature-disabled` with no `observed`; 482-485 diff override recording its arguments; 538, 544, 585 `diffArgs[0]`/`[1]` assertions.
+- src/__tests__/parity-baseline.test.ts:60-68 — `computeTaskDiff` mock forwarding all arguments; 353, 394 assert call count only.
+- src/dashboard/__tests__/multi-server.test.ts:63-76 — harness with plain-directory `workspacePath` (73) and `workflowRootPath` (74); 109-111 `taskReviewUrl`; no status-route case.
+- src/dashboard/__tests__/task-review-runner.test.ts:22 — imports `NO_REVIEWABLE_FILES_DISCLOSURE`; 19 `methodology:` literal sites feed `buildPrompt` or the handler mock; 159 `buildPrompt` bound through `(runner2 as any)`; 396-415 stand-in agent.
+- src/tools/__tests__/adversarial-review.test.ts:23-26 — `ctx` builds a single-root context; 447 asserts `toContain('## Target document')` only.
+- src/tools/__tests__/projectPath.test.ts:372, :388 — `readdir` on the logs directory, not the spec directory; this file and src/tools/__tests__/root-selection.test.ts call `logImplementationHandler`.
+- src/core/__tests__/registry-lock.test.ts:338 — a lock file created with `flag: 'wx'`.
+- src/core/registry-lock.ts:208 — stale-lock aside path `<lockPath>.<pid>.<n>.stale`; 385-390 `finally` releasing the lock after `fn`.
+- src/tools/adversarial-review.ts:145 — the one `buildScaffoldedPrompt` caller.
+- src/core/lint-tasks.ts:244-245 — tasks coverage matches `\bComponent N\b` case-insensitively inside a task block.
+- docs/TOOLS-REFERENCE.md:460 — `## get-task-review` heading bounds the `review-task` section at 401-459.
+- CHANGELOG.md:8 — `## [5.8.0] - 2026-09-17` is the first entry; no `Unreleased` section exists.
+- `npm view @toon-format/toon version` on 2026-09-18 — 4.1.1.
