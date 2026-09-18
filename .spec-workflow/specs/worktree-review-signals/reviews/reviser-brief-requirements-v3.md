@@ -1,0 +1,33 @@
+# Reviser brief — worktree-review-signals requirements v3
+
+Read and obey /home/mcf/repo/spec-workflow-mcp/.spec-workflow/agent-rules.md first.
+
+## Job
+Produce v3 of `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/requirements.md` in place from the findings below, then report in 150 words or fewer: files touched; each finding as `<id>: accepted | partially accepted | rejected`; citations verified (count); the document's body word count (`head -n $(( $(grep -n '^## Revision History' <doc> | cut -d: -f1) - 1 )) <doc> | wc -w`); flags. No file contents.
+
+## Inputs
+- Context file: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/codebase-context.md`. Read it first; it maps the code the document cites.
+- Document: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/requirements.md` (v2). Cap: requirements 3,500 words, body only (H1 through the line before `## Revision History`; the Revision History does not count). The body is at 3,500 now: do not grow it past the cap; a fix that adds a sentence removes one.
+- Findings: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-requirements.md` (round 1: R1-1 MUST_FIX, R1-2 MUST_FIX, R1-3 SHOULD_FIX, R1-4 SHOULD_FIX; verdict iterate 2/2/0). See `## Findings` below for the lint carry-over.
+- Memory: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-memory-requirements.md` (read; do not write it — the reviewer maintains it). Read `## Guidance for Next Review`. When it names another place where an accepted finding's defect occurs, fix that place under the same finding's bullet as `also applied to <where>`. This is not widening scope.
+- Gate A: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/questions.md` approved the document's decisions D1, D3, D5, D6, D7 unchanged. R1-2 asks you to make D3's split explicit where the acceptance criteria read it, not to reverse D3. Keep every recorded choice; if a fix must change a D-decision's substance, do it only with code evidence and flag it in your report.
+- Decomposition entry: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/spec-decomposition/decomposition.md`, grep for `worktree-review-signals`; it fixes the scope.
+- You may call the spec-workflow `adversarial-response` tool (`specName: worktree-review-signals`, `phase: requirements`) for the response methodology. Ignore its instructions to present to a user, wait, or delete approvals.
+- Code lives under `/home/mcf/repo/spec-workflow-mcp`. Use absolute paths.
+
+## Disposition rules
+1. Assess every finding on its merits: accept, partially accept, or reject, each with one line of reasoning. Never accept to be agreeable; never reject to save work. When a finding says a rationale clause is false, delete the clause unless you can prove the replacement with a probe; never reword an unproven claim.
+2. Verify every citation you add or change against the real tree under `/home/mcf/repo/spec-workflow-mcp`. Read both ends of a line range. A misstated artifact is a MUST_FIX next round. Write every citation as `path:line` or `path:start-end` with the file path on it; never a bare `:30` that inherits its file from an earlier citation on the line (R1-1 is exactly that defect).
+3. Do not widen scope, and do not re-decide what an earlier phase pinned.
+4. Write v3 in place. Add the Revision History line `- **v3** (2026-09-18) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 2/2/0).` followed by one nested bullet per finding: `- **<id> — <Accepted | Partially accepted | Rejected> (<severity>).** <what changed, or why not>`. A Revision-History or decision-log bullet cites findings by id and prose only; it carries no backticked path or identifier token. State what the fix did, not what it did not, and cite the exact post-fix line the changed text now reads (by requirement and AC number, in prose).
+5. Closed by ruling, leave as is: none.
+6. MDX rule: no bare angle brackets outside code spans.
+7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file belong to others. You may replace a context-file line that an accepted finding refutes: same line, corrected text, the probe that proves it.
+8. Do not ask questions.
+9. After you accept a finding, search the document for every other place with the same construct (the same rule table, command, fixture shape or union member) and fix each; list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. A finding marked `Compounds: R<k>-<n>` lands in text a previous delta wrote: do not reword the clause again. Write one plain sentence of what the clause must claim, delete the old text, and probe the new claim as round 1 would. A claim you cannot probe is deleted, not kept.
+11. A MUST_FIX that names a cross-artifact wire (a producer and its consumer) or an acceptance-criterion contradiction (the AC and the component that implements it) is a seam: edit and cite both ends under the finding's bullet, never the symptom on one side. R1-2 (Req 1 AC1/AC4 against Req 3 AC6 / Req 7 AC3) and R1-4 (Req 1 producer, Req 4 AC5 consumer) are seams.
+
+## Findings
+- Round-1 analysis: `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-requirements.md` — R1-1 (MUST_FIX) Req 1 AC10 bare `:30` resolves to typecheck.ts:30 where MAX_BUFFER is absent; R1-2 (MUST_FIX) per-task record key granularity contradicts itself, cross-workspace attribution (Req 3 AC6 / Req 7 AC3) cannot fire as written; R1-3 (SHOULD_FIX) AC10 requires distinguishing the git-failure cause but runGit discards it; R1-4 (SHOULD_FIX) provenance value `recorded` used across the boundary but never defined by Req 1, Req 4 AC5 specifies no behavior for it. Disposition each under the v3 line per rule 4.
+- Lint carry-over, lower priority: 34 open `citation-identifier` warnings L-1..L-34 are listed under `## This round` in `/home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-prompt-requirements.md` (no v2 lint pass ran). Fix any whose cited range you touch for R1-1..R1-4, and any where the criterion claims the identifier already exists in the cited range (L-2 is R1-1). Leave the rest: an identifier a criterion introduces as new behavior is not a citation defect. Record the lint carry-over as one nested bullet under the v3 line: `- **Lint carry-over.** <n> fixed (L-…); rest left: new-behavior identifiers.`
