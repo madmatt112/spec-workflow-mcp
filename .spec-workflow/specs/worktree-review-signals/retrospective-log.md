@@ -28,3 +28,8 @@ Cost: 1 reviewer spawn (previous run)
 requirements approved at v3 after 2 rounds; verdict trajectory 2/2/0 (r1, v2) -> converged 0/0/2 (r2, v3); rulings 0; cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept).
 Evidence: approval_1789751201977_4rubgz93s; reviews/adversarial-analysis-requirements-r2.md
 Cost: 2 reviewer + 1 reviser spawns
+
+## 2026-09-18T19:17:17Z · design · v1 · ruling
+Round 1: iterate 0/1/1. Reviewer ruled both RE-DECIDED flags refinements (closed): D11 (R4 AC5 feature-disabled emits no degraded note) and D3 (R1 AC11 diffBase.commit is the ref HEAD, not a sha). One SHOULD_FIX R1-1 (prepare round-trip fails with no dashboard: dashboardUrl undefined -> null under toon 4.1.1; AC-4 test masks it). Both probes reproduced.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: 1 reviewer spawn

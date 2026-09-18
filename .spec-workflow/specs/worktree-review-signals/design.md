@@ -1,6 +1,6 @@
 # Design Document
 
-Document version: v1
+Document version: v2
 
 ## Overview
 
@@ -19,7 +19,7 @@ N/A: no visual surface.
 
 ## Architecture
 
-Two writers and one reader share the record: the dashboard status route writes a base keyed by workspace, `log-implementation` writes attribution, `handlePrepare` reads both and never writes. `handlePrepare` resolves the base (validated by ancestry), passes it to `computeTaskDiff`, folds the typecheck's `observed` text and the attribution comparison into `executionContext`, and returns it in `data`; the runner reads `data` through a typed interface, renders the same object, and moves the diff body to a file. The all-drop state becomes a fifth `DiffMethodologyState` kind with its own constants, so no pinned byte moves. The encoder change is a dependency bump proven by probe.
+Two writers and one reader share the record: the dashboard status route writes a base keyed by workspace, `log-implementation` writes attribution, `handlePrepare` reads both and never writes. `handlePrepare` resolves the base (validated by ancestry), passes it to `computeTaskDiff`, folds the typecheck's `observed` text and the attribution comparison into `executionContext`, and returns it in `data`; the runner reads `data` through a typed interface, renders the same object, and moves the diff body to a file. The all-drop state becomes a fifth `DiffMethodologyState` kind with its own constants, so no pinned byte moves. The encoder change is a dependency bump plus an `undefined`-key strip, both probed.
 
 ```mermaid
 graph LR
@@ -93,7 +93,9 @@ graph LR
   export type DiffMethodologyState = { kind: 'present' } | { kind: 'present-truncated' } | { kind: 'empty' } | { kind: 'no-files' } | { kind: 'rejected'; message: string };
   export function computeDiffMethodologyState(result: TaskDiffResult, noReviewableFiles = false): DiffMethodologyState;
   export interface PrepareData {
-    taskContext: TaskContext; implementationSummary: ImplementationSummary; steeringExcerpt: string | null;
+    taskContext: { description: string; requirements: string[]; leverage: string | null; prompt: string | null; promptStructured: PromptSection[] | null };
+    implementationSummary: { summary: string; filesModified: string[]; filesCreated: string[]; statistics: ImplementationLogEntry['statistics']; artifacts: ImplementationLogEntry['artifacts'] };
+    steeringExcerpt: string | null;
     filesToReview: ResolvedFile[]; fileResolution: FileResolutionCounts; hygieneSignals: HygieneSignal[];
     methodology: string; typecheckResults: TypecheckResult[];
     diff: string; diffStats: NonNullable<TaskDiffResult['stats']> | null; skippedPaths: string[]; diffTruncated: boolean;
@@ -101,6 +103,7 @@ graph LR
     executionContext: ExecutionContext;
   }
   ```
+  `taskContext`/`implementationSummary` mirror the literals at `:420-434` (`ParsedTask`, `src/core/task-parser.ts:108-128`; `ImplementationLogEntry`, `types.ts:162-212`); `PromptSection` is `types.ts:146-149`.
   Precedence in `computeDiffMethodologyState`: `rejection` first, then `noReviewableFiles`, then `diff === ''`, then truncation. `nextSteps` (`:512-520`) and `projectContext` (`:521-526`) are unchanged.
   `executionContext.notes`, built here and rendered verbatim by the runner:
   - `head-degraded`: "Name in your review summary that the recorded diff base `<sha>` was rejected and the diff was taken from HEAD."
@@ -169,7 +172,7 @@ graph LR
 
 ### Component 10 — response encoding (`src/types.ts:288-296`, `package.json:72`)
 - **Purpose:** A prepare response decodes with the library that encoded it.
-- **Interfaces:** `@toon-format/toon` moves from `^0.8.0` to `^4.1.1`; `toMCPResponse` is unchanged. Probe (`npx tsx`, node 24): under 0.8.0, `decode(encode({ m }))` for the real 4,783-character methodology (empty diff, `tsc-not-found`) throws `Expected 0 inline array items, but got 1` though every line alone round-trips; under 4.1.1 the same value and a prepare-shaped object round-trip; both versions encode `undefined` as `null` and produce byte-identical text for a small nested object; neither declares `engines`; both are ESM. Consequences: `data.diffStats` is `null` rather than `undefined` when absent, so the decoded value equals the response; `stripMethodology` (`e2e/worktree-shared.spec.ts:81-100`) is deleted and its call sites decode the full text.
+- **Interfaces:** `@toon-format/toon` moves from `^0.8.0` to `^4.1.1` (0.8.0 throws on the real methodology; 4.1.1 round-trips it). `toMCPResponse` (`:288-296`) also clones `response` and recursively deletes `undefined`-valued keys before encoding, closing `projectContext.dashboardUrl` (`types.ts:74`; `undefined` with no dashboard, `server.ts:205`/`:222`; copied `review-task.ts:525`) and `diffStats`. This repository's Vitest `toEqual` equates a deleted key with `undefined`, so `decode(encode(response))` still deep-equals `response`. `stripMethodology` (`e2e/worktree-shared.spec.ts:81-100`) is deleted; call sites decode the full text.
 - **Dependencies:** none.
 - **Reuses:** `handleToolCall` (`src/tools/index.ts:37-91`), the single encoding site.
 
@@ -242,7 +245,7 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 - **Unit, `src/core/__tests__/task-state-store.test.ts` (new):** missing, malformed and wrong-version files read as null; `recordBase` then `recordAttribution` keeps both; two `recordBase` calls for two workspaces under `Promise.all` are both present afterwards (Requirement 7 AC 6); a lock file held open with `'wx'` and `timeoutMs: 50` gives false and no write.
 - **Unit, `src/core/__tests__/task-diff.test.ts`:** every existing call passes `'HEAD'`; a case commits after a recorded base and asserts the committed hunk appears with `base` the recorded sha and not with `'HEAD'`; `:260-293` and `:295-330` are re-asserted as `rejection` naming `ENOENT`, `exit 128` and `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`; `readHeadCommit` on a repository and a plain directory; `isAncestorOfHead` for an ancestor, a commit on a second branch, and garbage.
 - **Unit, `src/core/__tests__/typecheck.test.ts`:** with the fake `tsc` (`:38-44`), a `package.json` naming one missing devDependency gives `dependencies-unresolved`, `observed` names it, and `expect(mockedExecFile).toHaveBeenCalledTimes(0)` (pattern at `:252`; Requirement 7 AC 2); a missing `optionalDependencies` entry passes; no `package.json` spawns; `no-tsconfig` `observed` on both workflow-root arms; every `unavailable` literal carries `observed`.
-- **Unit, `src/tools/__tests__/review-task.test.ts`** (overrides at `:7-38`): `executionContext` present; `head-expected` with no file; `recorded` with an entry for the reviewing workspace while a sibling's entry is ignored; `head-degraded` with a non-ancestor sha; `match`, `mismatch`, `unknown`; a malformed file gives `head-expected`, `unknown` and success; `notes` per state; a fixture-free all-drop case asserting the methodology contains neither the `:675` sentence nor the first sentence of `R4_2A` and contains both new constants; the seventeen fixtures unchanged; `decode(toMCPResponse(response).content[0].text)` `toEqual` the response, with a context carrying `dashboardUrl` (Requirement 6 AC 4).
+- **Unit, `src/tools/__tests__/review-task.test.ts`** (overrides at `:7-38`): `executionContext` present; `head-expected` with no file; `recorded` with an entry for the reviewing workspace while a sibling's entry is ignored; `head-degraded` with a non-ancestor sha; `match`, `mismatch`, `unknown`; a malformed file gives `head-expected`, `unknown` and success; `notes` per state; a fixture-free all-drop case asserting the methodology contains neither the `:675` sentence nor the first sentence of `R4_2A` and contains both new constants; the seventeen fixtures unchanged; `decode(toMCPResponse(response).content[0].text)` `toEqual` the response for a context with and without `dashboardUrl` (Requirement 6 AC 4).
 - **Unit, `src/tools/__tests__/adversarial-review.test.ts`:** the scaffold names both roots; the response round-trips.
 - **Unit, `src/dashboard/__tests__/task-review-runner.test.ts`** (`buildPrompt` bound as at `:159`; stand-in agent at `:396-415`): the execution-context section; the `mismatch` line and note; the containment message verbatim (Requirement 7 AC 5); the diff path in the prompt, the file present when the agent runs and absent after; no file for an empty diff; omitting `executionContext` from the `buildPrompt` call fails `npx tsc --noEmit`.
 - **Unit, `src/tools/__tests__/log-implementation.test.ts`:** attribution with `source: 'context'` and, with `args.projectPath`, `'override'`; a non-repository workspace gives `commit: null` and a written entry.
@@ -256,7 +259,7 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 - D2 — `computeTaskDiff` takes `base` as a required third parameter: a defaulted `'HEAD'`; chosen because the requirement updates every caller and a default hides a caller that forgot.
 - D3 — For `head-expected` and `head-degraded`, `diffBase.commit` is the ref `HEAD`, not its sha: one `rev-parse HEAD` per prepare; chosen because the performance requirement grants one new git spawn per prepare and it is spent on the ancestry check.
 - D4 — Any non-zero exit of `merge-base --is-ancestor` is "not validated": distinguishing exit 1 from 128; chosen because both degrade identically and the sha is named either way.
-- D5 — Encoding: bump `@toon-format/toon` to 4.x and make the prepare payload free of `undefined`: a JSON fallback in `toMCPResponse`, carrying `methodology` in a file, an array-of-lines carrier; chosen because the probe shows 4.1.1 round-trips the failing value with byte-identical small-object output and no tool changes shape.
+- D5 — Encoding: bump `@toon-format/toon` to 4.x and recursively strip `undefined`-valued keys in `toMCPResponse`: per-field `?? null`, a JSON fallback, carrying `methodology` in a file, an array-of-lines carrier; chosen because 4.1.1 round-trips the failing value and a strip closes every optional field.
 - D6 — A repeated in-progress transition overwrites the workspace's base: keep-first; chosen because the route fires only on a real status change and the newer start is the task's current starting point.
 - D7 — The dependency probe checks `<workspace>/node_modules/<name>/package.json` only: node resolution walking parent directories; chosen because `resolveTscBinary` already binds the compiler to the workspace's own `node_modules`.
 - D8 — The probe runs after `resolveTscBinary` and before `spawnTsc`: before the binary lookup; chosen because a missing `node_modules` stays `tsc-not-found`, the behaviour spec 1 recorded.
@@ -286,3 +289,6 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 
 - **v1** (2026-09-18) — Initial draft.
   - **Lint pass.** 16 fixed (L-1, L-2, L-4, L-9, L-10, L-12 to L-21, L-29 — corrected bare paths, widened citation ranges to cover the named identifier, or re-anchored a citation after a mid-bullet file change); rejected: L-3, L-25, L-26 (name a field or paragraph this design adds; it cannot appear in a current-state citation), L-5 to L-8, L-11, L-22 to L-24, L-27, L-28, L-30 (prose word, not a cited identifier), L-31 to L-35 (the citation supports the migration-position ruling, not a claim the identifiers appear in that file).
+- **v2** (2026-09-18) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/1).
+  - **R1-1 — Accepted (SHOULD_FIX).** The prepare response failed its own round trip whenever any optional field held undefined, not only the diff statistics: the dashboard URL is left undefined with no dashboard session and is copied straight into the response. Changed the response-encoding component so the encoding helper clones the response and recursively deletes every undefined-valued key before encoding, then probed that this repository's test-matcher equality treats a deleted key the same as one holding undefined, so the round trip still holds; updated the architecture summary (line 22), the encoding decision's rationale (line 262), and the round-trip test bullet (line 248) to name the same fix and cover a context with and without the dashboard URL, closing the finding at every sibling site.
+  - **R1-2 — Accepted (MINOR).** The exported prepare-data interface named two types that exist nowhere in the source tree. Replaced them with the inline shapes the current literals actually build, sourced from the real parsed-task and implementation-log-entry types, and added a line naming where those types live (lines 96-97, 105).
