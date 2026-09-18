@@ -32,6 +32,19 @@ const BARE_PATH_TASK_ID = '2';
 const WT_A = { name: 'wt-a', marker: 'MARKER-ALPHA', uniqueFile: 'src/only-in-alpha.ts' };
 const WT_B = { name: 'wt-nested', marker: 'MARKER-BETA', uniqueFile: 'src/only-in-beta.ts' };
 
+/**
+ * The one task the recorded-base scenario owns, seeded pending with no log.
+ *
+ * It is driven in-progress through the dashboard route (which records A's HEAD
+ * as the diff base), committed on A's branch and logged through the real tools —
+ * the only sequence that produces a `recorded` base and cross-worktree
+ * attribution on real linked worktrees.
+ */
+const RECORDED_TASK_ID = '3';
+/** Created and committed on A AFTER the base is recorded; its marker must reach the diff. */
+const RECORDED_FILE = 'src/task-recorded.ts';
+const RECORDED_MARKER = 'MARKER-RECORDED';
+
 /** A decoded `ToolResponse` — the MCP text content is TOON, not JSON. */
 interface DecodedToolResponse {
   success: boolean;
@@ -76,27 +89,6 @@ async function pathExists(target: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/**
- * Drops the `methodology` line from a TOON document.
- *
- * Not a convenience: `toMCPResponse` encodes the whole `ToolResponse` with
- * `@toon-format/toon`, and for both tools called here the `methodology` value is
- * a multi-thousand-character markdown blob that the *same library* re-encodes
- * into a document its own `decode` rejects ("Expected 0 inline array items, but
- * got 1"). Verified against the real response: with this one line removed the
- * document decodes and every other field survives intact.
- *
- * Safe as a line filter because TOON puts each value on one physical line —
- * embedded newlines are `\n` escapes, so no quoted value can span into or hide
- * one of these lines. Nothing in this suite asserts on the methodology.
- */
-function stripMethodology(toon: string): string {
-  return toon
-    .split('\n')
-    .filter((line) => !/^\s*methodology:/.test(line))
-    .join('\n');
 }
 
 /**
@@ -182,7 +174,7 @@ async function callToolFromWorktree(params: {
     }
     try {
       return {
-        response: decode(stripMethodology(text)) as unknown as DecodedToolResponse,
+        response: decode(text) as unknown as DecodedToolResponse,
         stderr: stderrText
       };
     } catch (error) {
@@ -240,9 +232,12 @@ function implementationLogMarkdown(taskId: string, filesModified: string[]): str
  * Seeds `tasks.md` and two implementation logs into the SHARED spec — the one
  * in the main checkout, which both worktrees' servers read.
  *
- * One spec, one task list, one log per task, two workspaces. Everything that
- * differs between the two reviews below therefore comes from the workspace,
- * because nothing else differs at all.
+ * One spec, one task list, two workspaces. The first two tasks are complete with
+ * a seeded log each, so everything that differs between their two reviews comes
+ * from the workspace, because nothing else differs at all. The third task is
+ * left PENDING with no log: the recorded-base scenario drives it in-progress,
+ * commits its work and writes its log through the real tools, which is the only
+ * way to exercise a `recorded` diff base and cross-worktree attribution.
  */
 async function seedSharedSpecTasks(repoPath: string): Promise<void> {
   const specDir = join(repoPath, '.spec-workflow', 'specs', SHARED_SPEC_NAME);
@@ -259,6 +254,11 @@ async function seedSharedSpecTasks(repoPath: string): Promise<void> {
       '',
       `- [x] ${BARE_PATH_TASK_ID}. Edit files logged as bare relative paths`,
       '  - _Requirements: 7.2_',
+      '',
+      // Pending, no log: the recorded-base scenario drives it through its own
+      // lifecycle (in-progress via the dashboard route, commit, log-implementation).
+      `- [ ] ${RECORDED_TASK_ID}. Commit work after the base is recorded`,
+      '  - _Requirements: 7.1_',
       ''
     ].join('\n'),
     'utf-8'
@@ -525,6 +525,100 @@ test.describe('Shared worktree specs', () => {
     // document it reads and the scaffold it writes belong to the shared root.
     // Nothing may have been created in the worktree.
     expect(await pathExists(join(worktreeA.path, '.spec-workflow'))).toBe(false);
+  });
+
+  // Scenario 6: a dashboard-started task, committed on A after the base was
+  // recorded, reviews from that base with `recorded` provenance and matching
+  // attribution; the same task reviewed from B is a disclosed attribution
+  // mismatch that still records a verdict (requirements 7.1, 7.3, 6.1).
+  test('reviews committed work from the recorded base and discloses cross-worktree attribution', async () => {
+    const worktreeA = harness.getWorktree(WT_A.name);
+    const worktreeB = harness.getWorktree(WT_B.name);
+    const projectA = registeredProjects.find((project) => project.projectPath === worktreeA.path);
+    expect(projectA, 'project A must be registered').toBeTruthy();
+
+    // 1. The dashboard sets the task in-progress. This is the ONLY site that
+    //    records a diff base, and it records A's current HEAD — before the
+    //    commit below exists.
+    const statusResponse = await fetch(
+      `${DASHBOARD_API_BASE_URL}/api/projects/${projectA!.projectId}/specs/${SHARED_SPEC_NAME}/tasks/${RECORDED_TASK_ID}/status`,
+      {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'in-progress' })
+      }
+    );
+    expect(statusResponse.ok, 'the status route must accept the in-progress transition').toBe(true);
+
+    // 2. Commit the work on A's branch AFTER the base was recorded, so the change
+    //    lives strictly between the recorded base and HEAD. A diff taken from
+    //    `HEAD` would miss it entirely; a diff from the recorded base must carry
+    //    it (requirement 7.1). `commitAll` lands on A's branch alone.
+    await worktreeA.writeFile(RECORDED_FILE, `export const taskRecorded = "${RECORDED_MARKER}";\n`);
+    await worktreeA.commitAll('Implement the recorded-base task on wt-a');
+
+    // 3. Log the work from A. `log-implementation` is attribution's only writer,
+    //    so this records A as the logging workspace and writes the task's log.
+    const { response: loggedFromA } = await callToolFromWorktree({
+      worktreePath: worktreeA.path,
+      repoPath,
+      specWorkflowHome,
+      tool: 'log-implementation',
+      args: {
+        specName: SHARED_SPEC_NAME,
+        taskId: RECORDED_TASK_ID,
+        summary: 'Recorded-base task implemented on wt-a.',
+        filesModified: [RECORDED_FILE],
+        filesCreated: [],
+        statistics: { linesAdded: 1, linesRemoved: 0 },
+        artifacts: {}
+      }
+    });
+    expect(loggedFromA.success, loggedFromA.message).toBe(true);
+
+    // 4. Review from A. The recorded base is an ancestor of HEAD, so the diff
+    //    spans it to the working tree and carries the committed marker, and the
+    //    work was logged from this same workspace.
+    const { response: fromA } = await callToolFromWorktree({
+      worktreePath: worktreeA.path,
+      repoPath,
+      specWorkflowHome,
+      tool: 'review-task',
+      args: { action: 'prepare', specName: SHARED_SPEC_NAME, taskId: RECORDED_TASK_ID }
+    });
+    expect(fromA.success, fromA.message).toBe(true);
+    expect(fromA.data.executionContext.diffBase.provenance).toBe('recorded');
+    expect(fromA.data.diff).toContain(RECORDED_MARKER);
+    expect(fromA.data.executionContext.attribution.state).toBe('match');
+
+    // 5. Review the SAME task from B. Nothing about the task changed, only the
+    //    reviewing workspace — and the work was logged from A, so attribution is
+    //    a mismatch. It is disclosed, not fatal: prepare still succeeds.
+    const { response: fromB } = await callToolFromWorktree({
+      worktreePath: worktreeB.path,
+      repoPath,
+      specWorkflowHome,
+      tool: 'review-task',
+      args: { action: 'prepare', specName: SHARED_SPEC_NAME, taskId: RECORDED_TASK_ID }
+    });
+    expect(fromB.success, fromB.message).toBe(true);
+    expect(fromB.data.executionContext.attribution.state).toBe('mismatch');
+
+    // 6. A verdict is still recordable from B despite the mismatch (requirement 7.3).
+    const { response: recordedFromB } = await callToolFromWorktree({
+      worktreePath: worktreeB.path,
+      repoPath,
+      specWorkflowHome,
+      tool: 'review-task',
+      args: {
+        action: 'record',
+        specName: SHARED_SPEC_NAME,
+        taskId: RECORDED_TASK_ID,
+        verdict: 'pass',
+        summary: 'Reviewed from wt-nested despite the attribution mismatch.'
+      }
+    });
+    expect(recordedFromB.success, recordedFromB.message).toBe(true);
   });
 });
 
