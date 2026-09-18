@@ -107,3 +107,12 @@
 {"ts":"2026-09-18T22:13:10.006Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a3c0c105f64cf40e7","role":"implement task 2","phase":"implementation","task":"2","result":"logged yes/2 commit 820b198"}
 {"ts":"2026-09-18T22:13:23.457Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 2 pass risk low"}
 {"ts":"2026-09-18T22:13:23.501Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T22:13:44.568Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"3","title":"Add git helpers and a required base parameter to computeTaskDiff"}
+{"ts":"2026-09-18T22:13:48.570Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:27:35.161Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:27:43.957Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ae71832aefca8bdba","role":"implement task 3","phase":"implementation","task":"3","result":"logged yes/3 commit 7f95e82"}
+{"ts":"2026-09-18T22:28:04.371Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 3 pass risk high (sensitive-path review-task.ts)"}
+{"ts":"2026-09-18T22:28:20.446Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-18T22:32:57.755Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T22:33:11.255Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"aa1b0d584c1b67cc2","role":"verify task 3","phase":"implementation","task":"3","result":"VERDICT pass"}
+{"ts":"2026-09-18T22:33:11.320Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"3","rounds":"0","outcome":"pass"}

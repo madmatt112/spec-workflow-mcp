@@ -73,3 +73,13 @@ Cost: 0 extra spawns (flagged in implementer report)
 TaskStateStore new module + 7 unit tests. rounds=0, gate-pass risk low.
 Evidence: task 2; commit 820b198
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T22:27:43Z · implementation · task 3 · doc-gap
+Design/brief assumed non-repo git diff HEAD exits 128; observed exit 1 (128 is unborn-HEAD). Tests assert real observed cause.
+Evidence: task 3; src/core/task-diff.ts; commit 7f95e82
+Cost: 0 extra spawns (flagged in report)
+
+## 2026-09-18T22:33:11Z · implementation · task 3 · gotcha
+computeTaskDiff base param + git helpers; high risk (sensitive review-task.ts), verifier VERDICT pass, 0 fix rounds.
+Evidence: task 3; commit 7f95e82; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate

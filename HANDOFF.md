@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 2/12 |
-| Last code commit | 820b198 (task 2) |
-| Next task | 3 — Add git helpers and a required base parameter to computeTaskDiff |
+| State | tasks 3/12 |
+| Last code commit | 7f95e82 (task 3) |
+| Next task | 4 — Make the typecheck degrade honestly |
