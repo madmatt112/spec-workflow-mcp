@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-17, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **requirements**, state **v2**, last result **error (rate limit; run paused for session restart)**.
+> **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
+> Live phase **design**, state **v0**, last result **approved (requirements v3)**.
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: from a RESTARTED session (so orchestrators pick up claude-opus-4-8 high from the plugin cache), re-spawn the requirements orchestrator `MODE: normal` — v2 is checkpointed (c28b8eb, v1 lint applied); the v2 lint brief `reviews/lint-brief-requirements-v2.md` (0 error, 34 citation-identifier warnings) is written but its reviser never ran, so either pass it as revision input or let round 1 run on v2. Gate A is resolved (`specs/worktree-review-signals/questions.md`).
+> A re-run does: spawn the design orchestrator `MODE: normal` (drafts design v1 from requirements v3, `approval_1789751201977_4rubgz93s`). Orchestrators run on claude-opus-4-8 high from the checkout's `plugins/` dir (main ≥ 599bdca). Requirements-approved commit was lost to a 2026-09-18 17:10Z reboot and recovered as 7afda9d.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
