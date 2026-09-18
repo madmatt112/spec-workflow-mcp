@@ -9,6 +9,7 @@ const overrides = vi.hoisted(() => ({
   typecheck: null as null | ((...args: any[]) => any),
   hygiene: null as null | ((...args: any[]) => any),
   diff: null as null | ((...args: any[]) => any),
+  isAncestor: null as null | ((...args: any[]) => any),
 }));
 
 vi.mock('../../core/typecheck.js', async (importOriginal) => {
@@ -35,6 +36,8 @@ vi.mock('../../core/task-diff.js', async (importOriginal) => {
     ...actual,
     computeTaskDiff: (...args: any[]) =>
       overrides.diff ? overrides.diff(...args) : (actual.computeTaskDiff as any)(...args),
+    isAncestorOfHead: (...args: any[]) =>
+      overrides.isAncestor ? overrides.isAncestor(...args) : (actual.isAncestorOfHead as any)(...args),
   };
 });
 
@@ -53,6 +56,7 @@ import {
 import { _resetValidateWarnings } from '../../core/file-resolution.js';
 import { ToolContext, toMCPResponse } from '../../types.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
+import { TaskStateStore } from '../../core/task-state-store.js';
 
 /**
  * `safeRealpath` and `resolveLoggedFiles` moved to `src/core/file-resolution.ts`
@@ -1140,6 +1144,263 @@ describe('handlePrepare integration', () => {
       expect(diagFiles).not.toContain('.ENV');
       expect(diagFiles).not.toContain('package-lock.json');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// executionContext (task 8): the base, typecheck and attribution facts
+// handlePrepare produces once. `isAncestorOfHead` is mocked via
+// `overrides.isAncestor` so these cases are hermetic — the base-resolution
+// branching is under test, not git's ancestry check (task 3 owns that).
+// ---------------------------------------------------------------------------
+
+describe('executionContext (task 8)', () => {
+  let tempDir: string;
+  let specPath: string;
+  let context: ToolContext;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let diffArgs: any[];
+
+  const A = 'a'.repeat(40);
+  const B = 'b'.repeat(40);
+  const C = 'c'.repeat(40);
+  const TYPECHECK_NOTE =
+    "Quote `executionContext.typecheck.observed` where the methodology's item 10 asks you to surface the typecheck degradation.";
+
+  beforeEach(async () => {
+    overrides.typecheck = null;
+    overrides.hygiene = null;
+    overrides.diff = null;
+    overrides.isAncestor = null;
+    resetAllWarnings();
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    diffArgs = [];
+    tempDir = await fs.mkdtemp(join(tmpdir(), 'review-task-exec-ctx-'));
+    specPath = join(tempDir, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specPath, { recursive: true });
+    await fs.writeFile(join(specPath, 'tasks.md'), [
+      '# Tasks',
+      '',
+      '- [-] 1. Implement feature',
+      '  _Requirements: 4.1_',
+      '',
+    ].join('\n'));
+    await fs.mkdir(join(tempDir, 'src'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'src/code.ts'), 'export const x = 1;\n');
+    context = { projectPath: tempDir, workspacePath: tempDir };
+
+    // Defaults: clean typecheck (no note), empty hygiene, an empty diff that
+    // records the base it was handed at arg index 2.
+    overrides.typecheck = async () => [{
+      tsconfigPath: join(tempDir, 'tsconfig.json'),
+      status: 'success',
+      diagnostics: [],
+      coverage: { compiled: [], excluded: [] },
+    }];
+    overrides.hygiene = async () => [];
+    overrides.diff = async (...args: any[]) => {
+      diffArgs = args;
+      return { diff: '', stats: undefined, skippedPaths: [], truncated: false };
+    };
+  });
+
+  afterEach(async () => {
+    overrides.typecheck = null;
+    overrides.hygiene = null;
+    overrides.diff = null;
+    overrides.isAncestor = null;
+    warnSpy.mockRestore();
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function seedLog() {
+    const logManager = new ImplementationLogManager(specPath);
+    await logManager.addLogEntry({
+      taskId: '1',
+      timestamp: new Date().toISOString(),
+      summary: 'Implemented',
+      filesModified: ['src/code.ts'],
+      filesCreated: [],
+      statistics: { linesAdded: 1, linesRemoved: 0, filesChanged: 1 },
+      artifacts: {},
+    });
+  }
+
+  async function runPrepare() {
+    return reviewTaskHandler({ action: 'prepare', specName: 'test-spec', taskId: '1' }, context);
+  }
+
+  it('carries one executionContext object with both roots, never one field name (4.1)', async () => {
+    await seedLog();
+    const result = await runPrepare();
+    expect(result.success).toBe(true);
+    const ec = result.data.executionContext;
+    expect(ec.workspacePath).toBe(tempDir);
+    // workflowRoot is the directory containing .spec-workflow; specWorkflowDir is
+    // the .spec-workflow directory itself — distinct field names, distinct values.
+    expect(ec.workflowRoot).toBe(tempDir);
+    expect(ec.specWorkflowDir).toBe(join(tempDir, '.spec-workflow'));
+    expect(ec.workflowRoot).not.toBe(ec.specWorkflowDir);
+    expect(ec.diffBase.provenance).toBe('head-expected');
+    expect(ec.typecheck.status).toBe('success');
+    expect(ec.attribution.state).toBe('unknown');
+    expect(ec.notes).toEqual([]);
+  });
+
+  it('resolves head-expected from HEAD when no record file exists (1.7)', async () => {
+    await seedLog();
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.diffBase.commit).toBe('HEAD');
+    expect(ec.diffBase.provenance).toBe('head-expected');
+    expect(ec.diffBase.detail).toContain('No diff base is recorded');
+    // The resolved base is what reaches computeTaskDiff at arg index 2.
+    expect(diffArgs[2]).toBe('HEAD');
+    expect(ec.notes).toEqual([]);
+  });
+
+  it('resolves recorded from the reviewing workspace entry, ignoring a sibling (1.4, 1.5)', async () => {
+    await seedLog();
+    const store = new TaskStateStore(specPath);
+    // A sibling worktree recorded a DIFFERENT commit; it must not be selected.
+    await store.recordBase('1', join(tempDir, 'other-worktree'), B);
+    await store.recordBase('1', tempDir, A);
+    overrides.isAncestor = async () => true;
+
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.diffBase.provenance).toBe('recorded');
+    expect(ec.diffBase.commit).toBe(A);
+    expect(ec.diffBase.detail).toContain('Recorded when the task was set in-progress');
+    // The recorded sha — not HEAD, not the sibling's — reaches the diff.
+    expect(diffArgs[2]).toBe(A);
+    expect(ec.notes).toEqual([]);
+  });
+
+  it('resolves head-degraded and diffs from HEAD when the sha is not an ancestor (1.6, 1.8, D3)', async () => {
+    await seedLog();
+    await new TaskStateStore(specPath).recordBase('1', tempDir, C);
+    overrides.isAncestor = async () => false;
+
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.diffBase.provenance).toBe('head-degraded');
+    expect(ec.diffBase.commit).toBe('HEAD');
+    expect(ec.diffBase.detail).toContain(C);
+    expect(ec.diffBase.detail).toContain('not an ancestor of HEAD');
+    // The ref HEAD, not the rejected sha, reaches the diff.
+    expect(diffArgs[2]).toBe('HEAD');
+    expect(ec.notes).toContain(
+      `Name in your review summary that the recorded diff base \`${C}\` was rejected and the diff was taken from HEAD.`
+    );
+  });
+
+  it('reports attribution match when the logged workspace equals the reviewer (3.6)', async () => {
+    await seedLog();
+    await new TaskStateStore(specPath).recordAttribution('1', {
+      workspacePath: tempDir, commit: A, source: 'context', loggedAt: new Date().toISOString(),
+    });
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.attribution).toEqual({ state: 'match', workspacePath: tempDir, commit: A, source: 'context' });
+    expect(ec.notes).toEqual([]);
+  });
+
+  it('reports attribution mismatch and one note when logged from another workspace (3.6, 4.5)', async () => {
+    await seedLog();
+    const other = join(tempDir, 'elsewhere');
+    await new TaskStateStore(specPath).recordAttribution('1', {
+      workspacePath: other, commit: null, source: 'override', loggedAt: new Date().toISOString(),
+    });
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.attribution).toEqual({ state: 'mismatch', workspacePath: other, commit: null, source: 'override' });
+    expect(ec.notes).toContain(
+      `Name in your review summary that this work was logged from \`${other}\`, not from the workspace under review.`
+    );
+  });
+
+  it('reports attribution unknown with no record (3.6)', async () => {
+    await seedLog();
+    const result = await runPrepare();
+    expect(result.data.executionContext.attribution).toEqual({
+      state: 'unknown', workspacePath: null, commit: null, source: null,
+    });
+    expect(result.data.executionContext.notes).toEqual([]);
+  });
+
+  it('degrades to head-expected + unknown + success on a malformed record and still succeeds (3.9)', async () => {
+    await seedLog();
+    await fs.writeFile(join(specPath, 'task-state.json'), '{ not valid json');
+    const result = await runPrepare();
+    expect(result.success).toBe(true);
+    const ec = result.data.executionContext;
+    expect(ec.diffBase.provenance).toBe('head-expected');
+    expect(ec.attribution.state).toBe('unknown');
+    expect(ec.typecheck.status).toBe('success');
+    expect(ec.notes).toEqual([]);
+  });
+
+  it('adds a typecheck note and states observed for an unavailable non-feature-disabled reason (4.5)', async () => {
+    await seedLog();
+    overrides.typecheck = async () => [{
+      tsconfigPath: join(tempDir, 'tsconfig.json'),
+      status: 'unavailable',
+      reason: 'tsc-not-found',
+      observed: 'no `tsc` under node_modules/.bin',
+    }];
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.typecheck).toEqual({ status: 'unavailable', reason: 'tsc-not-found', observed: 'no `tsc` under node_modules/.bin' });
+    expect(ec.notes).toContain(TYPECHECK_NOTE);
+  });
+
+  it('adds no typecheck note when the reason is feature-disabled (D11)', async () => {
+    await seedLog();
+    overrides.typecheck = async () => [{
+      tsconfigPath: join(tempDir, 'tsconfig.json'),
+      status: 'unavailable',
+      reason: 'feature-disabled',
+      observed: 'typecheck is disabled by `features.typecheck: false`',
+    }];
+    const result = await runPrepare();
+    expect(result.data.executionContext.notes).toEqual([]);
+  });
+
+  it('states the timeout observation and adds a note (4.5)', async () => {
+    await seedLog();
+    overrides.typecheck = async () => [{
+      tsconfigPath: join(tempDir, 'tsconfig.json'),
+      status: 'timeout',
+    }];
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.typecheck).toEqual({
+      status: 'timeout',
+      reason: null,
+      observed: `\`tsc\` at \`${join(tempDir, 'tsconfig.json')}\` did not finish within 30 s`,
+    });
+    expect(ec.notes).toContain(TYPECHECK_NOTE);
+  });
+
+  it('orders notes diff-base, attribution, then typecheck when all three degrade (4.5)', async () => {
+    await seedLog();
+    const store = new TaskStateStore(specPath);
+    await store.recordBase('1', tempDir, C);
+    await store.recordAttribution('1', {
+      workspacePath: join(tempDir, 'elsewhere'), commit: null, source: 'context', loggedAt: new Date().toISOString(),
+    });
+    overrides.isAncestor = async () => false;
+    overrides.typecheck = async () => [{
+      tsconfigPath: join(tempDir, 'tsconfig.json'),
+      status: 'timeout',
+    }];
+    const result = await runPrepare();
+    const notes = result.data.executionContext.notes;
+    expect(notes).toHaveLength(3);
+    expect(notes[0]).toContain('recorded diff base');
+    expect(notes[1]).toContain('was logged from');
+    expect(notes[2]).toBe(TYPECHECK_NOTE);
   });
 });
 

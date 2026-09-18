@@ -1,17 +1,19 @@
 import path from 'path';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { ToolContext, ToolResponse, ReviewFinding } from '../types.js';
+import { ToolContext, ToolResponse, ReviewFinding, PromptSection, ImplementationLogEntry } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
-import { resolveLoggedFiles, type DropCause } from '../core/file-resolution.js';
+import { resolveLoggedFiles, type DropCause, type ResolvedFile } from '../core/file-resolution.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { TaskReviewManager, validateVerdictConsistency } from '../core/task-review-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { computeHygieneSignals, HygieneSignal } from '../core/hygiene-signals.js';
 import { runProjectTypecheck, TypecheckResult } from '../core/typecheck.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
-import { computeTaskDiff, TaskDiffResult } from '../core/task-diff.js';
+import { computeTaskDiff, isAncestorOfHead, TaskDiffResult } from '../core/task-diff.js';
 import { selectRoots } from './root-selection.js';
 import { handleGate } from './review-gate.js';
+import { TaskStateStore, type TaskStateRecord } from '../core/task-state-store.js';
+import { normalizeIdentityPath } from '../core/git-utils.js';
 
 const reviewWarnedKeys = new Set<string>();
 
@@ -317,6 +319,54 @@ export interface FileResolutionCounts {
 }
 
 /**
+ * The base, typecheck and attribution facts `handlePrepare` produces once and
+ * both review paths carry verbatim to the reviewing agent (requirement 4.1).
+ *
+ * The two root meanings never share a field name (design D18): `workflowRoot` is
+ * `ToolContext.projectPath`, the directory that CONTAINS `.spec-workflow`;
+ * `specWorkflowDir` is `PathUtils.getWorkflowRoot(projectPath)`, the
+ * `.spec-workflow` directory itself — the same value `projectContext.workflowRoot`
+ * carries under a different name.
+ *
+ * `diffBase.commit` is the recorded sha only for `recorded`; for both fallbacks
+ * it is the ref `HEAD`, not its sha (design D3). `notes` states, per state, the
+ * one degraded fact the methodology cannot; every instruction stays in the
+ * methodology (requirement 4.6).
+ */
+export interface ExecutionContext {
+  workspacePath: string;
+  workflowRoot: string;
+  specWorkflowDir: string;
+  diffBase: { commit: string; provenance: 'recorded' | 'head-expected' | 'head-degraded'; detail: string };
+  typecheck: { status: 'success' | 'unavailable' | 'timeout'; reason: string | null; observed: string | null };
+  attribution: { state: 'match' | 'mismatch' | 'unknown'; workspacePath: string | null; commit: string | null; source: 'context' | 'override' | null };
+  notes: string[];
+}
+
+/**
+ * The prepare response `data` (requirement 4.1). Typed so a field renamed here
+ * fails to compile in `TaskReviewRunner`'s read of the same object (design D16);
+ * `taskContext`/`implementationSummary` mirror the literals built below.
+ */
+export interface PrepareData {
+  taskContext: { description: string; requirements: string[]; leverage: string | null; prompt: string | null; promptStructured: PromptSection[] | null };
+  implementationSummary: { summary: string; filesModified: string[]; filesCreated: string[]; statistics: ImplementationLogEntry['statistics']; artifacts: ImplementationLogEntry['artifacts'] };
+  steeringExcerpt: string | null;
+  filesToReview: ResolvedFile[];
+  fileResolution: FileResolutionCounts;
+  hygieneSignals: HygieneSignal[];
+  methodology: string;
+  typecheckResults: TypecheckResult[];
+  diff: string;
+  diffStats: NonNullable<TaskDiffResult['stats']> | null;
+  skippedPaths: string[];
+  diffTruncated: boolean;
+  diffRejection?: { message: string };
+  hygieneRejection?: { message: string };
+  executionContext: ExecutionContext;
+}
+
+/**
  * True when the task logged files and NONE of them resolved inside the
  * workspace under review — the case requirement 4.20 makes actionable.
  *
@@ -362,6 +412,116 @@ export const NO_REVIEWABLE_FILES_DISCLOSURE =
  */
 export const NO_FILES_METHODOLOGY_HEADER =
   'No workspace files are available for this review: none of the files in the implementation log resolved inside the workspace under review, and no diff was computed. For each item below, state what you could and could not check; an absent file is not a pass.';
+
+/**
+ * The diff base and its provenance for this prepare (design Component 4, D3).
+ * `head-expected` when no record holds a base for the reviewing workspace;
+ * `recorded` when the recorded commit is still an ancestor of HEAD (one git
+ * spawn, bounded by `runGit`'s timeout, degrading to `head-degraded` on hang);
+ * `head-degraded` when it is not. `commit` is the recorded sha only for
+ * `recorded`; both fallbacks diff from the ref `HEAD`.
+ */
+async function resolveDiffBase(
+  record: TaskStateRecord | null,
+  workspacePath: string
+): Promise<ExecutionContext['diffBase']> {
+  const entry = record?.bases[normalizeIdentityPath(workspacePath)];
+  if (!entry) {
+    return {
+      commit: 'HEAD',
+      provenance: 'head-expected',
+      detail: 'No diff base is recorded for this workspace; the diff spans HEAD to the working tree, so committed changes are not shown.',
+    };
+  }
+  if (await isAncestorOfHead(workspacePath, entry.commit)) {
+    return {
+      commit: entry.commit,
+      provenance: 'recorded',
+      detail: `Recorded when the task was set in-progress from the dashboard at \`${entry.recordedAt}\`. The diff spans this commit to the working tree, so changes to the same files committed between it and HEAD are included.`,
+    };
+  }
+  return {
+    commit: 'HEAD',
+    provenance: 'head-degraded',
+    detail: `The recorded base \`${entry.commit}\` is not an ancestor of HEAD in this workspace and was rejected; the diff spans HEAD to the working tree, so committed changes are not shown.`,
+  };
+}
+
+/**
+ * The attribution facts (requirement 3.6). `unknown` with no record; else
+ * `match` when the logged path equals the reviewing workspace after
+ * `normalizeIdentityPath` on both sides (design D12), otherwise `mismatch`. Read
+ * regardless of which workspace is reviewing.
+ */
+function resolveAttribution(
+  record: TaskStateRecord | null,
+  workspacePath: string
+): ExecutionContext['attribution'] {
+  const a = record?.attribution;
+  if (!a) {
+    return { state: 'unknown', workspacePath: null, commit: null, source: null };
+  }
+  const state = normalizeIdentityPath(a.workspacePath) === normalizeIdentityPath(workspacePath)
+    ? 'match'
+    : 'mismatch';
+  return { state, workspacePath: a.workspacePath, commit: a.commit, source: a.source };
+}
+
+/**
+ * The typecheck facts (Data Models). `observed` is the result's own text for
+ * `unavailable`, a fixed sentence for `timeout`, and null for `success`; the
+ * methodology (item 10) owns every directive, this states the fact (4.6).
+ */
+function buildTypecheckContext(result: TypecheckResult): ExecutionContext['typecheck'] {
+  if (result.status === 'success') {
+    return { status: 'success', reason: null, observed: null };
+  }
+  if (result.status === 'timeout') {
+    return {
+      status: 'timeout',
+      reason: null,
+      observed: `\`tsc\` at \`${result.tsconfigPath}\` did not finish within 30 s`,
+    };
+  }
+  return { status: 'unavailable', reason: result.reason, observed: result.observed };
+}
+
+/**
+ * The degraded-fact notes (design Component 4, D10/D11/D12). One per fact the
+ * methodology cannot name: the rejected base, the mismatched log workspace, and
+ * the typecheck degradation (every `unavailable` reason but `feature-disabled`,
+ * and `timeout`). No note for `head-expected`, `recorded`, `match`, `unknown`,
+ * `success` or `feature-disabled`.
+ */
+function buildExecutionNotes(
+  record: TaskStateRecord | null,
+  workspacePath: string,
+  diffBase: ExecutionContext['diffBase'],
+  attribution: ExecutionContext['attribution'],
+  typecheck: ExecutionContext['typecheck']
+): string[] {
+  const notes: string[] = [];
+  if (diffBase.provenance === 'head-degraded') {
+    const rejected = record?.bases[normalizeIdentityPath(workspacePath)]?.commit ?? diffBase.commit;
+    notes.push(
+      `Name in your review summary that the recorded diff base \`${rejected}\` was rejected and the diff was taken from HEAD.`
+    );
+  }
+  if (attribution.state === 'mismatch') {
+    notes.push(
+      `Name in your review summary that this work was logged from \`${attribution.workspacePath}\`, not from the workspace under review.`
+    );
+  }
+  if (
+    typecheck.status === 'timeout' ||
+    (typecheck.status === 'unavailable' && typecheck.reason !== 'feature-disabled')
+  ) {
+    notes.push(
+      "Quote `executionContext.typecheck.observed` where the methodology's item 10 asks you to surface the typecheck degradation."
+    );
+  }
+  return notes;
+}
 
 async function handlePrepare(
   specPath: string,
@@ -476,6 +636,14 @@ async function handlePrepare(
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
 
+    // 6b. Read the per-task record (never throws, never written here) and resolve
+    // the diff base and attribution before the concurrent block. The base feeds
+    // `computeTaskDiff`; a missing, unreadable or malformed record degrades to
+    // `head-expected` + `unknown` and prepare still succeeds (requirement 3.9).
+    const record = await new TaskStateStore(specPath).read(taskId);
+    const diffBase = await resolveDiffBase(record, workspacePath);
+    const attribution = resolveAttribution(record, workspacePath);
+
     // 7. Run typecheck + hygiene + diff concurrently; convert rejections to degraded states.
     // Diff is APPENDED at index 2 — typecheck stays at 0, hygiene at 1.
     // `computeTaskDiff` runs against the workspace (requirement 4.1), and so
@@ -488,7 +656,7 @@ async function handlePrepare(
       }),
       computeHygieneSignals(workspaceFiles, { root: workspacePath, base: ['HEAD'] }),
 
-      computeTaskDiff(workspacePath, workspaceFiles, 'HEAD'),
+      computeTaskDiff(workspacePath, workspaceFiles, diffBase.commit),
     ]);
     const typecheckResults = unwrapTypecheck(settled[0], workspacePath);
     const hygieneResult = unwrapHygiene(settled[1]);
@@ -506,27 +674,44 @@ async function handlePrepare(
       typecheckState
     );
 
+    // 9. Build the one execution-context object both review paths carry
+    // (requirement 4.1). Produced once here; the direct caller reads
+    // `data.executionContext`, the runner renders the same object.
+    const typecheck = buildTypecheckContext(typecheckResults[0]);
+    const executionContext: ExecutionContext = {
+      workspacePath,
+      workflowRoot: projectPath,
+      specWorkflowDir: PathUtils.getWorkflowRoot(projectPath),
+      diffBase,
+      typecheck,
+      attribution,
+      notes: buildExecutionNotes(record, workspacePath, diffBase, attribution, typecheck),
+    };
+
+    const data: PrepareData = {
+      taskContext,
+      implementationSummary,
+      steeringExcerpt,
+      // Labelled `{ path, root, ambiguous }` (requirement 4.18): the reviewer
+      // is told which tree each file came from, not merely handed a path.
+      filesToReview: fileResolution.files,
+      fileResolution: fileResolutionCounts,
+      hygieneSignals: hygieneResult.signals,
+      methodology,
+      typecheckResults,
+      diff: diffResult.diff,
+      diffStats: diffResult.stats ?? null,
+      skippedPaths: diffResult.skippedPaths,
+      diffTruncated: diffResult.truncated,
+      ...(diffResult.rejection !== undefined ? { diffRejection: diffResult.rejection } : {}),
+      ...(hygieneResult.rejection !== undefined ? { hygieneRejection: hygieneResult.rejection } : {}),
+      executionContext,
+    };
+
     return {
       success: true,
       message: `Review context prepared for task '${taskId}'. Read the implementation files and evaluate against the methodology, then call review-task with action: "record".`,
-      data: {
-        taskContext,
-        implementationSummary,
-        steeringExcerpt,
-        // Labelled `{ path, root, ambiguous }` (requirement 4.18): the reviewer
-        // is told which tree each file came from, not merely handed a path.
-        filesToReview: fileResolution.files,
-        fileResolution: fileResolutionCounts,
-        hygieneSignals: hygieneResult.signals,
-        methodology,
-        typecheckResults,
-        diff: diffResult.diff,
-        diffStats: diffResult.stats,
-        skippedPaths: diffResult.skippedPaths,
-        diffTruncated: diffResult.truncated,
-        ...(diffResult.rejection !== undefined ? { diffRejection: diffResult.rejection } : {}),
-        ...(hygieneResult.rejection !== undefined ? { hygieneRejection: hygieneResult.rejection } : {}),
-      },
+      data,
       nextSteps: [
         // Requirement 4.20: on the all-drop path the read-every-file step is
         // REPLACED by the disclosure, not preceded by it.
