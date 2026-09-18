@@ -134,3 +134,9 @@
 {"ts":"2026-09-18T22:52:03.144Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
 {"ts":"2026-09-18T22:52:13.029Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ae258ef4d15baf196","role":"verify task 5","phase":"implementation","task":"5","result":"VERDICT pass"}
 {"ts":"2026-09-18T22:52:13.076Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"5","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-18T22:52:21.329Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"6","title":"Record attribution in log-implementation"}
+{"ts":"2026-09-18T22:52:25.278Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:57:22.338Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:57:35.148Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a25c2697f748b6069","role":"implement task 6","phase":"implementation","task":"6","result":"logged yes/6 commit b453d38"}
+{"ts":"2026-09-18T22:57:53.860Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-18T22:57:53.906Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"6","rounds":"0","outcome":"gate"}

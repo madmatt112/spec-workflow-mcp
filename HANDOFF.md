@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 5/12 |
-| Last code commit | d144ea6 (task 5) |
-| Next task | 6 — Record attribution in log-implementation |
+| State | tasks 6/12 |
+| Last code commit | b453d38 (task 6) |
+| Next task | 7 — Record the diff base in the dashboard status route |

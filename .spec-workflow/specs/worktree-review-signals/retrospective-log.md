@@ -93,3 +93,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate
 no-files diff state + methodology constants; high risk, verifier pass, 0 fix rounds.
 Evidence: task 5; commit d144ea6; review v1
 Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:57:53Z · implementation · task 6 · gotcha
+attribution write in log-implementation (hasProjectPathOverride, recordAttribution); rounds=0, gate-pass risk low.
+Evidence: task 6; commit b453d38
+Cost: 1 implementer spawn, 1 gate
