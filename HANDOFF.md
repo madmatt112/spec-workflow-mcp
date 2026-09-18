@@ -194,3 +194,16 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | design drafter reads `codebase-context.md`, then this spec's `requirements.md` and the decomposition entry; tech.md/structure.md/design-system.md |
+
+## worktree-review-signals — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-18 |
+| Rounds | 2 review rounds + narrow check; verdicts iterate 0/1/1 (r1) → iterate 0/2/2 (r2) → SHOULD_FIX-only pass → narrow check VERIFIED 2/2 |
+| Approval | `approval_1789762159323_qb9brmb19` |
+| Rulings | D11 (R4 AC5 — `feature-disabled` emits no degraded note): refinement, closed. D3 (R1 AC11 — `diffBase.commit` is the ref `HEAD`, not a sha): refinement, closed. |
+| Cut scope | none |
+| Carried items | none |
+| Deferred | R2-3 (malformed→null underspecified: a shape-valid, version-1 record with a wrong-typed field can reach the consumer and throw, vs EH #3) and R2-4 (`isAncestorOfHead` reports a git-infra error as `rejected`, emitting a false `head-degraded` note) — both MINOR, left out of the SHOULD_FIX-only pass. See deferrals tag `worktree-review-signals`. |
+| Next phase loads | tasks drafter reads `codebase-context.md`, then this spec's `design.md` and `requirements.md`, and the decomposition entry for `worktree-review-signals`; `structure.md` if present |

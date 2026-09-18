@@ -43,3 +43,8 @@ Cost: 1 reviewer spawn
 After requirements was approved at v3, a phase-log regeneration appended an 'interrupted' row for an earlier run's unclosed phase.start (run-20260918-162001, stopped by the user) BELOW the approved row, and the watch TUI takes the last row per stage, so it displayed requirements as 'v2 interrupted' while the approval record said approved. The TUI also labelled the design orchestrator fable-5-1 xhigh though its transcript shows only claude-opus-4-8 (the label likely comes from the ledger's run.start model, which is the supervisor's). Fix ideas: order regenerated rows by phase.start time and never after a terminal result for the same stage; label orchestrator rows from the agent definition or the transcript, not run.start.
 Evidence: HANDOFF.md phase log rows 22-23; approval_1789751201977_4rubgz93s; agent-a1c4668cc0cc08640.jsonl model counts
 Cost: one false alarm to the human
+
+## 2026-09-18T20:10:25Z · design · phase · cleanup
+design approved at v3 after 3 rounds; verdict trajectory 0/1/1 -> 0/2/2 -> SHOULD_FIX-only corrective pass -> narrow check VERIFIED 2/2; rulings 2 (D11, D3 both refinements); cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept). Two MINOR honesty edges (R2-3, R2-4) deferred.
+Evidence: approval_1789762159323_qb9brmb19; reviews/adversarial-analysis-design-r2.md; reviews/adversarial-analysis-design-r3.md
+Cost: 3 reviewer spawns (r1, r2, narrow check) + 5 reviser spawns (v2 response, v3 SHOULD_FIX-only, 3 lint) + 1 drafter
