@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 9/12 |
-| Last code commit | e789a50 (task 9) |
-| Next task | 10 — State both roots in the adversarial scaffold |
+| State | tasks 10/12 |
+| Last code commit | aa6def1 (task 10) |
+| Next task | 11 — Document the recording site and the new fields |

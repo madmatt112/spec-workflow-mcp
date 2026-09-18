@@ -161,3 +161,9 @@
 {"ts":"2026-09-18T23:32:53.779Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a556d0b6f6c01bb0c","role":"implement task 9","phase":"implementation","task":"9","result":"logged yes/9 commit e789a50"}
 {"ts":"2026-09-18T23:33:15.194Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 9 pass risk low"}
 {"ts":"2026-09-18T23:33:15.240Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"9","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:33:22.273Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"10","title":"State both roots in the adversarial scaffold"}
+{"ts":"2026-09-18T23:33:26.522Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:35:28.661Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:35:35.152Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a8768b69a44dd946d","role":"implement task 10","phase":"implementation","task":"10","result":"logged yes/10 commit aa6def1"}
+{"ts":"2026-09-18T23:35:49.626Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 10 pass risk low"}
+{"ts":"2026-09-18T23:35:49.672Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"10","rounds":"0","outcome":"gate"}

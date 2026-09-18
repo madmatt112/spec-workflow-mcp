@@ -118,3 +118,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate
 dashboard runner renders execution context + diff-file lifecycle; rounds=0, gate-pass risk low.
 Evidence: task 9; commit e789a50
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:35:49Z · implementation · task 10 · gotcha
+adversarial scaffold names both roots; rounds=0, gate-pass risk low.
+Evidence: task 10; commit aa6def1
+Cost: 1 implementer spawn, 1 gate
