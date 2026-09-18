@@ -71,3 +71,6 @@
 {"ts":"2026-09-18T19:48:52.728Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"reviser"}
 {"ts":"2026-09-18T20:04:09.615Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
 {"ts":"2026-09-18T20:04:22.109Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"reviser v3 SHOULD_FIX-only","round":"2","result":"R2-1 accepted, R2-2 accepted","tokens":"0"}
+{"ts":"2026-09-18T20:05:27.920Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-18T20:06:59.717Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
+{"ts":"2026-09-18T20:07:12.123Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v3","round":"3","result":"3 fixed 26 rejected","tokens":"0"}
