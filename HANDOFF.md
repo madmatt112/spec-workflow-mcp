@@ -19,6 +19,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-17 | question-gates | closeout | items 0/5 | error | worktree-isolation launch mismatch; relaunch isolated to question-gates-retro |
 | 2026-09-17 | question-gates | closeout | items 5/5 | closed | 5/5 landed; PR #47 open not merged; runtime verify deferred d-473aa261/d-1880d115 |
 | 2026-09-17 | worktree-review-signals | requirements | v1 | interrupted | fresh-v1 override: stale split scaffold, orient said Step 2 |
+| 2026-09-18 | worktree-review-signals | requirements | v3 | approved | 2 rounds, iterate then converged |
+| 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
 
 ## Current state — 2026-08-04
 
@@ -180,3 +182,15 @@ From implementation:
 | Spec store | Bookkeeping committed on `main` (plan CLOSED, retro-log, ledger); code changes ride PR #47 |
 | To-do (human) | 1) Merge PR #47. 2) The harness prose takes effect only after a release republishes and the plugin re-installs (rides the question-gates release, `d-1880d115`). 3) After re-install run `deferrals list tag=verification` and clear `d-473aa261` (P2/P3 runtime: orchestrator reaches the harness tool; one run id per run) and `d-1880d115` (live gate scenarios 1-4). |
 | Gotcha | This close-out orchestrator still lacked the `harness` MCP tool (exactly what P2 fixes), so Step 0 and the worker brief were the hand-assembled ones the prior spawn staged; this resolves once #47 releases and re-installs. |
+
+## worktree-review-signals — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-18 |
+| Rounds | 2; verdicts 2/2/0 (r1) → converged 0/0/2 (r2) |
+| Approval | `approval_1789751201977_4rubgz93s` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | design drafter reads `codebase-context.md`, then this spec's `requirements.md` and the decomposition entry; tech.md/structure.md/design-system.md |

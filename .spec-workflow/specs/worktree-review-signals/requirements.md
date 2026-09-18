@@ -1,5 +1,7 @@
 # Requirements Document
 
+Document version: v3
+
 ## Introduction
 
 This spec makes the signal a reviewing agent receives truthful: which commit the diff starts from, whether the typecheck ran, which workspace produced the work, and how those facts reach the prompt on both review paths. It is for developers running agents in parallel git worktrees over one shared `.spec-workflow`, where a task committed on a branch reviews as an empty diff, a half-installed worktree reviews as a flood of module errors, and a dashboard-spawned reviewer never sees diff or context data. It changes `review-task prepare`, `log-implementation`, the dashboard status route, the task-review runner, the adversarial scaffold and the response encoder.

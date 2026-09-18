@@ -18,3 +18,13 @@ Cost: 1 reviewer spawn (131k tokens)
 Orchestrator ruling: skipped the v3 lint reviser spawn. spec-lint on v3 reports 38 warnings, all citation-identifier, 0 error. 33 are the same identifier-is-new-behavior warnings the v1 lint pass rejected with reasons (recorded under the v2 Revision History line) and the v3 reviser re-checked; 5 are on the two lines the v3 delta wrote (Req 1 AC 6 provenance value; the migration note). A third reviser pass on the same warnings buys nothing; the 5 new ones go to the round-2 reviewer as LINT.open, and round 2 attacks the v3 delta first anyway. Harness note: citation-identifier fires on every identifier a criterion introduces as new behavior, so on a requirements document that names new fields it produces a standing wall of warnings; the rule needs a way to mark an identifier as new (or the lint step needs a carry-forward of rejected findings) so it stops re-firing.
 Evidence: spec-lint v2: 34 warnings; spec-lint v3: 38 warnings; requirements.md v2 Revision History lint-pass bullet
 Cost: 0 spawns (saved one ~100k-token reviser spawn)
+
+## 2026-09-18T17:06:36Z · requirements · v3 · gotcha
+Round 2 on v3: converged, MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2, DESIGN_READY yes. Resumed orchestrator acted on the r2 verdict the stopped run left unactioned; no new reviewer spawned. Two MINOR items noted, not blocking.
+Evidence: reviews/adversarial-analysis-requirements-r2.md
+Cost: 1 reviewer spawn (previous run)
+
+## 2026-09-18T17:07:26Z · requirements · phase · cleanup
+requirements approved at v3 after 2 rounds; verdict trajectory 2/2/0 (r1, v2) -> converged 0/0/2 (r2, v3); rulings 0; cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept).
+Evidence: approval_1789751201977_4rubgz93s; reviews/adversarial-analysis-requirements-r2.md
+Cost: 2 reviewer + 1 reviser spawns

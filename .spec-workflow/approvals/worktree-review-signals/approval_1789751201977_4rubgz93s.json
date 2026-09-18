@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789751201977_4rubgz93s",
+  "title": "worktree-review-signals requirements v3",
+  "filePath": ".spec-workflow/specs/worktree-review-signals/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-18T17:06:41.977Z",
+  "category": "spec",
+  "categoryName": "worktree-review-signals",
+  "response": "v3 approved. 2 review rounds: r1 iterate 2/2/0 (v2→v3), r2 converged 0/0/2 (MINOR 2, DESIGN_READY yes, ESCALATE none). No rulings. No cap. Gate A resolved. Carried items: none.",
+  "respondedAt": "2026-09-18T17:06:46.872Z"
+}
