@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 3/12 |
-| Last code commit | 7f95e82 (task 3) |
-| Next task | 4 — Make the typecheck degrade honestly |
+| State | tasks 4/12 |
+| Last code commit | 5268970 (task 4) |
+| Next task | 5 — Add the no-files diff state and its methodology constants |

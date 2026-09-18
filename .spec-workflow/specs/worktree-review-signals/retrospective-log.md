@@ -83,3 +83,8 @@ Cost: 0 extra spawns (flagged in report)
 computeTaskDiff base param + git helpers; high risk (sensitive review-task.ts), verifier VERDICT pass, 0 fix rounds.
 Evidence: task 3; commit 7f95e82; review v1
 Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:42:52Z · implementation · task 4 · gotcha
+typecheck degrades honestly (dependencies-unresolved + observed); high risk, verifier pass, 0 fix rounds.
+Evidence: task 4; commit 5268970; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
