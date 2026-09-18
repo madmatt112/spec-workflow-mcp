@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 8/12 |
-| Last code commit | dcb18ba (task 8) |
-| Next task | 9 — Render the execution context and diff state in the dashboard prompt |
+| State | tasks 9/12 |
+| Last code commit | e789a50 (task 9) |
+| Next task | 10 — State both roots in the adversarial scaffold |

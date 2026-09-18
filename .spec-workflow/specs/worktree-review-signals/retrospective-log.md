@@ -113,3 +113,8 @@ Cost: 0 extra spawns (flagged in report)
 executionContext built in handlePrepare (provenance + attribution + notes), task 3 bridge removed; high risk, verifier pass, 0 fix rounds.
 Evidence: task 8; commit dcb18ba; review v1
 Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T23:33:15Z · implementation · task 9 · gotcha
+dashboard runner renders execution context + diff-file lifecycle; rounds=0, gate-pass risk low.
+Evidence: task 9; commit e789a50
+Cost: 1 implementer spawn, 1 gate
