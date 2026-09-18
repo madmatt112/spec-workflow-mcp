@@ -1,8 +1,8 @@
 ---
 name: sdd-document-orchestrator
 description: SDD document-phase orchestrator: runs one requirements, design, or tasks phase of one spec to agent-side approval using the sdd-document-phase skill. Spawned by the sdd-continue supervisor; not for direct use.
-model: claude-fable-5-1
-effort: xhigh
+model: claude-opus-4-8
+effort: high
 color: blue
 skills:
   - sdd-document-phase
