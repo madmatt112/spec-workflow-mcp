@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 7/12 |
-| Last code commit | c4b24e7 (task 7) |
-| Next task | 8 — Build executionContext in handlePrepare |
+| State | tasks 8/12 |
+| Last code commit | dcb18ba (task 8) |
+| Next task | 9 — Render the execution context and diff state in the dashboard prompt |
