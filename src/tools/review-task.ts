@@ -470,7 +470,7 @@ async function handlePrepare(
       }),
       computeHygieneSignals(workspaceFiles, { root: workspacePath, base: ['HEAD'] }),
 
-      computeTaskDiff(workspacePath, workspaceFiles),
+      computeTaskDiff(workspacePath, workspaceFiles, 'HEAD'),
     ]);
     const typecheckResults = unwrapTypecheck(settled[0], workspacePath);
     const hygieneResult = unwrapHygiene(settled[1]);

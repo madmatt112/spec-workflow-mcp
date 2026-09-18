@@ -33,8 +33,25 @@ const TOTAL_BYTE_CAP = 50_000;
 
 const DIFF_HEADER_RE = /^diff --git a\/(.+) b\/(.+)$/;
 const BINARY_MARKER_RE = /^Binary files .* differ$/m;
+const HEAD_SHA_RE = /^[0-9a-f]{40}$/;
 
-type GitRun = { stdout: string; ok: boolean };
+type GitRun = { stdout: string; ok: boolean; cause?: string };
+
+/** How long any single git invocation may run before it is killed (R2-1). */
+const GIT_TIMEOUT_MS = 10_000;
+
+/**
+ * The `cause` string for a failed git run (design Component 2). Node 20's
+ * execFile callback sets `error.code` to a string system code (`ENOENT`,
+ * `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`) or to the numeric exit code; a killed
+ * (timed-out) process leaves `code` unset, so its `message` is used (7.7).
+ */
+function gitRunCause(err: Error & { code?: unknown }): string {
+  const code = err.code;
+  if (typeof code === 'string') return code;
+  if (typeof code === 'number') return `exit ${code}`;
+  return err.message;
+}
 
 /**
  * Runs git in `projectPath` with the four `GIT_*` location variables scrubbed
@@ -53,12 +70,44 @@ function runGit(projectPath: string, args: string[]): Promise<GitRun> {
       cwd: projectPath,
       env: { ...scrubbedGitEnv(), GIT_OPTIONAL_LOCKS: '0' },
       maxBuffer: MAX_BUFFER,
+      timeout: GIT_TIMEOUT_MS,
     };
     execFile('git', args, opts, (err, stdout) => {
       const stdoutStr = typeof stdout === 'string' ? stdout : stdout?.toString() ?? '';
-      resolve({ stdout: stdoutStr, ok: !err });
+      if (!err) {
+        resolve({ stdout: stdoutStr, ok: true });
+        return;
+      }
+      resolve({ stdout: stdoutStr, ok: false, cause: gitRunCause(err) });
     });
   });
+}
+
+/**
+ * The workspace's `HEAD` commit as a 40-hex sha, or null when `HEAD` does not
+ * resolve — an unborn branch or a non-repository (design Component 2). Reuses
+ * the `rev-parse --verify` form at {@link computeRangeStats}.
+ */
+export async function readHeadCommit(workspacePath: string): Promise<string | null> {
+  const run = await runGit(workspacePath, ['rev-parse', '--verify', 'HEAD^{commit}']);
+  if (!run.ok) return null;
+  const sha = run.stdout.trim();
+  return HEAD_SHA_RE.test(sha) ? sha : null;
+}
+
+/**
+ * True only when `commit` is an ancestor of the workspace's `HEAD`
+ * (requirement 1.5). `rev-parse --verify` is not enough: linked worktrees share
+ * one object database, so any sibling branch's commit verifies. `merge-base
+ * --is-ancestor` exits 0 for an ancestor, 1 for a non-ancestor and 128 for an
+ * unknown sha; both non-zero results mean "not validated".
+ */
+export async function isAncestorOfHead(
+  workspacePath: string,
+  commit: string,
+): Promise<boolean> {
+  const run = await runGit(workspacePath, ['merge-base', '--is-ancestor', commit, 'HEAD']);
+  return run.ok;
 }
 
 /**
@@ -146,6 +195,25 @@ export function containmentRejectionMessage(
   );
 }
 
+/**
+ * Reviewer-facing text for a git diff failure (requirement 1.10). Same
+ * stated-text pattern as {@link containmentRejectionMessage}: the failure is
+ * named, and the two fabrications an empty diff would otherwise leave the
+ * reviewer holding — a benign empty diff, and "the changes were committed" —
+ * are contradicted outright.
+ */
+export function gitFailureMessage(
+  cause: string,
+  base: string,
+  workspacePath: string,
+): string {
+  return (
+    `GIT DIFF FAILED. git diff from ${base} in ${workspacePath} did not complete: ${cause}. ` +
+    'No diff was computed for this task. This is not a benign empty diff and does not show the changes were committed. ' +
+    'Read every file in filesToReview, evaluate it against the implementation log, and report this failure in your review summary.'
+  );
+}
+
 export async function computeTaskDiff(
   /**
    * The workspace under review (R4 AC 1): git's working directory, and the
@@ -153,6 +221,12 @@ export async function computeTaskDiff(
    */
   workspacePath: string,
   allFiles: string[],
+  /**
+   * The commit the diff starts from (requirement 1.6): replaces the `HEAD`
+   * literal at the two argument arrays below. Required, not defaulted — every
+   * caller states its base.
+   */
+  base: string,
 ): Promise<TaskDiffResult> {
   const { kept, skipped } = partitionPaths(allFiles);
 
@@ -180,16 +254,26 @@ export async function computeTaskDiff(
     return { diff: '', stats: undefined, skippedPaths: skipped, truncated: false };
   }
 
-  const diffArgs = ['diff', '-U10', '-M', 'HEAD', '--', ...kept];
-  const numstatArgs = ['diff', '--numstat', '-M', 'HEAD', '--', ...kept];
+  const diffArgs = ['diff', '-U10', '-M', base, '--', ...kept];
+  const numstatArgs = ['diff', '--numstat', '-M', base, '--', ...kept];
 
   const [diffRun, numstatRun] = await Promise.all([
     runGit(workspacePath, diffArgs),
     runGit(workspacePath, numstatArgs),
   ]);
 
+  // A git failure on the diff is never reported as a benign empty diff
+  // (requirement 1.10): it classifies as `rejected`, naming the first failing
+  // run's observed cause.
   if (!diffRun.ok || !numstatRun.ok) {
-    return { diff: '', stats: undefined, skippedPaths: skipped, truncated: false };
+    const failing = !diffRun.ok ? diffRun : numstatRun;
+    return {
+      diff: '',
+      stats: undefined,
+      skippedPaths: skipped,
+      truncated: false,
+      rejection: { message: gitFailureMessage(failing.cause ?? '', base, workspacePath) },
+    };
   }
 
   const numstat = parseNumstat(numstatRun.stdout);
