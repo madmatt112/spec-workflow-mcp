@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Dashboard-started tasks diff from the recorded base, so a review of committed work is no longer empty: the review now covers the work committed on the task's branch instead of reporting "no diff".
+
+### Changed
+- `@toon-format/toon` moved to 4.x.
+
 ## [5.8.0] - 2026-09-17
 
 **Question gates** (PR #46, the `question-gates` spec) and its retrospective follow-ups (PR #47).
