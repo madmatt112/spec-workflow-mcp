@@ -90,3 +90,6 @@
 {"ts":"2026-09-18T20:50:46.457Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviewer"}
 {"ts":"2026-09-18T20:50:53.346Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged","tokens":"unknown"}
 {"ts":"2026-09-18T20:50:53.366Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/3"}
+{"ts":"2026-09-18T20:52:56.905Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 round, converged clean"}
+{"ts": "2026-09-18T20:53:21.606Z", "run": "run-20260918-170520", "spec": "worktree-review-signals", "type": "spawn.end", "agent": "sdd-document-orchestrator", "role": "tasks phase, spawn 1", "result": "approved", "tokens": "124729"}
+{"ts":"2026-09-18T21:57:05.403Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate B: human approved the 12-task plan with no annotation (7 class-a veto items presented); slot b deleted"}

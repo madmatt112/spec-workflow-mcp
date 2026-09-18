@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **tasks**, state **v0**, last result **approved (design v3)**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: spawn the tasks orchestrator `MODE: normal` (drafts tasks v1 from design v3). Then gate B, worktree entry (`feat/worktree-review-signals`), implementation. Orchestrators run on claude-opus-4-8 high from the checkout's `plugins/` dir.
+> Live phase **implementation**, state **tasks 0/12**, last result **approved (tasks v1; gate B approved by the human, slot deleted)**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/worktree-review-signals`).
+> A re-run does: from the worktree, spawn the implementation orchestrator `MODE: normal` on the 12-task queue (gate B already resolved, `present: false`). Orchestrators run on claude-opus-4-8 high.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -22,6 +22,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | requirements | v3 | approved | 2 rounds, iterate then converged |
 | 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
 | 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
+| 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
 
 ## Current state — 2026-08-04
 
