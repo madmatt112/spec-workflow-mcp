@@ -44,3 +44,12 @@
 {"ts":"2026-09-18T17:06:36.069Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"requirements","round":"2","version":"v3","verdict":"converged 0/0/2"}
 {"ts":"2026-09-18T17:13:58.471Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"machine rebooted 2026-09-18 17:10Z mid-commit: the requirements-approved commit was lost (18 empty git objects, main pointed at a missing commit); v3 approval record and HANDOFF section survived on disk; ledger tail zero-filled and trimmed"}
 {"ts":"2026-09-18T17:13:58.494Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"requirements","result":"approved","state":"v3","note":"reconstructed by supervisor after crash from approval_1789751201977_4rubgz93s and the HANDOFF section"}
+{"ts":"2026-09-18T17:23:40.907Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","phase":"design"}
+{"ts":"2026-09-18T17:24:09.435Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"design","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-18T17:25:54.091Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-18T18:20:28.765Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"error","note":"API rate limit (session limit) killed the orchestrator during the design drafter; no design.md written"}
+{"ts":"2026-09-18T18:20:28.785Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-document-orchestrator","role":"design phase, spawn 2","phase":"design"}
+{"ts":"2026-09-18T18:23:24.454Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"design","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-18T18:23:28.151Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-18T18:43:56.787Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter"}
+{"ts":"2026-09-18T18:44:05.946Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"design","round":"1","result":"drafted"}

@@ -95,3 +95,40 @@
 - e2e/helpers/worktree-harness.ts — temporary repository with linked worktrees and one shared `.spec-workflow`.
 - e2e/worktree-shared.spec.ts:322-657 — shared-worktree scenarios: identity, registry, diff of the triggering worktree, relative-path diff, adversarial target, simultaneous startup.
 - package.json:43 — `test:e2e:worktree` script.
+
+## Atomic write and store precedents
+- src/core/project-registry.ts:268-280 — `writeRegistry`: `uniqueTempPath` then `fs.rename` at 277-279.
+- src/core/project-registry.ts:317-321 — `registerProject`: `withRegistryLock` around the read-modify-write.
+- src/core/registry-lock.ts:38-40 — `RegistryLockResult`: the `acquired: false` arm carries `reason`.
+- src/core/task-review-manager.ts:37-40 — `TaskReviewManager(specPath)`: `reviews/` under the spec path; 71-76 prepare marker `.prepare-<sanitized>`.
+- src/core/path-utils.ts:212-214 — `PathUtils.getSpecPath(projectPath, specName)`.
+- src/core/git-utils.ts:45-51 — `scrubbedGitEnv`: copy of `process.env` minus the four `GIT_*` variables.
+- src/dashboard/multi-server.ts:1450-1456 — status route same-status early return; 1465-1473 write, broadcast and response literal.
+
+## Other consumers of the typecheck and diff unions
+- src/core/gate-rules.ts:303-308 — risk reason prints `typecheck.reason` for `unavailable-other`; no reason enumeration.
+- src/tools/review-gate.ts:225-236 — gate typecheck via `runProjectTypecheck` and `computeTypecheckMethodologyState`; no `computeTaskDiff` call.
+- src/core/hygiene-signals.ts:116-119 — `computeHygieneSignals(files, { root, base })`.
+- src/tools/index.ts:37-91 — `handleToolCall`: every tool response passes through `toMCPResponse`.
+- src/tools/__tests__/review-gate.test.ts:74 — `unavailable` literal with `feature-disabled` and no `observed`.
+- src/tools/adversarial-review.ts:70 — local `workflowRoot` is the `.spec-workflow` directory; 398-403 scaffold header and `## Target document`.
+
+## Tests touched by the design
+- src/core/__tests__/task-diff.test.ts:23-41 — `gitCmd`, `gitInit`, `gitCommitAll` real-git helpers; 52-65 execFile passthrough; 259-293 ENOENT and non-repository cases asserting no rejection; 295-330 synthetic maxBuffer overflow case.
+- src/core/__tests__/typecheck.test.ts:3-9 — `node:child_process` mocked; 38-44 `installFakeTsc`; 54-60 `setNextExecBehavior`; 252 `toHaveBeenCalledTimes(1)` spawn-count pattern.
+- src/tools/__tests__/review-task.test.ts:7-38 — hoisted overrides for typecheck, hygiene and diff; 1127 `FIXTURE_INPUTS` (no all-drop entry).
+- src/dashboard/__tests__/task-review-runner.test.ts:8-19 — `spawn` and `reviewTaskHandler` mocked; 156-177 `buildPrompt` bound through `(runner as any)`; 361-416 two-root harness with a stand-in agent that writes the output file.
+- src/dashboard/__tests__/multi-server.test.ts:110 — route URL builder; 458-543 route root-separation cases.
+- src/__tests__/parity-baseline.test.ts:66 — `computeTaskDiff` wrapper forwards all arguments.
+- src/tools/__tests__/spec-lint.e2e.test.ts:5-14 — decodes a tool response with `@toon-format/toon`.
+- e2e/worktree-shared.spec.ts:19 — `ISOLATION_TASK_ID`; 81-100 `stripMethodology` workaround; 118-175 `callToolFromWorktree`; 247-285 `seedSharedSpecTasks`; 296-313 `seedWorktreeCode`; 400-402 dashboard `fetch` form.
+- e2e/helpers/worktree-harness.ts:162-180 — `HarnessWorktree`: `git` at 173, `writeFile` at 177, `commitAll` at 179.
+
+## Docs, deferrals and dependency
+- docs/TOOLS-REFERENCE.md:381-399 — `log-implementation` section; 401-458 `review-task` section; 426-428 flow line.
+- .spec-workflow/deferrals/d-6e59490b.md — diff data absent from the dashboard prompt.
+- .spec-workflow/deferrals/d-a2233b94.md — TOON round-trip failure; 0.8.0 root-cause note.
+- .spec-workflow/deferrals/d-f3cb6fd8.md — two pinned read-every-file sites.
+- .spec-workflow/specs/worktree-execution-context/design.md:297-303 — spec 1 Migration; exported-type-shape position at 303.
+- node_modules/@toon-format/toon/package.json — installed 0.8.0, ESM, no `engines`; 4.1.1 is the npm latest, ESM, no `engines`, exports `ToonDecodeError`.
+- .gitignore:150 — `.spec-workflow/specs/*/harness-activity.jsonl`, a per-spec runtime file already ignored.
