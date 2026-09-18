@@ -1,0 +1,96 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Bump `@toon-format/toon` and strip `undefined` keys in `toMCPResponse`"
+    },
+    {
+      "id": "2",
+      "title": "Create `TaskStateStore` in src/core/task-state-store.ts"
+    },
+    {
+      "id": "3",
+      "title": "Add git helpers and a required base parameter to `computeTaskDiff`"
+    },
+    {
+      "id": "4",
+      "title": "Make the typecheck degrade honestly"
+    },
+    {
+      "id": "5",
+      "title": "Add the `no-files` diff state and its methodology constants"
+    },
+    {
+      "id": "6",
+      "title": "Record attribution in `log-implementation`"
+    },
+    {
+      "id": "7",
+      "title": "Record the diff base in the dashboard status route"
+    },
+    {
+      "id": "8",
+      "title": "Build `executionContext` in `handlePrepare`"
+    },
+    {
+      "id": "9",
+      "title": "Render the execution context and diff state in the dashboard prompt"
+    },
+    {
+      "id": "10",
+      "title": "State both roots in the adversarial scaffold"
+    },
+    {
+      "id": "11",
+      "title": "Document the recording site and the new fields"
+    },
+    {
+      "id": "12",
+      "title": "End-to-end: recorded base, attribution mismatch, full decode"
+    }
+  ],
+  "veto": [
+    {
+      "taskId": "3",
+      "summary": "sensitive-path: src/tools/review-task.ts",
+      "class": "a",
+      "rank": 1
+    },
+    {
+      "taskId": "4",
+      "summary": "sensitive-path: src/tools/review-task.ts",
+      "class": "a",
+      "rank": 2
+    },
+    {
+      "taskId": "5",
+      "summary": "sensitive-path: src/tools/review-task.ts; keyword: delete",
+      "class": "a",
+      "rank": 3
+    },
+    {
+      "taskId": "8",
+      "summary": "sensitive-path: src/tools/review-task.ts",
+      "class": "a",
+      "rank": 4
+    },
+    {
+      "taskId": "1",
+      "summary": "keyword: delete",
+      "class": "a",
+      "rank": 5
+    },
+    {
+      "taskId": "11",
+      "summary": "keyword: migration",
+      "class": "a",
+      "rank": 6
+    },
+    {
+      "taskId": "12",
+      "summary": "keyword: delete",
+      "class": "a",
+      "rank": 7
+    }
+  ]
+}
