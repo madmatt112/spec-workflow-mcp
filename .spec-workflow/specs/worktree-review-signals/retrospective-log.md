@@ -13,3 +13,8 @@ Cost: 1 AskUserQuestion call, 4 answers, all delegated
 Round 1 on v2: iterate MUST_FIX 2 / SHOULD_FIX 2 / MINOR 0. R1-1 is a lint-pass artifact: the v1 lint inserted a typecheck.ts:478 citation so a bare :30 in Req 1 AC10 re-resolved to the wrong file (lint fix introduced a citation error). R1-2 record-key granularity contradiction between Req 1 and Req 3/Req 7. R1-3 runGit discards failure cause; R1-4 provenance value recorded undefined. Escalate none.
 Evidence: reviews/adversarial-analysis-requirements.md
 Cost: 1 reviewer spawn (131k tokens)
+
+## 2026-09-18T16:51:46Z · requirements · v3 · ruling
+Orchestrator ruling: skipped the v3 lint reviser spawn. spec-lint on v3 reports 38 warnings, all citation-identifier, 0 error. 33 are the same identifier-is-new-behavior warnings the v1 lint pass rejected with reasons (recorded under the v2 Revision History line) and the v3 reviser re-checked; 5 are on the two lines the v3 delta wrote (Req 1 AC 6 provenance value; the migration note). A third reviser pass on the same warnings buys nothing; the 5 new ones go to the round-2 reviewer as LINT.open, and round 2 attacks the v3 delta first anyway. Harness note: citation-identifier fires on every identifier a criterion introduces as new behavior, so on a requirements document that names new fields it produces a standing wall of warnings; the rule needs a way to mark an identifier as new (or the lint step needs a carry-forward of rejected findings) so it stops re-firing.
+Evidence: spec-lint v2: 34 warnings; spec-lint v3: 38 warnings; requirements.md v2 Revision History lint-pass bullet
+Cost: 0 spawns (saved one ~100k-token reviser spawn)
