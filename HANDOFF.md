@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 4/12 |
-| Last code commit | 5268970 (task 4) |
-| Next task | 5 — Add the no-files diff state and its methodology constants |
+| State | tasks 5/12 |
+| Last code commit | d144ea6 (task 5) |
+| Next task | 6 — Record attribution in log-implementation |

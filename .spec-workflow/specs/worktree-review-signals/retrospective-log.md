@@ -88,3 +88,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate
 typecheck degrades honestly (dependencies-unresolved + observed); high risk, verifier pass, 0 fix rounds.
 Evidence: task 4; commit 5268970; review v1
 Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:52:13Z · implementation · task 5 · gotcha
+no-files diff state + methodology constants; high risk, verifier pass, 0 fix rounds.
+Evidence: task 5; commit d144ea6; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
