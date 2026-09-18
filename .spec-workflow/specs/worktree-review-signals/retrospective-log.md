@@ -33,3 +33,13 @@ Cost: 2 reviewer + 1 reviser spawns
 Round 1: iterate 0/1/1. Reviewer ruled both RE-DECIDED flags refinements (closed): D11 (R4 AC5 feature-disabled emits no degraded note) and D3 (R1 AC11 diffBase.commit is the ref HEAD, not a sha). One SHOULD_FIX R1-1 (prepare round-trip fails with no dashboard: dashboardUrl undefined -> null under toon 4.1.1; AC-4 test masks it). Both probes reproduced.
 Evidence: reviews/adversarial-analysis-design.md
 Cost: 1 reviewer spawn
+
+## 2026-09-18T19:48:20Z · design · v2 · gotcha
+Round 2: iterate 0/2/2. v2 delta held (no MUST_FIX from the round-1 response). Fresh lens (failure/partial-failure paths) surfaced 2 novel SHOULD_FIX: R2-1 (unbounded git spawn with no timeout on the interactive status route has no degraded path) and R2-2 (atomic-write temp/.stale debris not gitignored in the tracked spec store; Error Handling omits store-write-throws). 2 MINOR (R2-3 malformed->null underspecified; R2-4 isAncestorOfHead reports infra error as rejected). D=2 with MUST_FIX 0 -> SHOULD_FIX-only corrective pass then narrow check.
+Evidence: reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn
+
+## 2026-09-18T19:48:47Z · requirements · phase · harness-defect
+After requirements was approved at v3, a phase-log regeneration appended an 'interrupted' row for an earlier run's unclosed phase.start (run-20260918-162001, stopped by the user) BELOW the approved row, and the watch TUI takes the last row per stage, so it displayed requirements as 'v2 interrupted' while the approval record said approved. The TUI also labelled the design orchestrator fable-5-1 xhigh though its transcript shows only claude-opus-4-8 (the label likely comes from the ledger's run.start model, which is the supervisor's). Fix ideas: order regenerated rows by phase.start time and never after a terminal result for the same stage; label orchestrator rows from the agent definition or the transcript, not run.start.
+Evidence: HANDOFF.md phase log rows 22-23; approval_1789751201977_4rubgz93s; agent-a1c4668cc0cc08640.jsonl model counts
+Cost: one false alarm to the human

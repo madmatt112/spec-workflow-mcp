@@ -1,10 +1,10 @@
 # Design Document
 
-Document version: v2
+Document version: v3
 
 ## Overview
 
-This design adds one per-task record under the shared spec directory, a dependency probe with `observed` statements in the typecheck, a base-aware `computeTaskDiff`, and one `executionContext` object that `handlePrepare` builds once and both review paths carry to the agent. It sits in `src/core` (store, git helpers, typecheck), `src/tools` (prepare, log, adversarial scaffold) and `src/dashboard` (status route, runner). It reuses `withRegistryLock` and `uniqueTempPath` for the store, `runGit` for every new git call, and `normalizeIdentityPath` for path identity.
+This design adds one per-task record under the shared spec directory, a dependency probe with `observed` statements in the typecheck, a base-aware `computeTaskDiff`, and one `executionContext` object that `handlePrepare` builds once and both review paths carry to the agent. It sits in `src/core` (store, git helpers, typecheck), `src/tools` (prepare, log, adversarial scaffold) and `src/dashboard` (status route, runner). It reuses `withRegistryLock` and `uniqueTempPath` for the store, `runGit` for every new git call, and `normalizeIdentityPath` for identity.
 
 ## Steering Document Alignment
 
@@ -44,7 +44,7 @@ graph LR
     constructor(specPath: string);   // file <specPath>/task-state.json, lock <specPath>/task-state.json.lock
     read(taskId: string): Promise<TaskStateRecord | null>;   // never throws
     recordBase(taskId: string, workspacePath: string, commit: string): Promise<boolean>;
-    recordAttribution(taskId: string, attribution: TaskAttribution): Promise<boolean>;
+    recordAttribution(taskId: string, attribution: TaskAttribution): Promise<boolean>;   // rejects on write failure (EH #10)
   }
   ```
   Both writers run `withRegistryLock(lockPath, fn)`; inside `fn`: read, parse, mutate one field, write `uniqueTempPath(filePath)`, `fs.rename`. `acquired: false` returns false with `console.warn`. `bases` keys are `normalizeIdentityPath(workspacePath)`. `read` takes no lock: rename leaves the file complete or absent; missing, unreadable, malformed or `version !== 1` returns null and warns once per file.
@@ -61,7 +61,7 @@ graph LR
   export async function computeTaskDiff(workspacePath: string, allFiles: string[], base: string): Promise<TaskDiffResult>;
   export function gitFailureMessage(cause: string, base: string, workspacePath: string): string;
   ```
-  `base` replaces the `HEAD` literal in both argument arrays at `:183-184`; required, not defaulted. The `!ok` arm (`:191-193`) returns `diff: ''`, `stats: undefined`, `rejection: { message: gitFailureMessage(cause, base, workspacePath) }`, where `cause` is the first failing run's. Probe in this repository: `git merge-base --is-ancestor HEAD~3 HEAD` exits 0, the reverse exits 1, an unknown sha exits 128; both non-zero results mean "not validated".
+  `base` replaces the `HEAD` literal in both argument arrays at `:183-184`; required, not defaulted. The `!ok` arm (`:191-193`) returns `diff: ''`, `stats: undefined`, `rejection: { message: gitFailureMessage(cause, base, workspacePath) }`, where `cause` is the first failing run's. Probe in this repository: `git merge-base --is-ancestor HEAD~3 HEAD` exits 0, the reverse exits 1, an unknown sha exits 128; both non-zero results mean "not validated". `runGit`'s `ExecFileOptions` (`:52-56`) gets a 10 s `timeout`, so a hang resolves `ok: false` instead of blocking.
   Stated text: "GIT DIFF FAILED. `git diff` from `<base>` in `<workspacePath>` did not complete: `<cause>`. No diff was computed for this task. This is not a benign empty diff and does not show the changes were committed. Read every file in filesToReview, evaluate it against the implementation log, and report this failure in your review summary." Causes seen today: `ENOENT` (no git), `exit 128` (not a repository), `ERR_CHILD_PROCESS_STDIO_MAXBUFFER` (stdout above `MAX_BUFFER`, `:30`).
 - **Dependencies:** `runGit` (`:50-62`) with its scrubbed env (`:54`).
 - **Reuses:** `runGit`; the stated-text pattern of `containmentRejectionMessage` (`:135-147`); the `rev-parse --verify` form at `:361`.
@@ -76,7 +76,7 @@ graph LR
     observed: string; rejectionMessage?: string }
   async function probeDeclaredDependencies(workspacePath: string): Promise<{ declared: number; unresolved: string[] } | null>;
   ```
-  `observed` is required, so every construction site states one: `:144`, `:151`, `:156`, `:159`, `:164`, `:199`, `:218`, `:221`, `unwrapTypecheck` (`src/tools/review-task.ts:80-101`), and the probe site. The probe reads `<workspacePath>/package.json`; absent or unparseable returns null and the check proceeds. Names are the keys of `dependencies` and `devDependencies`; `optionalDependencies` are excluded. One `fs.access(<workspacePath>/node_modules/<name>/package.json)` per name, awaited together, against the workspace's own `node_modules` only (D7). It runs after `resolveTscBinary` succeeds (`src/core/typecheck.ts:162-165`) and before `spawnTsc` (`:188`); any unresolved name returns `reason: 'dependencies-unresolved'` with no spawn. The `no-tsconfig` arm (`:147-152`) adds one `fs.access(<workflowRoot>/tsconfig.json)` so `observed` can state whether the workflow root has one; `tsconfigPath` stays `:141`. The `timeout` (`:193-197`), `output-overflow` (`:198-200`) and `no-parseable-output` (`:217-222`) arms are unchanged apart from `observed`.
+  `observed` is required, so every construction site states one: `:144`, `:151`, `:156`, `:159`, `:164`, `:199`, `:218`, `:221`, `unwrapTypecheck` (`src/tools/review-task.ts:80-101`), and the probe site. The probe reads `<workspacePath>/package.json`; absent or unparseable returns null and the check proceeds. Names are the keys of `dependencies` and `devDependencies`; `optionalDependencies` are excluded. One `fs.access(<workspacePath>/node_modules/<name>/package.json)` per name, awaited together (D7). Runs after `resolveTscBinary` succeeds (`src/core/typecheck.ts:162-165`), before `spawnTsc` (`:188`); an unresolved name returns `reason: 'dependencies-unresolved'`, no spawn. The `no-tsconfig` arm (`:147-152`) adds one `fs.access(<workflowRoot>/tsconfig.json)` so `observed` can state whether the workflow root has one; `tsconfigPath` stays `:141`. The `timeout` (`:193-197`), `output-overflow` (`:198-200`) and `no-parseable-output` (`:217-222`) arms are unchanged apart from `observed`.
 - **Dependencies:** `node:fs/promises`.
 - **Reuses:** `resolveTscBinary` (`src/core/typecheck.ts:409-423`); `computeTypecheckMethodologyState` (`src/tools/review-task.ts:55-74`) maps the new reason to `unavailable-other` unchanged; `src/core/gate-rules.ts:303-308` prints the reason string unchanged; `R4_6B_TYPECHECK_UNAVAILABLE` (`src/tools/review-task.ts:815-816`) is not edited.
 
@@ -84,7 +84,7 @@ graph LR
 - **Purpose:** Resolve base and attribution, run the diff from the base, build `executionContext` once.
 - **Interfaces:** inserted after resolution (`:440-457`), before the settled block (`:467-477`):
   1. `record = await new TaskStateStore(specPath).read(taskId)`.
-  2. Base: `entry = record?.bases[normalizeIdentityPath(workspacePath)]`. None: `{ commit: 'HEAD', provenance: 'head-expected' }`. Present: `await isAncestorOfHead(workspacePath, entry.commit)`; true gives `{ commit: entry.commit, provenance: 'recorded' }`, false gives `{ commit: 'HEAD', provenance: 'head-degraded' }` with the rejected sha in `detail`. One git spawn, only when an entry exists.
+  2. Base: `entry = record?.bases[normalizeIdentityPath(workspacePath)]`. None: `{ commit: 'HEAD', provenance: 'head-expected' }`. Present: `await isAncestorOfHead(workspacePath, entry.commit)`; true gives `{ commit: entry.commit, provenance: 'recorded' }`, false gives `{ commit: 'HEAD', provenance: 'head-degraded' }` with the rejected sha in `detail`. One git spawn, only when an entry exists, bounded (Component 2), degrading to `head-degraded` on hang.
   3. `computeTaskDiff(workspacePath, workspaceFiles, diffBase.commit)` at `:473`.
   4. Attribution: no `record?.attribution` gives `unknown`; else `normalizeIdentityPath(a.workspacePath) === normalizeIdentityPath(workspacePath)` gives `match`, otherwise `mismatch`. Read regardless of workspace.
   5. `diffState = computeDiffMethodologyState(diffResult, noReviewableFiles)` (`noReviewableFiles` from `:457`).
@@ -124,7 +124,7 @@ graph LR
 
 ### Component 6 — status route (`src/dashboard/multi-server.ts:1417-1477`)
 - **Purpose:** Record the workspace's `HEAD` when the dashboard sets a task in-progress.
-- **Interfaces:** after the write and broadcast (`:1465-1467`), when `status === 'in-progress'`: `commit = await readHeadCommit(project.workspacePath)`; non-null runs `new TaskStateStore(PathUtils.getSpecPath(project.projectPath, name)).recordBase(taskId, project.workspacePath, commit)`. Wrapped in try/catch with `console.warn`; the response (`:1469-1473`) is identical on every arm. The same-status early return (`:1450-1456`) records nothing; other status values record nothing; a later in-progress transition overwrites the workspace's entry.
+- **Interfaces:** after the write and broadcast (`:1465-1467`), when `status === 'in-progress'`: `commit = await readHeadCommit(project.workspacePath)`; non-null runs `new TaskStateStore(PathUtils.getSpecPath(project.projectPath, name)).recordBase(taskId, project.workspacePath, commit)`. Awaited in try/catch with `console.warn`, bounded by `runGit`'s timeout; the response (`:1469-1473`) stays identical on every arm. The same-status early return (`:1450-1456`) records nothing; other status values record nothing; a later in-progress transition overwrites the workspace's entry.
 - **Dependencies:** Components 1, 2; `ProjectContext.workspacePath` (`src/dashboard/project-manager.ts:14`).
 - **Reuses:** `PathUtils.getSpecPath` (`src/core/path-utils.ts:212-214`).
 
@@ -160,7 +160,7 @@ graph LR
 
 ### Component 9 — adversarial scaffold (`src/tools/adversarial-review.ts`)
 - **Purpose:** State both roots to the adversarial reviewer.
-- **Interfaces:** `:61` becomes `const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context)`. `buildScaffoldedPrompt` (`:342-351`) gains `workspacePath: string; workflowRoot: string`, passed `projectPath` (the directory containing `.spec-workflow`; the local `workflowRoot` at `:70` is the `.spec-workflow` directory and is not passed). After `## Target document` (`:402-403`) the scaffold gains:
+- **Interfaces:** `:61` becomes `const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context)`. `buildScaffoldedPrompt` (`:342-351`) gains `workspacePath: string; workflowRoot: string`, passed `projectPath`, the directory containing `.spec-workflow` (`:70`'s local `workflowRoot` is the `.spec-workflow` directory, not passed). After `## Target document` (`:402-403`) the scaffold gains:
   ```
   ## Execution context
   - Workspace: <workspacePath>
@@ -178,7 +178,7 @@ graph LR
 
 ### Component 11 — documentation
 - **Purpose:** State the recording site and the new fields where users read.
-- **Interfaces:** `docs/TOOLS-REFERENCE.md:401-458` (`review-task`) gains a paragraph on `data.executionContext` (fields, provenance values, attribution states) and the sentence: "The diff base is recorded only when the dashboard Tasks page sets a task in-progress; a task marked in-progress by editing `tasks.md` has no record and reviews from `HEAD`, disclosed as `head-expected`." `:381-399` (`log-implementation`) gains: "Records the workspace and commit the log was written from; a review from another worktree reports `attribution: mismatch`." The `CHANGELOG.md` entry of the shipping release states that dashboard-started tasks diff from the recorded base, so a review of committed work is no longer empty, and that `@toon-format/toon` moved to 4.x.
+- **Interfaces:** `docs/TOOLS-REFERENCE.md:401-458` (`review-task`) gains a paragraph on `data.executionContext` (fields, provenance, attribution) and the sentence: "The diff base is recorded only when the dashboard Tasks page sets a task in-progress; a task marked in-progress by editing `tasks.md` has no record and reviews from `HEAD`, disclosed as `head-expected`." `:381-399` (`log-implementation`) gains: "Records the workspace and commit the log was written from; a review from another worktree reports `attribution: mismatch`." The `CHANGELOG.md` entry of the shipping release states that dashboard-started tasks diff from the recorded base, so committed work is reviewable, and that `@toon-format/toon` moved to 4.x.
 - **Dependencies:** none.
 - **Reuses:** the existing sections.
 
@@ -193,7 +193,7 @@ interface TaskStateRecord {
 }
 interface TaskAttribution { workspacePath: string; commit: string | null; source: 'context' | 'override'; loggedAt: string; }
 ```
-This repository adds both file names under `.spec-workflow/specs/*/` to `.gitignore` beside `:150`; the server edits no user `.gitignore`.
+This repository adds the glob `.spec-workflow/specs/*/task-state.json*` to `.gitignore` beside `:150`, covering lock, temp and stale variants; the server edits no user `.gitignore`.
 
 ### `ExecutionContext` (exported from `src/tools/review-task.ts`)
 ```ts
@@ -237,10 +237,12 @@ interface ExecutionContext {
 6. **Declared dependency unresolvable:** `dependencies-unresolved`, no `tsc` spawn.
 7. **All logged files dropped:** `no-files`, both new constants, no read-every-file instruction on either path.
 8. **Diff file write fails on the dashboard path:** the job fails with the write error, as the output-file read does at `:229-233`; the body is not inlined.
+9. **git spawn hangs:** bounded by `runGit`'s timeout (Component 2), resolving `ok: false` and degrading as items 1, 4 and 5 describe.
+10. **Store write throws:** a write/rename failure inside `fn` re-throws from `withRegistryLock`'s `finally` (`registry-lock.ts:385-390`); `recordBase`/`recordAttribution` reject; Components 6 and 7 already await in try/catch; the response is unaffected. The orphaned temp/`.stale` file is never cleaned up, but is inert once gitignored (Data Models).
 
 ## Testing Strategy
 
-Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (a string system code such as `ENOENT` or `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`, or the numeric exit code); `fs.open` with `'wx'` failing `EEXIST` on an existing file; `fs.rename` replacing its target.
+Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (a string system code, or the numeric exit code); `fs.open` with `'wx'` failing `EEXIST` on an existing file; `fs.rename` replacing its target.
 
 - **Unit, `src/core/__tests__/task-state-store.test.ts` (new):** missing, malformed and wrong-version files read as null; `recordBase` then `recordAttribution` keeps both; two `recordBase` calls for two workspaces under `Promise.all` are both present afterwards (Requirement 7 AC 6); a lock file held open with `'wx'` and `timeoutMs: 50` gives false and no write.
 - **Unit, `src/core/__tests__/task-diff.test.ts`:** every existing call passes `'HEAD'`; a case commits after a recorded base and asserts the committed hunk appears with `base` the recorded sha and not with `'HEAD'`; `:260-293` and `:295-330` are re-asserted as `rejection` naming `ENOENT`, `exit 128` and `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`; `readHeadCommit` on a repository and a plain directory; `isAncestorOfHead` for an ancestor, a commit on a second branch, and garbage.
@@ -255,25 +257,25 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 
 ## Decisions taken in this document
 
-- D1 — Record file: one `task-state.json` per spec holding a `tasks` map, locked by a sibling `.lock` through `withRegistryLock`: one file per task, a directory of per-workspace files; chosen because one lock guards both owners' fields and the reader opens one file.
-- D2 — `computeTaskDiff` takes `base` as a required third parameter: a defaulted `'HEAD'`; chosen because the requirement updates every caller and a default hides a caller that forgot.
+- D1 — Record file: one `task-state.json` per spec holding a `tasks` map, locked by a sibling `.lock` through `withRegistryLock`; chosen because one lock guards both owners' fields and the reader opens one file.
+- D2 — `computeTaskDiff` takes `base` as a required third parameter; chosen because the requirement updates every caller and a default hides a caller that forgot.
 - D3 — For `head-expected` and `head-degraded`, `diffBase.commit` is the ref `HEAD`, not its sha: one `rev-parse HEAD` per prepare; chosen because the performance requirement grants one new git spawn per prepare and it is spent on the ancestry check.
 - D4 — Any non-zero exit of `merge-base --is-ancestor` is "not validated": distinguishing exit 1 from 128; chosen because both degrade identically and the sha is named either way.
-- D5 — Encoding: bump `@toon-format/toon` to 4.x and recursively strip `undefined`-valued keys in `toMCPResponse`: per-field `?? null`, a JSON fallback, carrying `methodology` in a file, an array-of-lines carrier; chosen because 4.1.1 round-trips the failing value and a strip closes every optional field.
-- D6 — A repeated in-progress transition overwrites the workspace's base: keep-first; chosen because the route fires only on a real status change and the newer start is the task's current starting point.
-- D7 — The dependency probe checks `<workspace>/node_modules/<name>/package.json` only: node resolution walking parent directories; chosen because `resolveTscBinary` already binds the compiler to the workspace's own `node_modules`.
-- D8 — The probe runs after `resolveTscBinary` and before `spawnTsc`: before the binary lookup; chosen because a missing `node_modules` stays `tsc-not-found`, the behaviour spec 1 recorded.
-- D9 — `observed` is required on the `unavailable` arm, `feature-disabled` included: optional, or new reasons only; chosen because a required field makes the compiler list every site that must state its observation.
-- D10 — Degraded-fact sentences live in `executionContext.notes`, built in `handlePrepare` and rendered verbatim: runner-side sentences; chosen because one object, one producer, both paths.
+- D5 — Encoding: bump `@toon-format/toon` to 4.x and recursively strip `undefined`-valued keys in `toMCPResponse`; chosen because 4.1.1 round-trips the failing value and a strip closes every optional field.
+- D6 — A repeated in-progress transition overwrites the workspace's base; chosen because the route fires only on a real status change and the newer start is the task's current starting point.
+- D7 — The dependency probe checks `<workspace>/node_modules/<name>/package.json` only; chosen because `resolveTscBinary` already binds the compiler to the workspace's own `node_modules`.
+- D8 — The probe runs after `resolveTscBinary` and before `spawnTsc`; chosen because a missing `node_modules` stays `tsc-not-found`, the behaviour spec 1 recorded.
+- D9 — `observed` is required on the `unavailable` arm, `feature-disabled` included; chosen because a required field makes the compiler enumerate every site.
+- D10 — Degraded-fact sentences live in `executionContext.notes`, built in `handlePrepare` and rendered verbatim; chosen because one object, one producer, both paths.
 - D11 — `feature-disabled` produces no note: every `unavailable` reason alike; chosen because `R4_6A` tells the reviewer to proceed normally and a summary line about a deliberate setting is noise.
-- D12 — The typecheck note tells the reviewer to quote `observed` where item 10 already asks for the degradation: a second "surface this in your summary" sentence; chosen because `R4_6B` and `R4_7` own the directive and `observed` is the one fact they cannot name.
-- D13 — `hasProjectPathOverride(args)` exported from `root-selection.ts`: repeating the predicate; chosen because one definition cannot drift.
-- D14 — The all-drop kind comes from `hasNoReviewableFiles`, not from `computeTaskDiff`'s empty-`kept` return: a new `TaskDiffResult` field; chosen because an all-denylisted set also has empty `kept` and must stay `empty`.
-- D15 — `computeHygieneSignals` keeps `base: ['HEAD']` (`:471`): pass the recorded base; chosen because the requirements bind the base to the diff only; a human may widen it.
-- D16 — `PrepareData` is exported from `review-task.ts` and types both the `data` literal and the runner's read: a runner-local interface; chosen because a field renamed on one side then fails to compile on the other.
-- D17 — The diff file is named beside `outputPath` and removed at the same site: a per-job temp directory; chosen because it follows the existing file's lifecycle.
-- D18 — The adversarial scaffold's `Workflow root` is the directory containing `.spec-workflow`: the `.spec-workflow` directory itself; chosen because it matches `executionContext.workflowRoot`.
-- D19 — This repository ignores `task-state.json` in `.gitignore`; the server writes no user `.gitignore`: reuse `ensureGitignoreEntry`; chosen because the requirements do not ask for it and the cache precedent is spec 1's.
+- D12 — The typecheck note tells the reviewer to quote `observed` where item 10 already asks for the degradation; chosen because `R4_6B` and `R4_7` own the directive and `observed` is the one fact they cannot name.
+- D13 — `hasProjectPathOverride(args)` exported from `root-selection.ts`; chosen because one definition cannot drift.
+- D14 — The all-drop kind comes from `hasNoReviewableFiles`, not from `computeTaskDiff`'s empty-`kept` return; chosen because an all-denylisted set also has empty `kept` and must stay `empty`.
+- D15 — `computeHygieneSignals` keeps `base: ['HEAD']` (`:471`); chosen because the requirements bind the base to the diff only.
+- D16 — `PrepareData` is exported from `review-task.ts` and types both the `data` literal and the runner's read; chosen because a field renamed on one side then fails to compile on the other.
+- D17 — The diff file is named beside `outputPath` and removed at the same site; chosen because it follows the existing file's lifecycle.
+- D18 — The adversarial scaffold's `Workflow root` is the directory containing `.spec-workflow`; chosen because it matches `executionContext.workflowRoot`.
+- D19 — This repository ignores the glob `task-state.json*` in `.gitignore`; the server writes no user `.gitignore`: reuse `ensureGitignoreEntry`; chosen because the requirements do not ask for it and an exact name misses the writer's own temp/stale files.
 
 ## Scope notes
 
@@ -293,3 +295,6 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
   - **R1-1 — Accepted (SHOULD_FIX).** The prepare response failed its own round trip whenever any optional field held undefined, not only the diff statistics: the dashboard URL is left undefined with no dashboard session and is copied straight into the response. Changed the response-encoding component so the encoding helper clones the response and recursively deletes every undefined-valued key before encoding, then probed that this repository's test-matcher equality treats a deleted key the same as one holding undefined, so the round trip still holds; updated the architecture summary (line 22), the encoding decision's rationale (line 262), and the round-trip test bullet (line 248) to name the same fix and cover a context with and without the dashboard URL, closing the finding at every sibling site.
   - **R1-2 — Accepted (MINOR).** The exported prepare-data interface named two types that exist nowhere in the source tree. Replaced them with the inline shapes the current literals actually build, sourced from the real parsed-task and implementation-log-entry types, and added a line naming where those types live (lines 96-97, 105).
   - **Lint pass.** 8 fixed (L-11, L-12, L-13, L-14, L-25, L-26, L-27, L-28 — the eight bare filenames `types.ts`, `server.ts`, `review-task.ts` prefixed with their real `src/` paths on lines 106 and 175); rejected: L-6 to L-10, L-15 to L-20, L-17, L-18 (each already carries its own correct citation elsewhere in the same passage — `taskContext`/`implementationSummary` at `:420-434`, `nextSteps` at `:512-520`, `projectContext` at `:521-526`, `R4_1_DIFF_PRESENT`/`R4_7_TYPECHECK_TIMEOUT` at `:771-781`/`:806-819`, all verified against source; `computeDiffMethodologyState`, `rejection`, `noReviewableFiles`, `notes` are this design's own new vocabulary, needing no code citation); L-1 to L-5, L-21 to L-24, L-29, L-30, L-31 to L-33 (prose or forward-looking words, not a claim the identifier appears verbatim at the cited range); L-34 to L-38 (the citation supports the migration-position ruling in spec 1's design, not identifier presence); 67 `citation-bare` info findings not enumerated (traceability nits, cap has no slack).
+- **v3** (2026-09-18) — Round-2 adversarial response (adversarial-analysis-design-r2.md, verdict iterate 0/2/2), SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** A git spawn that hangs had no bound and no degraded outcome, so the new spawn on the dashboard status route could never return, and the route's claim of an identical response on every arm was false for that case. Gave the shared git-spawn helper a ten-second timeout (Component 2, line 64), so a hang now resolves as a failure instead of blocking; the bound sits on the one function every git caller shares, so the prepare-path ancestry spawn and the pre-existing diff and range-stats spawns (the file-diff function and the gate's range-stats function, both already routed through the same helper) inherit it with no separate edit needed. Noted the bound and its degraded outcome at the prepare call site (Component 4, line 87) and the status route (Component 6, line 127), where the identical-response claim now holds. Added Error Handling item 9 (line 240) naming the timeout and pointing at the three existing degraded outcomes — a null commit, a rejected ancestry check, a rejected diff — it now reaches instead of hanging.
+  - **R2-2 — Accepted (SHOULD_FIX).** The atomic-write lifecycle for the new per-task record could leave an untracked temp or stale-lock file inside the git-tracked spec store: the gitignore entry named only the record and its lock by exact filename, not the pattern the store's own locking machinery emits (a unique temp file per write, registry-lock.ts lines 52-54; a stale-lock aside file, registry-lock.ts line 208); and Error Handling never said what happens when the write itself throws after the lock is held. Widened the gitignore entry to a glob covering the record, its lock, and every temp and stale variant (Data Models, line 196; Decision 19, line 278, updated to match). Added Error Handling item 10 (line 241) naming the write-throws path — the lock's own cleanup block re-throws a write failure rather than swallowing it (registry-lock.ts lines 385-390), so the two record methods can reject instead of only returning false — noting both existing callers already tolerate a rejection and that an orphaned temp file is inert, not swept into a commit, once gitignored. Annotated the attribution-recording method's signature (line 47) with the same note; the base-recording method shares the identical write path (line 50), so no separate write site needed the same fix.

@@ -65,3 +65,9 @@
 {"ts":"2026-09-18T19:29:23.649Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-18T19:36:22.880Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
 {"ts":"2026-09-18T19:36:34.838Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","round":"2","result":"8 fixed 30 rejected","tokens":"0"}
+{"ts":"2026-09-18T19:47:47.150Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviewer"}
+{"ts":"2026-09-18T19:48:20.313Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"design","round":"2","version":"v2","verdict":"iterate 0/2/2"}
+{"ts":"2026-09-18T19:48:20.335Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"design","round":"2","result":"iterate 0/2/2","tokens":"119194"}
+{"ts":"2026-09-18T19:48:52.728Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-18T20:04:09.615Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
+{"ts":"2026-09-18T20:04:22.109Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"reviser v3 SHOULD_FIX-only","round":"2","result":"R2-1 accepted, R2-2 accepted","tokens":"0"}
