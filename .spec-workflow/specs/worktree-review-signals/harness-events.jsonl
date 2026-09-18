@@ -167,3 +167,9 @@
 {"ts":"2026-09-18T23:35:35.152Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a8768b69a44dd946d","role":"implement task 10","phase":"implementation","task":"10","result":"logged yes/10 commit aa6def1"}
 {"ts":"2026-09-18T23:35:49.626Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 10 pass risk low"}
 {"ts":"2026-09-18T23:35:49.672Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"10","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:36:00.484Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"11","title":"Document the recording site and the new fields"}
+{"ts":"2026-09-18T23:36:04.324Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:38:58.546Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:39:02.971Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a7d57966ae27fcf91","role":"implement task 11","phase":"implementation","task":"11","result":"logged yes/11 commit 569b85f"}
+{"ts":"2026-09-18T23:39:16.573Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 11 pass risk low"}
+{"ts":"2026-09-18T23:39:16.619Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"11","rounds":"0","outcome":"gate"}

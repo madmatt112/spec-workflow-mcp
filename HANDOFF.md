@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 10/12 |
-| Last code commit | aa6def1 (task 10) |
-| Next task | 11 — Document the recording site and the new fields |
+| State | tasks 11/12 |
+| Last code commit | 569b85f (task 11) |
+| Next task | 12 — End-to-end: recorded base, attribution mismatch, full decode |

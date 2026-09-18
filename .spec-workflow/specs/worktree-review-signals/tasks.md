@@ -89,7 +89,7 @@ Dependency order: tasks 1 to 5 are independent leaf changes, each leaving the tr
   - _Requirements: 4.8_
   - _Prompt: Task: Implement design Component 9 per requirement 4.8. src/tools/__tests__/adversarial-review.test.ts asserts toContain('## Target document') (:447) and no whole-scaffold equality, so the block changes no exactly-asserted value; add a case with a two-root ToolContext (the ctx helper at :23-26 is single-root) asserting the scaffold names both roots | Restrictions: Roots only: no diff, typecheck or attribution for adversarial runs; the Workflow root line is the directory containing .spec-workflow (design D18); the runner's one-line instruction (src/dashboard/adversarial-runner.ts:126) is untouched | Success: npx tsc --noEmit passes; npx vitest run src/tools/__tests__/adversarial-review.test.ts passes_
 
-- [ ] 11. Document the recording site and the new fields
+- [x] 11. Document the recording site and the new fields
   - File: docs/TOOLS-REFERENCE.md, CHANGELOG.md
   - Design Component 11: the `review-task` section (`docs/TOOLS-REFERENCE.md:401-459`) gains a paragraph on `data.executionContext` (fields, the three provenance values, the three attribution states) and the design's sentence that the base is recorded only when the dashboard Tasks page sets a task in-progress and a `tasks.md` edit reviews from `HEAD` as `head-expected`; the `log-implementation` section (`:381-399`) gains the design's attribution sentence; `CHANGELOG.md` gains an `## [Unreleased]` section above `## [5.8.0]` (`CHANGELOG.md:8`) with the two release notes: dashboard-started tasks diff from the recorded base so committed work is reviewable, and `@toon-format/toon` moved to 4.x.
   - Purpose: users learn where the base comes from and what the new fields mean.

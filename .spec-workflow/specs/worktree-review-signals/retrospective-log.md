@@ -123,3 +123,8 @@ Cost: 1 implementer spawn, 1 gate
 adversarial scaffold names both roots; rounds=0, gate-pass risk low.
 Evidence: task 10; commit aa6def1
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:39:16Z · implementation · task 11 · gotcha
+docs: TOOLS-REFERENCE executionContext + attribution paragraphs, CHANGELOG Unreleased; rounds=0, gate-pass risk low.
+Evidence: task 11; commit 569b85f
+Cost: 1 implementer spawn, 1 gate
