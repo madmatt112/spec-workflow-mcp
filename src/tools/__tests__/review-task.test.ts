@@ -3,6 +3,7 @@ import { promises as fs, writeFileSync, readFileSync, readdirSync, existsSync } 
 import path, { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
+import { decode } from '@toon-format/toon';
 
 const overrides = vi.hoisted(() => ({
   typecheck: null as null | ((...args: any[]) => any),
@@ -47,7 +48,7 @@ import {
   type TypecheckMethodologyState,
 } from '../review-task.js';
 import { _resetValidateWarnings } from '../../core/file-resolution.js';
-import { ToolContext } from '../../types.js';
+import { ToolContext, toMCPResponse } from '../../types.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
 
 /**
@@ -162,6 +163,34 @@ describe('review-task handler', () => {
       const reviewsDir = join(specPath, 'reviews');
       const files = await fs.readdir(reviewsDir);
       expect(files.some(f => f.startsWith('.prepare-'))).toBe(true);
+    });
+
+    // Requirement 6 AC 4: a full prepare response decodes deep-equal to the
+    // source with the library that encoded it. `projectContext.dashboardUrl` is
+    // `undefined` here (no dashboard); the strip in `toMCPResponse` drops it and
+    // `toEqual` equates the deleted key with `undefined`.
+    it('round-trips a prepare response through toMCPResponse (no dashboard URL)', async () => {
+      await createImplLog();
+      const response = await reviewTaskHandler(
+        { action: 'prepare', specName: 'test-spec', taskId: '1' },
+        context
+      );
+      expect(response.success).toBe(true);
+      expect(response.projectContext?.dashboardUrl).toBeUndefined();
+      const decoded = decode(toMCPResponse(response).content[0].text);
+      expect(decoded).toEqual(response);
+    });
+
+    it('round-trips a prepare response through toMCPResponse (with dashboard URL)', async () => {
+      await createImplLog();
+      const response = await reviewTaskHandler(
+        { action: 'prepare', specName: 'test-spec', taskId: '1' },
+        { ...context, dashboardUrl: 'http://localhost:3456' }
+      );
+      expect(response.success).toBe(true);
+      expect(response.projectContext?.dashboardUrl).toBe('http://localhost:3456');
+      const decoded = decode(toMCPResponse(response).content[0].text);
+      expect(decoded).toEqual(response);
     });
 
     describe('hygiene signal integration', () => {
