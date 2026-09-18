@@ -97,6 +97,7 @@ export function unwrapTypecheck(
     tsconfigPath: path.join(workspacePath, 'tsconfig.json'),
     status: 'unavailable',
     reason: 'rejection',
+    observed: `the typecheck promise rejected: \`${message}\``,
     rejectionMessage: message,
   }];
 }

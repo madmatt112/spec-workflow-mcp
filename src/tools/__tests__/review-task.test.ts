@@ -502,6 +502,7 @@ describe('handlePrepare with distinct workspace and workflow roots', () => {
         tsconfigPath: join(workspacePath, 'tsconfig.json'),
         status: 'unavailable',
         reason: 'feature-disabled',
+        observed: 'typecheck is disabled by `features.typecheck: false`',
       }];
     };
     overrides.hygiene = async (...args: any[]) => {
