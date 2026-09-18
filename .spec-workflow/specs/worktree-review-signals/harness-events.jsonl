@@ -62,3 +62,6 @@
 {"ts":"2026-09-18T19:17:48.920Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"reviser"}
 {"ts":"2026-09-18T19:27:56.879Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
 {"ts":"2026-09-18T19:28:05.966Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"design","round":"1","result":"R1-1 accepted, R1-2 accepted","tokens":"0"}
+{"ts":"2026-09-18T19:29:23.649Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-18T19:36:22.880Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
+{"ts":"2026-09-18T19:36:34.838Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","round":"2","result":"8 fixed 30 rejected","tokens":"0"}
