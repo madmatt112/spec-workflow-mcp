@@ -42,8 +42,11 @@ import {
   reviewTaskHandler,
   _resetReviewWarnings,
   buildReviewMethodology,
+  computeDiffMethodologyState,
   hasNoReviewableFiles,
   NO_REVIEWABLE_FILES_DISCLOSURE,
+  NO_FILES_METHODOLOGY_HEADER,
+  NO_FILES_DIFF_PREAMBLE,
   type DiffMethodologyState,
   type TypecheckMethodologyState,
 } from '../review-task.js';
@@ -644,12 +647,16 @@ describe('handlePrepare with distinct workspace and workflow roots', () => {
       result.nextSteps,
       'the read-every-file step must be REPLACED, not merely preceded by the disclosure: leaving it makes a pass over unexamined code the compliant outcome'
     ).not.toContain('Read all files listed in filesToReview');
-    // Requirement 4.21: the disclosure states the residual rather than implying
-    // a closure it does not deliver. R4_2A_DIFF_EMPTY fires NECESSARILY here —
-    // an empty workspace file set yields an empty diff with no rejection — so
-    // its "already committed" explanation is in the methodology alongside this.
-    expect(result.data.methodology).toContain('the task changes were already committed before review');
-    expect(result.nextSteps?.[0]).toContain('already committed before review');
+    // Requirement 5 (Component 5): the all-drop diff state is `no-files`, so the
+    // methodology carries NEITHER the pinned :675 header sentence NOR R4_2A's
+    // "already committed" explanation, and DOES carry both new constants. This is
+    // fixture-free — FIXTURE_INPUTS gains no `no-files` entry.
+    const methodology: string = result.data.methodology;
+    expect(methodology).not.toContain('Read ALL files listed in filesToReview');
+    expect(methodology).not.toContain('No diff available');
+    expect(methodology).not.toContain('the task changes were already committed before review');
+    expect(methodology).toContain(NO_FILES_METHODOLOGY_HEADER);
+    expect(methodology).toContain(NO_FILES_DIFF_PREAMBLE);
   });
 
   it('keeps the read-every-file nextStep when a workspace file resolved (4.20)', async () => {
@@ -709,6 +716,23 @@ describe('hasNoReviewableFiles (4.20)', () => {
 
   it('is false when the counts are absent', () => {
     expect(hasNoReviewableFiles(undefined)).toBe(false);
+  });
+});
+
+describe('computeDiffMethodologyState no-files precedence (Requirement 5.1, 5.6)', () => {
+  const empty = { diff: '', stats: undefined, skippedPaths: [], truncated: false };
+
+  it('yields no-files, not empty, when noReviewableFiles is set (5.1, D14)', () => {
+    expect(computeDiffMethodologyState(empty, true)).toEqual({ kind: 'no-files' });
+    expect(computeDiffMethodologyState(empty, false)).toEqual({ kind: 'empty' });
+  });
+
+  it('keeps rejected and its message even when noReviewableFiles is set (5.6)', () => {
+    const rejected = { ...empty, rejection: { message: 'mis-partitioned pathspec' } };
+    expect(computeDiffMethodologyState(rejected, true)).toEqual({
+      kind: 'rejected',
+      message: 'mis-partitioned pathspec',
+    });
   });
 });
 

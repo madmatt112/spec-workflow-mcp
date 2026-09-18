@@ -32,12 +32,24 @@ export type DiffMethodologyState =
   | { kind: 'present' }
   | { kind: 'present-truncated' }
   | { kind: 'empty' }
+  | { kind: 'no-files' }
   | { kind: 'rejected'; message: string };
 
-export function computeDiffMethodologyState(result: TaskDiffResult): DiffMethodologyState {
+/**
+ * `noReviewableFiles` (from `hasNoReviewableFiles`, not from `computeTaskDiff`'s
+ * empty-`kept` return — design D14) yields the `no-files` kind. Precedence:
+ * rejection, then no-files, then empty, then truncation. A containment or
+ * git-failure rejection therefore keeps the `rejected` kind and its own message
+ * (requirement 5.6) even when the file set is empty.
+ */
+export function computeDiffMethodologyState(
+  result: TaskDiffResult,
+  noReviewableFiles = false
+): DiffMethodologyState {
   if (result.rejection !== undefined) {
     return { kind: 'rejected', message: result.rejection.message };
   }
+  if (noReviewableFiles) return { kind: 'no-files' };
   if (result.diff === '') return { kind: 'empty' };
   if (result.truncated) return { kind: 'present-truncated' };
   return { kind: 'present' };
@@ -328,23 +340,28 @@ export function hasNoReviewableFiles(counts: FileResolutionCounts | undefined | 
  * them would leave the stated harm (a passing verdict over unexamined code)
  * fully intact.
  *
- * RESIDUAL (requirement 4.21, deferral `d-f3cb6fd8`): two further instructions
- * to read every listed file survive this replacement and are deliberately NOT
- * changed here — the unconditional methodology header (`buildReviewMethodology`,
- * this file) and `R4_2A_DIFF_EMPTY`. Both are byte-pinned, by the seventeen
- * committed fixtures under `src/tools/__tests__/__fixtures__/methodology/` and by
- * a drift test comparing against a *different* spec's requirements document, so
- * changing them is cross-spec work this spec does not carry. `R4_2A_DIFF_EMPTY`
- * additionally fires NECESSARILY on this path: an empty workspace file set
- * yields an empty diff with no rejection (`src/core/task-diff.ts:41-43`), so its
- * fabricated "already committed before review" explanation is present alongside
- * this statement in every all-drop review. The last sentence of the text names
- * that contradiction rather than leaving the agent to resolve it — but the
- * contradiction itself is real, and this constant is not a complete closure of
- * the harm.
+ * Requirement 5 (Component 5) closes the residual that requirement 4.21
+ * (deferral `d-f3cb6fd8`) left open. On the `no-files` diff state the two
+ * further read-every-file instructions are SELECTED AWAY, not edited: the
+ * methodology header (`buildReviewMethodology`, this file) emits
+ * `NO_FILES_METHODOLOGY_HEADER` and `renderDiffPreamble` emits
+ * `NO_FILES_DIFF_PREAMBLE` in place of `R4_2A_DIFF_EMPTY`, so the byte-pinned R4
+ * blocks and the seventeen committed fixtures under
+ * `src/tools/__tests__/__fixtures__/methodology/` are untouched. The last
+ * sentence below now states that both sites agree with this disclosure — no
+ * workspace files resolved and no diff was computed.
  */
 export const NO_REVIEWABLE_FILES_DISCLOSURE =
-  'NO REVIEWABLE FILES WERE RESOLVED. The implementation log listed files, but none of them resolved inside the workspace under review (see the fileResolution counts: workspaceCount is 0), so the implementation itself is not available to read. Do NOT return a "pass" verdict on that basis — a pass would assert that code was examined when none was read. Report the unresolved files as a critical finding instead. Any entries still shown in filesToReview are shared .spec-workflow documents, not the implementation. Other guidance in this review context still instructs you to read every listed file, and the empty-diff guidance may explain the missing diff as "the task changes were already committed before review"; neither holds here — the diff is empty and the list has no workspace files because resolution dropped them all.';
+  'NO REVIEWABLE FILES WERE RESOLVED. The implementation log listed files, but none of them resolved inside the workspace under review (see the fileResolution counts: workspaceCount is 0), so the implementation itself is not available to read. Do NOT return a "pass" verdict on that basis — a pass would assert that code was examined when none was read. Report the unresolved files as a critical finding instead. Any entries still shown in filesToReview are shared .spec-workflow documents, not the implementation. The methodology header and the diff preamble in this review context state the same: no workspace files resolved and no diff was computed.';
+
+/**
+ * Replaces the unconditional "Read ALL files listed in filesToReview" header
+ * (`buildReviewMethodology`, this file) when `diffState.kind === 'no-files'`
+ * (requirement 5.2). Selecting it instead of the R4-pinned sentence touches no
+ * committed fixture.
+ */
+export const NO_FILES_METHODOLOGY_HEADER =
+  'No workspace files are available for this review: none of the files in the implementation log resolved inside the workspace under review, and no diff was computed. For each item below, state what you could and could not check; an absent file is not a pass.';
 
 async function handlePrepare(
   specPath: string,
@@ -479,7 +496,7 @@ async function handlePrepare(
 
     // 8. Build methodology
     const typecheckState = computeTypecheckMethodologyState(typecheckResults[0]);
-    const diffState = computeDiffMethodologyState(diffResult);
+    const diffState = computeDiffMethodologyState(diffResult, noReviewableFiles);
     const methodology = buildReviewMethodology(
       taskContext,
       steeringExcerpt !== null,
@@ -673,7 +690,13 @@ export function buildReviewMethodology(
   sections.push('');
   sections.push('Find problems in this implementation. Do not validate it. Assume the implementation has issues until proven otherwise. Be skeptical of convenient shortcuts, missing edge cases, and requirements that were "close enough" but not fully met.');
   sections.push('');
-  sections.push('Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.');
+  // Requirement 5.2: the all-drop path SELECTS the no-files header instead of
+  // the R4-pinned read-every-file sentence, leaving the pinned byte in place.
+  if (diffState.kind === 'no-files') {
+    sections.push(NO_FILES_METHODOLOGY_HEADER);
+  } else {
+    sections.push('Read ALL files listed in filesToReview before evaluating. For each item below, actively look for violations — do not just confirm compliance. State what you checked, what evidence you found, and whether it passes or fails. If something is genuinely fine, say so briefly and move on.');
+  }
   sections.push('');
 
   // Diff preamble (R4.1 / R4.2a / R4.2b). The `**Read first:**` label is
@@ -781,6 +804,12 @@ const R4_2B_DIFF_REJECTED =
 const DIFF_TRUNCATION_NOTE =
   "**Note:** `data.diffTruncated` is true — at least one file's hunks were replaced by a truncation marker (look for `<diff truncated: ...>` lines in `data.diff`).";
 
+// The `no-files` preamble (requirement 5.2). It is a NEW constant, not an R4.x
+// block: on the all-drop path `renderDiffPreamble` emits it in place of
+// `R4_2A_DIFF_EMPTY`, so no committed fixture moves.
+export const NO_FILES_DIFF_PREAMBLE =
+  "**No diff and no workspace files.** The implementation log's files did not resolve in the workspace under review, so no pathspec reached git. This is not an empty diff of an unchanged tree and is not evidence that the changes were committed; the implementation is not available to read. Report the unresolved files as a critical finding (see the fileResolution counts).";
+
 function renderDiffPreamble(state: DiffMethodologyState): string[] {
   const lines: string[] = ['**Read first:**', ''];
   switch (state.kind) {
@@ -794,6 +823,9 @@ function renderDiffPreamble(state: DiffMethodologyState): string[] {
       break;
     case 'empty':
       lines.push(R4_2A_DIFF_EMPTY);
+      break;
+    case 'no-files':
+      lines.push(NO_FILES_DIFF_PREAMBLE);
       break;
     case 'rejected':
       lines.push(R4_2B_DIFF_REJECTED);
