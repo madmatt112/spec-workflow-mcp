@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } 
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { TaskReviewRunner } from '../task-review-runner.js';
+import { TaskReviewRunner, type BuildPromptOptions } from '../task-review-runner.js';
 
 // Mock child_process.spawn
 vi.mock('child_process', () => ({
@@ -19,7 +19,32 @@ vi.mock('../../tools/review-task.js', async (importOriginal) => ({
 }));
 
 import { spawn } from 'child_process';
-import { reviewTaskHandler, NO_REVIEWABLE_FILES_DISCLOSURE } from '../../tools/review-task.js';
+import { reviewTaskHandler, NO_REVIEWABLE_FILES_DISCLOSURE, type ExecutionContext } from '../../tools/review-task.js';
+import { containmentRejectionMessage } from '../../core/task-diff.js';
+
+// Defaults for the execution-context object and the diff fields task 9 carries
+// into the prompt. Spread into every reviewTaskHandler mock and buildPrompt call
+// so the renderer never dereferences an undefined executionContext.
+const DEFAULT_EXECUTION_CONTEXT: ExecutionContext = {
+  workspacePath: '/ws',
+  workflowRoot: '/root',
+  specWorkflowDir: '/root/.spec-workflow',
+  diffBase: {
+    commit: 'HEAD',
+    provenance: 'head-expected',
+    detail: 'No diff base is recorded for this workspace; the diff spans HEAD to the working tree, so committed changes are not shown.',
+  },
+  typecheck: { status: 'success', reason: null, observed: null },
+  attribution: { state: 'unknown', workspacePath: null, commit: null, source: null },
+  notes: [],
+};
+
+const DEFAULT_DIFF_FIELDS = {
+  diff: '',
+  diffStats: null,
+  diffTruncated: false,
+  skippedPaths: [],
+};
 
 describe('TaskReviewRunner', () => {
   let runner: TaskReviewRunner;
@@ -38,7 +63,7 @@ describe('TaskReviewRunner', () => {
       // Mock prepare to hang
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: { projectPath: '/tmp', workflowRoot: '/tmp/.spec-workflow' },
       });
       const mockProcess = createMockProcess();
@@ -57,7 +82,7 @@ describe('TaskReviewRunner', () => {
     it('should reject duplicate specName+taskId', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -73,7 +98,7 @@ describe('TaskReviewRunner', () => {
     it('should return a job ID', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -87,7 +112,7 @@ describe('TaskReviewRunner', () => {
     it('should cancel a running job', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -126,7 +151,7 @@ describe('TaskReviewRunner', () => {
     it('should emit pending on creation', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -169,6 +194,9 @@ describe('TaskReviewRunner', () => {
         priorReviewContext: null,
         priorMemoryContent: null,
         memoryFilePath: null,
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
       });
       expect(prompt).not.toContain('## Prior Review Context');
       expect(prompt).not.toContain('## Prior Review Memory');
@@ -192,6 +220,9 @@ describe('TaskReviewRunner', () => {
         priorReviewContext: priorContext,
         priorMemoryContent: null,
         memoryFilePath: '/tmp/memory-task-1.md',
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
       });
       expect(prompt).toContain('## Prior Review Context');
       expect(prompt).toContain('Some warning');
@@ -217,6 +248,9 @@ describe('TaskReviewRunner', () => {
         priorReviewContext: 'context',
         priorMemoryContent: memoryContent,
         memoryFilePath: '/tmp/memory.md',
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
       });
       expect(prompt).toContain('Existing content from prior iterations');
     });
@@ -236,6 +270,9 @@ describe('TaskReviewRunner', () => {
         priorReviewContext: 'context',
         priorMemoryContent: null,
         memoryFilePath: '/tmp/memory.md',
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
       });
       expect(prompt).toContain('No memory file yet');
     });
@@ -255,6 +292,9 @@ describe('TaskReviewRunner', () => {
         ],
         methodology: '# M',
         outputPath: '/tmp/out.json',
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
       });
       expect(prompt).not.toContain('[object Object]');
       expect(prompt).toContain('- /ws/src/file.ts (workspace)');
@@ -305,7 +345,7 @@ describe('TaskReviewRunner', () => {
     it('stores opts.model on the constructed job (getJob.model === opts.model)', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -321,7 +361,7 @@ describe('TaskReviewRunner', () => {
     it('leaves job.model undefined when opts.model is not set', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -337,7 +377,7 @@ describe('TaskReviewRunner', () => {
     it('does not break getJobsForProject consumers when model is set', async () => {
       (reviewTaskHandler as any).mockResolvedValue({
         success: true,
-        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '' },
+        data: { taskContext: {}, implementationSummary: {}, steeringExcerpt: null, filesToReview: [], methodology: '', executionContext: DEFAULT_EXECUTION_CONTEXT, ...DEFAULT_DIFF_FIELDS },
         projectContext: {},
       });
       const mockProcess = createMockProcess();
@@ -389,6 +429,8 @@ describe('TaskReviewRunner', () => {
           steeringExcerpt: null,
           filesToReview: [{ path: 'src/a.ts', root: 'workspace', ambiguous: false }],
           methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          ...DEFAULT_DIFF_FIELDS,
         },
       });
       // Stand-in review agent: honours the prompt's output-path contract so the
@@ -499,6 +541,8 @@ describe('TaskReviewRunner', () => {
             { path: join(workflowRoot, '.spec-workflow', 'notes.md'), root: 'workflow', ambiguous: false },
           ],
           methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          ...DEFAULT_DIFF_FIELDS,
         },
       });
 
@@ -534,6 +578,8 @@ describe('TaskReviewRunner', () => {
           steeringExcerpt: '## Steering excerpt R4_22_STEERING_MARKER',
           filesToReview: [{ path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false }],
           methodology: METHODOLOGY,
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          ...DEFAULT_DIFF_FIELDS,
         },
       });
 
@@ -572,6 +618,8 @@ describe('TaskReviewRunner', () => {
             drops: { 'not-array': 0, 'not-string': 0, 'resolve-threw': 0, missing: 1, 'realpath-failed': 0, 'outside-roots': 1 },
           },
           methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          ...DEFAULT_DIFF_FIELDS,
         },
       });
 
@@ -603,6 +651,8 @@ describe('TaskReviewRunner', () => {
             drops: { 'not-array': 0, 'not-string': 0, 'resolve-threw': 0, missing: 0, 'realpath-failed': 0, 'outside-roots': 0 },
           },
           methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          ...DEFAULT_DIFF_FIELDS,
         },
       });
 
@@ -660,6 +710,273 @@ describe('TaskReviewRunner', () => {
           else process.env[name] = value;
         }
       }
+    });
+  });
+
+  // Design Component 8: the runner renders the execution context and the diff
+  // state that `handlePrepare` produced, facts only (requirements 4.2–4.5, 4.6).
+  describe('execution context and diff sections (4.2, 4.3, 4.4, 4.5)', () => {
+    function build(overrides: Record<string, any> = {}): string {
+      const r = new TaskReviewRunner();
+      return (r as any).buildPrompt.bind(r)({
+        specName: 'test-spec',
+        taskId: '1',
+        taskContext: { description: 'test' },
+        implementationSummary: { filesModified: [] },
+        steeringExcerpt: null,
+        filesToReview: [],
+        methodology: '# M',
+        outputPath: '/tmp/out.json',
+        executionContext: DEFAULT_EXECUTION_CONTEXT,
+        ...DEFAULT_DIFF_FIELDS,
+        diffPath: null,
+        ...overrides,
+      });
+    }
+
+    it('renders the execution-context section with base, typecheck and attribution facts (4.2)', () => {
+      const prompt = build();
+      expect(prompt).toContain('## Execution Context');
+      expect(prompt).toContain('- Workspace: /ws');
+      expect(prompt).toContain('- Workflow root: /root (spec store: /root/.spec-workflow)');
+      expect(prompt).toContain('- Diff base: HEAD (head-expected). No diff base is recorded for this workspace');
+      expect(prompt).toContain('- Typecheck: success');
+      expect(prompt).toContain('- Attribution: unknown');
+    });
+
+    it('renders a degraded typecheck with its reason and observed text (4.2)', () => {
+      const prompt = build({
+        executionContext: {
+          ...DEFAULT_EXECUTION_CONTEXT,
+          typecheck: { status: 'unavailable', reason: 'no-tsconfig', observed: 'no `tsconfig.json` at `/ws/tsconfig.json`' },
+        },
+      });
+      expect(prompt).toContain('- Typecheck: unavailable, reason no-tsconfig. no `tsconfig.json` at `/ws/tsconfig.json`');
+    });
+
+    it('renders the attribution mismatch line and its note verbatim (7.3)', () => {
+      const note = 'Name in your review summary that this work was logged from `/other/ws`, not from the workspace under review.';
+      const prompt = build({
+        executionContext: {
+          ...DEFAULT_EXECUTION_CONTEXT,
+          attribution: { state: 'mismatch', workspacePath: '/other/ws', commit: 'abc123', source: 'context' },
+          notes: [note],
+        },
+      });
+      expect(prompt).toContain('- Attribution: mismatch. Logged from /other/ws at abc123 (context)');
+      expect(prompt).toContain(note);
+    });
+
+    it('writes "unknown commit" when a matched attribution has no commit', () => {
+      const prompt = build({
+        executionContext: {
+          ...DEFAULT_EXECUTION_CONTEXT,
+          attribution: { state: 'match', workspacePath: '/ws', commit: null, source: 'override' },
+        },
+      });
+      expect(prompt).toContain('- Attribution: match. Logged from /ws at unknown commit (override)');
+    });
+
+    it('states the containment rejection message verbatim when the diff was rejected (7.5)', () => {
+      const message = containmentRejectionMessage(['/outside/x.ts'], '/ws');
+      const prompt = build({ diffRejection: { message } });
+      expect(prompt).toContain('## Diff');
+      expect(prompt).toContain(`No diff was computed. ${message}`);
+      expect(prompt).toContain('DIFF CONTAINMENT ASSERTION FAILED.');
+    });
+
+    it('states an empty diff with the "empty" state word', () => {
+      const prompt = build();
+      expect(prompt).toContain('The diff is empty (state: empty).');
+    });
+
+    it('states the "no-files" diff state when no workspace files resolved (5.4)', () => {
+      const prompt = build({
+        fileResolution: { workspaceCount: 0, workflowCount: 1, drops: { missing: 0 } },
+      });
+      expect(prompt).toContain('The diff is empty (state: no-files).');
+    });
+
+    it('names the diff file, its byte size and its stats when a diff is present (4.4)', () => {
+      const diff = 'diff --git a/x b/x\n+added\n';
+      const prompt = build({
+        diff,
+        diffStats: { filesChanged: 1, linesAdded: 1, linesRemoved: 0 },
+        diffPath: '/tmp/task-review-test-spec-1.diff',
+      });
+      expect(prompt).toContain(
+        `\`data.diff\` named by the methodology is the file /tmp/task-review-test-spec-1.diff (${Buffer.byteLength(diff)} bytes; 1 files, +1 -0).`
+      );
+      // The body is never inlined (requirement 4.4, E2BIG).
+      expect(prompt).not.toContain('+added\n');
+    });
+
+    it('marks a truncated diff (4.4)', () => {
+      const prompt = build({
+        diff: 'x',
+        diffStats: { filesChanged: 2, linesAdded: 5, linesRemoved: 3 },
+        diffTruncated: true,
+        diffPath: '/tmp/t.diff',
+      });
+      expect(prompt).toContain('2 files, +5 -3, truncated).');
+    });
+
+    it('lists denylisted skipped paths (4.3)', () => {
+      const prompt = build({ skippedPaths: ['a.env', 'b.key'] });
+      expect(prompt).toContain('Skipped paths (denylisted): a.env, b.key');
+    });
+
+    it('rejects a BuildPromptOptions literal without executionContext (tsc)', () => {
+      // Omitting the now-required executionContext must not type-check. If this
+      // literal ever compiles, `@ts-expect-error` fails `npx tsc --noEmit` as an
+      // unused directive — which is the assertion (requirement 4.1, design D16).
+      // @ts-expect-error executionContext is required
+      const badOpts: BuildPromptOptions = {
+        specName: 's',
+        taskId: '1',
+        taskContext: {},
+        implementationSummary: {},
+        steeringExcerpt: null,
+        filesToReview: [],
+        methodology: '',
+        outputPath: '/tmp/o.json',
+        diff: '',
+        diffStats: null,
+        diffTruncated: false,
+        skippedPaths: [],
+        diffPath: null,
+      };
+      expect(badOpts).toBeDefined();
+    });
+  });
+
+  // Requirement 4.4: the diff body travels as a file beside the output file and
+  // is removed with it — the same lifecycle the output file already has.
+  describe('diff file lifecycle (4.4)', () => {
+    let dir: string;
+    let workflowRoot: string;
+    let workspacePath: string;
+    const SPEC = 'diff-life';
+    let spawnCalls: Array<{ args: string[] }>;
+    let diffPathAtSpawn: string | null;
+    let diffFilePresentAtSpawn: boolean | null;
+
+    beforeAll(async () => {
+      dir = join(tmpdir(), `specwf-trr-diff-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      workflowRoot = join(dir, 'repo');
+      workspacePath = join(dir, 'repo-wt-a');
+      await fs.mkdir(join(workflowRoot, '.spec-workflow', 'specs', SPEC), { recursive: true });
+      await fs.mkdir(workspacePath, { recursive: true });
+    });
+
+    afterAll(async () => {
+      await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    beforeEach(() => {
+      spawnCalls = [];
+      diffPathAtSpawn = null;
+      diffFilePresentAtSpawn = null;
+      (spawn as any).mockImplementation((_cli: string, args: string[]) => {
+        spawnCalls.push({ args });
+        const handlers: Record<string, Function[]> = {};
+        const child: any = {
+          pid: 4242,
+          stdout: { on: vi.fn() },
+          stderr: { on: vi.fn() },
+          on: (event: string, cb: Function) => { (handlers[event] ||= []).push(cb); },
+          kill: vi.fn(),
+        };
+        const prompt = String(args[args.length - 1]);
+        const outputPath = prompt.match(/Write your results as JSON to: (\S+)/)?.[1];
+        diffPathAtSpawn = prompt.match(/is the file (\S+\.diff) /)?.[1] ?? null;
+        setTimeout(async () => {
+          if (diffPathAtSpawn) {
+            diffFilePresentAtSpawn = await fs.stat(diffPathAtSpawn).then(() => true, () => false);
+          }
+          if (outputPath) {
+            await fs.writeFile(outputPath, JSON.stringify({ verdict: 'pass', summary: 'clean', findings: [] }), 'utf-8');
+          }
+          (handlers['close'] || []).forEach(cb => cb(0));
+        }, 0);
+        return child;
+      });
+    });
+
+    afterEach(() => {
+      (spawn as any).mockReset();
+      (reviewTaskHandler as any).mockReset();
+    });
+
+    async function runToCompletion(taskId: string): Promise<void> {
+      const jobId = await runner.run({ projectId: 'p-diff', specName: SPEC, taskId, workflowRoot, workspacePath });
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const job = runner.getJob(jobId);
+        if (job?.status === 'completed') return;
+        if (job?.status === 'failed') throw new Error(`job failed: ${job.error}`);
+        await new Promise(r => setTimeout(r, 5));
+      }
+      throw new Error('job never reached a terminal state');
+    }
+
+    it('writes the diff file, names it in the prompt, and removes it after the job (4.4)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'd' },
+          implementationSummary: { filesModified: ['src/a.ts'] },
+          steeringExcerpt: null,
+          filesToReview: [{ path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false }],
+          methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          diff: 'diff --git a/src/a.ts b/src/a.ts\n+added line\n',
+          diffStats: { filesChanged: 1, linesAdded: 1, linesRemoved: 0 },
+          diffTruncated: false,
+          skippedPaths: [],
+        },
+      });
+
+      await runToCompletion('1');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      expect(diffPathAtSpawn).toBeTruthy();
+      expect(prompt).toContain(diffPathAtSpawn!);
+      expect(diffFilePresentAtSpawn, 'the diff file must exist while the agent runs').toBe(true);
+
+      // The unlink runs after the status flips to completed; wait for it.
+      const goneDeadline = Date.now() + 2000;
+      let stillThere = true;
+      while (Date.now() < goneDeadline) {
+        stillThere = await fs.stat(diffPathAtSpawn!).then(() => true, () => false);
+        if (!stillThere) break;
+        await new Promise(r => setTimeout(r, 5));
+      }
+      expect(stillThere, 'the diff file must be removed with the output file').toBe(false);
+    });
+
+    it('writes no diff file for an empty diff (4.4)', async () => {
+      (reviewTaskHandler as any).mockResolvedValue({
+        success: true,
+        data: {
+          taskContext: { description: 'd' },
+          implementationSummary: { filesModified: [] },
+          steeringExcerpt: null,
+          filesToReview: [{ path: join(workspacePath, 'src', 'a.ts'), root: 'workspace', ambiguous: false }],
+          methodology: '# Methodology',
+          executionContext: DEFAULT_EXECUTION_CONTEXT,
+          diff: '',
+          diffStats: null,
+          diffTruncated: false,
+          skippedPaths: [],
+        },
+      });
+
+      await runToCompletion('2');
+
+      const prompt = String(spawnCalls[0].args[spawnCalls[0].args.length - 1]);
+      expect(prompt).toContain('The diff is empty (state: empty).');
+      expect(diffPathAtSpawn, 'no .diff file path should appear for an empty diff').toBeNull();
     });
   });
 
