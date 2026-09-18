@@ -77,3 +77,5 @@
 {"ts":"2026-09-18T20:08:57.376Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-checker"}
 {"ts":"2026-09-18T20:09:11.843Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-checker","role":"checker","phase":"design","round":"3","result":"VERIFIED 2/2","tokens":"0"}
 {"ts":"2026-09-18T20:09:11.865Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"round","phase":"design","round":"3","version":"v3","verdict":"narrow-check VERIFIED 2/2"}
+{"ts":"2026-09-18T20:10:57.958Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"design","result":"approved","state":"v3","note":"2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2"}
+{"ts": "2026-09-18T20:11:18.860Z", "run": "run-20260918-170520", "spec": "worktree-review-signals", "type": "spawn.end", "agent": "sdd-document-orchestrator", "role": "design phase, spawn 2", "result": "approved", "tokens": "198525"}

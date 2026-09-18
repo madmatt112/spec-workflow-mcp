@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **design**, state **v0**, last result **approved (requirements v3)**.
+> Live phase **tasks**, state **v0**, last result **approved (design v3)**.
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: spawn the design orchestrator `MODE: normal` (drafts design v1 from requirements v3, `approval_1789751201977_4rubgz93s`). Orchestrators run on claude-opus-4-8 high from the checkout's `plugins/` dir (main ≥ 599bdca). Requirements-approved commit was lost to a 2026-09-18 17:10Z reboot and recovered as 7afda9d.
+> A re-run does: spawn the tasks orchestrator `MODE: normal` (drafts tasks v1 from design v3). Then gate B, worktree entry (`feat/worktree-review-signals`), implementation. Orchestrators run on claude-opus-4-8 high from the checkout's `plugins/` dir.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -21,6 +21,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-17 | worktree-review-signals | requirements | v1 | interrupted | fresh-v1 override: stale split scaffold, orient said Step 2 |
 | 2026-09-18 | worktree-review-signals | requirements | v3 | approved | 2 rounds, iterate then converged |
 | 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
+| 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
 
 ## Current state — 2026-08-04
 
