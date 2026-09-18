@@ -84,3 +84,6 @@
 {"ts":"2026-09-18T20:13:34.209Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-18T20:27:36.548Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter"}
 {"ts":"2026-09-18T20:27:46.631Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","round":"0","result":"ok","tokens":"unknown"}
+{"ts":"2026-09-18T20:29:27.806Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-18T20:34:10.588Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
+{"ts":"2026-09-18T20:34:32.216Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"tasks","round":"1","result":"ok","tokens":"unknown"}
