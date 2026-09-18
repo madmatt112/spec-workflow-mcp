@@ -221,3 +221,11 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | implementation reads `codebase-context.md` first, then `tasks.md`; 12 tasks, leaf-first order, task 3 carries a `'HEAD'` bridge removed in task 8 |
+
+## worktree-review-signals — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/12 |
+| Last code commit | b9bd32a (task 1) |
+| Next task | 2 — Create `TaskStateStore` in src/core/task-state-store.ts |

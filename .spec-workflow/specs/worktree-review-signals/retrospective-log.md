@@ -58,3 +58,8 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1789764667108_pozu2vt3a; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 1 reviser (lint) spawns, 1 drafter
+
+## 2026-09-18T22:06:23Z · implementation · task 1 · gotcha
+Encoder bump + strip-undefined + 3 round-trip tests. rounds=0, gate-pass risk low.
+Evidence: task 1; commit b9bd32a
+Cost: 1 implementer spawn, 1 gate

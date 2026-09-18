@@ -6,7 +6,7 @@ This document sequences the `worktree-review-signals` design into twelve tasks: 
 
 Dependency order: tasks 1 to 5 are independent leaf changes, each leaving the tree compiling and every existing suite green, with task 3 bridging the new `computeTaskDiff` parameter by a `'HEAD'` literal at its one production call. Tasks 6 and 7 (the two writers) need tasks 2 and 3; task 8 (`handlePrepare`) needs tasks 2 to 5 and removes task 3's bridge; task 9 (the runner) needs the types task 8 exports. Tasks 10 and 11 need nothing before them; task 12 runs last and is the only task that runs `npm run test:e2e:worktree`.
 
-- [ ] 1. Bump `@toon-format/toon` and strip `undefined` keys in `toMCPResponse`
+- [x] 1. Bump `@toon-format/toon` and strip `undefined` keys in `toMCPResponse`
   - File: package.json, package-lock.json, src/types.ts, src/tools/__tests__/review-task.test.ts, src/tools/__tests__/adversarial-review.test.ts
   - Design Component 10: move `@toon-format/toon` from `^0.8.0` (`package.json:72`; installed 0.8.0) to `^4.1.1` (npm latest per `npm view` on 2026-09-18) with `npm install`; make `toMCPResponse` (`src/types.ts:288-296`) clone `response` and recursively delete `undefined`-valued keys before `encode`.
   - Add one round-trip case per test file: `decode(toMCPResponse(response).content[0].text)` `toEqual` the source, for a real `prepare` response with and without `context.dashboardUrl` (`src/server.ts:205`, copied at `src/tools/review-task.ts:525`) and for an `adversarial-review` response (`data.methodology`, `src/tools/adversarial-review.ts:178`). Both files gain cases only; no exactly-asserted value changes. `src/tools/__tests__/spec-lint.e2e.test.ts:43` already decodes a response and must stay green on 4.x.
