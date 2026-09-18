@@ -49,7 +49,7 @@ graph LR
   ```
   Both writers run `withRegistryLock(lockPath, fn)`; inside `fn`: read, parse, mutate one field, write `uniqueTempPath(filePath)`, `fs.rename`. `acquired: false` returns false with `console.warn`. `bases` keys are `normalizeIdentityPath(workspacePath)`. `read` takes no lock: rename leaves the file complete or absent; missing, unreadable, malformed or `version !== 1` returns null and warns once per file.
 - **Dependencies:** `registry-lock.ts`, `git-utils.ts`, `node:fs/promises`.
-- **Reuses:** `withRegistryLock` (`src/core/registry-lock.ts:350-391`), `RegistryLockResult` (`:38-40`), `uniqueTempPath` (`:52-54`), `writeRegistry`'s temp-then-rename (`src/core/project-registry.ts:277-279`), `normalizeIdentityPath` (`src/core/git-utils.ts:101-112`). The registry's own lock (`registry-lock.ts:7-11`) is not shared.
+- **Reuses:** `withRegistryLock` (`src/core/registry-lock.ts:350-391`), `RegistryLockResult` (`:38-40`), `uniqueTempPath` (`:52-54`), `writeRegistry`'s temp-then-rename (`src/core/project-registry.ts:268-279`), `normalizeIdentityPath` (`src/core/git-utils.ts:101-112`). The registry's own lock (`src/core/registry-lock.ts:7-11`) is not shared.
 
 ### Component 2 — git helpers and base-aware diff (`src/core/task-diff.ts`)
 - **Purpose:** Read `HEAD`, validate ancestry, diff from a base, classify git failure.
@@ -76,9 +76,9 @@ graph LR
     observed: string; rejectionMessage?: string }
   async function probeDeclaredDependencies(workspacePath: string): Promise<{ declared: number; unresolved: string[] } | null>;
   ```
-  `observed` is required, so every construction site states one: `:144`, `:151`, `:156`, `:159`, `:164`, `:199`, `:218`, `:221`, `unwrapTypecheck` (`src/tools/review-task.ts:96-101`), and the probe site. The probe reads `<workspacePath>/package.json`; absent or unparseable returns null and the check proceeds. Names are the keys of `dependencies` and `devDependencies`; `optionalDependencies` are excluded. One `fs.access(<workspacePath>/node_modules/<name>/package.json)` per name, awaited together, against the workspace's own `node_modules` only (D7). It runs after `resolveTscBinary` succeeds (`:162-165`) and before `spawnTsc` (`:188`); any unresolved name returns `reason: 'dependencies-unresolved'` with no spawn. The `no-tsconfig` arm (`:147-152`) adds one `fs.access(<workflowRoot>/tsconfig.json)` so `observed` can state whether the workflow root has one; `tsconfigPath` stays `:141`. The `timeout` (`:193-197`), `output-overflow` (`:198-200`) and `no-parseable-output` (`:217-222`) arms are unchanged apart from `observed`.
+  `observed` is required, so every construction site states one: `:144`, `:151`, `:156`, `:159`, `:164`, `:199`, `:218`, `:221`, `unwrapTypecheck` (`src/tools/review-task.ts:80-101`), and the probe site. The probe reads `<workspacePath>/package.json`; absent or unparseable returns null and the check proceeds. Names are the keys of `dependencies` and `devDependencies`; `optionalDependencies` are excluded. One `fs.access(<workspacePath>/node_modules/<name>/package.json)` per name, awaited together, against the workspace's own `node_modules` only (D7). It runs after `resolveTscBinary` succeeds (`src/core/typecheck.ts:162-165`) and before `spawnTsc` (`:188`); any unresolved name returns `reason: 'dependencies-unresolved'` with no spawn. The `no-tsconfig` arm (`:147-152`) adds one `fs.access(<workflowRoot>/tsconfig.json)` so `observed` can state whether the workflow root has one; `tsconfigPath` stays `:141`. The `timeout` (`:193-197`), `output-overflow` (`:198-200`) and `no-parseable-output` (`:217-222`) arms are unchanged apart from `observed`.
 - **Dependencies:** `node:fs/promises`.
-- **Reuses:** `resolveTscBinary` (`:409-423`); `computeTypecheckMethodologyState` (`src/tools/review-task.ts:55-74`) maps the new reason to `unavailable-other` unchanged; `gate-rules.ts:303-308` prints the reason string unchanged; `R4_6B_TYPECHECK_UNAVAILABLE` (`src/tools/review-task.ts:815-816`) is not edited.
+- **Reuses:** `resolveTscBinary` (`src/core/typecheck.ts:409-423`); `computeTypecheckMethodologyState` (`src/tools/review-task.ts:55-74`) maps the new reason to `unavailable-other` unchanged; `src/core/gate-rules.ts:303-308` prints the reason string unchanged; `R4_6B_TYPECHECK_UNAVAILABLE` (`src/tools/review-task.ts:815-816`) is not edited.
 
 ### Component 4 — `handlePrepare` (`src/tools/review-task.ts:348-536`)
 - **Purpose:** Resolve base and attribution, run the diff from the base, build `executionContext` once.
@@ -108,7 +108,7 @@ graph LR
   - typecheck `timeout`, or `unavailable` with any reason but `feature-disabled`: "Quote `executionContext.typecheck.observed` where the methodology's item 10 asks you to surface the typecheck degradation."
   `head-expected`, `recorded`, `match`, `unknown`, `success` and `feature-disabled` add no note.
 - **Dependencies:** Components 1, 2, 3.
-- **Reuses:** `hasNoReviewableFiles` (`:317-321`), `PathUtils.getWorkflowRoot` (`src/core/path-utils.ts:208-210`), `normalizeIdentityPath`.
+- **Reuses:** `hasNoReviewableFiles` (`src/tools/review-task.ts:317-321`), `PathUtils.getWorkflowRoot` (`src/core/path-utils.ts:208-210`).
 
 ### Component 5 — methodology constants (`src/tools/review-task.ts:661-838`)
 - **Purpose:** An all-drop review carries no read-every-file instruction and no already-committed explanation, without moving a pinned byte.
@@ -117,7 +117,7 @@ graph LR
   `NO_FILES_DIFF_PREAMBLE`, the `no-files` case of `renderDiffPreamble` (`:783-802`): "**No diff and no workspace files.** The implementation log's files did not resolve in the workspace under review, so no pathspec reached git. This is not an empty diff of an unchanged tree and is not evidence that the changes were committed; the implementation is not available to read. Report the unresolved files as a critical finding (see the fileResolution counts)."
   `NO_REVIEWABLE_FILES_DISCLOSURE` (`:345-346`): its last sentence becomes "The methodology header and the diff preamble in this review context state the same: no workspace files resolved and no diff was computed."
 - **Dependencies:** none new.
-- **Reuses:** `R4_1` to `R4_7` (`:771-781`, `:806-819`) unchanged; `FIXTURE_INPUTS` (`src/tools/__tests__/review-task.test.ts:1127`) has no `no-files` entry, so the seventeen fixtures and the drift test (`:1458-1500`) are untouched.
+- **Reuses:** `R4_1_DIFF_PRESENT` to `R4_7_TYPECHECK_TIMEOUT` (`:771-781`, `:806-819`) unchanged; `FIXTURE_INPUTS` (`src/tools/__tests__/review-task.test.ts:1127`) has no `no-files` entry, so the seventeen fixtures and the drift test (`:1458-1500`) are untouched.
 
 ### Component 6 — status route (`src/dashboard/multi-server.ts:1417-1477`)
 - **Purpose:** Record the workspace's `HEAD` when the dashboard sets a task in-progress.
@@ -129,7 +129,7 @@ graph LR
 - **Purpose:** Record where and at which commit the work was logged.
 - **Interfaces:** `:316` becomes `const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context)`. After `addLogEntry` (`:390`): `commit = await readHeadCommit(workspacePath)`, then `new TaskStateStore(specTasksPath).recordAttribution(taskId, { workspacePath, commit, source, loggedAt })` with `source = hasProjectPathOverride(args) ? 'override' : 'context'`. Failure warns; the response (`:395-416`) is unchanged. `hasProjectPathOverride(args)` is a new export of `src/tools/root-selection.ts` holding the predicate at `:203-205`.
 - **Dependencies:** Components 1, 2.
-- **Reuses:** `selectRoots` (`src/tools/root-selection.ts:202-221`); `specTasksPath` (`:341`).
+- **Reuses:** `selectRoots` (`src/tools/root-selection.ts:202-221`); `specTasksPath` (`src/tools/log-implementation.ts:341`).
 
 ### Component 8 — runner (`src/dashboard/task-review-runner.ts`)
 - **Purpose:** Carry the execution context and the diff state into the dashboard prompt; move the diff body to a file.
@@ -163,7 +163,7 @@ graph LR
   - Workspace: <workspacePath>
   - Workflow root: <workflowRoot>
   ```
-  `data.methodology` (`:178`) and `AdversarialRunner` (`src/dashboard/adversarial-runner.ts:111-148`) are unchanged.
+  `data.methodology` (`src/tools/adversarial-review.ts:178`) and `AdversarialRunner` (`src/dashboard/adversarial-runner.ts:49-148`) are unchanged.
 - **Dependencies:** `selectRoots`.
 - **Reuses:** the scaffold writer at `:157`.
 
@@ -248,7 +248,7 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 - **Unit, `src/tools/__tests__/log-implementation.test.ts`:** attribution with `source: 'context'` and, with `args.projectPath`, `'override'`; a non-repository workspace gives `commit: null` and a written entry.
 - **Unit, `src/dashboard/__tests__/multi-server.test.ts`** (route URL form at `:110`): `in-progress` writes `task-state.json` keyed by the project's workspace; `completed` writes nothing; a non-repository workspace returns 200 and writes nothing.
 - **Parity, `src/__tests__/parity-baseline.test.ts:66`:** the wrapper forwards `'HEAD'` as the third argument; diff bytes unchanged (Requirement 7 AC 4).
-- **End-to-end, `e2e/worktree-shared.spec.ts`** (`npm run test:e2e:worktree`): a third seeded task, pending; `PUT /api/projects/<A>/specs/<spec>/tasks/<id>/status` with `{ status: 'in-progress' }` via `fetch` (form at `:400-402`); `writeFile` and `commitAll` on A (`e2e/helpers/worktree-harness.ts:177-179`); `log-implementation` then `review-task prepare` through `callToolFromWorktree` (`:118-175`) from A gives `provenance === 'recorded'`, the committed marker in the diff and `attribution.state === 'match'`; prepare from B gives `mismatch`, and `record` from B succeeds (Requirement 7 AC 3). The dashboard-prompt half of AC 3 is the runner unit case.
+- **End-to-end, `e2e/worktree-shared.spec.ts`** (`npm run test:e2e:worktree`): a third seeded task, pending; `PUT /api/projects/<A>/specs/<spec>/tasks/<id>/status` with `{ status: 'in-progress' }` via `fetch` (form at `:400-402`); `writeFile` and `commitAll` on A (`e2e/helpers/worktree-harness.ts:177-179`); `log-implementation` then `review-task prepare` through `callToolFromWorktree` (`e2e/worktree-shared.spec.ts:118-175`) from A gives `provenance === 'recorded'`, the committed marker in the diff and `attribution.state === 'match'`; prepare from B gives `mismatch`, and `record` from B succeeds (Requirement 7 AC 3). The dashboard-prompt half of AC 3 is the runner unit case.
 
 ## Decisions taken in this document
 
@@ -285,3 +285,4 @@ Node 20 fields asserted (`agent-rules.md`): `execFile`'s callback `error.code` (
 ## Revision History
 
 - **v1** (2026-09-18) — Initial draft.
+  - **Lint pass.** 16 fixed (L-1, L-2, L-4, L-9, L-10, L-12 to L-21, L-29 — corrected bare paths, widened citation ranges to cover the named identifier, or re-anchored a citation after a mid-bullet file change); rejected: L-3, L-25, L-26 (name a field or paragraph this design adds; it cannot appear in a current-state citation), L-5 to L-8, L-11, L-22 to L-24, L-27, L-28, L-30 (prose word, not a cited identifier), L-31 to L-35 (the citation supports the migration-position ruling, not a claim the identifiers appear in that file).

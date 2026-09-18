@@ -53,3 +53,6 @@
 {"ts":"2026-09-18T18:23:28.151Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter","role":"drafter"}
 {"ts":"2026-09-18T18:43:56.787Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-drafter"}
 {"ts":"2026-09-18T18:44:05.946Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"design","round":"1","result":"drafted"}
+{"ts":"2026-09-18T18:46:33.203Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-18T18:57:54.929Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-reviser"}
+{"ts":"2026-09-18T18:58:18.933Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","round":"1","result":"16 accepted 19 rejected","tokens":"0"}
