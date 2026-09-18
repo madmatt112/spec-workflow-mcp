@@ -236,4 +236,4 @@ From implementation:
 | Worth next | `d-c99e352b` (state-store read + ancestry honesty edges) · `d-84dc43e7` (worktree e2e not idempotent across repeat runs) · the `worktree-dashboard-concurrency` cluster (`d-4ee04d64`, `d-3580c072`, `d-e5331af0`) |
 | Gotcha | Worktree e2e needs `npx playwright install chromium`; `agent-rules.md` worktree-setup lists only `npm ci`. Retro `harness-defect`. |
 | Gotcha | `TaskStateStore.read` warns once per file on a plain-missing `task-state.json` — the normal single-checkout `head-expected` path; consider suppressing ENOENT (retro task 8). |
-| PR | see routing header / phase log once opened |
+| PR | #49 https://github.com/madmatt112/spec-workflow-mcp/pull/49 (open, not merged) |
