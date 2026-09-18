@@ -128,3 +128,18 @@ Cost: 1 implementer spawn, 1 gate
 docs: TOOLS-REFERENCE executionContext + attribution paragraphs, CHANGELOG Unreleased; rounds=0, gate-pass risk low.
 Evidence: task 11; commit 569b85f
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:52:26Z · implementation · task 12 · harness-defect
+Worktree e2e needs 'npx playwright install chromium'; agent-rules worktree-setup lists only 'npm ci'. First run failed on a missing browser binary (worktree-no-shared.spec.ts), passed after install.
+Evidence: task 12; agent-rules.md worktree-setup; commit 854db4e
+Cost: 1 extra install step (flagged in report)
+
+## 2026-09-18T23:53:10Z · implementation · task 12 · gotcha
+e2e recorded-base + attribution scenario, stripMethodology deleted; rounds=0, gate-pass risk low, e2e 10/10.
+Evidence: task 12; commit 854db4e
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:57:04Z · implementation · phase · cleanup
+12/12 tasks implemented; 0 fix rounds, 0 adjudications; tasks 3,4,5,8 high-risk with verifier pass, the other 8 gate-pass risk low; e2e VERIFY pass (build+test+worktree e2e). Deferrals: 1 added (d-c99e352b), 2 resolved (d-a2233b94, d-6e59490b).
+Evidence: tasks.md 12/12; commits b9bd32a..854db4e
+Cost: 17 agent spawns (12 implementer + 5 verifier), 12 gates

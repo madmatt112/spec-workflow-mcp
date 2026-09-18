@@ -6,16 +6,15 @@
 
 ## Next
 
-- **State:** active
-- **Spec:** worktree-review-signals
-- **Why:** First not-Complete spec in build order (no tasks yet).
+- **State:** all-on-disk-complete
+- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
 
 ## Active
 
 | # | Spec | Status | Progress |
 | --- | --- | --- | --- |
 | 1 | worktree-execution-context | Complete | 19/19 |
-| 2 | worktree-review-signals | Design | — |
+| 2 | worktree-review-signals | Complete | 12/12 |
 | 3 | review-gate | Complete | 10/10 |
 | 4 | spec-lint | Complete | 12/12 |
 | 5 | harness-bookkeeping | Complete | 8/8 |

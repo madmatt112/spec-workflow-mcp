@@ -173,3 +173,11 @@
 {"ts":"2026-09-18T23:39:02.971Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a7d57966ae27fcf91","role":"implement task 11","phase":"implementation","task":"11","result":"logged yes/11 commit 569b85f"}
 {"ts":"2026-09-18T23:39:16.573Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 11 pass risk low"}
 {"ts":"2026-09-18T23:39:16.619Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"11","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:39:58.897Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"12","title":"End-to-end: recorded base, attribution mismatch, full decode"}
+{"ts":"2026-09-18T23:40:02.974Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:51:56.180Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:52:11.159Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a53759b1fae69f723","role":"implement task 12","phase":"implementation","task":"12","result":"logged yes/12; e2e 10/10"}
+{"ts":"2026-09-18T23:53:10.668Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 12 pass risk low (e2e 10/10)"}
+{"ts":"2026-09-18T23:53:10.714Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"12","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:56:08.864Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T23:56:16.844Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ab2a1ad339eee8fcf","role":"end-to-end verification","phase":"implementation","task":"12","result":"VERIFY pass"}

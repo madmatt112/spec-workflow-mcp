@@ -97,7 +97,7 @@ Dependency order: tasks 1 to 5 are independent leaf changes, each leaving the tr
   - _Requirements: 1.3_
   - _Prompt: Task: Implement design Component 11 per requirement 1.3 and the requirements' Migration notes: two paragraphs in docs/TOOLS-REFERENCE.md and an Unreleased CHANGELOG section that the release step renames | Restrictions: Prose only, no code changes; no bare angle brackets outside code spans; keep the Keep a Changelog headings (Added, Changed) | Success: both files read correctly in place; the release note states that a review of committed work is no longer empty for dashboard-started tasks_
 
-- [ ] 12. End-to-end: recorded base, attribution mismatch, full decode
+- [x] 12. End-to-end: recorded base, attribution mismatch, full decode
   - File: e2e/worktree-shared.spec.ts
   - Per the design's end-to-end strategy, in `e2e/worktree-shared.spec.ts`: seed a third, pending task in `seedSharedSpecTasks` (`:247-285`); PUT `/api/projects/<A>/specs/<spec>/tasks/<id>/status` with `{ status: 'in-progress' }` via `fetch` (form at `:400-402`); `writeFile` and `commitAll` on A (`e2e/helpers/worktree-harness.ts:177-179`); `log-implementation` then `review-task prepare` through `callToolFromWorktree` (`e2e/worktree-shared.spec.ts:118-192`) from A gives `provenance === 'recorded'`, the committed marker in the diff and `attribution.state === 'match'`; prepare from B gives `mismatch` and `record` from B succeeds. Delete `stripMethodology` (`:81-100`) and decode the full text at `:185` (design Component 10).
   - Purpose: the decomposition entry's verification and Requirement 7 AC 1 and AC 3 hold on real linked worktrees.

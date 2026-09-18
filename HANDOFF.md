@@ -226,6 +226,14 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 11/12 |
-| Last code commit | 569b85f (task 11) |
-| Next task | 12 — End-to-end: recorded base, attribution mismatch, full decode |
+| State | implemented — all 12 tasks `[x]` on 2026-09-18 |
+| Last code commit | 854db4e (task 12) on `feat/worktree-review-signals` |
+| End-to-end | VERIFY pass: `npx tsc --noEmit`, `npm run build`, `npm test` (1316 passed / 2 skipped), `npm run test:e2e:worktree` (10/10, both worktree suites) |
+| Deferrals added | 1 (`d-c99e352b` — MINOR honesty edges R2-3/R2-4) |
+| Deferrals resolved | 2 (`d-a2233b94` TOON decode via task 1; `d-6e59490b` dashboard reviewer prompt via task 9) |
+| Total deferred (project) | 14 |
+| Fix rounds / adjudications | 0 / 0 (12 gate-pass; tasks 3,4,5,8 high-risk verifier pass) |
+| Worth next | `d-c99e352b` (state-store read + ancestry honesty edges) · `d-84dc43e7` (worktree e2e not idempotent across repeat runs) · the `worktree-dashboard-concurrency` cluster (`d-4ee04d64`, `d-3580c072`, `d-e5331af0`) |
+| Gotcha | Worktree e2e needs `npx playwright install chromium`; `agent-rules.md` worktree-setup lists only `npm ci`. Retro `harness-defect`. |
+| Gotcha | `TaskStateStore.read` warns once per file on a plain-missing `task-state.json` — the normal single-checkout `head-expected` path; consider suppressing ENOENT (retro task 8). |
+| PR | see routing header / phase log once opened |
