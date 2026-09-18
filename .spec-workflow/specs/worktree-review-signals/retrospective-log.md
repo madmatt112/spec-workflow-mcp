@@ -98,3 +98,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate
 attribution write in log-implementation (hasProjectPathOverride, recordAttribution); rounds=0, gate-pass risk low.
 Evidence: task 6; commit b453d38
 Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:03:42Z · implementation · task 7 · gotcha
+status route records diff base on in-progress transition; rounds=0, gate-pass risk low.
+Evidence: task 7; commit c4b24e7
+Cost: 1 implementer spawn, 1 gate

@@ -226,6 +226,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 6/12 |
-| Last code commit | b453d38 (task 6) |
-| Next task | 7 — Record the diff base in the dashboard status route |
+| State | tasks 7/12 |
+| Last code commit | c4b24e7 (task 7) |
+| Next task | 8 — Build executionContext in handlePrepare |
