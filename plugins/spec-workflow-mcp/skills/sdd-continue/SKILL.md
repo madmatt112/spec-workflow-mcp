@@ -20,6 +20,12 @@ Rules that hold for the whole run:
   `gate-a` return and gate B before the first implementation spawn — which ask only in
   `block` mode (step 4) and never stall an unattended run.
 - Every stop ends with the status line from `references/formats.md`.
+- Your own run-lifetime helper scripts (for example `deregister.mjs`, or a
+  `rewrite-header.mjs` if you write one) go under `/tmp/scratchpad/sdd/<spec>/helpers/`,
+  not the scratch root the orchestrators share with you — the document-phase cleanup
+  prunes the root but never descends into `helpers/`
+  (`sdd-document-phase/references/cleanup.md`). The shared `event.sh`, `retro.sh` and
+  `commit-spec-store.sh` stay at the scratch root because orchestrators call them.
 
 Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 `references/formats.md` next to this file. Read it once at the start.
@@ -410,6 +416,6 @@ are in the spec store, and remove this run's line from the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` with `deregister.mjs`
 (`references/formats.md`; written once with the Write tool) — never a shell `grep -v`,
 which even under `rtk proxy` can splice summary text into the file a concurrent session
-shares: `node /tmp/scratchpad/sdd/<spec>/deregister.mjs <pointer path> <run id>`. It
-drops the line whose run id is this run's and deletes the file when none remain, so the
+shares: `node /tmp/scratchpad/sdd/<spec>/helpers/deregister.mjs <pointer path> <run id>`.
+It drops the line whose run id is this run's and deletes the file when none remain, so the
 hooks stop recording this run.

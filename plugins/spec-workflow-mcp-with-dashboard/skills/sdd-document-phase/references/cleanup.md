@@ -20,6 +20,12 @@ narrow check when it ran).
      `reviews/lint-brief-<PHASE>-v*.md`, `reviews/adjudication-brief-<PHASE>.md`
    - legacy names from hand-run loops, when present: `reviews/reviser-prompt-<PHASE>-v*.md`,
      `reviews/drafter-prompt-<PHASE>*.md`
+
+   Delete only files this phase wrote, by their exact `reviews/<name>` paths. Never
+   delete anything under `/tmp/scratchpad/sdd/<SPEC>/`, and above all never descend into
+   `/tmp/scratchpad/sdd/<SPEC>/helpers/`: the supervisor keeps its run-lifetime helpers
+   (`deregister.mjs`, `rewrite-header.mjs`) there, and removing them breaks its run-end
+   (retro P11).
 3. Keep `reviews/adversarial-memory-<PHASE>.md`, every
    `reviews/adversarial-analysis-<PHASE>*.md` (the retro log cites them) and
    `codebase-context.md` (the next phase reads it first).

@@ -207,8 +207,9 @@ At `run.end` the supervisor removes this run's line from the shared pointer file
 keep their own lines there, so the removal must read, filter and rewrite the file in
 Node — never a shell `grep -v`, which even under `rtk proxy` can splice a command
 summary into a file another session shares. The supervisor writes this script once per
-run with the Write tool and calls it as
-`node /tmp/scratchpad/sdd/<spec>/deregister.mjs <pointer path> <run id>`.
+run with the Write tool under its `helpers/` dir (so the document-phase cleanup never
+removes it) and calls it as
+`node /tmp/scratchpad/sdd/<spec>/helpers/deregister.mjs <pointer path> <run id>`.
 
 ```js
 #!/usr/bin/env node
