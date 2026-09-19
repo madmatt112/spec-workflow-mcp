@@ -18,3 +18,8 @@ Cost: 0 rounds (ruled, not revised)
 Round 1: iterate 1/1/2. R1-1 MUST_FIX: skill edit line-spans stop short of the token-write text, leaving live tokens=unknown and stale/misaligned citations. R1-2 SHOULD_FIX: tier line reaches 81 cols for a two-model '+'-joined worker. Reviewer ruled both RE-DECIDED flags (Req 4.7 two-line, Req 5.4/D6 non-digit tokens) as refinement, closed.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design.md
 Cost: 1 reviewer spawn
+
+## 2026-09-19T18:19:13Z · design · v2 · gotcha
+Round 2: iterate 0/2/0. All four v2 fixes code-verified. Two SHOULD_FIX remain: R2-1 (Compounds R1-1) retro edit span :35-39 straddles phase.start/phase.end and Component 7's replacement names neither; R2-2 (Novel) Component 4 'never both badge and tokens' unhandled for D9 agent.stop-carries-tokens + activity join, risking an 84-col head line and transient double-count. MUST_FIX 0, so routing to SHOULD_FIX-only corrective pass (v3), then narrow check.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn

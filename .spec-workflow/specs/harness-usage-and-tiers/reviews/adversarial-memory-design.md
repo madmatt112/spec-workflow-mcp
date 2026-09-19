@@ -1,11 +1,20 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-09-19 (Round 1, design v1)
+Last updated: 2026-09-19 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1)
+- **R1-1 (MUST_FIX, v1)** — Skill edit spans stopped short of the token-write text.
+  v2 extended `sdd-continue` to `:213-220` and retro to `:35-39`, corrected the closeout
+  footer citation to `:170`, and re-scoped pre-flight to `:222-230`. Grep-clean claim now
+  verified TRUE. (But the retro extension over-reached — see R2-1 unresolved.)
+- **R1-2 (SHOULD_FIX, v1)** — Tier-line actual column overflowed 80 for a `+`-joined
+  worker. v2 capped it with `fit(s.model, 30)`; worst case now exactly 80; render test at
+  width 80 added. Verified: `fit` caps at 30, level-2 indent 5, math holds.
+- **R1-3 (MINOR, v1)** — Tool `description` opening line listed four actions. v2 adds
+  `usage` to the opening list and the default message. Verified against harness.ts:29,120.
+- **R1-4 (MINOR, v1)** — Four `SpawnNode` kinds unread; bare Overview citation. v2 qualified
+  `harness.ts:658-683` and added a Scope note ("held for spec 9"). Verified.
 
 ### Partially Accepted
 - (none)
@@ -14,38 +23,40 @@ Last updated: 2026-09-19 (Round 1, design v1)
 - (none)
 
 ### Unresolved
-- **R1-1 (MUST_FIX)** — Skill edit ranges stop short of the token-write text.
-  `sdd-continue/SKILL.md` edit pinned :213-217 but the paragraph runs to :220, leaving a
-  live `tokens=unknown` supervisor instruction (breaks Req 1.9 / Req 2.3 and falsifies the
-  design's "only two footer hits remain" grep claim). Same pattern: retro edit :35-38 vs
-  token tail at :39 (req cited :33-39). Closeout attribution-footer cited :168, actual
-  :170. Scope note calls :219-227 "untouched" but pre-flight starts at L222; L219-220
-  carry the leftover.
-- **R1-2 (SHOULD_FIX)** — Tier line overflows 80 cols for a `+`-joined two-model worker
-  actual. Level-2 (indent 5): 5+3+8+1+23+6+1+31+3 = 81. Design supports `+`-joined models
-  (D3, hook test, `!=` flag) but the "longest 66" budget and the width-80 render test
-  ignore them.
-- **R1-3 (MINOR)** — Tool `description` opening line still lists four actions; not updated
-  to include `usage`.
-- **R1-4 (MINOR)** — `SpawnNode` gains four kinds no consumer reads (usage.ts reads raw
-  rows); Overview `:658-683` left bare after a ledger.ts citation.
+- **R2-1 (SHOULD_FIX, Compounds R1-1)** — Retro edit span `:35-39` straddles the
+  `phase.start` (L35) and `phase.end` (L39-40) instructions; Component 7's replacement text
+  names neither, so a literal "replace the cited span" drops the retrospective phase's
+  ledger boundaries. Narrow the citation or state the retained text.
+- **R2-2 (SHOULD_FIX, Novel)** — Component 4's "never both [badge and tokens]" claim is
+  pinned only to the `spawn.usage` fold (`:267-271`), but D9 makes `agent.stop` carry
+  tokens and the activity join (`ledger.ts:305-311`, `to=+Infinity` for open nodes) fills a
+  still-open node's tokens from `agent.stop`. In the interleaved double-`spawn.start` case
+  the design documents, the open node renders running+tokens → head line 84 > 80, plus a
+  transient `tokensTotal` double-count (vs "Req 4.4 unchanged"). Gate on `!running` or
+  `s.endedAt`.
 
 ## Patterns & Themes
-- Under-cited edit spans: the design pins the first lines of multi-line instruction blocks
-  and asserts a clean grep outcome that the tail lines contradict. Check every prose edit
-  range against where the matched token actually stops.
-- Width claims are pinned only for the single-model / orchestrator case; the `+`-joined
-  actual (the design's own defensive feature) is never carried through the layout budget or
-  the fixtures/tests.
-- Codebase-context probe line numbers are trustworthy for the fold/render internals but
-  carried at least one off-by-2 in a prose skill path (closeout footer 168 vs 170).
+- **Edit-span precision (recurring).** R1-1 was too-narrow; the v2 fix for retro is now
+  too-wide (straddles adjacent instructions). Always check both ends of a prose edit span
+  against instruction boundaries, not just against the matched token.
+- **Width claims proven only for the simple path (recurring).** R1-2 (tier line, single
+  model) and R2-2 (head line, spawn.usage-only) both assert an 80-col property with a
+  citation that omits a path the spec itself activates (`+`-joined actual; `agent.stop`
+  tokens). Re-derive width claims against every token source the spec introduces.
+- **New data paths not traced into old readers.** D9 (agent.stop carries tokens) changes
+  the *behaviour* of the unchanged activity join; "code unchanged" is not "behaviour
+  unchanged".
 
 ## Guidance for Next Review
-- Re-run `grep -rn "footer\|tokens=" harness/skills` against the revised edit map and
-  confirm only the two attribution-footer hits remain (at their true lines).
-- Recompute the tier-line worst case with a 31-char `+`-joined actual at level-2 indent;
-  demand a render test at width 80 that includes a two-model worker.
-- Rulings already closed (do not re-open): Req 4.7 two-line entry = refinement;
-  Req 5.4 / D6 any-non-digit = refinement.
-- Wire contract (hook → fold → readers) is otherwise sound; the number/string split
-  between activity and ledger rows is intentional and matches readers.
+- Confirm the retro edit is re-scoped so `phase.start`/`phase.end` survive; re-run the
+  member-finding grep against the revised map (should stay 2 hits: closeout:170,
+  briefs.md:233).
+- Confirm a head-line guard (`!running`, or join gated on `s.endedAt`) is stated, and that
+  the `tokensTotal`-unchanged claim survives `agent.stop` tokens.
+- Well-covered, do not re-mine: the grep-clean claim, the tier-line 80-col math, the fold
+  line-271 change vs `ledger.test.ts:169-218`, the fixture arithmetic, D2 role derivation,
+  the 12-key profiles, vitest-4 expressibility, the error paths (transcript/ledger/ts).
+- Closed rulings (do not re-open): Req 4.7 two-line entry; Req 5.4 / D6 any-non-digit;
+  round 1's "harness.ts ranges correct" (incl. the `:673-683` off-by-one for safeJoin).
+- The 77 `citation-identifier` warnings are all new/proposed symbols or cross-block
+  attributions; do not re-discover.
