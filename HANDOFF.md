@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **closeout**, state **items 0/13**, last result **retro-ready (plan APPROVED)**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals-retro` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `chore/worktree-review-signals-retro`).
-> A re-run does: from the retro worktree, spawn the close-out orchestrator on `retrospective-plan.md` (13 approved items: P4 P6 P16 P1 P3 P7 P12 P11 P14 P21 G1 G2 G3). Human: merge PR #49; origin/main is ~68 commits behind local main.
+> **READ FIRST — SDD routing (2026-09-18, harness v4).** **`worktree-review-signals`** is CLOSED — no active spec.
+> Live phase **closeout**, state **items 13/13 (10 landed on PR #50, 3 product to-dos P4/P6/P16 depend on PR #49)**, last result **closed**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (retro worktree `.claude/worktrees/worktree-review-signals-retro`, branch `chore/worktree-review-signals-retro`).
+> A re-run does: NOTHING until PR #50 merges — `retrospective-plan.md` on main still says APPROVED (the CLOSED status is on the PR #50 branch), so a re-run before the merge would re-run close-out. Do not start the next roadmap spec until Matthew says so (tradr batch and a release go first). Human: merge PR #49 then PR #50; land P4/P6/P16 on #49 or after it merges; push local main (origin ~68 behind); dedupe the duplicated `## Lint brief` section in briefs.md.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -25,6 +25,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
 | 2026-09-18 | worktree-review-signals | implementation | tasks 12/12 | complete | PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved |
 | 2026-09-19 | worktree-review-signals | retrospective |  | retro-ready |  |
+| 2026-09-19 | worktree-review-signals | closeout | items 13/13 | closed | 10 done, 3 to-do (PR #49 dep); retro follow-ups on PR #50 |
 
 ## Current state — 2026-08-04
 

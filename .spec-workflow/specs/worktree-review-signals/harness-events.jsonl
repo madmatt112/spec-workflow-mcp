@@ -192,3 +192,44 @@
 {"ts":"2026-09-19T00:05:51.761Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-retro-analyst","role":"proposals"}
 {"ts":"2026-09-19T00:06:25.815Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-09-19T00:06:41.513Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}
+{"ts":"2026-09-19T01:55:06.110Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"retrospective conversation held (block mode): gate A outcomes-only, gate B log-only one-click; groups approved: product fixes, brief/setup tweaks, lint+gate changes; ledger/TUI group rejected; plan APPROVED with 13 items"}
+{"ts":"2026-09-19T01:55:06.134Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-09-19T02:04:29.277Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"closeout","state":"items 0/13"}
+{"ts":"2026-09-19T02:04:46.149Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P12","title":"worktree-setup lists e2e browser install"}
+{"ts":"2026-09-19T02:04:46.170Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"G2","title":"worktree-setup lists every install step"}
+{"ts":"2026-09-19T02:04:46.190Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P1","title":"anchor lint citations to a file"}
+{"ts":"2026-09-19T02:04:46.210Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P3","title":"design briefs pin runtime signature"}
+{"ts":"2026-09-19T02:04:46.230Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P7","title":"extend gate-A recheck to interrupt-before-emit"}
+{"ts":"2026-09-19T02:04:46.251Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P11","title":"carry rejected citation findings forward"}
+{"ts":"2026-09-19T02:04:46.271Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"G1","title":"carry rejected lint findings forward"}
+{"ts":"2026-09-19T02:04:46.292Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P14","title":"reframe Gate A around outcomes"}
+{"ts":"2026-09-19T02:04:46.313Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"P21","title":"surface Gate B veto items"}
+{"ts":"2026-09-19T02:04:46.334Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"G3","title":"human gates ask outcomes not mechanics"}
+{"ts":"2026-09-19T02:07:19.468Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-19T02:19:23.484Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-19T02:20:10.393Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"sdd-implementer","role":"implement batch 1","phase":"closeout","result":"7 commits, 10 items done (P1 P3 P7 P11 G1 P14 G3 P21 P12 G2)","tokens":"unknown"}
+{"ts":"2026-09-19T02:21:06.551Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-09-19T02:22:01.371Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-19T02:22:01.392Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P11 pass risk low"}
+{"ts":"2026-09-19T02:22:01.412Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item G1 pass risk low (with P11)"}
+{"ts":"2026-09-19T02:22:01.432Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-09-19T02:22:01.452Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P14 pass risk low"}
+{"ts":"2026-09-19T02:22:01.473Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item G3 pass risk low (with P14)"}
+{"ts":"2026-09-19T02:22:01.492Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P21 pass risk low"}
+{"ts":"2026-09-19T02:22:01.512Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item P12 pass risk low"}
+{"ts":"2026-09-19T02:22:01.532Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: item G2 pass risk low (with P12)"}
+{"ts":"2026-09-19T02:22:37.826Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.847Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.869Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.891Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P12","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.915Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.938Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P14","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.960Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P21","outcome":"done"}
+{"ts":"2026-09-19T02:22:37.982Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-09-19T02:22:38.003Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"G2","outcome":"done"}
+{"ts":"2026-09-19T02:22:38.024Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"G3","outcome":"done"}
+{"ts":"2026-09-19T02:22:38.046Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P4","outcome":"to-do"}
+{"ts":"2026-09-19T02:22:38.068Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P6","outcome":"to-do"}
+{"ts":"2026-09-19T02:22:38.090Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P16","outcome":"to-do"}
+{"ts":"2026-09-19T02:25:50.328Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"closeout","result":"closed","state":"items 13/13","note":"10 done, 3 to-do (PR #49 dep); retro follow-ups on PR #50"}
+{"ts":"2026-09-19T02:26:42.383Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","tokens":"151186"}
