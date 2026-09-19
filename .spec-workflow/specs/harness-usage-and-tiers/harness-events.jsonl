@@ -35,3 +35,7 @@
 {"ts":"2026-09-19T16:00:25.307Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
 {"ts":"2026-09-19T16:07:27.377Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v3","round":"3","result":"fixed-5-rejected-40","tokens":"69374"}
 {"ts":"2026-09-19T16:07:36.819Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-19T16:07:48.795Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"requirements","round":"3","result":"iterate","tokens":"unknown"}
+{"ts":"2026-09-19T16:07:48.817Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"requirements","round":"3","version":"v3","verdict":"iterate 1/1/0"}
+{"ts":"2026-09-19T16:08:03.258Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"reviewer r3 actual tokens=101281 (earlier spawn.usage logged unknown)"}
+{"ts":"2026-09-19T16:08:29.311Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
