@@ -206,6 +206,15 @@ phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role
 result=<PHASE value> tokens=<n>`, where `<n>` is the token count the Agent result
 states in its footer (omit `tokens` only when it states none).
 
+**Model pre-flight.** Frontmatter loads a spawn's model from the marketplace source
+checkout, not the installed plugin, so a stale source can run an orchestrator on the
+wrong model even when both plugin caches read `claude-opus-4-8`. Before acting on the
+report, verify the model the spawn actually ran on: read the run's transcript (the newest
+`~/.claude/projects/*/*.jsonl`) and take `.message.model` from this spawn's assistant
+lines (its `isSidechain` entries). Every orchestrator must be `claude-opus-4-8`. On a
+mismatch, do not act on the report — write a HANDOFF row, print
+`model mismatch: <agent> ran <model>, expected claude-opus-4-8`, and stop the run.
+
 Act on the final `PHASE:` line of the orchestrator's report:
 
 - `approved` or `complete`: call the spec-workflow `harness` tool with
