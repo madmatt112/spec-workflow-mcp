@@ -213,9 +213,11 @@ async function resolvePathOnce(rawPath: string, bases: string[], cache: Map<stri
 
 /**
  * Verify every citation in a document (requirements 2.1-2.7, design Component 4).
- * `bases` are tried in order: the code root, the spec store, the spec directory
- * (`[workspacePath, workflowRoot, specDir]` from the handler). Returns findings
- * with `file` unset; `finishLint` sets it to `<phase>.md`.
+ * `bases` are tried in order, first hit wins — from the handler: the code root,
+ * the `.spec-workflow` spec-store root, the spec-store repo and the spec
+ * directory. A filename with no directory prefix is rejected before any base is
+ * tried (retro P2). Returns findings with `file` unset; `finishLint` sets it to
+ * `<phase>.md`.
  */
 export async function checkCitations(lines: string[], bases: string[]): Promise<LintFinding[]> {
   const fenced = fencedLines(lines);
@@ -231,6 +233,18 @@ export async function checkCitations(lines: string[], bases: string[]): Promise<
       findings.push({
         file: '', line: cit.line, rule: 'citation-bare', severity: 'info',
         message: `Bare range ${rangeLabel(cit)} has no earlier path citation in its block`,
+      });
+      continue;
+    }
+
+    // A filename cited with no directory prefix is rejected outright (retro P2):
+    // resolving against more than one base could let a bare `accounting.query.ts`
+    // match by luck and mask a citation that is missing its directory. Kept
+    // strict — no read is attempted — so the error never depends on the tree.
+    if (!cit.path.includes('/')) {
+      findings.push({
+        file: '', line: cit.line, rule: 'citation-path', severity: 'error',
+        message: bareFilenameMessage(cit.path),
       });
       continue;
     }
@@ -307,4 +321,9 @@ function pathMessage(p: string): string {
   return p.includes('..') || p.startsWith('/')
     ? `Cited path is absolute or contains '..' and is not read: ${p}`
     : `Cited path resolves under no base (code root, spec store, spec dir): ${p}`;
+}
+
+/** The `citation-path` message for a filename cited with no directory prefix (retro P2). */
+function bareFilenameMessage(p: string): string {
+  return `Cited path \`${p}\` has no directory prefix; cite it by its path from the code root or spec store (for example \`dir/${p}\`)`;
 }

@@ -153,11 +153,26 @@ describe('checkCitations', () => {
 
   it('resolves first hit across the three bases in order', async () => {
     // Absent in baseA, five lines in baseB, one line in baseC: a correct
-    // first-hit resolver picks baseB and finds line 3 in range.
-    await fsp.writeFile(join(baseB, 'dup.ts'), 'l1\nl2\nl3\nl4\nl5\n');
-    await fsp.writeFile(join(baseC, 'dup.ts'), 'only\n');
-    const findings = await checkCitations(split('see `dup.ts:3`'), [baseA, baseB, baseC]);
+    // first-hit resolver picks baseB and finds line 3 in range. A directory
+    // prefix is required now that a bare filename is rejected (retro P2).
+    await fsp.mkdir(join(baseB, 'd'), { recursive: true });
+    await fsp.mkdir(join(baseC, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseB, 'd', 'dup.ts'), 'l1\nl2\nl3\nl4\nl5\n');
+    await fsp.writeFile(join(baseC, 'd', 'dup.ts'), 'only\n');
+    const findings = await checkCitations(split('see `d/dup.ts:3`'), [baseA, baseB, baseC]);
     expect(findings).toHaveLength(0);
+  });
+
+  it('rejects a filename cited with no directory prefix, even if it exists (retro P2)', async () => {
+    // Present under baseA, yet still rejected: the bare-filename rule is strict
+    // and never reads the tree, so a lucky match cannot mask a missing dir.
+    await fsp.writeFile(join(baseA, 'accounting.query.ts'), 'a\nb\nc\n');
+    const findings = await checkCitations(split('see `accounting.query.ts:2`'), [baseA]);
+    const path = rulesOn(findings, 'citation-path');
+    expect(path).toHaveLength(1);
+    expect(path[0].severity).toBe('error');
+    expect(path[0].message).toContain('no directory prefix');
+    expect(readFileSpy).not.toHaveBeenCalled();
   });
 
   it('reports citation-path and never reads a `..` or absolute path', async () => {
@@ -173,8 +188,9 @@ describe('checkCitations', () => {
   });
 
   it('reports citation-range on 0, A > B and past EOF', async () => {
-    await fsp.writeFile(join(baseA, 'small.ts'), 'one\ntwo\n'); // two lines
-    const doc = ['`small.ts:3`', '`small.ts:0`', '`small.ts:2-1`', '`small.ts:1-2`'].join('\n');
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'small.ts'), 'one\ntwo\n'); // two lines
+    const doc = ['`d/small.ts:3`', '`d/small.ts:0`', '`d/small.ts:2-1`', '`d/small.ts:1-2`'].join('\n');
     const findings = await checkCitations(split(doc), [baseA]);
     const range = rulesOn(findings, 'citation-range');
     expect(range.map((f) => f.line).sort((a, b) => a - b)).toEqual([1, 2, 3]);
@@ -182,9 +198,10 @@ describe('checkCitations', () => {
   });
 
   it('reports citation-unchecked for a directory and for non-UTF-8 bytes', async () => {
-    await fsp.mkdir(join(baseA, 'sub.ts'));
-    await fsp.writeFile(join(baseA, 'bad.ts'), Buffer.from([0xff, 0xfe]));
-    const findings = await checkCitations(split('`sub.ts:1`\n`bad.ts:1`'), [baseA]);
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.mkdir(join(baseA, 'd', 'sub.ts'));
+    await fsp.writeFile(join(baseA, 'd', 'bad.ts'), Buffer.from([0xff, 0xfe]));
+    const findings = await checkCitations(split('`d/sub.ts:1`\n`d/bad.ts:1`'), [baseA]);
     const unchecked = rulesOn(findings, 'citation-unchecked');
     expect(unchecked).toHaveLength(2);
     expect(unchecked.every((f) => f.severity === 'info')).toBe(true);
@@ -202,11 +219,12 @@ describe('checkCitations', () => {
   });
 
   it('flags an identifier absent from its cited range, passes one present', async () => {
-    await fsp.writeFile(join(baseA, 'real.ts'), 'function getWorkflowRoot() {}\nother stuff here\n');
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'real.ts'), 'function getWorkflowRoot() {}\nother stuff here\n');
     const doc = [
-      '`PathUtils.getWorkflowRoot` lives at `real.ts:1`',
+      '`PathUtils.getWorkflowRoot` lives at `d/real.ts:1`',
       '',
-      '`missingId` is at `real.ts:2`',
+      '`missingId` is at `d/real.ts:2`',
     ].join('\n');
     const findings = await checkCitations(split(doc), [baseA]);
     const ident = rulesOn(findings, 'citation-identifier');
@@ -223,8 +241,9 @@ describe('checkCitations', () => {
   });
 
   it('reads each cited file at most once per call (requirement 2.7)', async () => {
-    await fsp.writeFile(join(baseA, 'once.ts'), 'a\nb\nc\n');
-    await checkCitations(split('`once.ts:1` and `once.ts:2` and `once.ts:3`'), [baseA]);
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'once.ts'), 'a\nb\nc\n');
+    await checkCitations(split('`d/once.ts:1` and `d/once.ts:2` and `d/once.ts:3`'), [baseA]);
     const onceReads = readFileSpy.mock.calls.filter((c) => String(c[0]).endsWith('once.ts')).length;
     expect(onceReads).toBe(1);
   });
