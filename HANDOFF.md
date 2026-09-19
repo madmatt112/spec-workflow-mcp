@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **implementation**, state **tasks 0/12**, last result **approved (tasks v1; gate B approved by the human, slot deleted)**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/worktree-review-signals`).
-> A re-run does: from the worktree, spawn the implementation orchestrator `MODE: normal` on the 12-task queue (gate B already resolved, `present: false`). Orchestrators run on claude-opus-4-8 high.
+> Live phase **retrospective**, state **tasks 12/12**, last result **complete (PR #49 open, checks green, not merged)**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (implementation worktree `.claude/worktrees/worktree-review-signals`, branch `feat/worktree-review-signals`).
+> A re-run does: spawn the retro orchestrator (retrospective.md + proposals), hold the retrospective conversation, then close-out from a `chore/worktree-review-signals-retro` worktree. Human: merge PR #49; origin/main is ~68 commits behind local main.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -23,6 +23,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
 | 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
 | 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
+| 2026-09-18 | worktree-review-signals | implementation | tasks 12/12 | complete | PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved |
 
 ## Current state — 2026-08-04
 
