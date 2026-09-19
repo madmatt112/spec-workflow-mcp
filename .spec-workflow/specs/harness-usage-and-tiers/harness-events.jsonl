@@ -29,3 +29,6 @@
 {"ts":"2026-09-19T15:50:03.934Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
 {"ts":"2026-09-19T15:50:42.006Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"reviewer r2 actual tokens=110351 (earlier spawn.usage logged unknown)"}
 {"ts":"2026-09-19T15:50:42.112Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-19T15:55:47.742Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T15:56:52.035Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"requirements","round":"2","result":"accepted-3","tokens":"87916"}
+{"ts":"2026-09-19T15:56:52.139Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
