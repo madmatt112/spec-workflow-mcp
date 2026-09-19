@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-19, harness v4).** Active spec **`harness-usage-and-tiers`**.
-> Live phase **design**, state **pending**, last result **approved** (requirements v5).
+> Live phase **tasks**, state **pending**, last result **approved** (design v3).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: dispatches the design document phase for `harness-usage-and-tiers` (requirements approved at v5, approval_1789835511785_5tgmkk1h5); implementation later enters a `feat/harness-usage-and-tiers` worktree branched from local main (must include f616c72 and 1e0f7b3).
+> A re-run does: dispatches the tasks document phase for `harness-usage-and-tiers` (requirements v5 approval_1789835511785_5tgmkk1h5, design v3 approval_1789843231461_6kmnt6n22); then gate B, then implementation in a `feat/harness-usage-and-tiers` worktree branched from local main (must include f616c72, ceb185f, 1e0f7b3).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -28,6 +28,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-19 | worktree-review-signals | closeout | items 13/13 | closed | 10 done, 3 to-do (PR #49 dep); retro follow-ups on PR #50 |
 | 2026-09-19 | harness-usage-and-tiers | requirements | v1 | gate-a |  |
 | 2026-09-19 | harness-usage-and-tiers | requirements | v5 | approved | 5 rounds, iterate throughout then cap hit adjudicated, VERIFIED 2/2 |
+| 2026-09-19 | harness-usage-and-tiers | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 
 ## Current state — 2026-08-04
 

@@ -85,3 +85,5 @@
 {"ts":"2026-09-19T18:36:24.504Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v3","phase":"design","round":"3","result":"4 fixed/78 rejected","tokens":"54970"}
 {"ts":"2026-09-19T18:39:57.141Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-checker"}
 {"ts":"2026-09-19T18:40:22.679Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-checker","role":"checker","phase":"design","round":"3","result":"VERIFIED 2/2","tokens":"57059"}
+{"ts":"2026-09-19T18:42:39.130Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"design","result":"approved","state":"v3","note":"3 rounds, converged via SHOULD_FIX-only pass"}
+{"ts":"2026-09-19T18:43:06.463Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved","tokens":"192441"}
