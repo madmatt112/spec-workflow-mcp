@@ -45,7 +45,9 @@ at the start.
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0; one `spawn.usage` right after each worker's report (`agent=`,
   `role=`, `phase=`, `round=` or `task=`, `result=`, `tokens=<n>` from the `<usage><subagent_tokens>`
-  value in the spawn's task notification, `unknown` when absent); `round` after every verdict; `note` for rulings and
+  value in the spawn's task notification; that notification lands one tool round after
+  the worker's hand-back, so do your spot-check first and write the row after it,
+  `unknown` only if two more tool rounds pass without it); `round` after every verdict; `note` for rulings and
   escalations; `phase.end` right before your final report. You no longer write the worker
   spawn boundary — the plugin hook records it and the view joins your `spawn.usage` to it
   by agent and time window. Event types and keys are listed in the supervisor's

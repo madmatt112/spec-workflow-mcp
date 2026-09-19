@@ -55,7 +55,9 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
   `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT | VERIFY>`,
   `tokens=<n>` from the `<usage><subagent_tokens>` value in the spawn's task
-  notification, `unknown` when absent);
+  notification; that notification lands one tool round after the worker's hand-back, so
+  read the report and run the gate first and write the row after it, `unknown` only if
+  two more tool rounds pass without it);
   `note "text=gate: task <N> <pass|fail> risk <low|high>"` after every gate call;
   `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>` when you mark `[x]`;
   `note` for deferrals, design defects, drift and every red CI check; `phase.end` right

@@ -34,8 +34,9 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces):
   `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
   around the analyst (`agent=sdd-retro-analyst role=proposals`, `tokens=<n>` from the
-  `<usage><subagent_tokens>` value in the spawn's task notification on `spawn.end`,
-  `unknown` when absent), `phase.end phase=retrospective
+  `<usage><subagent_tokens>` value in the spawn's task notification on `spawn.end`;
+  that notification lands one tool round after the analyst's hand-back, so write the
+  row after it, `unknown` only if two more tool rounds pass without it), `phase.end phase=retrospective
   result=retro-ready` before the report. `EVENT_SCRIPT` missing or not readable: skip the
   ledger and say so in your report; never let it stop the phase.
 

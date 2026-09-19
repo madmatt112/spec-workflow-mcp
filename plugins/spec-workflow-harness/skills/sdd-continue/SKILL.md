@@ -214,7 +214,10 @@ Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phas
 phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
 result=<PHASE value> tokens=<n>`, where `<n>` is the `<usage><subagent_tokens>` value in
 the task notification that reports this spawn finished (the Agent result carries no
-footer count any more); when no notification states one, write `tokens=unknown`.
+footer count any more). That notification arrives one tool round AFTER the
+orchestrator's hand-back message, so write `spawn.end` after it lands, not on the
+hand-back: act on the report first (its `PHASE:` line, the HANDOFF row), then write the
+row. Only when two further tool rounds pass with no notification write `tokens=unknown`.
 
 **Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
 agents live (the checkout's `harness/agents/` when linked, the marketplace source
