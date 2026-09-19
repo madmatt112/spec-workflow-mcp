@@ -6,3 +6,8 @@
 {"ts":"2026-09-19T14:51:23.822Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"0","result":"ok","tokens":"175250"}
 {"ts":"2026-09-19T14:52:30.226Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-19T14:59:16.775Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T14:59:51.904Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"requirements","round":"1","result":"ok","tokens":"113026"}
+{"ts":"2026-09-19T15:00:35.716Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter","role":"gate-a"}
+{"ts":"2026-09-19T15:01:18.427Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter"}
+{"ts":"2026-09-19T15:01:44.449Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"gate-a v1","phase":"requirements","round":"1","result":"ok"}
+{"ts":"2026-09-19T15:01:44.471Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"requirements","result":"gate-a","state":"v1"}

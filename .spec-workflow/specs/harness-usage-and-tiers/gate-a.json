@@ -1,47 +1,47 @@
 {
   "items": [
     {
-      "header": "D1 — who writes an orchestrator's spawn rows",
-      "question": "The supervisor writes spawn.usage (agent, role, result) for an orchestrator, and the hook writes the orchestrator's spawn.end?",
+      "header": "D9 Tier change delivery",
+      "question": "Is the Opus 4.8 tier change verified and documented, or re-applied?",
       "options": [
-        "The supervisor switches to spawn.usage; the hook writes spawn.end for every sdd-* agent, orchestrators included",
-        "Keep the supervisor's spawn.end and have the hook skip orchestrators (no orchestrator usage, against the entry)",
-        "Both write spawn.end (the second row finds no open node at ledger.ts:241 and its result is lost)"
+        "Verify and document it; treat 599bdca as the delivery (the agent files already say Opus 4.8 high; only docs and the ledger table disagree)",
+        "Re-edit the five agent files"
       ]
     },
     {
-      "header": "D5 — runs the usage report covers",
-      "question": "harness usage sums every run in a ledger, not only the last run.start?",
+      "header": "D1 Orchestrator ledger rows",
+      "question": "Who writes the orchestrator's spawn.usage and spawn.end rows?",
       "options": [
-        "All runs, one flat table per spec with the run count in the header",
-        "The last run only, as --watch does (question-gates loses 777,748 tokens)",
+        "The supervisor writes spawn.usage (agent, role, result); the hook writes the orchestrator's spawn.end",
+        "Keep the supervisor's spawn.end and have the hook skip orchestrators (no orchestrator usage, against the entry)",
+        "Both write spawn.end (the second row finds no open node at src/watch/ledger.ts:241 and its result is lost)"
+      ]
+    },
+    {
+      "header": "D5 usage run scope",
+      "question": "Which runs does usage sum for a ledger?",
+      "options": [
+        "Every run in the ledger, flat",
+        "The last run only, as --watch does",
         "One table per run"
       ]
     },
     {
-      "header": "D4 — where the generated agent profiles live at run time",
-      "question": "The profiles ship inside dist/ and ledger.ts resolves them relative to its own module, empty table on absence?",
+      "header": "D4 Profile packaging",
+      "question": "Where do the model profiles live at runtime?",
       "options": [
-        "Copy at build into dist/, resolve relative to the module, empty table when missing",
+        "Ship inside dist/; ledger.ts resolves them relative to its own module, empty table on absence",
         "Import through resolveJsonModule from harness/ (outside rootDir ./src)",
         "Read from the working directory"
       ]
     },
     {
-      "header": "D9 — the tier change",
-      "question": "The tier change is verified and documented, not re-applied?",
+      "header": "D7 usage return shape",
+      "question": "What does usage return?",
       "options": [
-        "Treat commit 599bdca (2026-09-18) as the delivery; this spec fixes the docs and the ledger table",
-        "Re-edit the five agent files under this spec"
-      ]
-    },
-    {
-      "header": "D3 — the model value on spawn.end",
-      "question": "model is the distinct message.model values seen, first-seen order, joined with +?",
-      "options": [
-        "All distinct values joined with +, so a mid-spawn substitution shows",
-        "The last assistant entry's model",
-        "The most frequent model"
+        "Text in message and numbers in data",
+        "Text only",
+        "JSON only"
       ]
     }
   ]
