@@ -295,6 +295,8 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: the list under `## Revision input`.
+- Prior dispositions: a version's lint pass receives the prior version's dispositioned
+  findings (each token, its disposition and reason).
 
 ## Revision input
 L-1 (<severity>, <rule>, line <line>): <message>
@@ -323,6 +325,8 @@ L-2 (<severity>, <rule>, line <line>): <message>
 10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
    bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
    so a later pass cannot re-resolve it to the wrong file.
+11. A citation-identifier warning on a token that is unchanged since a version where it
+   was rejected with a reason is suppressed, not re-fired.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
@@ -347,6 +351,8 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: the list under `## Revision input`.
+- Prior dispositions: a version's lint pass receives the prior version's dispositioned
+  findings (each token, its disposition and reason).
 
 ## Revision input
 L-1 (<severity>, <rule>, line <line>): <message>
@@ -375,6 +381,8 @@ L-2 (<severity>, <rule>, line <line>): <message>
 10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
    bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
    so a later pass cannot re-resolve it to the wrong file.
+11. A citation-identifier warning on a token that is unchanged since a version where it
+   was rejected with a reason is suppressed, not re-fired.
 ```
 
 ## Adjudication brief — `reviews/adjudication-brief-<PHASE>.md`
