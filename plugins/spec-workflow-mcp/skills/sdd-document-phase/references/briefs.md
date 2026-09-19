@@ -317,6 +317,9 @@ L-2 (<severity>, <rule>, line <line>): <message>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
+   bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
+   so a later pass cannot re-resolve it to the wrong file.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
@@ -366,6 +369,9 @@ L-2 (<severity>, <rule>, line <line>): <message>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
+   bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
+   so a later pass cannot re-resolve it to the wrong file.
 ```
 
 ## Adjudication brief — `reviews/adjudication-brief-<PHASE>.md`
