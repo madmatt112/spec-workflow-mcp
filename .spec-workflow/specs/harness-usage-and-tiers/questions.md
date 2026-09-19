@@ -13,7 +13,7 @@ question: Is the Opus 4.8 tier change verified and documented, or re-applied?
 options:
 1. Verify and document it; treat 599bdca as the delivery (the agent files already say Opus 4.8 high; only docs and the ledger table disagree)
 2. Re-edit the five agent files
-answer:
+answer: Verify and document it; treat 599bdca as the delivery (the agent files already say Opus 4.8 high; only docs and the ledger table disagree) — approved (option 1, no free text)
 
 ### D1 Orchestrator ledger rows
 
@@ -22,7 +22,7 @@ options:
 1. The supervisor writes spawn.usage (agent, role, result); the hook writes the orchestrator's spawn.end
 2. Keep the supervisor's spawn.end and have the hook skip orchestrators (no orchestrator usage, against the entry)
 3. Both write spawn.end (the second row finds no open node at src/watch/ledger.ts:241 and its result is lost)
-answer:
+answer: The supervisor writes spawn.usage (agent, role, result); the hook writes the orchestrator's spawn.end — not asked (implementation mechanic); agents' recorded choice stands
 
 ### D5 usage run scope
 
@@ -31,7 +31,7 @@ options:
 1. Every run in the ledger, flat
 2. The last run only, as --watch does
 3. One table per run
-answer:
+answer: Every run in the ledger, flat — approved (option 1, no free text)
 
 ### D4 Profile packaging
 
@@ -40,7 +40,7 @@ options:
 1. Ship inside dist/; ledger.ts resolves them relative to its own module, empty table on absence
 2. Import through resolveJsonModule from harness/ (outside rootDir ./src)
 3. Read from the working directory
-answer:
+answer: Ship inside dist/; ledger.ts resolves them relative to its own module, empty table on absence — not asked (implementation mechanic); agents' recorded choice stands
 
 ### D7 usage return shape
 
@@ -49,4 +49,4 @@ options:
 1. Text in message and numbers in data
 2. Text only
 3. JSON only
-answer:
+answer: Text in message and numbers in data — not asked (implementation mechanic); agents' recorded choice stands
