@@ -79,3 +79,6 @@
 {"ts":"2026-09-19T18:19:13.296Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"design","round":"2","result":"iterate 0/2/0","tokens":"143371"}
 {"ts":"2026-09-19T18:19:46.420Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
 {"ts":"2026-09-19T18:32:49.812Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T18:33:06.029Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"reviser v3","phase":"design","round":"2","result":"2 accepted/0 rejected","tokens":"134335"}
+{"ts":"2026-09-19T18:34:21.635Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-19T18:36:08.079Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
