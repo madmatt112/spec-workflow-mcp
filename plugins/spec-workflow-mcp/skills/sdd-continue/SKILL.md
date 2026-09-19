@@ -128,8 +128,13 @@ Apply these rules in order; the first match wins.
    an interrupted run. Run the **Gate A** procedure (step 4) now to resolve it (ask in
    `block` mode or fall to `record`) exactly as for a fresh `PHASE: gate-a`; that
    procedure re-spawns the requirements orchestrator itself, so do not also dispatch
-   `MODE: normal` straight to round 1 (Req 2 AC 7). An answered or absent receipt ⇒
-   dispatch requirements normally.
+   `MODE: normal` straight to round 1 (Req 2 AC 7). An answered receipt ⇒ dispatch
+   requirements normally. **No receipt, but a v1 draft.** If no `## Gate A` receipt is
+   present yet `specs/<spec>/requirements.md` (or a `docs(sdd): <spec> requirements v1`
+   checkpoint) exists and gate A is unresolved, an interrupt landed after the v1
+   checkpoint but before the gate emit: run the **Gate A** procedure now instead of a
+   normal re-dispatch, so v1 lint and gate A are not skipped. Only with no v1 draft at
+   all ⇒ dispatch requirements normally.
 5. Design missing or not approved ⇒ document phase **design**.
 6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
