@@ -199,3 +199,37 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 
 The supervisor also writes `spawn.start` / `spawn.end` for each orchestrator it spawns
 (`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`).
+
+## Run deregister (`deregister.mjs`)
+
+At `run.end` the supervisor removes this run's line from the shared pointer file
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run`. Concurrent runs in other checkouts
+keep their own lines there, so the removal must read, filter and rewrite the file in
+Node — never a shell `grep -v`, which even under `rtk proxy` can splice a command
+summary into a file another session shares. The supervisor writes this script once per
+run with the Write tool and calls it as
+`node /tmp/scratchpad/sdd/<spec>/deregister.mjs <pointer path> <run id>`.
+
+```js
+#!/usr/bin/env node
+// deregister.mjs — drop this run's line from the shared active-run pointer,
+// filtering and rewriting in Node (no shell `grep -v`). It matches on the run id
+// in the third tab-separated field and writes atomically via a temp file + rename.
+// usage: node deregister.mjs <pointer path> <run id>
+import { readFileSync, writeFileSync, rmSync, renameSync } from 'node:fs';
+const [pointer, runId] = process.argv.slice(2);
+if (!pointer || !runId) { console.error('usage: node deregister.mjs <pointer> <run id>'); process.exit(2); }
+let lines;
+try {
+  lines = readFileSync(pointer, 'utf-8').split('\n').filter((l) => l.length > 0);
+} catch { process.exit(0); } // no pointer file: nothing to remove
+const kept = lines.filter((l) => l.split('\t')[2] !== runId);
+if (kept.length === 0) {
+  rmSync(pointer, { force: true });
+} else {
+  const tmp = `${pointer}.${process.pid}.tmp`;
+  writeFileSync(tmp, kept.join('\n') + '\n');
+  renameSync(tmp, pointer); // atomic replace on the same filesystem
+}
+console.log(`deregister: removed ${lines.length - kept.length}, kept ${kept.length}`);
+```

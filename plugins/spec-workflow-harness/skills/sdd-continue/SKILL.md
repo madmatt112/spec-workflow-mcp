@@ -389,5 +389,9 @@ of the main checkout. Before it, one handoff line naming the roots:
 `bash <event.sh> run.end "status=<the status line>"`, commit the ledger with the
 commit script (`docs(sdd): <spec> harness ledger — run end`) so the run's last events
 are in the spec store, and remove this run's line from the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (the line whose run id is this run's;
-delete the file if that leaves it empty) so the hooks stop recording this run.
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` with `deregister.mjs`
+(`references/formats.md`; written once with the Write tool) — never a shell `grep -v`,
+which even under `rtk proxy` can splice summary text into the file a concurrent session
+shares: `node /tmp/scratchpad/sdd/<spec>/deregister.mjs <pointer path> <run id>`. It
+drops the line whose run id is this run's and deletes the file when none remain, so the
+hooks stop recording this run.
