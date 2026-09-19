@@ -376,6 +376,54 @@ describe('runProjectTypecheck (Task 4) — dependency probe and observed', () =>
     expect(result[0].observed).toContain('none either');
     await fs.rm(workflowRoot, { recursive: true, force: true });
   });
+
+  // Retro P7: a pnpm monorepo has no root tsconfig, so run `pnpm check-types`
+  // over the whole tree instead of forcing `no-tsconfig` (and `risk: high`).
+  it('runs pnpm check-types for a pnpm workspace and reports success on exit 0', async () => {
+    await fs.writeFile(join(tempDir, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n");
+    setNextExecBehavior({ exitCode: 0, stdout: '' });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('success');
+    if (result[0].status !== 'success') throw new Error('narrowing');
+    expect(result[0].diagnostics).toEqual([]);
+    // It shelled out to the pnpm script, not to `tsc`.
+    expect(mockedExecFile).toHaveBeenCalledTimes(1);
+    expect(mockedExecFile.mock.calls[0][0]).toBe('pnpm');
+    expect(mockedExecFile.mock.calls[0][1]).toEqual(['check-types']);
+  });
+
+  it('parses pnpm check-types diagnostics and scopes them to the task files', async () => {
+    await fs.writeFile(join(tempDir, 'pnpm-workspace.yaml'), "packages:\n  - 'apps/*'\n");
+    await fs.mkdir(join(tempDir, 'src'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'src/foo.ts'), 'export const a: number = 1;\n');
+    setNextExecBehavior({
+      exitCode: 1,
+      stdout: 'src/foo.ts(1,14): error TS2322: Type mismatch here.\n',
+    });
+    const result = await runProjectTypecheck(tempDir, tempDir, [join(tempDir, 'src/foo.ts')], { enabled: true });
+    expect(result[0].status).toBe('success');
+    if (result[0].status !== 'success') throw new Error('narrowing');
+    expect(result[0].diagnostics).toHaveLength(1);
+    expect(result[0].diagnostics[0].code).toBe('TS2322');
+    expect(result[0].diagnostics[0].inScope).toBe(true);
+  });
+
+  it('reports no-parseable-output when pnpm check-types fails with no diagnostics', async () => {
+    await fs.writeFile(join(tempDir, 'pnpm-workspace.yaml'), 'packages: []\n');
+    setNextExecBehavior({ exitCode: 1, stdout: 'ELIFECYCLE  Command failed.\n' });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('no-parseable-output');
+  });
+
+  it('does not run pnpm when there is no pnpm-workspace.yaml', async () => {
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('no-tsconfig');
+    expect(mockedExecFile).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
