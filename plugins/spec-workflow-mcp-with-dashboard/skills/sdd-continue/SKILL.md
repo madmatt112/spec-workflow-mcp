@@ -128,8 +128,13 @@ Apply these rules in order; the first match wins.
    an interrupted run. Run the **Gate A** procedure (step 4) now to resolve it (ask in
    `block` mode or fall to `record`) exactly as for a fresh `PHASE: gate-a`; that
    procedure re-spawns the requirements orchestrator itself, so do not also dispatch
-   `MODE: normal` straight to round 1 (Req 2 AC 7). An answered or absent receipt ⇒
-   dispatch requirements normally.
+   `MODE: normal` straight to round 1 (Req 2 AC 7). An answered receipt ⇒ dispatch
+   requirements normally. **No receipt, but a v1 draft.** If no `## Gate A` receipt is
+   present yet `specs/<spec>/requirements.md` (or a `docs(sdd): <spec> requirements v1`
+   checkpoint) exists and gate A is unresolved, an interrupt landed after the v1
+   checkpoint but before the gate emit: run the **Gate A** procedure now instead of a
+   normal re-dispatch, so v1 lint and gate A are not skipped. Only with no v1 draft at
+   all ⇒ dispatch requirements normally.
 5. Design missing or not approved ⇒ document phase **design**.
 6. Tasks missing or not approved ⇒ document phase **tasks**. Exception: if
    `taskProgress.completed > 0` or `taskProgress.inProgress > 0`, implementation began
@@ -270,6 +275,13 @@ stopping the run.
 Run this on a `gate-a` return (step 4) and on the step 3 rule 4 resume recheck. You never
 read the spec document — the drafter already wrote the ranked triples to the surface.
 
+**Outcomes only.** A human gate presents only decisions the human is positioned to own —
+scope, outcomes, tradeoffs with a product cost. Implementation mechanics (recording sites,
+storage layout, constants, transport) are decided by the orchestrator and recorded, not
+put to the human. So Gate A asks only the surface's scope, user-visible outcome and
+trade-off decisions; skip any item that is a pure implementation mechanic — the agents
+decided it and recorded it silently.
+
 1. **Read the surface.** Call the `harness` tool with `action: gate`, `op: get`,
    `slot: a`, `specName: <spec>`. `data.payload.items` is up to five `GateADecision`
    `{header, question, options}`, ranked most direction-setting first; `options[0]` is the
@@ -318,8 +330,11 @@ the spec document.
 2. **Resolve the mode** (see **Gate mode resolution**).
 3. **Ask or record.**
    - **Block.** Present the compact `tasks` plan and the ranked `veto` list, then ask with
-     AskUserQuestion to approve or annotate. A reply with no free text is **approve** —
-     proceed to step 4. A reply carrying free text on any option is **annotate**: re-spawn
+     AskUserQuestion to approve or annotate. A reply with no free text is **approve**:
+     approval stays one click, but if any `veto` item is class-a, first append a `## Gate B`
+     note to `specs/<spec>/questions.md` recording that the plan was approved with those
+     class-a veto items unannotated (list their ids), commit it, then proceed to step 4. A
+     reply carrying free text on any option is **annotate**: re-spawn
      `sdd-document-orchestrator` for `tasks` once with `MODE: revision` and
      `REVISION_INPUT` = the annotation text (bracket it with `spawn.start`/`spawn.end` and
      call `harness` `phase-log` on its `approved` report, like any dispatch); when it

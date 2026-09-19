@@ -58,3 +58,113 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1789764667108_pozu2vt3a; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/worktree-review-signals/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 1 reviser (lint) spawns, 1 drafter
+
+## 2026-09-18T22:06:23Z · implementation · task 1 · gotcha
+Encoder bump + strip-undefined + 3 round-trip tests. rounds=0, gate-pass risk low.
+Evidence: task 1; commit b9bd32a
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T22:13:10Z · implementation · task 2 · doc-gap
+Component 1 interface pinned constructor(specPath) but its Testing Strategy needs timeoutMs:50; implementer added optional lockOptions second arg (backward compatible).
+Evidence: task 2; src/core/task-state-store.ts; commit 820b198
+Cost: 0 extra spawns (flagged in implementer report)
+
+## 2026-09-18T22:13:23Z · implementation · task 2 · gotcha
+TaskStateStore new module + 7 unit tests. rounds=0, gate-pass risk low.
+Evidence: task 2; commit 820b198
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T22:27:43Z · implementation · task 3 · doc-gap
+Design/brief assumed non-repo git diff HEAD exits 128; observed exit 1 (128 is unborn-HEAD). Tests assert real observed cause.
+Evidence: task 3; src/core/task-diff.ts; commit 7f95e82
+Cost: 0 extra spawns (flagged in report)
+
+## 2026-09-18T22:33:11Z · implementation · task 3 · gotcha
+computeTaskDiff base param + git helpers; high risk (sensitive review-task.ts), verifier VERDICT pass, 0 fix rounds.
+Evidence: task 3; commit 7f95e82; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:42:52Z · implementation · task 4 · gotcha
+typecheck degrades honestly (dependencies-unresolved + observed); high risk, verifier pass, 0 fix rounds.
+Evidence: task 4; commit 5268970; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:52:13Z · implementation · task 5 · gotcha
+no-files diff state + methodology constants; high risk, verifier pass, 0 fix rounds.
+Evidence: task 5; commit d144ea6; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T22:57:53Z · implementation · task 6 · gotcha
+attribution write in log-implementation (hasProjectPathOverride, recordAttribution); rounds=0, gate-pass risk low.
+Evidence: task 6; commit b453d38
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:03:42Z · implementation · task 7 · gotcha
+status route records diff base on in-progress transition; rounds=0, gate-pass risk low.
+Evidence: task 7; commit c4b24e7
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:17:07Z · implementation · task 8 · gotcha
+TaskStateStore.read (task 2, per design EH) warns once per file on a plain-missing task-state.json, i.e. the normal head-expected single-checkout path; consider suppressing ENOENT in a follow-up.
+Evidence: task 8; src/core/task-state-store.ts; commit dcb18ba
+Cost: 0 extra spawns (flagged in report)
+
+## 2026-09-18T23:20:37Z · implementation · task 8 · gotcha
+executionContext built in handlePrepare (provenance + attribution + notes), task 3 bridge removed; high risk, verifier pass, 0 fix rounds.
+Evidence: task 8; commit dcb18ba; review v1
+Cost: 1 implementer + 1 verifier spawn, 1 gate
+
+## 2026-09-18T23:33:15Z · implementation · task 9 · gotcha
+dashboard runner renders execution context + diff-file lifecycle; rounds=0, gate-pass risk low.
+Evidence: task 9; commit e789a50
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:35:49Z · implementation · task 10 · gotcha
+adversarial scaffold names both roots; rounds=0, gate-pass risk low.
+Evidence: task 10; commit aa6def1
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:39:16Z · implementation · task 11 · gotcha
+docs: TOOLS-REFERENCE executionContext + attribution paragraphs, CHANGELOG Unreleased; rounds=0, gate-pass risk low.
+Evidence: task 11; commit 569b85f
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:52:26Z · implementation · task 12 · harness-defect
+Worktree e2e needs 'npx playwright install chromium'; agent-rules worktree-setup lists only 'npm ci'. First run failed on a missing browser binary (worktree-no-shared.spec.ts), passed after install.
+Evidence: task 12; agent-rules.md worktree-setup; commit 854db4e
+Cost: 1 extra install step (flagged in report)
+
+## 2026-09-18T23:53:10Z · implementation · task 12 · gotcha
+e2e recorded-base + attribution scenario, stripMethodology deleted; rounds=0, gate-pass risk low, e2e 10/10.
+Evidence: task 12; commit 854db4e
+Cost: 1 implementer spawn, 1 gate
+
+## 2026-09-18T23:57:04Z · implementation · phase · cleanup
+12/12 tasks implemented; 0 fix rounds, 0 adjudications; tasks 3,4,5,8 high-risk with verifier pass, the other 8 gate-pass risk low; e2e VERIFY pass (build+test+worktree e2e). Deferrals: 1 added (d-c99e352b), 2 resolved (d-a2233b94, d-6e59490b).
+Evidence: tasks.md 12/12; commits b9bd32a..854db4e
+Cost: 17 agent spawns (12 implementer + 5 verifier), 12 gates
+
+## 2026-09-19T00:06:22Z · retrospective · phase · cleanup
+retrospective compiled: 21 findings across 9 categories (3 gotchas, 3 product bugs, 7 harness defects, 1 inefficiency, 2 doc gaps, 3 process/rulings, 2 harness-for-human, 3 repeat patterns); analyst wrote 21 proposals, 4 decisions needed, 4 graduation candidates.
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 analyst spawn (31k tokens)
+
+## 2026-09-19T02:23:10Z · closeout · batch 1 · cleanup
+Batch 1 (store+harness) landed 10 items in one implementer spawn. P1 P3 P7 done; P11+G1, P14+G3, P12+G2 each folded to one commit. All 7 gates pass at risk low, so no verifier was spawned (every item harness/store low). Code items P4 P6 P16 are to-do: their target files do not exist on the retro branch.
+Evidence: commits 04b1e89 ff3ab1e a5da1be e9c1f36 d3fd64c 42358c4 98e08fb
+Cost: 1 implementer spawn (106199 tokens); 0 verifier; 7 gate calls
+
+## 2026-09-19T02:23:10Z · closeout · P1/P11 · deviation
+briefs.md holds the Lint brief section twice, byte-identical (about L273 and L322). P1 and P11+G1 were applied to both copies to keep them consistent. A future pass should dedupe the section.
+Evidence: commits 04b1e89 d3fd64c
+Cost: 0 extra spawns
+
+## 2026-09-19T02:23:10Z · closeout · P4/P6/P16 · deviation
+Code batch not landed. P4 (prepare-response TOON test), P6 (isAncestorOfHead) and P16 (task-state-store.ts) target files absent on the retro branch, which is branched from main; PR #49 (feat/worktree-review-signals) that introduces them is open, not merged. Marked to-do (human); land on or after #49. No implementer was spawned for the code batch (files verified absent).
+Evidence: retrospective-plan.md Close-out
+Cost: 0 spawns
+
+## 2026-09-19T02:25:34Z · closeout · phase · cleanup
+worktree-review-signals CLOSED. 13 items: 10 done (P1 P3 P7 P11 P14 P21 G1 G2 G3 P12), 3 to-do (P4 P6 P16, blocked on PR #49), 0 skipped. One implementer spawn, zero verifier, 7 gate calls all pass at risk low. Harness and store follow-ups on PR #50; code follow-ups deferred to PR #49.
+Evidence: PR #50; retrospective-plan.md CLOSED
+Cost: 1 implementer spawn (106199 tokens); 0 verifier; 0 adjudicator; 7 gates

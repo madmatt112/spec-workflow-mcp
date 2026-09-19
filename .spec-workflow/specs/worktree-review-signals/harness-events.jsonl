@@ -93,3 +93,102 @@
 {"ts":"2026-09-18T20:52:56.905Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 round, converged clean"}
 {"ts": "2026-09-18T20:53:21.606Z", "run": "run-20260918-170520", "spec": "worktree-review-signals", "type": "spawn.end", "agent": "sdd-document-orchestrator", "role": "tasks phase, spawn 1", "result": "approved", "tokens": "124729"}
 {"ts":"2026-09-18T21:57:05.403Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate B: human approved the 12-task plan with no annotation (7 class-a veto items presented); slot b deleted"}
+{"ts":"2026-09-18T21:58:02.497Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 1","phase":"implementation"}
+{"ts":"2026-09-18T21:59:13.625Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"implementation","mode":"normal","budget":"20","state":"tasks 0/12"}
+{"ts":"2026-09-18T21:59:33.392Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"1","title":"Bump @toon-format/toon and strip undefined keys in toMCPResponse"}
+{"ts":"2026-09-18T21:59:48.087Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:05:13.864Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:05:28.636Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"abf3262dec886f02f","role":"implement task 1","phase":"implementation","task":"1","result":"logged yes/1 commit b9bd32a"}
+{"ts":"2026-09-18T22:05:51.281Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 1 pass risk low"}
+{"ts":"2026-09-18T22:05:51.326Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T22:06:53.271Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"2","title":"Create TaskStateStore in src/core/task-state-store.ts"}
+{"ts":"2026-09-18T22:06:57.520Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:12:59.594Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:13:10.006Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a3c0c105f64cf40e7","role":"implement task 2","phase":"implementation","task":"2","result":"logged yes/2 commit 820b198"}
+{"ts":"2026-09-18T22:13:23.457Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 2 pass risk low"}
+{"ts":"2026-09-18T22:13:23.501Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T22:13:44.568Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"3","title":"Add git helpers and a required base parameter to computeTaskDiff"}
+{"ts":"2026-09-18T22:13:48.570Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:27:35.161Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:27:43.957Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ae71832aefca8bdba","role":"implement task 3","phase":"implementation","task":"3","result":"logged yes/3 commit 7f95e82"}
+{"ts":"2026-09-18T22:28:04.371Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 3 pass risk high (sensitive-path review-task.ts)"}
+{"ts":"2026-09-18T22:28:20.446Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-18T22:32:57.755Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T22:33:11.255Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"aa1b0d584c1b67cc2","role":"verify task 3","phase":"implementation","task":"3","result":"VERDICT pass"}
+{"ts":"2026-09-18T22:33:11.320Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"3","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-18T22:33:19.169Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"4","title":"Make the typecheck degrade honestly"}
+{"ts":"2026-09-18T22:33:22.956Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:40:02.843Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:40:05.760Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a9606a953f6902276","role":"implement task 4","phase":"implementation","task":"4","result":"logged yes/4 commit 5268970"}
+{"ts":"2026-09-18T22:40:20.765Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 4 pass risk high (sensitive-path review-task.ts)"}
+{"ts":"2026-09-18T22:40:31.533Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-18T22:42:42.968Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T22:42:52.879Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"aa6e783f27d1e406b","role":"verify task 4","phase":"implementation","task":"4","result":"VERDICT pass"}
+{"ts":"2026-09-18T22:42:52.923Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"4","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-18T22:43:00.785Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"5","title":"Add the no-files diff state and its methodology constants"}
+{"ts":"2026-09-18T22:43:05.168Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:49:01.961Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:49:08.958Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a55b5f6702ad84a25","role":"implement task 5","phase":"implementation","task":"5","result":"logged yes/5 commit d144ea6"}
+{"ts":"2026-09-18T22:49:20.941Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 5 pass risk high (sensitive-path review-task.ts)"}
+{"ts":"2026-09-18T22:49:31.164Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-18T22:52:03.144Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T22:52:13.029Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ae258ef4d15baf196","role":"verify task 5","phase":"implementation","task":"5","result":"VERDICT pass"}
+{"ts":"2026-09-18T22:52:13.076Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"5","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-18T22:52:21.329Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"6","title":"Record attribution in log-implementation"}
+{"ts":"2026-09-18T22:52:25.278Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T22:57:22.338Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T22:57:35.148Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a25c2697f748b6069","role":"implement task 6","phase":"implementation","task":"6","result":"logged yes/6 commit b453d38"}
+{"ts":"2026-09-18T22:57:53.860Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-18T22:57:53.906Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T22:58:00.776Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"7","title":"Record the diff base in the dashboard status route"}
+{"ts":"2026-09-18T22:58:04.928Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:03:21.733Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:03:25.847Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a0a2c3e7f5e3541b1","role":"implement task 7","phase":"implementation","task":"7","result":"logged yes/7 commit c4b24e7"}
+{"ts":"2026-09-18T23:03:42.823Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 7 pass risk low"}
+{"ts":"2026-09-18T23:03:42.870Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"7","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:03:50.931Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"8","title":"Build executionContext in handlePrepare"}
+{"ts":"2026-09-18T23:03:54.939Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:16:53.473Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:17:07.207Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"afa4bf1297d2ff344","role":"implement task 8","phase":"implementation","task":"8","result":"logged yes/8 commit dcb18ba"}
+{"ts":"2026-09-18T23:17:20.493Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 8 pass risk high (sensitive-path + line-count 229>200)"}
+{"ts":"2026-09-18T23:17:32.043Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-18T23:20:25.538Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T23:20:37.130Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ac60636e272a8d83f","role":"verify task 8","phase":"implementation","task":"8","result":"VERDICT pass"}
+{"ts":"2026-09-18T23:20:37.176Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"8","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-18T23:20:44.941Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"9","title":"Render the execution context and diff state in the dashboard prompt"}
+{"ts":"2026-09-18T23:20:49.004Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:32:49.979Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:32:53.779Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a556d0b6f6c01bb0c","role":"implement task 9","phase":"implementation","task":"9","result":"logged yes/9 commit e789a50"}
+{"ts":"2026-09-18T23:33:15.194Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 9 pass risk low"}
+{"ts":"2026-09-18T23:33:15.240Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"9","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:33:22.273Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"10","title":"State both roots in the adversarial scaffold"}
+{"ts":"2026-09-18T23:33:26.522Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:35:28.661Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:35:35.152Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a8768b69a44dd946d","role":"implement task 10","phase":"implementation","task":"10","result":"logged yes/10 commit aa6def1"}
+{"ts":"2026-09-18T23:35:49.626Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 10 pass risk low"}
+{"ts":"2026-09-18T23:35:49.672Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"10","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:36:00.484Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"11","title":"Document the recording site and the new fields"}
+{"ts":"2026-09-18T23:36:04.324Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:38:58.546Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:39:02.971Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a7d57966ae27fcf91","role":"implement task 11","phase":"implementation","task":"11","result":"logged yes/11 commit 569b85f"}
+{"ts":"2026-09-18T23:39:16.573Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 11 pass risk low"}
+{"ts":"2026-09-18T23:39:16.619Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"11","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:39:58.897Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.pick","task":"12","title":"End-to-end: recorded base, attribution mismatch, full decode"}
+{"ts":"2026-09-18T23:40:02.974Z","type":"spawn.start","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-18T23:51:56.180Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-implementer"}
+{"ts":"2026-09-18T23:52:11.159Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"a53759b1fae69f723","role":"implement task 12","phase":"implementation","task":"12","result":"logged yes/12; e2e 10/10"}
+{"ts":"2026-09-18T23:53:10.668Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"gate: task 12 pass risk low (e2e 10/10)"}
+{"ts":"2026-09-18T23:53:10.714Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"12","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-18T23:56:08.864Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-verifier"}
+{"ts":"2026-09-18T23:56:16.844Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.usage","agent":"ab2a1ad339eee8fcf","role":"end-to-end verification","phase":"implementation","task":"12","result":"VERIFY pass"}
+{"ts":"2026-09-18T23:58:01.887Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"PR #49 opened: https://github.com/madmatt112/spec-workflow-mcp/pull/49"}
+{"ts":"2026-09-18T23:59:36.477Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"note","text":"ci green: test pass, PR #49"}
+{"ts":"2026-09-18T23:59:36.498Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"implementation","result":"complete","state":"tasks 12/12","note":"PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved"}
+{"ts":"2026-09-19T00:00:30.080Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 1","result":"complete","tokens":"185680"}
+{"ts":"2026-09-19T00:00:30.211Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","phase":"retrospective"}
+{"ts":"2026-09-19T00:00:57.243Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.start","phase":"retrospective"}
+{"ts":"2026-09-19T00:03:23.613Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals"}
+{"ts":"2026-09-19T00:05:45.395Z","type":"spawn.end","run":"run-20260918-170520","spec":"worktree-review-signals","agent":"sdd-retro-analyst"}
+{"ts":"2026-09-19T00:05:51.761Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-retro-analyst","role":"proposals"}
+{"ts":"2026-09-19T00:06:25.815Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"retrospective","result":"retro-ready"}
+{"ts":"2026-09-19T00:06:41.513Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}

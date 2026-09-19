@@ -3,7 +3,7 @@
 Read this before you touch the repository. It is short; obey all of it.
 
 worktree-per-change: required
-worktree-setup: npm ci
+worktree-setup: `npm ci`; a task that runs a worktree Playwright e2e suite also runs `npx playwright install chromium` before it
 
 ## Layout
 

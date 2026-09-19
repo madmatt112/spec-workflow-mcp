@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **implementation**, state **tasks 0/12**, last result **approved (tasks v1; gate B approved by the human, slot deleted)**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/worktree-review-signals`).
-> A re-run does: from the worktree, spawn the implementation orchestrator `MODE: normal` on the 12-task queue (gate B already resolved, `present: false`). Orchestrators run on claude-opus-4-8 high.
+> Live phase **closeout**, state **items 0/13**, last result **retro-ready (plan APPROVED)**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals-retro` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `chore/worktree-review-signals-retro`).
+> A re-run does: from the retro worktree, spawn the close-out orchestrator on `retrospective-plan.md` (13 approved items: P4 P6 P16 P1 P3 P7 P12 P11 P14 P21 G1 G2 G3). Human: merge PR #49; origin/main is ~68 commits behind local main.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -23,6 +23,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
 | 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
 | 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
+| 2026-09-18 | worktree-review-signals | implementation | tasks 12/12 | complete | PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved |
+| 2026-09-19 | worktree-review-signals | retrospective |  | retro-ready |  |
 
 ## Current state — 2026-08-04
 
@@ -221,3 +223,33 @@ From implementation:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | implementation reads `codebase-context.md` first, then `tasks.md`; 12 tasks, leaf-first order, task 3 carries a `'HEAD'` bridge removed in task 8 |
+
+## worktree-review-signals — implementation
+
+| Field | Value |
+| --- | --- |
+| State | implemented — all 12 tasks `[x]` on 2026-09-18 |
+| Last code commit | 854db4e (task 12) on `feat/worktree-review-signals` |
+| End-to-end | VERIFY pass: `npx tsc --noEmit`, `npm run build`, `npm test` (1316 passed / 2 skipped), `npm run test:e2e:worktree` (10/10, both worktree suites) |
+| Deferrals added | 1 (`d-c99e352b` — MINOR honesty edges R2-3/R2-4) |
+| Deferrals resolved | 2 (`d-a2233b94` TOON decode via task 1; `d-6e59490b` dashboard reviewer prompt via task 9) |
+| Total deferred (project) | 14 |
+| Fix rounds / adjudications | 0 / 0 (12 gate-pass; tasks 3,4,5,8 high-risk verifier pass) |
+| Worth next | `d-c99e352b` (state-store read + ancestry honesty edges) · `d-84dc43e7` (worktree e2e not idempotent across repeat runs) · the `worktree-dashboard-concurrency` cluster (`d-4ee04d64`, `d-3580c072`, `d-e5331af0`) |
+| Gotcha | Worktree e2e needs `npx playwright install chromium`; `agent-rules.md` worktree-setup lists only `npm ci`. Retro `harness-defect`. |
+| Gotcha | `TaskStateStore.read` warns once per file on a plain-missing `task-state.json` — the normal single-checkout `head-expected` path; consider suppressing ENOENT (retro task 8). |
+| PR | #49 https://github.com/madmatt112/spec-workflow-mcp/pull/49 (open, not merged) |
+
+## worktree-review-signals — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED on 2026-09-18 — retrospective-plan.md marked CLOSED |
+| Items | 13 total: 10 done, 3 to-do (human), 0 skipped |
+| Landed (harness) | P1 04b1e89 · P3 ff3ab1e · P7 a5da1be · P11+G1 d3fd64c · P14+G3 42358c4 · P21 98e08fb — all on branch `chore/worktree-review-signals-retro` |
+| Landed (store) | P12+G2 e9c1f36 — `agent-rules.md` worktree-setup now lists `npx playwright install chromium` for tasks running a worktree e2e suite |
+| To-do (human) | P4, P6, P16 — product-code fixes whose target files (prepare-response TOON round-trip test, `isAncestorOfHead`, `src/core/task-state-store.ts`) do not exist on this branch (branched from main). They live on PR #49 (`feat/worktree-review-signals`, open). Land these on #49 or as a follow-up after #49 merges. |
+| Gates | 7/7 pass, risk low; no verifier spawned |
+| PR (retro) | #50 https://github.com/madmatt112/spec-workflow-mcp/pull/50 (base main; carries the unpushed local-main backlog, same as PR #49) |
+| Gotcha | `briefs.md` has the "## Lint brief" section duplicated byte-identical (about L273 and L322); P1 and P11 were applied to both copies. Dedupe in a future pass. |
+| Gotcha | This closeout ran isolated in the retro worktree; the main checkout cannot be git-committed from here. All bookkeeping (plan CLOSED, retro-log, this HANDOFF) is committed on `chore/worktree-review-signals-retro` and reaches main only when the retro PR merges. The ledger (`harness-events.jsonl`) was written to the main checkout for `--watch`. |
