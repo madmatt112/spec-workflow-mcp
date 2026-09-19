@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-18, harness v4).** **`worktree-review-signals`** is CLOSED — no active spec.
-> Live phase **closeout**, state **items 13/13 (10 landed on PR #50, 3 product to-dos P4/P6/P16 depend on PR #49)**, last result **closed**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (retro worktree `.claude/worktrees/worktree-review-signals-retro`, branch `chore/worktree-review-signals-retro`).
-> A re-run does: NOTHING until PR #50 merges — `retrospective-plan.md` on main still says APPROVED (the CLOSED status is on the PR #50 branch), so a re-run before the merge would re-run close-out. Do not start the next roadmap spec until Matthew says so (tradr batch and a release go first). Human: merge PR #49 then PR #50; land P4/P6/P16 on #49 or after it merges; push local main (origin ~68 behind); dedupe the duplicated `## Lint brief` section in briefs.md.
+> **READ FIRST — SDD routing (2026-09-19, harness v4).** Active spec **`harness-usage-and-tiers`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: dispatches the requirements document phase for `harness-usage-and-tiers` (spec 8 of decomposition.md, no directory yet); implementation enters a `feat/harness-usage-and-tiers` worktree first.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
