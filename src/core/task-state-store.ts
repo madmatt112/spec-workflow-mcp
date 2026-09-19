@@ -64,16 +64,17 @@ export class TaskStateStore {
   /**
    * The record for `taskId`, or null. Never throws and takes no lock: the
    * writers rename their temp over the file, so a reader sees it complete or
-   * absent, never partial. A missing, unreadable, malformed or wrong-version
-   * file returns null and warns once per file; a well-formed file with no entry
-   * for `taskId` returns null without warning.
+   * absent, never partial. A missing file is the normal case (no base has been
+   * recorded for this spec yet) and returns null silently; an unreadable,
+   * malformed or wrong-version file returns null and warns once per file; a
+   * well-formed file with no entry for `taskId` returns null without warning.
    */
   async read(taskId: string): Promise<TaskStateRecord | null> {
     let raw: string;
     try {
       raw = await fs.readFile(this.filePath, 'utf-8');
     } catch (error: any) {
-      this.warnOnce(`unreadable: ${error?.code || error}`);
+      if (error?.code !== 'ENOENT') this.warnOnce(`unreadable: ${error?.code || error}`);
       return null;
     }
 

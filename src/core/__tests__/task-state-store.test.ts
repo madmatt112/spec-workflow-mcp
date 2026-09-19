@@ -43,9 +43,10 @@ async function newWorkspace(name: string): Promise<string> {
 }
 
 describe('TaskStateStore.read', () => {
-  it('returns null for a missing file', async () => {
+  it('returns null for a missing file without warning (the normal single-checkout path)', async () => {
     const store = new TaskStateStore(await newSpecDir());
     expect(await store.read('1')).toBeNull();
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
   it('returns null for a malformed file', async () => {
