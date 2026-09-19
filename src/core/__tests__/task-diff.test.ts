@@ -874,6 +874,33 @@ describe('computeRangeStats — baseRef mode', () => {
     expect(result.touched).not.toContain('ignored.txt');
     expect(result.stats).toEqual({ filesChanged: 1, linesAdded: 1, linesRemoved: 0 });
   });
+
+  it('ignoreWhitespace reports zero changed lines for a whitespace-only edit (P14)', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'function f() {\n  return 1;\n}\n');
+    gitCommitAll(tempDir, 'root');
+    // Re-indent only: the plain diff counts it, the whitespace-ignoring one does not.
+    await fs.writeFile(join(tempDir, 'a.ts'), 'function f() {\n    return 1;\n}\n');
+
+    const plain = await computeRangeStats(tempDir, { baseRef: 'HEAD' });
+    if (!plain.ok) throw new Error('plain not ok');
+    expect(plain.stats.linesAdded + plain.stats.linesRemoved).toBeGreaterThan(0);
+
+    const ws = await computeRangeStats(tempDir, { baseRef: 'HEAD' }, { ignoreWhitespace: true });
+    if (!ws.ok) throw new Error('ws not ok');
+    expect(ws.stats.linesAdded + ws.stats.linesRemoved).toBe(0);
+  });
+
+  it('ignoreWhitespace still counts a semantic edit (P14)', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'root');
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 2;\n');
+
+    const ws = await computeRangeStats(tempDir, { baseRef: 'HEAD' }, { ignoreWhitespace: true });
+    if (!ws.ok) throw new Error('ws not ok');
+    expect(ws.stats.linesAdded + ws.stats.linesRemoved).toBeGreaterThan(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

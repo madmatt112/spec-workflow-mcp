@@ -224,6 +224,12 @@ export type RiskInput = {
   typecheck: { kind: string; reason?: string };
   /** The hygiene rejection message, or `null` when the scan succeeded. */
   hygieneRejection: string | null;
+  /**
+   * True when the range touched files but has no semantic diff — a byte-identical
+   * re-indent, or a whitespace-only/no-op edit (retro P14). Set by the handler
+   * only after a whitespace-ignoring diff proved zero changed lines.
+   */
+  trivialChange?: boolean;
 };
 
 /**
@@ -254,6 +260,15 @@ function countedLines(input: RiskInput): number | null {
  * table, R4-1). `risk` is `high` when any row fires; item mode never fires c/f.
  */
 export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: string[] } {
+  // Fast path (retro P14): a change that touched files but has no semantic diff
+  // needs no verifier, so it scores low outright — even when a rule below (a
+  // sensitive path, `no-tsconfig`) would otherwise force high. `trivialChange` is
+  // set only after a whitespace-ignoring diff proved zero changed lines, so a
+  // real change never slips through here.
+  if (input.trivialChange) {
+    return { risk: 'low', reasons: [] };
+  }
+
   const reasons: string[] = [];
 
   // a sensitive-path

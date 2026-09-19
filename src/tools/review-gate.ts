@@ -196,6 +196,7 @@ export async function handleGate(
     let touched: string[];
     let stats: { filesChanged: number; linesAdded: number; linesRemoved: number } | null;
     let perFile: Record<string, number> = {};
+    let trivialChange = false;
     let missing: string[] = [];
     let diagnostics: TypecheckDiagnostic[] = [];
     let hygieneSignals: HygieneSignal[] = [];
@@ -215,6 +216,14 @@ export async function handleGate(
       stats = rangeResult.stats;
       touched = rangeResult.touched;
       perFile = rangeResult.perFile;
+      // Trivial-change fast path (retro P14): when files changed but the diff has
+      // no semantic content (a whitespace-only re-indent or a no-op), a second
+      // range stat that ignores whitespace reports zero changed lines. A new,
+      // untracked file still adds its newline count, so it never reads as trivial.
+      if (touched.length > 0) {
+        const wsResult = await computeRangeStats(root, range, { ignoreWhitespace: true });
+        trivialChange = wsResult.ok && wsResult.stats.linesAdded + wsResult.stats.linesRemoved === 0;
+      }
       const touchedAbs = touched.map((p) => path.join(root, p));
       // Generated paths (agent-rules `## Generated paths`) stay in `touched` but
       // are not scanned for hygiene signals (retro P2).
@@ -270,6 +279,7 @@ export async function handleGate(
           rangeGiven: !!(baseRef || hasCommit || hasFiles),
           typecheck: typecheckState,
           hygieneRejection,
+          trivialChange,
         });
 
     const reasons = [...verdict.reasons, ...risk.reasons].map(truncateLine);
