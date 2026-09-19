@@ -5,13 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.9.0] - 2026-09-19
+
+**Worktree review signals** (PR #49, the `worktree-review-signals` spec), its retrospective follow-ups (PRs #50, #51), and the `ledger-cash-movements` retrospective follow-ups from tradr (PR #52).
 
 ### Added
-- Dashboard-started tasks diff from the recorded base, so a review of committed work is no longer empty: the review now covers the work committed on the task's branch instead of reporting "no diff".
+- Dashboard-started tasks diff from the recorded base, so a review of committed work is no longer empty: the diff starts from a caller-chosen base commit and covers the work committed on the task's branch instead of reporting "no diff".
+- Per-task state store (`task-state.json`, one lock, two writers): the dashboard status route records the diff base when a task goes in-progress; `log-implementation` records where and at which commit the work was logged.
+- `review-task prepare` returns one `data.executionContext` carrying base provenance (`recorded` / `head-expected` / `head-degraded`), typecheck facts and attribution (`match` / `mismatch` / `unknown`); the dashboard task-review runner renders it and writes the diff to a file beside the prompt, so a dashboard-spawned reviewer sees the same facts as a direct caller.
+- A `no-files` all-drop diff state (no read-every-file instruction, no already-committed explanation); the adversarial review scaffold names both roots.
+- Typecheck gate: `pnpm-workspace.yaml` is detected and `pnpm check-types` is run and parsed instead of reporting `no-tsconfig` in a monorepo (#52 P7); a zero or whitespace-only diff is down-ranked to low risk so a no-op skips the verifier (#52 P14).
+- `deregister.mjs`, a pure-Node active-run pointer editor, ships in the sdd-continue formats reference (#52 P8).
 
 ### Changed
-- `@toon-format/toon` moved to 4.x.
+- `@toon-format/toon` moved to 4.x; `toMCPResponse` strips `undefined` keys so a response decodes with the library that encoded it. The prepare-response test pins the installed major to the declared one (#51 P4).
+- The typecheck degrades honestly: an unresolved dependency install reports `unavailable` with an `observed` reason instead of fabricated module errors.
+- Gate A asks scope, outcomes and trade-offs only; implementation mechanics are decided by the agents and recorded silently (#50 P14, G3). Gate B keeps one-click approval; the record notes when class-a veto items went unannotated (#50 P21).
+- The gate-A resume recheck also fires for an interrupt after the requirements v1 checkpoint but before the gate emit (#50 P7). The supervisor rewrites the HANDOFF routing header at run start (#52 P9), pre-flights each spawn's transcript model and halts on a mismatch (#52 P10), and keeps its helpers under `helpers/` (#52 P11).
+- Document-phase briefs: inserted citations carry their filename; a version's lint pass receives the prior version's dispositions and does not re-fire an unchanged, already-dispositioned token; a test-only interface argument is pinned as an optional trailing param (#50 P1, P3, P11, G1). The duplicated `## Lint brief` section is removed (#51).
+- `agent-rules.md` worktree-setup lists `npx playwright install chromium` for tasks that run a worktree Playwright suite (#50 P12, G2).
+- `spec-lint` resolves `citation-path` against the spec-store root first, then the project dir (#52 P2). `review-task prepare` resolves `filesToReview` against `CODE_ROOT` when set (#52 P5). The `sdd-implementer` agent allowlists the `deferrals` tool (#52 P6). The verifier cannot return `pass` while carrying a blocking or spec-compliance warning (#52 P16).
+
+### Fixed
+- `isAncestorOfHead` returns `ancestor | not-ancestor | unknown`; a git spawn fault (ENOENT, timeout, buffer overflow) makes prepare say the recorded base *could not be validated* instead of claiming it was rejected (#51 P6).
+- `TaskStateStore.read` treats a missing `task-state.json` as the normal empty case and no longer warns on every single-checkout prepare (#51 P16).
 
 ## [5.8.0] - 2026-09-17
 
