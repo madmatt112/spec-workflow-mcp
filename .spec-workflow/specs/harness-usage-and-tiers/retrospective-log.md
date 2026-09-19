@@ -23,3 +23,13 @@ Cost: 1 reviewer spawn
 Round 2: iterate 0/2/0. All four v2 fixes code-verified. Two SHOULD_FIX remain: R2-1 (Compounds R1-1) retro edit span :35-39 straddles phase.start/phase.end and Component 7's replacement names neither; R2-2 (Novel) Component 4 'never both badge and tokens' unhandled for D9 agent.stop-carries-tokens + activity join, risking an 84-col head line and transient double-count. MUST_FIX 0, so routing to SHOULD_FIX-only corrective pass (v3), then narrow check.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-09-19T18:40:22Z · design · v3 · gotcha
+Narrow check VERIFIED 2/2 (R2-1, R2-2 both addressed). Deferred finding: design.md line 78 and the v3 Revision History cite the agent.stop join span as 'lines 305 to 311' but the real join (double loop plus event-type branches) runs src/watch/ledger.ts:293-314; the load-bearing guarded-fill line (308) is correct, so the imprecision is a MINOR citation-span slip, not a false claim. Carried as a note for the implementer, who reads the code.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design-r3.md
+Cost: 1 checker spawn
+
+## 2026-09-19T18:42:11Z · design · phase · cleanup
+design approved at v3 after 3 rounds; verdict trajectory 1/1/2 → 0/2/0 → SHOULD_FIX-only corrective pass at v3, narrow check VERIFIED 2/2; rulings 2 (both refinement, closed); cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1789843231461_6kmnt6n22; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design-r2.md
+Cost: 3 reviewer/checker + 5 reviser + 1 drafter spawns

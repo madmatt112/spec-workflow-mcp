@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-19T18:40:31.481Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789843231461_6kmnt6n22",
+      "approvalTitle": "harness-usage-and-tiers design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-19T18:40:46.557Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789843231461_6kmnt6n22",
+      "approvalTitle": "harness-usage-and-tiers design v3"
+    }
+  ]
+}

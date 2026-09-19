@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789843231461_6kmnt6n22",
+  "title": "harness-usage-and-tiers design v3",
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-19T18:40:31.461Z",
+  "category": "spec",
+  "categoryName": "harness-usage-and-tiers",
+  "response": "v3; 3 review rounds (2 adversarial + 1 narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 2 / MINOR 0 (round 2); rulings: Req 4.7 two-line agent entry — refinement (closed); Req 5.4 / D6 non-digit tokens value — refinement (closed); cap: not hit, SHOULD_FIX-only corrective pass at v3, VERIFIED 2/2.",
+  "respondedAt": "2026-09-19T18:40:46.575Z"
+}

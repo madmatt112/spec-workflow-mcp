@@ -270,3 +270,15 @@ From implementation:
 | Cut scope | none |
 | Carried items | Token source (overwatch ruling 2026-09-19, carried not revised): the orchestrator-side per-spawn token count is the `<usage><subagent_tokens>` value of the Agent task notification (skill fix f616c72), never a result footer, which does not exist; the hook-read transcript remains the deterministic replacement the spec builds. Design cites the notification as the current source. |
 | Next phase loads | after `codebase-context.md`: `src/watch/ledger.ts` (the token/spawn fold the usage report reuses and departs from), `src/watch/render.ts` (watch view row widths), `src/tools/harness.ts` (the tool surface gaining `usage`/`gate`/`compareSpecName`), `harness/hooks/sdd-activity.sh` (spawn events and declared tiers) |
+
+## harness-usage-and-tiers — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-19 |
+| Rounds | 3; verdicts 1/1/2 → 0/2/0 → SHOULD_FIX-only corrective pass at v3, narrow check VERIFIED 2/2 |
+| Approval | `approval_1789843231461_6kmnt6n22` |
+| Rulings | Req 4.7 two-line agent entry (head + tier, each ≤80 cols) — refinement, closed; Req 5.4 / D6 "states unknown" widened to any non-digit `tokens` value — refinement, closed. Both are closed re-decisions; the tasks drafter must not re-flag them. |
+| Cut scope | none |
+| Carried items | none ruled out (no cap adjudication). Note for the implementer: design.md line 78 and the v3 Revision History cite the `agent.stop` activity join as spanning lines 305-311; the real join runs `src/watch/ledger.ts:293-314` — the load-bearing guarded-fill line (308) is correct, so this is a MINOR citation-span slip, not a false claim. Read the code. |
+| Next phase loads | after `codebase-context.md`: this spec's `design.md` (8 components with pinned interfaces, the Data Models, Testing Strategy and Error Handling sections); then the files each component names — `src/watch/ledger.ts`, `src/watch/render.ts`, `src/tools/harness.ts`, `harness/hooks/sdd-activity.sh`, `scripts/sync-plugin-assets.cjs`, `scripts/copy-static.cjs` — plus the new files design pins (`src/watch/usage.ts`, `src/__tests__/fixtures/usage-ledger.jsonl`, `harness/agent-profiles.json`) |
