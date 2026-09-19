@@ -68,6 +68,9 @@ Every later reviewer, reviser and implementer reads it first.
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
   requirements name; tasks cover every design component.
+- Design only: when you pin an interface whose Testing Strategy needs an extra argument
+  (for example a `timeoutMs`), pin that argument as an optional trailing parameter, so the
+  implementer does not have to invent a backward-compatible shim.
 - When a design departs from a requirement's literal (a widened enum, a defaulted
   param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
 - Record every call you make on the product's behalf under `## Decisions taken in
