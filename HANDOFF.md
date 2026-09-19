@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-19, harness v4).** Active spec **`harness-usage-and-tiers`**.
-> Live phase **requirements**, state **pending**, last result **pending**.
+> Live phase **design**, state **pending**, last result **approved** (requirements v5).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: dispatches the requirements document phase for `harness-usage-and-tiers` (spec 8 of decomposition.md, no directory yet); implementation enters a `feat/harness-usage-and-tiers` worktree first.
+> A re-run does: dispatches the design document phase for `harness-usage-and-tiers` (requirements approved at v5, approval_1789835511785_5tgmkk1h5); implementation later enters a `feat/harness-usage-and-tiers` worktree branched from local main (must include f616c72 and 1e0f7b3).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -26,6 +26,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | implementation | tasks 12/12 | complete | PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved |
 | 2026-09-19 | worktree-review-signals | retrospective |  | retro-ready |  |
 | 2026-09-19 | worktree-review-signals | closeout | items 13/13 | closed | 10 done, 3 to-do (PR #49 dep); retro follow-ups on PR #50 |
+| 2026-09-19 | harness-usage-and-tiers | requirements | v1 | gate-a |  |
+| 2026-09-19 | harness-usage-and-tiers | requirements | v5 | approved | 5 rounds, iterate throughout then cap hit adjudicated, VERIFIED 2/2 |
 
 ## Current state — 2026-08-04
 
@@ -266,5 +268,5 @@ From implementation:
 | Approval | `approval_1789835511785_5tgmkk1h5` |
 | Rulings | none |
 | Cut scope | none |
-| Carried items | none |
+| Carried items | Token source (overwatch ruling 2026-09-19, carried not revised): the orchestrator-side per-spawn token count is the `<usage><subagent_tokens>` value of the Agent task notification (skill fix f616c72), never a result footer, which does not exist; the hook-read transcript remains the deterministic replacement the spec builds. Design cites the notification as the current source. |
 | Next phase loads | after `codebase-context.md`: `src/watch/ledger.ts` (the token/spawn fold the usage report reuses and departs from), `src/watch/render.ts` (watch view row widths), `src/tools/harness.ts` (the tool surface gaining `usage`/`gate`/`compareSpecName`), `harness/hooks/sdd-activity.sh` (spawn events and declared tiers) |

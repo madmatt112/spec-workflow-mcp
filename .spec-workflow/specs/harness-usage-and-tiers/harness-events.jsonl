@@ -54,3 +54,5 @@
 {"ts":"2026-09-19T16:29:52.126Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-adjudicator","role":"adjudicator","phase":"requirements","round":"4","result":"fixed-2","tokens":"66662"}
 {"ts":"2026-09-19T16:31:18.278Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-checker"}
 {"ts":"2026-09-19T16:31:46.046Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-checker","role":"checker","phase":"requirements","round":"5","result":"verified-2/2","tokens":"41043"}
+{"ts":"2026-09-19T16:34:03.779Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"requirements","result":"approved","state":"v5","note":"5 rounds, iterate throughout then cap hit adjudicated, VERIFIED 2/2"}
+{"ts":"2026-09-19T16:35:31.392Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","result":"approved","tokens":"252167"}
