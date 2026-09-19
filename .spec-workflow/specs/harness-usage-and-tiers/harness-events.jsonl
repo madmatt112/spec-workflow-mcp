@@ -12,3 +12,10 @@
 {"ts":"2026-09-19T15:01:44.449Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"gate-a v1","phase":"requirements","round":"1","result":"ok"}
 {"ts":"2026-09-19T15:01:44.471Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"requirements","result":"gate-a","state":"v1"}
 {"ts":"2026-09-19T15:02:43.373Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"gate-a","tokens":"96218"}
+{"ts":"2026-09-19T15:15:36.007Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate A: D9 and D5 approved by Matthew (option 1, no free text); D1, D4, D7 not asked (implementation mechanics)"}
+{"ts":"2026-09-19T15:15:36.035Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","phase":"requirements"}
+{"ts":"2026-09-19T15:16:09.808Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"requirements","mode":"normal","budget":"4","state":"v1"}
+{"ts":"2026-09-19T15:26:41.437Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-19T15:26:53.932Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"requirements","round":"1","version":"v1","verdict":"iterate 0/3/3"}
+{"ts":"2026-09-19T15:27:12.027Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"requirements","round":"1","result":"iterate","tokens":"106335"}
+{"ts":"2026-09-19T15:28:19.580Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
