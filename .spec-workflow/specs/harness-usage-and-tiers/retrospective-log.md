@@ -13,3 +13,8 @@ Cost: 4 reviewer + 6 reviser + 1 adjudicator + 1 checker spawns
 requirements.md describes the orchestrator-side per-spawn token source as an Agent result footer; the footer no longer exists and the count arrives in the task notification (<usage><subagent_tokens>), fixed in skills at f616c72 during this phase. Overwatch ruled carry-forward via a HANDOFF Carried item, not a revision pass: the hook-read transcript stays the mechanism the spec builds, and a revision plus review round costs more tokens than the stale description is worth.
 Evidence: HANDOFF ## harness-usage-and-tiers — requirements, Carried items; commit f616c72
 Cost: 0 rounds (ruled, not revised)
+
+## 2026-09-19T17:41:01Z · design · v1 · gotcha
+Round 1: iterate 1/1/2. R1-1 MUST_FIX: skill edit line-spans stop short of the token-write text, leaving live tokens=unknown and stale/misaligned citations. R1-2 SHOULD_FIX: tier line reaches 81 cols for a two-model '+'-joined worker. Reviewer ruled both RE-DECIDED flags (Req 4.7 two-line, Req 5.4/D6 non-digit tokens) as refinement, closed.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design.md
+Cost: 1 reviewer spawn

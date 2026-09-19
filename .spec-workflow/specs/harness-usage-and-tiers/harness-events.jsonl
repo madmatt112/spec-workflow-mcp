@@ -65,3 +65,9 @@
 {"ts":"2026-09-19T17:12:46.547Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-19T17:23:45.632Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
 {"ts":"2026-09-19T17:24:17.707Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"design","round":"1","result":"27 fixed/60 rejected","tokens":"167378"}
+{"ts":"2026-09-19T17:40:29.545Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-19T17:40:44.894Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"design","round":"1","version":"v1","verdict":"iterate 1/1/2"}
+{"ts":"2026-09-19T17:40:53.056Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"design","round":"1","result":"iterate 1/1/2","tokens":"163221"}
+{"ts":"2026-09-19T17:41:31.072Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-19T17:57:40.827Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T17:57:55.803Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"reviser v2","phase":"design","round":"1","result":"4 accepted/0 rejected","tokens":"186161"}
