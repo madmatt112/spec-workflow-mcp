@@ -56,3 +56,9 @@
 {"ts":"2026-09-19T16:31:46.046Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-checker","role":"checker","phase":"requirements","round":"5","result":"verified-2/2","tokens":"41043"}
 {"ts":"2026-09-19T16:34:03.779Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"requirements","result":"approved","state":"v5","note":"5 rounds, iterate throughout then cap hit adjudicated, VERIFIED 2/2"}
 {"ts":"2026-09-19T16:35:31.392Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","result":"approved","tokens":"252167"}
+{"ts":"2026-09-19T16:35:53.066Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","phase":"design"}
+{"ts":"2026-09-19T16:36:32.386Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"design","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-19T16:38:08.395Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-19T17:10:53.318Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter"}
+{"ts":"2026-09-19T17:11:03.634Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"design","round":"0","result":"v1","tokens":"unknown"}
+{"ts":"2026-09-19T17:11:13.736Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"drafter spawn.usage tokens=325650 (correction; earlier logged unknown)"}

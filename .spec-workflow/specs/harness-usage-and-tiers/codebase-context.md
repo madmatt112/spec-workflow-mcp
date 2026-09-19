@@ -97,3 +97,30 @@
 - entry shape — top-level `type` (`user`, `assistant`, `attachment`), `agentId`, `isSidechain`, `effort`; `message.model`; `message.usage { input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, cache_creation {...}, service_tier, ... }`
 - agent-a8a51b659b21c6e12 (this run's document orchestrator, `claude-opus-4-8`): 30 assistant entries, all with usage; input 60, output 8,497, cacheWrite 376,098, cacheRead 1,351,374, total 1,736,029
 - largest local transcript agent-a469098afbeaef3e6.jsonl: 1,871,813 bytes, 586 lines, 240 assistant entries, `claude-sonnet-5`, total 42,460,997, parsed in 16.7 ms
+
+## Read for design (2026-09-19)
+- harness/skills/sdd-continue/SKILL.md:213-217 — after f616c72: supervisor `spawn.end ... tokens=<n>` from the `<usage><subagent_tokens>` value of the task notification, `unknown` when absent (the footer wording is gone)
+- harness/skills/sdd-document-phase/SKILL.md:44-53 — Ledger bullet; 46-48 `tokens=<n>` from the notification; 114-116 lint `spawn.usage` "result and tokens from its report"; 144 gate-a `spawn.usage` "from its report"
+- harness/skills/sdd-implementation-phase/SKILL.md:50-65 — Ledger bullet; 57-58 `tokens=<n>` from the notification; 269-275 CI-fix step names the `spawn.usage` role only
+- harness/skills/sdd-closeout-phase/SKILL.md:42-56 — Ledger bullet; 48-49 `tokens=<n>` from the notification; 168 "no attribution footer" (PR body rule, unrelated)
+- harness/skills/sdd-retrospective/SKILL.md:33-40 — Ledger bullet; 35-38 `spawn.start`/`spawn.end` around the analyst with `tokens=<n>` from the notification; 78-88 the analyst's launch prompt (no brief path)
+- harness/skills/sdd-implementation-phase/references/briefs.md:233 — "no attribution footer" (PR body rule, unrelated)
+- harness/skills/sdd-continue/references/formats.md:170-181 — event script: every `key=value` becomes a string value on the row; 186-198 the event table (193 `spawn.end`, 194 `spawn.usage` with the notification wording); 200-201 supervisor writes both boundary rows for orchestrators
+- harness/agents/sdd-checker.md:1-8, sdd-document-orchestrator.md:1-8 — frontmatter keys in order: `name`, `description` (plain scalar containing colons, starts `SDD <role>:`), `model`, `effort`, `color`, then a `tools:` or `skills:` list
+- scripts/dev-link.sh:21 — `HOOK_CMD="bash $REPO/harness/hooks/sdd-activity.sh"` (absolute path of the main checkout; a worktree's copy is not the registered hook)
+- src/index.ts:380-386 — `--watch`: root is the argument when it ends `.spec-workflow`, else `PathUtils.getWorkflowRoot(arg)`; `runWatch({ workflowRoot, specName, once })`
+- src/core/path-utils.ts:183-206 — `safeJoin` throws on a segment containing `..` or starting `/`, and on escape from the base; 208-214 `getWorkflowRoot`, `getSpecPath`
+- src/tools/root-selection.ts:51-56 — `SelectedRoots { workflowRoot, workspacePath }`
+- src/tools/harness.ts:641-645 — a private `ms` helper identical to ledger.ts:183-186; 864-900 `gateAction` put path (`selectRoots`, `getSpecPath`, `safeJoin`, `mkdir`+`writeFile`)
+- src/types.ts:218-222 — `ToolResponse { success, message, data?, nextSteps? }`
+- src/watch/__tests__/index.test.ts:36-68 — `runWatch` with `FakeTty`/`FakeOut`; 62-68 `once: true` asserts on `out.chunks`
+- src/watch/__tests__/render.test.ts:28-34 — `LEDGER` fixture (run.start `model: 'fable-5-1'`, orchestrator and implementer `spawn.start`); 108-116 `spawn.usage` ticker case with `tokens: '84000'`
+- vitest.config.ts:7 — `include: ['src/**/*.{test,spec}.{js,ts}']` (a `.jsonl` fixture under `src/` is not collected)
+- .gitignore — `.spec-workflow/specs/*/harness-activity.jsonl` ignored; `harness-events.jsonl` committed
+- package.json `build` — `validate:i18n`, `sync:plugin-assets`, `clean`, `tsc`, `build:dashboard` (vite build, then `copy-static`)
+- docs/SDD-HARNESS.md:330-335 — Developing the harness: `sync:plugin-assets`, `check:plugin-assets`, `claude plugin validate`
+- docs/harness-efficiency-plan.md:11-18 — rules (18: keep the ledger and `--watch`)
+- .spec-workflow/specs/harness-usage-and-tiers/harness-events.jsonl (this run, 61 rows at 16:38) — rows 21-22: two hook `spawn.start` for `sdd-reviser` (`reviser`, `lint`) before either `spawn.end`; rows 26, 38, 50: `spawn.usage` `sdd-reviewer` `tokens=unknown` followed by `note` rows carrying the actual count; rows 14, 58: supervisor `spawn.end` for the orchestrator with `role`, `result`, `tokens`
+- .spec-workflow/specs/harness-usage-and-tiers/harness-activity.jsonl — 169 rows for `sdd-document-orchestrator` in this run, `agent.start` and `agent.stop` included (SubagentStop fires for orchestrators in the supervisor session)
+- transcript probe 2026-09-19 (node 24.13.0): this drafter `agent-a96f88951d1f87ae7.jsonl` 725,359 bytes, 32 assistant entries with usage, total 1,670,382, parsed in 2 ms; top-level keys include `type`, `agentId`, `isSidechain`, `effort`, `message`; `message.usage` carries `input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, `cache_creation {ephemeral_5m_input_tokens, ephemeral_1h_input_tokens}`, `output_tokens`, `service_tier`; the orchestrator `agent-a8a51b659b21c6e12.jsonl` 596,770 bytes, 71 entries, input 142, output 23,145, cacheWrite 823,369, cacheRead 4,345,554, total 5,192,210, model `claude-opus-4-8`
+- fold replay 2026-09-19 (scratch script implementing design Component 5 rules a-f): `question-gates` runs 2, spawns 44, tokens 1,963,320, 14 unknown, 7 unmarked orchestrator spawns, per phase requirements 13/824,423, design 10/324,025 (6 unknown), tasks 7/732,073, implementation 8/0 (7 unknown), retrospective 2/45,675, closeout 4/37,124 (1 unknown); `review-gate` runs 1, spawns 59, tokens 6,324,447, orchestrator share requirements 13.5%, design 10.6%, tasks 17.0%, implementation 7.4%, retrospective 45.4%, closeout 31.1%; `spec-lint` 62 spawns, 6,610,528; this spec 19 spawns, 1,209,042, 3 unknown

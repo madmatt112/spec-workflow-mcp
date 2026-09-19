@@ -1,0 +1,216 @@
+# Design Document
+
+Document version: v1
+
+## Overview
+
+The plugin's `SubagentStop` hook (`harness/hooks/sdd-activity.sh:63-65`, `:83-85`) becomes the single writer of per-spawn usage: it sums `message.usage` over the worker's transcript at `transcript_path` and writes six keys on the `spawn.end` row it already emits, for orchestrators too. `scripts/sync-plugin-assets.cjs` generates `harness/agent-profiles.json` from the twelve agents' frontmatter, `src/watch/ledger.ts` loads it in place of the hand-kept table (`src/watch/ledger.ts:41-53`), and `src/watch/render.ts` shows declared beside actual. A new pure fold, `src/watch/usage.ts`, computes the tokens-by-phase-and-agent report that the `harness` tool exposes as action `usage` (`src/tools/harness.ts:46`, `:109-120`), reusing `parseJsonl`, `PathUtils.safeJoin` and the `phase-log` read pattern (`:658-683`).
+
+## Steering Document Alignment
+
+### Technical Standards (tech.md)
+`.spec-workflow/steering/` is empty on this store; the standards applied are `.spec-workflow/agent-rules.md`: tests beside the module under `__tests__/`, `harness/` as the single source with generated `plugins/` copies, `harness/hooks/` as a sensitive path.
+
+### Project Structure (structure.md)
+No `structure.md`; new code follows the existing split: the fold in `src/watch/` beside `ledger.ts`, the tool action in `src/tools/harness.ts`, the generator in `scripts/`, the fixture under `src/__tests__/fixtures/` (not collected by vitest, `vitest.config.ts:7`).
+
+### Design System (design-system.md) — if applicable
+N/A: no design-system.md; the only visual surface is the terminal view.
+
+## Architecture
+
+Three seams move. (1) Token measurement leaves the LLM: today `spawn.usage` and the supervisor's orchestrator `spawn.end` take `tokens` from the `<usage><subagent_tokens>` value of the Agent task notification (`harness/skills/sdd-continue/SKILL.md:213-217`, commit f616c72), never a result footer, and rows still read `unknown` (this run: `sdd-reviewer`, rounds 2-4); after this spec the hook reads the transcript named by the `SubagentStop` payload and no skill writes `tokens`. (2) Declared tiers leave `ledger.ts`: generated into `harness/agent-profiles.json`, shipped in `dist/`, loaded relative to the module. (3) The step-4 measurement becomes a pure fold over a ledger, exposed by the `harness` tool and reusable by spec 9.
+
+```mermaid
+graph LR
+    T[subagent transcript] -->|SubagentStop transcript_path| H[sdd-activity.sh]
+    H -->|spawn.end with six keys| L[harness-events.jsonl]
+    A[harness/agents/*.md] -->|sync-plugin-assets.cjs| P[harness/agent-profiles.json]
+    P -->|copy-static.cjs| D[dist/agent-profiles.json]
+    L --> M[ledger.ts buildModel]
+    D --> M
+    M --> R[render.ts tier line]
+    L --> U[usage.ts buildUsageReport]
+    U --> X[harness usage]
+```
+
+## Components and Interfaces
+
+### Component 1 — Hook usage writer (`harness/hooks/sdd-activity.sh`)
+- **Purpose:** On `SubagentStop`, read `d.transcript_path`, sum usage, write the `spawn.end` row for every `sdd-*` agent (Req 1).
+- **Interfaces:** Inline node in the script, no new process, nothing beyond `fs`. The new `SubagentStop` branch replaces `:63-65` and `:83-85`:
+
+```js
+function num(x) { return typeof x === "number" && Number.isFinite(x) ? x : 0; }
+function readUsage(p) {
+  let text; try { text = fs.readFileSync(String(p), "utf8"); } catch { return null; }
+  const s = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, models = []; let seen = 0;
+  for (const line of text.split("\n")) {
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    const u = e && e.type === "assistant" && e.message && e.message.usage;
+    if (!u || typeof u !== "object") continue;
+    seen++; s.input += num(u.input_tokens); s.output += num(u.output_tokens);
+    s.cacheWrite += num(u.cache_creation_input_tokens); s.cacheRead += num(u.cache_read_input_tokens);
+    const m = e.message.model; if (typeof m === "string" && !models.includes(m)) models.push(m);
+  }
+  return seen ? { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+") } : null;
+}
+```
+
+  On `SubagentStop`, `u = d.transcript_path ? readUsage(d.transcript_path) : null`. Non-null: the activity line gets `e.tokens = u.tokens` (a JSON number, `ActivityEvent.tokens?: number`, `src/watch/ledger.ts:31`; Req 1.7) and the ledger row is `{ ts, type: "spawn.end", run, spec, agent, input, output, cacheWrite, cacheRead, tokens, model }`, numbers as `String(n)`, `model` omitted when empty. Null: `{ ts, type: "spawn.end", run, spec, agent, tokens: "unknown" }` (Req 1.2-1.4). The `-orchestrator` guard (`:83`) and the `d.usage.tokens` read (`:65`) go (Req 1.1).
+- **Dependencies:** `hooks.json` unchanged (`timeout` 5, `harness/hooks/hooks.json:33`). Whole-file read, 2 MB bound (Req 1.6; probe 2026-09-19 on `agent-a8a51b659b21c6e12.jsonl`, this run's orchestrator: 596,770 bytes, 71 assistant entries, 5,192,210 tokens, `claude-opus-4-8`).
+- **Reuses:** the pointer and event-file plumbing (`harness/hooks/sdd-activity.sh:11-31`); the appends (`:69`, `:84`).
+
+### Component 2 — Profiles generator and build copy (`scripts/sync-plugin-assets.cjs`, `scripts/copy-static.cjs`)
+- **Purpose:** Write `harness/agent-profiles.json` from the frontmatter; fail `--check` on drift; ship it in `dist/` (Req 3.1, 3.2, 3.7).
+- **Interfaces:** `buildProfiles(): string` in `sync-plugin-assets.cjs`: for each `harness/agents/*.md` in sorted order, take the lines between the first two `---` (`harness/agents/sdd-checker.md:1-8`), split each on the first `:`; `role` = the capture of `/^SDD ([^:]+):/` on `description` (`harness/agents/sdd-document-orchestrator.md:3` gives `document-phase orchestrator`), else `name` without `sdd-` (D2); a file without `name` is skipped with one stderr line; a missing `model` or `effort` is `""`. Output: `{ model, effort, role }` per `name`, keys sorted, `JSON.stringify(obj, null, 2) + "\n"`, byte-identical on repeated runs. In `main()` after the plugin loop (`scripts/sync-plugin-assets.cjs:83-100`): without `--check` write the file and print a `✔` line; with `--check` compare bytes to the existing file (missing counts as different), print `✘ harness/agent-profiles.json` and set `drift` so the exit at `:102-105` fires. `copy-static.cjs`, after its locales block (`scripts/copy-static.cjs:54-61`), copies the file to `dist/agent-profiles.json` when it exists; `npm run build` runs `sync:plugin-assets` first and `copy-static` last (`package.json` `build`, `build:dashboard`).
+- **Dependencies:** none new.
+- **Reuses:** `listFiles` (`scripts/sync-plugin-assets.cjs:22-34`); the `✔`/`✘` output pattern (`:90-97`).
+
+### Component 3 — Profiles loader and spawn usage in the model (`src/watch/ledger.ts`)
+- **Purpose:** Replace the literal table; carry the hook's six keys on `SpawnNode`; keep old ledgers summing as today (Req 3.3-3.5, 4.1, 7).
+- **Interfaces:**
+  - `export function loadAgentProfiles(candidates?: string[]): Record<string, AgentProfile>`. Default candidates from `dirname(fileURLToPath(import.meta.url))` (`src/core/workspace-initializer.ts:9`): `../agent-profiles.json` (the `dist/` copy), then `../../harness/agent-profiles.json` (source under vitest). The first candidate that parses to an object of string `model`, `effort`, `role` wins; a missing or malformed one is skipped; none gives `{}` (Req 3.5). The trailing parameter serves the tests (D3).
+  - `export const AGENT_PROFILES: Record<string, AgentProfile> = loadAgentProfiles();` replaces the literal at `src/watch/ledger.ts:41-53`; `src/watch/render.ts:1` keeps its import. Ids are the full frontmatter ids (Req 3.3).
+  - `export const PHASE_ORDER` moves here from `src/watch/render.ts:60`; `render.ts` imports it (Req 5.2, D4).
+  - `SpawnNode` gains `model?: string; input?: number; output?: number; cacheWrite?: number; cacheRead?: number` (Req 4.1); the `spawn.end` pairing at `:240-247` reads the numbers with the coercion of `:245` and `model` as-is.
+  - Line `:271` becomes `if (tokens !== undefined && match.tokens === undefined) match.tokens = tokens;`: a digit-string `spawn.end` wins over a folded `spawn.usage` (Req 7.2) and a `spawn.usage` still fills a token-less `spawn.end` (Req 7.3; `src/watch/__tests__/ledger.test.ts:169-183` unchanged).
+  - `tokensTotal` (`:316`) unchanged (Req 4.4).
+- **Dependencies:** `readFileSync`, `fileURLToPath`, `dirname`, `join` (new imports).
+- **Reuses:** `parseJsonl` (`:129-142`); the pairing and the fold (`:226-291`).
+
+### Component 4 — Watch view tier line (`src/watch/render.ts`)
+- **Purpose:** Show declared model and effort beside the actual model, within 80 columns (Req 4.2, 4.3, 4.5, 4.7).
+- **Interfaces:** `agentLines` (`src/watch/render.ts:180-211`) renders a head line, a tier line and the existing third line (D1):
+  1. Head: `${indent}${mark} ${bold(padRight(agent, agentW))}${padRight(fit(role, roleW), roleW + 1)}${padRight(dur, 8)} ${badge} ${tokens}`, trimmed; the model and effort columns of `:203` leave this line. `agentW` stays `max(18, agent.length + 1)`; `roleW = max(16, min(30, width - indent.length - 2 - agentW - 20))`: role pad 1, duration 8, 2 spaces, 9 for the badge (`* 1:02:03`) on a running node (`:188`) or the tokens (`12.3M tok`) on an ended one, never both (a running node folded with `spawn.usage` tokens, `:267-271`, shows them once it ends). Worst case at 80 columns, `sdd-implementation-orchestrator` (indent 2): 2 + 2 + 32 + 25 + 8 + 2 + 9 = 80.
+  2. Tier: `${indent}   ${dim('declared')} ${padRight(declared, 23)}${dim('actual')} ${actual}${flag}` with `declared = profile ? profile.model + ' ' + profile.effort : ''` (longest 22), `actual = s.model ?? ''`, `flag = profile && s.model && s.model !== profile.model ? ' ' + bad('!=') : ''` (Req 4.3, D10; a `+`-joined `model` is flagged); longest 66 characters; omitted when both are empty (Req 3.5's empty columns).
+  3. The tool or result line (`:205-209`) unchanged.
+- **Dependencies:** `AGENT_PROFILES`, `PHASE_ORDER` from `./ledger.js`.
+- **Reuses:** `padRight`, `fit`, the palette (`:16-19`, `:44-58`).
+
+### Component 5 — Usage fold (`src/watch/usage.ts`, new)
+- **Purpose:** The Req 5.4-5.6 algorithm over every run of a ledger, as a pure function spec 9 can call without the tool (D5).
+- **Interfaces:** `export function buildUsageReport(events: LedgerEvent[], spec: string): UsageReport`; `export function usageDelta(a: UsageReport, b: UsageReport): UsageDelta[]` (per phase of the union in report order, `b` minus `a`); `export function formatUsageTable(report: UsageReport, compare?: UsageReport): string`.
+  - Rules of `buildUsageReport`, in order. (a) Sort rows by `ts` (stable; `ms` as `src/watch/ledger.ts:183-186`); `runs` = distinct defined `run` values (Req 5.5). (b) Walk the rows with `current: Map<string, Spawn>` by agent: `spawn.start` opens `Spawn { agent, startedAt: ts, phaseKey: row.phase, rows: [] }` and sets `current[agent]`; `spawn.end` or `spawn.usage` attaches to `current[agent]` when set; when unset, a `spawn.usage` becomes its own `Spawn` (`startedAt` = its `ts`, not entered in `current`) and a `spawn.end` is dropped (Req 5.4). (c) Per spawn: `tokens` = the later digit-string (`/^\d+$/`) `spawn.end` value, else the later digit-string `spawn.usage` value, else undefined; the four kinds and `model` from the later `spawn.end` carrying them; a `spawn.usage` `phase` overwrites `phaseKey`. (d) `unknown` = `tokens` undefined and some row carries a non-digit `tokens` value (D6); no `tokens` key anywhere counts unmarked; `0` is a known zero. (e) Phase = `phaseKey`; else the phase of the latest `phase.start` at or before `startedAt` with no `phase.end` of that phase between (the live-phase rule of `src/watch/ledger.ts:217-224`); else `unknown` (Req 5.6). (f) Per phase and agent: `spawns`, `tokens`, `unknown` count; per phase a total cell, `kinds`, and `orchestratorShare` = orchestrator tokens / phase tokens (name ends `-orchestrator`, `src/watch/ledger.ts:238`), `null` at zero. Order: `PHASE_ORDER`, other labels sorted, `unknown` last.
+  - Replay on this store (scratch script, 2026-09-19): `question-gates` runs 2, spawns 44, tokens 1,963,320, 14 marked, 7 unmarked orchestrator spawns (Req 5.9); `review-gate` 59 spawns, 6,324,447, equal to `tokensTotal` (Req 7.1).
+  - Known limit: two `spawn.start` rows of one agent before either closes (this run, `sdd-reviser` at 15:28:19 and 15:34:04) attach later closing rows to the second and leave the first a token-less unmarked spawn; per-phase and per-agent totals are unaffected.
+  - `formatUsageTable` (Req 5.2, 5.3, D7): header `usage <spec>  runs <n>  spawns <n>  tokens <n>`; columns `phase | agent | spawns | tokens`; a row per phase and agent (agents sorted), then a phase `total` row carrying `orch <p>%` (one decimal, `-` when null) and `in <n> out <n> cw <n> cr <n>`; last a spec `total` row. A token cell is `<sum>` or `<sum> (+<n> unknown)` (Req 5.4); numbers use `toLocaleString('en-US')`. With `compare`: the union of keys in the same order, one `spawns | tokens` pair per spec, `-` where absent; `total` rows add `delta spawns <n> tokens <n>` (compare minus report).
+- **Dependencies:** `LedgerEvent`, `PHASE_ORDER` from `./ledger.js`.
+- **Reuses:** `buildModel`'s fold behaviours (`src/watch/ledger.ts:250-291`) restated as rules (b) and (c), not its last-run scope (`:200-202`).
+
+### Component 6 — `harness usage` action (`src/tools/harness.ts`)
+- **Purpose:** Read one or two ledgers and return the table (Req 5.1-5.3, 5.7).
+- **Interfaces:** `action.enum` (`src/tools/harness.ts:46`) gains `'usage'`; new property `compareSpecName: { type: 'string', description: 'Second spec for a side-by-side usage table (usage action)' }` beside `specName` (`:49-52`; `additionalProperties: false` at `:95` bars it otherwise); `harnessHandler` (`:109-120`) gains `case 'usage'`, its default message names five actions, and the tool `description` (`:29-40`) gains one sentence. `async function usageAction(args: any, context: ToolContext): Promise<ToolResponse>`: `selectRoots`, `PathUtils.getSpecPath` (`:660-661`), spec dir must exist (`:664-670`), ledger via `PathUtils.safeJoin(specDir, 'harness-events.jsonl')` with `ENOENT` as empty (`:673-683`), `parseJsonl` (`:697`), the same for `compareSpecName`. Returns `{ success: true, message: formatUsageTable(report, compare), data: { report, compare, delta } }`, `compare` and `delta` only for two specs (Req 5.7). No process spawned.
+- **Dependencies:** `buildUsageReport`, `usageDelta`, `formatUsageTable` from `../watch/usage.js`; `ToolResponse` (`src/types.ts:218-222`).
+- **Reuses:** `phaseLogAction`'s read pattern (`:658-683`).
+
+### Component 7 — Skill, format and doc text
+- **Purpose:** No skill or agent writes `tokens`; the docs say who does (Req 2, 5.10, 6.2).
+- **Interfaces:** each edit replaces the cited span:
+  - Drop the `tokens=<n>` clause from the `spawn.usage` key lists at `harness/skills/sdd-document-phase/SKILL.md:46-48`, `harness/skills/sdd-implementation-phase/SKILL.md:57-58` and `harness/skills/sdd-closeout-phase/SKILL.md:48-49`; `harness/skills/sdd-document-phase/SKILL.md:114-116` drops "and tokens"; `:144` already reads "from its report".
+  - `harness/skills/sdd-retrospective/SKILL.md:35-38`: the orchestrator writes `spawn.start` before and `spawn.usage` (`agent=sdd-retro-analyst role=proposals result=<one line>`) after the analyst; the hook writes the analyst's `spawn.end` (Req 2.4).
+  - `harness/skills/sdd-continue/SKILL.md:213-217`: after the report the supervisor writes `spawn.usage agent=<agent> "role=<phase> phase, spawn <n>" result=<PHASE value>`; the hook writes the orchestrator's `spawn.end` (Req 2.3).
+  - `harness/skills/sdd-continue/references/formats.md:193-194`: `spawn.end` is hook-written for every `sdd-*` agent with the Data Models keys; `spawn.usage` is written by the supervisor (orchestrator) or the orchestrator (worker), keys `agent`, `role`, `result`, `phase`, `task` or `round`, no `tokens`; `:200-201`: the supervisor writes `spawn.start` and `spawn.usage` per orchestrator (Req 2.5).
+  - Member-finding command (Req 2.2): `grep -rn "footer\|tokens=\|subagent_tokens" harness/skills`; afterwards only the two unrelated `attribution footer` hits remain (`harness/skills/sdd-closeout-phase/SKILL.md:168`, `harness/skills/sdd-implementation-phase/references/briefs.md:233`).
+  - `docs/TOOLS-REFERENCE.md:551-570`: "five actions"; parameters add `op`, `slot`, `payload`, `compareSpecName`; bullets for `gate` (four ops) and `usage` (one or two specs, tokens and spawns by phase and agent, orchestrator share, `unknown` marks).
+  - `docs/SDD-HARNESS.md:284-298`: a supervisor row (main session, no agent file, outside the generated profiles), four rows matching Req 6.1's groups with full ids, and one sentence naming `harness/agent-profiles.json` as generated by `node scripts/sync-plugin-assets.cjs` and checked in CI; `:325-328`: the `SubagentStop` hook measures tokens from the transcript, the watch header sums them, `harness usage` splits them by kind.
+- **Dependencies:** the `harness/` checks of `.spec-workflow/agent-rules.md` (scenario 5).
+- **Reuses:** n/a.
+
+### Component 8 — Fixture ledger (`src/__tests__/fixtures/usage-ledger.jsonl`, new)
+- **Purpose:** A committed new-shape ledger for tests and scenarios (3) and (4) (Req 5.8, 4.5; D8).
+- **Interfaces:** spec `usage-fixture`, all values strings, rows in this order.
+  - Run 1, `run-20260920-100000`, ended: `run.start`; supervisor `spawn.start sdd-document-orchestrator "role=requirements phase, spawn 1" phase=requirements`; `phase.start requirements state=v0`; drafter: hook `spawn.start role=drafter`, hook `spawn.end` (`tokens=1209120 model=claude-fable-5-1`), token-less `spawn.usage`; reviewer: hook `spawn.start`, hook `spawn.end tokens=unknown`, token-less `spawn.usage`; `phase.end requirements result=escalate state=v1`; orchestrator hook `spawn.end` (`tokens=1736029 model=claude-opus-4-8`); supervisor `spawn.usage result=escalate`; `run.end status=escalated`.
+  - Run 2, `run-20260920-120000`, left live (no `phase.end`, no `run.end`): `run.start`; supervisor `spawn.start` (spawn 2, `phase=requirements`); `phase.start requirements state=v1`; reviser: hook rows (`tokens=604010 model=claude-sonnet-5`), token-less `spawn.usage`; orchestrator hook `spawn.end` (`tokens=1005030 model=claude-opus-4-8`). Each hook `spawn.end` with `tokens` also carries four kinds summing to it.
+  - `usage` expects runs 2, spawns 5, tokens 4,554,189, one phase, one unknown mark (the reviewer), `orch 60.2%`. `--watch --once` (last-run scope, `src/watch/ledger.ts:200-202`) expects `tokens 1.6M`, the live requirements phase (`src/watch/render.ts:100-114`), the orchestrator entry `+ sdd-document-orchestrator  requirements phase, spawn 2` with `1.0M tok` and its tier line `declared claude-opus-4-8 high` / `actual claude-opus-4-8`, no flag.
+- **Dependencies:** none; tests copy it into a temp store, the verifier to `/tmp/scratchpad/sdd/harness-usage-and-tiers/store/.spec-workflow/specs/usage-fixture/harness-events.jsonl`.
+
+## Data Models
+
+### `spawn.end` row written by the hook
+```
+{ ts: string; type: "spawn.end"; run?: string; spec?: string; agent: string;
+  input?: string; output?: string; cacheWrite?: string; cacheRead?: string;   // decimal digit strings
+  tokens: string;                 // digits (the sum of the four) or "unknown"
+  model?: string }                // "claude-opus-4-8" or "claude-opus-4-8+claude-sonnet-5"
+```
+All values are strings (`LedgerEvent`, `src/watch/ledger.ts:14-20`). Source: the `assistant` lines of `~/.claude/projects/<slug>/<session>/subagents/agent-<agentId>.jsonl`, `message.usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}` and `message.model` (probe 2026-09-19, node 24.13.0; internal to Claude Code).
+
+### `harness/agent-profiles.json`
+```
+{ "<name>": { "model": string, "effort": string, "role": string }, ... }   // keys sorted; 12 entries
+"sdd-document-orchestrator": { "model": "claude-opus-4-8", "effort": "high", "role": "document-phase orchestrator" }
+```
+Value shape: `AgentProfile` (`src/watch/ledger.ts:34-38`).
+
+### `SpawnNode` additions (`src/watch/ledger.ts:63-78`)
+```
+model?: string; input?: number; output?: number; cacheWrite?: number; cacheRead?: number
+```
+
+### `UsageReport` (`src/watch/usage.ts`)
+```ts
+export interface UsageCell { spawns: number; tokens: number; unknown: number }
+export interface UsageKinds { input: number; output: number; cacheWrite: number; cacheRead: number }
+export interface UsagePhase { phase: string; agents: Record<string, UsageCell>; total: UsageCell; kinds: UsageKinds; orchestratorShare: number | null }
+export interface UsageReport { spec: string; runs: number; phases: UsagePhase[]; total: UsageCell; kinds: UsageKinds }
+export interface UsageDelta { phase: string; spawns: number; tokens: number }
+```
+Tool `data`: `{ report: UsageReport; compare?: UsageReport; delta?: UsageDelta[] }`.
+
+## Error Handling
+
+1. **`transcript_path` absent, unreadable, or without a usable assistant entry:** `spawn.end` with `tokens=unknown` and no other usage key, the activity line without `tokens`, exit 0 (Req 1.4); `usage` marks the spawn `(+1 unknown)`.
+2. **A torn or non-JSON transcript line:** skipped (Req 1.5).
+3. **A throw inside the inline node:** the stdin `JSON.parse` keeps its `try` (`harness/hooks/sdd-activity.sh:35`), `readUsage` has its own, the script ends with `exit 0` (`:88`); the ledger row follows the activity line (`:69`, `:84`), so a late failure never loses it.
+4. **`agent-profiles.json` missing or malformed at run time:** `loadAgentProfiles` returns `{}`; entries render without a tier line; `--watch` and the server start as before (Req 3.5).
+5. **Frontmatter edited without a regenerated file:** `npm run check:plugin-assets` exits 1 naming `harness/agent-profiles.json` (Req 3.2); `npm run build` regenerates it.
+6. **`usage` on a spec directory that does not exist:** `{ success: false, message: "Failed to read <path>: ..." }` as `phase-log` (`src/tools/harness.ts:664-670`), for `compareSpecName` too; a `safeJoin` throw (`src/core/path-utils.ts:190-194`) is returned the same way.
+7. **`usage` on a spec with no ledger:** an empty report (`runs 0`, `spawns 0`, a zero `total` row), `success: true` (D11).
+8. **A missing or unparseable `ts`:** `ms` gives 0 and the row sorts first (`src/watch/ledger.ts:183-186`); a `spawn.start` without `agent` is `unknown`, as `buildModel` (`:230`).
+
+## Testing Strategy
+
+- **Unit:**
+  - `src/__tests__/hook-spawn-events.test.ts` (drives the real script, `:13`, `:36-41`): a fixture transcript with three `assistant` entries carrying `message.usage` (two models), one `user` entry, one `assistant` entry without `usage`, one torn line. `SubagentStop` with `transcript_path` for `sdd-implementer` asserts the six keys against sums from the test's own literals and `model` as the two ids joined with `+`; for `sdd-implementation-orchestrator` a `spawn.end` row appears (inverting `:110-116`, Req 1.8); no `transcript_path`, or a missing path, gives `tokens: 'unknown'` and no `input`; `agent.stop` carries numeric `tokens` (Req 1.7). Assertions read only the appended JSON lines (`:9-11`).
+  - `src/watch/__tests__/ledger.test.ts`: a hook `spawn.end` with the six keys sets `SpawnNode.model`, the kinds, `tokens` and `tokensTotal` (Req 7.4); `spawn.end tokens=84000` then `spawn.usage tokens=1` keeps 84,000 (Req 7.2); `loadAgentProfiles(['/nonexistent'])` and a `not json` file give `{}`; the default call has 12 keys, `sdd-checker` at `claude-sonnet-5` `high` (Req 3.6). `:169-226` unchanged.
+  - `src/watch/__tests__/render.test.ts`: `:53` and `:56` split into a head-line assertion without model columns and a tier-line assertion (`declared claude-opus-4-8 high`, `declared claude-opus-4-8 xhigh`, empty actual; Req 4.6); a `spawn.end model=claude-sonnet-5` for the implementer renders `actual claude-sonnet-5 !=`; the fixture at width 80 renders no line above 80 characters and the orchestrator tier line `declared claude-opus-4-8 high` / `actual claude-opus-4-8` without `!=` (Req 4.5, 4.7).
+  - `src/tools/__tests__/harness.test.ts` (temp store `:12-29`, `writeLedger` as `:248-253`): one spec (`data.report` totals, `message` holds the phase row); two specs (`compareSpecName`, `delta`); an unknown cell; an old `review-gate`-shape ledger (`spawn.end` with digit `tokens`); the fixture (runs 2, 5 spawns, 4,554,189); the all-runs scope (a second run id with no `run.start` counted); a start-less `spawn.end` dropped, a start-less `spawn.usage` counted once (Req 5.4); an unknown spec dir fails naming it; a missing ledger gives `runs 0` (Req 5.8).
+  - `src/__tests__/agent-profiles.test.ts` (new): `harness/agent-profiles.json` has 12 keys; each key's `model` and `effort` equal the frontmatter lines of `harness/agents/<key>.md`; `JSON.stringify(JSON.parse(text), null, 2) + '\n'` equals the file text. Drift detection runs in CI (`.github/workflows/ci.yml:30`) and in scenario (5).
+- **Integration:** `runWatch` with `once` (`src/watch/__tests__/index.test.ts:62-68` pattern) on a temp store holding the fixture asserts `tokens 1.6M` and the orchestrator tier line; the hook script against a real transcript (scenario 1).
+- **End-to-end** (the entry's scenario, run by the verifier from the worktree with `HOOK=<worktree>/harness/hooks/sdd-activity.sh`):
+  1. Take the `agentId` of the newest `agent.stop` row in this spec's `harness-activity.jsonl` and its transcript `~/.claude/projects/-home-mcf-repo-spec-workflow-mcp/<session>/subagents/agent-<agentId>.jsonl`; with a temp pointer file (as `src/__tests__/hook-spawn-events.test.ts:21-30`) pipe `{"hook_event_name":"SubagentStop","agent_type":"sdd-reviser","cwd":"<checkout>","transcript_path":"<file>"}` into `bash $HOOK`; sum the four fields with an independent `node -e`; assert the six keys (scenario 1).
+  2. The same with `agent_type: sdd-document-orchestrator` and `agent-a8a51b659b21c6e12.jsonl`: a `spawn.end` row appears (scenario 2). The live half (a real session's `SubagentStop`) runs after merge and restart, since the registered hook is the main checkout's (`scripts/dev-link.sh:21`); record a deferral tagged `verification` (D13).
+  3. `harness usage specName=question-gates` on this store: `runs 2  spawns 44  tokens 1,963,320`, 14 unknown marks; `specName=usage-fixture projectPath=/tmp/scratchpad/sdd/harness-usage-and-tiers/store`: 5 spawns, 4,554,189, `orch 60.2%` (scenario 3).
+  4. `node dist/index.js --watch . --spec review-gate --once` prints `tokens 6.3M` (Req 7.1); the same on the fixture store with `--spec usage-fixture` prints `tokens 1.6M` and the tier line `declared claude-opus-4-8 high` / `actual claude-opus-4-8` (scenario 4).
+  5. `node scripts/sync-plugin-assets.cjs`, `npm run check:plugin-assets`, `claude plugin validate . --strict` pass; with one space appended to `harness/agent-profiles.json`, `npm run check:plugin-assets` exits 1 naming it; `npm run build` yields `dist/agent-profiles.json`; `npm test` green (scenario 5).
+
+## Decisions taken in this document
+
+- D1 — Two-line agent entry (head, tier), each within 80 columns: options were one line with `claude-` stripped, one line with the agent name truncated, or a tier line; chosen because a 31-character name plus two 16-character ids cannot share 80 columns with the role, and Req 4.5 pins full ids.
+- D2 — Profile `role` = the label between `SDD ` and the first `:` of `description`, else the name without `sdd-`: options were the first sentence after the colon, a new frontmatter key, or the label; chosen because every description starts `SDD <role>:` and the view does not read `role`.
+- D3 — `AGENT_PROFILES` keeps its name as `loadAgentProfiles()` with an optional candidate list: options were a call per frame, a lazy getter, or a module constant; chosen because `render.ts:1` keeps its import and the trailing parameter serves the tests.
+- D4 — `PHASE_ORDER` moves to `ledger.ts`, exported: options were export from `render.ts` or duplicate in `harness.ts`; chosen because the order is a model fact and `render.ts` already imports `ledger.ts`.
+- D5 — The fold is a pure module `src/watch/usage.ts`; the tool only reads files: options were inline in `harness.ts` or a module; chosen because spec 9 renders the same report without the tool.
+- D6 — "states unknown" is any non-digit `tokens` value, not only `unknown` or `na`: options were the two literals or any non-digit value; chosen because a future junk value must be marked, not dropped.
+- D7 — Long-format table with phase and spec total rows, `en-US` grouping, compare as merged columns with deltas on total rows: options were a phase-by-agent matrix or long format; chosen because it fits a tool message and one row shape serves one spec and two.
+- D8 — One fixture file under `src/__tests__/fixtures/`, copied into a temp store, last run live with the orchestrator ended by a hook row: options were a nested `.spec-workflow` tree under `src/` or one file; chosen because `--watch` draws agent entries only for a live phase (`src/watch/render.ts:100-114`, `:163-167`) and a nested store invites workspace inference.
+- D9 — `agent.stop` carries numeric `tokens` when the transcript parsed: options were leave it or add it; chosen because `ActivityEvent.tokens` and the ticker (`src/watch/ledger.ts:357`) already exist for it.
+- D10 — Mismatch flag `!=` painted `bad`, only when profile and `model` both exist and differ: options were `*`, colour only, or `!=`; chosen because it survives `NO_COLOR`.
+- D11 — `usage` treats a missing ledger as an empty report: options were fail naming the path or empty; chosen because `phase-log` treats `ENOENT` the same way (`src/tools/harness.ts:673-683`).
+- D12 — The hook reads the transcript whole, not streamed: options were a line stream or a whole read; chosen because the bound is 2 MB (Req 1.6) and the script stays short.
+- D13 — Scenarios (1) and (2) run the worktree's script by hand on real transcripts; the live-hook half is deferred past merge: options were skip both until merge, or split; chosen because the registered hook is the main checkout's and the deterministic half proves the sums now.
+- D14 — Generation lives inside `sync-plugin-assets.cjs`: options were a new script wired into `build`, or the existing one; chosen because Req 3.1 names the script and `check:plugin-assets` already gates CI.
+
+## Scope notes
+
+- Carried item (token source): addressed in Architecture; the current source is the `<usage><subagent_tokens>` notification value (`harness/skills/sdd-continue/SKILL.md:213-217`, f616c72), never a result footer; Component 7 removes it from every skill.
+- The supervisor's model pre-flight (`harness/skills/sdd-continue/SKILL.md:219-227`) is untouched (requirements scope notes).
+- The step-4 columns beyond tokens and spawns (`docs/harness-efficiency-plan.md:164-167`) are not delivered (requirements scope notes).
+- The supervisor's own tokens are not measured (no `SubagentStop` for the main session).
+- No agent file changes (Req 6.1); no second tier cut (Req 6.4).
+- The interleaved double `spawn.start` case (Component 5) is recorded, not solved.
+
+## Revision History
+
+- **v1** (2026-09-19) — Initial draft.
