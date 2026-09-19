@@ -159,6 +159,40 @@ describe('review-task handler', () => {
       expect(result.data.methodology).toContain('Tests pass');
     });
 
+    it('resolves review paths against CODE_ROOT when set, else the workspace (retro P5)', async () => {
+      await createImplLog(); // logs src/handler.ts + src/new-file.ts, materialized under tempDir
+      // A separate worktree checkout that also holds the logged files.
+      const codeRoot = await fs.mkdtemp(join(tmpdir(), 'review-task-worktree-'));
+      await fs.mkdir(join(codeRoot, 'src'), { recursive: true });
+      await fs.writeFile(join(codeRoot, 'src/handler.ts'), 'export const x = 1;\nexport const z = 3;\n');
+      await fs.writeFile(join(codeRoot, 'src/new-file.ts'), 'export const y = 2;\n');
+      try {
+        process.env.CODE_ROOT = codeRoot;
+        const withEnv = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+        expect(withEnv.success).toBe(true);
+        expect(withEnv.data.filesToReview.some(
+          (f: any) => f.path === join(codeRoot, 'src/handler.ts') && f.root === 'workspace'
+        )).toBe(true);
+        expect(withEnv.data.executionContext.workspacePath).toBe(codeRoot);
+
+        delete process.env.CODE_ROOT;
+        const noEnv = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+        expect(noEnv.data.filesToReview.some(
+          (f: any) => f.path === join(tempDir, 'src/handler.ts') && f.root === 'workspace'
+        )).toBe(true);
+        expect(noEnv.data.executionContext.workspacePath).toBe(tempDir);
+      } finally {
+        delete process.env.CODE_ROOT;
+        await fs.rm(codeRoot, { recursive: true, force: true });
+      }
+    });
+
     it('should write a prepare marker', async () => {
       await createImplLog();
       await reviewTaskHandler(
