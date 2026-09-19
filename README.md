@@ -119,6 +119,12 @@ claude plugin install spec-workflow-mcp@spec-workflow-mcp-marketplace --scope pr
 
 See [docs/SDD-HARNESS.md](docs/SDD-HARNESS.md) for what the harness does and which
 plugin to pick.
+
+Developing the harness or the server? Skip the plugin and run both from your
+checkout: point `.mcp.json` at `node <checkout>/dist/index.js` and run
+`scripts/dev-link.sh` to symlink `harness/agents` and `harness/skills` into `~/.claude`
+and register the activity hook. See
+[docs/SDD-HARNESS.md, Installing](docs/SDD-HARNESS.md#installing).
 </details>
 
 <details>
@@ -434,6 +440,11 @@ npm run build
 # Run in development mode
 npm run dev
 ```
+
+To use your working copy as the MCP server, set a project's `.mcp.json` to
+`"command": "node", "args": ["<checkout>/dist/index.js", ...]` and rebuild after changes
+under `src/`. To use the working copy of the SDD harness, run `scripts/dev-link.sh`
+(symlinks into `~/.claude`, no plugin). Sessions read both at startup, so restart them.
 
 [See development guide →](docs/DEVELOPMENT.md)
 

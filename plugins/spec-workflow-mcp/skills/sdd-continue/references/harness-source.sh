@@ -1,11 +1,22 @@
 #!/bin/bash
-# Where did the installed plugin come from, and does it still match that source?
+# Where does the harness run from, and does an installed plugin still match its source?
 # Prints two lines:
-#   source: <local marketplace checkout> | none
+#   source: <checkout> | none
 #   drift: yes | no | unknown
 # Used by the sdd-continue supervisor's preflight. Safe to run anywhere; never fails.
-HERE=$(cd "$(dirname "$0")" && pwd)
-PLUGIN_ROOT=$(cd "$HERE/../../.." && pwd)
+#
+# Two layouts. Linked from a checkout: this file is <repo>/harness/skills/sdd-continue/
+# references/harness-source.sh (possibly reached through a symlink under ~/.claude/skills),
+# so source is <repo> and there is nothing to drift. Installed as a plugin: this file is
+# <plugin root>/skills/sdd-continue/references/harness-source.sh and source is the local
+# directory marketplace the plugin was installed from, if any.
+HERE=$(cd "$(dirname "$0")" && pwd -P)
+PLUGIN_ROOT=$(cd "$HERE/../../.." && pwd -P)
+if [ "$(basename "$PLUGIN_ROOT")" = "harness" ] && [ -d "$PLUGIN_ROOT/agents" ] && [ -f "$PLUGIN_ROOT/../package.json" ]; then
+  echo "source: $(cd "$PLUGIN_ROOT/.." && pwd -P)"
+  echo "drift: no"
+  exit 0
+fi
 MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
 KNOWN="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/known_marketplaces.json"
 if [ ! -f "$MANIFEST" ] || [ ! -f "$KNOWN" ]; then echo "source: none"; echo "drift: unknown"; exit 0; fi

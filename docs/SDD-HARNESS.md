@@ -206,6 +206,32 @@ Restart the session after installing. Plugin components are namespaced: the skil
 `spec-workflow-harness:sdd-reviewer` and so on. The supervisor finds the prefix at
 run time, so the same skills work under any of the three plugins.
 
+### From a checkout, no plugin
+
+When you develop the harness or the server, run both from your working copy instead.
+Nothing is copied, so a merged change is live after a rebuild and a session restart,
+and the server and the harness always come from the same commit.
+
+1. Build once: `npm install && npm run build`.
+2. In each project's `.mcp.json`, replace the `npx` command with
+   `"command": "node", "args": ["<checkout>/dist/index.js", ...]`, keeping any path
+   argument or `SPEC_WORKFLOW_SHARED_ROOT` env you already pass. Keep the server name
+   `spec-workflow` so the tool names stay `mcp__spec-workflow__*`.
+3. Run `scripts/dev-link.sh`. It symlinks every `harness/agents/*.md` into
+   `~/.claude/agents/`, every `harness/skills/*` into `~/.claude/skills/`, and adds the
+   `PreToolUse`, `SubagentStart` and `SubagentStop` hook entries for
+   `harness/hooks/sdd-activity.sh` to `~/.claude/settings.json` (absolute path; the
+   plugin's `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}`, which does not exist here).
+4. Uninstall any harness plugin at every scope (`claude plugin uninstall
+   spec-workflow-harness@spec-workflow-mcp-marketplace --scope <user|project|local>`
+   from each project), or you get the agents twice, once prefixed and once bare.
+5. Restart your sessions. Agents and skills are read at session start.
+
+Under this layout the agents are unprefixed (`sdd-reviewer`), the skill is
+`/sdd-continue`, and the supervisor's preflight reports the prefix as `none` and the
+checkout as `HARNESS_REPO`. After a change under `src/`: `npm run build`, then restart.
+After a change under `harness/`: restart only.
+
 Then, in a session opened in the project (or in a worktree of it):
 
 ```
@@ -283,6 +309,7 @@ four-line ticker of the latest events. `q` quits. Watch only: it changes nothing
 ```bash
 npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted
 npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted --spec tags-and-setups --once
+node <checkout>/dist/index.js --watch /home/mcf/repo/tradr-hosted     # from a checkout
 ```
 
 Two append-only files under the spec directory feed it, both committed with the spec store:
@@ -306,6 +333,12 @@ Edit `harness/` only. `npm run sync:plugin-assets` copies it into the three plug
 roots (`npm run build` does this too); `npm run check:plugin-assets` fails in CI when
 the copies drift. `claude plugin validate <plugin root> --strict` validates each
 plugin; `claude plugin validate . --strict` validates the marketplace.
+
+Run the harness you are editing from the checkout (Installing, "From a checkout, no
+plugin"), not from an installed plugin: a plugin install copies the files at install
+time and reads agent frontmatter from the marketplace source, so an edit is picked up
+only after an uninstall and install, and only partly. From the checkout, an edit is live
+at the next session start. Cut a release when you want to publish, not to use a change.
 
 An orchestrator (or any agent) that calls the `harness` tool must allowlist it in its
 frontmatter `tools:` list, in all three plugin-name variants

@@ -40,18 +40,20 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
    and the routing (step 2). If the tool is not available or fails, tell the user to
    run `/mcp`, check the `spec-workflow` server, and stop.
 3. **Agents.** Look at the agent types available to your Agent tool. Find one whose
-   name ends in `:sdd-reviewer`. The part before the colon is the **agent prefix**
-   (for example `spec-workflow-harness`). If none exists, print
-   `Install the spec-workflow-harness plugin (docs/SDD-HARNESS.md), then continue`
-   and stop. Every orchestrator gets the prefix in its launch prompt; skills never
-   hardcode it.
-4. **Plugin freshness.** This skill's base directory holds `references/harness-source.sh`.
+   name is `sdd-reviewer` or ends in `:sdd-reviewer`. The part before the colon is the
+   **agent prefix** (for example `spec-workflow-harness`, from a plugin install); a bare
+   `sdd-reviewer` (agents linked from a checkout into `~/.claude/agents`) means the
+   prefix is `none`. If neither exists, print
+   `Install the harness (docs/SDD-HARNESS.md, Installing), then continue` and stop.
+   Every orchestrator gets the prefix in its launch prompt; skills never hardcode it.
+4. **Harness source.** This skill's base directory holds `references/harness-source.sh`.
    Run `bash <base dir>/references/harness-source.sh`. It prints `source: <path | none>`
-   (the local marketplace checkout the plugin was installed from, when there is one) and
-   `drift: yes | no | unknown`. On `yes`, print one line and continue:
-   `warning: the installed plugin differs from <source>/plugins/<plugin>; refresh it
-   (uninstall, then install at this scope) unless that is intended`. Keep the `source`
-   value: it is `HARNESS_REPO` in every launch prompt.
+   (the checkout the harness runs from: the `harness/` tree itself when the skills are
+   linked from a checkout, else the local marketplace checkout a plugin was installed
+   from) and `drift: yes | no | unknown`. On `yes` (plugin installs only), print one line
+   and continue: `warning: the installed plugin differs from <source>/plugins/<plugin>;
+   refresh it (uninstall, then install at this scope) unless that is intended`. Keep the
+   `source` value: it is `HARNESS_REPO` in every launch prompt.
 
 ## 1. Roots (workspace contract v2)
 
@@ -175,7 +177,8 @@ supervisor used to detect from the State row and stamp by hand.
 ## 4. Dispatch loop
 
 Spawn the orchestrator for the phase with the Agent tool, foreground, no `model`
-parameter, `subagent_type` = `<prefix>:<agent>`:
+parameter, `subagent_type` = `<prefix>:<agent>`, or just `<agent>` when the prefix is
+`none`:
 
 | Phase | Agent |
 | --- | --- |
@@ -197,7 +200,7 @@ MAIN_CHECKOUT: <path, or "same as CODE_ROOT">
 WORKTREE: <yes | no>
 HANDOFF: <path>
 AGENT_RULES: <path | none>
-AGENT_PREFIX: <prefix>
+AGENT_PREFIX: <prefix | none>
 HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
 BUDGET: <4 review rounds | 20 tasks | all items | n/a>
@@ -212,10 +215,11 @@ phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role
 result=<PHASE value> tokens=<n>`, where `<n>` is the token count the Agent result
 states in its footer (omit `tokens` only when it states none).
 
-**Model pre-flight.** Frontmatter loads a spawn's model from the marketplace source
-checkout, not the installed plugin, so a stale source can run an orchestrator on the
-wrong model even when both plugin caches read `claude-opus-4-8`. Before acting on the
-report, verify the model the spawn actually ran on: read the run's transcript (the newest
+**Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
+agents live (the checkout's `harness/agents/` when linked, the marketplace source
+checkout for a plugin), so a session started before an edit, or a stale source, can run
+an orchestrator on the wrong model. Before acting on the report, verify the model the
+spawn actually ran on: read the run's transcript (the newest
 `~/.claude/projects/*/*.jsonl`) and take `.message.model` from this spawn's assistant
 lines (its `isSidechain` entries). Every orchestrator must be `claude-opus-4-8`. On a
 mismatch, do not act on the report — write a HANDOFF row, print

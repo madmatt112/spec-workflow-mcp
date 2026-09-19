@@ -21,7 +21,8 @@ at the start.
   read the Revision History lines (grep), the verdict block of an analysis (`tail`),
   `grep -n '^#'` for structure, and worker reports. Nothing else.
 - Spawn workers with the Agent tool, foreground, `subagent_type:
-  <AGENT_PREFIX>:<agent>`, no `model` parameter, never `fork`. Workers are
+  <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
+  parameter, never `fork`. Workers are
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator` and `sdd-checker`.
   Wait for the report.
 - Never pass `projectPath` to a spec-workflow MCP tool. Never poll approval status.

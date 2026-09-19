@@ -12,7 +12,7 @@ paths it resolves. Read it end to end before doing anything.
 
 - Find the **agent prefix**: the agent type available to your Agent tool whose name
   ends in `:sdd-reviewer`; the prefix is the part before the colon. Every spawn below
-  uses `subagent_type: <prefix>:<agent>`, foreground, no `model` parameter, never
+  uses `subagent_type: <prefix>:<agent>` (just `<agent>` when the prefix is `none`), foreground, no `model` parameter, never
   `fork`.
 - Where the loop says "spawn a sub-agent" to **reproduce**, **review** or **verify**,
   spawn `sdd-verifier`. Where it says to **implement**, **fix** or **sweep**, spawn

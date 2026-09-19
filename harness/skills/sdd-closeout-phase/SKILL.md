@@ -24,7 +24,7 @@ start.
 
 ## Standing rules
 
-- Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:<agent>`, no `model`
+- Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
   parameter, never `fork`. One worker at a time.
 - Never pass `projectPath` to a spec-workflow MCP tool.
 - Paths: spec dir `<SPEC_STORE_ROOT>/specs/<SPEC>/`; the plan
