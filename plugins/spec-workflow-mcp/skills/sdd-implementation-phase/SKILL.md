@@ -54,7 +54,8 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   (`agent=`, `role=implement task <N> | verify task <N> | fix task <N> round <r> |
   adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
   `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT | VERIFY>`,
-  `tokens=<n>` from the token count the Agent result states in its footer);
+  `tokens=<n>` from the `<usage><subagent_tokens>` value in the spawn's task
+  notification, `unknown` when absent);
   `note "text=gate: task <N> <pass|fail> risk <low|high>"` after every gate call;
   `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>` when you mark `[x]`;
   `note` for deferrals, design defects, drift and every red CI check; `phase.end` right

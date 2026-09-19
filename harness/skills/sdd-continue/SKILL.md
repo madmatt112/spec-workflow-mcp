@@ -212,8 +212,9 @@ followed by the report contract from `references/formats.md`, verbatim, and the 
 
 Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phase, spawn <n>"
 phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
-result=<PHASE value> tokens=<n>`, where `<n>` is the token count the Agent result
-states in its footer (omit `tokens` only when it states none).
+result=<PHASE value> tokens=<n>`, where `<n>` is the `<usage><subagent_tokens>` value in
+the task notification that reports this spawn finished (the Agent result carries no
+footer count any more); when no notification states one, write `tokens=unknown`.
 
 **Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
 agents live (the checkout's `harness/agents/` when linked, the marketplace source
