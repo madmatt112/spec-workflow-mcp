@@ -15,6 +15,9 @@ tools:
   - mcp__spec-workflow__log-implementation
   - mcp__plugin_spec-workflow-mcp_spec-workflow__log-implementation
   - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__log-implementation
+  - mcp__spec-workflow__deferrals
+  - mcp__plugin_spec-workflow-mcp_spec-workflow__deferrals
+  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__deferrals
   - mcp__playwright
   - mcp__plugin_playwright_playwright
 ---

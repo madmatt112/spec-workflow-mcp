@@ -159,6 +159,40 @@ describe('review-task handler', () => {
       expect(result.data.methodology).toContain('Tests pass');
     });
 
+    it('resolves review paths against CODE_ROOT when set, else the workspace (retro P5)', async () => {
+      await createImplLog(); // logs src/handler.ts + src/new-file.ts, materialized under tempDir
+      // A separate worktree checkout that also holds the logged files.
+      const codeRoot = await fs.mkdtemp(join(tmpdir(), 'review-task-worktree-'));
+      await fs.mkdir(join(codeRoot, 'src'), { recursive: true });
+      await fs.writeFile(join(codeRoot, 'src/handler.ts'), 'export const x = 1;\nexport const z = 3;\n');
+      await fs.writeFile(join(codeRoot, 'src/new-file.ts'), 'export const y = 2;\n');
+      try {
+        process.env.CODE_ROOT = codeRoot;
+        const withEnv = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+        expect(withEnv.success).toBe(true);
+        expect(withEnv.data.filesToReview.some(
+          (f: any) => f.path === join(codeRoot, 'src/handler.ts') && f.root === 'workspace'
+        )).toBe(true);
+        expect(withEnv.data.executionContext.workspacePath).toBe(codeRoot);
+
+        delete process.env.CODE_ROOT;
+        const noEnv = await reviewTaskHandler(
+          { action: 'prepare', specName: 'test-spec', taskId: '1' },
+          context
+        );
+        expect(noEnv.data.filesToReview.some(
+          (f: any) => f.path === join(tempDir, 'src/handler.ts') && f.root === 'workspace'
+        )).toBe(true);
+        expect(noEnv.data.executionContext.workspacePath).toBe(tempDir);
+      } finally {
+        delete process.env.CODE_ROOT;
+        await fs.rm(codeRoot, { recursive: true, force: true });
+      }
+    });
+
     it('should write a prepare marker', async () => {
       await createImplLog();
       await reviewTaskHandler(
@@ -198,6 +232,20 @@ describe('review-task handler', () => {
       expect(response.projectContext?.dashboardUrl).toBe('http://localhost:3456');
       const decoded = decode(toMCPResponse(response).content[0].text);
       expect(decoded).toEqual(response);
+    });
+
+    // The encoder in `toMCPResponse` and this file's `decode` are one package, so
+    // the two round-trips above only prove what the installed copy does. What
+    // broke them once (retro F4) was an installed 0.8.x under a `^4` declaration:
+    // pin the installed major to the declared one so a stale install fails here.
+    it('installs @toon-format/toon at the major that package.json declares', () => {
+      const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+      const declared = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf-8'))
+        .dependencies['@toon-format/toon'] as string;
+      const installed = JSON.parse(
+        readFileSync(join(repoRoot, 'node_modules/@toon-format/toon/package.json'), 'utf-8')
+      ).version as string;
+      expect(installed.split('.')[0]).toBe(declared.replace(/^[\^~]/, '').split('.')[0]);
     });
 
     describe('hygiene signal integration', () => {
@@ -1265,7 +1313,7 @@ describe('executionContext (task 8)', () => {
     // A sibling worktree recorded a DIFFERENT commit; it must not be selected.
     await store.recordBase('1', join(tempDir, 'other-worktree'), B);
     await store.recordBase('1', tempDir, A);
-    overrides.isAncestor = async () => true;
+    overrides.isAncestor = async () => 'ancestor';
 
     const result = await runPrepare();
     const ec = result.data.executionContext;
@@ -1280,7 +1328,7 @@ describe('executionContext (task 8)', () => {
   it('resolves head-degraded and diffs from HEAD when the sha is not an ancestor (1.6, 1.8, D3)', async () => {
     await seedLog();
     await new TaskStateStore(specPath).recordBase('1', tempDir, C);
-    overrides.isAncestor = async () => false;
+    overrides.isAncestor = async () => 'not-ancestor';
 
     const result = await runPrepare();
     const ec = result.data.executionContext;
@@ -1293,6 +1341,25 @@ describe('executionContext (task 8)', () => {
     expect(ec.notes).toContain(
       `Name in your review summary that the recorded diff base \`${C}\` was rejected and the diff was taken from HEAD.`
     );
+  });
+
+  it('says the base could not be validated, not rejected, when git gives no answer (R2-4)', async () => {
+    await seedLog();
+    await new TaskStateStore(specPath).recordBase('1', tempDir, C);
+    overrides.isAncestor = async () => 'unknown';
+
+    const result = await runPrepare();
+    const ec = result.data.executionContext;
+    expect(ec.diffBase.provenance).toBe('head-degraded');
+    expect(ec.diffBase.commit).toBe('HEAD');
+    expect(ec.diffBase.detail).toContain(C);
+    expect(ec.diffBase.detail).toContain('could not be validated');
+    expect(ec.diffBase.detail).not.toContain('rejected');
+    expect(diffArgs[2]).toBe('HEAD');
+    expect(ec.notes).toContain(
+      `Name in your review summary that the recorded diff base \`${C}\` could not be validated and the diff was taken from HEAD.`
+    );
+    expect(ec.notes.join('\n')).not.toContain('was rejected');
   });
 
   it('reports attribution match when the logged workspace equals the reviewer (3.6)', async () => {
@@ -1390,7 +1457,7 @@ describe('executionContext (task 8)', () => {
     await store.recordAttribution('1', {
       workspacePath: join(tempDir, 'elsewhere'), commit: null, source: 'context', loggedAt: new Date().toISOString(),
     });
-    overrides.isAncestor = async () => false;
+    overrides.isAncestor = async () => 'not-ancestor';
     overrides.typecheck = async () => [{
       tsconfigPath: join(tempDir, 'tsconfig.json'),
       status: 'timeout',

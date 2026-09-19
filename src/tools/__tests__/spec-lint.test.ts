@@ -129,6 +129,17 @@ describe('specLintHandler', () => {
     for (const f of res.data.findings) expect(f.file).toBe('requirements.md');
   });
 
+  it('resolves a steering citation against the spec-store root (retro P2)', async () => {
+    // `steering/structure.md:N` lives under the `.spec-workflow` root, not the
+    // project dir; the spec-store-root base makes the shorthand resolve.
+    await fs.mkdir(join(workflowRoot, 'steering'), { recursive: true });
+    await fs.writeFile(join(workflowRoot, 'steering', 'structure.md'), '# Structure\n\nLayout.\n');
+    await writeDoc('requirements', '# Requirements\n\nSee steering/structure.md:1 for the layout.\n');
+    const res = await specLintHandler({ specName: SPEC, phase: 'requirements' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.findings.filter((f: any) => f.rule === 'citation-path')).toHaveLength(0);
+  });
+
   it('renders the requirement 1.8 message', async () => {
     await writeDoc('requirements', '# Requirements\n\nHello world.\n');
     const res = await specLintHandler({ specName: SPEC, phase: 'requirements' }, context);

@@ -53,6 +53,10 @@ export type TypecheckResult =
     };
 
 const TIMEOUT_MS = 30_000;
+// The pnpm whole-tree check compiles every package, so it gets a larger budget
+// than the single-project `tsc` run (retro P7).
+const PNPM_CHECK_TYPES_TIMEOUT_MS = 120_000;
+const PNPM_WORKSPACE_FILE = 'pnpm-workspace.yaml';
 const SIGKILL_GRACE_MS = 2_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
 const GITIGNORE_ENTRY = '.spec-workflow/.cache/';
@@ -164,6 +168,20 @@ export async function runProjectTypecheck(
   try {
     tsconfigText = await fs.readFile(tsconfigPath, 'utf-8');
   } catch {
+    // A pnpm monorepo keeps no root `tsconfig.json`, so this path would force
+    // every task to `risk: high` on `no-tsconfig` (retro P7). When the workspace
+    // declares a pnpm workspace, run its own `check-types` over the whole tree.
+    let isPnpmWorkspace = false;
+    try {
+      await fs.access(path.join(workspacePath, PNPM_WORKSPACE_FILE));
+      isPnpmWorkspace = true;
+    } catch {
+      // Not a pnpm workspace; fall through to the `no-tsconfig` report.
+    }
+    if (isPnpmWorkspace) {
+      return runPnpmCheckTypes(workspacePath, allFiles, tsconfigPath);
+    }
+
     const workflowTsconfig = path.join(workflowRoot, 'tsconfig.json');
     let workflowRootHasTsconfig: boolean;
     try {
@@ -305,6 +323,73 @@ export async function runProjectTypecheck(
   }
   if (post.truncated) result.truncated = true;
   if (typecheckWarning) result.typecheckWarning = typecheckWarning;
+  return [result];
+}
+
+/**
+ * Whole-tree typecheck for a pnpm monorepo (retro P7). A pnpm workspace keeps no
+ * root `tsconfig.json`, so the plain path returns `no-tsconfig` and forces every
+ * task to `risk: high`. Here we run the repo's own `pnpm check-types` script —
+ * the command CI runs — and read its exit code: a clean run is `success` with no
+ * diagnostics; a failure surfaces the `tsc` diagnostics it printed, anchored and
+ * scoped against the task's files so the gate can flag the in-scope ones.
+ *
+ * No result is cached: a repair re-run edits the tree, and a stale verdict on a
+ * security gate is worse than a slow one. Speed comes from `tsc`'s own
+ * incremental build cache, which the repo's `check-types` script keeps.
+ */
+async function runPnpmCheckTypes(
+  workspacePath: string,
+  allFiles: string[],
+  tsconfigPath: string,
+): Promise<TypecheckResult[]> {
+  const env = { ...scrubbedGitEnv(), FORCE_COLOR: '0', NO_COLOR: '1' };
+  const run = await spawnTsc(
+    'pnpm',
+    ['check-types'],
+    env,
+    workspacePath,
+    true,
+    PNPM_CHECK_TYPES_TIMEOUT_MS,
+  );
+
+  if (run.timedOut) {
+    return [{ tsconfigPath, status: 'timeout' }];
+  }
+  if (run.overflow) {
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'output-overflow',
+      observed: `\`pnpm check-types\` output exceeded the ${MAX_BUFFER / (1024 * 1024)} MB buffer`,
+    }];
+  }
+  if (run.exitCode === 0) {
+    // A clean whole-tree run: every package compiled with no errors.
+    return [{ tsconfigPath, status: 'success', diagnostics: [], coverage: { compiled: [], excluded: [] } }];
+  }
+
+  const { diagnostics: parsedDiagnostics } = parseTscOutput(`${run.stdout}\n${run.stderr}`);
+  if (parsedDiagnostics.length === 0) {
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'no-parseable-output',
+      observed: `\`pnpm check-types\` at \`${workspacePath}\` exited ${run.exitCode ?? 'null'} with no parseable diagnostics`,
+    }];
+  }
+  const anchored = parsedDiagnostics.map((d) => ({ ...d, file: path.resolve(workspacePath, d.file) }));
+  // `allFiles` as both the scope set and the compiled set: a whole-tree run
+  // compiles every package, so nothing this task touched is uncovered.
+  const post = await postProcess(allFiles, allFiles, anchored);
+  const result: TypecheckResult = {
+    tsconfigPath,
+    status: 'success',
+    diagnostics: post.diagnostics,
+    coverage: { compiled: post.compiled, excluded: post.excluded },
+  };
+  if (post.suppressedDenylistedFiles > 0) result.suppressedDenylistedFiles = post.suppressedDenylistedFiles;
+  if (post.truncated) result.truncated = true;
   return [result];
 }
 
@@ -591,13 +676,15 @@ function spawnTsc(
   args: string[],
   env: NodeJS.ProcessEnv,
   cwd: string,
+  useShell: boolean = process.platform === 'win32',
+  timeoutMs: number = TIMEOUT_MS,
 ): Promise<TscRun> {
   return new Promise((resolve) => {
     const opts: ExecFileOptions = {
       env,
       cwd,
       maxBuffer: MAX_BUFFER,
-      shell: process.platform === 'win32',
+      shell: useShell,
     };
     let timedOut = false;
     let killTimer: NodeJS.Timeout | undefined;
@@ -638,6 +725,6 @@ function spawnTsc(
       killTimer = setTimeout(() => {
         try { proc.kill('SIGKILL'); } catch { /* already exited */ }
       }, SIGKILL_GRACE_MS);
-    }, TIMEOUT_MS);
+    }, timeoutMs);
   });
 }

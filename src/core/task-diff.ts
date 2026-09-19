@@ -96,18 +96,32 @@ export async function readHeadCommit(workspacePath: string): Promise<string | nu
 }
 
 /**
- * True only when `commit` is an ancestor of the workspace's `HEAD`
- * (requirement 1.5). `rev-parse --verify` is not enough: linked worktrees share
- * one object database, so any sibling branch's commit verifies. `merge-base
- * --is-ancestor` exits 0 for an ancestor, 1 for a non-ancestor and 128 for an
- * unknown sha; both non-zero results mean "not validated".
+ * What git said about `commit` relative to the workspace's `HEAD`:
+ * `ancestor` and `not-ancestor` are git's answer; `unknown` means git gave no
+ * answer (it could not be spawned, the workspace path is gone, it timed out or
+ * overflowed the buffer), so the base is unvalidated rather than rejected.
+ */
+export type AncestryResult = 'ancestor' | 'not-ancestor' | 'unknown';
+
+const GIT_EXIT_CAUSE_RE = /^exit \d+$/;
+
+/**
+ * Whether `commit` is an ancestor of the workspace's `HEAD` (requirement 1.5).
+ * `rev-parse --verify` is not enough: linked worktrees share one object
+ * database, so any sibling branch's commit verifies. `merge-base --is-ancestor`
+ * exits 0 for an ancestor, 1 for a non-ancestor and 128 for an unknown sha;
+ * both non-zero exits are git's answer and mean `not-ancestor`. A failure that
+ * is not an exit code (`ENOENT`, a timeout, `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`)
+ * is an infrastructure fault and reports `unknown`, so the caller can say the
+ * base was not validated instead of claiming it was rejected (design R2-4).
  */
 export async function isAncestorOfHead(
   workspacePath: string,
   commit: string,
-): Promise<boolean> {
+): Promise<AncestryResult> {
   const run = await runGit(workspacePath, ['merge-base', '--is-ancestor', commit, 'HEAD']);
-  return run.ok;
+  if (run.ok) return 'ancestor';
+  return run.cause !== undefined && GIT_EXIT_CAUSE_RE.test(run.cause) ? 'not-ancestor' : 'unknown';
 }
 
 /**
@@ -429,9 +443,13 @@ function countFileNewlines(filePath: string): number {
 export async function computeRangeStats(
   root: string,
   range: RangeSelector,
+  opts: { ignoreWhitespace?: boolean } = {},
 ): Promise<RangeStatsResult> {
   const selector = 'commit' in range ? 'commit' : 'baseRef';
   const ref = 'commit' in range ? range.commit : range.baseRef;
+  // With `--ignore-all-space` a whitespace-only edit counts zero changed lines,
+  // so a caller can tell a real change from a re-indent or no-op (retro P14).
+  const ws = opts.ignoreWhitespace ? ['--ignore-all-space'] : [];
 
   // Repo check first, with its own message (R3-1): `--show-toplevel` exits 128
   // outside a repository, so `runGit` reports `ok: false`.
@@ -460,7 +478,7 @@ export async function computeRangeStats(
     // leaves no sha header, so `parseNumstat`'s three-field guard never fires.
     const run = await runGit(root, [
       '-c', 'core.quotePath=false',
-      'log', '--first-parent', '-1', '--numstat', '--format=', '--no-renames', ref,
+      'log', '--first-parent', '-1', '--numstat', ...ws, '--format=', '--no-renames', ref,
     ]);
     const numstat = parseNumstat(run.stdout);
     return {
@@ -480,7 +498,7 @@ export async function computeRangeStats(
   // adding one file and its newline count (D17, D18). `root` is assumed to
   // gitignore the spec store and generated artifacts (R2-2).
   const [diffRun, othersRun] = await Promise.all([
-    runGit(root, ['-c', 'core.quotePath=false', 'diff', '--numstat', '--no-renames', ref]),
+    runGit(root, ['-c', 'core.quotePath=false', 'diff', '--numstat', ...ws, '--no-renames', ref]),
     runGit(root, ['-c', 'core.quotePath=false', 'ls-files', '--others', '--exclude-standard']),
   ]);
 

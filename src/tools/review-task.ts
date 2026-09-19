@@ -9,7 +9,7 @@ import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { computeHygieneSignals, HygieneSignal } from '../core/hygiene-signals.js';
 import { runProjectTypecheck, TypecheckResult } from '../core/typecheck.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
-import { computeTaskDiff, isAncestorOfHead, TaskDiffResult } from '../core/task-diff.js';
+import { computeTaskDiff, isAncestorOfHead, TaskDiffResult, type AncestryResult } from '../core/task-diff.js';
 import { selectRoots } from './root-selection.js';
 import { handleGate } from './review-gate.js';
 import { TaskStateStore, type TaskStateRecord } from '../core/task-state-store.js';
@@ -417,33 +417,49 @@ export const NO_FILES_METHODOLOGY_HEADER =
  * The diff base and its provenance for this prepare (design Component 4, D3).
  * `head-expected` when no record holds a base for the reviewing workspace;
  * `recorded` when the recorded commit is still an ancestor of HEAD (one git
- * spawn, bounded by `runGit`'s timeout, degrading to `head-degraded` on hang);
- * `head-degraded` when it is not. `commit` is the recorded sha only for
- * `recorded`; both fallbacks diff from the ref `HEAD`.
+ * spawn, bounded by `runGit`'s timeout); `head-degraded` when git says it is
+ * not, or when git gave no answer (`ancestry: 'unknown'`: a hang, a missing
+ * binary, a vanished workspace) — the detail and the note say which, so an
+ * infrastructure fault is never reported as a rejected base (design R2-4).
+ * `commit` is the recorded sha only for `recorded`; both fallbacks diff from
+ * the ref `HEAD`.
  */
 async function resolveDiffBase(
   record: TaskStateRecord | null,
   workspacePath: string
-): Promise<ExecutionContext['diffBase']> {
+): Promise<{ diffBase: ExecutionContext['diffBase']; ancestry: AncestryResult | null }> {
   const entry = record?.bases[normalizeIdentityPath(workspacePath)];
   if (!entry) {
     return {
-      commit: 'HEAD',
-      provenance: 'head-expected',
-      detail: 'No diff base is recorded for this workspace; the diff spans HEAD to the working tree, so committed changes are not shown.',
+      ancestry: null,
+      diffBase: {
+        commit: 'HEAD',
+        provenance: 'head-expected',
+        detail: 'No diff base is recorded for this workspace; the diff spans HEAD to the working tree, so committed changes are not shown.',
+      },
     };
   }
-  if (await isAncestorOfHead(workspacePath, entry.commit)) {
+  const ancestry = await isAncestorOfHead(workspacePath, entry.commit);
+  if (ancestry === 'ancestor') {
     return {
-      commit: entry.commit,
-      provenance: 'recorded',
-      detail: `Recorded when the task was set in-progress from the dashboard at \`${entry.recordedAt}\`. The diff spans this commit to the working tree, so changes to the same files committed between it and HEAD are included.`,
+      ancestry,
+      diffBase: {
+        commit: entry.commit,
+        provenance: 'recorded',
+        detail: `Recorded when the task was set in-progress from the dashboard at \`${entry.recordedAt}\`. The diff spans this commit to the working tree, so changes to the same files committed between it and HEAD are included.`,
+      },
     };
   }
+  const why = ancestry === 'unknown'
+    ? `could not be validated against HEAD in this workspace (git gave no answer) and was not used`
+    : `is not an ancestor of HEAD in this workspace and was rejected`;
   return {
-    commit: 'HEAD',
-    provenance: 'head-degraded',
-    detail: `The recorded base \`${entry.commit}\` is not an ancestor of HEAD in this workspace and was rejected; the diff spans HEAD to the working tree, so committed changes are not shown.`,
+    ancestry,
+    diffBase: {
+      commit: 'HEAD',
+      provenance: 'head-degraded',
+      detail: `The recorded base \`${entry.commit}\` ${why}; the diff spans HEAD to the working tree, so committed changes are not shown.`,
+    },
   };
 }
 
@@ -497,14 +513,16 @@ function buildExecutionNotes(
   record: TaskStateRecord | null,
   workspacePath: string,
   diffBase: ExecutionContext['diffBase'],
+  ancestry: AncestryResult | null,
   attribution: ExecutionContext['attribution'],
   typecheck: ExecutionContext['typecheck']
 ): string[] {
   const notes: string[] = [];
   if (diffBase.provenance === 'head-degraded') {
     const rejected = record?.bases[normalizeIdentityPath(workspacePath)]?.commit ?? diffBase.commit;
+    const outcome = ancestry === 'unknown' ? 'could not be validated' : 'was rejected';
     notes.push(
-      `Name in your review summary that the recorded diff base \`${rejected}\` was rejected and the diff was taken from HEAD.`
+      `Name in your review summary that the recorded diff base \`${rejected}\` ${outcome} and the diff was taken from HEAD.`
     );
   }
   if (attribution.state === 'mismatch') {
@@ -534,6 +552,23 @@ async function handlePrepare(
   context: ToolContext
 ): Promise<ToolResponse> {
   const { promises: fs } = await import('fs');
+
+  // The reviewing agent runs in the worktree the harness names in `CODE_ROOT`,
+  // but the derived workspace can still be the main checkout (its parent). That
+  // reads a stale copy of a file the worktree changed — the 1752-line
+  // main-checkout `accounting.test.ts` in place of the 2103-line worktree copy.
+  // Prefer `CODE_ROOT` when it names a real directory (retro P5). Scoped to
+  // prepare — the path that reads, diffs and typechecks code.
+  const codeRootEnv = process.env.CODE_ROOT?.trim();
+  if (codeRootEnv) {
+    try {
+      if ((await fs.stat(codeRootEnv)).isDirectory()) {
+        workspacePath = codeRootEnv;
+      }
+    } catch {
+      // CODE_ROOT names nothing readable: keep the derived workspace.
+    }
+  }
 
   try {
     // 1. Parse task metadata from tasks.md
@@ -641,7 +676,7 @@ async function handlePrepare(
     // `computeTaskDiff`; a missing, unreadable or malformed record degrades to
     // `head-expected` + `unknown` and prepare still succeeds (requirement 3.9).
     const record = await new TaskStateStore(specPath).read(taskId);
-    const diffBase = await resolveDiffBase(record, workspacePath);
+    const { diffBase, ancestry } = await resolveDiffBase(record, workspacePath);
     const attribution = resolveAttribution(record, workspacePath);
 
     // 7. Run typecheck + hygiene + diff concurrently; convert rejections to degraded states.
@@ -685,7 +720,7 @@ async function handlePrepare(
       diffBase,
       typecheck,
       attribution,
-      notes: buildExecutionNotes(record, workspacePath, diffBase, attribution, typecheck),
+      notes: buildExecutionNotes(record, workspacePath, diffBase, ancestry, attribution, typecheck),
     };
 
     const data: PrepareData = {

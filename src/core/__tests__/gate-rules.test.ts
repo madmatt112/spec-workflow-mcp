@@ -211,6 +211,28 @@ describe('scoreRisk', () => {
     expect(scoreRisk(lowRisk)).toEqual({ risk: 'low', reasons: [] });
   });
 
+  it('P14: trivialChange scores low even when a sensitive path and no-tsconfig would fire', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      trivialChange: true,
+      sensitive: ['src/foo.ts'],
+      touched: ['src/foo.ts'],
+      typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' },
+    });
+    expect(r).toEqual({ risk: 'low', reasons: [] });
+  });
+
+  it('P14: a real change (trivialChange false) still scores by the rules', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      trivialChange: false,
+      sensitive: ['src/foo.ts'],
+      touched: ['src/foo.ts'],
+    });
+    expect(r.risk).toBe('high');
+    expect(r.reasons).toContain('sensitive-path: src/foo.ts matches src/foo.ts');
+  });
+
   it('a: fires when the list is absent (NO_LIST_REASON)', () => {
     const r = scoreRisk({ ...lowRisk, sensitive: null });
     expect(r.risk).toBe('high');

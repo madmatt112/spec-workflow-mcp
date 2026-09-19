@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "spec-workflow-mcp",
-      "version": "5.8.0",
+      "version": "5.9.0",
       "description": "MCP server for structured spec-driven development with real-time web dashboard and VSCode extension.",
       "author": {
         "name": "Matthew Field"
@@ -20,7 +20,7 @@
     },
     {
       "name": "spec-workflow-mcp-with-dashboard",
-      "version": "5.8.0",
+      "version": "5.9.0",
       "description": "MCP server with auto-started dashboard for structured spec-driven development.",
       "author": {
         "name": "Matthew Field"
@@ -31,7 +31,7 @@
     },
     {
       "name": "spec-workflow-harness",
-      "version": "5.8.0",
+      "version": "5.9.0",
       "description": "Autonomous SDD harness: supervisor skill, per-phase orchestrator agents and pinned worker agents. No MCP server; for projects that configure spec-workflow in their own .mcp.json.",
       "author": {
         "name": "Matthew Field"
