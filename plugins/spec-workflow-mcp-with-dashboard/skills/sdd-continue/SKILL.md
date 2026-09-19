@@ -106,6 +106,15 @@ apply the same rule by hand from INDEX.md's tables: first not-Complete spec unde
 `## Active`; then a single started spec under `## Other specs`; then the
 decomposition fallback. Never pick by table order.
 
+**Routing header at run start.** As soon as the active spec is known — before step 3 and
+the first spawn — rewrite the HANDOFF routing header (format in `references/formats.md`)
+to name this spec, and commit HANDOFF in the spec store repo with the commit script
+(`docs(sdd): HANDOFF — <spec> routing`). `spec-workflow-mcp --watch` resolves the spec
+from that header; writing it now, not at the first phase transition, stops the watcher
+from naming the previous spec for the whole first phase. Carry the live phase, state and
+last result from the newest `## Phase log` row (or `pending` when the spec is new); step 4
+refines them at each transition.
+
 ## 3. Live phase
 
 Call `spec-status` once for the active spec. Read `overallStatus`, the three document
