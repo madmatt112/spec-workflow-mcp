@@ -148,3 +148,18 @@ Cost: 17 agent spawns (12 implementer + 5 verifier), 12 gates
 retrospective compiled: 21 findings across 9 categories (3 gotchas, 3 product bugs, 7 harness defects, 1 inefficiency, 2 doc gaps, 3 process/rulings, 2 harness-for-human, 3 repeat patterns); analyst wrote 21 proposals, 4 decisions needed, 4 graduation candidates.
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 analyst spawn (31k tokens)
+
+## 2026-09-19T02:23:10Z · closeout · batch 1 · cleanup
+Batch 1 (store+harness) landed 10 items in one implementer spawn. P1 P3 P7 done; P11+G1, P14+G3, P12+G2 each folded to one commit. All 7 gates pass at risk low, so no verifier was spawned (every item harness/store low). Code items P4 P6 P16 are to-do: their target files do not exist on the retro branch.
+Evidence: commits 04b1e89 ff3ab1e a5da1be e9c1f36 d3fd64c 42358c4 98e08fb
+Cost: 1 implementer spawn (106199 tokens); 0 verifier; 7 gate calls
+
+## 2026-09-19T02:23:10Z · closeout · P1/P11 · deviation
+briefs.md holds the Lint brief section twice, byte-identical (about L273 and L322). P1 and P11+G1 were applied to both copies to keep them consistent. A future pass should dedupe the section.
+Evidence: commits 04b1e89 d3fd64c
+Cost: 0 extra spawns
+
+## 2026-09-19T02:23:10Z · closeout · P4/P6/P16 · deviation
+Code batch not landed. P4 (prepare-response TOON test), P6 (isAncestorOfHead) and P16 (task-state-store.ts) target files absent on the retro branch, which is branched from main; PR #49 (feat/worktree-review-signals) that introduces them is open, not merged. Marked to-do (human); land on or after #49. No implementer was spawned for the code batch (files verified absent).
+Evidence: retrospective-plan.md Close-out
+Cost: 0 spawns

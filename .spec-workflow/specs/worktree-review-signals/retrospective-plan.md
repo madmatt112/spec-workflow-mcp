@@ -1,6 +1,6 @@
 # Retrospective plan — worktree-review-signals
 
-Status: APPROVED
+Status: CLOSED
 
 Approved 2026-09-18 by Matthew Field in the retrospective conversation (block mode). Source:
 `retrospective-proposals.md`; findings in `retrospective.md`.
@@ -170,3 +170,21 @@ Approved 2026-09-18 by Matthew Field in the retrospective conversation (block mo
 - **P18 (F18) — No change; correct recovery of F7.**
 - **P19 (F19) — No change; normal deferral/ruling flow.**
 - **P20 (F20) — Folded into P14.**
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P4: to-do (human) — target prepare-response TOON round-trip test absent on the retro branch (branched from main); depends on PR #49 (feat/worktree-review-signals). Land with #49 or as a follow-up after it merges.
+- P6: to-do (human) — isAncestorOfHead and its head-degraded path absent on the retro branch; depends on PR #49. Land with #49 or after it merges.
+- P16: to-do (human) — src/core/task-state-store.ts absent on the retro branch; depends on PR #49. Land with #49 or after it merges.
+- P1: done — 04b1e89
+- P3: done — ff3ab1e
+- P7: done — a5da1be
+- P12: done — e9c1f36
+- P11: done — d3fd64c
+- P14: done — 42358c4
+- P21: done — 98e08fb
+- G1: done — d3fd64c
+- G2: done — e9c1f36
+- G3: done — 42358c4
