@@ -42,3 +42,12 @@
 {"ts":"2026-09-19T16:10:14.626Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
 {"ts":"2026-09-19T16:11:32.390Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"requirements","round":"3","result":"accepted-2","tokens":"51685"}
 {"ts":"2026-09-19T16:12:15.170Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-19T16:15:29.896Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T16:15:49.962Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v4","round":"4","result":"fixed-history-rejected-40","tokens":"57275"}
+{"ts":"2026-09-19T16:25:25.793Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"requirements","round":"4","version":"v4","verdict":"iterate 1/1/0"}
+{"ts":"2026-09-19T16:25:25.814Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"v4 cap hit at round 4 (D=4 iterate MUST_FIX 1 SHOULD_FIX 1); going to Step 4a adjudication"}
+{"ts":"2026-09-19T16:26:01.039Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-19T16:26:08.998Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"requirements","round":"4","result":"iterate","tokens":"unknown"}
+{"ts":"2026-09-19T16:26:09.115Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-adjudicator","role":"adjudication"}
+{"ts":"2026-09-19T16:26:18.237Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"reviewer r4 actual tokens=103232 (earlier spawn.usage logged unknown)"}
+{"ts":"2026-09-19T16:29:33.902Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-adjudicator"}
