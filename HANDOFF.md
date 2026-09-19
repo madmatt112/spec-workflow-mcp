@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
-> Live phase **retrospective**, state **tasks 12/12**, last result **complete (PR #49 open, checks green, not merged)**.
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (implementation worktree `.claude/worktrees/worktree-review-signals`, branch `feat/worktree-review-signals`).
-> A re-run does: spawn the retro orchestrator (retrospective.md + proposals), hold the retrospective conversation, then close-out from a `chore/worktree-review-signals-retro` worktree. Human: merge PR #49; origin/main is ~68 commits behind local main.
+> Live phase **closeout**, state **items 0/13**, last result **retro-ready (plan APPROVED)**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals-retro` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `chore/worktree-review-signals-retro`).
+> A re-run does: from the retro worktree, spawn the close-out orchestrator on `retrospective-plan.md` (13 approved items: P4 P6 P16 P1 P3 P7 P12 P11 P14 P21 G1 G2 G3). Human: merge PR #49; origin/main is ~68 commits behind local main.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -24,6 +24,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
 | 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
 | 2026-09-18 | worktree-review-signals | implementation | tasks 12/12 | complete | PR #49 checks green; e2e VERIFY pass; 1 deferral added, 2 resolved |
+| 2026-09-19 | worktree-review-signals | retrospective |  | retro-ready |  |
 
 ## Current state — 2026-08-04
 
