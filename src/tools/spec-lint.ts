@@ -124,9 +124,12 @@ export async function specLintHandler(args: any, context: ToolContext): Promise<
     });
   }
 
-  // (7) Citations, resolved over the workspace, the spec store and the spec
-  // directory in order (2.3, 1.9).
-  findings.push(...(await checkCitations(lines, [workspacePath, workflowRoot, specDir])));
+  // (7) Citations, resolved over the workspace, the `.spec-workflow` spec-store
+  // root, the spec-store repo and the spec directory in order (2.3, 1.9, retro
+  // P2). Resolving against the spec-store root lets `steering/structure.md:N`
+  // accept alongside `.spec-workflow/steering/structure.md:N`.
+  const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
+  findings.push(...(await checkCitations(lines, [workspacePath, specStoreRoot, workflowRoot, specDir])));
 
   // (8) Per-phase checks.
   if (phase === 'requirements') {

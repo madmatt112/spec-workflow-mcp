@@ -553,6 +553,23 @@ async function handlePrepare(
 ): Promise<ToolResponse> {
   const { promises: fs } = await import('fs');
 
+  // The reviewing agent runs in the worktree the harness names in `CODE_ROOT`,
+  // but the derived workspace can still be the main checkout (its parent). That
+  // reads a stale copy of a file the worktree changed — the 1752-line
+  // main-checkout `accounting.test.ts` in place of the 2103-line worktree copy.
+  // Prefer `CODE_ROOT` when it names a real directory (retro P5). Scoped to
+  // prepare — the path that reads, diffs and typechecks code.
+  const codeRootEnv = process.env.CODE_ROOT?.trim();
+  if (codeRootEnv) {
+    try {
+      if ((await fs.stat(codeRootEnv)).isDirectory()) {
+        workspacePath = codeRootEnv;
+      }
+    } catch {
+      // CODE_ROOT names nothing readable: keep the derived workspace.
+    }
+  }
+
   try {
     // 1. Parse task metadata from tasks.md
     const tasksFile = `${specPath}/tasks.md`;

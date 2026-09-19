@@ -20,6 +20,12 @@ Rules that hold for the whole run:
   `gate-a` return and gate B before the first implementation spawn — which ask only in
   `block` mode (step 4) and never stall an unattended run.
 - Every stop ends with the status line from `references/formats.md`.
+- Your own run-lifetime helper scripts (for example `deregister.mjs`, or a
+  `rewrite-header.mjs` if you write one) go under `/tmp/scratchpad/sdd/<spec>/helpers/`,
+  not the scratch root the orchestrators share with you — the document-phase cleanup
+  prunes the root but never descends into `helpers/`
+  (`sdd-document-phase/references/cleanup.md`). The shared `event.sh`, `retro.sh` and
+  `commit-spec-store.sh` stay at the scratch root because orchestrators call them.
 
 Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 `references/formats.md` next to this file. Read it once at the start.
@@ -105,6 +111,15 @@ Deferred specs are never active. If the result has no `routing` field (old serve
 apply the same rule by hand from INDEX.md's tables: first not-Complete spec under
 `## Active`; then a single started spec under `## Other specs`; then the
 decomposition fallback. Never pick by table order.
+
+**Routing header at run start.** As soon as the active spec is known — before step 3 and
+the first spawn — rewrite the HANDOFF routing header (format in `references/formats.md`)
+to name this spec, and commit HANDOFF in the spec store repo with the commit script
+(`docs(sdd): HANDOFF — <spec> routing`). `spec-workflow-mcp --watch` resolves the spec
+from that header; writing it now, not at the first phase transition, stops the watcher
+from naming the previous spec for the whole first phase. Carry the live phase, state and
+last result from the newest `## Phase log` row (or `pending` when the spec is new); step 4
+refines them at each transition.
 
 ## 3. Live phase
 
@@ -196,6 +211,15 @@ Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phas
 phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
 result=<PHASE value> tokens=<n>`, where `<n>` is the token count the Agent result
 states in its footer (omit `tokens` only when it states none).
+
+**Model pre-flight.** Frontmatter loads a spawn's model from the marketplace source
+checkout, not the installed plugin, so a stale source can run an orchestrator on the
+wrong model even when both plugin caches read `claude-opus-4-8`. Before acting on the
+report, verify the model the spawn actually ran on: read the run's transcript (the newest
+`~/.claude/projects/*/*.jsonl`) and take `.message.model` from this spawn's assistant
+lines (its `isSidechain` entries). Every orchestrator must be `claude-opus-4-8`. On a
+mismatch, do not act on the report — write a HANDOFF row, print
+`model mismatch: <agent> ran <model>, expected claude-opus-4-8`, and stop the run.
 
 Act on the final `PHASE:` line of the orchestrator's report:
 
@@ -389,5 +413,9 @@ of the main checkout. Before it, one handoff line naming the roots:
 `bash <event.sh> run.end "status=<the status line>"`, commit the ledger with the
 commit script (`docs(sdd): <spec> harness ledger — run end`) so the run's last events
 are in the spec store, and remove this run's line from the pointer file
-`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` (the line whose run id is this run's;
-delete the file if that leaves it empty) so the hooks stop recording this run.
+`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` with `deregister.mjs`
+(`references/formats.md`; written once with the Write tool) — never a shell `grep -v`,
+which even under `rtk proxy` can splice summary text into the file a concurrent session
+shares: `node /tmp/scratchpad/sdd/<spec>/helpers/deregister.mjs <pointer path> <run id>`.
+It drops the line whose run id is this run's and deletes the file when none remain, so the
+hooks stop recording this run.
