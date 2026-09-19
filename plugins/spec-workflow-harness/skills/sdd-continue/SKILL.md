@@ -275,6 +275,13 @@ stopping the run.
 Run this on a `gate-a` return (step 4) and on the step 3 rule 4 resume recheck. You never
 read the spec document — the drafter already wrote the ranked triples to the surface.
 
+**Outcomes only.** A human gate presents only decisions the human is positioned to own —
+scope, outcomes, tradeoffs with a product cost. Implementation mechanics (recording sites,
+storage layout, constants, transport) are decided by the orchestrator and recorded, not
+put to the human. So Gate A asks only the surface's scope, user-visible outcome and
+trade-off decisions; skip any item that is a pure implementation mechanic — the agents
+decided it and recorded it silently.
+
 1. **Read the surface.** Call the `harness` tool with `action: gate`, `op: get`,
    `slot: a`, `specName: <spec>`. `data.payload.items` is up to five `GateADecision`
    `{header, question, options}`, ranked most direction-setting first; `options[0]` is the
