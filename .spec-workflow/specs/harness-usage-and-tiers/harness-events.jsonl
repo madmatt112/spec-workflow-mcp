@@ -22,3 +22,10 @@
 {"ts":"2026-09-19T15:34:04.354Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-19T15:34:53.937Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
 {"ts":"2026-09-19T15:38:27.540Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"reviser","phase":"requirements","round":"1","result":"accepted-6","tokens":"100928"}
+{"ts":"2026-09-19T15:40:34.236Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-19T15:49:48.418Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"requirements","round":"2","result":"iterate","tokens":"unknown"}
+{"ts":"2026-09-19T15:49:48.439Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","round":"2","result":"rejected-39","tokens":"92091"}
+{"ts":"2026-09-19T15:49:48.459Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"requirements","round":"2","version":"v2","verdict":"iterate 2/1/0"}
+{"ts":"2026-09-19T15:50:03.934Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-19T15:50:42.006Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"reviewer r2 actual tokens=110351 (earlier spawn.usage logged unknown)"}
+{"ts":"2026-09-19T15:50:42.112Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"reviser"}
