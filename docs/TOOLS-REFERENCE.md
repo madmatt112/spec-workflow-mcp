@@ -396,6 +396,9 @@ is not considered complete, and you must not flip `[-]` → `[x]` until
 **Returns**: success message and `nextSteps` pointing to a code review (do **not**
 self-review) and then marking the task complete.
 
+**Attribution**: Records the workspace and commit the log was written from; a review
+from another worktree reports `attribution: mismatch`.
+
 ---
 
 ## review-task
@@ -454,6 +457,19 @@ See [AUTONOMOUS-USAGE.md](AUTONOMOUS-USAGE.md#task-review-headless).
 > Note: `review-task`'s methodology tells reviewers **not** to escalate severity for
 > recurring findings — the opposite of `adversarial-review`'s rule. This is
 > intentional (code review vs. architecture review), but worth knowing.
+
+**Execution context**: A `prepare` response carries `data.executionContext`, one object
+describing the review environment: `workspacePath`; `workflowRoot` (the directory that
+contains `.spec-workflow`); `specWorkflowDir` (the `.spec-workflow` directory); a
+`diffBase` (`commit`, `provenance`, `detail`); a `typecheck` (`status`, `reason`,
+`observed`); an `attribution` (`state`, `workspacePath`, `commit`, `source`); and
+`notes`. The diff base `provenance` is one of three values: `recorded` (the diff starts
+from the commit the task began at), `head-expected` (no base was recorded, so the diff
+starts from `HEAD`), or `head-degraded` (a recorded base failed the ancestry check and
+was rejected, so the diff falls back to `HEAD`). The `attribution` `state` is one of
+`match`, `mismatch`, or `unknown`. The diff base is recorded only when the dashboard
+Tasks page sets a task in-progress; a task marked in-progress by editing `tasks.md` has
+no record and reviews from `HEAD`, disclosed as `head-expected`.
 
 ---
 

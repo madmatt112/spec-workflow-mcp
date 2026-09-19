@@ -284,12 +284,33 @@ export interface Deferral {
   };
 }
 
+// Recursively clone a value, dropping every object key whose value is
+// `undefined`. The TOON encoder throws on some `undefined`-valued keys (an
+// optional field left unset, e.g. `projectContext.dashboardUrl` when no
+// dashboard is running), so stripping them lets every response round-trip
+// through `decode`. Vitest `toEqual` treats a deleted key and an `undefined`
+// value as equal, so callers still deep-equal the source.
+function stripUndefined(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(stripUndefined);
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [key, v] of Object.entries(value)) {
+      if (v === undefined) continue;
+      out[key] = stripUndefined(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 // Helper function to convert ToolResponse to MCP format
 export function toMCPResponse(response: ToolResponse, isError: boolean = false): MCPToolResponse {
   return {
     content: [{
       type: "text",
-      text: encode(response)
+      text: encode(stripUndefined(response))
     }],
     isError
   };

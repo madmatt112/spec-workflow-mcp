@@ -34,10 +34,16 @@ export type TypecheckResult =
         | 'project-references'
         | 'wrapper-config'
         | 'tsc-not-found'
+        | 'dependencies-unresolved'
         | 'no-parseable-output'
         | 'output-overflow'
         | 'feature-disabled'
         | 'rejection';
+      // What the check observed: what was inspected, at which path, and what was
+      // found. Required so the compiler enumerates every construction site
+      // (design D9); it states the observation, never a diagnosis the check did
+      // not make (requirement 2.4).
+      observed: string;
       rejectionMessage?: string;
     }
   | {
@@ -141,27 +147,77 @@ export async function runProjectTypecheck(
   const tsconfigPath = path.join(workspacePath, 'tsconfig.json');
 
   if (!opts.enabled) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'feature-disabled' }];
+    const settingsPath = path.join(
+      workflowRoot,
+      '.spec-workflow',
+      'adversarial-settings.json',
+    );
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'feature-disabled',
+      observed: `typecheck is disabled by \`features.typecheck: false\` in \`${settingsPath}\``,
+    }];
   }
 
   let tsconfigText: string;
   try {
     tsconfigText = await fs.readFile(tsconfigPath, 'utf-8');
   } catch {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'no-tsconfig' }];
+    const workflowTsconfig = path.join(workflowRoot, 'tsconfig.json');
+    let workflowRootHasTsconfig: boolean;
+    try {
+      await fs.access(workflowTsconfig);
+      workflowRootHasTsconfig = true;
+    } catch {
+      workflowRootHasTsconfig = false;
+    }
+    const observed = workflowRootHasTsconfig
+      ? `no \`tsconfig.json\` at \`${tsconfigPath}\`; the workflow root has one at \`${workflowTsconfig}\``
+      : `no \`tsconfig.json\` at \`${tsconfigPath}\`; the workflow root has none either`;
+    return [{ tsconfigPath, status: 'unavailable', reason: 'no-tsconfig', observed }];
   }
 
   const parsed = parseTsconfig(tsconfigText);
   if (parsed && hasNonEmptyReferences(parsed)) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'project-references' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'project-references',
+      observed: `\`${tsconfigPath}\` declares \`references\`; project references are not compiled`,
+    }];
   }
   if (parsed && isFilesEmptyWrapper(parsed)) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'wrapper-config' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'wrapper-config',
+      observed: `\`${tsconfigPath}\` has an empty \`files\` list and no \`include\``,
+    }];
   }
 
   const tscPath = await resolveTscBinary(workspacePath);
   if (!tscPath) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'tsc-not-found' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'tsc-not-found',
+      observed: `no \`tsc\` under \`${path.join(workspacePath, 'node_modules', '.bin')}\``,
+    }];
+  }
+
+  // A broken or half-installed workspace reports unavailable rather than letting
+  // `tsc` fabricate hundreds of "cannot find module" diagnostics (requirement
+  // 2.2, 2.3). The state is observed by direct existence check, never inferred
+  // from diagnostic shape (requirement 2.7).
+  const dependencyProbe = await probeDeclaredDependencies(workspacePath);
+  if (dependencyProbe && dependencyProbe.unresolved.length > 0) {
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'dependencies-unresolved',
+      observed: describeUnresolvedDependencies(workspacePath, dependencyProbe),
+    }];
   }
 
   const cacheDir = path.join(workflowRoot, '.spec-workflow', '.cache');
@@ -196,7 +252,12 @@ export async function runProjectTypecheck(
     return [result];
   }
   if (run.overflow) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'output-overflow' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'output-overflow',
+      observed: '`tsc` output exceeded the 16 MB buffer',
+    }];
   }
 
   const { diagnostics: parsedDiagnostics, listFiles } = parseTscOutput(run.stdout);
@@ -215,10 +276,20 @@ export async function runProjectTypecheck(
   const cleanExit = run.exitCode === 0;
 
   if (cleanExit && listFiles.length === 0) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'no-parseable-output' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'no-parseable-output',
+      observed: `\`tsc\` at \`${tscPath}\` exited ${run.exitCode ?? 0} with no diagnostics and no file list`,
+    }];
   }
   if (!cleanExit && diagnostics.length === 0) {
-    return [{ tsconfigPath, status: 'unavailable', reason: 'no-parseable-output' }];
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'no-parseable-output',
+      observed: `\`tsc\` at \`${tscPath}\` exited ${run.exitCode ?? 0} with no diagnostics and no file list`,
+    }];
   }
 
   const post = await postProcess(allFiles, listFiles, diagnostics);
@@ -420,6 +491,69 @@ async function resolveTscBinary(workspacePath: string): Promise<string | null> {
     }
   }
   return null;
+}
+
+/**
+ * Existence-probe every package named in the workspace's `dependencies` and
+ * `devDependencies` (requirement 2.2). `optionalDependencies` are excluded. One
+ * `fs.access` on `<workspace>/node_modules/<name>/package.json` per name, all
+ * awaited together (design D7). Returns null when `package.json` is absent or
+ * unparseable, so the check proceeds and spawns `tsc` as before. Dependency
+ * state is decided by this direct check, never inferred from diagnostics
+ * (requirement 2.7).
+ */
+async function probeDeclaredDependencies(
+  workspacePath: string,
+): Promise<{ declared: number; unresolved: string[] } | null> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(path.join(workspacePath, 'package.json'), 'utf-8');
+  } catch {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const obj = parsed as Record<string, unknown>;
+  const names = new Set<string>();
+  for (const key of ['dependencies', 'devDependencies'] as const) {
+    const section = obj[key];
+    if (typeof section === 'object' && section !== null) {
+      for (const name of Object.keys(section as Record<string, unknown>)) {
+        names.add(name);
+      }
+    }
+  }
+  const declaredNames = [...names];
+  const results = await Promise.all(
+    declaredNames.map(async (name) => {
+      try {
+        await fs.access(
+          path.join(workspacePath, 'node_modules', name, 'package.json'),
+        );
+        return null;
+      } catch {
+        return name;
+      }
+    }),
+  );
+  const unresolved = results.filter((n): n is string => n !== null);
+  return { declared: declaredNames.length, unresolved };
+}
+
+function describeUnresolvedDependencies(
+  workspacePath: string,
+  probe: { declared: number; unresolved: string[] },
+): string {
+  const packageJson = path.join(workspacePath, 'package.json');
+  const shown = probe.unresolved.slice(0, 5).map((n) => `\`${n}\``).join(', ');
+  const extra = probe.unresolved.length - Math.min(probe.unresolved.length, 5);
+  const tail = extra > 0 ? `, and ${extra} more` : '';
+  return `${probe.unresolved.length} of ${probe.declared} packages declared in \`${packageJson}\` have no \`node_modules/<name>/package.json\` under \`${workspacePath}\`: ${shown}${tail}; \`tsc\` was not run`;
 }
 
 async function ensureGitignoreEntry(workflowRoot: string): Promise<void> {

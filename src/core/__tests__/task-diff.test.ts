@@ -13,7 +13,13 @@ import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { computeTaskDiff, containmentRejectionMessage, computeRangeStats } from '../task-diff.js';
+import {
+  computeTaskDiff,
+  containmentRejectionMessage,
+  computeRangeStats,
+  readHeadCommit,
+  isAncestorOfHead,
+} from '../task-diff.js';
 
 const mockedExecFile = vi.mocked(childProcess.execFile);
 
@@ -83,17 +89,22 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('computeTaskDiff — empty / no-changes states', () => {
-  it('empty repo (no HEAD) degrades to safe state with no rejection field', async () => {
+  it('empty repo (no HEAD) → git fails and classifies as a rejection', async () => {
     gitInit(tempDir);
     const f = join(tempDir, 'a.ts');
     await fs.writeFile(f, 'export const x = 1;\n');
-    // No commits yet — `git diff HEAD` exits non-zero.
-    const result = await computeTaskDiff(tempDir, [f]);
+    // No commits yet — `git diff HEAD` exits 128 (bad revision 'HEAD'), which
+    // requirement 1.10 classifies as a rejection, not the benign empty diff.
+    // The diff bytes, stats and truncation still equal today's output (1.9);
+    // only the additive `rejection` field is new.
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toBeUndefined();
     expect(result.skippedPaths).toEqual([]);
     expect(result.truncated).toBe(false);
-    expect(result.rejection).toBeUndefined();
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('GIT DIFF FAILED');
+    expect(result.rejection!.message).toContain('exit 128');
   });
 
   it('no working-tree changes returns empty diff (kept paths but nothing to diff)', async () => {
@@ -101,7 +112,7 @@ describe('computeTaskDiff — empty / no-changes states', () => {
     const f = join(tempDir, 'a.ts');
     await fs.writeFile(f, 'export const x = 1;\n');
     gitCommitAll(tempDir, 'init');
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toEqual({ filesChanged: 0, linesAdded: 0, linesRemoved: 0 });
     expect(result.skippedPaths).toEqual([]);
@@ -115,7 +126,7 @@ describe('computeTaskDiff — empty / no-changes states', () => {
     gitCommitAll(tempDir, 'init');
     await fs.writeFile(lock, '{"x":1}\n');
     mockedExecFile.mockReset(); // ensure git is not invoked
-    const result = await computeTaskDiff(tempDir, [lock]);
+    const result = await computeTaskDiff(tempDir, [lock], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toBeUndefined();
     expect(result.skippedPaths).toContain(lock);
@@ -135,7 +146,7 @@ describe('computeTaskDiff — basic hunks', () => {
     await fs.writeFile(f, 'export const x = 1;\n');
     gitCommitAll(tempDir, 'init');
     await fs.writeFile(f, 'export const x = 2;\nexport const y = 3;\n');
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toContain('diff --git');
     expect(result.diff).toContain('a.ts');
     expect(result.diff).toMatch(/^diff --git/m);
@@ -162,7 +173,7 @@ describe('computeTaskDiff — denylist filtering', () => {
     gitCommitAll(tempDir, 'init');
     await fs.writeFile(ok, 'export const x = 2;\n');
     await fs.writeFile(lock, '{"x":1}\n');
-    const result = await computeTaskDiff(tempDir, [ok, lock]);
+    const result = await computeTaskDiff(tempDir, [ok, lock], 'HEAD');
     expect(result.skippedPaths).toContain(lock);
     expect(result.skippedPaths).not.toContain(ok);
     expect(result.diff).toContain('app.ts');
@@ -184,7 +195,7 @@ describe('computeTaskDiff — binary stripping', () => {
     gitCommitAll(tempDir, 'init');
     await fs.writeFile(text, 'export const x = 2;\n');
     await fs.writeFile(bin, Buffer.from([0, 1, 2, 0, 255, 0, 0, 9, 7, 7]));
-    const result = await computeTaskDiff(tempDir, [text, bin]);
+    const result = await computeTaskDiff(tempDir, [text, bin], 'HEAD');
     expect(result.diff).not.toMatch(/Binary files .* differ/);
     // Section is dropped wholesale — both the body marker AND the diff-header
     // for the binary file should be absent. Only the text-file section remains.
@@ -205,7 +216,7 @@ describe('computeTaskDiff — truncation', () => {
     gitCommitAll(tempDir, 'init');
     const lines = Array.from({ length: 600 }, (_, i) => `line ${i}`).join('\n') + '\n';
     await fs.writeFile(big, lines);
-    const result = await computeTaskDiff(tempDir, [big]);
+    const result = await computeTaskDiff(tempDir, [big], 'HEAD');
     // The truncation message uses the git-reported pathspec (relative to the
     // repo root), not the absolute path passed in `allFiles`.
     expect(result.diff).toContain('<diff truncated: big.ts per-file cap exceeded>');
@@ -236,7 +247,7 @@ describe('computeTaskDiff — truncation', () => {
     for (let i = 0; i < files.length; i++) {
       await fs.writeFile(files[i], fat(String(i)));
     }
-    const result = await computeTaskDiff(tempDir, files);
+    const result = await computeTaskDiff(tempDir, files, 'HEAD');
     expect(result.truncated).toBe(true);
     expect(result.diff).toMatch(
       /<diff truncated: .* total budget exhausted, file truncated despite size>/,
@@ -257,7 +268,7 @@ describe('computeTaskDiff — truncation', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeTaskDiff — failure modes', () => {
-  it('git missing (ENOENT) → safe empty state', async () => {
+  it('git missing (ENOENT) → rejection naming ENOENT', async () => {
     mockedExecFile.mockReset();
     mockedExecFile.mockImplementation(((
       _file: string,
@@ -273,26 +284,35 @@ describe('computeTaskDiff — failure modes', () => {
     }) as unknown as typeof childProcess.execFile);
     const f = join(tempDir, 'x.ts');
     await fs.writeFile(f, 'x');
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toBeUndefined();
     expect(result.skippedPaths).toEqual([]);
     expect(result.truncated).toBe(false);
-    expect(result.rejection).toBeUndefined();
+    // A spawn failure (`error.code` is the string system code) is named, not
+    // reported as a benign empty diff (requirement 1.10).
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('GIT DIFF FAILED');
+    expect(result.rejection!.message).toContain('ENOENT');
   });
 
-  it('not a git repository → non-zero exit → safe empty state', async () => {
+  it('not a git repository → non-zero exit → rejection naming the exit code', async () => {
     // tempDir was never `git init`-ed.
     const f = join(tempDir, 'a.ts');
     await fs.writeFile(f, 'x');
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toBeUndefined();
     expect(result.truncated).toBe(false);
-    expect(result.rejection).toBeUndefined();
+    // `git diff HEAD` outside a repository exits non-zero (its exact code is
+    // git-version-dependent — 1 or 128); the numeric `error.code` is named as
+    // `exit <n>`, never swallowed as an empty diff.
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('GIT DIFF FAILED');
+    expect(result.rejection!.message).toMatch(/did not complete: exit \d+/);
   });
 
-  it('ERR_CHILD_PROCESS_STDIO_MAXBUFFER from real git via synthetic maxBuffer:1024 → safe empty state', async () => {
+  it('ERR_CHILD_PROCESS_STDIO_MAXBUFFER from real git via synthetic maxBuffer:1024 → rejection naming the cause', async () => {
     gitInit(tempDir);
     const f = join(tempDir, 'a.ts');
     await fs.writeFile(f, 'init\n');
@@ -331,14 +351,108 @@ describe('computeTaskDiff — failure modes', () => {
       ) => childProcess.ChildProcess)(file, args, overridden, wrappedCb);
     }) as unknown as typeof childProcess.execFile);
 
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.stats).toBeUndefined();
     expect(result.truncated).toBe(false);
-    expect(result.rejection).toBeUndefined();
+    // The overflow (`error.code` is the string `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`)
+    // is named in the rejection, not reported as a benign empty diff — a base
+    // many commits back makes this materially likelier (requirement 1.10).
+    expect(result.rejection).toBeDefined();
+    expect(result.rejection!.message).toContain('ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
     // Pin the test's claim: at least one of the two git invocations actually
     // hit ERR_CHILD_PROCESS_STDIO_MAXBUFFER (not some other failure).
     expect(observedErrorCodes).toContain('ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Base parameter (requirement 1.6): the diff starts from a caller-chosen commit
+// ---------------------------------------------------------------------------
+
+describe('computeTaskDiff — base parameter', () => {
+  it('a hunk committed after the base appears with the base sha, not with HEAD', async () => {
+    gitInit(tempDir);
+    const f = join(tempDir, 'a.ts');
+    await fs.writeFile(f, 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'base');
+    const base = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+    // Committed AFTER the recorded base — the working tree matches HEAD.
+    await fs.writeFile(f, 'export const x = 1;\nexport const y = 2;\n');
+    gitCommitAll(tempDir, 'after base');
+
+    // From the base sha the committed line is inside the range.
+    const fromBase = await computeTaskDiff(tempDir, [f], base);
+    expect(fromBase.diff).toContain('export const y = 2;');
+    expect(fromBase.stats).toEqual({ filesChanged: 1, linesAdded: 1, linesRemoved: 0 });
+
+    // From HEAD (== the working tree) there is nothing to show: the committed
+    // work reads as an empty diff, which is the defect the base fixes.
+    const fromHead = await computeTaskDiff(tempDir, [f], 'HEAD');
+    expect(fromHead.diff).toBe('');
+    expect(fromHead.rejection).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// git helpers: readHeadCommit and isAncestorOfHead (design Component 2)
+// ---------------------------------------------------------------------------
+
+describe('readHeadCommit', () => {
+  it('returns the 40-hex HEAD sha on a repository', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+
+    const sha = await readHeadCommit(tempDir);
+    expect(sha).toMatch(/^[0-9a-f]{40}$/);
+    expect(sha).toBe(gitOutput(tempDir, ['rev-parse', 'HEAD']));
+  });
+
+  it('returns null on a plain directory that is not a repository', async () => {
+    // tempDir was never `git init`-ed.
+    const sha = await readHeadCommit(tempDir);
+    expect(sha).toBeNull();
+  });
+});
+
+describe('isAncestorOfHead', () => {
+  it('is true for a commit that is an ancestor of HEAD', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'f'), '1\n');
+    gitCommitAll(tempDir, 'one');
+    const first = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+    await fs.writeFile(join(tempDir, 'f'), '1\n2\n');
+    gitCommitAll(tempDir, 'two');
+
+    expect(await isAncestorOfHead(tempDir, first)).toBe(true);
+  });
+
+  it('is false for a commit on a divergent branch (shared object database)', async () => {
+    // `rev-parse --verify` would succeed on this sha because worktrees share one
+    // object database; only the ancestry check rejects it (requirement 1.5).
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'f'), 'base\n');
+    gitCommitAll(tempDir, 'base');
+    gitCmd(tempDir, ['checkout', '-q', '-b', 'other']);
+    await fs.writeFile(join(tempDir, 'o'), 'o\n');
+    gitCommitAll(tempDir, 'other');
+    const otherSha = gitOutput(tempDir, ['rev-parse', 'HEAD']);
+    gitCmd(tempDir, ['checkout', '-q', 'main']);
+    await fs.writeFile(join(tempDir, 'm'), 'm\n');
+    gitCommitAll(tempDir, 'main');
+
+    expect(await isAncestorOfHead(tempDir, otherSha)).toBe(false);
+  });
+
+  it('is false for a garbage sha (git exits 128)', async () => {
+    gitInit(tempDir);
+    await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 1;\n');
+    gitCommitAll(tempDir, 'init');
+
+    expect(
+      await isAncestorOfHead(tempDir, 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'),
+    ).toBe(false);
   });
 });
 
@@ -384,7 +498,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
     await fs.writeFile(specDoc, '- [x] 1. done\n');
 
     mockedExecFile.mockReset(); // any git call from here on is a failure
-    const result = await computeTaskDiff(tempDir, [inWorkspace, specDoc]);
+    const result = await computeTaskDiff(tempDir, [inWorkspace, specDoc], 'HEAD');
 
     expect(result.rejection).toBeDefined();
     expect(result.rejection!.message).toContain(specDoc);
@@ -398,7 +512,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
     const outsideFile = join(outsideDir, 'stray.ts');
     await fs.writeFile(outsideFile, 'export const y = 1;\n');
 
-    const result = await computeTaskDiff(tempDir, [outsideFile]);
+    const result = await computeTaskDiff(tempDir, [outsideFile], 'HEAD');
 
     const message = result.rejection!.message;
     // Stated, not inherited (R4 AC 24). `R4_2B_DIFF_REJECTED` claims the utility
@@ -421,7 +535,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
 
     // Clean tree: git runs, returns nothing, and the result must stay
     // distinguishable from the rejection above by the `rejection` field alone.
-    const result = await computeTaskDiff(tempDir, [f]);
+    const result = await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.rejection).toBeUndefined();
     expect(mockedExecFile).toHaveBeenCalled();
@@ -429,7 +543,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
 
   it('an empty file list is not a containment failure (the all-drop path stays empty)', async () => {
     gitInit(tempDir);
-    const result = await computeTaskDiff(tempDir, []);
+    const result = await computeTaskDiff(tempDir, [], 'HEAD');
     expect(result.diff).toBe('');
     expect(result.rejection).toBeUndefined();
   });
@@ -438,7 +552,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
     const outsideLock = join(outsideDir, 'package-lock.json');
     await fs.writeFile(outsideLock, '{}\n');
 
-    const result = await computeTaskDiff(tempDir, [outsideLock]);
+    const result = await computeTaskDiff(tempDir, [outsideLock], 'HEAD');
 
     // Without the ordering this returns the benign all-denylisted empty state
     // and the mis-partition is invisible.
@@ -447,7 +561,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
   });
 
   it('a relative entry escaping the workspace with `..` rejects', async () => {
-    const result = await computeTaskDiff(tempDir, ['../escape.ts']);
+    const result = await computeTaskDiff(tempDir, ['../escape.ts'], 'HEAD');
     expect(result.rejection).toBeDefined();
     expect(result.rejection!.message).toContain('../escape.ts');
   });
@@ -458,7 +572,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
     gitCommitAll(tempDir, 'init');
     await fs.writeFile(join(tempDir, 'a.ts'), 'export const x = 2;\n');
 
-    const result = await computeTaskDiff(tempDir, ['a.ts']);
+    const result = await computeTaskDiff(tempDir, ['a.ts'], 'HEAD');
     expect(result.rejection).toBeUndefined();
     expect(result.diff).toContain('a.ts');
   });
@@ -476,7 +590,7 @@ describe('computeTaskDiff — pathspec containment (R4 AC 23/24)', () => {
     const link = join(outsideDir, 'link');
     await fs.symlink(tempDir, link, 'dir');
 
-    const result = await computeTaskDiff(tempDir, [join(link, 'a.ts')]);
+    const result = await computeTaskDiff(tempDir, [join(link, 'a.ts')], 'HEAD');
     expect(result.rejection).toBeUndefined();
   });
 });
@@ -510,7 +624,7 @@ describe('computeTaskDiff — env propagation', () => {
       ) => childProcess.ChildProcess)(file, args, opts, cb);
     }) as unknown as typeof childProcess.execFile);
 
-    await computeTaskDiff(tempDir, [f]);
+    await computeTaskDiff(tempDir, [f], 'HEAD');
     expect(capturedEnvs.length).toBe(2);
     for (const env of capturedEnvs) {
       expect(env.GIT_OPTIONAL_LOCKS).toBe('0');
@@ -582,7 +696,7 @@ describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () 
   });
 
   it('produces the correct diff with GIT_DIR exported to an unrelated repository', async () => {
-    const result = await computeTaskDiff(tempDir, [target]);
+    const result = await computeTaskDiff(tempDir, [target], 'HEAD');
 
     expect(
       result.diff,
@@ -599,7 +713,7 @@ describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () 
     process.env.GIT_WORK_TREE = unrelatedRepo;
     process.env.GIT_INDEX_FILE = join(unrelatedRepo, '.git', 'index');
 
-    const result = await computeTaskDiff(tempDir, [target]);
+    const result = await computeTaskDiff(tempDir, [target], 'HEAD');
 
     expect(result.diff).toContain('diff --git');
     expect(result.diff).toContain('a.ts');
@@ -630,7 +744,7 @@ describe('computeTaskDiff — inherited GIT_* variables (requirement 2.12)', () 
       ) => childProcess.ChildProcess)(file, args, opts, cb);
     }) as unknown as typeof childProcess.execFile);
 
-    await computeTaskDiff(tempDir, [target]);
+    await computeTaskDiff(tempDir, [target], 'HEAD');
 
     expect(capturedEnvs.length).toBe(2);
     for (const env of capturedEnvs) {

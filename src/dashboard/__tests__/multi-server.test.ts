@@ -12,6 +12,7 @@ vi.mock('../../core/adversarial-settings.js', async (importOriginal) => {
 });
 
 import { promises as fs } from 'fs';
+import { execFileSync } from 'child_process';
 import net from 'net';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -569,6 +570,84 @@ describe('Track-C: per-runner model + per-job storage retry consistency', () => 
       } finally {
         warnSpy.mockRestore();
       }
+    });
+  });
+
+  // ============== STATUS ROUTE DIFF BASE (Component 6, R1.1 / R1.2 / R1.3) ==============
+
+  describe('status route records the diff base', () => {
+    function statusUrl(specName: string, taskId: string): string {
+      return `http://127.0.0.1:${port}/api/projects/${projectId}/specs/${specName}/tasks/${taskId}/status`;
+    }
+
+    async function writeTasksMd(specName: string, body: string): Promise<void> {
+      const dir = join(workflowRootPath, '.spec-workflow', 'specs', specName);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(join(dir, 'tasks.md'), `# Tasks\n\n${body}`, 'utf-8');
+    }
+
+    async function readTaskState(specName: string): Promise<any | null> {
+      const p = join(workflowRootPath, '.spec-workflow', 'specs', specName, 'task-state.json');
+      try {
+        return JSON.parse(await fs.readFile(p, 'utf-8'));
+      } catch {
+        return null;
+      }
+    }
+
+    // git init + one commit in the workspace (project.workspacePath); returns HEAD.
+    function initWorkspaceRepo(): string {
+      const run = (args: string[]) => execFileSync('git', args, { cwd: workspacePath, encoding: 'utf-8' });
+      run(['init', '-q']);
+      run(['config', 'user.email', 'test@example.com']);
+      run(['config', 'user.name', 'Test']);
+      run(['commit', '-q', '--allow-empty', '-m', 'init']);
+      return run(['rev-parse', 'HEAD']).trim();
+    }
+
+    async function putStatus(specName: string, taskId: string, status: string): Promise<Response> {
+      return realFetch(statusUrl(specName, taskId), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+    }
+
+    it('PUT in-progress writes the workspace HEAD as the diff base keyed by the workspace (1.1, 1.2)', async () => {
+      const specName = 'base-inprog';
+      await writeTasksMd(specName, '- [ ] 1. First task\n');
+      const head = initWorkspaceRepo();
+
+      const res = await putStatus(specName, '1', 'in-progress');
+      expect(res.status).toBe(200);
+
+      const state = await readTaskState(specName);
+      expect(state).not.toBeNull();
+      const bases = Object.values(state.tasks['1'].bases) as Array<{ commit: string }>;
+      expect(bases).toHaveLength(1);
+      expect(bases[0].commit).toBe(head);
+    });
+
+    it('PUT completed records no diff base', async () => {
+      const specName = 'base-complete';
+      await writeTasksMd(specName, '- [ ] 1. First task\n');
+      initWorkspaceRepo();
+
+      const res = await putStatus(specName, '1', 'completed');
+      expect(res.status).toBe(200);
+
+      expect(await readTaskState(specName)).toBeNull();
+    });
+
+    it('PUT in-progress with an un-initialised workspace returns 200 and records nothing (1.3)', async () => {
+      const specName = 'base-nogit';
+      await writeTasksMd(specName, '- [ ] 1. First task\n');
+      // no git repo in workspacePath: readHeadCommit resolves null.
+
+      const res = await putStatus(specName, '1', 'in-progress');
+      expect(res.status).toBe(200);
+
+      expect(await readTaskState(specName)).toBeNull();
     });
   });
 });

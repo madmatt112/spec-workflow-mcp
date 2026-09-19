@@ -240,3 +240,17 @@ From implementation:
 | Gotcha | Worktree e2e needs `npx playwright install chromium`; `agent-rules.md` worktree-setup lists only `npm ci`. Retro `harness-defect`. |
 | Gotcha | `TaskStateStore.read` warns once per file on a plain-missing `task-state.json` — the normal single-checkout `head-expected` path; consider suppressing ENOENT (retro task 8). |
 | PR | #49 https://github.com/madmatt112/spec-workflow-mcp/pull/49 (open, not merged) |
+
+## worktree-review-signals — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED on 2026-09-18 — retrospective-plan.md marked CLOSED |
+| Items | 13 total: 10 done, 3 to-do (human), 0 skipped |
+| Landed (harness) | P1 04b1e89 · P3 ff3ab1e · P7 a5da1be · P11+G1 d3fd64c · P14+G3 42358c4 · P21 98e08fb — all on branch `chore/worktree-review-signals-retro` |
+| Landed (store) | P12+G2 e9c1f36 — `agent-rules.md` worktree-setup now lists `npx playwright install chromium` for tasks running a worktree e2e suite |
+| To-do (human) | P4, P6, P16 — product-code fixes whose target files (prepare-response TOON round-trip test, `isAncestorOfHead`, `src/core/task-state-store.ts`) do not exist on this branch (branched from main). They live on PR #49 (`feat/worktree-review-signals`, open). Land these on #49 or as a follow-up after #49 merges. |
+| Gates | 7/7 pass, risk low; no verifier spawned |
+| PR (retro) | #50 https://github.com/madmatt112/spec-workflow-mcp/pull/50 (base main; carries the unpushed local-main backlog, same as PR #49) |
+| Gotcha | `briefs.md` has the "## Lint brief" section duplicated byte-identical (about L273 and L322); P1 and P11 were applied to both copies. Dedupe in a future pass. |
+| Gotcha | This closeout ran isolated in the retro worktree; the main checkout cannot be git-committed from here. All bookkeeping (plan CLOSED, retro-log, this HANDOFF) is committed on `chore/worktree-review-signals-retro` and reaches main only when the retro PR merges. The ledger (`harness-events.jsonl`) was written to the main checkout for `--watch`. |

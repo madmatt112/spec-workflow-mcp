@@ -17,8 +17,11 @@ import {
   hasNoReviewableFiles,
   NO_REVIEWABLE_FILES_DISCLOSURE,
   type FileResolutionCounts,
+  type PrepareData,
+  type ExecutionContext,
 } from '../tools/review-task.js';
 import type { ResolvedFile } from '../core/file-resolution.js';
+import type { TaskDiffResult } from '../core/task-diff.js';
 import { ToolContext } from '../types.js';
 
 export interface TaskReviewJob {
@@ -63,7 +66,7 @@ interface RunOptions {
  * nullable string — all type-checking cleanly, with the only symptom an agent
  * that never learns where to write its result (requirement 4.22).
  */
-interface BuildPromptOptions {
+export interface BuildPromptOptions {
   specName: string;
   taskId: string;
   taskContext: any;
@@ -88,6 +91,23 @@ interface BuildPromptOptions {
   priorReviewContext?: string | null;
   priorMemoryContent?: string | null;
   memoryFilePath?: string | null;
+  /**
+   * The one execution context `handlePrepare` builds and both review paths carry
+   * (requirement 4.1). Required, so omitting it at the `buildPrompt` call is a
+   * compile error (design D16), the same guard `PrepareData` gives the destructure.
+   */
+  executionContext: ExecutionContext;
+  diff: string;
+  diffStats: NonNullable<TaskDiffResult['stats']> | null;
+  diffTruncated: boolean;
+  skippedPaths: string[];
+  diffRejection?: { message: string };
+  /**
+   * The file the diff body was written to, or null for an empty diff. The body is
+   * never inlined into the prompt (requirement 4.4, E2BIG); the prompt names the
+   * path so the agent reads it from disk.
+   */
+  diffPath: string | null;
 }
 
 const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -170,11 +190,27 @@ export class TaskReviewRunner extends EventEmitter {
         throw new Error(`Prepare failed: ${prepareResponse.message}`);
       }
 
-      // `prepareResponse.data` is an `any`: every field NOT named here is
-      // silently discarded, with no compiler error. `fileResolution` (requirement
-      // 4.19) has to be named for the disclosure to reach a dashboard-spawned
-      // reviewer at all.
-      const { taskContext, implementationSummary, steeringExcerpt, filesToReview, fileResolution, methodology } = prepareResponse.data;
+      // Typed `PrepareData` (design D16, task 8): a field renamed on the tool
+      // side now fails to compile here, and the diff/context fields below reach a
+      // dashboard-spawned reviewer because they are named. `prepareResponse.data`
+      // is still `any`, so this annotation is what makes the read a checked one;
+      // `fileResolution` (requirement 4.19) still has to be named for the
+      // disclosure to reach the reviewer at all.
+      const data: PrepareData = prepareResponse.data;
+      const {
+        taskContext,
+        implementationSummary,
+        steeringExcerpt,
+        filesToReview,
+        fileResolution,
+        methodology,
+        executionContext,
+        diff,
+        diffStats,
+        diffTruncated,
+        skippedPaths,
+        diffRejection,
+      } = data;
 
       // Load prior reviews and memory for iterative reviews (v2+)
       const priorReviews = await reviewManager.getReviewsForTask(opts.taskId);
@@ -202,6 +238,11 @@ export class TaskReviewRunner extends EventEmitter {
       // Step 2: Build prompt and spawn fresh agent
       const timestamp = new Date().toISOString().replace(/[:.Z]/g, '').slice(0, 15);
       const outputPath = join(tmpdir(), `task-review-${opts.specName}-${opts.taskId}-${timestamp}.json`);
+      // The diff body goes to a file beside the output file, never inlined into
+      // the prompt (requirement 4.4, E2BIG); null for an empty diff.
+      const diffPath = diff !== ''
+        ? join(tmpdir(), `task-review-${opts.specName}-${opts.taskId}-${timestamp}.diff`)
+        : null;
       const prompt = this.buildPrompt({
         specName: opts.specName,
         taskId: opts.taskId,
@@ -215,12 +256,25 @@ export class TaskReviewRunner extends EventEmitter {
         priorReviewContext,
         priorMemoryContent,
         memoryFilePath,
+        executionContext,
+        diff,
+        diffStats,
+        diffTruncated,
+        skippedPaths,
+        diffRejection,
+        diffPath,
       });
 
       job.status = 'running';
       this.emit('job-update', { ...job });
 
       try {
+        // Requirement 4.4: write the diff body to its file before the agent
+        // runs. A write failure fails the job, exactly as the output-file read
+        // does below; the body is never inlined into the prompt.
+        if (diffPath !== null) {
+          await fs.writeFile(diffPath, diff, 'utf-8');
+        }
         // Requirement 5.4: the agent runs in the worktree it is reviewing.
         await this.runAgent(jobId, opts.workspacePath, prompt, opts);
 
@@ -268,8 +322,11 @@ export class TaskReviewRunner extends EventEmitter {
         job.completedAt = new Date().toISOString();
         this.emit('job-update', { ...job });
 
-        // Clean up temp output file
+        // Clean up temp output and diff files
         await fs.unlink(outputPath).catch(() => {});
+        if (diffPath !== null) {
+          await fs.unlink(diffPath).catch(() => {});
+        }
       } finally {
         // Always clean up prepare marker in all terminal paths
         await reviewManager.removePrepareMarker(opts.taskId);
@@ -298,6 +355,13 @@ export class TaskReviewRunner extends EventEmitter {
       priorReviewContext = null,
       priorMemoryContent = null,
       memoryFilePath = null,
+      executionContext,
+      diff,
+      diffStats,
+      diffTruncated,
+      skippedPaths,
+      diffRejection,
+      diffPath,
     } = opts;
     const sections: string[] = [];
 
@@ -374,6 +438,57 @@ export class TaskReviewRunner extends EventEmitter {
         `${total} dropped${detail}.`
       );
     }
+
+    // Design Component 8: the execution context and the diff state, rendered
+    // between the file-resolution line and the methodology. Facts only — every
+    // directive stays in the methodology (requirement 4.6).
+    sections.push('');
+    sections.push('## Execution Context');
+    sections.push(`- Workspace: ${executionContext.workspacePath}`);
+    sections.push(`- Workflow root: ${executionContext.workflowRoot} (spec store: ${executionContext.specWorkflowDir})`);
+    const base = executionContext.diffBase;
+    sections.push(`- Diff base: ${base.commit} (${base.provenance}). ${base.detail}`);
+    const typecheck = executionContext.typecheck;
+    sections.push(
+      `- Typecheck: ${typecheck.status}` +
+      (typecheck.reason !== null ? `, reason ${typecheck.reason}` : '') +
+      (typecheck.observed !== null ? `. ${typecheck.observed}` : '')
+    );
+    const attribution = executionContext.attribution;
+    sections.push(
+      `- Attribution: ${attribution.state}` +
+      (attribution.workspacePath !== null
+        ? `. Logged from ${attribution.workspacePath} at ${attribution.commit ?? 'unknown commit'} (${attribution.source})`
+        : '')
+    );
+    for (const note of executionContext.notes) {
+      sections.push(note);
+    }
+
+    sections.push('');
+    sections.push('## Diff');
+    if (diffPath !== null) {
+      // The body is on disk, not here (requirement 4.4). State the file and its
+      // size so the agent knows what it is reading.
+      const bytes = Buffer.byteLength(diff);
+      sections.push(
+        `\`data.diff\` named by the methodology is the file ${diffPath} ` +
+        `(${bytes} bytes; ${diffStats?.filesChanged ?? 0} files, ` +
+        `+${diffStats?.linesAdded ?? 0} -${diffStats?.linesRemoved ?? 0}` +
+        (diffTruncated ? ', truncated' : '') +
+        `).`
+      );
+    } else if (diffRejection) {
+      // A rejection is not a benign empty diff; its stated text travels verbatim.
+      sections.push(`No diff was computed. ${diffRejection.message}`);
+    } else {
+      const state = hasNoReviewableFiles(fileResolution) ? 'no-files' : 'empty';
+      sections.push(`The diff is empty (state: ${state}).`);
+    }
+    if (skippedPaths.length > 0) {
+      sections.push(`Skipped paths (denylisted): ${skippedPaths.join(', ')}`);
+    }
+
     sections.push('');
     sections.push('## Review Methodology');
     sections.push(methodology);

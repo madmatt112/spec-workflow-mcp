@@ -295,6 +295,90 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task 4 — the typecheck degrades honestly: dependency probe + observed text
+// ---------------------------------------------------------------------------
+
+describe('runProjectTypecheck (Task 4) — dependency probe and observed', () => {
+  async function writePackageJson(dir: string, body: unknown): Promise<void> {
+    await fs.writeFile(join(dir, 'package.json'), JSON.stringify(body), 'utf-8');
+  }
+
+  it('dependencies-unresolved names the missing package and never spawns tsc', async () => {
+    await writeTsconfig(tempDir, '{}');
+    await installFakeTsc(tempDir);
+    // `left-pad` is declared but not present under node_modules.
+    await writePackageJson(tempDir, { devDependencies: { 'left-pad': '^1.0.0' } });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('dependencies-unresolved');
+    expect(result[0].observed).toContain('left-pad');
+    // No spawn: the broken install is reported, not compiled (requirement 7.2).
+    expect(mockedExecFile).toHaveBeenCalledTimes(0);
+  });
+
+  it('excludes optionalDependencies from the probe so a missing one still runs', async () => {
+    await writeTsconfig(tempDir, '{}');
+    await installFakeTsc(tempDir);
+    // Only an optional dependency is missing; the probe ignores it and spawns.
+    await writePackageJson(tempDir, { optionalDependencies: { fsevents: '^2.0.0' } });
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('success');
+    expect(mockedExecFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolved declared dependencies proceed to spawn tsc', async () => {
+    await writeTsconfig(tempDir, '{}');
+    await installFakeTsc(tempDir);
+    // `dep` is declared AND present, so the probe finds nothing unresolved.
+    await fs.mkdir(join(tempDir, 'node_modules', 'dep'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'node_modules', 'dep', 'package.json'), '{}');
+    await writePackageJson(tempDir, { dependencies: { dep: '^1.0.0' } });
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('success');
+    expect(mockedExecFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('no package.json leaves the probe silent and spawns tsc', async () => {
+    await writeTsconfig(tempDir, '{}');
+    await installFakeTsc(tempDir);
+    setNextExecBehavior({ stdout: '/a.ts\n', exitCode: 0 });
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
+    expect(result[0].status).toBe('success');
+    expect(mockedExecFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('no-tsconfig observed states the workflow root HAS one', async () => {
+    const workflowRoot = await fs.mkdtemp(join(tmpdir(), 'typecheck-wf-'));
+    const workspacePath = join(workflowRoot, 'worktrees', 'a');
+    await fs.mkdir(workspacePath, { recursive: true });
+    // The workflow root carries a tsconfig; the workspace does not.
+    await writeTsconfig(workflowRoot, '{}');
+    const result = await runProjectTypecheck(workspacePath, workflowRoot, [], { enabled: true });
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('no-tsconfig');
+    expect(result[0].observed).toContain('the workflow root has one');
+    await fs.rm(workflowRoot, { recursive: true, force: true });
+  });
+
+  it('no-tsconfig observed states the workflow root has none either', async () => {
+    const workflowRoot = await fs.mkdtemp(join(tmpdir(), 'typecheck-wf-'));
+    const workspacePath = join(workflowRoot, 'worktrees', 'a');
+    await fs.mkdir(workspacePath, { recursive: true });
+    // Neither root has a tsconfig.
+    const result = await runProjectTypecheck(workspacePath, workflowRoot, [], { enabled: true });
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('no-tsconfig');
+    expect(result[0].observed).toContain('none either');
+    await fs.rm(workflowRoot, { recursive: true, force: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Task 5.2 — two-pass parser
 // ---------------------------------------------------------------------------
 

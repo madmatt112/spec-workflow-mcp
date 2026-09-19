@@ -68,6 +68,9 @@ Every later reviewer, reviser and implementer reads it first.
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
   requirements name; tasks cover every design component.
+- Design only: when you pin an interface whose Testing Strategy needs an extra argument
+  (for example a `timeoutMs`), pin that argument as an optional trailing parameter, so the
+  implementer does not have to invent a backward-compatible shim.
 - When a design departs from a requirement's literal (a widened enum, a defaulted
   param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
 - Record every call you make on the product's behalf under `## Decisions taken in
@@ -292,6 +295,8 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: the list under `## Revision input`.
+- Prior dispositions: a version's lint pass receives the prior version's dispositioned
+  findings (each token, its disposition and reason).
 
 ## Revision input
 L-1 (<severity>, <rule>, line <line>): <message>
@@ -317,6 +322,11 @@ L-2 (<severity>, <rule>, line <line>): <message>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
+   bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
+   so a later pass cannot re-resolve it to the wrong file.
+11. A citation-identifier warning on a token that is unchanged since a version where it
+   was rejected with a reason is suppressed, not re-fired.
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
@@ -341,6 +351,8 @@ No file contents.
 <- Requirements: `<spec dir>/requirements.md`.>
 <- Design: `<spec dir>/design.md`.>
 - Findings: the list under `## Revision input`.
+- Prior dispositions: a version's lint pass receives the prior version's dispositioned
+  findings (each token, its disposition and reason).
 
 ## Revision input
 L-1 (<severity>, <rule>, line <line>): <message>
@@ -366,6 +378,11 @@ L-2 (<severity>, <rule>, line <line>): <message>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
+10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
+   bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
+   so a later pass cannot re-resolve it to the wrong file.
+11. A citation-identifier warning on a token that is unchanged since a version where it
+   was rejected with a reason is suppressed, not re-fired.
 ```
 
 ## Adjudication brief — `reviews/adjudication-brief-<PHASE>.md`

@@ -71,7 +71,12 @@ describe('handleGate', () => {
   let base: string; // C0 sha
 
   const FEATURE_DISABLED = () => [
-    { tsconfigPath: '/x/tsconfig.json', status: 'unavailable', reason: 'feature-disabled' },
+    {
+      tsconfigPath: '/x/tsconfig.json',
+      status: 'unavailable',
+      reason: 'feature-disabled',
+      observed: 'typecheck is disabled by `features.typecheck: false`',
+    },
   ];
 
   beforeEach(async () => {

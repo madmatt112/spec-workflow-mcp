@@ -148,6 +148,7 @@ opencodetmp
 .spec-workflow/.cache/
 .spec-workflow/session.json
 .spec-workflow/specs/*/harness-activity.jsonl
+.spec-workflow/specs/*/task-state.json*
 .claude-context
 .vscode/settings.json
 spec-workflow-mcp.code-workspace
