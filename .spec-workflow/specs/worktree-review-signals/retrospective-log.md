@@ -163,3 +163,8 @@ Cost: 0 extra spawns
 Code batch not landed. P4 (prepare-response TOON test), P6 (isAncestorOfHead) and P16 (task-state-store.ts) target files absent on the retro branch, which is branched from main; PR #49 (feat/worktree-review-signals) that introduces them is open, not merged. Marked to-do (human); land on or after #49. No implementer was spawned for the code batch (files verified absent).
 Evidence: retrospective-plan.md Close-out
 Cost: 0 spawns
+
+## 2026-09-19T02:25:34Z · closeout · phase · cleanup
+worktree-review-signals CLOSED. 13 items: 10 done (P1 P3 P7 P11 P14 P21 G1 G2 G3 P12), 3 to-do (P4 P6 P16, blocked on PR #49), 0 skipped. One implementer spawn, zero verifier, 7 gate calls all pass at risk low. Harness and store follow-ups on PR #50; code follow-ups deferred to PR #49.
+Evidence: PR #50; retrospective-plan.md CLOSED
+Cost: 1 implementer spawn (106199 tokens); 0 verifier; 0 adjudicator; 7 gates

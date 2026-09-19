@@ -250,6 +250,6 @@ From implementation:
 | Landed (store) | P12+G2 e9c1f36 — `agent-rules.md` worktree-setup now lists `npx playwright install chromium` for tasks running a worktree e2e suite |
 | To-do (human) | P4, P6, P16 — product-code fixes whose target files (prepare-response TOON round-trip test, `isAncestorOfHead`, `src/core/task-state-store.ts`) do not exist on this branch (branched from main). They live on PR #49 (`feat/worktree-review-signals`, open). Land these on #49 or as a follow-up after #49 merges. |
 | Gates | 7/7 pass, risk low; no verifier spawned |
-| PR (retro) | pending — opened after the bookkeeping commit |
+| PR (retro) | #50 https://github.com/madmatt112/spec-workflow-mcp/pull/50 (base main; carries the unpushed local-main backlog, same as PR #49) |
 | Gotcha | `briefs.md` has the "## Lint brief" section duplicated byte-identical (about L273 and L322); P1 and P11 were applied to both copies. Dedupe in a future pass. |
 | Gotcha | This closeout ran isolated in the retro worktree; the main checkout cannot be git-committed from here. All bookkeeping (plan CLOSED, retro-log, this HANDOFF) is committed on `chore/worktree-review-signals-retro` and reaches main only when the retro PR merges. The ledger (`harness-events.jsonl`) was written to the main checkout for `--watch`. |

@@ -188,3 +188,4 @@ One line per proposal, written by the close-out phase.
 - G1: done — d3fd64c
 - G2: done — e9c1f36
 - G3: done — 42358c4
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/50
