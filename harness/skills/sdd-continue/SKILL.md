@@ -330,8 +330,11 @@ the spec document.
 2. **Resolve the mode** (see **Gate mode resolution**).
 3. **Ask or record.**
    - **Block.** Present the compact `tasks` plan and the ranked `veto` list, then ask with
-     AskUserQuestion to approve or annotate. A reply with no free text is **approve** —
-     proceed to step 4. A reply carrying free text on any option is **annotate**: re-spawn
+     AskUserQuestion to approve or annotate. A reply with no free text is **approve**:
+     approval stays one click, but if any `veto` item is class-a, first append a `## Gate B`
+     note to `specs/<spec>/questions.md` recording that the plan was approved with those
+     class-a veto items unannotated (list their ids), commit it, then proceed to step 4. A
+     reply carrying free text on any option is **annotate**: re-spawn
      `sdd-document-orchestrator` for `tasks` once with `MODE: revision` and
      `REVISION_INPUT` = the annotation text (bracket it with `spawn.start`/`spawn.end` and
      call `harness` `phase-log` on its `approved` report, like any dispatch); when it
