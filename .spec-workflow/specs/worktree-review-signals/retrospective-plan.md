@@ -175,9 +175,9 @@ Approved 2026-09-18 by Matthew Field in the retrospective conversation (block mo
 
 One line per proposal, written by the close-out phase.
 
-- P4: to-do (human) — target prepare-response TOON round-trip test absent on the retro branch (branched from main); depends on PR #49 (feat/worktree-review-signals). Land with #49 or as a follow-up after it merges.
-- P6: to-do (human) — isAncestorOfHead and its head-degraded path absent on the retro branch; depends on PR #49. Land with #49 or after it merges.
-- P16: to-do (human) — src/core/task-state-store.ts absent on the retro branch; depends on PR #49. Land with #49 or after it merges.
+- P4: done — ccc3ea8 (follow-up PR; installed @toon-format/toon major pinned to the declared range in the prepare-response test)
+- P6: done — ccc3ea8 (follow-up PR; isAncestorOfHead tri-state, git faults reported as "could not be validated"; d-c99e352b narrowed to R2-3)
+- P16: done — ccc3ea8 (follow-up PR; ENOENT is the silent empty case in TaskStateStore.read)
 - P1: done — 04b1e89
 - P3: done — ff3ab1e
 - P7: done — a5da1be
@@ -189,3 +189,4 @@ One line per proposal, written by the close-out phase.
 - G2: done — e9c1f36
 - G3: done — 42358c4
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/50
+- briefs.md dedupe (close-out note): done — 383a777 (the duplicated `## Lint brief` section removed; plugin copies synced)

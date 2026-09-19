@@ -253,3 +253,5 @@ From implementation:
 | PR (retro) | #50 https://github.com/madmatt112/spec-workflow-mcp/pull/50 (base main; carries the unpushed local-main backlog, same as PR #49) |
 | Gotcha | `briefs.md` has the "## Lint brief" section duplicated byte-identical (about L273 and L322); P1 and P11 were applied to both copies. Dedupe in a future pass. |
 | Gotcha | This closeout ran isolated in the retro worktree; the main checkout cannot be git-committed from here. All bookkeeping (plan CLOSED, retro-log, this HANDOFF) is committed on `chore/worktree-review-signals-retro` and reaches main only when the retro PR merges. The ledger (`harness-events.jsonl`) was written to the main checkout for `--watch`. |
+
+**Follow-up (2026-09-19):** P4, P6 and P16 landed in a follow-up PR from `fix/worktree-review-signals-followups` (ccc3ea8) once PR #49 was merged; the same PR removes the duplicated `## Lint brief` section from briefs.md (383a777). Plan lines updated to done.
