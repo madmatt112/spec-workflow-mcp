@@ -1,5 +1,0 @@
-{
-  "deferred": true,
-  "reason": "Split from worktree-execution-context after design review v3. Depends on that spec for ToolContext.workspacePath and the file partition. Deferred until spec 1 ships; needs its own requirements pass rather than inheriting a design written at larger scope.",
-  "deferredAt": "2026-07-29T19:26:10.891Z"
-}

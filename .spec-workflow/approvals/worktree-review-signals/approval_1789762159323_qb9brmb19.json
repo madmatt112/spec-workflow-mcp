@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789762159323_qb9brmb19",
+  "title": "worktree-review-signals design v3",
+  "filePath": ".spec-workflow/specs/worktree-review-signals/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-18T20:09:19.323Z",
+  "category": "spec",
+  "categoryName": "worktree-review-signals",
+  "response": "v3; 3 rounds (2 review rounds + narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: D11 (R4 AC5 feature-disabled emits no degraded note) refinement, D3 (R1 AC11 diffBase.commit is the ref HEAD) refinement; cap: not hit, SHOULD_FIX-only corrective pass at v3, VERIFIED 2/2",
+  "respondedAt": "2026-09-18T20:09:29.886Z"
+}

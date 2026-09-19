@@ -69,7 +69,7 @@
     "@mdxeditor/editor": "^3.50.0",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@tailwindcss/vite": "^4.1.13",
-    "@toon-format/toon": "^0.8.0",
+    "@toon-format/toon": "^4.1.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "chokidar": "^3.5.3",

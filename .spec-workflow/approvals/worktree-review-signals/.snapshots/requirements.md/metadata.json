@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/worktree-review-signals/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-18T17:06:42.012Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789751201977_4rubgz93s",
+      "approvalTitle": "worktree-review-signals requirements v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-18T17:06:46.870Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789751201977_4rubgz93s",
+      "approvalTitle": "worktree-review-signals requirements v3"
+    }
+  ]
+}

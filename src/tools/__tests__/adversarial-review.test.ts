@@ -5,7 +5,8 @@ import {
   getAdversarialReviewMethodology,
   PHASE_ATTACK_ANGLES,
 } from '../adversarial-review.js';
-import { ToolContext } from '../../types.js';
+import { ToolContext, toMCPResponse } from '../../types.js';
+import { decode } from '@toon-format/toon';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { promises as fs } from 'fs';
@@ -86,6 +87,25 @@ describe('adversarial-review tool', () => {
     // reviews/ directory should have been created
     const stat = await fs.stat(join(specDir, 'reviews'));
     expect(stat.isDirectory()).toBe(true);
+  });
+
+  // Requirement 6 AC 3: the full adversarial-review response, whose
+  // `data.methodology` is the value that threw under 0.8.0, decodes deep-equal
+  // to the source with the library that encoded it.
+  it('round-trips an adversarial-review response through toMCPResponse', async () => {
+    const project = await createTempProject();
+    const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# Requirements\n', 'utf-8');
+
+    const response = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      ctx(project)
+    );
+
+    expect(response.success).toBe(true);
+    const decoded = decode(toMCPResponse(response).content[0].text);
+    expect(decoded).toEqual(response);
   });
 
   it('increments version when analysis already exists', async () => {
@@ -449,6 +469,27 @@ describe('adversarial-review tool', () => {
     expect(scaffold).not.toContain('PLACEHOLDER');
     expect(scaffold).toContain('## Closing deliverables');
     expect(scaffold).toContain('## Output');
+  });
+
+  it('names both roots in the scaffold execution-context block when they differ', async () => {
+    const project = await createTempProject();
+    const specDir = join(project, '.spec-workflow', 'specs', 'test-spec');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# Req\n', 'utf-8');
+
+    // Two-root context: workspace checkout is a distinct tree from the
+    // workflow root that holds .spec-workflow.
+    const workspacePath = join(project, 'checkout-worktree');
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      { projectPath: project, workspacePath }
+    );
+
+    expect(result.success).toBe(true);
+    const scaffold = await fs.readFile(result.data.promptOutputPath, 'utf-8');
+    expect(scaffold).toContain('## Execution context');
+    expect(scaffold).toContain(`- Workspace: ${workspacePath}`);
+    expect(scaffold).toContain(`- Workflow root: ${project}`);
   });
 
   it('returns success: false with the underlying error when scaffold write fails', async () => {

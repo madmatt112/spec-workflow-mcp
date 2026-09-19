@@ -58,7 +58,7 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
   // steering document against the same root `getWorkflowRoot` is given. An
   // `args.projectPath` override names the workspace; the workflow root is
   // derived from it rather than taken verbatim (requirements 3.5-3.7).
-  const { workflowRoot: projectPath } = selectRoots(args, context);
+  const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context);
 
   if (!specName || typeof specName !== 'string') {
     return { success: false, message: 'specName is required and must be a string' };
@@ -151,6 +151,8 @@ export async function adversarialReviewHandler(args: any, context: ToolContext):
     memoryFilePath,
     latestAnalysisPath,
     verdictBlock: args.verdictBlock === true,
+    workspacePath,
+    workflowRoot: projectPath,
   });
 
   try {
@@ -348,8 +350,10 @@ export function buildScaffoldedPrompt(args: {
   memoryFilePath: string;
   latestAnalysisPath: string | null;
   verdictBlock?: boolean;
+  workspacePath: string;
+  workflowRoot: string;
 }): string {
-  const { specName, phase, version, targetFile, analysisOutputPath, memoryFilePath, latestAnalysisPath } = args;
+  const { specName, phase, version, targetFile, analysisOutputPath, memoryFilePath, latestAnalysisPath, workspacePath, workflowRoot } = args;
   const guidance = PHASE_ATTACK_ANGLES[phase] ?? GENERIC_PHASE_GUIDANCE;
   const verdictSection = args.verdictBlock ? HARNESS_VERDICT_SECTION : '';
 
@@ -401,6 +405,10 @@ Tear apart this document and find every weakness — gaps, ambiguities, contradi
 
 ## Target document
 ${targetFile}
+
+## Execution context
+- Workspace: ${workspacePath}
+- Workflow root: ${workflowRoot}
 
 ${priorReviewSection}## Analysis approach
 

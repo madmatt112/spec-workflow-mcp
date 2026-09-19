@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789764667108_pozu2vt3a",
+  "title": "worktree-review-signals tasks v1",
+  "filePath": ".spec-workflow/specs/worktree-review-signals/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-18T20:51:07.108Z",
+  "category": "spec",
+  "categoryName": "worktree-review-signals",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 3; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-18T20:51:12.695Z"
+}

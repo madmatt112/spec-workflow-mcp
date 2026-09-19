@@ -3,7 +3,9 @@ import { ToolContext, ToolResponse, ImplementationLogEntry } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
-import { selectRoots } from './root-selection.js';
+import { readHeadCommit } from '../core/task-diff.js';
+import { TaskStateStore } from '../core/task-state-store.js';
+import { selectRoots, hasProjectPathOverride } from './root-selection.js';
 
 export const logImplementationTool: Tool = {
   name: 'log-implementation',
@@ -313,7 +315,7 @@ export async function logImplementationHandler(
   // workflow root is derived from it rather than taken verbatim (requirements
   // 3.5-3.7): taken verbatim, a worktree override would write the log into a
   // `.spec-workflow` directory inside that worktree.
-  const { workflowRoot: projectPath } = selectRoots(args, context);
+  const { workflowRoot: projectPath, workspacePath } = selectRoots(args, context);
   
   if (!projectPath) {
     return {
@@ -388,6 +390,26 @@ export async function logImplementationHandler(
     };
 
     const createdEntry = await logManager.addLogEntry(logEntry);
+
+    // Record where and at which commit the work was logged (requirements 3.1,
+    // 3.4, 3.5). The log entry above is already written; this attribution is a
+    // separate per-task record, and `log-implementation` is its only writer. A
+    // failed HEAD read records a null commit (requirement 3.5); any other
+    // failure warns and leaves the response below unchanged.
+    try {
+      const commit = await readHeadCommit(workspacePath);
+      await new TaskStateStore(specTasksPath).recordAttribution(taskId, {
+        workspacePath,
+        commit,
+        source: hasProjectPathOverride(args) ? 'override' : 'context',
+        loggedAt: new Date().toISOString(),
+      });
+    } catch (attributionError) {
+      console.warn(
+        `[log-implementation] Failed to record attribution for task '${taskId}': ` +
+        `${attributionError instanceof Error ? attributionError.message : String(attributionError)}`
+      );
+    }
 
     // Get task stats
     const taskStats = await logManager.getTaskStats(taskId);

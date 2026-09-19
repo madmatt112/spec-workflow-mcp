@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/question-gates/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-16T22:47:41.570Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789598861550_cv4ve6r44",
+      "approvalTitle": "question-gates design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-16T22:47:56.680Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789598861550_cv4ve6r44",
+      "approvalTitle": "question-gates design v3"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/question-gates/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-16T20:58:25.501Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789592305465_kil5tyx1t",
+      "approvalTitle": "question-gates requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-16T20:58:36.127Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789592305465_kil5tyx1t",
+      "approvalTitle": "question-gates requirements v4"
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 ---
 name: sdd-closeout-orchestrator
 description: SDD close-out orchestrator: implements every proposal of a spec's APPROVED retrospective plan with implementer and verifier agents, grouped by target repository and landed by each repository's rules, records the outcome per proposal and marks the plan CLOSED, using the sdd-closeout-phase skill. Spawned by the sdd-continue supervisor; not for direct use.
-model: claude-fable-5-1
-effort: xhigh
+model: claude-opus-4-8
+effort: high
 color: blue
 skills:
   - sdd-closeout-phase

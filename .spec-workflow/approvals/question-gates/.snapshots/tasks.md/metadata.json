@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/question-gates/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-16T23:58:52.740Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789603132726_81g3nqajw",
+      "approvalTitle": "question-gates tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-16T23:59:03.356Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789603132726_81g3nqajw",
+      "approvalTitle": "question-gates tasks v2"
+    }
+  ]
+}

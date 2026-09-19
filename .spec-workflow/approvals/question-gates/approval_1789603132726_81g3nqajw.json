@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789603132726_81g3nqajw",
+  "title": "question-gates tasks v2",
+  "filePath": ".spec-workflow/specs/question-gates/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-16T23:58:52.726Z",
+  "category": "spec",
+  "categoryName": "question-gates",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-16T23:59:03.373Z"
+}

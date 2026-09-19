@@ -21,6 +21,8 @@ import { ImplementationLogManager } from './implementation-log-manager.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
 import { reviewTaskHandler } from '../tools/review-task.js';
 import { PathUtils } from '../core/path-utils.js';
+import { readHeadCommit } from '../core/task-diff.js';
+import { TaskStateStore } from '../core/task-state-store.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
 import { IndexGenerator } from '../core/index-generator.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
@@ -1465,6 +1467,22 @@ export class MultiProjectDashboardServer {
         await fs.writeFile(tasksPath, updatedContent, 'utf-8');
 
         this.broadcastTaskUpdate(projectId, name);
+
+        // Record the task's starting commit at the one site that knows the
+        // workspace before work begins. Only an in-progress transition sets it;
+        // a later in-progress transition overwrites the workspace's entry
+        // (design Component 6). Never block or alter the response below.
+        if (status === 'in-progress') {
+          try {
+            const head = await readHeadCommit(project.workspacePath);
+            if (head) {
+              const store = new TaskStateStore(PathUtils.getSpecPath(project.projectPath, name));
+              await store.recordBase(taskId, project.workspacePath, head);
+            }
+          } catch (error: any) {
+            console.warn(`Failed to record diff base for task ${taskId}: ${error?.message || error}`);
+          }
+        }
 
         return {
           success: true,

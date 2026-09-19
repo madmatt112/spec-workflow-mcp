@@ -193,6 +193,18 @@ function deriveWorkflowRoot(override: string): string {
 }
 
 /**
+ * True when `args` carries a non-empty string `projectPath` override — the same
+ * predicate {@link selectRoots} uses to prefer the override over the context.
+ *
+ * A tool that must disclose *whether* the workspace came from an override (the
+ * attribution `source` of requirement 3.4) reads the flag here rather than
+ * re-deriving it, since `selectRoots` returns only the two roots.
+ */
+export function hasProjectPathOverride(args: { projectPath?: unknown } | undefined): boolean {
+  return typeof args?.projectPath === 'string' && args.projectPath.length > 0;
+}
+
+/**
  * Picks the workflow root and the workspace path for one tool invocation.
  *
  * A non-empty string `args.projectPath` is an override; anything else (absent,
@@ -200,9 +212,7 @@ function deriveWorkflowRoot(override: string): string {
  * that can be trusted to hold two coherent roots.
  */
 export function selectRoots(args: { projectPath?: unknown } | undefined, context: ToolContext): SelectedRoots {
-  const override = typeof args?.projectPath === 'string' && args.projectPath.length > 0
-    ? args.projectPath
-    : null;
+  const override = hasProjectPathOverride(args) ? (args!.projectPath as string) : null;
 
   if (override === null) {
     return { workflowRoot: context.projectPath, workspacePath: context.workspacePath };

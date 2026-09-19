@@ -6,18 +6,21 @@
 
 ## Next
 
-- **State:** all-on-disk-complete
-- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
+- **State:** active
+- **Spec:** worktree-review-signals
+- **Why:** First not-Complete spec in build order (no tasks yet).
 
 ## Active
 
 | # | Spec | Status | Progress |
 | --- | --- | --- | --- |
 | 1 | worktree-execution-context | Complete | 19/19 |
-| 2 | review-gate | Complete | 10/10 |
-| 3 | spec-lint | Complete | 12/12 |
-| 4 | harness-bookkeeping | Complete | 8/8 |
-| 5 | tighter-reviews | Complete | 29/29 |
+| 2 | worktree-review-signals | Design | — |
+| 3 | review-gate | Complete | 10/10 |
+| 4 | spec-lint | Complete | 12/12 |
+| 5 | harness-bookkeeping | Complete | 8/8 |
+| 6 | question-gates | Complete | 6/6 |
+| 7 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
@@ -25,7 +28,6 @@
 | --- | --- | --- |
 | approval-durability-and-routing | Design | Scope record only, no requirements phase yet. Independent of the three worktree specs — shares no files — but deferred behind worktree-execution-context by preference, since that spec is approved and ready to build. Root cause is that deriveSpecStatus keys on file existence, so there is no durable record a phase was approved; the document loop's resume convention exists to reconstruct it, and contradicts this server's own guide. |
 | worktree-dashboard-concurrency | Design | Split from worktree-execution-context after design review v3. Depends on that spec for per-worktree identity, which is what makes N registry entries and N component sets exist. Not a correctness fix for the reviewing path; deferred until spec 1 ships. |
-| worktree-review-signals | Design | Split from worktree-execution-context after design review v3. Depends on that spec for ToolContext.workspacePath and the file partition. Deferred until spec 1 ships; needs its own requirements pass rather than inheriting a design written at larger scope. |
 
 ## Other specs (not in decomposition.md)
 

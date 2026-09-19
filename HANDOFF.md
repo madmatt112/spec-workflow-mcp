@@ -1,6 +1,28 @@
 # HANDOFF
 
+> **READ FIRST — SDD routing (2026-09-18, harness v4).** Active spec **`worktree-review-signals`**.
+> Live phase **implementation**, state **tasks 0/12**, last result **approved (tasks v1; gate B approved by the human, slot deleted)**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/worktree-review-signals` (worktree of `/home/mcf/repo/spec-workflow-mcp`, branch `feat/worktree-review-signals`).
+> A re-run does: from the worktree, spawn the implementation orchestrator `MODE: normal` on the 12-task queue (gate B already resolved, `present: false`). Orchestrators run on claude-opus-4-8 high.
+
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
+
+## Phase log
+
+| Date | Spec | Stage | State | Result | Note |
+| --- | --- | --- | --- | --- | --- |
+| 2026-09-16 | question-gates | requirements | v4 | approved | 4 rounds, 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass VERIFIED 3/3 |
+| 2026-09-16 | question-gates | design | v3 | approved | 3 rounds, 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
+| 2026-09-17 | question-gates | tasks | v2 | approved | 2 rounds, 0/2/3 -> converged |
+| 2026-09-17 | question-gates | implementation | tasks 6/6 | complete | 6/6 gate-pass risk low, PR #46 checks green, e2e tool half verified, live gates deferred d-1880d115 |
+| 2026-09-17 | question-gates | retrospective |  | retro-ready |  |
+| 2026-09-17 | question-gates | closeout | items 0/5 | error | worktree-isolation launch mismatch; relaunch isolated to question-gates-retro |
+| 2026-09-17 | question-gates | closeout | items 5/5 | closed | 5/5 landed; PR #47 open not merged; runtime verify deferred d-473aa261/d-1880d115 |
+| 2026-09-17 | worktree-review-signals | requirements | v1 | interrupted | fresh-v1 override: stale split scaffold, orient said Step 2 |
+| 2026-09-18 | worktree-review-signals | requirements | v3 | approved | 2 rounds, iterate then converged |
+| 2026-09-18 | worktree-review-signals | requirements | v2 | interrupted |  |
+| 2026-09-18 | worktree-review-signals | design | v3 | approved | 2 review rounds + SHOULD_FIX-only pass + narrow check, 0/1/1 -> 0/2/2 -> VERIFIED 2/2 |
+| 2026-09-18 | worktree-review-signals | tasks | v1 | approved | 1 round, converged clean |
 
 ## Current state — 2026-08-04
 
@@ -103,3 +125,99 @@ From implementation:
 - `src/__tests__/parity-baseline.test.ts` was the regression net throughout. Its one reserved edit — the symlink `projectId` case — was spent by task 15 and the file records it.
 - `src/__tests__/index-entrypoint.test.ts:18` leaks a `/tmp/specwf-entrypoint-*` directory per run. Pre-existing, tracked since `1191755`, unfixed.
 - Untracked `playwright-report/` and `test-results/` are left by e2e runs and are not gitignored.
+
+## question-gates — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-16 |
+| Rounds | 4; verdicts 1/4/4 -> 1/2/3 -> 0/3/1 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
+| Approval | `approval_1789592305465_kil5tyx1t` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | requirements.md, then the gate-A/gate-B server-surface and AskUserQuestion `{header, question, options}` contracts it pins, src/core/gate-rules.ts and src/tools/review-gate.ts, and decomposition spec 7 (steering docs absent, so the decomposition entry is the scope authority) |
+
+## question-gates — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-16 |
+| Rounds | 3; verdicts 0/4/2 -> 0/3/2 -> SHOULD_FIX-only pass, narrow check VERIFIED 3/3 |
+| Approval | `approval_1789598861550_cv4ve6r44` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md, then design.md — the `gate` action ops (class-a / put / get / delete) on src/tools/harness.ts, the new pure module src/core/veto-rules.ts, the gate-A drafter-extraction surface and the gate-B `[gate-b:...]`/`[gate-c:...]` tagged-finding surface, and the AskUserQuestion `{header, question, options}` contract; decomposition spec 7 is the scope authority (no steering docs). Two MINOR design gaps remain open in adversarial-analysis-design-r2.md (R2-4 harness/ plugin-asset checks in Testing Strategy; R2-5 class-a input hygiene) for the tasks phase to weigh. |
+
+## question-gates — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-09-16 |
+| Rounds | 2; verdicts 0/2/3 -> converged |
+| Approval | `approval_1789603132726_81g3nqajw` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md, then tasks.md — a 6-task forward-only plan (no bridges): task 1 adds pure src/core/veto-rules.ts (computeClassA), task 2 adds the harness `gate` action (class-a/put/get/delete) to src/tools/harness.ts, tasks 3-6 are harness/ prose (formats.md PHASE `gate-a`, sdd-drafter.md gate-A extraction, document-phase SKILL gate-A/gate-B emission, sdd-continue SKILL gate execution) with `sync-plugin-assets` + `check:plugin-assets` + `claude plugin validate` in each Success. design.md v3 (its Component 5 was amended in place — see design.md's `v3 amended` line — for Req 2 AC 7's resume recheck) and requirements.md v4 are the scope authority; no steering docs. Both open design MINORs are closed: R2-4 by tasks D3, R2-5 by tasks D2. Run-level verification (four gate scenarios with/without AskUserQuestion + `npm run build`/`npm test`) is the gate, not an automated task (D6). |
+
+## question-gates — implementation
+
+| Field | Value |
+| --- | --- |
+| State | implemented 2026-09-16; tasks 6/6; last code commit 6507cad |
+| Fix rounds | none — all six tasks passed the gate at risk low (0 fix rounds, 0 adjudications, 0 task verifiers) |
+| Deferred verification | d-1880d115 |
+| Deferrals added | 1 (d-1880d115, tag verification); project total 15 deferred |
+| Gotchas | Harness/server changes take effect only after the release republishes and the plugin re-installs, so live gate scenarios 1-4 are deferred to d-1880d115 (tool half verified in-process: build + 1260 tests + plugin validate all green, fixture staged at /tmp/scratchpad/sdd/question-gates/scratch-store/). The `harness` orient/brief MCP tool was not granted to this orchestrator, so Step 0 and every worker brief were assembled by hand — same root cause as d-473aa261. |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/46 |
+
+## question-gates — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED 2026-09-17; 5/5 items landed (P1, P2, P3, P4, P6), 0 to-do, 0 skipped |
+| Items | P1 a26f246, P2 82064d8, P3 478bf4f, P4 0542178, P6 8156c82 — all harness prose; gate pass risk low; no verifier, no fix rounds, no adjudication |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/47 (branch `chore/question-gates-retro`) — NOT merged |
+| Graduation | Candidates 1-4 promoted with their proposals; candidate 1 (an orchestrator that calls the harness tool must allowlist it) codified in `docs/SDD-HARNESS.md` |
+| Spec store | Bookkeeping committed on `main` (plan CLOSED, retro-log, ledger); code changes ride PR #47 |
+| To-do (human) | 1) Merge PR #47. 2) The harness prose takes effect only after a release republishes and the plugin re-installs (rides the question-gates release, `d-1880d115`). 3) After re-install run `deferrals list tag=verification` and clear `d-473aa261` (P2/P3 runtime: orchestrator reaches the harness tool; one run id per run) and `d-1880d115` (live gate scenarios 1-4). |
+| Gotcha | This close-out orchestrator still lacked the `harness` MCP tool (exactly what P2 fixes), so Step 0 and the worker brief were the hand-assembled ones the prior spawn staged; this resolves once #47 releases and re-installs. |
+
+## worktree-review-signals — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-18 |
+| Rounds | 2; verdicts 2/2/0 (r1) → converged 0/0/2 (r2) |
+| Approval | `approval_1789751201977_4rubgz93s` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | design drafter reads `codebase-context.md`, then this spec's `requirements.md` and the decomposition entry; tech.md/structure.md/design-system.md |
+
+## worktree-review-signals — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-18 |
+| Rounds | 2 review rounds + narrow check; verdicts iterate 0/1/1 (r1) → iterate 0/2/2 (r2) → SHOULD_FIX-only pass → narrow check VERIFIED 2/2 |
+| Approval | `approval_1789762159323_qb9brmb19` |
+| Rulings | D11 (R4 AC5 — `feature-disabled` emits no degraded note): refinement, closed. D3 (R1 AC11 — `diffBase.commit` is the ref `HEAD`, not a sha): refinement, closed. |
+| Cut scope | none |
+| Carried items | none |
+| Deferred | R2-3 (malformed→null underspecified: a shape-valid, version-1 record with a wrong-typed field can reach the consumer and throw, vs EH #3) and R2-4 (`isAncestorOfHead` reports a git-infra error as `rejected`, emitting a false `head-degraded` note) — both MINOR, left out of the SHOULD_FIX-only pass. See deferrals tag `worktree-review-signals`. |
+| Next phase loads | tasks drafter reads `codebase-context.md`, then this spec's `design.md` and `requirements.md`, and the decomposition entry for `worktree-review-signals`; `structure.md` if present |
+
+## worktree-review-signals — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-18 |
+| Rounds | 1 review round; verdict converged 0/0/3 (r1) |
+| Approval | `approval_1789764667108_pozu2vt3a` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | implementation reads `codebase-context.md` first, then `tasks.md`; 12 tasks, leaf-first order, task 3 carries a `'HEAD'` bridge removed in task 8 |
