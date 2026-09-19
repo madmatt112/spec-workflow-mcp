@@ -1,1 +1,6 @@
 {"ts":"2026-09-19T14:33:40.606Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"run.start","model":"claude-fable-5-1","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
+{"ts":"2026-09-19T14:34:01.080Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-19T14:34:42.430Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"requirements","mode":"normal","budget":"4","state":"v0"}
+{"ts":"2026-09-19T14:36:03.731Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-19T14:51:06.769Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter"}
+{"ts":"2026-09-19T14:51:23.822Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"0","result":"ok","tokens":"175250"}
