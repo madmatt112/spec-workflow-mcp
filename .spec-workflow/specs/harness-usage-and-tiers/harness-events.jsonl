@@ -51,3 +51,6 @@
 {"ts":"2026-09-19T16:26:09.115Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-adjudicator","role":"adjudication"}
 {"ts":"2026-09-19T16:26:18.237Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"reviewer r4 actual tokens=103232 (earlier spawn.usage logged unknown)"}
 {"ts":"2026-09-19T16:29:33.902Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-adjudicator"}
+{"ts":"2026-09-19T16:29:52.126Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-adjudicator","role":"adjudicator","phase":"requirements","round":"4","result":"fixed-2","tokens":"66662"}
+{"ts":"2026-09-19T16:31:18.278Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-checker"}
+{"ts":"2026-09-19T16:31:46.046Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-checker","role":"checker","phase":"requirements","round":"5","result":"verified-2/2","tokens":"41043"}

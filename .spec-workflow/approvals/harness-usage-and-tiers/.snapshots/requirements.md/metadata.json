@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-19T16:31:51.817Z",
+      "trigger": "initial",
+      "approvalId": "approval_1789835511785_5tgmkk1h5",
+      "approvalTitle": "harness-usage-and-tiers requirements v5"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-19T16:31:58.811Z",
+      "trigger": "approved",
+      "approvalId": "approval_1789835511785_5tgmkk1h5",
+      "approvalTitle": "harness-usage-and-tiers requirements v5"
+    }
+  ]
+}

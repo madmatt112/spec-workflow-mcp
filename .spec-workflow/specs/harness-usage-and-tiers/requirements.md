@@ -1,5 +1,7 @@
 # Requirements Document
 
+Document version: v5
+
 ## Introduction
 
 The harness ledger (`harness-events.jsonl`) cannot say what a spawn cost or which model it ran on: per-spawn `tokens` are whatever an orchestrator transcribed from the Agent result footer (most rows on this store say `unknown`, `na` or `0`), and the watch view's model and effort columns come from a hand-kept table in `src/watch/ledger.ts:41-53` that disagrees with the agent files. This spec makes the plugin hook the single writer of per-spawn usage, read from the worker's transcript; generates the declared tiers from the agent frontmatter; adds a `usage` report to the `harness` tool; and brings the docs and the ledger view in line with the orchestrator tier change already in the agent files. It serves the supervisor, the retro analyst and the human who sets tiers, and it is the number source specs 9 and 10 are judged on.

@@ -1,0 +1,12 @@
+{
+  "id": "approval_1789835511785_5tgmkk1h5",
+  "title": "harness-usage-and-tiers requirements v5",
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-19T16:31:51.785Z",
+  "category": "spec",
+  "categoryName": "harness-usage-and-tiers",
+  "response": "v5; 5 review rounds; final verdict MUST_FIX 1 / SHOULD_FIX 1 / MINOR 0; rulings: none; cap: hit, adjudicated at v5, VERIFIED 2/2",
+  "respondedAt": "2026-09-19T16:31:58.829Z"
+}

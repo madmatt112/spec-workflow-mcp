@@ -256,3 +256,15 @@ From implementation:
 | Gotcha | This closeout ran isolated in the retro worktree; the main checkout cannot be git-committed from here. All bookkeeping (plan CLOSED, retro-log, this HANDOFF) is committed on `chore/worktree-review-signals-retro` and reaches main only when the retro PR merges. The ledger (`harness-events.jsonl`) was written to the main checkout for `--watch`. |
 
 **Follow-up (2026-09-19):** P4, P6 and P16 landed in a follow-up PR from `fix/worktree-review-signals-followups` (ccc3ea8) once PR #49 was merged; the same PR removes the duplicated `## Lint brief` section from briefs.md (383a777). Plan lines updated to done.
+
+## harness-usage-and-tiers — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v5 on 2026-09-19 |
+| Rounds | 5; verdicts 0/3/3 → 2/1/0 → 1/1/0 → 1/1/0 → post-cap adjudication, narrow check VERIFIED 2/2 |
+| Approval | `approval_1789835511785_5tgmkk1h5` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | after `codebase-context.md`: `src/watch/ledger.ts` (the token/spawn fold the usage report reuses and departs from), `src/watch/render.ts` (watch view row widths), `src/tools/harness.ts` (the tool surface gaining `usage`/`gate`/`compareSpecName`), `harness/hooks/sdd-activity.sh` (spawn events and declared tiers) |
