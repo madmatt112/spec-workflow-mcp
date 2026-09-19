@@ -233,3 +233,4 @@
 {"ts":"2026-09-19T02:22:38.090Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"task.done","task":"P16","outcome":"to-do"}
 {"ts":"2026-09-19T02:25:50.328Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"phase.end","phase":"closeout","result":"closed","state":"items 13/13","note":"10 done, 3 to-do (PR #49 dep); retro follow-ups on PR #50"}
 {"ts":"2026-09-19T02:26:42.383Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"spawn.end","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","tokens":"151186"}
+{"ts":"2026-09-19T02:27:05.215Z","run":"run-20260918-170520","spec":"worktree-review-signals","type":"run.end","status":"spec-workflow-mcp:worktree-review-signals closeout items 13/13 — closed; PR #49 (feat) and PR #50 (retro) open; do not re-run until #50 merges"}
