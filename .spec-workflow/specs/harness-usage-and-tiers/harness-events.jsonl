@@ -11,3 +11,4 @@
 {"ts":"2026-09-19T15:01:18.427Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-drafter"}
 {"ts":"2026-09-19T15:01:44.449Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-drafter","role":"gate-a v1","phase":"requirements","round":"1","result":"ok"}
 {"ts":"2026-09-19T15:01:44.471Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"requirements","result":"gate-a","state":"v1"}
+{"ts":"2026-09-19T15:02:43.373Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"gate-a","tokens":"96218"}
