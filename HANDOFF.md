@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-21, harness v4).** Active spec **`harness-usage-and-tiers`**.
-> Live phase **closeout**, state **items 0/5**, last result **approved** (retrospective plan APPROVED; PR #54 merged as d9e6041).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (close-out runs from a `chore/harness-usage-and-tiers-retro` worktree off origin/main, not the merged `feat/harness-usage-and-tiers` one).
-> A re-run does: REQUIRES a restarted session first (the checkout was rebuilt with `npm run build` after PR #54 merged; the new SubagentStop hook and skill text load at session start). Then it enters the `chore/harness-usage-and-tiers-retro` worktree and dispatches the close-out orchestrator for the 5 approved items (P2, P3-A, P4-A, P5-A, graduation rule 2). Human: during that run, verify deferral d-3091be1c (orchestrator spawn.end row carries numeric usage and a model).
+> Live phase **closeout**, state **items 0/4**, last result **approved** (retrospective plan APPROVED; PRs #54 and #55 merged, checkout rebuilt, session restarted).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-usage-and-tiers-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `chore/harness-usage-and-tiers-retro` from origin/main at 4151897).
+> A re-run does: enters that worktree and dispatches the close-out orchestrator for the approved items (P2, P3-A, P4-A + graduation rule 2, P5-A). Human: verify deferral d-3091be1c against this run (orchestrator spawn.end row carries numeric usage and a model).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
