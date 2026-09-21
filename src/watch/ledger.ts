@@ -11,6 +11,10 @@
  * finished before the ledger existed or in an earlier run.
  */
 
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
 export interface LedgerEvent {
   ts: string;
   type: string;
@@ -37,20 +41,44 @@ export interface AgentProfile {
   role: string;
 }
 
-/** Declared in the plugin's agent frontmatter; the view shows them as declared. */
-export const AGENT_PROFILES: Record<string, AgentProfile> = {
-  'sdd-document-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'runs a document phase' },
-  'sdd-implementation-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'runs the task queue' },
-  'sdd-retro-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'compiles the retrospective' },
-  'sdd-closeout-orchestrator': { model: 'fable-5-1', effort: 'xhigh', role: 'lands the retro plan' },
-  'sdd-drafter': { model: 'fable-5-1', effort: 'xhigh', role: 'writes v1' },
-  'sdd-reviewer': { model: 'opus-4-8', effort: 'xhigh', role: 'adversarial review' },
-  'sdd-reviser': { model: 'opus-4-8', effort: 'xhigh', role: 'writes the next version' },
-  'sdd-adjudicator': { model: 'fable-5-1', effort: 'xhigh', role: 'rules and fixes' },
-  'sdd-implementer': { model: 'opus-4-8', effort: 'xhigh', role: 'implements a task' },
-  'sdd-verifier': { model: 'opus-4-8', effort: 'xhigh', role: 'independent review' },
-  'sdd-retro-analyst': { model: 'fable-5-1', effort: 'xhigh', role: 'proposes fixes' },
-};
+/**
+ * Load the profiles the build generates from the agent frontmatter (Component 2). The first
+ * candidate that parses to an object of string `model`, `effort`, `role` wins; a missing or
+ * malformed one is skipped; none gives `{}`. Synchronous and never throwing, so it is safe
+ * at module load. The default candidates resolve relative to this module: the `dist/` copy
+ * first, then the source file under vitest. The parameter serves the tests.
+ */
+export function loadAgentProfiles(candidates?: string[]): Record<string, AgentProfile> {
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const files = candidates ?? [
+    join(dir, '../agent-profiles.json'),
+    join(dir, '../../harness/agent-profiles.json'),
+  ];
+  for (const file of files) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      const out: Record<string, AgentProfile> = {};
+      let ok = true;
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        const v = value as Record<string, unknown> | null;
+        if (!v || typeof v !== 'object' ||
+            typeof v.model !== 'string' || typeof v.effort !== 'string' || typeof v.role !== 'string') {
+          ok = false;
+          break;
+        }
+        out[key] = { model: v.model, effort: v.effort, role: v.role };
+      }
+      if (ok) return out;
+    } catch {
+      // Missing or malformed file: try the next candidate.
+    }
+  }
+  return {};
+}
+
+/** Declared in the harness agent frontmatter; the view shows them as declared. */
+export const AGENT_PROFILES: Record<string, AgentProfile> = loadAgentProfiles();
 
 /** The SDD phases in order, for the watch view's phase rail. */
 export const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective', 'closeout'];

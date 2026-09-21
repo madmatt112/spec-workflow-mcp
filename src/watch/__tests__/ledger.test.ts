@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildModel, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { buildModel, loadAgentProfiles, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
 
 const HANDOFF = `# HANDOFF
 
@@ -79,6 +82,26 @@ describe('parse helpers', () => {
     expect(formatTokens(950)).toBe('950');
     expect(formatTokens(12_400)).toBe('12k');
     expect(formatTokens(1_250_000)).toBe('1.3M');
+  });
+});
+
+describe('loadAgentProfiles', () => {
+  it('gives {} for a missing candidate and for a malformed one', () => {
+    expect(loadAgentProfiles(['/nonexistent/agent-profiles.json'])).toEqual({});
+    const dir = mkdtempSync(join(tmpdir(), 'profiles-'));
+    const bad = join(dir, 'agent-profiles.json');
+    writeFileSync(bad, 'not json');
+    try {
+      expect(loadAgentProfiles([bad])).toEqual({});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('loads the generated profiles by default', () => {
+    const profiles = loadAgentProfiles();
+    expect(Object.keys(profiles)).toHaveLength(12);
+    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker' });
   });
 });
 
