@@ -45,10 +45,7 @@ start.
   task=<id> "title=<title>"` for every item of a batch when you brief it; one
   `spawn.usage` right after each worker's report (`agent=`, `role=implement <class> batch
   <b> | verify <class> batch <b> | fix <class> batch <b> round <r> | adjudicate <class>
-  batch <b>`, `phase=closeout`, `result=<one line>`, `tokens=<n>` from the `<usage><subagent_tokens>`
-  value in the spawn's task notification; that notification lands one tool round after
-  the worker's hand-back, so do your spot-check first and write the row after it,
-  `unknown` only if two more tool rounds pass without it);
+  batch <b>`, `phase=closeout`, `result=<one line>`);
   `note "text=gate: item <id> <pass|fail> risk <low|high>"` after every gate call, so
   Step 4 counts the verifier spawns skipped for `store`/`home` items;
   `task.done task=<id> outcome=<done|to-do|skipped>` when you write its close-out line;
