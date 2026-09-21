@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { buildUsageReport, usageDelta, formatUsageTable, UsageReport } from '../usage.js';
-import { LedgerEvent } from '../ledger.js';
+import { LedgerEvent, parseJsonl } from '../ledger.js';
+
+/** The committed new-shape ledger, shared with the index and harness-tool tests (D8). */
+const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '../../__tests__/fixtures/usage-ledger.jsonl');
 
 let t = 0;
 /** A monotonically increasing timestamp so rows keep their written order. */
@@ -258,5 +264,20 @@ describe('buildUsageReport — empty', () => {
   it('gives a zero report for no rows', () => {
     const r = buildUsageReport([], 'empty');
     expect(r).toEqual({ spec: 'empty', runs: 0, phases: [], total: { spawns: 0, tokens: 0, unknown: 0 }, kinds: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 } });
+  });
+});
+
+describe('buildUsageReport — committed fixture (D8, Req 5.8)', () => {
+  it('folds the two-run fixture to its pinned totals and share', () => {
+    const rows = parseJsonl<LedgerEvent>(readFileSync(FIXTURE, 'utf8'));
+    const r = buildUsageReport(rows, 'usage-fixture');
+    expect(r.runs).toBe(2);
+    expect(r.total.spawns).toBe(5);
+    expect(r.total.tokens).toBe(4_554_189);
+    expect(r.phases.length).toBe(1);
+    expect(r.total.unknown).toBe(1);
+    // The one unknown mark is the reviewer, whose spawn.end carried tokens=unknown.
+    expect(cell(r, 'requirements', 'sdd-reviewer')?.unknown).toBe(1);
+    expect(formatUsageTable(r)).toContain('orch 60.2%');
   });
 });
