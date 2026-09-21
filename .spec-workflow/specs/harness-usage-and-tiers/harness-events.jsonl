@@ -142,3 +142,4 @@
 {"ts":"2026-09-21T17:28:44.127Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5","tokens":"108964"}
 {"ts":"2026-09-21T17:28:44.147Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 5 pass risk low"}
 {"ts":"2026-09-21T17:28:44.169Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-21T17:28:44.216Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.pick","task":"6","title":"Add the harness action usage and document it"}
