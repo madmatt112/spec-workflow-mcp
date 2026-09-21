@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-21, harness v4).** Active spec **`harness-usage-and-tiers`**.
-> Live phase **implementation**, state **tasks 0/8**, last result **approved** (tasks v1; gate B approved unannotated).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-usage-and-tiers`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/harness-usage-and-tiers`, from local main).
-> A re-run does: enters that worktree and dispatches the implementation orchestrator for `harness-usage-and-tiers` (requirements v5, design v3, tasks v1 approval_1790008612021_brp2i8273; gate B slot deleted, do not re-ask).
+> Live phase **retrospective**, state **pending**, last result **complete** (tasks 8/8, PR #54 open, e2e VERIFY pass, d-3091be1c deferred).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-usage-and-tiers`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/harness-usage-and-tiers`).
+> A re-run does: dispatches the retrospective orchestrator for `harness-usage-and-tiers`, then the retro conversation and close-out (close-out runs from a `chore/harness-usage-and-tiers-retro` worktree). Human: merge PR #54, then `npm run build`, restart sessions, and re-run deferral d-3091be1c.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -30,6 +30,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-19 | harness-usage-and-tiers | requirements | v5 | approved | 5 rounds, iterate throughout then cap hit adjudicated, VERIFIED 2/2 |
 | 2026-09-19 | harness-usage-and-tiers | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-09-21 | harness-usage-and-tiers | tasks | v1 | approved | 1 round, converged clean |
+| 2026-09-21 | harness-usage-and-tiers | implementation | tasks 8/8 | complete | PR #54 checks green; live orchestrator SubagentStop half deferred as d-3091be1c |
 
 ## Current state — 2026-08-04
 
