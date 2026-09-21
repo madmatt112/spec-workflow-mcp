@@ -180,7 +180,7 @@ never read them and never read the document body.
      `sdd-reviser`, spot-check, checkpoint commit `docs(sdd): <SPEC> <PHASE> v(D+1)
      SHOULD_FIX-only corrective pass`, D = D + 1. Run the Lint step. Then Step 4b
      (narrow check on those items), then Step 5. No further review round.
-   - `iterate` with fuel and D ≥ 4 ⇒ Step 4a.
+   - `iterate` with fuel and D ≥ 4 ⇒ **Cap convergence check**.
    - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
 
 ## Step 3 — Revise to v(D+1)
@@ -209,6 +209,17 @@ line, one bullet `- **Ruling — <finding id>: <accepted | rejected>.** <reason>
 a retro-log entry with `retro.sh` (`ruling`). Add the finding to the "Closed by ruling" list in every
 later reviewer prompt and reviser brief for this phase. If you accepted it, it becomes
 a finding for the next reviser brief.
+
+## Cap convergence check
+
+At the cap — an `iterate` with fuel at D ≥ 4 — a converging run earns one more review
+round instead of an adjudicator spawn. Grant it, once per phase, only when the last
+round's `MUST_FIX` count strictly decreased from the round before it (compare the two
+most recent `round` ledger `verdict=` counts, or your per-round task list). When it
+decreased and the extra round is not yet spent: note in your task list that the cap's
+one extra round is spent, then run the **Standoff check** and Step 3 — a normal revise
+and review round. Otherwise — `MUST_FIX` flat or rising, or the extra round already
+spent — go to Step 4a. The extra round still obeys `BUDGET` (Step 2, item 1) (retro P11/G3).
 
 ## Step 4a — Cap: corrective pass at v(D+1)
 

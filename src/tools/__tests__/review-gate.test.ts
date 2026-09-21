@@ -305,5 +305,41 @@ describe('handleGate', () => {
     // its console call is not scanned.
     expect(result.data.hygiene.console ?? 0).toBe(0);
   });
+
+  it('down-ranks a docs-only change to medium and records the gate review (retro P7)', async () => {
+    await addTask1Log();
+    const bigDoc = Array.from({ length: 250 }, (_, i) => `Paragraph ${i} about the methodology.`).join('\n') + '\n';
+    await fs.mkdir(join(tempDir, 'docs'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'docs/guide.md'), bigDoc);
+
+    const result = await gate({ baseRef: base }, '1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.gate).toBe('pass');
+    expect(result.data.risk).toBe('medium');
+    expect(result.data.touched.paths).toEqual(['docs/guide.md']);
+    expect(result.data.reasons.some((r: string) => r.startsWith('docs-only:'))).toBe(true);
+    // The gate stands as the review, so the verifier is skipped and CI is the net.
+    expect(result.data.recorded).not.toBeNull();
+    const files = await reviewsFiles();
+    const reviewFile = files.find((f) => f.startsWith('review-'));
+    expect(reviewFile).toBeDefined();
+    const md = await fs.readFile(join(specPath, 'reviews', reviewFile!), 'utf-8');
+    expect(md).toContain('risk medium');
+  });
+
+  it('keeps a change high when a non-doc path is in the set (retro P7)', async () => {
+    await addTask1Log();
+    const bigDoc = Array.from({ length: 250 }, (_, i) => `Paragraph ${i}.`).join('\n') + '\n';
+    await fs.mkdir(join(tempDir, 'docs'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'docs/guide.md'), bigDoc);
+    await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+
+    const result = await gate({ baseRef: base }, '1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.risk).toBe('high');
+    expect(result.data.reasons.some((r: string) => r.startsWith('docs-only:'))).toBe(false);
+  });
 });
 
