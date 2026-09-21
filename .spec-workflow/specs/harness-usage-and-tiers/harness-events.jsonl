@@ -94,3 +94,9 @@
 {"ts":"2026-09-20T17:19:38.537Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"tasks spawn 1 terminated by API session limit (429, req_011CfDJo7JhGFKxN5g5dmTfu); re-spawning after reset"}
 {"ts":"2026-09-20T17:19:38.582Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 2","phase":"tasks"}
 {"ts":"2026-09-20T17:20:52.101Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v1"}
+{"ts":"2026-09-20T17:22:49.591Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-21T16:14:26.111Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 2","result":"interrupted","tokens":"unknown","note":"Claude Code session exited during the tasks v1 lint pass; no report"}
+{"ts":"2026-09-21T16:14:26.134Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 3","phase":"tasks"}
+{"ts":"2026-09-21T16:15:44.452Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v1"}
+{"ts":"2026-09-21T16:15:51.570Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-21T16:21:23.500Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
