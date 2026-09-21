@@ -184,17 +184,19 @@ describe('harnessHandler', () => {
     expect(written).toMatch(/Read and obey .*[/\\]agent-rules\.md first\./);
   });
 
-  it('brief fails naming a missing required value and writes no file', async () => {
-    await writeDoc('tasks.md', TASKS);
+  it('brief reports every missing required value in one message and writes no file', async () => {
     await writeAgentRules();
-    const outPath = join(tempDir, 'impl-brief-task-3.md');
+    const outPath = join(tempDir, 'verifier-brief.md');
 
+    // The verifier template requires both `title` and `job`; omit both.
     const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3', values: { path: outPath } },
+      { action: 'brief', specName: SPEC, template: 'verifier', values: { path: outPath } },
       context,
     );
     expect(res.success).toBe(false);
+    // Both missing keys are named together in the one message.
     expect(res.message).toContain('title');
+    expect(res.message).toContain('job');
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 
