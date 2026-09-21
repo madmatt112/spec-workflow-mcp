@@ -174,3 +174,6 @@
 {"ts":"2026-09-21T18:06:20.815Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals"}
 {"ts":"2026-09-21T18:09:32.906Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-retro-analyst"}
 {"ts":"2026-09-21T18:09:51.240Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-retro-analyst","role":"proposals","tokens":"42744"}
+{"ts":"2026-09-21T18:10:07.990Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"retrospective","result":"retro-ready"}
+{"ts":"2026-09-21T18:10:45.715Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready","tokens":"63293"}
+{"ts":"2026-09-21T18:23:32.901Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"retrospective plan APPROVED by Matthew: P3-A, P4-A, P5-A; approved P2, P3, P4, P5, graduation rule 2; P1/P6/P7/P8 no work; graduation rule 1 rejected"}

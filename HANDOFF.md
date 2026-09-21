@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-21, harness v4).** Active spec **`harness-usage-and-tiers`**.
-> Live phase **retrospective**, state **pending**, last result **complete** (tasks 8/8, PR #54 open, e2e VERIFY pass, d-3091be1c deferred).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-usage-and-tiers`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/harness-usage-and-tiers`).
-> A re-run does: dispatches the retrospective orchestrator for `harness-usage-and-tiers`, then the retro conversation and close-out (close-out runs from a `chore/harness-usage-and-tiers-retro` worktree). Human: merge PR #54, then `npm run build`, restart sessions, and re-run deferral d-3091be1c.
+> Live phase **closeout**, state **items 0/5**, last result **approved** (retrospective plan APPROVED; PR #54 merged as d9e6041).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (close-out runs from a `chore/harness-usage-and-tiers-retro` worktree off origin/main, not the merged `feat/harness-usage-and-tiers` one).
+> A re-run does: REQUIRES a restarted session first (the checkout was rebuilt with `npm run build` after PR #54 merged; the new SubagentStop hook and skill text load at session start). Then it enters the `chore/harness-usage-and-tiers-retro` worktree and dispatches the close-out orchestrator for the 5 approved items (P2, P3-A, P4-A, P5-A, graduation rule 2). Human: during that run, verify deferral d-3091be1c (orchestrator spawn.end row carries numeric usage and a model).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -31,6 +31,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-19 | harness-usage-and-tiers | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-09-21 | harness-usage-and-tiers | tasks | v1 | approved | 1 round, converged clean |
 | 2026-09-21 | harness-usage-and-tiers | implementation | tasks 8/8 | complete | PR #54 checks green; live orchestrator SubagentStop half deferred as d-3091be1c |
+| 2026-09-21 | harness-usage-and-tiers | retrospective |  | retro-ready |  |
+| 2026-09-21 | harness-usage-and-tiers | retrospective | plan | approved | 5 items approved (P2, P3-A, P4-A, P5-A, graduation rule 2); P1/P6/P7/P8 accepted no work; graduation rule 1 rejected |
 
 ## Current state — 2026-08-04
 
