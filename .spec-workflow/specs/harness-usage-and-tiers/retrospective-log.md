@@ -53,3 +53,8 @@ Cost: 1 spawn, 0 fix rounds
 SpawnNode usage keys and PHASE_ORDER move; gate low risk, no verifier.
 Evidence: task 2; src/watch/ledger.ts, src/watch/render.ts
 Cost: 1 spawn, 0 fix rounds
+
+## 2026-09-21T17:04:51Z · implementation · task 3 · gotcha
+Profiles loader and render tier line; Component 3 model parts already merged by task 2, scoped to loader+render.
+Evidence: task 3; src/watch/ledger.ts, src/watch/render.ts
+Cost: 1 spawn, 0 fix rounds

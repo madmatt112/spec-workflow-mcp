@@ -301,6 +301,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 2/8; last code commit 647180e; next task 3 |
-| Gotchas | `harness brief` requires a `title` value in addition to `path`; tasks 1-2 gate clean at low risk (no verifier) |
+| State | tasks 3/8; last code commit 91a723a; next task 4 |
+| Gotchas | `harness brief` requires a `title` value in addition to `path`; tasks 1-3 gate clean at low risk (no verifier) |
 | Cut scope | requirements none, design none, tasks none |
