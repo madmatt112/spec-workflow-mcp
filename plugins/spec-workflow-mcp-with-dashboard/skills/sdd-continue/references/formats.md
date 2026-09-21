@@ -190,15 +190,16 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 | `phase.start` | orchestrator, at Step 0 | `phase` (also `closeout`), `mode`, `budget`, `state` (v<N>, tasks a/b or items a/b at entry) |
 | `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |
 | `spawn.start` | plugin hook (`PreToolUse`) for a brief-launched worker; supervisor for an orchestrator | `agent` (e.g. `sdd-reviewer`); `role` — the coarse label the hook takes from the brief filename for a worker, or `<phase> phase, spawn <n>` from the supervisor for an orchestrator |
-| `spawn.end` | plugin hook (`SubagentStop`) for a worker; supervisor for an orchestrator | `agent`; the supervisor's orchestrator row also carries `role`, `result` (the PHASE value) and `tokens` |
-| `spawn.usage` | orchestrator, right after a worker's report | `agent`, `role` (precise, e.g. `review v3`, `implement task 13`, `verify task 13`, `fix ci e2e round 1`, `implement harness batch 1`), `result` (VERDICT / VERIFY / logged line), `tokens` (the `<usage><subagent_tokens>` value from the spawn's task notification, which arrives one tool round after the worker's hand-back, so the row is written after it; `unknown` only when two more tool rounds pass without it; the Agent result carries no footer count, and hook payloads carry no usage), `phase`, `task` or `round` |
+| `spawn.end` | plugin hook (`SubagentStop`) for every `sdd-*` agent | `agent`, `input`, `output`, `cacheWrite`, `cacheRead`, `tokens` (digits or `unknown`), `model` |
+| `spawn.usage` | supervisor for an orchestrator, orchestrator for a worker | `agent`, `role` (precise, e.g. `review v3`, `implement task 13`, `verify task 13`, `fix ci e2e round 1`, `implement harness batch 1`), `result` (VERDICT / VERIFY / logged line), `phase`, `task` or `round`; no `tokens` |
 | `round` | document orchestrator | `phase`, `round`, `verdict` (`iterate 1/1/3` or `converged 0/0/1`), `version` |
 | `task.pick` | implementation or close-out orchestrator | `task` (`<N>` or `P<n>`), `title` |
 | `task.done` | implementation or close-out orchestrator | `task`, `rounds` (implementation), `outcome` (`pass`, `adjudicated`; close-out: `done`, `to-do`, `skipped`) |
 | `note` | any | `text` (rulings, escalations, deviations) |
 
-The supervisor also writes `spawn.start` / `spawn.end` for each orchestrator it spawns
-(`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`).
+The supervisor writes `spawn.start` and `spawn.usage` for each orchestrator it spawns
+(`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`);
+the hook writes each orchestrator's `spawn.end`.
 
 ## Run deregister (`deregister.mjs`)
 

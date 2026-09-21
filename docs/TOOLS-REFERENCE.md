@@ -32,7 +32,7 @@ override when no human is in the loop), see [AUTONOMOUS-USAGE.md](AUTONOMOUS-USA
 | [`log-implementation`](#log-implementation) | Record what a task implemented | Implementation |
 | [`review-task`](#review-task) | Review a task's implementation against its spec | Implementation |
 | [`get-task-review`](#get-task-review) | Retrieve stored task-review findings | Implementation |
-| [`harness`](#harness) | Bookkeeping for the SDD orchestrator skills: `orient` (Step 0 routing state + next step), `brief` (write a worker brief from a template), `phase-log` (regenerate the HANDOFF phase log) | Orchestration (all phases) |
+| [`harness`](#harness) | Bookkeeping for the SDD orchestrator skills: `orient` (Step 0 routing state + next step), `brief` (write a worker brief from a template), `phase-log` (regenerate the HANDOFF phase log), `gate` (carry a human gate's payload), `usage` (tokens and spawns by phase from a ledger) | Orchestration (all phases) |
 
 Origin note: `spec-workflow-guide`, `steering-guide`, `spec-status`, `approvals`,
 and `log-implementation` are inherited from upstream (Pimzino). `decomposition-guide`,
@@ -549,12 +549,12 @@ keys are ignored.
 > **Fork addition.** Not present upstream.
 
 **Purpose**: Bookkeeping the SDD orchestrator skills used to do by hand. One tool,
-three actions. It reads only the resolved spec store through `PathUtils.safeJoin` (the
+five actions. It reads only the resolved spec store through `PathUtils.safeJoin` (the
 pattern `spec-lint` uses) and spawns no child process.
 
-**Parameters**: `action` (req, one of `orient`, `brief`, `phase-log`), `specName`
-(req), plus action-specific fields (`phase`, `mode`, `template`, `taskId`, and the
-values a brief template needs).
+**Parameters**: `action` (req, one of `orient`, `brief`, `phase-log`, `gate`, `usage`),
+`specName` (req), plus action-specific fields (`phase`, `mode`, `template`, `taskId`,
+`op`, `slot`, `payload`, `compareSpecName`, and the values a brief template needs).
 
 **Actions**:
 - `orient` — return the Step 0 routing state and the next step for a spec and phase in
@@ -568,6 +568,13 @@ values a brief template needs).
   block from the server tasks parser.
 - `phase-log` — regenerate the HANDOFF `## Phase log` block for one spec from its
   `phase.end` events.
+- `gate` — carry a human gate's payload across the spec store. Four ops: `class-a`
+  computes the gate-B class (a) veto items; `put`, `get` and `delete` manage the
+  `gate-<slot>.json` payload file for slot `a` or `b`.
+- `usage` — fold one spec's `harness-events.jsonl` into a report of tokens and spawns
+  by phase and agent, with each phase's orchestrator share and any `unknown` marks.
+  Pass `compareSpecName` for a second spec side by side with a per-phase delta of
+  tokens and spawns.
 
 ---
 

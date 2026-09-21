@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildModel, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { buildModel, loadAgentProfiles, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
 
 const HANDOFF = `# HANDOFF
 
@@ -79,6 +82,26 @@ describe('parse helpers', () => {
     expect(formatTokens(950)).toBe('950');
     expect(formatTokens(12_400)).toBe('12k');
     expect(formatTokens(1_250_000)).toBe('1.3M');
+  });
+});
+
+describe('loadAgentProfiles', () => {
+  it('gives {} for a missing candidate and for a malformed one', () => {
+    expect(loadAgentProfiles(['/nonexistent/agent-profiles.json'])).toEqual({});
+    const dir = mkdtempSync(join(tmpdir(), 'profiles-'));
+    const bad = join(dir, 'agent-profiles.json');
+    writeFileSync(bad, 'not json');
+    try {
+      expect(loadAgentProfiles([bad])).toEqual({});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('loads the generated profiles by default', () => {
+    const profiles = loadAgentProfiles();
+    expect(Object.keys(profiles)).toHaveLength(12);
+    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker' });
   });
 });
 
@@ -223,5 +246,29 @@ describe('buildModel', () => {
     expect(m.phases).toHaveLength(3);
     expect(m.spawns).toEqual([]);
     expect(m.hasActivity).toBe(false);
+  });
+
+  it('carries the hook usage keys from a spawn.end onto the spawn node', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', model: 'claude-opus-4-8', input: '10000', output: '4000', cacheWrite: '30000', cacheRead: '40000', tokens: '84000' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const impl = m.spawns[1];
+    expect(impl.model).toBe('claude-opus-4-8');
+    expect(impl.input).toBe(10_000);
+    expect(impl.output).toBe(4_000);
+    expect(impl.cacheWrite).toBe(30_000);
+    expect(impl.cacheRead).toBe(40_000);
+    expect(impl.tokens).toBe(84_000);
+    expect(m.tokensTotal).toBe(84_000);
+  });
+
+  it('keeps a digit-string spawn.end tokens over a later folded spawn.usage', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' });
+    ev.push({ ts: '2026-09-12T19:10:01.000Z', run: 'run-2', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 3 (v2)', result: 'logged: yes/3', tokens: '1', phase: 'implementation', task: '3' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const impl = m.spawns[1];
+    expect(impl.tokens).toBe(84_000);
+    expect(m.tokensTotal).toBe(84_000);
   });
 });

@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { runWatch } from '../index.js';
+
+const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '../../__tests__/fixtures/usage-ledger.jsonl');
 
 /** Just enough of a raw-mode TTY to drive the key loop and observe its release. */
 class FakeTty extends EventEmitter {
@@ -30,6 +33,15 @@ function specStore(): string {
   const wf = join(root, '.spec-workflow');
   mkdirSync(join(wf, 'specs', 's'), { recursive: true });
   writeFileSync(join(wf, 'specs', 's', 'tasks.md'), '# Tasks\n- [ ] 1. One\n');
+  return wf;
+}
+
+/** A temp store holding the committed fixture as the `usage-fixture` spec's ledger (D8). */
+function fixtureStore(): string {
+  const root = mkdtempSync(join(tmpdir(), 'sdd-watch-'));
+  const wf = join(root, '.spec-workflow');
+  mkdirSync(join(wf, 'specs', 'usage-fixture'), { recursive: true });
+  copyFileSync(FIXTURE, join(wf, 'specs', 'usage-fixture', 'harness-events.jsonl'));
   return wf;
 }
 
@@ -65,5 +77,19 @@ describe('runWatch', () => {
     await runWatch({ workflowRoot: specStore(), specName: 's', once: true, color: false, out: out as unknown as NodeJS.WriteStream, input: input as unknown as NodeJS.ReadStream });
     expect(input.raw).toBeUndefined();
     expect(out.chunks.join('')).toContain('no harness-events.jsonl');
+  });
+
+  it('renders the fixture --once frame with the live phase and orchestrator tier line', async () => {
+    const input = new FakeTty();
+    const out = new FakeOut();
+    await runWatch({ workflowRoot: fixtureStore(), specName: 'usage-fixture', once: true, color: false, out: out as unknown as NodeJS.WriteStream, input: input as unknown as NodeJS.ReadStream });
+    const frame = out.chunks.join('');
+    expect(frame).toContain('tokens 1.6M');
+    expect(frame).toContain('+ sdd-document-orchestrator');
+    expect(frame).toContain('requirements phase, spawn 2');
+    expect(frame).toContain('1.0M tok');
+    expect(frame).toContain('declared claude-opus-4-8 high');
+    expect(frame).toContain('actual claude-opus-4-8');
+    expect(frame).not.toContain('!=');
   });
 });

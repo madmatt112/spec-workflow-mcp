@@ -18,6 +18,8 @@ const ROOT = path.resolve(__dirname, '..');
 const SOURCE = path.join(ROOT, 'harness');
 const PLUGINS_DIR = path.join(ROOT, 'plugins');
 const ASSET_DIRS = ['agents', 'skills', 'commands', 'hooks'];
+const AGENTS_DIR = path.join(SOURCE, 'agents');
+const PROFILES_PATH = path.join(SOURCE, 'agent-profiles.json');
 
 function listFiles(dir, base = dir) {
   if (!fs.existsSync(dir)) return [];
@@ -71,6 +73,60 @@ function syncAssetDir(assetDir, pluginRoot) {
   return listFiles(src).length;
 }
 
+/**
+ * Build the agent-profiles.json text from the twelve agent frontmatters.
+ * For each harness/agents/*.md in sorted order, read the lines between the first
+ * two `---`, split each on its first `:`, take `model` and `effort` as written
+ * ("" when missing), derive `role` from the description (the capture of
+ * /^SDD ([^:]+):/) else the name without `sdd-`. A file without `name` is skipped
+ * with one stderr line. Returns `{ model, effort, role }` per name, keys sorted,
+ * serialised with a trailing newline so repeated runs are byte-identical.
+ */
+function buildProfiles() {
+  const files = fs.readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).sort();
+  const profiles = {};
+  for (const file of files) {
+    const lines = fs.readFileSync(path.join(AGENTS_DIR, file), 'utf8').split('\n');
+    if (lines[0].trim() !== '---') continue;
+    const end = lines.indexOf('---', 1);
+    if (end === -1) continue;
+    const front = {};
+    for (const line of lines.slice(1, end)) {
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      front[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+    }
+    if (!front.name) {
+      console.error(`skipping ${path.relative(ROOT, path.join(AGENTS_DIR, file))}: no name in frontmatter`);
+      continue;
+    }
+    const model = front.model || '';
+    const effort = front.effort || '';
+    const match = /^SDD ([^:]+):/.exec(front.description || '');
+    const role = match ? match[1] : front.name.replace(/^sdd-/, '');
+    profiles[front.name] = { model, effort, role };
+  }
+  return JSON.stringify(profiles, null, 2) + '\n';
+}
+
+function syncProfiles(checkOnly) {
+  const rel = path.relative(ROOT, PROFILES_PATH);
+  const expected = Buffer.from(buildProfiles());
+  if (checkOnly) {
+    const current = fs.existsSync(PROFILES_PATH) ? fs.readFileSync(PROFILES_PATH) : null;
+    if (!current || !current.equals(expected)) {
+      console.log(`✘ ${rel}`);
+      return true;
+    }
+    console.log(`✔ ${rel}`);
+    return false;
+  }
+  fs.writeFileSync(PROFILES_PATH, expected);
+  const count = Object.keys(JSON.parse(expected.toString())).length;
+  console.log(`✔ ${rel} (${count} agent(s))`);
+  return false;
+}
+
 function main() {
   const checkOnly = process.argv.includes('--check');
   const roots = pluginRoots();
@@ -98,6 +154,8 @@ function main() {
       }
     }
   }
+
+  if (syncProfiles(checkOnly)) drift = true;
 
   if (checkOnly && drift) {
     console.log('\nPlugin assets are out of sync with harness/. Run "npm run sync:plugin-assets".');

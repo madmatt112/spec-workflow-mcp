@@ -211,13 +211,9 @@ followed by the report contract from `references/formats.md`, verbatim, and the 
 `Report exactly in that contract. Never paste file contents.`
 
 Before each spawn: `bash <event.sh> spawn.start agent=<agent> "role=<phase> phase, spawn <n>"
-phase=<phase>`. After the report: `bash <event.sh> spawn.end agent=<agent> "role=…"
-result=<PHASE value> tokens=<n>`, where `<n>` is the `<usage><subagent_tokens>` value in
-the task notification that reports this spawn finished (the Agent result carries no
-footer count any more). That notification arrives one tool round AFTER the
-orchestrator's hand-back message, so write `spawn.end` after it lands, not on the
-hand-back: act on the report first (its `PHASE:` line, the HANDOFF row), then write the
-row. Only when two further tool rounds pass with no notification write `tokens=unknown`.
+phase=<phase>`. After the report the supervisor writes `bash <event.sh> spawn.usage
+agent=<agent> "role=<phase> phase, spawn <n>" result=<PHASE value>`; the hook writes the
+orchestrator's `spawn.end` (Requirement 2.3).
 
 **Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
 agents live (the checkout's `harness/agents/` when linked, the marketplace source

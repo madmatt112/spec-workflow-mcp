@@ -285,7 +285,9 @@ Keep it short and imperative. Every worker reads it on every spawn.
 
 | Role | Model | Effort |
 | --- | --- | --- |
-| Supervisor (main session), the four orchestrators, `sdd-drafter`, `sdd-adjudicator`, `sdd-retro-analyst` | Fable 5.1 (`claude-fable-5-1`) | xhigh |
+| Supervisor (main session, no agent file, outside the generated profiles) | the session's model, at least Fable 5.1 (`claude-fable-5-1`) | the session's effort |
+| Orchestrators (four), `sdd-retro-analyst` | Opus 4.8 (`claude-opus-4-8`) | high |
+| `sdd-drafter`, `sdd-adjudicator` | Fable 5.1 (`claude-fable-5-1`) | xhigh |
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
 | `sdd-reviser`, `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
 
@@ -293,9 +295,12 @@ The reviser dispositions a numbered list and edits in place; the checker verifie
 list of items. Both are narrow, well-specified jobs, so a Sonnet-class model at high
 effort does them. The open-ended roles (review, implement, verify) stay on Opus.
 
-Models are pinned in each agent's frontmatter with full model ids. Skills never pass a
-`model` parameter to the Agent tool and never use `subagent_type: fork` (a fork runs
-on the parent's model). The `opus` alias is never used: it resolves to the newest Opus.
+Models are pinned in each agent's frontmatter with full model ids. `scripts/sync-plugin-assets.cjs`
+reads that frontmatter into `harness/agent-profiles.json`, the generated source the watch
+view reads for the orchestrators, the analyst and the workers; CI's `check:plugin-assets`
+fails when it drifts. Skills never pass a `model` parameter to the Agent tool and never use
+`subagent_type: fork` (a fork runs on the parent's model). The `opus` alias is never used:
+it resolves to the newest Opus.
 
 ## Watching a run
 
@@ -323,9 +328,9 @@ Two append-only files under the spec directory feed it, both committed with the 
   and for sessions without an active run, so it costs nothing outside the harness.
 
 Phases that finished before a ledger existed come from `HANDOFF.md`'s `## Phase log`, so a
-spec built before 5.3.0 still shows its history. Token counts are the ones the orchestrators
-record on `spawn.end` from the Agent result (hook payloads carry no usage); there is no
-dollar estimate.
+spec built before 5.3.0 still shows its history. The `SubagentStop` hook measures each
+spawn's tokens from the transcript and writes them on its `spawn.end` row; the watch header
+sums them, and `harness usage` splits them by kind; there is no dollar estimate.
 
 ## Developing the harness
 

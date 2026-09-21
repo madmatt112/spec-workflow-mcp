@@ -32,11 +32,9 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
   never a heredoc; write scripts with the Write tool.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces):
-  `phase.start phase=retrospective` after the preconditions, `spawn.start` / `spawn.end`
-  around the analyst (`agent=sdd-retro-analyst role=proposals`, `tokens=<n>` from the
-  `<usage><subagent_tokens>` value in the spawn's task notification on `spawn.end`;
-  that notification lands one tool round after the analyst's hand-back, so write the
-  row after it, `unknown` only if two more tool rounds pass without it), `phase.end phase=retrospective
+  `phase.start phase=retrospective` after the preconditions, `spawn.start` before and
+  `spawn.usage` (`agent=sdd-retro-analyst role=proposals result=<one line>`) after the
+  analyst; the hook writes its `spawn.end`. Then `phase.end phase=retrospective
   result=retro-ready` before the report. `EVENT_SCRIPT` missing or not readable: skip the
   ledger and say so in your report; never let it stop the phase.
 
