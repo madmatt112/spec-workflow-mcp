@@ -12,21 +12,22 @@ import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
+import { buildUsageReport, usageDelta, formatUsageTable } from '../watch/usage.js';
 
 /**
- * The `harness` tool (design Components 1-4). One tool, four actions:
+ * The `harness` tool (design Components 1-6). One tool, five actions:
  * `orient` returns the Step 0 state and the next step the SDD orchestrator
  * skills compute by hand today; `brief` writes a worker brief from a named
  * template; `phase-log` regenerates the HANDOFF `## Phase log` rows; `gate`
  * carries the two human gates' payloads across the spec store (design Component
- * 2). It reads only under the resolved spec store through `PathUtils.safeJoin`
- * (the pattern `spec-lint` uses) and spawns no child process. `brief` fills a
- * named server template and writes the worker brief; `phase-log` regenerates
- * the HANDOFF `## Phase log` block for one spec from its `phase.end` events.
+ * 2); `usage` folds one or two ledgers into the tokens-and-spawns-by-phase
+ * report the step-4 measurement produces (design Component 6). It reads only
+ * under the resolved spec store through `PathUtils.safeJoin` (the pattern
+ * `spec-lint` uses) and spawns no child process.
  */
 export const harnessTool: Tool = {
   name: 'harness',
-  description: `SDD harness bookkeeping: orient, brief, phase-log and gate for the orchestrator skills.
+  description: `SDD harness bookkeeping: orient, brief, phase-log, gate and usage for the orchestrator skills.
 
 # Instructions
 Call \`orient\` at Step 0 to get the routing state and the next step for a spec and phase
@@ -37,18 +38,24 @@ next step. For \`implementation\` it returns the task counts and the next step; 
 \`closeout\` the plan item counts, the open items by target class, and the next step. Call
 \`gate\` to carry a human gate's payload across the spec store: \`class-a\` computes the
 gate-B class (a) veto items, \`put\`/\`get\`/\`delete\` manage the \`gate-<slot>.json\` file.
-The tool reads only the spec store; it never spawns a process.`,
+Call \`usage\` to fold one spec's \`harness-events.jsonl\` into a report of tokens and spawns
+by phase and agent; pass \`compareSpecName\` for a second spec side by side with a per-phase
+delta. The tool reads only the spec store; it never spawns a process.`,
   inputSchema: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['orient', 'brief', 'phase-log', 'gate'],
+        enum: ['orient', 'brief', 'phase-log', 'gate', 'usage'],
         description: 'Which harness action to run',
       },
       specName: {
         type: 'string',
         description: 'Name of the specification (kebab-case)',
+      },
+      compareSpecName: {
+        type: 'string',
+        description: 'Second spec for a side-by-side usage table (usage action)',
       },
       phase: {
         type: 'string',
@@ -115,8 +122,10 @@ export async function harnessHandler(args: any, context: ToolContext): Promise<T
       return phaseLogAction(args, context);
     case 'gate':
       return gateAction(args, context);
+    case 'usage':
+      return usageAction(args, context);
     default:
-      return { success: false, message: `Unknown action: ${action}. Use 'orient', 'brief', 'phase-log', or 'gate'.` };
+      return { success: false, message: `Unknown action: ${action}. Use 'orient', 'brief', 'phase-log', 'gate', or 'usage'.` };
   }
 }
 
@@ -990,4 +999,79 @@ async function gateClassA(args: any, context: ToolContext): Promise<ToolResponse
     message: `gate class-a: ${items.length} item(s) from ${tasks.length} task(s)`,
     data: { items },
   };
+}
+
+// --- usage --------------------------------------------------------------------
+
+/**
+ * Read one spec's ledger events under the spec store (design Component 6). The
+ * spec dir must exist — a missing one is an error naming the path — and a missing
+ * `harness-events.jsonl` is an empty ledger, the same read pattern `phase-log`
+ * uses (`:664-683`). A `safeJoin` throw (a traversing spec name) is caught and
+ * returned as the error naming the path (design Error Handling 6).
+ */
+async function readSpecLedger(
+  workflowRoot: string, specName: string,
+): Promise<{ events: LedgerEvent[] } | { error: string }> {
+  let specDir: string;
+  let ledgerPath: string;
+  try {
+    specDir = PathUtils.getSpecPath(workflowRoot, specName);
+    ledgerPath = PathUtils.safeJoin(specDir, 'harness-events.jsonl');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Failed to resolve ledger for ${specName}: ${message}` };
+  }
+
+  // The spec directory must exist; a missing one is an error naming the path.
+  try {
+    const s = await stat(specDir);
+    if (!s.isDirectory()) throw new Error('not a directory');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Failed to read ${specDir}: ${message}` };
+  }
+
+  // The spec's ledger; a missing file is an empty ledger (Req 5.8).
+  let ledgerText: string | undefined;
+  try {
+    ledgerText = await readFile(ledgerPath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to read ${ledgerPath}: ${message}` };
+    }
+    ledgerText = undefined;
+  }
+
+  return { events: parseJsonl<LedgerEvent>(ledgerText) };
+}
+
+/**
+ * `usage` action (design Component 6): fold one spec's ledger into the
+ * tokens-and-spawns-by-phase report, or two specs into a side-by-side table with
+ * a per-phase delta when `compareSpecName` is given (Req 5.7). Read-only; spawns
+ * no process. `compare` and `delta` sit on `data` only for two specs.
+ */
+async function usageAction(args: any, context: ToolContext): Promise<ToolResponse> {
+  const { specName, compareSpecName } = args;
+  const { workflowRoot } = selectRoots(args, context);
+
+  const primary = await readSpecLedger(workflowRoot, specName);
+  if ('error' in primary) return { success: false, message: primary.error };
+  const report = buildUsageReport(primary.events, specName);
+
+  if (typeof compareSpecName === 'string' && compareSpecName.length > 0) {
+    const second = await readSpecLedger(workflowRoot, compareSpecName);
+    if ('error' in second) return { success: false, message: second.error };
+    const compare = buildUsageReport(second.events, compareSpecName);
+    const delta = usageDelta(report, compare);
+    return {
+      success: true,
+      message: formatUsageTable(report, compare),
+      data: { report, compare, delta },
+    };
+  }
+
+  return { success: true, message: formatUsageTable(report), data: { report } };
 }
