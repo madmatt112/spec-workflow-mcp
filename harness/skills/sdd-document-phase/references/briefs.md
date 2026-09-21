@@ -153,7 +153,11 @@ verdict block). Append:
   the clause. A finding that re-flags a cross-artifact seam an earlier round already
   raised — a producer-to-consumer wire, or an acceptance criterion that contradicts the
   component that implements it — is marked `Compounds: R<k>-<n>` for the round `k` that
-  first raised that seam.>
+  first raised that seam. Label each round-<A> MUST_FIX `fix-induced` when the last
+  delta introduced it (a `Compounds` finding is fix-induced) or `carried` when it is a
+  pre-existing defect the last fix did not touch, so the orchestrator sees which
+  MUST_FIX the last fix created; the label is guidance and does not change the round
+  budget.>
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
