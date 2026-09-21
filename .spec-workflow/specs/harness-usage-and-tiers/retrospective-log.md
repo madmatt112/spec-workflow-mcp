@@ -108,3 +108,8 @@ Cost: 1 implementer spawn, 0 verifier spawns
 Close-out complete: 4/4 approved proposals landed (P2, P3, P4 incl. graduation candidate 2, P5), 0 to-do, 0 skipped. Plan marked CLOSED. All four are harness-class server/skill changes landed on one branch with one PR. Total spawns: 1 implementer, 0 verifier (every item passed the gate at low risk).
 Evidence: retrospective-plan.md ## Close-out; PR https://github.com/madmatt112/spec-workflow-mcp/pull/56
 Cost: 1 implementer spawn, 0 verifier spawns, 6 gate calls
+
+## 2026-09-21T22:59:47Z · closeout · phase · harness-defect
+d-3091be1c verification FAILED on the first live run after PR #54: the SubagentStop hook wrote the close-out orchestrator's spawn.end with usage summed from the parent session transcript, not the orchestrator's. Row: input 5516, output 430585, cacheWrite 5001644, cacheRead 46447696, tokens 51885441, model claude-fable-5-1+<synthetic>; the orchestrator transcript (agent-a91016c9ea9a0c2d1.jsonl) is 77/77 claude-opus-4-8 and sums to 5843386. The hook reads d.transcript_path (the session file); it needs the subagent's own transcript path from the payload (agent_transcript_path, if present) with transcript_path only as a fallback. Two identical rows were written (22:42:44 and 22:57:47), so the hook also fires twice per orchestrator.
+Evidence: harness-events.jsonl run-20260921-223600 spawn.end rows for sdd-closeout-orchestrator; harness/hooks/sdd-activity.sh readUsage(d.transcript_path)
+Cost: 1 verification pass, 0 spawns

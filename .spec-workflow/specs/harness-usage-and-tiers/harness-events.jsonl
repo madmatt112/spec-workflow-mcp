@@ -199,3 +199,7 @@
 {"ts":"2026-09-21T22:56:36.331Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P3","outcome":"done"}
 {"ts":"2026-09-21T22:56:36.352Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P4","outcome":"done"}
 {"ts":"2026-09-21T22:56:36.373Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-09-21T22:57:32.467Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"phase.end","phase":"closeout","result":"closed","state":"items 4/4"}
+{"ts":"2026-09-21T22:57:47.983Z","type":"spawn.end","run":"run-20260921-223600","spec":"harness-usage-and-tiers","agent":"sdd-closeout-orchestrator","input":"5516","output":"430585","cacheWrite":"5001644","cacheRead":"46447696","tokens":"51885441","model":"claude-fable-5-1+<synthetic>"}
+{"ts":"2026-09-21T22:59:47.007Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","tokens":"102141"}
+{"ts":"2026-09-21T23:00:07.761Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"run.end","status":"spec-workflow-mcp:harness-usage-and-tiers closeout items 4/4 — CLOSED; PR #56 open (unmerged); d-3091be1c failed verification (hook reads the parent transcript); next run starts harness-control-pane after merge, build, restart"}
