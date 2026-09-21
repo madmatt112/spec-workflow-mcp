@@ -48,6 +48,8 @@
 
 [Every call made on the product's behalf, so a human can confirm or overturn it.]
 
+[In `## Revision History` and decision-log bullets, cite findings by id and prose only. Never write a backticked path, line range or code identifier there; the citation lint does not scan these sections.]
+
 - D1 — [decision]: [options considered]; chosen because [one line]
 - D2 — [decision]: [options considered]; chosen because [one line]
 
