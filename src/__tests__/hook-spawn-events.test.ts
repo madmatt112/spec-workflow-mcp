@@ -69,7 +69,7 @@ describe('sdd-activity.sh spawn events', () => {
   const expectedTokens = expected.input + expected.output + expected.cacheWrite + expected.cacheRead;
   const expectedModel = 'claude-opus-4-8+claude-sonnet-5';
 
-  async function writeTranscript(): Promise<string> {
+  async function writeTranscript(at?: string): Promise<string> {
     const lines = [
       ...usageEntries.map((u) => JSON.stringify({
         type: 'assistant',
@@ -87,8 +87,20 @@ describe('sdd-activity.sh spawn events', () => {
       JSON.stringify({ type: 'assistant', message: { model: 'claude-ignored', content: [] } }),
       '{ torn line — not json',
     ];
-    const p = join(root, 'transcript.jsonl');
+    const p = at ?? join(root, 'transcript.jsonl');
+    await fs.mkdir(dirname(p), { recursive: true });
     await fs.writeFile(p, lines.join('\n') + '\n');
+    return p;
+  }
+
+  // A parent-session transcript with usage that must never be attributed to a worker.
+  async function writeParentTranscript(sessionId: string): Promise<string> {
+    const p = join(root, 'projects', `${sessionId}.jsonl`);
+    await fs.mkdir(dirname(p), { recursive: true });
+    await fs.writeFile(p, JSON.stringify({
+      type: 'assistant',
+      message: { model: 'claude-fable-5-1', usage: { input_tokens: 999999, output_tokens: 999999, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+    }) + '\n');
     return p;
   }
 
@@ -156,14 +168,16 @@ describe('sdd-activity.sh spawn events', () => {
     expect(events[0].input).toBeUndefined();
   });
 
-  it('writes the six usage keys on spawn.end from the transcript (Req 1.2, 1.3, 1.7)', async () => {
-    const transcript_path = await writeTranscript();
+  it('writes the six usage keys on spawn.end from the subagent transcript (Req 1.2, 1.3, 1.7)', async () => {
+    const agent_transcript_path = await writeTranscript();
+    const transcript_path = await writeParentTranscript('s1');
     runHook({
       hook_event_name: 'SubagentStop',
       agent_type: 'spec-workflow-harness:sdd-implementer',
       session_id: 's1',
       agent_id: 'a1',
       transcript_path,
+      agent_transcript_path,
     });
     const events = eventLines();
     expect(events).toHaveLength(1);
@@ -188,11 +202,11 @@ describe('sdd-activity.sh spawn events', () => {
   });
 
   it('writes one spawn.end for an orchestrator on SubagentStop (Req 1.1, 1.8)', async () => {
-    const transcript_path = await writeTranscript();
+    const agent_transcript_path = await writeTranscript();
     runHook({
       hook_event_name: 'SubagentStop',
       agent_type: 'spec-workflow-harness:sdd-implementation-orchestrator',
-      transcript_path,
+      agent_transcript_path,
     });
     const events = eventLines();
     expect(events).toHaveLength(1);
@@ -206,17 +220,56 @@ describe('sdd-activity.sh spawn events', () => {
     });
   });
 
+  it('derives the subagent transcript from transcript_path, session_id and agent_id when agent_transcript_path is absent', async () => {
+    // Claude Code layout: <dir>/<session>.jsonl is the parent; the subagent's own file is
+    // <dir>/<session>/subagents/agent-<agent_id>.jsonl.
+    const transcript_path = await writeParentTranscript('s1');
+    await writeTranscript(join(dirname(transcript_path), 's1', 'subagents', 'agent-a1.jsonl'));
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-closeout-orchestrator',
+      session_id: 's1',
+      agent_id: 'a1',
+      transcript_path,
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'spawn.end',
+      agent: 'sdd-closeout-orchestrator',
+      input: String(expected.input),
+      tokens: String(expectedTokens),
+      model: expectedModel,
+    });
+  });
+
+  it('never sums the parent transcript: no subagent file means tokens=unknown (d-3091be1c)', async () => {
+    const transcript_path = await writeParentTranscript('s1');
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-implementer',
+      session_id: 's1',
+      agent_id: 'a1',
+      transcript_path,
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementer', tokens: 'unknown' });
+    expect(events[0].model).toBeUndefined();
+    expect(activityLines()[0].tokens).toBeUndefined();
+  });
+
   it('writes tokens=unknown for a missing or nonexistent transcript (Req 1.4)', () => {
     // Absent transcript_path.
     runHook({
       hook_event_name: 'SubagentStop',
       agent_type: 'spec-workflow-harness:sdd-implementer',
     });
-    // Nonexistent transcript_path.
+    // Nonexistent agent_transcript_path.
     runHook({
       hook_event_name: 'SubagentStop',
       agent_type: 'spec-workflow-harness:sdd-implementer',
-      transcript_path: join(root, 'does-not-exist.jsonl'),
+      agent_transcript_path: join(root, 'does-not-exist.jsonl'),
     });
     const events = eventLines();
     expect(events).toHaveLength(2);
