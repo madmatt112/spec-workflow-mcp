@@ -201,6 +201,14 @@ The supervisor writes `spawn.start` and `spawn.usage` for each orchestrator it s
 (`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`);
 the hook writes each orchestrator's `spawn.end`.
 
+When an orchestrator is interrupted before it reports and the hook's `spawn.end` never
+fires (an API 429 session limit, the Claude Code process exiting, a manual stop, or a
+context limit), the supervisor writes the `spawn.end` itself in place of the
+`spawn.usage`/hook pair, with `agent`, `result=interrupted`, `tokens=unknown` and
+`note=<cause>; last row <the last ledger event before this spawn>` (for example
+`note=API 429 session limit; last row phase.start design`). The `note` names the cause
+and the last ledger row so a later run can scope a fix.
+
 ## Run deregister (`deregister.mjs`)
 
 At `run.end` the supervisor removes this run's line from the shared pointer file

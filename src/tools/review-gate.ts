@@ -59,7 +59,7 @@ type HygienePattern = HygieneSignal['pattern'];
 /** Response `data` for a gate call (design Data Models). No diff body (1.7). */
 export type GateData = {
   gate: 'pass' | 'fail';
-  risk: 'low' | 'high';
+  risk: 'low' | 'medium' | 'high';
   reasons: string[];
   checks: CheckResult[];
   stats: { filesChanged: number; linesAdded: number; linesRemoved: number } | null;
@@ -84,22 +84,37 @@ function recordedSummary(
   checks: CheckResult[],
   typecheckKind: string,
   hygiene: Partial<Record<HygienePattern, number>>,
+  risk: 'low' | 'medium',
 ): string {
   const passed = checks.filter((c) => c.status === 'pass').length;
   return (
-    `gate pass, risk low: ${stats.filesChanged} files, +${stats.linesAdded}/-${stats.linesRemoved}; ` +
+    `gate pass, risk ${risk}: ${stats.filesChanged} files, +${stats.linesAdded}/-${stats.linesRemoved}; ` +
     `checks ${passed}/${checks.length} pass; typecheck ${typecheckKind}; ` +
     `hygiene console ${hygiene.console ?? 0} todo ${hygiene.todo ?? 0} fixme ${hygiene.fixme ?? 0}`
   );
 }
 
+/**
+ * A documentation path: a Markdown/MDX file, or anything under a `docs/`
+ * directory (retro P7). A change whose whole file set is docs is down-ranked so
+ * the per-task verifier is skipped and CI is the net.
+ */
+function isDocPath(relPath: string): boolean {
+  const p = relPath.replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  if (p.endsWith('.md') || p.endsWith('.mdx')) return true;
+  return p === 'docs' || p.startsWith('docs/') || p.includes('/docs/');
+}
+
 /** `nextSteps` by outcome; the skills route on `gate`/`risk`, this is guidance. */
-function gateNextSteps(gate: 'pass' | 'fail', risk: 'low' | 'high'): string[] {
+function gateNextSteps(gate: 'pass' | 'fail', risk: 'low' | 'medium' | 'high'): string[] {
   if (gate === 'fail') {
     return ['Address the gate reasons, then run the gate again.'];
   }
   if (risk === 'high') {
     return ['Risk is high; spawn sdd-verifier with the gate results.'];
+  }
+  if (risk === 'medium') {
+    return ['Risk is medium (docs-only); the verifier is skipped and CI is the net. The gate recorded the review; mark the task complete.'];
   }
   return ['Risk is low; the gate recorded the review. Mark the task complete.'];
 }
@@ -266,7 +281,7 @@ export async function handleGate(
       missing,
       filesOnly,
     });
-    const risk = filesOnly
+    const scored = filesOnly
       ? { risk: 'low' as const, reasons: [] as string[] }
       : scoreRisk({
           mode,
@@ -281,20 +296,31 @@ export async function handleGate(
           hygieneRejection,
           trivialChange,
         });
+    // Step 8b: down-rank a docs-only change from high to medium (retro P7). When
+    // every touched path is documentation (*.md, *.mdx, docs/**), the per-task
+    // verifier is skipped and CI is the net; any non-doc path keeps it high.
+    let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] } = scored;
+    if (scored.risk === 'high' && touched.length > 0 && touched.every(isDocPath)) {
+      risk = {
+        risk: 'medium',
+        reasons: ['docs-only: every touched path is documentation; verifier skipped, CI is the net', ...scored.reasons],
+      };
+    }
 
     const reasons = [...verdict.reasons, ...risk.reasons].map(truncateLine);
 
-    // Step 9: record a `reviewer: gate` review for a task-mode pass/low only; no
-    // prepare marker is written or checked (5.1).
+    // Step 9: record a `reviewer: gate` review for a task-mode pass at low or the
+    // docs-only medium down-rank (retro P7); both skip the verifier and the gate
+    // stands as the review. No prepare marker is written or checked (5.1).
     const hygiene = filesOnly ? {} : hygieneCounts(hygieneSignals);
     let recorded: { reviewId: string; version: number } | null = null;
-    if (mode === 'task' && verdict.gate === 'pass' && risk.risk === 'low' && stats) {
+    if (mode === 'task' && verdict.gate === 'pass' && risk.risk !== 'high' && stats) {
       const reviewManager = new TaskReviewManager(specPath);
       const review = await reviewManager.saveReview({
         taskId,
         specName,
         verdict: 'pass',
-        summary: recordedSummary(stats, checks, typecheckState.kind, hygiene),
+        summary: recordedSummary(stats, checks, typecheckState.kind, hygiene, risk.risk),
         findings: [],
         reviewer: 'gate',
       });
