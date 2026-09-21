@@ -302,6 +302,7 @@ From implementation:
 | Field | Value |
 | --- | --- |
 | State | implemented 2026-09-21; all 8 tasks `[x]`; last code commit 358f401; e2e VERIFY pass |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/54 |
 | Deferrals | this spec added 1 (d-3091be1c, tagged verification); 14 deferred project-wide |
 | Deferred verification | d-3091be1c — live orchestrator SubagentStop half; re-run after this PR merges, `npm run build`, session restart |
 | Worth next | d-3091be1c (this spec's live half, after merge+restart); d-1880d115 (question-gates gate A/B live scenarios, also needs re-install+restart); d-4c9198e3 (wire review-gate.ts to the P10 prose-paths set) |
