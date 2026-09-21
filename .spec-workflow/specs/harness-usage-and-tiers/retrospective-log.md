@@ -78,3 +78,8 @@ Cost: 1 spawn, 0 fix rounds
 harness usage action + docs; gate low risk, no verifier.
 Evidence: task 6; src/tools/harness.ts, docs/TOOLS-REFERENCE.md
 Cost: 1 spawn, 0 fix rounds
+
+## 2026-09-21T17:44:13Z · implementation · task 7 · gotcha
+SubagentStop hook now sole per-spawn usage writer; sensitive path high risk, verifier VERDICT pass, no findings.
+Evidence: task 7; harness/hooks/sdd-activity.sh
+Cost: 2 spawns (impl+verify), 0 fix rounds
