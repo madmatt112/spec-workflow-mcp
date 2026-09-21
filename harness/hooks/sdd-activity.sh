@@ -47,6 +47,20 @@ function readUsage(p) {
   }
   return seen ? { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+") } : null;
 }
+// The transcript of the subagent itself. On SubagentStop, transcript_path is the PARENT
+// session file, so summing it reports the supervisor usage under the worker name
+// (deferral d-3091be1c). Prefer agent_transcript_path when the payload carries it; else
+// derive the path Claude Code uses: <parent dir>/<session_id>/subagents/agent-<agent_id>.jsonl.
+// Never fall back to transcript_path: a wrong number is worse than "unknown".
+// (This JS sits inside a single-quoted shell string: no apostrophes in comments.)
+function subagentTranscript(d) {
+  const a = d.agent_transcript_path;
+  if (typeof a === "string" && a) return a;
+  const tp = d.transcript_path, sid = d.session_id, aid = d.agent_id;
+  if (typeof tp !== "string" || !tp || !sid || !aid) return null;
+  const path = require("path");
+  return path.join(path.dirname(tp), String(sid), "subagents", "agent-" + String(aid) + ".jsonl");
+}
 const type = String(d.agent_type || "");
 if (!/(^|:)sdd-/.test(type)) process.exit(0);
 const agent = type.slice(type.lastIndexOf(":") + 1);
@@ -77,7 +91,8 @@ if (ev === "PreToolUse") {
   e.event = "agent.start";
 } else if (ev === "SubagentStop") {
   e.event = "agent.stop";
-  u = d.transcript_path ? readUsage(d.transcript_path) : null;
+  const tp = subagentTranscript(d);
+  u = tp ? readUsage(tp) : null;
   if (u) e.tokens = u.tokens;
 } else {
   process.exit(0);
