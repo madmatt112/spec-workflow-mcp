@@ -136,3 +136,9 @@
 {"ts":"2026-09-21T17:19:47.961Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-verifier"}
 {"ts":"2026-09-21T17:20:00.665Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"4","rounds":"0","outcome":"pass"}
 {"ts":"2026-09-21T17:20:10.777Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 4","phase":"implementation","task":"4","result":"VERDICT: pass","tokens":"80257"}
+{"ts":"2026-09-21T17:20:10.819Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.pick","task":"5","title":"Commit fixture ledger and pin usage and watch numbers"}
+{"ts":"2026-09-21T17:20:18.036Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-21T17:28:24.551Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer"}
+{"ts":"2026-09-21T17:28:44.127Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5","tokens":"108964"}
+{"ts":"2026-09-21T17:28:44.147Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 5 pass risk low"}
+{"ts":"2026-09-21T17:28:44.169Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"5","rounds":"0","outcome":"gate"}

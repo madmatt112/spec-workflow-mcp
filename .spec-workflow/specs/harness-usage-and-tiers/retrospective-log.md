@@ -68,3 +68,8 @@ Cost: 2 spawns (impl+verify), 0 fix rounds
 Design rule (c) names a model field the Usage* Data Models and formatUsageTable omit; phantom clause worth trimming in a future design pass.
 Evidence: verifier finding, src/watch/usage.ts:163
 Cost: no rework; info only
+
+## 2026-09-21T17:28:44Z · implementation · task 5 · gotcha
+Fixture ledger and pinned usage/watch numbers; gate low risk, no verifier.
+Evidence: task 5; src/__tests__/fixtures/usage-ledger.jsonl
+Cost: 1 spawn, 0 fix rounds
