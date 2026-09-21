@@ -30,6 +30,15 @@ function warnOnce(key: string, message: string): void {
 
 type HygieneResult = { signals: HygieneSignal[]; rejection?: { message: string } };
 
+/**
+ * The tech steering document is inlined into the prepare response as
+ * `steeringExcerpt`. Over this many bytes it is NOT inlined (retro P5): a large
+ * page (a 74 KB methodology page in the trust-pages run) forced the reviewer to
+ * re-extract it from disk, so past the cap the response carries the file's path
+ * and byte size instead of its contents and the reviewer reads it from disk.
+ */
+export const STEERING_INLINE_CAP_BYTES = 32 * 1024;
+
 export type DiffMethodologyState =
   | { kind: 'present' }
   | { kind: 'present-truncated' }
@@ -605,11 +614,18 @@ async function handlePrepare(
       };
     }
 
-    // 3. Read tech.md steering doc if it exists
+    // 3. Read tech.md steering doc if it exists. Over the inline cap (retro P5)
+    // carry its path and byte size instead of its contents, so the reviewer reads
+    // a large page from disk rather than the tool re-inlining it.
     let steeringExcerpt: string | null = null;
     const steeringPath = PathUtils.getSteeringPath(projectPath);
+    const techPath = `${steeringPath}/tech.md`;
     try {
-      steeringExcerpt = await fs.readFile(`${steeringPath}/tech.md`, 'utf-8');
+      const techContent = await fs.readFile(techPath, 'utf-8');
+      const techBytes = Buffer.byteLength(techContent, 'utf-8');
+      steeringExcerpt = techBytes > STEERING_INLINE_CAP_BYTES
+        ? `The tech steering document was not inlined: it is ${techBytes} bytes at \`${techPath}\`, over the ${STEERING_INLINE_CAP_BYTES}-byte inline cap. Read it from disk at that path.`
+        : techContent;
     } catch {
       // No tech steering doc — that's fine
     }

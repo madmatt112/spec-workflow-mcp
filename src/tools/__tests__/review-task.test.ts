@@ -50,6 +50,7 @@ import {
   NO_REVIEWABLE_FILES_DISCLOSURE,
   NO_FILES_METHODOLOGY_HEADER,
   NO_FILES_DIFF_PREAMBLE,
+  STEERING_INLINE_CAP_BYTES,
   type DiffMethodologyState,
   type TypecheckMethodologyState,
 } from '../review-task.js';
@@ -191,6 +192,37 @@ describe('review-task handler', () => {
         delete process.env.CODE_ROOT;
         await fs.rm(codeRoot, { recursive: true, force: true });
       }
+    });
+
+    it('inlines a small tech.md but returns path + size over the cap (retro P5)', async () => {
+      await createImplLog();
+      const steeringDir = join(tempDir, '.spec-workflow', 'steering');
+      await fs.mkdir(steeringDir, { recursive: true });
+      const techPath = join(steeringDir, 'tech.md');
+
+      // Under the cap: inlined verbatim.
+      const small = '# Tech steering\n\nUse Drizzle for queries.\n';
+      await fs.writeFile(techPath, small);
+      const under = await reviewTaskHandler(
+        { action: 'prepare', specName: 'test-spec', taskId: '1' },
+        context
+      );
+      expect(under.data.steeringExcerpt).toBe(small);
+
+      // Over the cap: the path and byte size, not the contents.
+      const big = '# Tech steering\n' + 'x'.repeat(STEERING_INLINE_CAP_BYTES + 1);
+      const bytes = Buffer.byteLength(big, 'utf-8');
+      await fs.writeFile(techPath, big);
+      const over = await reviewTaskHandler(
+        { action: 'prepare', specName: 'test-spec', taskId: '1' },
+        context
+      );
+      expect(over.data.steeringExcerpt).not.toContain('xxxx');
+      expect(over.data.steeringExcerpt).toContain(`${bytes} bytes`);
+      expect(over.data.steeringExcerpt).toContain(techPath);
+      expect(over.data.steeringExcerpt).toContain('not inlined');
+      // Steering still counts as present, so the tech-stack methodology item fires.
+      expect(over.data.methodology).toContain('tech steering document');
     });
 
     it('should write a prepare marker', async () => {
