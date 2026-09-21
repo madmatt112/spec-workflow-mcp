@@ -60,6 +60,16 @@ if (fs.existsSync(localesSrc)) {
   console.log('✓ Copied locale files');
 }
 
+// Copy agent-profiles.json generated from harness frontmatter
+const profilesSrc = path.join(__dirname, '..', 'harness', 'agent-profiles.json');
+const profilesDest = path.join(__dirname, '..', 'dist', 'agent-profiles.json');
+
+if (fs.existsSync(profilesSrc)) {
+  fs.mkdirSync(path.dirname(profilesDest), { recursive: true });
+  fs.copyFileSync(profilesSrc, profilesDest);
+  console.log('✓ Copied agent-profiles.json');
+}
+
 // Copy icons from old dashboard (we still need these)
 const iconsSrc = path.join(__dirname, '..', 'src', 'dashboard', 'public');
 const publicDest = path.join(__dirname, '..', 'dist', 'dashboard', 'public');
