@@ -169,3 +169,8 @@
 {"ts":"2026-09-21T17:59:56.039Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"e2e VERIFY pass; live orchestrator SubagentStop half deferred as d-3091be1c (verification tag)"}
 {"ts":"2026-09-21T18:03:15.143Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"implementation","result":"complete","state":"tasks 8/8","note":"PR #54 checks green; live orchestrator SubagentStop half deferred as d-3091be1c"}
 {"ts":"2026-09-21T18:03:56.544Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 1","result":"complete","tokens":"157564"}
+{"ts":"2026-09-21T18:03:56.610Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","phase":"retrospective"}
+{"ts":"2026-09-21T18:04:29.195Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"retrospective"}
+{"ts":"2026-09-21T18:06:20.815Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals"}
+{"ts":"2026-09-21T18:09:32.906Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-retro-analyst"}
+{"ts":"2026-09-21T18:09:51.240Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-retro-analyst","role":"proposals","tokens":"42744"}

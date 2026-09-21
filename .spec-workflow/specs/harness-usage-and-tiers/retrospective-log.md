@@ -93,3 +93,8 @@ Cost: 1 extra gate call, no worker respawn
 Phase complete: 8/8 tasks, 0 fix rounds, 0 adjudications. 11 worker spawns (8 implementers, 2 task verifiers, 1 e2e verifier). Tasks 4 and 7 hit the high-risk gate (line-count, sensitive path); both verifiers passed. 1 deferral added (d-3091be1c, verification). e2e VERIFY pass with the live orchestrator SubagentStop half deferred.
 Evidence: tasks.md all [x]; retrospective-log.md
 Cost: 11 spawns, 1 extra gate call on task 8
+
+## 2026-09-21T18:10:02Z · retrospective · phase · cleanup
+Retrospective compiled: 8 findings across gotchas, tool deficiency, harness defect, inefficiencies, doc gap, rulings and a harness-made decision; 2 repeat patterns (plugins/ mirror in gate files list x4 specs; citation-identifier lint churn x5 specs). Analyst wrote 8 proposals (P1-P8), 3 decisions needed, 2 graduation candidates.
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 analyst spawn (42744 tokens)
