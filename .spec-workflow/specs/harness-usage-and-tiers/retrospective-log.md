@@ -43,3 +43,8 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory 0/0/2 → converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790008612021_brp2i8273; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 1 reviser spawns
+
+## 2026-09-21T16:49:44Z · implementation · task 1 · gotcha
+Generated agent-profiles.json builder; clean, gate low risk, no verifier.
+Evidence: task 1; scripts/sync-plugin-assets.cjs, harness/agent-profiles.json
+Cost: 1 spawn, 0 fix rounds

@@ -6,7 +6,7 @@ This spec makes the plugin `SubagentStop` hook the single writer of per-spawn us
 
 Dependency order: task 1 generates `harness/agent-profiles.json`, which task 3's loader reads under vitest; task 2 adds the `SpawnNode` fields and moves the `PHASE_ORDER` export that tasks 3 and 4 read; task 3 replaces the hand-kept table and the agent head line together, because `src/watch/__tests__/render.test.ts` asserts the model column and the layout in one regex; task 4 is a pure module with its own test; task 5 commits the fixture and its watch assertion, which need tasks 3 and 4; task 6 wires the tool over task 4 and reads task 5's fixture; task 7 (hook) and task 8 (skills, formats, docs) are build-independent of `src/` and land in the same PR so no session sees the supervisor and the hook both writing an orchestrator `spawn.end`. Each code task leaves `npx tsc --noEmit` clean and every existing suite green: tasks 1, 2, 4, 5 and 6 are additive; task 3 rewrites the three render assertions it changes; task 7 inverts the one hook case Requirement 1.8 names; task 8 is verified by its sync, schema and grep checks.
 
-- [ ] 1. Generate `harness/agent-profiles.json` from the agent frontmatter and ship it in `dist/`
+- [x] 1. Generate `harness/agent-profiles.json` from the agent frontmatter and ship it in `dist/`
   - File: scripts/sync-plugin-assets.cjs
   - File: scripts/copy-static.cjs
   - File: harness/agent-profiles.json

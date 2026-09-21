@@ -296,3 +296,11 @@ From implementation:
 | Cut scope | none; `spec-lint` coverage-component check clean, reviewer found no task-to-design gaps |
 | Carried items | none (converged on round 1, no cap adjudication) |
 | Next phase loads | after `codebase-context.md`: this spec's `tasks.md` (8 tasks in dependency order, each with a `_Prompt:` line) and `design.md`; the implementer works each task's prompt against the merged code, not against pinned cross-task signatures |
+
+## harness-usage-and-tiers — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/8; last code commit 1cbd6cd; next task 2 |
+| Gotchas | `harness brief` requires a `title` value in addition to `path`; task 1 gate clean at low risk (no verifier) |
+| Cut scope | requirements none, design none, tasks none |
