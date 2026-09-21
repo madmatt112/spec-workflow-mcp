@@ -48,3 +48,8 @@ Cost: 1 reviewer + 1 reviser spawns
 Generated agent-profiles.json builder; clean, gate low risk, no verifier.
 Evidence: task 1; scripts/sync-plugin-assets.cjs, harness/agent-profiles.json
 Cost: 1 spawn, 0 fix rounds
+
+## 2026-09-21T16:55:53Z · implementation · task 2 · gotcha
+SpawnNode usage keys and PHASE_ORDER move; gate low risk, no verifier.
+Evidence: task 2; src/watch/ledger.ts, src/watch/render.ts
+Cost: 1 spawn, 0 fix rounds
