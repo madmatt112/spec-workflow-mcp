@@ -179,3 +179,23 @@
 {"ts":"2026-09-21T18:23:32.901Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"retrospective plan APPROVED by Matthew: P3-A, P4-A, P5-A; approved P2, P3, P4, P5, graduation rule 2; P1/P6/P7/P8 no work; graduation rule 1 rejected"}
 {"ts":"2026-09-21T18:24:13.146Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"run.end","status":"spec-workflow-mcp:harness-usage-and-tiers closeout items 0/5 — plan APPROVED, checkout merged (#54) and rebuilt; restart the session, then continue the sdd process to run close-out"}
 {"ts":"2026-09-21T22:37:05.030Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"run.start","model":"claude-fable-5-1","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-usage-and-tiers-retro","worktree":"yes","headless":"no"}
+{"ts":"2026-09-21T22:37:05.105Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-09-21T22:40:34.424Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"phase.start","phase":"closeout","state":"items 0/4"}
+{"ts":"2026-09-21T22:41:04.763Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.pick","task":"P2","title":"Report every missing brief placeholder in one message"}
+{"ts":"2026-09-21T22:41:04.783Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.pick","task":"P3","title":"Stop gate flagging regenerated plugins mirror copies"}
+{"ts":"2026-09-21T22:41:04.804Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.pick","task":"P4","title":"Exempt Revision History/decision-log bullets from citation lint"}
+{"ts":"2026-09-21T22:41:04.825Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.pick","task":"P5","title":"Adjudicate a requirement that circles a fixture"}
+{"ts":"2026-09-21T22:42:40.661Z","type":"spawn.start","run":"run-20260921-223600","spec":"harness-usage-and-tiers","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-21T22:42:44.281Z","type":"spawn.end","run":"run-20260921-223600","spec":"harness-usage-and-tiers","agent":"sdd-closeout-orchestrator","input":"5516","output":"430585","cacheWrite":"5001644","cacheRead":"46447696","tokens":"51885441","model":"claude-fable-5-1+<synthetic>"}
+{"ts":"2026-09-21T22:53:55.897Z","type":"spawn.end","run":"run-20260921-223600","spec":"harness-usage-and-tiers","agent":"sdd-implementer","input":"5516","output":"430585","cacheWrite":"5001644","cacheRead":"46447696","tokens":"51885441","model":"claude-fable-5-1+<synthetic>"}
+{"ts":"2026-09-21T22:54:19.526Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"all 4 done (P2 94396b2, P3 f4bd289, P4 4e7f716, P5 098f409)"}
+{"ts":"2026-09-21T22:55:41.289Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-09-21T22:55:41.309Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-21T22:55:41.328Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P4 fail risk low (spurious file-outside-list from orchestrator files arg; re-gating with exact paths)"}
+{"ts":"2026-09-21T22:55:41.348Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P5 fail risk low (spurious file-outside-list from orchestrator files arg; re-gating with exact paths)"}
+{"ts":"2026-09-21T22:56:06.005Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-09-21T22:56:06.025Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"note","text":"gate: item P5 pass risk low"}
+{"ts":"2026-09-21T22:56:36.311Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-09-21T22:56:36.331Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-21T22:56:36.352Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-09-21T22:56:36.373Z","run":"run-20260921-223600","spec":"harness-usage-and-tiers","type":"task.done","task":"P5","outcome":"done"}

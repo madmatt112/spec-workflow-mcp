@@ -1,6 +1,6 @@
 # Retrospective plan — harness-usage-and-tiers
 
-Status: APPROVED
+Status: CLOSED
 Approved: 2026-09-21 by Matthew in the retro conversation (run run-20260919-143236).
 Source: `retrospective.md` and `retrospective-proposals.md` in this directory.
 
@@ -99,3 +99,13 @@ Source: `retrospective.md` and `retrospective-proposals.md` in this directory.
   spec's `harness-events.jsonl` carries numeric input, output, cacheWrite, cacheRead,
   tokens and a model string, with tokens equal to the sum of `message.usage` over the
   orchestrator transcript's assistant entries. Human action item; not a close-out item.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P2: done — 94396b2
+- P3: done — f4bd289
+- P4: done — 4e7f716
+- P5: done — 098f409
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/56

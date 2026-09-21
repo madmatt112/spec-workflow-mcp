@@ -311,3 +311,15 @@ From implementation:
 | Worth next | d-3091be1c (this spec's live half, after merge+restart); d-1880d115 (question-gates gate A/B live scenarios, also needs re-install+restart); d-4c9198e3 (wire review-gate.ts to the P10 prose-paths set) |
 | Gotchas | `harness brief` needs `title` beside `path`, and `job` for the verifier template; a `harness/` task mirrors into three `plugins/` trees, so the gate `files` list must include every `plugins/` copy or it fails `file-outside-list` (task 8, one extra gate call); task 4 and 7 gates were high risk (line-count, sensitive path) — both verifiers passed |
 | Cut scope | requirements none, design none, tasks none |
+
+## harness-usage-and-tiers — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED 2026-09-21; retrospective-plan.md marked CLOSED; 4/4 items done, 0 to-do, 0 skipped |
+| Items | P2 94396b2; P3 f4bd289; P4 4e7f716 (incl. graduation candidate 2); P5 098f409 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/56 (branch `chore/harness-usage-and-tiers-retro`) — NOT merged |
+| Spawns | 1 implementer, 0 verifier (all four are harness items that passed the gate at low risk) |
+| To-do (human) | Merge PR #56, then `npm run build` + session restart so the P2/P3/P4/P5 server + skill changes go live |
+| Open verification | d-3091be1c (verification) still open — re-run after PR #56 merges, build, restart; human action item, not a close-out item |
+| Gotchas | The `harness` orient class showed `store 1` because the classifier regex (`src/tools/harness.ts:465`, `\brules?\b`) matches `gate-rules.ts`/`tasks-drafter rule` in P3's Target line; P3 is really a `src/core/gate-rules.ts` change, so all four items landed as one harness batch. Gate `files` must be exact file paths, not directory names — P4/P5 first failed `file-outside-list` on directory args, passed on re-gate with the full path list (including the three `plugins/` mirror copies). |

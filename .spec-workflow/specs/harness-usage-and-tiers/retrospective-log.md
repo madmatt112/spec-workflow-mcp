@@ -98,3 +98,13 @@ Cost: 11 spawns, 1 extra gate call on task 8
 Retrospective compiled: 8 findings across gotchas, tool deficiency, harness defect, inefficiencies, doc gap, rulings and a harness-made decision; 2 repeat patterns (plugins/ mirror in gate files list x4 specs; citation-identifier lint churn x5 specs). Analyst wrote 8 proposals (P1-P8), 3 decisions needed, 2 graduation candidates.
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 analyst spawn (42744 tokens)
+
+## 2026-09-21T22:57:01Z · closeout · phase · cleanup
+harness batch 1: 4/4 items done (P2, P3, P4, P5); 0 to-do; 0 skipped. 1 implementer spawn; 0 verifier spawns (all four are harness items that passed the gate at low risk). 6 gate calls: P4 and P5 first failed file-outside-list because the orchestrator passed directory names instead of exact paths, then passed on re-gate with exact paths.
+Evidence: PR https://github.com/madmatt112/spec-workflow-mcp/pull/56; commits 94396b2 f4bd289 4e7f716 098f409
+Cost: 1 implementer spawn, 0 verifier spawns
+
+## 2026-09-21T22:57:32Z · closeout · phase · cleanup
+Close-out complete: 4/4 approved proposals landed (P2, P3, P4 incl. graduation candidate 2, P5), 0 to-do, 0 skipped. Plan marked CLOSED. All four are harness-class server/skill changes landed on one branch with one PR. Total spawns: 1 implementer, 0 verifier (every item passed the gate at low risk).
+Evidence: retrospective-plan.md ## Close-out; PR https://github.com/madmatt112/spec-workflow-mcp/pull/56
+Cost: 1 implementer spawn, 0 verifier spawns, 6 gate calls
