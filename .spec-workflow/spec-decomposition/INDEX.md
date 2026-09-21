@@ -19,7 +19,8 @@
 | 4 | spec-lint | Complete | 12/12 |
 | 5 | harness-bookkeeping | Complete | 8/8 |
 | 6 | question-gates | Complete | 6/6 |
-| 7 | tighter-reviews | Complete | 29/29 |
+| 7 | harness-usage-and-tiers | Complete | 8/8 |
+| 8 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

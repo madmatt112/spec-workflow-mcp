@@ -164,3 +164,6 @@
 {"ts":"2026-09-21T17:51:49.057Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","phase":"implementation","task":"8","result":"logged: yes/8","tokens":"79310"}
 {"ts":"2026-09-21T17:51:49.078Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 8 pass risk low"}
 {"ts":"2026-09-21T17:51:49.100Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-21T17:59:01.665Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-verifier"}
+{"ts":"2026-09-21T17:59:56.018Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","phase":"implementation","result":"VERIFY: pass (deferred d-3091be1c)","tokens":"85034"}
+{"ts":"2026-09-21T17:59:56.039Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"e2e VERIFY pass; live orchestrator SubagentStop half deferred as d-3091be1c (verification tag)"}

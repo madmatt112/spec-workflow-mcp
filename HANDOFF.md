@@ -301,6 +301,9 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 8/8; last code commit 358f401; end-to-end verification next |
-| Gotchas | `harness brief` requires a `title` value in addition to `path`, and `job` for the verifier template; task 4 gate high risk on line-count only (verifier passed) |
+| State | implemented 2026-09-21; all 8 tasks `[x]`; last code commit 358f401; e2e VERIFY pass |
+| Deferrals | this spec added 1 (d-3091be1c, tagged verification); 14 deferred project-wide |
+| Deferred verification | d-3091be1c — live orchestrator SubagentStop half; re-run after this PR merges, `npm run build`, session restart |
+| Worth next | d-3091be1c (this spec's live half, after merge+restart); d-1880d115 (question-gates gate A/B live scenarios, also needs re-install+restart); d-4c9198e3 (wire review-gate.ts to the P10 prose-paths set) |
+| Gotchas | `harness brief` needs `title` beside `path`, and `job` for the verifier template; a `harness/` task mirrors into three `plugins/` trees, so the gate `files` list must include every `plugins/` copy or it fails `file-outside-list` (task 8, one extra gate call); task 4 and 7 gates were high risk (line-count, sensitive path) — both verifiers passed |
 | Cut scope | requirements none, design none, tasks none |
