@@ -1,4 +1,4 @@
-import { AGENT_PROFILES, RunModel, SpawnNode, formatTokens } from './ledger.js';
+import { AGENT_PROFILES, PHASE_ORDER, RunModel, SpawnNode, formatTokens } from './ledger.js';
 
 export interface RenderOptions {
   now: Date;
@@ -56,8 +56,6 @@ function padRight(s: string, width: number): string {
   const visible = stripAnsi(s).length;
   return visible >= width ? s : s + ' '.repeat(width - visible);
 }
-
-const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective', 'closeout'];
 
 export function render(model: RunModel, opts: RenderOptions): string {
   const p = makePalette(opts.color);
@@ -197,11 +195,20 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
   const tokens = s.tokens ? p.dim(`${formatTokens(s.tokens)} tok`) : '';
   // The agent column fits the name shown (one orchestrator or one worker at a time); the
   // role takes what is left of the width after the fixed columns, between 16 and 30
-  // characters, so a line does not wrap.
+  // characters, so a line does not wrap. The declared model and effort drop to a tier line
+  // below, beside the actual model the run used.
   const agentW = Math.max(18, s.agent.length + 1);
-  const roleW = Math.max(16, Math.min(30, width - indent.length - agentW - 46));
-  const head = `${indent}${mark} ${p.bold(padRight(s.agent, agentW))}${padRight(profile?.model ?? '', 11)}${padRight(profile?.effort ?? '', 7)}${padRight(fit(s.role, roleW), roleW + 1)}${padRight(dur, 8)} ${badge} ${tokens}`.trimEnd();
+  const roleW = Math.max(16, Math.min(30, width - indent.length - 2 - agentW - 20));
+  const head = `${indent}${mark} ${p.bold(padRight(s.agent, agentW))}${padRight(fit(s.role, roleW), roleW + 1)}${padRight(dur, 8)} ${badge} ${tokens}`.trimEnd();
   const out = [head];
+  // Tier line: what the agent files declare beside the model the run actually used; ` !=`
+  // marks a substitution. Omitted when neither is known.
+  const declared = profile ? `${profile.model} ${profile.effort}` : '';
+  const actual = fit(s.model ?? '', 30);
+  if (declared || actual) {
+    const flag = profile && s.model && s.model !== profile.model ? ` ${p.bad('!=')}` : '';
+    out.push(`${indent}   ${p.dim('declared')} ${padRight(declared, 23)}${p.dim('actual')} ${actual}${flag}`);
+  }
   if (running && s.lastTool) {
     out.push(`${indent}   ${p.dim(padRight(s.lastTool, 6))} ${fit(s.lastSummary ?? '', width - indent.length - 10)}`);
   } else if (!running && s.result) {

@@ -49,11 +49,14 @@ describe('render', () => {
     expect(out).toContain('+ requirements   v7          approved   7 rounds, converged 0/0/0');
     expect(out).toContain('+ design         v1          approved   converged round 1');
     expect(out).toContain('> implementation tasks 2/8      spawn 1 | since');
-    // Orchestrator: running, its last tool call was 11:45 ago.
-    expect(out).toMatch(/> sdd-implementation-orchestrator\s+fable-5-1\s+xhigh\s+implementation phase, spawn 1\s+11:50\s+\* 11:45/);
+    // Orchestrator: running, its last tool call was 11:45 ago. The head line drops the model
+    // and effort columns; the tier line below shows the declared profile with an empty actual.
+    expect(out).toMatch(/> sdd-implementation-orchestrator\s+implementation phase, spawn 1\s+11:50\s+\* 11:45/);
+    expect(out).toMatch(/declared claude-opus-4-8 high +actual *$/m);
     expect(out).toContain('+ 2 done, last 2  Tables and migration');
     expect(out).toContain('> 3  API errors and query layer');
-    expect(out).toMatch(/> sdd-implementer\s+opus-4-8\s+xhigh\s+implement task 3\s+10:55\s+\* 7:30/);
+    expect(out).toMatch(/> sdd-implementer\s+implement task 3\s+10:55\s+\* 7:30/);
+    expect(out).toMatch(/declared claude-opus-4-8 xhigh +actual *$/m);
     expect(out).toContain('Bash   pnpm vitest run --maxWorkers=2 apps/api/src/features/tags');
     expect(out).toContain('o 4  Tags service');
     expect(out).toContain('... 2 more queued');
@@ -101,7 +104,8 @@ describe('render', () => {
     expect(out).toContain('> sdd-closeout-orchestrator');
     expect(out).toContain('+ 1 done, last P1  Raise the budget');
     expect(out).toContain('> P2 P3  2 items');
-    expect(out).toMatch(/> sdd-implementer\s+opus-4-8\s+xhigh\s+implement harness batch 1/);
+    expect(out).toMatch(/> sdd-implementer\s+implement harness batch 1/);
+    expect(out).toContain('declared claude-opus-4-8 xhigh');
     expect(out).not.toContain('o closeout');
   });
 
@@ -113,6 +117,32 @@ describe('render', () => {
     ];
     const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false });
     expect(out).toContain('spawn.usage sdd-implementer  implement task 3 (v2)  -> logged: yes/3  84k tok');
+  });
+
+  it('flags the actual model on the tier line when it differs from the declared profile', () => {
+    const ledger: LedgerEvent[] = [
+      ...LEDGER,
+      { ts: '2026-09-12T19:06:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', model: 'claude-sonnet-5' },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false });
+    expect(out).toContain('declared claude-opus-4-8 xhigh');
+    expect(out).toContain('actual claude-sonnet-5 !=');
+    const coloured = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: true });
+    expect(coloured).toContain(`${ESC}[31m!=${ESC}[0m`);
+  });
+
+  it('keeps every line within 80 columns and truncates a long joined actual model', () => {
+    const longModel = 'claude-opus-4-8+claude-sonnet-5+claude-fable-5-1';
+    const ledger: LedgerEvent[] = [
+      ...LEDGER,
+      { ts: '2026-09-12T19:06:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', model: longModel },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 80, color: false });
+    for (const line of out.split('\n')) expect(line.length).toBeLessThanOrEqual(80);
+    // fit(model, 30) caps the joined model, so the last member never reaches the screen.
+    expect(out).not.toContain(longModel);
+    expect(out).not.toContain('claude-fable-5-1');
+    expect(out).toContain('~');
   });
 
   it('shows a stopped run', () => {

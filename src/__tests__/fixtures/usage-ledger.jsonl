@@ -1,0 +1,20 @@
+{"ts":"2026-09-20T10:00:00.000Z","type":"run.start","run":"run-20260920-100000","spec":"usage-fixture"}
+{"ts":"2026-09-20T10:00:01.000Z","type":"spawn.start","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-20T10:00:02.000Z","type":"phase.start","run":"run-20260920-100000","spec":"usage-fixture","phase":"requirements","state":"v0"}
+{"ts":"2026-09-20T10:00:03.000Z","type":"spawn.start","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-20T10:00:04.000Z","type":"spawn.end","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-drafter","input":"200000","output":"9120","cacheWrite":"500000","cacheRead":"500000","tokens":"1209120","model":"claude-fable-5-1"}
+{"ts":"2026-09-20T10:00:05.000Z","type":"spawn.usage","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-drafter","role":"drafter","phase":"requirements"}
+{"ts":"2026-09-20T10:00:06.000Z","type":"spawn.start","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-reviewer"}
+{"ts":"2026-09-20T10:00:07.000Z","type":"spawn.end","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-reviewer","tokens":"unknown"}
+{"ts":"2026-09-20T10:00:08.000Z","type":"spawn.usage","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-reviewer","role":"adversarial reviewer","phase":"requirements"}
+{"ts":"2026-09-20T10:00:09.000Z","type":"phase.end","run":"run-20260920-100000","spec":"usage-fixture","phase":"requirements","result":"escalate","state":"v1"}
+{"ts":"2026-09-20T10:00:10.000Z","type":"spawn.end","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-document-orchestrator","input":"300000","output":"36029","cacheWrite":"700000","cacheRead":"700000","tokens":"1736029","model":"claude-opus-4-8"}
+{"ts":"2026-09-20T10:00:11.000Z","type":"spawn.usage","run":"run-20260920-100000","spec":"usage-fixture","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements","result":"escalate"}
+{"ts":"2026-09-20T10:00:12.000Z","type":"run.end","run":"run-20260920-100000","spec":"usage-fixture","status":"escalated"}
+{"ts":"2026-09-20T12:00:00.000Z","type":"run.start","run":"run-20260920-120000","spec":"usage-fixture"}
+{"ts":"2026-09-20T12:00:01.000Z","type":"spawn.start","run":"run-20260920-120000","spec":"usage-fixture","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","phase":"requirements"}
+{"ts":"2026-09-20T12:00:02.000Z","type":"phase.start","run":"run-20260920-120000","spec":"usage-fixture","phase":"requirements","state":"v1"}
+{"ts":"2026-09-20T12:00:03.000Z","type":"spawn.start","run":"run-20260920-120000","spec":"usage-fixture","agent":"sdd-reviser"}
+{"ts":"2026-09-20T12:00:04.000Z","type":"spawn.end","run":"run-20260920-120000","spec":"usage-fixture","agent":"sdd-reviser","input":"100000","output":"4010","cacheWrite":"250000","cacheRead":"250000","tokens":"604010","model":"claude-sonnet-5"}
+{"ts":"2026-09-20T12:00:05.000Z","type":"spawn.usage","run":"run-20260920-120000","spec":"usage-fixture","agent":"sdd-reviser","role":"reviser","phase":"requirements"}
+{"ts":"2026-09-20T12:00:06.000Z","type":"spawn.end","run":"run-20260920-120000","spec":"usage-fixture","agent":"sdd-document-orchestrator","input":"200000","output":"5030","cacheWrite":"400000","cacheRead":"400000","tokens":"1005030","model":"claude-opus-4-8"}

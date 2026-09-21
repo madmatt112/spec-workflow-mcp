@@ -33,6 +33,20 @@ printf '%s' "$IN" | node -e '
 const fs = require("fs");
 let d;
 try { d = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(0); }
+function num(x) { return typeof x === "number" && Number.isFinite(x) ? x : 0; }
+function readUsage(p) {
+  let text; try { text = fs.readFileSync(String(p), "utf8"); } catch { return null; }
+  const s = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, models = []; let seen = 0;
+  for (const line of text.split("\n")) {
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    const u = e && e.type === "assistant" && e.message && e.message.usage;
+    if (!u || typeof u !== "object") continue;
+    seen++; s.input += num(u.input_tokens); s.output += num(u.output_tokens);
+    s.cacheWrite += num(u.cache_creation_input_tokens); s.cacheRead += num(u.cache_read_input_tokens);
+    const m = e.message.model; if (typeof m === "string" && !models.includes(m)) models.push(m);
+  }
+  return seen ? { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+") } : null;
+}
 const type = String(d.agent_type || "");
 if (!/(^|:)sdd-/.test(type)) process.exit(0);
 const agent = type.slice(type.lastIndexOf(":") + 1);
@@ -43,6 +57,7 @@ const e = {
   agentId: d.agent_id,
   agent,
 };
+let u = null;
 const ev = d.hook_event_name;
 if (ev === "PreToolUse") {
   e.event = "tool";
@@ -62,7 +77,8 @@ if (ev === "PreToolUse") {
   e.event = "agent.start";
 } else if (ev === "SubagentStop") {
   e.event = "agent.stop";
-  if (d.usage && typeof d.usage.tokens === "number") e.tokens = d.usage.tokens;
+  u = d.transcript_path ? readUsage(d.transcript_path) : null;
+  if (u) e.tokens = u.tokens;
 } else {
   process.exit(0);
 }
@@ -80,8 +96,15 @@ if (eventsFile) {
       const child = sub.slice(sub.lastIndexOf(":") + 1);
       fs.appendFileSync(eventsFile, JSON.stringify({ ts: e.ts, type: "spawn.start", run, spec, agent: child, role: m[1] }) + "\n");
     }
-  } else if (ev === "SubagentStop" && !/-orchestrator$/.test(agent)) {
-    fs.appendFileSync(eventsFile, JSON.stringify({ ts: e.ts, type: "spawn.end", run, spec, agent }) + "\n");
+  } else if (ev === "SubagentStop") {
+    let row;
+    if (u) {
+      row = { ts: e.ts, type: "spawn.end", run, spec, agent, input: String(u.input), output: String(u.output), cacheWrite: String(u.cacheWrite), cacheRead: String(u.cacheRead), tokens: String(u.tokens) };
+      if (u.model) row.model = u.model;
+    } else {
+      row = { ts: e.ts, type: "spawn.end", run, spec, agent, tokens: "unknown" };
+    }
+    fs.appendFileSync(eventsFile, JSON.stringify(row) + "\n");
   }
 }
 '

@@ -1,0 +1,62 @@
+{
+  "sdd-adjudicator": {
+    "model": "claude-fable-5-1",
+    "effort": "xhigh",
+    "role": "adjudicator"
+  },
+  "sdd-checker": {
+    "model": "claude-sonnet-5",
+    "effort": "high",
+    "role": "checker"
+  },
+  "sdd-closeout-orchestrator": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "close-out orchestrator"
+  },
+  "sdd-document-orchestrator": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "document-phase orchestrator"
+  },
+  "sdd-drafter": {
+    "model": "claude-fable-5-1",
+    "effort": "xhigh",
+    "role": "drafter"
+  },
+  "sdd-implementation-orchestrator": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "implementation-phase orchestrator"
+  },
+  "sdd-implementer": {
+    "model": "claude-opus-4-8",
+    "effort": "xhigh",
+    "role": "implementer"
+  },
+  "sdd-retro-analyst": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "retrospective analyst"
+  },
+  "sdd-retro-orchestrator": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "retrospective orchestrator"
+  },
+  "sdd-reviewer": {
+    "model": "claude-opus-4-8",
+    "effort": "xhigh",
+    "role": "adversarial reviewer"
+  },
+  "sdd-reviser": {
+    "model": "claude-sonnet-5",
+    "effort": "high",
+    "role": "reviser"
+  },
+  "sdd-verifier": {
+    "model": "claude-opus-4-8",
+    "effort": "xhigh",
+    "role": "verifier"
+  }
+}

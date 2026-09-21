@@ -44,10 +44,7 @@ at the start.
 - **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0; one `spawn.usage` right after each worker's report (`agent=`,
-  `role=`, `phase=`, `round=` or `task=`, `result=`, `tokens=<n>` from the `<usage><subagent_tokens>`
-  value in the spawn's task notification; that notification lands one tool round after
-  the worker's hand-back, so do your spot-check first and write the row after it,
-  `unknown` only if two more tool rounds pass without it); `round` after every verdict; `note` for rulings and
+  `role=`, `phase=`, `round=` or `task=`, `result=`); `round` after every verdict; `note` for rulings and
   escalations; `phase.end` right before your final report. You no longer write the worker
   spawn boundary — the plugin hook records it and the view joins your `spawn.usage` to it
   by agent and time window. Event types and keys are listed in the supervisor's
@@ -115,7 +112,7 @@ It never changes D.
    fields (job, findings) from `references/briefs.md`.
 4. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`. After its
    report write one `spawn.usage` carrying `role="lint v<D>"`, `round=<A+1>`, and the
-   result and tokens from its report.
+   result from its report.
 5. Spot-check: `grep -n 'Lint pass' <document>`.
 6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through the commit script
    (`references/cleanup.md`); D does not change — a lint pass consumes no cap fuel.

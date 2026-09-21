@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 import { harnessHandler } from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
@@ -452,5 +453,116 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     // Keywords still fire with no sensitive list.
     expect(res.data.items.some((i: any) => i.kind === 'keyword')).toBe(true);
+  });
+
+  // Requirement 5 — the `usage` action (design Component 6).
+
+  const writeSpecLedger = async (spec: string, events: Record<string, unknown>[]) => {
+    const dir = join(tempDir, '.spec-workflow', 'specs', spec);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(join(dir, 'harness-events.jsonl'), events.map(e => JSON.stringify(e)).join('\n') + '\n');
+  };
+
+  it('usage folds one spec: report totals and the phase row in the message', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.runs).toBe(1);
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 1000, unknown: 0 });
+    expect(res.message).toContain('requirements | sdd-drafter | 1 | 1,000');
+    // One spec ⇒ no compare, no delta.
+    expect(res.data.compare).toBeUndefined();
+    expect(res.data.delta).toBeUndefined();
+  });
+
+  it('usage compares two specs and returns a per-phase delta', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+    await writeSpecLedger('other-spec', [
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r9', spec: 'other-spec' },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', tokens: '3000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC, compareSpecName: 'other-spec' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.compare.spec).toBe('other-spec');
+    expect(res.message).toContain('usage my-spec');
+    expect(res.message).toContain('usage other-spec');
+    const reqDelta = res.data.delta.find((d: any) => d.phase === 'requirements');
+    expect(reqDelta).toEqual({ phase: 'requirements', spawns: 0, tokens: 2000 });
+  });
+
+  it('usage marks an unknown cell', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-reviewer', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-reviewer', tokens: 'unknown' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.unknown).toBe(1);
+    expect(res.message).toContain('(+1 unknown)');
+  });
+
+  it('usage reads an old review-gate-shape ledger (digit tokens on spawn.end)', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-implementer', phase: 'implementation' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-implementer', tokens: '50000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.tokens).toBe(50000);
+    expect(res.data.report.total.unknown).toBe(0);
+  });
+
+  it('usage folds the committed fixture ledger (runs 2, 5 spawns, 4,554,189)', async () => {
+    const fixture = fileURLToPath(new URL('../../__tests__/fixtures/usage-ledger.jsonl', import.meta.url));
+    await fs.writeFile(join(specDir, 'harness-events.jsonl'), await fs.readFile(fixture, 'utf-8'));
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.runs).toBe(2);
+    expect(res.data.report.total.spawns).toBe(5);
+    expect(res.data.report.total.tokens).toBe(4554189);
+  });
+
+  it('usage counts a second run id that has no run.start', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+      { ts: '2026-09-20T11:00:01Z', type: 'spawn.start', run: 'r2', spec: SPEC, agent: 'sdd-reviser', phase: 'design' },
+      { ts: '2026-09-20T11:00:02Z', type: 'spawn.end', run: 'r2', spec: SPEC, agent: 'sdd-reviser', tokens: '2000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.runs).toBe(2);
+    expect(res.data.report.total.spawns).toBe(2);
+  });
+
+  it('usage fails naming an unknown spec dir', async () => {
+    const res = await harnessHandler({ action: 'usage', specName: 'ghost' }, context);
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('ghost');
+  });
+
+  it('usage on a spec with no ledger gives runs 0 with success', async () => {
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.runs).toBe(0);
+    expect(res.data.report.total.spawns).toBe(0);
   });
 });

@@ -46,6 +46,52 @@ describe('sdd-activity.sh spawn events', () => {
     return readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
   }
 
+  function activityLines(): Array<Record<string, unknown>> {
+    const p = join(specDir, 'harness-activity.jsonl');
+    if (!existsSync(p)) return [];
+    return readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  }
+
+  // Fixture transcript for Requirement 1.2/1.5: three assistant entries carrying
+  // message.usage (two models), one user entry, one assistant entry without usage,
+  // one torn line. The test computes the expected sums from these literals itself.
+  const usageEntries = [
+    { model: 'claude-opus-4-8', input_tokens: 100, output_tokens: 20, cache_creation_input_tokens: 5, cache_read_input_tokens: 200 },
+    { model: 'claude-sonnet-5', input_tokens: 50, output_tokens: 10, cache_creation_input_tokens: 3, cache_read_input_tokens: 40 },
+    { model: 'claude-opus-4-8', input_tokens: 7, output_tokens: 2, cache_creation_input_tokens: 1, cache_read_input_tokens: 8 },
+  ];
+  const expected = {
+    input: usageEntries.reduce((n, u) => n + u.input_tokens, 0),
+    output: usageEntries.reduce((n, u) => n + u.output_tokens, 0),
+    cacheWrite: usageEntries.reduce((n, u) => n + u.cache_creation_input_tokens, 0),
+    cacheRead: usageEntries.reduce((n, u) => n + u.cache_read_input_tokens, 0),
+  };
+  const expectedTokens = expected.input + expected.output + expected.cacheWrite + expected.cacheRead;
+  const expectedModel = 'claude-opus-4-8+claude-sonnet-5';
+
+  async function writeTranscript(): Promise<string> {
+    const lines = [
+      ...usageEntries.map((u) => JSON.stringify({
+        type: 'assistant',
+        message: {
+          model: u.model,
+          usage: {
+            input_tokens: u.input_tokens,
+            output_tokens: u.output_tokens,
+            cache_creation_input_tokens: u.cache_creation_input_tokens,
+            cache_read_input_tokens: u.cache_read_input_tokens,
+          },
+        },
+      })),
+      JSON.stringify({ type: 'user', message: { content: 'hi' } }),
+      JSON.stringify({ type: 'assistant', message: { model: 'claude-ignored', content: [] } }),
+      '{ torn line — not json',
+    ];
+    const p = join(root, 'transcript.jsonl');
+    await fs.writeFile(p, lines.join('\n') + '\n');
+    return p;
+  }
+
   it('writes one spawn.start for a brief-launched sdd worker on PreToolUse', () => {
     runHook({
       hook_event_name: 'PreToolUse',
@@ -105,14 +151,80 @@ describe('sdd-activity.sh spawn events', () => {
       agent: 'sdd-implementer',
     });
     expect(events[0].role).toBeUndefined();
+    // No transcript_path: tokens=unknown, no usage keys (Req 1.4).
+    expect(events[0].tokens).toBe('unknown');
+    expect(events[0].input).toBeUndefined();
   });
 
-  it('writes no spawn.end for an orchestrator on SubagentStop', () => {
+  it('writes the six usage keys on spawn.end from the transcript (Req 1.2, 1.3, 1.7)', async () => {
+    const transcript_path = await writeTranscript();
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'spec-workflow-harness:sdd-implementer',
+      session_id: 's1',
+      agent_id: 'a1',
+      transcript_path,
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'spawn.end',
+      run: 'RUN-1',
+      spec: basename(specDir),
+      agent: 'sdd-implementer',
+      input: String(expected.input),
+      output: String(expected.output),
+      cacheWrite: String(expected.cacheWrite),
+      cacheRead: String(expected.cacheRead),
+      tokens: String(expectedTokens),
+      model: expectedModel,
+    });
+
+    // The agent.stop activity line keeps its shape and carries numeric tokens (Req 1.7).
+    const activity = activityLines();
+    expect(activity).toHaveLength(1);
+    expect(activity[0].event).toBe('agent.stop');
+    expect(activity[0].tokens).toBe(expectedTokens);
+  });
+
+  it('writes one spawn.end for an orchestrator on SubagentStop (Req 1.1, 1.8)', async () => {
+    const transcript_path = await writeTranscript();
     runHook({
       hook_event_name: 'SubagentStop',
       agent_type: 'spec-workflow-harness:sdd-implementation-orchestrator',
+      transcript_path,
     });
-    expect(eventLines()).toHaveLength(0);
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'spawn.end',
+      run: 'RUN-1',
+      spec: basename(specDir),
+      agent: 'sdd-implementation-orchestrator',
+      tokens: String(expectedTokens),
+      model: expectedModel,
+    });
+  });
+
+  it('writes tokens=unknown for a missing or nonexistent transcript (Req 1.4)', () => {
+    // Absent transcript_path.
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'spec-workflow-harness:sdd-implementer',
+    });
+    // Nonexistent transcript_path.
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'spec-workflow-harness:sdd-implementer',
+      transcript_path: join(root, 'does-not-exist.jsonl'),
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(2);
+    for (const row of events) {
+      expect(row).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementer', tokens: 'unknown' });
+      expect(row.input).toBeUndefined();
+      expect(row.model).toBeUndefined();
+    }
   });
 
   it('writes no spawn.start when the spawned child is not an sdd-* agent (3.4)', () => {
