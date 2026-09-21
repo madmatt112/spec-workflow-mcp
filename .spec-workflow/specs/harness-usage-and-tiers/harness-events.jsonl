@@ -127,3 +127,12 @@
 {"ts":"2026-09-21T17:04:51.011Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3","tokens":"101414"}
 {"ts":"2026-09-21T17:04:51.032Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-21T17:04:51.055Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-21T17:05:00.232Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.pick","task":"4","title":"Add the usage fold src/watch/usage.ts"}
+{"ts":"2026-09-21T17:05:07.286Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-21T17:15:01.619Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer"}
+{"ts":"2026-09-21T17:15:24.105Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4","tokens":"103243"}
+{"ts":"2026-09-21T17:15:24.125Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 4 pass risk high"}
+{"ts":"2026-09-21T17:15:44.416Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-21T17:19:47.961Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-verifier"}
+{"ts":"2026-09-21T17:20:00.665Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"4","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-21T17:20:10.777Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 4","phase":"implementation","task":"4","result":"VERDICT: pass","tokens":"80257"}

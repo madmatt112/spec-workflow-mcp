@@ -58,3 +58,13 @@ Cost: 1 spawn, 0 fix rounds
 Profiles loader and render tier line; Component 3 model parts already merged by task 2, scoped to loader+render.
 Evidence: task 3; src/watch/ledger.ts, src/watch/render.ts
 Cost: 1 spawn, 0 fix rounds
+
+## 2026-09-21T17:20:00Z · implementation · task 4 · gotcha
+Usage fold; gate high risk on line-count only (560 added, mostly tests), verifier VERDICT pass.
+Evidence: task 4; src/watch/usage.ts
+Cost: 2 spawns (impl+verify), 0 fix rounds
+
+## 2026-09-21T17:20:00Z · implementation · task 4 · doc-gap
+Design rule (c) names a model field the Usage* Data Models and formatUsageTable omit; phantom clause worth trimming in a future design pass.
+Evidence: verifier finding, src/watch/usage.ts:163
+Cost: no rework; info only
