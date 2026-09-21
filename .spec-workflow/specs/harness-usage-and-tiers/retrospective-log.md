@@ -73,3 +73,8 @@ Cost: no rework; info only
 Fixture ledger and pinned usage/watch numbers; gate low risk, no verifier.
 Evidence: task 5; src/__tests__/fixtures/usage-ledger.jsonl
 Cost: 1 spawn, 0 fix rounds
+
+## 2026-09-21T17:35:04Z · implementation · task 6 · gotcha
+harness usage action + docs; gate low risk, no verifier.
+Evidence: task 6; src/tools/harness.ts, docs/TOOLS-REFERENCE.md
+Cost: 1 spawn, 0 fix rounds

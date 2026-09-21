@@ -143,3 +143,8 @@
 {"ts":"2026-09-21T17:28:44.147Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 5 pass risk low"}
 {"ts":"2026-09-21T17:28:44.169Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
 {"ts":"2026-09-21T17:28:44.216Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.pick","task":"6","title":"Add the harness action usage and document it"}
+{"ts":"2026-09-21T17:29:04.120Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-21T17:34:41.455Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer"}
+{"ts":"2026-09-21T17:35:04.305Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6","tokens":"106413"}
+{"ts":"2026-09-21T17:35:04.325Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-21T17:35:04.347Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
