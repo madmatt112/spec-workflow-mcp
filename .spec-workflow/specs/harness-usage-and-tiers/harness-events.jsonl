@@ -157,3 +157,10 @@
 {"ts":"2026-09-21T17:44:06.418Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-verifier"}
 {"ts":"2026-09-21T17:44:13.176Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"7","rounds":"0","outcome":"pass"}
 {"ts":"2026-09-21T17:44:21.592Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 7","phase":"implementation","task":"7","result":"VERDICT: pass","tokens":"57698"}
+{"ts":"2026-09-21T17:44:21.634Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.pick","task":"8","title":"Stop the skills writing tokens; bring formats and docs in line"}
+{"ts":"2026-09-21T17:44:31.446Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-21T17:51:01.531Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-implementer"}
+{"ts":"2026-09-21T17:51:27.993Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 8 fail (files-list incomplete: plugins copies omitted, not a code fault); re-running with full list"}
+{"ts":"2026-09-21T17:51:49.057Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","phase":"implementation","task":"8","result":"logged: yes/8","tokens":"79310"}
+{"ts":"2026-09-21T17:51:49.078Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate: task 8 pass risk low"}
+{"ts":"2026-09-21T17:51:49.100Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"task.done","task":"8","rounds":"0","outcome":"gate"}

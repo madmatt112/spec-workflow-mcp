@@ -301,6 +301,6 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 7/8; last code commit c3fa7ed; next task 8 |
+| State | tasks 8/8; last code commit 358f401; end-to-end verification next |
 | Gotchas | `harness brief` requires a `title` value in addition to `path`, and `job` for the verifier template; task 4 gate high risk on line-count only (verifier passed) |
 | Cut scope | requirements none, design none, tasks none |

@@ -83,3 +83,8 @@ Cost: 1 spawn, 0 fix rounds
 SubagentStop hook now sole per-spawn usage writer; sensitive path high risk, verifier VERDICT pass, no findings.
 Evidence: task 7; harness/hooks/sdd-activity.sh
 Cost: 2 spawns (impl+verify), 0 fix rounds
+
+## 2026-09-21T17:51:49Z · implementation · task 8 · inefficiency
+Gate first failed with file-outside-list because the files list omitted the generated plugins/ copies; a harness/ task always mirrors into three plugins trees, so the files list must include every plugins/ copy. Re-ran clean.
+Evidence: task 8; gate reasons file-outside-list x18
+Cost: 1 extra gate call, no worker respawn
