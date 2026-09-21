@@ -65,6 +65,8 @@ graph TD
 
 [Every call made on the product's or the architecture's behalf, so a human can confirm or overturn it. A call that departs from a requirement's literal is flagged RE-DECIDED in the drafter's report.]
 
+[In `## Revision History` and decision-log bullets, cite findings by id and prose only. Never write a backticked path, line range or code identifier there; the citation lint does not scan these sections.]
+
 - D1 — [decision]: [options considered]; chosen because [one line]
 
 ## Scope notes

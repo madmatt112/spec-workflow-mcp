@@ -181,7 +181,8 @@ never read them and never read the document body.
      SHOULD_FIX-only corrective pass`, D = D + 1. Run the Lint step. Then Step 4b
      (narrow check on those items), then Step 5. No further review round.
    - `iterate` with fuel and D ≥ 4 ⇒ **Cap convergence check**.
-   - `iterate` with fuel ⇒ **Standoff check**, then Step 3.
+   - `iterate` with fuel ⇒ **Circling check**; when it does not fire, **Standoff check**,
+     then Step 3.
 
 ## Step 3 — Revise to v(D+1)
 
@@ -209,6 +210,33 @@ line, one bullet `- **Ruling — <finding id>: <accepted | rejected>.** <reason>
 a retro-log entry with `retro.sh` (`ruling`). Add the finding to the "Closed by ruling" list in every
 later reviewer prompt and reviser brief for this phase. If you accepted it, it becomes
 a finding for the next reviser brief.
+
+## Circling check
+
+Review is circling when the substantive findings — every MUST_FIX and SHOULD_FIX — of
+the two most recent consecutive rounds all concern one requirement or one rule: the round
+is re-litigating that single item against a fixture, where an adjudication resolves it
+faster than another review round. It needs two rounds, so it cannot fire on round 1.
+Detect it from the two analyses' finding lines (`grep -n -E 'MUST_FIX|SHOULD_FIX'
+<analysis>` for round `A` and round `A-1`) and the requirement or rule each names; the
+condition holds only when both rounds name the same single item and nothing else.
+
+When it holds, adjudicate that item instead of spawning another review round. This may
+fire before D ≥ 4; the v4 cap in the Cap convergence check and Step 4a is unchanged.
+
+1. Call `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, and `values`
+   carrying the output path `reviews/adjudication-brief-<PHASE>-r<A>.md` and, as the open
+   items, every open MUST_FIX and SHOULD_FIX for that requirement or rule by id, title and
+   severity; the adjudication fields are in `references/briefs.md`.
+2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`. After
+   its report write one `spawn.usage` carrying `role="adjudication r<A>"` and its result.
+3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the new line.
+4. From the report, list the **ruled-out SHOULD_FIX** items (id and title); keep them as
+   carried items for the HANDOFF section in Step 6.
+5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> circling adjudication`.
+6. Append a retro-log entry with `retro.sh` (`inefficiency`: review circled one item for two
+   rounds; every item id with `fixed` or `ruled out`).
+7. D = D + 1. Go to Step 4b (narrow check on the adjudicated items), then Step 5.
 
 ## Cap convergence check
 
@@ -245,8 +273,8 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 
 1. Call `adversarial-review` (no `verdictBlock`). Read the prompt file, then overwrite
    it with the narrow-check prompt from the template, listing the items the corrective
-   pass fixed (Step 4a's adjudicated items, or the SHOULD_FIX-only pass's SHOULD_FIX
-   items).
+   pass fixed (Step 4a's adjudicated items, the Circling check's adjudicated items, or the
+   SHOULD_FIX-only pass's SHOULD_FIX items).
 2. Spawn `sdd-checker` with exactly `Read and execute the instructions in
    <promptOutputPath>`.
 3. Read `grep -n '^VERIFIED:' <analysis>` and, if present, the lines from

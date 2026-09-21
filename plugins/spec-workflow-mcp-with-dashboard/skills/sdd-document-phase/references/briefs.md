@@ -78,6 +78,9 @@ Every later reviewer, reviser and implementer reads it first.
   line>`. A human reads that list.
 - End the document with `## Revision History` and the line
   `- **v1** (<today>) — Initial draft.`
+- In `## Revision History` and decision-log bullets, cite findings by id and prose
+  only. Never write a backticked path, line range or code identifier there; the
+  citation lint does not scan these sections.
 - MDX rule: no bare angle brackets outside code spans. `<name>` fails the approval
   lint; write `` `<name>` `` or "name".
 - tasks.md only: follow `<SPEC_STORE_ROOT>/templates/tasks-template.md` exactly. Each

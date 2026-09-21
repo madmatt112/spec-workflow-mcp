@@ -345,6 +345,8 @@ export type GateInput = {
   touched: string[];
   /** The caller's `files`, or `null` when none was given. */
   files: string[] | null;
+  /** Parsed `## Generated paths` entries, or `null`/absent when none (P3). */
+  generated?: string[] | null;
   /** Files-only: listed paths absent under `root`. */
   missing: string[];
   filesOnly: boolean;
@@ -379,10 +381,14 @@ export function decideGate(input: GateInput): { gate: 'pass' | 'fail'; reasons: 
     reasons.push(`debugger: ${dbg.file}:${dbg.line}`);
   }
 
-  // d file-outside-list
+  // d file-outside-list. A generated (`## Generated paths`) path is skipped, just
+  // as the line-count rule excludes it: the sync step regenerates those copies, so
+  // a `files` list naming only the sources must not flag the mirror copies (P3).
   if (input.files !== null) {
     const listed = input.files.map(normalizePath);
+    const generated = input.generated ?? null;
     for (const p of input.touched) {
+      if (generated && isGeneratedPath(p, generated)) continue;
       if (!listed.includes(normalizePath(p))) {
         reasons.push(`file-outside-list: ${p}`);
       }

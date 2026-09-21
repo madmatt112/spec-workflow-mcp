@@ -35,6 +35,20 @@ export const BARE_RANGE_RE = /`:(\d+)(?:-(\d+))?`/g;
 /** A backticked span, an identifier candidate (requirement 2.6). */
 const BACKTICK_SPAN_RE = /`([^`]+)`/g;
 
+/** An ATX heading, capturing its `#`s (the level) and its text (retro P4). */
+const HEADING_LEVEL_RE = /^(#{1,6})\s+(.*)$/;
+
+/**
+ * Headings (their text after the `#`s, lowercased) whose sections hold
+ * meta-commentary — Revision History and decision-log bullets — not real
+ * citations. `checkCitations` skips scanning inside these sections (retro P4).
+ */
+const META_SECTION_HEADINGS = new Set([
+  'revision history',
+  'decisions taken in this document',
+  'decision log',
+]);
+
 /** The identifier segment 2.6 keeps: a letter/`_`/`$` start, then two or more word chars. */
 const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]{2,}$/;
 
@@ -150,6 +164,37 @@ export function identifierTokens(text: string): string[] {
   return result;
 }
 
+/**
+ * Mask every line inside a Revision History or decision-log section — the
+ * heading line through the line before the next heading of the same or a
+ * shallower level (retro P4). Those bullets cite findings by id and prose, not
+ * `path:line` citations, so scanning them flags every backticked path or
+ * identifier. The skip is scoped to these sections; the rest of the document is
+ * linted normally. Fenced lines are ignored here; the caller already masks them.
+ */
+export function metaSectionLines(lines: string[], fenced: boolean[]): boolean[] {
+  const mask = new Array<boolean>(lines.length).fill(false);
+  let sectionLevel = 0; // 0 when not inside a meta section
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced[i]) continue;
+    const m = lines[i].match(HEADING_LEVEL_RE);
+    if (m) {
+      const level = m[1].length;
+      const title = m[2].trim().toLowerCase();
+      if (META_SECTION_HEADINGS.has(title)) {
+        sectionLevel = level;
+        mask[i] = true;
+        continue;
+      }
+      if (sectionLevel > 0 && level <= sectionLevel) {
+        sectionLevel = 0; // this heading closes the meta section; do not mask it
+      }
+    }
+    if (sectionLevel > 0) mask[i] = true;
+  }
+  return mask;
+}
+
 // --- Resolution -------------------------------------------------------------
 
 type Resolved =
@@ -221,8 +266,13 @@ async function resolvePathOnce(rawPath: string, bases: string[], cache: Map<stri
  */
 export async function checkCitations(lines: string[], bases: string[]): Promise<LintFinding[]> {
   const fenced = fencedLines(lines);
-  const blockList = blocks(lines, fenced);
-  const citations = extractCitations(lines, fenced, blockList);
+  // Skip Revision History and decision-log sections: their bullets are
+  // meta-commentary, not real citations (retro P4). Masking those lines like a
+  // fence keeps them out of both the block split and the token scan.
+  const meta = metaSectionLines(lines, fenced);
+  const scanMask = fenced.map((f, i) => f || meta[i]);
+  const blockList = blocks(lines, scanMask);
+  const citations = extractCitations(lines, scanMask, blockList);
 
   const findings: LintFinding[] = [];
   const cache = new Map<string, Resolved>();            // one read per distinct path (2.7)

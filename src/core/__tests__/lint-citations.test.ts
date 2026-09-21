@@ -240,6 +240,27 @@ describe('checkCitations', () => {
     expect(rulesOn(findings, 'citation-path')).toHaveLength(1);
   });
 
+  it('skips citation scanning in Revision History and decision-log sections (retro P4)', async () => {
+    const doc = [
+      '## Revision History',
+      '',
+      '- **v2** (2026-09-21) — fixed `src/ghost.ts:1` per F4',
+      '',
+      '## Decisions taken in this document',
+      '',
+      '- D1: kept `src/phantom.ts:9` as the boundary',
+      '',
+      '## Notes',
+      '',
+      'a real one at `src/outside.ts:1`',
+    ].join('\n');
+    const findings = await checkCitations(split(doc), [baseA]);
+    const path = rulesOn(findings, 'citation-path');
+    // Only the citation in the ordinary `## Notes` section is scanned.
+    expect(path).toHaveLength(1);
+    expect(path[0].message).toContain('src/outside.ts');
+  });
+
   it('reads each cited file at most once per call (requirement 2.7)', async () => {
     await fsp.mkdir(join(baseA, 'd'), { recursive: true });
     await fsp.writeFile(join(baseA, 'd', 'once.ts'), 'a\nb\nc\n');

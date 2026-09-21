@@ -278,6 +278,7 @@ export async function handleGate(
       hygiene: hygieneSignals,
       touched,
       files: gateFiles,
+      generated,
       missing,
       filesOnly,
     });

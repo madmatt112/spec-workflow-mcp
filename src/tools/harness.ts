@@ -614,13 +614,20 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     serverValues.taskBlock = block;
   }
 
-  // Every remaining {{key}} must have a caller value, else fail naming it (2.3).
+  // Every remaining {{key}} must have a caller value. Report ALL missing keys at
+  // once, with the template's full required-placeholder list, so a single re-call
+  // fixes them instead of one failed call per missing key (2.3, F2).
   const keys = new Set((body.match(/\{\{(\w+)\}\}/g) ?? []).map((p) => p.slice(2, -2)));
-  for (const key of keys) {
-    if (SERVER_BRIEF_KEYS.has(key)) continue;
-    if (values[key] === undefined || values[key] === null) {
-      return { success: false, message: `brief: required value '${key}' is missing; no file written` };
-    }
+  const required = [...keys].filter((key) => !SERVER_BRIEF_KEYS.has(key));
+  const missing = required.filter((key) => values[key] === undefined || values[key] === null);
+  if (missing.length > 0) {
+    const plural = missing.length > 1 ? 's' : '';
+    return {
+      success: false,
+      message:
+        `brief: required value${plural} ${missing.map((k) => `'${k}'`).join(', ')} missing; no file written. ` +
+        `Template '${template}' requires: ${required.map((k) => `'${k}'`).join(', ')}`,
+    };
   }
 
   const filled = body.replace(/\{\{(\w+)\}\}/g, (_full, key: string) =>

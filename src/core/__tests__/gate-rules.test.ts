@@ -428,6 +428,16 @@ describe('decideGate', () => {
     expect(r.reasons).toContain('file-outside-list: src/bar.ts');
   });
 
+  it('d: exempts a generated path from the files list (P3)', () => {
+    const r = decideGate({
+      ...passGate,
+      files: ['harness/skills/x.md'],
+      touched: ['harness/skills/x.md', 'plugins/spec-workflow/skills/x.md'],
+      generated: ['plugins/'],
+    });
+    expect(r).toEqual({ gate: 'pass', reasons: [] });
+  });
+
   it('e: fails when a listed file is missing under root (files-only)', () => {
     const r = decideGate({ ...passGate, filesOnly: true, missing: ['src/gone.ts'] });
     expect(r.reasons).toContain('listed-file-missing: src/gone.ts');
