@@ -52,6 +52,9 @@ export const AGENT_PROFILES: Record<string, AgentProfile> = {
   'sdd-retro-analyst': { model: 'fable-5-1', effort: 'xhigh', role: 'proposes fixes' },
 };
 
+/** The SDD phases in order, for the watch view's phase rail. */
+export const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective', 'closeout'];
+
 export interface PhaseRow {
   phase: string;
   state: string;
@@ -70,6 +73,11 @@ export interface SpawnNode {
   endedAt?: string;
   result?: string;
   tokens?: number;
+  model?: string;
+  input?: number;
+  output?: number;
+  cacheWrite?: number;
+  cacheRead?: number;
   lastActivityAt?: string;
   lastTool?: string;
   lastSummary?: string;
@@ -243,6 +251,11 @@ export function buildModel(input: {
         open.endedAt = e.ts;
         open.result = e.result;
         if (e.tokens && !Number.isNaN(Number(e.tokens))) open.tokens = Number(e.tokens);
+        if (e.input && !Number.isNaN(Number(e.input))) open.input = Number(e.input);
+        if (e.output && !Number.isNaN(Number(e.output))) open.output = Number(e.output);
+        if (e.cacheWrite && !Number.isNaN(Number(e.cacheWrite))) open.cacheWrite = Number(e.cacheWrite);
+        if (e.cacheRead && !Number.isNaN(Number(e.cacheRead))) open.cacheRead = Number(e.cacheRead);
+        if (e.model !== undefined) open.model = e.model;
       }
     }
   }
@@ -268,7 +281,7 @@ export function buildModel(input: {
       usageClaimed.add(match);
       if (e.role !== undefined) match.role = e.role;
       if (e.result !== undefined) match.result = e.result;
-      if (tokens !== undefined) match.tokens = tokens;
+      if (tokens !== undefined && match.tokens === undefined) match.tokens = tokens;
       if (e.phase !== undefined) match.phase = e.phase;
       if (e.task !== undefined) match.task = e.task;
       if (e.round !== undefined) match.round = e.round;
@@ -305,7 +318,7 @@ export function buildModel(input: {
         s.lastActivityAt = a.ts;
         s.lastTool = a.tool;
         s.lastSummary = a.summary;
-      } else if (a.event === 'agent.stop' && typeof a.tokens === 'number' && s.tokens === undefined) {
+      } else if (a.event === 'agent.stop' && typeof a.tokens === 'number' && s.tokens === undefined && s.endedAt !== undefined) {
         s.tokens = a.tokens;
       } else if (a.event === 'agent.start' && !s.lastActivityAt) {
         s.lastActivityAt = a.ts;

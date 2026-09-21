@@ -224,4 +224,28 @@ describe('buildModel', () => {
     expect(m.spawns).toEqual([]);
     expect(m.hasActivity).toBe(false);
   });
+
+  it('carries the hook usage keys from a spawn.end onto the spawn node', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', model: 'claude-opus-4-8', input: '10000', output: '4000', cacheWrite: '30000', cacheRead: '40000', tokens: '84000' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const impl = m.spawns[1];
+    expect(impl.model).toBe('claude-opus-4-8');
+    expect(impl.input).toBe(10_000);
+    expect(impl.output).toBe(4_000);
+    expect(impl.cacheWrite).toBe(30_000);
+    expect(impl.cacheRead).toBe(40_000);
+    expect(impl.tokens).toBe(84_000);
+    expect(m.tokensTotal).toBe(84_000);
+  });
+
+  it('keeps a digit-string spawn.end tokens over a later folded spawn.usage', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' });
+    ev.push({ ts: '2026-09-12T19:10:01.000Z', run: 'run-2', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 3 (v2)', result: 'logged: yes/3', tokens: '1', phase: 'implementation', task: '3' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const impl = m.spawns[1];
+    expect(impl.tokens).toBe(84_000);
+    expect(m.tokensTotal).toBe(84_000);
+  });
 });

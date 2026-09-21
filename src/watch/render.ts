@@ -1,4 +1,4 @@
-import { AGENT_PROFILES, RunModel, SpawnNode, formatTokens } from './ledger.js';
+import { AGENT_PROFILES, PHASE_ORDER, RunModel, SpawnNode, formatTokens } from './ledger.js';
 
 export interface RenderOptions {
   now: Date;
@@ -56,8 +56,6 @@ function padRight(s: string, width: number): string {
   const visible = stripAnsi(s).length;
   return visible >= width ? s : s + ' '.repeat(width - visible);
 }
-
-const PHASE_ORDER = ['requirements', 'design', 'tasks', 'implementation', 'retrospective', 'closeout'];
 
 export function render(model: RunModel, opts: RenderOptions): string {
   const p = makePalette(opts.color);
