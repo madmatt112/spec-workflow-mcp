@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790008612021_brp2i8273",
+  "title": "harness-usage-and-tiers tasks v1",
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-21T16:36:52.021Z",
+  "category": "spec",
+  "categoryName": "harness-usage-and-tiers",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-21T16:36:57.977Z"
+}

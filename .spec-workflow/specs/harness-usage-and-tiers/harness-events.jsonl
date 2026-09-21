@@ -100,3 +100,7 @@
 {"ts":"2026-09-21T16:15:44.452Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v1"}
 {"ts":"2026-09-21T16:15:51.570Z","type":"spawn.start","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-21T16:21:23.500Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviser"}
+{"ts":"2026-09-21T16:21:52.003Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"tasks","round":"1","result":"4 accepted, 78 rejected","tokens":"79399"}
+{"ts":"2026-09-21T16:36:12.960Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
+{"ts":"2026-09-21T16:36:29.897Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged","tokens":"181638"}
+{"ts":"2026-09-21T16:36:29.917Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/2"}

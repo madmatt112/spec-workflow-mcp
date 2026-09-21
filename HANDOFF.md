@@ -283,3 +283,15 @@ From implementation:
 | Cut scope | none |
 | Carried items | none ruled out (no cap adjudication). Note for the implementer: design.md line 78 and the v3 Revision History cite the `agent.stop` activity join as spanning lines 305-311; the real join runs `src/watch/ledger.ts:293-314` — the load-bearing guarded-fill line (308) is correct, so this is a MINOR citation-span slip, not a false claim. Read the code. |
 | Next phase loads | after `codebase-context.md`: this spec's `design.md` (8 components with pinned interfaces, the Data Models, Testing Strategy and Error Handling sections); then the files each component names — `src/watch/ledger.ts`, `src/watch/render.ts`, `src/tools/harness.ts`, `harness/hooks/sdd-activity.sh`, `scripts/sync-plugin-assets.cjs`, `scripts/copy-static.cjs` — plus the new files design pins (`src/watch/usage.ts`, `src/__tests__/fixtures/usage-ledger.jsonl`, `harness/agent-profiles.json`) |
+
+## harness-usage-and-tiers — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-21 |
+| Rounds | 1; verdict 0/0/2 → converged |
+| Approval | `approval_1790008612021_brp2i8273` |
+| Rulings | none (no standoff). Inherited design rulings still closed: Req 4.7 two-line agent entry; Req 5.4 / D6 non-digit `tokens` widening. |
+| Cut scope | none; `spec-lint` coverage-component check clean, reviewer found no task-to-design gaps |
+| Carried items | none (converged on round 1, no cap adjudication) |
+| Next phase loads | after `codebase-context.md`: this spec's `tasks.md` (8 tasks in dependency order, each with a `_Prompt:` line) and `design.md`; the implementer works each task's prompt against the merged code, not against pinned cross-task signatures |

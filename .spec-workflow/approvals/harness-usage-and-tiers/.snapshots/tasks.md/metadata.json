@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-usage-and-tiers/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-21T16:36:52.042Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790008612021_brp2i8273",
+      "approvalTitle": "harness-usage-and-tiers tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-21T16:36:57.950Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790008612021_brp2i8273",
+      "approvalTitle": "harness-usage-and-tiers tasks v1"
+    }
+  ]
+}

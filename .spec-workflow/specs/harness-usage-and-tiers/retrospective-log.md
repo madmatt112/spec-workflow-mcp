@@ -33,3 +33,13 @@ Cost: 1 checker spawn
 design approved at v3 after 3 rounds; verdict trajectory 1/1/2 → 0/2/0 → SHOULD_FIX-only corrective pass at v3, narrow check VERIFIED 2/2; rulings 2 (both refinement, closed); cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1789843231461_6kmnt6n22; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-design-r2.md
 Cost: 3 reviewer/checker + 5 reviser + 1 drafter spawns
+
+## 2026-09-21T16:36:38Z · tasks · v1 · gotcha
+Round 1 converged on v1 (MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2); clean first round after the lint pass fixed the two citation-path errors and reviser rejected 78 citation-identifier false positives. Two MINORs (fresh-lens bridge naming, a test-placement note) left as non-blocking.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
+
+## 2026-09-21T16:37:41Z · tasks · phase · cleanup
+tasks approved at v1 after 1 round; verdict trajectory 0/0/2 → converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790008612021_brp2i8273; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-usage-and-tiers/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer + 1 reviser spawns
