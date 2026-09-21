@@ -215,6 +215,14 @@ phase=<phase>`. After the report the supervisor writes `bash <event.sh> spawn.us
 agent=<agent> "role=<phase> phase, spawn <n>" result=<PHASE value>`; the hook writes the
 orchestrator's `spawn.end` (Requirement 2.3).
 
+When an orchestrator spawn is interrupted before it reports — no `PHASE:` line, and the
+hook's `spawn.end` never landed (an API 429 session limit, the Claude Code process
+exiting, a manual stop, or a context limit) — write its `spawn.end` yourself in place of
+that `spawn.usage`/hook pair: `bash <event.sh> spawn.end agent=<agent> result=interrupted
+tokens=unknown "note=<cause>; last row <the last ledger event before this spawn>"`, naming
+the cause and the last ledger row so the next run has evidence to scope a fix (retro P4).
+Then handle the missing report by the dispatch rules below.
+
 **Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
 agents live (the checkout's `harness/agents/` when linked, the marketplace source
 checkout for a plugin), so a session started before an edit, or a stale source, can run
