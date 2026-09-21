@@ -104,3 +104,6 @@
 {"ts":"2026-09-21T16:36:12.960Z","type":"spawn.end","run":"run-20260919-143236","spec":"harness-usage-and-tiers","agent":"sdd-reviewer"}
 {"ts":"2026-09-21T16:36:29.897Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged","tokens":"181638"}
 {"ts":"2026-09-21T16:36:29.917Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/2"}
+{"ts":"2026-09-21T16:38:57.320Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 round, converged clean"}
+{"ts":"2026-09-21T16:39:42.065Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"spawn.end","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 3","result":"approved","tokens":"108472"}
+{"ts":"2026-09-21T16:41:39.911Z","run":"run-20260919-143236","spec":"harness-usage-and-tiers","type":"note","text":"gate B: plan approved by Matthew, no annotation; class-a veto items 7,4,5,8 unannotated"}

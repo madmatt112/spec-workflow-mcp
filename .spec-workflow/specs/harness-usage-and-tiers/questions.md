@@ -50,3 +50,8 @@ options:
 2. Text only
 3. JSON only
 answer: Text in message and numbers in data — not asked (implementation mechanic); agents' recorded choice stands
+
+## Gate B
+
+Asked 2026-09-21 (run run-20260919-143236, block mode). Matthew approved the 8-task plan with no free text.
+Class-a veto items approved unannotated: task 7 (sensitive path harness/hooks/sdd-activity.sh), task 4 (keyword delete), task 5 (keyword config), task 8 (keywords delete/config).
