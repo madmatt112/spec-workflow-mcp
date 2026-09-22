@@ -83,3 +83,10 @@
 {"ts":"2026-09-22T18:09:10.723Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.end","phase":"design","result":"approved","state":"v2","note":"2 rounds, iterate→converged"}
 {"ts":"2026-09-22T18:09:27.190Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-document-orchestrator","input":"344","output":"1085","cacheWrite":"2176939","cacheRead":"16129359","tokens":"18307727","model":"claude-opus-4-8"}
 {"ts":"2026-09-22T18:09:32.481Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved","phase":"design"}
+{"ts":"2026-09-22T18:09:45.793Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","phase":"tasks"}
+{"ts":"2026-09-22T18:10:23.832Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v0"}
+{"ts":"2026-09-22T18:11:06.501Z","type":"spawn.start","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-22T18:11:39.027Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.start","phase":"tasks","mode":"normal","budget":"4","state":"v0"}
+{"ts":"2026-09-22T18:21:56.600Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-document-orchestrator","input":"68","output":"3797","cacheWrite":"478151","cacheRead":"1687608","tokens":"2169624","model":"claude-opus-4-8"}
+{"ts":"2026-09-22T18:24:35.089Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-drafter","input":"1892","output":"18415","cacheWrite":"510202","cacheRead":"6111224","tokens":"6641733","model":"claude-fable-5-1"}
+{"ts":"2026-09-22T18:24:50.649Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","round":"0","result":"v1: 10 tasks, wc 5523, no RE-DECIDED"}

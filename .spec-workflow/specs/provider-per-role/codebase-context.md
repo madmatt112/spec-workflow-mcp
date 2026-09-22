@@ -162,3 +162,51 @@
 - `/usr/bin/uuidgen` exists; `node -e 'console.log(require("crypto").randomUUID())'` prints a v4 uuid (node v24.13.0)
 - `XDG_STATE_HOME` unset; `~/.local/state/sdd/active-run` exists with other runs' lines
 - .spec-workflow/specs/provider-per-role/harness-events.jsonl:1 — `run.start` keys `model`, `specStore`, `codeRoot`, `worktree`, `headless`
+
+## Usage fold internals the tasks phase cites
+- src/watch/usage.ts:38-43 — `Spawn` (agent, startedAt, phaseKey, rows)
+- src/watch/usage.ts:89-92 — a `spawn.start` opens and replaces the agent's current spawn
+- src/watch/usage.ts:109-136 — per-phase, per-agent cell aggregation
+- src/watch/usage.ts:138-144 — `orchestratorShare` from agent keys ending `-orchestrator`
+- src/watch/usage.ts:148-160 — report `total` and `kinds`, the returned object
+- src/watch/usage.ts:249-251 — `headLine`
+- src/watch/usage.ts:258-269 — `formatOne`: phase total line ends with the kinds string
+- src/watch/usage.ts:271-298 — `formatCompare`: total lines end with `delta spawns N tokens N`
+- src/watch/__tests__/usage.test.ts:222-241 — one-spec `toContain` assertions (head, rows, `orch`, kinds, total)
+- src/watch/__tests__/usage.test.ts:243-261 — two-spec block; 258-259 assert the total lines through the delta text
+- src/tools/harness.ts:1063-1084 — `usageAction` (probe 2026-09-22: closing brace at 1084)
+- src/tools/__tests__/harness.test.ts:519-530 — review-gate-shape ledger case; 532 the fixture case
+
+## Watch model internals the tasks phase cites
+- src/watch/ledger.ts:224-240 — `buildModel` signature and the last-run scoping
+- src/watch/ledger.ts:265-275 — `spawn.start` node push (agent, role, phase, task, round, level)
+- src/watch/ledger.ts:276-288 — `spawn.end` pairing; usage numbers and `model` copied at 280-286
+- src/watch/render.ts:77-79 — header right cell, the header push, the rule line
+- src/watch/render.ts:204-211 — tier line: comment, `declared`, `actual`, `!=` flag, push
+- src/watch/__tests__/ledger.test.ts:36-46 — `ledger()` fixture (two runs, one open implementer spawn)
+- src/watch/__tests__/render.test.ts:28-34 — `LEDGER` fixture (run.start with `model`, `codeRoot`, `worktree`)
+- src/watch/__tests__/index.test.ts:79 — the `no harness-events.jsonl` line for a spec dir without a ledger
+- src/core/gate-rules.ts:15-22 — the three machine-read heading constants (`## Sensitive paths`, `## Generated paths`, `## Prose paths`)
+
+## Review prompt and round section (true ranges)
+- harness/skills/sdd-document-phase/references/briefs.md:125-197 — the round section; its fence opens at 130 and closes at 197 (the 125-176 range earlier documents cite ends mid-block)
+- harness/skills/sdd-document-phase/references/briefs.md:177-181 — the tasks-phase gate B bullet inside the round section
+- src/tools/adversarial-review.ts:116-117 — prompt and analysis output paths
+- .spec-workflow/specs/provider-per-role/reviews/ — no `adversarial-prompt-*.md` remains after cleanup (probe 2026-09-22); analyses and memory files remain
+
+## Implementation-phase escalation surface
+- harness/skills/sdd-implementation-phase/SKILL.md:103-105 — the three implementer flags the orchestrator routes
+- harness/skills/sdd-implementation-phase/SKILL.md:201-209 — the deferred verification half and its `deferrals` record
+- harness/skills/sdd-implementation-phase/SKILL.md:290 — the only `escalation` retro category use today (CI red after adjudication)
+- harness/skills/sdd-continue/references/formats.md:23-50 — orchestrator report contract; `escalate` is emitted by any orchestrator, the supervisor stops
+- harness/skills/sdd-continue/references/formats.md:119-121 — retro categories line
+- harness/skills/sdd-continue/SKILL.md:419-433 — status line section, closing at 433
+
+## Build, CI and environment (probes 2026-09-22)
+- .github/workflows/ci.yml:20-39 — node 20; `npm ci`, `check:plugin-version`, `check:plugin-assets`, `npx tsc --noEmit`, `npm run build`, `npm test -- --run`
+- vitest.config.ts — include `src/**/*.{test,spec}.{js,ts}`, exclude the dashboard frontend
+- .mcp.json — one stdio server `spec-workflow` running `node /home/mcf/repo/spec-workflow-mcp/dist/index.js`
+- dist/index.js — present in this checkout
+- docs/ — no `deepseek-preflight.md` yet; `step-0-answers.md` is the format model
+- `node dist/index.js --watch . --spec review-gate --once` prints a header ending `tokens 6.3M`
+- `claude --version` prints `2.1.280 (Claude Code)`
