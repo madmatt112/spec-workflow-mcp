@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/provider-per-role/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-22T21:01:20.043Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790110880017_zu7q7mynt",
+      "approvalTitle": "provider-per-role tasks v5"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-22T21:01:31.483Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790110880017_zu7q7mynt",
+      "approvalTitle": "provider-per-role tasks v5"
+    }
+  ]
+}

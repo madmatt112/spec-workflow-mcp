@@ -1,0 +1,64 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Preflight: write the launcher body and prove it against DeepSeek"
+    },
+    {
+      "id": "2",
+      "title": "Launcher integration test with a stub `claude`"
+    },
+    {
+      "id": "3",
+      "title": "`ESCALATE` flag for implementers and the orchestrator's escalate branch"
+    },
+    {
+      "id": "4",
+      "title": "Map script `sdd-providers.sh` and its integration test"
+    },
+    {
+      "id": "5",
+      "title": "Supervisor: map check at the roots step, `providers` on `run.start`, per-run `launch.sh`, launch-prompt lines, event table"
+    },
+    {
+      "id": "6",
+      "title": "Document orchestrator: route a DeepSeek-provider worker to the launcher"
+    },
+    {
+      "id": "7",
+      "title": "Usage fold by provider in `src/watch/usage.ts`"
+    },
+    {
+      "id": "8",
+      "title": "Watch model and render: provider per spawn, tokens by provider, the run's map"
+    },
+    {
+      "id": "9",
+      "title": "Docs: the fifth machine-read line, the provider model, the split figures"
+    },
+    {
+      "id": "10",
+      "title": "End-to-end verification of Requirement 7"
+    }
+  ],
+  "veto": [
+    {
+      "taskId": "1",
+      "class": "a",
+      "rank": 1,
+      "summary": "Writes and proves the launcher body; reads and sets auth tokens (ANTHROPIC_AUTH_TOKEN, DEEPSEEK_API_KEY) and CLAUDE_CONFIG_DIR (keywords auth, config)"
+    },
+    {
+      "taskId": "10",
+      "class": "a",
+      "rank": 2,
+      "summary": "End-to-end verification of Requirement 7; runs the launcher against a live API key (keyword auth)"
+    },
+    {
+      "taskId": "2",
+      "class": "a",
+      "rank": 3,
+      "summary": "Launcher integration test with a stub claude; sets CLAUDE_CONFIG_DIR (keyword config)"
+    }
+  ]
+}

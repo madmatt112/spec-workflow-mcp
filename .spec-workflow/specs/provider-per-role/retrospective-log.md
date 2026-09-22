@@ -74,3 +74,8 @@ Cost: 1 reviewer spawn
 Cap hit at v4 (4 review rounds); post-cap corrective pass adjudicated v5. R4-1 fixed (MUST_FIX): task 1's unset-key branch now reports RETRO: gotcha beside ESCALATE, matching Dependency-order/D6/Success/Scope. R4-2 fixed (SHOULD_FIX): task 10's description bullet now files the verification deferral only when the Deferral bar's three-part test holds. Both fixed, none ruled out, so no carried items for the next phase.
 Evidence: adversarial-analysis-tasks-r4.md
 Cost: 1 adjudicator spawn
+
+## 2026-09-22T21:02:27Z · tasks · phase · cleanup
+tasks approved at v5 after 4 review rounds; verdict trajectory 0/2/2 → 1/1/1 → 1/1/1 → 1/1/0 → post-cap adjudication v5, narrow check VERIFIED 2/2; rulings 0; cap hit (carried: none, both R4-1 and R4-2 fixed); prune removed 0 records and 0 snapshots (2 kept). Recurring theme across rounds: every post-r1 MUST_FIX was fix-induced — citation-path/range slips from reviser edits (R3-1, and each lint pass) and contradiction remnants left when a fix touched 3 of 4 sites (R4-1 carried from R1-1, R4-2 from R3-2).
+Evidence: approval_1790110880017_zu7q7mynt; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/provider-per-role/reviews/adversarial-analysis-tasks-r5.md
+Cost: 4 reviewer + 1 checker + 7 reviser + 1 drafter + 1 adjudicator spawns across the phase

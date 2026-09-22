@@ -352,3 +352,15 @@ From implementation:
 | Cut scope | none. Scope notes address the two requirements carried notes (Req 6 crit 5 auth-path wording; installed CLI `2.1.280`) and keep the spec-9 override/page deferred, as requirements pinned. |
 | Carried items | none ruled out (converged at v2 before any cap or adjudication). Notes for the tasks drafter: (1) carry the two round-1 refinement rulings above so tasks does not re-flag them. (2) R2-1 (MINOR, not blocking): compare-mode provider-pair placement is under-specified in the design — a value safely left to implementation; do not spawn a task solely for it. |
 | Next phase loads | after `codebase-context.md`: this spec's `design.md` (the Components and Interfaces list, Data Models, Error Handling item 8, and the Testing Strategy unit/integration/E2E prescriptions each task maps to), the approved `requirements.md` for the acceptance criteria, and the decomposition entry's verification scenario. `structure.md` steering is absent. |
+
+## provider-per-role — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v5 on 2026-09-22 (resumed run: spawn 1 interrupted after v2 lint; spawn 2 ran rounds 2-4, cap adjudication, narrow check) |
+| Rounds | 4 review rounds + narrow check; verdicts 0/2/2 → 1/1/1 → 1/1/1 → 1/1/0 → post-cap adjudication v5, narrow check VERIFIED 2/2 |
+| Approval | `approval_1790110880017_zu7q7mynt` |
+| Rulings | none (no standoff, no circling; cap convergence not granted — MUST_FIX flat 1→1 at r3→r4) |
+| Cut scope | none |
+| Carried items | none (post-cap corrective pass fixed both R4-1 and R4-2; nothing ruled out). Every post-r1 MUST_FIX was fix-induced: citation-path/range slips from reviser edits and contradiction remnants left when a fix touched 3 of 4 sites. |
+| Next phase loads | after `codebase-context.md`: this spec's approved `tasks.md` (10 tasks, dependency-ordered; task 1 writes and proves the launcher body against DeepSeek, later tasks build the hook `provider` field, the `sdd-providers.sh` preflight, and the usage/watch provider split), `design.md` and `requirements.md`; the implementation orchestrator reads the gate-B veto list the server holds before the first spawn |

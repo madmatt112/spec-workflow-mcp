@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790110880017_zu7q7mynt",
+  "title": "provider-per-role tasks v5",
+  "filePath": ".spec-workflow/specs/provider-per-role/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-22T21:01:20.017Z",
+  "category": "spec",
+  "categoryName": "provider-per-role",
+  "response": "v5; 4 review rounds + narrow check; final reviewed verdict (r4) MUST_FIX 1 / SHOULD_FIX 1 / MINOR 0; rulings: none (no standoff, no circling); cap: hit, adjudicated at v5 (R4-1 + R4-2 both fixed), narrow check VERIFIED 2/2.",
+  "respondedAt": "2026-09-22T21:01:31.492Z"
+}
