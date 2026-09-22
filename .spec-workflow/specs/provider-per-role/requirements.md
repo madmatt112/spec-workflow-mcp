@@ -18,7 +18,7 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 
 1. THE spec store's `agent-rules.md` SHALL accept an optional `## Providers` section whose bullets read `- <agent>: <provider> <model>`, where `<agent>` is a harness agent name (`sdd-reviewer`), `<provider>` is `anthropic` or `deepseek`, and `<model>` is `deepseek-v4-pro` or `deepseek-flash`, required for `deepseek` and absent for `anthropic`. WHEN the section is absent or names no agent THEN every role SHALL run on Anthropic as today (D1).
 2. THE eligible set for DeepSeek SHALL be `sdd-reviewer` and `sdd-checker` (file tools only: `harness/agents/sdd-reviewer.md:7-12`, `harness/agents/sdd-checker.md:7-12`), plus `sdd-reviser` only after preflight (b) passes (Requirement 6 criterion 4). No other agent SHALL be eligible in this spec.
-3. WHEN the section names an agent outside the eligible set, an unknown provider, a `deepseek` row without a listed model, or the same agent twice THEN the supervisor SHALL refuse the run at `run.start` with a `note` naming the offending bullet (the shape of Requirement 4 criterion 2) and SHALL NOT run that role on Anthropic instead (D2).
+3. WHEN the section names an agent outside the eligible set, an unknown provider, a `deepseek` row without a listed model, or the same agent twice THEN the supervisor SHALL stop before any ledger row is written and SHALL NOT run that role on Anthropic instead (D2, D5).
 4. THE supervisor SHALL read the section once, at the roots step where it locates `agent-rules.md` (`harness/skills/sdd-continue/SKILL.md:71-72`), and SHALL record the map on `run.start` (`harness/skills/sdd-continue/references/formats.md:186-198`) as `providers=<agent>:<provider>[:<model>],...` in section order, or `providers=none` when the section is absent or empty (D4).
 5. THE orchestrator launch prompt (`harness/skills/sdd-continue/SKILL.md:190-208`) SHALL gain two lines, `PROVIDERS: <the same value>` and `LAUNCHER: <path | none>`, so an orchestrator never re-reads `agent-rules.md` for the map (D9).
 6. THE list of machine-read lines (`docs/SDD-HARNESS.md:271-280`) SHALL name `## Providers` as the fifth, with the eligible set and the two model names.
@@ -62,7 +62,7 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 #### Acceptance Criteria
 
 1. THE key SHALL be `DEEPSEEK_API_KEY` in the environment of the process that starts the run (terminal or dashboard), never read from the spec store, a run file, `agent-rules.md` or a launch prompt.
-2. WHEN the map names a `deepseek` role and `DEEPSEEK_API_KEY` is unset or empty THEN the supervisor SHALL write `run.start` (with `providers`), then `note text="deepseek: <agent> needs DEEPSEEK_API_KEY; not set"`, then `run.end` with a status line naming the role and the missing key, deregister, and stop; it SHALL spawn no orchestrator (D5).
+2. WHEN the map names a `deepseek` role and `DEEPSEEK_API_KEY` is unset or empty THEN the supervisor SHALL stop before any ledger row is written; it SHALL spawn no orchestrator (D5).
 3. THE launcher SHALL also refuse (non-zero, one stderr line, no `spawn.start`) when called with the key unset, so a stale launcher cannot run on a missing key.
 4. THE key SHALL NOT appear in the launcher text, any ledger or activity row, HANDOFF, the retro log, `questions.md`, a brief, or a commit; the child's environment SHALL NOT carry `ANTHROPIC_API_KEY`; and preflight (a) SHALL show the session's Anthropic credential was not used (the child's transcript `message.model` is a DeepSeek name).
 5. WHEN the key is set THEN the run SHALL NOT print it, and the watch view and `harness usage` SHALL NOT read it.
@@ -104,7 +104,7 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 
 1. WHEN a fixture requirements round runs with `sdd-reviewer` on `deepseek-v4-pro` THEN the analysis file SHALL exist in the round's format with a verdict block; the ledger SHALL hold its `spawn.start` and `spawn.end` with `provider=deepseek`, a DeepSeek model name and digit-string usage; and the reviser round that follows SHALL run on Anthropic through the Agent tool with the hook-written rows of today.
 2. WHEN the same round runs with every role on `anthropic` THEN the ledger SHALL have today's shape: no `provider` key on any spawn row, and `run.start` gaining only `providers`.
-3. WHEN `DEEPSEEK_API_KEY` is unset and the map names one `deepseek` role THEN the run SHALL stop as Requirement 4 criterion 2 says, and `--watch --once` SHALL show the stopped status and no spawn (spec 9's page is not built; Scope notes).
+3. WHEN `DEEPSEEK_API_KEY` is unset and the map names one `deepseek` role THEN the run SHALL stop as Requirement 4 criterion 2 says, writing no ledger row; `--watch --once` SHALL show no entry for that run (spec 9's page is not built; Scope notes).
 4. WHEN `harness usage` runs on the ledger of criterion 1 THEN it SHALL report the reviewer's tokens under `deepseek` and an Anthropic total that excludes them.
 5. THE checks SHALL pass: `npm test`, `npx tsc --noEmit`, `claude plugin validate . --strict`, `npm run check:plugin-assets`; a launcher test SHALL assert only on `child_process` and `fs` fields the node 20 docs guarantee (`.spec-workflow/agent-rules.md:30-32`).
 
@@ -120,7 +120,7 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 
 ### Reliability
 - A DeepSeek spawn SHALL always leave a `spawn.end`; `unknown` beats a wrong number (the spec 8 rule).
-- Refusal beats a silent fallback: a missing key, a missing launcher or a bad map row stops the run with a `note`.
+- Refusal beats a silent fallback: a missing key, a missing launcher or a bad map row stops the run; a start refusal writes no ledger row.
 - The session that runs the harness SHALL never have its provider changed; the child is the only process with the DeepSeek environment.
 
 ### Compatibility
@@ -132,7 +132,7 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 - D2 — A bad map row, an ineligible role, a missing key or a missing launcher refuses the run with a note; options were ignore the row with a note, fall back to Anthropic for that role, or refuse; chosen because the decomposition rules out a silent fallback and a wrong provider spends the Max plan without saying so.
 - D3 — The launcher is a per-run wrapper next to the event script that calls a body shipped with the harness and tested like the hook; options were the whole script written by the supervisor each run from the formats reference, or a server action; chosen because the body is real logic that needs a test, and the wrapper keeps the decomposition's contract of a file next to the event script.
 - D4 — Ledger keys: provider, model and effort on spawn start; provider, model and the six usage keys on spawn end; run start carries the whole map; options were provider on spawn end only, or a new event type; chosen because both folds already read those rows, and the map on run start is what spec 9 renders.
-- D5 — A refused run writes run start, a note and run end and spawns nothing; options were stopping before any ledger row, or a run start with a refused status; chosen because the ledger and the watch view then show why the run stopped.
+- D5 — A run refused at start (missing key or bad map row, found before any task runs) writes no ledger row and spawns nothing; options were writing `run.start`, a note and `run.end`, or a `run.start` with a refused status; chosen because a run that never reaches a task should not appear in the ledger.
 - D6 — The Anthropic figure is the headline tokens number and DeepSeek is shown beside it, while the existing all-provider totals keep their values in the data; options were dropping DeepSeek from every total, or a provider filter parameter; chosen because the Max plan number must be the one the eye lands on while nothing an existing test asserts changes.
 - D7 — The preflight file is a new docs file in the step-0 answer format and carries five extra probes the design needs (auth path, agents JSON keys, transcript location, hooks in the child, effort); options were appending to the step-0 file, or a HANDOFF row; chosen because the step-0 file is closed and says do not re-run, and the extra probes are the facts the launcher is built on.
 - D8 — A failed preflight (a) escalates and blocks the rest of the spec; options were continuing with the Anthropic-only parts, or deferring the whole spec; chosen because every other deliverable exists to serve the DeepSeek path.
@@ -153,3 +153,5 @@ No `steering/product.md` exists in this store, so alignment is to the harness op
 
 - **v1** (2026-09-21) — Initial draft.
   - **Lint pass.** 24 fixed; rejected: none.
+- **v2** (2026-09-22) — Gate A decision change (refused-at-start run writes no ledger row).
+  - **RI-1**: accepted — refused-at-start run writes no ledger row.
