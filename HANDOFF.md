@@ -324,3 +324,15 @@ From implementation:
 | To-do (human) | Merge PR #56, then `npm run build` + session restart so the P2/P3/P4/P5 server + skill changes go live |
 | Open verification | d-3091be1c (verification) still open — re-run after PR #56 merges, build, restart; human action item, not a close-out item |
 | Gotchas | The `harness` orient class showed `store 1` because the classifier regex (`src/tools/harness.ts:465`, `\brules?\b`) matches `gate-rules.ts`/`tasks-drafter rule` in P3's Target line; P3 is really a `src/core/gate-rules.ts` change, so all four items landed as one harness batch. Gate `files` must be exact file paths, not directory names — P4/P5 first failed `file-outside-list` on directory args, passed on re-gate with the full path list (including the three `plugins/` mirror copies). |
+
+## provider-per-role — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v5 on 2026-09-22 (revision-mode run applying the Gate A answers) |
+| Rounds | 4; verdicts 1/6/2 → 1/1/2 → 1/1/0 → post-cap adjudication v5, narrow check VERIFIED 2/2 |
+| Approval | `approval_1790095689366_qb203yqs4` |
+| Rulings | none (no standoff, no circling; the five approved Gate A decisions are human-decided and were treated as closed on their merits) |
+| Cut scope | none. Scope notes reconcile two now-stale decomposition passages against the Gate A change — the refusal-timing bullet (decomposition still reads "refuse with a note") and the launcher `--model`/`ANTHROPIC_MODEL` contract — nothing the decomposition lists was cut. |
+| Carried items | none ruled out (post-cap corrective pass fixed both R3-1 and R3-2). Notes for the design drafter: (1) narrow-check deferred finding — Req 6 crit 5's auth-path clause is grammatically garbled, intended rule is "a 'no' answer fails preflight (a)"; smooth it if design quotes the criterion. (2) MINOR, out of scope this phase — Req 2 crit 5 cites CLI `2.1.278`; installed is `2.1.280`. |
+| Next phase loads | after `codebase-context.md`: the decomposition entry's "design should address" for provider-per-role and the endpoint routing facts at `.spec-workflow/spec-decomposition/decomposition.md:255-258`; then `.spec-workflow/agent-rules.md` (the new `## Providers` section), `harness/hooks/sdd-activity.sh` (the `provider` ledger field), the `claude -p` launcher surface the orchestrator calls instead of the Agent tool (Req 2/3), `harness/agent-profiles.json`, and the provider-split totals in the `harness usage` report and watch view (`src/watch/`) |

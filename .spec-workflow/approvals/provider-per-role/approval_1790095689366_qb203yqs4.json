@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790095689366_qb203yqs4",
+  "title": "provider-per-role requirements v5",
+  "filePath": ".spec-workflow/specs/provider-per-role/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-22T16:48:09.366Z",
+  "category": "spec",
+  "categoryName": "provider-per-role",
+  "response": "v5; 4 review rounds (3 adversarial + 1 narrow check); final verdict MUST_FIX 1 / SHOULD_FIX 1 / MINOR 0 (round 3, both items resolved by the post-cap corrective pass); rulings: none; cap: hit, adjudicated at v5, VERIFIED 2/2.",
+  "respondedAt": "2026-09-22T16:48:22.020Z"
+}

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/provider-per-role/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-22T16:48:09.407Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790095689366_qb203yqs4",
+      "approvalTitle": "provider-per-role requirements v5"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-22T16:48:22.012Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790095689366_qb203yqs4",
+      "approvalTitle": "provider-per-role requirements v5"
+    }
+  ]
+}
