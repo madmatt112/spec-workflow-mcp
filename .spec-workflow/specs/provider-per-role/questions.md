@@ -13,7 +13,7 @@ options:
 - Refuse the run with a note
 - Ignore the row with a note
 - Fall back to Anthropic for that role
-answer:
+answer: Refuse the run with a note (approve)
 
 ### 2. Failed preflight blocks the spec
 
@@ -22,7 +22,7 @@ options:
 - Escalate and block the remaining tasks until a human rules
 - Continue with the Anthropic-only parts
 - Defer the whole spec
-answer:
+answer: Escalate and block the remaining tasks until a human rules (approve)
 
 ### 3. Anthropic total is the headline
 
@@ -31,7 +31,7 @@ options:
 - Anthropic tokens as the headline, DeepSeek shown beside it; all-provider totals kept in the data
 - Drop DeepSeek from every total
 - A provider filter parameter
-answer:
+answer: Anthropic tokens as the headline, DeepSeek shown beside it; all-provider totals kept in the data (approve)
 
 ### 4. Where the provider map lives
 
@@ -41,7 +41,7 @@ options:
 - A top-of-file key like the gates key
 - A YAML block
 - A provider field in each agent's frontmatter
-answer:
+answer: not asked — implementation mechanic; the drafter's recorded choice stands (A Providers section in agent-rules.md, one bullet per agent with provider and model)
 
 ### 5. A refused run leaves a ledger trace
 
@@ -50,4 +50,4 @@ options:
 - Write run start, a note and run end; spawn nothing
 - Stop before any ledger row
 - A run start with a refused status
-answer:
+answer: Stop before any ledger row (needs revision — changed from the recorded choice; no free text)
