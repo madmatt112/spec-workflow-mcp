@@ -106,3 +106,59 @@
 - docs/step-0-answers.md:1-17 — the answer-file format (date, source, summary table, one section per question)
 - Shell of this drafter: `DEEPSEEK_API_KEY` unset, `ANTHROPIC_API_KEY` unset
 - Transcripts: `~/.claude/projects/<cwd slug>/<session id>.jsonl` (25 files in this project's directory)
+
+## Supervisor dispatch, status line and shipped-script pattern
+- harness/skills/sdd-continue/SKILL.md:1-24 — supervisor preamble; run-lifetime helpers under `/tmp/scratchpad/sdd/<spec>/helpers/`
+- harness/skills/sdd-continue/SKILL.md:49-52 — harness-source preflight runs `bash <base dir>/references/harness-source.sh`; the base dir is known to the supervisor
+- harness/skills/sdd-continue/SKILL.md:117-124 — routing header rewrite at run start, before the first spawn
+- harness/skills/sdd-continue/SKILL.md:236-265 — dispatch on the `PHASE:` line; `escalate` (247-248) writes a HANDOFF row, prints `REASON:`, stops
+- harness/skills/sdd-continue/SKILL.md:419-433 — status line `<project>:<spec> <phase> <state> — <one line>`, `run.end`, ledger commit, `deregister.mjs`
+- harness/skills/sdd-continue/references/formats.md:101-117 — `retro.sh` text, written once per run with the Write tool
+- harness/skills/sdd-continue/references/formats.md:119-121 — retro categories, `escalation` included
+- harness/skills/sdd-continue/references/formats.md:123-135 — worker report contract; flag list at 130-132
+- harness/skills/sdd-continue/references/formats.md:212-245 — `deregister.mjs` text
+- harness/skills/sdd-continue/references/harness-source.sh:21 — config dir as `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`
+
+## Implementation phase (the preflight task's path)
+- harness/skills/sdd-implementation-phase/SKILL.md:23-63 — standing rules and ledger calls
+- harness/skills/sdd-implementation-phase/SKILL.md:84-106 — per-task loop: pick, implementer brief, report flags `DESIGN-DEFECT`, `AFFECTS-FUTURE-SPECS`, `RETRO:` (103-105)
+- harness/skills/sdd-implementation-phase/SKILL.md:107-109 — verification-only task: no gate, checks run at step 8
+- harness/skills/sdd-implementation-phase/SKILL.md:177-184 — design-defect path: revert to `[ ]`, retro-log entry, HANDOFF section, commit, `PHASE: design-defect`
+- harness/skills/sdd-implementation-phase/SKILL.md:186-205 — completion gate; the deferred verification half when the session lacks a tool (201-205)
+- harness/skills/sdd-implementation-phase/references/briefs.md:5-51 — implementer standing brief; flags at 38-45; report shape at 46-48
+- harness/agents/sdd-document-orchestrator.md:9-39 — orchestrator tools: Bash (13), Agent (16), `harness`, `spec-status`, `approvals`, `adversarial-review`, `deferrals`, `spec-index`, `spec-lint`
+- harness/agents/sdd-implementation-orchestrator.md:9-17 — tools: Read, Grep, Glob, Bash, Edit, Write, Agent, TodoWrite
+
+## Plugin sync, profiles copy, docs and settings
+- scripts/sync-plugin-assets.cjs:17-22 — `ASSET_DIRS` = agents, skills, commands, hooks; `PROFILES_PATH` = `harness/agent-profiles.json`
+- scripts/sync-plugin-assets.cjs:67-74 — `syncAssetDir` removes and recopies each asset dir whole
+- scripts/copy-static.cjs:63-71 — `npm run build` copies `harness/agent-profiles.json` to `dist/agent-profiles.json`
+- package.json `files` — `dist/**/*`, README, CHANGELOG, LICENSE; `harness/` is not in the npm package
+- plugins/spec-workflow-harness/ — `.claude-plugin/`, `agents/`, `hooks/`, `skills/`; no `agent-profiles.json`
+- docs/SDD-HARNESS.md:155-169 — artifacts table under the spec dir
+- docs/SDD-HARNESS.md:209-248 — checkout layout: `scripts/dev-link.sh` symlinks and hook entries (220-224); headless line `claude -p "continue the sdd process" --model fable --effort xhigh --permission-mode auto` (244)
+- docs/SDD-HARNESS.md:335-350 — developing the harness; `claude plugin validate . --strict` validates the marketplace (339-340)
+- ~/.claude/settings.json — `permissions.defaultMode` is `auto`; hook keys `PreToolUse`, `SubagentStart`, `SubagentStop`; `model` is `fable` (probe 2026-09-22)
+- .claude/settings.local.json — project `permissions.allow` Bash prefixes (`npm run`, `git commit`, `npx tsc`, `npx vitest`, `ls`, …); no `.claude/settings.json` in the repo
+
+## Tests the design extends
+- src/watch/__tests__/usage.test.ts:222-241 — `formatUsageTable` one-spec assertions (head line, agent row, total row)
+- src/watch/__tests__/usage.test.ts:263-267 — empty-report `toEqual` literal (`spec`, `runs`, `phases`, `total`, `kinds`)
+- src/watch/__tests__/usage.test.ts:270-283 — committed fixture: runs 2, spawns 5, tokens 4,554,189, one unknown, `orch 60.2%`
+- src/watch/__tests__/ledger.test.ts:251-273 — usage keys copied to the node; digit `spawn.end` tokens beat a later `spawn.usage`
+- src/watch/__tests__/render.test.ts:42-62 — header `tokens 0`, tier lines with empty actual
+- src/watch/__tests__/render.test.ts:122-132 — `actual claude-sonnet-5 !=` and its red paint
+- src/watch/__tests__/index.test.ts:82-94 — `--once` fixture frame: `tokens 1.6M`, `declared claude-opus-4-8 high`, `actual claude-opus-4-8`, no `!=`
+- src/tools/__tests__/harness.test.ts:18-30 — temp store per test; `writeLedger` 231-232; `writeSpecLedger` 462-466
+- src/tools/__tests__/harness.test.ts:468-483 — `usage` one spec (`data.report.total`, message row); 519-530 — review-gate-shape ledger (digit `tokens` on `spawn.end`)
+- src/__tests__/hook-spawn-events.test.ts:58-94 — fixture transcript entries (two models), expected sums, `writeTranscript(at?)`
+- src/__tests__/agent-profiles.test.ts:23-25 — twelve profile keys pinned
+- vitest.config — include `src/**/*.{test,spec}.{js,ts}`
+
+## CLI and environment probes (2026-09-22)
+- `claude --version` prints `2.1.280 (Claude Code)` (2.1.278 on 2026-09-21)
+- `claude -p --help`: `--permission-mode` choices `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`; `--permission-prompts none` denies anything that would prompt; `--bare` skips settings and plugin hooks and limits Anthropic auth to `ANTHROPIC_API_KEY` or apiKeyHelper; `--tools` restricts the built-in set; `--agent <agent>` sets the session agent; `--agents <json>` example keys `description`, `prompt`; `--strict-mcp-config` uses only `--mcp-config` servers; `--output-format` default `text`
+- `~/.claude/projects/` names: `-home-mcf-repo-spec-workflow-mcp`, `-home-mcf-repo-spec-workflow-mcp--claude-worktrees-spec-lint` (cwd with `/` and `.` as `-`); each holds one `<uuid>.jsonl` per session beside a `<uuid>/` dir
+- `/usr/bin/uuidgen` exists; `node -e 'console.log(require("crypto").randomUUID())'` prints a v4 uuid (node v24.13.0)
+- `XDG_STATE_HOME` unset; `~/.local/state/sdd/active-run` exists with other runs' lines
+- .spec-workflow/specs/provider-per-role/harness-events.jsonl:1 — `run.start` keys `model`, `specStore`, `codeRoot`, `worktree`, `headless`
