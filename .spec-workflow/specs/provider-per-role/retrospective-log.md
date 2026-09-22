@@ -29,3 +29,13 @@ Cost: no extra spawn (deferred, not fixed)
 requirements approved at v5 after 4 rounds; verdict trajectory 1/6/2 -> 1/1/2 -> 1/1/0 -> post-cap adjudicated v5 (VERIFIED 2/2); rulings 0; cap hit (carried: none); prune removed 0 records and 0 snapshots. This was a revision-mode run applying the Gate A answers (refused-at-start run writes no ledger row); v1 was drafted+linted pre-gate and never reviewed.
 Evidence: approval_1790095689366_qb203yqs4; reviews/adversarial-analysis-requirements-r3.md; reviews/adversarial-analysis-requirements-r4.md
 Cost: 4 reviewer (3 adversarial + 1 narrow-check) + 4 reviser (v2 revision, v3, v4, v4-lint) spawns, 1 adjudicator
+
+## 2026-09-22T17:46:10Z · design · v1 · ruling
+Reviewer ruled both drafter RE-DECIDED literals as refinement (closed): Req 2 crit 5 (D4) — the --agents JSON model key carries the request alias, not the profile's declared model; effort still comes from the profiles. Req 2 crit 7 (D9) — --add-dir is passed when the spec store repo is outside the code root. Both are refinements of the requirement, not widenings; carry to the tasks drafter so it does not re-flag them.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: no extra spawn (ruled inside round 1)
+
+## 2026-09-22T17:46:10Z · design · v1 · gotcha
+Round 1: iterate MUST_FIX 0 / SHOULD_FIX 1 / MINOR 1. R1-1 (SHOULD_FIX): keyless build/verify lifecycle contradicts itself. R1-2 (MINOR): tier-line is not the same as contingency. Deltas (lint pass) clean; wire-contract lens traced end-to-end and sound.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: 1 reviewer spawn
