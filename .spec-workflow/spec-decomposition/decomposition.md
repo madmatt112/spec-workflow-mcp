@@ -242,7 +242,10 @@ supervisor's report contract, and on `review-gate` (spec 4) for `gate-rules.ts` 
 After the efficiency plan (`docs/harness-efficiency-plan.md`, steps 0 to 4). Three specs
 decided on 2026-09-17 from a review of the twelve agents' model and effort settings, a wish
 for a web control pane in place of the TUI for setting up and watching a run, and a wish to
-run some roles on DeepSeek beside the Claude models. Facts settled that day, not to be
+run some roles on DeepSeek beside the Claude models; a fourth (11) decided on 2026-09-19 from
+the TDD memo; a fifth (12) decided on 2026-09-21 from the graphify call count of the first
+two Opus 4.8 runs. Numbers are identities, not order: the build order below is the order, and the
+entries follow it. Facts settled on 2026-09-17, not to be
 re-checked: `SubagentStop` carries `transcript_path` (the worker's own transcript, under
 `<session>/subagents/agent-<id>.jsonl`) and no usage; that transcript's assistant entries
 carry `message.usage` (input, output, cache creation, cache read) and `message.model`, in a
@@ -319,68 +322,7 @@ files, `plugins/` copies and `agent-profiles.json` agree: `npm run check:plugin-
 `claude plugin validate . --strict` pass; `npm test` is green.
 
 **Depends on** `harness-bookkeeping` (spec 6) for the hook-written `spawn.end` rows. Nothing
-in this document depends on it for correctness; 9 and 10 depend on it for their numbers.
-
-### 9. `harness-control-pane` — set up, launch and watch a run in the dashboard (active)
-
-The dashboard (`src/dashboard`, Fastify and a websocket; `src/dashboard_frontend`, React)
-shows specs, approvals and reviews but nothing of a harness run; the run is watched in the
-`--watch` TUI and launched by hand with `continue the sdd process` or a `claude -p` script.
-This spec adds a Harness page that does both, on the data layer the TUI already has.
-
-**Delivers.**
-
-- **Run setup.** The page lists the specs of the project with their state (the roadmap's
-  `INDEX.md` order and the live phase from HANDOFF, as the supervisor reads them) and a form
-  for one run: spec, model per role (declared value from `agent-profiles.json` pre-filled;
-  the Agent tool's aliases and full ids allowed), worktree yes or no, gates block or record.
-  Effort is shown read-only with the reason. Submitting writes `.spec-workflow/harness-run.json`
-  in the spec store.
-- **The supervisor honours it.** `sdd-continue` reads `harness-run.json` at Step 0 when it
-  exists, passes each role's model to the Agent tool's `model` override, records the overrides
-  on `run.start`, and deletes the file when the run ends. A run started from the terminal with
-  no file behaves as today.
-- **Launch and stop.** A route spawns `claude -p` with the `continue the sdd process` prompt
-  through the dashboard's existing child-process pattern (`adversarial-runner.ts`: scrubbed
-  git env, `cwd` the checkout or worktree, both roots on the env), records the pid and run id,
-  and streams stdout and stderr to the page. Stop sends SIGTERM; the supervisor's existing
-  interrupt handling writes `run.end`. One live run per spec store; the hooks' pointer file
-  (`~/.local/state/sdd/active-run`) is the lock the route checks and the page shows.
-- **Live view.** The server watches `harness-events.jsonl`, `harness-activity.jsonl`, HANDOFF
-  and `tasks.md` with the watcher `src/watch/index.ts` uses, builds `RunModel` with
-  `buildModel` from `src/watch/ledger.ts`, and pushes it over the existing websocket on
-  change. The page renders what `render.ts` renders: phase rows, the spawn tree with tokens
-  and model, rounds, task picks, the ticker, plus the recorded answers of a gate that ran in
-  record mode (`questions.md`).
-
-**Decided.**
-
-- Built into the existing dashboard, not a new app or a second server. The TUI stays
-  (`--watch` is must-keep) and shares `ledger.ts`; `render.ts` is not touched.
-- Model per role is per run; effort is not. The Agent tool has no effort override, and a
-  per-run effort would mean rewriting the plugin cache (the 2026-09-16 overlay), which is a
-  workaround and not a feature.
-- A launched run is headless (`claude -p`), so the question gates of spec 7 run in record
-  mode: the pane shows the recorded decisions and veto list, it does not answer them. Gates
-  answered from the pane are a later spec that needs a resume path in the supervisor.
-- The dashboard runs the harness only as a child process, never in-process, so a crashed run
-  cannot take the dashboard down and a stop is a signal.
-- Secrets never pass through the page; the child inherits the dashboard's environment.
-
-**End-to-end verification.** (1) With the dashboard open on a fixture project, the Harness
-page lists the specs in roadmap order with the live spec's phase and the declared model per
-role. (2) Launching the fixture spec with one role's model changed to `sonnet`: `run.start`
-appears on the page within five seconds and carries the override; as the ledger grows, the
-phase row, spawn tree, round rows and ticker update without a reload, and the overridden
-role's spawn row shows actual model `claude-sonnet-5` (spec 8). (3) Stop ends the process,
-`run.end` is written, the pointer line is removed, and the page shows the run as stopped;
-launching again while a run is live is refused with the live run id. (4) `--watch` on the
-same store during (2) shows the same rows as the page. (5) A terminal run with no
-`harness-run.json` produces a ledger identical in shape to today's. (6) `npx tsc --noEmit`,
-`npm run build` and `npm test` are green; the page works at phone width.
-
-**Depends on** spec 8 for tokens and declared tiers on the page (soft: the page renders
-without them) and on `harness-bookkeeping` (spec 6) for the pointer file and hook events.
+in this document depends on it for correctness; 9, 10, 11 and 12 depend on it for their numbers.
 
 ### 10. `provider-per-role` — DeepSeek for chosen roles, Claude for the rest (active)
 
@@ -391,10 +333,11 @@ limit accounting telling them apart.
 
 **Delivers.**
 
-- **Provider per role.** `harness-run.json` (spec 9) and, for terminal runs, a
-  `## Providers` block in `agent-rules.md` name a provider per role: `anthropic` (default) or
-  `deepseek`, with the DeepSeek model (`deepseek-v4-pro` or `deepseek-flash`). The supervisor
-  records the map on `run.start`.
+- **Provider per role.** A `## Providers` block in `agent-rules.md` names a provider per
+  role: `anthropic` (default) or `deepseek`, with the DeepSeek model (`deepseek-v4-pro` or
+  `deepseek-flash`). The supervisor reads it at Step 0 and records the map on `run.start`.
+  When spec 9 lands, its `harness-run.json` carries the same map per run and overrides the
+  block for that run.
 - **A subprocess spawn path.** For a DeepSeek role the orchestrator does not call the Agent
   tool. It runs a launcher script (written by the supervisor next to `event.sh`) that spawns
   `claude -p` with the same brief, the agent's definition passed with `--agents` from
@@ -444,8 +387,254 @@ Anthropic total without them. (6) `npm test` is green and `claude plugin validat
 passes.
 
 **Depends on** spec 8 (usage from the transcript, `agent-profiles.json`, provider-aware
-`harness usage`) and spec 9 (`harness-run.json` and the run setup form). Nothing depends on
-it.
+`harness usage`). Spec 9 pre-fills its run form from the provider map, and spec 11's test
+author is the next role eligible for it; neither depends on it for correctness.
+
+### 12. `graph-orientation` — workers orient from the code graph, not from cold reads (active)
+
+Every worker that touches code starts from raw reads. Over the 284 worker transcripts in
+this checkout's session directory, 27% of all tool-result bytes are `cat`, `sed` and `grep`
+on the code root (drafter 2.7M chars over 436 calls, reviewer 2.4M over 555, reviser 1.2M
+over 497); the spec store is 50%, the rest is checks and git. A graphify graph exists for
+both code roots (`graphify-out/graph.json`: 2,713 nodes here, 8,531 in tradr) and nothing
+under `harness/` names it: 4 graphify calls in 4,648 tool events across the last four runs,
+all prompted by the global PreToolUse nudge, each a BFS dump cut at graphify's 2,000-token
+default (60 of 331 nodes shown) and followed by the same raw reads. `graphify explain
+"<symbol>"` answers in about 200 tokens with `[EXTRACTED]` edges that carry `file:line`. The
+context file of spec 6 (`<spec dir>/codebase-context.md`,
+`sdd-document-phase/references/briefs.md:50-59`) is the map every later worker reads first,
+and the requirements drafter writes it from cold exploration. Nothing rebuilds the graph
+during a run: on 2026-09-21 this checkout's graph was 19 commits behind HEAD.
+
+**Delivers.**
+
+- **A graph fact.** Supervisor Step 0 resolves `GRAPH: <path> | none`:
+  `<CODE_ROOT>/graphify-out/graph.json`, or the main checkout's when `CODE_ROOT` is a
+  worktree (the rule of `~/.claude/scripts/graphify-hook-guard.sh`), `none` when the file or
+  the `graphify` binary is missing. The launch prompt carries it with `GRAPH_BEHIND: <n>` from
+  `git rev-list --count <built_at_commit>..HEAD` (`built_at_commit` is a top-level key of
+  `graph.json`).
+- **A brief section by tooling.** When `GRAPH` is a path, the `harness` `brief` action
+  (`src/tools/harness.ts`, `BRIEF_TEMPLATES`) adds `## Code graph` to every template, drafter
+  to implementer and spec 11's test author: the path; the three calls with `--graph <path>`
+  (`explain "<symbol>"` for one symbol and its edges, `path "A" "B"` for a chain, `query
+  "<terms>" --budget 800` for an area, terms taken from the graph's labels); the rule (explain
+  before opening a file, then read only the cited range to confirm it, never for the spec
+  store); and the freshness line (`built at <sha>, <n> commits behind HEAD`; behind by more
+  than 0, a `file:line` from the graph is a hint to confirm, not a citation). No graph, no
+  section: the brief is byte-identical to today's.
+- **The context file from the graph.** The requirements drafter builds `codebase-context.md`
+  from `explain` and `query` output for each area the decomposition entry names, and reads a
+  file only to confirm the range it cites; the shape of spec 6 stays. Design and tasks
+  drafters extend it the same way. Reviewer, reviser, checker, implementer and verifier
+  briefs say to `explain` a cited symbol before opening its file.
+- **Freshness by tooling.** `graphify update <CODE_ROOT>` (the CLI's code-only path: AST, no
+  LLM, no key) runs from the implementation and close-out orchestrators' per-task step after
+  each implementer commit, and from the supervisor at run start when `GRAPH_BEHIND` is not 0,
+  in both cases only when `CODE_ROOT` is the main checkout; a worktree reads the main
+  checkout's graph and never writes it. `graphify-out/` stays untracked.
+- **Counted.** The activity hook already logs every worker tool call with its summary
+  (`harness-activity.jsonl`); `harness usage` adds a `graph` column, the count of `graphify`
+  calls per agent, so the retro compares tokens and graph use per role against
+  `provider-per-role`, the last run without this spec.
+
+**Decided.**
+
+- The graph is an index, not a source. A citation in a document or the context file still
+  names a range the agent read; `[INFERRED]` edges are not citations.
+- `explain` first, `query` capped at 800 tokens. The default query was measured at about
+  1,800 tokens per call with most nodes cut; a targeted read is cheaper than that.
+- The spec store stays out of the graph and `.graphifyignore` is unchanged. graphify's
+  markdown extractor (`extractors/markdown.py`) yields one node per document and link edges,
+  and spec documents cite in backticks, not links, so the structural layer holds nothing for
+  them; the semantic layer needs an LLM pass per changed file (graphify `SKILL.md`, Step 3B),
+  and the live documents change every review round and are read whole by design (52% of
+  tool-result bytes since 2026-09-19, mostly the reviser re-reading the document it revises).
+  The slow-changing files (`steering/`, `decomposition.md`, `deferrals/`, closed
+  retrospectives) are read today by slug grep and line ranges (47 decomposition touches in
+  four runs); a semantic graph of them for the drafter's and the retro analyst's cross-cutting
+  questions is a retro decision on this spec's numbers, not part of it.
+- One graph per code root, owned by the code root. `SPEC_STORE_REPO` ≠ `CODE_ROOT` is the
+  normal case: tradr's store is tradr-hosted, which has no graph and needs none.
+- Workers call the CLI through Bash, which every worker has: no MCP server, no agent
+  frontmatter change.
+- The global PreToolUse nudge (`graphify-hook-guard.sh`, in `~/.claude`) is outside the
+  harness and unchanged; the brief section makes it redundant for workers. Its nudge on
+  spec-store reads is a human to-do (a path filter in the wrapper).
+
+**End-to-end verification.** (1) `harness brief` for every template on a fixture store with a
+graph present writes `## Code graph` with the resolved path, the three calls and the
+freshness line; with no graph, every template's output is byte-identical to the pre-spec
+output. (2) A supervisor launch on a checkout without `graphify` carries `GRAPH: none` and
+the run's ledger has today's shape. (3) A requirements phase on a fixture spec with a graph:
+`codebase-context.md` cites only ranges that exist in the code root, and
+`harness-activity.jsonl` shows the drafter's first `explain` or `query` before its first raw
+read of the code root. (4) After an implementer commit on the fixture, `graph.json`'s
+`built_at_commit` is HEAD. (5) `harness usage` on the fixture ledger prints the `graph`
+column, and side by side with `provider-per-role` prints that run's count from its activity
+log. (6) `npm test`, `npm run check:plugin-assets` and `claude plugin validate . --strict`
+are green.
+
+**Depends on** `harness-bookkeeping` (spec 6) for the `brief` action and the activity log,
+and on spec 8 for `harness usage`. Nothing depends on it; spec 11's test author gets the
+section through the same template mechanism.
+
+### 11. `tdd-task-loop` — a test author and a red-on-base proof for marked tasks (active)
+
+The implementer writes a task's tests with or after its code, and nothing proves a test
+failed before the code existed; the gate's only test signal is a word match on the task
+block (`gate-rules.ts:298-311`). A test the implementing agent writes after the code shares
+its blind spots and does not change outcomes (arXiv 2602.07900); weak tests make the next
+fix round worse (ExecCritic). This spec adds independence and a negative control per task,
+on the decisions of 2026-09-19 (`docs/tdd-implementation-research.md`, section 0.1).
+
+**Delivers.**
+
+- **The `Test:` line.** A task opts in with `- Test: <test path> — <public call>` after its
+  `File:` lines. The parser promotes it to `tests[]`; a lint rule `task-test-seam` checks
+  the path is a test path by the gate's rule and the seam is present, and notes a source task
+  without one; the tasks reviewer gets one lens: the seam exists in the design or an earlier
+  task, and the success criteria are assertable through it with values the requirements
+  state. The tasks template carries the shape. Nothing else in the tasks phase changes.
+- **The test author.** `sdd-test-author` (`claude-sonnet-5`, high; Read, Grep, Glob, Bash,
+  Write, Edit), brief template `test-author` in `harness brief`. It reads the task block,
+  the seam, the criteria and design sections the task cites, `codebase-context.md` and one
+  existing test file; writes a contract block, then one test per success criterion with
+  expected values from the criteria, through the seam only; runs the file and must see every
+  test fail; commits the test file(s) only, `test(<spec>): task <N> red`; reports each test's
+  red kind, `commit:`, and the flags `SEAM-DEFECT`, `RED-IMPOSSIBLE`, `RETRO:`. It creates no
+  stubs.
+- **The implementer under TDD.** Its brief carries the red tests. It makes them pass, does
+  not edit the author's files (`TEST-AMENDED: <file> — <reason>` when it must), may add its
+  own tests, runs the author's files last and reports `green: n/n`.
+- **The proof in the gate.** `src/core/red-green.ts`, called by `handleGate` when the call
+  carries `tdd: { testFiles, redCommit }`: the red commit touched only test paths; the
+  author's files are unchanged since (`amended`); a detached worktree at `baseRef` with every
+  `node_modules` of the code root mirrored as a symlink (or `red-on-base-setup:` from the
+  agent rules); the author's files copied in and run alone with `tdd-test-command:` from the
+  agent rules; the same on `HEAD`; the red classified from the runner output (assertion,
+  structural, unknown); the worktree removed in a `finally`. Outcomes: assertion red and
+  green pass; structural red, inconclusive and amended pass at risk high
+  (`tdd-structural-red`, `tdd-inconclusive`, `tdd-amended`); a vacuous base run, a failing
+  head run, or a red commit that touched source fail the gate. The recorded review gains a
+  `tdd` block (files, seam, red commit, base, head, amended, judged); `spec-status` and the
+  dashboard task view show it.
+- **Jev in shadow.** `src/core/judge.ts` from the Jev note (one `fetch`, content-hash cache,
+  `off | shadow | enforce` per site, fail open, a `judge` ledger event) and four questions on
+  the author's test file against the criteria and the seam: `tautological`,
+  `asserts_criteria`, `through_seam`, `mocks_internals`. Shadow in this spec: answers recorded
+  in the `tdd` block and the ledger, nothing routes on them.
+- **The loop.** The implementation-phase skill gains the author step before the implementer,
+  the `tdd` argument on the gate call, the red section in implementer and fix briefs, and a
+  verifier note to read an amended test against the criteria first. A task without a `Test:`
+  line runs today's loop exactly.
+
+**Decided.**
+
+- A different agent writes the test than writes the code, and it never sees the
+  implementation. Sonnet 5 high: the narrow-role tier of the efficiency decisions.
+- The proof is code. Only facts change the gate's verdict; Jev raises risk at most, and only
+  after one spec of shadow data sets its thresholds. Infrastructure never blocks: a git or
+  setup error is `inconclusive`, and the verifier decides, as `no-diff` does today.
+- Today's `scoreRisk` rules are unchanged. Three high-risk reasons are added; nothing in this
+  spec lowers risk or skips a verifier. Whether an assertion-red, green, unamended task may
+  skip the verifier is a retro decision after the first measured spec.
+- No stubs: a stub is an invented interface. A structural red is allowed and raises risk.
+- The implementer may amend an author test, must flag it, and the gate detects it from the
+  diff whether flagged or not.
+- One test per success criterion, all red before the implementer runs; no refactor step; no
+  standalone TDD skill. Visibility is the gate's review record; the PR body and the ledger
+  keep their shape, save the gate `note` carrying the base outcome word.
+- Budget: a marked task may cost at most a third more than an unmarked one in price-weighted
+  tokens (Sonnet at 0.4 of Opus), measured on the first dogfooded spec from `spawn.end` per
+  role against the review-gate and spec-lint ledgers. The tasks phase gains one line per
+  marked task and one reviewer lens, nothing else.
+- Jev's key sits in this repository's `.mcp.json` env only; tradr stays `off`.
+
+**Open, for gate A of this spec.** (a) `SEAM-DEFECT` routes through the design-defect stop, or
+a narrower tasks-defect stop that re-opens only the tasks phase (recommended: design-defect
+this round). (b) A per-project `red-on-base: off` key in the agent rules that keeps the author
+and skips the proof at risk high (recommended: allow, default on). (c) Confirmation that the
+test files and criteria this public repository already publishes may go to TypeSafe in shadow.
+
+**End-to-end verification.** (1) A fixture spec of three tasks in a scratch store against this
+checkout: one marked and honest; one marked whose behaviour already exists at the base
+commit; one unmarked docs task. The implementation phase runs headless (`claude -p`): the
+first task's record shows `base: assertion-red`, `head: pass`, `amended: false`; the second
+fails the gate with `tdd: tests pass on base` and enters a fix round; the third spawns no
+author and records no `tdd` block. (2) The ledger carries `spawn.usage role=author task <N>`
+for the two marked tasks and one `judge` event each when a key is set, none when it is not.
+(3) A spec with no `Test:` line produces a ledger and review records identical in shape to
+today's (regression). (4) The proof takes under 30 seconds per task on this checkout. (5)
+`npx tsc --noEmit`, `npm test`, `npm run check:plugin-assets` and `claude plugin validate .
+--strict` pass, and `agent-profiles.json` lists the thirteenth agent.
+
+**Depends on** spec 8 for per-role usage (the budget measurement) and `agent-profiles.json`
+(the new agent's declared tier). Soft on 10: the author calls no MCP tool, so one line in the
+provider map moves it to DeepSeek. Spec 9's task view shows the `tdd` block when 9 lands.
+
+### 9. `harness-control-pane` — set up, launch and watch a run in the dashboard (active)
+
+The dashboard (`src/dashboard`, Fastify and a websocket; `src/dashboard_frontend`, React)
+shows specs, approvals and reviews but nothing of a harness run; the run is watched in the
+`--watch` TUI and launched by hand with `continue the sdd process` or a `claude -p` script.
+This spec adds a Harness page that does both, on the data layer the TUI already has.
+
+**Delivers.**
+
+- **Run setup.** The page lists the specs of the project with their state (the roadmap's
+  `INDEX.md` order and the live phase from HANDOFF, as the supervisor reads them) and a form
+  for one run: spec, model per role (declared value from `agent-profiles.json` pre-filled;
+  the Agent tool's aliases and full ids allowed), provider per role (the `## Providers` map
+  of spec 10 pre-filled), worktree yes or no, gates block or record.
+  Effort is shown read-only with the reason. Submitting writes `.spec-workflow/harness-run.json`
+  in the spec store.
+- **The supervisor honours it.** `sdd-continue` reads `harness-run.json` at Step 0 when it
+  exists, passes each role's model to the Agent tool's `model` override, records the overrides
+  on `run.start`, and deletes the file when the run ends. A run started from the terminal with
+  no file behaves as today.
+- **Launch and stop.** A route spawns `claude -p` with the `continue the sdd process` prompt
+  through the dashboard's existing child-process pattern (`adversarial-runner.ts`: scrubbed
+  git env, `cwd` the checkout or worktree, both roots on the env), records the pid and run id,
+  and streams stdout and stderr to the page. Stop sends SIGTERM; the supervisor's existing
+  interrupt handling writes `run.end`. One live run per spec store; the hooks' pointer file
+  (`~/.local/state/sdd/active-run`) is the lock the route checks and the page shows.
+- **Live view.** The server watches `harness-events.jsonl`, `harness-activity.jsonl`, HANDOFF
+  and `tasks.md` with the watcher `src/watch/index.ts` uses, builds `RunModel` with
+  `buildModel` from `src/watch/ledger.ts`, and pushes it over the existing websocket on
+  change. The page renders what `render.ts` renders: phase rows, the spawn tree with tokens
+  and model, rounds, task picks, the ticker, plus the recorded answers of a gate that ran in
+  record mode (`questions.md`).
+
+**Decided.**
+
+- Built into the existing dashboard, not a new app or a second server. The TUI stays
+  (`--watch` is must-keep) and shares `ledger.ts`; `render.ts` is not touched.
+- Model per role is per run; effort is not. The Agent tool has no effort override, and a
+  per-run effort would mean rewriting the plugin cache (the 2026-09-16 overlay), which is a
+  workaround and not a feature.
+- A launched run is headless (`claude -p`), so the question gates of spec 7 run in record
+  mode: the pane shows the recorded decisions and veto list, it does not answer them. Gates
+  answered from the pane are a later spec that needs a resume path in the supervisor.
+- The dashboard runs the harness only as a child process, never in-process, so a crashed run
+  cannot take the dashboard down and a stop is a signal.
+- Secrets never pass through the page; the child inherits the dashboard's environment.
+
+**End-to-end verification.** (1) With the dashboard open on a fixture project, the Harness
+page lists the specs in roadmap order with the live spec's phase and the declared model per
+role. (2) Launching the fixture spec with one role's model changed to `sonnet`: `run.start`
+appears on the page within five seconds and carries the override; as the ledger grows, the
+phase row, spawn tree, round rows and ticker update without a reload, and the overridden
+role's spawn row shows actual model `claude-sonnet-5` (spec 8). (3) Stop ends the process,
+`run.end` is written, the pointer line is removed, and the page shows the run as stopped;
+launching again while a run is live is refused with the live run id. (4) `--watch` on the
+same store during (2) shows the same rows as the page. (5) A terminal run with no
+`harness-run.json` produces a ledger identical in shape to today's. (6) `npx tsc --noEmit`,
+`npm run build` and `npm test` are green; the page works at phone width.
+
+**Depends on** spec 8 for tokens and declared tiers on the page (soft: the page renders
+without them), on spec 10 for the provider map the form pre-fills (soft: the field defaults
+to `anthropic`), and on `harness-bookkeeping` (spec 6) for the pointer file and hook events.
 
 ## Build order
 
@@ -455,9 +644,14 @@ it.
 changes every skill and the hooks, so it lands before 7. Spec 7 (`question-gates`) is the
 plan's step 3 and runs after 6 is released — which it now is (5.7.0).
 
-8 → 9 → 10 in that order, after 2 (`worktree-review-signals`, live on 2026-09-17) closes. 8
-first because 9 and 10 are judged on its numbers; 10 last because it needs 9's run file. Each
-is its own release.
+8 → 10 → 12 → 11 → 9 in that order, after 2 (`worktree-review-signals`, live on 2026-09-17)
+closes. 8 first because 10, 12, 11 and 9 are judged on its numbers. 10 second: it needs only
+8's `agent-profiles.json` and usage, and its provider map lives in `agent-rules.md` until 9
+exists. 12 third: it is small (the launch facts, the brief action, the drafters' context-file
+step, one usage column), `provider-per-role` is its baseline, and every later worker, 11's
+test author included, orients through it. 11 fourth: its budget is measured with 8's per-role usage, and its author role is the
+next candidate for 10's map. 9 last: it renders 10's `provider` and 11's `tdd` block. Each is
+its own release, and the spec after 11 is the first to run with `Test:` lines.
 
 ## Boundary notes
 
@@ -467,8 +661,18 @@ is its own release.
 - **The execution-context disclosure object is in 2.** Spec 1 emits no new reviewer-facing channel.
 - **Per-spawn usage is in 8, its display is in 8 and 9.** Spec 9 renders `RunModel`; it adds no
   ledger field. Spec 10 writes the same fields for its child processes and adds `provider`.
-- **Per-run model is in 9, per-role provider is in 10.** The run file is one file; 9 defines
-  it with `model` per role and 10 adds `provider` per role to the same shape.
+- **Per-role provider is in 10, the per-run file is in 9.** 10 defines the provider map in
+  `agent-rules.md`; 9 defines `harness-run.json` with `model` and `provider` per role and
+  makes it override the map for one run.
+- **The red-on-base proof is in 11; the verifier-need decision is not.** 11 adds three
+  high-risk reasons and a `tdd` block; it changes no existing `scoreRisk` rule and skips no
+  verifier. A skip on a proven task is a retro decision after the first measured spec.
+- **`judge.ts` is born in 11, in shadow, for one site.** The verifier-need gate, lint triage
+  and the narrow-check swap of `docs/jev-integration-research.md` are later specs that reuse
+  the module.
+- **Orientation is in 12, judgement is not.** 12 changes where a worker starts reading and
+  what its brief tells it; it changes no review lens, no gate rule, no verifier decision and
+  no document cap.
 - **The TUI is not replaced.** 9 adds a second consumer of `ledger.ts`; `render.ts` stays.
 
 ## Open question deferred to spec 2
