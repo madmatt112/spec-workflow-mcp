@@ -64,3 +64,13 @@ Cost: 1 reviewer spawn
 Round 3 iterate 1/1/1; all three findings fix-induced from the v3 delta. R3-1 (MUST_FIX, Compounds R2-3): the v3 lint pass mis-prefixed line 119's second citation onto SKILL.md:383-384 (out of bounds; the range is decomposition.md's). R3-2 (SHOULD_FIX, Compounds R2-1): the Deferral bar does not guarantee task 10's AFFECTS-FUTURE-SPECS flag becomes the verification-tagged deferral the fix asserts. R3-3 (MINOR, novel): task 10 Prompt body vs Success line disagree on AFFECTS-FUTURE-SPECS line count. Reviewer confirmed R2-1 core resolved (orchestrator holds deferrals). No circling (r2 R2-2 was task 1), no standoff. Revising to v4.
 Evidence: adversarial-analysis-tasks-r3.md
 Cost: 1 reviewer spawn
+
+## 2026-09-22T20:54:54Z · tasks · v4 · inefficiency
+Round 4 (cap) iterate 1/1/0. MUST_FIX flat at 1 from round 3, so cap convergence grants no extra round and round 4 was already BUDGET; routing to Step 4a post-cap corrective pass. Both open findings are contradiction remnants the truth-table lens surfaced: R4-1 (MUST_FIX, carried, Compounds R1-1) task 1's unset-key branch emits ESCALATE only while the Dependency-order paragraph and D6 promise RETRO: gotcha; R4-2 (SHOULD_FIX, fix-induced, Compounds R3-2) task 10's description bullet still asserts an unconditional verification deferral against the harmonised Prompt/D5/Scope note.
+Evidence: adversarial-analysis-tasks-r4.md
+Cost: 1 reviewer spawn
+
+## 2026-09-22T20:59:59Z · tasks · v5 · inefficiency
+Cap hit at v4 (4 review rounds); post-cap corrective pass adjudicated v5. R4-1 fixed (MUST_FIX): task 1's unset-key branch now reports RETRO: gotcha beside ESCALATE, matching Dependency-order/D6/Success/Scope. R4-2 fixed (SHOULD_FIX): task 10's description bullet now files the verification deferral only when the Deferral bar's three-part test holds. Both fixed, none ruled out, so no carried items for the next phase.
+Evidence: adversarial-analysis-tasks-r4.md
+Cost: 1 adjudicator spawn
