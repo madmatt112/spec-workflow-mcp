@@ -39,3 +39,13 @@ Cost: no extra spawn (ruled inside round 1)
 Round 1: iterate MUST_FIX 0 / SHOULD_FIX 1 / MINOR 1. R1-1 (SHOULD_FIX): keyless build/verify lifecycle contradicts itself. R1-2 (MINOR): tier-line is not the same as contingency. Deltas (lint pass) clean; wire-contract lens traced end-to-end and sound.
 Evidence: reviews/adversarial-analysis-design.md
 Cost: 1 reviewer spawn
+
+## 2026-09-22T18:06:56Z · design · v2 · gotcha
+Round 2: converged MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1. Both v2 deltas verified accurate, no fix-induced regression; fresh lens (prescribed tests vs installed vitest 4.0.16 + preflight/escalate halt) clean. R2-1 (MINOR, not blocking): compare-mode provider-pair placement under-specified — a value safely left to implementation.
+Evidence: reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn
+
+## 2026-09-22T18:08:29Z · design · phase · cleanup
+design approved at v2 after 2 rounds; verdict trajectory iterate 0/1/1 → converged 0/0/1; rulings 2 (both drafter RE-DECIDED literals ruled refinement/closed in round 1); cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept). Version header: none added — requirements.md (v5) and the design template carry no Document version header, so this spec tracks version in Revision History (v2 line present); adding a header only to design would be inconsistent.
+Evidence: approval_1790100426099_8ay5vpwgq; reviews/adversarial-analysis-design-r2.md
+Cost: 2 reviewer + 3 reviser + 1 drafter spawns

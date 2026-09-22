@@ -338,3 +338,15 @@ From implementation:
 | Cut scope | none. Scope notes reconcile two now-stale decomposition passages against the Gate A change — the refusal-timing bullet (decomposition still reads "refuse with a note") and the launcher `--model`/`ANTHROPIC_MODEL` contract — nothing the decomposition lists was cut. |
 | Carried items | none ruled out (post-cap corrective pass fixed both R3-1 and R3-2). Notes for the design drafter: (1) narrow-check deferred finding — Req 6 crit 5's auth-path clause is grammatically garbled, intended rule is "a 'no' answer fails preflight (a)"; smooth it if design quotes the criterion. (2) MINOR, out of scope this phase — Req 2 crit 5 cites CLI `2.1.278`; installed is `2.1.280`. |
 | Next phase loads | after `codebase-context.md`: the decomposition entry's "design should address" for provider-per-role and the endpoint routing facts at `.spec-workflow/spec-decomposition/decomposition.md:255-258`; then `.spec-workflow/agent-rules.md` (the new `## Providers` section), `harness/hooks/sdd-activity.sh` (the `provider` ledger field), the `claude -p` launcher surface the orchestrator calls instead of the Agent tool (Req 2/3), `harness/agent-profiles.json`, and the provider-split totals in the `harness usage` report and watch view (`src/watch/`) |
+
+## provider-per-role — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-09-22 |
+| Rounds | 2; verdicts iterate 0/1/1 → converged 0/0/1 (round 1 R1-1 SHOULD_FIX + R1-2 MINOR both accepted; round 2 clean, DESIGN_READY yes) |
+| Approval | `approval_1790100426099_8ay5vpwgq` |
+| Rulings | 2 (both drafter RE-DECIDED literals ruled refinement/closed in round 1): Req 2 crit 5 — the `--agents` JSON `model` key carries the request alias, not the profile's declared model (effort still from profiles); Req 2 crit 7 — `--add-dir` is passed when the spec store repo is outside the code root. |
+| Cut scope | none. Scope notes address the two requirements carried notes (Req 6 crit 5 auth-path wording; installed CLI `2.1.280`) and keep the spec-9 override/page deferred, as requirements pinned. |
+| Carried items | none ruled out (converged at v2 before any cap or adjudication). Notes for the tasks drafter: (1) carry the two round-1 refinement rulings above so tasks does not re-flag them. (2) R2-1 (MINOR, not blocking): compare-mode provider-pair placement is under-specified in the design — a value safely left to implementation; do not spawn a task solely for it. |
+| Next phase loads | after `codebase-context.md`: this spec's `design.md` (the Components and Interfaces list, Data Models, Error Handling item 8, and the Testing Strategy unit/integration/E2E prescriptions each task maps to), the approved `requirements.md` for the acceptance criteria, and the decomposition entry's verification scenario. `structure.md` steering is absent. |

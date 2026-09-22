@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790100426099_8ay5vpwgq",
+  "title": "provider-per-role design v2",
+  "filePath": ".spec-workflow/specs/provider-per-role/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-22T18:07:06.099Z",
+  "category": "spec",
+  "categoryName": "provider-per-role",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1; rulings: Req 2 crit 5 — --agents JSON model key carries the request alias not the profile's declared model (refinement, closed); Req 2 crit 7 — --add-dir passed when the spec store repo is outside the code root (refinement, closed); cap: not hit (converged at v2)",
+  "respondedAt": "2026-09-22T18:07:17.030Z"
+}
