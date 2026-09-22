@@ -1,1 +1,7 @@
 {"ts":"2026-09-22T03:33:26.580Z","run":"run-20260922-033238","spec":"provider-per-role","type":"run.start","model":"claude-fable-5-1","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no"}
+{"ts":"2026-09-22T03:33:37.455Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-22T03:34:14.452Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.start","phase":"requirements","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-22T03:36:38.770Z","type":"spawn.start","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-22T03:36:55.300Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-document-orchestrator","input":"66","output":"147","cacheWrite":"210624","cacheRead":"1883255","tokens":"2094092","model":"claude-opus-4-8"}
+{"ts":"2026-09-22T03:51:05.339Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-drafter","input":"3110","output":"31874","cacheWrite":"1411220","cacheRead":"9994561","tokens":"11440765","model":"claude-fable-5-1"}
+{"ts":"2026-09-22T03:51:33.099Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"0","result":"v1 3456w, gate-a 5 items, 1 RE-DECIDED (D3)"}
