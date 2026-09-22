@@ -81,3 +81,5 @@
 {"ts":"2026-09-22T18:06:46.977Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-reviewer","input":"106","output":"7409","cacheWrite":"413241","cacheRead":"3884584","tokens":"4305340","model":"claude-opus-4-8"}
 {"ts":"2026-09-22T18:06:56.342Z","run":"run-20260922-033238","spec":"provider-per-role","type":"round","phase":"design","round":"2","version":"v2","verdict":"converged 0/0/1"}
 {"ts":"2026-09-22T18:09:10.723Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.end","phase":"design","result":"approved","state":"v2","note":"2 rounds, iterate→converged"}
+{"ts":"2026-09-22T18:09:27.190Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-document-orchestrator","input":"344","output":"1085","cacheWrite":"2176939","cacheRead":"16129359","tokens":"18307727","model":"claude-opus-4-8"}
+{"ts":"2026-09-22T18:09:32.481Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved","phase":"design"}

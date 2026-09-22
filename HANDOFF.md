@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-22, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **design**, state **pending**, last result **approved** (requirements v5, approval_1790095689366_qb203yqs4).
+> Live phase **tasks**, state **pending**, last result **approved** (design v2, approval_1790100426099_8ay5vpwgq).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts and reviews design v1 for `provider-per-role` (spec 10 of decomposition.md; build order 8 → 10 → 11 → 9).
+> A re-run does: drafts and reviews tasks v1 for `provider-per-role` (spec 10 of decomposition.md; build order 8 → 10 → 11 → 9).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -36,6 +36,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-21 | harness-usage-and-tiers | closeout | items 4/4 | closed |  |
 | 2026-09-22 | provider-per-role | requirements | v1 | gate-a |  |
 | 2026-09-22 | provider-per-role | requirements | v5 | approved | 4 rounds, cap hit then adjudicated, VERIFIED 2/2 |
+| 2026-09-22 | provider-per-role | design | v2 | approved | 2 rounds, iterate→converged |
 
 ## Current state — 2026-08-04
 
