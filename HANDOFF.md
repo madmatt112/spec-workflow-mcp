@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-21, harness v4).** **`harness-usage-and-tiers`** is CLOSED — no active spec.
-> Live phase **closeout**, state **items 4/4**, last result **closed** (PR #56 open, not merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (close-out ran in worktree `.claude/worktrees/harness-usage-and-tiers-retro`, branch `chore/harness-usage-and-tiers-retro`).
-> A re-run does: starts the next roadmap spec, `harness-control-pane` (spec 9 of decomposition.md, no directory yet), at requirements — but only after PR #56 merges, `npm run build`, and a session restart. Human: merge PR #56; fix the SubagentStop hook so it reads the subagent transcript (agent_transcript_path, or derive from agent_id) and fires once, then re-verify d-3091be1c (kept open, evidence in the record); push local main (ahead of origin with docs commits).
+> **READ FIRST — SDD routing (2026-09-22, harness v4).** Active spec **`provider-per-role`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: resumes the requirements phase of `provider-per-role` (spec 10 of decomposition.md; build order 8 → 10 → 11 → 9).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
