@@ -59,3 +59,8 @@ Cost: 1 reviewer spawn
 Round 2 iterate 1/1/1. Both substantive findings are fix-induced compounds of round 1: R2-1 (MUST_FIX, Compounds R1-2) — the R1-2 reword routed task 10's deferral filing through sdd-implementer, whose standing rules bar it, so the 'no writer' gap recurred; R2-2 (SHOULD_FIX, Compounds R1-1) — the R1-1 safety record uses RETRO: escalation, a category the implementer brief does not list. No circling (two distinct items) and no standoff (R1-2 was partially accepted, not rejected). Revising to v3.
 Evidence: adversarial-analysis-tasks-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-09-22T20:35:16Z · tasks · v3 · inefficiency
+Round 3 iterate 1/1/1; all three findings fix-induced from the v3 delta. R3-1 (MUST_FIX, Compounds R2-3): the v3 lint pass mis-prefixed line 119's second citation onto SKILL.md:383-384 (out of bounds; the range is decomposition.md's). R3-2 (SHOULD_FIX, Compounds R2-1): the Deferral bar does not guarantee task 10's AFFECTS-FUTURE-SPECS flag becomes the verification-tagged deferral the fix asserts. R3-3 (MINOR, novel): task 10 Prompt body vs Success line disagree on AFFECTS-FUTURE-SPECS line count. Reviewer confirmed R2-1 core resolved (orchestrator holds deferrals). No circling (r2 R2-2 was task 1), no standoff. Revising to v4.
+Evidence: adversarial-analysis-tasks-r3.md
+Cost: 1 reviewer spawn
