@@ -1,70 +1,92 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-09-22 (round 1, v2)
+Last updated: 2026-09-22 (after v2 review — round 2, on doc v3)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1)
+- **R1-1 (MUST_FIX, v3)** — D2 split: start-refusal (no row, D5) vs mid-run missing-launcher
+  (`PHASE: error`, Req 2 crit 4). Fixed in v3.
+- **R1-2 (SHOULD_FIX, v3)** — Req 2 crit 5/6 now pass the `claude-*` alias the endpoint maps
+  (not the DeepSeek name). Fixed in v3 — but see R2-1: the fix left the response-side
+  `message.model` claims unreconciled.
+- **R1-3 (SHOULD_FIX, v3)** — D5 states map/key checks finish at the roots step before run
+  id / `event.sh` / pointer line / `run.start`. Verified in v3 against `SKILL.md:71-72` vs
+  `76-86`. Correct.
+- **R1-4 (SHOULD_FIX, v3)** — Scope note records decomposition scenario 4 still reads "with a
+  note"; Req 7 "as written" = the outcome. Fixed in v3 (but only scenario 4 recorded — see
+  R2-3).
+- **R1-5 (SHOULD_FIX, v3)** — Req 2 crit 1 adds `HARNESS_REPO` (`SKILL.md:204`) to `launch.sh`.
+  Verified accurate in v3.
+- **R1-6 (SHOULD_FIX, v3)** — Req 2 crit 7 rewritten for main-checkout document-phase context;
+  worktree-cwd premise dropped. Verified against `SKILL.md:270-282`. Correct.
+- **R1-7 (SHOULD_FIX, v3)** — Req 2 crit 5's `agent-profiles.json` rationale reworded to "feeds
+  the `--agents` JSON's ignored `model`/`effort` keys." Fixed in v3 — but the new wording is
+  itself problematic (see R2-2).
+- **M1 (MINOR, v3)** — Req 3 crit 3 requires a fresh `--session-id` per launcher call. Fixed.
+- **M2 (MINOR, v3)** — fifth machine-read line count word; implementation-phase follow-through.
 
 ### Partially Accepted
-- (none yet)
+- (none)
 
 ### Rejected
-- (none yet)
+- (none — round 1 rejected none; round 2 opened no rejections)
 
-### Unresolved
-- **R1-1 (MUST_FIX)** — D2 (line 132) still says a bad map row / ineligible role / missing key
-  "refuses the run with a note"; D5 (revised) and Req 1 crit 3 / Req 4 crit 2 say a
-  start-refusal writes no ledger row. Direct contradiction from the v2 delta not reaching D2.
-- **R1-2 (SHOULD_FIX)** — Req 2 crit 5/6 pass the DeepSeek native name (`deepseek-v4-pro`) as
-  `--model` / `ANTHROPIC_MODEL`; the settled mapping (`decomposition.md:256-258`) routes "any
-  other name" (non-`claude-*`) to `deepseek-flash`. Silent tier downgrade of the reviewer;
-  preflight (a) records `message.model` but asserts nothing about it.
-- **R1-3 (SHOULD_FIX)** — the refusal ordering / "first ledger row" moment is unstated. Map
-  read is pinned to the roots step (Req 1 crit 4) but validation + key check timing vs the
-  `SKILL.md:76-86` block (run id / event.sh / pointer line / run.start) is only implied; a
-  wrong order leaves a stale `active-run` pointer line and orphan `event.sh`.
-- **R1-4 (SHOULD_FIX)** — Req 7's "the decomposition's six scenarios runnable as written" is
-  now false for scenario 4 (`decomposition.md:383-384` says "stops at run.start with a note");
-  the v2 divergence from the decomposition is unrecorded. (Same root as R1-1.)
-- **R1-5 (SHOULD_FIX)** — Req 2 crit 1's enumerated `launch.sh` values (spec dir, run id, spec,
-  map) omit the harness-source path the launcher needs to find its body, the agent file and
-  `agent-profiles.json` (Req 2 crit 2/5).
-- **R1-6 (SHOULD_FIX)** — Req 2 crit 7's "from a worktree cwd" premise never occurs: all
-  eligible roles are document-phase (reviewer, checker, reviser), which run in the main
-  checkout; the supervisor enters a worktree only before implementation (`SKILL.md:270-282`,
-  `agent-rules.md:40`). Live `run.start` for this spec is `worktree=no`.
-- **R1-7 (SHOULD_FIX)** — Req 2 crit 5's "declared model and effort for the ledger" (from
-  `agent-profiles.json`) contradicts the ledger contract: Req 3 crit 1 writes
-  `model=<requested deepseek name>`/`effort=not-applied`; Req 3 crit 2 writes actual
-  `message.model`. Declared values never reach a ledger row.
-- **M1 (MINOR)** — Req 3 crit 3 does not say the `--session-id` uuid is fresh per launcher call
-  (rounds would append to one transcript and over-count).
-- **M2 (MINOR)** — Req 1 crit 6 adds a fifth machine-read line; `docs/SDD-HARNESS.md:271` still
-  says "Four" (count-word update, task phase).
+### Unresolved (round 2, on doc v3)
+- **R2-1 (MUST_FIX, Compounds: R1-2, fix-induced)** — the R1-2 alias fix makes the request
+  carry `claude-opus-4-8`, but Req 4 crit 4 (credential proof) and Req 7 crit 1 (E2E assertion)
+  still require the child's `message.model` to be a DeepSeek name; Req 3 crit 1 (`spawn.start`
+  DeepSeek name) vs crit 2 (`spawn.end` actual `message.model`) also disagree. The response
+  model field is never settled and preflight (a) does not gate on it (Req 6 crit 2). If the
+  endpoint echoes the request, the credential proof voids (Anthropic and DeepSeek both report
+  `claude-opus-4-8`) and the E2E test fails on a correct run. This is R1-2's own un-closed
+  second half (preflight asserts nothing about `message.model`), re-manifested through the
+  accepted fix.
+- **R2-2 (SHOULD_FIX, Compounds: R1-7)** — Req 2 crit 5 asserts the `--agents` `model`/`effort`
+  keys are "ignored" and reads `agent-profiles.json` to fill them, while Req 6 crit 5 schedules
+  the preflight to discover whether `--agents` even accepts those keys. Launcher built on an
+  unproven schema fact; and if the keys are ignored, the `agent-profiles.json` dependency is
+  unmotivated.
+- **R2-3 (MINOR, Compounds: R1-2, R1-4)** — Req 2 crit 5/6's `--model`/`ANTHROPIC_MODEL`
+  contract reverses `decomposition.md:344,346` ("--model the DeepSeek name"), and the
+  decomposition's "Decided" bullet (`371-373`) still says "refuses at `run.start` with a note"
+  (conflicts with D5 twice). Only scenario 4 (383-384) is recorded in Scope notes; these are not.
+- **R2-4 (MINOR, Compounds: R1-1)** — Reliability NFR (line 123) still groups the missing
+  launcher with the start-refusals ("a missing key, launcher or bad map row stops the run"),
+  the distinction R1-1 was accepted to draw. The missing launcher is the mid-run `PHASE: error`
+  path (rows written), not a no-row start refusal.
 
 ## Patterns & Themes
 
-- The v2 gate A delta (remove the ledger trace for a start-refusal) was applied to the
-  acceptance criteria, the NFR and D5, but not swept through the rationale (D2) or the
-  cross-document alignment (Req 7 vs `decomposition.md`). Pattern: propagate a decision change
-  to every decision entry and every "as written" claim, not just the criteria.
-- The launcher wire contract is the soft spot: three separate boundaries (map→launcher,
-  launcher→child/DeepSeek, run→execution-context) each carry an unstated or wrong assumption
-  (harness path, `--model` mapping, worktree cwd). The DeepSeek endpoint facts are "settled,
-  not re-probed" — so any requirement that acts against those settled facts (R1-2) is high
-  risk because the preflight is scoped to measure behaviour, not to assert the requested model.
+- **Assert-what-you-also-probe.** The document repeatedly states as settled a fact that its own
+  preflight is scheduled to measure: `message.model`'s value (R2-1) and `--agents` key
+  handling (R2-2). This is the dominant round-2 pattern and the source of the MUST_FIX. Any
+  clause that hard-codes a DeepSeek-endpoint behaviour should be checked against Req 6's probe
+  list — if the preflight measures it, no earlier criterion may assume its answer.
+- **Half-swept fixes.** Round 1's pattern (a decision change applied to criteria but not to
+  rationale / cross-artifact claims) recurred at round 2: R1-2 fixed the request side but not
+  the three response-side `message.model` clauses; R1-4 recorded scenario 4's divergence but not
+  the twin at decomposition 344/346/371-373; R1-1 split D2 but left the Reliability NFR
+  conflating the cases. When a fix changes a value or a path, sweep every clause that consumes
+  the *result* of that value, not just the clause that sets it.
+- Citations remain accurate (spec-lint clean on v3; I re-read both ends of every range the
+  round-1 delta introduced). Later rounds can trust `path:line` resolution and attack meaning.
 
 ## Guidance for Next Review
 
-- Confirm D2 was split (start-refusal = no row; missing launcher = `PHASE: error`) and that
-  Req 7 / Scope notes reconcile with `decomposition.md` (still "with a note" at line 383-384).
-- Check whether the `--model` question (R1-2) was resolved by tier-alias mapping or by a
-  preflight assertion on `message.model`; do not accept "records message.model" as a fix.
-- Re-read the refusal ordering: it must be explicit that no run id, pointer line, `event.sh`
-  or `run.start` is written on a refusal.
-- Citations were all accurate on v2 (spec-lint clean; I re-read both ends of the load-bearing
-  ranges). Later rounds can trust `path:line` resolution and focus on meaning.
-- Rulings closed by revision history: RI-1 (refused-at-start writes no ledger row) — do not
-  re-open the decision itself, only its incomplete propagation.
+- Confirm R2-1 is resolved by a real reconciliation: `message.model` made a preflight probe
+  with a defined branch AND the credential proof (Req 4 crit 4) re-based on a signal that
+  survives the `claude-*` alias. Do NOT accept "preflight records message.model" as a fix — that
+  is the exact non-fix R1-2 already produced once.
+- Check whether Req 2 crit 5 still asserts `--agents` keys are "ignored" as settled, or makes it
+  contingent on Req 6 crit 5 (R2-2).
+- Re-read the Reliability NFR and Scope notes for the residual decomposition divergences
+  (R2-3, R2-4) — small, but they are the tail of the half-swept-fix pattern.
+- Well-covered, do not re-mine: refusal ordering (R1-3, verified), worktree/main-checkout
+  context (R1-6, verified), `HARNESS_REPO` in launch.sh (R1-5, verified), fresh session-id
+  (M1). Round 1's wire-contract lens and this round's contradiction/truth-table lens are both
+  spent; a third round should try a testability lens (can each acceptance criterion be turned
+  into a passing assertion as written?) if it needs a fresh angle.
+- Rulings closed by revision history: RI-1 (refused-at-start writes no ledger row) and all nine
+  round-1 findings (accepted, applied in v3). Do not re-open the decisions; only their
+  incomplete propagation is fair game.
