@@ -54,3 +54,8 @@ Cost: 2 reviewer + 3 reviser + 1 drafter spawns
 Round 1: iterate MUST_FIX 0 / SHOULD_FIX 2 / MINOR 2. R1-1 the in-run escalate/halt path is not active for the run that builds this spec; R1-2 task 10's corrected scenarios never reach the completion-gate verifier. No gate-b/gate-c findings, ESCALATE none.
 Evidence: .spec-workflow/specs/provider-per-role/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer spawn
+
+## 2026-09-22T20:12:10Z · tasks · v2 · inefficiency
+Round 2 iterate 1/1/1. Both substantive findings are fix-induced compounds of round 1: R2-1 (MUST_FIX, Compounds R1-2) — the R1-2 reword routed task 10's deferral filing through sdd-implementer, whose standing rules bar it, so the 'no writer' gap recurred; R2-2 (SHOULD_FIX, Compounds R1-1) — the R1-1 safety record uses RETRO: escalation, a category the implementer brief does not list. No circling (two distinct items) and no standoff (R1-2 was partially accepted, not rejected). Revising to v3.
+Evidence: adversarial-analysis-tasks-r2.md
+Cost: 1 reviewer spawn
