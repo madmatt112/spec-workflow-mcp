@@ -49,3 +49,8 @@ Cost: 1 reviewer spawn
 design approved at v2 after 2 rounds; verdict trajectory iterate 0/1/1 → converged 0/0/1; rulings 2 (both drafter RE-DECIDED literals ruled refinement/closed in round 1); cap not hit; prune removed 0 records and 0 snapshots (2 snapshots kept). Version header: none added — requirements.md (v5) and the design template carry no Document version header, so this spec tracks version in Revision History (v2 line present); adding a header only to design would be inconsistent.
 Evidence: approval_1790100426099_8ay5vpwgq; reviews/adversarial-analysis-design-r2.md
 Cost: 2 reviewer + 3 reviser + 1 drafter spawns
+
+## 2026-09-22T18:43:29Z · tasks · v1 · gotcha
+Round 1: iterate MUST_FIX 0 / SHOULD_FIX 2 / MINOR 2. R1-1 the in-run escalate/halt path is not active for the run that builds this spec; R1-2 task 10's corrected scenarios never reach the completion-gate verifier. No gate-b/gate-c findings, ESCALATE none.
+Evidence: .spec-workflow/specs/provider-per-role/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
