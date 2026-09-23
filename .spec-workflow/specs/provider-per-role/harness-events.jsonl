@@ -209,3 +209,10 @@
 {"ts":"2026-09-23T17:15:40.673Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4"}
 {"ts":"2026-09-23T17:15:57.969Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 4 pass risk low"}
 {"ts":"2026-09-23T17:15:58.014Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"4","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-23T17:16:09.911Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.pick","task":"5","title":"Supervisor map check roots step, providers on run.start, launch.sh, prompt lines, event table"}
+{"ts":"2026-09-23T17:16:15.623Z","type":"spawn.start","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-23T17:16:19.952Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementation-orchestrator","input":"244","output":"1064","cacheWrite":"1916496","cacheRead":"10284557","tokens":"12202361","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:24:38.254Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","input":"152","output":"24709","cacheWrite":"247968","cacheRead":"5033359","tokens":"5306188","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:24:41.957Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5"}
+{"ts":"2026-09-23T17:25:03.190Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 5 pass risk low"}
+{"ts":"2026-09-23T17:25:03.236Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"5","rounds":"0","outcome":"gate"}

@@ -104,3 +104,8 @@ Cost: 1 implementer spawn
 sdd-providers.sh validator (node -e parser) + providers-map.test.ts (14 cases). ELIGIBLE includes sdd-reviser since preflight (b) passed per docs/deepseek-preflight.md. Gate risk low, clean, review recorded.
 Evidence: task 4; commit 37f2890
 Cost: 1 implementer spawn
+
+## 2026-09-23T17:25:03Z · implementation · task 5 · gotcha
+Supervisor sdd-continue: roots-step Providers bullet + refusal, providers on run.start, per-run launch.sh writer, PROVIDERS/LAUNCHER prompt lines, formats.md event-table rows + Launcher section. Gate risk low, clean, review recorded.
+Evidence: task 5; commit b4cc021
+Cost: 1 implementer spawn
