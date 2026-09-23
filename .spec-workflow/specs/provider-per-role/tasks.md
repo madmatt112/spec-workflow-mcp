@@ -6,7 +6,7 @@ This spec sends `sdd-reviewer` and `sdd-checker` (and `sdd-reviser` on a passed 
 
 Dependency order: task 1 writes the launcher body and proves it against DeepSeek; a failed proof or an unset key makes task 1 report `ESCALATE:` and `RETRO: gotcha` (Requirement 6 criteria 6-7). In the run that builds this spec the orchestrator does not yet route `ESCALATE` — task 3's branch is live only from the next session restart — so this is a human-mediated stop, not an automatic halt: no later task checks task 1's outcome before running, and a human reading the retro entry decides whether to continue. Task 2 pins that body with a stub-driven test; task 3 adds the `ESCALATE` flag text task 1's report uses. Task 4 ships the map script, whose eligible set reads task 1's record; task 5 wires the supervisor to tasks 1 and 4 and writes the per-run `launch.sh` text; task 6 routes the document orchestrator to it. Tasks 7 and 8 are additive `src/watch` changes with their tests; task 9 is docs; task 10 is verification only. Every task leaves `npx tsc --noEmit` clean and every existing suite green: tasks 1-6 touch no `src/` module beyond their own new test files; task 7 rewrites one existing assertion (the empty-report literal) and no numeric value; task 8 alters no existing assertion.
 
-- [ ] 1. Preflight: write the launcher body and prove it against DeepSeek
+- [x] 1. Preflight: write the launcher body and prove it against DeepSeek
   - File: harness/skills/sdd-continue/references/sdd-launch.sh
   - File: docs/deepseek-preflight.md
   - Write the launcher body design Component 3 specifies, then run probes (a), (b) and the five one-line probes with it from a scratch spec dir, and write the record.

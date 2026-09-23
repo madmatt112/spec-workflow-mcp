@@ -84,3 +84,8 @@ Cost: 4 reviewer + 1 checker + 7 reviser + 1 drafter + 1 adjudicator spawns acro
 DEEPSEEK_API_KEY unset in the implementation session; task 1's key gate (Requirement 6 criterion 7, D6) wrote no launcher body and no docs/deepseek-preflight.md. The implementer reported ESCALATE + RETRO gotcha and logged the not-run summary. Tasks 2, 4, 5, 6 depend on the launcher body/record and are blocked. Human-mediated stop: a re-run needs DEEPSEEK_API_KEY exported.
 Evidence: task 1; implementation log task 1
 Cost: 1 implementer spawn
+
+## 2026-09-23T16:47:48Z · implementation · task 1 · gotcha
+Launcher body written and proven live against DeepSeek (message.model deepseek-v4-pro, transcript summed). One fix round: line 18 tested bare $DEEPSEEK_API_KEY under set -u, so an unset key aborted with unbound-variable exit 1 instead of the intended exit 2 no-row path; fixed to ${DEEPSEEK_API_KEY:-}. Gate risk high on line-count only (777 added, mostly the .sh body and 3 generated plugin copies).
+Evidence: task 1; commits 844aec0, 044bbc3
+Cost: 1 implementer + 1 verifier + 1 fix + 1 verifier = 4 spawns
