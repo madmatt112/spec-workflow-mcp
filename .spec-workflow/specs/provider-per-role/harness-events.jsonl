@@ -202,3 +202,10 @@
 {"ts":"2026-09-23T17:06:19.028Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3"}
 {"ts":"2026-09-23T17:06:45.205Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-23T17:06:45.252Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-23T17:06:59.278Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.pick","task":"4","title":"Map script sdd-providers.sh and its integration test"}
+{"ts":"2026-09-23T17:07:02.630Z","type":"spawn.start","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-23T17:07:07.596Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementation-orchestrator","input":"220","output":"946","cacheWrite":"1452599","cacheRead":"9218689","tokens":"10672454","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:15:29.844Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","input":"148","output":"23225","cacheWrite":"230587","cacheRead":"4316918","tokens":"4570878","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:15:40.673Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4"}
+{"ts":"2026-09-23T17:15:57.969Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 4 pass risk low"}
+{"ts":"2026-09-23T17:15:58.014Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"4","rounds":"0","outcome":"gate"}

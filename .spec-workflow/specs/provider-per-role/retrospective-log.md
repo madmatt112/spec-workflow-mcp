@@ -99,3 +99,8 @@ Cost: 1 implementer spawn
 Added ESCALATE flag to implementer brief + worker-report contract, and the orchestrator ## Escalate branch. Implementer also added an escalate row to the Stop conditions table for internal consistency (Req 6.6). Gate risk low, clean, review recorded.
 Evidence: task 3; commit a9d8da36
 Cost: 1 implementer spawn
+
+## 2026-09-23T17:15:58Z · implementation · task 4 · gotcha
+sdd-providers.sh validator (node -e parser) + providers-map.test.ts (14 cases). ELIGIBLE includes sdd-reviser since preflight (b) passed per docs/deepseek-preflight.md. Gate risk low, clean, review recorded.
+Evidence: task 4; commit 37f2890
+Cost: 1 implementer spawn
