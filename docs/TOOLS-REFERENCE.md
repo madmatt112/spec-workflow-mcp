@@ -572,9 +572,11 @@ pattern `spec-lint` uses) and spawns no child process.
   computes the gate-B class (a) veto items; `put`, `get` and `delete` manage the
   `gate-<slot>.json` payload file for slot `a` or `b`.
 - `usage` — fold one spec's `harness-events.jsonl` into a report of tokens and spawns
-  by phase and agent, with each phase's orchestrator share and any `unknown` marks.
-  Pass `compareSpecName` for a second spec side by side with a per-phase delta of
-  tokens and spawns.
+  by phase and agent, with each phase's orchestrator share and any `unknown` marks. An
+  agent row names its provider when it is not `anthropic` (`sdd-reviewer@deepseek`); the
+  phase and spec total lines print the `anthropic` and `deepseek` figures side by side; and
+  `data.report.providers` carries those per-provider cells. Pass `compareSpecName` for a
+  second spec side by side with a per-phase delta of tokens and spawns.
 
 ---
 

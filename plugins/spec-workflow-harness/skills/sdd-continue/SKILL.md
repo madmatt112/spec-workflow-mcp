@@ -70,6 +70,12 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
   `<spec store repo root>/HANDOFF.md`. You commit your own HANDOFF edits (step 4).
 - **Agent rules** are `<spec store root>/agent-rules.md`, optional. Note whether the
   file exists; pass its path to every orchestrator.
+- **Providers.** Run `bash <base dir>/references/sdd-providers.sh <agent-rules path | none>`
+  (the base dir named in step 0). Keep the value it prints — the text after `providers=`
+  on its stdout line — as `PROVIDERS`. On a non-zero exit (2 for a rejected map, 3 for a
+  missing key) print its stderr line, the roots line (step 6) and the status line
+  `<project>:- - refused — <the stderr line>`, then stop, so the run-ledger paragraph
+  never runs and no run id, `event.sh`, pointer line or `run.start` exists (D5, D14).
 
 Say which roots you resolved in the handoff line (step 6).
 
@@ -81,9 +87,13 @@ in), append this run's line to the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
 `<main checkout>\t<spec dir>\t<run id>`, so concurrent runs in other checkouts keep their
 own lines — then `bash <event.sh> run.start model=<your model>
-specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no>` (`headless=yes` when
-the AskUserQuestion tool is not available to you). Every spawn below is bracketed with
-`spawn.start` / `spawn.end` events, and every stop ends with `run.end`.
+specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>`
+(`headless=yes` when the AskUserQuestion tool is not available to you). When `PROVIDERS`
+contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`
+with the Write tool from the `## Launcher (launch.sh)` text in `references/formats.md`,
+its uppercase values filled in, and keep its path as `LAUNCHER`; otherwise `LAUNCHER` is
+`none`. Every spawn below is bracketed with `spawn.start` / `spawn.end` events, and every
+stop ends with `run.end`.
 
 ## 2. Active spec
 
@@ -203,6 +213,8 @@ AGENT_RULES: <path | none>
 AGENT_PREFIX: <prefix | none>
 HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
+PROVIDERS: <the value>
+LAUNCHER: <path | none>
 BUDGET: <4 review rounds | 20 tasks | all items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```

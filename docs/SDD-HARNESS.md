@@ -268,7 +268,7 @@ your repository must know and cannot derive from the code: which git binary and
 commit flags to use, what never to run, where scratch files go, which tools to prefer
 for orientation, what a PR body may and may not say, which test commands are safe.
 
-Four lines are machine-read:
+Five lines are machine-read:
 
 - `worktree-per-change: required` — the supervisor enters a worktree before
   implementation.
@@ -278,6 +278,10 @@ Four lines are machine-read:
   gate reads; a change that touches any listed path scores `risk: high`.
 - A `## Word caps` section whose bullets `requirements`, `design` and `task` override the
   `spec-lint` word caps.
+- A `## Providers` section whose bullets `- <agent>: <provider> [<model>]` name a provider
+  per role — `anthropic` (the default) or `deepseek` with `deepseek-v4-pro` or
+  `deepseek-flash` — for `sdd-reviewer`, `sdd-checker` and `sdd-reviser`; a row for any
+  other agent refuses the run before any ledger row is written.
 
 Keep it short and imperative. Every worker reads it on every spawn.
 
@@ -301,6 +305,12 @@ view reads for the orchestrators, the analyst and the workers; CI's `check:plugi
 fails when it drifts. Skills never pass a `model` parameter to the Agent tool and never use
 `subagent_type: fork` (a fork runs on the parent's model). The `opus` alias is never used:
 it resolves to the newest Opus.
+
+A role assigned `deepseek` in `## Providers` does not run as an Agent-tool subagent. It runs
+as a `claude -p` child with its own environment, launched through the supervisor's per-run
+`launch.sh`; the session itself never changes provider. The child is given only the agent's
+frontmatter tools and no MCP server, and its declared effort is not applied because the
+DeepSeek endpoint ignores it.
 
 ## Watching a run
 
@@ -329,8 +339,11 @@ Two append-only files under the spec directory feed it, both committed with the 
 
 Phases that finished before a ledger existed come from `HANDOFF.md`'s `## Phase log`, so a
 spec built before 5.3.0 still shows its history. The `SubagentStop` hook measures each
-spawn's tokens from the transcript and writes them on its `spawn.end` row; the watch header
-sums them, and `harness usage` splits them by kind; there is no dollar estimate.
+Anthropic spawn's tokens from the transcript and writes them on its `spawn.end` row; a
+DeepSeek spawn's hooks stay silent, so the launcher writes that spawn's `spawn.start` and
+`spawn.end` rows itself. The watch header's `tokens` figure is the Anthropic total — the Max
+plan number — with `deepseek` printed beside it when a DeepSeek spawn ran; `harness usage`
+splits the totals by kind and by provider; there is no dollar estimate.
 
 ## Developing the harness
 

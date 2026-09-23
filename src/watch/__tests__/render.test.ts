@@ -131,6 +131,27 @@ describe('render', () => {
     expect(coloured).toContain(`${ESC}[31m!=${ESC}[0m`);
   });
 
+  it('prints the Anthropic tokens with deepseek beside it, the provider on the tier line, and the run map', () => {
+    const base: LedgerEvent[] = LEDGER.map(e =>
+      e.type === 'run.start' ? { ...e, providers: 'sdd-reviewer:deepseek:deepseek-v4-pro' } : e);
+    const implEnd: LedgerEvent = { ts: '2026-09-12T19:06:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' };
+    const ledger: LedgerEvent[] = [
+      ...base,
+      implEnd,
+      { ts: '2026-09-12T19:07:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.start', agent: 'sdd-reviewer', role: 'review task 3', phase: 'implementation', task: '3', provider: 'deepseek' },
+      { ts: '2026-09-12T19:08:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-reviewer', result: 'pass', tokens: '182000', model: 'deepseek-v4-pro', provider: 'deepseek' },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false });
+    // The Anthropic figure is `tokens`; the DeepSeek spawn shows beside it.
+    expect(out.split('\n')[0]).toMatch(/tokens 84k deepseek 182k\s*$/);
+    expect(out).toContain('actual deepseek deepseek-v4-pro !=');
+    expect(out).toContain('providers sdd-reviewer:deepseek:deepseek-v4-pro');
+    // No DeepSeek spawn: the header carries no deepseek word.
+    const soloHeader = render(buildModel({ spec: 's', ledger: [...LEDGER, implEnd], activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false }).split('\n')[0];
+    expect(soloHeader).toMatch(/tokens 84k\s*$/);
+    expect(soloHeader).not.toContain('deepseek');
+  });
+
   it('keeps every line within 80 columns and truncates a long joined actual model', () => {
     const longModel = 'claude-opus-4-8+claude-sonnet-5+claude-fable-5-1';
     const ledger: LedgerEvent[] = [

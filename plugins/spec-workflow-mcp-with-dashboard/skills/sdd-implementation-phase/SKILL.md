@@ -104,6 +104,7 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
    - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
      and the implementer's files).
+   - `ESCALATE:` ⇒ **Escalate**.
    A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
    has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
    part of step 8 (end-to-end verification), then mark it `[x]` with `outcome=gate`.
@@ -182,6 +183,15 @@ task to `[ ]`. Append a retro-log entry with `retro.sh` (`deviation`, the defect
 evidence = task N). Write the HANDOFF section. Commit the spec store. Report
 `PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one
 line, from the implementer's flag>`. The supervisor re-opens design.
+
+## Escalate
+
+The implementer says a task's own instructions make a measured outcome need a human
+ruling before any later task runs — a failed vendor probe, not a design contradiction.
+Do not force it. Revert the task to `[ ]`. Append a retro-log entry with `retro.sh`
+(`escalation`, the flag's line, evidence = task N). Write the HANDOFF section. Commit the
+spec store. Report `PHASE: escalate`, `STATE: tasks <done>/<total>`, `REASON: <the
+flag's line>`. The supervisor already stops on it.
 
 ## Completion gate
 
@@ -314,6 +324,7 @@ Record `phase.end phase=implementation result=<PHASE value> "state=tasks <done>/
 | Every task `[x]`, gate passed, INDEX regenerated, HANDOFF written, PR opened, checks green | `complete` | — |
 | Budget reached with open tasks | `resume` | — |
 | Implementer flagged a design defect | `design-defect` | the defect |
+| Implementer flagged an escalate | `escalate` | the flag's line |
 | Gate failed, or the PR stayed red after three reconcile rounds and an adjudication | `verify-failed` | the failing scenario, or `ci: <check>` |
 | `tasks.md` not approved, drift, a tool error you cannot route around | `error` | the cause |
 
