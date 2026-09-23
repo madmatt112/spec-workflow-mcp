@@ -114,3 +114,8 @@ Cost: 1 implementer spawn
 Document-phase spawn rule now routes a deepseek-provider worker via bash LAUNCHER; PROVIDERS/LAUNCHER vars, reviewer/checker steps pointed at the rule, PHASE: error launcher-missing case, orchestrator line 50 updated. Gate risk low, clean, review recorded.
 Evidence: task 6; commit 2fcd2a1
 Cost: 1 implementer spawn
+
+## 2026-09-23T22:00:27Z · implementation · task 7 · tool-error
+A WSL crash killed the session mid-run after task 6. The run ledger was left with 596 NUL bytes after its last complete line; the supervisor truncated it to that line (225 rows, all parse) and resumed the same run id.
+Evidence: harness-events.jsonl; last good row task.done 6 at 2026-09-23T17:31:56Z; commit 24056eb
+Cost: one resume spawn

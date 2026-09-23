@@ -223,3 +223,4 @@
 {"ts":"2026-09-23T17:31:35.111Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6"}
 {"ts":"2026-09-23T17:31:56.315Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 6 pass risk low"}
 {"ts":"2026-09-23T17:31:56.363Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-23T22:00:27.204Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.end","agent":"sdd-implementation-orchestrator","result":"interrupted","tokens":"unknown","note":"WSL crash killed the Claude Code process; ledger left 596 NUL bytes, truncated by the supervisor; last row task.done 6 (2026-09-23T17:31:56Z)","phase":"implementation"}

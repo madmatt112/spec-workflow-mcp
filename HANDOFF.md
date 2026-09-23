@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **implementation**, state **tasks 6/10**, last result **in progress** (run-20260923-160920).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`).
-> A re-run does: resumes the implementation phase in that worktree at the next open task (task 7 next).
+> Live phase **implementation**, state **tasks 6/10**, last result **resume** (run-20260923-160920 resumed after a WSL crash; ledger NUL tail repaired).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`, head 2fcd2a1).
+> A re-run does: resumes the implementation phase in that worktree at task 7.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
