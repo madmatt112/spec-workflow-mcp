@@ -6,9 +6,8 @@
 
 ## Next
 
-- **State:** active
-- **Spec:** provider-per-role
-- **Why:** First not-Complete spec in build order (0/10).
+- **State:** all-on-disk-complete
+- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
 
 ## Active
 
@@ -21,7 +20,7 @@
 | 5 | harness-bookkeeping | Complete | 8/8 |
 | 6 | question-gates | Complete | 6/6 |
 | 7 | harness-usage-and-tiers | Complete | 8/8 |
-| 8 | provider-per-role | Implementing | 0/10 |
+| 8 | provider-per-role | Complete | 10/10 |
 | 9 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred

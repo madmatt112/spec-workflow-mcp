@@ -139,3 +139,13 @@ Cost: noted by implementer, no rework
 Docs-only change; gate passed at low risk, no fix rounds.
 Evidence: task 9; commit 43c3414
 Cost: 1 implementer spawn
+
+## 2026-09-23T22:37:54Z · implementation · task 10 · gotcha
+Verification-only task served as the end-to-end gate: full suite green (1418 pass) and all six scenarios passed, real DeepSeek launcher run included. Supervisor/orchestrator halves deferred to a restarted session.
+Evidence: task 10; deferral d-a38fea66
+Cost: 1 implementer spawn
+
+## 2026-09-23T22:38:38Z · implementation · phase · cleanup
+provider-per-role implemented, 10/10 tasks. This run completed tasks 7-10 (tasks 1-6 landed before the WSL crash). 0 fix rounds, 0 adjudications; every gated task passed at low risk. 1 deferral added (d-a38fea66, verification).
+Evidence: tasks.md all [x]; commits bed251e, f872a8e, 43c3414
+Cost: 4 implementer spawns this run, 0 verifier, 0 adjudicator

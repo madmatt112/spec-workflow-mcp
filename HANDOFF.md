@@ -370,9 +370,10 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 9/10 |
+| State | implemented, 10/10 tasks, 2026-09-23 |
 | Last code commit | 43c3414 |
-| Next task | task 10 |
-| Reason | task 1 preflight not run: DEEPSEEK_API_KEY unset in the implementation session, so no launcher body (sdd-launch.sh) and no docs/deepseek-preflight.md were written; tasks 2, 4, 5, 6 that drive the body or read the record are blocked. Human-mediated stop (D6, tasks.md Dependency order). |
-| Re-run does | export DEEPSEEK_API_KEY in the implementation session, then re-spawn implementation; task 1 writes and proves the launcher body against DeepSeek, then the loop proceeds. Without the key, task 1 escalates again. |
-| Gotcha | The orchestrator running this spec loaded the pre-spec skill (task 3 ESCALATE branch not yet live), so the stop is surfaced via PHASE: escalate for a human ruling, not an automatic halt. |
+| Deferrals | 1 added this spec (d-a38fea66); 15 deferred total |
+| Deferred verification | d-a38fea66 |
+| PR | pending |
+| Next deferrals worth working | d-3091be1c (live orchestrator SubagentStop usage half); d-1880d115 (question-gates gate A/B live scenarios) |
+| Gotcha | Task 10 verified the launcher, map-script and usage-fold halves in-process (all six scenarios and the full suite green, real DeepSeek run, tokens=58346). The supervisor (roots-step refusal) and document-orchestrator (launcher routing, Anthropic reviser round) halves need the merged skills in a restarted session — deferred as d-a38fea66. docs/SDD-HARNESS.md's "no MCP server" line is the anthropic default; the eligible sdd-reviser gets --mcp-config (design.md:133), slightly loose for that case. |
