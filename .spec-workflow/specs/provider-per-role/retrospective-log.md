@@ -109,3 +109,8 @@ Cost: 1 implementer spawn
 Supervisor sdd-continue: roots-step Providers bullet + refusal, providers on run.start, per-run launch.sh writer, PROVIDERS/LAUNCHER prompt lines, formats.md event-table rows + Launcher section. Gate risk low, clean, review recorded.
 Evidence: task 5; commit b4cc021
 Cost: 1 implementer spawn
+
+## 2026-09-23T17:31:56Z · implementation · task 6 · gotcha
+Document-phase spawn rule now routes a deepseek-provider worker via bash LAUNCHER; PROVIDERS/LAUNCHER vars, reviewer/checker steps pointed at the rule, PHASE: error launcher-missing case, orchestrator line 50 updated. Gate risk low, clean, review recorded.
+Evidence: task 6; commit 2fcd2a1
+Cost: 1 implementer spawn

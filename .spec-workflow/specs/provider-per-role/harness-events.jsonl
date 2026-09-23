@@ -216,3 +216,10 @@
 {"ts":"2026-09-23T17:24:41.957Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5"}
 {"ts":"2026-09-23T17:25:03.190Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 5 pass risk low"}
 {"ts":"2026-09-23T17:25:03.236Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-23T17:25:14.444Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.pick","task":"6","title":"Document orchestrator route a DeepSeek-provider worker to the launcher"}
+{"ts":"2026-09-23T17:25:16.964Z","type":"spawn.start","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-23T17:25:19.752Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementation-orchestrator","input":"270","output":"1217","cacheWrite":"2282750","cacheRead":"11651999","tokens":"13936236","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:31:27.842Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","input":"114","output":"10713","cacheWrite":"132194","cacheRead":"2730054","tokens":"2873075","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T17:31:35.111Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6"}
+{"ts":"2026-09-23T17:31:56.315Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-23T17:31:56.363Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
