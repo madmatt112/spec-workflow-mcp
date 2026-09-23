@@ -154,3 +154,8 @@ Cost: 4 implementer spawns this run, 0 verifier, 0 adjudicator
 Task 10's brief told the implementer to stage a scratch store 'with its own event.sh'; the implementer wrote it at the supervisor's shared path /tmp/scratchpad/sdd/provider-per-role/event.sh, pointing at the scratch-store ledger with run id run-20260923-000010. Every later event of the real run (task.done 10, phase.end implementation, both spawn.usage rows, a deferral note) went to the scratch ledger; the supervisor noticed on the next write, moved the five rows back and restored event.sh.
 Evidence: tasks.md task 10 _Prompt; scratch-store/.spec-workflow/specs/provider-per-role/harness-events.jsonl rows 3-7; ledger note 'task 10's E2E scenario overwrote the shared event.sh'
 Cost: 5 ledger rows misrouted; one supervisor repair
+
+## 2026-09-23T22:50:45Z · retrospective · phase · cleanup
+Retrospective compiled: 16 findings across the categories (2 gotchas, 0 product bugs, 0 tool/MCP, 2 harness defects, 1 prompt, 2 inefficiencies, 3 doc gaps, 1 model behaviour, 2 process/rulings, 2 harness-decisions, 1 repeat pattern). Analyst wrote 16 proposals (6 no-change), 1 decision needed (P4 ledger crash-resilience depth), 1 graduation candidate (shared run-ledger paths are supervisor-only, seen in 3 specs).
+Evidence: retrospective.md; retrospective-proposals.md; retrospective-log.md
+Cost: 1 analyst spawn
