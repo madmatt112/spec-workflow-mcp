@@ -149,3 +149,8 @@ Cost: 1 implementer spawn
 provider-per-role implemented, 10/10 tasks. This run completed tasks 7-10 (tasks 1-6 landed before the WSL crash). 0 fix rounds, 0 adjudications; every gated task passed at low risk. 1 deferral added (d-a38fea66, verification).
 Evidence: tasks.md all [x]; commits bed251e, f872a8e, 43c3414
 Cost: 4 implementer spawns this run, 0 verifier, 0 adjudicator
+
+## 2026-09-23T22:43:26Z · implementation · task 10 · harness-defect
+Task 10's brief told the implementer to stage a scratch store 'with its own event.sh'; the implementer wrote it at the supervisor's shared path /tmp/scratchpad/sdd/provider-per-role/event.sh, pointing at the scratch-store ledger with run id run-20260923-000010. Every later event of the real run (task.done 10, phase.end implementation, both spawn.usage rows, a deferral note) went to the scratch ledger; the supervisor noticed on the next write, moved the five rows back and restored event.sh.
+Evidence: tasks.md task 10 _Prompt; scratch-store/.spec-workflow/specs/provider-per-role/harness-events.jsonl rows 3-7; ledger note 'task 10's E2E scenario overwrote the shared event.sh'
+Cost: 5 ledger rows misrouted; one supervisor repair

@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **implementation**, state **tasks 6/10**, last result **resume** (run-20260923-160920 resumed after a WSL crash; ledger NUL tail repaired).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`, head 2fcd2a1).
-> A re-run does: resumes the implementation phase in that worktree at task 7.
+> Live phase **retrospective**, state **n/a**, last result **complete** (implementation tasks 10/10, PR #59 open, checks green, not merged).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`).
+> A re-run does: compiles the retrospective of `provider-per-role`, then holds the retrospective conversation and runs close-out.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -40,6 +40,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-22 | provider-per-role | tasks | v0 | interrupted |  |
 | 2026-09-22 | provider-per-role | tasks | v5 | approved | 4 rounds, cap hit then adjudicated, narrow VERIFIED 2/2, fix-induced trajectory |
 | 2026-09-23 | provider-per-role | implementation | tasks 0/10 | escalate | task 1 DEEPSEEK_API_KEY unset; preflight not run; spec blocked |
+| 2026-09-23 | provider-per-role | implementation | tasks 0/10 | interrupted |  |
+| 2026-09-23 | provider-per-role | implementation | tasks 10/10 | complete | 10/10 tasks, PR #59 checks green, 1 deferral |
 
 ## Current state — 2026-08-04
 
