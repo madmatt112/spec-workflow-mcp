@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **implementation**, state **tasks 0/10**, last result **approved** (tasks v5; gate B approved).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`).
-> A re-run does: resumes the implementation phase in that worktree at the next open task.
+> Live phase **implementation**, state **tasks 0/10**, last result **escalate** (task 1 preflight not run: `DEEPSEEK_API_KEY` unset; no launcher body written; tasks 2/4/5/6 blocked).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`, no commits yet).
+> A re-run does: with `DEEPSEEK_API_KEY` exported in the supervisor session before it starts, re-spawns implementation at task 1 in that worktree; without the key it escalates again.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -39,6 +39,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-22 | provider-per-role | design | v2 | approved | 2 rounds, iterate→converged |
 | 2026-09-22 | provider-per-role | tasks | v0 | interrupted |  |
 | 2026-09-22 | provider-per-role | tasks | v5 | approved | 4 rounds, cap hit then adjudicated, narrow VERIFIED 2/2, fix-induced trajectory |
+| 2026-09-23 | provider-per-role | implementation | tasks 0/10 | escalate | task 1 DEEPSEEK_API_KEY unset; preflight not run; spec blocked |
 
 ## Current state — 2026-08-04
 
