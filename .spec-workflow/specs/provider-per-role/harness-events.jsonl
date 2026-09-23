@@ -240,3 +240,10 @@
 {"ts":"2026-09-23T22:18:40.374Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","phase":"implementation","task":"8","result":"logged: yes/8"}
 {"ts":"2026-09-23T22:18:51.909Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 8 pass risk low"}
 {"ts":"2026-09-23T22:18:52.652Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-23T22:19:21.998Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.pick","task":"9","title":"Docs: the fifth machine-read line, the provider model, the split figures"}
+{"ts":"2026-09-23T22:19:24.616Z","type":"spawn.start","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-23T22:19:30.157Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementation-orchestrator","input":"186","output":"1561","cacheWrite":"1020735","cacheRead":"7096986","tokens":"8119468","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T22:24:19.591Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","input":"134","output":"8864","cacheWrite":"134536","cacheRead":"3087997","tokens":"3231531","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T22:24:45.590Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 9","phase":"implementation","task":"9","result":"logged: yes/9"}
+{"ts":"2026-09-23T22:24:54.846Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 9 pass risk low"}
+{"ts":"2026-09-23T22:24:55.454Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"9","rounds":"0","outcome":"gate"}

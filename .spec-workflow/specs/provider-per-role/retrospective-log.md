@@ -129,3 +129,13 @@ Cost: 1 implementer spawn
 Additive watch model/render provider changes; gate passed at low risk, no fix rounds.
 Evidence: task 8; commit f872a8e
 Cost: 1 implementer spawn
+
+## 2026-09-23T22:24:45Z · implementation · task 9 · doc-gap
+SDD-HARNESS.md 'no MCP server' is the default; the eligible sdd-reviser gets --mcp-config (design.md:133), so the blanket statement is slightly loose for the reviser case.
+Evidence: task 9; docs/SDD-HARNESS.md, docs/TOOLS-REFERENCE.md; commit 43c3414
+Cost: noted by implementer, no rework
+
+## 2026-09-23T22:25:01Z · implementation · task 9 · gotcha
+Docs-only change; gate passed at low risk, no fix rounds.
+Evidence: task 9; commit 43c3414
+Cost: 1 implementer spawn
