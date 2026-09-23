@@ -224,3 +224,12 @@
 {"ts":"2026-09-23T17:31:56.315Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 6 pass risk low"}
 {"ts":"2026-09-23T17:31:56.363Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
 {"ts":"2026-09-23T22:00:27.204Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.end","agent":"sdd-implementation-orchestrator","result":"interrupted","tokens":"unknown","note":"WSL crash killed the Claude Code process; ledger left 596 NUL bytes, truncated by the supervisor; last row task.done 6 (2026-09-23T17:31:56Z)","phase":"implementation"}
+{"ts":"2026-09-23T22:00:39.486Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.start","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 2","phase":"implementation"}
+{"ts":"2026-09-23T22:02:09.906Z","run":"run-20260923-160920","spec":"provider-per-role","type":"phase.start","phase":"implementation","mode":"normal","budget":"20","state":"tasks 6/10"}
+{"ts":"2026-09-23T22:02:33.208Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.pick","task":"7","title":"Usage fold by provider in src/watch/usage.ts"}
+{"ts":"2026-09-23T22:02:41.154Z","type":"spawn.start","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-23T22:02:47.313Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementation-orchestrator","input":"68","output":"999","cacheWrite":"278736","cacheRead":"2171070","tokens":"2450873","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T22:08:47.983Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-implementer","input":"152","output":"14618","cacheWrite":"273602","cacheRead":"4824774","tokens":"5113146","model":"claude-opus-4-8"}
+{"ts":"2026-09-23T22:08:59.140Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 7","phase":"implementation","task":"7","result":"logged: yes/7"}
+{"ts":"2026-09-23T22:09:13.651Z","run":"run-20260923-160920","spec":"provider-per-role","type":"note","text":"gate: task 7 pass risk low"}
+{"ts":"2026-09-23T22:09:43.235Z","run":"run-20260923-160920","spec":"provider-per-role","type":"task.done","task":"7","rounds":"0","outcome":"gate"}

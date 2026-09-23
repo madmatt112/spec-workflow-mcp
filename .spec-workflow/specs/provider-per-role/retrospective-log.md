@@ -119,3 +119,8 @@ Cost: 1 implementer spawn
 A WSL crash killed the session mid-run after task 6. The run ledger was left with 596 NUL bytes after its last complete line; the supervisor truncated it to that line (225 rows, all parse) and resumed the same run id.
 Evidence: harness-events.jsonl; last good row task.done 6 at 2026-09-23T17:31:56Z; commit 24056eb
 Cost: one resume spawn
+
+## 2026-09-23T22:09:52Z · implementation · task 7 · gotcha
+Additive usage fold in src/watch; gate passed at low risk with no fix rounds.
+Evidence: task 7; commit bed251e
+Cost: 1 implementer spawn
