@@ -271,4 +271,22 @@ describe('buildModel', () => {
     expect(impl.tokens).toBe(84_000);
     expect(m.tokensTotal).toBe(84_000);
   });
+
+  it('carries provider (spawn.start, overwritten by spawn.end), splits tokens by provider, reads the run map', () => {
+    const ev = ledger().map(e =>
+      e.type === 'run.start' && e.run === 'run-2'
+        ? { ...e, providers: 'sdd-reviewer:deepseek:deepseek-v4-pro' }
+        : e);
+    // Anthropic implementer (fixture spawn.start, no provider) closes with tokens.
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' });
+    // DeepSeek reviewer: the provider on spawn.start is overwritten by the spawn.end's.
+    ev.push({ ts: '2026-09-12T19:11:00.000Z', run: 'run-2', spec: 's', type: 'spawn.start', agent: 'sdd-reviewer', role: 'review task 3', phase: 'implementation', task: '3', provider: 'anthropic' });
+    ev.push({ ts: '2026-09-12T19:12:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-reviewer', result: 'pass', tokens: '182000', provider: 'deepseek' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const reviewer = m.spawns.find(s => s.agent === 'sdd-reviewer');
+    expect(reviewer?.provider).toBe('deepseek');
+    expect(m.tokensByProvider).toEqual({ anthropic: 84_000, deepseek: 182_000 });
+    expect(m.tokensTotal).toBe(84_000 + 182_000);
+    expect(m.providers).toBe('sdd-reviewer:deepseek:deepseek-v4-pro');
+  });
 });

@@ -529,6 +529,19 @@ describe('harnessHandler', () => {
     expect(res.data.report.total.unknown).toBe(0);
   });
 
+  it('usage carries zero deepseek cells on a provider-less ledger', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-implementer', phase: 'implementation' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-implementer', tokens: '50000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0 });
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 50000, unknown: 0 });
+  });
+
   it('usage folds the committed fixture ledger (runs 2, 5 spawns, 4,554,189)', async () => {
     const fixture = fileURLToPath(new URL('../../__tests__/fixtures/usage-ledger.jsonl', import.meta.url));
     await fs.writeFile(join(specDir, 'harness-events.jsonl'), await fs.readFile(fixture, 'utf-8'));

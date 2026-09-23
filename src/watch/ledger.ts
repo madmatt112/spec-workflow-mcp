@@ -102,6 +102,8 @@ export interface SpawnNode {
   result?: string;
   tokens?: number;
   model?: string;
+  /** The provider that ran this spawn; absent means Anthropic. */
+  provider?: string;
   input?: number;
   output?: number;
   cacheWrite?: number;
@@ -158,6 +160,10 @@ export interface RunModel {
   picks: PickRow[];
   ticker: TickerLine[];
   tokensTotal: number;
+  /** The run's provider map (`agent:provider[:model],...`), from run.start; absent or `none` when every role is Anthropic. */
+  providers?: string;
+  /** tokensTotal split by provider: the Anthropic figure the header prints as `tokens`, and DeepSeek beside it. */
+  tokensByProvider: { anthropic: number; deepseek: number };
   /** True when at least one activity event exists for the run (the hook is installed). */
   hasActivity: boolean;
 }
@@ -271,6 +277,7 @@ export function buildModel(input: {
         task: e.task,
         round: e.round,
         startedAt: e.ts,
+        provider: e.provider,
         level: agent.endsWith('-orchestrator') ? 1 : 2,
       });
     } else if (e.type === 'spawn.end') {
@@ -284,6 +291,7 @@ export function buildModel(input: {
         if (e.cacheWrite && !Number.isNaN(Number(e.cacheWrite))) open.cacheWrite = Number(e.cacheWrite);
         if (e.cacheRead && !Number.isNaN(Number(e.cacheRead))) open.cacheRead = Number(e.cacheRead);
         if (e.model !== undefined) open.model = e.model;
+        if (e.provider !== undefined) open.provider = e.provider;
       }
     }
   }
@@ -355,6 +363,13 @@ export function buildModel(input: {
   }
 
   const tokensTotal = spawns.reduce((sum, s) => sum + (s.tokens ?? 0), 0);
+  // Split the same sum by provider: a spawn counts as deepseek only when its provider is
+  // exactly `deepseek`; an absent or any other provider is Anthropic.
+  const tokensByProvider = { anthropic: 0, deepseek: 0 };
+  for (const s of spawns) {
+    const bucket = (s.provider ?? 'anthropic') === 'deepseek' ? 'deepseek' : 'anthropic';
+    tokensByProvider[bucket] += s.tokens ?? 0;
+  }
 
   const picks: PickRow[] = [];
   for (const e of runEvents) {
@@ -418,6 +433,8 @@ export function buildModel(input: {
     picks,
     ticker: tickerSource.slice(-4),
     tokensTotal,
+    providers: runStart?.providers,
+    tokensByProvider,
     hasActivity: runActivity.length > 0,
   };
 }

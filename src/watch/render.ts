@@ -74,9 +74,23 @@ export function render(model: RunModel, opts: RenderOptions): string {
     p.dim(runLabel),
     up ? p.dim(up) : '',
   ].filter(Boolean).join(p.dim(' | '));
-  const right = model.tokensTotal > 0 ? `${p.dim('tokens')} ${formatTokens(model.tokensTotal)}` : p.dim(model.hasActivity ? 'tokens 0' : 'tokens -');
+  // The header `tokens` is the Anthropic (Max plan) figure; a DeepSeek spawn shows beside it
+  // (D8). The `tokens 0` / `tokens -` branches stay keyed on the all-provider total.
+  let right: string;
+  if (model.tokensTotal > 0) {
+    right = `${p.dim('tokens')} ${formatTokens(model.tokensByProvider.anthropic)}`;
+    if (model.tokensByProvider.deepseek > 0) {
+      right += ` ${p.dim('deepseek')} ${formatTokens(model.tokensByProvider.deepseek)}`;
+    }
+  } else {
+    right = p.dim(model.hasActivity ? 'tokens 0' : 'tokens -');
+  }
   lines.push(padRight(left, width - stripAnsi(right).length) + right);
   lines.push(rule);
+  // The run's provider map on its own dim line, not truncated (D12).
+  if (model.providers && model.providers !== 'none') {
+    lines.push(p.dim(`providers ${model.providers}`));
+  }
 
   // Finished or resumed phases: the last row of each phase wins; the live phase is drawn below.
   const lastRow = new Map<string, RunModel['phases'][number]>();
@@ -204,7 +218,9 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
   // Tier line: what the agent files declare beside the model the run actually used; ` !=`
   // marks a substitution. Omitted when neither is known.
   const declared = profile ? `${profile.model} ${profile.effort}` : '';
-  const actual = fit(s.model ?? '', 30);
+  const model = fit(s.model ?? '', 30);
+  // The provider precedes the model when the run used a non-Anthropic one.
+  const actual = s.provider && s.provider !== 'anthropic' ? `${s.provider} ${model}` : model;
   if (declared || actual) {
     const flag = profile && s.model && s.model !== profile.model ? ` ${p.bad('!=')}` : '';
     out.push(`${indent}   ${p.dim('declared')} ${padRight(declared, 23)}${p.dim('actual')} ${actual}${flag}`);

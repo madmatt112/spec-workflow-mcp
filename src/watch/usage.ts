@@ -12,14 +12,16 @@ import { LedgerEvent, PHASE_ORDER } from './ledger.js';
 
 export interface UsageCell { spawns: number; tokens: number; unknown: number }
 export interface UsageKinds { input: number; output: number; cacheWrite: number; cacheRead: number }
+export interface UsageByProvider { anthropic: UsageCell; deepseek: UsageCell }
 export interface UsagePhase {
   phase: string;
   agents: Record<string, UsageCell>;
   total: UsageCell;
   kinds: UsageKinds;
   orchestratorShare: number | null;
+  providers: UsageByProvider;
 }
-export interface UsageReport { spec: string; runs: number; phases: UsagePhase[]; total: UsageCell; kinds: UsageKinds }
+export interface UsageReport { spec: string; runs: number; phases: UsagePhase[]; total: UsageCell; kinds: UsageKinds; providers: UsageByProvider }
 export interface UsageDelta { phase: string; spawns: number; tokens: number }
 
 /** Milliseconds of an ISO timestamp; 0 when absent or unparseable (as `buildModel`). */
@@ -39,12 +41,14 @@ interface Spawn {
   agent: string;
   startedAt: string;
   phaseKey?: string;
+  provider?: string;
   rows: LedgerEvent[];
 }
 
 interface ReducedSpawn {
   phase: string;
   agent: string;
+  provider: string;
   tokens: number | undefined;
   unknown: boolean;
   kinds: UsageKinds;
@@ -52,6 +56,16 @@ interface ReducedSpawn {
 
 function emptyCell(): UsageCell {
   return { spawns: 0, tokens: 0, unknown: 0 };
+}
+
+function emptyProviders(): UsageByProvider {
+  return { anthropic: emptyCell(), deepseek: emptyCell() };
+}
+
+function addCell(dst: UsageCell, src: UsageCell): void {
+  dst.spawns += src.spawns;
+  dst.tokens += src.tokens;
+  dst.unknown += src.unknown;
 }
 
 function emptyKinds(): UsageKinds {
@@ -87,7 +101,7 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
   for (const e of sorted) {
     const agent = e.agent ?? 'unknown';
     if (e.type === 'spawn.start') {
-      const s: Spawn = { agent, startedAt: e.ts, phaseKey: e.phase, rows: [] };
+      const s: Spawn = { agent, startedAt: e.ts, phaseKey: e.phase, provider: e.provider, rows: [] };
       spawns.push(s);
       current.set(agent, s);
     } else if (e.type === 'spawn.end' || e.type === 'spawn.usage') {
@@ -111,23 +125,29 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
   for (const r of reduced) {
     let ph = phaseMap.get(r.phase);
     if (!ph) {
-      ph = { phase: r.phase, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null };
+      ph = { phase: r.phase, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, providers: emptyProviders() };
       phaseMap.set(r.phase, ph);
     }
-    let cell = ph.agents[r.agent];
+    const anthropic = r.provider === 'anthropic';
+    const agentKey = anthropic ? r.agent : `${r.agent}@deepseek`;
+    const pcell = anthropic ? ph.providers.anthropic : ph.providers.deepseek;
+    let cell = ph.agents[agentKey];
     if (!cell) {
       cell = emptyCell();
-      ph.agents[r.agent] = cell;
+      ph.agents[agentKey] = cell;
     }
     cell.spawns += 1;
     ph.total.spawns += 1;
+    pcell.spawns += 1;
     if (r.tokens !== undefined) {
       cell.tokens += r.tokens;
       ph.total.tokens += r.tokens;
+      pcell.tokens += r.tokens;
     }
     if (r.unknown) {
       cell.unknown += 1;
       ph.total.unknown += 1;
+      pcell.unknown += 1;
     }
     ph.kinds.input += r.kinds.input;
     ph.kinds.output += r.kinds.output;
@@ -147,6 +167,7 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
 
   const total = emptyCell();
   const kinds = emptyKinds();
+  const providers = emptyProviders();
   for (const ph of phases) {
     total.spawns += ph.total.spawns;
     total.tokens += ph.total.tokens;
@@ -155,20 +176,25 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
     kinds.output += ph.kinds.output;
     kinds.cacheWrite += ph.kinds.cacheWrite;
     kinds.cacheRead += ph.kinds.cacheRead;
+    addCell(providers.anthropic, ph.providers.anthropic);
+    addCell(providers.deepseek, ph.providers.deepseek);
   }
 
-  return { spec, runs: runIds.size, phases, total, kinds };
+  return { spec, runs: runIds.size, phases, total, kinds, providers };
 }
 
 function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEvent[]): ReducedSpawn {
   let phaseKey = s.phaseKey;
+  let provider = s.provider;
   let tokens: number | undefined;
   let kinds = emptyKinds();
 
   // (c) tokens = the later digit-string spawn.end value; kinds from that same row. A
-  // spawn.usage phase overwrites the phase key. Rows are already in ts order.
+  // spawn.usage phase overwrites the phase key. The last spawn.end carrying provider wins.
+  // Rows are already in ts order.
   for (const r of s.rows) {
     if (r.type === 'spawn.usage' && r.phase !== undefined) phaseKey = r.phase;
+    if (r.type === 'spawn.end' && r.provider !== undefined) provider = r.provider;
     if (r.type === 'spawn.end' && r.tokens !== undefined && DIGITS.test(r.tokens)) {
       tokens = Number(r.tokens);
       kinds = {
@@ -212,7 +238,7 @@ function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEven
     phase = windowPhase ?? 'unknown';
   }
 
-  return { phase, agent: s.agent, tokens, unknown, kinds };
+  return { phase, agent: s.agent, provider: provider ?? 'anthropic', tokens, unknown, kinds };
 }
 
 /** Per phase of the union (in report order), `b` minus `a`. */
@@ -246,6 +272,10 @@ function kindsStr(k: UsageKinds): string {
   return `in ${grp(k.input)} out ${grp(k.output)} cw ${grp(k.cacheWrite)} cr ${grp(k.cacheRead)}`;
 }
 
+function provStr(p: UsageByProvider): string {
+  return `anthropic ${grp(p.anthropic.tokens)}  deepseek ${grp(p.deepseek.tokens)}`;
+}
+
 function headLine(r: UsageReport): string {
   return `usage ${r.spec}  runs ${r.runs}  spawns ${grp(r.total.spawns)}  tokens ${grp(r.total.tokens)}`;
 }
@@ -262,9 +292,9 @@ function formatOne(report: UsageReport): string {
       const c = ph.agents[agent];
       lines.push(`${ph.phase} | ${agent} | ${grp(c.spawns)} | ${tokenCell(c)}`);
     }
-    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}`);
+    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}  ${provStr(ph.providers)}`);
   }
-  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)}  ${kindsStr(report.kinds)}`);
+  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)}  ${kindsStr(report.kinds)}  ${provStr(report.providers)}`);
   return lines.join('\n');
 }
 
@@ -278,6 +308,8 @@ function formatCompare(report: UsageReport, compare: UsageReport): string {
   names.sort(cmpPhase);
   const deltas = new Map(usageDelta(report, compare).map(d => [d.phase, d]));
   const pair = (c: UsageCell | undefined) => (c ? `${grp(c.spawns)} | ${tokenCell(c)}` : '- | -');
+  const provPair = (a: UsageByProvider | undefined, b: UsageByProvider | undefined) =>
+    `anthropic ${grp(a?.anthropic.tokens ?? 0)} | ${grp(b?.anthropic.tokens ?? 0)}  deepseek ${grp(a?.deepseek.tokens ?? 0)} | ${grp(b?.deepseek.tokens ?? 0)}`;
 
   for (const phase of names) {
     const ap = aMap.get(phase);
@@ -289,10 +321,10 @@ function formatCompare(report: UsageReport, compare: UsageReport): string {
       lines.push(`${phase} | ${agent} | ${pair(ap?.agents[agent])} | ${pair(bp?.agents[agent])}`);
     }
     const d = deltas.get(phase);
-    lines.push(`${phase} | total | ${pair(ap?.total)} | ${pair(bp?.total)}  delta spawns ${d ? d.spawns : 0} tokens ${grp(d ? d.tokens : 0)}`);
+    lines.push(`${phase} | total | ${pair(ap?.total)} | ${pair(bp?.total)}  delta spawns ${d ? d.spawns : 0} tokens ${grp(d ? d.tokens : 0)}  ${provPair(ap?.providers, bp?.providers)}`);
   }
   const dSpawns = compare.total.spawns - report.total.spawns;
   const dTokens = compare.total.tokens - report.total.tokens;
-  lines.push(`total |  | ${pair(report.total)} | ${pair(compare.total)}  delta spawns ${dSpawns} tokens ${grp(dTokens)}`);
+  lines.push(`total |  | ${pair(report.total)} | ${pair(compare.total)}  delta spawns ${dSpawns} tokens ${grp(dTokens)}  ${provPair(report.providers, compare.providers)}`);
   return lines.join('\n');
 }
