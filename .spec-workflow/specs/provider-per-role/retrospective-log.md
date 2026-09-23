@@ -89,3 +89,8 @@ Cost: 1 implementer spawn
 Launcher body written and proven live against DeepSeek (message.model deepseek-v4-pro, transcript summed). One fix round: line 18 tested bare $DEEPSEEK_API_KEY under set -u, so an unset key aborted with unbound-variable exit 1 instead of the intended exit 2 no-row path; fixed to ${DEEPSEEK_API_KEY:-}. Gate risk high on line-count only (777 added, mostly the .sh body and 3 generated plugin copies).
 Evidence: task 1; commits 844aec0, 044bbc3
 Cost: 1 implementer + 1 verifier + 1 fix + 1 verifier = 4 spawns
+
+## 2026-09-23T17:01:00Z · implementation · task 2 · gotcha
+Launcher integration test (stub claude, 16 cases) passed the body task 1 wrote unchanged; no body fix needed. Gate risk low, clean, review recorded, no verifier.
+Evidence: task 2; commit 1c1f57e
+Cost: 1 implementer spawn

@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **implementation**, state **tasks 1/10**, last result **in progress** (run-20260923-160920).
+> Live phase **implementation**, state **tasks 2/10**, last result **in progress** (run-20260923-160920).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`).
-> A re-run does: resumes the implementation phase in that worktree at the next open task (task 2 next).
+> A re-run does: resumes the implementation phase in that worktree at the next open task (task 3 next).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -370,9 +370,9 @@ From implementation:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 1/10 |
-| Last code commit | 044bbc3 |
-| Next task | task 2 |
+| State | tasks 2/10 |
+| Last code commit | 1c1f57e |
+| Next task | task 3 |
 | Reason | task 1 preflight not run: DEEPSEEK_API_KEY unset in the implementation session, so no launcher body (sdd-launch.sh) and no docs/deepseek-preflight.md were written; tasks 2, 4, 5, 6 that drive the body or read the record are blocked. Human-mediated stop (D6, tasks.md Dependency order). |
 | Re-run does | export DEEPSEEK_API_KEY in the implementation session, then re-spawn implementation; task 1 writes and proves the launcher body against DeepSeek, then the loop proceeds. Without the key, task 1 escalates again. |
 | Gotcha | The orchestrator running this spec loaded the pre-spec skill (task 3 ESCALATE branch not yet live), so the stop is surfaced via PHASE: escalate for a human ruling, not an automatic halt. |
