@@ -365,3 +365,13 @@ From implementation:
 | Cut scope | none |
 | Carried items | none (post-cap corrective pass fixed both R4-1 and R4-2; nothing ruled out). Every post-r1 MUST_FIX was fix-induced: citation-path/range slips from reviser edits and contradiction remnants left when a fix touched 3 of 4 sites. |
 | Next phase loads | after `codebase-context.md`: this spec's approved `tasks.md` (10 tasks, dependency-ordered; task 1 writes and proves the launcher body against DeepSeek, later tasks build the hook `provider` field, the `sdd-providers.sh` preflight, and the usage/watch provider split), `design.md` and `requirements.md`; the implementation orchestrator reads the gate-B veto list the server holds before the first spawn |
+## provider-per-role — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 0/10 — ESCALATED at task 1 (no code commits) |
+| Last code commit | none (base ab3d698) |
+| Next task | task 1 (blocked on DEEPSEEK_API_KEY) |
+| Reason | task 1 preflight not run: DEEPSEEK_API_KEY unset in the implementation session, so no launcher body (sdd-launch.sh) and no docs/deepseek-preflight.md were written; tasks 2, 4, 5, 6 that drive the body or read the record are blocked. Human-mediated stop (D6, tasks.md Dependency order). |
+| Re-run does | export DEEPSEEK_API_KEY in the implementation session, then re-spawn implementation; task 1 writes and proves the launcher body against DeepSeek, then the loop proceeds. Without the key, task 1 escalates again. |
+| Gotcha | The orchestrator running this spec loaded the pre-spec skill (task 3 ESCALATE branch not yet live), so the stop is surfaced via PHASE: escalate for a human ruling, not an automatic halt. |

@@ -79,3 +79,8 @@ Cost: 1 adjudicator spawn
 tasks approved at v5 after 4 review rounds; verdict trajectory 0/2/2 → 1/1/1 → 1/1/1 → 1/1/0 → post-cap adjudication v5, narrow check VERIFIED 2/2; rulings 0; cap hit (carried: none, both R4-1 and R4-2 fixed); prune removed 0 records and 0 snapshots (2 kept). Recurring theme across rounds: every post-r1 MUST_FIX was fix-induced — citation-path/range slips from reviser edits (R3-1, and each lint pass) and contradiction remnants left when a fix touched 3 of 4 sites (R4-1 carried from R1-1, R4-2 from R3-2).
 Evidence: approval_1790110880017_zu7q7mynt; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/provider-per-role/reviews/adversarial-analysis-tasks-r5.md
 Cost: 4 reviewer + 1 checker + 7 reviser + 1 drafter + 1 adjudicator spawns across the phase
+
+## 2026-09-23T16:01:35Z · implementation · task 1 · gotcha
+DEEPSEEK_API_KEY unset in the implementation session; task 1's key gate (Requirement 6 criterion 7, D6) wrote no launcher body and no docs/deepseek-preflight.md. The implementer reported ESCALATE + RETRO gotcha and logged the not-run summary. Tasks 2, 4, 5, 6 depend on the launcher body/record and are blocked. Human-mediated stop: a re-run needs DEEPSEEK_API_KEY exported.
+Evidence: task 1; implementation log task 1
+Cost: 1 implementer spawn
