@@ -124,3 +124,8 @@ Cost: one resume spawn
 Additive usage fold in src/watch; gate passed at low risk with no fix rounds.
 Evidence: task 7; commit bed251e
 Cost: 1 implementer spawn
+
+## 2026-09-23T22:18:58Z · implementation · task 8 · gotcha
+Additive watch model/render provider changes; gate passed at low risk, no fix rounds.
+Evidence: task 8; commit f872a8e
+Cost: 1 implementer spawn
