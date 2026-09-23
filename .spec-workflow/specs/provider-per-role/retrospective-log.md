@@ -94,3 +94,8 @@ Cost: 1 implementer + 1 verifier + 1 fix + 1 verifier = 4 spawns
 Launcher integration test (stub claude, 16 cases) passed the body task 1 wrote unchanged; no body fix needed. Gate risk low, clean, review recorded, no verifier.
 Evidence: task 2; commit 1c1f57e
 Cost: 1 implementer spawn
+
+## 2026-09-23T17:06:45Z · implementation · task 3 · gotcha
+Added ESCALATE flag to implementer brief + worker-report contract, and the orchestrator ## Escalate branch. Implementer also added an escalate row to the Stop conditions table for internal consistency (Req 6.6). Gate risk low, clean, review recorded.
+Evidence: task 3; commit a9d8da36
+Cost: 1 implementer spawn
