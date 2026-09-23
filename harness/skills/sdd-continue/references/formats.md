@@ -185,12 +185,12 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 
 | Type | Written by | Keys |
 | --- | --- | --- |
-| `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no) |
+| `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no), `providers` |
 | `run.end` | supervisor | `status` (the status line) |
 | `phase.start` | orchestrator, at Step 0 | `phase` (also `closeout`), `mode`, `budget`, `state` (v<N>, tasks a/b or items a/b at entry) |
 | `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |
-| `spawn.start` | plugin hook (`PreToolUse`) for a brief-launched worker; supervisor for an orchestrator | `agent` (e.g. `sdd-reviewer`); `role` — the coarse label the hook takes from the brief filename for a worker, or `<phase> phase, spawn <n>` from the supervisor for an orchestrator |
-| `spawn.end` | plugin hook (`SubagentStop`) for every `sdd-*` agent | `agent`, `input`, `output`, `cacheWrite`, `cacheRead`, `tokens` (digits or `unknown`), `model` |
+| `spawn.start` | plugin hook (`PreToolUse`) for a brief-launched worker; supervisor for an orchestrator; the launcher for a DeepSeek-provider worker | `agent` (e.g. `sdd-reviewer`); `role` — the coarse label the hook takes from the brief filename for a worker, or `<phase> phase, spawn <n>` from the supervisor for an orchestrator; the launcher adds `provider`, `model`, `effort` |
+| `spawn.end` | plugin hook (`SubagentStop`) for every `sdd-*` agent; the launcher for a DeepSeek-provider worker | `agent`, `provider`, `input`, `output`, `cacheWrite`, `cacheRead`, `tokens` (digits or `unknown`), `model` |
 | `spawn.usage` | supervisor for an orchestrator, orchestrator for a worker | `agent`, `role` (precise, e.g. `review v3`, `implement task 13`, `verify task 13`, `fix ci e2e round 1`, `implement harness batch 1`), `result` (VERDICT / VERIFY / logged line), `phase`, `task` or `round`; no `tokens` |
 | `round` | document orchestrator | `phase`, `round`, `verdict` (`iterate 1/1/3` or `converged 0/0/1`), `version` |
 | `task.pick` | implementation or close-out orchestrator | `task` (`<N>` or `P<n>`), `title` |
@@ -208,6 +208,37 @@ context limit), the supervisor writes the `spawn.end` itself in place of the
 `note=<cause>; last row <the last ledger event before this spawn>` (for example
 `note=API 429 session limit; last row phase.start design`). The `note` names the cause
 and the last ledger row so a later run can scope a fix.
+
+## Launcher (launch.sh)
+
+Per-run wrapper the supervisor writes with the Write tool at
+`/tmp/scratchpad/sdd/<spec>/launch.sh`, only when the `providers` value contains a
+`deepseek` row (a `:deepseek:` substring). It exports the run values and execs the
+launcher body `references/sdd-launch.sh`:
+
+```bash
+#!/bin/bash
+# usage: bash launch.sh <agent> "<launch message>"
+export SDD_LAUNCH_BODY="BASE_DIR/references/sdd-launch.sh"
+export SDD_EVENT_SCRIPT="/tmp/scratchpad/sdd/SPEC/event.sh"
+export SDD_SPEC_DIR="SPEC_DIR"
+export SDD_RUN="RUN_ID"
+export SDD_SPEC="SPEC"
+export SDD_CODE_ROOT="MAIN_CHECKOUT"
+export SDD_SPEC_STORE_REPO="SPEC_STORE_REPO"
+export SDD_HARNESS_REPO="HARNESS_REPO_OR_none"
+export SDD_PROVIDERS="PROVIDERS_VALUE"
+exec bash "$SDD_LAUNCH_BODY" "$@"
+```
+
+Fill the uppercase values: `BASE_DIR` is the supervisor's skill base dir (step 0),
+`MAIN_CHECKOUT` is the roots step's main checkout, and `HARNESS_REPO_OR_none` is the
+preflight's `source` value. `SPEC`, `SPEC_DIR`, `RUN_ID`, `SPEC_STORE_REPO` and
+`PROVIDERS_VALUE` are this run's spec, spec dir, run id, spec store repo root and the
+`providers=` value.
+
+The orchestrator calls it as `bash <LAUNCHER> <agent> "<launch message>"` and reads the
+worker's report from stdout. A ledger row without a `provider` key reads as `anthropic`.
 
 ## Run deregister (`deregister.mjs`)
 
