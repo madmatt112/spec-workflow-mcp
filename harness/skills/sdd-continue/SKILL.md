@@ -32,9 +32,9 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 
 ## 0. Preflight
 
-1. **Model.** Your system prompt names the model you run on. If it is not Fable 5.1 or
-   a newer top-tier Claude model, print exactly
-   `Run /model fable and /effort xhigh, then continue` and stop.
+1. **Model.** Your system prompt names the model you run on. If it is not Opus 5.5,
+   Fable 5.1, or a newer Claude model of either tier, print exactly
+   `Run /model opus and /effort xhigh, then continue` and stop.
 2. **Server.** Call the spec-workflow `spec-index` tool with `action: generate`. It is
    idempotent, it proves the server answers, and its result carries the roots (step 1)
    and the routing (step 2). If the tool is not available or fails, tell the user to
