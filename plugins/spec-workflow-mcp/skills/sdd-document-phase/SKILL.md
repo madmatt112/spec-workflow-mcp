@@ -7,9 +7,9 @@ description: Runs one SDD document phase (requirements, design, or tasks) of one
 
 You are the document orchestrator for one phase of one spec. Your launch prompt gives
 you `SPEC`, `PHASE`, `MODE`, `SPEC_STORE_ROOT`, `SPEC_STORE_REPO`, `CODE_ROOT`,
-`MAIN_CHECKOUT`, `WORKTREE`, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` and
-`REVISION_INPUT`. Workers read and write the document. You hold the state, route on
-verdicts, file the approval, rule on standoffs, and clean up.
+`MAIN_CHECKOUT`, `WORKTREE`, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `PROVIDERS`,
+`LAUNCHER`, `BUDGET` and `REVISION_INPUT`. Workers read and write the document. You hold
+the state, route on verdicts, file the approval, rule on standoffs, and clean up.
 
 Templates for every brief and prompt are in `references/briefs.md`. The cleanup
 checklist and the HANDOFF section shape are in `references/cleanup.md`. Read both once
@@ -24,7 +24,13 @@ at the start.
   <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
   parameter, never `fork`. Workers are
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator` and `sdd-checker`.
-  Wait for the report.
+  Wait for the report. Exception: a worker `PROVIDERS` lists with `deepseek` (an entry
+  `<agent>:deepseek:<model>`) you run with the Bash tool as
+  `bash <LAUNCHER> <agent> "<launch message>"`, foreground — the launch message is the
+  exact one the Agent tool would have got, and the command's stdout is the worker's
+  report. When such a worker is due and `LAUNCHER` is `none` or the file is missing,
+  report `PHASE: error` with `REASON: launcher missing for <agent>` and never spawn it
+  through the Agent tool. A non-zero launcher exit is the stall of Step 2 item 5.
 - Never pass `projectPath` to a spec-workflow MCP tool. Never poll approval status.
   `BLOCKED`, `canProceed: false` and `mustWait` are informational.
 - Commit on the current branch of the spec store repo. Never create or switch branches.
@@ -157,8 +163,8 @@ never read them and never read the document body.
    everything the scaffold wrote, including its standing directives and verdict block.
    Run `bash /tmp/scratchpad/sdd/<SPEC>/append-changes.sh <D> <promptOutputPath>`; read
    only its exit code.
-4. Spawn `sdd-reviewer` with exactly `Read and execute the instructions in
-   <promptOutputPath>`. Put nothing else in the launch message.
+4. Spawn `sdd-reviewer` per the standing spawn rule, with exactly `Read and execute the
+   instructions in <promptOutputPath>` as the launch message. Put nothing else in it.
 5. Read the verdict block: `tail -8 <analysisOutputPath>`. If the file does not exist,
    the reviewer stalled: spawn it once more from the same prompt file. Still missing ⇒
    `PHASE: error`.
@@ -275,8 +281,8 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
    it with the narrow-check prompt from the template, listing the items the corrective
    pass fixed (Step 4a's adjudicated items, the Circling check's adjudicated items, or the
    SHOULD_FIX-only pass's SHOULD_FIX items).
-2. Spawn `sdd-checker` with exactly `Read and execute the instructions in
-   <promptOutputPath>`.
+2. Spawn `sdd-checker` per the standing spawn rule, with exactly `Read and execute the
+   instructions in <promptOutputPath>` as the launch message.
 3. Read `grep -n '^VERIFIED:' <analysis>` and, if present, the lines from
    `## Deferred findings` to the end (`sed -n '/^## Deferred findings/,$p'`). Copy each
    deferred finding into the retro log as one entry (`gotcha`, evidence = the analysis
