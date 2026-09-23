@@ -38,6 +38,8 @@ Read and obey <AGENT_RULES> first.
 - If the task cannot be implemented as written because it contradicts the design, the
   requirements, or a decomposition assumption, do not force a wrong build. Stop and
   report `DESIGN-DEFECT: <one line>`.
+- If the task's own instructions say a measured outcome needs a human ruling before any
+  later task may run, do not force past it. Stop and report `ESCALATE: <one line>`.
 - If you learn something that changes a later spec, report `AFFECTS-FUTURE-SPECS: <one
   line>`. If something about the process, the tools, the documents or the harness cost
   you time, report `RETRO: <category> — <one line>` (categories: gotcha, bug,

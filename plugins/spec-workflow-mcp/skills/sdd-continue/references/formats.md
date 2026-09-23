@@ -128,7 +128,7 @@ Categories: `gotcha`, `bug`, `tool-error`, `mcp-deficiency`, `harness-defect`,
 - Checks run and their result.
 - `logged: yes/<taskId>` where applicable.
 - Flags, one per line, only when they apply:
-  `DESIGN-DEFECT: <one line>`, `AFFECTS-FUTURE-SPECS: <one line>`,
+  `DESIGN-DEFECT: <one line>`, `ESCALATE: <one line>`, `AFFECTS-FUTURE-SPECS: <one line>`,
   `RETRO: <category> — <one line>`, `SPEC-SIZED: <one line>`, `NEW-FINDING: <one line>`.
 - Verdict line for reviewers and verifiers: `VERDICT: pass | fix-required` or
   `VERIFY: pass | fail`.
