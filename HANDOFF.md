@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-22, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **tasks**, state **pending**, last result **approved** (design v2, approval_1790100426099_8ay5vpwgq).
+> **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
+> Live phase **implementation**, state **tasks 0/10**, last result **approved** (tasks v5, approval_1790110880017_zu7q7mynt; gate B approved, slot b deleted).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts and reviews tasks v1 for `provider-per-role` (spec 10 of decomposition.md; build order 8 → 10 → 11 → 9).
+> A re-run does: enters worktree `provider-per-role` (branch `feat/provider-per-role`, `npm ci`) and spawns the implementation orchestrator. Gate B is done; it does not ask again.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 

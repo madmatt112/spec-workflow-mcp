@@ -149,3 +149,5 @@
 {"ts":"2026-09-22T21:03:31.889Z","run":"run-20260922-033238","spec":"provider-per-role","type":"phase.end","phase":"tasks","result":"approved","state":"v5","note":"4 rounds, cap hit then adjudicated, narrow VERIFIED 2/2, fix-induced trajectory"}
 {"ts":"2026-09-22T21:03:53.625Z","type":"spawn.end","run":"run-20260922-033238","spec":"provider-per-role","agent":"sdd-document-orchestrator","input":"406","output":"11709","cacheWrite":"2259457","cacheRead":"25899818","tokens":"28171390","model":"claude-opus-4-8"}
 {"ts":"2026-09-22T21:04:04.488Z","run":"run-20260922-033238","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 2","result":"approved","phase":"tasks"}
+{"ts":"2026-09-23T14:50:16.973Z","run":"run-20260922-033238","spec":"provider-per-role","type":"note","text":"gate B: approved, class-a 1/10/2 unannotated","phase":"tasks"}
+{"ts":"2026-09-23T14:50:27.221Z","run":"run-20260922-033238","spec":"provider-per-role","type":"note","text":"supervisor stopped before implementation: session model switched to claude-opus-5-5, below the Fable tier the supervisor requires; run left open for a Fable resume"}
