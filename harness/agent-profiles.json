@@ -1,6 +1,6 @@
 {
   "sdd-adjudicator": {
-    "model": "claude-fable-5-1",
+    "model": "claude-opus-5-5",
     "effort": "xhigh",
     "role": "adjudicator"
   },
@@ -20,7 +20,7 @@
     "role": "document-phase orchestrator"
   },
   "sdd-drafter": {
-    "model": "claude-fable-5-1",
+    "model": "claude-opus-5-5",
     "effort": "xhigh",
     "role": "drafter"
   },
