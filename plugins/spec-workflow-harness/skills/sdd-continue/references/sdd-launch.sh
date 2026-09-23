@@ -15,7 +15,7 @@ AGENT="${1:-}"
 MESSAGE="${2:-}"
 
 # Step 1 — refusals: exit 2, one stderr line, no ledger row.
-[ -n "$DEEPSEEK_API_KEY" ] || { echo "launcher: DEEPSEEK_API_KEY unset" >&2; exit 2; }
+[ -n "${DEEPSEEK_API_KEY:-}" ] || { echo "launcher: DEEPSEEK_API_KEY unset" >&2; exit 2; }
 
 MODEL=""
 IFS=',' read -ra SDD_ENTRIES <<< "${SDD_PROVIDERS:-}"
