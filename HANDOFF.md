@@ -374,6 +374,6 @@ From implementation:
 | Last code commit | 43c3414 |
 | Deferrals | 1 added this spec (d-a38fea66); 15 deferred total |
 | Deferred verification | d-a38fea66 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/59 |
 | Next deferrals worth working | d-3091be1c (live orchestrator SubagentStop usage half); d-1880d115 (question-gates gate A/B live scenarios) |
 | Gotcha | Task 10 verified the launcher, map-script and usage-fold halves in-process (all six scenarios and the full suite green, real DeepSeek run, tokens=58346). The supervisor (roots-step refusal) and document-orchestrator (launcher routing, Anthropic reviser round) halves need the merged skills in a restarted session — deferred as d-a38fea66. docs/SDD-HARNESS.md's "no MCP server" line is the anthropic default; the eligible sdd-reviser gets --mcp-config (design.md:133), slightly loose for that case. |
