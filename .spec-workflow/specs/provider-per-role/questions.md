@@ -51,3 +51,12 @@ options:
 - Stop before any ledger row
 - A run start with a refused status
 answer: Stop before any ledger row (needs revision — changed from the recorded choice; no free text)
+
+## Gate B
+
+Answered by Matthew on 2026-09-23 (run-20260922-033238): **approve**, no annotation.
+The plan was approved with these class-a veto items unannotated: 1, 10, 2.
+
+- 1 (rank 1): launcher body reads and sets ANTHROPIC_AUTH_TOKEN, DEEPSEEK_API_KEY and CLAUDE_CONFIG_DIR
+- 10 (rank 2): end-to-end verification runs the launcher against a live API key
+- 2 (rank 3): launcher integration test sets CLAUDE_CONFIG_DIR

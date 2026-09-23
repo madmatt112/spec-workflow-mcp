@@ -38,6 +38,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-22 | provider-per-role | requirements | v5 | approved | 4 rounds, cap hit then adjudicated, VERIFIED 2/2 |
 | 2026-09-22 | provider-per-role | design | v2 | approved | 2 rounds, iterate→converged |
 | 2026-09-22 | provider-per-role | tasks | v0 | interrupted |  |
+| 2026-09-22 | provider-per-role | tasks | v5 | approved | 4 rounds, cap hit then adjudicated, narrow VERIFIED 2/2, fix-induced trajectory |
 
 ## Current state — 2026-08-04
 
