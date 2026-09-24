@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/agent-cache-ttl/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-24T16:45:43.095Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790268343061_7gv3iwvqs",
+      "approvalTitle": "agent-cache-ttl design v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-24T16:45:49.819Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790268343061_7gv3iwvqs",
+      "approvalTitle": "agent-cache-ttl design v1"
+    }
+  ]
+}

@@ -407,3 +407,15 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Cut scope | none. Gate A revision made the live verification scenarios (1),(2),(3),(5) non-deferrable and block-until-restart (RI-1); no decomposition scope was cut or deferred. |
 | Carried items | none ruled out (all findings R1-1..R1-6, R2-1..R2-3 accepted/fixed). Notes for the design drafter: (1) Req 4 now splits the unknown-cache counter into `cacheUnknownWrite` and `cacheUnknownGap` (per-kind unknown) — design must pin both fields on the UsageCell and its reducer. (2) Req 6 crit 7 gates the mandatory non-deferrable block on a tracked `verification-evidence.md` (one line per live scenario) the restarted rebuilt-harness session writes and the retrospective reads before it starts — design must pin that artifact and the retrospective's pre-start check. (3) Req 4 crit 6 collapses a total cell's cache columns to `unknown` only when the Anthropic spawn count is above 0; an all-DeepSeek total prints the `-` dash. |
 | Next phase loads | after `codebase-context.md`: the approved `requirements.md` acceptance criteria (esp. Req 3 crit 7, Req 4 unknown-cache rule and crit 6, Req 6 crit 7 block), the decomposition entry for `agent-cache-ttl` (spec 13) and its verification scenario; `steering/tech.md`, `structure.md`, `design-system.md` as present. |
+
+## agent-cache-ttl — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-24 |
+| Rounds | 1; verdicts converged 0/0/3 (MINOR only) |
+| Approval | `approval_1790268343061_7gv3iwvqs` |
+| Rulings | none. Four drafter RE-DECIDED literals all ruled refinement/closed by the reviewer: Req 1.5 (profile test under `src/__tests__`, vitest only runs there), Req 5.2.5 (user settings read from `CLAUDE_CONFIG_DIR` when set), Req 6.2 (scenario (2) uses a probe agent carrying the orchestrator frontmatter), Req 6.7 (mandatory restart replaced by a pre-merge isolated session run). |
+| Cut scope | none. All six decomposition verification scenarios and every delivered artifact are pinned. |
+| Carried items | none ruled out (round 1 converged; 3 MINOR only). Notes for the tasks drafter: (1) C8 is the pre-merge live-verification component — scenarios 1/2/3/5 run in a scratch `CLAUDE_CONFIG_DIR` filled by `dev-link.sh` run against the worktree, because `~/.claude/agents/sdd-*.md` symlink into MAIN's `harness/agents`; evidence lands in the tracked `verification-evidence.md`. Tasks must sequence C8 and the evidence file, and the retrospective's pre-start check on it. (2) `UsageCell` carries per-kind unknown fields `cacheUnknownWrite`/`cacheUnknownGap`; the crit-6 total-cell collapse to `unknown` fires only when the Anthropic spawn count is above 0 (all-DeepSeek total prints `-`). (3) `SubagentStop` hook adds `cacheWrite5m`, `cacheWrite1h`, `gapRewrites` on `spawn.end`. |
+| Next phase loads | after `codebase-context.md`: the approved `design.md` components C1–C8, its Data Models (`spawn.end` row, profile entry, `run.start` row, `verification-evidence.md`) and Testing Strategy; `requirements.md`; `steering/structure.md` as present. |
