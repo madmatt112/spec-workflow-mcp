@@ -20,3 +20,10 @@
 {"ts":"2026-09-24T15:10:29.473Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-24T15:11:10.126Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"20","output":"1118","cacheWrite":"30702","cacheRead":"290291","tokens":"322131","model":"claude-sonnet-5"}
 {"ts":"2026-09-24T15:11:21.474Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","phase":"requirements","round":"1","result":"0 fixed, 29 suppressed per rule 11"}
+{"ts":"2026-09-24T15:21:31.082Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviewer","input":"32","output":"19326","cacheWrite":"105405","cacheRead":"896727","tokens":"1021490","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T15:22:21.604Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviewer","role":"review r1","phase":"requirements","round":"1","result":"iterate MUST_FIX 1 / SHOULD_FIX 2 / MINOR 3"}
+{"ts":"2026-09-24T15:22:21.626Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"requirements","round":"1","version":"v2","verdict":"iterate 1/2/3"}
+{"ts":"2026-09-24T15:22:21.649Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"R1-1 MUST_FIX: Gate A block-until-restart criterion logically unsatisfiable (pre-merge ready vs post-merge harness); reviser reconciles wording, ruling preserved"}
+{"ts":"2026-09-24T15:22:43.313Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-24T15:33:24.714Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"202","output":"48541","cacheWrite":"158648","cacheRead":"11120845","tokens":"11328236","model":"claude-sonnet-5"}
+{"ts":"2026-09-24T15:33:32.465Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"revise v3","phase":"requirements","round":"1","result":"R1-1..R1-6 all accepted"}
