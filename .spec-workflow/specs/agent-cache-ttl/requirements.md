@@ -1,0 +1,145 @@
+# Requirements Document — agent-cache-ttl
+
+## Introduction
+
+This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait of more than five minutes on a worker does not force a full rewrite of the prefix. It is for the harness operator, who pays for those rewrites against the Max plan limit. It adds the lifetime to the agent frontmatter and the agent profiles, three cache fields to every hook-written `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` that shows when a setting overrides the frontmatter.
+
+## Alignment with Product Vision
+
+No `steering/product.md` exists in this spec store; alignment is to the efficiency plan's order "tokens, then wall clock" (`docs/harness-efficiency-plan.md:8-9`) and to decomposition entry 13 (`.spec-workflow/spec-decomposition/decomposition.md:394-464`). The entry measured 92 of 95 after-gap rewrites on the three orchestrators and estimates about 35% less orchestrator input cost with a one-hour lifetime. Every number this spec adds is one the hook measures from the transcript, so the retro can prove the saving per spawn.
+
+## Requirements
+
+### Requirement 1 — One hour for the agents that wait
+
+**User Story:** As the harness operator, I want the three orchestrators to declare a one-hour cache lifetime and every other agent to keep the default, so that only the agents that wait pay the one-hour write rate.
+
+#### Acceptance Criteria
+
+1. THE frontmatter of `harness/agents/sdd-document-orchestrator.md`, `harness/agents/sdd-implementation-orchestrator.md` and `harness/agents/sdd-closeout-orchestrator.md` SHALL carry the line `experimental: { cacheTtl: 1h }` directly after the `effort` line (today line 5 in each: `harness/agents/sdd-document-orchestrator.md:1-20`, `harness/agents/sdd-implementation-orchestrator.md:1-8`, `harness/agents/sdd-closeout-orchestrator.md:1-12`) (D9).
+2. THE other nine files under `harness/agents/` SHALL carry no `experimental` key and no `cacheTtl`; this includes `sdd-retro-orchestrator` (decomposition Decided list).
+3. WHEN `node scripts/sync-plugin-assets.cjs` runs THEN every plugin root's `agents/` copy SHALL carry the same line, byte for byte. The existing whole-directory copy (`scripts/sync-plugin-assets.cjs:67-74`) already does this; no new copy logic is added.
+4. WHEN `buildProfiles` (`scripts/sync-plugin-assets.cjs:76-110`) builds `harness/agent-profiles.json` THEN each agent entry SHALL carry a fourth string key `cacheTtl`: the `cacheTtl` value written inside the agent's `experimental` frontmatter value, or `default` when the agent has no `experimental` key or the value names no `cacheTtl`. The entry keeps `model`, `effort` and `role` unchanged, and the output stays byte-identical across repeated runs.
+5. WHEN the sync has run THEN `harness/agent-profiles.json` SHALL show `cacheTtl: "1h"` for the three orchestrators and `cacheTtl: "default"` for the other nine, and `npm run check:plugin-assets` SHALL pass.
+6. IF a frontmatter is edited and the sync is not re-run THEN `node scripts/sync-plugin-assets.cjs --check` SHALL fail on `harness/agent-profiles.json` (the existing comparison, `scripts/sync-plugin-assets.cjs:112-128`).
+
+### Requirement 2 — The watch view shows the declared lifetime
+
+**User Story:** As the harness operator, I want the watch view to show an agent's declared cache lifetime beside its declared model and effort, so that I can see which spawns should be on one hour.
+
+#### Acceptance Criteria
+
+1. `AgentProfile` (`src/watch/ledger.ts:38-42`) SHALL gain an optional string `cacheTtl`. `loadAgentProfiles` (`src/watch/ledger.ts:51-78`) SHALL copy it when it is a string and SHALL still accept an entry without it, so an older `dist/agent-profiles.json` still loads; an entry without it reads as `default`.
+2. WHEN the tier line of an agent is drawn (`src/watch/render.ts:218-227`) AND the agent's profile has `cacheTtl` other than `default` THEN the declared text SHALL be `<model> <effort> <cacheTtl>` (for example `claude-opus-4-8 high 1h`) (D6).
+3. WHEN the profile's `cacheTtl` is `default` or absent THEN the tier line SHALL be unchanged from today.
+4. The declared text SHALL still fit the tier line without wrapping at the widths the existing render tests use (`src/watch/__tests__/render.test.ts`).
+
+### Requirement 3 — The lifetime a spawn got, on its row
+
+**User Story:** As the harness operator, I want every hook-written `spawn.end` row to say how many tokens the spawn wrote at each cache lifetime and how many calls rewrote the prefix after a gap, so that I can prove the saving per spawn.
+
+#### Acceptance Criteria
+
+1. WHEN the `SubagentStop` hook writes a `spawn.end` row with usage (`harness/hooks/sdd-activity.sh:154-163`) THEN the row SHALL carry three more string keys: `cacheWrite5m`, `cacheWrite1h` and `gapRewrites`, each a digit string or `unknown`.
+2. The hook SHALL use the same set of calls as today's `readUsage`: one usage per `message.id`, the last line seen for each id, and a line with no id counts once (`harness/hooks/sdd-activity.sh:41-64`).
+3. `cacheWrite5m` SHALL be the sum over those calls of `message.usage.cache_creation.ephemeral_5m_input_tokens`; `cacheWrite1h` SHALL be the sum of `message.usage.cache_creation.ephemeral_1h_input_tokens`.
+4. The time of a call SHALL be the earliest `timestamp` among the transcript lines of its `message.id`. The prefix of a call SHALL be its `input_tokens` plus `cache_creation_input_tokens` plus `cache_read_input_tokens` (D1).
+5. `gapRewrites` SHALL be the count of calls, in call-time order, that have a previous call AND come more than 300 seconds after the previous call's time AND have `cache_creation_input_tokens` greater than half of the previous call's prefix (D1).
+6. IF any counted call has no `message.usage.cache_creation` object, or that object lacks a numeric `ephemeral_5m_input_tokens` or `ephemeral_1h_input_tokens` THEN all three keys SHALL be `unknown` and the other keys of the row SHALL be as today (D2).
+7. IF the three keys are not `unknown` by criterion 6 AND any counted call has no parseable `timestamp` THEN `gapRewrites` SHALL be `unknown` and `cacheWrite5m` and `cacheWrite1h` SHALL keep their sums.
+8. WHEN the hook writes the `tokens: "unknown"` row (no transcript, or no assistant usage: `harness/hooks/sdd-activity.sh:159-161`) THEN that row SHALL also carry `cacheWrite5m`, `cacheWrite1h` and `gapRewrites` as `unknown`. The hook SHALL never skip the row because of these fields.
+9. The existing keys (`input`, `output`, `cacheWrite`, `cacheRead`, `tokens`, `model`) SHALL keep their values and meaning. The new code SHALL stay inside the single-quoted node body with no apostrophes (`harness/hooks/sdd-activity.sh:83`).
+10. The `spawn.end` row in the event table of `harness/skills/sdd-continue/references/formats.md` (`harness/skills/sdd-continue/references/formats.md:199`) SHALL list the three new keys with their meaning.
+11. `src/__tests__/hook-spawn-events.test.ts` SHALL gain fixture transcripts that prove criteria 3 to 8: a split of 5m and 1h writes; a multi-line message counted once; a gap over 300 seconds with a rewrite over half the prefix (counted); a gap over 300 seconds with a small write (not counted); a gap under 300 seconds with a large write (not counted); a call without `cache_creation` (all three `unknown`); and no transcript (all three `unknown`).
+12. The DeepSeek launcher's `spawn.end` (`harness/skills/sdd-continue/references/sdd-launch.sh:131-143`) SHALL be unchanged (decomposition Decided list).
+
+### Requirement 4 — The report
+
+**User Story:** As the retro analyst, I want `harness usage` to show cache writes by lifetime and gap rewrites per agent and per phase, so that I can read the saving of this spec against `provider-per-role`.
+
+#### Acceptance Criteria
+
+1. `UsageCell` (`src/watch/usage.ts:13`) SHALL gain four numbers: `cacheWrite5m`, `cacheWrite1h`, `gapRewrites`, and `cacheUnknown` (the count of spawns in the cell with no known cache values). Every per-agent cell, per-phase total, grand total and provider cell SHALL carry them, and the `data.report` (and `data.compare`) the `usage` action returns (`src/tools/harness.ts:1063-1084`) SHALL carry them.
+2. `reduceSpawn` (`src/watch/usage.ts:186-242`) SHALL take the three values from the same `spawn.end` row it takes `tokens` from (the last `spawn.end` with a digit-string `tokens`). IF that row has no digit string in one of `cacheWrite5m`, `cacheWrite1h` THEN the spawn SHALL count 1 in `cacheUnknown` and add 0 to the three sums. IF only `gapRewrites` is not a digit string THEN the spawn SHALL add its two write sums, add 0 to `gapRewrites`, and count 1 in `cacheUnknown`.
+3. A spawn with no `spawn.end` that carries digit-string `tokens` (a `spawn.usage`-only spawn, a supervisor-written interrupted row) SHALL count 1 in `cacheUnknown`.
+4. A spawn whose provider is `deepseek` SHALL add nothing to the cache numbers and nothing to `cacheUnknown`; its agent line SHALL print `-` in the three cache columns (D5).
+5. The single-spec table (`src/watch/usage.ts:288-299`) SHALL add three columns after `tokens`, headed `cw5m`, `cw1h` and `gapRewrites`, on every agent line, every phase total line and the grand total line.
+6. IF a cell has `cacheUnknown` equal to its Anthropic spawn count THEN its three cache columns SHALL print `unknown`. IF `cacheUnknown` is above 0 and below that count THEN the three columns SHALL print the sums, and the `gapRewrites` column SHALL end with ` (+N unknown)` where N is `cacheUnknown` (D5).
+7. The two-spec table (`src/watch/usage.ts:301-330`) SHALL add the same three columns for each side, on every agent line, phase total line and grand total line, with the same `unknown` and `-` rules. The per-phase delta stays spawns and tokens only.
+8. WHEN `harness usage` runs on the `provider-per-role` ledger (no row has the new keys) THEN every Anthropic agent line and every total SHALL print `unknown` in the three columns, and the tokens columns SHALL be unchanged from today.
+9. `src/watch/__tests__/usage.test.ts` SHALL prove criteria 2 to 8 with ledger fixtures, including a mixed cell (some spawns known, some not) and a compare of a ledger with the keys against one without.
+
+### Requirement 5 — An override is visible
+
+**User Story:** As the harness operator, I want the run ledger to record when a setting or an old Claude Code stops the frontmatter lifetime from applying, so that a run on five minutes is never mistaken for a run on one hour.
+
+#### Acceptance Criteria
+
+1. The supervisor's Step 0 (`harness/skills/sdd-continue/SKILL.md:33-56`) SHALL gain one preflight item that runs a new shipped script `harness/skills/sdd-continue/references/sdd-cache-ttl.sh` and keeps the text after `cacheTtl=` on its stdout line as `CACHE_TTL` (D4).
+2. The script SHALL print exactly one stdout line `cacheTtl=VALUE` and exit 0 in every case. It SHALL decide VALUE in this order, first match wins (D7, D8, D11):
+   1. `unknown` when `claude --version` fails or prints no version number;
+   2. `unsupported` when the version is below 2.1.248;
+   3. `FORCE_PROMPT_CACHING_5M=VALUE` when that variable is set to a non-empty value other than `0`;
+   4. `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=VALUE` when that variable is set and non-empty;
+   5. `subagentPromptCacheTtl=VALUE` when that key is set in the code root's `.claude/settings.local.json`, else its `.claude/settings.json`, else `~/.claude/settings.json` (first file that sets it);
+   6. `per-agent` otherwise.
+3. The `run.start` call (`harness/skills/sdd-continue/SKILL.md:100-102`) SHALL add `cacheTtl=CACHE_TTL`. The `event.sh` split at the first `=` (`harness/skills/sdd-continue/references/formats.md:170-182`) keeps a value that contains `=` whole (D3).
+4. WHEN `CACHE_TTL` is not `per-agent` THEN the supervisor SHALL print one warning line at Step 0, `warning: cacheTtl VALUE — orchestrators will not get the one-hour cache from frontmatter; continuing`, and SHALL continue the run. It SHALL NOT print the warning again in the run, SHALL NOT stop, and SHALL NOT change any setting.
+5. The `run.start` row in the event table (`harness/skills/sdd-continue/references/formats.md:194`) SHALL list `cacheTtl` and its values.
+6. The script SHALL follow the shipped-script pattern of `harness/skills/sdd-continue/references/sdd-providers.sh:1-30` (a node body in a single-quoted shell string) and SHALL have a vitest test in `src/__tests__/`, beside `src/__tests__/providers-map.test.ts`, that covers each of the six values, with `claude` replaced by a stub on `PATH` and `HOME` pointed at a temporary directory.
+7. Nothing else in the supervisor changes: it is a main session and already has one hour (decomposition Decided list).
+
+### Requirement 6 — End-to-end verification
+
+**User Story:** As the harness operator, I want the decomposition's six verification scenarios to be checks with a clear pass or fail, so that the PR proves the lifetime is applied and measured.
+
+#### Acceptance Criteria
+
+1. Scenario (1): WHEN the supervisor spawns an orchestrator on a fixture spec in a scratch spec store THEN the orchestrator's `spawn.end` row SHALL have `cacheWrite1h` above 0 and `cacheWrite5m` equal to 0, and the `spawn.end` row of a worker it spawns SHALL have `cacheWrite5m` above 0 and `cacheWrite1h` equal to 0.
+2. Scenario (2): WHEN that orchestrator waits more than ten minutes on a background worker THEN on its next call `cache_read_input_tokens` SHALL be at least 90% of the previous call's prefix (Requirement 3 criterion 4), and its `spawn.end` row SHALL carry `gapRewrites` `0`.
+3. Scenario (3): For every `spawn.end` row of the fixture run, `cacheWrite5m`, `cacheWrite1h` and `gapRewrites` SHALL equal values computed from the same subagent transcripts by a separate script under `/tmp/scratchpad/sdd/agent-cache-ttl/` that does not import or copy the hook code.
+4. Scenario (4): `harness usage` on the fixture ledger SHALL print the three columns with digits, and on the `provider-per-role` ledger SHALL print them as `unknown` (Requirement 4 criterion 8).
+5. Scenario (5): A run started with `FORCE_PROMPT_CACHING_5M=1` exported SHALL have `cacheTtl=FORCE_PROMPT_CACHING_5M=1` on its `run.start` row, and the supervisor output SHALL contain exactly one `warning: cacheTtl` line.
+6. Scenario (6): `npm run check:plugin-assets`, `claude plugin validate . --strict` (at the repository root, as `.spec-workflow/agent-rules.md` runs it) and `npm test` SHALL pass.
+7. IF the session that runs the end-to-end gate does not run the changed hook, agents or supervisor skill (this machine runs the harness from the main checkout, so worktree changes are live only after merge and a session restart) THEN scenarios (1), (2), (3) and (5) SHALL be recorded as one deferral with tag `verification`, naming each scenario and its pass condition, and the PR SHALL NOT be blocked on them; scenarios (4) and (6) SHALL run before the PR (D10).
+
+## Non-Functional Requirements
+
+### Performance
+- The hook's extra work is one pass over the calls `readUsage` already parsed; the hook stays within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
+
+### Reliability
+- A missing or malformed cache field yields `unknown`, never a missing row and never a partial sum shown as known (Requirement 3 criteria 6 to 8).
+- The override probe never stops a run and never changes a setting (Requirement 5 criteria 2 and 4).
+- Ledgers written before this spec and an older `dist/agent-profiles.json` still load and fold with no error.
+
+### Security
+- The hook change touches `harness/hooks/`, a sensitive path in `.spec-workflow/agent-rules.md`; the task that changes it is high risk.
+
+## Decisions taken in this document
+
+- D1 — Gap rewrite rule: options were call time as the earliest line timestamp of a message id, call time as the last line timestamp, the gap measured from the end of the previous call; chose the earliest line timestamp, a gap of more than 300 seconds, and a write of more than half of the previous call's input, write and read tokens, because the cache clock runs from request to request and this matches the decomposition's measurement words.
+- D2 — Partial cache split in a transcript: options were all three fields unknown, sum the calls that have the split, unknown for the two write fields only; chose all three unknown because the hook already treats a wrong number as worse than unknown.
+- D3 — Override value on the run start row: options were one key holding source and value, a bare lifetime such as 5m, two keys for source and value; chose one key holding the setting name and its value because it tells the reader which setting to remove, and the event script keeps an equals sign inside a value.
+- D4 — Where the override probe lives: options were a shipped script beside the provider validator, prose steps in the supervisor skill, a new server tool action; chose a shipped script because it is deterministic and testable like the provider validator, and the server has no access to the session environment.
+- D5 — Report cells for rows without the new keys and for DeepSeek spawns: options were count unknown and print unknown or a plus-N suffix with DeepSeek shown as a dash, print zero, drop the spawn from the columns; chose the unknown count with a dash for DeepSeek because zero would read as a saving, and DeepSeek cache behaviour is out of scope.
+- D6 — Watch view display: options were append 1h only when not default, always append the value including default, a separate column; chose append only when not default because nine of twelve agents are default and the tier line has fixed width.
+- D7 — Claude Code version unreadable: options were record unknown and warn, record unsupported, record per-agent; chose unknown because it neither hides nor invents a fact.
+- D8 — Settings files the probe reads: options were the code root's local and project settings plus the user settings, those three plus managed settings, user settings only; chose the three because they are the files a user edits here, and managed settings are not used on this machine.
+- D9 — Frontmatter form: options were the one-line flow mapping from the decomposition, a two-line block mapping; chose the one-line form because the profile builder parses one line per key.
+- D10 — Live scenarios when the session runs the old harness: options were defer the live half with a verification deferral, block the PR until a restarted session runs them; chose the deferral because the project instructions already name this path for harness specs.
+- D11 — Override precedence: options were first match in force flag, environment variable, then settings files local, project, user, report every override found; chose the first match because the run start row holds one value and any match already means the frontmatter does not apply.
+
+## Scope notes
+
+- Cut: the watch view header does not show the `run.start` `cacheTtl`; the ledger row and the one warning line are the visible surface the decomposition asks for.
+- Cut: no detection of the usage-credit fallback to five minutes; per the Decided list, the orchestrator rows (`cacheWrite5m` above 0, `cacheWrite1h` 0) show which runs fell back.
+- Cut: managed settings files are not read by the override probe (D8).
+- Not changed: the supervisor's own cache, the retro orchestrator's lifetime, DeepSeek children and their launcher rows, and the per-phase delta columns in the two-spec table.
+- `claude plugin validate . --strict` run inside `plugins/spec-workflow-harness` fails before this spec on unquoted hook paths; scenario (6) runs it at the repository root, which passes today. Fixing the plugin-level warnings is out of scope.
+- No `steering/product.md`; alignment is written to the efficiency plan and the decomposition entry.
+- The P17 dependency (one usage per message id) is in place: `harness/hooks/sdd-activity.sh:43-55`.
+
+## Revision History
+
+- **v1** (2026-09-24) — Initial draft.

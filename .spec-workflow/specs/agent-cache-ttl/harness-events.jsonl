@@ -1,1 +1,6 @@
 {"ts":"2026-09-24T14:29:11.466Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"run.start","model":"claude-opus-5-5","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp","worktree":"no","headless":"no","providers":"none"}
+{"ts":"2026-09-24T14:29:37.818Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","phase":"requirements"}
+{"ts":"2026-09-24T14:30:12.206Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.start","phase":"requirements","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-24T14:31:13.677Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-24T14:36:59.239Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-drafter","input":"82","output":"16258","cacheWrite":"97706","cacheRead":"2305919","tokens":"2419965","model":"claude-opus-5-5"}
+{"ts":"2026-09-24T14:37:06.261Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"requirements","round":"1","result":"v1 2969w, gate-a 5 items"}
