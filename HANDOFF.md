@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **closeout**, state **items 0/15**, last result **APPROVED** (retrospective plan approved; PR #59 merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `chore/provider-per-role-retro`).
-> A re-run does: resumes close-out of the approved plan in that worktree at the next open item.
+> **READ FIRST — SDD routing (2026-09-24, harness v4).** **`provider-per-role`** is CLOSED — no active spec.
+> Live phase **closeout**, state **items 15/15**, last result **closed** (PR #62 open, not merged; PR #59 merged).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (close-out ran in worktree `.claude/worktrees/provider-per-role-retro`, branch `chore/provider-per-role-retro`).
+> A re-run does: starts the next roadmap spec, `graph-orientation` (spec 12 of decomposition.md, no directory yet; build order 8 → 10 → 12 → 11 → 9), at requirements, after PR #62 merges and the sessions restart. Human: d-a38fea66 fixture verification, resolve d-009995d8, re-verify d-3091be1c; follow-up d-9d600d11 filed.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -44,6 +44,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-23 | provider-per-role | implementation | tasks 10/10 | complete | 10/10 tasks, PR #59 checks green, 1 deferral |
 | 2026-09-23 | provider-per-role | retrospective |  | retro-ready |  |
 | 2026-09-23 | provider-per-role | retrospective | items 0/15 | APPROVED | plan approved by Matthew: 14 proposals + G1 (6 from overwatch), 8 no-change, 1 rejected; close-out after restart |
+| 2026-09-24 | provider-per-role | closeout | items 15/15 | closed |  |
 
 ## Current state — 2026-08-04
 

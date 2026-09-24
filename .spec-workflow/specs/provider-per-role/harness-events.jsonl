@@ -350,3 +350,6 @@
 {"ts":"2026-09-24T04:07:44.900Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P20","outcome":"done"}
 {"ts":"2026-09-24T04:07:44.920Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P21","outcome":"done"}
 {"ts":"2026-09-24T04:07:44.940Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P22","outcome":"done"}
+{"ts":"2026-09-24T04:09:37.387Z","run":"run-20260924-023523","spec":"provider-per-role","type":"phase.end","phase":"closeout","result":"closed","state":"items 15/15"}
+{"ts":"2026-09-24T04:09:50.308Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"286","output":"3886","cacheWrite":"1972684","cacheRead":"12629208","tokens":"14606064","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T04:09:55.830Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","result":"closed","phase":"closeout"}
