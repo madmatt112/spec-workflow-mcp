@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **closeout**, state **items 0/15**, last result **APPROVED** (retrospective plan approved by Matthew; PR #59 merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`; close-out runs in worktree `chore/provider-per-role-retro`.
-> A re-run does: after a session restart on the merged harness and rebuilt server (/model opus, /effort xhigh), runs close-out of the 15 approved items in the `chore/provider-per-role-retro` worktree.
+> **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`provider-per-role`**.
+> Live phase **closeout**, state **items 0/15**, last result **APPROVED** (retrospective plan approved; PR #59 merged).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `chore/provider-per-role-retro`).
+> A re-run does: resumes close-out of the approved plan in that worktree at the next open item.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
