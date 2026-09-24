@@ -10,3 +10,10 @@
 {"ts":"2026-09-24T14:43:01.154Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"requirements","result":"gate-a","state":"v1"}
 {"ts":"2026-09-24T14:43:11.435Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-document-orchestrator","input":"54","output":"603","cacheWrite":"80182","cacheRead":"1922807","tokens":"2003646","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T14:43:13.473Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 1","result":"gate-a","phase":"requirements"}
+{"ts":"2026-09-24T15:06:05.796Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate A: 1 asked (live checks) -> needs revision: block the PR until a restarted session runs live scenarios; 4 mechanics recorded unasked"}
+{"ts":"2026-09-24T15:06:05.825Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.start","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","phase":"requirements"}
+{"ts":"2026-09-24T15:06:42.874Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.start","phase":"requirements","mode":"revision","budget":"4 review rounds","state":"v1"}
+{"ts":"2026-09-24T15:07:31.246Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"reviser"}
+{"ts":"2026-09-24T15:07:39.222Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-document-orchestrator","input":"16","output":"889","cacheWrite":"68965","cacheRead":"430086","tokens":"499956","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T15:08:54.369Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"32","output":"2783","cacheWrite":"44574","cacheRead":"538710","tokens":"586099","model":"claude-sonnet-5"}
+{"ts":"2026-09-24T15:09:02.270Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","phase":"requirements","round":"0","result":"RI-1 accepted, RI-2 rejected (already correct)"}
