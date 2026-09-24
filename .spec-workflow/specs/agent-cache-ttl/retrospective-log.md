@@ -74,3 +74,8 @@ Cost: 1 verifier + 1 log spawn
 agent-cache-ttl implemented: 9/9 tasks, 0 fix rounds, 0 adjudications, 1 high-risk verifier (task 4) + 1 end-to-end verifier + 1 log spawn. 11 worker spawns total (8 implement + 1 verify + 1 e2e + 1 log). 0 deferrals added. Live scenarios 1/2/3/5 pending in evidence file (D10 blocks retro).
 Evidence: 9 task.done events; commits 6723ffe..e57d84c; evidence 73c2d45
 Cost: 8 implementer + 2 verifier + 1 log spawn
+
+## 2026-09-24T20:42:08Z · implementation · phase · harness-defect
+C8 live check scenario 1 failed to start: e2e-setup.sh created specs/cache-gap-probe/ in the scratch store at setup, spec-index saw an incomplete spec not in decomposition.md, routing returned ambiguous and the supervisor refused to pick a spec (scenario 5 would hit the same). Overwatch wrote deferred.json into cache-gap-probe (routing all-deferred, fallback picks cache-probe) and patched e2e-setup.sh to write the marker. Lesson: a scratch store for a live check must mark every non-roadmap spec folder deferred.
+Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
+Cost: one failed scenario-1 launch
