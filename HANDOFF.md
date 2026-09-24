@@ -393,3 +393,15 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 - To-do (human) — after merge: resolve d-009995d8 (P19 medium-risk routing) and re-verify d-3091be1c (P17 hook usage rows).
 - Follow-up filed d-9d600d11: `sdd-launch.sh` carries its own `readUsage` copy with the same multi-block token inflation P17 fixed in the hook; out of P17's hook-only scope, still latent for launcher/DeepSeek workers.
 - Gotcha: P17 defect (b) (catch the final assistant line) has the functional fix in `sdd-activity.sh` but no deterministic race test — synchronous test fixtures make the tail-wait a no-op.
+
+## agent-cache-ttl — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-24 (MODE revision: entered at v1 after Gate A) |
+| Rounds | 3 (2 adversarial + 1 narrow check); verdicts iterate 1/2/3 → iterate 0/2/1 → SHOULD_FIX-only corrective pass v4, narrow check VERIFIED 3/3 |
+| Approval | `approval_1790265698477_k4x8xi0qt` |
+| Rulings | none (no standoff, no circling, no cap; no drafter RE-DECIDED flags this run) |
+| Cut scope | none. Gate A revision made the live verification scenarios (1),(2),(3),(5) non-deferrable and block-until-restart (RI-1); no decomposition scope was cut or deferred. |
+| Carried items | none ruled out (all findings R1-1..R1-6, R2-1..R2-3 accepted/fixed). Notes for the design drafter: (1) Req 4 now splits the unknown-cache counter into `cacheUnknownWrite` and `cacheUnknownGap` (per-kind unknown) — design must pin both fields on the UsageCell and its reducer. (2) Req 6 crit 7 gates the mandatory non-deferrable block on a tracked `verification-evidence.md` (one line per live scenario) the restarted rebuilt-harness session writes and the retrospective reads before it starts — design must pin that artifact and the retrospective's pre-start check. (3) Req 4 crit 6 collapses a total cell's cache columns to `unknown` only when the Anthropic spawn count is above 0; an all-DeepSeek total prints the `-` dash. |
+| Next phase loads | after `codebase-context.md`: the approved `requirements.md` acceptance criteria (esp. Req 3 crit 7, Req 4 unknown-cache rule and crit 6, Req 6 crit 7 block), the decomposition entry for `agent-cache-ttl` (spec 13) and its verification scenario; `steering/tech.md`, `structure.md`, `design-system.md` as present. |

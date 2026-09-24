@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/agent-cache-ttl/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-24T16:01:38.511Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790265698477_k4x8xi0qt",
+      "approvalTitle": "agent-cache-ttl requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-24T16:01:48.917Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790265698477_k4x8xi0qt",
+      "approvalTitle": "agent-cache-ttl requirements v4"
+    }
+  ]
+}

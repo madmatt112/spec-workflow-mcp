@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790265698477_k4x8xi0qt",
+  "title": "agent-cache-ttl requirements v4",
+  "filePath": ".spec-workflow/specs/agent-cache-ttl/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-24T16:01:38.477Z",
+  "category": "spec",
+  "categoryName": "agent-cache-ttl",
+  "response": "v4; 3 review rounds (2 adversarial + 1 narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit, SHOULD_FIX-only corrective pass at v4, VERIFIED 3/3. Gate A revision: RI-1 (block-until-restart, non-deferrable live checks) applied; R1-1 reconciled the pre/post-merge deadlock; R2-1/R2-2 fixed truth-table contradictions in the unknown-cache rule; R2-3 named the verification-evidence.md artifact.",
+  "respondedAt": "2026-09-24T16:01:48.941Z"
+}
