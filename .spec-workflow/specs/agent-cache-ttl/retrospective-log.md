@@ -64,3 +64,13 @@ Cost: 1 implementer spawn
 Supervisor cacheTtl record + retro block on unpassed evidence (design C7): gate pass risk low, 1 spawn, 0 fix rounds.
 Evidence: task 8; commit e57d84c; reviewId 9bbf1f52
 Cost: 1 implementer spawn
+
+## 2026-09-24T20:01:41Z · implementation · task 9 · gotcha
+End-to-end verification (scenarios 4+6): verifier VERIFY pass, full suite green (1464 passed/2 skipped). Verification-only, logged via a short log spawn (P9). Scenarios 1/2/3/5 stay pending for operator pre-merge C8 run, no deferral (D10). Only one spec-run transcript carries ephemeral fields, paired with a second real project transcript for scenario 4.
+Evidence: task 9; verify-e2e.md; commit e57d84c
+Cost: 1 verifier + 1 log spawn
+
+## 2026-09-24T20:02:32Z · implementation · phase · cleanup
+agent-cache-ttl implemented: 9/9 tasks, 0 fix rounds, 0 adjudications, 1 high-risk verifier (task 4) + 1 end-to-end verifier + 1 log spawn. 11 worker spawns total (8 implement + 1 verify + 1 e2e + 1 log). 0 deferrals added. Live scenarios 1/2/3/5 pending in evidence file (D10 blocks retro).
+Evidence: 9 task.done events; commits 6723ffe..e57d84c; evidence 73c2d45
+Cost: 8 implementer + 2 verifier + 1 log spawn

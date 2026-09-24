@@ -125,3 +125,10 @@
 {"ts":"2026-09-24T19:47:53.219Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","phase":"implementation","task":"8","result":"logged: yes/8 commit e57d84c"}
 {"ts":"2026-09-24T19:48:13.619Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 8 pass risk low"}
 {"ts":"2026-09-24T19:48:13.668Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:49:16.713Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"9","title":"End-to-end verification of scenarios (4) and (6)"}
+{"ts":"2026-09-24T20:00:53.650Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-verifier","input":"102","output":"4101","cacheWrite":"111999","cacheRead":"3666128","tokens":"3782330","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T20:01:11.477Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","phase":"implementation","task":"9","result":"VERIFY: pass"}
+{"ts":"2026-09-24T20:01:13.821Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T20:01:33.230Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"10","output":"249","cacheWrite":"26942","cacheRead":"94754","tokens":"121955","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T20:01:41.686Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 9","phase":"implementation","task":"9","result":"logged: yes/9 (verification-only)"}
+{"ts":"2026-09-24T20:01:41.740Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"9","rounds":"0","outcome":"gate"}

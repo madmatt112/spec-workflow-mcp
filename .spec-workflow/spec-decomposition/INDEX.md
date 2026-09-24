@@ -21,7 +21,8 @@
 | 6 | question-gates | Complete | 6/6 |
 | 7 | harness-usage-and-tiers | Complete | 8/8 |
 | 8 | provider-per-role | Complete | 10/10 |
-| 9 | tighter-reviews | Complete | 29/29 |
+| 9 | agent-cache-ttl | Complete | 9/9 |
+| 10 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
