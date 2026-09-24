@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes on a worker does not force a full prefix rewrite. It adds the lifetime to agent frontmatter and profiles, three cache fields to every `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` marking an override.
+This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes does not force a full prefix rewrite. It adds the lifetime to agent frontmatter, three cache fields to `spawn.end`, cache columns to `harness usage`, and `cacheTtl` on `run.start`.
 
 ## Alignment with Product Vision
 
@@ -159,3 +159,4 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
   - **R2-1 — Accepted (SHOULD_FIX).** Criterion 6 now guards the collapse on the cell's Anthropic count being above 0; an all-DeepSeek total (count 0) prints `-`, matching criterion 4, instead of the false `unknown` from the `0 == 0` boundary.
   - **R2-2 — Accepted (SHOULD_FIX).** Split the unknown counter into `cacheUnknownWrite` and `cacheUnknownGap` (criteria 1-4); criterion 6 now collapses `cw5m`/`cw1h` and `gapRewrites` on their own count, so a gap-only-unknown cell keeps the write sums criteria 2 and 7 require.
   - **R2-3 — Accepted (MINOR).** Requirement 6 criterion 7 now names the artifact: a new tracked verification-evidence file the restarted session writes and the retrospective reads before starting; the mandatory block is unchanged.
+  - **Lint pass.** 0 fixed; rejected: L-1-L-29 (suppressed, rule 11), L-30-L-31 (same rationale, verified).
