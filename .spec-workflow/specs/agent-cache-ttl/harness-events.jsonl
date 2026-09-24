@@ -63,3 +63,6 @@
 {"ts":"2026-09-24T16:49:48.445Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-document-orchestrator","input":"28","output":"494","cacheWrite":"63363","cacheRead":"846086","tokens":"909971","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T16:57:38.063Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-drafter","input":"98","output":"12176","cacheWrite":"177870","cacheRead":"5189404","tokens":"5379548","model":"claude-opus-5-5"}
 {"ts":"2026-09-24T16:57:40.713Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","round":"0","result":"9 tasks, v1"}
+{"ts":"2026-09-24T16:58:52.464Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-24T17:08:49.317Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"90","output":"11581","cacheWrite":"120061","cacheRead":"3924474","tokens":"4056206","model":"claude-sonnet-5"}
+{"ts":"2026-09-24T17:08:56.990Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"tasks","round":"1","result":"11 fixed, 5 rejected"}
