@@ -19,7 +19,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 1. THE frontmatter of `harness/agents/sdd-document-orchestrator.md`, `harness/agents/sdd-implementation-orchestrator.md` and `harness/agents/sdd-closeout-orchestrator.md` SHALL carry the line `experimental: { cacheTtl: 1h }` directly after the `effort` line (today line 5 in each: `harness/agents/sdd-document-orchestrator.md:1-20`, `harness/agents/sdd-implementation-orchestrator.md:1-8`, `harness/agents/sdd-closeout-orchestrator.md:1-12`) (D9).
 2. THE other nine files under `harness/agents/` SHALL carry no `experimental` key and no `cacheTtl`; this includes `sdd-retro-orchestrator` (decomposition Decided list).
 3. WHEN `node scripts/sync-plugin-assets.cjs` runs THEN every plugin root's `agents/` copy SHALL carry the same line, byte for byte. The existing whole-directory copy (`scripts/sync-plugin-assets.cjs:67-74`) already does this; no new copy logic is added.
-4. WHEN `buildProfiles` (`scripts/sync-plugin-assets.cjs:76-110`) builds `harness/agent-profiles.json` THEN each agent entry SHALL carry a fourth string key `cacheTtl`: the `cacheTtl` value written inside the agent's `experimental` frontmatter value, or `default` when the agent has no `experimental` key or the value names no `cacheTtl`. The entry keeps `model`, `effort` and `role` unchanged, and the output stays byte-identical across repeated runs.
+4. WHEN `buildProfiles` (`scripts/sync-plugin-assets.cjs:76-110`) builds `harness/agent-profiles.json` THEN each agent entry SHALL carry a fourth string key `cacheTtl`: read from the agent's `experimental` frontmatter value the same generic per-line split that already captures `model` and `effort` (`scripts/sync-plugin-assets.cjs:93-98`), or `default` when the agent has no `experimental` key or the value names no `cacheTtl`. The new key joins `model`, `effort` and `role` in the object literal built at `scripts/sync-plugin-assets.cjs:107`, and the output stays byte-identical across repeated runs.
 5. WHEN the sync has run THEN `harness/agent-profiles.json` SHALL show `cacheTtl: "1h"` for the three orchestrators and `cacheTtl: "default"` for the other nine, and `npm run check:plugin-assets` SHALL pass.
 6. IF a frontmatter is edited and the sync is not re-run THEN `node scripts/sync-plugin-assets.cjs --check` SHALL fail on `harness/agent-profiles.json` (the existing comparison, `scripts/sync-plugin-assets.cjs:112-128`).
 
@@ -48,7 +48,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 6. IF any counted call has no `message.usage.cache_creation` object, or that object lacks a numeric `ephemeral_5m_input_tokens` or `ephemeral_1h_input_tokens` THEN all three keys SHALL be `unknown` and the other keys of the row SHALL be as today (D2).
 7. IF the three keys are not `unknown` by criterion 6 AND any counted call has no parseable `timestamp` THEN `gapRewrites` SHALL be `unknown` and `cacheWrite5m` and `cacheWrite1h` SHALL keep their sums.
 8. WHEN the hook writes the `tokens: "unknown"` row (no transcript, or no assistant usage: `harness/hooks/sdd-activity.sh:159-161`) THEN that row SHALL also carry `cacheWrite5m`, `cacheWrite1h` and `gapRewrites` as `unknown`. The hook SHALL never skip the row because of these fields.
-9. The existing keys (`input`, `output`, `cacheWrite`, `cacheRead`, `tokens`, `model`) SHALL keep their values and meaning. The new code SHALL stay inside the single-quoted node body with no apostrophes (`harness/hooks/sdd-activity.sh:83`).
+9. The existing keys (`input`, `output`, `cacheWrite`, `cacheRead`, `tokens`, `model`, written at `harness/hooks/sdd-activity.sh:157-158`) SHALL keep their values and meaning. The new code SHALL stay inside the single-quoted node body with no apostrophes (`harness/hooks/sdd-activity.sh:83`).
 10. The `spawn.end` row in the event table of `harness/skills/sdd-continue/references/formats.md` (`harness/skills/sdd-continue/references/formats.md:199`) SHALL list the three new keys with their meaning.
 11. `src/__tests__/hook-spawn-events.test.ts` SHALL gain fixture transcripts that prove criteria 3 to 8: a split of 5m and 1h writes; a multi-line message counted once; a gap over 300 seconds with a rewrite over half the prefix (counted); a gap over 300 seconds with a small write (not counted); a gap under 300 seconds with a large write (not counted); a call without `cache_creation` (all three `unknown`); and no transcript (all three `unknown`).
 12. The DeepSeek launcher's `spawn.end` (`harness/skills/sdd-continue/references/sdd-launch.sh:131-143`) SHALL be unchanged (decomposition Decided list).
@@ -86,8 +86,8 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 3. The `run.start` call (`harness/skills/sdd-continue/SKILL.md:100-102`) SHALL add `cacheTtl=CACHE_TTL`. The `event.sh` split at the first `=` (`harness/skills/sdd-continue/references/formats.md:170-182`) keeps a value that contains `=` whole (D3).
 4. WHEN `CACHE_TTL` is not `per-agent` THEN the supervisor SHALL print one warning line at Step 0, `warning: cacheTtl VALUE — orchestrators will not get the one-hour cache from frontmatter; continuing`, and SHALL continue the run. It SHALL NOT print the warning again in the run, SHALL NOT stop, and SHALL NOT change any setting.
 5. The `run.start` row in the event table (`harness/skills/sdd-continue/references/formats.md:194`) SHALL list `cacheTtl` and its values.
-6. The script SHALL follow the shipped-script pattern of `harness/skills/sdd-continue/references/sdd-providers.sh:1-30` (a node body in a single-quoted shell string) and SHALL have a vitest test in `src/__tests__/`, beside `src/__tests__/providers-map.test.ts`, that covers each of the six values, with `claude` replaced by a stub on `PATH` and `HOME` pointed at a temporary directory.
-7. Nothing else in the supervisor changes: it is a main session and already has one hour (decomposition Decided list).
+6. The script SHALL follow the shipped-script pattern of `harness/skills/sdd-continue/references/sdd-providers.sh:1-30` (a node body in a single-quoted shell string). It SHALL have a new vitest test in `src/__tests__/`, beside `src/__tests__/providers-map.test.ts`, that covers each of the six values; the test SHALL put a stub executable named `claude` on `PATH` and point `HOME` at a temporary directory.
+7. THE supervisor's own cache lifetime SHALL NOT change: it is a main session and already has one hour (decomposition Decided list).
 
 ### Requirement 6 — End-to-end verification
 
@@ -106,7 +106,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 ## Non-Functional Requirements
 
 ### Performance
-- The hook's extra work is one pass over the calls `readUsage` already parsed; the hook stays within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
+- The hook's extra work is one pass over the calls `readUsage` (`harness/hooks/sdd-activity.sh:41-64`) already parsed; the hook stays within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
 
 ### Reliability
 - A missing or malformed cache field yields `unknown`, never a missing row and never a partial sum shown as known (Requirement 3 criteria 6 to 8).
@@ -143,3 +143,4 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 ## Revision History
 
 - **v1** (2026-09-24) — Initial draft.
+  - **Lint pass.** 13 fixed (L1-3, L14-19, L34-35, L36, L37); rejected: L4-5, L6-7, L20-31 (interface/function citations already the exact attachment point for a field this spec proposes to add, already framed as an addition); L8-13 (event-row citations already exact; new keys explicitly marked as additions); L32-33 (Step 0 and event-table-row citations already the single exact attachment line).
