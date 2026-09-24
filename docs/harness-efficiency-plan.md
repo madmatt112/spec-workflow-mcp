@@ -175,6 +175,43 @@ Compare the Sonnet reviser's tokens per round (review-gate ledger: nine spawns,
 ledgers (tags-and-setups, calendar-and-breakdowns); this store had no Opus baseline
 (review-gate retro P14).
 
+## Step 5 — Cache lifetime for agents that wait (R9), spec `agent-cache-ttl`
+
+Added 2026-09-24 from the transcripts of the provider-per-role and dashboard-layout runs.
+
+A subagent gets a five-minute prompt cache, also on a Claude subscription. The main
+session gets one hour (`https://code.claude.com/docs/en/prompt-caching`, "Which TTL each
+request gets"). An orchestrator waits for its workers. When a wait is longer than five
+minutes, the cache expires, and the next call writes the full prefix again.
+
+Measured on 194 subagent transcripts (2026-09-21 to 2026-09-24):
+
+| Gap before a call | Calls | Calls that wrote the prefix again | Tokens written again |
+| --- | --- | --- | --- |
+| Less than 5 minutes | 5,217 | 118 (2%) | 5.4M |
+| 5 to 60 minutes | 102 | 93 (91%) | 11.3M |
+
+The three orchestrator roles cause 92 of the 95 rewrites after a gap (11.2M tokens). The
+worker roles almost never wait more than five minutes. The main sessions have 0 rewrites
+in 89 gaps of 5 to 60 minutes, because their cache lives one hour.
+
+Claude Code 2.1.248 and later lets an agent file set its own cache lifetime with
+`experimental: { cacheTtl: 1h }` in the frontmatter. A one-hour cache write costs 2x the
+input rate, a five-minute write costs 1.25x, and a cache read costs 0.1x. For the
+orchestrators in the sample, a one-hour cache costs about 35% less than today: the higher
+rate on each turn's new content is smaller than the full rewrites it removes.
+
+Do this through the harness as spec `agent-cache-ttl` (decomposition entry 13): set a
+one-hour cache on the orchestrator agents only, record the cache lifetime per spawn, and
+count rewrites after a gap in `harness usage`. A refresh timer (a call every four minutes
+to keep a five-minute cache warm) is not the first choice: it adds turns and output
+tokens, and the frontmatter setting removes the cause.
+
+Watch for: rewrites after a gap of 5 to 60 minutes fall to near zero for orchestrators;
+orchestrator cache-write tokens per phase fall; worker roles do not change. If usage goes
+over the plan limit, Claude Code ignores a one-hour frontmatter value while it uses usage
+credits, so those runs return to five minutes.
+
 ## What each change is, in one line
 
 - R1 Deterministic gate before any LLM verifier; verifier only on high risk.
@@ -185,3 +222,4 @@ ledgers (tags-and-setups, calendar-and-breakdowns); this store had no Opus basel
 - R6 Sonnet 5 for the reviser and narrow checks; mechanical roles at high effort.
 - R7 Two bounded question gates, headless-safe.
 - R8 Schema output, one approval per phase, close-out batching, cache hygiene.
+- R9 One-hour prompt cache for agents that wait on workers; rewrites after a gap counted.
