@@ -353,3 +353,4 @@
 {"ts":"2026-09-24T04:09:37.387Z","run":"run-20260924-023523","spec":"provider-per-role","type":"phase.end","phase":"closeout","result":"closed","state":"items 15/15"}
 {"ts":"2026-09-24T04:09:50.308Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"286","output":"3886","cacheWrite":"1972684","cacheRead":"12629208","tokens":"14606064","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T04:09:55.830Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","result":"closed","phase":"closeout"}
+{"ts":"2026-09-24T04:10:08.318Z","run":"run-20260924-023523","spec":"provider-per-role","type":"run.end","status":"spec-workflow-mcp:provider-per-role closeout items 15/15 — closed; PR #62 open, not merged"}
