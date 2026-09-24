@@ -93,3 +93,12 @@
 {"ts":"2026-09-24T19:11:41.349Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3 commit 129f350"}
 {"ts":"2026-09-24T19:11:54.419Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-24T19:11:54.465Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:12:03.076Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"4","title":"Hook writes the three cache fields on spawn.end"}
+{"ts":"2026-09-24T19:12:05.450Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:18:29.444Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"52","output":"14275","cacheWrite":"75992","cacheRead":"1559228","tokens":"1649547","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:18:35.588Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4 commit 20fe4e4"}
+{"ts":"2026-09-24T19:19:01.638Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 4 pass risk high"}
+{"ts":"2026-09-24T19:19:19.701Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-verifier","role":"verify"}
+{"ts":"2026-09-24T19:21:50.127Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-verifier","input":"16","output":"730","cacheWrite":"58812","cacheRead":"277984","tokens":"337542","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:22:01.101Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 4","phase":"implementation","task":"4","result":"VERDICT: pass"}
+{"ts":"2026-09-24T19:22:01.148Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"4","rounds":"0","outcome":"pass"}

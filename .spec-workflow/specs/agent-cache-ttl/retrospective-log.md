@@ -39,3 +39,8 @@ Cost: 1 implementer spawn
 Watch view declared lifetime: gate pass risk low, 1 spawn, 0 fix rounds. Pad Math.max(23,len+1) keeps default lines at 23.
 Evidence: task 3; commit 129f350; reviewId d672df5f
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:22:01Z · implementation · task 4 · gotcha
+Hook spawn.end cache fields (design C4): high risk sensitive path harness/hooks/; gate pass then verifier VERDICT pass, 0 findings. 1 implementer + 1 verifier spawn.
+Evidence: task 4; commit 20fe4e4
+Cost: 1 implementer + 1 verifier spawn
