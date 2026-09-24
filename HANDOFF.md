@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-23, harness v4).** Active spec **`provider-per-role`**.
-> Live phase **retrospective**, state **n/a**, last result **complete** (implementation tasks 10/10, PR #59 open, checks green, not merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role`, worktree of `/home/mcf/repo/spec-workflow-mcp` (branch `feat/provider-per-role`).
-> A re-run does: compiles the retrospective of `provider-per-role`, then holds the retrospective conversation and runs close-out.
+> Live phase **closeout**, state **items 0/15**, last result **APPROVED** (retrospective plan approved by Matthew; PR #59 merged).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`; close-out runs in worktree `chore/provider-per-role-retro`.
+> A re-run does: after a session restart on the merged harness and rebuilt server (/model opus, /effort xhigh), runs close-out of the 15 approved items in the `chore/provider-per-role-retro` worktree.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -42,6 +42,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-23 | provider-per-role | implementation | tasks 0/10 | escalate | task 1 DEEPSEEK_API_KEY unset; preflight not run; spec blocked |
 | 2026-09-23 | provider-per-role | implementation | tasks 0/10 | interrupted |  |
 | 2026-09-23 | provider-per-role | implementation | tasks 10/10 | complete | 10/10 tasks, PR #59 checks green, 1 deferral |
+| 2026-09-23 | provider-per-role | retrospective |  | retro-ready |  |
+| 2026-09-23 | provider-per-role | retrospective | items 0/15 | APPROVED | plan approved by Matthew: 14 proposals + G1 (6 from overwatch), 8 no-change, 1 rejected; close-out after restart |
 
 ## Current state — 2026-08-04
 
