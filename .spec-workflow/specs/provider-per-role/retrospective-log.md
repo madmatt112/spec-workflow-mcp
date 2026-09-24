@@ -164,3 +164,18 @@ Cost: 1 analyst spawn
 store items done 5 (P1 P3 P5 P16 G1), to-do 0, skipped 0
 Evidence: gates: P1 high pass+verified, P3/P16/G1 low pass; P5 folded into P3
 Cost: spawns: 1 implementer, 1 verifier
+
+## 2026-09-24T04:07:44Z · cleanup · harness batch 1 · cleanup
+harness items done 10 (P2 P4 P8 P11 P17 P18 P19 P20 P21 P22), to-do 0, skipped 0
+Evidence: all gates pass; P17 high pass+verified; rest low
+Cost: spawns: 1 implementer, 1 verifier
+
+## 2026-09-24T04:07:44Z · deviation · harness batch 1 · deviation
+follow-up filed d-9d600d11: sdd-launch.sh readUsage has the same multi-block token inflation P17 fixed in the hook; out of P17 hook-only scope
+Evidence: implementer RETRO flag
+Cost: deferred, not landed
+
+## 2026-09-24T04:09:37Z · cleanup · closeout · cleanup
+provider-per-role CLOSED: 15/15 done (P5 folded into P3), 0 to-do, 0 skipped; PR #62
+Evidence: retrospective-plan.md Status CLOSED; HANDOFF written; d-9d600d11 follow-up filed
+Cost: spawns: 2 implementers, 2 verifiers

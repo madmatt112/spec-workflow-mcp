@@ -1,6 +1,6 @@
 # Retrospective plan — provider-per-role
 
-Status: APPROVED
+Status: CLOSED
 Approved: 2026-09-23 by Matthew in the retro conversation (run run-20260923-160920).
 Source: `retrospective.md` and `retrospective-proposals.md` in this directory, plus nine open
 harness items from the overwatch session, put to Matthew as extra candidates (P17-P22).
@@ -221,3 +221,14 @@ One line per proposal, written by the close-out phase.
 - P5: done — folded into P3 (no separate change)
 - P16: done — 4e1ccca
 - G1: done — 5c33b89
+- P2: done — 0bebf68
+- P4: done — c9af722
+- P8: done — 4a6941c
+- P11: done — c464408
+- P17: done — c87cd4a
+- P18: done — 03e207a
+- P19: done — 221a2fb
+- P20: done — 8036cfc
+- P21: done — 1ab0a2a
+- P22: done — 8e8c0e3
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/62

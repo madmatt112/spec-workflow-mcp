@@ -381,3 +381,14 @@ From implementation:
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/59 |
 | Next deferrals worth working | d-3091be1c (live orchestrator SubagentStop usage half); d-1880d115 (question-gates gate A/B live scenarios) |
 | Gotcha | Task 10 verified the launcher, map-script and usage-fold halves in-process (all six scenarios and the full suite green, real DeepSeek run, tokens=58346). The supervisor (roots-step refusal) and document-orchestrator (launcher routing, Anthropic reviser round) halves need the merged skills in a restarted session — deferred as d-a38fea66. docs/SDD-HARNESS.md's "no MCP server" line is the anthropic default; the eligible sdd-reviser gets --mcp-config (design.md:133), slightly loose for that case. |
+
+## provider-per-role — closeout
+
+Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 folded into P3), 0 to-do, 0 skipped. Not merged; merge is the human's.
+
+- PR: spec-workflow-mcp PR #62 — https://github.com/madmatt112/spec-workflow-mcp/pull/62 — branch `chore/provider-per-role-retro`, 14 commits. Store items (P1, P3, P5, P16, G1) and harness items (P2, P4, P8, P11, P17, P18, P19, P20, P21, P22) all land in this one repo and ship in this PR.
+- Gates: P1 (sensitive `src/tools/review-task.ts`) and P17 (sensitive `harness/hooks/`) were high-risk gate-pass and independently verified; the other 13 were low-risk gate-pass.
+- To-do (human) — d-a38fea66: after the PR merges and the harness reloads, run the fixture requirements round of a scratch spec (DeepSeek reviser role, then all-anthropic, then key unset) to confirm the launcher path, the anthropic path and the keyless refusal.
+- To-do (human) — after merge: resolve d-009995d8 (P19 medium-risk routing) and re-verify d-3091be1c (P17 hook usage rows).
+- Follow-up filed d-9d600d11: `sdd-launch.sh` carries its own `readUsage` copy with the same multi-block token inflation P17 fixed in the hook; out of P17's hook-only scope, still latent for launcher/DeepSeek workers.
+- Gotcha: P17 defect (b) (catch the final assistant line) has the functional fix in `sdd-activity.sh` but no deterministic race test — synchronous test fixtures make the tail-wait a no-op.

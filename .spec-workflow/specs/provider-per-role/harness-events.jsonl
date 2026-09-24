@@ -313,3 +313,40 @@
 {"ts":"2026-09-24T03:38:52.146Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P5","outcome":"done"}
 {"ts":"2026-09-24T03:38:52.168Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P16","outcome":"done"}
 {"ts":"2026-09-24T03:38:52.189Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-09-24T03:39:06.850Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P2","title":"Supervisor preflights provider secrets before implementation"}
+{"ts":"2026-09-24T03:39:06.871Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P4","title":"Add a ledger truncate-on-resume helper"}
+{"ts":"2026-09-24T03:39:06.892Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P8","title":"Caveat the no-MCP-server line for the eligible reviser"}
+{"ts":"2026-09-24T03:39:06.912Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P11","title":"Reviser must fix every site of a multi-site finding"}
+{"ts":"2026-09-24T03:39:06.933Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P17","title":"Fix the SubagentStop hook usage rows"}
+{"ts":"2026-09-24T03:39:06.952Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P18","title":"Stop duplicate event rows from re-issued event.sh calls"}
+{"ts":"2026-09-24T03:39:06.972Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P19","title":"Route medium risk like low; document docs-only down-rank"}
+{"ts":"2026-09-24T03:39:06.993Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P20","title":"spec-lint coverage rule accepts the component letter"}
+{"ts":"2026-09-24T03:39:07.013Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P21","title":"Spec-store commit script skips gitignored paths"}
+{"ts":"2026-09-24T03:39:07.033Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P22","title":"Name the Approved proposals heading in the retro step"}
+{"ts":"2026-09-24T03:39:09.709Z","type":"spawn.start","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-24T03:39:13.130Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"182","output":"3387","cacheWrite":"1133492","cacheRead":"6418124","tokens":"7555185","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T04:03:35.298Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-implementer","input":"376","output":"52641","cacheWrite":"622842","cacheRead":"26185729","tokens":"26861588","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T04:05:42.810Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-09-24T04:05:42.833Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-09-24T04:05:42.853Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-09-24T04:05:42.874Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P11 pass risk low"}
+{"ts":"2026-09-24T04:05:42.895Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P17 pass risk high (sensitive-path harness/hooks)"}
+{"ts":"2026-09-24T04:05:42.916Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P18 pass risk low"}
+{"ts":"2026-09-24T04:05:42.937Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P19 pass risk low"}
+{"ts":"2026-09-24T04:05:42.957Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P20 pass risk low"}
+{"ts":"2026-09-24T04:05:42.978Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P21 pass risk low"}
+{"ts":"2026-09-24T04:05:42.998Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P22 pass risk low"}
+{"ts":"2026-09-24T04:06:07.583Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"236","output":"3527","cacheWrite":"1559725","cacheRead":"9423531","tokens":"10987019","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T04:07:17.096Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-verifier","input":"26","output":"320","cacheWrite":"81323","cacheRead":"237008","tokens":"318677","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T04:07:44.717Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"P2 P4 P8 P11 P17 P18 P19 P20 P21 P22 done"}
+{"ts":"2026-09-24T04:07:44.738Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-verifier","role":"verify harness batch 1","phase":"closeout","result":"P17 ok VERDICT pass"}
+{"ts":"2026-09-24T04:07:44.758Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.779Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.798Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.818Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.839Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P17","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.860Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P18","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.880Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P19","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.900Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P20","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.920Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P21","outcome":"done"}
+{"ts":"2026-09-24T04:07:44.940Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P22","outcome":"done"}
