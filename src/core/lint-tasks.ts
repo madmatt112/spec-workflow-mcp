@@ -44,6 +44,14 @@ const H3_HEADING_RE = /^###\s+(.+)$/;
 /** A `Component N` heading prefix; the label when a heading opens so (requirement 7.1). */
 const COMPONENT_LABEL_RE = /^Component\s+\d+/;
 
+/**
+ * A design heading that opens with an enumerated component letter (`A. Shared defaults`,
+ * `B) Provider map`). Tasks that reference such a component write `Component A`, not the
+ * heading text, so this letter lets a `Component <letter>` mention count as coverage
+ * (retro P20).
+ */
+const COMPONENT_LETTER_RE = /^([A-Za-z])[.):]/;
+
 /** A `task <id>` mention inside a task block (requirement 7.4). */
 const TASK_MENTION_RE = /\btask\s+(\d+(?:\.\d+)*)/gi;
 
@@ -224,7 +232,9 @@ function labelFor(heading: string): string {
  * `coverage-unchecked` at `info` on line 1. Otherwise a label that no task
  * block's joined text (its `start`-`end` span, prompt included) matches at word
  * boundaries, case-insensitive, is `coverage-component` at `error` on line 1,
- * naming the heading and its `design.md` line. `file` is left empty.
+ * naming the heading and its `design.md` line. `file` is left empty. A component whose
+ * heading opens with an enumerated letter (`A. Shared defaults`) is also covered by a task
+ * that names `Component <that letter>`, since tasks reference it that way (retro P20).
  */
 export function checkCoverage(
   lines: string[],
@@ -242,7 +252,9 @@ export function checkCoverage(
   const findings: LintFinding[] = [];
   for (const component of components) {
     const labelRe = new RegExp('\\b' + escapeRegExp(component.label) + '\\b', 'i');
-    if (spans.some((span) => labelRe.test(span))) continue;
+    const letterMatch = component.heading.match(COMPONENT_LETTER_RE);
+    const letterRe = letterMatch ? new RegExp('\\bComponent\\s+' + letterMatch[1] + '\\b', 'i') : null;
+    if (spans.some((span) => labelRe.test(span) || (letterRe !== null && letterRe.test(span)))) continue;
     findings.push({
       file: '', line: 1, rule: 'coverage-component', severity: 'error',
       message: `design component "${component.heading}" is covered by no task (design.md line ${component.line})`,

@@ -117,8 +117,10 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
-   - `pass` and `risk: low` ⇒ **step 6**, with the gate-recorded review as the task's
-     review, `rounds=0` and `task.done ... outcome=gate`.
+   - `pass` and `risk: low` or `medium` ⇒ **step 6**, with the gate-recorded review as the
+     task's review, `rounds=0` and `task.done ... outcome=gate`. Medium is the docs-only
+     down-rank (`docs/SDD-HARNESS.md`); it routes like low — the deterministic gate only, no
+     verifier.
    - `pass` and `risk: high` ⇒ **step 4b**.
    A gate `success: false` after the implementer's `logged: yes` is a tool error, not a
    fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
@@ -148,8 +150,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    was a gate fail re-run the checks that were failing; `review-task` `prepare` and
    `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with the narrow
    verdict) and continue to step 6 whatever the narrow verdict says.
-6. **Complete.** Only with a `gate: pass` and `risk: low`, a verifier `VERDICT: pass`,
-   or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
+6. **Complete.** Only with a `gate: pass` and `risk: low` or `medium`, a verifier
+   `VERDICT: pass`, or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
    `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
    adjudication). Append a retro-log entry with `retro.sh` for the task:
    `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
