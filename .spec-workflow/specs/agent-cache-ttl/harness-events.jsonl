@@ -114,3 +114,8 @@
 {"ts":"2026-09-24T19:35:50.611Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6"}
 {"ts":"2026-09-24T19:36:12.079Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 6 pass risk low"}
 {"ts":"2026-09-24T19:36:12.128Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:36:30.666Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"7","title":"Pre-merge live verification kit and pending evidence file"}
+{"ts":"2026-09-24T19:36:32.844Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:43:59.468Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"52","output":"2998","cacheWrite":"96665","cacheRead":"1830864","tokens":"1930579","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:44:11.590Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 7","phase":"implementation","task":"7","result":"logged: yes/7 evidence commit 73c2d45"}
+{"ts":"2026-09-24T19:44:11.640Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"7","rounds":"0","outcome":"gate"}

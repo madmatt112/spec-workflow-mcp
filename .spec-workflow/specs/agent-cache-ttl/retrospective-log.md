@@ -54,3 +54,8 @@ Cost: 1 implementer spawn
 Override probe script sdd-cache-ttl.sh (design C6): gate pass risk low, 1 spawn, 0 fix rounds.
 Evidence: task 6; commit 7fde05a; reviewId bce4762e
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:44:11Z · implementation · task 7 · gotcha
+Verification-only task (design C8 kit + pending evidence file): no gate, no verifier (retro P15, verifier-skipped by policy). Checks bash -n, node --check, grep -c 4 passed. Evidence committed in spec store.
+Evidence: task 7; evidence commit 73c2d45; logged yes/7
+Cost: 1 implementer spawn
