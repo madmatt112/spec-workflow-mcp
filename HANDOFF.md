@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-24, harness v4).** **`provider-per-role`** is CLOSED — no active spec.
-> Live phase **closeout**, state **items 15/15**, last result **closed** (PR #62 merged at c09db13; PR #59 merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp` (close-out ran in worktree `.claude/worktrees/provider-per-role-retro`, branch `chore/provider-per-role-retro`).
-> A re-run does: starts the next roadmap spec, `agent-cache-ttl` (spec 13 of decomposition.md, no directory yet; build order 8 → 10 → 13 → 12 → 11 → 9), at requirements, in a fresh session on the merged harness. Human: d-a38fea66 fixture verification, resolve d-009995d8, re-verify d-3091be1c; follow-up d-9d600d11 filed.
+> **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`agent-cache-ttl`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: runs the requirements phase of `agent-cache-ttl` (spec 13 of decomposition.md).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
