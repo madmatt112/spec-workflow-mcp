@@ -1,62 +1,63 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-09-24 (round 1, v2)
+Last updated: 2026-09-24 (after v2 review — round 2, target v3)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet)
+- **R1-1 (MUST_FIX)** — Req 6 crit 7 block-until-restart was unsatisfiable (pre-merge "ready"
+  gated on post-merge evidence). v3 retargeted the block to the post-merge retrospective start;
+  PR merges on (4)/(6) alone. Round 2 verified: satisfiable, mandatory preserved, D10 agrees.
+  RESOLVED.
+- **R1-2 (SHOULD_FIX)** — Req 1 crit 4: generic split leaves `1h }`. v3 names the token-between-
+  `cacheTtl:`-and-`}` extraction; crit 5 pins `"1h"` independently. RESOLVED.
+- **R1-3 (SHOULD_FIX)** — Req 4 crit 6: "Anthropic spawn count" undefined for total rows. v3
+  names `providers.anthropic.spawns` per cell type. Partially resolved — the count source is now
+  right, but the collapse test has two unguarded boundaries (see R2-1, R2-2).
+- **R1-4 (MINOR)** — Req 2 crit 4: tier-line separator at pad-23. v3 requires a kept separating
+  space, width to design. RESOLVED.
+- **R1-5 (MINOR)** — Req 5 crit 2.2/4: numeric version compare stated; `unknown` warning split
+  from override warning. RESOLVED.
+- **R1-6 (MINOR)** — Req 5 crit 6: test now stages code-root fixture + three settings tiers;
+  crit 2.5 defines code root = script cwd. RESOLVED.
 
 ### Partially Accepted
-- (none yet)
+- (none)
 
 ### Rejected
-- (none yet)
+- **RI-2 (v2)** — no contradiction in the recorded Gate A choices (D1/D2/D3/D5). Closed.
 
 ### Unresolved
-- **R1-1 (MUST_FIX)** — Req 6 crit 7: block-until-restart gate is unsatisfiable on this
-  machine. It requires (1),(2),(3),(5) recorded on a rebuilt-harness session before the PR is
-  "marked ready for review", yet its own parenthetical (and CLAUDE.md: harness runs from the
-  main checkout, symlinks + hook path to main) says worktree changes are live only after merge.
-  Pre-ready needs post-merge evidence → deadlock. Fix: make the live half a post-merge
-  obligation, not a pre-ready blocker. Delta from Gate A / RI-1; the block-vs-defer *choice* is
-  a closed ruling, the *mechanism* is not.
-- **R1-2 (SHOULD_FIX)** — Req 1 crit 4: "same generic per-line split" applied to
-  `{ cacheTtl: 1h }` yields `1h }`, not `1h`; fails crit 5's `"1h"`; `check:plugin-assets` is
-  self-referential and cannot catch it. Needs an explicit extraction + an independent test.
-- **R1-3 (SHOULD_FIX)** — Req 4 crit 6: "its Anthropic spawn count" undefined for phase-total /
-  grand-total cells (mixed provider). New `UsageCell` fields carry no per-cell Anthropic count;
-  `providers` tracked only at phase/report level. Naive `cell.spawns` never collapses an
-  all-unknown Anthropic total to `unknown`.
-- **R1-4 (MINOR)** — Req 2 crit 2/3/4: `render.ts:226` `padRight(declared, 23)`; 1h agents are
-  exactly 23 chars → `1hactual` with no separator; widening the pad grazes crit 3 for the nine
-  default agents. Pad/separator decision unstated.
-- **R1-5 (MINOR)** — Req 5 crit 2/4: "below 2.1.248" has no numeric/semver compare (lexical
-  mis-orders 2.1.9 vs 2.1.248); the single warning text over-claims on `unknown`, contradicting
-  D7's "neither hides nor invents a fact".
-- **R1-6 (MINOR)** — Req 5 crit 6: test stubs `claude` + `HOME` only, so the three settings-file
-  tiers (crit 2.5 / D8 / D11 first-file-wins) go untested; the script's source for "the code
-  root" is also unstated.
+- **R2-1 (SHOULD_FIX)** — Req 4 crit 6: `cacheUnknown == count` fires on `0 == 0` for an
+  all-DeepSeek phase/grand total → prints `unknown` where `-`/`0` is correct. Needs a `count > 0`
+  guard and a stated all-DeepSeek-total output. Compounds R1-3 (the reworded clause).
+- **R2-2 (SHOULD_FIX)** — Req 3 crit 7 vs Req 4 crit 2/6: `cacheUnknown` conflates writes-unknown
+  with gap-only-unknown. A cell of all crit-7 rows (writes known, gaps unknown) prints
+  `cw5m`/`cw1h` as `unknown`, discarding sums crit 7 deliberately keeps. Needs per-column unknown
+  handling or a split counter. Compounds R1-3.
+- **R2-3 (MINOR)** — Req 6 crit 7 names no artifact/owner for the post-merge live-half evidence
+  the retrospective gates on. Compounds R1-1.
 
 ## Patterns & Themes
-- Wire-contract seams are where the gaps cluster: the producer (buildProfiles, hook) and the
-  consumer (usage report, watch view) are each internally fine, but the *derivation glue*
-  between a one-line frontmatter value and a scalar field, and between a mixed-provider cell and
-  an "Anthropic-only" count, is under-specified.
-- Self-referential checks give false confidence: `check:plugin-assets` (regenerate-and-compare)
-  cannot catch a wrong `cacheTtl` value (R1-2); acceptance criteria that lean on it need an
-  independent literal assertion.
-- The Gate A revision removed the deferral cleanly from the normative text but replaced it with
-  a gate that ignores the merge-first build model the document itself documents (R1-1).
+- The gaps cluster on wire-contract / display seams, now concentrated in Req 4 crit 6: the
+  producer (hook, `reduceSpawn`) is fine, but the collapse-to-`unknown` glue keys three columns
+  off one overloaded counter (`cacheUnknown` = writes-unknown + gap-unknown) and an unguarded
+  equality (`== count`, including `0 == 0`).
+- v3 resolved all six round-1 findings cleanly; the two round-2 SHOULD_FIX are the *next layer*
+  of the same crit-6 clause R1-3 touched — fixing the count source exposed the boundary logic.
+- The R1-1 Gate A mechanism is now sound; do not re-litigate it (Gate A block-vs-defer is a
+  closed human ruling and the mechanism is verified satisfiable).
 
 ## Guidance for Next Review
-- Re-verify Req 6 crit 7 first: has the live-half gate been reframed to a post-merge obligation
-  that is actually reachable? Check every D10 cross-reference still agrees.
-- Confirm crit 4 now names a concrete extraction and crit 5 has a test asserting literal `"1h"`
-  not via `check:plugin-assets`.
-- Confirm crit 6 defines the Anthropic count source for total rows (expect
-  `providers.anthropic.spawns`), and that a mixed-provider phase fixture exercises it.
-- L-1..L-29 (citation-identifier addition-point warnings) are ruled closed; do not re-raise
-  without new evidence.
-- Scope vs decomposition entry 13 was checked and matches at v2; only re-check if requirements
-  are added/removed.
+- Re-verify Req 4 crit 6 first: does it now guard `count > 0` (R2-1) and give `gapRewrites` its
+  own unknown handling or split `cacheUnknown` so known writes are never blanked (R2-2)? Check a
+  fixture with an all-DeepSeek phase and a fixture with all-crit-7 (timestamp-only-unknown) rows.
+- Confirm any crit-6 change keeps the mixed-cell second branch (`0 < cacheUnknown < count` →
+  sums + ` (+N unknown)`) intact — that branch is correct today.
+- If R2-3 is addressed, confirm the named live-half evidence record is a real, tracked artifact
+  the retrospective reads.
+- Well-covered, do not re-examine unless changed: R1-1 gate mechanism (verified), the crit-4
+  extraction + crit-5 test, the tier-line separator, the version compare and settings-tier test,
+  and scope vs decomposition entry 13 (numbers checked, "92 of 95", "35%", Decided list all match).
+- L-1..L-29 citation-identifier addition-point warnings remain closed; do not re-raise without
+  new evidence.

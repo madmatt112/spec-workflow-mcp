@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes on a worker does not force a full prefix rewrite, for the harness operator who pays against the Max plan limit. It adds the lifetime to agent frontmatter and profiles, three cache fields to every `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` marking an override.
+This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes on a worker does not force a full prefix rewrite. It adds the lifetime to agent frontmatter and profiles, three cache fields to every `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` marking an override.
 
 ## Alignment with Product Vision
 
-No `steering/product.md` exists in this spec store; alignment is to the efficiency plan's order "tokens, then wall clock" (`docs/harness-efficiency-plan.md:8-9`) and decomposition entry 13 (`.spec-workflow/spec-decomposition/decomposition.md:394-464`), which measured 92 of 95 after-gap rewrites on the three orchestrators and estimates about 35% less orchestrator input cost on one hour. Every number added is one the hook measures from the transcript, so the retro can prove the saving.
+No `steering/product.md` exists in this spec store; alignment is to the efficiency plan's order "tokens, then wall clock" (`docs/harness-efficiency-plan.md:8-9`) and decomposition entry 13 (`.spec-workflow/spec-decomposition/decomposition.md:394-464`), which measured 92 of 95 after-gap rewrites on the three orchestrators and estimates about 35% less orchestrator input cost on one hour.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 
 1. THE frontmatter of `harness/agents/sdd-document-orchestrator.md`, `harness/agents/sdd-implementation-orchestrator.md` and `harness/agents/sdd-closeout-orchestrator.md` SHALL carry the line `experimental: { cacheTtl: 1h }` directly after the `effort` line (today line 5 in each: `harness/agents/sdd-document-orchestrator.md:1-20`, `harness/agents/sdd-implementation-orchestrator.md:1-8`, `harness/agents/sdd-closeout-orchestrator.md:1-12`) (D9).
 2. THE other nine files under `harness/agents/` SHALL carry no `experimental` key and no `cacheTtl`; this includes `sdd-retro-orchestrator` (decomposition Decided list).
-3. WHEN `node scripts/sync-plugin-assets.cjs` runs THEN every plugin root's `agents/` copy SHALL carry the same line, byte for byte. The existing whole-directory copy (`scripts/sync-plugin-assets.cjs:67-74`) already does this; no new copy logic is added.
+3. WHEN `node scripts/sync-plugin-assets.cjs` runs THEN every plugin root's `agents/` copy SHALL carry the same line, byte for byte, via the existing whole-directory copy (`scripts/sync-plugin-assets.cjs:67-74`).
 4. WHEN `buildProfiles` (`scripts/sync-plugin-assets.cjs:76-110`) builds `harness/agent-profiles.json` THEN each agent entry SHALL carry a fourth string key `cacheTtl`: the token between `cacheTtl:` and the next `}` in the `experimental` value, trimmed — not the generic per-line split at `scripts/sync-plugin-assets.cjs:93-98`, which leaves `1h }` — or `default` when there is no `experimental` key or no `cacheTtl` in it. The key joins `model`, `effort` and `role` in the `scripts/sync-plugin-assets.cjs:107` object literal; output stays byte-identical across runs.
 5. WHEN the sync has run THEN `harness/agent-profiles.json` SHALL show `cacheTtl: "1h"` for the three orchestrators and `cacheTtl: "default"` for the other nine, and `npm run check:plugin-assets` SHALL pass. A test beside `scripts/sync-plugin-assets.cjs` SHALL assert the literal `"1h"` on a fixture frontmatter, independent of `check:plugin-assets` (a `buildProfiles` re-run, so it cannot catch a shared wrong extraction).
 6. IF a frontmatter is edited and the sync is not re-run THEN `node scripts/sync-plugin-assets.cjs --check` SHALL fail on `harness/agent-profiles.json` (the existing comparison, `scripts/sync-plugin-assets.cjs:112-128`).
@@ -59,15 +59,15 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 
 #### Acceptance Criteria
 
-1. `UsageCell` (`src/watch/usage.ts:13`) SHALL gain four numbers: `cacheWrite5m`, `cacheWrite1h`, `gapRewrites`, and `cacheUnknown` (the count of spawns in the cell with no known cache values). Every per-agent cell, per-phase total, grand total and provider cell SHALL carry them, and the `data.report` (and `data.compare`) the `usage` action returns (`src/tools/harness.ts:1063-1084`) SHALL carry them.
-2. `reduceSpawn` (`src/watch/usage.ts:186-242`) SHALL take the three values from the same `spawn.end` row it takes `tokens` from (the last `spawn.end` with a digit-string `tokens`). IF that row has no digit string in one of `cacheWrite5m`, `cacheWrite1h` THEN the spawn SHALL count 1 in `cacheUnknown` and add 0 to the three sums. IF only `gapRewrites` is not a digit string THEN the spawn SHALL add its two write sums, add 0 to `gapRewrites`, and count 1 in `cacheUnknown`.
-3. A spawn with no `spawn.end` that carries digit-string `tokens` (a `spawn.usage`-only spawn, a supervisor-written interrupted row) SHALL count 1 in `cacheUnknown`.
-4. A spawn whose provider is `deepseek` SHALL add nothing to the cache numbers and nothing to `cacheUnknown`; its agent line SHALL print `-` in the three cache columns (D5).
+1. `UsageCell` (`src/watch/usage.ts:13`) SHALL gain five numbers: `cacheWrite5m`, `cacheWrite1h`, `gapRewrites`, `cacheUnknownWrite` (writes unknown) and `cacheUnknownGap` (writes known, gap unknown). Every per-agent cell, per-phase total, grand total and provider cell SHALL carry them, and the `data.report` (and `data.compare`) the `usage` action returns (`src/tools/harness.ts:1063-1084`) SHALL carry them.
+2. `reduceSpawn` (`src/watch/usage.ts:186-242`) SHALL take the three values from the same `spawn.end` row it takes `tokens` from (the last `spawn.end` with a digit-string `tokens`). IF that row has no digit string in one of `cacheWrite5m`, `cacheWrite1h` THEN the spawn SHALL count 1 in `cacheUnknownWrite` and add 0 to the three sums. IF only `gapRewrites` is not a digit string THEN the spawn SHALL add its two write sums, add 0 to `gapRewrites`, and count 1 in `cacheUnknownGap`.
+3. A spawn with no `spawn.end` that carries digit-string `tokens` (a `spawn.usage`-only spawn, a supervisor-written interrupted row) SHALL count 1 in `cacheUnknownWrite`.
+4. A spawn whose provider is `deepseek` SHALL add nothing to the cache numbers and nothing to `cacheUnknownWrite` or `cacheUnknownGap`; its agent line SHALL print `-` in the three cache columns (D5).
 5. The single-spec table (`src/watch/usage.ts:288-299`) SHALL add three columns after `tokens`, headed `cw5m`, `cw1h` and `gapRewrites`, on every agent line, every phase total line and the grand total line.
-6. IF a cell's `cacheUnknown` equals its Anthropic spawn count THEN its cache columns SHALL print `unknown`: a per-agent cell's count is its own `spawns` (single-provider; DeepSeek keys as `agent@deepseek`); a total cell's is `ph.providers.anthropic.spawns` or `report.providers.anthropic.spawns`. IF `cacheUnknown` is above 0 and below that count THEN the columns SHALL print the sums, `gapRewrites` ending ` (+N unknown)`, N being `cacheUnknown` (D5).
+6. THE cache columns SHALL collapse per column, gated on the cell's Anthropic spawn count (a per-agent cell's own `spawns`, DeepSeek keyed as `agent@deepseek`; a total cell's `ph.providers.anthropic.spawns` or `report.providers.anthropic.spawns`). IF that count is 0 (an all-`deepseek` cell) THEN all three columns SHALL print `-`, as criterion 4. IF the count is above 0 THEN `cacheWrite5m`/`cacheWrite1h` SHALL print `unknown` only when `cacheUnknownWrite` equals the count, else their sums (a `cacheUnknownGap` spawn keeps its write sums); `gapRewrites` SHALL print `unknown` only when `cacheUnknownWrite` plus `cacheUnknownGap` equals the count, else its sum ending ` (+N unknown)` when that total (N) is above 0 (D5).
 7. The two-spec table (`src/watch/usage.ts:301-330`) SHALL add the same three columns for each side, on every agent line, phase total line and grand total line, with the same `unknown` and `-` rules. The per-phase delta stays spawns and tokens only.
 8. WHEN `harness usage` runs on the `provider-per-role` ledger (no row has the new keys) THEN every Anthropic agent line and every total SHALL print `unknown` in the three columns, and the tokens columns SHALL be unchanged from today.
-9. `src/watch/__tests__/usage.test.ts` SHALL prove criteria 2 to 8 with ledger fixtures, including a mixed cell (some spawns known, some not) and a compare of a ledger with the keys against one without.
+9. `src/watch/__tests__/usage.test.ts` SHALL prove criteria 2 to 8 with ledger fixtures, including a mixed cell, an all-`deepseek` total, a gap-only-unknown cell keeping its write sums, and a compare of a ledger with the keys against one without.
 
 ### Requirement 5 — An override is visible
 
@@ -101,43 +101,42 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 4. Scenario (4): `harness usage` on the fixture ledger SHALL print the three columns with digits, and on the `provider-per-role` ledger SHALL print them as `unknown` (Requirement 4 criterion 8).
 5. Scenario (5): A run started with `FORCE_PROMPT_CACHING_5M=1` exported SHALL have `cacheTtl=FORCE_PROMPT_CACHING_5M=1` on its `run.start` row, and the supervisor output SHALL contain exactly one `warning: cacheTtl` line.
 6. Scenario (6): `npm run check:plugin-assets`, `claude plugin validate . --strict` (at the repository root, as `.spec-workflow/agent-rules.md` runs it) and `npm test` SHALL pass.
-7. IF the session running the end-to-end gate does not run the changed hook, agents or supervisor skill (this machine runs the harness from the main checkout: worktree changes are live only after merge and a restart) THEN scenarios (1), (2), (3) and (5) SHALL NOT be recorded as passed from it, but the PR MAY still open, be reviewed and merge on scenarios (4) and (6) alone. The spec's retrospective phase SHALL NOT start until a rebuilt-harness restart has run them and recorded evidence. Scenarios (4) and (6) SHALL pass before the PR opens or is marked ready (D10).
+7. IF the session running the end-to-end gate does not run the changed hook, agents or supervisor skill (this machine runs the harness from the main checkout: worktree changes are live only after merge and a restart) THEN scenarios (1), (2), (3) and (5) SHALL NOT be recorded as passed from it, but the PR MAY still open, be reviewed and merge on scenarios (4) and (6) alone. A rebuilt-harness restart SHALL run scenarios (1), (2), (3) and (5) and record each as passed or failed, with its session id, in a new tracked file, `.spec-workflow/specs/agent-cache-ttl/verification-evidence.md`, which the retrospective phase SHALL read and require all four passed before it starts. Scenarios (4) and (6) SHALL pass before the PR opens or is marked ready (D10).
 
 ## Non-Functional Requirements
 
 ### Performance
-- The hook's extra work is one pass over the calls `readUsage` (`harness/hooks/sdd-activity.sh:41-64`) already parsed; the hook stays within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
+- The hook's extra work is one pass over calls `readUsage` (`harness/hooks/sdd-activity.sh:41-64`) already parsed, within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
 
 ### Reliability
 - A missing or malformed cache field yields `unknown`, never a missing row or a partial sum shown as known (Requirement 3 criteria 6 to 8).
-- The override probe never stops a run or changes a setting (Requirement 5 criteria 2 and 4).
-- Ledgers written before this spec and an older `dist/agent-profiles.json` still load and fold with no error.
+- The override probe never stops a run or changes a setting (Requirement 5 criteria 2, 4).
+- Ledgers written before this spec and an older `dist/agent-profiles.json` still load and fold without error.
 
 ### Security
-- The hook change touches `harness/hooks/`, a sensitive path in `.spec-workflow/agent-rules.md`; the task is high risk.
+- The hook change touches `harness/hooks/`, a sensitive path in `.spec-workflow/agent-rules.md`: high risk.
 
 ## Decisions taken in this document
 
-- D1 — Gap rewrite rule: options were call time as the earliest line timestamp of a message id, call time as the last line timestamp, the gap measured from the end of the previous call; chose the earliest line timestamp, a gap of more than 300 seconds, and a write of more than half of the previous call's input, write and read tokens, because the cache clock runs from request to request and this matches the decomposition's measurement words.
-- D2 — Partial cache split in a transcript: options were all three fields unknown, sum the calls that have the split, unknown for the two write fields only; chose all three unknown because the hook already treats a wrong number as worse than unknown.
-- D3 — Override value on the run start row: options were one key holding source and value, a bare lifetime such as 5m, two keys for source and value; chose one key holding the setting name and its value because it tells the reader which setting to remove, and the event script keeps an equals sign inside a value.
-- D4 — Where the override probe lives: options were a shipped script beside the provider validator, prose steps in the supervisor skill, a new server tool action; chose a shipped script because it is deterministic and testable like the provider validator, and the server has no access to the session environment.
-- D5 — Report cells for rows without the new keys and for DeepSeek spawns: options were count unknown and print unknown or a plus-N suffix with DeepSeek shown as a dash, print zero, drop the spawn from the columns; chose the unknown count with a dash for DeepSeek because zero would read as a saving, and DeepSeek cache behaviour is out of scope.
-- D6 — Watch view display: options were append 1h only when not default, always append the value including default, a separate column; chose append only when not default because nine of twelve agents are default and the tier line has fixed width.
-- D7 — Claude Code version unreadable: options were record unknown and warn, record unsupported, record per-agent; chose unknown because it neither hides nor invents a fact.
-- D8 — Settings files the probe reads: options were the code root's local and project settings plus the user settings, those three plus managed settings, user settings only; chose the three because they are the files a user edits here, and managed settings are not used on this machine.
-- D9 — Frontmatter form: options were the one-line flow mapping from the decomposition, a two-line block mapping; chose the one-line form because the profile builder parses one line per key.
+- D1 — Gap rewrite rule: chose the earliest line timestamp per message id (over the last-line timestamp or a gap from the previous call's end), a gap over 300 seconds, and a write over half the previous call's input, write and read tokens — the cache clock runs request-to-request, matching the decomposition's measurement.
+- D2 — Partial cache split in a transcript: chose all three fields unknown (over summing the split calls, or unknown for the write fields only) — the hook treats a wrong number as worse than unknown.
+- D3 — Override value on the run start row: chose one key holding the setting name and value (over a bare lifetime, or two separate keys) — it tells the reader which setting to remove; the event script keeps an equals sign inside a value.
+- D4 — Where the override probe lives: chose a shipped script beside the provider validator (over prose steps in the supervisor skill, or a new server tool action) — deterministic and testable; the server has no session-environment access.
+- D5 — Report cells for rows without the new keys and for DeepSeek spawns: chose an unknown count with a DeepSeek dash (over printing zero, or dropping the spawn) — zero would read as a saving, and DeepSeek cache behaviour is out of scope.
+- D6 — Watch view display: chose appending `1h` only when not default (over always appending it, or a separate column) — nine of twelve agents are default; the tier line has fixed width.
+- D7 — Claude Code version unreadable: chose recording `unknown` (over `unsupported` or `per-agent`) — it neither hides nor invents a fact.
+- D8 — Settings files the probe reads: chose the code root's local and project settings plus user settings (over adding managed settings, or user settings only) — the files a user edits here; managed settings go unused on this machine.
+- D9 — Frontmatter form: chose the one-line flow mapping (over a two-line block mapping) — the profile builder parses one line per key.
 - D10 — Live scenarios when the session runs the old harness: options were defer the live half with a verification deferral, or block progress until a restarted session runs them; Gate A chose blocking — not deferring — until a rebuilt-harness restart has run scenarios (1), (2), (3) and (5) and recorded their evidence, superseding the deferral first recorded. The block targets the spec's post-merge retrospective start, reachable after a restart, not v2's pre-merge "ready for review" state, which no restart reaches before merge.
-- D11 — Override precedence: options were first match in force flag, environment variable, then settings files local, project, user, report every override found; chose the first match because the run start row holds one value and any match already means the frontmatter does not apply.
+- D11 — Override precedence: chose the first match, in order force flag, environment variable, then settings files local/project/user (over reporting every override found) — the run start row holds one value, and any match means the frontmatter does not apply.
 
 ## Scope notes
 
-- Cut: the watch view header does not show the `run.start` `cacheTtl`; the ledger row and the one warning line are the visible surface the decomposition asks for.
-- Cut: no detection of the usage-credit fallback to five minutes; per the Decided list, the orchestrator rows (`cacheWrite5m` above 0, `cacheWrite1h` 0) show which runs fell back.
+- Cut: the watch view header does not show `run.start`'s `cacheTtl`; the ledger row and warning line are the visible surface the decomposition asks for.
+- Cut: no usage-credit-fallback detection; the orchestrator rows (`cacheWrite5m` above 0, `cacheWrite1h` 0) show which runs fell back (decomposition Decided list).
 - Cut: managed settings files are not read by the override probe (D8).
-- Not changed: the supervisor's own cache, the retro orchestrator's lifetime, DeepSeek children and their launcher rows, and the per-phase delta columns in the two-spec table.
-- `claude plugin validate . --strict` run inside `plugins/spec-workflow-harness` fails before this spec on unquoted hook paths; scenario (6) runs it at the repository root, which passes today. Fixing the plugin-level warnings is out of scope.
-- No `steering/product.md`; alignment is written to the efficiency plan and the decomposition entry.
+- Not changed: the supervisor's own cache, the retro orchestrator's lifetime, DeepSeek children/launcher rows, and the two-spec table's per-phase delta columns.
+- `claude plugin validate . --strict` fails inside `plugins/spec-workflow-harness` on unquoted hook paths, pre-existing; scenario (6) runs it at the repository root, which passes. Fixing those warnings is out of scope.
 - The P17 dependency (one usage per message id) is in place: `harness/hooks/sdd-activity.sh:43-55`.
 
 ## Revision History
@@ -156,3 +155,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
   - **R1-5 — Accepted (MINOR).** Criterion 2.2 states a numeric version compare; criterion 4 splits the warning so `unknown` no longer overclaims.
   - **R1-6 — Accepted (MINOR).** Criterion 6 names the code-root fixture and per-tier settings files the test stages; criterion 2.5 defines the code root.
   - **Lint pass.** 0 fixed; rejected: L1-29 (unchanged, suppressed per rule 11).
+- **v4** (2026-09-24) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 0/2/1), SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** Criterion 6 now guards the collapse on the cell's Anthropic count being above 0; an all-DeepSeek total (count 0) prints `-`, matching criterion 4, instead of the false `unknown` from the `0 == 0` boundary.
+  - **R2-2 — Accepted (SHOULD_FIX).** Split the unknown counter into `cacheUnknownWrite` and `cacheUnknownGap` (criteria 1-4); criterion 6 now collapses `cw5m`/`cw1h` and `gapRewrites` on their own count, so a gap-only-unknown cell keeps the write sums criteria 2 and 7 require.
+  - **R2-3 — Accepted (MINOR).** Requirement 6 criterion 7 now names the artifact: a new tracked verification-evidence file the restarted session writes and the retrospective reads before starting; the mandatory block is unchanged.
