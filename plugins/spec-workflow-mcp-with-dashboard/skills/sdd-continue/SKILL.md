@@ -246,6 +246,15 @@ tokens=unknown "note=<cause>; last row <the last ledger event before this spawn>
 the cause and the last ledger row so the next run has evidence to scope a fix (retro P4).
 Then handle the missing report by the dispatch rules below.
 
+When the interruption also wiped `/tmp/scratchpad` (the process exited or restarted),
+recover under the **same run id** (retro G3): read the run id from the existing
+`<spec dir>/harness-events.jsonl`, recreate the run scripts (`event.sh`, and `launch.sh`
+when `PROVIDERS` needs it) with the Write tool as step 1 does, and re-spawn the phase
+fresh. Trust the spec store and the code commits as the source of truth: do not re-run
+work already committed — a re-spawned orchestrator reads `tasks.md` and the ledger and
+picks up from where the commits leave off. A wiped `/tmp/scratchpad` loses only
+uncommitted scratch (briefs, standing files), which the next spawn regenerates.
+
 **Model pre-flight.** Agent frontmatter is read once, at session start, from wherever the
 agents live (the checkout's `harness/agents/` when linked, the marketplace source
 checkout for a plugin), so a session started before an edit, or a stale source, can run
