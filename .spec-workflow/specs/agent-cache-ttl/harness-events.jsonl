@@ -71,3 +71,13 @@
 {"ts":"2026-09-24T17:19:58.878Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/2"}
 {"ts":"2026-09-24T17:21:46.928Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 round, converged 0/0/2"}
 {"ts":"2026-09-24T17:22:00.135Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","result":"approved","phase":"tasks"}
+{"ts":"2026-09-24T18:59:18.657Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate B: approved by human, class-a items 4,1,3,7,9 unannotated"}
+{"ts":"2026-09-24T18:59:58.559Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.start","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 1","phase":"implementation"}
+{"ts":"2026-09-24T19:01:25.232Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.start","phase":"implementation","mode":"normal","budget":"20","state":"tasks 0/9"}
+{"ts":"2026-09-24T19:01:35.152Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"1","title":"Profile builder writes cacheTtl per agent"}
+{"ts":"2026-09-24T19:01:44.544Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:01:50.593Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementation-orchestrator","input":"32","output":"149","cacheWrite":"81762","cacheRead":"1092259","tokens":"1174202","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:04:31.557Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"40","output":"7526","cacheWrite":"53469","cacheRead":"761264","tokens":"822299","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:04:45.943Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","phase":"implementation","task":"1","result":"logged: yes/1 commit 6723ffe"}
+{"ts":"2026-09-24T19:05:03.238Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 1 pass risk low"}
+{"ts":"2026-09-24T19:05:03.286Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"1","rounds":"0","outcome":"gate"}

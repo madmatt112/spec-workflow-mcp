@@ -434,3 +434,12 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Carried items | none. |
 | Gate B | veto list written to slot b for the supervisor; gate B class (a) computed server-side, classes (b)/(c) empty (reviewer round-1 found no `[gate-b]`/`[gate-c]` tasks). |
 | Next phase loads | implementation reads `codebase-context.md`, then `tasks.md` (dependency order 1→2→3, 6/7→8), `design.md` components C1–C8, `requirements.md`; the supervisor reads gate-B slot b before the first implementation spawn. |
+
+
+## agent-cache-ttl — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/9; last code commit 6723ffe; next task 2 |
+| Re-run does | resume the per-task loop at task 2 |
+| PR | not opened yet |

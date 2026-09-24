@@ -24,3 +24,8 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory converged 0/0/2 (MINOR only); rulings 0 (three drafter RE-DECIDED design literals ruled refinement/closed by the reviewer); cap not hit; prune removed 0 records and 0 snapshots (2 kept).
 Evidence: approval_1790270412051_s3dxtizxo; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/agent-cache-ttl/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 1 reviser spawns
+
+## 2026-09-24T19:05:03Z · implementation · task 1 · gotcha
+Profile builder cacheTtl key: gate pass risk low, 1 implementer spawn, 0 fix rounds. harness/agent-profiles.json is not mirrored into plugins/, so no plugin copies changed.
+Evidence: task 1; commit 6723ffe; reviewId b3f495a9
+Cost: 1 implementer spawn

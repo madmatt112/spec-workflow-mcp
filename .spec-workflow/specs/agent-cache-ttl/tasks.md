@@ -5,7 +5,7 @@ Design components map to tasks as follows: C2 is task 1, C1 is task 2, C3 is tas
 
 Dependency order: task 1 writes `cacheTtl: "default"` for all twelve agents, task 2 sets `1h` on the three orchestrators, and task 3 reads the key in the watch view, so the watch assertions change once, after the profiles hold `1h`. Tasks 4, 5 and 6 are independent of each other; task 7 creates the evidence file that the retrospective check of task 8 reads, and task 8 wires the script of task 6 into the supervisor. Every task leaves `npx tsc --noEmit` clean and every existing suite green, and its prompt names each existing exact-value assertion it changes.
 
-- [ ] 1. Profile builder writes `cacheTtl` per agent
+- [x] 1. Profile builder writes `cacheTtl` per agent
   - File: scripts/sync-plugin-assets.cjs
   - File: harness/agent-profiles.json
   - File: src/__tests__/sync-plugin-assets.test.ts
