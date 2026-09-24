@@ -244,7 +244,8 @@ decided on 2026-09-17 from a review of the twelve agents' model and effort setti
 for a web control pane in place of the TUI for setting up and watching a run, and a wish to
 run some roles on DeepSeek beside the Claude models; a fourth (11) decided on 2026-09-19 from
 the TDD memo; a fifth (12) decided on 2026-09-21 from the graphify call count of the first
-two Opus 4.8 runs. Numbers are identities, not order: the build order below is the order, and the
+two Opus 4.8 runs; a sixth (13) decided on 2026-09-24 from the cache rewrites in those runs'
+subagent transcripts. Numbers are identities, not order: the build order below is the order, and the
 entries follow it. Facts settled on 2026-09-17, not to be
 re-checked: `SubagentStop` carries `transcript_path` (the worker's own transcript, under
 `<session>/subagents/agent-<id>.jsonl`) and no usage; that transcript's assistant entries
@@ -322,7 +323,7 @@ files, `plugins/` copies and `agent-profiles.json` agree: `npm run check:plugin-
 `claude plugin validate . --strict` pass; `npm test` is green.
 
 **Depends on** `harness-bookkeeping` (spec 6) for the hook-written `spawn.end` rows. Nothing
-in this document depends on it for correctness; 9, 10, 11 and 12 depend on it for their numbers.
+in this document depends on it for correctness; 9, 10, 11, 12 and 13 depend on it for their numbers.
 
 ### 10. `provider-per-role` — DeepSeek for chosen roles, Claude for the rest (active)
 
@@ -390,6 +391,78 @@ passes.
 `harness usage`). Spec 9 pre-fills its run form from the provider map, and spec 11's test
 author is the next role eligible for it; neither depends on it for correctness.
 
+### 13. `agent-cache-ttl` — a one-hour cache for agents that wait (active)
+
+A subagent gets a five-minute prompt cache, also on a Claude subscription; the main session
+gets one hour (`https://code.claude.com/docs/en/prompt-caching`, "Which TTL each request
+gets", "Subagents and the cache"). An orchestrator spends most of a phase waiting for its
+workers. When a wait is longer than five minutes, its cache expires and its next call writes
+the full prefix again at the cache-write rate. Measured on the 194 subagent transcripts of
+2026-09-21 to 2026-09-24 (the `provider-per-role` and `dashboard-layout` runs), one usage
+per `message.id`: 91% of calls after a gap of 5 to 60 minutes wrote more than half of the
+prefix again (93 of 102, 11.3M tokens), against 2% of calls after a shorter gap. The three
+orchestrator roles made 92 of the 95 rewrites after a gap (implementation 49, document 41,
+close-out 2); the worker roles made 1. The main sessions, on one hour, made 0 rewrites in 89
+gaps of 5 to 60 minutes. Claude Code 2.1.248 and later (this machine runs 2.1.281) reads a
+per-agent lifetime from frontmatter: `experimental: { cacheTtl: 1h }`. A one-hour write costs
+2x the input rate, a five-minute write 1.25x, a read 0.1x. For the orchestrators in the
+sample, one hour costs about 35% less than today (22.4M to 14.6M input-rate units): the
+higher rate on each turn's new content is smaller than the full rewrites it removes. The
+transcripts already split each write by lifetime (`usage.cache_creation.ephemeral_5m_input_tokens`
+and `ephemeral_1h_input_tokens`), so the effect can be proved per spawn.
+
+**Delivers.**
+
+- **One hour for the agents that wait.** `sdd-document-orchestrator`,
+  `sdd-implementation-orchestrator` and `sdd-closeout-orchestrator` carry
+  `experimental: { cacheTtl: 1h }` in their frontmatter. Every other agent keeps the default.
+  `scripts/sync-plugin-assets.cjs` copies the field to the `plugins/` agents and writes
+  `cacheTtl` (`1h` or `default`) per agent in `harness/agent-profiles.json`; the watch view
+  shows it beside the declared model and effort.
+- **The lifetime a spawn got, on its row.** The `SubagentStop` hook writes three more fields
+  on `spawn.end`: `cacheWrite5m` and `cacheWrite1h` (sums of the two `cache_creation` fields,
+  one usage per `message.id`), and `gapRewrites` (the count of calls that came more than five
+  minutes after the previous call and wrote more than half of the previous call's prefix).
+  A transcript without `cache_creation` yields `unknown` for all three, never a missing row.
+- **The report.** `harness usage` adds columns per agent and per phase: cache writes by
+  lifetime and `gapRewrites`, so the retro reads the saving against `provider-per-role`,
+  the last spec run without this one.
+- **An override is visible.** Supervisor Step 0 records `cacheTtl` on `run.start`: `per-agent`,
+  or the value that overrides the frontmatter when one is set (`FORCE_PROMPT_CACHING_5M=1`,
+  `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL`, or `subagentPromptCacheTtl` in a settings file,
+  which Claude Code applies before frontmatter), or `unsupported` when `claude --version` is
+  below 2.1.248. It warns once and carries on; it never stops a run for this.
+
+**Decided.**
+
+- Per agent, not global. `subagentPromptCacheTtl: 1h` would put every worker at the 2x write
+  rate on every turn to save one rewrite in the sample. The retro orchestrator made 0 rewrites
+  after a gap and stays on the default; moving it is a retro decision on this spec's numbers.
+- No refresh timer. A keep-alive call every four minutes adds turns and output tokens, and an
+  orchestrator blocked on its workers has no turn in which to make it. The frontmatter setting
+  removes the cause.
+- On usage credits Claude Code ignores a one-hour frontmatter value and returns to five
+  minutes. Accepted: the harness runs within plan usage, and the rows show which runs fell back.
+- The supervisor is a main session and already has one hour; nothing changes for it.
+- DeepSeek children (spec 10) are out of scope; their cache behaviour is the provider's.
+
+**End-to-end verification.** (1) The supervisor spawns an orchestrator on a fixture spec; the
+orchestrator's transcript shows `ephemeral_1h_input_tokens` above 0 and `ephemeral_5m_input_tokens`
+at 0 on its writes, and a worker it spawns shows the reverse. (2) An orchestrator that waits
+more than ten minutes on a background worker reads at least 90% of its previous prefix from
+cache on its next call, and its `spawn.end` row carries `gapRewrites` 0. (3) `cacheWrite5m`,
+`cacheWrite1h` and `gapRewrites` on every `spawn.end` row of the fixture run equal sums
+computed independently from the transcripts. (4) `harness usage` on the fixture ledger and on
+the `provider-per-role` ledger prints the new columns, with `unknown` where the source rows
+lack them. (5) A run with `FORCE_PROMPT_CACHING_5M=1` records that value on `run.start` and
+warns once. (6) `npm run check:plugin-assets`, `claude plugin validate . --strict` and
+`npm test` are green.
+
+**Depends on** spec 8 for the hook-written `spawn.end` row and `harness usage`, and on the
+`provider-per-role` close-out's P17 (one usage per `message.id` in the same hook) for exact
+numbers; it lands after that close-out's PR, which changes the same hook. Nothing depends on
+it for correctness; every later spec's token figures include its saving.
+
 ### 12. `graph-orientation` — workers orient from the code graph, not from cold reads (active)
 
 Every worker that touches code starts from raw reads. Over the 284 worker transcripts in
@@ -436,7 +509,7 @@ during a run: on 2026-09-21 this checkout's graph was 19 commits behind HEAD.
 - **Counted.** The activity hook already logs every worker tool call with its summary
   (`harness-activity.jsonl`); `harness usage` adds a `graph` column, the count of `graphify`
   calls per agent, so the retro compares tokens and graph use per role against
-  `provider-per-role`, the last run without this spec.
+  `agent-cache-ttl` (spec 13), the last run without this spec.
 
 **Decided.**
 
@@ -471,7 +544,7 @@ the run's ledger has today's shape. (3) A requirements phase on a fixture spec w
 `harness-activity.jsonl` shows the drafter's first `explain` or `query` before its first raw
 read of the code root. (4) After an implementer commit on the fixture, `graph.json`'s
 `built_at_commit` is HEAD. (5) `harness usage` on the fixture ledger prints the `graph`
-column, and side by side with `provider-per-role` prints that run's count from its activity
+column, and side by side with `agent-cache-ttl` prints that run's count from its activity
 log. (6) `npm test`, `npm run check:plugin-assets` and `claude plugin validate . --strict`
 are green.
 
@@ -644,12 +717,15 @@ to `anthropic`), and on `harness-bookkeeping` (spec 6) for the pointer file and 
 changes every skill and the hooks, so it lands before 7. Spec 7 (`question-gates`) is the
 plan's step 3 and runs after 6 is released — which it now is (5.7.0).
 
-8 → 10 → 12 → 11 → 9 in that order, after 2 (`worktree-review-signals`, live on 2026-09-17)
-closes. 8 first because 10, 12, 11 and 9 are judged on its numbers. 10 second: it needs only
-8's `agent-profiles.json` and usage, and its provider map lives in `agent-rules.md` until 9
-exists. 12 third: it is small (the launch facts, the brief action, the drafters' context-file
-step, one usage column), `provider-per-role` is its baseline, and every later worker, 11's
-test author included, orients through it. 11 fourth: its budget is measured with 8's per-role usage, and its author role is the
+8 → 10 → 13 → 12 → 11 → 9 in that order, after 2 (`worktree-review-signals`, live on 2026-09-17)
+closes. 8 first because 10, 13, 12, 11 and 9 are judged on its numbers. 10 second: it needs
+only 8's `agent-profiles.json` and usage, and its provider map lives in `agent-rules.md` until
+9 exists. 13 third: it is the smallest (three frontmatter lines, three hook fields, one usage
+column), it has the largest measured saving per line changed, and every later spec's figures
+include that saving, so 12 and 11 are measured with it in place; it lands after the
+`provider-per-role` close-out PR, which changes the same hook. 12 fourth: it is small (the launch facts, the brief action, the drafters' context-file
+step, one usage column), 13's run is its baseline, and every later worker, 11's
+test author included, orients through it. 11 fifth: its budget is measured with 8's per-role usage, and its author role is the
 next candidate for 10's map. 9 last: it renders 10's `provider` and 11's `tdd` block. Each is
 its own release, and the spec after 11 is the first to run with `Test:` lines.
 
@@ -670,6 +746,8 @@ its own release, and the spec after 11 is the first to run with `Test:` lines.
 - **`judge.ts` is born in 11, in shadow, for one site.** The verifier-need gate, lint triage
   and the narrow-check swap of `docs/jev-integration-research.md` are later specs that reuse
   the module.
+- **Cache lifetime is in 13, usage accounting is in 8.** 13 sets the lifetime per agent and
+  adds three fields to the row 8's hook writes; it changes no model, effort or brief.
 - **Orientation is in 12, judgement is not.** 12 changes where a worker starts reading and
   what its brief tells it; it changes no review lens, no gate rule, no verifier decision and
   no document cap.
