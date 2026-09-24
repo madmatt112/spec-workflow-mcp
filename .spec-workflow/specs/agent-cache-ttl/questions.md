@@ -4,7 +4,7 @@
 
 1. **Live checks may be deferred.** When the gate session still runs the old harness, defer the live scenarios (1),(2),(3),(5) as a verification deferral, or block the PR until a restarted session runs them?
    - options: Defer the live half with a verification deferral (recorded) · Block the PR until a restarted session runs them
-   - answer:
+   - answer: Block the PR until a restarted session runs them (Matthew, 2026-09-24)
 
 2. **Gap rewrite rule.** How is a gap rewrite timed: call time as the earliest line timestamp of a message id (gap over 300 s, write over half the previous prefix), or another timing?
    - options: Earliest line timestamp per message id (recorded) · Last line timestamp per message id · Gap measured from the end of the previous call
