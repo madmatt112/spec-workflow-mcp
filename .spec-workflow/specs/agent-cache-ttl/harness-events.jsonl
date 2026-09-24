@@ -69,3 +69,5 @@
 {"ts":"2026-09-24T17:19:51.053Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviewer","input":"26","output":"45556","cacheWrite":"131494","cacheRead":"974150","tokens":"1151226","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T17:19:58.855Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged 0/0/2"}
 {"ts":"2026-09-24T17:19:58.878Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/2"}
+{"ts":"2026-09-24T17:21:46.928Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 round, converged 0/0/2"}
+{"ts":"2026-09-24T17:22:00.135Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","result":"approved","phase":"tasks"}
