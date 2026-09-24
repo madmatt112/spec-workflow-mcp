@@ -99,6 +99,25 @@ describe('extractCitations', () => {
     expect(bare.start).toBe(7);
   });
 
+  it('binds a bare range to a File: header, not an earlier ranged citation (retro P4)', () => {
+    // `d/short.ts:1-3` names a file with a line; `d/long.ts` is a File: header
+    // (a cited path with no line). The bare range borrows the nearer header, not
+    // the earlier ranged citation of the other file.
+    const cits = extract('`d/short.ts:1-3` then `d/long.ts` gains `:59-83`');
+    const bare = cits.find((c) => c.bare)!;
+    expect(bare.path).toBe('d/long.ts');
+    expect(bare.start).toBe(59);
+    expect(bare.end).toBe(83);
+  });
+
+  it('does not treat a `path:line` citation as a File: header (retro P4)', () => {
+    // A `foo.test.ts:1-3` citation must not backtrack to a truncated `foo.test`
+    // File: header; the bare range still borrows the full path.
+    const cits = extract('`d/foo.test.ts:1-3` and `:7`');
+    expect(cits.filter((c) => !c.bare).map((c) => c.path)).toEqual(['d/foo.test.ts']);
+    expect(cits.find((c) => c.bare)!.path).toBe('d/foo.test.ts');
+  });
+
   it('leaves a bare range with no earlier path in its block unresolved', () => {
     const bare = extract('a lonely `:5` here').find((c) => c.bare)!;
     expect(bare.path).toBe('');
@@ -195,6 +214,18 @@ describe('checkCitations', () => {
     const range = rulesOn(findings, 'citation-range');
     expect(range.map((f) => f.line).sort((a, b) => a - b)).toEqual([1, 2, 3]);
     expect(range.every((f) => f.severity === 'error')).toBe(true);
+  });
+
+  it('a bare range binds to a File: header so it stays in bounds (retro P4)', async () => {
+    // `:59-83` is out of bounds for short.ts (3 lines) but in bounds for the
+    // File: header d/long.ts (90 lines); before the fix it bound to the earlier
+    // ranged short.ts citation and fired a spurious citation-range error.
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'short.ts'), 'a\nb\nc\n');
+    await fsp.writeFile(join(baseA, 'd', 'long.ts'), Array.from({ length: 90 }, (_, i) => `l${i + 1}`).join('\n') + '\n');
+    const doc = '`d/short.ts:1-3` stays; `d/long.ts` gains `:59-83`';
+    const findings = await checkCitations(split(doc), [baseA]);
+    expect(rulesOn(findings, 'citation-range')).toHaveLength(0);
   });
 
   it('reports citation-unchecked for a directory and for non-UTF-8 bytes', async () => {
