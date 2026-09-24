@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes on a worker does not force a full prefix rewrite, for the harness operator who pays for those rewrites against the Max plan limit. It adds the lifetime to agent frontmatter and profiles, three cache fields to every `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` marking an override.
+This spec gives the three SDD orchestrator agents a one-hour prompt cache lifetime, so a wait over five minutes on a worker does not force a full prefix rewrite, for the harness operator who pays against the Max plan limit. It adds the lifetime to agent frontmatter and profiles, three cache fields to every `spawn.end` row, cache columns to `harness usage`, and a `cacheTtl` value on `run.start` marking an override.
 
 ## Alignment with Product Vision
 
-No `steering/product.md` exists in this spec store; alignment is to the efficiency plan's order "tokens, then wall clock" (`docs/harness-efficiency-plan.md:8-9`) and decomposition entry 13 (`.spec-workflow/spec-decomposition/decomposition.md:394-464`), which measured 92 of 95 after-gap rewrites on the three orchestrators and estimates about 35% less orchestrator input cost on one hour. Every number added is one the hook measures from the transcript, so the retro can prove the saving per spawn.
+No `steering/product.md` exists in this spec store; alignment is to the efficiency plan's order "tokens, then wall clock" (`docs/harness-efficiency-plan.md:8-9`) and decomposition entry 13 (`.spec-workflow/spec-decomposition/decomposition.md:394-464`), which measured 92 of 95 after-gap rewrites on the three orchestrators and estimates about 35% less orchestrator input cost on one hour. Every number added is one the hook measures from the transcript, so the retro can prove the saving.
 
 ## Requirements
 
@@ -91,7 +91,7 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 
 ### Requirement 6 — End-to-end verification
 
-**User Story:** As the harness operator, I want the decomposition's six verification scenarios to be checks with a clear pass or fail, so that the PR proves the lifetime is applied and measured.
+**User Story:** As the harness operator, I want the decomposition's six verification scenarios to be checks with a clear pass/fail, so that the PR proves the lifetime is applied and measured.
 
 #### Acceptance Criteria
 
@@ -109,12 +109,12 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
 - The hook's extra work is one pass over the calls `readUsage` (`harness/hooks/sdd-activity.sh:41-64`) already parsed; the hook stays within its 5-second timeout (`harness/hooks/hooks.json:27-37`).
 
 ### Reliability
-- A missing or malformed cache field yields `unknown`, never a missing row and never a partial sum shown as known (Requirement 3 criteria 6 to 8).
-- The override probe never stops a run and never changes a setting (Requirement 5 criteria 2 and 4).
+- A missing or malformed cache field yields `unknown`, never a missing row or a partial sum shown as known (Requirement 3 criteria 6 to 8).
+- The override probe never stops a run or changes a setting (Requirement 5 criteria 2 and 4).
 - Ledgers written before this spec and an older `dist/agent-profiles.json` still load and fold with no error.
 
 ### Security
-- The hook change touches `harness/hooks/`, a sensitive path in `.spec-workflow/agent-rules.md`; the task that changes it is high risk.
+- The hook change touches `harness/hooks/`, a sensitive path in `.spec-workflow/agent-rules.md`; the task is high risk.
 
 ## Decisions taken in this document
 
@@ -155,3 +155,4 @@ No `steering/product.md` exists in this spec store; alignment is to the efficien
   - **R1-4 — Accepted (MINOR).** Added that a separating space survive at pad width; pad left to design.
   - **R1-5 — Accepted (MINOR).** Criterion 2.2 states a numeric version compare; criterion 4 splits the warning so `unknown` no longer overclaims.
   - **R1-6 — Accepted (MINOR).** Criterion 6 names the code-root fixture and per-tier settings files the test stages; criterion 2.5 defines the code root.
+  - **Lint pass.** 0 fixed; rejected: L1-29 (unchanged, suppressed per rule 11).
