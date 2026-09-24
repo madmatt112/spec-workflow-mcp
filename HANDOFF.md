@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`agent-cache-ttl`**.
-> Live phase **requirements**, state **pending**, last result **pending**.
+> Live phase **design**, state **pending**, last result **approved** (requirements v4).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs the requirements phase of `agent-cache-ttl` (spec 13 of decomposition.md).
+> A re-run does: runs the design phase of `agent-cache-ttl` (spec 13 of decomposition.md).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -45,6 +45,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-23 | provider-per-role | retrospective |  | retro-ready |  |
 | 2026-09-23 | provider-per-role | retrospective | items 0/15 | APPROVED | plan approved by Matthew: 14 proposals + G1 (6 from overwatch), 8 no-change, 1 rejected; close-out after restart |
 | 2026-09-24 | provider-per-role | closeout | items 15/15 | closed |  |
+| 2026-09-24 | agent-cache-ttl | requirements | v1 | gate-a |  |
+| 2026-09-24 | agent-cache-ttl | requirements | v4 | approved | 3 rounds (2 adversarial + narrow check), 1/2/3 → 0/2/1 → VERIFIED 3/3; Gate A revision applied |
 
 ## Current state — 2026-08-04
 

@@ -42,3 +42,4 @@
 {"ts":"2026-09-24T16:01:28.477Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-checker","input":"12","output":"2120","cacheWrite":"37512","cacheRead":"127859","tokens":"167503","model":"claude-sonnet-5"}
 {"ts":"2026-09-24T16:01:35.453Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-checker","role":"narrow check","phase":"requirements","round":"3","result":"VERIFIED 3/3"}
 {"ts":"2026-09-24T16:03:46.115Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"requirements","result":"approved","state":"v4","note":"3 rounds (2 adversarial + narrow check), 1/2/3 → 0/2/1 → VERIFIED 3/3; Gate A revision applied"}
+{"ts":"2026-09-24T16:04:11.868Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"requirements phase, spawn 2","result":"approved","phase":"requirements"}
