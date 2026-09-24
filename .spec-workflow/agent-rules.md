@@ -58,6 +58,15 @@ guarantee, and the design says which.
 - A task that edits a list, or text that states a count or a length, gives the command
   that finds every member (`grep -n …`) and says to update the count word.
 
+## Run ledger
+
+Only the supervisor creates or writes `/tmp/scratchpad/sdd/<spec>/event.sh`, its
+`.runid` and the run's `harness-events.jsonl`. A spawned worker calls `EVENT_SCRIPT`
+only to append rows; it never rewrites, re-initializes or repoints it. A task that
+stages a scratch store with its own event script gives that script an explicit path
+under the scratch store (`<scratch-store>/event.sh`) and must not reuse the
+supervisor's `EVENT_SCRIPT` path.
+
 ## Sensitive paths
 
 Machine-read by the review gate. A task that touches any of these is high risk.

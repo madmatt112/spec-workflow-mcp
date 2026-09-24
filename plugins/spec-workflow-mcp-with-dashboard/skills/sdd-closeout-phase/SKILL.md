@@ -138,8 +138,9 @@ For each batch:
    in steps 4 and 5.
 4. **Verify.** A `gate: pass` item is `ok` — spawn no verifier — when its class is
    `store` or `home` whatever `data.risk` says, or when it is `harness`/`code` at
-   `risk: low`. Spawn `sdd-verifier` only for `harness`/`code` items that are `pass` and
-   `high`: call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
+   `risk: low` or `medium` (medium is the docs-only down-rank in `docs/SDD-HARNESS.md`,
+   routed like low). Spawn `sdd-verifier` only for `harness`/`code` items that are `pass`
+   and `high`: call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
    `values` for the output path `closeout-verify-<class>-<b>-r<r>.md`, its job listing only
    those items with their gate results. When no item remains at `risk: high` after
    this drop, spawn no verifier. The verifier reports one line per listed item

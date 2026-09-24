@@ -76,6 +76,12 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
   missing key) print its stderr line, the roots line (step 6) and the status line
   `<project>:- - refused — <the stderr line>`, then stop, so the run-ledger paragraph
   never runs and no run id, `event.sh`, pointer line or `run.start` exists (D5, D14).
+  This is the provider-secret preflight: `sdd-providers.sh` checks that every non-Anthropic
+  provider named in `## Providers` has its required key exported (exit 3 names the missing
+  key), and it runs at the start of every run — including a resume that begins at the
+  implementation phase — so a missing key stops the run here, with a plain-text ask up front,
+  instead of burning a provider-routed spawn and a mid-phase escalation that blocks dependent
+  tasks (retro P2).
 
 Say which roots you resolved in the handoff line (step 6).
 
@@ -86,7 +92,12 @@ Write tool (the script text is in formats.md, with the spec dir, run id and spec
 in), append this run's line to the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
 `<main checkout>\t<spec dir>\t<run id>`, so concurrent runs in other checkouts keep their
-own lines — then `bash <event.sh> run.start model=<your model>
+own lines. On a resumed or re-entered run `<spec dir>/harness-events.jsonl` already exists:
+before the first append, run
+`bash <base dir>/references/truncate-ledger.sh <spec dir>/harness-events.jsonl` to trim a
+torn tail a crashed write left — a trailing partial line or NUL run — keeping the run id and
+every complete row, so crash recovery is one documented step, not manual surgery (retro P4).
+Then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>`
 (`headless=yes` when the AskUserQuestion tool is not available to you). When `PROVIDERS`
 contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`
@@ -420,10 +431,14 @@ plan and HANDOFF in the spec store repo (`docs(sdd): <spec> retrospective plan (
 and stop. The next interactive run finds the DRAFT plan, holds the conversation, and
 rewrites it as APPROVED.
 
-Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`,
-the approved proposals verbatim (each with its `Target:` line and the decision taken),
-the decisions made, and the rejected proposals with the reason. Implement nothing from
-it here: the close-out phase does that. Write a HANDOFF row, commit in the spec store
+Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`. Put the
+approved proposals verbatim under a heading titled exactly `## Approved proposals`, and any
+graduation candidates under `## Graduation candidates`; each item is a bullet that starts
+`- **P<n>` (or `- **G<n>` for a candidate) followed by its `Target:` line and the decision
+taken. The close-out orient counts plan items only under those two exact headings and only
+in that bullet form (`src/tools/harness.ts`), so a plan with any other heading or bullet
+orients to 0 items. Add the decisions made and the rejected proposals with the reason.
+Implement nothing from it here: the close-out phase does that. Write a HANDOFF row, commit in the spec store
 repo (`docs(sdd): <spec> retrospective plan`; use a script file if `agent-rules.md`
 requires it), then go back to step 3: the plan is `APPROVED`, so the close-out phase
 runs now, in this run.

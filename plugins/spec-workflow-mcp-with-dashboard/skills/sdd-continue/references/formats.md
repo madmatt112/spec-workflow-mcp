@@ -178,8 +178,14 @@ const [type, ...kv] = process.argv.slice(1);
 const e = { ts: new Date().toISOString(), run: process.env.SDD_RUN, spec: process.env.SDD_SPEC, type };
 for (const a of kv) { const i = a.indexOf("="); if (i > 0) e[a.slice(0, i)] = a.slice(i + 1); }
 require("fs").appendFileSync(process.env.SDD_LEDGER, JSON.stringify(e) + "\n");
+process.stdout.write("event: " + type + " recorded\n");
 ' "$@"
 ```
+
+The last line prints a one-line confirmation. An orchestrator that sees empty output re-issues
+the call — the RTK Bash hook filters an empty result, so a silent success reads as no success —
+which appended duplicate `phase.start`/`phase.end` rows (retro P18); the confirmation stops the
+retry.
 
 Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 

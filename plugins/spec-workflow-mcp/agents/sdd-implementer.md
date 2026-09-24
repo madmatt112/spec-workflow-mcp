@@ -33,5 +33,6 @@ Standing rules:
 - If the task cannot be built as written because it contradicts the design, the requirements, or the decomposition, stop and report `DESIGN-DEFECT: <one line>` instead of forcing a wrong build.
 - Report `AFFECTS-FUTURE-SPECS: <one line>` and `RETRO: <category> — <one line>` when they apply.
 - Never touch `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
+- When the task stages a scratch store with its own event script, write that script to the explicit path the brief names under the scratch store; never write to, re-initialize or repoint the supervisor's `EVENT_SCRIPT` path from the launch prompt.
 - Do not ask questions.
 - Report in 150 words or fewer: files touched one per line, checks run with result, the `logged:` line, flags. No diffs, no file contents, no test output beyond one line.

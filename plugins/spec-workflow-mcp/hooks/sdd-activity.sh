@@ -29,6 +29,10 @@ export SDD_ACTIVITY_FILE="$SPEC_DIR/harness-activity.jsonl"
 export SDD_EVENTS_FILE="$SPEC_DIR/harness-events.jsonl"
 export SDD_SPEC="${SPEC_DIR##*/}"
 export SDD_RUN_ID="$RUN_ID"
+# Per-spawn markers guard against a re-fired SubagentStop writing a second spawn.end
+# (deferral d-3091be1c). They live beside the pointer, outside any repo, so they are never
+# committed and are cleared with the machine state, not the spec store.
+export SDD_SPAWN_END_DIR="$(dirname "$POINTER")/spawn-ends"
 printf '%s' "$IN" | node -e '
 const fs = require("fs");
 let d;
@@ -36,16 +40,40 @@ try { d = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(0); }
 function num(x) { return typeof x === "number" && Number.isFinite(x) ? x : 0; }
 function readUsage(p) {
   let text; try { text = fs.readFileSync(String(p), "utf8"); } catch { return null; }
-  const s = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, models = []; let seen = 0;
+  // Dedupe by message.id: a multi-block assistant message writes one transcript line per
+  // content block, every line repeating the same message.id and the same usage object, so
+  // summing every line inflates the total about 2.5-3x (deferral d-3091be1c). Keep the last
+  // line seen for each id; a line with no id counts once on its own.
+  const byId = new Map(); let auto = 0;
   for (const line of text.split("\n")) {
     let e; try { e = JSON.parse(line); } catch { continue; }
     const u = e && e.type === "assistant" && e.message && e.message.usage;
     if (!u || typeof u !== "object") continue;
-    seen++; s.input += num(u.input_tokens); s.output += num(u.output_tokens);
-    s.cacheWrite += num(u.cache_creation_input_tokens); s.cacheRead += num(u.cache_read_input_tokens);
-    const m = e.message.model; if (typeof m === "string" && !models.includes(m)) models.push(m);
+    const id = e.message.id;
+    const key = typeof id === "string" && id ? id : "no-id-" + (auto++);
+    byId.set(key, { u: u, model: typeof e.message.model === "string" ? e.message.model : null });
   }
-  return seen ? { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+") } : null;
+  if (byId.size === 0) return null;
+  const s = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, models = [];
+  for (const v of byId.values()) {
+    s.input += num(v.u.input_tokens); s.output += num(v.u.output_tokens);
+    s.cacheWrite += num(v.u.cache_creation_input_tokens); s.cacheRead += num(v.u.cache_read_input_tokens);
+    if (v.model && !models.includes(v.model)) models.push(v.model);
+  }
+  return { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+") };
+}
+// A bounded synchronous wait, so the read below can let the transcript tail land.
+function sleepMs(ms) { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { /* no shared memory: skip */ } }
+function waitForTail(p) {
+  // SubagentStop can fire tens of ms before the transcript last line is flushed, so the sum
+  // would miss the final assistant line (deferral d-3091be1c). Wait, bounded, for the file
+  // size to stop growing before reading it.
+  let prev = -1;
+  for (let i = 0; i < 6; i++) {
+    let sz; try { sz = fs.statSync(String(p)).size; } catch { sz = -1; }
+    if (sz === prev) return;
+    prev = sz; sleepMs(60);
+  }
 }
 // The transcript of the subagent itself. On SubagentStop, transcript_path is the PARENT
 // session file, so summing it reports the supervisor usage under the worker name
@@ -91,7 +119,19 @@ if (ev === "PreToolUse") {
   e.event = "agent.start";
 } else if (ev === "SubagentStop") {
   e.event = "agent.stop";
+  // One emission per spawn: an orchestrator with background children yields several times,
+  // each firing SubagentStop for the same (run, session, agentId) with the same completed
+  // transcript, so a marker guards the write to once (deferral d-3091be1c). Skip the guard
+  // when the payload names no agent id.
+  const markerDir = process.env.SDD_SPAWN_END_DIR;
+  if (markerDir && d.agent_id) {
+    const key = [process.env.SDD_RUN_ID || "", d.session_id || "", d.agent_id].join("__").replace(/[^\w.-]/g, "_");
+    try { fs.mkdirSync(markerDir, { recursive: true }); } catch {}
+    try { fs.writeFileSync(require("path").join(markerDir, key), "", { flag: "wx" }); }
+    catch { process.exit(0); }
+  }
   const tp = subagentTranscript(d);
+  if (tp) waitForTail(tp);
   u = tp ? readUsage(tp) : null;
   if (u) e.tokens = u.tokens;
 } else {

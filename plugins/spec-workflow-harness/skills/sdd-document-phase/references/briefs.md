@@ -94,8 +94,16 @@ Every later reviewer, reviser and implementer reads it first.
   every existing test file a task names, say whether the change alters a value it
   asserts exactly. When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
-  says to remove it. Start the tasks document with a `Document version: v1` line
-  right after the H1.
+  says to remove it. When a task tells the implementer to stage a scratch store with
+  its own event script, give that script an explicit path under the scratch store
+  (`<scratch-store>/event.sh`) and state that it must not reuse the supervisor's
+  `EVENT_SCRIPT` path. When a task authors a `set -u` shell script, its prompt says to
+  read every optional environment variable as `${VAR:-}`, never bare `$VAR`, so an
+  unset key takes the intended no-value path instead of aborting on an unbound
+  variable. Only the supervisor writes the run ledger — `event.sh`, its `.runid` and
+  the run's `harness-events.jsonl`; a spawned worker calls `EVENT_SCRIPT` only to
+  append rows and never rewrites, re-initializes or repoints it. Start the tasks
+  document with a `Document version: v1` line right after the H1.
 - Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
   every other file belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.

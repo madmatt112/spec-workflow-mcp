@@ -1633,6 +1633,24 @@ describe('Track-B composite pins (R4.10)', () => {
   });
 });
 
+// Retro P1: the Edge-cases item carries the shell-authoring check so a reviewer
+// of a `set -u` script flags a bare `$VAR` read of an optional env key.
+describe('shell-authoring review check (retro P1)', () => {
+  it('methodology item 8 flags bare $VAR under set -u', () => {
+    const methodology = buildReviewMethodology(
+      CANONICAL_TASK_CONTEXT as any,
+      HAS_TECH_STEERING,
+      HAS_PRIOR_REVIEWS,
+      HAS_HYGIENE_SIGNALS,
+      { kind: 'present' },
+      { kind: 'success-clean-full' },
+    );
+    expect(methodology).toContain('runs under `set -u`');
+    expect(methodology).toContain('bare `$VAR`');
+    expect(methodology).toContain('`${VAR:-}`');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Track-A interim sentinel — Track B replaces those interim fixtures, so the
 // marker `# SPEC-WORKFLOW:TRACK-A:INTERIM-PIN` MUST be absent from every

@@ -292,6 +292,49 @@ describe('sdd-activity.sh spawn events', () => {
     expect(eventLines()).toHaveLength(0);
   });
 
+  it('dedupes assistant lines by message.id: a multi-block message counts once (d-3091be1c)', async () => {
+    // A multi-block assistant message writes one transcript line per block, each repeating
+    // the same message.id and the same usage; the sum must count that message once.
+    const p = join(root, 'multiblock.jsonl');
+    const usage1 = { input_tokens: 100, output_tokens: 20, cache_creation_input_tokens: 5, cache_read_input_tokens: 200 };
+    const usage2 = { input_tokens: 7, output_tokens: 2, cache_creation_input_tokens: 1, cache_read_input_tokens: 8 };
+    const l1 = JSON.stringify({ type: 'assistant', message: { id: 'msg_1', model: 'claude-opus-4-8', usage: usage1 } });
+    const l2 = JSON.stringify({ type: 'assistant', message: { id: 'msg_2', model: 'claude-opus-4-8', usage: usage2 } });
+    await fs.writeFile(p, [l1, l1, l2].join('\n') + '\n'); // msg_1 twice (two content blocks)
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-implementer',
+      session_id: 's1',
+      agent_id: 'aX',
+      agent_transcript_path: p,
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    // Counted once each: input 107, output 22, cacheWrite 6, cacheRead 208.
+    expect(events[0]).toMatchObject({
+      type: 'spawn.end',
+      input: '107',
+      output: '22',
+      cacheWrite: '6',
+      cacheRead: '208',
+      tokens: String(107 + 22 + 6 + 208),
+    });
+  });
+
+  it('writes one spawn.end per spawn even when SubagentStop fires twice (d-3091be1c)', () => {
+    const payload = {
+      hook_event_name: 'SubagentStop',
+      agent_type: 'spec-workflow-harness:sdd-implementation-orchestrator',
+      session_id: 's9',
+      agent_id: 'a9',
+    };
+    runHook(payload);
+    runHook(payload); // a re-fired yield of the same spawn
+    const events = eventLines();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementation-orchestrator' });
+  });
+
   it('writes no spawn.start when the prompt carries no brief path', () => {
     runHook({
       hook_event_name: 'PreToolUse',
