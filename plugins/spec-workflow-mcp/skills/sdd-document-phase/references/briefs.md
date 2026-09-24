@@ -100,8 +100,10 @@ Every later reviewer, reviser and implementer reads it first.
   `EVENT_SCRIPT` path. When a task authors a `set -u` shell script, its prompt says to
   read every optional environment variable as `${VAR:-}`, never bare `$VAR`, so an
   unset key takes the intended no-value path instead of aborting on an unbound
-  variable. Start the tasks document with a `Document version: v1` line
-  right after the H1.
+  variable. Only the supervisor writes the run ledger — `event.sh`, its `.runid` and
+  the run's `harness-events.jsonl`; a spawned worker calls `EVENT_SCRIPT` only to
+  append rows and never rewrites, re-initializes or repoints it. Start the tasks
+  document with a `Document version: v1` line right after the H1.
 - Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
   every other file belong to the orchestrator.
 - Do not ask questions. Decide, and record the decision in the document.
