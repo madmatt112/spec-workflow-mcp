@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`agent-cache-ttl`**.
-> Live phase **implementation**, state **tasks 0/9**, last result **approved** (tasks v1).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs gate B (if slot b present), enters worktree `feat/agent-cache-ttl`, runs the implementation phase of `agent-cache-ttl`.
+> Live phase **implementation**, state **tasks 9/9**, last result **complete** (PR #64 open, green, not merged).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/agent-cache-ttl` (branch `feat/agent-cache-ttl`), worktree of `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: nothing until the operator runs design C8 pre-merge (dev-link the branch into a scratch CLAUDE_CONFIG_DIR, restart, e2e-setup.sh, three probe sessions, recompute.mjs --write) and all four lines of specs/agent-cache-ttl/verification-evidence.md read `passed`; then PR #64 merges and the retrospective runs. Kit is in /tmp/scratchpad/sdd/agent-cache-ttl/ (untracked).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -49,6 +49,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-24 | agent-cache-ttl | requirements | v4 | approved | 3 rounds (2 adversarial + narrow check), 1/2/3 → 0/2/1 → VERIFIED 3/3; Gate A revision applied |
 | 2026-09-24 | agent-cache-ttl | design | v1 | approved | 1 round, converged clean (0/0/3) |
 | 2026-09-24 | agent-cache-ttl | tasks | v1 | approved | 1 round, converged 0/0/2 |
+| 2026-09-24 | agent-cache-ttl | implementation | tasks 9/9 | complete | PR #64 green; scenarios 1/2/3/5 pending for operator |
 
 ## Current state — 2026-08-04
 

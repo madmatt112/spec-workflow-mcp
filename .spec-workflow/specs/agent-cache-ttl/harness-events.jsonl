@@ -132,3 +132,6 @@
 {"ts":"2026-09-24T20:01:33.230Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"10","output":"249","cacheWrite":"26942","cacheRead":"94754","tokens":"121955","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T20:01:41.686Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 9","phase":"implementation","task":"9","result":"logged: yes/9 (verification-only)"}
 {"ts":"2026-09-24T20:01:41.740Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"9","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T20:05:04.784Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"implementation","result":"complete","state":"tasks 9/9","note":"PR #64 green; scenarios 1/2/3/5 pending for operator"}
+{"ts":"2026-09-24T20:05:22.757Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementation-orchestrator","role":"implementation phase, spawn 1","result":"complete","phase":"implementation"}
+{"ts":"2026-09-24T20:06:08.893Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"run.end","status":"spec-workflow-mcp:agent-cache-ttl implementation tasks 9/9 — PR #64 green; retro blocked until C8 live scenarios (1)(2)(3)(5) read passed"}
