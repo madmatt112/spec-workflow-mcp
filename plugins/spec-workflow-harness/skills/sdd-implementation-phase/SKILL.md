@@ -111,7 +111,10 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    with `outcome=gate`. It is not exempt from the log gate (retro P9): it must still
    report `logged: yes` — a short `log-implementation` naming the commit is enough —
    before it goes `[x]`, exactly as step 6 demands, so no task reaches `[x]` unlogged
-   and `logCoverage` never reads N-1/N.
+   and `logCoverage` never reads N-1/N. Skipping the verifier here is sanctioned policy
+   (retro P15), not a shortcut: it records no review, so `reviewCoverage` reads below
+   total for it. That gap is expected — but the completion report must name the task
+   among the verifier-skipped ones and disclose the gap (step 11), never bury it.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
@@ -279,7 +282,10 @@ When no `[ ]` or `[-]` task remains:
     deferral numbers, and state the coverage verbatim — `logCoverage <logged>/<completed>`
     and `reviewCoverage <reviewed>/<completed>` — naming by id every task in `unlogged`
     or `unreviewed`. Any task below the completed total is flagged, never reported as
-    verified.
+    verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
+    verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
+    but disclose the `reviewCoverage` gap plainly and never report the spec "all
+    verified" while `reviewCoverage` is below total.
 
 ### Reconcile a red PR
 
