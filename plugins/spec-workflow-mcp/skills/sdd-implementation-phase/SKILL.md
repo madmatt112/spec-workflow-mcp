@@ -105,9 +105,13 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
      and the implementer's files).
    - `ESCALATE:` ⇒ **Escalate**.
-   A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
-   has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
-   part of step 8 (end-to-end verification), then mark it `[x]` with `outcome=gate`.
+   A **verification-only task** (a spec-store-only task) — its `File:` lines name no
+   path under `CODE_ROOT` — has no gate: skip step 4 and spawn no verifier for it. Run
+   its check commands as part of step 8 (end-to-end verification), then mark it `[x]`
+   with `outcome=gate`. It is not exempt from the log gate (retro P9): it must still
+   report `logged: yes` — a short `log-implementation` naming the commit is enough —
+   before it goes `[x]`, exactly as step 6 demands, so no task reaches `[x]` unlogged
+   and `logCoverage` never reads N-1/N.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
