@@ -332,7 +332,31 @@ describe('sdd-activity.sh spawn events', () => {
     runHook(payload); // a re-fired yield of the same spawn
     const events = eventLines();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementation-orchestrator' });
+    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'a9' });
+  });
+
+  it('writes a new spawn.end with the final total when an orchestrator yields, resumes and makes more calls', async () => {
+    const p = join(root, 'orchestrator.jsonl');
+    const call = (id: string, n: number) => JSON.stringify({
+      type: 'assistant',
+      message: { id, model: 'claude-opus-4-8', usage: { input_tokens: n, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+    });
+    const payload = {
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-document-orchestrator',
+      session_id: 's7',
+      agent_id: 'a7',
+      agent_transcript_path: p,
+    };
+    await fs.writeFile(p, call('m1', 10) + '\n');
+    runHook(payload); // first yield: 10 + 1
+    await fs.appendFile(p, call('m2', 20) + '\n' + call('m3', 30) + '\n');
+    runHook(payload); // resumed, two more calls, stops again
+    runHook(payload); // re-fire with nothing new
+    const events = eventLines();
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.tokens)).toEqual(['11', '63']);
+    expect(events.every((e) => e.agentId === 'a7')).toBe(true);
   });
 
   it('writes no spawn.start when the prompt carries no brief path', () => {

@@ -279,6 +279,16 @@ describe('buildModel', () => {
     expect(m.tokensTotal).toBe(84_000);
   });
 
+  it('updates an ended spawn from a later spawn.end with the same agentId (yield, resume, more calls)', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:05:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'o1', tokens: '100' });
+    ev.push({ ts: '2026-09-12T19:09:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'o1', tokens: '250' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    expect(m.spawns.filter(s => s.agent === 'sdd-implementation-orchestrator')).toHaveLength(1);
+    expect(m.spawns[0].tokens).toBe(250);
+    expect(m.spawns[0].endedAt).toBe('2026-09-12T19:09:00.000Z');
+  });
+
   it('keeps a digit-string spawn.end tokens over a later folded spawn.usage', () => {
     const ev = ledger();
     ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', tokens: '84000' });

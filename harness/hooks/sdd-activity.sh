@@ -29,8 +29,8 @@ export SDD_ACTIVITY_FILE="$SPEC_DIR/harness-activity.jsonl"
 export SDD_EVENTS_FILE="$SPEC_DIR/harness-events.jsonl"
 export SDD_SPEC="${SPEC_DIR##*/}"
 export SDD_RUN_ID="$RUN_ID"
-# Per-spawn markers guard against a re-fired SubagentStop writing a second spawn.end
-# (deferral d-3091be1c). They live beside the pointer, outside any repo, so they are never
+# Per-spawn markers hold the last usage written to a spawn.end, so a re-fired SubagentStop
+# with unchanged usage writes nothing (deferral d-3091be1c). They live beside the pointer, outside any repo, so they are never
 # committed and are cleared with the machine state, not the spec store.
 export SDD_SPAWN_END_DIR="$(dirname "$POINTER")/spawn-ends"
 printf '%s' "$IN" | node -e '
@@ -153,21 +153,26 @@ if (ev === "PreToolUse") {
   e.event = "agent.start";
 } else if (ev === "SubagentStop") {
   e.event = "agent.stop";
-  // One emission per spawn: an orchestrator with background children yields several times,
-  // each firing SubagentStop for the same (run, session, agentId) with the same completed
-  // transcript, so a marker guards the write to once (deferral d-3091be1c). Skip the guard
-  // when the payload names no agent id.
-  const markerDir = process.env.SDD_SPAWN_END_DIR;
-  if (markerDir && d.agent_id) {
-    const key = [process.env.SDD_RUN_ID || "", d.session_id || "", d.agent_id].join("__").replace(/[^\w.-]/g, "_");
-    try { fs.mkdirSync(markerDir, { recursive: true }); } catch {}
-    try { fs.writeFileSync(require("path").join(markerDir, key), "", { flag: "wx" }); }
-    catch { process.exit(0); }
-  }
   const tp = subagentTranscript(d);
   if (tp) waitForTail(tp);
   u = tp ? readUsage(tp) : null;
   if (u) e.tokens = u.tokens;
+  // An orchestrator with background children yields, fires SubagentStop, resumes and makes
+  // more calls, so SubagentStop fires several times per spawn. Each firing whose usage
+  // differs from the last one written for this (run, session, agentId) writes a new
+  // spawn.end carrying agentId; consumers keep the latest row per agentId, so the recorded
+  // usage is the final total and nothing counts twice (deferral d-3091be1c). A re-fire with
+  // unchanged usage writes nothing. The marker holds the last written usage.
+  const markerDir = process.env.SDD_SPAWN_END_DIR;
+  if (markerDir && d.agent_id) {
+    const key = [process.env.SDD_RUN_ID || "", d.session_id || "", d.agent_id].join("__").replace(/[^\w.-]/g, "_");
+    const marker = require("path").join(markerDir, key);
+    const sig = u ? [u.input, u.output, u.cacheWrite, u.cacheRead].join("/") : "unknown";
+    let last = null;
+    try { last = fs.readFileSync(marker, "utf8"); } catch {}
+    if (last === sig) process.exit(0);
+    try { fs.mkdirSync(markerDir, { recursive: true }); fs.writeFileSync(marker, sig); } catch {}
+  }
 } else {
   process.exit(0);
 }
@@ -193,6 +198,7 @@ if (eventsFile) {
     } else {
       row = { ts: e.ts, type: "spawn.end", run, spec, agent, tokens: "unknown", cacheWrite5m: "unknown", cacheWrite1h: "unknown", gapRewrites: "unknown" };
     }
+    if (d.agent_id) row.agentId = String(d.agent_id);
     fs.appendFileSync(eventsFile, JSON.stringify(row) + "\n");
   }
 }

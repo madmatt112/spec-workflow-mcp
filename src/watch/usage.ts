@@ -119,8 +119,11 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
   // (b) Walk the rows, keeping one open spawn per agent. A spawn.start opens (and replaces)
   // the agent's current spawn; a spawn.end or spawn.usage attaches to it. With none open a
   // spawn.usage becomes its own spawn (not entered as current) and a spawn.end is dropped.
+  // A later spawn.end with an agentId already seen belongs to that same spawn (the hook
+  // writes one per SubagentStop of a yielding orchestrator), whatever started since.
   const spawns: Spawn[] = [];
   const current = new Map<string, Spawn>();
+  const byAgentId = new Map<string, Spawn>();
   for (const e of sorted) {
     const agent = e.agent ?? 'unknown';
     if (e.type === 'spawn.start') {
@@ -128,7 +131,8 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
       spawns.push(s);
       current.set(agent, s);
     } else if (e.type === 'spawn.end' || e.type === 'spawn.usage') {
-      const open = current.get(agent);
+      const open = (e.type === 'spawn.end' && e.agentId !== undefined && byAgentId.get(e.agentId)) || current.get(agent);
+      if (open && e.type === 'spawn.end' && e.agentId !== undefined) byAgentId.set(e.agentId, open);
       if (open) {
         open.rows.push(e);
       } else if (e.type === 'spawn.usage') {

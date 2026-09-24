@@ -107,6 +107,18 @@ describe('buildUsageReport — token source rules', () => {
     const r = buildUsageReport(rows, 's');
     expect(cell(r, 'requirements', 'sdd-drafter')?.tokens).toBe(200);
   });
+
+  it('a yielding orchestrator counts once, at its latest spawn.end, even after a later start of the same agent', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o1', tokens: '100' }),
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o1', tokens: '250' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o2', tokens: '40' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'design', 'sdd-document-orchestrator')).toMatchObject({ spawns: 2, tokens: 290 });
+  });
 });
 
 describe('buildUsageReport — unknown mark (D6)', () => {
