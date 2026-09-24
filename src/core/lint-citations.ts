@@ -32,6 +32,20 @@ export const CITATION_RE = /(?<![\w./-])(\/?(?:[\w.-]+\/)*[\w.-]+\.[A-Za-z]{1,6}
 /** A bare backticked range `` `:N` `` or `` `:A-B` `` with no path (requirement 2.2). */
 export const BARE_RANGE_RE = /`:(\d+)(?:-(\d+))?`/g;
 
+/**
+ * A cited file path with no line suffix — a `File:` header (retro P4). At least
+ * one `/`-joined directory segment then `name.ext`, and NOT followed by `:`
+ * (which would make it a `path:line` citation `CITATION_RE` already owns). A
+ * bare range binds to the nearest File: header or `path:line` citation to its
+ * left in the block, whichever is nearer, so a range meant for a file named
+ * without a line no longer attaches to an earlier ranged citation of a different
+ * file (the dense multi-file Testing Strategy block that fired 11 spurious
+ * `citation-range` errors). The lookahead forbids `:` (a `path:line` citation),
+ * `/` (a deeper path) and `.` — the last so a `foo.test.ts:1` citation cannot
+ * backtrack to a truncated `foo.test` match.
+ */
+export const FILE_HEADER_RE = /(?<![\w./-])((?:[\w.-]+\/)+[\w.-]+\.[A-Za-z]{1,6})(?![\w:/.-])/g;
+
 /** A backticked span, an identifier candidate (requirement 2.6). */
 const BACKTICK_SPAN_RE = /`([^`]+)`/g;
 
@@ -59,8 +73,9 @@ const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]{2,}$/;
  * an earlier path (design.md Data Models "Scanning types"). `line` and `column`
  * are the 1-based position of the token in the document (the finding line);
  * `start` and `end` are the cited line range (`start === end` for a single
- * line). `path` is `''` for a bare range with no earlier path citation in its
- * block; `block` is the block the token sits in, for the identifier check.
+ * line). `path` is `''` for a bare range with no earlier File: (a `path:line`
+ * citation or a File: header) in its block; `block` is the block the token sits
+ * in, for the identifier check.
  */
 export interface Citation {
   path: string;
@@ -77,10 +92,11 @@ export interface Citation {
 /**
  * Collect every citation token on the unfenced lines (requirement 2.1; inline
  * code spans are scanned, triple-backtick fences are not). A bare backticked
- * range resolves against its block's nearest earlier path citation in document
- * order; with no such path its `path` is `''` and `checkCitations` reports
- * `citation-bare` (requirement 2.2). Blocks come from `blocks()`, so a bare
- * range borrows only within its own block.
+ * range resolves against the block's nearest File: to its left — either a
+ * `path:line` citation or a `File:` header (a cited path with no line, retro
+ * P4) — in document order; with no such file its `path` is `''` and
+ * `checkCitations` reports `citation-bare` (requirement 2.2). Blocks come from
+ * `blocks()`, so a bare range borrows only within its own block.
  */
 export function extractCitations(lines: string[], fenced: boolean[], blockList: Block[]): Citation[] {
   const lineToBlock = new Map<number, Block>();
@@ -90,7 +106,7 @@ export function extractCitations(lines: string[], fenced: boolean[], blockList: 
 
   const citations: Citation[] = [];
   let currentBlock: Block | null = null;
-  let lastPath: Citation | null = null;
+  let currentFile: string | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     if (fenced[i]) continue;
@@ -98,36 +114,44 @@ export function extractCitations(lines: string[], fenced: boolean[], blockList: 
     const block = lineToBlock.get(docLine) ?? { start: docLine, end: docLine };
     if (block !== currentBlock) {
       currentBlock = block;
-      lastPath = null; // "earlier" is scoped to the block (requirement 2.2)
+      currentFile = null; // "earlier" is scoped to the block (requirement 2.2)
     }
 
-    // Gather path citations and bare ranges on this line, then process them in
-    // column order so a bare range borrows only path citations to its left.
-    type Hit = { column: number; path: string | null; start: number; end: number };
+    // Gather path citations, File: headers and bare ranges on this line, then
+    // process them in column order so a bare range borrows the file named
+    // nearest to its left, whether by a `path:line` citation or a File: header.
+    type Hit =
+      | { column: number; kind: 'cite'; path: string; start: number; end: number }
+      | { column: number; kind: 'file'; path: string }
+      | { column: number; kind: 'bare'; start: number; end: number };
     const hits: Hit[] = [];
     for (const m of lines[i].matchAll(CITATION_RE)) {
       const a = Number(m[2]);
       const b = m[3] !== undefined ? Number(m[3]) : a;
-      hits.push({ column: (m.index ?? 0) + 1, path: m[1], start: a, end: b });
+      hits.push({ column: (m.index ?? 0) + 1, kind: 'cite', path: m[1], start: a, end: b });
+    }
+    for (const m of lines[i].matchAll(FILE_HEADER_RE)) {
+      hits.push({ column: (m.index ?? 0) + 1, kind: 'file', path: m[1] });
     }
     for (const m of lines[i].matchAll(BARE_RANGE_RE)) {
       const a = Number(m[1]);
       const b = m[2] !== undefined ? Number(m[2]) : a;
-      hits.push({ column: (m.index ?? 0) + 1, path: null, start: a, end: b });
+      hits.push({ column: (m.index ?? 0) + 1, kind: 'bare', start: a, end: b });
     }
     hits.sort((x, y) => x.column - y.column);
 
     for (const h of hits) {
-      if (h.path !== null) {
-        const cit: Citation = {
+      if (h.kind === 'cite') {
+        currentFile = h.path;
+        citations.push({
           path: h.path, line: docLine, column: h.column,
           start: h.start, end: h.end, bare: false, block,
-        };
-        lastPath = cit;
-        citations.push(cit);
+        });
+      } else if (h.kind === 'file') {
+        currentFile = h.path; // a File: header sets the file for later bare ranges (retro P4)
       } else {
         citations.push({
-          path: lastPath ? lastPath.path : '', line: docLine, column: h.column,
+          path: currentFile ?? '', line: docLine, column: h.column,
           start: h.start, end: h.end, bare: true, block,
         });
       }

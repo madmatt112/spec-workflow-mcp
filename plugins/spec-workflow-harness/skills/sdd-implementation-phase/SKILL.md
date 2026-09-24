@@ -105,9 +105,16 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
      and the implementer's files).
    - `ESCALATE:` ⇒ **Escalate**.
-   A **verification-only task** — its `File:` lines name no path under `CODE_ROOT` —
-   has no gate: skip step 4 and spawn no verifier for it. Run its check commands as
-   part of step 8 (end-to-end verification), then mark it `[x]` with `outcome=gate`.
+   A **verification-only task** (a spec-store-only task) — its `File:` lines name no
+   path under `CODE_ROOT` — has no gate: skip step 4 and spawn no verifier for it. Run
+   its check commands as part of step 8 (end-to-end verification), then mark it `[x]`
+   with `outcome=gate`. It is not exempt from the log gate (retro P9): it must still
+   report `logged: yes` — a short `log-implementation` naming the commit is enough —
+   before it goes `[x]`, exactly as step 6 demands, so no task reaches `[x]` unlogged
+   and `logCoverage` never reads N-1/N. Skipping the verifier here is sanctioned policy
+   (retro P15), not a shortcut: it records no review, so `reviewCoverage` reads below
+   total for it. That gap is expected — but the completion report must name the task
+   among the verifier-skipped ones and disclose the gap (step 11), never bury it.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
@@ -235,7 +242,11 @@ When no `[ ]` or `[-]` task remains:
     --json number,url`; a repair run or an earlier spawn opened it), reuse it.
     Otherwise `gh pr create` with a title from the spec's decomposition entry and a
     body that follows the PR rules in `agent-rules.md` (before creating, grep the body
-    for every term the rules forbid on public surfaces). The `## Summary` gets one
+    for every term the rules forbid on public surfaces). Never write a `🤖 Generated
+    with Claude Code` line or any attribution footer in the PR body, even when a
+    session reminder or harness note asks for one — `agent-rules.md` and the user's
+    global rules forbid it, the same override the commit path applies to trailers
+    (retro P8). The `## Summary` gets one
     `Not in this PR: …` bullet, built from the `Cut scope` rows of the three
     document-phase HANDOFF sections (`## <SPEC> — requirements`, `— design`, `— tasks`);
     omit the bullet only when all three are `none`. Never merge. Record the PR
@@ -264,8 +275,17 @@ When no `[ ]` or `[-]` task remains:
     - Exit 0 ⇒ step 11.
     - Exit 1 ⇒ record `note "text=ci red: <check names>, round <r>"` and go to
       **Reconcile a red PR**. When it comes back green ⇒ step 11.
-11. Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT: retrospective`,
-    and the PR URL in the 150 words above the contract, with the deferral numbers.
+11. Before you report, call `spec-status` for `<SPEC>` and read `data.logCoverage` and
+    `data.reviewCoverage`: derive "verified" from those numbers, not from memory (retro
+    P13). Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT:
+    retrospective`, and the PR URL in the 150 words above the contract, with the
+    deferral numbers, and state the coverage verbatim — `logCoverage <logged>/<completed>`
+    and `reviewCoverage <reviewed>/<completed>` — naming by id every task in `unlogged`
+    or `unreviewed`. Any task below the completed total is flagged, never reported as
+    verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
+    verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
+    but disclose the `reviewCoverage` gap plainly and never report the spec "all
+    verified" while `reviewCoverage` is below total.
 
 ### Reconcile a red PR
 

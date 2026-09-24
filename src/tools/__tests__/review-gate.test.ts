@@ -341,5 +341,39 @@ describe('handleGate', () => {
     expect(result.data.risk).toBe('high');
     expect(result.data.reasons.some((r: string) => r.startsWith('docs-only:'))).toBe(false);
   });
+
+  it('down-ranks a generated-only change to medium (retro P10)', async () => {
+    await addTask1Log();
+    // The generated dir is also sensitive, so the change scores high; every
+    // touched path is generated, so the verifier is skipped and CI is the net.
+    await fs.writeFile(
+      join(tempDir, '.spec-workflow', 'agent-rules.md'),
+      ['## Sensitive paths', '', '- plugins/', '', '## Generated paths', '', '- plugins/', ''].join('\n'),
+    );
+    await fs.mkdir(join(tempDir, 'plugins'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'plugins/gen.ts'), 'export const g = 1;\n');
+
+    const result = await gate({ baseRef: base }, '1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.gate).toBe('pass');
+    expect(result.data.risk).toBe('medium');
+    expect(result.data.reasons.some((r: string) => r.startsWith('generated-only:'))).toBe(true);
+    expect(result.data.recorded).not.toBeNull();
+  });
+
+  it('down-ranks a spec-store-only change (no touched path) to medium (retro P10)', async () => {
+    await addTask1Log();
+    // No path under the code root changed: the whole task lived in the spec store.
+    // no-diff would score high; the down-rank makes it medium so the verifier is
+    // skipped, and the log the gate already required stands.
+    const result = await gate({ baseRef: base }, '1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.gate).toBe('pass');
+    expect(result.data.touched.total).toBe(0);
+    expect(result.data.risk).toBe('medium');
+    expect(result.data.reasons.some((r: string) => r.startsWith('no-product-code:'))).toBe(true);
+  });
 });
 

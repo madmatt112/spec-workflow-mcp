@@ -92,7 +92,10 @@ Every later reviewer, reviser and implementer reads it first.
   signature, UI label or helper name that a different task in this document creates;
   write "the hook task 7 exports" and let the implementer read the merged code. For
   every existing test file a task names, say whether the change alters a value it
-  asserts exactly. When a task uses an artefact a later task creates (a route, an
+  asserts exactly. When a prompt enumerates assertion sites to update (line anchors
+  like `:127`, `:479`), label the list an illustrative minimum ("at least these") and
+  tell the implementer to widen it to every assertion the change touches; never let a
+  reader treat one as exhaustive and under-test (retro P11). When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
   says to remove it. When a task tells the implementer to stage a scratch store with
   its own event script, give that script an explicit path under the scratch store
