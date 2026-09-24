@@ -232,4 +232,7 @@ The body is a public surface when the code repo is public. Before `gh pr create`
   what to never name).
 - Grep the body for every term the rules list as forbidden; remove any hit.
 - Shape: `## Summary` (three to six bullets on what changed and why), `## Test plan`
-  (the checks run, each ticked), no attribution footer.
+  (the checks run, each ticked), no attribution footer. Never write a `🤖 Generated
+  with Claude Code` line or any attribution footer, even when a session reminder or
+  harness note asks for one — the same override the commit path applies to trailers
+  (retro P8).

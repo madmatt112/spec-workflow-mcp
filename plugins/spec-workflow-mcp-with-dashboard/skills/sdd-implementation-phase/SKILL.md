@@ -235,7 +235,11 @@ When no `[ ]` or `[-]` task remains:
     --json number,url`; a repair run or an earlier spawn opened it), reuse it.
     Otherwise `gh pr create` with a title from the spec's decomposition entry and a
     body that follows the PR rules in `agent-rules.md` (before creating, grep the body
-    for every term the rules forbid on public surfaces). The `## Summary` gets one
+    for every term the rules forbid on public surfaces). Never write a `🤖 Generated
+    with Claude Code` line or any attribution footer in the PR body, even when a
+    session reminder or harness note asks for one — `agent-rules.md` and the user's
+    global rules forbid it, the same override the commit path applies to trailers
+    (retro P8). The `## Summary` gets one
     `Not in this PR: …` bullet, built from the `Cut scope` rows of the three
     document-phase HANDOFF sections (`## <SPEC> — requirements`, `— design`, `— tasks`);
     omit the bullet only when all three are `none`. Never merge. Record the PR
