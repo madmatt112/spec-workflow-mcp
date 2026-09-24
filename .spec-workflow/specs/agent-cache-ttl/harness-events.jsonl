@@ -57,3 +57,9 @@
 {"ts":"2026-09-24T16:45:35.381Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"design","round":"1","version":"v1","verdict":"converged 0/0/3"}
 {"ts":"2026-09-24T16:47:16.364Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"design","result":"approved","state":"v1","note":"1 round, converged clean (0/0/3)"}
 {"ts":"2026-09-24T16:47:31.369Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved","phase":"design"}
+{"ts":"2026-09-24T16:47:38.380Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.start","agent":"sdd-document-orchestrator","role":"tasks phase, spawn 1","phase":"tasks"}
+{"ts":"2026-09-24T16:48:03.815Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.start","phase":"tasks","mode":"normal","budget":"4 review rounds","state":"v0"}
+{"ts":"2026-09-24T16:49:19.388Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-drafter","role":"drafter"}
+{"ts":"2026-09-24T16:49:48.445Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-document-orchestrator","input":"28","output":"494","cacheWrite":"63363","cacheRead":"846086","tokens":"909971","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T16:57:38.063Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-drafter","input":"98","output":"12176","cacheWrite":"177870","cacheRead":"5189404","tokens":"5379548","model":"claude-opus-5-5"}
+{"ts":"2026-09-24T16:57:40.713Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-drafter","role":"drafter","phase":"tasks","round":"0","result":"9 tasks, v1"}

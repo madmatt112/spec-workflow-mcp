@@ -91,3 +91,21 @@
 - harness/hooks/sdd-activity.sh:96 — `ts` shared by the activity line (140) and the `spawn.end` row (157)
 - Probe of the 2.1.281 binary (2026-09-24): `experimental.cacheTtl` (case-insensitive key, values `5m`/`1h`) is read for file agents and plugin agents; no read found for the `--agents` flag path; `CLAUDE_CONFIG_DIR` must be absolute
 - Probe of a live subagent transcript (2026-09-24): top-level `timestamp`; `message.usage.cache_creation` with `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`
+
+## Tasks phase additions — tests whose exact values change
+- src/__tests__/agent-profiles.test.ts:19-42 — pins the profiles file: 12 keys, `model` from frontmatter line 4 and `effort` from line 5, byte re-serialisation; profile type at 21
+- src/watch/__tests__/ledger.test.ts:101-105 — loads the generated profiles; 104 asserts the exact `sdd-checker` object with `toEqual`
+- src/watch/__tests__/render.test.ts:55 — orchestrator tier line; 59 — implementer tier line (`xhigh`, default lifetime)
+- src/watch/__tests__/render.test.ts:155-167 — every line at most 80 columns (162); a pad of 24 on the default tier line makes it 81 (probe 2026-09-24, scratch copy of `src/`)
+- src/__tests__/hook-spawn-events.test.ts:72-94 — `writeTranscript` fixture helper; every existing row assertion uses `toMatchObject`
+- src/watch/__tests__/usage.test.ts:49-343 — cell `toEqual` shapes at 49, 60, 71, 113, 122, 131, 163, 174-178, 343; compare-table strings at 316, 318-320, 335-336; one-spec strings at 282-300 stay substrings after columns are appended
+- src/tools/__tests__/harness.test.ts:478 — `data.report.total` `toEqual`; 541-542 — deepseek provider cell and total `toEqual`
+
+## Tasks phase additions — harness and verification
+- harness/hooks/sdd-activity.sh:146-153 — PreToolUse writes `spawn.start` for a brief-launched `sdd-*` worker (brief path in the prompt)
+- harness/skills/sdd-implementation-phase/SKILL.md:108-117 — a verification-only task (no `File:` under the code root) gets no gate and no verifier; its checks run at step 8
+- harness/skills/sdd-implementation-phase/references/briefs.md:12-15 — implementer commits into the spec store from a script that changes directory
+- src/__tests__/providers-map.test.ts:27-34 — `run` helper: `execFileSync` status, stdout, stderr
+- src/watch/usage.ts:283-286 — `formatUsageTable`, single or compare
+- .spec-workflow/specs/provider-per-role/harness-events.jsonl — the ledger without the new keys for scenario (4)
+- package.json:26 — `npm run build` runs the asset sync, which regenerates the profiles file
