@@ -29,3 +29,8 @@ Cost: 1 reviewer + 1 reviser spawns
 Profile builder cacheTtl key: gate pass risk low, 1 implementer spawn, 0 fix rounds. harness/agent-profiles.json is not mirrored into plugins/, so no plugin copies changed.
 Evidence: task 1; commit 6723ffe; reviewId b3f495a9
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:08:22Z · implementation · task 2 · gotcha
+One-hour cacheTtl in three orchestrator frontmatters: gate pass risk low, 1 spawn, 0 fix rounds.
+Evidence: task 2; commit 7064099; reviewId fa8a5fc2
+Cost: 1 implementer spawn

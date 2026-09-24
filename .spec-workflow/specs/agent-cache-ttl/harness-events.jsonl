@@ -81,3 +81,9 @@
 {"ts":"2026-09-24T19:04:45.943Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","phase":"implementation","task":"1","result":"logged: yes/1 commit 6723ffe"}
 {"ts":"2026-09-24T19:05:03.238Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 1 pass risk low"}
 {"ts":"2026-09-24T19:05:03.286Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:05:56.562Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"2","title":"One-hour lifetime in the three orchestrator frontmatters"}
+{"ts":"2026-09-24T19:05:58.837Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:07:43.903Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"30","output":"4493","cacheWrite":"41248","cacheRead":"607972","tokens":"653743","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:07:59.415Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","phase":"implementation","task":"2","result":"logged: yes/2 commit 7064099"}
+{"ts":"2026-09-24T19:08:22.415Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 2 pass risk low"}
+{"ts":"2026-09-24T19:08:22.464Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
