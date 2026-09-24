@@ -74,19 +74,33 @@ function syncAssetDir(assetDir, pluginRoot) {
 }
 
 /**
+ * The declared cache lifetime for one agent: the trimmed capture of
+ * /cacheTtl:([^}]*)\}/ on the raw `experimental` frontmatter value, or the
+ * string "default" when that value is absent, has no match, or trims to empty.
+ */
+function cacheTtlOf(raw) {
+  if (typeof raw !== 'string') return 'default';
+  const match = /cacheTtl:([^}]*)\}/.exec(raw);
+  if (!match) return 'default';
+  return match[1].trim() || 'default';
+}
+
+/**
  * Build the agent-profiles.json text from the twelve agent frontmatters.
  * For each harness/agents/*.md in sorted order, read the lines between the first
  * two `---`, split each on its first `:`, take `model` and `effort` as written
  * ("" when missing), derive `role` from the description (the capture of
- * /^SDD ([^:]+):/) else the name without `sdd-`. A file without `name` is skipped
- * with one stderr line. Returns `{ model, effort, role }` per name, keys sorted,
- * serialised with a trailing newline so repeated runs are byte-identical.
+ * /^SDD ([^:]+):/) else the name without `sdd-`, and `cacheTtl` from the raw
+ * `experimental` value via `cacheTtlOf` ("default" when unset). A file without
+ * `name` is skipped with one stderr line. Returns `{ model, effort, role,
+ * cacheTtl }` per name, keys sorted, serialised with a trailing newline so
+ * repeated runs are byte-identical.
  */
-function buildProfiles() {
-  const files = fs.readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).sort();
+function buildProfiles(agentsDir = AGENTS_DIR) {
+  const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md')).sort();
   const profiles = {};
   for (const file of files) {
-    const lines = fs.readFileSync(path.join(AGENTS_DIR, file), 'utf8').split('\n');
+    const lines = fs.readFileSync(path.join(agentsDir, file), 'utf8').split('\n');
     if (lines[0].trim() !== '---') continue;
     const end = lines.indexOf('---', 1);
     if (end === -1) continue;
@@ -97,14 +111,14 @@ function buildProfiles() {
       front[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
     }
     if (!front.name) {
-      console.error(`skipping ${path.relative(ROOT, path.join(AGENTS_DIR, file))}: no name in frontmatter`);
+      console.error(`skipping ${path.relative(ROOT, path.join(agentsDir, file))}: no name in frontmatter`);
       continue;
     }
     const model = front.model || '';
     const effort = front.effort || '';
     const match = /^SDD ([^:]+):/.exec(front.description || '');
     const role = match ? match[1] : front.name.replace(/^sdd-/, '');
-    profiles[front.name] = { model, effort, role };
+    profiles[front.name] = { model, effort, role, cacheTtl: cacheTtlOf(front.experimental) };
   }
   return JSON.stringify(profiles, null, 2) + '\n';
 }
@@ -163,4 +177,6 @@ function main() {
   }
 }
 
-main();
+module.exports = { buildProfiles, cacheTtlOf };
+
+if (require.main === module) main();
