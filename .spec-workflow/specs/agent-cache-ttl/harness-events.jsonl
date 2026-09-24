@@ -108,3 +108,9 @@
 {"ts":"2026-09-24T19:30:48.312Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5 commit e6ea481"}
 {"ts":"2026-09-24T19:31:01.010Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 5 pass risk low"}
 {"ts":"2026-09-24T19:31:01.058Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:31:08.407Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"6","title":"Override probe script"}
+{"ts":"2026-09-24T19:31:10.521Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:35:45.907Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"38","output":"15656","cacheWrite":"64344","cacheRead":"1011061","tokens":"1091099","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:35:50.611Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6"}
+{"ts":"2026-09-24T19:36:12.079Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-24T19:36:12.128Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"6","rounds":"0","outcome":"gate"}

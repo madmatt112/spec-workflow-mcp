@@ -440,6 +440,6 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 
 | Field | Value |
 | --- | --- |
-| State | tasks 5/9; last code commit e6ea481; next task 6 |
-| Re-run does | resume the per-task loop at task 6 |
+| State | tasks 6/9; last code commit 7fde05a; next task 7 |
+| Re-run does | resume the per-task loop at task 7 |
 | PR | not opened yet |

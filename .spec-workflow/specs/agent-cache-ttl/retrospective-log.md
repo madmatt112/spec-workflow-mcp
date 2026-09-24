@@ -49,3 +49,8 @@ Cost: 1 implementer + 1 verifier spawn
 Usage fold cache columns (design C5): gate pass risk low, 1 spawn, 0 fix rounds.
 Evidence: task 5; commit e6ea481; reviewId 1b7f59f1
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:36:12Z · implementation · task 6 · gotcha
+Override probe script sdd-cache-ttl.sh (design C6): gate pass risk low, 1 spawn, 0 fix rounds.
+Evidence: task 6; commit 7fde05a; reviewId bce4762e
+Cost: 1 implementer spawn
