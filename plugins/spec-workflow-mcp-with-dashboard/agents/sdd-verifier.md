@@ -1,6 +1,6 @@
 ---
 name: sdd-verifier
-description: SDD verifier: independent reviewer of one task's implementation through review-task prepare and record, runner of the spec's end-to-end verification, and reproducer of deferrals. Read-only on code. Spawned with "Read and execute the instructions in <brief>"; not for direct use.
+description: "SDD verifier: independent reviewer of one task's implementation through review-task prepare and record, runner of the spec's end-to-end verification, and reproducer of deferrals. Read-only on code. Spawned with \"Read and execute the instructions in <brief>\"; not for direct use."
 model: claude-opus-4-8
 effort: xhigh
 color: red

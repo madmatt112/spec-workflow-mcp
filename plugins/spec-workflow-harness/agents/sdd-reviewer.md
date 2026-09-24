@@ -1,6 +1,6 @@
 ---
 name: sdd-reviewer
-description: SDD adversarial reviewer: executes one adversarial-review prompt file against a spec document and writes the analysis with the verdict block. Spawned with exactly "Read and execute the instructions in <prompt path>"; not for direct use.
+description: "SDD adversarial reviewer: executes one adversarial-review prompt file against a spec document and writes the analysis with the verdict block. Spawned with exactly \"Read and execute the instructions in <prompt path>\"; not for direct use."
 model: claude-opus-4-8
 effort: xhigh
 color: red

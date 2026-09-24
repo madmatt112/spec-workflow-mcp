@@ -1,6 +1,6 @@
 ---
 name: sdd-implementation-orchestrator
-description: SDD implementation-phase orchestrator: works one spec's task queue with implementer and verifier agents, runs the completion gate, opens the PR, using the sdd-implementation-phase skill. Spawned by the sdd-continue supervisor; not for direct use.
+description: "SDD implementation-phase orchestrator: works one spec's task queue with implementer and verifier agents, runs the completion gate, opens the PR, using the sdd-implementation-phase skill. Spawned by the sdd-continue supervisor; not for direct use."
 model: claude-opus-4-8
 effort: high
 experimental: { cacheTtl: 1h }

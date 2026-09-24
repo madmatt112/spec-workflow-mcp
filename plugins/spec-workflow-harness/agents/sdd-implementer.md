@@ -1,6 +1,6 @@
 ---
 name: sdd-implementer
-description: SDD implementer: implements one task or one fix from a brief file, runs the checks, logs the implementation with log-implementation, commits on the current branch, and reports in 150 words. Spawned with "Read and execute the instructions in <brief>"; not for direct use.
+description: "SDD implementer: implements one task or one fix from a brief file, runs the checks, logs the implementation with log-implementation, commits on the current branch, and reports in 150 words. Spawned with \"Read and execute the instructions in <brief>\"; not for direct use."
 model: claude-opus-4-8
 effort: xhigh
 color: green

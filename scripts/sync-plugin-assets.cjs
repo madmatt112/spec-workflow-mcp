@@ -13,6 +13,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE = path.join(ROOT, 'harness');
@@ -88,7 +89,8 @@ function cacheTtlOf(raw) {
 /**
  * Build the agent-profiles.json text from the twelve agent frontmatters.
  * For each harness/agents/*.md in sorted order, read the lines between the first
- * two `---`, split each on its first `:`, take `model` and `effort` as written
+ * two `---`, throw when they are not valid YAML, split each on its first `:`,
+ * take `model` and `effort` as written
  * ("" when missing), derive `role` from the description (the capture of
  * /^SDD ([^:]+):/) else the name without `sdd-`, and `cacheTtl` from the raw
  * `experimental` value via `cacheTtlOf` ("default" when unset). A file without
@@ -104,6 +106,13 @@ function buildProfiles(agentsDir = AGENTS_DIR) {
     if (lines[0].trim() !== '---') continue;
     const end = lines.indexOf('---', 1);
     if (end === -1) continue;
+    // Claude Code silently drops fields (e.g. `experimental`) from frontmatter
+    // that is not valid YAML, so refuse it here instead of shipping it.
+    try {
+      yaml.load(lines.slice(1, end).join('\n'));
+    } catch (err) {
+      throw new Error(`${path.relative(ROOT, path.join(agentsDir, file))}: frontmatter is not valid YAML (quote values that contain ": "): ${err.reason || err.message}`);
+    }
     const front = {};
     for (const line of lines.slice(1, end)) {
       const idx = line.indexOf(':');
@@ -116,7 +125,7 @@ function buildProfiles(agentsDir = AGENTS_DIR) {
     }
     const model = front.model || '';
     const effort = front.effort || '';
-    const match = /^SDD ([^:]+):/.exec(front.description || '');
+    const match = /^"?SDD ([^:]+):/.exec(front.description || '');
     const role = match ? match[1] : front.name.replace(/^sdd-/, '');
     profiles[front.name] = { model, effort, role, cacheTtl: cacheTtlOf(front.experimental) };
   }
