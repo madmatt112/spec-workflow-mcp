@@ -79,8 +79,11 @@ set -e
 cd "<SPEC_STORE_REPO>"
 paths=()
 for p in ".spec-workflow/specs/<SPEC>" ".spec-workflow/approvals/<SPEC>" ".spec-workflow/HANDOFF.md" ".spec-workflow/spec-decomposition/INDEX.md" ".spec-workflow/deferrals" "HANDOFF.md"; do
-  [ -e "$p" ] && paths+=("$p")
+  [ -e "$p" ] || continue
+  /usr/bin/git check-ignore -q "$p" && continue   # skip a gitignored path (e.g. a tradr-hosted approvals dir), else the add aborts there (retro P21)
+  paths+=("$p")
 done
+[ "${#paths[@]}" -gt 0 ] || { echo "nothing to commit"; exit 0; }
 /usr/bin/git add -A -- "${paths[@]}"
 if /usr/bin/git diff --cached --quiet; then echo "nothing to commit"; else
   /usr/bin/git -c core.hooksPath=/dev/null commit -q -s -m "$1"
