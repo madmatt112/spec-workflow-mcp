@@ -114,7 +114,7 @@ function gateNextSteps(gate: 'pass' | 'fail', risk: 'low' | 'medium' | 'high'): 
     return ['Risk is high; spawn sdd-verifier with the gate results.'];
   }
   if (risk === 'medium') {
-    return ['Risk is medium (docs-only); the verifier is skipped and CI is the net. The gate recorded the review; mark the task complete.'];
+    return ['Risk is medium (no product code — docs-only, generated-only, or spec-store-only); the verifier is skipped and CI is the net. The gate recorded the review; mark the task complete.'];
   }
   return ['Risk is low; the gate recorded the review. Mark the task complete.'];
 }
@@ -297,15 +297,27 @@ export async function handleGate(
           hygieneRejection,
           trivialChange,
         });
-    // Step 8b: down-rank a docs-only change from high to medium (retro P7). When
-    // every touched path is documentation (*.md, *.mdx, docs/**), the per-task
-    // verifier is skipped and CI is the net; any non-doc path keeps it high.
+    // Step 8b: down-rank a change with no product code from high to medium (retro
+    // P7 docs-only; retro P10 generated-only and spec-store-only). A change is
+    // "no product code" when it touched no path under the code root at all
+    // (spec-store-only), or every touched path is documentation (*.md, *.mdx,
+    // docs/**), or every touched path is a generated artifact (`## Generated
+    // paths`). There is nothing the per-task verifier could judge, so it is
+    // skipped and CI is the net; any other touched path keeps it high. Medium
+    // still requires the log — the gate already refuses a task with no log above.
     let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] } = scored;
-    if (scored.risk === 'high' && touched.length > 0 && touched.every(isDocPath)) {
-      risk = {
-        risk: 'medium',
-        reasons: ['docs-only: every touched path is documentation; verifier skipped, CI is the net', ...scored.reasons],
-      };
+    if (scored.risk === 'high') {
+      let downrank: string | null = null;
+      if (touched.length === 0) {
+        downrank = 'no-product-code: the change touched no path under the code root; verifier skipped, CI is the net';
+      } else if (touched.every(isDocPath)) {
+        downrank = 'docs-only: every touched path is documentation; verifier skipped, CI is the net';
+      } else if (generated !== null && touched.every((p) => isGeneratedPath(p, generated))) {
+        downrank = 'generated-only: every touched path is a generated artifact; verifier skipped, CI is the net';
+      }
+      if (downrank !== null) {
+        risk = { risk: 'medium', reasons: [downrank, ...scored.reasons] };
+      }
     }
 
     const reasons = [...verdict.reasons, ...risk.reasons].map(truncateLine);
