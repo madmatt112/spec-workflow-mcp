@@ -272,8 +272,14 @@ When no `[ ]` or `[-]` task remains:
     - Exit 0 ⇒ step 11.
     - Exit 1 ⇒ record `note "text=ci red: <check names>, round <r>"` and go to
       **Reconcile a red PR**. When it comes back green ⇒ step 11.
-11. Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT: retrospective`,
-    and the PR URL in the 150 words above the contract, with the deferral numbers.
+11. Before you report, call `spec-status` for `<SPEC>` and read `data.logCoverage` and
+    `data.reviewCoverage`: derive "verified" from those numbers, not from memory (retro
+    P13). Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT:
+    retrospective`, and the PR URL in the 150 words above the contract, with the
+    deferral numbers, and state the coverage verbatim — `logCoverage <logged>/<completed>`
+    and `reviewCoverage <reviewed>/<completed>` — naming by id every task in `unlogged`
+    or `unreviewed`. Any task below the completed total is flagged, never reported as
+    verified.
 
 ### Reconcile a red PR
 
