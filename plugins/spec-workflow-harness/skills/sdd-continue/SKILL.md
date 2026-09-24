@@ -420,10 +420,14 @@ plan and HANDOFF in the spec store repo (`docs(sdd): <spec> retrospective plan (
 and stop. The next interactive run finds the DRAFT plan, holds the conversation, and
 rewrites it as APPROVED.
 
-Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`,
-the approved proposals verbatim (each with its `Target:` line and the decision taken),
-the decisions made, and the rejected proposals with the reason. Implement nothing from
-it here: the close-out phase does that. Write a HANDOFF row, commit in the spec store
+Otherwise write `specs/<spec>/retrospective-plan.md` with `Status: APPROVED`. Put the
+approved proposals verbatim under a heading titled exactly `## Approved proposals`, and any
+graduation candidates under `## Graduation candidates`; each item is a bullet that starts
+`- **P<n>` (or `- **G<n>` for a candidate) followed by its `Target:` line and the decision
+taken. The close-out orient counts plan items only under those two exact headings and only
+in that bullet form (`src/tools/harness.ts`), so a plan with any other heading or bullet
+orients to 0 items. Add the decisions made and the rejected proposals with the reason.
+Implement nothing from it here: the close-out phase does that. Write a HANDOFF row, commit in the spec store
 repo (`docs(sdd): <spec> retrospective plan`; use a script file if `agent-rules.md`
 requires it), then go back to step 3: the plan is `APPROVED`, so the close-out phase
 runs now, in this run.
