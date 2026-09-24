@@ -59,3 +59,35 @@
 
 ## Decomposition
 - .spec-workflow/spec-decomposition/decomposition.md:394-464 — entry 13: measurement, Delivers, Decided, End-to-end verification (1)-(6), Depends on
+
+## Design phase additions — build script and tests
+- scripts/sync-plugin-assets.cjs:85-110 — `buildProfiles` body (docblock 76-84); object literal at 107
+- scripts/sync-plugin-assets.cjs:166 — unconditional `main();` (no exports today)
+- vitest.config.ts:7 — test include is `src/**/*.{test,spec}.{js,ts}` only; a test under `scripts/` would not run
+- src/__tests__/providers-map.test.ts:17-18 — script path resolution pattern for a shipped-script test
+- src/__tests__/hook-spawn-events.test.ts:21-41 — temp checkout, spec dir, scratch `XDG_STATE_HOME` pointer file, `runHook` helper (36-41)
+- src/watch/__tests__/render.test.ts:55 — asserts `declared claude-opus-4-8 high +actual` for the implementation orchestrator
+
+## Design phase additions — watch and usage
+- src/watch/ledger.ts:18-24 — `LedgerEvent` admits any string key
+- src/watch/ledger.ts:65-70 — profile validity check (65-69) and the `{ model, effort, role }` copy (70)
+- src/watch/render.ts:55-58 — `padRight` pads, never truncates
+- src/watch/render.ts:220 — `declared` text; 226 — `padRight(declared, 23)`
+- src/watch/usage.ts:48-55 — `ReducedSpawn`; 57-59 `emptyCell`; 65-69 `addCell`
+- src/watch/usage.ts:131-151 — per-agent, phase-total and provider cell aggregation; 171-181 report totals
+- src/watch/usage.ts:310 — `pair` in the compare table (`- | -` for an absent cell)
+
+## Design phase additions — supervisor
+- harness/skills/sdd-continue/SKILL.md:42-48 — agent prefix detection (bare `sdd-reviewer` means prefix `none`)
+- harness/skills/sdd-continue/SKILL.md:153-156 — Step 3 rule 1, the route into the retrospective
+- harness/skills/sdd-continue/SKILL.md:198-209 — Step 4 dispatch: `subagent_type` is prefix plus agent
+- harness/skills/sdd-continue/references/formats.md:179 — `event.sh` splits each argument at its first `=`
+
+## Design phase additions — live verification environment
+- scripts/dev-link.sh:19 — `CLAUDE_DIR` honours `CLAUDE_CONFIG_DIR`
+- scripts/dev-link.sh:37-38 — links `harness/agents/*.md` and `harness/skills/*` into the config dir
+- scripts/dev-link.sh:50-64 — registers `harness/hooks/sdd-activity.sh` for PreToolUse, SubagentStart, SubagentStop in the config dir settings
+- .mcp.json:1-12 — `spec-workflow` stdio server, `node <checkout>/dist/index.js`
+- harness/hooks/sdd-activity.sh:96 — `ts` shared by the activity line (140) and the `spawn.end` row (157)
+- Probe of the 2.1.281 binary (2026-09-24): `experimental.cacheTtl` (case-insensitive key, values `5m`/`1h`) is read for file agents and plugin agents; no read found for the `--agents` flag path; `CLAUDE_CONFIG_DIR` must be absolute
+- Probe of a live subagent transcript (2026-09-24): top-level `timestamp`; `message.usage.cache_creation` with `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`
