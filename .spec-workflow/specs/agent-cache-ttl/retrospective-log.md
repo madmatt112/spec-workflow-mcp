@@ -79,3 +79,13 @@ Cost: 8 implementer + 2 verifier + 1 log spawn
 C8 live check scenario 1 failed to start: e2e-setup.sh created specs/cache-gap-probe/ in the scratch store at setup, spec-index saw an incomplete spec not in decomposition.md, routing returned ambiguous and the supervisor refused to pick a spec (scenario 5 would hit the same). Overwatch wrote deferred.json into cache-gap-probe (routing all-deferred, fallback picks cache-probe) and patched e2e-setup.sh to write the marker. Lesson: a scratch store for a live check must mark every non-roadmap spec folder deferred.
 Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
 Cost: one failed scenario-1 launch
+
+## 2026-09-24T21:04:59Z · implementation · phase · harness-defect
+Every harness/agents/sdd-*.md frontmatter has been invalid YAML since the agents were written: the unquoted description contains ': '. Claude Code 2.1.282 still reads name/model/effort/tools but silently drops the experimental mapping, so live scenario 1 wrote cw1h 0 / cw5m 49204. A/B by overwatch: same frontmatter, description double-quoted, gave cw1h 33242 / cw5m 0. Fixed on PR #64: all 12 descriptions quoted, sync-plugin-assets fails on invalid agent frontmatter (unit test), launcher unquotes the description.
+Evidence: commit 91d11aa on feat/agent-cache-ttl; overwatch A/B 2026-09-24
+Cost: one failed scenario-1 run; one supervisor fix commit
+
+## 2026-09-24T21:04:59Z · implementation · phase · gotcha
+Design lesson: live scenario (1) caught the invalid-YAML frontmatter; the unit tests passed because sync-plugin-assets.cjs used its own lenient line parser, which reads what Claude Code drops. Blocking the PR on the live checks (gate A) paid off. Skill SKILL.md descriptions carry the same unquoted ': ' pattern and are not yet checked.
+Evidence: scripts/sync-plugin-assets.cjs buildProfiles; gate A decision 1
+Cost: none beyond the failed run
