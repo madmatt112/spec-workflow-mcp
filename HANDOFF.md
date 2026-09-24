@@ -445,4 +445,4 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Live verification | scenarios (1),(2),(3),(5) stay `pending` in verification-evidence.md; the operator runs design C8's launch sequence pre-merge (dev-link the branch, restart the session, run e2e-setup.sh, launch the three probe sessions, run recompute.mjs, mark the evidence lines `passed`). The evidence file blocks the retrospective until every line reads `passed` (D10, no deferral filed). |
 | Next deferrals worth working | d-9d600d11 (sdd-launch.sh readUsage token inflation, same class as this spec's usage work); d-a38fea66 (verify provider-per-role halves in a restarted session); d-1880d115 (question-gates live gate scenarios) |
 | Gotchas | Only one spec-run subagent transcript carries the ephemeral cache fields; scenario (4) paired it with a second real project transcript. harness/agent-profiles.json is not mirrored into plugins/. |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/64 |
