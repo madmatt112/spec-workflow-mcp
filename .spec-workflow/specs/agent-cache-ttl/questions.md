@@ -21,3 +21,7 @@
 5. **Partial cache split.** When some transcript calls lack the cache_creation split, what does the hook write?
    - options: All three fields unknown (recorded) · Sum the calls that have the split · Unknown for the two write fields only
    - answer: All three fields unknown — not asked: implementation mechanic, decided by the agents
+
+## Gate B
+
+Approved by Matthew (2026-09-24) with these class-a veto items unannotated: task 4 (sensitive path harness/hooks/sdd-activity.sh), tasks 1, 3, 7, 9 (keyword flags).
