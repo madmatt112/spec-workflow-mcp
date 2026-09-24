@@ -14,3 +14,13 @@ Cost: 1 reviewer spawn
 design approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790268343061_7gv3iwvqs; .spec-workflow/specs/agent-cache-ttl/reviews/adversarial-analysis-design.md
 Cost: 1 reviewer + 1 reviser (lint) spawns
+
+## 2026-09-24T17:20:11Z · tasks · v1 · gotcha
+Round 1 converged 0/0/2 (MINOR only). Three drafter RE-DECIDED design literals all ruled refinement/closed by the reviewer: C3/D5 render pad Math.max(23,len+1) vs fixed 24; Testing Strategy keyless-profile case moved to the loader test; C8 recompute.mjs falls back to ~/.claude/projects, missing transcript fails the row. Gate B and Gate C empty.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/agent-cache-ttl/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
+
+## 2026-09-24T17:20:51Z · tasks · phase · cleanup
+tasks approved at v1 after 1 round; verdict trajectory converged 0/0/2 (MINOR only); rulings 0 (three drafter RE-DECIDED design literals ruled refinement/closed by the reviewer); cap not hit; prune removed 0 records and 0 snapshots (2 kept).
+Evidence: approval_1790270412051_s3dxtizxo; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/agent-cache-ttl/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer + 1 reviser spawns

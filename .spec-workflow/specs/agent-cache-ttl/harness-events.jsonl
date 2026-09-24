@@ -66,3 +66,6 @@
 {"ts":"2026-09-24T16:58:52.464Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"lint"}
 {"ts":"2026-09-24T17:08:49.317Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"90","output":"11581","cacheWrite":"120061","cacheRead":"3924474","tokens":"4056206","model":"claude-sonnet-5"}
 {"ts":"2026-09-24T17:08:56.990Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","phase":"tasks","round":"1","result":"11 fixed, 5 rejected"}
+{"ts":"2026-09-24T17:19:51.053Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviewer","input":"26","output":"45556","cacheWrite":"131494","cacheRead":"974150","tokens":"1151226","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T17:19:58.855Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"tasks","round":"1","result":"converged 0/0/2"}
+{"ts":"2026-09-24T17:19:58.878Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"tasks","round":"1","version":"v1","verdict":"converged 0/0/2"}

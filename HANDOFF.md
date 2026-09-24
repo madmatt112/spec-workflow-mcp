@@ -420,3 +420,16 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Cut scope | none. All six decomposition verification scenarios and every delivered artifact are pinned. |
 | Carried items | none ruled out (round 1 converged; 3 MINOR only). Notes for the tasks drafter: (1) C8 is the pre-merge live-verification component — scenarios 1/2/3/5 run in a scratch `CLAUDE_CONFIG_DIR` filled by `dev-link.sh` run against the worktree, because `~/.claude/agents/sdd-*.md` symlink into MAIN's `harness/agents`; evidence lands in the tracked `verification-evidence.md`. Tasks must sequence C8 and the evidence file, and the retrospective's pre-start check on it. (2) `UsageCell` carries per-kind unknown fields `cacheUnknownWrite`/`cacheUnknownGap`; the crit-6 total-cell collapse to `unknown` fires only when the Anthropic spawn count is above 0 (all-DeepSeek total prints `-`). (3) `SubagentStop` hook adds `cacheWrite5m`, `cacheWrite1h`, `gapRewrites` on `spawn.end`. |
 | Next phase loads | after `codebase-context.md`: the approved `design.md` components C1–C8, its Data Models (`spawn.end` row, profile entry, `run.start` row, `verification-evidence.md`) and Testing Strategy; `requirements.md`; `steering/structure.md` as present. |
+
+## agent-cache-ttl — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-24 |
+| Rounds | 1; verdicts converged 0/0/2 (MINOR only) |
+| Approval | `approval_1790270412051_s3dxtizxo` |
+| Rulings | none. Three drafter RE-DECIDED design literals all ruled refinement/closed by the reviewer: C3/D5 (render pad `Math.max(23, len+1)` not fixed 24 — 24 breaks the 80-column render test and changes default line counts, which Req 2.3 forbids); Testing Strategy (keyless-profile case moves from the render test to the loader test); C8 (`recompute.mjs` falls back to `~/.claude/projects`, a missing transcript fails the row per design R1-1). |
+| Cut scope | none. 9 tasks cover every design component C1–C8. Live-verification scenarios (1),(2),(3),(5) stay pending with no deferral (requirements D10); they run in the operator's pre-merge C8 session, not as a task. |
+| Carried items | none. |
+| Gate B | veto list written to slot b for the supervisor; gate B class (a) computed server-side, classes (b)/(c) empty (reviewer round-1 found no `[gate-b]`/`[gate-c]` tasks). |
+| Next phase loads | implementation reads `codebase-context.md`, then `tasks.md` (dependency order 1→2→3, 6/7→8), `design.md` components C1–C8, `requirements.md`; the supervisor reads gate-B slot b before the first implementation spawn. |

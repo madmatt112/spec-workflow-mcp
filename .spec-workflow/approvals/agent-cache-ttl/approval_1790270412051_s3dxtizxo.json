@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790270412051_s3dxtizxo",
+  "title": "agent-cache-ttl tasks v1",
+  "filePath": ".spec-workflow/specs/agent-cache-ttl/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-24T17:20:12.051Z",
+  "category": "spec",
+  "categoryName": "agent-cache-ttl",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: none (three drafter RE-DECIDED design literals ruled refinement/closed by the reviewer); cap: not hit",
+  "respondedAt": "2026-09-24T17:20:16.926Z"
+}
