@@ -92,7 +92,12 @@ Write tool (the script text is in formats.md, with the spec dir, run id and spec
 in), append this run's line to the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
 `<main checkout>\t<spec dir>\t<run id>`, so concurrent runs in other checkouts keep their
-own lines — then `bash <event.sh> run.start model=<your model>
+own lines. On a resumed or re-entered run `<spec dir>/harness-events.jsonl` already exists:
+before the first append, run
+`bash <base dir>/references/truncate-ledger.sh <spec dir>/harness-events.jsonl` to trim a
+torn tail a crashed write left — a trailing partial line or NUL run — keeping the run id and
+every complete row, so crash recovery is one documented step, not manual surgery (retro P4).
+Then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>`
 (`headless=yes` when the AskUserQuestion tool is not available to you). When `PROVIDERS`
 contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`
