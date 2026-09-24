@@ -44,3 +44,8 @@ Cost: 1 implementer spawn
 Hook spawn.end cache fields (design C4): high risk sensitive path harness/hooks/; gate pass then verifier VERDICT pass, 0 findings. 1 implementer + 1 verifier spawn.
 Evidence: task 4; commit 20fe4e4
 Cost: 1 implementer + 1 verifier spawn
+
+## 2026-09-24T19:31:01Z · implementation · task 5 · gotcha
+Usage fold cache columns (design C5): gate pass risk low, 1 spawn, 0 fix rounds.
+Evidence: task 5; commit e6ea481; reviewId 1b7f59f1
+Cost: 1 implementer spawn

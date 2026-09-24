@@ -102,3 +102,9 @@
 {"ts":"2026-09-24T19:21:50.127Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-verifier","input":"16","output":"730","cacheWrite":"58812","cacheRead":"277984","tokens":"337542","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T19:22:01.101Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 4","phase":"implementation","task":"4","result":"VERDICT: pass"}
 {"ts":"2026-09-24T19:22:01.148Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"4","rounds":"0","outcome":"pass"}
+{"ts":"2026-09-24T19:22:08.650Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"5","title":"Usage fold carries the cache numbers and prints three columns"}
+{"ts":"2026-09-24T19:22:10.832Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:30:40.354Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"92","output":"40026","cacheWrite":"99844","cacheRead":"3452827","tokens":"3592789","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:30:48.312Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5 commit e6ea481"}
+{"ts":"2026-09-24T19:31:01.010Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 5 pass risk low"}
+{"ts":"2026-09-24T19:31:01.058Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
