@@ -989,7 +989,7 @@ export function buildReviewMethodology(
   sections.push('## Secondary: Correctness & Hygiene');
   sections.push('');
   sections.push('7. **Error handling**: Check for unhandled error paths, missing try/catch around I/O or network calls, errors that are silently swallowed, and error messages that leak internals. Flag missing validation at system boundaries (user input, API parameters).');
-  sections.push('8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores.');
+  sections.push('8. **Edge cases**: Look for off-by-one errors, null/undefined handling, empty array/string cases, concurrent access issues, and boundary conditions the implementation ignores. In a shell script that runs under `set -u`, flag any optional environment variable read as bare `$VAR` instead of `${VAR:-}` — an unset key aborts the script with an unbound-variable error instead of taking the intended no-value path.');
   if (hasHygieneSignals) {
     sections.push('9. **Hygiene**: Pre-computed hygiene signals are attached in `hygieneSignals` (file, line, pattern). For each: confirm whether it is a genuine leftover vs. intentional (e.g., an error-path `console.error`). Promote real leftovers to findings with `category: \'hygiene\'`. Also check for hygiene issues the grep cannot find: hardcoded secrets, commented-out code, unused imports or variables introduced by this task.');
   } else {

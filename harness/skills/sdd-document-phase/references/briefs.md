@@ -97,7 +97,10 @@ Every later reviewer, reviser and implementer reads it first.
   says to remove it. When a task tells the implementer to stage a scratch store with
   its own event script, give that script an explicit path under the scratch store
   (`<scratch-store>/event.sh`) and state that it must not reuse the supervisor's
-  `EVENT_SCRIPT` path. Start the tasks document with a `Document version: v1` line
+  `EVENT_SCRIPT` path. When a task authors a `set -u` shell script, its prompt says to
+  read every optional environment variable as `${VAR:-}`, never bare `$VAR`, so an
+  unset key takes the intended no-value path instead of aborting on an unbound
+  variable. Start the tasks document with a `Document version: v1` line
   right after the H1.
 - Edit only the document and the context file. Approvals, deferrals, HANDOFF, INDEX and
   every other file belong to the orchestrator.
