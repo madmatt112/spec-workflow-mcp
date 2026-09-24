@@ -17,3 +17,6 @@
 {"ts":"2026-09-24T15:07:39.222Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-document-orchestrator","input":"16","output":"889","cacheWrite":"68965","cacheRead":"430086","tokens":"499956","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T15:08:54.369Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"32","output":"2783","cacheWrite":"44574","cacheRead":"538710","tokens":"586099","model":"claude-sonnet-5"}
 {"ts":"2026-09-24T15:09:02.270Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","phase":"requirements","round":"0","result":"RI-1 accepted, RI-2 rejected (already correct)"}
+{"ts":"2026-09-24T15:10:29.473Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","role":"lint"}
+{"ts":"2026-09-24T15:11:10.126Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviser","input":"20","output":"1118","cacheWrite":"30702","cacheRead":"290291","tokens":"322131","model":"claude-sonnet-5"}
+{"ts":"2026-09-24T15:11:21.474Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","phase":"requirements","round":"1","result":"0 fixed, 29 suppressed per rule 11"}
