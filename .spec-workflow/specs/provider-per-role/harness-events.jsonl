@@ -269,3 +269,47 @@
 {"ts":"2026-09-23T22:51:03.829Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready","phase":"retrospective"}
 {"ts":"2026-09-24T02:30:31.918Z","run":"run-20260923-160920","spec":"provider-per-role","type":"run.end","status":"spec-workflow-mcp:provider-per-role closeout items 0/15 — plan APPROVED; stopped for a restart before close-out"}
 {"ts":"2026-09-24T02:35:43.271Z","run":"run-20260924-023523","spec":"provider-per-role","type":"run.start","model":"claude-opus-5-5","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/provider-per-role","worktree":"yes","headless":"no","providers":"none"}
+{"ts":"2026-09-24T02:36:17.922Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-09-24T02:45:46.445Z","run":"run-20260924-023523","spec":"provider-per-role","type":"phase.start","phase":"closeout","state":"items 0/15"}
+{"ts":"2026-09-24T02:46:19.106Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P1","title":"Require VAR default for env reads in generated set-u shell"}
+{"ts":"2026-09-24T02:46:19.411Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P3","title":"E2E scratch-store tasks name a distinct event-script path"}
+{"ts":"2026-09-24T02:46:19.721Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P5","title":"Same fix as P3 (folded)"}
+{"ts":"2026-09-24T02:46:20.015Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P16","title":"Guard the shared event script path from workers"}
+{"ts":"2026-09-24T02:46:20.307Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"G1","title":"Shared run-ledger paths are supervisor-only (agent-rules)"}
+{"ts":"2026-09-24T02:47:33.316Z","type":"spawn.start","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-24T02:47:56.311Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P2","title":"Supervisor preflights provider secrets before implementation"}
+{"ts":"2026-09-24T02:47:56.673Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P4","title":"Add a ledger truncate-on-resume helper"}
+{"ts":"2026-09-24T02:47:56.992Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P8","title":"Caveat the no-MCP-server line for the eligible reviser"}
+{"ts":"2026-09-24T02:47:57.306Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P11","title":"Reviser must fix every site of a multi-site finding"}
+{"ts":"2026-09-24T02:47:57.646Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P17","title":"Fix the SubagentStop hook usage rows"}
+{"ts":"2026-09-24T02:47:58.062Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P18","title":"Stop duplicate event rows from re-issued event.sh calls"}
+{"ts":"2026-09-24T02:47:58.411Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P19","title":"Route medium risk like low; document docs-only down-rank"}
+{"ts":"2026-09-24T02:47:58.726Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P20","title":"spec-lint coverage rule accepts the component letter"}
+{"ts":"2026-09-24T02:47:59.035Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P21","title":"Spec-store commit script skips gitignored paths"}
+{"ts":"2026-09-24T02:47:59.361Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P22","title":"Name the Approved proposals heading in the retro step"}
+{"ts":"2026-09-24T02:49:02.799Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.end","agent":"sdd-closeout-orchestrator","result":"interrupted","tokens":"unknown","note":"manual stop by Matthew during the store batch; last row spawn.start closeout phase, spawn 1"}
+{"ts":"2026-09-24T03:17:09.709Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"supervisor resumed run after WSL restart and Matthew's continue; scratch scripts rewritten; close-out re-spawned at items 0/15","phase":"closeout"}
+{"ts":"2026-09-24T03:17:09.733Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","phase":"closeout"}
+{"ts":"2026-09-24T03:21:46.298Z","run":"run-20260924-023523","spec":"provider-per-role","type":"phase.start","phase":"closeout","state":"items 0/15"}
+{"ts":"2026-09-24T03:22:48.536Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P1","title":"Require VAR default for env reads in generated shell under set -u"}
+{"ts":"2026-09-24T03:22:48.557Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P3","title":"E2E tasks stage a scratch store with a distinct event-script path"}
+{"ts":"2026-09-24T03:22:48.577Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P5","title":"Same fix as P3 (folded)"}
+{"ts":"2026-09-24T03:22:48.599Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"P16","title":"Guard the shared event.sh EVENT_SCRIPT path from workers"}
+{"ts":"2026-09-24T03:22:48.620Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.pick","task":"G1","title":"Shared run-ledger paths are supervisor-only"}
+{"ts":"2026-09-24T03:24:02.311Z","type":"spawn.start","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-24T03:25:08.350Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"106","output":"2882","cacheWrite":"371083","cacheRead":"3148640","tokens":"3522711","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T03:33:28.576Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-implementer","input":"240","output":"10041","cacheWrite":"237950","cacheRead":"8374504","tokens":"8622735","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T03:34:12.466Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","phase":"closeout","result":"P1 P3 P16 G1 done, P5 folded"}
+{"ts":"2026-09-24T03:34:55.495Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-24T03:34:55.515Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P16 pass risk low"}
+{"ts":"2026-09-24T03:34:55.536Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item G1 pass risk low"}
+{"ts":"2026-09-24T03:34:55.557Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P1 fail risk high (files-list incomplete; re-gating)"}
+{"ts":"2026-09-24T03:35:54.352Z","run":"run-20260924-023523","spec":"provider-per-role","type":"note","text":"gate: item P1 pass risk high (sensitive-path review-task.ts)"}
+{"ts":"2026-09-24T03:36:01.551Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-closeout-orchestrator","input":"146","output":"3251","cacheWrite":"1072521","cacheRead":"4428187","tokens":"5504105","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T03:37:23.811Z","type":"spawn.end","run":"run-20260924-023523","spec":"provider-per-role","agent":"sdd-verifier","input":"52","output":"385","cacheWrite":"91054","cacheRead":"542492","tokens":"633983","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T03:38:52.081Z","run":"run-20260924-023523","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-verifier","role":"verify store batch 1","phase":"closeout","result":"P1 ok VERDICT pass"}
+{"ts":"2026-09-24T03:38:52.102Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-09-24T03:38:52.123Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-24T03:38:52.146Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-09-24T03:38:52.168Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"P16","outcome":"done"}
+{"ts":"2026-09-24T03:38:52.189Z","run":"run-20260924-023523","spec":"provider-per-role","type":"task.done","task":"G1","outcome":"done"}

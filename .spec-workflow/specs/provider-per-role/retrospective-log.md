@@ -159,3 +159,8 @@ Cost: 5 ledger rows misrouted; one supervisor repair
 Retrospective compiled: 16 findings across the categories (2 gotchas, 0 product bugs, 0 tool/MCP, 2 harness defects, 1 prompt, 2 inefficiencies, 3 doc gaps, 1 model behaviour, 2 process/rulings, 2 harness-decisions, 1 repeat pattern). Analyst wrote 16 proposals (6 no-change), 1 decision needed (P4 ledger crash-resilience depth), 1 graduation candidate (shared run-ledger paths are supervisor-only, seen in 3 specs).
 Evidence: retrospective.md; retrospective-proposals.md; retrospective-log.md
 Cost: 1 analyst spawn
+
+## 2026-09-24T03:38:52Z · cleanup · store batch 1 · cleanup
+store items done 5 (P1 P3 P5 P16 G1), to-do 0, skipped 0
+Evidence: gates: P1 high pass+verified, P3/P16/G1 low pass; P5 folded into P3
+Cost: spawns: 1 implementer, 1 verifier

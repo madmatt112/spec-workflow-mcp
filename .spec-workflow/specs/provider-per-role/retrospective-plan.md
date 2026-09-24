@@ -211,3 +211,13 @@ Accepted as no change; no close-out work.
   `sdd-reviewer: deepseek deepseek-v4-pro`, then with every role anthropic, then with the
   key unset. Evidence: the DeepSeek round goes through the launcher, the Anthropic round
   runs as before, the keyless run refuses at start.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P1: done — 3b9b1a0
+- P3: done — d4d3228
+- P5: done — folded into P3 (no separate change)
+- P16: done — 4e1ccca
+- G1: done — 5c33b89
