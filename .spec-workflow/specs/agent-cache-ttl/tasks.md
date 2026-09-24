@@ -27,7 +27,7 @@ Dependency order: task 1 writes `cacheTtl: "default"` for all twelve agents, tas
   - _Requirements: 1.1, 1.2, 1.3, 1.5_
   - _Prompt: Task: Insert the line `experimental: { cacheTtl: 1h }` as a new line 6, directly after `effort: high` (line 5), in the three orchestrator files. Run `node scripts/sync-plugin-assets.cjs` and commit the `plugins/` copies and harness/agent-profiles.json with the three sources. In src/__tests__/agent-profiles.test.ts add one case: `cacheTtl` is `1h` for the three orchestrators and `default` for the other nine, `sdd-retro-orchestrator` included; widen the profile type at :21 to carry `cacheTtl` | Restrictions: No other agent file changes: `grep -ln '^experimental:' harness/agents/*.md` lists exactly the three. The existing cases at :23-41 read `model` from line 4 and `effort` from line 5, which the insert leaves in place, so no value they assert changes | Success: `npx vitest run src/__tests__/agent-profiles.test.ts src/__tests__/sync-plugin-assets.test.ts src/watch/__tests__/ledger.test.ts src/watch/__tests__/render.test.ts` green; `npm run check:plugin-assets` and `claude plugin validate . --strict` at the repository root pass_
 
-- [ ] 3. Watch view shows the declared lifetime
+- [x] 3. Watch view shows the declared lifetime
   - File: src/watch/ledger.ts
   - File: src/watch/render.ts
   - File: src/watch/__tests__/ledger.test.ts

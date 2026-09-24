@@ -34,3 +34,8 @@ Cost: 1 implementer spawn
 One-hour cacheTtl in three orchestrator frontmatters: gate pass risk low, 1 spawn, 0 fix rounds.
 Evidence: task 2; commit 7064099; reviewId fa8a5fc2
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:11:54Z · implementation · task 3 · gotcha
+Watch view declared lifetime: gate pass risk low, 1 spawn, 0 fix rounds. Pad Math.max(23,len+1) keeps default lines at 23.
+Evidence: task 3; commit 129f350; reviewId d672df5f
+Cost: 1 implementer spawn

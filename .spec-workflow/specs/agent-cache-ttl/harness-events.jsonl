@@ -87,3 +87,9 @@
 {"ts":"2026-09-24T19:07:59.415Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","phase":"implementation","task":"2","result":"logged: yes/2 commit 7064099"}
 {"ts":"2026-09-24T19:08:22.415Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 2 pass risk low"}
 {"ts":"2026-09-24T19:08:22.464Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:08:29.019Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"3","title":"Watch view shows the declared lifetime"}
+{"ts":"2026-09-24T19:08:31.769Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:11:34.410Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"34","output":"11248","cacheWrite":"63986","cacheRead":"970145","tokens":"1045413","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:11:41.349Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3 commit 129f350"}
+{"ts":"2026-09-24T19:11:54.419Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 3 pass risk low"}
+{"ts":"2026-09-24T19:11:54.465Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
