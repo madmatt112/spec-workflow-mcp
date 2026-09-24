@@ -39,6 +39,8 @@ export interface AgentProfile {
   model: string;
   effort: string;
   role: string;
+  /** The declared prompt-cache lifetime; absent when the profile omits it or it is `default`. */
+  cacheTtl?: string;
 }
 
 /**
@@ -68,6 +70,7 @@ export function loadAgentProfiles(candidates?: string[]): Record<string, AgentPr
           break;
         }
         out[key] = { model: v.model, effort: v.effort, role: v.role };
+        if (typeof v.cacheTtl === 'string') out[key].cacheTtl = v.cacheTtl;
       }
       if (ok) return out;
     } catch {

@@ -101,7 +101,24 @@ describe('loadAgentProfiles', () => {
   it('loads the generated profiles by default', () => {
     const profiles = loadAgentProfiles();
     expect(Object.keys(profiles)).toHaveLength(12);
-    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker' });
+    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker', cacheTtl: 'default' });
+  });
+
+  it('copies cacheTtl only when the profiles file carries it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'profiles-'));
+    const without = join(dir, 'without.json');
+    const withTtl = join(dir, 'with.json');
+    writeFileSync(without, JSON.stringify({ 'sdd-x': { model: 'm', effort: 'e', role: 'r' } }));
+    writeFileSync(withTtl, JSON.stringify({ 'sdd-x': { model: 'm', effort: 'e', role: 'r', cacheTtl: '1h' } }));
+    try {
+      const a = loadAgentProfiles([without]);
+      expect(a['sdd-x']).toEqual({ model: 'm', effort: 'e', role: 'r' });
+      expect('cacheTtl' in a['sdd-x']).toBe(false);
+      const b = loadAgentProfiles([withTtl]);
+      expect(b['sdd-x']).toEqual({ model: 'm', effort: 'e', role: 'r', cacheTtl: '1h' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

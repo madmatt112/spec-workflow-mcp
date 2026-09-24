@@ -50,9 +50,12 @@ describe('render', () => {
     expect(out).toContain('+ design         v1          approved   converged round 1');
     expect(out).toContain('> implementation tasks 2/8      spawn 1 | since');
     // Orchestrator: running, its last tool call was 11:45 ago. The head line drops the model
-    // and effort columns; the tier line below shows the declared profile with an empty actual.
+    // and effort columns; the tier line below shows the declared profile (with its 1h cache
+    // lifetime), a space before the empty actual.
     expect(out).toMatch(/> sdd-implementation-orchestrator\s+implementation phase, spawn 1\s+11:50\s+\* 11:45/);
-    expect(out).toMatch(/declared claude-opus-4-8 high +actual *$/m);
+    expect(out).toMatch(/declared claude-opus-4-8 high 1h +actual *$/m);
+    // A space always sits between the lifetime and the actual word.
+    expect(out).toContain('claude-opus-4-8 high 1h actual');
     expect(out).toContain('+ 2 done, last 2  Tables and migration');
     expect(out).toContain('> 3  API errors and query layer');
     expect(out).toMatch(/> sdd-implementer\s+implement task 3\s+10:55\s+\* 7:30/);
