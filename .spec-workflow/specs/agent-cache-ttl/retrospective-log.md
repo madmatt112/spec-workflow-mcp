@@ -89,3 +89,8 @@ Cost: one failed scenario-1 run; one supervisor fix commit
 Design lesson: live scenario (1) caught the invalid-YAML frontmatter; the unit tests passed because sync-plugin-assets.cjs used its own lenient line parser, which reads what Claude Code drops. Blocking the PR on the live checks (gate A) paid off. Skill SKILL.md descriptions carry the same unquoted ': ' pattern and are not yet checked.
 Evidence: scripts/sync-plugin-assets.cjs buildProfiles; gate A decision 1
 Cost: none beyond the failed run
+
+## 2026-09-24T21:27:42Z · implementation · phase · harness-defect
+Since PR #62 P17 the SubagentStop marker let only the first SubagentStop of a spawn write spawn.end. An orchestrator with background children yields, fires SubagentStop, resumes and keeps working, so its row held its usage at the first yield: scenario (3) rows matched the transcript only up to the row ts (49204/0 then 6 unrecorded calls; 0/61425 then 4), below the full recompute (53309, 62199). Every orchestrator token figure since P17 is an undercount. Fixed on PR #64: the hook writes a new spawn.end with agentId whenever usage changed, usage.ts and ledger.ts keep the latest row per agentId, recompute.mjs compares only the latest row.
+Evidence: commit 59a6374 on feat/agent-cache-ttl; overwatch scenario (3) evidence 2026-09-24
+Cost: two scenario runs; one supervisor fix commit
