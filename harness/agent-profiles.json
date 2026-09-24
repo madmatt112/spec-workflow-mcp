@@ -1,7 +1,7 @@
 {
   "sdd-adjudicator": {
     "model": "claude-opus-5-5",
-    "effort": "xhigh",
+    "effort": "high",
     "role": "adjudicator"
   },
   "sdd-checker": {
@@ -21,7 +21,7 @@
   },
   "sdd-drafter": {
     "model": "claude-opus-5-5",
-    "effort": "xhigh",
+    "effort": "high",
     "role": "drafter"
   },
   "sdd-implementation-orchestrator": {
