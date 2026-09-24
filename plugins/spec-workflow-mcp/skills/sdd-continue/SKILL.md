@@ -76,6 +76,12 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
   missing key) print its stderr line, the roots line (step 6) and the status line
   `<project>:- - refused — <the stderr line>`, then stop, so the run-ledger paragraph
   never runs and no run id, `event.sh`, pointer line or `run.start` exists (D5, D14).
+  This is the provider-secret preflight: `sdd-providers.sh` checks that every non-Anthropic
+  provider named in `## Providers` has its required key exported (exit 3 names the missing
+  key), and it runs at the start of every run — including a resume that begins at the
+  implementation phase — so a missing key stops the run here, with a plain-text ask up front,
+  instead of burning a provider-routed spawn and a mid-phase escalation that blocks dependent
+  tasks (retro P2).
 
 Say which roots you resolved in the handoff line (step 6).
 
