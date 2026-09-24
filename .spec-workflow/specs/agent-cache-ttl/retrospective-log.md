@@ -59,3 +59,8 @@ Cost: 1 implementer spawn
 Verification-only task (design C8 kit + pending evidence file): no gate, no verifier (retro P15, verifier-skipped by policy). Checks bash -n, node --check, grep -c 4 passed. Evidence committed in spec store.
 Evidence: task 7; evidence commit 73c2d45; logged yes/7
 Cost: 1 implementer spawn
+
+## 2026-09-24T19:48:13Z · implementation · task 8 · gotcha
+Supervisor cacheTtl record + retro block on unpassed evidence (design C7): gate pass risk low, 1 spawn, 0 fix rounds.
+Evidence: task 8; commit e57d84c; reviewId 9bbf1f52
+Cost: 1 implementer spawn

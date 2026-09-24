@@ -119,3 +119,9 @@
 {"ts":"2026-09-24T19:43:59.468Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"52","output":"2998","cacheWrite":"96665","cacheRead":"1830864","tokens":"1930579","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T19:44:11.590Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 7","phase":"implementation","task":"7","result":"logged: yes/7 evidence commit 73c2d45"}
 {"ts":"2026-09-24T19:44:11.640Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"7","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-24T19:44:19.793Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.pick","task":"8","title":"Supervisor records cacheTtl and blocks retrospective on unpassed evidence"}
+{"ts":"2026-09-24T19:44:21.906Z","type":"spawn.start","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-24T19:47:46.088Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-implementer","input":"60","output":"4844","cacheWrite":"60295","cacheRead":"1642321","tokens":"1707520","model":"claude-opus-4-8"}
+{"ts":"2026-09-24T19:47:53.219Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","phase":"implementation","task":"8","result":"logged: yes/8 commit e57d84c"}
+{"ts":"2026-09-24T19:48:13.619Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"note","text":"gate: task 8 pass risk low"}
+{"ts":"2026-09-24T19:48:13.668Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
