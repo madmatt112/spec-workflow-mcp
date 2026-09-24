@@ -18,7 +18,7 @@ function frontmatterValue(agentFile: string, line: number): string {
 
 describe('harness/agent-profiles.json', () => {
   const text = readFileSync(PROFILES_PATH, 'utf8');
-  const profiles = JSON.parse(text) as Record<string, { model: string; effort: string; role: string }>;
+  const profiles = JSON.parse(text) as Record<string, { model: string; effort: string; role: string; cacheTtl: string }>;
 
   it('has one entry per agent frontmatter (12 keys)', () => {
     expect(Object.keys(profiles)).toHaveLength(12);
@@ -34,6 +34,17 @@ describe('harness/agent-profiles.json', () => {
   it('records sdd-checker as claude-sonnet-5 high', () => {
     expect(profiles['sdd-checker'].model).toBe('claude-sonnet-5');
     expect(profiles['sdd-checker'].effort).toBe('high');
+  });
+
+  it('records cacheTtl as 1h for the three orchestrators and default for the other nine', () => {
+    const orchestrators = [
+      'sdd-document-orchestrator',
+      'sdd-implementation-orchestrator',
+      'sdd-closeout-orchestrator',
+    ];
+    for (const key of Object.keys(profiles)) {
+      expect(profiles[key].cacheTtl).toBe(orchestrators.includes(key) ? '1h' : 'default');
+    }
   });
 
   it('re-serialises byte for byte', () => {
