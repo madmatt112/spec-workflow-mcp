@@ -241,7 +241,7 @@ continue the sdd process
 or `/spec-workflow-harness:sdd-continue`. Headless:
 
 ```bash
-claude -p "continue the sdd process" --model opus --effort xhigh --permission-mode auto
+claude -p "continue the sdd process" --model opus --effort high --permission-mode auto
 ```
 
 The supervisor refuses to start on a model below Opus 5.5 or Fable 5.1 and tells you which
@@ -291,7 +291,7 @@ Keep it short and imperative. Every worker reads it on every spawn.
 | --- | --- | --- |
 | Supervisor (main session, no agent file, outside the generated profiles) | the session's model, at least Opus 5.5 (`claude-opus-5-5`) or Fable 5.1 (`claude-fable-5-1`) | the session's effort |
 | Orchestrators (four), `sdd-retro-analyst` | Opus 4.8 (`claude-opus-4-8`) | high |
-| `sdd-drafter`, `sdd-adjudicator` | Opus 5.5 (`claude-opus-5-5`) | xhigh |
+| `sdd-drafter`, `sdd-adjudicator` | Opus 5.5 (`claude-opus-5-5`) | high |
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
 | `sdd-reviser`, `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
 

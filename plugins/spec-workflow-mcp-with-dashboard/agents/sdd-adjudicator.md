@@ -2,7 +2,7 @@
 name: sdd-adjudicator
 description: SDD adjudicator: the escalation model. Runs the post-cap corrective pass on a document (fix or rule out every open item, write the post-cap version) and rules on task-review deadlocks. Spawned with "Read and execute the instructions in <brief>"; not for direct use.
 model: claude-opus-5-5
-effort: xhigh
+effort: high
 color: purple
 tools:
   - Read
