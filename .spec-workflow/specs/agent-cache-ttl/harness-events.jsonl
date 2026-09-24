@@ -55,3 +55,5 @@
 {"ts":"2026-09-24T16:45:20.338Z","type":"spawn.end","run":"run-20260924-142847","spec":"agent-cache-ttl","agent":"sdd-reviewer","input":"32","output":"63117","cacheWrite":"150186","cacheRead":"1341409","tokens":"1554744","model":"claude-opus-4-8"}
 {"ts":"2026-09-24T16:45:35.359Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-reviewer","role":"reviewer","phase":"design","round":"1","result":"converged 0/0/3"}
 {"ts":"2026-09-24T16:45:35.381Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"round","phase":"design","round":"1","version":"v1","verdict":"converged 0/0/3"}
+{"ts":"2026-09-24T16:47:16.364Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"phase.end","phase":"design","result":"approved","state":"v1","note":"1 round, converged clean (0/0/3)"}
+{"ts":"2026-09-24T16:47:31.369Z","run":"run-20260924-142847","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-document-orchestrator","role":"design phase, spawn 1","result":"approved","phase":"design"}
