@@ -155,6 +155,22 @@ describe('checkCoverage', () => {
       { file: '', line: 1, rule: 'coverage-unchecked', severity: 'info', message: 'design.md has no components section; coverage not checked' },
     ]);
   });
+
+  it('matches a "Component <letter>" task mention to a letter-prefixed design heading (retro P20)', () => {
+    const lettered = designComponents([
+      '## Components and Interfaces',
+      '### A. Shared defaults',
+      '### B. Provider map',
+      '## Data Models',
+    ])!;
+    const tasksLines = [
+      '- [ ] 1. Build shared defaults',
+      '  - _Prompt: Task: implement Component A | Restrictions: none | Success: done_',
+    ];
+    expect(checkCoverage(tasksLines, taskBlocks(tasksLines), lettered)).toEqual([
+      { file: '', line: 1, rule: 'coverage-component', severity: 'error', message: 'design component "B. Provider map" is covered by no task (design.md line 3)' },
+    ]);
+  });
 });
 
 describe('checkBridges', () => {
