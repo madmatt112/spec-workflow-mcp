@@ -267,3 +267,4 @@
 {"ts":"2026-09-23T22:50:49.111Z","run":"run-20260923-160920","spec":"provider-per-role","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-09-23T22:50:59.765Z","type":"spawn.end","run":"run-20260923-160920","spec":"provider-per-role","agent":"sdd-retro-orchestrator","input":"142","output":"506","cacheWrite":"315812","cacheRead":"3735216","tokens":"4051676","model":"claude-opus-4-8"}
 {"ts":"2026-09-23T22:51:03.829Z","run":"run-20260923-160920","spec":"provider-per-role","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready","phase":"retrospective"}
+{"ts":"2026-09-24T02:30:31.918Z","run":"run-20260923-160920","spec":"provider-per-role","type":"run.end","status":"spec-workflow-mcp:provider-per-role closeout items 0/15 — plan APPROVED; stopped for a restart before close-out"}
