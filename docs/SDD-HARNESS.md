@@ -309,8 +309,9 @@ it resolves to the newest Opus.
 A role assigned `deepseek` in `## Providers` does not run as an Agent-tool subagent. It runs
 as a `claude -p` child with its own environment, launched through the supervisor's per-run
 `launch.sh`; the session itself never changes provider. The child is given only the agent's
-frontmatter tools and no MCP server, and its declared effort is not applied because the
-DeepSeek endpoint ignores it.
+frontmatter tools and no MCP server — except `sdd-reviser`, whose frontmatter carries the
+`adversarial-response` tool, so the launcher passes it `--mcp-config` because that tool needs
+the server — and its declared effort is not applied because the DeepSeek endpoint ignores it.
 
 ## Watching a run
 
