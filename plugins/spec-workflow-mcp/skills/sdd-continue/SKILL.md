@@ -54,6 +54,14 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
    and continue: `warning: the installed plugin differs from <source>/plugins/<plugin>;
    refresh it (uninstall, then install at this scope) unless that is intended`. Keep the
    `source` value: it is `HARNESS_REPO` in every launch prompt.
+5. **Cache lifetime.** Run `bash <base dir>/references/sdd-cache-ttl.sh` (the base dir named
+   in item 4) and keep the text after `cacheTtl=` on its stdout line as `CACHE_TTL`. When
+   `CACHE_TTL` is not `per-agent`, print one warning line and continue, as item 4 does:
+   `warning: cacheTtl unknown — orchestrators' cache lifetime could not be read; continuing`
+   for `unknown`, else `warning: cacheTtl <VALUE> — orchestrators will not get the one-hour
+   cache from frontmatter; continuing`. Never repeat the warning, stop the run, or change a
+   setting; your own cache lifetime (a main session, already one hour) and the item 1 model
+   preflight are unchanged. Keep `CACHE_TTL`: the `run.start` call (step 1) records it.
 
 ## 1. Roots (workspace contract v2)
 
@@ -98,7 +106,8 @@ before the first append, run
 torn tail a crashed write left — a trailing partial line or NUL run — keeping the run id and
 every complete row, so crash recovery is one documented step, not manual surgery (retro P4).
 Then `bash <event.sh> run.start model=<your model>
-specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>`
+specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>
+cacheTtl=<CACHE_TTL>`
 (`headless=yes` when the AskUserQuestion tool is not available to you). When `PROVIDERS`
 contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`
 with the Write tool from the `## Launcher (launch.sh)` text in `references/formats.md`,
@@ -152,7 +161,11 @@ Apply these rules in order; the first match wins.
 
 1. `overallStatus == completed` and `specs/<spec>/retrospective-log.md` exists and
    `specs/<spec>/retrospective-plan.md` either does not exist or has
-   `Status: DRAFT` ⇒ phase **retrospective**. With an existing `retrospective.md` and
+   `Status: DRAFT` ⇒ phase **retrospective**. Before the retrospective phase, when
+   `specs/<spec>/verification-evidence.md` exists and any line that starts with `- (` does
+   not carry `passed` as its status word (the word after `- (N) `), print the status line
+   with `retrospective blocked — verification-evidence.md (N) STATUS` — naming the first
+   such line's number and status word — and stop. With an existing `retrospective.md` and
    `retrospective-proposals.md`, skip the orchestrator and go straight to step 5.
 2. `overallStatus == completed` and `retrospective-plan.md` has `Status: APPROVED` ⇒
    phase **closeout**: the approved plan is implemented before the next spec starts.

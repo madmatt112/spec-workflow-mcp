@@ -39,6 +39,8 @@ export interface AgentProfile {
   model: string;
   effort: string;
   role: string;
+  /** The declared prompt-cache lifetime; absent when the profile omits it or it is `default`. */
+  cacheTtl?: string;
 }
 
 /**
@@ -68,6 +70,7 @@ export function loadAgentProfiles(candidates?: string[]): Record<string, AgentPr
           break;
         }
         out[key] = { model: v.model, effort: v.effort, role: v.role };
+        if (typeof v.cacheTtl === 'string') out[key].cacheTtl = v.cacheTtl;
       }
       if (ok) return out;
     } catch {
@@ -111,6 +114,8 @@ export interface SpawnNode {
   lastActivityAt?: string;
   lastTool?: string;
   lastSummary?: string;
+  /** The Claude Code agent id from the hook's spawn.end, when it carried one. */
+  agentId?: string;
   /** Orchestrators are spawned by the supervisor; everything else by an orchestrator. */
   level: 1 | 2;
 }
@@ -281,8 +286,12 @@ export function buildModel(input: {
         level: agent.endsWith('-orchestrator') ? 1 : 2,
       });
     } else if (e.type === 'spawn.end') {
-      const open = spawns.find(s => s.agent === e.agent && !s.endedAt && ms(s.startedAt) <= ms(e.ts));
+      // A yielding orchestrator gets one spawn.end per SubagentStop; a later row with an
+      // agentId already paired updates that node, so its tokens are the final total.
+      const open = (e.agentId !== undefined ? spawns.find(s => s.agentId === e.agentId) : undefined)
+        ?? spawns.find(s => s.agent === e.agent && !s.endedAt && ms(s.startedAt) <= ms(e.ts));
       if (open) {
+        if (e.agentId !== undefined) open.agentId = e.agentId;
         open.endedAt = e.ts;
         open.result = e.result;
         if (e.tokens && !Number.isNaN(Number(e.tokens))) open.tokens = Number(e.tokens);

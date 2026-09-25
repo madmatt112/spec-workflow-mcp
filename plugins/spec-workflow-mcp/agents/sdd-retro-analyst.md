@@ -1,6 +1,6 @@
 ---
 name: sdd-retro-analyst
-description: SDD retrospective analyst: turns a completed spec's retrospective.md findings into retrospective-proposals.md with target surface, effort, risk, prerequisites, decisions needed, and graduation candidates. Spawned by the retro orchestrator; not for direct use.
+description: "SDD retrospective analyst: turns a completed spec's retrospective.md findings into retrospective-proposals.md with target surface, effort, risk, prerequisites, decisions needed, and graduation candidates. Spawned by the retro orchestrator; not for direct use."
 model: claude-opus-4-8
 effort: high
 color: purple

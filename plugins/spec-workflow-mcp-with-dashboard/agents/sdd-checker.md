@@ -1,6 +1,6 @@
 ---
 name: sdd-checker
-description: SDD checker: runs the narrow post-cap check on a document (verifies only that each listed item was fixed or ruled out in the adjudicated version, writes the VERIFIED line). Spawned with exactly "Read and execute the instructions in <prompt path>"; not for direct use.
+description: "SDD checker: runs the narrow post-cap check on a document (verifies only that each listed item was fixed or ruled out in the adjudicated version, writes the VERIFIED line). Spawned with exactly \"Read and execute the instructions in <prompt path>\"; not for direct use."
 model: claude-sonnet-5
 effort: high
 color: cyan

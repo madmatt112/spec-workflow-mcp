@@ -59,6 +59,7 @@ const body = m ? m[2] : text;
 let desc = "";
 const dm = fm.match(/^description:\s*(.*)$/m);
 if (dm) desc = dm[1].trim();
+if (desc.startsWith("\"")) desc = JSON.parse(desc);
 const tools = [];
 let inTools = false;
 for (const ln of fm.split("\n")) {

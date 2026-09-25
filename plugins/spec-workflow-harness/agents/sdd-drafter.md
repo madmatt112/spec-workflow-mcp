@@ -1,6 +1,6 @@
 ---
 name: sdd-drafter
-description: SDD drafter: writes version 1 of a requirements, design, or tasks document from a brief file. Spawned by the document orchestrator with "Read and execute the instructions in <brief>"; not for direct use.
+description: "SDD drafter: writes version 1 of a requirements, design, or tasks document from a brief file. Spawned by the document orchestrator with \"Read and execute the instructions in <brief>\"; not for direct use."
 model: claude-opus-5-5
 effort: high
 color: green

@@ -332,7 +332,31 @@ describe('sdd-activity.sh spawn events', () => {
     runHook(payload); // a re-fired yield of the same spawn
     const events = eventLines();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementation-orchestrator' });
+    expect(events[0]).toMatchObject({ type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'a9' });
+  });
+
+  it('writes a new spawn.end with the final total when an orchestrator yields, resumes and makes more calls', async () => {
+    const p = join(root, 'orchestrator.jsonl');
+    const call = (id: string, n: number) => JSON.stringify({
+      type: 'assistant',
+      message: { id, model: 'claude-opus-4-8', usage: { input_tokens: n, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+    });
+    const payload = {
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-document-orchestrator',
+      session_id: 's7',
+      agent_id: 'a7',
+      agent_transcript_path: p,
+    };
+    await fs.writeFile(p, call('m1', 10) + '\n');
+    runHook(payload); // first yield: 10 + 1
+    await fs.appendFile(p, call('m2', 20) + '\n' + call('m3', 30) + '\n');
+    runHook(payload); // resumed, two more calls, stops again
+    runHook(payload); // re-fire with nothing new
+    const events = eventLines();
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.tokens)).toEqual(['11', '63']);
+    expect(events.every((e) => e.agentId === 'a7')).toBe(true);
   });
 
   it('writes no spawn.start when the prompt carries no brief path', () => {
@@ -345,5 +369,134 @@ describe('sdd-activity.sh spawn events', () => {
       },
     });
     expect(eventLines()).toHaveLength(0);
+  });
+
+  // Requirement 3 (design C4): the three cache fields on spawn.end. Each fixture carries a
+  // top-level timestamp and message.usage.cache_creation; every expected value below is
+  // computed from these literals.
+  const cacheBase = Date.parse('2026-09-24T10:00:00.000Z');
+  function rand(): string {
+    return Math.random().toString(36).slice(2);
+  }
+  // One usage object with cache_creation carrying the two ephemeral splits.
+  function cc(w5: number, w1: number, write = 0, input = 0, read = 0): Record<string, unknown> {
+    return {
+      input_tokens: input,
+      output_tokens: 0,
+      cache_creation_input_tokens: write,
+      cache_read_input_tokens: read,
+      cache_creation: { ephemeral_5m_input_tokens: w5, ephemeral_1h_input_tokens: w1 },
+    };
+  }
+  async function writeCacheTranscript(
+    calls: Array<{ id: string; offsetMs?: number; usage: Record<string, unknown> }>,
+  ): Promise<string> {
+    const lines = calls.map((c) => JSON.stringify({
+      type: 'assistant',
+      timestamp: c.offsetMs === undefined ? undefined : new Date(cacheBase + c.offsetMs).toISOString(),
+      message: { id: c.id, model: 'claude-opus-4-8', usage: c.usage },
+    }));
+    const p = join(root, `cache-${rand()}.jsonl`);
+    await fs.writeFile(p, lines.join('\n') + '\n');
+    return p;
+  }
+  function endRow(payload: Record<string, unknown>): Record<string, unknown> {
+    runHook({
+      hook_event_name: 'SubagentStop',
+      agent_type: 'sdd-implementer',
+      session_id: `s-${rand()}`,
+      agent_id: `a-${rand()}`,
+      ...payload,
+    });
+    const events = eventLines();
+    return events[events.length - 1];
+  }
+
+  it('sums the 5m and 1h ephemeral writes across calls; no gap under 300 s (Req 3)', async () => {
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: cc(30, 0) },
+      { id: 'm2', offsetMs: 10000, usage: cc(0, 40) },
+    ]);
+    expect(endRow({ agent_transcript_path: p })).toMatchObject({
+      type: 'spawn.end',
+      cacheWrite5m: String(30 + 0),
+      cacheWrite1h: String(0 + 40),
+      gapRewrites: '0',
+    });
+  });
+
+  it('counts a multi-block message once for the cache write sums (Req 3)', async () => {
+    const u = cc(12, 3);
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: u },
+      { id: 'm1', offsetMs: 0, usage: u }, // second content block, same message.id
+      { id: 'm2', offsetMs: 5000, usage: cc(0, 7) },
+    ]);
+    expect(endRow({ agent_transcript_path: p })).toMatchObject({
+      cacheWrite5m: String(12 + 0),
+      cacheWrite1h: String(3 + 7),
+      gapRewrites: '0',
+    });
+  });
+
+  it('counts a call more than 300 s after a large-write predecessor as a gap rewrite (Req 3)', async () => {
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: cc(0, 0, 0, 100, 0) }, // prefix = 100
+      { id: 'm2', offsetMs: 400000, usage: cc(60, 0, 60, 0, 0) }, // 60 > 100/2, gap 400 s
+    ]);
+    expect(endRow({ agent_transcript_path: p })).toMatchObject({
+      cacheWrite5m: '60',
+      cacheWrite1h: '0',
+      gapRewrites: '1',
+    });
+  });
+
+  it('does not count a gap rewrite when the write is at or below half the prefix (Req 3)', async () => {
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: cc(0, 0, 0, 100, 0) }, // prefix = 100
+      { id: 'm2', offsetMs: 400000, usage: cc(10, 0, 10, 0, 0) }, // 10 < 100/2
+    ]);
+    expect(endRow({ agent_transcript_path: p })).toMatchObject({
+      cacheWrite5m: '10',
+      cacheWrite1h: '0',
+      gapRewrites: '0',
+    });
+  });
+
+  it('does not count a large write inside 300 s as a gap rewrite (Req 3)', async () => {
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: cc(0, 0, 0, 100, 0) }, // prefix = 100
+      { id: 'm2', offsetMs: 100000, usage: cc(80, 0, 80, 0, 0) }, // 80 > 50 but gap 100 s
+    ]);
+    expect(endRow({ agent_transcript_path: p })).toMatchObject({
+      cacheWrite5m: '80',
+      cacheWrite1h: '0',
+      gapRewrites: '0',
+    });
+  });
+
+  it('writes three unknown cache fields when a counted call lacks cache_creation (Req 3)', async () => {
+    const p = await writeCacheTranscript([
+      { id: 'm1', offsetMs: 0, usage: cc(5, 5) },
+      { id: 'm2', offsetMs: 5000, usage: { input_tokens: 10, output_tokens: 2, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+    ]);
+    const row = endRow({ agent_transcript_path: p });
+    expect(row).toMatchObject({
+      cacheWrite5m: 'unknown',
+      cacheWrite1h: 'unknown',
+      gapRewrites: 'unknown',
+    });
+    // The token totals stay intact: input 0+10, output 0+2, no write or read.
+    expect(row.tokens).toBe(String(10 + 2));
+  });
+
+  it('writes three unknown cache fields when there is no transcript (Req 3)', () => {
+    expect(endRow({})).toMatchObject({
+      type: 'spawn.end',
+      tokens: 'unknown',
+      cacheWrite5m: 'unknown',
+      cacheWrite1h: 'unknown',
+      gapRewrites: 'unknown',
+    });
   });
 });

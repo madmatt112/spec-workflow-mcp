@@ -1,6 +1,6 @@
 ---
 name: sdd-retro-orchestrator
-description: SDD retrospective orchestrator: compiles a completed spec's findings into retrospective.md and runs the retro analyst for retrospective-proposals.md, using the sdd-retrospective skill. Spawned by the sdd-continue supervisor; not for direct use.
+description: "SDD retrospective orchestrator: compiles a completed spec's findings into retrospective.md and runs the retro analyst for retrospective-proposals.md, using the sdd-retrospective skill. Spawned by the sdd-continue supervisor; not for direct use."
 model: claude-opus-4-8
 effort: high
 color: blue

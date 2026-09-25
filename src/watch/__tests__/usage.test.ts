@@ -2,8 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { buildUsageReport, usageDelta, formatUsageTable, UsageReport } from '../usage.js';
+import { buildUsageReport, usageDelta, formatUsageTable, UsageReport, UsageCell } from '../usage.js';
 import { LedgerEvent, parseJsonl } from '../ledger.js';
+
+/** A full UsageCell from a partial; the five cache fields default to 0 (design C5). */
+function ce(p: Partial<UsageCell> & Pick<UsageCell, 'spawns' | 'tokens' | 'unknown'>): UsageCell {
+  return { cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, ...p };
+}
 
 /** The committed new-shape ledger, shared with the index and harness-tool tests (D8). */
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '../../__tests__/fixtures/usage-ledger.jsonl');
@@ -46,7 +51,7 @@ describe('buildUsageReport — spawn opening rules (Req 5.4)', () => {
       ev('spawn.end', { agent: 'sdd-checker', phase: 'requirements', tokens: '999' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual({ spawns: 1, tokens: 500, unknown: 0 });
+    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual(ce({ spawns: 1, tokens: 500, unknown: 0, cacheUnknownWrite: 1 }));
     expect(cell(r, 'requirements', 'sdd-checker')).toBeUndefined();
     expect(r.total.spawns).toBe(1);
   });
@@ -57,7 +62,7 @@ describe('buildUsageReport — spawn opening rules (Req 5.4)', () => {
       ev('spawn.usage', { agent: 'sdd-reviewer', phase: 'requirements', tokens: '200' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual({ spawns: 2, tokens: 300, unknown: 0 });
+    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual(ce({ spawns: 2, tokens: 300, unknown: 0, cacheUnknownWrite: 2 }));
   });
 
   it('every closing row up to the next spawn.start counts once', () => {
@@ -68,7 +73,7 @@ describe('buildUsageReport — spawn opening rules (Req 5.4)', () => {
       ev('spawn.end', { agent: 'sdd-retro-analyst', tokens: '45675' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'retrospective', 'sdd-retro-analyst')).toEqual({ spawns: 1, tokens: 45675, unknown: 0 });
+    expect(cell(r, 'retrospective', 'sdd-retro-analyst')).toEqual(ce({ spawns: 1, tokens: 45675, unknown: 0, cacheUnknownWrite: 1 }));
   });
 });
 
@@ -102,6 +107,18 @@ describe('buildUsageReport — token source rules', () => {
     const r = buildUsageReport(rows, 's');
     expect(cell(r, 'requirements', 'sdd-drafter')?.tokens).toBe(200);
   });
+
+  it('a yielding orchestrator counts once, at its latest spawn.end, even after a later start of the same agent', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o1', tokens: '100' }),
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o1', tokens: '250' }),
+      ev('spawn.end', { agent: 'sdd-document-orchestrator', agentId: 'o2', tokens: '40' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'design', 'sdd-document-orchestrator')).toMatchObject({ spawns: 2, tokens: 290 });
+  });
 });
 
 describe('buildUsageReport — unknown mark (D6)', () => {
@@ -110,7 +127,7 @@ describe('buildUsageReport — unknown mark (D6)', () => {
       ev('spawn.usage', { agent: 'sdd-verifier', phase: 'implementation', tokens: 'na' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'implementation', 'sdd-verifier')).toEqual({ spawns: 1, tokens: 0, unknown: 1 });
+    expect(cell(r, 'implementation', 'sdd-verifier')).toEqual(ce({ spawns: 1, tokens: 0, unknown: 1, cacheUnknownWrite: 1 }));
   });
 
   it('does not mark a token-less spawn (no tokens key anywhere)', () => {
@@ -119,7 +136,7 @@ describe('buildUsageReport — unknown mark (D6)', () => {
       ev('spawn.end', { agent: 'sdd-document-orchestrator' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'requirements', 'sdd-document-orchestrator')).toEqual({ spawns: 1, tokens: 0, unknown: 0 });
+    expect(cell(r, 'requirements', 'sdd-document-orchestrator')).toEqual(ce({ spawns: 1, tokens: 0, unknown: 0, cacheUnknownWrite: 1 }));
   });
 
   it('sums a 0 as a known zero, unmarked', () => {
@@ -128,7 +145,7 @@ describe('buildUsageReport — unknown mark (D6)', () => {
       ev('spawn.end', { agent: 'sdd-drafter', tokens: '0' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual({ spawns: 1, tokens: 0, unknown: 0 });
+    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual(ce({ spawns: 1, tokens: 0, unknown: 0, cacheUnknownWrite: 1 }));
   });
 });
 
@@ -160,7 +177,7 @@ describe('buildUsageReport — provider fold (Req 5.1, 5.2)', () => {
     const r = buildUsageReport(rows, 's');
     expect(cell(r, 'requirements', 'sdd-reviewer')?.tokens).toBe(100);
     expect(phase(r, 'requirements')?.providers.anthropic.tokens).toBe(100);
-    expect(phase(r, 'requirements')?.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0 });
+    expect(phase(r, 'requirements')?.providers.deepseek).toEqual(ce({ spawns: 0, tokens: 0, unknown: 0 }));
   });
 
   it('keys a deepseek spawn @deepseek and leaves the anthropic key for the same agent', () => {
@@ -171,11 +188,11 @@ describe('buildUsageReport — provider fold (Req 5.1, 5.2)', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '250', provider: 'deepseek' }),
     ];
     const r = buildUsageReport(rows, 's');
-    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual({ spawns: 1, tokens: 100, unknown: 0 });
-    expect(cell(r, 'requirements', 'sdd-reviewer@deepseek')).toEqual({ spawns: 1, tokens: 250, unknown: 0 });
+    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual(ce({ spawns: 1, tokens: 100, unknown: 0, cacheUnknownWrite: 1 }));
+    expect(cell(r, 'requirements', 'sdd-reviewer@deepseek')).toEqual(ce({ spawns: 1, tokens: 250, unknown: 0 }));
     const p = phase(r, 'requirements');
-    expect(p?.providers.anthropic).toEqual({ spawns: 1, tokens: 100, unknown: 0 });
-    expect(p?.providers.deepseek).toEqual({ spawns: 1, tokens: 250, unknown: 0 });
+    expect(p?.providers.anthropic).toEqual(ce({ spawns: 1, tokens: 100, unknown: 0, cacheUnknownWrite: 1 }));
+    expect(p?.providers.deepseek).toEqual(ce({ spawns: 1, tokens: 250, unknown: 0 }));
     expect(r.providers.anthropic.tokens).toBe(100);
     expect(r.providers.deepseek.tokens).toBe(250);
   });
@@ -313,11 +330,11 @@ describe('formatUsageTable — two specs', () => {
     const text = formatUsageTable(a, b);
     expect(text).toContain('usage left  runs 0  spawns 1  tokens 100');
     expect(text).toContain('usage right  runs 0  spawns 2  tokens 290');
-    expect(text).toContain('phase | agent | spawns | tokens | spawns | tokens');
-    // design exists only on the right: left cell is a dash pair.
-    expect(text).toContain('design | sdd-reviser | - | - | 1 | 40');
-    expect(text).toContain('requirements | total | 1 | 100 | 1 | 250  delta spawns 0 tokens 150');
-    expect(text).toContain('total |  | 1 | 100 | 2 | 290  delta spawns 1 tokens 190');
+    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | spawns | tokens | cw5m | cw1h | gapRewrites');
+    // design exists only on the right: the left side is five dashes.
+    expect(text).toContain('design | sdd-reviser | - | - | - | - | - | 1 | 40 | unknown | unknown | unknown');
+    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 1 | 250 | unknown | unknown | unknown  delta spawns 0 tokens 150');
+    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190');
   });
 
   it('appends the provider pair after the delta on compare total lines', () => {
@@ -332,15 +349,129 @@ describe('formatUsageTable — two specs', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '40', provider: 'deepseek' }),
     ], 'right');
     const text = formatUsageTable(a, b);
-    expect(text).toContain('requirements | total | 1 | 100 | 2 | 290  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
-    expect(text).toContain('total |  | 1 | 100 | 2 | 290  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+  });
+});
+
+describe('buildUsageReport — cache numbers (Req 4)', () => {
+  it('takes the three cache values from the digit spawn.end row', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '2' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 10, cacheWrite1h: 20, gapRewrites: 2 }));
+  });
+
+  it('marks the write unknown when a write field is not a digit (sums stay 0)', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: 'unknown', cacheWrite1h: '20', gapRewrites: '2' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheUnknownWrite: 1 }));
+  });
+
+  it('keeps the write sums and marks the gap unknown when only gapRewrites is not a digit', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: 'unknown' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 10, cacheWrite1h: 20, gapRewrites: 0, cacheUnknownGap: 1 }));
+  });
+
+  it('marks a spawn.usage-only spawn write-unknown (Req 4.3)', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.usage', { agent: 'sdd-drafter', phase: 'requirements', tokens: '1000' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'requirements', 'sdd-drafter')).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheUnknownWrite: 1 }));
+  });
+
+  it('adds nothing from a deepseek spawn and keeps the anthropic cache in a mixed phase', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-reviewer', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-reviewer', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '1' }),
+      ev('spawn.start', { agent: 'sdd-reviewer', phase: 'requirements', provider: 'deepseek' }),
+      ev('spawn.end', { agent: 'sdd-reviewer', tokens: '250', provider: 'deepseek', cacheWrite5m: '99', cacheWrite1h: '99', gapRewrites: '9' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(cell(r, 'requirements', 'sdd-reviewer')).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 10, cacheWrite1h: 20, gapRewrites: 1 }));
+    expect(cell(r, 'requirements', 'sdd-reviewer@deepseek')).toEqual(ce({ spawns: 1, tokens: 250, unknown: 0 }));
+    const p = phase(r, 'requirements');
+    expect(p?.providers.anthropic).toEqual(ce({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 10, cacheWrite1h: 20, gapRewrites: 1 }));
+    expect(p?.total).toEqual(ce({ spawns: 2, tokens: 1250, unknown: 0, cacheWrite5m: 10, cacheWrite1h: 20, gapRewrites: 1 }));
+  });
+});
+
+describe('formatUsageTable — cache columns (Req 4)', () => {
+  it('heads three cache columns and prints the digit sums on an anthropic line', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '2' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'));
+    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites');
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2');
+  });
+
+  it('prints three dashes for a deepseek line and an all-deepseek total', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-reviewer', phase: 'requirements', provider: 'deepseek' }),
+      ev('spawn.end', { agent: 'sdd-reviewer', tokens: '250', provider: 'deepseek', cacheWrite5m: '5', cacheWrite1h: '5', gapRewrites: '0' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'));
+    expect(text).toContain('requirements | sdd-reviewer@deepseek | 1 | 250 | - | - | -');
+    expect(text).toContain('requirements | total | 1 | 250 | - | - | -');
+    expect(text).toContain('total |  | 1 | 250 | - | - | -');
+  });
+
+  it('ends the gap column with (+N unknown) when some spawns are gap-unknown', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '100', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '3' }),
+      ev('spawn.start', { agent: 'sdd-reviewer', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-reviewer', tokens: '200', cacheWrite5m: '5', cacheWrite1h: '5', gapRewrites: 'unknown' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'));
+    expect(text).toContain('requirements | sdd-reviewer | 1 | 200 | 5 | 5 | unknown');
+    expect(text).toContain('requirements | total | 2 | 300 | 15 | 25 | 3 (+1 unknown)');
+  });
+
+  it('prints unknown in every cache column and unchanged tokens for a ledger with no keys (Req 4.8)', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000' }),
+      ev('spawn.start', { agent: 'sdd-reviewer', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-reviewer', tokens: '500' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'));
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | unknown | unknown | unknown');
+    expect(text).toContain('requirements | sdd-reviewer | 1 | 500 | unknown | unknown | unknown');
+    expect(text).toContain('requirements | total | 2 | 1,500 | unknown | unknown | unknown');
+    expect(text).toContain('total |  | 2 | 1,500 | unknown | unknown | unknown');
+  });
+
+  it('compares a ledger with the keys against one without (Req 4.7, 4.9)', () => {
+    const a = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '2' }),
+    ], 'withkeys');
+    const b = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000' }),
+    ], 'nokeys');
+    const text = formatUsageTable(a, b);
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2 | 1 | 1,000 | unknown | unknown | unknown');
   });
 });
 
 describe('buildUsageReport — empty', () => {
   it('gives a zero report for no rows', () => {
     const r = buildUsageReport([], 'empty');
-    expect(r).toEqual({ spec: 'empty', runs: 0, phases: [], total: { spawns: 0, tokens: 0, unknown: 0 }, kinds: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, providers: { anthropic: { spawns: 0, tokens: 0, unknown: 0 }, deepseek: { spawns: 0, tokens: 0, unknown: 0 } } });
+    expect(r).toEqual({ spec: 'empty', runs: 0, phases: [], total: ce({ spawns: 0, tokens: 0, unknown: 0 }), kinds: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, providers: { anthropic: ce({ spawns: 0, tokens: 0, unknown: 0 }), deepseek: ce({ spawns: 0, tokens: 0, unknown: 0 }) } });
   });
 });
 

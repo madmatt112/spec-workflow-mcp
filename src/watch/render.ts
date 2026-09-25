@@ -217,13 +217,17 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
   const out = [head];
   // Tier line: what the agent files declare beside the model the run actually used; ` !=`
   // marks a substitution. Omitted when neither is known.
-  const declared = profile ? `${profile.model} ${profile.effort}` : '';
+  // The declared text is the model and effort, plus the cache lifetime when the profile
+  // names one that is not the `default` (the three orchestrators declare `1h`).
+  let declared = profile ? `${profile.model} ${profile.effort}` : '';
+  if (profile?.cacheTtl && profile.cacheTtl !== 'default') declared += ` ${profile.cacheTtl}`;
   const model = fit(s.model ?? '', 30);
   // The provider precedes the model when the run used a non-Anthropic one.
   const actual = s.provider && s.provider !== 'anthropic' ? `${s.provider} ${model}` : model;
   if (declared || actual) {
     const flag = profile && s.model && s.model !== profile.model ? ` ${p.bad('!=')}` : '';
-    out.push(`${indent}   ${p.dim('declared')} ${padRight(declared, 23)}${p.dim('actual')} ${actual}${flag}`);
+    const pad = Math.max(23, stripAnsi(declared).length + 1);
+    out.push(`${indent}   ${p.dim('declared')} ${padRight(declared, pad)}${p.dim('actual')} ${actual}${flag}`);
   }
   if (running && s.lastTool) {
     out.push(`${indent}   ${p.dim(padRight(s.lastTool, 6))} ${fit(s.lastSummary ?? '', width - indent.length - 10)}`);

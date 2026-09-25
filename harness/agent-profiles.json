@@ -2,61 +2,73 @@
   "sdd-adjudicator": {
     "model": "claude-opus-5-5",
     "effort": "high",
-    "role": "adjudicator"
+    "role": "adjudicator",
+    "cacheTtl": "default"
   },
   "sdd-checker": {
     "model": "claude-sonnet-5",
     "effort": "high",
-    "role": "checker"
+    "role": "checker",
+    "cacheTtl": "default"
   },
   "sdd-closeout-orchestrator": {
     "model": "claude-opus-4-8",
     "effort": "high",
-    "role": "close-out orchestrator"
+    "role": "close-out orchestrator",
+    "cacheTtl": "1h"
   },
   "sdd-document-orchestrator": {
     "model": "claude-opus-4-8",
     "effort": "high",
-    "role": "document-phase orchestrator"
+    "role": "document-phase orchestrator",
+    "cacheTtl": "1h"
   },
   "sdd-drafter": {
     "model": "claude-opus-5-5",
     "effort": "high",
-    "role": "drafter"
+    "role": "drafter",
+    "cacheTtl": "default"
   },
   "sdd-implementation-orchestrator": {
     "model": "claude-opus-4-8",
     "effort": "high",
-    "role": "implementation-phase orchestrator"
+    "role": "implementation-phase orchestrator",
+    "cacheTtl": "1h"
   },
   "sdd-implementer": {
     "model": "claude-opus-4-8",
     "effort": "xhigh",
-    "role": "implementer"
+    "role": "implementer",
+    "cacheTtl": "default"
   },
   "sdd-retro-analyst": {
     "model": "claude-opus-4-8",
     "effort": "high",
-    "role": "retrospective analyst"
+    "role": "retrospective analyst",
+    "cacheTtl": "default"
   },
   "sdd-retro-orchestrator": {
     "model": "claude-opus-4-8",
     "effort": "high",
-    "role": "retrospective orchestrator"
+    "role": "retrospective orchestrator",
+    "cacheTtl": "default"
   },
   "sdd-reviewer": {
     "model": "claude-opus-4-8",
     "effort": "xhigh",
-    "role": "adversarial reviewer"
+    "role": "adversarial reviewer",
+    "cacheTtl": "default"
   },
   "sdd-reviser": {
     "model": "claude-sonnet-5",
     "effort": "high",
-    "role": "reviser"
+    "role": "reviser",
+    "cacheTtl": "default"
   },
   "sdd-verifier": {
     "model": "claude-opus-4-8",
     "effort": "xhigh",
-    "role": "verifier"
+    "role": "verifier",
+    "cacheTtl": "default"
   }
 }

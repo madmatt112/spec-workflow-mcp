@@ -101,7 +101,24 @@ describe('loadAgentProfiles', () => {
   it('loads the generated profiles by default', () => {
     const profiles = loadAgentProfiles();
     expect(Object.keys(profiles)).toHaveLength(12);
-    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker' });
+    expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker', cacheTtl: 'default' });
+  });
+
+  it('copies cacheTtl only when the profiles file carries it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'profiles-'));
+    const without = join(dir, 'without.json');
+    const withTtl = join(dir, 'with.json');
+    writeFileSync(without, JSON.stringify({ 'sdd-x': { model: 'm', effort: 'e', role: 'r' } }));
+    writeFileSync(withTtl, JSON.stringify({ 'sdd-x': { model: 'm', effort: 'e', role: 'r', cacheTtl: '1h' } }));
+    try {
+      const a = loadAgentProfiles([without]);
+      expect(a['sdd-x']).toEqual({ model: 'm', effort: 'e', role: 'r' });
+      expect('cacheTtl' in a['sdd-x']).toBe(false);
+      const b = loadAgentProfiles([withTtl]);
+      expect(b['sdd-x']).toEqual({ model: 'm', effort: 'e', role: 'r', cacheTtl: '1h' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -260,6 +277,16 @@ describe('buildModel', () => {
     expect(impl.cacheRead).toBe(40_000);
     expect(impl.tokens).toBe(84_000);
     expect(m.tokensTotal).toBe(84_000);
+  });
+
+  it('updates an ended spawn from a later spawn.end with the same agentId (yield, resume, more calls)', () => {
+    const ev = ledger();
+    ev.push({ ts: '2026-09-12T19:05:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'o1', tokens: '100' });
+    ev.push({ ts: '2026-09-12T19:09:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'o1', tokens: '250' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    expect(m.spawns.filter(s => s.agent === 'sdd-implementation-orchestrator')).toHaveLength(1);
+    expect(m.spawns[0].tokens).toBe(250);
+    expect(m.spawns[0].endedAt).toBe('2026-09-12T19:09:00.000Z');
   });
 
   it('keeps a digit-string spawn.end tokens over a later folded spawn.usage', () => {
