@@ -44,3 +44,8 @@ Cost: 1 reviewer + 1 reviser spawns
 sdd-graph.sh fact/refresh + test; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 1; commit efa4e9b; harness/skills/sdd-continue/references/sdd-graph.sh, src/__tests__/sdd-graph.test.ts
 Cost: 1 implementer spawn
+
+## 2026-09-25T21:32:58Z · implementation · task 2 · gotcha
+codeGraphSection + brief graph guard/append; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 2; commit 1fed0c6; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
+Cost: 1 implementer spawn
