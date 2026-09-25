@@ -31,7 +31,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 #### Acceptance Criteria
 
-1. WHEN `GRAPH` is a path AND `GRAPH_BEHIND` is not `0` AND `CODE_ROOT` is the main checkout THEN the supervisor SHALL run `graphify update <CODE_ROOT>` once, after Requirement 1 and before the first orchestrator spawn of the run.
+1. WHEN `GRAPH` is a path AND `GRAPH_BEHIND` is not `0` AND `CODE_ROOT` is the main checkout THEN the supervisor SHALL run `graphify update <CODE_ROOT>` once, after Requirement 1 and before the `run.start` row is written (`harness/skills/sdd-continue/SKILL.md:108-110`), which precedes the first orchestrator spawn of the run.
 2. WHEN the implementation orchestrator receives an `sdd-implementer` report in the per-task loop (the implement spawn and each fix spawn, `harness/skills/sdd-implementation-phase/SKILL.md:84-159`) AND `GRAPH` is a path AND `CODE_ROOT` is the main checkout THEN the orchestrator SHALL run `graphify update <CODE_ROOT>` before the next brief of that task.
 3. WHEN the close-out orchestrator receives an `sdd-implementer` report for a `harness` or `code` batch (`harness/skills/sdd-closeout-phase/SKILL.md:120-159`) AND `GRAPH` is a path AND the batch's landing root is the main checkout THEN the orchestrator SHALL run `graphify update <landing root>`.
 4. WHEN a `graphify update` exits 0 THEN the caller SHALL treat the graph as current at HEAD: `GRAPH_BEHIND` becomes `0` and `GRAPH_BUILT_AT` becomes the HEAD sha, whether or not `built_at_commit` in the file moved.
@@ -50,7 +50,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 3. The rule text SHALL say: run `explain` on a symbol before opening its code file, then read only the cited range to confirm it; never use the graph for the spec store; when `explain` prints "No node matching", read the file as before; an `[INFERRED]` edge is never a citation; a citation in a document or the context file names a range the worker read.
 4. The freshness line SHALL read `built at <values.graphBuiltAt>, <values.graphBehind> commits behind HEAD`; WHEN `graphBehind` is not `0` THEN the line SHALL add that a `file:line` from the graph is a hint to confirm, not a citation.
 5. IF `values.graph` is absent or equals `none` THEN the tool SHALL write a brief byte-identical to the pre-spec output for the same template and values.
-6. IF `values.graph` is a path AND `values.graphBuiltAt` or `values.graphBehind` is absent THEN the tool SHALL fail naming the missing values and write no file, as the missing-value rule does (`src/tools/harness.ts:617-631`).
+6. IF `values.graph` is a path AND `values.graphBuiltAt` or `values.graphBehind` is absent THEN the tool SHALL fail naming the missing values and write no file, styled on the missing-value rule (`src/tools/harness.ts:617-631`): a new check, since Requirement 3 AC 7 keeps these values out of the `{{key}}` placeholder set that rule checks.
 7. The graph values SHALL NOT be `{{key}}` placeholders of any template, so a caller that passes no graph value never fails the missing-value rule.
 8. The tool SHALL NOT read `graph.json`, run git or spawn any process (`src/tools/harness.ts:17-27`): every graph fact comes from `values` (`src/tools/harness.ts:547-655`).
 
@@ -86,10 +86,11 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 1. WHEN `harness` `usage` runs for a spec THEN it SHALL read `harness-activity.jsonl` from the spec dir next to `harness-events.jsonl`; IF the file is missing THEN every graph count SHALL be 0 and the call SHALL succeed.
 2. A graph call SHALL be one activity row with `event: tool`, `tool: Bash`, and a `summary` that names `graphify explain`, `graphify query` or `graphify path`; one row counts once, and a `graphify update` row does not count.
 3. The fold SHALL attribute each graph call to the row's `agent` and to the phase whose live window contains the row's `ts`, by the rule `src/watch/usage.ts:277-296` applies to a spawn's start, else to phase `unknown`.
-4. The one-report and compare tables (`src/watch/usage.ts:361-410`) SHALL print a `graph` column on every phase-agent row, every phase total and the spec total, and `data.report` SHALL carry the counts.
+4. The one-report and compare tables (`src/watch/usage.ts:361-410`) SHALL print a `graph` column on every phase-agent row, every phase total and the spec total, and `data.report` SHALL carry the counts, folded by joining activity rows to the events-derived phase windows in `usageAction` (`src/tools/harness.ts:1072-1093`); the pure `buildUsageReport` (`src/watch/usage.ts:113-218`) SHALL NOT read the activity file.
 5. IF an agent has graph calls in a phase but no spawn cell there THEN the table SHALL print a row for it with 0 spawns.
 6. WHEN `compareSpecName` names a spec THEN the tool SHALL read that spec's activity log the same way, so `harness usage` for this spec against `agent-cache-ttl` prints that run's count.
 7. Every existing column SHALL keep its value; only the header and row shapes gain the `graph` column.
+8. IF a role runs as a separate provider process rather than an Agent-tool subagent THEN its graphify calls SHALL NOT appear in the count: the activity hook records only `sdd`-prefixed Agent-tool subagents (`harness/hooks/sdd-activity.sh:126-128`), so the `graph` column is scoped to Agent-tool (Anthropic-routed) workers, the same scope the spawns column already keys apart with a `@deepseek` suffix (`src/watch/usage.ts:366,399`).
 
 ### Requirement 7 — Docs and verification
 
@@ -100,7 +101,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 1. The `harness` section of `docs/TOOLS-REFERENCE.md` (`docs/TOOLS-REFERENCE.md:547-579`) SHALL name the three graph values of `brief` and the `graph` column of `usage`.
 2. `docs/SDD-HARNESS.md` SHALL state the three launch-prompt lines, the refresh rule and that `graphify-out/` stays untracked.
 3. The end-to-end verification SHALL run the decomposition entry's scenarios (1) to (6); WHEN a scenario needs a harness run in a rebuilt and restarted session THEN it SHALL stay `pending` in a tracked `verification-evidence.md` as `agent-rules.md` requires, not close silently.
-4. The fixture for scenario (4) SHALL make an implementer commit that changes the code graph, so that `built_at_commit` moves to HEAD.
+4. The fixture for scenario (4) SHALL make an implementer commit in a non-worktree `CODE_ROOT` that changes the code graph, so that `built_at_commit` moves to HEAD; this is the only path where Requirement 2 AC 2 fires (D14), not the worktree-per-change path a real implementation phase runs by default.
 
 ## Non-Functional Requirements
 
@@ -114,6 +115,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 ### Reliability
 - A missing graph, a missing binary, a failed or timed-out refresh never stops a run or a phase; the brief and ledger then keep the pre-spec shape (Requirement 1 AC 8, Requirement 3 AC 5).
 - The global PreToolUse nudge in `~/.claude` is unchanged.
+- A commit that deletes code shrinks the graph; the refresh's shrink guard (`/home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:1612-1618`) then exits non-zero because Requirement 2 AC 7 forbids `--force`, so Requirement 2 AC 5 keeps the previous `GRAPH_BEHIND` and the graph stays behind HEAD until a human runs a forced rebuild outside this spec.
 
 ## Decisions taken in this document
 
@@ -124,12 +126,13 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 - D5 — Graph calls are attributed to a phase by the live-phase window at the row's time: options were the window rule, per agent with no phase, a join through the agent id to its spawn; chosen because the usage fold already applies the window rule to spawns, so the new column lines up with the existing rows.
 - D6 — A refresh failure is a ledger note, not a stop: options were note and continue, stop the phase; chosen because the graph is an index, and a stale graph only turns citations into hints.
 - D7 — Reviewer and checker prompts get the block through the document skill's text: options were skill text, new reviewer and checker brief templates; chosen because those prompts are appended to the adversarial-review scaffold, not written by the brief action.
-- D8 — Graph values missing their freshness fail the brief call: options were fail naming them, fill them as unknown; chosen because it matches the existing missing-value rule and a silent unknown hides an orchestrator bug.
+- D8 — Graph values missing their freshness fail the brief call: options were fail naming them, fill them as unknown; chosen because it follows the same fail-fast shape as the missing-value rule — a new check, since Requirement 3 AC 7 keeps these values out of the `{{key}}` placeholder set that rule checks — and a silent unknown hides an orchestrator bug.
 - D9 — The graph is resolved after the roots step and again after worktree entry, not in preflight: options were after roots, in preflight; chosen because the path depends on the code root and main checkout, which the roots step computes, and the worktree rule changes the code root.
 - D10 — The run-start row carries graph keys only when a graph exists: options were keys only with a graph, always with a none value, never; chosen because the no-graph run must keep the pre-spec ledger shape.
 - D11 — Live scenarios that need a restarted session are deferred through the evidence file: options were defer the live half as pending evidence, block the PR until a restarted session runs them; chosen because agent-rules requires that route and the previous spec used it.
 - D12 — The close-out refresh rule is kept although it does not fire today: options were keep it, drop it; chosen because the decomposition lists it and a change to the close-out landing root would make it fire; today code and harness batches land in a retro worktree.
 - D13 — Posture: this spec touches no money, personal data, deletion or legal surface: options were none; chosen because it changes only harness briefs, launch lines and a usage column.
+- D14 — The implementation per-task refresh (Requirement 2 AC 2) does not fire under worktree-per-change either, mirroring D12: options were disclose it, widen AC 2 to cover a worktree, update the worktree's graph despite AC 6; chosen because AC 6 forbids a worktree update, so during implementation `GRAPH` stays the main checkout's graph — stale and missing the task's new symbols — and a worker falls back to a cold read for its own edits (Requirement 3 AC 3).
 
 ## Scope notes
 
@@ -145,3 +148,10 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 - **v1** (2026-09-25) — Initial draft.
   - **Lint pass.** 6 fixed (L-2, L-9, L-10, L-15, L-16, L-21); rejected: L-1, L-3, L-4, L-5, L-6, L-7, L-8, L-11, L-12, L-13, L-14, L-17, L-18 (GRAPH/graph/graphBuiltAt/graphBehind are new names this spec proposes, absent from the cited code today), L-19, L-20 (explain/query are content Requirement 5 adds to that section, not there yet), L-22, L-23 (the graph column is new, not in usage.ts or the docs table yet).
+- **v2** (2026-09-25) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/3).
+  - **R1-1 — Accepted (SHOULD_FIX).** Added a decision disclosing that the implementation per-task refresh also does not fire under worktree-per-change, mirroring the existing close-out decision: during implementation the graph a worker reads stays the main checkout's, missing the task's new symbols. Sharpened the scenario-4 verification fixture to state it runs in a non-worktree checkout, the only path where that refresh fires.
+  - **R1-2 — Accepted (SHOULD_FIX).** The run-start refresh condition now pins the update before the run-start ledger row is written, not merely before the first orchestrator spawn, so the run-start row can carry the post-refresh count the run-start requirement expects.
+  - **R1-3 — Accepted (SHOULD_FIX).** Added a scoping criterion to the usage requirement: the graph column counts only Agent-tool (Anthropic-routed) workers, since the activity hook logs only sdd-prefixed Agent-tool subagents and a separately-routed provider process leaves no row to count.
+  - **R1-4 — Accepted (MINOR).** The usage requirement now states the graph count is folded by joining activity rows to the events-derived phase windows inside the usage action, not inside the pure report-building function.
+  - **R1-5 — Accepted (MINOR).** Added a Reliability line: a deletion-heavy commit trips the refresh's shrink guard, which exits non-zero because the no-force rule forbids overriding it, so the graph stays behind HEAD until a manual rebuild.
+  - **R1-6 — Accepted (MINOR).** Reworded the brief-failure criterion and its matching decision from claiming to reuse the placeholder-only missing-value rule to being styled on it, since the graph values are exempt from the placeholder set that rule checks.
