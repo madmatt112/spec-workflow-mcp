@@ -1,0 +1,50 @@
+{
+  "items": [
+    {
+      "header": "Live checks may be deferred",
+      "question": "When a verification scenario needs a harness run in a rebuilt, restarted session, defer it as pending in verification-evidence.md, or block the PR until a restarted session runs it?",
+      "options": [
+        "Defer the live half as pending evidence",
+        "Block the PR until a restarted session runs them"
+      ],
+      "why": "D11: agent-rules requires the evidence-file route; the previous spec used it."
+    },
+    {
+      "header": "Graph freshness after refresh",
+      "question": "After a graph refresh that exits 0, do workers treat the graph as current at HEAD, even when graphify left the file (and its built-at commit) unchanged?",
+      "options": [
+        "Trust the exit code: current at HEAD, 0 behind",
+        "Keep counting from the file's built-at commit",
+        "Force a graph write on every refresh"
+      ],
+      "why": "D1: graphify 0.9.35 leaves an unchanged graph untouched, so the count would show a fresh graph as stale forever."
+    },
+    {
+      "header": "What counts as a graph call",
+      "question": "In the harness usage graph column, what counts as one graph call?",
+      "options": [
+        "One Bash row naming explain, query or path",
+        "Every row mentioning graphify",
+        "Each graphify invocation inside a row"
+      ],
+      "why": "D4: summaries are cut at 160 characters, and a row naming a graphify-out path is a raw read."
+    },
+    {
+      "header": "Refresh failure",
+      "question": "When graphify update fails or times out, does the run write a ledger note and continue, or stop the phase?",
+      "options": [
+        "Ledger note and continue",
+        "Stop the phase"
+      ],
+      "why": "D6: the graph is an index; a stale graph only turns citations into hints."
+    },
+    {
+      "header": "Money, data and legal posture",
+      "question": "What is the posture on refunds and forfeiture, credits, personal data and erasure, and the legal/compliance framing?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ],
+      "why": "D13: the spec changes only harness briefs, launch lines and a usage column."
+    }
+  ]
+}
