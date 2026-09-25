@@ -121,3 +121,30 @@
 - `graphify update` on a scratch copy of this repo (201 commits behind): 13.36 s, exit 0, `built_at_commit` equal to HEAD afterwards.
 - `graphify explain "briefAction" --graph <abs path>` from `/tmp` works with the trailing `--graph` flag and prints `file:Lnnn` edges.
 - node 24 `spawnSync` with `timeout`: `status` null, `signal` SIGTERM, `error.code` ETIMEDOUT; a missing binary: `error.code` ENOENT.
+
+## task anchors (tasks)
+- src/tools/harness.ts:568-574 — `briefAction` output-path check; the graph-value check goes after it.
+- src/tools/__tests__/harness.test.ts:18-23 — `beforeEach`: temp store and a context with `projectPath` and `workspacePath`.
+- src/tools/__tests__/harness.test.ts:165-185 — implementer brief test, `toContain` of the task block (no exact whole-file match).
+- src/watch/usage.ts:106-111 — `cmpPhase` phase order.
+- src/watch/usage.ts:314-338 — `grp`, `tokenCell`, `cacheCols`, `cacheStr`; a 0-spawn cell prints `-` in the cache columns.
+- src/watch/__tests__/usage.test.ts:321-355 — two-spec compare strings (333, 335-337, 352-353) that the graph cell changes.
+- src/watch/__tests__/usage.test.ts:457-469 — compare case with a compare-row string at 467.
+- src/__tests__/cache-ttl-probe.test.ts:1-40 — script test with a stub binary and a PATH of stub dir, node dir and `/usr/bin:/bin`.
+- harness/skills/sdd-continue/SKILL.md:71-73 — step 1 worktree check.
+- harness/skills/sdd-continue/SKILL.md:162-169 — retrospective blocked while a `verification-evidence.md` line is not `passed`.
+- harness/skills/sdd-document-phase/references/briefs.md:141-208 — round-section fence.
+- harness/skills/sdd-document-phase/references/briefs.md:390-409 — narrow-check fence.
+- harness/skills/sdd-implementation-phase/SKILL.md:100-117 — step 3 report read; verification-only tasks skip the gate.
+- harness/skills/sdd-implementation-phase/SKILL.md:144-159 — step 5 fix rounds and adjudicator.
+- harness/skills/sdd-implementation-phase/SKILL.md:301-305 — live scenarios stay pending behind `verification-evidence.md`.
+- harness/skills/sdd-implementation-phase/references/briefs.md:12-15 — spec-store commits go through a script that changes into the repo.
+- harness/skills/sdd-closeout-phase/SKILL.md:113-118 — `harness` and `code` batches land in a `chore/<SPEC>-retro` worktree.
+- docs/TOOLS-REFERENCE.md:551-553 — "five actions" statement of the `harness` tool.
+
+## Probes (tasks)
+- node 22.14.0 `spawnSync('sleep', ['3'], { stdio: 'ignore', timeout: 500 })`: `status` null, `signal` SIGTERM, `error.code` ETIMEDOUT (node 20 is not installed here).
+- `graphify` is not in `/usr/bin` or `/bin` (it is in `~/.local/bin`); `git` is in `/usr/bin`.
+- `graph.json` `built_at_commit` is a 40-character sha string.
+- `grep -c graphify` on the `agent-cache-ttl` activity log prints 0.
+- The tasks parser splits a `_Prompt:` line on every pipe character (src/core/task-parser.ts:25).
