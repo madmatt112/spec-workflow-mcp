@@ -82,3 +82,42 @@
 - `grep -rl graphify harness/ src/` finds nothing.
 - `harness-activity.jsonl` of `agent-cache-ttl` holds 0 rows naming `graphify`.
 - `graphify update` names communities with `label_communities_by_hub` (watch.py:1556-1557 in the installed package), no LLM call; `cli.py:1976` prints "no LLM needed".
+
+## graph script precedents (design)
+- harness/skills/sdd-continue/references/sdd-cache-ttl.sh:1-22 — shipped probe script: one stdout line, exits 0, `set -u` plus single-quoted `node -e` body.
+- harness/skills/sdd-continue/SKILL.md:81-86 — `bash <base dir>/references/sdd-providers.sh` call shape in the roots step.
+- harness/skills/sdd-continue/SKILL.md:262-269 — scratch-wipe recovery recreates the per-run scripts under the same run id.
+- harness/skills/sdd-continue/references/formats.md:170-183 — `event.sh` text: `<type> key=value ...`, one confirmation line.
+- harness/skills/sdd-continue/references/formats.md:192-204 — ledger event table; `run.start` keys on line 194.
+- src/__tests__/providers-map.test.ts:17-34 — drives a references script with `execFileSync('bash', ...)`, asserts status, stdout, stderr.
+- /home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/cli.py:1942-1996 — `update` also reads `GRAPHIFY_FORCE` from the environment as `--force` (line 1943); `ok` false exits 1.
+- /home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:158-164 — rebuild lock is `fcntl.flock`, released when the process is killed.
+- /home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:985 — output dir is the path argument's `graphify-out/`.
+
+## usage fold details (design)
+- src/watch/ledger.ts:26-36 — `ActivityEvent`: `ts`, `agent`, `event`, `tool`, `summary`.
+- src/watch/ledger.ts:176-189 — `parseJsonl`: skips blank and torn lines.
+- src/watch/usage.ts:75-92 — `emptyCell` and `addCell`.
+- src/watch/usage.ts:283-292 — live-phase window loop inside `reduceSpawn`.
+- src/watch/__tests__/usage.test.ts:8-11 — `ce` helper fills the cache fields of a cell.
+- src/watch/__tests__/usage.test.ts:320-355 — compare-table expectations: header, five-dash absent side, total lines.
+- src/tools/__tests__/harness.test.ts:523-538 — usage test with a full-cell `toEqual` literal.
+- src/tools/__tests__/harness.test.ts:587-598 — provider-less usage test with two full-cell `toEqual` literals.
+- src/tools/harness.ts:76 — `values` property description of the tool schema.
+- src/tools/harness.ts:568 — `brief` output-path check.
+- src/tools/harness.ts:633-635 — `{{key}}` fill of the template body.
+
+## orchestrator skill anchors (design)
+- harness/skills/sdd-document-phase/SKILL.md:18-58 — standing rules; read-and-obey rule on 43-44.
+- harness/skills/sdd-document-phase/SKILL.md:155-170 — Step 2 review round; round section written on 161-163.
+- harness/skills/sdd-document-phase/SKILL.md:281-288 — Step 4b narrow check; prompt written on 283-286.
+- harness/skills/sdd-document-phase/references/briefs.md:1-4 — fill rule for `<…>` conditionals.
+- harness/skills/sdd-implementation-phase/SKILL.md:23-38 — standing rules; read-and-obey rule on 37-38.
+- harness/skills/sdd-closeout-phase/SKILL.md:14-20 — launch keys the close-out orchestrator receives.
+- harness/skills/sdd-closeout-phase/SKILL.md:25-34 — standing rules; read-and-obey rule on 33-34.
+- .spec-workflow/specs/agent-cache-ttl/verification-evidence.md:1-10 — tracked live-evidence record shape.
+
+## Probes (design)
+- `graphify update` on a scratch copy of this repo (201 commits behind): 13.36 s, exit 0, `built_at_commit` equal to HEAD afterwards.
+- `graphify explain "briefAction" --graph <abs path>` from `/tmp` works with the trailing `--graph` flag and prints `file:Lnnn` edges.
+- node 24 `spawnSync` with `timeout`: `status` null, `signal` SIGTERM, `error.code` ETIMEDOUT; a missing binary: `error.code` ENOENT.
