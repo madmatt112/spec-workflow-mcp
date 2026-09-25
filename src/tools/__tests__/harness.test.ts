@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { harnessHandler } from '../harness.js';
+import { harnessHandler, codeGraphSection } from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
@@ -237,6 +237,93 @@ describe('harnessHandler', () => {
     );
     expect(res.success).toBe(false);
     expect(res.message).toContain('nope');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  // Requirement 3 — the `## Code graph` brief section by tooling.
+
+  const GRAPH = '/code/graphify-out/graph.json';
+
+  // The non-graph required values for each of the five templates.
+  const GRAPH_BASE_VALUES: Record<string, Record<string, unknown>> = {
+    drafter: { title: 'T', job: 'do it' },
+    reviser: { title: 'T', job: 'do it', findings: 'the findings' },
+    adjudicator: { title: 'T', items: 'the items' },
+    verifier: { title: 'T', job: 'do it' },
+    implementer: { title: 'T' },
+  };
+
+  for (const template of Object.keys(GRAPH_BASE_VALUES)) {
+    it(`brief appends the ## Code graph section to a ${template} brief`, async () => {
+      await writeAgentRules();
+      if (template === 'implementer') await writeDoc('tasks.md', TASKS);
+      const outPath = join(tempDir, `${template}-graph-brief.md`);
+      const args: Record<string, unknown> = {
+        action: 'brief', specName: SPEC, template,
+        values: { ...GRAPH_BASE_VALUES[template], path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '3' },
+      };
+      if (template === 'implementer') args.taskId = '3';
+
+      const res = await harnessHandler(args, context);
+      expect(res.success).toBe(true);
+
+      const written = await fs.readFile(outPath, 'utf-8');
+      const section = codeGraphSection(GRAPH, 'abc1234', '3');
+      // One blank line, then the section verbatim, hint line included (behind !== '0').
+      expect(written.endsWith('\n\n' + section)).toBe(true);
+      expect(section).toContain('A `file:line` from the graph is a hint to confirm');
+    });
+  }
+
+  it('brief drops the hint line when graphBehind is 0', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-graph0.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter',
+        values: { title: 'T', job: 'do it', path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '0' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain('## Code graph');
+    expect(written).toContain('Freshness: built at abc1234, 0 commits behind HEAD.');
+    expect(written).not.toContain('A `file:line` from the graph');
+  });
+
+  it('brief with no graph values and graph none give byte-identical files without a section', async () => {
+    await writeAgentRules();
+    const noGraphPath = join(tempDir, 'drafter-nograph.md');
+    const nonePath = join(tempDir, 'drafter-none.md');
+    const base = { title: 'T', job: 'do it' };
+
+    const r1 = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { ...base, path: noGraphPath } },
+      context,
+    );
+    const r2 = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { ...base, path: nonePath, graph: 'none' } },
+      context,
+    );
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(true);
+
+    const a = await fs.readFile(noGraphPath, 'utf-8');
+    const b = await fs.readFile(nonePath, 'utf-8');
+    expect(a).toBe(b);
+    expect(a).not.toContain('## Code graph');
+  });
+
+  it('brief with a graph path but no graphBehind fails naming it and writes no file', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-missing-behind.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter',
+        values: { title: 'T', job: 'do it', path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('graphBehind');
+    expect(res.message).not.toContain('graphBuiltAt');
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 

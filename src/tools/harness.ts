@@ -73,7 +73,7 @@ delta. The tool reads only the spec store; it never spawns a process.`,
       },
       values: {
         type: 'object',
-        description: 'Placeholder values for the brief template (brief action)',
+        description: 'Placeholder values for the brief template (brief action); may also carry graph, graphBuiltAt and graphBehind to append the ## Code graph section',
       },
       taskId: {
         type: 'string',
@@ -538,6 +538,29 @@ const BRIEF_TEMPLATES: Record<string, string> = {
 const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
 
 /**
+ * The `## Code graph` brief section (design C3, Requirement 3). Returns the exact
+ * text, one line each, ending in a newline; the graph path fills every `<graph>`
+ * slot while `<symbol>`, `<terms>`, `A` and `B` stay literal for the worker. The
+ * final `file:line` hint line is present only when `behind !== '0'` (AC 4). It
+ * reads nothing and spawns nothing — every fact comes from its arguments (AC 8).
+ */
+export function codeGraphSection(graph: string, builtAt: string, behind: string): string {
+  const lines = [
+    '## Code graph',
+    `Graph: \`${graph}\` (the code graph of the code root).`,
+    `- \`graphify explain "<symbol>" --graph ${graph}\`: one symbol and its edges. Use it first.`,
+    `- \`graphify path "A" "B" --graph ${graph}\`: the chain between two symbols.`,
+    `- \`graphify query "<terms>" --budget 800 --graph ${graph}\`: one area; take the terms from the graph's labels.`,
+    'Rule: run `explain` on a symbol before you open its code file, then read only the cited range to confirm it. Never use the graph for the spec store. When `explain` prints "No node matching", read the file as before. An `[INFERRED]` edge is never a citation. A citation in a document or the context file names a range you read.',
+    `Freshness: built at ${builtAt}, ${behind} commits behind HEAD.`,
+  ];
+  if (behind !== '0') {
+    lines.push('A `file:line` from the graph is a hint to confirm, not a citation.');
+  }
+  return lines.join('\n') + '\n';
+}
+
+/**
  * `brief` action: fill a named template's `{{key}}` placeholders from `values`,
  * write the read-and-obey first line when `agent-rules.md` exists at the spec
  * store root, fill an implementer brief's task block from the tasks parser, and
@@ -571,6 +594,27 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
       success: false,
       message: `brief: required value 'path' (the output file path) is missing; no file written`,
     };
+  }
+
+  // A graph path (`values.graph` a non-empty string other than `none`) appends
+  // the `## Code graph` section after the fill and makes the two freshness values
+  // required (design C3, Req 3 AC1-6). These are not `{{key}}` placeholders of any
+  // template (Req 3 AC7), so this is a separate check from the missing-value rule
+  // below, styled on it (`:617-631`): name only the missing ones, write nothing.
+  const graphActive =
+    typeof values.graph === 'string' && values.graph.length > 0 && values.graph !== 'none';
+  if (graphActive) {
+    const missingGraph = (['graphBuiltAt', 'graphBehind'] as const).filter(
+      (k) => values[k] === undefined || values[k] === null,
+    );
+    if (missingGraph.length > 0) {
+      return {
+        success: false,
+        message:
+          `brief: graph value(s) ${missingGraph.map((k) => `'${k}'`).join(', ')} ` +
+          `missing (values.graph is set); no file written`,
+      };
+    }
   }
 
   const { workflowRoot } = selectRoots(args, context);
@@ -634,6 +678,18 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     key in serverValues ? serverValues[key] : String(values[key]),
   );
 
+  // With a graph path, append the `## Code graph` section; the separator is a
+  // single newline when the filled text already ends in one (giving one blank
+  // line before the section), else two (design C3, Req 3 AC1). Any other
+  // `values.graph` leaves the filled text byte-identical (Req 3 AC5).
+  let output = filled;
+  if (graphActive) {
+    const section = codeGraphSection(
+      String(values.graph), String(values.graphBuiltAt), String(values.graphBehind),
+    );
+    output += (output.endsWith('\n') ? '\n' : '\n\n') + section;
+  }
+
   // Write through safeJoin under the caller-named directory; return the path.
   // A relative output path resolves against the spec-store root, never the
   // process cwd (the code workspace), so a brief lands in the spec store
@@ -644,7 +700,7 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     : PathUtils.safeJoin(specStoreRoot, outPath);
   try {
     await mkdir(dirname(finalPath), { recursive: true });
-    await writeFile(finalPath, filled, 'utf-8');
+    await writeFile(finalPath, output, 'utf-8');
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, message: `Failed to write ${finalPath}: ${message}` };
