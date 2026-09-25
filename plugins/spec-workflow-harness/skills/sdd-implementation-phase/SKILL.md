@@ -295,6 +295,9 @@ need a real cross-turn gap or a foreground worker the tooling will not give you.
 - **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
   subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
   longer gap, spawn the worker, end your turn, and wake on its completion notification.
+- **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
+  kit once in the scratch store — registration and a no-op probe — and records it green
+  before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
 
 ### Reconcile a red PR
 
