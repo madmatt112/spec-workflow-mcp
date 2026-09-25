@@ -287,6 +287,15 @@ When no `[ ]` or `[-]` task remains:
     but disclose the `reviewCoverage` gap plainly and never report the spec "all
     verified" while `reviewCoverage` is below total.
 
+### Live verification
+
+Some completion-gate scenarios cannot run inside the normal loop — a live check may
+need a real cross-turn gap or a foreground worker the tooling will not give you.
+
+- **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
+  subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
+  longer gap, spawn the worker, end your turn, and wake on its completion notification.
+
 ### Reconcile a red PR
 
 Cap 3 rounds per PR. Round r:
