@@ -50,6 +50,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-24 | agent-cache-ttl | design | v1 | approved | 1 round, converged clean (0/0/3) |
 | 2026-09-24 | agent-cache-ttl | tasks | v1 | approved | 1 round, converged 0/0/2 |
 | 2026-09-24 | agent-cache-ttl | implementation | tasks 9/9 | complete | PR #64 green; scenarios 1/2/3/5 pending for operator |
+| 2026-09-25 | agent-cache-ttl | retrospective |  | retro-ready |  |
+| 2026-09-25 | agent-cache-ttl | retrospective | APPROVED | retro-ready | plan approved: P2 P3 P7 P8 P9 P10 P14 P15(A) G1 G2; P1 rejected |
 
 ## Current state — 2026-08-04
 
