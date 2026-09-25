@@ -1,6 +1,6 @@
 ---
 name: sdd-deferrals
-description: Works the deferred-decision queue of a spec-workflow project (the `deferrals` tool): triages every record into decide / fix / sweep / docs / stale / blocked / not-worth-it, escalates decisions, and fixes and verifies the rest with the pinned sdd-implementer, sdd-verifier and sdd-adjudicator agents. Invoke by name only ("run the sdd deferral loop", "work the deferrals queue", /sdd-deferrals). Never part of "continue the sdd process".
+description: "Works the deferred-decision queue of a spec-workflow project (the `deferrals` tool): triages every record into decide / fix / sweep / docs / stale / blocked / not-worth-it, escalates decisions, and fixes and verifies the rest with the pinned sdd-implementer, sdd-verifier and sdd-adjudicator agents. Invoke by name only (\"run the sdd deferral loop\", \"work the deferrals queue\", /sdd-deferrals). Never part of \"continue the sdd process\"."
 ---
 
 # SDD deferral loop

@@ -1,6 +1,6 @@
 ---
 name: sdd-retrospective
-description: Runs the retrospective of one completed SDD spec: compiles the findings from the retro log, HANDOFF, deferrals, implementation logs, task reviews, the git log and earlier retrospectives into retrospective.md, then has the retro analyst write retrospective-proposals.md, and reports PHASE retro-ready. Never implements anything. Used by the sdd-retro-orchestrator agent, not directly from a main session.
+description: "Runs the retrospective of one completed SDD spec: compiles the findings from the retro log, HANDOFF, deferrals, implementation logs, task reviews, the git log and earlier retrospectives into retrospective.md, then has the retro analyst write retrospective-proposals.md, and reports PHASE retro-ready. Never implements anything. Used by the sdd-retro-orchestrator agent, not directly from a main session."
 ---
 
 # SDD retrospective

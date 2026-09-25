@@ -1,6 +1,6 @@
 ---
 name: sdd-closeout-phase
-description: Runs the close-out phase of one SDD spec: implements every proposal of the APPROVED retrospective plan with implementer and verifier agents, grouped by target repository and landed by each repository's own rules (direct commits in the spec store, a branch and one PR per code repository, in-place edits under ~/.claude), writes one outcome line per proposal in retrospective-plan.md, marks the plan CLOSED, and reports in the orchestrator contract. Used by the sdd-closeout-orchestrator agent, not directly from a main session.
+description: "Runs the close-out phase of one SDD spec: implements every proposal of the APPROVED retrospective plan with implementer and verifier agents, grouped by target repository and landed by each repository's own rules (direct commits in the spec store, a branch and one PR per code repository, in-place edits under ~/.claude), writes one outcome line per proposal in retrospective-plan.md, marks the plan CLOSED, and reports in the orchestrator contract. Used by the sdd-closeout-orchestrator agent, not directly from a main session."
 ---
 
 # SDD close-out phase
