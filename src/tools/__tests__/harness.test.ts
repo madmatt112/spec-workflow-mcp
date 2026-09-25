@@ -617,7 +617,7 @@ describe('harnessHandler', () => {
     const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
     expect(res.success).toBe(true);
     expect(res.data.report.runs).toBe(1);
-    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0 });
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0, graph: 0 });
     expect(res.message).toContain('requirements | sdd-drafter | 1 | 1,000');
     // One spec ⇒ no compare, no delta.
     expect(res.data.compare).toBeUndefined();
@@ -680,8 +680,8 @@ describe('harnessHandler', () => {
 
     const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
     expect(res.success).toBe(true);
-    expect(res.data.report.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0 });
-    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 50000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0 });
+    expect(res.data.report.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0 });
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 50000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0, graph: 0 });
   });
 
   it('usage folds the committed fixture ledger (runs 2, 5 spawns, 4,554,189)', async () => {
