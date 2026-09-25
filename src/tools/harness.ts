@@ -1,7 +1,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
 import { readFile, readdir, stat, writeFile, mkdir, unlink } from 'node:fs/promises';
-import { dirname, basename, resolve } from 'node:path';
+import { dirname, basename, resolve, isAbsolute } from 'node:path';
 import { PathUtils } from '../core/path-utils.js';
 import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
@@ -635,7 +635,13 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   );
 
   // Write through safeJoin under the caller-named directory; return the path.
-  const finalPath = PathUtils.safeJoin(dirname(outPath), basename(outPath));
+  // A relative output path resolves against the spec-store root, never the
+  // process cwd (the code workspace), so a brief lands in the spec store
+  // regardless of where the server was launched (P5). An absolute path is
+  // honoured as given (e.g. a scratch-dir brief).
+  const finalPath = isAbsolute(outPath)
+    ? PathUtils.safeJoin(dirname(outPath), basename(outPath))
+    : PathUtils.safeJoin(specStoreRoot, outPath);
   try {
     await mkdir(dirname(finalPath), { recursive: true });
     await writeFile(finalPath, filled, 'utf-8');

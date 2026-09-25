@@ -212,6 +212,23 @@ describe('harnessHandler', () => {
     expect(written).toContain('write it');
   });
 
+  it('brief resolves a relative output path under the spec-store root, not the code workspace', async () => {
+    await writeAgentRules();
+    const specStoreRoot = join(tempDir, '.spec-workflow');
+    const relPath = join('reviews', 'drafter-brief-requirements.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { path: relPath, title: 'Draft', job: 'write it' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    // The output root is the spec-store root, not the process cwd (code workspace).
+    expect(res.data.path).toBe(join(specStoreRoot, relPath));
+    expect(res.data.path.startsWith(tempDir)).toBe(true);
+    const written = await fs.readFile(join(specStoreRoot, relPath), 'utf-8');
+    expect(written).toContain('write it');
+  });
+
   it('brief fails naming an unknown template and writes no file', async () => {
     const outPath = join(tempDir, 'nope.md');
     const res = await harnessHandler(
