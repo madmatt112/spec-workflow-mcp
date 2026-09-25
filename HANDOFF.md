@@ -490,3 +490,15 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Cut scope | none. Live halves of scenarios (2),(3),(4) wait as `pending` lines in the tracked verification-evidence file (C7); the activity hook, retro orchestrator and usage delta are unchanged; spec 11's test-author template is deferred and the C4 section covers it when added. Decomposition exclusions honoured. |
 | Carried items | none. Round 1 converged 0/0/3; the 3 MINOR (R1-1 Testing Strategy misses a breaking compare-row assertion; R1-2 `windowPhase` pseudo-call arity; R1-3 close-out refresh condition stricter than Req 2 AC3, dormant) are left deferrable, not carried. |
 | Next phase loads | tasks reads `codebase-context.md` first, then `structure.md` and this `design.md`: 7 components — C1 new `sdd-graph.sh` script, C2 supervisor graph step, C3 brief graph section by tooling in `harness.ts`, C4 orchestrator skills pass the graph, C5 graph column in `harness usage`, C6 docs, C7 tracked live-verification record. The graph field changes existing harness/usage test literals; live scenario halves stay pending in the evidence file. |
+
+## graph-orientation — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-25 |
+| Rounds | 1; verdicts converged 0/0/0 |
+| Approval | `approval_1790364064340_6ez01nrhz` |
+| Rulings | none |
+| Cut scope | none. Live halves of scenarios (2),(3),(4) stay pending in the tracked verification-evidence file (C7, task 9); spec 11's test-author template is deferred. Decomposition exclusions honoured. |
+| Carried items | none. Round 1 converged 0/0/0; no SHOULD_FIX or MINOR was rejected for the word cap. |
+| Next phase loads | implementation reads `codebase-context.md` first, then this `tasks.md` and `design.md`: 10 tasks, dependency order 1→10 stated in the preamble. Coverage: C1 task 1, C3 task 2, C5 tasks 3-4, C2 task 5, C4 tasks 6-7, C6 task 8, C7 task 9, end-to-end verification task 10. |

@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790364064340_6ez01nrhz",
+  "title": "graph-orientation tasks v1",
+  "filePath": ".spec-workflow/specs/graph-orientation/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-25T19:21:04.340Z",
+  "category": "spec",
+  "categoryName": "graph-orientation",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-25T19:21:10.692Z"
+}

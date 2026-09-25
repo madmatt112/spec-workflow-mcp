@@ -1,0 +1,58 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Graph script with `fact` and `refresh` modes"
+    },
+    {
+      "id": "2",
+      "title": "`## Code graph` section in `harness brief`"
+    },
+    {
+      "id": "3",
+      "title": "Graph count in the usage fold and tables"
+    },
+    {
+      "id": "4",
+      "title": "`harness usage` reads the activity log"
+    },
+    {
+      "id": "5",
+      "title": "Supervisor resolves the graph fact and carries it"
+    },
+    {
+      "id": "6",
+      "title": "Document skill passes the graph and mirrors the block"
+    },
+    {
+      "id": "7",
+      "title": "Implementation and close-out skills pass the graph and refresh it"
+    },
+    {
+      "id": "8",
+      "title": "Docs name the graph values, lines and column"
+    },
+    {
+      "id": "9",
+      "title": "Pending live-verification record"
+    },
+    {
+      "id": "10",
+      "title": "End-to-end verification of scenarios (1), (2), (5) and (6)"
+    }
+  ],
+  "veto": [
+    {
+      "taskId": "1",
+      "summary": "keyword: auth",
+      "class": "a",
+      "rank": 1
+    },
+    {
+      "taskId": "10",
+      "summary": "keyword: auth",
+      "class": "a",
+      "rank": 2
+    }
+  ]
+}

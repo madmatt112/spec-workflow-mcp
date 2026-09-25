@@ -29,3 +29,13 @@ Cost: 1 reviewer spawn
 design approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 1 (D8 refinement); cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790361966822_09kylbcnh; reviews/adversarial-analysis-design.md
 Cost: 1 reviewer + 1 reviser spawns (+1 drafter)
+
+## 2026-09-25T19:21:00Z · tasks · v1 · gotcha
+Round 1 converged clean 0/0/0; lint L-1..L-24 rejection upheld by reviewer; full component/AC coverage and producer-before-consumer order verified; no gate-b/gate-c tags.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/graph-orientation/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
+
+## 2026-09-25T19:22:09Z · tasks · phase · cleanup
+tasks approved at v1 after 1 rounds; verdict trajectory converged 0/0/0; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790364064340_6ez01nrhz; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/graph-orientation/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer + 1 reviser spawns

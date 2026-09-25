@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/graph-orientation/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-25T19:21:04.362Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790364064340_6ez01nrhz",
+      "approvalTitle": "graph-orientation tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-25T19:21:10.667Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790364064340_6ez01nrhz",
+      "approvalTitle": "graph-orientation tasks v1"
+    }
+  ]
+}
