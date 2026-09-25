@@ -74,6 +74,10 @@ supervisor's `EVENT_SCRIPT` path.
   every generated agent, and no incomplete spec folder that spec-index would route. A
   task that ships a fixture kit dry-runs it in the scratch store and records it green
   before the gated run.
+- A live-verification scenario that cannot run inside the normal loop stays `pending`
+  and is gated by a tracked `verification-evidence.md` whose every line must read
+  `passed` before the retrospective opens; an operator runs it in a rebuilt, restarted
+  session. Do not close it with a silent harness decision.
 
 ## Sensitive paths
 
