@@ -263,6 +263,26 @@ commands to run.
   in a worktree, the supervisor enters one named after the spec before the first
   implementation spawn.
 
+## Code graph
+
+The supervisor resolves the code graph after the roots step. It puts three lines into
+every orchestrator launch prompt:
+
+- `GRAPH` — the path to the code graph of the code root, or `none`.
+- `GRAPH_BEHIND` — the number of commits the graph is behind `HEAD`, or `unknown`, or `n/a`.
+- `GRAPH_BUILT_AT` — the commit the graph was built at, or `unknown`, or `n/a`.
+
+When `GRAPH` is a path, each orchestrator passes `graph`, `graphBuiltAt` and `graphBehind`
+to every `harness` `brief` call, so each worker brief gets the `## Code graph` section.
+When `GRAPH` is `none`, the launch prompt and the briefs keep the pre-spec shape.
+
+A refresh runs `graphify update` on the code root. It runs at run start when the graph is
+behind `HEAD`, and again after each implementer report. It runs against the main checkout
+only, never a worktree. Its timeout is 100 seconds. A failed or timed-out refresh keeps
+the previous values and writes a ledger note; it never stops a run or a phase.
+
+`graphify-out/` stays untracked. It is large and machine-generated, so it is not committed.
+
 ## Writing `agent-rules.md`
 
 `<spec store root>/agent-rules.md` is optional. When it exists, every worker brief
