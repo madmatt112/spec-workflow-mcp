@@ -90,7 +90,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 5. IF an agent has graph calls in a phase but no spawn cell there THEN the table SHALL print a row for it with 0 spawns.
 6. WHEN `compareSpecName` names a spec THEN the tool SHALL read that spec's activity log the same way, so `harness usage` for this spec against `agent-cache-ttl` prints that run's count.
 7. Every existing column SHALL keep its value; only the header and row shapes gain the `graph` column.
-8. IF a role runs as a separate provider process rather than an Agent-tool subagent THEN its graphify calls SHALL NOT appear in the count: the activity hook records only `sdd`-prefixed Agent-tool subagents (`harness/hooks/sdd-activity.sh:126-128`), so the `graph` column is scoped to Agent-tool (Anthropic-routed) workers, the same scope the spawns column already keys apart with a `@deepseek` suffix (`src/watch/usage.ts:366,399`).
+8. IF a role runs as a separate provider process rather than an Agent-tool subagent THEN its graphify calls SHALL NOT appear in the count: the activity hook records only `sdd`-prefixed Agent-tool subagents (`harness/hooks/sdd-activity.sh:126-128`), so the `graph` column is scoped to Agent-tool (Anthropic-routed) workers. The spawns column is not scoped the same way: it keys a non-Anthropic role apart with a `@deepseek` suffix (`src/watch/usage.ts:159`) but still counts its real spawns from `spawn.start` events, so a DeepSeek reviewer or checker row prints a non-zero `spawns` count alongside `graph=0`, undercounting that role's graph use in the retrospective comparison.
 
 ### Requirement 7 — Docs and verification
 
@@ -100,8 +100,8 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 1. The `harness` section of `docs/TOOLS-REFERENCE.md` (`docs/TOOLS-REFERENCE.md:547-579`) SHALL name the three graph values of `brief` and the `graph` column of `usage`.
 2. `docs/SDD-HARNESS.md` SHALL state the three launch-prompt lines, the refresh rule and that `graphify-out/` stays untracked.
-3. The end-to-end verification SHALL run the decomposition entry's scenarios (1) to (6); WHEN a scenario needs a harness run in a rebuilt and restarted session THEN it SHALL stay `pending` in a tracked `verification-evidence.md` as `agent-rules.md` requires, not close silently.
-4. The fixture for scenario (4) SHALL make an implementer commit in a non-worktree `CODE_ROOT` that changes the code graph, so that `built_at_commit` moves to HEAD; this is the only path where Requirement 2 AC 2 fires (D14), not the worktree-per-change path a real implementation phase runs by default.
+3. The end-to-end verification SHALL run the decomposition entry's scenarios (1) to (6); WHEN a scenario needs a harness run in a rebuilt and restarted session, or needs a fixture checkout that departs from this repo's `worktree-per-change: required` rule, THEN it SHALL stay `pending` in a tracked `verification-evidence.md` as `agent-rules.md` requires, not close silently.
+4. The fixture for scenario (4) SHALL be a checkout whose `agent-rules.md` omits the `worktree-per-change: required` line, so the worktree rule (`harness/skills/sdd-continue/SKILL.md:320-327`) never enters a worktree and an implementer commit lands in a non-worktree `CODE_ROOT` that changes the code graph, moving `built_at_commit` to HEAD; this is the only path where Requirement 2 AC 2 fires (D14), and Requirement 7 AC 3's deferral covers it because it departs from this repo's own worktree rule.
 
 ## Non-Functional Requirements
 
@@ -115,7 +115,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 ### Reliability
 - A missing graph, a missing binary, a failed or timed-out refresh never stops a run or a phase; the brief and ledger then keep the pre-spec shape (Requirement 1 AC 8, Requirement 3 AC 5).
 - The global PreToolUse nudge in `~/.claude` is unchanged.
-- A commit that deletes code shrinks the graph; the refresh's shrink guard then exits non-zero because Requirement 2 AC 7 forbids `--force`, so Requirement 2 AC 5 keeps the previous `GRAPH_BEHIND` and the graph stays behind HEAD until a human runs a forced rebuild outside this spec.
+- A `graphify update` that loses nodes from source files it did not re-extract this run — an interrupted or partial extraction, not an ordinary code deletion — trips the refresh's shrink guard and exits non-zero; because Requirement 2 AC 7 forbids `--force`, Requirement 2 AC 5 then keeps the previous `GRAPH_BEHIND` until a human reruns the update or forces a rebuild outside this spec. A commit that only deletes code does not trip the guard: the guard accounts for the deleted paths and the refresh exits 0.
 
 ## Decisions taken in this document
 
@@ -156,3 +156,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
   - **R1-5 — Accepted (MINOR).** Added a Reliability line: a deletion-heavy commit trips the refresh's shrink guard, which exits non-zero because the no-force rule forbids overriding it, so the graph stays behind HEAD until a manual rebuild.
   - **R1-6 — Accepted (MINOR).** Reworded the brief-failure criterion and its matching decision from claiming to reuse the placeholder-only missing-value rule to being styled on it, since the graph values are exempt from the placeholder set that rule checks.
   - **Lint pass.** 1 fixed (L-22); rejected: L-1, L-2, L-3, L-4, L-5, L-9, L-10, L-11, L-12, L-13, L-14, L-15, L-16, L-17, L-18, L-21 (unchanged; to-be-built artifact, ruled in v1 lint), L-6, L-7, L-8, L-19, L-20 (to-be-built artifact this spec proposes; citation ranges confirmed correct).
+- **v3** (2026-09-25) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 2/1/0).
+  - **R2-1 — Accepted (MUST_FIX).** The v2 Reliability line wrongly claimed an ordinary code-deletion commit trips the refresh's shrink guard; the installed graphify's guard folds deleted paths into the re-extracted set and only refuses an unexplained loss from a file the run did not touch. Rewrote the line around the real wedge, an interrupted or partial extraction, and stated plainly that a deletion-only commit exits 0 (requirements.md:118).
+  - **R2-2 — Accepted (MUST_FIX).** R6 AC8 cited the wrong lines for the `@deepseek` keying and falsely called the spawns and graph columns the same scope. Corrected the citation to the line that keys the agent, and replaced the false-equivalence claim with a statement that a non-Agent-tool role's spawns count stays non-zero while its graph count reads zero, undercounting that role's graph use in the retrospective comparison (requirements.md:93).
+  - **R2-3 — Accepted (SHOULD_FIX).** Scenario (4)'s fixture asked for a non-worktree commit without saying how one arises under this repo's mandatory worktree rule, and the docs-and-verification deferral criterion did not cover a worktree-config gap. Pinned the fixture to a checkout whose `agent-rules.md` omits the worktree-per-change line, so the worktree rule never enters a worktree, and widened the deferral criterion to also cover a fixture that departs from that rule (requirements.md:103-104).
