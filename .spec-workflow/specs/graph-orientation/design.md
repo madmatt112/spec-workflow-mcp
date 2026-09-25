@@ -47,7 +47,7 @@ graph LR
     `GRAPH` is `none`, and both freshness lines `n/a`, when the file is missing or `command -v graphify` fails. Otherwise node reads the top-level `built_at_commit` string; `GRAPH_BEHIND` is the stdout of `git -C CODE_ROOT rev-list --count SHA..HEAD`. A missing or empty key, a JSON parse error, or a non-zero `git` exit sets both freshness lines to `unknown`. The caller passes `MAIN_CHECKOUT` equal to `CODE_ROOT` when not in a worktree, so one rule covers Req 1 AC1.
   - `bash sdd-graph.sh refresh CODE_ROOT [TIMEOUT_S]` runs `graphify update CODE_ROOT` through node `spawnSync` with `stdio: 'ignore'`, `timeout: TIMEOUT_S * 1000` (default 100) and an environment copy without `GRAPHIFY_FORCE`. Exit status 0 prints `refresh: ok`, `GRAPH_BEHIND: 0` and `GRAPH_BUILT_AT:` the output of `git -C CODE_ROOT rev-parse HEAD` (`unknown` when that fails). A non-zero status prints `refresh: failed exit <n>`; `error.code === 'ETIMEDOUT'` prints `refresh: failed timeout <TIMEOUT_S>s`; another spawn error prints `refresh: failed <error.code>`; any other signal death prints `refresh: failed signal <signal>`. The script always exits 0 and never passes `--force`.
 - **Dependencies:** `bash`, `node`, `git`, the `graphify` binary on `PATH`.
-- **Reuses:** the `set -u` plus single-quoted `node -e` shape of `harness/skills/sdd-continue/references/sdd-cache-ttl.sh:1-22`. The installed CLI treats `GRAPHIFY_FORCE=1` as `--force` (`/home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/cli.py:1942-1996`), so the environment scrub enforces Req 2 AC7. A killed update leaves no stale lock (`/home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:158-164`). The update writes to the path argument's own `graphify-out/` (`/home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:985`).
+- **Reuses:** the `set -u` plus single-quoted `node -e` shape of `harness/skills/sdd-continue/references/sdd-cache-ttl.sh:1-22`. The installed CLI treats `GRAPHIFY_FORCE=1` as `--force` (context file probe, "graph script precedents (design)"), so the environment scrub enforces Req 2 AC7. A killed update leaves no stale lock: the rebuild lock releases when the process is killed (context file probe). The update writes to the path argument's own `graphify-out/` (context file probe).
 
 ### C2 — Supervisor (`harness/skills/sdd-continue/SKILL.md`, `references/formats.md`)
 - **Purpose:** Req 1 AC1-8, Req 2 AC1 and AC6.
@@ -57,7 +57,7 @@ graph LR
   - The launch prompt block (`harness/skills/sdd-continue/SKILL.md:224-247`) gains `GRAPH:`, `GRAPH_BEHIND:` and `GRAPH_BUILT_AT:` after `LAUNCHER:`.
   - The worktree rule (`harness/skills/sdd-continue/SKILL.md:320-327`): after the re-run worktree check, re-run `fact` with the new `CODE_ROOT` and the main checkout; no refresh (Req 2 AC6).
   - Scratch-wipe recovery (`harness/skills/sdd-continue/SKILL.md:262-269`) also re-copies `sdd-graph.sh` when `GRAPH` is a path.
-  - `references/formats.md:194` (`run.start` keys) adds `graph`, `graphBehind` (only when a graph exists).
+  - `harness/skills/sdd-continue/references/formats.md:194` (`run.start` keys) adds `graph`, `graphBehind` (only when a graph exists).
 - **Dependencies:** C1.
 - **Reuses:** the `bash <base dir>/references/...` call shape of `harness/skills/sdd-continue/SKILL.md:81-86`.
 
@@ -202,3 +202,4 @@ interface UsageCell { spawns; tokens; unknown; cacheWrite5m; cacheWrite1h; gapRe
 ## Revision History
 
 - **v1** (2026-09-25) — Initial draft.
+  - **Lint pass.** 4 fixed (L-3, L-4, L-5, L-15); rejected: L-6 to L-14, L-16 to L-35, L-37 to L-41, L-44, L-45 (GRAPH, GRAPH_BEHIND, GRAPH_BUILT_AT, SPEC_STORE_REPO, WORKTREE, CODE_ROOT, graph, none, graphBuiltAt, graphBehind, isGraphCall, applyGraphCounts, readSpecActivity are artifacts this design adds, or existing launch keys it cross-references, at the cited insertion points; every range verified as the correct existing anchor), L-1, L-2, L-36, L-42, L-43, L-46 to L-51 (citations name a reused pattern or an existing anchor — the probe-script shape, the window loop inside `reduceSpawn`, the byte-for-byte implementer test, the providers-script test harness — not a claim the paired term appears verbatim in that range; every range verified).
