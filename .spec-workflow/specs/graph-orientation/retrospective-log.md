@@ -19,3 +19,13 @@ Cost: one reviewer spawn
 requirements approved at v3 after 3 rounds; verdict trajectory 0/3/3 -> 2/1/0 -> converged 0/0/2; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790359537320_wcdfrrc6c; reviews/adversarial-analysis-requirements-r3.md
 Cost: 3 reviewer + 4 reviser spawns
+
+## 2026-09-25T18:45:57Z · design · v1 · ruling
+Round 1 converged 0/0/3 (3 MINOR). Reviewer ruled D8 (RE-DECIDED Req 6 AC2): refinement, closed — a graph fact must come from a graph command, so a grep for the phrase does not count. First reviewed version converged; no revise round needed.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: 1 reviewer spawn
+
+## 2026-09-25T18:47:20Z · design · phase · cleanup
+design approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 1 (D8 refinement); cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790361966822_09kylbcnh; reviews/adversarial-analysis-design.md
+Cost: 1 reviewer + 1 reviser spawns (+1 drafter)

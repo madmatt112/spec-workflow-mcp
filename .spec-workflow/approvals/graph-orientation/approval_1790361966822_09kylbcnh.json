@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790361966822_09kylbcnh",
+  "title": "graph-orientation design v1",
+  "filePath": ".spec-workflow/specs/graph-orientation/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-25T18:46:06.822Z",
+  "category": "spec",
+  "categoryName": "graph-orientation",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 3; rulings: D8 (Req 6 AC2) refinement — a graph fact must come from a graph command, a grep for the phrase does not count; cap: not hit",
+  "respondedAt": "2026-09-25T18:46:16.186Z"
+}

@@ -477,3 +477,15 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Cut scope | none. Decomposition exclusions honoured (no spec-store graph, no .graphifyignore change, no PreToolUse-nudge change, no graphify MCP server, no agent-frontmatter change). Spec 11's test-author template is deferred (not this spec's scope); Req 3 AC 1 covers it when added. |
 | Carried items | none. Round 3 converged 0/0/2; both MINOR notes (graph-column position in usage output; scenario-4 fixture prerequisites) left as deferrable, not carried. |
 | Next phase loads | design reads `codebase-context.md` first, then the decomposition entry for graph-orientation, `tech.md` and `structure.md`, and this `requirements.md`: 7 requirements — the graph fact lands after the supervisor roots step (D9), freshness is by tooling, the graph column undercounts separate-process (DeepSeek) workers, and the graph covers only 8 of 2,713 `harness/` nodes so a worker on a skill file falls back to a normal read. |
+
+## graph-orientation — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-25 |
+| Rounds | 1; verdicts converged 0/0/3 |
+| Approval | `approval_1790361966822_09kylbcnh` |
+| Rulings | D8 (Req 6 AC2): refinement — a graph fact must come from a graph command; a grep for the phrase does not count. |
+| Cut scope | none. Live halves of scenarios (2),(3),(4) wait as `pending` lines in the tracked verification-evidence file (C7); the activity hook, retro orchestrator and usage delta are unchanged; spec 11's test-author template is deferred and the C4 section covers it when added. Decomposition exclusions honoured. |
+| Carried items | none. Round 1 converged 0/0/3; the 3 MINOR (R1-1 Testing Strategy misses a breaking compare-row assertion; R1-2 `windowPhase` pseudo-call arity; R1-3 close-out refresh condition stricter than Req 2 AC3, dormant) are left deferrable, not carried. |
+| Next phase loads | tasks reads `codebase-context.md` first, then `structure.md` and this `design.md`: 7 components — C1 new `sdd-graph.sh` script, C2 supervisor graph step, C3 brief graph section by tooling in `harness.ts`, C4 orchestrator skills pass the graph, C5 graph column in `harness usage`, C6 docs, C7 tracked live-verification record. The graph field changes existing harness/usage test literals; live scenario halves stay pending in the evidence file. |
