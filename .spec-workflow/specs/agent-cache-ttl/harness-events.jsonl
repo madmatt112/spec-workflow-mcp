@@ -178,3 +178,4 @@
 {"ts":"2026-09-25T16:32:17.536Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P15","outcome":"done"}
 {"ts":"2026-09-25T16:34:34.607Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"phase.end","phase":"closeout","result":"closed","state":"items 10/10","note":"all items done; PR #66; store+harness one PR (worktree-isolated single repo)"}
 {"ts":"2026-09-25T16:36:19.979Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","phase":"closeout"}
+{"ts":"2026-09-25T16:36:20.648Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"run.end","status":"spec-workflow-mcp:agent-cache-ttl closeout items 10/10 — closed; PR #66 open, not merged"}
