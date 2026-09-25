@@ -463,3 +463,15 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/66 (store + harness ride one PR — same repo; not merged) |
 | To-do (human) | Merge PR #66 to land the retrospective follow-ups. |
 | Gotchas | Session was worktree-isolated, so store-class changes and spec-store bookkeeping landed on chore/agent-cache-ttl-retro and ride PR #66 rather than committing to main directly. Ledger/retro-log/commit helper scripts were repointed from the main checkout to the worktree copy. P10's new JSDoc block comment must avoid a bare `*/` (a path glob closed the comment early). |
+
+## graph-orientation — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-25 |
+| Rounds | 3; verdicts 0/3/3 → 2/1/0 → converged 0/0/2 |
+| Approval | `approval_1790359537320_wcdfrrc6c` |
+| Rulings | none |
+| Cut scope | none. Decomposition exclusions honoured (no spec-store graph, no .graphifyignore change, no PreToolUse-nudge change, no graphify MCP server, no agent-frontmatter change). Spec 11's test-author template is deferred (not this spec's scope); Req 3 AC 1 covers it when added. |
+| Carried items | none. Round 3 converged 0/0/2; both MINOR notes (graph-column position in usage output; scenario-4 fixture prerequisites) left as deferrable, not carried. |
+| Next phase loads | design reads `codebase-context.md` first, then the decomposition entry for graph-orientation, `tech.md` and `structure.md`, and this `requirements.md`: 7 requirements — the graph fact lands after the supervisor roots step (D9), freshness is by tooling, the graph column undercounts separate-process (DeepSeek) workers, and the graph covers only 8 of 2,713 `harness/` nodes so a worker on a skill file falls back to a normal read. |

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/graph-orientation/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-25T18:05:37.370Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790359537320_wcdfrrc6c",
+      "approvalTitle": "graph-orientation requirements v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-25T18:05:54.372Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790359537320_wcdfrrc6c",
+      "approvalTitle": "graph-orientation requirements v3"
+    }
+  ]
+}

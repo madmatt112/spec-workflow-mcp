@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790359537320_wcdfrrc6c",
+  "title": "graph-orientation requirements v3",
+  "filePath": ".spec-workflow/specs/graph-orientation/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-25T18:05:37.320Z",
+  "category": "spec",
+  "categoryName": "graph-orientation",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-25T18:05:54.398Z"
+}
