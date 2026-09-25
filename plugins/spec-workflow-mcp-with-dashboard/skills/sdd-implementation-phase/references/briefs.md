@@ -186,6 +186,10 @@ Run the scenario, then the suite. Report in 150 words or fewer: each check with 
 result, the scenario's outcome, findings by severity, and the final line
 `VERIFY: pass | fail`. Do not skip a check because per-task reviews passed;
 integration failures are what this step exists to catch.
+
+Pass-bar note: when a scenario measures cached prompt content across a subagent
+resume, measure content older than the last turn — Claude Code re-sends the last turn
+on resume, so the last turn is never a cache hit.
 ```
 
 ## CI fix brief — `impl-brief-ci-r<r>.md`

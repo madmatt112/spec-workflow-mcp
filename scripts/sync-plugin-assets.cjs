@@ -20,6 +20,7 @@ const SOURCE = path.join(ROOT, 'harness');
 const PLUGINS_DIR = path.join(ROOT, 'plugins');
 const ASSET_DIRS = ['agents', 'skills', 'commands', 'hooks'];
 const AGENTS_DIR = path.join(SOURCE, 'agents');
+const SKILLS_DIR = path.join(SOURCE, 'skills');
 const PROFILES_PATH = path.join(SOURCE, 'agent-profiles.json');
 
 function listFiles(dir, base = dir) {
@@ -132,6 +133,29 @@ function buildProfiles(agentsDir = AGENTS_DIR) {
   return JSON.stringify(profiles, null, 2) + '\n';
 }
 
+/**
+ * Throw when any skill's SKILL.md frontmatter under harness/skills is not valid YAML.
+ * Claude Code silently drops fields from frontmatter that is not valid YAML, so the
+ * same parse-or-throw the agents get (see buildProfiles) applies to skill SKILL.md.
+ */
+function checkSkillFrontmatter(skillsDir = SKILLS_DIR) {
+  if (!fs.existsSync(skillsDir)) return;
+  for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const skillFile = path.join(skillsDir, entry.name, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const lines = fs.readFileSync(skillFile, 'utf8').split('\n');
+    if (lines[0].trim() !== '---') continue;
+    const end = lines.indexOf('---', 1);
+    if (end === -1) continue;
+    try {
+      yaml.load(lines.slice(1, end).join('\n'));
+    } catch (err) {
+      throw new Error(`${path.relative(ROOT, skillFile)}: frontmatter is not valid YAML (quote values that contain ": "): ${err.reason || err.message}`);
+    }
+  }
+}
+
 function syncProfiles(checkOnly) {
   const rel = path.relative(ROOT, PROFILES_PATH);
   const expected = Buffer.from(buildProfiles());
@@ -152,6 +176,7 @@ function syncProfiles(checkOnly) {
 
 function main() {
   const checkOnly = process.argv.includes('--check');
+  checkSkillFrontmatter();
   const roots = pluginRoots();
   if (roots.length === 0) {
     console.error('No plugin roots found under plugins/ (expected <root>/.claude-plugin/plugin.json)');
@@ -186,6 +211,6 @@ function main() {
   }
 }
 
-module.exports = { buildProfiles, cacheTtlOf };
+module.exports = { buildProfiles, cacheTtlOf, checkSkillFrontmatter };
 
 if (require.main === module) main();

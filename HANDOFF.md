@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`**.
-> Live phase **retrospective**, state **tasks 9/9**, last result **complete** (PR #64 merged as 12cb20f; live scenarios (1)(2)(3)(5) passed, evidence a615375).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: in a session restarted on the merged code, runs the retrospective of `agent-cache-ttl`; before the close-out branches in this repo, check with the overwatch session (tradr account-deletion close-out is landing a spec-workflow-mcp PR).
+> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`** (finished).
+> Live phase **closeout**, state **items 10/10**, last result **closed** (PR #66 carries the close-out and the retro spec-store commits; merge it first).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`, worktree of `/home/mcf/repo/spec-workflow-mcp` (chore/agent-cache-ttl-retro).
+> A re-run does: after PR #66 merges and the session restarts, starts the next spec from decomposition.md at requirements.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -50,6 +50,9 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-24 | agent-cache-ttl | design | v1 | approved | 1 round, converged clean (0/0/3) |
 | 2026-09-24 | agent-cache-ttl | tasks | v1 | approved | 1 round, converged 0/0/2 |
 | 2026-09-24 | agent-cache-ttl | implementation | tasks 9/9 | complete | PR #64 green; scenarios 1/2/3/5 pending for operator |
+| 2026-09-25 | agent-cache-ttl | retrospective |  | retro-ready |  |
+| 2026-09-25 | agent-cache-ttl | retrospective | APPROVED | retro-ready | plan approved: P2 P3 P7 P8 P9 P10 P14 P15(A) G1 G2; P1 rejected |
+| 2026-09-25 | agent-cache-ttl | closeout | items 10/10 | closed | PR #66 open (not merged); G1 G2 in agent-rules.md, P2 P3 P9 P10 P15 in harness |
 
 ## Current state — 2026-08-04
 
@@ -447,3 +450,16 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Next deferrals worth working | d-9d600d11 (sdd-launch.sh readUsage token inflation, same class as this spec's usage work); d-a38fea66 (verify provider-per-role halves in a restarted session); d-1880d115 (question-gates live gate scenarios) |
 | Gotchas | Only one spec-run subagent transcript carries the ephemeral cache fields; scenario (4) paired it with a second real project transcript. harness/agent-profiles.json is not mirrored into plugins/. |
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/64 |
+
+## agent-cache-ttl — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED on 2026-09-25; 10/10 plan items done, 0 to-do, 0 skipped |
+| Store batch | agent-rules.md: new "Fixtures and live verification" section — G1 (with P7/P8/P14) validity bar d733799, G2 tracked-evidence gate e8a58b4 |
+| Harness batch | P2 56e8884, P3 3193b95, P9 1485bc6, P10 a44b7ed, P15 5d50bb5; each commit carried its plugins/ mirror |
+| Gates | all 10 items gate pass, risk low; no verifier spawned (store class + harness low-risk) |
+| Checks | sync-plugin-assets, check:plugin-assets, plugin validate --strict all green; P10 vitest 6/6 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/66 (store + harness ride one PR — same repo; not merged) |
+| To-do (human) | Merge PR #66 to land the retrospective follow-ups. |
+| Gotchas | Session was worktree-isolated, so store-class changes and spec-store bookkeeping landed on chore/agent-cache-ttl-retro and ride PR #66 rather than committing to main directly. Ledger/retro-log/commit helper scripts were repointed from the main checkout to the worktree copy. P10's new JSDoc block comment must avoid a bare `*/` (a path glob closed the comment early). |

@@ -1,6 +1,6 @@
 ---
 name: sdd-implementation-phase
-description: Runs the implementation phase of one SDD spec: works the task queue with pinned implementer and verifier agents, caps fix rounds and adjudicates, captures deferrals, runs the end-to-end completion gate, regenerates INDEX, writes HANDOFF, commits, pushes and opens the PR, and reports in the orchestrator contract. Used by the sdd-implementation-orchestrator agent, not directly from a main session.
+description: "Runs the implementation phase of one SDD spec: works the task queue with pinned implementer and verifier agents, caps fix rounds and adjudicates, captures deferrals, runs the end-to-end completion gate, regenerates INDEX, writes HANDOFF, commits, pushes and opens the PR, and reports in the orchestrator contract. Used by the sdd-implementation-orchestrator agent, not directly from a main session."
 ---
 
 # SDD implementation phase
@@ -286,6 +286,23 @@ When no `[ ]` or `[-]` task remains:
     verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
     but disclose the `reviewCoverage` gap plainly and never report the spec "all
     verified" while `reviewCoverage` is below total.
+
+### Live verification
+
+Some completion-gate scenarios cannot run inside the normal loop — a live check may
+need a real cross-turn gap or a foreground worker the tooling will not give you.
+
+- **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
+  subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
+  longer gap, spawn the worker, end your turn, and wake on its completion notification.
+- **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
+  kit once in the scratch store — registration and a no-op probe — and records it green
+  before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
+- **Operator pre-merge session.** A live scenario that needs the rebuilt harness stays
+  pending behind a tracked `verification-evidence.md`; the standing way to clear it is
+  the operator pre-merge-session pattern — an operator runs it in a rebuilt, restarted
+  session. This is the Fixtures and live verification rule (G2) in `agent-rules.md`;
+  follow it there rather than restating its steps.
 
 ### Reconcile a red PR
 

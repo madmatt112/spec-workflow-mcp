@@ -109,3 +109,23 @@ Cost: one scenario-2 run with a too-short gap
 Amendment, approved by Matthew: the scenario (2) pass bar changes from reading the whole previous prefix to reading the content older than the last turn. Measured: content older than the last turn read 100% after an 819 s gap, gapRewrites 0; the whole-prefix read was 80% because the last turn is re-sent on subagent resume. The scratch recompute.mjs now measures older-than-last-turn. All four live scenarios passed (evidence produced headless by overwatch after Matthew's scratch login); verification-evidence.md committed as a615375; PR #64 merged as 12cb20f.
 Evidence: a615375 (verification-evidence.md); 12cb20f (PR #64 merge); overwatch report 2026-09-25
 Cost: scenario (2) run three times
+
+## 2026-09-25T15:48:18Z · retrospective · phase · cleanup
+retrospective compiled: 15 findings across 9 categories (2 gotchas, 1 tool deficiency, 5 harness defects incl 2 fixed on PR #64, 1 doc gap, 2 rulings, 1 harness-for-human, 2 repeat patterns); 15 proposals (P1-P15), 1 decision needed (P15, live-scenario restart handling), 2 graduation candidates.
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 analyst spawn
+
+## 2026-09-25T16:18:51Z · closeout · store batch 1 · cleanup
+Store batch: 5 items done (G1, P7, P8, P14 landed in d733799; G2 in e8a58b4), 0 to-do, 0 skipped. Two new standing rules added to .spec-workflow/agent-rules.md under a new Fixtures and live verification section. Both gates pass, risk low; no verifier spawned (store class).
+Evidence: d733799; e8a58b4
+Cost: 1 implementer spawn; 2 gate calls; 0 verifier
+
+## 2026-09-25T16:32:30Z · closeout · harness batch 1 · cleanup
+Harness batch: 5 items done, each its own commit (P2 56e8884, P3 3193b95, P9 1485bc6, P10 a44b7ed, P15 5d50bb5), 0 to-do, 0 skipped. P2/P3/P9/P15 document resume-behaviour, long-gap probe, dry-run and operator pre-merge patterns in sdd-implementation-phase; P10 added a js-yaml frontmatter gate for skill SKILL.md files in sync-plugin-assets.cjs and double-quoted 4 offenders. Every commit carried its plugins/ mirror. All gates pass, risk low; no verifier spawned (harness low-risk). Checks per gate: sync-plugin-assets, check:plugin-assets, plugin validate --strict; P10 also vitest 6/6.
+Evidence: 56e8884; 3193b95; 1485bc6; a44b7ed; 5d50bb5
+Cost: 1 implementer spawn; 5 gate calls; 0 verifier
+
+## 2026-09-25T16:34:19Z · closeout · phase · cleanup
+Close-out complete: 10/10 plan items done, 0 to-do, 0 skipped. Plan marked CLOSED. Store rules landed in agent-rules.md (d733799 G1+P7/P8/P14, e8a58b4 G2); harness changes in sdd-implementation-phase and sync-plugin-assets.cjs (56e8884, 3193b95, 1485bc6, a44b7ed, 5d50bb5). One PR #66 carries store+harness because the spec store and harness share this repo and the session was worktree-isolated. All 10 gates pass risk low; no verifier spawned.
+Evidence: PR #66 https://github.com/madmatt112/spec-workflow-mcp/pull/66; retrospective-plan.md Close-out
+Cost: 2 implementer spawns; 7 gate calls; 0 verifier spawns
