@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`graph-orientation`**.
-> Live phase **implementation**, state **tasks 0/10**, last result **approved** (tasks v1; gate B pending).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs gate B, enters worktree `feat/graph-orientation`, starts implementation.
+> Live phase **retrospective**, state **tasks 10/10**, last result **complete** (PR #67 open; retrospective blocked — verification-evidence.md (2) pending).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation`, worktree of `/home/mcf/repo/spec-workflow-mcp` (feat/graph-orientation).
+> A re-run does: after PR #67 merges, `npm run build` and a session restart, an operator runs live scenarios (2), (3), (4) and marks them passed; then the retrospective runs.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -57,6 +57,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-25 | graph-orientation | requirements | v3 | approved | 3 rounds, 0/3/3 to 2/1/0 to converged 0/0/2 |
 | 2026-09-25 | graph-orientation | design | v1 | approved | 1 round, converged first pass 0/0/3 |
 | 2026-09-25 | graph-orientation | tasks | v1 | approved | 1 round, converged clean |
+| 2026-09-25 | graph-orientation | implementation | tasks 10/10 | complete | PR #67 green; logCoverage 10/10, reviewCoverage 8/10 (9,10 verification-only) |
 
 ## Current state — 2026-08-04
 
