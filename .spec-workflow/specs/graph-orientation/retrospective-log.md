@@ -69,3 +69,8 @@ Cost: 1 implementer spawn
 document skill passes graph, mirrors code graph block, drift-guard test; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 6; commit 16d80dd; harness/skills/sdd-document-phase/SKILL.md, references/briefs.md, src/tools/__tests__/harness.test.ts
 Cost: 1 implementer spawn
+
+## 2026-09-25T22:09:25Z · implementation · task 7 · gotcha
+impl + close-out skills pass graph and refresh per-task; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 7; commit 844ec10; harness/skills/sdd-implementation-phase/SKILL.md, harness/skills/sdd-closeout-phase/SKILL.md
+Cost: 1 implementer spawn
