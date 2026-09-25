@@ -145,3 +145,18 @@
 {"ts":"2026-09-25T15:48:26.046Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-09-25T15:48:44.971Z","type":"spawn.end","run":"run-20260925-154306","spec":"agent-cache-ttl","agent":"sdd-retro-orchestrator","input":"38","output":"6649","cacheWrite":"68344","cacheRead":"1022977","tokens":"1098008","cacheWrite5m":"68344","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"af48b6c99d72f6690"}
 {"ts":"2026-09-25T15:48:48.309Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}
+{"ts":"2026-09-25T16:13:43.142Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"phase.start","phase":"closeout","state":"items 0/10"}
+{"ts":"2026-09-25T16:14:51.798Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P7","title":"Give scratch-store spec folders a routing-safe shape"}
+{"ts":"2026-09-25T16:14:51.820Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P8","title":"Require a description line on every generated fixture agent"}
+{"ts":"2026-09-25T16:14:51.844Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P14","title":"Hold generated fixtures to the shipped-artifact validity bar"}
+{"ts":"2026-09-25T16:14:51.868Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"G1","title":"Fixtures held to the shipped-artifact validity bar"}
+{"ts":"2026-09-25T16:14:51.891Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"G2","title":"Live scenarios stay pending behind a tracked evidence file"}
+{"ts":"2026-09-25T16:17:52.237Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","phase":"closeout","result":"G1 d733799 (folds P7/P8/P14), G2 e8a58b4; agent-rules.md"}
+{"ts":"2026-09-25T16:18:21.825Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item G1 pass risk low"}
+{"ts":"2026-09-25T16:18:21.847Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item G2 pass risk low"}
+{"ts":"2026-09-25T16:18:21.872Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"P7/P8/P14 folded into G1 commit d733799; covered by G1 gate"}
+{"ts":"2026-09-25T16:18:21.896Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-09-25T16:18:21.919Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-09-25T16:18:21.946Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P14","outcome":"done"}
+{"ts":"2026-09-25T16:18:21.969Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-09-25T16:18:21.993Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"G2","outcome":"done"}

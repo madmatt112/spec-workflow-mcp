@@ -93,3 +93,13 @@ P4, P5, P6 (fixed on PR #64), P11 (folded into P2), P12 (Gate A worked as intend
 
 - **P1 (F1) — Name the cache-field transcript source in the verification plan.** Rejected: it
   fits this spec's one scenario only; P9's dry-run surfaces a missing data source anyway.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- G1: done — d733799
+- P7: done — d733799
+- P8: done — d733799
+- P14: done — d733799
+- G2: done — e8a58b4

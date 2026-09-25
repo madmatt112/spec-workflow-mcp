@@ -114,3 +114,8 @@ Cost: scenario (2) run three times
 retrospective compiled: 15 findings across 9 categories (2 gotchas, 1 tool deficiency, 5 harness defects incl 2 fixed on PR #64, 1 doc gap, 2 rulings, 1 harness-for-human, 2 repeat patterns); 15 proposals (P1-P15), 1 decision needed (P15, live-scenario restart handling), 2 graduation candidates.
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 analyst spawn
+
+## 2026-09-25T16:18:51Z · closeout · store batch 1 · cleanup
+Store batch: 5 items done (G1, P7, P8, P14 landed in d733799; G2 in e8a58b4), 0 to-do, 0 skipped. Two new standing rules added to .spec-workflow/agent-rules.md under a new Fixtures and live verification section. Both gates pass, risk low; no verifier spawned (store class).
+Evidence: d733799; e8a58b4
+Cost: 1 implementer spawn; 2 gate calls; 0 verifier
