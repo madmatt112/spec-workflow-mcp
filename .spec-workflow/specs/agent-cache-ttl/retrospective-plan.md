@@ -103,3 +103,8 @@ One line per proposal, written by the close-out phase.
 - P8: done — d733799
 - P14: done — d733799
 - G2: done — e8a58b4
+- P2: done — 56e8884
+- P3: done — 3193b95
+- P9: done — 1485bc6
+- P10: done — a44b7ed
+- P15: done — 5d50bb5

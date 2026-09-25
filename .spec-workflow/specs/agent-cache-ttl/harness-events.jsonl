@@ -160,3 +160,19 @@
 {"ts":"2026-09-25T16:18:21.946Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P14","outcome":"done"}
 {"ts":"2026-09-25T16:18:21.969Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"G1","outcome":"done"}
 {"ts":"2026-09-25T16:18:21.993Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"G2","outcome":"done"}
+{"ts":"2026-09-25T16:19:02.793Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P2","title":"Capture the resume-behaviour rule in the pass-bar note"}
+{"ts":"2026-09-25T16:19:02.819Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P3","title":"Document the spawn-end-turn-wake probe pattern"}
+{"ts":"2026-09-25T16:19:02.844Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P9","title":"Dry-run the live-verification fixture kit before the gated run"}
+{"ts":"2026-09-25T16:19:02.873Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P10","title":"Extend the frontmatter YAML gate to skill SKILL.md files"}
+{"ts":"2026-09-25T16:19:02.904Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.pick","task":"P15","title":"Document the operator pre-merge-session pattern"}
+{"ts":"2026-09-25T16:32:17.314Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"P2 56e8884, P3 3193b95, P9 1485bc6, P10 a44b7ed, P15 5d50bb5; all checks pass"}
+{"ts":"2026-09-25T16:32:17.336Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-09-25T16:32:17.358Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-25T16:32:17.381Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-09-25T16:32:17.403Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item P10 pass risk low"}
+{"ts":"2026-09-25T16:32:17.425Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"note","text":"gate: item P15 pass risk low"}
+{"ts":"2026-09-25T16:32:17.447Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-09-25T16:32:17.469Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-25T16:32:17.490Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-09-25T16:32:17.513Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P10","outcome":"done"}
+{"ts":"2026-09-25T16:32:17.536Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P15","outcome":"done"}
