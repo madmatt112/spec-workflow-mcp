@@ -79,7 +79,7 @@ Dependency order: task 1 adds the graph script and task 2 the brief section, bot
   - _Requirements: 7.1, 7.2_
   - _Prompt: Task: docs/TOOLS-REFERENCE.md: the `brief` bullet (:566-568) names the optional values `graph`, `graphBuiltAt` and `graphBehind` and the `## Code graph` section appended when `graph` is a path (a path without both freshness values fails the call); the `usage` bullet (:574-579) names the `graph` column, the count of `graphify explain`, `query` and `path` calls per agent from `harness-activity.jsonl`, for Agent-tool workers only. docs/SDD-HARNESS.md gains a `## Code graph` section after `## Workspace contract` (:253-264): the three launch lines and their values, the refresh rule (at run start when behind, after each implementer report, main checkout only, 100 s timeout, a failure is a ledger note), and that `graphify-out/` stays untracked. Write in ASD-STE100 Simplified Technical English | Restrictions: No other section changes; the "five actions" count at docs/TOOLS-REFERENCE.md:551-553 stays true | Success: `grep -n 'graphBuiltAt' docs/TOOLS-REFERENCE.md` and `grep -n '^## Code graph' docs/SDD-HARNESS.md` each find one line_
 
-- [ ] 9. Pending live-verification record
+- [x] 9. Pending live-verification record
   - File: .spec-workflow/specs/graph-orientation/verification-evidence.md
   - Verification-only task: its File line names no path under `CODE_ROOT`.
   - Purpose: the live halves of scenarios (2), (3) and (4) stay pending until an operator runs them in a rebuilt, restarted session, and the supervisor blocks the retrospective until they pass (design C7).

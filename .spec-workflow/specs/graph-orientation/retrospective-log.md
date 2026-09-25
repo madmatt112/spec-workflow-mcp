@@ -79,3 +79,8 @@ Cost: 1 implementer spawn
 docs name graph values, launch lines, graph column; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 8; commit 24ebc3e; docs/TOOLS-REFERENCE.md, docs/SDD-HARNESS.md
 Cost: 1 implementer spawn
+
+## 2026-09-25T22:16:56Z · implementation · task 9 · gotcha
+verification-only spec-store task: verification-evidence.md with 3 pending lines; verifier skipped by policy (retro P15), no gate, 0 fix rounds, outcome gate.
+Evidence: task 9; commit 640b8c7; .spec-workflow/specs/graph-orientation/verification-evidence.md
+Cost: 1 implementer spawn
