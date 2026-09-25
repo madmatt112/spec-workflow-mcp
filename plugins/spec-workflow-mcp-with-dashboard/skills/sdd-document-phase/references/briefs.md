@@ -49,8 +49,12 @@ not apply to this phase.
 
 ## Codebase context
 `<spec dir>/codebase-context.md` is the map of the code this spec touches, written from
-the exploration you do anyway. Create it if it does not exist; append to it if it does
-(never delete a line another phase wrote). Shape:
+the exploration you do anyway. <GRAPH is a path, requirements: build the file from
+graphify explain and query output for each area the decomposition entry names; open a
+code file only to confirm the range you cite. | GRAPH is a path, design or tasks: extend
+the file the same way.> <GRAPH is a path: A graph node alone is not a citation; every
+line cites a range you read at both ends.> Create it if it does not exist; append to it if
+it does (never delete a line another phase wrote). Shape:
 - First line `# Codebase context — <SPEC>`.
 - One `## <area>` heading per area (a route, a package, a table, a component tree).
 - Under each, one line per file that matters: `- path:start-end — what it is, one
@@ -205,6 +209,7 @@ verdict block). Append:
   absolute paths. <Project rules for reading code and running checks:
   `<AGENT_RULES>`.>
 - Do not edit the document or any file other than your analysis and the memory file.
+<GRAPH is a path: the code graph block, filled.>
 ```
 
 ## Reviser brief — `reviews/reviser-brief-<PHASE>-v<D+1>.md`
@@ -406,4 +411,20 @@ Write to `<analysis output path>`:
 - The line `VERIFIED: <k>/<n>` where k is the number addressed.
 - Any new observation under a `## Deferred findings` heading, one line each. Do not
   write a verdict block. Do not update the memory file. Do not edit the document.
+<GRAPH is a path: the code graph block, filled.>
+```
+
+## Code graph block
+
+Fill `<GRAPH>`, `<GRAPH_BUILT_AT>`, `<GRAPH_BEHIND>`; drop the last line when `GRAPH_BEHIND` is `0`.
+
+```
+## Code graph
+Graph: `<GRAPH>` (the code graph of the code root).
+- `graphify explain "<symbol>" --graph <GRAPH>`: one symbol and its edges. Use it first.
+- `graphify path "A" "B" --graph <GRAPH>`: the chain between two symbols.
+- `graphify query "<terms>" --budget 800 --graph <GRAPH>`: one area; take the terms from the graph's labels.
+Rule: run `explain` on a symbol before you open its code file, then read only the cited range to confirm it. Never use the graph for the spec store. When `explain` prints "No node matching", read the file as before. An `[INFERRED]` edge is never a citation. A citation in a document or the context file names a range you read.
+Freshness: built at <GRAPH_BUILT_AT>, <GRAPH_BEHIND> commits behind HEAD.
+A `file:line` from the graph is a hint to confirm, not a citation.
 ```

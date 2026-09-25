@@ -191,7 +191,7 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 
 | Type | Written by | Keys |
 | --- | --- | --- |
-| `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no), `providers`, `cacheTtl` (`per-agent`, `unsupported`, `unknown` or `NAME=VALUE`) |
+| `run.start` | supervisor | `model`, `specStore`, `codeRoot`, `worktree` (yes/no), `headless` (yes/no), `providers`, `cacheTtl` (`per-agent`, `unsupported`, `unknown` or `NAME=VALUE`), `graph`, `graphBehind` (present only when a graph exists) |
 | `run.end` | supervisor | `status` (the status line) |
 | `phase.start` | orchestrator, at Step 0 | `phase` (also `closeout`), `mode`, `budget`, `state` (v<N>, tasks a/b or items a/b at entry) |
 | `phase.end` | orchestrator, before its report | `phase`, `result` (the PHASE value), `state`, `note` (one line) |

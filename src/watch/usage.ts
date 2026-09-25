@@ -8,7 +8,7 @@
  * its first-closing-row pairing.
  */
 
-import { LedgerEvent, PHASE_ORDER } from './ledger.js';
+import { LedgerEvent, PHASE_ORDER, ActivityEvent } from './ledger.js';
 
 export interface UsageCell {
   spawns: number;
@@ -19,6 +19,7 @@ export interface UsageCell {
   gapRewrites: number;
   cacheUnknownWrite: number;
   cacheUnknownGap: number;
+  graph: number;
 }
 export interface UsageKinds { input: number; output: number; cacheWrite: number; cacheRead: number }
 export interface UsageByProvider { anthropic: UsageCell; deepseek: UsageCell }
@@ -73,7 +74,7 @@ interface ReducedSpawn {
 }
 
 function emptyCell(): UsageCell {
-  return { spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0 };
+  return { spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0 };
 }
 
 function emptyProviders(): UsageByProvider {
@@ -89,6 +90,7 @@ function addCell(dst: UsageCell, src: UsageCell): void {
   dst.gapRewrites += src.gapRewrites;
   dst.cacheUnknownWrite += src.cacheUnknownWrite;
   dst.cacheUnknownGap += src.cacheUnknownGap;
+  dst.graph += src.graph;
 }
 
 function emptyKinds(): UsageKinds {
@@ -108,6 +110,17 @@ function cmpPhase(a: string, b: string): number {
   const rb = phaseRank(b);
   if (ra !== rb) return ra - rb;
   return a.localeCompare(b);
+}
+
+/** The live-phase window at time `at`: the latest phase.start at or before `at` not yet closed. */
+function windowPhase(at: number, phaseStarts: LedgerEvent[], phaseEnds: LedgerEvent[]): string | undefined {
+  for (let i = phaseStarts.length - 1; i >= 0; i--) {
+    const ps = phaseStarts[i];
+    if (ms(ps.ts) > at) continue;
+    const closed = phaseEnds.some(pe => pe.phase === ps.phase && ms(pe.ts) >= ms(ps.ts) && ms(pe.ts) <= at);
+    if (!closed) return ps.phase;
+  }
+  return undefined;
 }
 
 export function buildUsageReport(events: LedgerEvent[], spec: string): UsageReport {
@@ -279,18 +292,7 @@ function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEven
   if (phaseKey) {
     phase = phaseKey;
   } else {
-    const at = ms(s.startedAt);
-    let windowPhase: string | undefined;
-    for (let i = phaseStarts.length - 1; i >= 0; i--) {
-      const ps = phaseStarts[i];
-      if (ms(ps.ts) > at) continue;
-      const closed = phaseEnds.some(pe => pe.phase === ps.phase && ms(pe.ts) >= ms(ps.ts) && ms(pe.ts) <= at);
-      if (!closed) {
-        windowPhase = ps.phase;
-        break;
-      }
-    }
-    phase = windowPhase ?? 'unknown';
+    phase = windowPhase(ms(s.startedAt), phaseStarts, phaseEnds) ?? 'unknown';
   }
 
   return { phase, agent: s.agent, provider: provider ?? 'anthropic', tokens, unknown, kinds, cache };
@@ -309,6 +311,51 @@ export function usageDelta(a: UsageReport, b: UsageReport): UsageDelta[] {
     const bt = bMap.get(phase) ?? emptyCell();
     return { phase, spawns: bt.spawns - at.spawns, tokens: bt.tokens - at.tokens };
   });
+}
+
+/**
+ * A graphify read call: a `Bash` tool row whose summary runs `graphify explain`, `query` or
+ * `path` at a command boundary (design C5, D8). A `graphify update` or a grep of the phrase
+ * does not match.
+ */
+export function isGraphCall(row: ActivityEvent): boolean {
+  return row.event === 'tool' && row.tool === 'Bash' && row.summary !== undefined
+    && /(^|[\s;&|(])graphify\s+(explain|query|path)\b/.test(row.summary);
+}
+
+/**
+ * Fold graph calls from the activity rows onto `report` (design C5). Each call adds 1 to the
+ * `graph` count of its agent cell in the phase whose live window holds the row's ts (else
+ * `unknown`), of that phase's total, of its Anthropic provider cell, and of the report total
+ * and its Anthropic provider cell. A missing phase or agent is created empty (0 spawns).
+ * Mutates and returns `report`.
+ */
+export function applyGraphCounts(report: UsageReport, events: LedgerEvent[], activity: ActivityEvent[]): UsageReport {
+  const sorted = [...events].sort((a, b) => ms(a.ts) - ms(b.ts));
+  const phaseStarts = sorted.filter(e => e.type === 'phase.start');
+  const phaseEnds = sorted.filter(e => e.type === 'phase.end');
+  for (const row of activity) {
+    if (!isGraphCall(row)) continue;
+    const phaseName = windowPhase(ms(row.ts), phaseStarts, phaseEnds) ?? 'unknown';
+    let ph = report.phases.find(p => p.phase === phaseName);
+    if (!ph) {
+      ph = { phase: phaseName, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, providers: emptyProviders() };
+      report.phases.push(ph);
+      report.phases.sort((a, b) => cmpPhase(a.phase, b.phase));
+    }
+    const agentKey = row.agent ?? 'unknown';
+    let cell = ph.agents[agentKey];
+    if (!cell) {
+      cell = emptyCell();
+      ph.agents[agentKey] = cell;
+    }
+    cell.graph += 1;
+    ph.total.graph += 1;
+    ph.providers.anthropic.graph += 1;
+    report.total.graph += 1;
+    report.providers.anthropic.graph += 1;
+  }
+  return report;
 }
 
 function grp(x: number): string {
@@ -359,21 +406,21 @@ export function formatUsageTable(report: UsageReport, compare?: UsageReport): st
 }
 
 function formatOne(report: UsageReport): string {
-  const lines: string[] = [headLine(report), 'phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites'];
+  const lines: string[] = [headLine(report), 'phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph'];
   for (const ph of report.phases) {
     for (const agent of Object.keys(ph.agents).sort((a, b) => a.localeCompare(b))) {
       const c = ph.agents[agent];
       const anthropicSpawns = agent.endsWith('@deepseek') ? 0 : c.spawns;
-      lines.push(`${ph.phase} | ${agent} | ${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)}`);
+      lines.push(`${ph.phase} | ${agent} | ${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}`);
     }
-    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)} | ${cacheStr(ph.total, ph.providers.anthropic.spawns)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}  ${provStr(ph.providers)}`);
+    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)} | ${cacheStr(ph.total, ph.providers.anthropic.spawns)} | ${grp(ph.total.graph)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}  ${provStr(ph.providers)}`);
   }
-  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)} | ${cacheStr(report.total, report.providers.anthropic.spawns)}  ${kindsStr(report.kinds)}  ${provStr(report.providers)}`);
+  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)} | ${cacheStr(report.total, report.providers.anthropic.spawns)} | ${grp(report.total.graph)}  ${kindsStr(report.kinds)}  ${provStr(report.providers)}`);
   return lines.join('\n');
 }
 
 function formatCompare(report: UsageReport, compare: UsageReport): string {
-  const cols = 'spawns | tokens | cw5m | cw1h | gapRewrites';
+  const cols = 'spawns | tokens | cw5m | cw1h | gapRewrites | graph';
   const lines: string[] = [headLine(report), headLine(compare), `phase | agent | ${cols} | ${cols}`];
   const aMap = new Map(report.phases.map(p => [p.phase, p]));
   const bMap = new Map(compare.phases.map(p => [p.phase, p]));
@@ -383,7 +430,7 @@ function formatCompare(report: UsageReport, compare: UsageReport): string {
   names.sort(cmpPhase);
   const deltas = new Map(usageDelta(report, compare).map(d => [d.phase, d]));
   const pair = (c: UsageCell | undefined, anthropicSpawns: number) =>
-    c ? `${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)}` : '- | - | - | - | -';
+    c ? `${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}` : '- | - | - | - | - | -';
   const provPair = (a: UsageByProvider | undefined, b: UsageByProvider | undefined) =>
     `anthropic ${grp(a?.anthropic.tokens ?? 0)} | ${grp(b?.anthropic.tokens ?? 0)}  deepseek ${grp(a?.deepseek.tokens ?? 0)} | ${grp(b?.deepseek.tokens ?? 0)}`;
 

@@ -71,6 +71,10 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 - **Worktree check.** Run `git rev-parse --path-format=absolute --git-common-dir` and
   `git rev-parse --path-format=absolute --git-dir`. If they differ you are in a
   worktree; the main checkout is the common dir with the trailing `/.git` removed.
+- **Code graph.** Run `bash <base dir>/references/sdd-graph.sh fact <CODE_ROOT>
+  <main checkout, or CODE_ROOT when not in a worktree>` (the base dir named in step 0) and
+  keep its three lines as `GRAPH`, `GRAPH_BEHIND` and `GRAPH_BUILT_AT`. Resolve the graph
+  against the code root's main checkout, never against `SPEC_STORE_REPO` (Req 1 AC7).
 - **Fallback.** Only when the result carries no `workflowRoot`: the spec store root is
   `<main checkout>/.spec-workflow`.
 - Every `.spec-workflow/...` path resolves against the spec store root.
@@ -105,10 +109,19 @@ before the first append, run
 `bash <base dir>/references/truncate-ledger.sh <spec dir>/harness-events.jsonl` to trim a
 torn tail a crashed write left — a trailing partial line or NUL run — keeping the run id and
 every complete row, so crash recovery is one documented step, not manual surgery (retro P4).
+When `GRAPH` is a path, `cp` the graph script (`<base dir>/references/sdd-graph.sh`) to
+`/tmp/scratchpad/sdd/<spec>/sdd-graph.sh`; then, when `GRAPH_BEHIND` is not `0` and
+`WORKTREE` is `no`, run `bash /tmp/scratchpad/sdd/<spec>/sdd-graph.sh refresh <CODE_ROOT>`
+once. On `refresh: ok` replace `GRAPH_BEHIND` and `GRAPH_BUILT_AT` with its two value
+lines; on any other output keep the old values and hold its refresh line. When `GRAPH` is
+`none` none of this runs and the ledger keeps its pre-spec shape.
 Then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>
-cacheTtl=<CACHE_TTL>`
-(`headless=yes` when the AskUserQuestion tool is not available to you). When `PROVIDERS`
+cacheTtl=<CACHE_TTL>`, adding `graph=<GRAPH> graphBehind=<GRAPH_BEHIND>` only when `GRAPH`
+is a path
+(`headless=yes` when the AskUserQuestion tool is not available to you). A held graph-refresh
+failure line becomes `bash <event.sh> note "text=graph refresh: <line>"` right after
+`run.start`. When `PROVIDERS`
 contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`
 with the Write tool from the `## Launcher (launch.sh)` text in `references/formats.md`,
 its uppercase values filled in, and keep its path as `LAUNCHER`; otherwise `LAUNCHER` is
@@ -239,6 +252,9 @@ HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
 PROVIDERS: <the value>
 LAUNCHER: <path | none>
+GRAPH: <path | none>
+GRAPH_BEHIND: <n | unknown | n/a>
+GRAPH_BUILT_AT: <sha | unknown | n/a>
 BUDGET: <4 review rounds | 20 tasks | all items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
@@ -262,8 +278,8 @@ Then handle the missing report by the dispatch rules below.
 When the interruption also wiped `/tmp/scratchpad` (the process exited or restarted),
 recover under the **same run id** (retro G3): read the run id from the existing
 `<spec dir>/harness-events.jsonl`, recreate the run scripts (`event.sh`, and `launch.sh`
-when `PROVIDERS` needs it) with the Write tool as step 1 does, and re-spawn the phase
-fresh. Trust the spec store and the code commits as the source of truth: do not re-run
+when `PROVIDERS` needs it) with the Write tool as step 1 does, re-`cp` `sdd-graph.sh` into
+the scratch dir when `GRAPH` is a path, and re-spawn the phase fresh. Trust the spec store and the code commits as the source of truth: do not re-run
 work already committed — a re-spawned orchestrator reads `tasks.md` and the ledger and
 picks up from where the commits leave off. A wiped `/tmp/scratchpad` loses only
 uncommitted scratch (briefs, standing files), which the next spawn regenerates.
@@ -322,7 +338,9 @@ and contains the line `worktree-per-change: required`, and the worktree check in
 step 1 said `no`, enter a worktree named after the spec with the EnterWorktree tool,
 then rename the branch to `feat/<spec>` (`git branch -m`). If `agent-rules.md`
 carries a `worktree-setup:` line, run its command once in the new worktree. Re-run
-the step 1 worktree check so the launch prompt carries the new `CODE_ROOT`. If EnterWorktree is
+the step 1 worktree check so the launch prompt carries the new `CODE_ROOT`, then re-run the
+step 1 **Code graph** `fact` with the new `CODE_ROOT` and the main checkout so `GRAPH`,
+`GRAPH_BEHIND` and `GRAPH_BUILT_AT` match the worktree; do not refresh (Req 2 AC6). If EnterWorktree is
 unavailable (headless run), the driver has already put you in a worktree; the step 1
 check confirms it, and you do not enter another. Subagents inherit the worktree.
 

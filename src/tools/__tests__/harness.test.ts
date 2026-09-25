@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { harnessHandler } from '../harness.js';
+import { harnessHandler, codeGraphSection } from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
@@ -238,6 +238,108 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(false);
     expect(res.message).toContain('nope');
     await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  // Requirement 3 — the `## Code graph` brief section by tooling.
+
+  const GRAPH = '/code/graphify-out/graph.json';
+
+  // The non-graph required values for each of the five templates.
+  const GRAPH_BASE_VALUES: Record<string, Record<string, unknown>> = {
+    drafter: { title: 'T', job: 'do it' },
+    reviser: { title: 'T', job: 'do it', findings: 'the findings' },
+    adjudicator: { title: 'T', items: 'the items' },
+    verifier: { title: 'T', job: 'do it' },
+    implementer: { title: 'T' },
+  };
+
+  for (const template of Object.keys(GRAPH_BASE_VALUES)) {
+    it(`brief appends the ## Code graph section to a ${template} brief`, async () => {
+      await writeAgentRules();
+      if (template === 'implementer') await writeDoc('tasks.md', TASKS);
+      const outPath = join(tempDir, `${template}-graph-brief.md`);
+      const args: Record<string, unknown> = {
+        action: 'brief', specName: SPEC, template,
+        values: { ...GRAPH_BASE_VALUES[template], path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '3' },
+      };
+      if (template === 'implementer') args.taskId = '3';
+
+      const res = await harnessHandler(args, context);
+      expect(res.success).toBe(true);
+
+      const written = await fs.readFile(outPath, 'utf-8');
+      const section = codeGraphSection(GRAPH, 'abc1234', '3');
+      // One blank line, then the section verbatim, hint line included (behind !== '0').
+      expect(written.endsWith('\n\n' + section)).toBe(true);
+      expect(section).toContain('A `file:line` from the graph is a hint to confirm');
+    });
+  }
+
+  it('brief drops the hint line when graphBehind is 0', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-graph0.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter',
+        values: { title: 'T', job: 'do it', path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '0' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain('## Code graph');
+    expect(written).toContain('Freshness: built at abc1234, 0 commits behind HEAD.');
+    expect(written).not.toContain('A `file:line` from the graph');
+  });
+
+  it('brief with no graph values and graph none give byte-identical files without a section', async () => {
+    await writeAgentRules();
+    const noGraphPath = join(tempDir, 'drafter-nograph.md');
+    const nonePath = join(tempDir, 'drafter-none.md');
+    const base = { title: 'T', job: 'do it' };
+
+    const r1 = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { ...base, path: noGraphPath } },
+      context,
+    );
+    const r2 = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: { ...base, path: nonePath, graph: 'none' } },
+      context,
+    );
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(true);
+
+    const a = await fs.readFile(noGraphPath, 'utf-8');
+    const b = await fs.readFile(nonePath, 'utf-8');
+    expect(a).toBe(b);
+    expect(a).not.toContain('## Code graph');
+  });
+
+  it('brief with a graph path but no graphBehind fails naming it and writes no file', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-missing-behind.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter',
+        values: { title: 'T', job: 'do it', path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('graphBehind');
+    expect(res.message).not.toContain('graphBuiltAt');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('the briefs.md Code graph block mirrors codeGraphSection (drift guard)', async () => {
+    const briefsPath = fileURLToPath(
+      new URL('../../../harness/skills/sdd-document-phase/references/briefs.md', import.meta.url),
+    );
+    const lines = (await fs.readFile(briefsPath, 'utf-8')).split('\n');
+    const heading = lines.indexOf('## Code graph block');
+    expect(heading).toBeGreaterThan(-1);
+    const open = lines.indexOf('```', heading);
+    const close = lines.indexOf('```', open + 1);
+    expect(open).toBeGreaterThan(heading);
+    expect(close).toBeGreaterThan(open);
+    const block = lines.slice(open + 1, close).join('\n') + '\n';
+    expect(block).toBe(codeGraphSection('<GRAPH>', '<GRAPH_BUILT_AT>', '<GRAPH_BEHIND>'));
   });
 
   // Requirement 5 — the `phase-log` action.
@@ -520,6 +622,12 @@ describe('harnessHandler', () => {
     await fs.writeFile(join(dir, 'harness-events.jsonl'), events.map(e => JSON.stringify(e)).join('\n') + '\n');
   };
 
+  const writeSpecActivity = async (spec: string, rows: Record<string, unknown>[]) => {
+    const dir = join(tempDir, '.spec-workflow', 'specs', spec);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(join(dir, 'harness-activity.jsonl'), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
+  };
+
   it('usage folds one spec: report totals and the phase row in the message', async () => {
     await writeLedger([
       { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
@@ -530,7 +638,7 @@ describe('harnessHandler', () => {
     const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
     expect(res.success).toBe(true);
     expect(res.data.report.runs).toBe(1);
-    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0 });
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 1000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0, graph: 0 });
     expect(res.message).toContain('requirements | sdd-drafter | 1 | 1,000');
     // One spec ⇒ no compare, no delta.
     expect(res.data.compare).toBeUndefined();
@@ -593,8 +701,8 @@ describe('harnessHandler', () => {
 
     const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
     expect(res.success).toBe(true);
-    expect(res.data.report.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0 });
-    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 50000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0 });
+    expect(res.data.report.providers.deepseek).toEqual({ spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0 });
+    expect(res.data.report.total).toEqual({ spawns: 1, tokens: 50000, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 1, cacheUnknownGap: 0, graph: 0 });
   });
 
   it('usage folds the committed fixture ledger (runs 2, 5 spawns, 4,554,189)', async () => {
@@ -634,5 +742,69 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     expect(res.data.report.runs).toBe(0);
     expect(res.data.report.total.spawns).toBe(0);
+  });
+
+  // Requirement 6 — the activity join (design C5).
+
+  it('usage joins the spec activity: graph counts per agent and phase, graph header', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r1', spec: SPEC, phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+    await writeSpecActivity(SPEC, [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain "x"' },
+      { ts: '2026-09-20T10:00:05Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify query t' },
+      { ts: '2026-09-20T10:00:06Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify update .' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    const req = res.data.report.phases.find((p: any) => p.phase === 'requirements');
+    expect(req.agents['sdd-drafter'].graph).toBe(2);
+    expect(req.total.graph).toBe(2);
+    expect(res.data.report.total.graph).toBe(2);
+    expect(res.message).toContain('| gapRewrites | graph');
+  });
+
+  it('usage compare reads each spec graph count from its own activity file', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r1', spec: SPEC, phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+    await writeSpecActivity(SPEC, [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain "x"' },
+    ]);
+    await writeSpecLedger('other-spec', [
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r9', spec: 'other-spec' },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r9', spec: 'other-spec', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', tokens: '3000' },
+    ]);
+    await writeSpecActivity('other-spec', [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify query a' },
+      { ts: '2026-09-20T10:00:05Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify path "A" "B"' },
+      { ts: '2026-09-20T10:00:06Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain z' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC, compareSpecName: 'other-spec' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.graph).toBe(1);
+    expect(res.data.compare.total.graph).toBe(3);
+  });
+
+  it('usage with a ledger but no activity file reports 0 graph', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.graph).toBe(0);
   });
 });
