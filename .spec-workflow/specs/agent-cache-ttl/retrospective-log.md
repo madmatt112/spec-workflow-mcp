@@ -124,3 +124,8 @@ Cost: 1 implementer spawn; 2 gate calls; 0 verifier
 Harness batch: 5 items done, each its own commit (P2 56e8884, P3 3193b95, P9 1485bc6, P10 a44b7ed, P15 5d50bb5), 0 to-do, 0 skipped. P2/P3/P9/P15 document resume-behaviour, long-gap probe, dry-run and operator pre-merge patterns in sdd-implementation-phase; P10 added a js-yaml frontmatter gate for skill SKILL.md files in sync-plugin-assets.cjs and double-quoted 4 offenders. Every commit carried its plugins/ mirror. All gates pass, risk low; no verifier spawned (harness low-risk). Checks per gate: sync-plugin-assets, check:plugin-assets, plugin validate --strict; P10 also vitest 6/6.
 Evidence: 56e8884; 3193b95; 1485bc6; a44b7ed; 5d50bb5
 Cost: 1 implementer spawn; 5 gate calls; 0 verifier
+
+## 2026-09-25T16:34:19Z · closeout · phase · cleanup
+Close-out complete: 10/10 plan items done, 0 to-do, 0 skipped. Plan marked CLOSED. Store rules landed in agent-rules.md (d733799 G1+P7/P8/P14, e8a58b4 G2); harness changes in sdd-implementation-phase and sync-plugin-assets.cjs (56e8884, 3193b95, 1485bc6, a44b7ed, 5d50bb5). One PR #66 carries store+harness because the spec store and harness share this repo and the session was worktree-isolated. All 10 gates pass risk low; no verifier spawned.
+Evidence: PR #66 https://github.com/madmatt112/spec-workflow-mcp/pull/66; retrospective-plan.md Close-out
+Cost: 2 implementer spawns; 7 gate calls; 0 verifier spawns

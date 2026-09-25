@@ -449,3 +449,16 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Next deferrals worth working | d-9d600d11 (sdd-launch.sh readUsage token inflation, same class as this spec's usage work); d-a38fea66 (verify provider-per-role halves in a restarted session); d-1880d115 (question-gates live gate scenarios) |
 | Gotchas | Only one spec-run subagent transcript carries the ephemeral cache fields; scenario (4) paired it with a second real project transcript. harness/agent-profiles.json is not mirrored into plugins/. |
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/64 |
+
+## agent-cache-ttl — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED on 2026-09-25; 10/10 plan items done, 0 to-do, 0 skipped |
+| Store batch | agent-rules.md: new "Fixtures and live verification" section — G1 (with P7/P8/P14) validity bar d733799, G2 tracked-evidence gate e8a58b4 |
+| Harness batch | P2 56e8884, P3 3193b95, P9 1485bc6, P10 a44b7ed, P15 5d50bb5; each commit carried its plugins/ mirror |
+| Gates | all 10 items gate pass, risk low; no verifier spawned (store class + harness low-risk) |
+| Checks | sync-plugin-assets, check:plugin-assets, plugin validate --strict all green; P10 vitest 6/6 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/66 (store + harness ride one PR — same repo; not merged) |
+| To-do (human) | Merge PR #66 to land the retrospective follow-ups. |
+| Gotchas | Session was worktree-isolated, so store-class changes and spec-store bookkeeping landed on chore/agent-cache-ttl-retro and ride PR #66 rather than committing to main directly. Ledger/retro-log/commit helper scripts were repointed from the main checkout to the worktree copy. P10's new JSDoc block comment must avoid a bare `*/` (a path glob closed the comment early). |

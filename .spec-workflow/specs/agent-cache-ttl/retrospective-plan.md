@@ -1,6 +1,6 @@
 # Retrospective plan — agent-cache-ttl
 
-Status: APPROVED
+Status: CLOSED
 
 Approved 2026-09-25 in the supervisor's retrospective conversation. Matthew chose P15
 option A and left the other approvals to the supervisor ("You decide which are worth it").
@@ -108,3 +108,4 @@ One line per proposal, written by the close-out phase.
 - P9: done — 1485bc6
 - P10: done — a44b7ed
 - P15: done — 5d50bb5
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/66
