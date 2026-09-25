@@ -49,3 +49,8 @@ Cost: 1 implementer spawn
 codeGraphSection + brief graph guard/append; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 2; commit 1fed0c6; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
 Cost: 1 implementer spawn
+
+## 2026-09-25T21:41:17Z · implementation · task 3 · gotcha
+graph count in usage fold + tables (UsageCell.graph, windowPhase, isGraphCall, applyGraphCounts); gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 3; commit 765ee6e; src/watch/usage.ts, src/watch/__tests__/usage.test.ts, src/tools/__tests__/harness.test.ts
+Cost: 1 implementer spawn
