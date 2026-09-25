@@ -39,3 +39,8 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 rounds; verdict trajectory converged 0/0/0; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790364064340_6ez01nrhz; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/graph-orientation/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 1 reviser spawns
+
+## 2026-09-25T21:26:45Z · implementation · task 1 · gotcha
+sdd-graph.sh fact/refresh + test; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 1; commit efa4e9b; harness/skills/sdd-continue/references/sdd-graph.sh, src/__tests__/sdd-graph.test.ts
+Cost: 1 implementer spawn

@@ -503,3 +503,11 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Cut scope | none. Live halves of scenarios (2),(3),(4) stay pending in the tracked verification-evidence file (C7, task 9); spec 11's test-author template is deferred. Decomposition exclusions honoured. |
 | Carried items | none. Round 1 converged 0/0/0; no SHOULD_FIX or MINOR was rejected for the word cap. |
 | Next phase loads | implementation reads `codebase-context.md` first, then this `tasks.md` and `design.md`: 10 tasks, dependency order 1→10 stated in the preamble. Coverage: C1 task 1, C3 task 2, C5 tasks 3-4, C2 task 5, C4 tasks 6-7, C6 task 8, C7 task 9, end-to-end verification task 10. |
+
+## graph-orientation — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/10 |
+| Last code commit | efa4e9b (task 1) |
+| Next task | 2 |

@@ -5,7 +5,7 @@ Design components map to tasks as follows: C1 is task 1, C3 is task 2, C5 is tas
 
 Dependency order: task 1 adds the graph script and task 2 the brief section, both with no dependency. Task 3 adds the `graph` cell field and the table column, and updates every exact-value assertion the new field touches in the same commit; task 4 then feeds the activity log into the fold task 3 exports. Task 5 makes the supervisor call the task 1 script and copy it to the run's scratch dir; task 6 mirrors the task 2 section text into the document skill and guards it with a test; task 7 calls the scratch copy task 5 makes. Tasks 8 and 9 depend on no code; task 10 runs last. Every task leaves `npx tsc --noEmit` clean and every existing suite green, and its prompt names each existing exact-value assertion it changes.
 
-- [ ] 1. Graph script with `fact` and `refresh` modes
+- [x] 1. Graph script with `fact` and `refresh` modes
   - File: harness/skills/sdd-continue/references/sdd-graph.sh
   - File: src/__tests__/sdd-graph.test.ts
   - File: plugins/ (generated copies)
