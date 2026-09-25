@@ -176,3 +176,5 @@
 {"ts":"2026-09-25T16:32:17.490Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P9","outcome":"done"}
 {"ts":"2026-09-25T16:32:17.513Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P10","outcome":"done"}
 {"ts":"2026-09-25T16:32:17.536Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"task.done","task":"P15","outcome":"done"}
+{"ts":"2026-09-25T16:34:34.607Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"phase.end","phase":"closeout","result":"closed","state":"items 10/10","note":"all items done; PR #66; store+harness one PR (worktree-isolated single repo)"}
+{"ts":"2026-09-25T16:36:19.979Z","run":"run-20260925-154306","spec":"agent-cache-ttl","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","phase":"closeout"}

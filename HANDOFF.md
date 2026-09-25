@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`**.
-> Live phase **retrospective**, state **tasks 9/9**, last result **complete** (PR #64 merged as 12cb20f; live scenarios (1)(2)(3)(5) passed, evidence a615375).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: in a session restarted on the merged code, runs the retrospective of `agent-cache-ttl`; before the close-out branches in this repo, check with the overwatch session (tradr account-deletion close-out is landing a spec-workflow-mcp PR).
+> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`** (finished).
+> Live phase **closeout**, state **items 10/10**, last result **closed** (PR #66 carries the close-out and the retro spec-store commits; merge it first).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`, worktree of `/home/mcf/repo/spec-workflow-mcp` (chore/agent-cache-ttl-retro).
+> A re-run does: after PR #66 merges and the session restarts, starts the next spec from decomposition.md at requirements.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -52,6 +52,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-24 | agent-cache-ttl | implementation | tasks 9/9 | complete | PR #64 green; scenarios 1/2/3/5 pending for operator |
 | 2026-09-25 | agent-cache-ttl | retrospective |  | retro-ready |  |
 | 2026-09-25 | agent-cache-ttl | retrospective | APPROVED | retro-ready | plan approved: P2 P3 P7 P8 P9 P10 P14 P15(A) G1 G2; P1 rejected |
+| 2026-09-25 | agent-cache-ttl | closeout | items 10/10 | closed | PR #66 open (not merged); G1 G2 in agent-rules.md, P2 P3 P9 P10 P15 in harness |
 
 ## Current state — 2026-08-04
 
