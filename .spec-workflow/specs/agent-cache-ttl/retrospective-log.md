@@ -99,3 +99,8 @@ Cost: two scenario runs; one supervisor fix commit
 C8 live scenario (2) failed to start: Agent type sdd-cache-probe not found. e2e-setup.sh wrote sdd-cache-probe.md and sdd-cache-probe-worker.md with no description line, and Claude Code does not register an agent without one. Overwatch added quoted descriptions to both scratch files and patched e2e-setup.sh. Lesson (third of its kind this spec): generated fixture files need the same validity checks as shipped ones — valid YAML, a description, no stray spec folders. Status at this entry: (1) and (3) pass on 59a6374 (orchestrator cw1h 124970 / cw5m 0; 3 rows equal to recompute); (2) and (5) pending.
 Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
 Cost: one failed scenario-2 launch
+
+## 2026-09-25T00:33:28Z · implementation · phase · gotcha
+C8 scenario (2) probe finished in 40 s with a 35 s gap: it spawned its worker in the foreground, but Claude Code 2.1.282 backgrounds subagent spawns, so the probe replied DONE without waiting; a Bash sleep cannot make one gap over 600 s either (tool timeout caps at 600000 ms). Overwatch changed the scratch probe body and e2e-setup.sh to the real orchestrator pattern: spawn the worker, end the turn, wait for the completion notification, then reply DONE — the yield-and-wake gap the one-hour TTL targets. Lesson: a live probe must reproduce the real wait pattern; foreground spawn and long sleeps are not available.
+Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
+Cost: one scenario-2 run with a too-short gap
