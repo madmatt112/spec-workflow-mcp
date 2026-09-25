@@ -74,3 +74,8 @@ Cost: 1 implementer spawn
 impl + close-out skills pass graph and refresh per-task; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 7; commit 844ec10; harness/skills/sdd-implementation-phase/SKILL.md, harness/skills/sdd-closeout-phase/SKILL.md
 Cost: 1 implementer spawn
+
+## 2026-09-25T22:13:06Z · implementation · task 8 · gotcha
+docs name graph values, launch lines, graph column; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 8; commit 24ebc3e; docs/TOOLS-REFERENCE.md, docs/SDD-HARNESS.md
+Cost: 1 implementer spawn
