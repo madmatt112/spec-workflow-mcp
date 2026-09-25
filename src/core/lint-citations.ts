@@ -287,8 +287,16 @@ async function resolvePathOnce(rawPath: string, bases: string[], cache: Map<stri
  * directory. A filename with no directory prefix is rejected before any base is
  * tried (retro P2). Returns findings with `file` unset; `finishLint` sets it to
  * `<phase>.md`.
+ *
+ * `suppressIdentifiers` holds citation-identifier tokens the caller already
+ * reported on a prior version that was rejected; a warning for such a token is
+ * skipped so an unchanged, already-seen token is not re-flagged (retro P10).
  */
-export async function checkCitations(lines: string[], bases: string[]): Promise<LintFinding[]> {
+export async function checkCitations(
+  lines: string[],
+  bases: string[],
+  suppressIdentifiers?: ReadonlySet<string>,
+): Promise<LintFinding[]> {
   const fenced = fencedLines(lines);
   // Skip Revision History and decision-log sections: their bullets are
   // meta-commentary, not real citations (retro P4). Masking those lines like a
@@ -367,6 +375,8 @@ export async function checkCitations(lines: string[], bases: string[]): Promise<
 
     for (const token of tokens) {
       if (!citedText.includes(token)) {
+        // Skip a token already flagged on a rejected prior version (retro P10).
+        if (suppressIdentifiers?.has(token)) continue;
         findings.push({
           file: '', line: block.start, rule: 'citation-identifier', severity: 'warning',
           message: `Identifier '${token}' is absent from the cited ranges (${checked})`,

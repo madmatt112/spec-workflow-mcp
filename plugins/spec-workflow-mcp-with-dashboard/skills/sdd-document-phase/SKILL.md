@@ -269,7 +269,10 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the line and it
    contains `Post-cap corrective pass`.
 4. From the report, list the **ruled-out SHOULD_FIX** items (id and title). They are the
-   carried items for the next phase: keep them for the HANDOFF section in Step 6.
+   carried items for the next phase: keep them for the HANDOFF section in Step 6. Also
+   carry every MINOR from the r<A> analysis the cap leaves unaddressed — rejected only
+   because the word cap forbids the extra words — by id and title with the reason `word
+   cap` (retro P11).
 5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> post-cap corrective pass`.
 6. Append a retro-log entry with `retro.sh` (`inefficiency`: cap hit; every item id with `fixed` or
    `ruled out`).
@@ -310,7 +313,8 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 
 Follow `references/cleanup.md` in order: prune, delete the listed files, keep the
 memory file and the context file, retro-log phase summary, HANDOFF section (with the
-carried items from Step 4a, or `none`), commit. Record
+carried items — the ruled-out SHOULD_FIX items from Step 4a plus every MINOR a reviser
+or adjudicator rejected in this phase only for the word cap — or `none`), commit. Record
 `phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`.
 In the `tasks` phase and `MODE: normal` only, run the **Gate B** step (below) before you
 report, so the veto surface holds the list for the supervisor.

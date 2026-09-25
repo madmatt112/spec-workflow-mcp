@@ -97,3 +97,55 @@ export function computeClassA(
   // order ahead of the keyword items, also in task order.
   return items.sort((a, b) => b.score - a.score);
 }
+
+// --- Component 1: gate-B keyword-saturation fallback (retro P15) -------------
+
+/**
+ * Verbs that destroy production data. When the class-(a) keyword net saturates
+ * (retro P15) only tasks whose block carries one of these survive. Kept beside
+ * `CLASS_A_KEYWORDS` so a retrospective tunes both in one place.
+ */
+export const DESTRUCTIVE_VERBS: RegExp =
+  /\b(?:drop(?:s|ped|ping)?|truncat(?:e|es|ed|ing|ion)?|purg(?:e|es|ed|ing)?|hard[-\s]?delet\w*)\b/i;
+
+/**
+ * The fraction of keyword-matched tasks above which the class-(a) keyword net is
+ * treated as non-discriminating (retro P15). "More than 60%" is a strict `>`.
+ */
+export const KEYWORD_SATURATION = 0.6;
+
+/**
+ * The gate-B keyword-saturation fallback (retro P15). When more than
+ * `KEYWORD_SATURATION` of the tasks matched at least one class-(a) keyword the
+ * net has stopped discriminating, so drop every keyword item and instead flag
+ * only tasks whose block carries a destructive verb against production data
+ * (drop, truncate, purge, hard-delete). Sensitive-path items are untouched. At
+ * or below the threshold `items` is returned unchanged. The result stays sorted
+ * by `score` descending, path items ahead of keyword items.
+ */
+export function applyKeywordSaturationFallback(
+  items: ClassAItem[],
+  tasks: TaskVetoInput[]
+): ClassAItem[] {
+  if (tasks.length === 0) return items;
+  const keywordTaskIds = new Set(
+    items.filter((i) => i.kind === 'keyword').map((i) => i.taskId)
+  );
+  if (keywordTaskIds.size / tasks.length <= KEYWORD_SATURATION) return items;
+
+  const kept = items.filter((i) => i.kind !== 'keyword');
+  const destructive: ClassAItem[] = [];
+  for (const task of tasks) {
+    const match = task.block.match(DESTRUCTIVE_VERBS);
+    if (match) {
+      destructive.push({
+        taskId: task.id,
+        title: task.title,
+        kind: 'keyword',
+        reason: `destructive: ${match[0].toLowerCase()}`,
+        score: 1,
+      });
+    }
+  }
+  return [...kept, ...destructive].sort((a, b) => b.score - a.score);
+}
