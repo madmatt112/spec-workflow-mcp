@@ -298,6 +298,11 @@ need a real cross-turn gap or a foreground worker the tooling will not give you.
 - **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
   kit once in the scratch store — registration and a no-op probe — and records it green
   before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
+- **Operator pre-merge session.** A live scenario that needs the rebuilt harness stays
+  pending behind a tracked `verification-evidence.md`; the standing way to clear it is
+  the operator pre-merge-session pattern — an operator runs it in a rebuilt, restarted
+  session. This is the Fixtures and live verification rule (G2) in `agent-rules.md`;
+  follow it there rather than restating its steps.
 
 ### Reconcile a red PR
 
