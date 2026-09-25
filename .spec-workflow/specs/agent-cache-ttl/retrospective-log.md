@@ -104,3 +104,8 @@ Cost: one failed scenario-2 launch
 C8 scenario (2) probe finished in 40 s with a 35 s gap: it spawned its worker in the foreground, but Claude Code 2.1.282 backgrounds subagent spawns, so the probe replied DONE without waiting; a Bash sleep cannot make one gap over 600 s either (tool timeout caps at 600000 ms). Overwatch changed the scratch probe body and e2e-setup.sh to the real orchestrator pattern: spawn the worker, end the turn, wait for the completion notification, then reply DONE — the yield-and-wake gap the one-hour TTL targets. Lesson: a live probe must reproduce the real wait pattern; foreground spawn and long sleeps are not available.
 Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
 Cost: one scenario-2 run with a too-short gap
+
+## 2026-09-25T15:31:22Z · implementation · phase · ruling
+Amendment, approved by Matthew: the scenario (2) pass bar changes from reading the whole previous prefix to reading the content older than the last turn. Measured: content older than the last turn read 100% after an 819 s gap, gapRewrites 0; the whole-prefix read was 80% because the last turn is re-sent on subagent resume. The scratch recompute.mjs now measures older-than-last-turn. All four live scenarios passed (evidence produced headless by overwatch after Matthew's scratch login); verification-evidence.md committed as a615375; PR #64 merged as 12cb20f.
+Evidence: a615375 (verification-evidence.md); 12cb20f (PR #64 merge); overwatch report 2026-09-25
+Cost: scenario (2) run three times

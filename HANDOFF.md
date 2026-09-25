@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-24, harness v4).** Active spec **`agent-cache-ttl`**.
-> Live phase **implementation**, state **tasks 9/9**, last result **complete** (PR #64 open, green, not merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/agent-cache-ttl` (branch `feat/agent-cache-ttl`), worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: nothing until the operator runs design C8 pre-merge (dev-link the branch into a scratch CLAUDE_CONFIG_DIR, restart, e2e-setup.sh, three probe sessions, recompute.mjs --write) and all four lines of specs/agent-cache-ttl/verification-evidence.md read `passed`; then PR #64 merges and the retrospective runs. Kit is in /tmp/scratchpad/sdd/agent-cache-ttl/ (untracked).
+> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`**.
+> Live phase **retrospective**, state **tasks 9/9**, last result **complete** (PR #64 merged as 12cb20f; live scenarios (1)(2)(3)(5) passed, evidence a615375).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: in a session restarted on the merged code, runs the retrospective of `agent-cache-ttl`; before the close-out branches in this repo, check with the overwatch session (tradr account-deletion close-out is landing a spec-workflow-mcp PR).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
