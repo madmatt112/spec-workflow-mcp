@@ -67,6 +67,14 @@ stages a scratch store with its own event script gives that script an explicit p
 under the scratch store (`<scratch-store>/event.sh`) and must not reuse the
 supervisor's `EVENT_SCRIPT` path.
 
+## Fixtures and live verification
+
+- A fixture or generated artifact used in a live check must meet the same validity bar
+  as a shipped one: YAML-valid, double-quoted frontmatter, a non-empty description on
+  every generated agent, and no incomplete spec folder that spec-index would route. A
+  task that ships a fixture kit dry-runs it in the scratch store and records it green
+  before the gated run.
+
 ## Sensitive paths
 
 Machine-read by the review gate. A task that touches any of these is high risk.
