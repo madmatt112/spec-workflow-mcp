@@ -115,7 +115,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 ### Reliability
 - A missing graph, a missing binary, a failed or timed-out refresh never stops a run or a phase; the brief and ledger then keep the pre-spec shape (Requirement 1 AC 8, Requirement 3 AC 5).
 - The global PreToolUse nudge in `~/.claude` is unchanged.
-- A commit that deletes code shrinks the graph; the refresh's shrink guard (`/home/mcf/.pyenv/versions/3.14.0/lib/python3.14/site-packages/graphify/watch.py:1612-1618`) then exits non-zero because Requirement 2 AC 7 forbids `--force`, so Requirement 2 AC 5 keeps the previous `GRAPH_BEHIND` and the graph stays behind HEAD until a human runs a forced rebuild outside this spec.
+- A commit that deletes code shrinks the graph; the refresh's shrink guard then exits non-zero because Requirement 2 AC 7 forbids `--force`, so Requirement 2 AC 5 keeps the previous `GRAPH_BEHIND` and the graph stays behind HEAD until a human runs a forced rebuild outside this spec.
 
 ## Decisions taken in this document
 
@@ -155,3 +155,4 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
   - **R1-4 — Accepted (MINOR).** The usage requirement now states the graph count is folded by joining activity rows to the events-derived phase windows inside the usage action, not inside the pure report-building function.
   - **R1-5 — Accepted (MINOR).** Added a Reliability line: a deletion-heavy commit trips the refresh's shrink guard, which exits non-zero because the no-force rule forbids overriding it, so the graph stays behind HEAD until a manual rebuild.
   - **R1-6 — Accepted (MINOR).** Reworded the brief-failure criterion and its matching decision from claiming to reuse the placeholder-only missing-value rule to being styled on it, since the graph values are exempt from the placeholder set that rule checks.
+  - **Lint pass.** 1 fixed (L-22); rejected: L-1, L-2, L-3, L-4, L-5, L-9, L-10, L-11, L-12, L-13, L-14, L-15, L-16, L-17, L-18, L-21 (unchanged; to-be-built artifact, ruled in v1 lint), L-6, L-7, L-8, L-19, L-20 (to-be-built artifact this spec proposes; citation ranges confirmed correct).
