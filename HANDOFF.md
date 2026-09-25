@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`graph-orientation`**.
-> Live phase **requirements**, state **pending**, last result **pending**.
+> Live phase **design**, state **pending**, last result **approved** (requirements v3).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: resumes `graph-orientation` requirements (draft v1, gate A, review rounds).
+> A re-run does: resumes `graph-orientation` design (draft v1, review rounds).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -53,6 +53,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-25 | agent-cache-ttl | retrospective |  | retro-ready |  |
 | 2026-09-25 | agent-cache-ttl | retrospective | APPROVED | retro-ready | plan approved: P2 P3 P7 P8 P9 P10 P14 P15(A) G1 G2; P1 rejected |
 | 2026-09-25 | agent-cache-ttl | closeout | items 10/10 | closed | PR #66 open (not merged); G1 G2 in agent-rules.md, P2 P3 P9 P10 P15 in harness |
+| 2026-09-25 | graph-orientation | requirements | v1 | gate-a |  |
+| 2026-09-25 | graph-orientation | requirements | v3 | approved | 3 rounds, 0/3/3 to 2/1/0 to converged 0/0/2 |
 
 ## Current state — 2026-08-04
 
