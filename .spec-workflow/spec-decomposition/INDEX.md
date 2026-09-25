@@ -22,7 +22,8 @@
 | 7 | harness-usage-and-tiers | Complete | 8/8 |
 | 8 | provider-per-role | Complete | 10/10 |
 | 9 | agent-cache-ttl | Complete | 9/9 |
-| 10 | tighter-reviews | Complete | 29/29 |
+| 10 | graph-orientation | Complete | 10/10 |
+| 11 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

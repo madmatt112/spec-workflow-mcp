@@ -84,3 +84,13 @@ Cost: 1 implementer spawn
 verification-only spec-store task: verification-evidence.md with 3 pending lines; verifier skipped by policy (retro P15), no gate, 0 fix rounds, outcome gate.
 Evidence: task 9; commit 640b8c7; .spec-workflow/specs/graph-orientation/verification-evidence.md
 Cost: 1 implementer spawn
+
+## 2026-09-25T22:24:17Z · implementation · task 10 · gotcha
+e2e verification: build+test(1504 pass)+plugin checks green, scenario 5 graph=4 vs 0; verification-only, no gate/verifier (retro P15), outcome gate.
+Evidence: task 10; no code change; npm test green, scenario 5 pass
+Cost: 1 implementer spawn
+
+## 2026-09-25T22:25:04Z · implementation · phase · cleanup
+graph-orientation implemented: 10/10 tasks, 0 fix rounds, 0 adjudications; e2e gate green (build, test 1504 pass, plugin-assets, plugin validate); scenario 5 graph=4 vs 0.
+Evidence: tasks.md all [x]; commits efa4e9b..24ebc3e; verification-evidence.md 3 pending
+Cost: 10 implementer spawns, 0 verifier, 0 deferrals added

@@ -508,6 +508,11 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 
 | Field | Value |
 | --- | --- |
-| State | tasks 9/10 |
-| Last code commit | 640b8c7 (task 9, spec store) |
-| Next task | 10 |
+| State | implemented 10/10 on 2026-09-25 |
+| Last code commit | 24ebc3e (task 8; tasks 9-10 are spec-store/verification only) |
+| Checks | npm run build, npm test (1504 passed, 2 skipped), npm run check:plugin-assets, claude plugin validate . --strict — all green |
+| Scenario (5) | usage graph column: report.total.graph=4, compare(agent-cache-ttl).total.graph=0, header holds `graph` twice |
+| Deferrals added | 0 by this spec (15 deferred total across the project) |
+| Worth next | d-9d600d11 (sdd-launch.sh readUsage token inflation — adjacent to this spec's usage/ledger work); d-a38fea66 and d-1880d115 (verification halves needing a restarted session, like this spec's pending live lines) |
+| Pending live verification | verification-evidence.md carries 3 `pending` lines for scenario halves (2),(3),(4); an operator runs them in a rebuilt, restarted session before the retrospective opens |
+| Gotchas | task 10 ran the full suite as the sanctioned e2e gate; verifier skipped by policy (retro P15) on the two verification-only tasks (9, 10), so reviewCoverage reads 8/10 |
