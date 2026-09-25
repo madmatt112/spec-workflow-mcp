@@ -607,6 +607,12 @@ describe('harnessHandler', () => {
     await fs.writeFile(join(dir, 'harness-events.jsonl'), events.map(e => JSON.stringify(e)).join('\n') + '\n');
   };
 
+  const writeSpecActivity = async (spec: string, rows: Record<string, unknown>[]) => {
+    const dir = join(tempDir, '.spec-workflow', 'specs', spec);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(join(dir, 'harness-activity.jsonl'), rows.map(r => JSON.stringify(r)).join('\n') + '\n');
+  };
+
   it('usage folds one spec: report totals and the phase row in the message', async () => {
     await writeLedger([
       { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
@@ -721,5 +727,69 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     expect(res.data.report.runs).toBe(0);
     expect(res.data.report.total.spawns).toBe(0);
+  });
+
+  // Requirement 6 — the activity join (design C5).
+
+  it('usage joins the spec activity: graph counts per agent and phase, graph header', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r1', spec: SPEC, phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+    await writeSpecActivity(SPEC, [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain "x"' },
+      { ts: '2026-09-20T10:00:05Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify query t' },
+      { ts: '2026-09-20T10:00:06Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify update .' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    const req = res.data.report.phases.find((p: any) => p.phase === 'requirements');
+    expect(req.agents['sdd-drafter'].graph).toBe(2);
+    expect(req.total.graph).toBe(2);
+    expect(res.data.report.total.graph).toBe(2);
+    expect(res.message).toContain('| gapRewrites | graph');
+  });
+
+  it('usage compare reads each spec graph count from its own activity file', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r1', spec: SPEC, phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+    await writeSpecActivity(SPEC, [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain "x"' },
+    ]);
+    await writeSpecLedger('other-spec', [
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r9', spec: 'other-spec' },
+      { ts: '2026-09-20T10:00:01Z', type: 'phase.start', run: 'r9', spec: 'other-spec', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.start', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:03Z', type: 'spawn.end', run: 'r9', spec: 'other-spec', agent: 'sdd-drafter', tokens: '3000' },
+    ]);
+    await writeSpecActivity('other-spec', [
+      { ts: '2026-09-20T10:00:04Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify query a' },
+      { ts: '2026-09-20T10:00:05Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify path "A" "B"' },
+      { ts: '2026-09-20T10:00:06Z', agent: 'sdd-drafter', event: 'tool', tool: 'Bash', summary: 'graphify explain z' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC, compareSpecName: 'other-spec' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.graph).toBe(1);
+    expect(res.data.compare.total.graph).toBe(3);
+  });
+
+  it('usage with a ledger but no activity file reports 0 graph', async () => {
+    await writeLedger([
+      { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+      { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-drafter', phase: 'requirements' },
+      { ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-drafter', tokens: '1000' },
+    ]);
+
+    const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.report.total.graph).toBe(0);
   });
 });

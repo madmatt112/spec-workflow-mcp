@@ -10,9 +10,9 @@ import { parseSensitivePaths } from '../core/gate-rules.js';
 import { computeClassA, applyKeywordSaturationFallback, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
-import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
+import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, ActivityEvent, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
-import { buildUsageReport, usageDelta, formatUsageTable } from '../watch/usage.js';
+import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts } from '../watch/usage.js';
 
 /**
  * The `harness` tool (design Components 1-6). One tool, five actions:
@@ -1120,6 +1120,39 @@ async function readSpecLedger(
 }
 
 /**
+ * Read one spec's activity rows under the spec store (design C5). Its
+ * `harness-activity.jsonl` sits beside the ledger; a missing file is an empty
+ * list — a run without the hook installed reports 0 graph calls — the same read
+ * pattern the ledger uses (`:1051-1063`). Any other read error is returned naming
+ * the path, and a `safeJoin` throw (a traversing spec name) too.
+ */
+async function readSpecActivity(
+  workflowRoot: string, specName: string,
+): Promise<{ activity: ActivityEvent[] } | { error: string }> {
+  let activityPath: string;
+  try {
+    const specDir = PathUtils.getSpecPath(workflowRoot, specName);
+    activityPath = PathUtils.safeJoin(specDir, 'harness-activity.jsonl');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Failed to resolve activity for ${specName}: ${message}` };
+  }
+
+  let activityText: string | undefined;
+  try {
+    activityText = await readFile(activityPath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to read ${activityPath}: ${message}` };
+    }
+    activityText = undefined;
+  }
+
+  return { activity: parseJsonl<ActivityEvent>(activityText) };
+}
+
+/**
  * `usage` action (design Component 6): fold one spec's ledger into the
  * tokens-and-spawns-by-phase report, or two specs into a side-by-side table with
  * a per-phase delta when `compareSpecName` is given (Req 5.7). Read-only; spawns
@@ -1131,12 +1164,20 @@ async function usageAction(args: any, context: ToolContext): Promise<ToolRespons
 
   const primary = await readSpecLedger(workflowRoot, specName);
   if ('error' in primary) return { success: false, message: primary.error };
-  const report = buildUsageReport(primary.events, specName);
+  const primaryActivity = await readSpecActivity(workflowRoot, specName);
+  if ('error' in primaryActivity) return { success: false, message: primaryActivity.error };
+  const report = applyGraphCounts(
+    buildUsageReport(primary.events, specName), primary.events, primaryActivity.activity,
+  );
 
   if (typeof compareSpecName === 'string' && compareSpecName.length > 0) {
     const second = await readSpecLedger(workflowRoot, compareSpecName);
     if ('error' in second) return { success: false, message: second.error };
-    const compare = buildUsageReport(second.events, compareSpecName);
+    const secondActivity = await readSpecActivity(workflowRoot, compareSpecName);
+    if ('error' in secondActivity) return { success: false, message: secondActivity.error };
+    const compare = applyGraphCounts(
+      buildUsageReport(second.events, compareSpecName), second.events, secondActivity.activity,
+    );
     const delta = usageDelta(report, compare);
     return {
       success: true,
