@@ -149,6 +149,66 @@ describe('specLintHandler', () => {
     );
   });
 
+  // retro P10 — suppress a citation-identifier warning whose token already
+  // fired on a prior version that was rejected.
+
+  // A doc whose second block cites a real line that lacks `missingId`, so the
+  // identifier check warns for `missingId`.
+  const IDENT_DOC = [
+    '# Requirements',
+    '',
+    '`PathUtils.getWorkflowRoot` lives at `d/real.ts:1`',
+    '',
+    '`missingId` is at `d/real.ts:2`',
+  ].join('\n');
+
+  // Write an approval snapshot for the spec's requirements doc with a chosen
+  // trigger and content, so the handler can read the prior version's state.
+  const writeSnapshot = async (phase: string, trigger: string, content: string) => {
+    const dir = join(workflowRoot, 'approvals', SPEC, '.snapshots', `${phase}.md`);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      join(dir, 'metadata.json'),
+      JSON.stringify({
+        filePath: `.spec-workflow/specs/${SPEC}/${phase}.md`,
+        currentVersion: 1,
+        snapshots: [{ version: 1, filename: 'snapshot-001.json', timestamp: '2026-01-01T00:00:00.000Z', trigger }],
+      }),
+    );
+    await fs.writeFile(
+      join(dir, 'snapshot-001.json'),
+      JSON.stringify({ version: 1, timestamp: '2026-01-01T00:00:00.000Z', trigger, status: 'pending', content }),
+    );
+  };
+
+  const identFindings = (res: any) => res.data.findings.filter((f: any) => f.rule === 'citation-identifier');
+
+  it('suppresses a citation-identifier warning whose token was rejected in a prior version (P10)', async () => {
+    await fs.mkdir(join(tempDir, 'd'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'd', 'real.ts'), 'function getWorkflowRoot() {}\nother stuff here\n');
+    await writeDoc('requirements', IDENT_DOC);
+    // The prior version was rejected (revision requested) and flagged the same token.
+    await writeSnapshot('requirements', 'revision_requested', IDENT_DOC);
+
+    const res = await specLintHandler({ specName: SPEC, phase: 'requirements' }, context);
+    expect(res.success).toBe(true);
+    expect(identFindings(res)).toHaveLength(0);
+  });
+
+  it('still warns when the prior version was approved, not rejected (P10)', async () => {
+    await fs.mkdir(join(tempDir, 'd'), { recursive: true });
+    await fs.writeFile(join(tempDir, 'd', 'real.ts'), 'function getWorkflowRoot() {}\nother stuff here\n');
+    await writeDoc('requirements', IDENT_DOC);
+    // An approved snapshot is not a rejection, so the token is not suppressed.
+    await writeSnapshot('requirements', 'approved', IDENT_DOC);
+
+    const res = await specLintHandler({ specName: SPEC, phase: 'requirements' }, context);
+    expect(res.success).toBe(true);
+    const ident = identFindings(res);
+    expect(ident).toHaveLength(1);
+    expect(ident[0].message).toContain('missingId');
+  });
+
   it('spawns no child process', async () => {
     await writeDoc(
       'tasks',

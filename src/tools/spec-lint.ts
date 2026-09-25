@@ -18,6 +18,7 @@ import {
   checkBridges,
 } from '../core/lint-tasks.js';
 import { finishLint, lintMessage, type LintCaps, type LintFinding } from '../core/lint-types.js';
+import { readRejectedPriorContent } from '../core/approval-records.js';
 
 /**
  * The `spec-lint` tool (design Component 1, requirements 1.1-1.9, 3.1-3.2, the
@@ -129,7 +130,24 @@ export async function specLintHandler(args: any, context: ToolContext): Promise<
   // P2). Resolving against the spec-store root lets `steering/structure.md:N`
   // accept alongside `.spec-workflow/steering/structure.md:N`.
   const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
-  findings.push(...(await checkCitations(lines, [workspacePath, specStoreRoot, workflowRoot, specDir])));
+  const bases = [workspacePath, specStoreRoot, workflowRoot, specDir];
+
+  // Suppress a citation-identifier warning whose token already fired on a prior
+  // version that was rejected (retro P10): the reviewer saw it and sent that
+  // version back, so re-flagging an unchanged token is noise. Read the rejected
+  // version's content from the approval snapshots and collect the identifier
+  // tokens it flagged; a missing/malformed snapshot leaves the set empty.
+  const priorContent = await readRejectedPriorContent(workflowRoot, specName, phase);
+  let suppressIdentifiers: Set<string> | undefined;
+  if (priorContent !== null) {
+    suppressIdentifiers = new Set<string>();
+    for (const f of await checkCitations(priorContent.split('\n'), bases)) {
+      if (f.rule !== 'citation-identifier') continue;
+      const match = f.message.match(/Identifier '([^']+)'/);
+      if (match) suppressIdentifiers.add(match[1]);
+    }
+  }
+  findings.push(...(await checkCitations(lines, bases, suppressIdentifiers)));
 
   // (8) Per-phase checks.
   if (phase === 'requirements') {
