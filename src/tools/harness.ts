@@ -7,7 +7,7 @@ import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
 import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
 import { parseSensitivePaths } from '../core/gate-rules.js';
-import { computeClassA, TaskVetoInput } from '../core/veto-rules.js';
+import { computeClassA, applyKeywordSaturationFallback, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
@@ -1006,7 +1006,10 @@ async function gateClassA(args: any, context: ToolContext): Promise<ToolResponse
     sensitive = null;
   }
 
-  const items = computeClassA(tasks, sensitive);
+  // When the keyword net catches more than 60% of the tasks it has stopped
+  // discriminating; fall back to destructive verbs against production data only
+  // (retro P15).
+  const items = applyKeywordSaturationFallback(computeClassA(tasks, sensitive), tasks);
   return {
     success: true,
     message: `gate class-a: ${items.length} item(s) from ${tasks.length} task(s)`,

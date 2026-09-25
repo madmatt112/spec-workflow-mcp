@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CLASS_A_KEYWORDS,
   computeClassA,
+  applyKeywordSaturationFallback,
   type TaskVetoInput,
   type ClassAItem,
 } from '../veto-rules.js';
@@ -120,6 +121,63 @@ describe('computeClassA — sensitive path', () => {
     );
     const kinds = items.map((i: ClassAItem) => i.kind);
     expect(kinds).toEqual(['sensitive-path', 'keyword']);
+  });
+});
+
+describe('applyKeywordSaturationFallback (retro P15)', () => {
+  it('returns items unchanged at or below 60% keyword saturation', () => {
+    // Only 1 of 3 tasks matches a keyword (33%).
+    const tasks = [
+      task({ id: '1', block: 'wire the auth middleware' }),
+      task({ id: '2', block: 'render the dashboard' }),
+      task({ id: '3', block: 'rename the helpers' }),
+    ];
+    const items = computeClassA(tasks, null);
+    expect(applyKeywordSaturationFallback(items, tasks)).toEqual(items);
+  });
+
+  it('past 60% drops keyword items and keeps only destructive-verb tasks', () => {
+    // All 3 tasks match a keyword (100%), only task 3 carries a destructive verb.
+    const tasks = [
+      task({ id: '1', block: 'wire the auth middleware' }),
+      task({ id: '2', block: 'run the billing migration' }),
+      task({ id: '3', block: 'drop the legacy table' }),
+    ];
+    const out = applyKeywordSaturationFallback(computeClassA(tasks, null), tasks);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ taskId: '3', kind: 'keyword', reason: 'destructive: drop', score: 1 });
+  });
+
+  it('keeps sensitive-path items when the keyword net saturates', () => {
+    const tasks = [
+      task({ id: '1', block: 'wire the auth middleware', files: ['src/tools/approvals.ts'] }),
+      task({ id: '2', block: 'run the billing migration' }),
+      task({ id: '3', block: 'read the config file' }),
+    ];
+    const out = applyKeywordSaturationFallback(
+      computeClassA(tasks, ['src/tools/approvals.ts']),
+      tasks
+    );
+    // No task carries a destructive verb, so only the sensitive-path item survives.
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ taskId: '1', kind: 'sensitive-path', score: 2 });
+  });
+
+  it('recognises truncate, purge and hard-delete as destructive verbs', () => {
+    for (const [block, verb] of [
+      ['truncate the accounts table', 'truncate'],
+      ['purge the stale rows', 'purge'],
+      ['hard-delete the account', 'hard-delete'],
+    ] as const) {
+      const tasks = [
+        task({ id: '1', block: 'wire the auth middleware' }),
+        task({ id: '2', block: 'run the billing migration' }),
+        task({ id: '3', block }),
+      ];
+      const out = applyKeywordSaturationFallback(computeClassA(tasks, null), tasks);
+      expect(out).toHaveLength(1);
+      expect(out[0]).toMatchObject({ taskId: '3', reason: `destructive: ${verb}` });
+    }
   });
 });
 

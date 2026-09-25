@@ -448,11 +448,19 @@ describe('harnessHandler', () => {
     expect(fired.length).toBeGreaterThan(0);
   });
 
-  // A task with no `- File:` line — its `files` coalesce to [].
+  // Task 1 has no `- File:` line — its `files` coalesce to []. Tasks 2-3 are
+  // plain, so only one of three tasks matches a keyword (below the 60% class-a
+  // saturation threshold, so the keyword scan is not dropped, retro P15).
   const EMPTY_FILES_TASKS = [
     '# Tasks', '',
     '- [ ] 1. A config change with no file line',
     '  _Prompt: Task: tweak config | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 2. Plain refactor',
+    '  _Prompt: Task: rename things | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 3. Another plain step',
+    '  _Prompt: Task: adjust wording | Restrictions: none | Success: ok_',
     '',
   ].join('\n');
 
@@ -472,6 +480,36 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     // Keywords still fire with no sensitive list.
     expect(res.data.items.some((i: any) => i.kind === 'keyword')).toBe(true);
+  });
+
+  // Every task fires a keyword (100% > 60%), so the keyword net is dropped and
+  // only the one task with a destructive verb is flagged (retro P15).
+  const SATURATED_TASKS = [
+    '# Tasks', '',
+    '- [ ] 1. Add auth handling',
+    '  _Prompt: Task: wire the auth middleware | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 2. Run the billing migration',
+    '  _Prompt: Task: run the billing migration | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 3. Drop the legacy accounts table',
+    '  _Prompt: Task: drop the legacy accounts table | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
+  it('gate class-a drops the keyword net past 60% and keeps destructive verbs only (retro P15)', async () => {
+    await writeDoc('tasks.md', SATURATED_TASKS);
+    await writeAgentRules(); // no `## Sensitive paths` list
+    const res = await harnessHandler({ action: 'gate', specName: SPEC, op: 'class-a' }, context);
+    expect(res.success).toBe(true);
+    const items = res.data.items;
+    // Only the destructive-verb task survives; the auth and billing/migration
+    // keyword items are dropped.
+    expect(items).toHaveLength(1);
+    expect(items[0].taskId).toBe('3');
+    expect(items[0].kind).toBe('keyword');
+    expect(items[0].reason).toBe('destructive: drop');
+    expect(items.some((i: any) => i.taskId === '1' || i.taskId === '2')).toBe(false);
   });
 
   // Requirement 5 — the `usage` action (design Component 6).
