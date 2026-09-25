@@ -16,7 +16,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 #### Acceptance Criteria
 
-1. WHEN the supervisor has resolved the roots (`harness/skills/sdd-continue/SKILL.md:66-94`) THEN the supervisor SHALL resolve `GRAPH` to `<CODE_ROOT>/graphify-out/graph.json` when `CODE_ROOT` is not a worktree, and to `<main checkout>/graphify-out/graph.json` when it is.
+1. WHEN the supervisor has resolved the roots (`harness/skills/sdd-continue/SKILL.md:66-94`) THEN the supervisor SHALL resolve `GRAPH` to `<CODE_ROOT>/graphify-out/graph.json` when `CODE_ROOT` (`harness/skills/sdd-continue/SKILL.md:224-247`) is not a worktree, and to `<main checkout>/graphify-out/graph.json` when it is.
 2. IF that file does not exist OR `command -v graphify` fails THEN the supervisor SHALL set `GRAPH` to `none`.
 3. WHEN `GRAPH` is a path THEN the supervisor SHALL read the top-level `built_at_commit` key of the file and set `GRAPH_BEHIND` to the output of `git rev-list --count <built_at_commit>..HEAD` run in `CODE_ROOT`, and `GRAPH_BUILT_AT` to that sha.
 4. IF `built_at_commit` is missing OR the `git rev-list` call fails THEN the supervisor SHALL set `GRAPH_BEHIND` to `unknown` and `GRAPH_BUILT_AT` to `unknown`.
@@ -45,14 +45,14 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 #### Acceptance Criteria
 
-1. WHEN `harness` `brief` is called with `values.graph` set to a path THEN the tool SHALL append a `## Code graph` section at the end of the brief, for every template in `BRIEF_TEMPLATES` (`src/tools/harness.ts:485-535`) and for any template added later.
+1. WHEN `harness` `brief` (`src/tools/harness.ts:28-49`) is called with `values.graph` set to a path THEN the tool SHALL append a `## Code graph` section at the end of the brief, for every template in `BRIEF_TEMPLATES` (`src/tools/harness.ts:485-535`) and for any template added later.
 2. The section SHALL state: the graph path; the three calls with `--graph <path>`: `graphify explain "<symbol>"` for one symbol and its edges, `graphify path "A" "B"` for a chain, and `graphify query "<terms>" --budget 800` for an area, with terms taken from the graph's labels; the rule (below); and the freshness line.
 3. The rule text SHALL say: run `explain` on a symbol before opening its code file, then read only the cited range to confirm it; never use the graph for the spec store; when `explain` prints "No node matching", read the file as before; an `[INFERRED]` edge is never a citation; a citation in a document or the context file names a range the worker read.
 4. The freshness line SHALL read `built at <values.graphBuiltAt>, <values.graphBehind> commits behind HEAD`; WHEN `graphBehind` is not `0` THEN the line SHALL add that a `file:line` from the graph is a hint to confirm, not a citation.
 5. IF `values.graph` is absent or equals `none` THEN the tool SHALL write a brief byte-identical to the pre-spec output for the same template and values.
 6. IF `values.graph` is a path AND `values.graphBuiltAt` or `values.graphBehind` is absent THEN the tool SHALL fail naming the missing values and write no file, as the missing-value rule does (`src/tools/harness.ts:617-631`).
 7. The graph values SHALL NOT be `{{key}}` placeholders of any template, so a caller that passes no graph value never fails the missing-value rule.
-8. The tool SHALL NOT read `graph.json`, run `git` or spawn any process: every graph fact comes from `values` (`src/tools/harness.ts:17-27`).
+8. The tool SHALL NOT read `graph.json`, run git or spawn any process (`src/tools/harness.ts:17-27`): every graph fact comes from `values` (`src/tools/harness.ts:547-655`).
 
 ### Requirement 4 — Every orchestrator passes the graph to every worker
 
@@ -85,7 +85,7 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 
 1. WHEN `harness` `usage` runs for a spec THEN it SHALL read `harness-activity.jsonl` from the spec dir next to `harness-events.jsonl`; IF the file is missing THEN every graph count SHALL be 0 and the call SHALL succeed.
 2. A graph call SHALL be one activity row with `event: tool`, `tool: Bash`, and a `summary` that names `graphify explain`, `graphify query` or `graphify path`; one row counts once, and a `graphify update` row does not count.
-3. The fold SHALL attribute each graph call to the row's `agent` and to the phase whose live window contains the row's `ts`, by the rule `src/watch/usage.ts:277-294` applies to a spawn's start, else to phase `unknown`.
+3. The fold SHALL attribute each graph call to the row's `agent` and to the phase whose live window contains the row's `ts`, by the rule `src/watch/usage.ts:277-296` applies to a spawn's start, else to phase `unknown`.
 4. The one-report and compare tables (`src/watch/usage.ts:361-410`) SHALL print a `graph` column on every phase-agent row, every phase total and the spec total, and `data.report` SHALL carry the counts.
 5. IF an agent has graph calls in a phase but no spawn cell there THEN the table SHALL print a row for it with 0 spawns.
 6. WHEN `compareSpecName` names a spec THEN the tool SHALL read that spec's activity log the same way, so `harness usage` for this spec against `agent-cache-ttl` prints that run's count.
@@ -144,3 +144,4 @@ The steering directory holds no `product.md`, so this spec aligns with the harne
 ## Revision History
 
 - **v1** (2026-09-25) — Initial draft.
+  - **Lint pass.** 6 fixed (L-2, L-9, L-10, L-15, L-16, L-21); rejected: L-1, L-3, L-4, L-5, L-6, L-7, L-8, L-11, L-12, L-13, L-14, L-17, L-18 (GRAPH/graph/graphBuiltAt/graphBehind are new names this spec proposes, absent from the cited code today), L-19, L-20 (explain/query are content Requirement 5 adds to that section, not there yet), L-22, L-23 (the graph column is new, not in usage.ts or the docs table yet).
