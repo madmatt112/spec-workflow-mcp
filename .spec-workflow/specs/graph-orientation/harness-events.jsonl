@@ -104,3 +104,10 @@
 {"ts":"2026-09-25T21:40:57.982Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3"}
 {"ts":"2026-09-25T21:41:17.816Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-25T21:41:17.863Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-25T21:41:34.519Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.pick","task":"4","title":"harness usage reads the activity log"}
+{"ts":"2026-09-25T21:41:37.625Z","type":"spawn.start","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-25T21:41:41.082Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementation-orchestrator","input":"82","output":"1461","cacheWrite":"270371","cacheRead":"3408359","tokens":"3680273","cacheWrite5m":"0","cacheWrite1h":"270371","gapRewrites":"1","model":"claude-opus-4-8","agentId":"af295bcef435b977e"}
+{"ts":"2026-09-25T21:46:37.809Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","input":"60","output":"9757","cacheWrite":"66701","cacheRead":"1633285","tokens":"1709803","cacheWrite5m":"66701","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a7742b58ae313638c"}
+{"ts":"2026-09-25T21:46:49.137Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4"}
+{"ts":"2026-09-25T21:47:15.098Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 4 pass risk low"}
+{"ts":"2026-09-25T21:47:15.146Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"4","rounds":"0","outcome":"gate"}

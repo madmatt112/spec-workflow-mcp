@@ -508,6 +508,6 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 
 | Field | Value |
 | --- | --- |
-| State | tasks 3/10 |
-| Last code commit | 765ee6e (task 3) |
-| Next task | 4 |
+| State | tasks 4/10 |
+| Last code commit | 50dfa8c (task 4) |
+| Next task | 5 |

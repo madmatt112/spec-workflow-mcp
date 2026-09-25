@@ -54,3 +54,8 @@ Cost: 1 implementer spawn
 graph count in usage fold + tables (UsageCell.graph, windowPhase, isGraphCall, applyGraphCounts); gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 3; commit 765ee6e; src/watch/usage.ts, src/watch/__tests__/usage.test.ts, src/tools/__tests__/harness.test.ts
 Cost: 1 implementer spawn
+
+## 2026-09-25T21:47:15Z · implementation · task 4 · gotcha
+readSpecActivity + usageAction folds graph counts via applyGraphCounts; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 4; commit 50dfa8c; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
+Cost: 1 implementer spawn
