@@ -64,3 +64,8 @@ Cost: 1 implementer spawn
 supervisor resolves graph fact, carries GRAPH lines, refresh before run.start; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 5; commit dc5d58e; harness/skills/sdd-continue/SKILL.md, references/formats.md
 Cost: 1 implementer spawn
+
+## 2026-09-25T22:01:35Z · implementation · task 6 · gotcha
+document skill passes graph, mirrors code graph block, drift-guard test; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 6; commit 16d80dd; harness/skills/sdd-document-phase/SKILL.md, references/briefs.md, src/tools/__tests__/harness.test.ts
+Cost: 1 implementer spawn

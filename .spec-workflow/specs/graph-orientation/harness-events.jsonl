@@ -118,3 +118,10 @@
 {"ts":"2026-09-25T21:51:30.050Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5"}
 {"ts":"2026-09-25T21:51:51.809Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 5 pass risk low"}
 {"ts":"2026-09-25T21:51:51.859Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"5","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-25T21:52:09.017Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.pick","task":"6","title":"Document skill passes the graph and mirrors the block"}
+{"ts":"2026-09-25T21:52:15.509Z","type":"spawn.start","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-25T21:52:18.948Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementation-orchestrator","input":"110","output":"1680","cacheWrite":"381192","cacheRead":"4891833","tokens":"5274815","cacheWrite5m":"0","cacheWrite1h":"381192","gapRewrites":"2","model":"claude-opus-4-8","agentId":"af295bcef435b977e"}
+{"ts":"2026-09-25T22:01:03.902Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","input":"82","output":"11110","cacheWrite":"80674","cacheRead":"2688536","tokens":"2780402","cacheWrite5m":"80674","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ad7f6585ca4992660"}
+{"ts":"2026-09-25T22:01:12.454Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","phase":"implementation","task":"6","result":"logged: yes/6"}
+{"ts":"2026-09-25T22:01:35.095Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 6 pass risk low"}
+{"ts":"2026-09-25T22:01:35.142Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
