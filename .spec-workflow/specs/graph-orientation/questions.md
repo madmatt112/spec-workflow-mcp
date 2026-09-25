@@ -21,3 +21,7 @@
 5. **Money, data and legal posture.** What is the posture on refunds and forfeiture, credits, personal data and erasure, and the legal/compliance framing?
    - options: n/a — the spec touches no money, personal data, or legal surface (recorded)
    - answer: n/a — the spec touches no money, personal data, or legal surface — Matthew: the spec touches none of them.
+
+## Gate B
+
+Approved by Matthew (2026-09-25) with class-a veto items unannotated: task 1, task 10 (keyword "auth" matched "author"; no auth surface).
