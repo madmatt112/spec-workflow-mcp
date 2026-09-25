@@ -1,13 +1,13 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse } from '../types.js';
 import { readFile, readdir, stat, writeFile, mkdir, unlink } from 'node:fs/promises';
-import { dirname, basename, resolve } from 'node:path';
+import { dirname, basename, resolve, isAbsolute } from 'node:path';
 import { PathUtils } from '../core/path-utils.js';
 import { selectRoots } from './root-selection.js';
 import { SpecParser } from '../core/parser.js';
 import { parseTasksFromMarkdown, taskBlock } from '../core/task-parser.js';
 import { parseSensitivePaths } from '../core/gate-rules.js';
-import { computeClassA, TaskVetoInput } from '../core/veto-rules.js';
+import { computeClassA, applyKeywordSaturationFallback, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, PhaseRow } from '../watch/ledger.js';
@@ -635,7 +635,13 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   );
 
   // Write through safeJoin under the caller-named directory; return the path.
-  const finalPath = PathUtils.safeJoin(dirname(outPath), basename(outPath));
+  // A relative output path resolves against the spec-store root, never the
+  // process cwd (the code workspace), so a brief lands in the spec store
+  // regardless of where the server was launched (P5). An absolute path is
+  // honoured as given (e.g. a scratch-dir brief).
+  const finalPath = isAbsolute(outPath)
+    ? PathUtils.safeJoin(dirname(outPath), basename(outPath))
+    : PathUtils.safeJoin(specStoreRoot, outPath);
   try {
     await mkdir(dirname(finalPath), { recursive: true });
     await writeFile(finalPath, filled, 'utf-8');
@@ -1000,7 +1006,10 @@ async function gateClassA(args: any, context: ToolContext): Promise<ToolResponse
     sensitive = null;
   }
 
-  const items = computeClassA(tasks, sensitive);
+  // When the keyword net catches more than 60% of the tasks it has stopped
+  // discriminating; fall back to destructive verbs against production data only
+  // (retro P15).
+  const items = applyKeywordSaturationFallback(computeClassA(tasks, sensitive), tasks);
   return {
     success: true,
     message: `gate class-a: ${items.length} item(s) from ${tasks.length} task(s)`,

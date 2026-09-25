@@ -54,7 +54,7 @@ narrow check when it ran).
    | Approval | `<approval id>` |
    | Rulings | <none | list> |
    | Cut scope | <none | list> |
-   | Carried items | <none | `<id> — <title>: <ruled-out reason>`, one per line> |
+   | Carried items | <none | `<id> — <title>: <ruled-out reason>`, one per line; list every ruled-out SHOULD_FIX and every MINOR rejected only for the word cap> |
    | Next phase loads | <one line: what the next drafter must read first, after `codebase-context.md`> |
    ```
 

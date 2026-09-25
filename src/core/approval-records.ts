@@ -76,6 +76,50 @@ export async function readApprovalRecords(projectPath: string): Promise<Approval
   return records.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
+/**
+ * The content of the newest prior version of a spec document that was rejected
+ * — sent back for revision — or null when there is none (retro P10). Versions
+ * are the approval snapshots on disk at
+ * `.spec-workflow/approvals/<specName>/.snapshots/<phase>.md/`; a version counts
+ * as rejected when its snapshot trigger is `revision_requested` or its recorded
+ * status is `rejected`/`needs-revision`. Read-only; starts no watcher. Any
+ * missing or malformed file yields null, so a caller degrades to no suppression.
+ */
+export async function readRejectedPriorContent(
+  projectPath: string,
+  specName: string,
+  phase: DocumentName
+): Promise<string | null> {
+  const snapshotsDir = join(PathUtils.getApprovalsPath(projectPath), specName, '.snapshots', `${phase}.md`);
+
+  let metadata: { snapshots?: { version?: number; filename?: string; trigger?: string }[] };
+  try {
+    metadata = JSON.parse(await fs.readFile(join(snapshotsDir, 'metadata.json'), 'utf-8'));
+  } catch {
+    return null;
+  }
+  const entries = Array.isArray(metadata.snapshots) ? [...metadata.snapshots] : [];
+  // Newest version first, so the most recent rejected pass wins.
+  entries.sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+
+  for (const entry of entries) {
+    if (!entry || typeof entry.filename !== 'string') continue;
+    let snapshot: { trigger?: string; status?: string; content?: unknown };
+    try {
+      snapshot = JSON.parse(await fs.readFile(join(snapshotsDir, entry.filename), 'utf-8'));
+    } catch {
+      continue;
+    }
+    const rejected =
+      snapshot.trigger === 'revision_requested' ||
+      entry.trigger === 'revision_requested' ||
+      snapshot.status === 'rejected' ||
+      snapshot.status === 'needs-revision';
+    if (rejected && typeof snapshot.content === 'string') return snapshot.content;
+  }
+  return null;
+}
+
 /** The newest record whose `filePath` matches `filePath` after normalisation, or null. */
 export function findLatestApprovalForFile(records: ApprovalRequest[], filePath: string): ApprovalRequest | null {
   const wanted = normalizeApprovalFilePath(filePath);
