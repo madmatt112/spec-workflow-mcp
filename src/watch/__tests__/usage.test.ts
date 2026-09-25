@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { buildUsageReport, usageDelta, formatUsageTable, UsageReport, UsageCell } from '../usage.js';
-import { LedgerEvent, parseJsonl } from '../ledger.js';
+import { buildUsageReport, usageDelta, formatUsageTable, isGraphCall, applyGraphCounts, UsageReport, UsageCell } from '../usage.js';
+import { LedgerEvent, ActivityEvent, parseJsonl } from '../ledger.js';
 
-/** A full UsageCell from a partial; the five cache fields default to 0 (design C5). */
+/** A full UsageCell from a partial; the cache fields and graph default to 0 (design C5). */
 function ce(p: Partial<UsageCell> & Pick<UsageCell, 'spawns' | 'tokens' | 'unknown'>): UsageCell {
-  return { cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, ...p };
+  return { cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0, ...p };
 }
 
 /** The committed new-shape ledger, shared with the index and harness-tool tests (D8). */
@@ -330,11 +330,11 @@ describe('formatUsageTable — two specs', () => {
     const text = formatUsageTable(a, b);
     expect(text).toContain('usage left  runs 0  spawns 1  tokens 100');
     expect(text).toContain('usage right  runs 0  spawns 2  tokens 290');
-    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | spawns | tokens | cw5m | cw1h | gapRewrites');
-    // design exists only on the right: the left side is five dashes.
-    expect(text).toContain('design | sdd-reviser | - | - | - | - | - | 1 | 40 | unknown | unknown | unknown');
-    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 1 | 250 | unknown | unknown | unknown  delta spawns 0 tokens 150');
-    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190');
+    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph | spawns | tokens | cw5m | cw1h | gapRewrites | graph');
+    // design exists only on the right: the left side is six dashes.
+    expect(text).toContain('design | sdd-reviser | - | - | - | - | - | - | 1 | 40 | unknown | unknown | unknown | 0');
+    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 0 | 1 | 250 | unknown | unknown | unknown | 0  delta spawns 0 tokens 150');
+    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190');
   });
 
   it('appends the provider pair after the delta on compare total lines', () => {
@@ -349,8 +349,8 @@ describe('formatUsageTable — two specs', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '40', provider: 'deepseek' }),
     ], 'right');
     const text = formatUsageTable(a, b);
-    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
-    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 2 | 290 | unknown | unknown | unknown  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
   });
 });
 
@@ -464,7 +464,7 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000' }),
     ], 'nokeys');
     const text = formatUsageTable(a, b);
-    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2 | 1 | 1,000 | unknown | unknown | unknown');
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2 | 0 | 1 | 1,000 | unknown | unknown | unknown | 0');
   });
 });
 
@@ -490,5 +490,70 @@ describe('buildUsageReport — committed fixture (D8, Req 5.8)', () => {
     // No provider key in the fixture: deepseek is empty, anthropic holds every token.
     expect(r.providers.deepseek.spawns).toBe(0);
     expect(r.providers.anthropic.tokens).toBe(r.total.tokens);
+  });
+});
+
+/** A tool activity row with the given summary, defaulting to a Bash tool. */
+function tool(agent: string, summary: string, extra: Partial<ActivityEvent> = {}): ActivityEvent {
+  return { ts: ts(), agent, event: 'tool', tool: 'Bash', summary, ...extra };
+}
+
+describe('isGraphCall (Req 6.2, D8)', () => {
+  it('matches explain/query/path at a command boundary', () => {
+    expect(isGraphCall(tool('sdd-implementer', 'graphify explain "x" --graph p'))).toBe(true);
+    expect(isGraphCall(tool('sdd-implementer', 'cd a && graphify query t'))).toBe(true);
+    expect(isGraphCall(tool('sdd-implementer', 'graphify path "A" "B"'))).toBe(true);
+  });
+
+  it('rejects update, a grep of the phrase, and a non-Bash row', () => {
+    expect(isGraphCall(tool('sdd-implementer', 'graphify update .'))).toBe(false);
+    expect(isGraphCall(tool('sdd-implementer', 'grep -n "graphify explain" f'))).toBe(false);
+    expect(isGraphCall(tool('sdd-implementer', 'graphify explain x', { tool: 'Read' }))).toBe(false);
+  });
+});
+
+describe('applyGraphCounts (Req 6.3-6.5, D9)', () => {
+  it('adds each graph call to the windowed phase, agent, totals and the anthropic provider', () => {
+    const events: LedgerEvent[] = [
+      ev('phase.start', { phase: 'implementation' }),
+      ev('spawn.start', { agent: 'sdd-implementer', phase: 'implementation' }),
+      ev('spawn.end', { agent: 'sdd-implementer', tokens: '1000' }),
+    ];
+    const report = buildUsageReport(events, 's');
+    const activity: ActivityEvent[] = [
+      tool('sdd-implementer', 'graphify explain "x"'),
+      tool('sdd-implementer', 'graphify query t'),
+      tool('sdd-implementer', 'graphify update .'),
+    ];
+    expect(applyGraphCounts(report, events, activity)).toBe(report);
+    expect(cell(report, 'implementation', 'sdd-implementer')?.graph).toBe(2);
+    expect(phase(report, 'implementation')?.total.graph).toBe(2);
+    expect(phase(report, 'implementation')?.providers.anthropic.graph).toBe(2);
+    expect(report.total.graph).toBe(2);
+    expect(report.providers.anthropic.graph).toBe(2);
+  });
+
+  it('sends a call outside every window to unknown, with a 0-spawn agent cell', () => {
+    const events: LedgerEvent[] = [
+      ev('phase.start', { phase: 'design' }),
+      ev('phase.end', { phase: 'design' }),
+    ];
+    const report = buildUsageReport(events, 's');
+    applyGraphCounts(report, events, [tool('sdd-reviewer', 'graphify path "A" "B"')]);
+    const c = cell(report, 'unknown', 'sdd-reviewer');
+    expect(c?.graph).toBe(1);
+    expect(c?.spawns).toBe(0);
+    expect(report.total.graph).toBe(1);
+  });
+
+  it('prints a phase and agent present only through graph rows with 0 spawns and dash cache', () => {
+    const events: LedgerEvent[] = [ev('phase.start', { phase: 'implementation' })];
+    const report = buildUsageReport(events, 'demo');
+    applyGraphCounts(report, events, [tool('sdd-implementer', 'graphify explain "x"')]);
+    const text = formatUsageTable(report);
+    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph');
+    expect(text).toContain('implementation | sdd-implementer | 0 | 0 | - | - | - | 1');
+    expect(text).toContain('implementation | total | 0 | 0 | - | - | - | 1');
+    expect(text).toContain('total |  | 0 | 0 | - | - | - | 1');
   });
 });

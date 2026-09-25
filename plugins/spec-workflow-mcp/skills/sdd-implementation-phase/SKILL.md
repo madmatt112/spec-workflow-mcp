@@ -13,7 +13,8 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 
 Your launch prompt gives you `SPEC`, `PHASE: implementation`, `MODE` (`normal` or
 `repair`), the roots, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` (tasks per
-spawn, default 20) and `REVISION_INPUT` (repair: the failing scenario). The 20-task
+spawn, default 20), `REVISION_INPUT` (repair: the failing scenario) and `GRAPH`,
+`GRAPH_BEHIND`, `GRAPH_BUILT_AT`. The 20-task
 budget assumes the reduced orchestrator context this harness produces: you route only —
 the `orient` action runs Step 0, `harness brief` assembles each brief, and the plugin
 hook writes the worker spawn boundary, so none of that fills your context.
@@ -36,6 +37,10 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   missing); briefs in `/tmp/scratchpad/sdd/<SPEC>/` (create it).
 - Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
   path.
+- When `GRAPH` is a path, every `harness` `brief` call carries `values.graph`,
+  `values.graphBuiltAt` and `values.graphBehind`, set to your current `GRAPH`,
+  `GRAPH_BUILT_AT` and `GRAPH_BEHIND`. When `GRAPH` is `none`, pass none of them. Never
+  read `graph.json` or run a graphify read call yourself.
 - Keep a task list: one item per task in `tasks.md`.
 - Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
   worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
@@ -115,6 +120,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    (retro P15), not a shortcut: it records no review, so `reviewCoverage` reads below
    total for it. That gap is expected — but the completion report must name the task
    among the verifier-skipped ones and disclose the gap (step 11), never bury it.
+   **Graph refresh.** After reading the report, when `GRAPH` is a path and `WORKTREE` is
+   `no`, run `bash /tmp/scratchpad/sdd/<SPEC>/sdd-graph.sh refresh <CODE_ROOT>` before the
+   gate. On `refresh: ok` replace `GRAPH_BEHIND` and `GRAPH_BUILT_AT` with its two lines;
+   on any other output keep them and record `note "text=graph refresh: <first line>"`. A
+   refresh failure never stops the phase.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
@@ -142,7 +152,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    the dashboard and `spec-status` see the review, runs only the checks the gate did not
    run, and ends with `VERDICT: pass | fix-required`.
 5. **Fix rounds** (cap 3, counting gate fails and verifier `fix-required` alike). Spawn
-   a fresh `sdd-implementer`, then return to step 4 (the gate). Assemble each fix brief
+   a fresh `sdd-implementer`, run the graph refresh (step 3) after its report when
+   `GRAPH` is a path and `WORKTREE` is `no`, then return to step 4 (the gate). Assemble
+   each fix brief
    with `harness` `brief`, `template: reviser`, `specName: <SPEC>`, `values` carrying the
    output path `impl-brief-task-<N>-fix-<r>.md` and the findings:
    - After a `gate: fail`: the findings are `data.reasons` and `data.checks` verbatim;

@@ -565,14 +565,20 @@ pattern `spec-lint` uses) and spawns no child process.
   counts, the open items by target class, and the next step.
 - `brief` — fill a named server-side template and write a worker brief, returning the
   brief file's absolute path. An implementer brief for a `taskId` gets that task's
-  block from the server tasks parser.
+  block from the server tasks parser. The optional values `graph`, `graphBuiltAt` and
+  `graphBehind` add a `## Code graph` section to the end of the brief when `graph` is a
+  path. When `graph` is a path but a freshness value is absent, the call fails and writes
+  no file.
 - `phase-log` — regenerate the HANDOFF `## Phase log` block for one spec from its
   `phase.end` events.
 - `gate` — carry a human gate's payload across the spec store. Four ops: `class-a`
   computes the gate-B class (a) veto items; `put`, `get` and `delete` manage the
   `gate-<slot>.json` payload file for slot `a` or `b`.
 - `usage` — fold one spec's `harness-events.jsonl` into a report of tokens and spawns
-  by phase and agent, with each phase's orchestrator share and any `unknown` marks. An
+  by phase and agent, with each phase's orchestrator share and any `unknown` marks. The
+  report also has a `graph` column: for each agent, the count of `graphify explain`,
+  `query` and `path` calls, read from `harness-activity.jsonl`. The `graph` column counts
+  Agent-tool workers only. An
   agent row names its provider when it is not `anthropic` (`sdd-reviewer@deepseek`); the
   phase and spec total lines print the `anthropic` and `deepseek` figures side by side; and
   `data.report.providers` carries those per-provider cells. Pass `compareSpecName` for a

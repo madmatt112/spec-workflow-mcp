@@ -13,8 +13,9 @@ context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)
 
 Your launch prompt gives you `SPEC`, `PHASE: closeout`, the roots, `HARNESS_REPO` (the
 local checkout the harness plugin was installed from, or `none`), `HANDOFF`,
-`AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT` and `BUDGET` (`all items`: one spawn works
-every open item of every class; `resume` exists only for the error paths). The `all
+`AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT`, `BUDGET` (`all items`: one spawn works
+every open item of every class; `resume` exists only for the error paths) and `GRAPH`,
+`GRAPH_BEHIND`, `GRAPH_BUILT_AT`. The `all
 items` budget assumes the reduced orchestrator context this harness produces: you route
 only — the `orient` action runs Step 0, `harness brief` assembles each brief, and the
 plugin hook writes the worker spawn boundary, so none of that fills your context.
@@ -32,6 +33,10 @@ start.
   briefs and scripts in `/tmp/scratchpad/sdd/<SPEC>/` (create it).
 - Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
   path.
+- When `GRAPH` is a path, every `harness` `brief` call carries `values.graph`,
+  `values.graphBuiltAt` and `values.graphBehind`, set to your current `GRAPH`,
+  `GRAPH_BUILT_AT` and `GRAPH_BEHIND`. When `GRAPH` is `none`, pass none of them. Never
+  read `graph.json` or run a graphify read call yourself.
 - Do not ask questions. A proposal you cannot land becomes a to-do line, never a
   question and never a blocker.
 - Never merge a PR. Never edit `settings.json` or `settings.local.json` under
@@ -125,7 +130,13 @@ For each batch:
    the batch fields are in `references/briefs.md`. The tool writes the read-and-obey line.
 3. **Implement.** Spawn `sdd-implementer` with `Read and execute the instructions in
    <brief path>`. Its report has one line per item: `P<n>: done <commit>` | `P<n>: to-do
-   — <reason>` | `P<n>: skipped — <reason>`.
+   — <reason>` | `P<n>: skipped — <reason>`. After the report of a `harness` or `code`
+   batch, when the landing root is `CODE_ROOT` and `WORKTREE` is `no`, run
+   `bash /tmp/scratchpad/sdd/<SPEC>/sdd-graph.sh refresh <landing root>`: on `refresh: ok`
+   replace `GRAPH_BEHIND` and `GRAPH_BUILT_AT`, on any other output keep them and record
+   `note "text=graph refresh: <first line>"`; a refresh failure never stops the phase.
+   Today a `harness` or `code` batch lands in a retro worktree (Step 2 item 1), never
+   `CODE_ROOT`, so this call does not fire.
 3b. **Gate.** For each item reported `done <sha>`, call the spec-workflow `review-task`
    tool with `action: gate`, `specName`, `taskId: <id>`, `commit: <sha>`, `root:` the
    batch's landing root, `files:` the paths the item's text or `Target:` line names
