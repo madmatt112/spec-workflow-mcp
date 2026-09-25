@@ -59,3 +59,8 @@ Cost: 1 implementer spawn
 readSpecActivity + usageAction folds graph counts via applyGraphCounts; gate pass risk low, 0 fix rounds, outcome gate.
 Evidence: task 4; commit 50dfa8c; src/tools/harness.ts, src/tools/__tests__/harness.test.ts
 Cost: 1 implementer spawn
+
+## 2026-09-25T21:51:51Z · implementation · task 5 · gotcha
+supervisor resolves graph fact, carries GRAPH lines, refresh before run.start; gate pass risk low, 0 fix rounds, outcome gate.
+Evidence: task 5; commit dc5d58e; harness/skills/sdd-continue/SKILL.md, references/formats.md
+Cost: 1 implementer spawn

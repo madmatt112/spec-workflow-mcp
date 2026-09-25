@@ -111,3 +111,10 @@
 {"ts":"2026-09-25T21:46:49.137Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4"}
 {"ts":"2026-09-25T21:47:15.098Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 4 pass risk low"}
 {"ts":"2026-09-25T21:47:15.146Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"4","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-25T21:47:35.997Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.pick","task":"5","title":"Supervisor resolves the graph fact and carries it"}
+{"ts":"2026-09-25T21:47:40.430Z","type":"spawn.start","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-25T21:47:43.829Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementation-orchestrator","input":"96","output":"1571","cacheWrite":"370951","cacheRead":"4083660","tokens":"4456278","cacheWrite5m":"0","cacheWrite1h":"370951","gapRewrites":"2","model":"claude-opus-4-8","agentId":"af295bcef435b977e"}
+{"ts":"2026-09-25T21:51:18.322Z","type":"spawn.end","run":"run-20260925-165028","spec":"graph-orientation","agent":"sdd-implementer","input":"42","output":"10162","cacheWrite":"67988","cacheRead":"1313403","tokens":"1391595","cacheWrite5m":"67988","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a27e9f1131481353e"}
+{"ts":"2026-09-25T21:51:30.050Z","run":"run-20260925-165028","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","phase":"implementation","task":"5","result":"logged: yes/5"}
+{"ts":"2026-09-25T21:51:51.809Z","run":"run-20260925-165028","spec":"graph-orientation","type":"note","text":"gate: task 5 pass risk low"}
+{"ts":"2026-09-25T21:51:51.859Z","run":"run-20260925-165028","spec":"graph-orientation","type":"task.done","task":"5","rounds":"0","outcome":"gate"}

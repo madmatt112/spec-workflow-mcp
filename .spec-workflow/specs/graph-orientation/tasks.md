@@ -43,7 +43,7 @@ Dependency order: task 1 adds the graph script and task 2 the brief section, bot
   - _Requirements: 6.1, 6.4, 6.6_
   - _Prompt: Task: Add `readSpecActivity(workflowRoot, specName)` beside `readSpecLedger` (:1029-1064): resolve `harness-activity.jsonl` in the spec dir through `PathUtils.safeJoin`, return an empty list on `ENOENT`, return the `Failed to read <path>: <message>` error on any other read error, and parse with `parseJsonl`. In `usageAction` (:1072-1093) pass each report through the graph-count function task 3 exports (read its name in src/watch/usage.ts), with that spec's events and activity rows, for the primary spec and for `compareSpecName`; an activity read error fails the call as a ledger read error does. Add tests with an activity fixture written next to the ledger: counts per agent and phase in `data.report`, the `graph` header in the message, a compare spec whose count comes from its own file, and a missing activity file giving 0 | Restrictions: Do not change the hook; read nothing outside the spec dir; the tool still spawns no process. No existing harness.test.ts assertion changes value in this task: task 3 already added `graph: 0` to the cell literals, and no existing test writes an activity file | Success: `npx tsc --noEmit`; `npx vitest run src/tools/__tests__/harness.test.ts src/watch/__tests__/usage.test.ts` green_
 
-- [ ] 5. Supervisor resolves the graph fact and carries it
+- [x] 5. Supervisor resolves the graph fact and carries it
   - File: harness/skills/sdd-continue/SKILL.md
   - File: harness/skills/sdd-continue/references/formats.md
   - File: plugins/ (generated copies)
