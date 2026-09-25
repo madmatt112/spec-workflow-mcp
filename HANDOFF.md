@@ -509,6 +509,7 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Field | Value |
 | --- | --- |
 | State | implemented 10/10 on 2026-09-25 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/67 (checks running; overwatch merges) |
 | Last code commit | 24ebc3e (task 8; tasks 9-10 are spec-store/verification only) |
 | Checks | npm run build, npm test (1504 passed, 2 skipped), npm run check:plugin-assets, claude plugin validate . --strict — all green |
 | Scenario (5) | usage graph column: report.total.graph=4, compare(agent-cache-ttl).total.graph=0, header holds `graph` twice |
