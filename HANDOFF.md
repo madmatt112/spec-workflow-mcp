@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`agent-cache-ttl`** (finished).
-> Live phase **closeout**, state **items 10/10**, last result **closed** (PR #66 carries the close-out and the retro spec-store commits; merge it first).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`, worktree of `/home/mcf/repo/spec-workflow-mcp` (chore/agent-cache-ttl-retro).
-> A re-run does: after PR #66 merges and the session restarts, starts the next spec from decomposition.md at requirements.
+> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`graph-orientation`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: resumes `graph-orientation` requirements (draft v1, gate A, review rounds).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
