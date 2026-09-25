@@ -94,3 +94,8 @@ Cost: none beyond the failed run
 Since PR #62 P17 the SubagentStop marker let only the first SubagentStop of a spawn write spawn.end. An orchestrator with background children yields, fires SubagentStop, resumes and keeps working, so its row held its usage at the first yield: scenario (3) rows matched the transcript only up to the row ts (49204/0 then 6 unrecorded calls; 0/61425 then 4), below the full recompute (53309, 62199). Every orchestrator token figure since P17 is an undercount. Fixed on PR #64: the hook writes a new spawn.end with agentId whenever usage changed, usage.ts and ledger.ts keep the latest row per agentId, recompute.mjs compares only the latest row.
 Evidence: commit 59a6374 on feat/agent-cache-ttl; overwatch scenario (3) evidence 2026-09-24
 Cost: two scenario runs; one supervisor fix commit
+
+## 2026-09-25T00:20:24Z · implementation · phase · gotcha
+C8 live scenario (2) failed to start: Agent type sdd-cache-probe not found. e2e-setup.sh wrote sdd-cache-probe.md and sdd-cache-probe-worker.md with no description line, and Claude Code does not register an agent without one. Overwatch added quoted descriptions to both scratch files and patched e2e-setup.sh. Lesson (third of its kind this spec): generated fixture files need the same validity checks as shipped ones — valid YAML, a description, no stray spec folders. Status at this entry: (1) and (3) pass on 59a6374 (orchestrator cw1h 124970 / cw5m 0; 3 rows equal to recompute); (2) and (5) pending.
+Evidence: /tmp/scratchpad/sdd/agent-cache-ttl/e2e-setup.sh; overwatch report 2026-09-24
+Cost: one failed scenario-2 launch
