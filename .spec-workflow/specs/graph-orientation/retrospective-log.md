@@ -104,3 +104,33 @@ Cost: one fixture requirements spawn, ~2.1M tokens
 Retrospective compiled: 8 findings (2 gotchas, 1 harness defect, 2 inefficiencies, 2 process/rulings, 1 harness-decision) + 2 repeat patterns; 8 proposals (P1-P8), 1 decision needed (P3 activity-hook cd-prefix truncation), 1 graduation candidate (instrumentation counts are floors). Analyst spawn 1.
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 retro-analyst spawn
+
+## 2026-09-26T15:01:35Z · retrospective · phase · inefficiency
+Overwatch R6: the Sonnet reviser uses 0.6-2.1M weighted tokens per spawn against 0.40-0.51M for Opus 4.8; in tradr account-deletion the reviser took 22.6M of 40.6M document spend. The plan rule says revert. Proposal: sdd-reviser back to claude-opus-4-8.
+Evidence: overwatch step 4 measurement 2026-09-25, subagent transcripts (memory project_step4_results.md)
+Cost: 22.6M of 40.6M doc tokens on account-deletion
+
+## 2026-09-26T15:01:35Z · retrospective · phase · harness-defect
+Overwatch R1: no tradr task has ever scored low risk (account-deletion 23 high, 6 medium), so every tradr task still gets a verifier. Proposal: find the cause (tradr agent-rules sensitive-path list, or the 200-line threshold).
+Evidence: overwatch step 4 measurement 2026-09-25, subagent transcripts (memory project_step4_results.md)
+Cost: one verifier spawn per tradr task
+
+## 2026-09-26T15:01:35Z · retrospective · phase · inefficiency
+Overwatch R2: spec-lint adds 10-16 Sonnet lint reviser spawns per spec at about 0.5M each; tradr account-export-import requirements r2 lint was 0 fixed, 16 rejected. Decision: keep lint but fix mechanical findings without a reviser spawn, or drop it.
+Evidence: overwatch step 4 measurement 2026-09-25, subagent transcripts (memory project_step4_results.md)
+Cost: 5-8M tokens per spec
+
+## 2026-09-26T15:01:35Z · retrospective · phase · bug
+Overwatch: the gate class-a keyword match needs word boundaries; auth matched author on graph-orientation tasks 1 and 10.
+Evidence: graph-orientation gate B veto items, tasks 1 and 10
+Cost: false class-a veto items
+
+## 2026-09-26T15:01:35Z · retrospective · phase · harness-defect
+Overwatch: one-hour orchestrator cache showed gapRewrites 1 on two orchestrators (agent-cache-ttl close-out a9b0bf2d7c7160bcc after a 696 s gap; tradr account-export-import doc orchestrator af899d43011358e85). The prefix broke after a ~9k-token head, not by expiry. Cause unproven; investigate.
+Evidence: overwatch step 4 measurement 2026-09-25, subagent transcripts (memory project_step4_results.md)
+Cost: one full prefix rewrite per occurrence
+
+## 2026-09-26T15:01:35Z · retrospective · phase · bug
+Overwatch: harness brief (#65 P5) resolves a bare reviews/x.md against .spec-workflow/ instead of specs/<SPEC>/. Proposal: one-line fix to resolve against the spec dir.
+Evidence: src/tools/harness.ts brief action; overwatch note
+Cost: misplaced brief files
