@@ -345,9 +345,11 @@ L-2 (<severity>, <rule>, line <line>): <message>
 9. After you accept a finding, search the document for every other place with the same
    construct (the same rule table, command, fixture shape or union member) and fix each;
    list them under the finding's bullet. A sibling left unchanged is next round's finding.
-10. Every citation you insert or change carries its filename (`typecheck.ts:30`), never a
-   bare `:<line>`. A bare `:<line>` token outside a code block is itself a finding to fix,
-   so a later pass cannot re-resolve it to the wrong file.
+10. Every citation you insert or change carries its directory-prefixed path
+   (`src/core/typecheck.ts:30`), never a bare filename (`typecheck.ts:30`) or a bare
+   `:<line>`. A citation that lacks a directory prefix, or a bare `:<line>` token, outside
+   a code block is itself a finding to reject or repair before you hand off, so a later
+   pass cannot re-resolve it to the wrong file (retro P6).
 11. A citation-identifier warning on a token that is unchanged since a version where it
    was rejected with a reason is suppressed, not re-fired.
 ```
