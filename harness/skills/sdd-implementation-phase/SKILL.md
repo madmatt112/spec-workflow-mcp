@@ -94,8 +94,14 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work. Then
    run `git -C <CODE_ROOT> rev-parse HEAD` and keep the sha as `base=<sha>` on the
    task-list item; every gate call for this task passes it as `baseRef`, through every
-   fix round. A `[-]` task resumed from Step 0 has no base ref: gate it without
-   `baseRef`, which scores `risk: high`.
+   fix round. **Shared-repo layout (retro P1).** When `CODE_ROOT` and the spec store
+   resolve to the same git repo (`git -C <CODE_ROOT> rev-parse --show-toplevel` equals
+   the spec store's), a `base..HEAD` range also picks up the orchestrator's own
+   bookkeeping commits made after this capture, so do not gate against the pre-implement
+   HEAD: once the implementer reports its `commit: <sha>` (Step 3), scope the gate to
+   that single commit by setting `base=<sha>^` (its parent), so the range is exactly the
+   implementer's own commit. A `[-]` task resumed from Step 0 has no base ref: gate it
+   without `baseRef`, which scores `risk: high`.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
    `template: implementer`, `specName: <SPEC>`, `taskId: "<N>"`, and `values` carrying the
    output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md`. The tool fills the
