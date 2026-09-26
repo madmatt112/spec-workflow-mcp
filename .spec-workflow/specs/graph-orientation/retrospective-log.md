@@ -94,3 +94,8 @@ Cost: 1 implementer spawn
 graph-orientation implemented: 10/10 tasks, 0 fix rounds, 0 adjudications; e2e gate green (build, test 1504 pass, plugin-assets, plugin validate); scenario 5 graph=4 vs 0.
 Evidence: tasks.md all [x]; commits efa4e9b..24ebc3e; verification-evidence.md 3 pending
 Cost: 10 implementer spawns, 0 verifier, 0 deferrals added
+
+## 2026-09-26T14:55:22Z · implementation · phase · harness-defect
+Live scenario (3): harness-activity.jsonl hides drafter graph calls. The activity hook cuts Bash summaries at 160 characters and the drafter starts each call with cd <absolute root>;, so a graphify query or explain chained after it is cut off; the first visible graph row came after the first raw source read although the transcript shows two graph calls before it. The graph-call count (usage graph column, D4/D8) undercounts. Matthew marked (3) passed and asked for this as a retro item.
+Evidence: verification-evidence.md (3); fixture run-fixture-s3 harness-activity.jsonl rows 14:17:26-14:17:36 vs drafter transcript
+Cost: one fixture requirements spawn, ~2.1M tokens
