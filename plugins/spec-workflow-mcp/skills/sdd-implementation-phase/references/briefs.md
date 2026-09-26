@@ -45,6 +45,11 @@ Read and obey <AGENT_RULES> first.
   you time, report `RETRO: <category> — <one line>` (categories: gotcha, bug,
   tool-error, mcp-deficiency, harness-defect, misunderstanding, inefficiency,
   doc-gap, model-behaviour).
+- When a designed fallback let you proceed but masked a missing tool or capability (the
+  primary path was unavailable, so you took the fallback), do not stay silent: apply the
+  fallback and continue, but report `RETRO: tool-error — <the missing tool>` so the gap
+  stays visible, and `ESCALATE: <the missing capability>` instead when the fallback masks
+  a capability a later task depends on (retro P12).
 - Report in 150 words or fewer: files touched one per line, as absolute paths under
   `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`,
   `commit: <sha>`, flags. No diffs, no file contents, no test output beyond one line.
