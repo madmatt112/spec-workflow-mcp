@@ -99,3 +99,8 @@ Cost: 10 implementer spawns, 0 verifier, 0 deferrals added
 Live scenario (3): harness-activity.jsonl hides drafter graph calls. The activity hook cuts Bash summaries at 160 characters and the drafter starts each call with cd <absolute root>;, so a graphify query or explain chained after it is cut off; the first visible graph row came after the first raw source read although the transcript shows two graph calls before it. The graph-call count (usage graph column, D4/D8) undercounts. Matthew marked (3) passed and asked for this as a retro item.
 Evidence: verification-evidence.md (3); fixture run-fixture-s3 harness-activity.jsonl rows 14:17:26-14:17:36 vs drafter transcript
 Cost: one fixture requirements spawn, ~2.1M tokens
+
+## 2026-09-26T15:00:30Z · retrospective · phase · cleanup
+Retrospective compiled: 8 findings (2 gotchas, 1 harness defect, 2 inefficiencies, 2 process/rulings, 1 harness-decision) + 2 repeat patterns; 8 proposals (P1-P8), 1 decision needed (P3 activity-hook cd-prefix truncation), 1 graduation candidate (instrumentation counts are floors). Analyst spawn 1.
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 retro-analyst spawn
