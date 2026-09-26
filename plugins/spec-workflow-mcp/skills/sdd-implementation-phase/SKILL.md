@@ -94,8 +94,14 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work. Then
    run `git -C <CODE_ROOT> rev-parse HEAD` and keep the sha as `base=<sha>` on the
    task-list item; every gate call for this task passes it as `baseRef`, through every
-   fix round. A `[-]` task resumed from Step 0 has no base ref: gate it without
-   `baseRef`, which scores `risk: high`.
+   fix round. **Shared-repo layout (retro P1).** When `CODE_ROOT` and the spec store
+   resolve to the same git repo (`git -C <CODE_ROOT> rev-parse --show-toplevel` equals
+   the spec store's), a `base..HEAD` range also picks up the orchestrator's own
+   bookkeeping commits made after this capture, so do not gate against the pre-implement
+   HEAD: once the implementer reports its `commit: <sha>` (Step 3), scope the gate to
+   that single commit by setting `base=<sha>^` (its parent), so the range is exactly the
+   implementer's own commit. A `[-]` task resumed from Step 0 has no base ref: gate it
+   without `baseRef`, which scores `risk: high`.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
    `template: implementer`, `specName: <SPEC>`, `taskId: "<N>"`, and `values` carrying the
    output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md`. The tool fills the
@@ -130,7 +136,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
    project typecheck itself). Pass `files` as the exact per-file paths the task
-   changed, from the diff — never a directory, which mis-scores the gate (retro P8). Record the ledger note, then route on `data.gate` and
+   changed, from the diff — never a directory, which mis-scores the gate (retro P8).
+   Narrowing the gate range to exclude spec-store bookkeeping and untracked noise —
+   through the single-commit `baseRef` of Step 1 or the gate's own bookkeeping and
+   untracked skips — is a sanctioned self-resolution, not a human-decision escalation
+   (retro P11): apply it and continue; never stop the phase for it. Record the ledger note, then route on `data.gate` and
    `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
