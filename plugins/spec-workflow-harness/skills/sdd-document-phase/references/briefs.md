@@ -294,6 +294,10 @@ RI-2: <text>>
     `Accepted` when you removed the task, `Rejected` when you intentionally kept it —
     say why either way. The orchestrator greps these lines for gate B; a tag left off
     its Revision History line drops that task from the veto list.
+13. Before you report, re-scan only the lines you changed in this pass for the finding
+    classes you just fixed (a citation missing its directory prefix, a bare `:<line>`, an
+    unproven rationale clause, a half-fixed cross-artifact seam). Fix any regression your
+    own delta introduced now; it is cheaper here than as next round's finding (retro P7).
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
