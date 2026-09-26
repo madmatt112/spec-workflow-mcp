@@ -209,6 +209,7 @@ export async function handleGate(
     }
 
     let touched: string[];
+    let untracked: string[] = [];
     let stats: { filesChanged: number; linesAdded: number; linesRemoved: number } | null;
     let perFile: Record<string, number> = {};
     let trivialChange = false;
@@ -230,6 +231,7 @@ export async function handleGate(
       }
       stats = rangeResult.stats;
       touched = rangeResult.touched;
+      untracked = rangeResult.untracked;
       perFile = rangeResult.perFile;
       // Trivial-change fast path (retro P14): when files changed but the diff has
       // no semantic content (a whitespace-only re-indent or a no-op), a second
@@ -279,6 +281,7 @@ export async function handleGate(
       touched,
       files: gateFiles,
       generated,
+      untracked,
       missing,
       filesOnly,
     });
