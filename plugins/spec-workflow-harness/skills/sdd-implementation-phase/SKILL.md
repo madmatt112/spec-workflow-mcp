@@ -136,7 +136,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
    project typecheck itself). Pass `files` as the exact per-file paths the task
-   changed, from the diff — never a directory, which mis-scores the gate (retro P8). Record the ledger note, then route on `data.gate` and
+   changed, from the diff — never a directory, which mis-scores the gate (retro P8).
+   Narrowing the gate range to exclude spec-store bookkeeping and untracked noise —
+   through the single-commit `baseRef` of Step 1 or the gate's own bookkeeping and
+   untracked skips — is a sanctioned self-resolution, not a human-decision escalation
+   (retro P11): apply it and continue; never stop the phase for it. Record the ledger note, then route on `data.gate` and
    `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
