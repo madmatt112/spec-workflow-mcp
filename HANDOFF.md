@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-25, harness v4).** Active spec **`graph-orientation`**.
-> Live phase **retrospective**, state **tasks 10/10**, last result **complete** (PR #67 open; retrospective blocked — verification-evidence.md (2) pending).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation`, worktree of `/home/mcf/repo/spec-workflow-mcp` (feat/graph-orientation).
-> A re-run does: after PR #67 merges, `npm run build` and a session restart, an operator runs live scenarios (2), (3), (4) and marks them passed; then the retrospective runs.
+> **READ FIRST — SDD routing (2026-09-26, harness v4).** Active spec **`graph-orientation`**.
+> Live phase **retrospective**, state **tasks 10/10**, last result **complete** (PR #67 merged; retrospective blocked until verification-evidence.md (2), (3), (4) read passed).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: runs live scenarios (2), (3), (4) on the rebuilt checkout, then the retrospective and close-out.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
