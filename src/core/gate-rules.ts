@@ -315,10 +315,15 @@ export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: st
     reasons.push('no-diff: no path changed in the range');
   }
 
-  // e typecheck-unavailable
+  // e typecheck-unavailable. A project that declares no typecheck toolchain
+  // (`no-tsconfig`) is a non-TypeScript repo, not a degraded review surface, so
+  // the rule stays silent and risk scores on the other rules (retro P2).
   if (input.typecheck.kind === 'timeout') {
     reasons.push('typecheck-unavailable: timeout');
-  } else if (input.typecheck.kind === 'unavailable-other') {
+  } else if (
+    input.typecheck.kind === 'unavailable-other' &&
+    input.typecheck.reason !== 'no-tsconfig'
+  ) {
     reasons.push(`typecheck-unavailable: ${input.typecheck.reason ?? 'unavailable'}`);
   }
 

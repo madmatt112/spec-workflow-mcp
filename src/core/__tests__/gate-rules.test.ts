@@ -344,8 +344,16 @@ describe('scoreRisk', () => {
       'typecheck-unavailable: timeout'
     );
     expect(
-      scoreRisk({ ...lowRisk, typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' } }).reasons
-    ).toContain('typecheck-unavailable: no-tsconfig');
+      scoreRisk({ ...lowRisk, typecheck: { kind: 'unavailable-other', reason: 'project-references' } }).reasons
+    ).toContain('typecheck-unavailable: project-references');
+  });
+
+  it('P2: e stays silent on no-tsconfig (a non-TypeScript repo)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' },
+    });
+    expect(r).toEqual({ risk: 'low', reasons: [] });
   });
 
   it('f: fires when a task has no range selector', () => {
