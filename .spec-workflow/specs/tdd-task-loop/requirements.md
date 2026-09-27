@@ -18,9 +18,9 @@ Anchors: src/core/task-parser.ts:108-128, src/core/task-parser.ts:279-297, src/c
 
 #### Acceptance Criteria
 
-1. WHEN a task block holds a bullet `- Test:` with a path, a space-padded em dash and a call text, THEN THE task parser SHALL add `{ path, seam }` to the task's `tests` array in document order, and SHALL NOT add that line to `files` or `implementationDetails`.
+1. WHEN a task block holds a bullet `- Test:` with a test path by the gate's test-path rule, a space-padded em dash and a call text, THEN THE task parser SHALL add `{ path, seam }` to the task's `tests` array in document order, and SHALL NOT add that line to `files` or `implementationDetails`.
 2. IF a task block holds no `Test:` line, THEN THE task parser SHALL emit no `tests` field.
-3. WHEN a `Test:` line has no em dash, an empty call text, or a path that is not a test path by the gate's test-path rule, THEN THE spec-lint rule `task-test-seam` SHALL report a `warning` on that line, and THE parser SHALL NOT promote it to `tests`; it remains an `implementationDetails` bullet.
+3. WHEN a `Test:` line has no em dash, an empty call text, or a path that is not a test path, THEN THE spec-lint rule `task-test-seam` SHALL report a `warning` on that line, and THE parser SHALL leave it an `implementationDetails` bullet.
 4. WHEN a task names a `File:` path that is neither a test path nor a documentation path by the gate's rules and has no `Test:` line, THEN THE rule `task-test-seam` SHALL report an `info` finding on its checkbox line.
 5. THE rule `task-test-seam` SHALL run in the `tasks` phase only.
 6. THE shipped tasks template SHALL state the `Test:` line shape in its shape rules and carry it in one example task.
@@ -57,11 +57,11 @@ Anchors: harness/skills/sdd-implementation-phase/SKILL.md:55-68, harness/skills/
 1. WHEN the picked task has a `Test:` line, THEN THE orchestrator SHALL, after the `base=` capture and before the implementer, spawn `sdd-test-author` with a `test-author` brief and record `spawn.usage` with `role=author task <N>`.
 2. WHEN the author reports `SEAM-DEFECT`, or `RED-IMPOSSIBLE` for every criterion, THEN THE orchestrator SHALL take the existing design-defect stop and spawn no implementer.
 3. WHEN the author reports `RED-IMPOSSIBLE` for some criteria only, THEN THE orchestrator SHALL continue and append one `doc-gap` retro-log entry naming them.
-4. WHEN a task is marked, THEN its implementer brief and every fix brief SHALL carry `## Red tests (from the test author)` with the author's files, the `Test:` lines and the author's report verbatim. Because the server authors the implementer brief, THE `implementer` template SHALL gain a `brief`-filled slot for this section; the fix brief carries it in the `reviser` `{{job}}` value.
+4. WHEN a task is marked, THEN its implementer brief and every fix brief SHALL carry `## Red tests (from the test author)` with the author's files, the `Test:` lines and the author's report verbatim. THE `implementer` template SHALL gain a `brief`-filled slot for this section, filled for every task and empty when unmarked; the fix brief uses the `reviser` `{{job}}` value.
 5. WHEN an implementer works a marked task, THEN THE implementer SHALL make every author test pass, SHALL NOT edit an author file without reporting `TEST-AMENDED: <file> — <reason>`, MAY add its own tests, and SHALL run the author's files last and report `green: <passed>/<total>`.
 6. WHEN the orchestrator gates a marked task, THEN every gate call SHALL carry `tdd: { testFiles, redCommit }` from the author's report.
 7. WHEN the gate result carries a `tdd` block, THEN THE verifier brief's `## Gate results` SHALL carry it, and WHEN it shows `amended: true`, THEN THE verifier SHALL judge the amended test against the criteria first.
-8. WHEN a task has no `Test:` line, THEN THE orchestrator SHALL spawn no author, write no red section and pass no `tdd` argument.
+8. WHEN a task has no `Test:` line, THEN THE orchestrator SHALL spawn no author and pass no `tdd` argument.
 9. WHEN the gate result carries a `tdd` block, THEN THE gate `note` SHALL append `tdd <base outcome>` to today's text.
 10. WHEN `data.tdd.judged` is present and not a cache hit, THEN THE orchestrator SHALL record one `judge` event with the task, site `tdd`, the four answers, tokens and milliseconds.
 
@@ -85,7 +85,7 @@ Anchors: src/tools/review-gate.ts:47-70, src/tools/review-gate.ts:192-209, src/t
 10. WHEN the base run exits 0, THEN THE gate SHALL run it once more, and WHEN that also exits 0, THEN THE base outcome SHALL be `vacuous` and the gate SHALL fail with `tdd: tests pass on base`; a non-zero second run SHALL give `inconclusive`.
 11. WHEN the head run exits non-zero or times out, THEN THE gate SHALL fail with `tdd: tests fail on HEAD`.
 12. IF a git command fails, the red commit does not resolve, setup fails, the base run times out, `tdd-test-command:` is absent, or the agent rules carry `red-on-base: off`, THEN THE base outcome SHALL be `inconclusive` with that cause and SHALL NOT fail the gate.
-13. WHEN `tdd` is given, THEN THE response SHALL carry `data.tdd` = `{ testFiles, seams, redCommit, baseSha, base, head, amended, judged }`, with `seams` the `seam` the parsed task's `tests[]` holds for each `testFiles` path, `base` one of `assertion-red`, `structural-red`, `vacuous`, `inconclusive`, and `head` one of `pass`, `fail`, `not-run`.
+13. WHEN `tdd` is given, THEN THE response SHALL carry `data.tdd` = `{ testFiles, seams, redCommit, baseSha, base, head, amended, judged }`, with `seams` the `seam` its `tests[]` entry holds for each `testFiles` path, none for a path without an entry, `base` one of `assertion-red`, `structural-red`, `vacuous`, `inconclusive`, and `head` one of `pass`, `fail`, `not-run`.
 14. THE gate SHALL keep at most one output line per proof run in the response and run no configurable test or setup command other than the two agent-rules keys; its own git plumbing is excepted.
 
 Probe for criterion 9 (2026-09-27, vitest 4.0.16, run through `node_modules/.bin/vitest run`): a failed `expect` prints `AssertionError:`, a missing import `Error: Cannot find module`, a missing export `TypeError: … is not a function`, each exiting 1; a passing file exits 0. The last output line is the duration line, so the one-line check output cannot classify.
@@ -148,7 +148,7 @@ Anchors: harness/agent-profiles.json:1-74, docs/SDD-HARNESS.md:21-23, docs/SDD-H
 
 1. THE generated `agent-profiles.json` SHALL list thirteen agents, including `sdd-test-author` with `claude-sonnet-5`, `high` and role `test author`.
 2. THE document `docs/SDD-HARNESS.md` SHALL name the new worker (count word updated), its model-policy row, the `Test:` line, the author step, the proof outcomes and the keys `tdd-test-command`, `red-on-base-setup` and `red-on-base`.
-3. THE document `docs/TOOLS-REFERENCE.md` SHALL describe the gate's `tdd` argument and `data.tdd`, the `test-author` template and `tddCoverage`.
+3. THE document `docs/TOOLS-REFERENCE.md` SHALL describe the gate's `tdd` argument and `data.tdd`, the `test-author` template and `tddCoverage`; the implementer red-tests slot is internal.
 4. THE agent rules of this repository SHALL carry `tdd-test-command: npx vitest run {files}`.
 
 ### Requirement 9 — End-to-end verification
@@ -209,3 +209,8 @@ Anchors: harness/agent-profiles.json:1-74, docs/SDD-HARNESS.md:21-23, docs/SDD-H
   - R1-4 (SHOULD_FIX): accepted — R4 AC14 scopes "command" to the two configurable agent-rules keys, git plumbing excepted.
   - R1-5 (MINOR): accepted — R4 AC13 states `seams` is derived from the parsed task's `tests[]`.
   - R1-6 (MINOR): accepted — R1 AC3 states a malformed `Test:` line is not promoted to `tests` and stays an `implementationDetails` bullet.
+- **v3** (2026-09-27) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 1/1/2). Closed by ruling: none.
+  - R2-1 (MUST_FIX, Compounds R1-6): accepted — R1 AC1 now promotes only a `- Test:` line whose path is a test path by the gate's rule, so AC1 and AC3 partition the input and the line `- Test: src/foo.ts — createWidget()` fires AC3 alone (lint warning, stays `implementationDetails`); the shared test-path rule surfaces the parser coupling AC3 needed.
+  - R2-2 (SHOULD_FIX, Compounds R1-3): accepted — R3 AC4's slot is now filled for every task and empty when unmarked, so the `brief` action writes a file for the kill-switch path (an empty string passes the required check); AC8 no longer says to write no red section.
+  - R2-3 (MINOR): accepted — R4 AC13 now omits a `testFiles` path with no matching `tests[]` entry from `seams`, keeping the shape total.
+  - R2-4 (MINOR): partially accepted — R8 AC3 states the implementer red-tests slot is an internal fill; it is filled only by the orchestrator, so it is not a documented TOOLS-REFERENCE surface.

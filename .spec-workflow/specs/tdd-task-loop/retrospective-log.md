@@ -9,3 +9,8 @@ Cost: drafter spawn (recorded)
 Round 1 reviewer: iterate, MUST_FIX 0, SHOULD_FIX 4, MINOR 2, ESCALATE none. Anchors verified, scope matches decomposition spec 11.
 Evidence: reviews/adversarial-analysis-requirements.md
 Cost: one reviewer spawn
+
+## 2026-09-27T20:57:39Z · requirements · v2 · gotcha
+Round 2 reviewer: iterate, MUST_FIX 1, SHOULD_FIX 1, MINOR 2. Both findings fix-induced (R2-1 Compounds R1-6, R2-2 Compounds R1-3); round-1 fixes R1-1/2/4/5 confirmed resolved.
+Evidence: reviews/adversarial-analysis-requirements-r2.md
+Cost: one reviewer spawn
