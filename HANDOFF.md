@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`graph-orientation`** (finished).
-> Live phase **closeout**, state **items 11/11**, last result **closed** (harness batch PR #69 open, not merged).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: routes to the next spec (spec-index routing, then the decomposition fallback).
+> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`tdd-task-loop`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: drafts requirements v1 for tdd-task-loop (new spec from decomposition.md §11).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
