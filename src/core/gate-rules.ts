@@ -147,6 +147,24 @@ export function isProsePath(relPath: string, entries: string[]): boolean {
   return normalizePath(relPath).endsWith('.md') && matchingEntry(relPath, entries) !== undefined;
 }
 
+/**
+ * True when `relPath` is spec-store bookkeeping the orchestrator writes between
+ * the base capture and the gate — `tasks.md`, `harness-*.jsonl`, `task-state.json`
+ * or an `Implementation Logs` file under `.spec-workflow/`. In a shared code+spec
+ * repo the gate range picks these up though they are not the implementer's work,
+ * so the outside-list check skips them and self-scopes (retro P5).
+ */
+export function isBookkeepingPath(relPath: string): boolean {
+  const segs = normalizePath(relPath).split('/');
+  const swIdx = segs.indexOf('.spec-workflow');
+  if (swIdx === -1) return false;
+  const rest = segs.slice(swIdx + 1);
+  const base = rest[rest.length - 1] ?? '';
+  if (base === 'tasks.md' || base === 'task-state.json') return true;
+  if (/^harness-.*\.jsonl$/.test(base)) return true;
+  return rest.includes('Implementation Logs');
+}
+
 // --- Component 4: task-block predicates -------------------------------------
 
 /**
@@ -315,10 +333,15 @@ export function scoreRisk(input: RiskInput): { risk: 'low' | 'high'; reasons: st
     reasons.push('no-diff: no path changed in the range');
   }
 
-  // e typecheck-unavailable
+  // e typecheck-unavailable. A project that declares no typecheck toolchain
+  // (`no-tsconfig`) is a non-TypeScript repo, not a degraded review surface, so
+  // the rule stays silent and risk scores on the other rules (retro P2).
   if (input.typecheck.kind === 'timeout') {
     reasons.push('typecheck-unavailable: timeout');
-  } else if (input.typecheck.kind === 'unavailable-other') {
+  } else if (
+    input.typecheck.kind === 'unavailable-other' &&
+    input.typecheck.reason !== 'no-tsconfig'
+  ) {
     reasons.push(`typecheck-unavailable: ${input.typecheck.reason ?? 'unavailable'}`);
   }
 
@@ -347,6 +370,8 @@ export type GateInput = {
   files: string[] | null;
   /** Parsed `## Generated paths` entries, or `null`/absent when none (P3). */
   generated?: string[] | null;
+  /** Untracked touched paths the outside-list check skips, or absent (retro P5). */
+  untracked?: string[];
   /** Files-only: listed paths absent under `root`. */
   missing: string[];
   filesOnly: boolean;
@@ -384,11 +409,17 @@ export function decideGate(input: GateInput): { gate: 'pass' | 'fail'; reasons: 
   // d file-outside-list. A generated (`## Generated paths`) path is skipped, just
   // as the line-count rule excludes it: the sync step regenerates those copies, so
   // a `files` list naming only the sources must not flag the mirror copies (P3).
+  // Untracked paths and spec-store bookkeeping are skipped too (retro P5): in a
+  // shared code+spec repo the range picks up the orchestrator's uncommitted files
+  // and its `.spec-workflow` bookkeeping, which are not the implementer's work.
   if (input.files !== null) {
     const listed = input.files.map(normalizePath);
     const generated = input.generated ?? null;
+    const untracked = new Set((input.untracked ?? []).map(normalizePath));
     for (const p of input.touched) {
       if (generated && isGeneratedPath(p, generated)) continue;
+      if (untracked.has(normalizePath(p))) continue;
+      if (isBookkeepingPath(p)) continue;
       if (!listed.includes(normalizePath(p))) {
         reasons.push(`file-outside-list: ${p}`);
       }

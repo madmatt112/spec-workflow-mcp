@@ -24,6 +24,8 @@ export type RangeStatsResult =
       touched: string[];
       /** Changed lines (added + removed) per touched path, for per-path line rules. */
       perFile: Record<string, number>;
+      /** The untracked (non-ignored) subset of `touched`, empty in commit mode (retro P5). */
+      untracked: string[];
     }
   | { ok: false; message: string };
 
@@ -468,6 +470,7 @@ export async function computeRangeStats(
         stats: { filesChanged: 0, linesAdded: 0, linesRemoved: 0 },
         touched: [],
         perFile: {},
+        untracked: [],
       };
     }
     return { ok: false, message: `${selector} ${ref} does not resolve in ${root}` };
@@ -490,6 +493,7 @@ export async function computeRangeStats(
       },
       touched: sortedUnique(numstat.perFile.keys()),
       perFile: changedByPath(numstat.perFile),
+      untracked: [],
     };
   }
 
@@ -519,6 +523,7 @@ export async function computeRangeStats(
     stats: { filesChanged, linesAdded, linesRemoved },
     touched: sortedUnique([...numstat.perFile.keys(), ...untracked]),
     perFile,
+    untracked,
   };
 
 }
