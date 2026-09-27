@@ -4,7 +4,7 @@ Document version: v2
 
 ## Overview
 
-A task with a `- Test:` line gets red tests from a Sonnet-tier test author, hands them to the implementer, and the gate proves in code that they fail on the pre-task code and pass on the finished code. New code is two core modules (`src/core/red-green.ts`, `src/core/judge.ts`), one agent, one brief template and an optional `tdd` gate argument; the parser, lint, review record, `spec-status` and dashboard gain fields. Each component's Reuses line names the existing code it builds on.
+A task with a `- Test:` line gets red tests from a Sonnet-tier test author, hands them to the implementer, and the gate proves in code that they fail on the pre-task code and pass on the finished code. New code is two core modules (`src/core/red-green.ts`, `src/core/judge.ts`), one agent, one brief template and an optional `tdd` gate argument; the parser, lint, review record, `spec-status` and dashboard gain fields.
 
 ## Steering Document Alignment
 
@@ -281,3 +281,4 @@ Child-process assertions use only exit codes and output substrings (CI node 20).
   - **R1-4 — Accepted (MINOR).** Component 8 now states the gate takes each test's seam and the judge's test lines from the task parse it already runs, matched to the test files by path, and cites that parse.
   - **R1-5 — Accepted (MINOR).** Component 12 now states the design-defect stop's reason is sourced from the author's flag on the seam-defect path, where there is no implementer.
   - **R1-6 — Partially accepted (MINOR).** Error Handling now records the stale-sidecar mis-attach after a mid-spec unmark as an accepted limitation; no run-stamp guard is added, as the scenario is rare and unproven.
+  - **Lint pass.** 1 fixed (L-1 doc-words: trimmed the Overview to bring the body under the 4,000-word cap); rejected: L-2 through L-19 are citation-identifier warnings on design-proposed new artifacts (the parsed-task and gate fields, the judge functions and request-body keys, the proof type, and the profile role and cache values) that sit next to reuse citations of existing code; each names a new artifact this design defines, not a claim about the cited range, so the warnings are false positives.
