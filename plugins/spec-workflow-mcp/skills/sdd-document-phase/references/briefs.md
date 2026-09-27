@@ -67,7 +67,11 @@ Every later reviewer, reviser and implementer reads it first.
   reading both ends of the range. A misstated artifact is an automatic MUST_FIX for
   the reviewer.
 - A claim about compiler, library or wire behaviour is checkable: probe the installed
-  version under `<CODE_ROOT>` and cite the probe, or leave the claim out.
+  version under `<CODE_ROOT>` and cite the probe, or leave the claim out. Design only: a
+  sentence that names a specific library or framework API capability — a method, an
+  option, or an exposed field — is such a checkable claim; probe it against the installed
+  version under `<CODE_ROOT>` and cite the probe, or state only the behaviour you
+  verified. Never carry an unproven library-capability claim into a later phase.
 - Keep the decomposition entry's scope. If you cut or defer anything it lists, say so
   in a `## Scope notes` section and in your report.
 - Do not re-decide what an earlier phase pinned. Design enumerates every artifact the
@@ -189,6 +193,15 @@ verdict block). Append:
   component (its tests, fixtures, query keys, e2e assumptions); intra-document shape
   consistency: every call a later task makes against an artefact an earlier task
   defines>.
+- <design: A design sentence that names a specific library or framework API capability —
+  a method, an option, or an exposed field — is a checkable claim, not prose. Confirm the
+  document probed it against the installed version under `<CODE_ROOT>` and cited the
+  probe, or stated only the behaviour it verified; an unproven library-capability
+  assertion carried toward implementation is a MUST_FIX.>
+- <design: Data Models completeness — any result or response object that a requirement
+  references has its full field shape pinned in Data Models, not only its union arms. A
+  named result object whose shape is given only through its union members, with no
+  enumerated fields, is a MUST_FIX.>
 - <tasks phase, gate B: if a task introduces a new external dependency, number it as a
   normal finding and append `[gate-b:T<task id>]` to that finding's title; if a task does
   more than the approved requirements ask, append `[gate-c:T<task id>]`. Judge from the

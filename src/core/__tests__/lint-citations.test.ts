@@ -271,6 +271,34 @@ describe('checkCitations', () => {
     expect(rulesOn(findings, 'citation-path')).toHaveLength(1);
   });
 
+  it('skips the identifier check on _Leverage and _Prompt lines but not plain lines (retro F5)', async () => {
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'real.ts'), 'function known() {}\n');
+    // The block resolves d/real.ts:1, so the identifier check runs. Backticked
+    // tokens on the _Leverage and _Prompt lines name to-be-built symbols and are
+    // skipped; a token on a plain line is still flagged.
+    const doc = [
+      '`known` lives at `d/real.ts:1`',
+      '_Leverage: the `buildFutureThing` helper_',
+      '_Prompt: Task: call `anotherFutureSymbol` | Restrictions: none | Success: ok_',
+      '`plainMissing` is also named here',
+    ].join('\n');
+    const findings = await checkCitations(split(doc), [baseA]);
+    const flagged = rulesOn(findings, 'citation-identifier').map((f) => f.message);
+    expect(flagged.some((m) => m.includes('buildFutureThing'))).toBe(false);
+    expect(flagged.some((m) => m.includes('anotherFutureSymbol'))).toBe(false);
+    expect(flagged.some((m) => m.includes('plainMissing'))).toBe(true);
+  });
+
+  it('treats a repo-root lockfile as a valid citation path (retro F5)', async () => {
+    await fsp.writeFile(join(baseA, 'package-lock.json'), 'l1\nl2\nl3\n');
+    await fsp.writeFile(join(baseA, 'pnpm-lock.yaml'), 'x\ny\nz\n');
+    const doc = ['pinned at `package-lock.json:2`', '', 'and `pnpm-lock.yaml:3`'].join('\n');
+    const findings = await checkCitations(split(doc), [baseA]);
+    expect(rulesOn(findings, 'citation-path')).toHaveLength(0);
+    expect(findings).toHaveLength(0);
+  });
+
   it('skips citation scanning in Revision History and decision-log sections (retro P4)', async () => {
     const doc = [
       '## Revision History',
