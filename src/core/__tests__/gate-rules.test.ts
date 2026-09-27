@@ -310,6 +310,21 @@ describe('scoreRisk', () => {
     expect(kept.reasons).toContain('line-count: 300 changed lines exceed 200');
   });
 
+  it('b: per-path counts drop untracked and spec-store bookkeeping paths (retro P6)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      perFile: {
+        'src/a.ts': 100,
+        '.mcp.json': 300,
+        '.spec-workflow/specs/s/tasks.md': 300,
+      },
+      untracked: ['.mcp.json'],
+      generated: null,
+      stats: null,
+    });
+    expect(r.reasons.some((x) => x.startsWith('line-count'))).toBe(false);
+  });
+
   it('b: per-path counts drop test paths from the line rule (P14)', () => {
     const r = scoreRisk({
       ...lowRisk,
@@ -473,6 +488,16 @@ describe('decideGate', () => {
         '.spec-workflow/specs/s/Implementation Logs/task-1.md',
       ],
       untracked: ['.mcp.json'],
+    });
+    expect(r).toEqual({ gate: 'pass', reasons: [] });
+  });
+
+  it('d: exempts a tracked path already dirty at base capture (retro P6)', () => {
+    const r = decideGate({
+      ...passGate,
+      files: ['src/foo.ts'],
+      touched: ['src/foo.ts', '.gitignore'],
+      dirtyTracked: ['.gitignore'],
     });
     expect(r).toEqual({ gate: 'pass', reasons: [] });
   });

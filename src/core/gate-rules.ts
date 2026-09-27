@@ -234,6 +234,8 @@ export type RiskInput = {
   generated?: string[] | null;
   /** Parsed `## Prose paths` entries whose `*.md` files are exempt, or `null`/absent (P10). */
   prose?: string[] | null;
+  /** Untracked touched paths the line rule excludes, or absent (retro P6). */
+  untracked?: string[];
   /** The task block; `''` in item mode. */
   block: string;
   /** Whether any of `baseRef`, `commit`, `files` was given. */
@@ -252,18 +254,22 @@ export type RiskInput = {
 
 /**
  * The changed-line total the `line-count` rule scores: the per-path total with
- * generated (P2), prose `*.md` (P10) and test (P14) paths dropped, or the aggregate
- * when no per-path counts are given. `null` when neither is present.
+ * generated (P2), prose `*.md` (P10), test (P14), untracked and spec-store
+ * bookkeeping (retro P6) paths dropped, or the aggregate when no per-path counts
+ * are given. `null` when neither is present.
  */
 function countedLines(input: RiskInput): number | null {
   if (input.perFile) {
     const generated = input.generated ?? null;
     const prose = input.prose ?? null;
+    const untracked = new Set((input.untracked ?? []).map(normalizePath));
     let total = 0;
     for (const [p, changed] of Object.entries(input.perFile)) {
       if (generated && isGeneratedPath(p, generated)) continue;
       if (prose && isProsePath(p, prose)) continue; // prose *.md do not count (P10)
       if (isTestPath(p)) continue; // source lines only; test paths do not count (P14)
+      if (untracked.has(normalizePath(p))) continue; // untracked noise does not count (retro P6)
+      if (isBookkeepingPath(p)) continue; // spec-store bookkeeping does not count (retro P6)
       total += changed;
     }
     return total;
@@ -372,6 +378,12 @@ export type GateInput = {
   generated?: string[] | null;
   /** Untracked touched paths the outside-list check skips, or absent (retro P5). */
   untracked?: string[];
+  /**
+   * Tracked paths already dirty at base capture; the outside-list check skips
+   * them (retro P6). In baseRef mode the range diffs the work tree, so a file the
+   * implementer never committed shows in the range yet is not their work.
+   */
+  dirtyTracked?: string[];
   /** Files-only: listed paths absent under `root`. */
   missing: string[];
   filesOnly: boolean;
@@ -411,14 +423,19 @@ export function decideGate(input: GateInput): { gate: 'pass' | 'fail'; reasons: 
   // a `files` list naming only the sources must not flag the mirror copies (P3).
   // Untracked paths and spec-store bookkeeping are skipped too (retro P5): in a
   // shared code+spec repo the range picks up the orchestrator's uncommitted files
-  // and its `.spec-workflow` bookkeeping, which are not the implementer's work.
+  // and its `.spec-workflow` bookkeeping, which are not the implementer's work. A
+  // tracked path already dirty at base capture is skipped for the same reason
+  // (retro P6): in baseRef mode the range diffs the work tree, so a file the
+  // implementer never committed shows in the range yet is not their work.
   if (input.files !== null) {
     const listed = input.files.map(normalizePath);
     const generated = input.generated ?? null;
     const untracked = new Set((input.untracked ?? []).map(normalizePath));
+    const dirtyTracked = new Set((input.dirtyTracked ?? []).map(normalizePath));
     for (const p of input.touched) {
       if (generated && isGeneratedPath(p, generated)) continue;
       if (untracked.has(normalizePath(p))) continue;
+      if (dirtyTracked.has(normalizePath(p))) continue;
       if (isBookkeepingPath(p)) continue;
       if (!listed.includes(normalizePath(p))) {
         reasons.push(`file-outside-list: ${p}`);
