@@ -2,8 +2,8 @@
 
 > **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`graph-orientation`**.
 > Live phase **closeout**, state **items 0/11**, last result **retro-ready** (retrospective plan APPROVED).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: after a session restart (PR #68 build), checks with the overwatch, then runs the close-out from current main.
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: spawns the close-out orchestrator from the chore/graph-orientation-retro worktree (run run-20260927-141624).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
