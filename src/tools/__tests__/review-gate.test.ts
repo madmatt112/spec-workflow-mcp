@@ -326,6 +326,10 @@ describe('handleGate', () => {
     const bigDoc = Array.from({ length: 250 }, (_, i) => `Paragraph ${i} about the methodology.`).join('\n') + '\n';
     await fs.mkdir(join(tempDir, 'docs'), { recursive: true });
     await fs.writeFile(join(tempDir, 'docs/guide.md'), bigDoc);
+    // Commit the change: untracked paths no longer count toward line-count (retro
+    // P6), so the doc must be the implementer's tracked commit to score by size.
+    gitCmd(tempDir, ['add', '-A']);
+    gitCmd(tempDir, ['commit', '-q', '-m', 'C1']);
 
     const result = await gate({ baseRef: base }, '1');
 
@@ -349,6 +353,10 @@ describe('handleGate', () => {
     await fs.mkdir(join(tempDir, 'docs'), { recursive: true });
     await fs.writeFile(join(tempDir, 'docs/guide.md'), bigDoc);
     await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+    // Commit the change: untracked paths no longer count toward line-count (retro
+    // P6), so the tracked commit is what the gate measures by size.
+    gitCmd(tempDir, ['add', '-A']);
+    gitCmd(tempDir, ['commit', '-q', '-m', 'C1']);
 
     const result = await gate({ baseRef: base }, '1');
 

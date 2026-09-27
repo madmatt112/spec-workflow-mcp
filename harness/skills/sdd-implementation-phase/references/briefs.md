@@ -28,6 +28,9 @@ Read and obey <AGENT_RULES> first.
   block and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
+- A background shell you launch (`run_in_background`, a long dry-run) is yours: kill the
+  ones you started before you report, and never leave a detached shell running past your
+  turn (retro P5).
 - If an existing assertion fails only because of the specified change, widen it to keep
   its intent (never delete it) and report `RETRO: doc-gap`.
 - Compare files with `git diff`, `git diff --no-index`, or `git show`, never with a bare
@@ -44,12 +47,16 @@ Read and obey <AGENT_RULES> first.
   line>`. If something about the process, the tools, the documents or the harness cost
   you time, report `RETRO: <category> — <one line>` (categories: gotcha, bug,
   tool-error, mcp-deficiency, harness-defect, misunderstanding, inefficiency,
-  doc-gap, model-behaviour).
+  doc-gap, model-behaviour, deviation).
 - When a designed fallback let you proceed but masked a missing tool or capability (the
   primary path was unavailable, so you took the fallback), do not stay silent: apply the
   fallback and continue, but report `RETRO: tool-error — <the missing tool>` so the gap
   stays visible, and `ESCALATE: <the missing capability>` instead when the fallback masks
   a capability a later task depends on (retro P12).
+- When a judgment call of yours changes the data the spec ships — which sources it covers,
+  or how a record is named, filtered or dropped — do not leave it to the diff alone:
+  report `RETRO: deviation — <the shipped-data change, one line>`, so the change stays
+  visible to the retrospective (retro P14).
 - Report in 150 words or fewer: files touched one per line, as absolute paths under
   `<CODE_ROOT>`, checks run with result, `logged: yes/<taskId>` or `logged: no`,
   `commit: <sha>`, flags. No diffs, no file contents, no test output beyond one line.
