@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790549338361_1lk95easg",
+  "title": "tdd-task-loop design v2",
+  "filePath": ".spec-workflow/specs/tdd-task-loop/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-27T22:48:58.361Z",
+  "category": "spec",
+  "categoryName": "tdd-task-loop",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1; rulings: R3 AC4 (redTests optional key defaulting to empty string) ruled refinement by round-1 reviewer, closed; cap: not hit.",
+  "respondedAt": "2026-09-27T22:49:32.850Z"
+}

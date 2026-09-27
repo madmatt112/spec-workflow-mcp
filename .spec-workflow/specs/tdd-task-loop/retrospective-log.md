@@ -39,3 +39,13 @@ Cost: 1 reviewer spawn
 R3 AC4 RE-DECIDED (redTests optional key defaulting to empty string) ruled refinement by round-1 reviewer; closed, not a widening.
 Evidence: reviews/adversarial-analysis-design.md
 Cost: no extra spawn
+
+## 2026-09-27T22:48:25Z · design · v2 · gotcha
+round 2 design v2: CONVERGED MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1 (R2-1 compounding R1-4: testFiles<->tests[] match does not pin path form, fail-open, non-blocking). Both R1 SHOULD_FIX resolved; all four fresh-lens seams pinned both sides.
+Evidence: reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn
+
+## 2026-09-27T22:51:08Z · design · phase · cleanup
+design approved at v2 after 2 rounds; verdict trajectory iterate 0/2/4 -> converged 0/0/1; rulings 1 (R3 AC4 ruled refinement); cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790549338361_1lk95easg; reviews/adversarial-analysis-design-r2.md
+Cost: 2 reviewer + 1 reviser spawns

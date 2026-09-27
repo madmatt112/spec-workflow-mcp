@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/tdd-task-loop/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-27T22:48:58.400Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790549338361_1lk95easg",
+      "approvalTitle": "tdd-task-loop design v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-27T22:49:32.848Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790549338361_1lk95easg",
+      "approvalTitle": "tdd-task-loop design v2"
+    }
+  ]
+}

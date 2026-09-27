@@ -553,3 +553,15 @@ Gotchas:
 | Cut scope | none. Scope matches decomposition spec 11 (the TDD task loop: `- Test:` line, Sonnet test author, red-on-base gate proof, risk-tiered recorded review, Jev in shadow). |
 | Carried items | none ruled out (all findings accepted or partially accepted across rounds 1-3; SHOULD_FIX-only pass fixed R3-1). Notes for the design drafter: (1) R3-2 (MINOR, left out of the SHOULD_FIX-only pass) — the `seams` datatype from the parsed task's `tests[]`; weigh it when design pins the parsed-task shape. (2) narrow-check deferred finding — an undocumented overview-text trim in the v4 diff (decorative alignment prose removed to stay under the 3,500-word cap), unrelated to R3-1. |
 | Next phase loads | design drafter reads `codebase-context.md` first, then `tech.md`/`structure.md`/`design-system.md` (as present), the decomposition entry for `tdd-task-loop`, and this `requirements.md`. Ground surfaces: `src/core/gate-rules.ts` (`isTestPath`, red-on-base proof), `src/core/task-parser.ts` (`- Test:` parse, `implementationDetails` fallthrough, `tests[]`/`seams`), `src/tools/review-gate.ts`, `src/core/check-runner.ts` (captured stdout/stderr classification), `src/tools/harness.ts` (brief templates, `SERVER_BRIEF_KEYS`, empty-string required check), and `src/dashboard/.../TasksPage.tsx:1364-1406` (R6 always-shown task row). Open MINOR R3-2 tracked in `reviews/adversarial-analysis-requirements-r3.md`; narrow-check note in `-r4.md`. |
+
+## tdd-task-loop — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-09-27 |
+| Rounds | 2; verdicts iterate 0/2/4 → converged 0/0/1 |
+| Approval | `approval_1790549338361_1lk95easg` |
+| Rulings | R3 AC4 (`redTests` optional key defaulting to empty string): round-1 reviewer ruled refinement, closed. No standoff, no circling, no cap. |
+| Cut scope | none. Scope matches decomposition spec 11 (the TDD task loop: `- Test:` line, Sonnet test author, red-on-base gate proof, risk-tiered recorded review, Jev in shadow). R3-2 (parsed-task `seams`) closed by design D1: `seams` is a map keyed by test path. |
+| Carried items | none ruled out (all round-1 findings accepted or partially accepted; round 2 converged). Note for the tasks drafter: R2-1 (MINOR, non-blocking, open) — the gate matches `testFiles` to the parsed task's `tests[]` without pinning the path form, so a mismatch fails open with no `seams`; weigh whether the tasks should normalise the path form on both sides. Tracked in `reviews/adversarial-analysis-design-r2.md`. |
+| Next phase loads | tasks drafter reads `codebase-context.md` first, then `structure.md` (absent) and this `design.md`. Ground surfaces are the Component Reuses lines: `src/tools/review-gate.ts` (gate wiring), `src/core/gate-rules.ts` (risk, decideGate), `src/core/task-parser.ts` (`- Test:` parse, `tests[]`), `src/core/task-review-manager.ts` (review record, sidecar), `src/tools/spec-status.ts` and `src/dashboard_frontend/.../TasksPage.tsx:1364-1406` (visibility), new modules `src/core/red-green.ts` and `src/core/judge.ts`, `scripts/sync-plugin-assets.cjs` and `docs/SDD-HARNESS.md` (profiles, docs). |

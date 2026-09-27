@@ -1,74 +1,54 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-09-27 (round 1)
+Last updated: 2026-09-27 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1 just written)
+- **R1-1 (SHOULD_FIX, v1)** — Inbound Jev answer wire unprobed and unflagged. v2 flags
+  both outbound `criteria` and inbound answer-number extraction as docs-placeholder,
+  names `@typesafe-ai/sdk` types (jev doc 1.3, verified) plus a live key as confirmation
+  sources, and gates the R9 AC3 judge event behind that confirmation. **Resolved in v2.**
+- **R1-2 (SHOULD_FIX, v1)** — Count-word command over/under-inclusive. v2 replaces it
+  with a member-complete `grep -rn -iE` command. Ran it: 7 hits, 6 real edits (incl.
+  `SDD-HARNESS.md:21` "Eight **worker** agents" via the `worker\*\* agents` pattern) + the
+  named false positive `SDD-HARNESS.md:133` "twelve spawns". **Resolved in v2.**
+- **R1-4 (MINOR, v1)** — Gate seam/testLines source made explicit in Component 8 step 3;
+  cites `review-gate.ts:161` (verified the parse). **Resolved in v2.**
+- **R1-5 (MINOR, v1)** — Author `SEAM-DEFECT` stop reason now sourced from the author's
+  flag; cites `SKILL.md:209-216` (verified the design-defect stop). **Resolved in v2.**
 
 ### Partially Accepted
-- (none)
+- **R1-3 (MINOR, v1)** — `classifyRed` structural-marker misclassification recorded in
+  Scope notes as a known shadow-data bias; classification rule (R4 AC9) left closed.
+- **R1-6 (MINOR, v1)** — Stale-sidecar mis-attach after mid-spec unmark recorded in Error
+  Handling 5 as an accepted limitation; no run stamp added.
 
 ### Rejected
 - (none)
 
-### Unresolved (round 1, all open)
-- **R1-1 (SHOULD_FIX)** — Inbound judge answer wire unprobed and unflagged. Design flags
-  only the outbound score-question `criteria` form; the per-question numeric extraction
-  from `answers["<id>"]` (jev doc 38-42 shows a placeholder `{ ... }`) is presented as
-  settled in Data Models `JudgeAnswers`. Fail-open turns a wrong wire into silent
-  `null`, so R9 AC3 ("one judge event when a key is set") and R7 AC7 can never pass and
-  the Jev-shadow deliverable yields no data. Fix: flag it unprobed; name the SDK types
-  or a live-key check as the confirmation source; or drop the judge event from R9 AC3's
-  required set.
-- **R1-2 (SHOULD_FIX)** — Component 13 count-word command `grep -rn -i twelve …` is
-  over- and under-inclusive. Verified hits: `sync-plugin-assets.cjs:91`,
-  `agent-profiles.test.ts:6` (both should change), and `SDD-HARNESS.md:133` "twelve
-  spawns" (false positive, must NOT change). Misses "Eight worker agents"
-  (`SDD-HARNESS.md:21`, the R8 AC2 count word) and the numeral `12` in the test.
-  Violates agent-rules "command that finds every member".
-- **R1-3 (MINOR)** — `classifyRed` scans combined stdout+stderr; an assertion failure
-  whose output holds a structural marker (e.g. "is not a function" in an asserted error
-  string) records `structural-red`, biasing shadow data. Safe direction; the marker
-  list is closed by R4 AC9, so flagged as inherited data-quality risk, not a re-open.
-- **R1-4 (MINOR)** — Gate's source of `seams`/`testLines` (parsed task `tests[]`) is
-  implicit; `tdd` arg carries only `testFiles`+`redCommit`. Gate re-parses tasks.md
-  (already does at review-gate.ts:161) — state it.
-- **R1-5 (MINOR)** — Design-defect stop (SKILL.md:215-216) reports "from the
-  implementer's flag"; author `SEAM-DEFECT` path reuses it — reason must be
-  author-sourced.
-- **R1-6 (MINOR)** — `saveReview`'s unconditional sidecar attach could mis-attach a
-  stale `.tdd-<id>.json` to an unmarked task after a mid-spec tasks.md edit; no
-  run/commit stamp guards it.
+### Unresolved
+- **R2-1 (MINOR, v2, Compounding R1-4)** — `testFiles`↔`tests[]` match "by path" does not
+  pin the shared path form; a mismatch silently drops seams/testLines (fail-open). Low
+  risk (one skill authors both sides). Not loop-keeping. Not yet responded to.
 
-## Rulings issued
-- **R3 AC4 re-decided literal** (`redTests` optional, defaults `''`): ruled
-  **refinement (closed)**. Requirements v3 R2-2 already fixed "filled every task, empty
-  when unmarked, empty string passes the check"; D3/Component 5 is the mechanism, not a
-  widening. Preserves harness.test.ts:170-172 / 247-253.
+## Rulings issued (closed — do not re-open)
+- **R3 AC4** `redTests` optional key defaulting to `''` — refinement, closed (round 1).
+- **R4 AC9** `classifyRed` marker list + full-stdout+stderr scan — closed.
 
 ## Patterns & Themes
-- The document is exceptionally well-grounded: every code citation (paths, ranges,
-  signatures, behaviour) verified accurate on first read. Weaknesses cluster in
-  **external/unprobeable wires** (Jev) and **prescribed maintenance commands** (count
-  words), not in codebase claims.
-- Recurring risk shape: "fail-open / safe-direction" mechanisms mask gaps by turning
-  them into silent no-ops that still fail the *verification* (R1-1) rather than the
-  gate.
-- Spec 12 (`## Code graph`) is already merged in harness.ts — the design builds on it
-  correctly.
+- Document is exceptionally well-grounded across two rounds. Every code citation the v2
+  delta wrote verified accurate (paths, ranges, wording). No fix-induced claim error.
+- Weaknesses only ever clustered in external/unprobeable wires (Jev) and prescribed
+  maintenance commands — both closed in v2. Codebase claims never missed.
+- All four producer→consumer seams the round-2 lens targeted (parsed-task
+  tests/seams→gate+judge; TddBlock→markdown fence→back; data.tdd→routes→dashboard;
+  redText→judge) are pinned on both sides and verified.
 
 ## Guidance for Next Review
-- Verify R1-1 was addressed: does the design now state the answer-extraction wire as
-  unprobed and give a confirmation source, or has the judge event been removed from R9
-  AC3's required scenario? Watch for the drafter over-claiming SDK behaviour without a
-  probe (round prompt's library-capability MUST_FIX rule).
-- Verify R1-2: is the corrected find command member-complete and does it exclude
-  `SDD-HARNESS.md:133`?
-- Re-check the gate→proof→block seam (R1-4) and the sidecar lifecycle (R1-6) if
-  Component 8/9 text changed.
-- Do not re-open R4 AC9's classification rule or the R3 AC4 ruling (both closed).
-- Fresh lens used this round: wire contracts across boundaries. A future round could
-  apply: concurrency/lifecycle of the base worktree and sidecar under simultaneous
-  gates, or a resource/timeout budget lens (three 5-min test runs per gate).
+- Verdict at v2 is **converged** (0 MUST_FIX, 0 SHOULD_FIX, 1 MINOR). A further round is
+  not required by severity. If one runs, it is redundant on the areas below.
+- Well-covered, do not re-examine: Jev wire honesty (R1-1), count-word command (R1-2),
+  the four cross-artifact shape seams, Data Models completeness, review-markdown
+  round-trip, dashboard route wiring, the R4 AC9 and R3 AC4 closed rulings.
+- Only open thread is the trivial R2-1 path-form note; it degrades gracefully and does
+  not block implementation.
