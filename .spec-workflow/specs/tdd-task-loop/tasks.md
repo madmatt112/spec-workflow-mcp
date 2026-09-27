@@ -198,3 +198,4 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
 ## Revision History
 
 - **v1** (2026-09-27) — Initial draft.
+  - **Lint pass.** 0 fixed; rejected: L-1 through L-39 (all 39 citation-identifier warnings) — false positives from the lint skip-regex gap: the identifier check's `_Leverage:`/`_Prompt:` skip does not match the template's indented sub-bullet form, so it scans prompt lines whose backticked tokens name to-be-built symbols (tests, tdd, tddCoverage, redTests, redCommit, testFiles, seams) or JS literals (null, json, parse, stringify, finally), none of them a miscited existing symbol.
