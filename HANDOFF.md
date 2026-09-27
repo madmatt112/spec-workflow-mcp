@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`tdd-task-loop`**.
-> Live phase **requirements**, state **pending**, last result **pending**.
+> Live phase **design**, state **pending**, last result **approved** (requirements at v4).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts requirements v1 for tdd-task-loop (new spec from decomposition.md §11).
+> A re-run does: drafts design v1 for tdd-task-loop.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -61,6 +61,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-26 | graph-orientation | retrospective |  | retro-ready |  |
 | 2026-09-27 | graph-orientation | retrospective | APPROVED | retro-ready | plan APPROVED: 10 proposals (P1 P3 P5 P7 + overwatch P9-P14) + G1; close-out after session restart for PR #68 |
 | 2026-09-27 | graph-orientation | closeout | items 11/11 | closed |  |
+| 2026-09-27 | tdd-task-loop | requirements | v1 | gate-a |  |
+| 2026-09-27 | tdd-task-loop | requirements | v4 | approved | 4 rounds, iterate then SHOULD_FIX-only convergence |
 
 ## Current state — 2026-08-04
 
