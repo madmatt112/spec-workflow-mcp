@@ -24,7 +24,7 @@ import {
   type TypecheckDiagnostic,
 } from '../core/typecheck.js';
 import { computeHygieneSignals, type HygieneSignal } from '../core/hygiene-signals.js';
-import { computeRangeStats, type RangeSelector } from '../core/task-diff.js';
+import { computeRangeStats, listDirtyTrackedFiles, type RangeSelector } from '../core/task-diff.js';
 import { runChecks, type CheckResult } from '../core/check-runner.js';
 import {
   parseSensitivePaths,
@@ -210,6 +210,7 @@ export async function handleGate(
 
     let touched: string[];
     let untracked: string[] = [];
+    let dirtyTracked: string[] = [];
     let stats: { filesChanged: number; linesAdded: number; linesRemoved: number } | null;
     let perFile: Record<string, number> = {};
     let trivialChange = false;
@@ -233,6 +234,13 @@ export async function handleGate(
       touched = rangeResult.touched;
       untracked = rangeResult.untracked;
       perFile = rangeResult.perFile;
+      // Tracked files already dirty at base capture (retro P6): in baseRef mode
+      // the range diffs the work tree, so a file the implementer never committed
+      // shows up though it is not their work. Commit mode ranges only the commit,
+      // so working-tree dirt never enters `touched` there and the call is skipped.
+      if (!commit) {
+        dirtyTracked = await listDirtyTrackedFiles(root);
+      }
       // Trivial-change fast path (retro P14): when files changed but the diff has
       // no semantic content (a whitespace-only re-indent or a no-op), a second
       // range stat that ignores whitespace reports zero changed lines. A new,
@@ -282,6 +290,7 @@ export async function handleGate(
       files: gateFiles,
       generated,
       untracked,
+      dirtyTracked,
       missing,
       filesOnly,
     });
@@ -294,6 +303,7 @@ export async function handleGate(
           stats,
           perFile,
           generated,
+          untracked,
           block: mode === 'task' && task ? taskBlock(tasksContent, task.lineNumber) : '',
           rangeGiven: !!(baseRef || hasCommit || hasFiles),
           typecheck: typecheckState,

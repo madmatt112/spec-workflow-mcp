@@ -434,6 +434,20 @@ function countFileNewlines(filePath: string): number {
 }
 
 /**
+ * Tracked paths with uncommitted changes relative to `HEAD` (retro P6). In a
+ * shared code+spec repo the gate ranges the work tree against the implementer's
+ * commit parent, so a file that was already dirty at base capture — the
+ * implementer never touched it — shows in the range yet is not their work. The
+ * outside-list check skips these. Empty when git gives no answer, so a git fault
+ * never widens the skip set.
+ */
+export async function listDirtyTrackedFiles(root: string): Promise<string[]> {
+  const run = await runGit(root, ['-c', 'core.quotePath=false', 'diff', '--name-only', 'HEAD']);
+  if (!run.ok) return [];
+  return run.stdout.split('\n').filter((line) => line.length > 0);
+}
+
+/**
  * Touched paths and line counts over the range the caller selects — every
  * changed file, not only the logged ones (Req 1.4, 8.3, design Component 5).
  *
