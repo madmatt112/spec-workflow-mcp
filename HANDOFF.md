@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`tdd-task-loop`**.
-> Live phase **tasks**, state **pending**, last result **approved** (design at v2).
+> Live phase **implementation**, state **tasks 0/17**, last result **approved** (tasks at v1; stopped before gate B for a session restart after PR #71).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts tasks v1 for tdd-task-loop.
+> A re-run does: runs gate B (slot b holds tasks 9 and 17), enters worktree feat/tdd-task-loop from current main, spawns implementation.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -64,6 +64,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-27 | tdd-task-loop | requirements | v1 | gate-a |  |
 | 2026-09-27 | tdd-task-loop | requirements | v4 | approved | 4 rounds, iterate then SHOULD_FIX-only convergence |
 | 2026-09-27 | tdd-task-loop | design | v2 | approved | 2 rounds, iterate 0/2/4 -> converged 0/0/1 |
+| 2026-09-27 | tdd-task-loop | tasks | v1 | approved | 1 round, clean converge 0/0/2 |
 
 ## Current state — 2026-08-04
 
