@@ -118,12 +118,15 @@ It never changes D.
    number `data.findings` `L-1`, `L-2`, … in file order. When `summary.error +
    summary.warning` is 0, set `LINT.open` to every `info` finding and end the step here;
    `info` findings alone spawn nothing.
-3. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
-   carrying the output path `reviews/lint-brief-<PHASE>-v<D>.md` and the lint brief's
-   fields (job, findings) from `references/briefs.md`.
-4. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`. After its
-   report write one `spawn.usage` carrying `role="lint v<D>"`, `round=<A+1>`, and the
-   result from its report.
+3. Apply the error and warning findings in place in `<document>` yourself — do not spawn a
+   reviser; these are mechanical fixes (bare or wrong citations, MDX bare angle brackets,
+   task shape, over-cap words). Follow the Lint brief's disposition rules in
+   `references/briefs.md`: assess each on its merits, verify every citation you add or
+   change against the real tree under `CODE_ROOT`, fix every sibling of an accepted
+   finding, and never widen scope or grow the document past its cap (retro P11).
+4. Append under the v<D> Revision History line one nested bullet: `- **Lint pass.** <n>
+   fixed; rejected: <none | L-n reason, …>`. Write no `spawn.usage` — the lint pass now
+   spawns nothing.
 5. Spot-check: `grep -n 'Lint pass' <document>`.
 6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through the commit script
    (`references/cleanup.md`); D does not change — a lint pass consumes no cap fuel.
