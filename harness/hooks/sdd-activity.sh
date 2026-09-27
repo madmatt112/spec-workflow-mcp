@@ -147,6 +147,10 @@ if (ev === "PreToolUse") {
   else if (i.pattern) s = i.pattern;
   else if (i.skill) s = i.skill;
   s = String(s).replace(/\s+/g, " ").trim();
+  // Strip one leading `cd <path>;`/`&&` segment from a Bash summary before the 160-char cap
+  // so a chained `graphify query`/`explain` stays visible (retro P3). Only the leading cd
+  // segment is taken; the rest of the chain is kept.
+  if (d.tool_name === "Bash") s = s.replace(/^cd\s+[^;&]*(?:;|&&)\s*/, "");
   if (s.length > 160) s = s.slice(0, 157) + "...";
   e.summary = s;
 } else if (ev === "SubagentStart") {
