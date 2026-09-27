@@ -1,77 +1,80 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-09-27 (after v2 review)
+Last updated: 2026-09-27 (after v3 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- **R1-1 (SHOULD_FIX, v1)** — R6 anchor moved to `TasksPage.tsx:1364-1406` and AC3 names
-  the always-shown task row, not the `verdict !== 'pass'` findings expander. Verified in v2:
-  1364 is the `!task.isHeader` block, 1384 is the expander. Resolved.
-- **R1-2 (SHOULD_FIX, v1)** — R4 AC9 now classifies the base run's full captured
-  stdout/stderr, not the one-line `runChecks` output. Resolved.
-- **R1-3 (SHOULD_FIX, v1)** — R3 AC4 names the injection channel (implementer template
-  `brief`-filled slot; fix brief via reviser `{{job}}`). Partially resolved — see R2-2, the
-  fix introduced a required-placeholder break.
-- **R1-4 (SHOULD_FIX, v1)** — R4 AC14 scopes "command" to the two configurable agent-rules
-  keys, git plumbing excepted. Resolved.
+- **R1-1 (SHOULD_FIX, v1)** — R6 anchor `TasksPage.tsx:1364-1406`, AC3 names the always-shown
+  task row not the `verdict !== 'pass'` expander. Resolved (verified v2).
+- **R1-2 (SHOULD_FIX, v1)** — R4 AC9 classifies the full captured stdout/stderr, not the
+  one-line `runChecks` output. Resolved.
+- **R1-3 (SHOULD_FIX, v1)** — R3 AC4 names the injection channel. Resolved via R2-2.
+- **R1-4 (SHOULD_FIX, v1)** — R4 AC14 scopes "command" to the two agent-rules keys, git
+  plumbing excepted. Resolved.
 - **R1-5 (MINOR, v1)** — R4 AC13 derives `seams` from the parsed task's `tests[]`. Resolved
-  at the requirement level — see R2-3, edge when `testFiles` exceeds the `Test:` lines.
-- **R1-6 (MINOR, v1)** — R1 AC3 states a malformed `Test:` line stays an
-  `implementationDetails` bullet. **Fix introduced R2-1** — the added non-promotion clause
-  contradicts AC1's structural promotion trigger.
+  at requirement level (residue tracked as R3-2).
+- **R1-6 (MINOR, v1)** — malformed `Test:` line stays `implementationDetails`. Fix induced
+  R2-1; both now resolved by v3.
+- **R2-1 (MUST_FIX, fix-induced, Compounds R1-6, v2)** — AC1/AC3 double-answered one line.
+  **RESOLVED in v3**: AC1 gained "a test path by the gate's test-path rule"; AC3 dropped the
+  qualifier and simplified the non-promotion clause. AC1 = ¬(AC3) by De Morgan — a clean
+  partition. `isTestPath` (`gate-rules.ts:193-198`) is pure and importable at parse time;
+  R1's Anchors already cite `gate-rules.ts:192-198`. Verified v3.
+- **R2-2 (SHOULD_FIX, fix-induced, Compounds R1-3, v2)** — required implementer slot broke the
+  unmarked brief. **RESOLVED in v3**: AC4 slot "filled for every task and empty when unmarked";
+  `harness.ts:666` treats only `undefined`/`null` as missing, so an empty string writes the
+  kill-switch brief. AC8 dropped "write no red section." Verified v3.
+- **R2-3 (MINOR, v2)** — `seams` no-entry case. **Addressed in v3** ("none for a path without
+  an entry"); datatype still loose — see R3-2.
+- **R2-4 (MINOR, partially accepted, v2)** — R8 AC3 now states the implementer red-tests slot
+  is internal. Resolved.
 
 ### Partially Accepted
-- (none)
+- **R2-4** — user rules the slot an internal fill, not a TOOLS-REFERENCE surface (v3).
 
 ### Rejected
 - (none)
 
 ### Unresolved
-- **R2-1 (MUST_FIX, fix-induced, Compounds R1-6)** — R1 AC1 promotes any structurally valid
-  `- Test:` line (path + em dash + call text) to `tests[]`; the R1-6 fix made AC3 withhold
-  promotion for a non-test path, leaving it in `implementationDetails`. The line
-  `- Test: src/foo.ts — createWidget()` fires both. AC1's WHEN must gain "a test path", or
-  AC3's non-promotion clause must go. Also introduces a hidden parser→`gate-rules`
-  (`isTestPath`, `gate-rules.ts:192-198`) coupling AC1 never mentions.
-- **R2-2 (SHOULD_FIX, fix-induced, Compounds R1-3)** — the R1-3 fix's "`brief`-filled slot"
-  on the implementer template becomes a required placeholder (`harness.ts:665-675`: every
-  non-`SERVER_BRIEF_KEYS` key is required, missing → `success:false`, no file). AC8 has the
-  orchestrator pass nothing for unmarked tasks, so the unmarked (kill-switch) implementer
-  brief fails to write. Needs the slot server-defaulted or an empty caller value stated.
-- **R2-3 (MINOR)** — R4 AC13 `seams` has no entry when `testFiles` (author's committed
-  files) is a superset of the `Test:` lines; state the fallback.
-- **R2-4 (MINOR)** — R8 AC3's TOOLS-REFERENCE list does not require documenting the new
-  implementer-template slot the R3 AC4 fix added.
+- **R3-1 (SHOULD_FIX, Recurring/carried)** — the `test-author` brief carries no channel to
+  `<spec dir>` or `<CODE_ROOT>`, but R2 AC4 requires reading `requirements.md`/`design.md`/
+  `codebase-context.md` and R2 AC10 requires committing in the code root. R2 AC2 requires only
+  `path`/`title`/`job`; the read-and-obey line points at the spec-store `agent-rules.md`
+  (`harness.ts:525-534,627,636`), which on tradr is a different root from the code root
+  (`SPEC_WORKFLOW_SHARED_ROOT`). Implementer/verifier reach spec context through a standing
+  brief that names the roots (`briefs.md:117`); the author has none. Escalated from the v1/v2
+  unnumbered design-note. Fix: carry `<spec dir>`+`<CODE_ROOT>` via a required value, a
+  standing-brief pointer, or an explicit `job`-carries-them statement.
+- **R3-2 (MINOR, Compounds R2-3)** — AC13 "none for a path without an entry" leaves `seams`'
+  datatype undefined (positional array with null holes vs map without the key); R5 AC6 needs
+  the review-markdown round-trip total. Pin in design.
 - **Design-must-resolve (carried, not numbered)** — R5 AC7 + D10: cross-call persistence of
-  "the latest proof" between the gate and the verifier's `review-task record`
-  (`review-task.ts:858`); no store/key named. Also `test-author` has no standing brief;
-  path/git context must reach it via `job` (R2 AC4/AC10).
+  "the latest proof" between the gate and `review-task record` (`review-task.ts:858`); no
+  store/key named. Likely satisfiable via the gate's own review record
+  (`review-gate.ts:328-344`), so a design WHERE, not a requirements defect.
 
 ## Patterns & Themes
 
-- **Fixes re-open the seams they touch.** Both round-2 findings sit in text the round-1 fix
-  wrote: R1-6's parser-destination clause created a contradiction (R2-1); R1-3's slot named
-  a mechanism the `brief` action makes mandatory (R2-2). The delta-first, fix-induced
-  pattern the prompt warned about held exactly.
-- **The parser and the gate rules are being coupled implicitly.** AC3 now needs `isTestPath`
-  (a `gate-rules` export) at parse time without saying so.
-- **The server/orchestrator boundary is still the weak seam** (carried from v1): every field
-  the orchestrator must inject into a server-authored brief needs an explicit, optional
-  channel, or it breaks either the marked or the unmarked path.
-- Citations remain clean: the one anchor the delta moved (R6) is accurate at both ends.
+- **v3 broke the fix-induced streak.** v2 and v1 fixes each re-opened the seam they touched
+  (R2-1 from R1-6, R2-2 from R1-3). The v3 delta resolved R2-1..R2-4 with **no** new
+  fix-induced MUST_FIX/SHOULD_FIX. Delta-first attack came up clean this round.
+- **The worker/brief boundary is the durable weak seam.** v1 flagged the server/orchestrator
+  wire; v2 the required-placeholder break; v3 the test-author's missing root/spec-dir channel.
+  Every new agent or injected field needs its channel named explicitly.
+- Citations remain clean across all three rounds; no misstated artifact in any delta.
 
 ## Guidance for Next Review
 
-- Re-check R2-1 and R2-2 against v3's disposition; classify Recurring/Compounding/Novel.
-- If AC1/AC3 is reconciled, confirm the chosen owner (AC1 gains "test path" vs AC3 drops
-  non-promotion) does not orphan the lint warning or the `tests[]` seam derivation (R2-3).
-- If the implementer slot is reworded, confirm it is server-defaulted or the orchestrator
-  passes an empty value, and that the unmarked path still writes a brief (`harness.ts:665`).
-- Well-covered, do not re-mine: R6 render gate (R1-1), AC9 full-output (R1-2), AC14 command
-  scope (R1-4), the base/head outcome enumeration and risk-tier truth table (checked clean
-  this round).
-- Fresh lenses used: v1 wire contracts; v2 internal-contradiction truth table. A future
-  round could apply base-worktree failure/rollback paths (partial `finally` cleanup,
-  `git worktree prune` racing a concurrent gate) or the cost of editing `review-task.ts` (a
-  sensitive path that forces a verifier on its own tasks).
+- If R3-1 is addressed, confirm the chosen channel (required value vs standing-brief pointer
+  vs `job` statement) actually reaches `<spec dir>` AND `<CODE_ROOT>`, and that it does not
+  re-introduce a required-placeholder break for the unmarked path (`harness.ts:666`).
+- If R3-2 is pinned, confirm the `seams` shape round-trips through `reviewToMarkdown`/
+  `parseReviewMarkdown` (`task-review-manager.ts:185-313`) unchanged (R5 AC6).
+- Well-covered, do not re-mine: R1 AC1/AC3 partition (R2-1, now closed), the implementer empty
+  slot (R2-2, closed), R6 render gate (R1-1), AC9 full-output (R1-2), AC14 command scope
+  (R1-4), base/head enumeration and risk-tier truth table.
+- Fresh lenses used: v1 wire contracts; v2 internal-contradiction truth table; v3
+  sub-agent-with-only-the-prompt (state/channel resolvability). Unused: base-worktree
+  failure/rollback (`finally` cleanup, `git worktree prune` racing a concurrent gate), and the
+  cost of editing the sensitive `review-task.ts` (forces a verifier on its own tasks).

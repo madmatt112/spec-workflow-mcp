@@ -14,3 +14,8 @@ Cost: one reviewer spawn
 Round 2 reviewer: iterate, MUST_FIX 1, SHOULD_FIX 1, MINOR 2. Both findings fix-induced (R2-1 Compounds R1-6, R2-2 Compounds R1-3); round-1 fixes R1-1/2/4/5 confirmed resolved.
 Evidence: reviews/adversarial-analysis-requirements-r2.md
 Cost: one reviewer spawn
+
+## 2026-09-27T21:17:08Z · requirements · v3 · gotcha
+Round 3 reviewer: iterate, MUST_FIX 0, SHOULD_FIX 1 (R3-1, Recurring/carried: test-author brief lacks channel to spec dir/code root per R2 AC4/AC10), MINOR 1. v3 delta clean, no fix-induced defect. Routes to SHOULD_FIX-only corrective pass.
+Evidence: reviews/adversarial-analysis-requirements-r3.md
+Cost: one reviewer spawn

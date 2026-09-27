@@ -6,7 +6,7 @@ A task carrying a `- Test:` line gets its failing tests from a separate Sonnet-t
 
 ## Alignment with Product Vision
 
-This store has no `product.md`, so the spec aligns with the spec 11 decomposition entry and `docs/tdd-implementation-research.md` section 0.1. The gate's verdict changes only on facts the code proves; Jev, the one LLM signal, runs in shadow. The author runs on the narrow-role Sonnet tier, and the tasks phase gains one line per marked task.
+This store has no `product.md`, so the spec aligns with the spec 11 decomposition entry and `docs/tdd-implementation-research.md` section 0.1. The gate's verdict changes only on facts the code proves; Jev, the one LLM signal, runs in shadow. The author runs on the narrow-role Sonnet tier.
 
 ## Requirements
 
@@ -36,9 +36,9 @@ Anchors: src/tools/harness.ts:485-535, src/tools/harness.ts:537-538, harness/age
 #### Acceptance Criteria
 
 1. THE harness SHALL ship an agent `sdd-test-author` with `model: claude-sonnet-5`, `effort: high`, the tools Read, Grep, Glob, Bash, Write and Edit, no MCP tool, and a description that opens `SDD test author:`.
-2. THE `harness` `brief` action SHALL accept the template `test-author`, fill its read-and-obey line and task block as it does for `implementer`, and require the values `path`, `title` and `job`.
+2. THE `harness` `brief` action SHALL accept the template `test-author`, fill its read-and-obey line and task block as it does for `implementer`, and require the values `path`, `title` and `job`; `job` gives the spec dir and code root as absolute paths.
 3. IF the task has no `Test:` line, THEN THE `brief` action SHALL fail for `test-author`, name the task and write no file.
-4. THE author SHALL read the task block, the requirement criteria its `_Requirements:` ids name, the design sections it cites, `codebase-context.md`, and one existing test file near the target as the convention; it runs before the implementer and never sees the implementation.
+4. THE author SHALL read the task block, the requirement criteria its `_Requirements:` ids name, the design sections it cites, `codebase-context.md`, and one existing test file near the target; it runs before the implementer and never sees the implementation.
 5. THE author SHALL open each test file with a contract block giving, per success criterion, the pre-condition, the call through the seam, the observable result and the source of the expected value.
 6. THE author SHALL write one test per success criterion, take every expected value from the criteria, reach the behaviour only through the `Test:` line's call, and mock no collaborator inside the module under test.
 7. THE author SHALL create no stub and change no path that is not a test path.
@@ -214,3 +214,5 @@ Anchors: harness/agent-profiles.json:1-74, docs/SDD-HARNESS.md:21-23, docs/SDD-H
   - R2-2 (SHOULD_FIX, Compounds R1-3): accepted — R3 AC4's slot is now filled for every task and empty when unmarked, so the `brief` action writes a file for the kill-switch path (an empty string passes the required check); AC8 no longer says to write no red section.
   - R2-3 (MINOR): accepted — R4 AC13 now omits a `testFiles` path with no matching `tests[]` entry from `seams`, keeping the shape total.
   - R2-4 (MINOR): partially accepted — R8 AC3 states the implementer red-tests slot is an internal fill; it is filled only by the orchestrator, so it is not a documented TOOLS-REFERENCE surface.
+- **v4** (2026-09-27) — Round-3 adversarial response (adversarial-analysis-requirements-r3.md, verdict iterate 0/1/1). SHOULD_FIX-only corrective pass. Closed by ruling: none.
+  - R3-1 (SHOULD_FIX, Recurring): accepted — R2 AC2 now states the `test-author` brief's `job` carries the spec dir and code root as absolute paths, so the author can locate `codebase-context.md`, the requirement and design documents (AC4) and commit its tests in the code root (AC10); the channel other worker briefs get through `agentRules` and the verifier standing brief is now stated for the author.
