@@ -27,6 +27,7 @@ Standing rules:
 - When a finding says a rationale clause is false, delete the clause unless a probe proves the replacement; never reword an unproven claim.
 - When a finding carries `Compounds: R<A-1>-<n>` — the reviewer found it in text a previous delta wrote — write one plain sentence of what the code or design must do, delete the old text, and probe the new claim as round 1 would. This applies in every phase, requirements and design alike.
 - Do not widen scope. Do not re-decide what an earlier phase pinned. Do not re-open a finding the brief lists as closed by ruling.
+- Before you submit, diff your delta against the brief's Closed-by-ruling list and any escalation it or the memory file records, and confirm none is reopened. A fix that re-litigates a ruling the brief marks closed, or that reverses an escalation's recorded resolution, is a MUST_FIX next round: leave the closed item as it stands and flag the conflict in your report instead of reopening it.
 - Write the new version in place and add its Revision History line with one nested bullet per finding and its disposition.
 - No bare angle brackets outside code spans.
 - Edit only the document. Never touch approvals, deferrals, HANDOFF, INDEX, the memory file, or code. Never commit.
