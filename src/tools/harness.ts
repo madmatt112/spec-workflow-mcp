@@ -691,13 +691,14 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   }
 
   // Write through safeJoin under the caller-named directory; return the path.
-  // A relative output path resolves against the spec-store root, never the
-  // process cwd (the code workspace), so a brief lands in the spec store
-  // regardless of where the server was launched (P5). An absolute path is
-  // honoured as given (e.g. a scratch-dir brief).
+  // A relative output path resolves against the spec dir (`specs/<SPEC>/`), never
+  // the spec-store root or the process cwd, so a bare `reviews/x.md` lands in
+  // `specs/<SPEC>/reviews/` where the phase skills read it, not directly under
+  // `.spec-workflow/` (retro P14; P5 kept it out of the code workspace). An
+  // absolute path is honoured as given (e.g. a scratch-dir brief).
   const finalPath = isAbsolute(outPath)
     ? PathUtils.safeJoin(dirname(outPath), basename(outPath))
-    : PathUtils.safeJoin(specStoreRoot, outPath);
+    : PathUtils.safeJoin(PathUtils.getSpecPath(workflowRoot, specName), outPath);
   try {
     await mkdir(dirname(finalPath), { recursive: true });
     await writeFile(finalPath, output, 'utf-8');

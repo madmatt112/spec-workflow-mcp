@@ -60,7 +60,7 @@
     "cacheTtl": "default"
   },
   "sdd-reviser": {
-    "model": "claude-sonnet-5",
+    "model": "claude-opus-4-8",
     "effort": "high",
     "role": "reviser",
     "cacheTtl": "default"

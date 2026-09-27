@@ -16,12 +16,14 @@ import { isSensitivePath } from './gate-rules.js';
  * The six tunable action-keyword patterns class (a) scans each task block for
  * (D7 of requirements): migration, delete/drop, auth, billing, config, external
  * write. Kept here beside the reused gate-rules predicates so a retrospective
- * tunes them in one place.
+ * tunes them in one place. The `auth` pattern matches the auth-security family
+ * (auth, authn/authz, authenticate, authorize/authorise and their forms) ending
+ * on a word boundary, so it no longer fires on `author`/`authored` (retro P12).
  */
 export const CLASS_A_KEYWORDS: Record<string, RegExp> = {
   migration: /\bmigrat\w*/i,
   delete: /\b(?:delet|drop)\w*/i,
-  auth: /\bauth\w*/i,
+  auth: /\bauth(?:n|z|entic\w*|oriz\w*|oris\w*)?\b/i,
   billing: /\bbill(?:ing)?\b/i,
   config: /\bconfig\w*/i,
   'external-write': /\bexternal\s+writ\w*/i,

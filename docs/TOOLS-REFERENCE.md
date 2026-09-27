@@ -578,7 +578,9 @@ pattern `spec-lint` uses) and spawns no child process.
   by phase and agent, with each phase's orchestrator share and any `unknown` marks. The
   report also has a `graph` column: for each agent, the count of `graphify explain`,
   `query` and `path` calls, read from `harness-activity.jsonl`. The `graph` column counts
-  Agent-tool workers only. An
+  Agent-tool workers only. It is a floor, not an exact count: it records only
+  activity-stream graph calls, so a `graphify` read that runs in a separate reader process
+  is not observed and the column is a lower bound. An
   agent row names its provider when it is not `anthropic` (`sdd-reviewer@deepseek`); the
   phase and spec total lines print the `anthropic` and `deepseek` figures side by side; and
   `data.report.providers` carries those per-provider cells. Pass `compareSpecName` for a

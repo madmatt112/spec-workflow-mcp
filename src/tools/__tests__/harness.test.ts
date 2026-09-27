@@ -212,9 +212,8 @@ describe('harnessHandler', () => {
     expect(written).toContain('write it');
   });
 
-  it('brief resolves a relative output path under the spec-store root, not the code workspace', async () => {
+  it('brief resolves a relative output path under the spec dir, not the spec-store root (retro P14)', async () => {
     await writeAgentRules();
-    const specStoreRoot = join(tempDir, '.spec-workflow');
     const relPath = join('reviews', 'drafter-brief-requirements.md');
 
     const res = await harnessHandler(
@@ -222,10 +221,10 @@ describe('harnessHandler', () => {
       context,
     );
     expect(res.success).toBe(true);
-    // The output root is the spec-store root, not the process cwd (code workspace).
-    expect(res.data.path).toBe(join(specStoreRoot, relPath));
+    // A bare reviews/x.md lands in specs/<SPEC>/reviews/, not directly under .spec-workflow/.
+    expect(res.data.path).toBe(join(specDir, relPath));
     expect(res.data.path.startsWith(tempDir)).toBe(true);
-    const written = await fs.readFile(join(specStoreRoot, relPath), 'utf-8');
+    const written = await fs.readFile(join(specDir, relPath), 'utf-8');
     expect(written).toContain('write it');
   });
 

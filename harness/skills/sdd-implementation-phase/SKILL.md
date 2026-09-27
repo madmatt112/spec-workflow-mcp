@@ -314,6 +314,10 @@ When no `[ ]` or `[-]` task remains:
 Some completion-gate scenarios cannot run inside the normal loop — a live check may
 need a real cross-turn gap or a foreground worker the tooling will not give you.
 
+- **Confirm the instrumentation first.** When a scenario asserts on ledger or activity
+  ordering, first confirm the code records the event the assertion reads — a dry read of
+  the row it should write — then pay for the live spawn; a live run against uninstrumented
+  code only re-proves the gap you already have (retro P5).
 - **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
   subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
   longer gap, spawn the worker, end your turn, and wake on its completion notification.
