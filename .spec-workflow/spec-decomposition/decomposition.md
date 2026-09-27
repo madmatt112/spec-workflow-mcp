@@ -678,6 +678,14 @@ This spec adds a Harness page that does both, on the data layer the TUI already 
   change. The page renders what `render.ts` renders: phase rows, the spawn tree with tokens
   and model, rounds, task picks, the ticker, plus the recorded answers of a gate that ran in
   record mode (`questions.md`).
+- **Overview page.** A second page shows all harness work on the machine on one screen. It
+  lists every project in the dashboard's project registry with its live run: spec, phase,
+  the last phase or gate event, the run id from the pointer file
+  (`~/.local/state/sdd/active-run`), and the age of the last ledger row. A run that waits
+  on a gate or a ruling is marked "waiting". The page also shows an operator to-do list
+  from `~/.local/state/sdd/overwatch-todos.json`: title, owner, what the item blocks, since
+  when, done. The server watches the ledgers and the to-do file and pushes changes over the
+  existing websocket. The page only reads. It does not edit the to-do file or start runs.
 
 **Decided.**
 
@@ -692,6 +700,10 @@ This spec adds a Harness page that does both, on the data layer the TUI already 
 - The dashboard runs the harness only as a child process, never in-process, so a crashed run
   cannot take the dashboard down and a stop is a signal.
 - Secrets never pass through the page; the child inherits the dashboard's environment.
+- The overwatch session owns `overwatch-todos.json`. Its format is the "todos" collection of
+  the Overwatch HUD artifact (added 2026-09-27): `{ id, title, owner, blocks, note, since,
+  done, priority }` per item. A missing file shows an empty list, not an error. The Overview
+  page replaces that artifact on the desktop. The artifact stays for the phone.
 
 **End-to-end verification.** (1) With the dashboard open on a fixture project, the Harness
 page lists the specs in roadmap order with the live spec's phase and the declared model per
@@ -703,7 +715,11 @@ role's spawn row shows actual model `claude-sonnet-5` (spec 8). (3) Stop ends th
 launching again while a run is live is refused with the live run id. (4) `--watch` on the
 same store during (2) shows the same rows as the page. (5) A terminal run with no
 `harness-run.json` produces a ledger identical in shape to today's. (6) `npx tsc --noEmit`,
-`npm run build` and `npm test` are green; the page works at phone width.
+`npm run build` and `npm test` are green; the page works at phone width. (7) With two
+fixture projects registered and a to-do file present, the Overview page lists both projects
+with their live phase. When a `phase.end` row with `result: gate-a` is appended to one ledger,
+that row shows "waiting" within five seconds. When the to-do file changes, the list updates
+without a reload. When the file is deleted, the page shows an empty list.
 
 **Depends on** spec 8 for tokens and declared tiers on the page (soft: the page renders
 without them), on spec 10 for the provider map the form pre-fills (soft: the field defaults
