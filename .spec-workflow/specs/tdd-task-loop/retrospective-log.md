@@ -29,3 +29,13 @@ Cost: part of narrow-check spawn
 requirements approved at v4 after 4 rounds; verdict trajectory 0/4/2 -> 1/1/2 -> 0/1/1 -> SHOULD_FIX-only pass v4, VERIFIED 1/1; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790544195669_ni58rvsm6; reviews/adversarial-analysis-requirements-r4.md
 Cost: 3 reviewer + 3 reviser + 1 checker spawns
+
+## 2026-09-27T22:10:29Z · design · v1 · gotcha
+round 1 design v1: iterate MUST_FIX 0 / SHOULD_FIX 2 / MINOR 4; SHOULD_FIX: Jev answer-extraction wire unprobed/unflagged; Component 13 count-word grep unreliable.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: 1 reviewer spawn
+
+## 2026-09-27T22:10:29Z · design · v1 · ruling
+R3 AC4 RE-DECIDED (redTests optional key defaulting to empty string) ruled refinement by round-1 reviewer; closed, not a widening.
+Evidence: reviews/adversarial-analysis-design.md
+Cost: no extra spawn
