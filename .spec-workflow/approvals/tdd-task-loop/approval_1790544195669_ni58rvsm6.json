@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790544195669_ni58rvsm6",
+  "title": "tdd-task-loop requirements v4",
+  "filePath": ".spec-workflow/specs/tdd-task-loop/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-27T21:23:15.670Z",
+  "category": "spec",
+  "categoryName": "tdd-task-loop",
+  "response": "Approved v4. 3 review rounds (r1 iterate 0/4/2, r2 iterate 1/1/2, r3 iterate 0/1/1), then a SHOULD_FIX-only corrective pass produced v4 (R3-1 accepted); narrow check VERIFIED 1/1. Final verdict counts: MUST_FIX 0, SHOULD_FIX 0 outstanding. No standoffs, no rulings. Cap not hit (converged via SHOULD_FIX-only route). Body 3,498 words under the 3,500 cap.",
+  "respondedAt": "2026-09-27T21:23:25.724Z"
+}

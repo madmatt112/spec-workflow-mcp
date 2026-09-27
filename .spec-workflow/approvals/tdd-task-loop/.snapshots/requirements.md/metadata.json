@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/tdd-task-loop/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-27T21:23:15.732Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790544195669_ni58rvsm6",
+      "approvalTitle": "tdd-task-loop requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-27T21:23:25.722Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790544195669_ni58rvsm6",
+      "approvalTitle": "tdd-task-loop requirements v4"
+    }
+  ]
+}

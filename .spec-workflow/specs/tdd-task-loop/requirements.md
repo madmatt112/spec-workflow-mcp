@@ -1,8 +1,10 @@
 # Requirements Document — tdd-task-loop
 
+Document version: v4
+
 ## Introduction
 
-A task carrying a `- Test:` line gets its failing tests from a separate Sonnet-tier test author before the implementer runs. The gate proves in code that those tests fail on the pre-task code and pass on the finished code, and records the proof on the review. A task without a `Test:` line runs today's loop, so removing the lines is the kill switch.
+A task carrying a `- Test:` line gets its failing tests from a separate Sonnet-tier test author before the implementer runs. The gate proves in code that those tests fail on the pre-task code and pass on the finished code, and records the proof on the review. A task without a `Test:` line runs today's loop, so removing them is the kill switch.
 
 ## Alignment with Product Vision
 

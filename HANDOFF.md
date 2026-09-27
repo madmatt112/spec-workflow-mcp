@@ -539,3 +539,15 @@ To-do (human):
 Gotchas:
 - P12 landed in `src/core/veto-rules.ts` (the gate class-a keyword matcher lives there, not `gate-rules.ts`). P7 and P9 both edit `harness/agents/sdd-reviser.md`.
 - The spec store (plan Status: CLOSED, close-out lines, the G1 `agent-rules.md` edit, retro-log, ledger) is edited in the main checkout and left uncommitted; the supervisor commits it after leaving the worktree.
+
+## tdd-task-loop — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-27 |
+| Rounds | 4 (3 adversarial + narrow check); verdicts iterate 0/4/2 → iterate 1/1/2 → iterate 0/1/1 → SHOULD_FIX-only corrective pass v4, narrow check VERIFIED 1/1 |
+| Approval | `approval_1790544195669_ni58rvsm6` |
+| Rulings | none (no standoff, no circling, no cap; no drafter RE-DECIDED flags this run — Gate A resolved before round 1) |
+| Cut scope | none. Scope matches decomposition spec 11 (the TDD task loop: `- Test:` line, Sonnet test author, red-on-base gate proof, risk-tiered recorded review, Jev in shadow). |
+| Carried items | none ruled out (all findings accepted or partially accepted across rounds 1-3; SHOULD_FIX-only pass fixed R3-1). Notes for the design drafter: (1) R3-2 (MINOR, left out of the SHOULD_FIX-only pass) — the `seams` datatype from the parsed task's `tests[]`; weigh it when design pins the parsed-task shape. (2) narrow-check deferred finding — an undocumented overview-text trim in the v4 diff (decorative alignment prose removed to stay under the 3,500-word cap), unrelated to R3-1. |
+| Next phase loads | design drafter reads `codebase-context.md` first, then `tech.md`/`structure.md`/`design-system.md` (as present), the decomposition entry for `tdd-task-loop`, and this `requirements.md`. Ground surfaces: `src/core/gate-rules.ts` (`isTestPath`, red-on-base proof), `src/core/task-parser.ts` (`- Test:` parse, `implementationDetails` fallthrough, `tests[]`/`seams`), `src/tools/review-gate.ts`, `src/core/check-runner.ts` (captured stdout/stderr classification), `src/tools/harness.ts` (brief templates, `SERVER_BRIEF_KEYS`, empty-string required check), and `src/dashboard/.../TasksPage.tsx:1364-1406` (R6 always-shown task row). Open MINOR R3-2 tracked in `reviews/adversarial-analysis-requirements-r3.md`; narrow-check note in `-r4.md`. |

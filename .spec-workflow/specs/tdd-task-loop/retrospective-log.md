@@ -19,3 +19,13 @@ Cost: one reviewer spawn
 Round 3 reviewer: iterate, MUST_FIX 0, SHOULD_FIX 1 (R3-1, Recurring/carried: test-author brief lacks channel to spec dir/code root per R2 AC4/AC10), MINOR 1. v3 delta clean, no fix-induced defect. Routes to SHOULD_FIX-only corrective pass.
 Evidence: reviews/adversarial-analysis-requirements-r3.md
 Cost: one reviewer spawn
+
+## 2026-09-27T21:22:50Z · requirements · v4 · gotcha
+Narrow check deferred finding: an undocumented overview-text removal in the v4 diff (decorative alignment prose trimmed to stay under cap), unrelated to R3-1. Not addressed; noted for design phase.
+Evidence: reviews/adversarial-analysis-requirements-r4.md
+Cost: part of narrow-check spawn
+
+## 2026-09-27T21:26:23Z · requirements · phase · cleanup
+requirements approved at v4 after 4 rounds; verdict trajectory 0/4/2 -> 1/1/2 -> 0/1/1 -> SHOULD_FIX-only pass v4, VERIFIED 1/1; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790544195669_ni58rvsm6; reviews/adversarial-analysis-requirements-r4.md
+Cost: 3 reviewer + 3 reviser + 1 checker spawns
