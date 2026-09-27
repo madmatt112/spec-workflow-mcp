@@ -330,6 +330,11 @@ need a real cross-turn gap or a foreground worker the tooling will not give you.
   against the same targets. A worker whose report lands after your turn has ended routes
   to the supervisor, not to you; take the supervisor's forwarded late report as this
   task's result on the next turn (retro P5).
+- **Iterate narrow, run the full set once.** When a live or dry-run check runs against
+  many external targets, iterate against a narrow subset (an `--only`-style filter on a
+  handful) while you converge, then pay for one full run across every target at the end.
+  Re-running all targets on each iteration only re-pays for the ones already green
+  (retro P8).
 - **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
   kit once in the scratch store — registration and a no-op probe — and records it green
   before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
