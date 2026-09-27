@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-26, harness v4).** Active spec **`graph-orientation`**.
-> Live phase **retrospective**, state **tasks 10/10**, last result **complete** (PR #67 merged; retrospective blocked until verification-evidence.md (2), (3), (4) read passed).
+> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`graph-orientation`**.
+> Live phase **closeout**, state **items 0/11**, last result **retro-ready** (retrospective plan APPROVED).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs live scenarios (2), (3), (4) on the rebuilt checkout, then the retrospective and close-out.
+> A re-run does: after a session restart (PR #68 build), checks with the overwatch, then runs the close-out from current main.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -59,6 +59,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-25 | graph-orientation | tasks | v1 | approved | 1 round, converged clean |
 | 2026-09-25 | graph-orientation | implementation | tasks 10/10 | complete | PR #67 green; logCoverage 10/10, reviewCoverage 8/10 (9,10 verification-only) |
 | 2026-09-26 | graph-orientation | retrospective |  | retro-ready |  |
+| 2026-09-27 | graph-orientation | retrospective | APPROVED | retro-ready | plan APPROVED: 10 proposals (P1 P3 P5 P7 + overwatch P9-P14) + G1; close-out after session restart for PR #68 |
 
 ## Current state — 2026-08-04
 
