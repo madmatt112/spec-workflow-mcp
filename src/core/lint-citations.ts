@@ -66,6 +66,29 @@ const META_SECTION_HEADINGS = new Set([
 /** The identifier segment 2.6 keeps: a letter/`_`/`$` start, then two or more word chars. */
 const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]{2,}$/;
 
+/**
+ * A tasks.md `_Leverage:` or `_Prompt:` line. Both name symbols, options and
+ * library/SQL API tokens the task will build — identifiers that do not yet exist
+ * in any cited range — so the identifier check (2.5) skips them, which removes a
+ * false-positive `citation-identifier` warning class (retro F5).
+ */
+const LEVERAGE_PROMPT_RE = /^\s*_(?:Leverage|Prompt):/;
+
+/**
+ * Lockfiles that live at a repo root and are therefore cited without a directory
+ * prefix. A bare filename is normally rejected (retro P2), but these resolve
+ * against the code root like any real path, so they are exempt from that
+ * rejection and linted as an ordinary citation (retro F5).
+ */
+const REPO_ROOT_LOCKFILES = new Set([
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lockb',
+  'bun.lock',
+]);
+
 // --- Exported shape ---------------------------------------------------------
 
 /**
@@ -322,8 +345,10 @@ export async function checkCitations(
     // A filename cited with no directory prefix is rejected outright (retro P2):
     // resolving against more than one base could let a bare `accounting.query.ts`
     // match by luck and mask a citation that is missing its directory. Kept
-    // strict — no read is attempted — so the error never depends on the tree.
-    if (!cit.path.includes('/')) {
+    // strict — no read is attempted — so the error never depends on the tree. A
+    // repo-root lockfile is exempt: it legitimately has no directory prefix and
+    // resolves against the code root like any real path (retro F5).
+    if (!cit.path.includes('/') && !REPO_ROOT_LOCKFILES.has(cit.path)) {
       findings.push({
         file: '', line: cit.line, rule: 'citation-path', severity: 'error',
         message: bareFilenameMessage(cit.path),
@@ -361,7 +386,12 @@ export async function checkCitations(
   // (design D4); each identifier absent from the joined cited ranges is a
   // `citation-identifier` warning on the block's first line (requirement 2.5).
   for (const [block, inRange] of inRangeByBlock) {
-    const blockText = lines.slice(block.start - 1, block.end).join('\n');
+    // Skip `_Leverage:`/`_Prompt:` lines: their backticked tokens name
+    // to-be-built symbols or library/SQL API tokens, not citations (retro F5).
+    const blockText = lines
+      .slice(block.start - 1, block.end)
+      .filter((l) => !LEVERAGE_PROMPT_RE.test(l))
+      .join('\n');
     const tokens = identifierTokens(blockText);
     if (tokens.length === 0) continue;
 
