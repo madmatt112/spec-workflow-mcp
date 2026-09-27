@@ -62,6 +62,24 @@ describe('computeClassA — keyword scan', () => {
     expect(items).toHaveLength(0);
   });
 
+  it('matches the auth-security family but not author/authored (retro P12)', () => {
+    for (const block of [
+      'Wire the authentication middleware',
+      'Add the authorize check',
+      'Handle authorisation in the gateway',
+      'Emit an authz claim',
+    ]) {
+      const items = computeClassA([task({ block })], []);
+      expect(items.map((i) => i.reason)).toEqual(['keyword: auth']);
+    }
+    for (const block of [
+      'List the author of each commit',
+      'Record who authored the change',
+    ]) {
+      expect(computeClassA([task({ block })], [])).toHaveLength(0);
+    }
+  });
+
   it('pushes one keyword item per matching keyword', () => {
     const items = computeClassA(
       [task({ block: 'Add auth to the billing config' })],
