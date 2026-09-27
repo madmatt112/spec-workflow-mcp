@@ -49,3 +49,13 @@ Cost: 1 reviewer spawn
 design approved at v2 after 2 rounds; verdict trajectory iterate 0/2/4 -> converged 0/0/1; rulings 1 (R3 AC4 ruled refinement); cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790549338361_1lk95easg; reviews/adversarial-analysis-design-r2.md
 Cost: 2 reviewer + 1 reviser spawns
+
+## 2026-09-27T23:34:15Z · tasks · v1 · gotcha
+Round 1 converged on v1: MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2. Reviewer verified ~45 code citations at both ends and full coverage (13 design components to 17 tasks, every R1-R9 AC covered). The 39 citation-identifier lint warnings were rejected as a known false-positive class (skip-regex gap on indented _Prompt/_Leverage sub-bullets; deferral d-53b7f443).
+Evidence: reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
+
+## 2026-09-27T23:35:01Z · tasks · phase · cleanup
+tasks approved at v1 after 1 round; verdict trajectory converged 0/0/2 (clean first round); rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1790552073258_x9atj9mm4; reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer + 0 reviser spawns

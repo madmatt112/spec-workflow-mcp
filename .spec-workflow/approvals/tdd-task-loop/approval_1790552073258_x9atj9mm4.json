@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790552073258_x9atj9mm4",
+  "title": "tdd-task-loop tasks v1",
+  "filePath": ".spec-workflow/specs/tdd-task-loop/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-27T23:34:33.258Z",
+  "category": "spec",
+  "categoryName": "tdd-task-loop",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 2; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-27T23:34:41.950Z"
+}

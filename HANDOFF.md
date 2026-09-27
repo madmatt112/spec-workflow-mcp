@@ -566,3 +566,15 @@ Gotchas:
 | Cut scope | none. Scope matches decomposition spec 11 (the TDD task loop: `- Test:` line, Sonnet test author, red-on-base gate proof, risk-tiered recorded review, Jev in shadow). R3-2 (parsed-task `seams`) closed by design D1: `seams` is a map keyed by test path. |
 | Carried items | none ruled out (all round-1 findings accepted or partially accepted; round 2 converged). Note for the tasks drafter: R2-1 (MINOR, non-blocking, open) — the gate matches `testFiles` to the parsed task's `tests[]` without pinning the path form, so a mismatch fails open with no `seams`; weigh whether the tasks should normalise the path form on both sides. Tracked in `reviews/adversarial-analysis-design-r2.md`. |
 | Next phase loads | tasks drafter reads `codebase-context.md` first, then `structure.md` (absent) and this `design.md`. Ground surfaces are the Component Reuses lines: `src/tools/review-gate.ts` (gate wiring), `src/core/gate-rules.ts` (risk, decideGate), `src/core/task-parser.ts` (`- Test:` parse, `tests[]`), `src/core/task-review-manager.ts` (review record, sidecar), `src/tools/spec-status.ts` and `src/dashboard_frontend/.../TasksPage.tsx:1364-1406` (visibility), new modules `src/core/red-green.ts` and `src/core/judge.ts`, `scripts/sync-plugin-assets.cjs` and `docs/SDD-HARNESS.md` (profiles, docs). |
+
+## tdd-task-loop — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-09-27 |
+| Rounds | 1; verdicts converged 0/0/2 (clean first round) |
+| Approval | `approval_1790552073258_x9atj9mm4` |
+| Rulings | none |
+| Cut scope | none. 17 tasks cover all 13 design components; every task cites a real R1-R9 acceptance criterion. Carried design item R2-1 (gate path-form mismatch) is handled by tasks 1, 2 and 9: the parser and the gate share one exported path normaliser (decision D1). |
+| Carried items | none ruled out. The round-1 reviewer left 2 MINOR wording/off-by-one nits, non-blocking, recorded in `reviews/adversarial-analysis-tasks.md`; the implementer may fold them in. Separately, the 39 `citation-identifier` lint warnings on the `- _Prompt:`/`- _Leverage:` lines are a false-positive class (skip-regex gap at `src/core/lint-citations.ts:75`, deferral d-53b7f443); ignore them, they are not real citation errors. |
+| Next phase loads | implementation orchestrator reads `codebase-context.md`, then `tasks.md` in dependency order. Task 1 exports the shared path normaliser (`src/core/gate-rules.ts`); tasks 2-3 the parser and lint rule; 5-8 the red-green proof (`src/core/red-green.ts`) and judge (`src/core/judge.ts`); 9 the gate wiring (`src/tools/review-gate.ts`); 10-12 visibility; 13 the new `sdd-test-author` agent and profile; 14 the implementation-phase skill loop; 15 docs and the agent-rules test-command key; 16 the e2e fixture kit and pending verification-evidence record; 17 the end-to-end verification gate. Requirement 9 criteria 1, 3 and 5 stay pending in the task-16 verification-evidence record (need the built server, dev-link and a session restart plus the Jev key). |
