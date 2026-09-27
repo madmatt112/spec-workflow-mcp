@@ -134,3 +134,13 @@ Cost: one full prefix rewrite per occurrence
 Overwatch: harness brief (#65 P5) resolves a bare reviews/x.md against .spec-workflow/ instead of specs/<SPEC>/. Proposal: one-line fix to resolve against the spec dir.
 Evidence: src/tools/harness.ts brief action; overwatch note
 Cost: misplaced brief files
+
+## 2026-09-27T15:02:33Z · closeout · phase · cleanup
+harness batch 1: 8 done (P1 P3 P5 P7 P9 P11 P12 P14), 2 to-do (P10 P13 external cause). store: G1 done (agent-rules.md, uncommitted). Gates all pass; P3 high (sensitive harness/hooks) verified ok. PR #69.
+Evidence: PR https://github.com/madmatt112/spec-workflow-mcp/pull/69
+Cost: 1 implementer spawn, 1 verifier spawn
+
+## 2026-09-27T15:03:42Z · closeout · phase · cleanup
+graph-orientation CLOSED: items 11/11 (9 done, 2 to-do human). Harness PR #69 (8 items); G1 in spec store; P10/P13 to-do (external cause). Spec store left uncommitted for the supervisor.
+Evidence: retrospective-plan.md Status: CLOSED; HANDOFF closeout section; PR https://github.com/madmatt112/spec-workflow-mcp/pull/69
+Cost: 2 spawns total: 1 implementer, 1 verifier

@@ -166,3 +166,47 @@
 {"ts":"2026-09-26T15:01:17.585Z","type":"spawn.end","run":"run-20260926-135506","spec":"graph-orientation","agent":"sdd-retro-orchestrator","input":"42","output":"5848","cacheWrite":"69533","cacheRead":"1094642","tokens":"1170065","cacheWrite5m":"69533","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"afbfb4a3b7237b123"}
 {"ts":"2026-09-27T14:14:39.233Z","run":"run-20260926-135506","spec":"graph-orientation","type":"run.end","status":"spec-workflow-mcp:graph-orientation closeout items 0/11 — retro plan APPROVED; stopped for session restart before close-out"}
 {"ts":"2026-09-27T14:16:55.637Z","run":"run-20260927-141624","spec":"graph-orientation","type":"run.start","model":"claude-opus-5-5","specStore":"/home/mcf/repo/spec-workflow-mcp/.spec-workflow","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation-retro","worktree":"yes","headless":"no","providers":"none","cacheTtl":"per-agent","graph":"/home/mcf/repo/spec-workflow-mcp/graphify-out/graph.json","graphBehind":"0"}
+{"ts":"2026-09-27T14:17:39.478Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"supervisor pre-created chore/graph-orientation-retro worktree from origin/main and entered it before the close-out spawn (overwatch instruction); ledger stays in the main-checkout copy"}
+{"ts":"2026-09-27T14:17:51.939Z","run":"run-20260927-141624","spec":"graph-orientation","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-09-27T14:21:31.607Z","run":"run-20260927-141624","spec":"graph-orientation","type":"phase.start","phase":"closeout","state":"items 0/11"}
+{"ts":"2026-09-27T14:21:57.141Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"G1","title":"Instrumentation counts are floors, and known undercounts are named"}
+{"ts":"2026-09-27T14:23:00.818Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-09-27T14:23:00.841Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"G1 store edit landed in main-checkout agent-rules.md; uncommitted, supervisor commits spec store"}
+{"ts":"2026-09-27T14:23:43.345Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P1","title":"Label the usage graph column a floor, not a count"}
+{"ts":"2026-09-27T14:23:43.645Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P3","title":"Strip a leading cd path before the activity-hook summary truncation"}
+{"ts":"2026-09-27T14:23:43.944Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P5","title":"Diagnose instrumentation before paying for a live spawn"}
+{"ts":"2026-09-27T14:23:44.236Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P7","title":"Make the reviser re-verify claims it adds or changes"}
+{"ts":"2026-09-27T14:23:44.527Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P9","title":"Revert sdd-reviser to claude-opus-4-8"}
+{"ts":"2026-09-27T14:23:44.877Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P10","title":"Find why no tradr task scores low risk"}
+{"ts":"2026-09-27T14:23:45.201Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P11","title":"Fix mechanical lint findings without a reviser spawn"}
+{"ts":"2026-09-27T14:23:45.504Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P12","title":"Word boundaries in the gate class-a keyword match"}
+{"ts":"2026-09-27T14:23:45.831Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P13","title":"Investigate the one-hour orchestrator cache prefix break"}
+{"ts":"2026-09-27T14:23:46.142Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.pick","task":"P14","title":"harness brief resolves a bare reviews path against the spec dir"}
+{"ts":"2026-09-27T14:25:29.216Z","type":"spawn.start","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-27T14:25:38.368Z","type":"spawn.end","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-closeout-orchestrator","input":"44","output":"490","cacheWrite":"78495","cacheRead":"1473382","tokens":"1552411","cacheWrite5m":"0","cacheWrite1h":"78495","gapRewrites":"0","model":"claude-opus-4-8","agentId":"aa0fda39c14baa8c4"}
+{"ts":"2026-09-27T14:45:59.316Z","type":"spawn.end","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-implementer","input":"182","output":"27109","cacheWrite":"150367","cacheRead":"10084461","tokens":"10262119","cacheWrite5m":"150367","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a705888f753dd9bc9"}
+{"ts":"2026-09-27T14:53:53.861Z","run":"run-20260927-141624","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"8 done (P1 P3 P5 P7 P9 P11 P12 P14), 2 to-do (P10 P13 external cause)"}
+{"ts":"2026-09-27T14:55:36.843Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-09-27T14:55:37.142Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P3 pass risk high"}
+{"ts":"2026-09-27T14:55:37.437Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P5 pass risk low"}
+{"ts":"2026-09-27T14:55:37.730Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-09-27T14:55:38.033Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-09-27T14:55:38.325Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P11 pass risk low"}
+{"ts":"2026-09-27T14:55:38.613Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P12 pass risk low"}
+{"ts":"2026-09-27T14:55:38.908Z","run":"run-20260927-141624","spec":"graph-orientation","type":"note","text":"gate: item P14 pass risk low"}
+{"ts":"2026-09-27T14:56:17.353Z","type":"spawn.end","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-closeout-orchestrator","input":"62","output":"564","cacheWrite":"97045","cacheRead":"2360163","tokens":"2457834","cacheWrite5m":"0","cacheWrite1h":"97045","gapRewrites":"0","model":"claude-opus-4-8","agentId":"aa0fda39c14baa8c4"}
+{"ts":"2026-09-27T14:58:31.326Z","type":"spawn.end","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-verifier","input":"22","output":"2409","cacheWrite":"40810","cacheRead":"298391","tokens":"341632","cacheWrite5m":"40810","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a65d88196fe6de365"}
+{"ts":"2026-09-27T14:58:57.387Z","run":"run-20260927-141624","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-verifier","role":"verify harness batch 1","phase":"closeout","result":"P3 ok, VERDICT pass"}
+{"ts":"2026-09-27T15:02:14.080Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-09-27T15:02:14.407Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-27T15:02:14.723Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-09-27T15:02:15.042Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-09-27T15:02:15.388Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-09-27T15:02:15.771Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-09-27T15:02:16.116Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P12","outcome":"done"}
+{"ts":"2026-09-27T15:02:16.452Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P14","outcome":"done"}
+{"ts":"2026-09-27T15:02:16.747Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P10","outcome":"to-do"}
+{"ts":"2026-09-27T15:02:17.067Z","run":"run-20260927-141624","spec":"graph-orientation","type":"task.done","task":"P13","outcome":"to-do"}
+{"ts":"2026-09-27T15:03:43.162Z","run":"run-20260927-141624","spec":"graph-orientation","type":"phase.end","phase":"closeout","result":"closed","state":"items 11/11"}
+{"ts":"2026-09-27T15:03:59.221Z","type":"spawn.end","run":"run-20260927-141624","spec":"graph-orientation","agent":"sdd-closeout-orchestrator","input":"92","output":"786","cacheWrite":"210897","cacheRead":"3983104","tokens":"4194879","cacheWrite5m":"0","cacheWrite1h":"210897","gapRewrites":"0","model":"claude-opus-4-8","agentId":"aa0fda39c14baa8c4"}
+{"ts":"2026-09-27T15:04:18.111Z","run":"run-20260927-141624","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed"}

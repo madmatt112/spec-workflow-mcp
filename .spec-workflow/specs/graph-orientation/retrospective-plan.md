@@ -1,6 +1,6 @@
 # Retrospective plan — graph-orientation
 
-Status: APPROVED
+Status: CLOSED
 
 Approved by Matthew on 2026-09-27 in the retrospective conversation (supervisor run
 run-20260926-135506). Sources: `retrospective.md`, `retrospective-proposals.md`, and six
@@ -113,3 +113,20 @@ against that change first.
 - d-a38fea66: verify the provider-per-role supervisor/orchestrator halves in a restarted
   session.
 - d-1880d115: question-gates live gate scenarios (1b), (3b), (2), (4).
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P1: done — 0dcf36f
+- P3: done — 6d34e63
+- P5: done — 0ca1f7f
+- P7: done — 3ebf81b
+- P9: done — 7055f9b
+- P11: done — e12e068
+- P12: done — 8b46b87
+- P14: done — 3d17f2a
+- P10: to-do (human) — cause is tradr steering (broad sensitive-path list / large tasks) in a separate repo not on this machine; this repo's risk model is unchanged and correct, and #68 only widens low/skip.
+- P13: to-do (human) — cause is Claude Code prompt caching: the 1h cacheTtl covers only the stable ~9k-token head; mid-conversation breakpoints stay at the default 5m, so a 5-60 min gap rewrites the tail. Platform behaviour, no harness fix.
+- G1: done — spec store edit (agent-rules.md Run ledger section); uncommitted, supervisor commits the spec store.
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/69

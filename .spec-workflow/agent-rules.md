@@ -67,6 +67,12 @@ stages a scratch store with its own event script gives that script an explicit p
 under the scratch store (`<scratch-store>/event.sh`) and must not reuse the
 supervisor's `EVENT_SCRIPT` path.
 
+Ledger and `harness usage` counts are floors, not exact totals. Any column that cannot
+observe a whole class of events — a separate-process worker, a truncated summary, a
+yield that fires before the last transcript line — is a lower bound. When you add or read
+such a column, name its known blind spots next to it, and never treat a count as proof
+that no further events occurred.
+
 ## Fixtures and live verification
 
 - A fixture or generated artifact used in a live check must meet the same validity bar

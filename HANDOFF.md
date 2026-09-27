@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`graph-orientation`**.
-> Live phase **closeout**, state **items 0/11**, last result **retro-ready** (retrospective plan APPROVED).
+> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`graph-orientation`** (finished).
+> Live phase **closeout**, state **items 11/11**, last result **closed** (harness batch PR #69 open, not merged).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/graph-orientation-retro`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: spawns the close-out orchestrator from the chore/graph-orientation-retro worktree (run run-20260927-141624).
+> A re-run does: routes to the next spec (spec-index routing, then the decomposition fallback).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -60,6 +60,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-25 | graph-orientation | implementation | tasks 10/10 | complete | PR #67 green; logCoverage 10/10, reviewCoverage 8/10 (9,10 verification-only) |
 | 2026-09-26 | graph-orientation | retrospective |  | retro-ready |  |
 | 2026-09-27 | graph-orientation | retrospective | APPROVED | retro-ready | plan APPROVED: 10 proposals (P1 P3 P5 P7 + overwatch P9-P14) + G1; close-out after session restart for PR #68 |
+| 2026-09-27 | graph-orientation | closeout | items 11/11 | closed |  |
 
 ## Current state — 2026-08-04
 
@@ -520,3 +521,21 @@ Closed 2026-09-23. Retrospective plan implemented: 15 items — 15 done (P5 fold
 | Worth next | d-9d600d11 (sdd-launch.sh readUsage token inflation — adjacent to this spec's usage/ledger work); d-a38fea66 and d-1880d115 (verification halves needing a restarted session, like this spec's pending live lines) |
 | Pending live verification | verification-evidence.md carries 3 `pending` lines for scenario halves (2),(3),(4); an operator runs them in a rebuilt, restarted session before the retrospective opens |
 | Gotchas | task 10 ran the full suite as the sanctioned e2e gate; verifier skipped by policy (retro P15) on the two verification-only tasks (9, 10), so reviewCoverage reads 8/10 |
+
+## graph-orientation — closeout
+
+Run run-20260927-141624. Retrospective plan CLOSED. Items 11/11: 9 done, 2 to-do (human).
+
+Landed:
+- Harness batch (PR #69, branch `chore/graph-orientation-retro`, 8 commits): P1 usage-graph-column floor label (`docs/TOOLS-REFERENCE.md`); P3 strip a leading `cd` from the activity-hook summary (`harness/hooks/sdd-activity.sh`); P5 confirm instrumentation before a live spawn (`sdd-implementation-phase`); P7 reviser re-verifies added/changed claims (`sdd-reviser.md`); P9 reviser model back to `claude-opus-4-8` (`sdd-reviser.md`, `agent-profiles.json`); P11 apply lint findings without a reviser spawn (`sdd-document-phase`); P12 word-boundary class-a keyword match (`src/core/veto-rules.ts`); P14 resolve a bare `reviews/x.md` against the spec dir (`src/tools/harness.ts`). P3 was high risk (sensitive `harness/hooks/`) and passed verification.
+- Spec store: G1 added the "counts are floors" paragraph to `.spec-workflow/agent-rules.md` (Run ledger section). Left uncommitted in this worktree run — the supervisor commits the spec store.
+
+PR: https://github.com/madmatt112/spec-workflow-mcp/pull/69 (base `main`, not merged, not released).
+
+To-do (human):
+- P10 — why no tradr task scores low risk: cause is tradr steering (broad sensitive-path list / large tasks), a separate repo not on this machine. This repo's risk model is unchanged and correct; #68 only widens low/skip. Fix belongs in tradr's own retro.
+- P13 — one-hour orchestrator cache prefix break: cause is Claude Code prompt caching (1h `cacheTtl` covers only the stable ~9k-token head; mid-conversation breakpoints stay at the default 5m). Platform behaviour, no harness fix.
+
+Gotchas:
+- P12 landed in `src/core/veto-rules.ts` (the gate class-a keyword matcher lives there, not `gate-rules.ts`). P7 and P9 both edit `harness/agents/sdd-reviser.md`.
+- The spec store (plan Status: CLOSED, close-out lines, the G1 `agent-rules.md` edit, retro-log, ledger) is edited in the main checkout and left uncommitted; the supervisor commits it after leaving the worktree.
