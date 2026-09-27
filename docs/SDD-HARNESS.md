@@ -316,11 +316,13 @@ Keep it short and imperative. Every worker reads it on every spawn.
 | Orchestrators (four), `sdd-retro-analyst` | Opus 4.8 (`claude-opus-4-8`) | high |
 | `sdd-drafter`, `sdd-adjudicator` | Opus 5.5 (`claude-opus-5-5`) | high |
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
-| `sdd-reviser`, `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
+| `sdd-reviser` | Opus 4.8 (`claude-opus-4-8`) | high |
+| `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
 
-The reviser dispositions a numbered list and edits in place; the checker verifies a
-list of items. Both are narrow, well-specified jobs, so a Sonnet-class model at high
-effort does them. The open-ended roles (review, implement, verify) stay on Opus.
+The checker verifies a list of items. That is a narrow, well-specified job, so a
+Sonnet-class model at high effort does it. The reviser runs on Opus 4.8: on Sonnet it
+used 2 to 4 times more tokens per revision. The open-ended roles (review, implement,
+verify) stay on Opus.
 
 Models are pinned in each agent's frontmatter with full model ids. `scripts/sync-plugin-assets.cjs`
 reads that frontmatter into `harness/agent-profiles.json`, the generated source the watch
