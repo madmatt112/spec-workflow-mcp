@@ -28,6 +28,9 @@ Read and obey <AGENT_RULES> first.
   block and report `RETRO: doc-gap`.
 - Implement the task end to end and run the checks the task and the agent rules name,
   each as a separate command. Never run the whole test suite unless the rules allow it.
+- A background shell you launch (`run_in_background`, a long dry-run) is yours: kill the
+  ones you started before you report, and never leave a detached shell running past your
+  turn (retro P5).
 - If an existing assertion fails only because of the specified change, widen it to keep
   its intent (never delete it) and report `RETRO: doc-gap`.
 - Compare files with `git diff`, `git diff --no-index`, or `git show`, never with a bare

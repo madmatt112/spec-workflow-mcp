@@ -321,6 +321,15 @@ need a real cross-turn gap or a foreground worker the tooling will not give you.
 - **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
   subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
   longer gap, spawn the worker, end your turn, and wake on its completion notification.
+- **Reap background shells at turn end.** A live probe or dry-run you launched in the
+  background is owned by the turn that started it. Before you stop — a budget trip, a
+  `resume`, or an escalate — kill the background shells this turn started, and only
+  those: a shell an earlier turn or another agent owns is not yours to reap. On resume,
+  before you start another dry-run against the same hosts, check whether one this run
+  already launched is still running and wait on it, rather than starting a second
+  against the same targets. A worker whose report lands after your turn has ended routes
+  to the supervisor, not to you; take the supervisor's forwarded late report as this
+  task's result on the next turn (retro P5).
 - **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
   kit once in the scratch store — registration and a no-op probe — and records it green
   before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
