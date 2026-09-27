@@ -126,3 +126,45 @@
 - docs/jev-integration-research.md:32-54 — request and response shape
 - docs/jev-integration-research.md:315-337 — judge module mechanics
 - docs/tdd-implementation-research.md:348-356 — the four judge questions
+
+## Path helpers (tasks phase)
+- src/core/gate-rules.ts:65-70 — private `normalizePath`: slashes, leading `./`, trim
+- src/core/gate-rules.ts:116-127 — `matchingEntry`, normalises before matching
+- src/tools/review-gate.ts:97-106 — `isDocPath` and its doc comment, the block that moves
+- src/tools/review-gate.ts:326 — the docs-only down-rank call of `isDocPath`
+
+## Tests the tasks name (tasks phase)
+- src/core/__tests__/check-runner.test.ts:42-80 — `runChecks` cases: pass, exit code, timeout, order
+- src/core/__tests__/lint-tasks.test.ts:1-10 — tasks-rule imports
+- src/tools/__tests__/spec-lint.test.ts:93-108 — tasks-phase `checks` compared with the constant
+- src/tools/__tests__/spec-lint.e2e.test.ts:155-171 — exact totals 3 and 0 on fixtures with no File lines
+- src/core/__tests__/task-review-manager.test.ts:194-204 — raw-file lookup by the `review-` prefix
+- src/core/__tests__/task-review-manager.test.ts:240-272 — legacy review file without a reviewer key
+- src/tools/__tests__/review-gate.test.ts:28-63 — git helpers and a task block without the test word
+- src/tools/__tests__/review-gate.test.ts:82-100 — temp repo, spec dir and agent-rules setup
+- src/tools/__tests__/harness.test.ts:165-185 — implementer brief written byte for byte
+- src/tools/__tests__/harness.test.ts:246-275 — graph-section loop over five templates, suffix check at 272
+- src/tools/__tests__/spec-status.test.ts:8-40 — temp spec and approval-record writer
+- src/dashboard/__tests__/multi-server.test.ts:578-640 — route tests over real HTTP
+
+## Runner and git plumbing (tasks phase)
+- src/core/check-runner.ts:12-17 — `CheckResult`
+- src/core/task-diff.ts:40 — private `GitRun` type
+- src/core/task-diff.ts:42-43 — `GIT_TIMEOUT_MS`, 10 s per git call
+
+## Dashboard (tasks phase)
+- src/dashboard/multi-server.ts:1930-1944 — review list route, item mapping at 1940
+- src/dashboard_frontend/src/modules/api/api.tsx:194-196 — review fetcher types, summary type at 196
+
+## Harness and docs (tasks phase)
+- harness/agents/sdd-checker.md:1-13 — Sonnet worker frontmatter
+- scripts/dev-link.sh:37 — per-file agent symlinks; a new agent needs a re-run
+- harness/skills/sdd-implementation-phase/SKILL.md:119-128 — verification-only task rule
+- harness/skills/sdd-implementation-phase/references/briefs.md:12-15 — spec-store commits through a script
+- docs/SDD-HARNESS.md:311-320 — model policy table
+- docs/SDD-HARNESS.md:133 — "twelve spawns" budget figure, not a count word
+- docs/TOOLS-REFERENCE.md:205-208 — `spec-status` Returns paragraph
+- docs/TOOLS-REFERENCE.md:422-426 — `review-task` gate parameter rows
+- docs/TOOLS-REFERENCE.md:433-445 — Gate paragraph
+- docs/TOOLS-REFERENCE.md:566-571 — `harness` `brief` bullet
+- .spec-workflow/specs/graph-orientation/verification-evidence.md:1-9 — pending-record shape
