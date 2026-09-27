@@ -18,6 +18,7 @@ import {
   isSensitivePath,
   isGeneratedPath,
   isProsePath,
+  isBookkeepingPath,
   taskBlock,
   taskNamesTests,
   isTestPath,
@@ -132,6 +133,19 @@ describe('isProsePath', () => {
     expect(isProsePath('references/formats.md', prose)).toBe(true);
     expect(isProsePath('harness/skills/foo/render.ts', prose)).toBe(false);
     expect(isProsePath('src/core/gate-rules.ts', prose)).toBe(false);
+  });
+});
+
+describe('isBookkeepingPath (P5)', () => {
+  it('matches the .spec-workflow bookkeeping artifacts, not real source', () => {
+    expect(isBookkeepingPath('.spec-workflow/specs/s/tasks.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/task-state.json')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/harness-events.jsonl')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/harness-activity.jsonl')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/Implementation Logs/t-1.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/design.md')).toBe(false);
+    expect(isBookkeepingPath('src/core/tasks.md')).toBe(false);
+    expect(isBookkeepingPath('src/core/gate-rules.ts')).toBe(false);
   });
 });
 
@@ -344,8 +358,16 @@ describe('scoreRisk', () => {
       'typecheck-unavailable: timeout'
     );
     expect(
-      scoreRisk({ ...lowRisk, typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' } }).reasons
-    ).toContain('typecheck-unavailable: no-tsconfig');
+      scoreRisk({ ...lowRisk, typecheck: { kind: 'unavailable-other', reason: 'project-references' } }).reasons
+    ).toContain('typecheck-unavailable: project-references');
+  });
+
+  it('P2: e stays silent on no-tsconfig (a non-TypeScript repo)', () => {
+    const r = scoreRisk({
+      ...lowRisk,
+      typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' },
+    });
+    expect(r).toEqual({ risk: 'low', reasons: [] });
   });
 
   it('f: fires when a task has no range selector', () => {
@@ -434,6 +456,23 @@ describe('decideGate', () => {
       files: ['harness/skills/x.md'],
       touched: ['harness/skills/x.md', 'plugins/spec-workflow/skills/x.md'],
       generated: ['plugins/'],
+    });
+    expect(r).toEqual({ gate: 'pass', reasons: [] });
+  });
+
+  it('d: exempts untracked and spec-store bookkeeping paths (P5)', () => {
+    const r = decideGate({
+      ...passGate,
+      files: ['src/foo.ts'],
+      touched: [
+        'src/foo.ts',
+        '.mcp.json',
+        '.spec-workflow/specs/s/tasks.md',
+        '.spec-workflow/specs/s/harness-events.jsonl',
+        '.spec-workflow/specs/s/task-state.json',
+        '.spec-workflow/specs/s/Implementation Logs/task-1.md',
+      ],
+      untracked: ['.mcp.json'],
     });
     expect(r).toEqual({ gate: 'pass', reasons: [] });
   });

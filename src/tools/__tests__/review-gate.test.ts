@@ -216,15 +216,30 @@ describe('handleGate', () => {
     });
   });
 
-  it('an extra touched path with files given is file-outside-list', async () => {
+  it('an extra tracked touched path with files given is file-outside-list', async () => {
     await addTask1Log();
     await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+    gitCmd(tempDir, ['add', '-A']);
+    gitCmd(tempDir, ['commit', '-q', '-m', 'C1']);
 
     const result = await gate({ baseRef: base, files: ['src/listed.ts'] }, '1');
 
     expect(result.success).toBe(true);
     expect(result.data.gate).toBe('fail');
     expect(result.data.reasons).toContain('file-outside-list: src/feature.ts');
+  });
+
+  it('P5: an untracked extra path is exempt from file-outside-list', async () => {
+    await addTask1Log();
+    // src/feature.ts is written but never committed, so it is untracked at gate
+    // time — orchestrator/environment residue, not the implementer's committed work.
+    await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+
+    const result = await gate({ baseRef: base, files: ['src/listed.ts'] }, '1');
+
+    expect(result.success).toBe(true);
+    expect(result.data.gate).toBe('pass');
+    expect(result.data.reasons).not.toContain('file-outside-list: src/feature.ts');
   });
 
   it('a gate pass/low, then prepare, then record yields version 2', async () => {
