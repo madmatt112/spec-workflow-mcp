@@ -164,3 +164,4 @@
 {"ts":"2026-09-26T15:01:00.242Z","run":"run-20260926-135506","spec":"graph-orientation","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-09-26T15:01:16.782Z","run":"run-20260926-135506","spec":"graph-orientation","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready","phase":"retrospective"}
 {"ts":"2026-09-26T15:01:17.585Z","type":"spawn.end","run":"run-20260926-135506","spec":"graph-orientation","agent":"sdd-retro-orchestrator","input":"42","output":"5848","cacheWrite":"69533","cacheRead":"1094642","tokens":"1170065","cacheWrite5m":"69533","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"afbfb4a3b7237b123"}
+{"ts":"2026-09-27T14:14:39.233Z","run":"run-20260926-135506","spec":"graph-orientation","type":"run.end","status":"spec-workflow-mcp:graph-orientation closeout items 0/11 — retro plan APPROVED; stopped for session restart before close-out"}
