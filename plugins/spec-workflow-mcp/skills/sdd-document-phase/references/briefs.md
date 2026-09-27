@@ -198,6 +198,10 @@ verdict block). Append:
   document probed it against the installed version under `<CODE_ROOT>` and cited the
   probe, or stated only the behaviour it verified; an unproven library-capability
   assertion carried toward implementation is a MUST_FIX.>
+- <design: Data Models completeness — any result or response object that a requirement
+  references has its full field shape pinned in Data Models, not only its union arms. A
+  named result object whose shape is given only through its union members, with no
+  enumerated fields, is a MUST_FIX.>
 - <tasks phase, gate B: if a task introduces a new external dependency, number it as a
   normal finding and append `[gate-b:T<task id>]` to that finding's title; if a task does
   more than the approved requirements ask, append `[gate-c:T<task id>]`. Judge from the
