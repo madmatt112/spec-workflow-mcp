@@ -120,7 +120,7 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
   - _Requirements: 6.2, 6.3_
   - _Prompt: Task: In src/dashboard/multi-server.ts add `tdd` to each item of the review list route (src/dashboard/multi-server.ts:1940) and to each task's latest entry of the summary route (src/dashboard/multi-server.ts:1976-1981); the version route already returns the whole review. Widen the summary type in src/dashboard_frontend/src/modules/api/api.tsx:196 and the summary state type in src/dashboard_frontend/src/modules/pages/TasksPage.tsx:521 with an optional `tdd`. Inside the always-shown review fragment, before the non-pass findings block (src/dashboard_frontend/src/modules/pages/TasksPage.tsx:1384-1403), render the design Component 10 line only when `tdd` is present: one div, class `mt-1 text-xs text-[var(--text-secondary)]`, text `TDD: base <base> · head <head> · amended <yes|no> · <n> file(s)`. Add a describe block to src/dashboard/__tests__/multi-server.test.ts in the shape of its route tests (src/dashboard/__tests__/multi-server.test.ts:578-640): a review saved with a block is returned with `tdd` by the list and summary routes | Restrictions: Literal English text, no translation key; no other route, state or style changes; no existing assertion in src/dashboard/__tests__/multi-server.test.ts changes value; do not run the Playwright suites | Success: `npx tsc --noEmit`; `npm run build:dashboard` exits 0; `npx vitest run src/dashboard/__tests__/multi-server.test.ts` green_
 
-- [ ] 13. Test author agent and its profile
+- [x] 13. Test author agent and its profile
   - File: harness/agents/sdd-test-author.md
   - File: harness/agent-profiles.json
   - File: scripts/sync-plugin-assets.cjs

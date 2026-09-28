@@ -119,3 +119,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Clean gate-path pass, dashboard build green, no fix rounds.
 Evidence: task 12; commit dde41e2; gate reviewId 13f507f5
 Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T16:34:37Z · implementation · task 13 · gotcha
+Clean gate-path pass; 13th agent registered, plugin validate green.
+Evidence: task 13; commit 7512a66; gate reviewId 08439f55
+Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
