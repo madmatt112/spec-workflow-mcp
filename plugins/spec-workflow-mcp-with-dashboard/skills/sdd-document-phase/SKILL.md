@@ -300,10 +300,12 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
    when `GRAPH` is `none`, drop that line.
 2. Spawn `sdd-checker` per the standing spawn rule, with exactly `Read and execute the
    instructions in <promptOutputPath>` as the launch message.
-3. Read `grep -n '^VERIFIED:' <analysis>` and, if present, the lines from
-   `## Deferred findings` to the end (`sed -n '/^## Deferred findings/,$p'`). Copy each
-   deferred finding into the retro log as one entry (`gotcha`, evidence = the analysis
-   path).
+3. If `<analysis>` does not exist, the checker stalled and the run is incomplete: spawn
+   it once more from the same prompt file; still missing ⇒ `PHASE: error`. Never accept
+   the `VERIFIED:` line alone without its analysis file. Then read `grep -n '^VERIFIED:'
+   <analysis>` and, if present, the lines from `## Deferred findings` to the end
+   (`sed -n '/^## Deferred findings/,$p'`). Copy each deferred finding into the retro log
+   as one entry (`gotcha`, evidence = the analysis path).
 4. Go to Step 5. Approval always follows the narrow check, whatever `k/n` says; the
    count goes into the approval response.
 
