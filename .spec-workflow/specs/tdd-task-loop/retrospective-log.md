@@ -149,3 +149,18 @@ Cost: 1 verifier + 1 fix implementer spawn
 17/17 tasks implemented; 2 verifier reviews (tasks 7, 9 high-risk line-count/sensitive-path), 13 gate-path completions, 0 adjudications; 1 gate fix round (task 6, gate ran in wrong tree — root fix), 1 e2e fix round (task 13 count miss). 1 deferral added (d-53b7f443). Live verification 9.1/9.3/9.5 pending via verification-evidence.md.
 Evidence: PR #72; logCoverage 17/17; reviewCoverage 15/17 (16,17 verification-only)
 Cost: 17 implementer + 3 verifier + 2 fix spawns; ~19 gate calls
+
+## 2026-09-28T18:30:00Z · verification · live run · tool-error
+`harness brief` rejects an unmarked task that has no `redTests` value, but the skill says `redTests` defaults to empty. The live fixture run hit this on task 2 (unmarked, docs-only).
+Evidence: tdd-fixture rerun ledger, task 2 brief; sdd-implementation-phase skill
+Cost: 1 extra brief call
+
+## 2026-09-28T18:30:00Z · verification · live run · gotcha
+In the single-repo fixture, docs-only task 2 scored risk high: the gate range took in spec-store bookkeeping commits and the untracked `.spec-workflow/templates/`, so a README-only change got the verifier path.
+Evidence: tdd-fixture ledger note `gate: task 2 pass risk high` at 18:16:36Z; `git status` in the fixture code root shows `?? .spec-workflow/templates/`
+Cost: 1 verifier spawn that a low-risk docs task should not need
+
+## 2026-09-28T18:30:00Z · verification · live run · gotcha
+After RED-IMPOSSIBLE the task 3 author left its test file untracked in the code root; nothing commits or removes it before the design-defect stop.
+Evidence: `git status` in the fixture code root shows `?? src/__tests__/clamp.test.js` after phase.end design-defect at 18:18:14Z
+Cost: stray file in the working tree for the next run

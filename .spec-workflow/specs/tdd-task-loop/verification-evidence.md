@@ -13,11 +13,17 @@ is expected. The retrospective phase requires every line below to read `passed`
 before it starts; an operator runs the command above in a rebuilt, restarted
 session and marks each line.
 
-- (1) pending — the headless phase over tasks marked-honest, unmarked-docs,
+- (1) passed — the headless phase over tasks marked-honest, unmarked-docs,
   marked-already-met records `assertion-red`, `pass`, `amended: false` for task 1;
   spawns no author and writes no `tdd` block for task 2; the task 3 author reports
   `RED-IMPOSSIBLE` for every criterion and the phase takes the design-defect stop
-  (Requirement 9.1)
+  (Requirement 9.1). Evidence (2026-09-28 rerun on the stubbed base 28dde20, same
+  ledger path): task 1 author commit b5748d2 at 18:13:28Z; gate note
+  `tdd assertion-red` pass at 18:14:23Z; verifier pass at 18:15:30Z; the task 1
+  `tdd` block (`reviews/.tdd-1.json`, carried in `review-1_v1_2026-09-28T1815.md`)
+  reads `base: assertion-red`, `head: pass`, `amended: false`. Task 2: no author,
+  no `tdd` block. Task 3: author RED-IMPOSSIBLE (Requirement 3.1), `phase.end`
+  design-defect at 18:18:14Z, no implementer spawned.
 - (3) passed — the run's ledger carries `spawn.usage role=author` for both
   marked tasks (1 and 3), and one `judge` event for task 1 when a Jev key is set,
   none when it is not (Requirement 9.3). Evidence (2026-09-28, fixture ledger
