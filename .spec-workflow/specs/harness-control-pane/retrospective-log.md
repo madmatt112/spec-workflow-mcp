@@ -38,3 +38,8 @@ Cost: 1 checker spawn
 design approved at v3 after 3 rounds; verdict trajectory 0/3/3 → 0/2/1 → SHOULD_FIX-only pass → VERIFIED 3/3; rulings 0 (4 RE-DECIDED flags closed as refinement by reviewer at round 1); cap not hit (SHOULD_FIX-only pass at v3; carried: R2-3 word cap); prune removed 0 records and 0 snapshots.
 Evidence: approval_1790635324007_a1w0qavvk; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design-r2.md
 Cost: 2 reviewer + 2 reviser spawns; 1 drafter; 1 checker
+
+## 2026-09-28T23:13:08Z · tasks · v1 · gotcha
+Round 1 review of tasks v1: verdict iterate 1/0/0 (one MUST_FIX, a citation correction R1-1); no ordering, coverage, atomicity or gate-B/gate-C gap. Carried design gaps (LaunchError.step/409-vs-500, R2-3 window) confirmed resolved in v1.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
