@@ -1,5 +1,7 @@
 # Requirements Document — harness-control-pane
 
+Document version: v4
+
 ## Introduction
 
 This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project; the Overview page shows every registered project's harness work and the operator to-do list on one screen. It replaces launching and watching runs by hand and changes the supervisor to honour a per-run setup file. The only ledger change is two provenance keys on the `run.start` row of a run that applied the file (decomposition entry, spec-decomposition/decomposition.md:665-667).
@@ -143,7 +145,7 @@ This aligns with the decomposition entry for spec 9, which puts the control pane
 - D12 — Stop signals the process group, then kills it after ten seconds: over SIGTERM to the pid only.
 - D13 — The supervisor model field pre-fills the Opus 5.5 full id with effort fixed at high: over the alias or a free field, because the preflight refuses anything below Opus 5.5 or Fable 5.1 and the headless command uses high effort.
 - D14 — Task rows show the tdd block from the existing task-review summary route: over adding a run-model tdd field or leaving tdd off; this spec renders (not records) the tdd block — spec 11 owns it (boundary note, spec-decomposition/decomposition.md:759-761) — and the route (src/dashboard/multi-server.ts:1965-1989) already returns it.
-- D15 — The setup file holds overrides only: over the full role table; chosen because a later declared-model change still takes effect.
+- D15 — The setup file holds overrides only: over the full role table; chosen because a later declared-model change takes effect.
 
 ## Scope notes
 

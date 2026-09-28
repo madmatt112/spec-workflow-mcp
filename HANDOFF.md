@@ -611,3 +611,15 @@ Gotchas:
 | P5 finding | CODE_ROOT is NOT exported to the MCP server process (sdd-launch.sh passes only ANTHROPIC_*/XDG_STATE_HOME and cds into SDD_CODE_ROOT); the explicit projectPath:<CODE_ROOT> on review-task calls is the reliable fix |
 | To-do (human) | merge PR #74 once CI is green; the separate operator pre-merge session for verification-evidence.md (9.1/9.3/9.5) tracked in the implementation HANDOFF section still stands |
 | Spawns | 2 implementers (harness batch, code batch); 0 verifiers, 0 adjudicators |
+
+## harness-control-pane — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-28 |
+| Rounds | 4 (3 review + 1 narrow check); verdicts 1/4/3 → 1/2/3 → 0/6/3 → SHOULD_FIX-only pass → VERIFIED 6/6 |
+| Approval | `approval_1790630432518_ddccp0tmh` |
+| Rulings | none |
+| Cut scope | Concurrent terminal-launch race declared out of scope (R3-6): the single-live-run invariant is bounded to dashboard-initiated launches, per the decomposition's pointer-file lock (decomposition.md:673-674). |
+| Carried items | R3-minor-1 — AC 3.2 reuse of adversarial-runner.ts:156-220: design must state the reused spawn pattern does NOT adopt that runner's 10-min SIGTERM timeout or its on-shutdown child kill (both contradict D4's hours-long, restart-surviving run). R3-minor-2 — a page Launch re-saves harness-run.json with gates=record, clobbering a setup saved for a terminal run with gates=block (D6): design should state this overwrite is intended. |
+| Next phase loads | requirements.md v4 and the decomposition entry (spec 9); focus the design on the websocket subscribe/message contract (AC 4.7–4.9, 5.9–5.10), the failure/concurrency ACs (2.6, 3.10–3.14), and the read-only index-generator ordering without INDEX.md's write (AC 1.1). |

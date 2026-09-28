@@ -13,3 +13,8 @@ Cost: 1 reviewer spawn
 Round 3 on v3: iterate 0/6/3; MUST_FIX 0 routes to a SHOULD_FIX-only corrective pass. The v3 delta verified clean (no regression). The failure-paths fresh lens surfaced 6 novel SHOULD_FIX gaps: R3-1 log-lines push left unrouted (compounds R2-3), R3-2 dashboard as a second concurrent writer of the machine-wide active-run pointer with no atomic-rewrite requirement, R3-3 no liveness reconciliation on restart/half-stop, R3-4 no launch error/rollback path, R3-5 preflight-refused run orphans harness-run.json, R3-6 check-to-spawn race with a terminal launch.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-requirements-r3.md
 Cost: 1 reviewer spawn
+
+## 2026-09-28T21:22:44Z · requirements · phase · cleanup
+requirements approved at v4 after 4 rounds; verdict trajectory 1/4/3 → 1/2/3 → 0/6/3 → SHOULD_FIX-only corrective pass → narrow check VERIFIED 6/6; rulings 0; cap not hit (SHOULD_FIX-only pass at v4, not post-cap adjudication); prune removed 0 records and 0 snapshots (kept 2). Round 2 findings were all fix-induced by the v2 over-cap lint trim (wrong citation range, weakened wire-contract ACs); round 3's failure-paths lens surfaced 6 novel robustness gaps, all accepted into v4.
+Evidence: approval_1790630432518_ddccp0tmh; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-requirements-r4.md
+Cost: 3 reviewer + 1 checker + 3 reviser spawns
