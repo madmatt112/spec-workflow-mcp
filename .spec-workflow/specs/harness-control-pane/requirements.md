@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project, and the Overview page shows the harness work of every registered project and the operator to-do list on one screen. It is for the operator who today launches runs by hand with `continue the sdd process` or a `claude -p` script and watches them in the `--watch` TUI. It changes the supervisor skill so that it honours a per-run setup file, and it changes nothing in the ledger format or in the TUI renderer.
+This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project, and the Overview page shows the harness work of every registered project and the operator to-do list on one screen. It is for the operator who today launches runs by hand with `continue the sdd process` or a `claude -p` script and watches them in the `--watch` TUI. It changes the supervisor skill so that it honours a per-run setup file. The only ledger change is that a run which applied the file adds two provenance keys to its `run.start` row (`overrides` and `setup`), which is the spec-9 deliverable that records the overrides on `run.start` (decomposition entry, spec-decomposition/decomposition.md:667); the row set, every other key and the TUI renderer are unchanged, and a run with no file writes the same `run.start` as today.
 
 ## Alignment with Product Vision
 
@@ -16,12 +16,12 @@ The spec store has no steering documents, so this section aligns with the decomp
 
 #### Acceptance Criteria
 
-1. WHEN the operator opens the Harness page for a project THEN the system SHALL list the specs of that project's spec store in the order INDEX.md renders them (the categorization and routing of src/core/index-generator.ts:44-82), each with its current phase, and SHALL mark the spec that the routing names as active.
+1. WHEN the operator opens the Harness page for a project THEN the system SHALL list the specs of that project's spec store in the order INDEX.md renders them, each with its current phase, and SHALL mark the spec that the routing names as active. The page SHALL reuse the categorization, ordering, current-phase and routing logic of `src/core/index-generator.ts` (`deriveSpecStatus`, the class's `categorize`, and the exported `deriveRouting`) through a read-only function that produces the order without INDEX.md's write side effect; it SHALL NOT call `IndexGenerator.generate()`, which `mkdir`s and `fs.writeFile`s INDEX.md (src/core/index-generator.ts:70-72). Exposing a pure order/status function, or reimplementing the private ordering, is part of this work.
 2. WHEN the Harness page lists the specs THEN the system SHALL NOT write INDEX.md or any other file in the spec store.
 3. WHEN the HANDOFF routing header names the active spec THEN the system SHALL show the live phase, state and last result that the header carries for that spec.
 4. WHEN the Harness page renders the run form THEN the system SHALL show one row per agent in the build's agent profiles (thirteen agents at harness/agent-profiles.json:1-80) plus one row for the supervisor, each with a model field pre-filled with the declared model, and the declared effort shown read-only with the reason "effort is per agent, not per run".
 5. WHEN the run form renders THEN the system SHALL pre-fill the supervisor model field with `claude-opus-5-5`, and SHALL show the supervisor effort as `high`, read-only.
-6. IF a model field holds a value that is neither a model alias the design lists nor a full model id that starts with `claude-` THEN the system SHALL refuse to save the form and SHALL name the field and the value.
+6. Model-field validation SHALL be provider-conditional: IF a role whose provider is `anthropic` holds a model value that is neither a model alias the design lists nor a full model id that starts with `claude-`, OR a role whose provider is `deepseek` holds a model value that is not one of the two DeepSeek models the validator allows (harness/skills/sdd-continue/references/sdd-providers.sh:29), THEN the system SHALL refuse to save the form and SHALL name the field and the value. A `claude-` id or alias is valid only on an anthropic role, and a DeepSeek model only on a deepseek role.
 7. WHEN the run form renders THEN the system SHALL show a provider field only for the roles the provider validator allows (reviewer, checker and reviser, per harness/skills/sdd-continue/references/sdd-providers.sh:21-29), pre-filled from the project's provider map in the agent rules, or `anthropic` when the map is absent.
 8. IF the operator sets a role's provider to `deepseek` THEN the system SHALL require one of the two DeepSeek models the validator allows as that role's model.
 9. WHEN the run form renders THEN the system SHALL show a worktree choice (yes or no) and a gates choice (block or record), pre-filled from the project's agent rules (`worktree-per-change` and `gates` keys), else `no` and `block`.
@@ -38,9 +38,9 @@ The spec store has no steering documents, so this section aligns with the decomp
 1. WHEN the supervisor starts a run and the spec store holds a `harness-run.json` whose spec is the active spec THEN the supervisor SHALL apply it and SHALL print one line naming the file and the time it was written.
 2. IF the spec store holds a `harness-run.json` whose spec is not the active spec THEN the supervisor SHALL print one warning line naming both specs and SHALL run as if the file did not exist.
 3. WHEN the file sets a model for an orchestrator THEN the supervisor SHALL pass that model as the Agent tool's `model` parameter on each spawn of that orchestrator, in place of the no-model spawn of harness/skills/sdd-continue/SKILL.md:226-228.
-4. WHEN the file sets a model for a worker role THEN the supervisor SHALL pass the worker overrides to each orchestrator in its launch prompt, and each orchestrator SHALL pass the matching `model` parameter on each Agent-tool spawn of that role.
+4. WHEN the file sets a model for a worker role THEN the supervisor SHALL pass the worker overrides to each orchestrator in its launch prompt, and each orchestrator SHALL deliver the override by the role's provider: for an anthropic worker it SHALL pass the matching `model` parameter on each Agent-tool spawn of that role; for a deepseek worker, which is not spawned through the Agent tool but as `bash <LAUNCHER> <agent> "<launch message>"` (harness/skills/sdd-document-phase/SKILL.md:24-34), the overridden model SHALL travel only in the merged provider map (`<agent>:deepseek:<model>`, harness/skills/sdd-continue/references/sdd-providers.sh:72-74) that AC 2.6 builds and the launcher reads, never as an Agent-tool parameter.
 5. WHEN the model pre-flight checks an orchestrator whose model the file overrides THEN the supervisor SHALL expect the overridden model and not the declared one.
-6. WHEN the file sets a provider for a role THEN the supervisor SHALL merge it over the agent rules' provider map, SHALL validate the merged map with the same rules as the provider preflight (eligible roles, allowed providers, allowed models, required key exported), and SHALL refuse the run before any ledger row on a failed validation, as harness/skills/sdd-continue/SKILL.md:85-96 does.
+6. WHEN the file sets a provider for a role THEN the supervisor SHALL merge that role's provider and, for a `deepseek` role, its model over the agent rules' provider map, SHALL validate the merged map with the same rules as the provider preflight (eligible roles, allowed providers, allowed models, required key exported), and SHALL refuse the run before any ledger row on a failed validation, as harness/skills/sdd-continue/SKILL.md:85-96 does.
 7. WHEN the file sets the gates choice THEN the supervisor SHALL use it in place of the agent rules' `gates` key for both gates of this run.
 8. WHEN the file sets worktree to yes THEN the supervisor SHALL apply the worktree rule of harness/skills/sdd-continue/SKILL.md:336-345 as if the agent rules required it; WHEN it sets no THEN the supervisor SHALL NOT enter a worktree.
 9. WHEN the supervisor writes `run.start` for a run that applied the file THEN the row SHALL carry an `overrides` key listing each overridden role and its model and provider, and SHALL carry `setup=harness-run`.
@@ -79,7 +79,9 @@ The spec store has no steering documents, so this section aligns with the decomp
 4. WHEN the run is in the implementation phase THEN the page SHALL show each task row with its latest review verdict and `tdd` block from the existing task-review summary route (src/dashboard/multi-server.ts:1965-1989).
 5. WHEN the spec directory holds `questions.md` THEN the page SHALL show its gate A and gate B sections as recorded, read-only, with no control that answers them.
 6. WHEN a spawn has no tokens or the build has no agent profiles THEN the page SHALL render the row without them.
-7. WHEN no Harness page of a project is open THEN the system SHALL NOT keep a harness watcher running for that project.
+7. WHEN no Harness page of a project is open THEN the system SHALL NOT keep a harness watcher running for that project (keyed on the harness-subscriber count of AC 4.8, not on `connection.projectId`).
+8. WHEN a Harness page opens for a project THEN it SHALL send a subscribe message whose `type` names the harness view, distinct from the Specs page's `subscribe`, so the server can tell a Harness subscriber from a Specs subscriber that share one `projectId` — the existing socket binds a connection to a single `connection.projectId` and knows only the `subscribe`, `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294) — and the server SHALL key the AC 4.7 watcher lifecycle on the count of harness subscribers for that project.
+9. WHEN the server pushes to a Harness page THEN each message SHALL carry a `type` the page demultiplexes, distinct from `initial` and `projects-update`: one for the run model (AC 4.2), one for a batch of new log lines (Requirement 3 AC 5), and one for the gate sections (AC 4.5); the run-model and gate pushes SHALL reach only that project's harness subscribers, sent with the existing `broadcastToProject` (src/dashboard/multi-server.ts:2139-2151).
 
 ### Requirement 5 — Overview page
 
@@ -96,6 +98,7 @@ The spec store has no steering documents, so this section aligns with the decomp
 7. IF the HUD file is missing, unreadable or has no `todos` array THEN the system SHALL show an empty list and no error.
 8. WHEN the Overview page is open THEN it SHALL offer no control that edits the HUD file, launches a run or stops a run.
 9. WHEN the Overview page is open THEN the system SHALL watch each registered project's pointer-named ledger and the HUD file with one watcher set shared by all Overview clients, and SHALL close it when the last Overview client leaves.
+10. WHEN the Overview page opens THEN it SHALL send a subscribe message whose `type` names the overview view (all projects), since the existing socket binds a connection to a single `connection.projectId` and has no all-projects subscription (src/dashboard/multi-server.ts:205-294); the server SHALL key the AC 5.9 shared watcher set on the count of overview subscribers and SHALL push overview rows and the todos list only to them, each with a distinct `type` the page demultiplexes (overview rows, todos list), distinct from `initial` and `projects-update`.
 
 ### Requirement 6 — Compatibility and checks
 
@@ -138,7 +141,7 @@ The spec store has no steering documents, so this section aligns with the decomp
 - D11 — The dashboard does not commit the ledger after a stop: options were leave it uncommitted for the next run's commit, commit from the dashboard; chosen because the dashboard makes no git commits today.
 - D12 — Stop signals the process group, then kills it after ten seconds: options were group SIGTERM then SIGKILL, SIGTERM to the pid only; chosen because a DeepSeek launcher or tool child must not outlive the run.
 - D13 — The supervisor model field is pre-filled with the Opus 5.5 full id and its effort is fixed at high: options were the full id, the opus alias, a free field with no default; chosen because the supervisor preflight refuses anything below Opus 5.5 or Fable 5.1 and the documented headless command uses high effort.
-- D14 — Task rows show the tdd block from the existing task-review summary route: options were read that route, add a tdd field to the run model, leave tdd off the page; chosen because the build order says this spec renders the tdd block and the boundary notes forbid a new ledger field.
+- D14 — Task rows show the tdd block from the existing task-review summary route: options were read that route, add a tdd field to the run model, leave tdd off the page; chosen because the build order says this spec renders (not records) the tdd block — spec 11 owns the `tdd` block itself (decomposition boundary note, spec-decomposition/decomposition.md:759-761) — and the route (src/dashboard/multi-server.ts:1965-1989) already returns it, so no run-model field is added.
 - D15 — The setup file holds overrides only: options were overrides only, the full role table; chosen because a later declared-model change still takes effect.
 
 ## Scope notes
@@ -147,7 +150,15 @@ The spec store has no steering documents, so this section aligns with the decomp
 - Effort per role stays read-only, as the decomposition entry decides.
 - The Overview page does not read the HUD operations array (D1); a later spec may add it.
 - The decomposition entry's reliance on "the supervisor's existing interrupt handling" for run end is replaced by D2, because no such handling exists for a signalled process.
+- The `run.start` row of a run that applied the setup file carries two provenance keys (`overrides` and `setup`, AC 2.9); this is the spec-9 deliverable that "records the overrides on `run.start`" (decomposition entry, spec-decomposition/decomposition.md:667, 711). Boundary note spec-decomposition/decomposition.md:754 ("it adds no ledger field") scopes per-spawn usage to spec 8: spec 9 adds no per-spawn usage field and no field to `RunModel`. These two provenance keys are the only ledger change, and only for the file case (AC 2.11 keeps the no-file `run.start` as today).
 
 ## Revision History
 
 - **v1** (2026-09-28) — Initial draft.
+- **v2** (2026-09-28) — Round-1 adversarial review dispositions:
+  - R1-1 (accepted) — Resolved the ledger-format contradiction: the Introduction and a new scope note now state that a run which applied the file adds `overrides`/`setup` to `run.start`, which the decomposition's spec-9 deliverable authorizes (decomposition.md:667, 711); D14's false clause "the boundary notes forbid a new ledger field" is deleted and replaced with the real reason (the tdd route already returns the block).
+  - R1-2 (accepted) — Added AC 4.8, 4.9 and 5.10 defining the harness- and overview-view subscribe messages, the per-payload message `type`s, and the subscriber-count the server keys each watcher lifecycle on, over the single-`projectId` socket (multi-server.ts:205-294, 2139-2151).
+  - R1-3 (accepted) — AC 2.4 split by provider: Agent-tool `model` for anthropic workers, merged provider map + launcher for deepseek workers (SKILL.md:24-34, sdd-providers.sh:72-74); AC 2.6 now merges a deepseek role's model too.
+  - R1-4 (accepted) — AC 1.6 made provider-conditional so a DeepSeek model is not rejected on a deepseek role (sdd-providers.sh:29).
+  - R1-5 (accepted) — AC 1.1 now reuses the read-only ordering/routing logic without `generate()`'s INDEX.md write (index-generator.ts:70-72).
+  - Minors (rejected) — AC 5.3/D7 "waiting" imprecision is self-correcting and harmless; the launch flag list and the log/launch-record paths are design-phase details the analysis marks non-blocking.
