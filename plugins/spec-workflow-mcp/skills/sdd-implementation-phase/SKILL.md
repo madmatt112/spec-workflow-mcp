@@ -99,18 +99,20 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
 
 1. **Pick.** The first `[ ]` task in file order (or the `[-]` task from Step 0).
    Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work. Then
-   run `git -C <CODE_ROOT> rev-parse HEAD` and keep the sha as `base=<sha>` on the
-   task-list item; every gate call for this task passes it as `baseRef`, through every
-   fix round. **Shared-repo layout (retro P1).** When `CODE_ROOT` and the spec store
-   resolve to the same git repo (`git -C <CODE_ROOT> rev-parse --show-toplevel` equals
-   the spec store's), a `base..HEAD` range also picks up the orchestrator's own
-   bookkeeping commits made after this capture, so do not gate against the pre-implement
-   HEAD: once the implementer reports its `commit: <sha>` (Step 3), scope the gate to
-   that single commit by setting `base=<sha>^` (its parent), so the range is exactly the
-   implementer's own commit. A `[-]` task resumed from Step 0 has no base ref: gate it
-   without `baseRef`, which scores `risk: high`.
+   run `git -C <CODE_ROOT> rev-parse HEAD` and note the sha as the task's pre-implement
+   HEAD on the task-list item — a record of where the task started, never the gate base.
+   **Gate the implementer commit, not pre-implement HEAD (retro P1).** Wherever
+   `CODE_ROOT` and the spec store resolve to the same git repo (`git -C <CODE_ROOT>
+   rev-parse --show-toplevel` equals the spec store's) — the normal layout here — a
+   pre-implement-HEAD`..HEAD` range also sweeps the orchestrator's own bookkeeping
+   commits and untracked spec-store files added after this capture (retro F1/F7), so the
+   single-commit range is the default: once the implementer reports its `commit: <sha>`
+   (Step 3), set `base=<sha>^` (its parent), so every gate call for this task ranges over
+   exactly that one commit, through every fix round. Never gate against the captured
+   pre-implement HEAD. A `[-]` task resumed from Step 0 has no implementer commit yet:
+   gate it without `baseRef`, which scores `risk: high`.
 1b. **Author** (marked tasks only). Only when the picked task's block holds a `- Test:`
-   bullet, and after the `base=` capture: assemble the author brief with the spec-workflow
+   bullet, and after the pre-implement HEAD capture (Step 1): assemble the author brief with the spec-workflow
    `harness` tool, `action: brief`, `template: test-author`, `specName: <SPEC>`,
    `taskId: "<N>"`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/author-brief-task-<N>.md`, the `title`, and the `job`: the
@@ -163,7 +165,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    on any other output keep them and record `note "text=graph refresh: <first line>"`. A
    refresh failure never stops the phase.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
-   `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
+   `taskId: "<N>"`, `baseRef` = the task's `base` sha (`<implementer commit>^`, set in
+   Step 1) when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
    project typecheck itself). On a marked task, also pass `tdd: { testFiles: <the author's
