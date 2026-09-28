@@ -76,7 +76,8 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 
 1. Call the spec-workflow `harness` tool with `action: orient`, `specName: <SPEC>`,
    `phase: implementation`, `mode: <MODE>`, and no `projectPath`. It returns `tasks`
-   (`total`, `done`, `inProgress`, `open`), `tasksApproved`, `currentPhase` and `nextStep`.
+   (`total`, `done`, `inProgress`, `open`), `tasksApproved`, `currentPhase`, `nextStep`, and
+   `inFlightReports` (the drain list — see **Resume recovery**).
    Route on `nextStep`:
    - `error: tasks.md not approved` ⇒ report `PHASE: error`, `REASON: tasks.md not
      approved`.
@@ -265,21 +266,27 @@ flag's line>`. The supervisor already stops on it.
 
 ## Resume recovery
 
-A `[-]` task resumed from Step 0 may already carry the implementer's commit even though its
-report never reached you: its worker finished after your previous turn ended, so the report
-routed to the supervisor, not to you. Treat a commit with no matching worker report as
-ambiguous state, not unfinished work. Check the code repo for a commit that implements the
-resumed task (`git -C <CODE_ROOT> log`, the same read Step 1b makes for the author commit),
-then:
-- **A commit exists, no report ⇒ reconcile, do not re-implement.** Spawn one
-  `sdd-implementer` with a brief that says the task is already committed at `<sha>`, that it
-  must confirm the commit satisfies the task and call `log-implementation` naming that
-  commit, and that it must change no code; then gate and verify from Step 4 as usual.
-- **No commit ⇒** resume the task from Step 2 as a normal implement.
+An `[-]` task resumed from Step 0 may already carry a worker's commit even though its report
+never reached you: the worker finished after your previous turn ended, so its report routed
+to the supervisor, not to you. The plugin hook persists every worker's final report to the
+ledger as a `spawn.report`, and `orient` returns the undrained ones — those with no matching
+`spawn.usage` — as `data.inFlightReports` (retro P4).
 
-This is the documented default; it stays as the fallback after P4's persist-and-drain
-lands — drain the persisted report first, and reconcile only when a committed task has no
-persisted report.
+1. **Drain first.** For each report in `data.inFlightReports`, treat it as that worker's
+   report arriving now: it belongs to the resumed `[-]` task (work is sequential). Record its
+   `spawn.usage`, then route it through Step 3 onward (log check, then Step 4 gate, verify,
+   complete) exactly as if the Agent tool had just returned it — before you spawn any new
+   worker. A drained report needs no reconcile.
+2. **Reconcile only when drain finds nothing.** When the resumed `[-]` task has a commit but
+   `data.inFlightReports` holds no report for it (an older run before persistence, or a report
+   the hook could not capture), treat a commit with no matching worker report as ambiguous
+   state, not unfinished work. Check the code repo for a commit that implements the resumed
+   task (`git -C <CODE_ROOT> log`, the same read Step 1b makes for the author commit), then:
+   - **A commit exists, no report ⇒ reconcile, do not re-implement.** Spawn one
+     `sdd-implementer` with a brief that says the task is already committed at `<sha>`, that it
+     must confirm the commit satisfies the task and call `log-implementation` naming that
+     commit, and that it must change no code; then gate and verify from Step 4 as usual.
+   - **No commit ⇒** resume the task from Step 2 as a normal implement.
 
 ## Completion gate
 
