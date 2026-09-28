@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`tdd-task-loop`**.
-> Live phase **retrospective**, state **tasks 17/17**, last result **complete** (PR #72 merged; verification-evidence (1), (3), (5) passed).
+> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (next in build order; no spec dir yet).
+> Live phase **requirements**, state **pending**, last result **pending**. Previous spec `tdd-task-loop` CLOSED (close-out PR #74 open, overwatch merges).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: spawns the retrospective orchestrator (or, with retrospective.md and proposals present, holds the retro conversation).
+> A re-run does: starts `harness-control-pane` at requirements (spawns the document orchestrator for v1 and gate A).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -68,6 +68,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-28 | tdd-task-loop | implementation | tasks 17/17 | complete | PR #72 open, 9.1/9.3/9.5 pending operator |
 | 2026-09-28 | tdd-task-loop | retrospective | n/a | retro-ready | 16 findings, 16 proposals (2 decisions: P2, P8), 2 graduation candidates |
 | 2026-09-28 | tdd-task-loop | retrospective | n/a | approved | plan APPROVED: P1, P3, P4, P5, P9, G1, G2; P2/P8 keep as is |
+| 2026-09-28 | tdd-task-loop | retrospective |  | retro-ready |  |
+| 2026-09-28 | tdd-task-loop | closeout | items 7/7 | closed |  |
 
 ## Current state — 2026-08-04
 
