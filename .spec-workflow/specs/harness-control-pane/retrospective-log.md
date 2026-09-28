@@ -43,3 +43,13 @@ Cost: 2 reviewer + 2 reviser spawns; 1 drafter; 1 checker
 Round 1 review of tasks v1: verdict iterate 1/0/0 (one MUST_FIX, a citation correction R1-1); no ordering, coverage, atomicity or gate-B/gate-C gap. Carried design gaps (LaunchError.step/409-vs-500, R2-3 window) confirmed resolved in v1.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer spawn
+
+## 2026-09-28T23:22:40Z · tasks · v2 · gotcha
+Round 2 review of tasks v2: converged 0/0/1 (one MINOR, no work needed). Fresh lens: cost of touching existing components. Bridge warnings and test-seam infos held. Delta (R1-1 citation fix) confirmed correct.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-tasks-r2.md
+Cost: 1 reviewer spawn
+
+## 2026-09-28T23:23:37Z · tasks · phase · cleanup
+tasks approved at v2 after 2 rounds; verdict trajectory 1/0/0 → 0/0/1 → converged; rulings 0; cap not hit (one MINOR R2-1 left as-is, not word-cap); prune removed 0 records and 0 snapshots (2 snapshots kept).
+Evidence: approval_1790637778134_ua1ingjck; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-tasks-r2.md
+Cost: 2 reviewer + 1 reviser spawns; 1 drafter

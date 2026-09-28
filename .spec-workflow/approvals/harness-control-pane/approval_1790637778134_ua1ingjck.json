@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790637778134_ua1ingjck",
+  "title": "harness-control-pane tasks v2",
+  "filePath": ".spec-workflow/specs/harness-control-pane/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-28T23:22:58.134Z",
+  "category": "spec",
+  "categoryName": "harness-control-pane",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1; rulings: none; cap: not hit",
+  "respondedAt": "2026-09-28T23:23:05.269Z"
+}
