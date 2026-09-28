@@ -129,3 +129,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Clean gate-path pass; harness skill loop wired, plugin validate green.
 Evidence: task 14; commit 32259fe; gate reviewId 36d8d89f
 Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T16:51:15Z · implementation · task 15 · gotcha
+Clean gate-path pass; two-repo commit (worktree docs + spec-store agent-rules key).
+Evidence: task 15; worktree 34ceda2 + spec-store 507339e; gate reviewId 48edf64a
+Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
