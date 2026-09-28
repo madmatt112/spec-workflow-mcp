@@ -179,3 +179,8 @@ Cost: 1 analyst spawn
 Store batch (all edits to .spec-workflow/agent-rules.md, direct on main): G1 done cbe7116 (Worktree gates bullet), G2 done 2fa1b62 (Lint false positives subsection), P4 agent-rules half done bacb12b (Documents count rule extended to code/test files; P4 template/skill half lands in the harness batch). All three gate pass risk low; store class, no verifier.
 Evidence: commits bacb12b cbe7116 2fa1b62 on main
 Cost: 1 implementer spawn, 0 verifier (store low-risk)
+
+## 2026-09-28T19:10:29Z · closeout · harness batch 1 · cleanup
+P1, P3, P4 (tasks-template part), P5 landed in retro worktree; 0 to-do, 0 skipped. 1 implementer spawn, no verifier (all gate pass, risk low).
+Evidence: commits 6c73071 P1, 24741a5 P3, 24f101e P4, 81a41b9 P5
+Cost: 1 implementer spawn

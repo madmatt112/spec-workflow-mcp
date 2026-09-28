@@ -79,5 +79,9 @@ Spec-store-only items commit directly.
 
 One line per proposal, written by the close-out phase.
 
+- P1: done — 6c73071
+- P3: done — 24741a5
+- P4: done — bacb7116 (agent-rules count rule, on main) + 24f101e (tasks template grep)
+- P5: done — 81a41b9
 - G1: done — cbe7116
 - G2: done — 2fa1b62

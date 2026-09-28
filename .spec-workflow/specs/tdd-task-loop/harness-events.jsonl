@@ -253,3 +253,30 @@
 {"ts":"2026-09-28T18:42:11.896Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"gate: item G2 pass risk low"}
 {"ts":"2026-09-28T18:42:31.401Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"G1","outcome":"done"}
 {"ts":"2026-09-28T18:42:31.431Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"G2","outcome":"done"}
+{"ts":"2026-09-28T18:43:29.690Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P1","title":"Gate every task on the implementer commit"}
+{"ts":"2026-09-28T18:43:29.723Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P3","title":"Test author removes uncommitted test files on design-defect stop"}
+{"ts":"2026-09-28T18:43:29.758Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P5","title":"Every gate/prepare/record call names the code root"}
+{"ts":"2026-09-28T18:43:57.872Z","type":"spawn.start","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-28T18:44:01.091Z","type":"spawn.end","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-closeout-orchestrator","input":"46","output":"1762","cacheWrite":"111577","cacheRead":"2037084","tokens":"2150469","cacheWrite5m":"0","cacheWrite1h":"111577","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a4875ae27c45758f0"}
+{"ts":"2026-09-28T18:52:24.836Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"closeout spawn 1 stopped by user mid code batch (P1/P3/P5 picked, implementer spawned with no spawn.end, worktree chore/tdd-task-loop-retro clean, no code commits); session restarted and /tmp/scratchpad wiped; recovered under the same run id"}
+{"ts":"2026-09-28T18:52:24.859Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","phase":"closeout"}
+{"ts":"2026-09-28T18:54:53.757Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"phase.start","phase":"closeout","state":"items 2/7"}
+{"ts":"2026-09-28T18:56:21.564Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P1","title":"Gate every task on the implementer commit"}
+{"ts":"2026-09-28T18:56:21.589Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P3","title":"Test author removes uncommitted test files on design-defect stop"}
+{"ts":"2026-09-28T18:56:21.611Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P4","title":"Dependent count assertions in edit scope (template/skill part)"}
+{"ts":"2026-09-28T18:56:21.634Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P5","title":"Every gate/prepare/record call names the code root"}
+{"ts":"2026-09-28T18:56:24.719Z","type":"spawn.start","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-09-28T18:56:56.280Z","type":"spawn.end","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-closeout-orchestrator","input":"26","output":"97","cacheWrite":"63014","cacheRead":"731266","tokens":"794403","cacheWrite5m":"0","cacheWrite1h":"63014","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a8c9c470c9b8ba151"}
+{"ts":"2026-09-28T19:08:39.241Z","type":"spawn.end","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-implementer","input":"96","output":"18298","cacheWrite":"120343","cacheRead":"4099726","tokens":"4238463","cacheWrite5m":"120343","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a64b143a692300096"}
+{"ts":"2026-09-28T19:08:39.241Z","type":"spawn.report","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-implementer","report":"Report delivered. All four close-out items (P1, P3, P5, P4) are committed on the retro branch with checks green.","agentId":"a64b143a692300096"}
+{"ts":"2026-09-28T19:09:06.571Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"P1 P3 P4 P5 all done, checks pass"}
+{"ts":"2026-09-28T19:09:20.670Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-09-28T19:09:30.873Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-09-28T19:09:40.636Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"gate: item P5 pass risk low"}
+{"ts":"2026-09-28T19:10:05.606Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-09-28T19:10:05.630Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-09-28T19:10:05.654Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-09-28T19:10:05.677Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-09-28T19:10:05.702Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-09-28T19:10:13.903Z","run":"run-20260928-182316","spec":"tdd-task-loop","type":"task.pick","task":"P9","title":"spec-lint skip regex accepts sub-bullet form"}
+{"ts":"2026-09-28T19:10:14.025Z","type":"spawn.start","run":"run-20260928-182316","spec":"tdd-task-loop","agent":"sdd-implementer","role":"closeout"}
