@@ -18,8 +18,15 @@ session and marks each line.
   spawns no author and writes no `tdd` block for task 2; the task 3 author reports
   `RED-IMPOSSIBLE` for every criterion and the phase takes the design-defect stop
   (Requirement 9.1)
-- (3) pending — the run's ledger carries `spawn.usage role=author` for both
+- (3) passed — the run's ledger carries `spawn.usage role=author` for both
   marked tasks (1 and 3), and one `judge` event for task 1 when a Jev key is set,
-  none when it is not (Requirement 9.3)
-- (5) pending — task 1's proof runs in under 30 seconds on this checkout
-  (Requirement 9.5)
+  none when it is not (Requirement 9.3). Evidence (2026-09-28, fixture ledger
+  `.spec-workflow/specs/tdd-fixture/harness-events.jsonl` in the scratch code root):
+  `spawn.usage role=author` for task 1 at 17:50:42Z (commit 8ca7e69) and for
+  task 3 at 17:55:56Z (RED-IMPOSSIBLE). No `judge` event; the fixture `.mcp.json`
+  env had no Jev key, so none is expected.
+- (5) passed — task 1's proof runs in under 30 seconds on this checkout
+  (Requirement 9.5). Evidence (2026-09-28, same ledger): implementer
+  `spawn.usage` at 17:51:52Z, note `gate: task 1 pass risk high tdd structural-red`
+  at 17:52:01Z, so the gate with the red-on-base proof finished within 9 s;
+  `node --test` ran in 86 ms.
