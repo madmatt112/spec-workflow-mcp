@@ -518,7 +518,7 @@ function TaskList({ specName }: { specName: string }) {
   const [expandedPrompts, setExpandedPrompts] = useState<Set<string>>(new Set());
 
   // Task review state
-  const [reviewSummary, setReviewSummary] = useState<Record<string, { verdict: string; version: number }>>({});
+  const [reviewSummary, setReviewSummary] = useState<Record<string, { verdict: string; version: number; tdd?: any }>>({});
   const [taskReviewJobs, setTaskReviewJobs] = useState<Map<string, any>>(new Map());
   const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
   const [reviewLoading, setReviewLoading] = useState<string | null>(null);
@@ -1380,6 +1380,11 @@ function TaskList({ specName }: { specName: string }) {
                                 }
                               }}
                             />
+                          )}
+                          {reviewInfo?.tdd && (
+                            <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                              TDD: base {reviewInfo.tdd.base} · head {reviewInfo.tdd.head} · amended {reviewInfo.tdd.amended ? 'yes' : 'no'} · {reviewInfo.tdd.testFiles.length} file(s)
+                            </div>
                           )}
                           {reviewInfo && reviewInfo.verdict !== 'pass' && (
                             <div className="mt-2">
