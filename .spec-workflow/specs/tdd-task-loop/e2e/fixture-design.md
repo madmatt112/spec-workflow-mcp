@@ -12,7 +12,8 @@ store's `tdd-test-command: node --test {files}`.
 - `package.json` — `"type": "module"`, a `test` script running `node --test`.
 - `src/clamp.js` — exports `clampPercent(n)`: returns `0` below `0`, `100` above
   `100`, otherwise `n`. The behaviour task 3 asserts already exists here.
-- `src/labels.js` — does not exist at the base; task 1 adds `toPercentLabel`.
+- `src/labels.js` — at the base, a stub `toPercentLabel` that returns
+  `String(fraction)`; task 1 replaces it with the real label.
 - `src/__tests__/` — the two `node --test` files the marked tasks name.
 - `README.md` — the file task 2 documents.
 
@@ -23,10 +24,11 @@ store's `tdd-test-command: node --test {files}`.
 `clampPercent(150)` returns `100`. Task 3's test asserts this and therefore
 passes on the base, which is the `RED-IMPOSSIBLE` branch.
 
-### Component 2 — toPercentLabel (added by task 1)
+### Component 2 — toPercentLabel (stub at base, finished by task 1)
 
 `toPercentLabel(fraction)` returns `` `${Math.round(fraction * 100)}%` ``.
-Absent at the base, so task 1's test is red until the implementer adds it.
+A stub with the wrong behaviour at the base, so task 1's test imports fine and
+fails on an assertion until the implementer replaces it.
 
 ### Component 3 — README (task 2)
 

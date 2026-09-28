@@ -53,6 +53,16 @@ export function clampPercent(n) {
 }
 JS
 
+# toPercentLabel exists at the base only as a stub with the wrong behaviour, so
+# task 1's test imports fine and fails on an assertion (assertion-red), not on
+# a missing module (structural-red).
+cat > "$CODE_ROOT/src/labels.js" <<'JS'
+// Stub: task 1 replaces this with the real percent label.
+export function toPercentLabel(fraction) {
+  return String(fraction);
+}
+JS
+
 cat > "$CODE_ROOT/README.md" <<'MD'
 # tdd-fixture-code
 
@@ -135,7 +145,7 @@ console.log('approved 3 documents');
 MJS
 SWM_DIST="$SWM_DIST" CODE_ROOT="$CODE_ROOT" node "$APPROVE_JS"
 
-# --- Commit the base: clamp.js exists, toPercentLabel does not, docs approved.
+# --- Commit the base: clamp.js exists, toPercentLabel is a stub, docs approved.
 cd "$CODE_ROOT"
 "$GIT" init -q
 "$GIT" config user.email "fixture@example.com"
