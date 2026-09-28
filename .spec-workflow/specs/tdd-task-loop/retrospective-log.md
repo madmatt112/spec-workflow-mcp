@@ -174,3 +174,8 @@ Cost: workaround commands on every main-checkout write for the whole run
 retrospective compiled: 16 findings across 8 categories (gotchas 3, product bug 1, tool/MCP 2, harness defects 2, inefficiencies 2, docs 1, model behaviour 1, process 1, harness-for-human 3, repeat patterns 2); analyst wrote 16 proposals (P1-P16), 2 decisions needed (P2 verifier-on-line-count, P8 supervisor-in-worktree), 2 graduation candidates (worktree projectPath=CODE_ROOT; fix lint false-positive classes at the check).
 Evidence: retrospective.md; retrospective-proposals.md; d-53b7f443
 Cost: 1 analyst spawn
+
+## 2026-09-28T18:42:31Z · closeout · store batch 1 · cleanup
+Store batch (all edits to .spec-workflow/agent-rules.md, direct on main): G1 done cbe7116 (Worktree gates bullet), G2 done 2fa1b62 (Lint false positives subsection), P4 agent-rules half done bacb12b (Documents count rule extended to code/test files; P4 template/skill half lands in the harness batch). All three gate pass risk low; store class, no verifier.
+Evidence: commits bacb12b cbe7116 2fa1b62 on main
+Cost: 1 implementer spawn, 0 verifier (store low-risk)

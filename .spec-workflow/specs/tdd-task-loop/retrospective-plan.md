@@ -74,3 +74,10 @@ Spec-store-only items commit directly.
   `OPTIONAL_BRIEF_KEYS`); the live run used an un-rebuilt server.
 - P7, P10, P12, P15: covered by P1, P5, P4 and P9 respectively.
 - P13, P14, P16: working as designed; nothing to change.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- G1: done — cbe7116
+- G2: done — 2fa1b62
