@@ -584,6 +584,11 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 16/17 |
-| Last code commit | 4fd7174 (task 16) |
-| Next task | task 17 |
+| State | implemented, 17/17 tasks, on 2026-09-28 |
+| Branch | feat/tdd-task-loop; last code commit 3c2fb76 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/72 |
+| Coverage | logCoverage 17/17, reviewCoverage 15/17 (16, 17 skipped-by-policy) (task 16 verifier-skipped by policy: verification-only) |
+| Deferrals added | 1 (d-53b7f443, spec-lint identifier skip-regex gap); 16 deferred total |
+| Deferred verification | verification-evidence.md — live criteria 9.1, 9.3, 9.5 pending an operator pre-merge session (rebuilt server, dev-link, restart, Jev key in ignored .mcp.json) |
+| Gotchas | review-task gate/prepare run against the default root = main checkout on another branch; always pass root=CODE_ROOT (and commit=<sha> to scope) or the checks/diff read the wrong tree (task 6). Verifier INFO task 7: proveRedGreen 'never throws' not airtight (fs.mkdtemp/mkdir/writeFile outside try). Verifier INFO task 9: readRequirementCriteria matches only N.M ids, not bare N (shadow-only, fail-open, unreachable this spec). |
+| Most worth next | resolve d-53b7f443 (lint skip-regex gap surfaces on every tasks-phase spec); run the operator pre-merge session to clear verification-evidence.md (9.1/9.3/9.5); the retro decides whether an assertion-red/green/unamended task may skip the verifier. |

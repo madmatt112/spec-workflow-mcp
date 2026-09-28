@@ -139,3 +139,13 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Verification-only task (no CODE_ROOT paths), no gate/verifier per policy; fixture kit dry-run 11/11 green on built server; verification-evidence.md carries 3 pending live lines (9.1, 9.3, 9.5) for operator. reviewCoverage will read below total for this task by policy.
 Evidence: task 16; commit 4fd7174; dry-run 11/11 green
 Cost: 1 implementer spawn, 0 gate, 0 fix rounds
+
+## 2026-09-28T17:11:57Z · implementation · task 17 · bug
+End-to-end npm test caught a regression: task 13 added sdd-test-author (13th profile) but the count assertion src/watch/__tests__/ledger.test.ts:103 toHaveLength(12) was outside task 13's grep list and never updated, so npm test failed 1/1596. Fixed inline as an e2e-gate fix.
+Evidence: task 17 e2e; task 13 commit 7512a66; ledger.test.ts:103
+Cost: 1 verifier + 1 fix implementer spawn
+
+## 2026-09-28T17:15:53Z · implementation · phase · cleanup
+17/17 tasks implemented; 2 verifier reviews (tasks 7, 9 high-risk line-count/sensitive-path), 13 gate-path completions, 0 adjudications; 1 gate fix round (task 6, gate ran in wrong tree — root fix), 1 e2e fix round (task 13 count miss). 1 deferral added (d-53b7f443). Live verification 9.1/9.3/9.5 pending via verification-evidence.md.
+Evidence: PR #72; logCoverage 17/17; reviewCoverage 15/17 (16,17 verification-only)
+Cost: 17 implementer + 3 verifier + 2 fix spawns; ~19 gate calls
