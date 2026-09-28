@@ -21,3 +21,7 @@
 5. **Posture** — Top-level money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?
    - options: n/a — the spec touches no money, personal data, or legal surface | Treat the TypeSafe data egress as a compliance surface and hold it for a DPA review
    - answer: n/a (options[0])
+
+## Gate B
+
+Approved by Matthew on 2026-09-28 (block mode, no annotation). Class-a veto items left unannotated: 9, 17.

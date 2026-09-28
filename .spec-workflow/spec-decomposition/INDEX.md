@@ -6,8 +6,9 @@
 
 ## Next
 
-- **State:** all-on-disk-complete
-- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
+- **State:** active
+- **Spec:** tdd-task-loop
+- **Why:** First not-Complete spec in build order (0/17).
 
 ## Active
 
@@ -23,7 +24,8 @@
 | 8 | provider-per-role | Complete | 10/10 |
 | 9 | agent-cache-ttl | Complete | 9/9 |
 | 10 | graph-orientation | Complete | 10/10 |
-| 11 | tighter-reviews | Complete | 29/29 |
+| 11 | tdd-task-loop | Implementing | 0/17 |
+| 12 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
