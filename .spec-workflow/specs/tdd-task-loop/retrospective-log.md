@@ -64,3 +64,8 @@ Cost: 1 reviewer + 0 reviser spawns
 Gate against pre-implement HEAD picked up all uncommitted spec-store/working-tree noise (38 files); re-gated with commit=<implementer sha> to scope to the single commit. Use commit= per task.
 Evidence: task 1; commit 711c546; gate reviewId 81418a81
 Cost: 1 implementer spawn, 2 gate calls, 0 fix rounds
+
+## 2026-09-28T14:55:45Z · implementation · task 2 · gotcha
+Clean gate-path pass, no fix rounds.
+Evidence: task 2; commit 5035827; gate reviewId e5ad926c
+Cost: 1 implementer spawn, 1 gate call, 0 fix rounds

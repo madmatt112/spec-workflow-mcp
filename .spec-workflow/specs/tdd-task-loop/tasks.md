@@ -13,7 +13,7 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
   - _Requirements: 1.4, 4.7, 4.8, 4.12_
   - _Prompt: Task: In src/core/gate-rules.ts export the private path normaliser (src/core/gate-rules.ts:68-70) with its body unchanged; it becomes the one path form for Test-line paths and gate test files (carried design item R2-1). Move `isDocPath` from src/tools/review-gate.ts:97-106 into src/core/gate-rules.ts as an export with an identical body, and import it back into the gate so its call (src/tools/review-gate.ts:326) is unchanged. Add the agent-rules key reader of design Component 7: the first line that starts with the key and a colon; a value that opens with a backtick gives the first backtick span, else the trimmed rest; an empty value gives `null`. Extend src/core/__tests__/gate-rules.test.ts: the key reader on the backtick form (the `worktree-setup` line shape, .spec-workflow/agent-rules.md:6), the plain form, an absent key and an empty value; `isDocPath` for `docs/x.ts`, `a.md` and `src/a.ts`; the normaliser for a `./` prefix and backslashes | Restrictions: The rules module stays pure with type-only imports; no rule body changes; no existing assertion in src/core/__tests__/gate-rules.test.ts or src/tools/__tests__/review-gate.test.ts changes value | Success: `npx tsc --noEmit`; `npx vitest run src/core/__tests__/gate-rules.test.ts src/tools/__tests__/review-gate.test.ts` green_
 
-- [ ] 2. Test line parse in the task parser
+- [x] 2. Test line parse in the task parser
   - File: src/core/task-parser.ts
   - File: src/core/__tests__/task-parser-tests.test.ts
   - Add the Test-line pattern, its parse function, the test type and the optional `tests` field.
