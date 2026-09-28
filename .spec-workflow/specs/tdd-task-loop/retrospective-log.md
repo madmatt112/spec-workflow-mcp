@@ -104,3 +104,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
 Sensitive-path high risk, verifier confirmed all 9 critical items (schema-only review-task.ts, no rule-body change, sidecar before review, vacuous-base fail). Verifier INFO: readRequirementCriteria (review-gate.ts:139) matches only N.M ids not bare N; shadow-only, fail-open, unreachable this spec.
 Evidence: task 9; commit c1f2dc4; verifier reviewId 6e86d005 VERDICT pass
 Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T16:18:42Z · implementation · task 10 · gotcha
+Clean gate-path pass, no fix rounds.
+Evidence: task 10; commit f2e332f; gate reviewId 036db598
+Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
