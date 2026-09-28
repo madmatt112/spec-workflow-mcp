@@ -94,3 +94,8 @@ Cost: 1 implementer + 1 fix spawn, 3 gate calls
 High risk on line-count only (289>200), verifier passed. Verifier INFO: proveRedGreen 'never throws' not airtight (fs.mkdtemp/mkdir/writeFile outside try can propagate on raw infra fault); task 9 gate caller should guard the call.
 Evidence: task 7; commit fedb70f; verifier VERDICT pass
 Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T15:51:32Z · implementation · task 8 · gotcha
+Verifier confirmed Jev wire vs @typesafe-ai/sdk v0.6.0. Note: review-task prepare runs against the main checkout (projectPath), so its diff is empty on a worktree branch; verifier read worktree files directly. Same root cause as the gate root issue.
+Evidence: task 8; commit 555f8d9; verifier VERDICT pass
+Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
