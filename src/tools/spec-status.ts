@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { ToolContext, ToolResponse } from '../types.js';
+import { ToolContext, ToolResponse, TddCoverage, BaseOutcome } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { SpecParser } from '../core/parser.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
@@ -153,6 +153,7 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
     // Check implementation log and review coverage for completed tasks
     let reviewCoverage: { reviewed: number; unreviewed: string[] } | undefined;
     let logCoverage: { logged: number; unlogged: string[] } | undefined;
+    let tddCoverage: TddCoverage | undefined;
     if (spec.taskProgress && spec.taskProgress.completed > 0) {
       try {
         const specPath = PathUtils.getSpecPath(translatedPath, specName);
@@ -181,16 +182,35 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
         const unreviewed: string[] = [];
         let reviewed = 0;
 
+        // TDD coverage: count each completed task whose latest review carries a
+        // `tdd` block, split by base outcome (all four keys present).
+        const tddBase: Record<BaseOutcome, number> = {
+          'assertion-red': 0,
+          'structural-red': 0,
+          'vacuous': 0,
+          'inconclusive': 0,
+        };
+        let tddTasks = 0;
+        let tddAmended = 0;
+
         for (const task of completedTasks) {
           const latest = await reviewManager.getLatestReview(task.id);
           if (latest) {
             reviewed++;
+            if (latest.tdd) {
+              tddTasks++;
+              tddBase[latest.tdd.base]++;
+              if (latest.tdd.amended) tddAmended++;
+            }
           } else {
             unreviewed.push(task.id);
           }
         }
 
         reviewCoverage = { reviewed, unreviewed };
+        if (tddTasks > 0) {
+          tddCoverage = { tasks: tddTasks, base: tddBase, amended: tddAmended };
+        }
       } catch {
         // Coverage checks are best-effort
       }
@@ -221,7 +241,8 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
           pending: 0
         },
         logCoverage,
-        reviewCoverage
+        reviewCoverage,
+        ...(tddCoverage ? { tddCoverage } : {})
       },
       nextSteps,
       projectContext: {
