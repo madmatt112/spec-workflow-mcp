@@ -57,7 +57,10 @@ guarantee, and the design says which.
 ## Documents
 
 - A task that edits a list, or text that states a count or a length, gives the command
-  that finds every member (`grep -n …`) and says to update the count word.
+  that finds every member (`grep -n …`) and says to update the count word. This also
+  covers counts and length assertions stated in code and test files: for each
+  count-changing task the tasks-phase decomposition names the grep that finds every
+  dependent count/length assertion.
 
 ## Run ledger
 
