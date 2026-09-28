@@ -1,62 +1,70 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-09-28 (round 1, v1)
+Last updated: 2026-09-28 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — first round)
+- **R1-1 (MUST_FIX, v1)** — AC 2.9 ledger-field contradiction. v2 resolved: Intro + scope note
+  state the file case adds two `run.start` provenance keys (`overrides`, `setup`), authorized by
+  decomposition:665-667/711; D14's false "boundary notes forbid a new ledger field" clause deleted.
+- **R1-2 (SHOULD_FIX, v1)** — websocket wire contract. v2 added AC 4.8/4.9/5.10 (subscribe types,
+  per-payload push types, watcher lifecycle keyed on subscriber count). Substance accepted; see
+  R2-2/R2-3 for residue.
+- **R1-3 (SHOULD_FIX, v1)** — deepseek worker override path. v2 split AC 2.4 by provider and made
+  AC 2.6 merge a deepseek role's model. Verified against sdd-document-phase/SKILL.md:24-34 and
+  sdd-providers.sh:72-74 — accurate.
+- **R1-4 (SHOULD_FIX, v1)** — provider-conditional model validation. v2 rewrote AC 1.6. Accurate
+  against sdd-providers.sh:28-29.
+- **R1-5 (SHOULD_FIX, v1)** — read-only spec listing without INDEX.md write. v2 rewrote AC 1.1.
+  Substance survives; lint later trimmed the "this is new work" clarification (see R2 minor).
 
 ### Partially Accepted
-- (none yet)
+- (none)
 
 ### Rejected
-- (none yet)
+- **v1 minors** — AC 5.3/D7 "waiting" imprecision (self-correcting); launch flag list; log/
+  launch-record paths. Rejected in v2 Revision History as design-phase / non-blocking. Do not
+  re-raise without new evidence.
 
-### Unresolved
-- **R1-1 (MUST_FIX)** — AC 2.9 adds `overrides` and `setup=harness-run` keys to the
-  `run.start` ledger row, contradicting decomposition.md:754 ("Spec 9 ... adds no ledger
-  field") and the document's own D14 ("the boundary notes forbid a new ledger field").
-  Keys confirmed absent from code today.
-- **R1-2 (SHOULD_FIX, wire contract)** — Overview cross-project stream (Req 5) and the
-  Harness-watcher lifecycle (AC 4.7, 5.9) rely on a websocket contract the existing `/ws`
-  lacks: one `connection.projectId` per socket (multi-server.ts:210,266-267), broadcasts
-  per-project or all only. No subscribe message for "all projects," no way to distinguish a
-  Harness subscriber from a Specs subscriber on the same projectId, no message types for
-  run-model/log/todos/overview payloads.
-- **R1-3 (SHOULD_FIX, wire contract)** — AC 2.4 ("Agent-tool spawn ... `model` parameter")
-  ignores DeepSeek workers, which run via `bash <LAUNCHER>` (sdd-document-phase/SKILL.md:24-34),
-  not the Agent tool. No AC defines how a DeepSeek role's overridden model reaches the worker.
-- **R1-4 (SHOULD_FIX)** — AC 1.6 (model must be `claude-` id or listed alias) collides with
-  AC 1.8 (deepseek role requires deepseek-v4-pro/deepseek-flash). Validation is not stated as
-  provider-conditional; literal AC 1.6 rejects the models AC 1.8 mandates.
-- **R1-5 (SHOULD_FIX)** — AC 1.1 sources spec order from IndexGenerator.generate()
-  (index-generator.ts:44-82), which writes INDEX.md (:72) and mkdirs (:70); AC 1.2 forbids the
-  page from writing. Order logic (categorize/render/deriveSpecStatus) is private, only reachable
-  via generate(); no read-only API.
-- **Minor** — AC 5.3/D7 "waiting" is transiently wrong for record-mode pane runs; AC 3.1/3.2
-  launch flag list under-specified (`--permission-mode auto` vs `--dangerously-skip-permissions`,
-  no `--effort` in runAgent); AC 3.4 log/launch-record paths unnamed.
+### Unresolved (found in v2, awaiting disposition)
+- **R2-1 (MUST_FIX, fix-induced, Compounds R1-1)** — scope-note citation
+  `decomposition.md:753-754` is the wrong range: 753 is an unrelated note (execution-context
+  disclosure, spec 2), and the quoted phrase "it adds no ledger field" spans 754-755. Correct:
+  `754-755`. Introduced by the lint pass (was `:754`).
+- **R2-2 (SHOULD_FIX, fix-induced, Compounds R1-2)** — lint trim removed "distinct from `initial`
+  and `projects-update`" from AC 4.9 (now the ambiguous "distinct from the AC 4.8 messages") and
+  from AC 5.10 entirely; AC 5.10 also lost its "(overview rows, todos list)" enumeration.
+- **R2-3 (SHOULD_FIX, fix-induced, Compounds R1-2)** — AC 4.9 pushes "only harness subscribers via
+  the existing `broadcastToProject`," but that helper filters on `projectId` only (multi-server.ts:
+  2143); it cannot restrict to harness subscribers, contradicting AC 4.8/4.7's subscriber-type
+  distinction.
+- **R2 minors** — AC 1.1 lint drop of the R1-5 "read-only function is real work" clarification;
+  Intro dropped explicit `overrides`/`setup` names (AC 2.9 keeps them); AC 2.4/2.6 model-only
+  deepseek trigger wording (benign under "file records a provider entry").
 
 ## Patterns & Themes
-- **Ledger-immutability promise vs. new provenance keys.** The document repeatedly asserts it
-  changes nothing in the ledger (Intro, D14, Req 6) yet AC 2.9 adds run.start keys. Watch every
-  future round for the same "no change" claim quietly violated.
-- **"Over the existing websocket" hides new contract work.** The single-projectId socket does
-  not fit the Overview page or per-page watcher lifecycle. Any design that keeps claiming pure
-  reuse should be probed for the missing subscribe/message types.
-- **Provider (DeepSeek) coupling under-modeled.** Model validation, model delivery, and the
-  provider map interact; the ACs treat model and provider as independent. Re-check in design.
-- Citations are accurate this round — no misstated artifacts. Spot-check remained worthwhile
-  (generate() write side-effect, DeepSeek launcher path were the load-bearing surprises).
+- **A lint pass is not content-neutral.** This round's only MUST_FIX and one SHOULD_FIX were
+  introduced by the "13 fixed; rejected: none" lint pass — a wrong citation range and weakened
+  wire-contract ACs. Always diff the lint delta against the accepted-round text, not just the code.
+- **Citations that quote a phrase must contain the whole phrase.** The 753-754 error hides a
+  quoted string that ends on the next line and pulls in an unrelated note. Machine citation-range
+  lint passed it; the meaning check caught it. Keep re-reading both ends.
+- **R1-2 wire contract half-closed.** The fix distinguishes harness vs specs subscribers for the
+  *watcher lifecycle* (AC 4.7/4.8) but the *push* path (AC 4.9) still uses projectId-only
+  broadcastToProject and the demux type constraint was later lint-trimmed. The transport story is
+  the recurring soft spot.
+- **Ledger-immutability promise vs provenance keys** (from v1) is now reconciled in substance;
+  only the citation to the governing boundary note is wrong (R2-1).
 
 ## Guidance for Next Review
-- First confirm R1-1 is resolved: either the boundary reading is amended (state provenance keys
-  are in scope) or override provenance moved off run.start. If unresolved, it stays MUST_FIX.
-- For design phase, apply the wire-contract lens again to the actual message schemas: verify the
-  Overview subscribe path, the harness watcher start/stop keying, and the run-model/log payload
-  shapes are named and consistent with multi-server.ts broadcast helpers.
-- Re-probe the DeepSeek override path (R1-3) and provider-conditional validation (R1-4) — these
-  are the most likely to be papered over rather than fixed.
-- The overwatch-hud.json todos schema was verified live this round (id/title/owner/blocks/note/
-  since/done/priority present); no need to re-verify unless D1 changes.
+- First confirm R2-1 is fixed (cite `754-755`), R2-2 restored the demux-distinctness constraint and
+  AC 5.10 enumeration, and R2-3 named a real harness-only push mechanism (or dropped "only").
+- Code citations are all accurate at both ends as of v2 — index-generator :70-72, sdd-providers.sh
+  :28-29/:72-74, sdd-document-phase/SKILL.md :24-34, sdd-continue/SKILL.md :85-96/:226-228/
+  :336-345/:488-500, SDD-HARNESS.md :244-248, adversarial-runner.ts :156-220, watch/index.ts
+  :101-104, ledger.ts :243-457, multi-server.ts :205-294/:1965-1989/:2139-2151. No need to
+  re-verify these unless the next delta touches them.
+- The only decomposition citation still worth re-checking each round is the boundary-note range
+  (currently wrong) and the 665-667/711 authority (currently correct).
+- Do not re-open the accepted R1-1…R1-5 substance or the rejected v1 minors.

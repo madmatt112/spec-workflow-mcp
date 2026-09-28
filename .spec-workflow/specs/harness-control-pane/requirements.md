@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project; the Overview page shows every registered project's harness work and the operator to-do list on one screen. It replaces launching runs by hand with `continue the sdd process` or `claude -p` and watching them in the `--watch` TUI, and changes the supervisor skill to honour a per-run setup file. The only ledger change is two provenance keys on the `run.start` row of a run that applied the file (decomposition entry, spec-decomposition/decomposition.md:665-667); every other key and the TUI renderer are unchanged, and a run with no file writes the same `run.start`.
+This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project; the Overview page shows every registered project's harness work and the operator to-do list on one screen. It replaces launching runs by hand and watching them in the `--watch` TUI, and changes the supervisor skill to honour a per-run setup file. The only ledger change is two provenance keys on the `run.start` row of a run that applied the file (decomposition entry, spec-decomposition/decomposition.md:665-667); every other key and the TUI renderer are unchanged.
 
 ## Alignment with Product Vision
 
@@ -81,7 +81,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 6. WHEN a spawn has no tokens or the build has no agent profiles THEN the page SHALL render the row without them.
 7. WHEN no Harness page of a project is open THEN the system SHALL NOT keep a harness watcher running for that project (keyed on the harness-subscriber count of AC 4.8, not `connection.projectId`).
 8. WHEN a Harness page opens for a project THEN it SHALL send a subscribe message whose `type` names the harness view, distinct from the Specs page's `subscribe`, so the server can tell the two apart on one `projectId` — the existing socket binds each connection to a single `connection.projectId` and knows only the `subscribe`, `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294) — and SHALL key the AC 4.7 watcher lifecycle on the harness-subscriber count for that project.
-9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from the AC 4.8 messages: one for the run model, one for a batch of new log lines, one for the gate sections; the run-model and gate pushes SHALL reach only that project's harness subscribers via the existing `broadcastToProject` (src/dashboard/multi-server.ts:2139-2151).
+9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from `initial` and `projects-update`: one for the run model, one for a batch of new log lines, one for the gate sections; the run-model and gate pushes SHALL reach only that project's harness subscribers, keyed on the AC 4.8 subscription state, not the existing `broadcastToProject`, which filters on `projectId` alone (src/dashboard/multi-server.ts:2139-2151).
 
 ### Requirement 5 — Overview page
 
@@ -98,7 +98,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 7. IF the HUD file is missing, unreadable or has no `todos` array THEN the system SHALL show an empty list and no error.
 8. WHEN the Overview page is open THEN it SHALL offer no control that edits the HUD file, launches a run or stops a run.
 9. WHEN the Overview page is open THEN the system SHALL watch each registered project's pointer-named ledger and the HUD file with one watcher set shared by all Overview clients, and SHALL close it when the last Overview client leaves.
-10. WHEN the Overview page opens THEN it SHALL send a subscribe message whose `type` names the overview view (all projects), which the single-`projectId` socket of AC 4.8 has no equivalent for; the server SHALL key the AC 5.9 shared watcher set on the overview-subscriber count and push overview rows and the todos list only to them, each with a distinct type field.
+10. WHEN the Overview page opens THEN it SHALL send a subscribe message whose `type` names the overview view (all projects), which the single-`projectId` socket of AC 4.8 has no equivalent for; the server SHALL key the AC 5.9 shared watcher set on the overview-subscriber count and push overview rows and the todos list only to them, each with a type field distinct from `initial` and `projects-update`.
 
 ### Requirement 6 — Compatibility and checks
 
@@ -150,7 +150,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 - Effort per role stays read-only (decomposition).
 - The Overview page does not read the HUD operations array (D1); a later spec may add it.
 - D2 replaces the decomposition's "existing interrupt handling" for run end; no such handling exists for a signalled process.
-- The two `run.start` provenance keys of AC 2.9 are the spec-9 deliverable that "records the overrides on `run.start`" (decomposition entry, spec-decomposition/decomposition.md:665-667, 711). The boundary note "it adds no ledger field" (spec-decomposition/decomposition.md:753-754) scopes per-spawn usage to spec 8, not this: spec 9 adds no per-spawn field and no `RunModel` field, and only the file case changes `run.start` (AC 2.11).
+- The two `run.start` provenance keys of AC 2.9 are the spec-9 deliverable that "records the overrides on `run.start`" (decomposition entry, spec-decomposition/decomposition.md:665-667, 711). The boundary note "it adds no ledger field" (spec-decomposition/decomposition.md:754-755) scopes per-spawn usage to spec 8, not this: spec 9 adds no per-spawn field and no `RunModel` field, and only the file case changes `run.start` (AC 2.11).
 
 ## Revision History
 
@@ -163,3 +163,11 @@ The spec store has no steering documents, so this aligns with the decomposition 
   - R1-5 (accepted) — AC 1.1 now reuses the read-only ordering/routing logic without the generator's INDEX.md write.
   - Minors (rejected) — the waiting-state imprecision is self-correcting; the launch flag list and the log/launch-record paths are design-phase details the analysis marks non-blocking.
   - **Lint pass.** 13 fixed; rejected: none.
+- **v3** (2026-09-28) — Round-2 adversarial review dispositions:
+  - R2-1 (accepted) — Corrected the scope-note citation from `decomposition.md:753-754` to `754-755`, the range that carries the quoted phrase "it adds no ledger field" (753 is an unrelated spec-2 note); this is the authority the R1-1 ledger-scope reconciliation rests on.
+  - R2-2 (partially accepted) — Restored the load-bearing demux constraint "distinct from `initial` and `projects-update`" in AC 4.9 and AC 5.10; the per-payload source-AC cross-refs stay dropped to hold the 3,500-word cap, since AC 5.10 already enumerates its two types.
+  - R2-3 (accepted) — AC 4.9 now keys the run-model and gate pushes on the AC 4.8 subscription state, not the existing `broadcastToProject`, which filters on `projectId` alone and cannot restrict to harness subscribers.
+  - Minor 1 — AC 1.1 R1-5 wording (rejected) — the surviving "reuse … through a read-only function, and SHALL NOT call the generator's INDEX.md write path" still states the requirement; analysis rates it non-blocking.
+  - Minor 2 — Introduction key names (rejected) — AC 2.9 still names both `overrides` and `setup`; no content lost.
+  - Minor 3 — AC 2.4 vs 2.6 trigger wording (rejected) — covered because AC 1.11 writes a provider entry per non-omitted role, so a deepseek role always carries `provider=deepseek`.
+  - Body trimmed elsewhere (Introduction) to offset the restored content, holding the 3,500-word cap.
