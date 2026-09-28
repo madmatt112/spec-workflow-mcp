@@ -1,10 +1,10 @@
 # Design Document — harness-control-pane
 
-Document version: v2
+Document version: v3
 
 ## Overview
 
-The dashboard gains a Harness page (set up, launch, stop and watch one run of one project) and an Overview page (all projects plus the operator to-do list). The supervisor applies `.spec-workflow/harness-run.json` through a new reference script, and the phase skills pass worker model overrides. The live view reuses `buildModel` (src/watch/ledger.ts:243-457) and the TUI watch options (src/watch/index.ts:101-104) unchanged; the spec list reuses the INDEX logic through a read-only `IndexGenerator.snapshot()`.
+The dashboard gains a Harness page (set up, launch, stop and watch one run of a project) and an Overview page (all projects plus the operator to-do list). The supervisor applies `.spec-workflow/harness-run.json` through a new reference script, and the phase skills pass worker model overrides. The live view reuses `buildModel` (src/watch/ledger.ts:243-457) and the TUI watch options (src/watch/index.ts:101-104) unchanged; the spec list reuses the INDEX logic through a read-only `IndexGenerator.snapshot()`.
 
 ## Steering Document Alignment
 
@@ -19,7 +19,7 @@ N/A: the pages reuse the CSS variables and Tailwind classes of src/dashboard_fro
 
 ## Architecture
 
-A hub owns the per-project harness watchers, one shared overview watcher set, and the launcher. The websocket handler (src/dashboard/multi-server.ts:263-293) learns four view messages; after every subscription change or connection removal the hub recounts subscribers from the client set and starts or closes watchers to match. Launch and stop are Fastify routes under the global security, rate-limit and audit hooks (src/dashboard/multi-server.ts:184-192). The child runs detached, logging to a file.
+A hub owns the per-project harness watchers, one shared overview watcher set, and the launcher. The websocket handler (src/dashboard/multi-server.ts:263-293) learns four view messages; after every subscription change or connection removal the hub reconciles watchers to the client set (C7). Launch and stop are Fastify routes under the global security, rate-limit and audit hooks (src/dashboard/multi-server.ts:184-192).
 
 ```mermaid
 graph LR
@@ -81,10 +81,10 @@ graph LR
   class LaunchError extends Error { step: 'worktree' | 'worktree-setup' | 'spawn'; detail: string }
   ```
   Defaults: `cli` `claude`, `stopGraceMs` 10000 (Req 3 AC 9), `pollMs` 1000, `setupTimeoutMs` 900000.
-- **Admission** (Req 3 AC 7-8): refuse when a launch is in progress for the project, when a pointer line's resolved spec dir starts with `<projectPath>/.spec-workflow/specs/` (return its run id), or when the project's record is `running` or `stopping` and alive.
+- **Admission** (Req 3 AC 7-8), an advisory route pre-check: refuse when a pointer line's resolved spec dir starts with `<projectPath>/.spec-workflow/specs/` (return its run id), or when the project's record is `running` or `stopping` and alive. The atomic in-flight guard is `launch()` step 1.
 - **Launch:**
-  1. Mark the project in-flight.
-  2. Worktree when `file.worktree` is `yes` (Req 3 AC 3): `execFile('git', …)` with `cwd` `project.workspacePath`. Reuse the `git worktree list --porcelain` entry on `refs/heads/feat/<spec>`; else `git worktree add <checkout>/.claude/worktrees/<spec> feat/<spec>` when the branch exists, else with `-b feat/<spec>`. That path is where EnterWorktree puts worktrees in this checkout.
+  1. Check-and-set the in-flight flag synchronously, before any await, so two concurrent `launch()` calls cannot both pass.
+  2. Worktree when `file.worktree` is `yes` (Req 3 AC 3): `execFile('git', …)` with `cwd` `project.workspacePath`. Reuse the `git worktree list --porcelain` entry on `refs/heads/feat/<spec>`; else `git worktree add <checkout>/.claude/worktrees/<spec> feat/<spec>` when the branch exists, else with `-b feat/<spec>` (the EnterWorktree location, D6).
   3. When `<git dir>/sdd-setup-done` is absent (`git rev-parse --absolute-git-dir` in the worktree), run `worktreeSetup` with `bash -c` (the agent-rules command, never form text) and `setupTimeoutMs`; write the marker on success. An unmarked worktree is never used before its setup completes (Req 3 AC 14).
   4. Open the log with `fs.openSync(path, 'a')` and spawn `cli` with `['-p', 'continue the sdd process', '--model', file.supervisorModel, '--effort', 'high', '--permission-mode', 'auto']` (docs/SDD-HARNESS.md:247), `cwd` the checkout or worktree, `detached: true`, `stdio: ['ignore', fd, fd]`, env `{ ...scrubbedGitEnv(), SPEC_WORKFLOW_WORKSPACE: cwd, SPEC_WORKFLOW_SHARED_ROOT: project.projectPath }` (src/core/git-utils.ts:5-6, 45-51). On the `spawn` event, `unref()` and write the record with `pgid` = `pid`.
   5. Any failure throws `LaunchError`, calls `deleteRunFileIf`, removes the empty log and writes no record.
@@ -104,7 +104,7 @@ graph LR
 ### C5 — Project harness watch (`project-watch.ts`)
 - **Purpose:** Run model, gates and log for one project's harness subscribers (Req 4).
 - **Interfaces:** `class ProjectHarnessWatch { constructor(project, launcher, send, opts?: { debounceMs?: number }); start(); close(); snapshot(): HarnessMessage[] }`; `parseHandoffRouting(md)` (spec via src/watch/ledger.ts:219-223, then the `Live phase`, `state`, `last result` fields of harness/skills/sdd-continue/references/formats.md:75-76); `parseGateSections(md)` (raw text under `## Gate A` and `## Gate B`).
-- **Behaviour:** The spec is `resolveSpec` (src/watch/index.ts:42-59) on `<projectPath>/.spec-workflow`, `null` when it throws. It watches the four files and options of src/watch/index.ts:101-104, plus `questions.md` and the launch log. A change schedules one rebuild after `debounceMs` (default 300, as src/dashboard/multi-server.ts:91). The rebuild reads as `renderOnce` does (src/watch/index.ts:61-71), calls `buildModel`, and sends `harness-model` and `harness-gates`; a HANDOFF naming another spec re-targets the watcher; new complete log lines, read from a byte offset, go out as one `harness-log`. On a `launch-update` the watch re-derives `logPath` from `launcher.get(projectId)`, resets the byte offset to 0, re-arms the file watch on the new file and sends a `reset: true` batch; the client keys its log buffer on `launchedAt` and drops a batch whose `launchedAt` differs from the current run. `snapshot()` holds the model, gates and the last 200 log lines with `reset: true`.
+- **Behaviour:** The spec is `resolveSpec` (src/watch/index.ts:42-59) on `<projectPath>/.spec-workflow`, `null` when it throws. It watches the four files and options of src/watch/index.ts:101-104, plus `questions.md` and the launch log. A change schedules one rebuild after `debounceMs` (default 300, as src/dashboard/multi-server.ts:91). The rebuild reads as `renderOnce` does (src/watch/index.ts:61-71), calls `buildModel`, and sends `harness-model` and `harness-gates`; a HANDOFF naming another spec re-targets the watcher; new complete log lines, read from a byte offset, go out as one `harness-log`. Only a `launch-update` that changes `logPath` (a new launch) re-derives it from `launcher.get(projectId)`, resets the byte offset to 0, re-arms the file watch and sends a `reset: true` batch; a within-run stop, exit or finalise leaves `logPath` unchanged, resetting nothing. The client keys its log buffer on `launchedAt` and drops a batch whose `launchedAt` differs. `snapshot()` holds the model, gates and the last 200 log lines with `reset: true`.
 
 ### C6 — Overview watch (`overview-watch.ts`)
 - **Purpose:** One watcher set for all Overview clients (Req 5).
@@ -122,7 +122,7 @@ graph LR
   - `PUT …/harness/setup` takes `SetupInput` and returns `{ file }`, 400 `ValidationError` or 409 `{ error: 'not-launchable', reason }`.
   - `POST …/harness/launch` takes `SetupInput`, forces `gates: 'record'`, then validates, admits, writes and launches. It returns `{ launch }`, 400, 409 `{ error: 'run-live', runId, reason }` or 500 `{ error, step, detail }`.
   - `POST …/harness/stop` returns `{ launch }`, or 404 when nothing is running or stopping.
-- `start()` awaits `launcher.restore()` before `listen`; `stop()` closes the hub watches and kills no run. A `launch-update` rebuilds that project's `harness-model`, re-points its log watch (C5) and refreshes the overview.
+- `start()` awaits `launcher.restore()` before `listen`; `stop()` closes the hub watches and kills no run. A `launch-update` rebuilds that project's `harness-model`, re-points its log watch only when `logPath` changes (C5) and refreshes the overview.
 
 ### C8 — Frontend
 - **WebSocketProvider** (src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx): the context gains `watchView(view): () => void`. The provider sends the subscribe message when a view gains its first user and on every `onopen`, and the unsubscribe when it loses its last. `onmessage` (lines 88-113) routes `overview-*` like `projects-update`; `harness-*` carries `projectId`.
@@ -156,7 +156,7 @@ graph LR
 - **Phase skills:** the spawn rules of harness/skills/sdd-document-phase/SKILL.md:24-34, harness/skills/sdd-implementation-phase/SKILL.md:26-28, harness/skills/sdd-closeout-phase/SKILL.md:28-29 and harness/skills/sdd-retrospective/SKILL.md:17-18 gain "When `MODEL_OVERRIDES` names the worker, pass that value as the Agent tool's `model` parameter." A deepseek worker gets its model from `PROVIDERS` through the launcher (harness/skills/sdd-continue/references/formats.md:236), never as a parameter (Req 2 AC 4).
 
 ### C10 — Docs
-`docs/SDD-HARNESS.md` gains a "Dashboard control pane" section after docs/SDD-HARNESS.md:244-251: the pages, the setup file, what Launch forces, where logs and records live, and what Stop writes.
+`docs/SDD-HARNESS.md` gains a "Dashboard control pane" section after docs/SDD-HARNESS.md:244-251 covering the pages, the setup file, Launch, logs, records and Stop.
 
 ## Data Models
 
@@ -307,3 +307,7 @@ Tests assert only on node 20 documented fields (.spec-workflow/agent-rules.md:31
   - **R1-4 — Accepted (MINOR).** C7 now sends the snapshot from the subscribe handler to the subscribing socket alone; reconcile only starts and stops watches.
   - **R1-5 — Accepted (MINOR).** C3 buildSetupView prose now names its remaining SetupView fields; C6 annotates OverviewWatch.snapshot() as emitting both overview rows and todos.
   - **R1-6 — Partially accepted (MINOR).** Error Handling #3 now records that the form does not pre-validate the supervisor floor; a below-floor model is caught as a child refusal, not adding a second validation site.
+- **v3** (2026-09-28) — Round-2 adversarial response (adversarial-analysis-design-r2.md, verdict iterate 0/2/1) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** The launcher now check-and-sets the in-flight flag synchronously before any await, so two concurrent launches cannot both pass; the launch-step-1 line reads that this holds even against a double-submit. Admission is reframed as an advisory route pre-check whose text now names launch step 1 as the atomic in-flight guard, so both ends of the seam are edited and no longer claim admission enforces the single-run invariant.
+  - **R2-2 — Accepted (SHOULD_FIX, compounds R1-1).** The consumer line now re-derives the path, resets the offset, re-arms the watch and sends a reset only on a launch-update that changes the log path (a new launch); a within-run stop, exit or finalise leaves the path unchanged and resets nothing. The producer note in the hub now re-points the log watch only when the log path changes, so a within-run emit no longer re-reads the unpruned log. Offsetting trims (the architecture reconcile sentence, the worktree-location note, the docs enumeration and the overview) kept the body at the cap.
+  - **R2-3 — Rejected (MINOR).** word cap.

@@ -23,3 +23,8 @@ Cost: 3 reviewer + 1 checker + 3 reviser spawns
 design R1: iterate 0/3/3; all 4 RE-DECIDED flags ruled refinement (closed) by reviewer on own authority; 3 SHOULD_FIX (launch-log lifecycle re-point/offset/reset unspecified; sdd-providers.sh merge bypasses early returns/inline checks; Testing Strategy omits harness plugin-sync + validate checks)
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design.md
 Cost: 1 reviewer spawn
+
+## 2026-09-28T22:27:54Z · design · v2 · gotcha
+design R2 (fresh lens failure/concurrency): iterate 0/2/1; R2-1 launch admission not atomic with in-flight mark (double-spawn race), R2-2 log re-point fires on every launch-update not only new launch (reset storm, compounds R1-1); R2-3 minor spawn-to-record crash window. Routes to SHOULD_FIX-only pass (D=2).
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn

@@ -1,58 +1,66 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-09-28 (Round 1)
+Last updated: 2026-09-28 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1 dispositions pending revision)
+- **R1-1 (SHOULD_FIX, v1)** — log watch re-points on a new launch (re-derive path, reset
+  offset, reset batch, client keys on `launchedAt`). Accepted in v2; but the v2 fix
+  over-triggered — see R2-2 below.
+- **R1-2 (SHOULD_FIX, v1)** — sdd-providers.sh merge validates the union in one post-merge
+  pass, drops the `none()` short-circuits with a RUN_FILE. Accepted; verified correct in v2
+  (lines 35/41/54-64/66 all resolve).
+- **R1-3 (SHOULD_FIX, v1)** — Testing Strategy now lists the harness/ plugin-sync + assets
+  check + strict validate. Accepted.
+- **R1-4 (MINOR, v1)** — subscribe handler (not reconcile) sends snapshot to the one socket.
+  Accepted.
+- **R1-5 (MINOR, v1)** — buildSetupView/OverviewWatch.snapshot() prose completed. Accepted.
 
 ### Partially Accepted
-- (none yet)
+- **R1-6 (MINOR, v1)** — supervisor Opus-5.5/Fable-5.1 floor not pre-validated; recorded as a
+  child-refusal-only path in Error Handling #3 rather than adding a second validation site.
 
 ### Rejected
-- (none yet)
+- (none through v2)
 
-### Unresolved (this round — R1)
-- **R1-1 (SHOULD_FIX)** — harness-log producer has no launch re-point / byte-offset reset on
-  a new launch; `launchedAt`/`reset` consumer behaviour unspecified. Per-launch log path
-  (`logs/<projectId>-<launch time>.log`) means the 2nd run of a session does not stream.
-- **R1-2 (SHOULD_FIX)** — sdd-providers.sh merge (C9) ignores the script's `none()`
-  short-circuits (lines 41/35/66) and its inline per-row checks (54-64); an override/added
-  run-file role can bypass validation or never merge (no `## Providers` block case).
-- **R1-3 (SHOULD_FIX)** — Testing Strategy omits the mandatory harness/ checks
-  (`sync-plugin-assets.cjs`, `check:plugin-assets`, `claude plugin validate . --strict`,
-  agent-rules.md:27); the design edits 7 harness/ files.
-- **R1-4 (MINOR)** — reconcile(clients) snapshot targeting unspecified; risk of resetting
-  existing clients' log views.
-- **R1-5 (MINOR)** — buildSetupView prose omits several SetupView fields; OverviewWatch
-  .snapshot() has no return shape. Data Models itself is complete (no union-only object).
-- **R1-6 (MINOR)** — validateSetup does not enforce the supervisor Opus-5.5/Fable-5.1 floor;
-  a bad override fails only as a child refusal.
+### Unresolved (this round — R2)
+- **R2-1 (SHOULD_FIX, Novel, carried)** — launch admission is not atomic with the in-flight
+  mark. Route sequences admit → (await writeRunFile) → launch()'s in-flight set, so two
+  concurrent launches double-spawn (two supervisors, one worktree/ledger; one becomes an
+  untracked orphan). No recovery stated. Fix: check-and-set in-flight synchronously inside
+  launch() before any await. Word-neutral.
+- **R2-2 (SHOULD_FIX, Compounds R1-1, fix-induced)** — the log re-point fires on every
+  `launch-update` (spawn, stopping, stopped, exit), not only on a new launch. Within a run
+  `logPath` is unchanged and `launchedAt` matches, so each Stop/exit/finalise resets every
+  client's log view and re-reads the whole unpruned log from offset 0. Fix: condition the
+  re-point on a `logPath` change. Word-neutral.
+- **R2-3 (MINOR, Novel, carried)** — LaunchRecord written only on the 'spawn' event; a
+  dashboard crash in the spawn→record window leaves an orphan child restore() cannot see
+  (self-heals; brief double-launch window). Untraced. One scope note or pre-spawn intent record.
 
-### Flag rulings (closed by reviewer authority — carried to next drafter)
-- Req 1 AC 4 (D3 deepseek pre-fill): **refinement** — keeps the form valid on load.
-- Req 3 AC 13 (retry, residual race): **refinement** — exceeds the blessed deregister.mjs bar.
-- Req 3 AC 14 (re-run setup on unmarked reuse): **refinement** — marker gates *use*, intent met.
-- Req 2 AC 6 (malformed file deleted): **refinement** — matches AC 6 anti-re-refuse purpose;
-  `mismatch` correctly not deleted.
+### Flag rulings (closed by reviewer authority — do NOT re-open)
+- Req 1 AC 4 (D3 deepseek pre-fill): refinement.
+- Req 3 AC 13 (retry, residual append race): refinement (exceeds deregister.mjs bar).
+- Req 3 AC 14 (re-run setup on unmarked reuse): refinement.
+- Req 2 AC 6 (malformed file deleted): refinement.
 
 ## Patterns & Themes
-- The strongest gaps cluster on the **launcher ↔ watch ↔ client** seam (per-launch log
-  lifecycle, snapshot fan-out) — the fresh-lens wire contract. Payload *shapes* are sound;
-  *lifecycle/reset* semantics are thin.
-- The **shared-file concurrency** theme (pointer file) recurs from the parent decomposition;
-  accepted here as within the blessed helper's bar but worth an implementation test.
-- **harness/ change discipline** (plugin sync + validate) is under-represented in verification.
-- Citations are accurate; the lint-pass directory prefixes all resolve. No MUST_FIX and no
-  false codebase claims this round.
+- The recurring seam is the **launcher ↔ watch ↔ client** lifecycle: R1-1 fixed the second-run
+  path but R2-2 shows the fix's trigger is too broad. Wire *shapes* are sound; *when-to-fire*
+  and *atomicity* are the soft spots.
+- **Concurrency/atomicity** now bites the launcher itself (R2-1 admission race), not only the
+  shared pointer file. The single-live-run invariant needs an in-process atomic guard, separate
+  from the cross-checkout pointer concurrency the parent decomposition owns.
+- **Partial-failure durability** (R2-3): the record write is deferred to the 'spawn' event, so
+  crash recovery via restore() has a blind window.
+- Citations remain accurate through v2. No MUST_FIX, no false codebase claims in the delta.
 
 ## Guidance for Next Review
-- Re-check R1-1/R1-2/R1-3 first; they are the loop-keeping SHOULD_FIX items.
-- Do NOT re-litigate the four flag rulings (closed refinements) or the 63 citation-identifier
-  warnings (rejected false-positive class) without new evidence.
-- Confirm any revision to sdd-providers.sh keeps validation on merged rows and drops the
-  early `none()` returns when a run file is passed.
-- Confirm the launch-log lifecycle (path re-point, offset reset, client reset) is pinned.
-- Data Models completeness and library-capability probes passed in R1; re-verify only if the
+- Re-check R2-1 and R2-2 first; they are the loop-keeping SHOULD_FIX items. Confirm any fix makes
+  launch() the atomic guard owner and conditions the log re-point on a `logPath` change.
+- Do NOT re-litigate the four flag rulings, the 73 citation-identifier false positives, or the
+  R1-1..R1-6 dispositions (verified applied).
+- Watch that a fix for R2-2 does not re-open R1-1 (the second run must still stream).
+- Data Models completeness and library-capability probes passed again; re-verify only if the
   relevant lines change.
+- Word cap: body at ~4,000 ceiling; all three R2 fixes are word-neutral or need a net cut.
