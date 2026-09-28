@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-27, harness v4).** Active spec **`tdd-task-loop`**.
-> Live phase **implementation**, state **tasks 0/17**, last result **approved** (tasks at v1; stopped before gate B for a session restart after PR #71).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs gate B (slot b holds tasks 9 and 17), enters worktree feat/tdd-task-loop from current main, spawns implementation.
+> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`tdd-task-loop`**.
+> Live phase **retrospective**, state **tasks 17/17**, last result **complete** (PR #72 open, CI green; retrospective blocked on verification-evidence.md (1), (3), (5) pending).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/tdd-task-loop`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: once an operator runs live criteria 9.1/9.3/9.5 in a rebuilt, restarted session and marks them passed, spawns the retrospective orchestrator.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -65,6 +65,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-27 | tdd-task-loop | requirements | v4 | approved | 4 rounds, iterate then SHOULD_FIX-only convergence |
 | 2026-09-27 | tdd-task-loop | design | v2 | approved | 2 rounds, iterate 0/2/4 -> converged 0/0/1 |
 | 2026-09-27 | tdd-task-loop | tasks | v1 | approved | 1 round, clean converge 0/0/2 |
+| 2026-09-28 | tdd-task-loop | implementation | tasks 17/17 | complete | PR #72 open, 9.1/9.3/9.5 pending operator |
 
 ## Current state — 2026-08-04
 
