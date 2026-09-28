@@ -318,6 +318,7 @@ Keep it short and imperative. Every worker reads it on every spawn.
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
 | `sdd-reviser` | Opus 4.8 (`claude-opus-4-8`) | high |
 | `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
+| `sdd-test-author` | Sonnet 5 (`claude-sonnet-5`) | high |
 
 The checker verifies a list of items. That is a narrow, well-specified job, so a
 Sonnet-class model at high effort does it. The reviser runs on Opus 4.8: on Sonnet it
@@ -337,6 +338,42 @@ as a `claude -p` child with its own environment, launched through the supervisor
 frontmatter tools and no MCP server — except `sdd-reviser`, whose frontmatter carries the
 `adversarial-response` tool, so the launcher passes it `--mcp-config` because that tool needs
 the server — and its declared effort is not applied because the DeepSeek endpoint ignores it.
+
+## Test-first tasks
+
+A task can carry a `- Test:` line. Each `- Test:` bullet names one test file and the
+seam that the file drives through. When the orchestrator picks such a task, it spawns
+`sdd-test-author` before the implementer. The author is a narrow, Sonnet-tier worker. It
+writes one failing test for each success criterion, runs the tests, and sees each test
+fail. It then commits only the test files as `test(<spec>): task <N> red`. The
+implementer makes the tests pass.
+
+The gate proves this red-then-green step. It runs the tests on the base commit (the
+parent of the red commit) and on HEAD. The tests must fail on the base and pass on HEAD.
+The gate reads three keys from the agent rules:
+
+- `tdd-test-command` — the command that runs the tests. The gate replaces `{files}` with
+  the test files. Without this key the base outcome is `inconclusive`.
+- `red-on-base-setup` — an optional command that prepares the base worktree. Without it
+  the gate links each `node_modules` directory of the code root into the base worktree.
+- `red-on-base` — set the value to `off` to skip the base run. The base outcome is then
+  `inconclusive`.
+
+The proof reports one base outcome and one head outcome, and each outcome has a gate
+effect:
+
+| Fact | Base | Head | Gate | Reason |
+| --- | --- | --- | --- | --- |
+| Base run fails on an assertion | `assertion-red` | — | — | — |
+| Base run fails for another reason | `structural-red` | — | — | risk `tdd-structural-red` |
+| Base run passes twice | `vacuous` | — | fail | `tdd: tests pass on base` |
+| Base run passes, then fails | `inconclusive` | — | — | risk `tdd-inconclusive: flaky base run` |
+| A git, setup, timeout, key or `off` cause | `inconclusive` | — | — | risk `tdd-inconclusive: <cause>` |
+| HEAD run fails or times out | — | `fail` | fail | `tdd: tests fail on HEAD` |
+| The red commit changes a source file | — | — | fail | `tdd: author changed source: <path>` |
+| The author tests changed after the red commit | — | — | — | risk `tdd-amended: <files>` |
+
+A task with no `- Test:` line runs as before.
 
 ## Watching a run
 
