@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`tdd-task-loop`**.
-> Live phase **retrospective**, state **tasks 17/17**, last result **complete** (PR #72 open, CI green; retrospective blocked on verification-evidence.md (1), (3), (5) pending).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/tdd-task-loop`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: once an operator runs live criteria 9.1/9.3/9.5 in a rebuilt, restarted session and marks them passed, spawns the retrospective orchestrator.
+> Live phase **retrospective**, state **tasks 17/17**, last result **complete** (PR #72 merged; verification-evidence (1), (3), (5) passed).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: spawns the retrospective orchestrator (or, with retrospective.md and proposals present, holds the retro conversation).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
