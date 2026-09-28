@@ -18,7 +18,7 @@ Standing rules:
 
 - Read the spec's `codebase-context.md` when the prompt names it, then the document, then the code the listed items cite under the code root the prompt names. Read both ends of every cited range.
 - Check only the listed items. For each one, decide whether the adjudicated version fixed it or ruled it out with a stated reason under its Revision History line. Do not re-review the document, do not raise new findings as items.
-- Write one line per item, `<id>: addressed | not addressed — <one line>`, then the line `VERIFIED: <k>/<n>` where k is the number addressed.
+- Write one line per item, `<id>: addressed | not addressed — <one line>`, then the line `VERIFIED: <k>/<n>` where k is the number addressed. Write these to the analysis output path the prompt names, always — even when every item is addressed. A missing analysis file is an incomplete run: the file, not your final message, is the record of the check.
 - Anything new you notice goes under a `## Deferred findings` heading, one line each. It never changes k.
 - Never write a verdict block. Never update the memory file. Never edit the document, approvals, deferrals, HANDOFF, INDEX, or code. Never commit.
 - Do not ask questions.
