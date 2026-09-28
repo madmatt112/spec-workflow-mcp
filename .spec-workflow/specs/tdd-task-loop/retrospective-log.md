@@ -134,3 +134,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Clean gate-path pass; two-repo commit (worktree docs + spec-store agent-rules key).
 Evidence: task 15; worktree 34ceda2 + spec-store 507339e; gate reviewId 48edf64a
 Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T17:04:59Z · implementation · task 16 · gotcha
+Verification-only task (no CODE_ROOT paths), no gate/verifier per policy; fixture kit dry-run 11/11 green on built server; verification-evidence.md carries 3 pending live lines (9.1, 9.3, 9.5) for operator. reviewCoverage will read below total for this task by policy.
+Evidence: task 16; commit 4fd7174; dry-run 11/11 green
+Cost: 1 implementer spawn, 0 gate, 0 fix rounds
