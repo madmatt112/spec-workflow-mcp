@@ -84,3 +84,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Clean gate-path pass, no fix rounds.
 Evidence: task 5; commit 8bed0bb; gate reviewId c40c603f
 Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T15:19:17Z · implementation · task 6 · tool-error
+review-task gate ran its checks in the default root (main checkout on another branch, lacking this branch's changes), so get-task-review.test.ts failed there while green 21x in the worktree. Cost one spurious fix round. Fix: pass root=CODE_ROOT to every gate call. Tasks 1-5 gates likely ran in the main checkout too (checks passed vacuously); task 17 full-suite run is the net.
+Evidence: task 6; commit ed69108; gate reviewId c6cf9c8f
+Cost: 1 implementer + 1 fix spawn, 3 gate calls

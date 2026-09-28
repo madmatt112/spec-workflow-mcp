@@ -52,7 +52,7 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
   - _Requirements: 4.9_
   - _Prompt: Task: In src/core/check-runner.ts make `runOne` (src/core/check-runner.ts:46-86) resolve the result together with the raw stdout and stderr; `runChecks` (src/core/check-runner.ts:92-104) maps to the result only, so its shape and the one-line output do not change. Export the captured runner of design Component 6 with the same scrubbed environment, colour variables, buffer cap and timeout default. Tests: a command that prints three lines returns all three in stdout and the last one in `output`; stderr is captured; a non-zero exit keeps its exit code; a short timeout gives `timeout` | Restrictions: Assert only on exit status, status and output strings (node 20 fields). No existing assertion in src/core/__tests__/check-runner.test.ts changes value | Success: `npx tsc --noEmit`; `npx vitest run src/core/__tests__/check-runner.test.ts` green_
 
-- [ ] 6. Shared TDD types and the review record
+- [x] 6. Shared TDD types and the review record
   - File: src/types.ts
   - File: src/core/task-review-manager.ts
   - File: src/core/__tests__/task-review-manager.test.ts
