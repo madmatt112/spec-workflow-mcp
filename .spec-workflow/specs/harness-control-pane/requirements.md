@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project; the Overview page shows every registered project's harness work and the operator to-do list on one screen. It replaces launching runs by hand and watching them in the `--watch` TUI, and changes the supervisor skill to honour a per-run setup file. The only ledger change is two provenance keys on the `run.start` row of a run that applied the file (decomposition entry, spec-decomposition/decomposition.md:665-667); every other key and the TUI renderer are unchanged.
+This spec adds a Harness page and an Overview page to the existing dashboard: the Harness page sets up, launches, stops and watches one SDD run of one project; the Overview page shows every registered project's harness work and the operator to-do list on one screen. It replaces launching and watching runs by hand and changes the supervisor to honour a per-run setup file. The only ledger change is two provenance keys on the `run.start` row of a run that applied the file (decomposition entry, spec-decomposition/decomposition.md:665-667).
 
 ## Alignment with Product Vision
 
-The spec store has no steering documents, so this aligns with the decomposition entry for spec 9, which puts the control pane last: it renders what specs 8, 10 and 11 record (per-spawn tokens and models, the provider map, the task `tdd` block), reusing the TUI's data layer so the page and TUI cannot disagree about a run.
+This aligns with the decomposition entry for spec 9, which puts the control pane last: it renders what specs 8, 10 and 11 record, reusing the TUI's data layer so the page and TUI cannot disagree about a run.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 3. WHEN the file sets a model for an orchestrator THEN the supervisor SHALL pass that model as the Agent tool's `model` parameter on each spawn of that orchestrator, in place of the no-model spawn of harness/skills/sdd-continue/SKILL.md:226-228.
 4. WHEN the file sets a model for a worker role THEN the supervisor SHALL pass the worker overrides to each orchestrator in its launch prompt, and each orchestrator SHALL deliver the override by the role's provider: an anthropic worker gets the `model` parameter on each Agent-tool spawn; a deepseek worker, which runs as `bash <LAUNCHER> <agent> "<launch message>"` not through the Agent tool (harness/skills/sdd-document-phase/SKILL.md:24-34), gets the overridden model only in the merged provider map (`<agent>:deepseek:<model>`, harness/skills/sdd-continue/references/sdd-providers.sh:72-74), never as an Agent-tool parameter.
 5. WHEN the model pre-flight checks an orchestrator whose model the file overrides THEN the supervisor SHALL expect the overridden model, not the declared one.
-6. WHEN the file sets a provider for a role THEN the supervisor SHALL merge that role's provider and, for a deepseek role, its model over the agent rules' provider map, SHALL validate the merged map with the provider preflight's rules, and SHALL refuse the run before any ledger row on a failed validation, as harness/skills/sdd-continue/SKILL.md:85-96 does.
+6. WHEN the file sets a provider for a role THEN the supervisor SHALL merge that role's provider and, for a deepseek role, its model over the agent rules' provider map, SHALL validate the merged map with the provider preflight's rules, and SHALL refuse the run before any ledger row on a failed validation, as harness/skills/sdd-continue/SKILL.md:85-96 does, and SHALL delete `harness-run.json` on that refusal so the invalid file does not re-refuse every future run of the spec.
 7. WHEN the file sets the gates choice THEN the supervisor SHALL use it in place of the agent rules' `gates` key for both gates of this run.
 8. WHEN the file sets worktree to yes THEN the supervisor SHALL apply the worktree rule of harness/skills/sdd-continue/SKILL.md:336-345 as if the agent rules required it; WHEN it sets no THEN the supervisor SHALL NOT enter a worktree.
 9. WHEN the supervisor writes `run.start` for a run that applied the file THEN the row SHALL carry an `overrides` key listing each overridden role and its model and provider, and SHALL carry `setup=harness-run`.
@@ -62,10 +62,11 @@ The spec store has no steering documents, so this aligns with the decomposition 
 7. IF the pointer file (`${XDG_STATE_HOME:-~/.local/state}/sdd/active-run`) holds a line whose spec dir is inside this project's spec store THEN the system SHALL refuse a launch with HTTP 409 and name the live run id.
 8. IF the project has a live dashboard launch record whose process still exists THEN the system SHALL refuse a launch with HTTP 409 even before the pointer line appears.
 9. WHEN the operator presses Stop THEN the system SHALL send SIGTERM to the child's process group, and SHALL send SIGKILL to the group if it still exists ten seconds later.
-10. WHEN a stopped child has exited THEN the system SHALL append a `run.end` row with status `stopped from the dashboard` when it has a `run.start` and no `run.end`, SHALL remove only this run's line from the pointer file, SHALL delete `harness-run.json`, and SHALL show the run as stopped.
+10. WHEN a stopped child has exited THEN the system SHALL append a `run.end` row with status `stopped from the dashboard` when it has a `run.start` and no `run.end`, SHALL remove only this run's line from the pointer file, SHALL delete `harness-run.json`, and SHALL show the run as stopped; each step SHALL be idempotent so a resumed or re-pressed Stop repeats it safely.
 11. WHEN the child exits on its own THEN the system SHALL NOT write `run.end` or touch the pointer file, and SHALL show the exit code.
-12. WHEN the dashboard process stops or restarts THEN the system SHALL leave a launched run running, and after a restart SHALL read the launch record back so the page shows the run, its log and a working Stop.
-13. WHEN the system removes a pointer line THEN it SHALL rewrite the file without the line and delete the file when no line remains, the same rule as the supervisor's deregister step (harness/skills/sdd-continue/SKILL.md:488-500).
+12. WHEN the dashboard process stops or restarts THEN the system SHALL leave a launched run running, and after a restart SHALL read each launch record back and re-check its recorded pid as AC 3.8 does: a live run shows its log and a working Stop; a run whose process is gone SHALL run the AC 3.10 finalisation so no dead run shows as running.
+13. WHEN the system removes a pointer line THEN it SHALL drop only this run's line and delete the file when none remains through the supervisor's `deregister.mjs` helper or an equivalent single-line removal atomic against a concurrent append or removal by another run on this shared file, never a `grep -v` rewrite (harness/skills/sdd-continue/SKILL.md:494-500).
+14. IF worktree creation, the `worktree-setup` command (agent-rules.md:6) or the `claude -p` spawn fails THEN the system SHALL surface the failing step and its error, SHALL leave no launch record for a child that never started, and SHALL never reuse under AC 3.3 a worktree whose `worktree-setup` has not completed.
 
 ### Requirement 4 — Live view
 
@@ -81,7 +82,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 6. WHEN a spawn has no tokens or the build has no agent profiles THEN the page SHALL render the row without them.
 7. WHEN no Harness page of a project is open THEN the system SHALL NOT keep a harness watcher running for that project (keyed on the harness-subscriber count of AC 4.8, not `connection.projectId`).
 8. WHEN a Harness page opens for a project THEN it SHALL send a subscribe message whose `type` names the harness view, distinct from the Specs page's `subscribe`, so the server can tell the two apart on one `projectId` — the existing socket binds each connection to a single `connection.projectId` and knows only the `subscribe`, `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294) — and SHALL key the AC 4.7 watcher lifecycle on the harness-subscriber count for that project.
-9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from the existing `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294): one for the run model, one for a batch of new log lines, one for the gate sections; the run-model and gate pushes SHALL reach only that project's harness subscribers, keyed on the AC 4.8 subscription state, not `broadcastToProject`, which filters on `projectId` alone (src/dashboard/multi-server.ts:2139-2151).
+9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from the existing `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294): one for the run model, one for a batch of new log lines, one for the gate sections; all three pushes SHALL reach only that project's harness subscribers, keyed on the AC 4.8 subscription state, not `broadcastToProject`, which filters on `projectId` alone (src/dashboard/multi-server.ts:2139-2151).
 
 ### Requirement 5 — Overview page
 
@@ -115,7 +116,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 ## Non-Functional Requirements
 
 ### Performance
-- A ledger append SHALL reach an open page within five seconds (end-to-end verification items 2 and 7).
+- A ledger append SHALL reach an open page within five seconds.
 - The server SHALL coalesce bursts of file events with a debounce of at most 300 ms per project before it rebuilds a model.
 
 ### Security
@@ -128,28 +129,27 @@ The spec store has no steering documents, so this aligns with the decomposition 
 
 ## Decisions taken in this document
 
-- D1 — The Overview to-do list reads the HUD file's todos array: over HUD-plus-operations or a separate overwatch-todos file; chosen because that file does not exist and operations repeats the ledgers.
-- D2 — The dashboard writes run-end and removes the pointer line on a stop: over relying on the supervisor; chosen because the supervisor writes run-end only at its status step, unreachable by a signalled process.
-- D3 — Overrides reach worker roles through the orchestrator launch prompt: over orchestrators-only or supervisor-only; chosen because a worker-only change is the likeliest override.
-- D4 — A launched run is detached, logged to a file and survives a dashboard restart: over a child killed on dashboard stop; chosen because a run lasts hours and the dashboard restarts after each build.
-- D5 — Only the routed active spec is launchable; a setup file for another spec is ignored: over any-spec-overriding-routing or a refused mismatch; chosen because routing encodes dependency order and a stale file must not block terminal runs.
-- D6 — A page launch forces gates to record; the form's gates choice applies to terminal runs: over honouring the form on launch; chosen because a headless run has no AskUserQuestion.
-- D7 — Waiting means the current run's newest phase end is gate A, retro-ready or escalate with no later phase start: over gate A only or any run end; chosen because those are where a human answer is due.
-- D8 — The pointer and HUD files resolve under the XDG state home: over a fixed home path; chosen because the hook and supervisor already use it and tests can point it at a fixture.
-- D9 — The provider field shows only for the three eligible roles and the merged map passes the existing preflight: over every role or a separate validator; chosen because the validator refuses any other role.
-- D10 — Launch and stop use the dashboard's existing binding and security hooks: over a localhost-only rule; chosen because the adversarial routes already spawn a permission-skipping agent under them.
-- D11 — The dashboard does not commit the ledger after a stop: over committing from the dashboard; chosen because the dashboard makes no git commits today.
-- D12 — Stop signals the process group, then kills it after ten seconds: over SIGTERM to the pid only; chosen because a launcher or tool child must not outlive the run.
-- D13 — The supervisor model field pre-fills the Opus 5.5 full id with effort fixed at high: over the alias or a free field; chosen because the preflight refuses anything below Opus 5.5 or Fable 5.1 and the headless command uses high effort.
-- D14 — Task rows show the tdd block from the existing task-review summary route: over adding a run-model tdd field or leaving tdd off; chosen because the build order says this spec renders (not records) the tdd block — spec 11 owns it (boundary note, spec-decomposition/decomposition.md:759-761) — and the route (src/dashboard/multi-server.ts:1965-1989) already returns it.
+- D1 — The Overview to-do list reads the HUD file's todos array: over HUD-plus-operations or a separate overwatch-todos file.
+- D2 — The dashboard writes run-end and removes the pointer line on a stop: over relying on the supervisor, which writes run-end only at its status step, unreachable by a signalled process.
+- D3 — Overrides reach worker roles through the orchestrator launch prompt: over orchestrators-only or supervisor-only.
+- D4 — A launched run is detached, logged to a file and survives a dashboard restart: over a child killed on dashboard stop, because a run lasts hours and the dashboard restarts after each build.
+- D5 — Only the routed active spec is launchable; a setup file for another spec is ignored: over any-spec-overriding-routing or a refused mismatch, so a stale file cannot block terminal runs.
+- D6 — A page launch forces gates to record; the form's gates choice applies to terminal runs: a headless run has no AskUserQuestion.
+- D7 — Waiting means the current run's newest phase end is gate A, retro-ready or escalate with no later phase start.
+- D8 — The pointer and HUD files resolve under the XDG state home: over a fixed home path.
+- D9 — The provider field shows only for the three eligible roles and the merged map passes the existing preflight: over every role or a separate validator.
+- D10 — Launch and stop use the dashboard's existing binding and security hooks: over a localhost-only rule, because the adversarial routes already spawn a permission-skipping agent under them.
+- D11 — The dashboard does not commit the ledger after a stop: over committing from the dashboard, which makes no git commits today.
+- D12 — Stop signals the process group, then kills it after ten seconds: over SIGTERM to the pid only.
+- D13 — The supervisor model field pre-fills the Opus 5.5 full id with effort fixed at high: over the alias or a free field, because the preflight refuses anything below Opus 5.5 or Fable 5.1 and the headless command uses high effort.
+- D14 — Task rows show the tdd block from the existing task-review summary route: over adding a run-model tdd field or leaving tdd off; this spec renders (not records) the tdd block — spec 11 owns it (boundary note, spec-decomposition/decomposition.md:759-761) — and the route (src/dashboard/multi-server.ts:1965-1989) already returns it.
 - D15 — The setup file holds overrides only: over the full role table; chosen because a later declared-model change still takes effect.
 
 ## Scope notes
 
-- Gates answered from the pane stay out (decomposition); the page shows the recorded answers read-only.
-- Effort per role stays read-only (decomposition).
 - The Overview page does not read the HUD operations array (D1); a later spec may add it.
 - D2 replaces the decomposition's "existing interrupt handling" for run end; no such handling exists for a signalled process.
+- The single-live-run invariant (AC 3.7, AC 3.8) holds for dashboard-initiated launches only; a terminal run starting inside the window between a page Launch's admission check and the supervisor's later pointer-line append is out of scope, matching the decomposition's pointer-file lock (spec-decomposition/decomposition.md:673-674).
 - The two `run.start` provenance keys of AC 2.9 are the spec-9 deliverable that "records the overrides on `run.start`" (decomposition entry, spec-decomposition/decomposition.md:665-667, 711). The boundary note "it adds no ledger field" (spec-decomposition/decomposition.md:754-755) scopes per-spawn usage to spec 8, not this: spec 9 adds no per-spawn field and no `RunModel` field, and only the file case changes `run.start` (AC 2.11).
 
 ## Revision History
@@ -172,3 +172,11 @@ The spec store has no steering documents, so this aligns with the decomposition 
   - Minor 3 — AC 2.4 vs 2.6 trigger wording (rejected) — covered because AC 1.11 writes a provider entry per non-omitted role, so a deepseek role always carries `provider=deepseek`.
   - Body trimmed elsewhere (Introduction) to offset the restored content, holding the 3,500-word cap.
   - **Lint pass.** 1 fixed; rejected: none.
+- **v4** (2026-09-28) — Round-3 adversarial review dispositions — SHOULD_FIX-only corrective pass:
+  - R3-1 (accepted) — AC 4.9 now routes all three pushes (run model, log lines, gate sections) to harness subscribers only, keyed on the AC 4.8 subscription state, closing the fan-out hole for the log stream that R2-3 fixed only for the run-model and gate pushes.
+  - R3-2 (accepted) — AC 3.13 now requires the pointer-line removal to go through the supervisor's `deregister.mjs` helper or an equivalent single-line removal atomic against a concurrent append or removal by another run on the machine-wide shared file, never a `grep -v` rewrite (citation retargeted to SKILL.md:494-500, the deregister behaviour).
+  - R3-3 (accepted) — AC 3.12 now re-checks each restored launch record's pid as AC 3.8 does and drives a dead-but-unfinalised run through the AC 3.10 finalisation; AC 3.10's steps are now stated idempotent so a resumed or re-pressed Stop is safe (also covers Minor 3).
+  - R3-4 (accepted) — New AC 3.14 states the operator sees the failing launch step and its error, no launch record is left for a child that never started, and a worktree whose `worktree-setup` (agent-rules.md:6) did not complete is not reused.
+  - R3-5 (accepted) — AC 2.6 now deletes `harness-run.json` on a preflight refusal so the invalid file cannot re-refuse every future run of the spec.
+  - R3-6 (accepted) — New scope note bounds the single-live-run invariant (AC 3.7, AC 3.8) to dashboard-initiated launches; a terminal run inside the admission-to-pointer-line window is out of scope, matching the decomposition's pointer-file lock (decomposition.md:673-674). Scoped rather than adding a new lock the terminal supervisor would also have to adopt, which the decomposition pins.
+  - Minors (3) not kept per the brief. Body trimmed elsewhere (Introduction, Alignment, decision rationale, one scope note) to add the new requirements and hold the 3,500-word cap.
