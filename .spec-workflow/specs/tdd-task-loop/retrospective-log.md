@@ -99,3 +99,8 @@ Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
 Verifier confirmed Jev wire vs @typesafe-ai/sdk v0.6.0. Note: review-task prepare runs against the main checkout (projectPath), so its diff is empty on a worktree branch; verifier read worktree files directly. Same root cause as the gate root issue.
 Evidence: task 8; commit 555f8d9; verifier VERDICT pass
 Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T16:13:22Z · implementation · task 9 · gotcha
+Sensitive-path high risk, verifier confirmed all 9 critical items (schema-only review-task.ts, no rule-body change, sidecar before review, vacuous-base fail). Verifier INFO: readRequirementCriteria (review-gate.ts:139) matches only N.M ids not bare N; shadow-only, fail-open, unreachable this spec.
+Evidence: task 9; commit c1f2dc4; verifier reviewId 6e86d005 VERDICT pass
+Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
