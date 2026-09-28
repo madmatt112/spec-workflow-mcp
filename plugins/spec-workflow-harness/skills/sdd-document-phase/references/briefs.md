@@ -207,6 +207,9 @@ verdict block). Append:
   more than the approved requirements ask, append `[gate-c:T<task id>]`. Judge from the
   tasks and the approved `<spec dir>/requirements.md` — your normal reviewer read. The
   orchestrator carries the kept ones to the human's gate B; it never reads the body.>
+- <tasks phase, for every `Test:` line: the call exists in the design's interfaces, an
+  earlier task's prompt or this task's prompt, and the success criteria are assertable
+  through it with values the requirements state; a miss is a normal finding.>
 - Closed by ruling, do not re-open: <none | `<finding id>: <one line>` …>.
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked

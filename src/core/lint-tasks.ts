@@ -17,6 +17,8 @@ import { validateTasksMarkdown } from './task-validator.js';
 import { criteria, fencedLines } from './lint-markdown.js';
 import type { TaskBlock } from './lint-markdown.js';
 import type { LintFinding } from './lint-types.js';
+import { parseTasksFromMarkdown, parseTestLine, TEST_BULLET_RE } from './task-parser.js';
+import { isDocPath, isTestPath } from './gate-rules.js';
 
 // --- Regexes ----------------------------------------------------------------
 
@@ -294,6 +296,54 @@ export function checkBridges(lines: string[], blocks: TaskBlock[]): LintFinding[
       });
     }
   }
+  return findings;
+}
+
+/** Why a `Test:` line failed to parse, phrased for the finding message (design Component 2). */
+const TEST_LINE_CAUSE: Record<'no-dash' | 'empty-call' | 'not-test-path', string> = {
+  'no-dash': 'no " — " separates the test path from the call',
+  'empty-call': 'no call after the " — "',
+  'not-test-path': 'the path is not a test file',
+};
+
+/**
+ * Flag a malformed `Test:` line and note a source task with no `Test:` line
+ * (design Component 2, requirements 1.3-1.5). Two passes over one document.
+ * First, each block line matching `TEST_BULLET_RE` (task 2's pattern) whose
+ * `parseTestLine` (task 2's parse) fails is `task-test-seam` at `warning` on
+ * that line, message `Test line: ` plus the cause. Second, each task
+ * `parseTasksFromMarkdown` reads from the joined lines with no `tests` and a
+ * `files` entry that is neither a test path nor a doc path (the rules-module
+ * predicates) is `task-test-seam` at `info` on its checkbox line, message
+ * `task <id> changes source and has no Test line`. `file` is left empty.
+ */
+export function checkTestSeams(lines: string[], blocks: TaskBlock[]): LintFinding[] {
+  const findings: LintFinding[] = [];
+
+  for (const block of blocks) {
+    for (let i = block.start - 1; i < block.end; i++) {
+      const match = lines[i].trim().match(TEST_BULLET_RE);
+      if (!match) continue;
+      const parsed = parseTestLine(match[1]);
+      if ('error' in parsed) {
+        findings.push({
+          file: '', line: i + 1, rule: 'task-test-seam', severity: 'warning',
+          message: `Test line: ${TEST_LINE_CAUSE[parsed.error]}`,
+        });
+      }
+    }
+  }
+
+  const { tasks } = parseTasksFromMarkdown(lines.join('\n'));
+  for (const task of tasks) {
+    if (task.tests && task.tests.length > 0) continue;
+    if (!task.files?.some((f) => !isTestPath(f) && !isDocPath(f))) continue;
+    findings.push({
+      file: '', line: task.lineNumber + 1, rule: 'task-test-seam', severity: 'info',
+      message: `task ${task.id} changes source and has no Test line`,
+    });
+  }
+
   return findings;
 }
 

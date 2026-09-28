@@ -56,10 +56,15 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
   at the end of Step 0 (`state=tasks <done>/<total>`); `task.pick task=<N> "title=<title>"`
   when you mark a task `[-]`; one `spawn.usage` right after each worker's report
-  (`agent=`, `role=implement task <N> | verify task <N> | fix task <N> round <r> |
-  adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
+  (`agent=`, `role=author task <N> | implement task <N> | verify task <N> | fix task <N>
+  round <r> | adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
   `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT | VERIFY>`);
-  `note "text=gate: task <N> <pass|fail> risk <low|high>"` after every gate call;
+  `note "text=gate: task <N> <pass|fail> risk <low|high>"`, appending ` tdd <base outcome>`
+  to that text when the gate returned a `data.tdd` block, after every gate call; one
+  `judge task=<N> site=tdd` event carrying the four `data.tdd.judged.answers`
+  (`tautological`, `asserts_criteria`, `through_seam`, `mocks_internals`),
+  `tokens=<data.tdd.judged.inputTokens>` and `ms=<data.tdd.judged.ms>` after a gate whose
+  `data.tdd.judged` is non-null and not a cache hit;
   `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>` when you mark `[x]`;
   `note` for deferrals, design defects, drift and every red CI check; `phase.end` right
   before your final report. You no longer write the worker spawn boundary — the plugin
@@ -102,11 +107,35 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    that single commit by setting `base=<sha>^` (its parent), so the range is exactly the
    implementer's own commit. A `[-]` task resumed from Step 0 has no base ref: gate it
    without `baseRef`, which scores `risk: high`.
+1b. **Author** (marked tasks only). Only when the picked task's block holds a `- Test:`
+   bullet, and after the `base=` capture: assemble the author brief with the spec-workflow
+   `harness` tool, `action: brief`, `template: test-author`, `specName: <SPEC>`,
+   `taskId: "<N>"`, and `values` carrying the output path
+   `/tmp/scratchpad/sdd/<SPEC>/author-brief-task-<N>.md`, the `title`, and the `job`: the
+   spec dir, code root and spec store as absolute paths, then "Read the files your standing
+   rules name from these roots; commit in the code root." Spawn `sdd-test-author` with
+   `Read and execute the instructions in <the returned path>` and record its `spawn.usage`
+   with `role=author task <N>`. Route on its report:
+   - `SEAM-DEFECT`, or `RED-IMPOSSIBLE` on every criterion ⇒ **Design defect**, spawning no
+     implementer; the stop's `REASON` is the author's flag.
+   - `RED-IMPOSSIBLE` on some criteria only ⇒ continue, and append one `doc-gap` retro-log
+     entry with `retro.sh` naming those criteria.
+   - otherwise ⇒ keep the author's files and its `commit:` sha on the task-list item; they
+     feed step 2's `redTests` and every gate call's `tdd`.
+   A `[-]` marked task resumed from Step 0 spawns the author only when
+   `git -C <CODE_ROOT> log -1 --format=%H --grep "test(<SPEC>): task <N> red"` finds
+   nothing (its author already committed on a prior turn otherwise). A task whose block
+   holds no `- Test:` bullet skips this step, spawns no author, passes no `tdd` argument
+   later, and runs every step as today.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
    `template: implementer`, `specName: <SPEC>`, `taskId: "<N>"`, and `values` carrying the
    output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md`. The tool fills the
    task's full text (its `- [ ]` line to the next checkbox, so an intervening `##` heading
-   is included) from `tasks.md` and writes the read-and-obey line. Spawn `sdd-implementer`
+   is included) from `tasks.md` and writes the read-and-obey line. On a marked task (step
+   1b ran an author), also pass `values.redTests` = the `## Red tests (from the test
+   author)` section from `references/briefs.md`, filled with the author's files, its
+   `Test:` lines and its report verbatim; on an unmarked task omit `redTests`, which the
+   template defaults to empty. Spawn `sdd-implementer`
    with `Read and execute the instructions in <the returned path>`.
 3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
@@ -135,7 +164,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `taskId: "<N>"`, `baseRef` = the task's `base` sha when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
-   project typecheck itself). Pass `files` as the exact per-file paths the task
+   project typecheck itself). On a marked task, also pass `tdd: { testFiles: <the author's
+   test files>, redCommit: <the author's `commit:` sha from step 1b> }` on every gate call
+   for this task, through every fix round. Pass `files` as the exact per-file paths the task
    changed, from the diff — never a directory, which mis-scores the gate (retro P8).
    Narrowing the gate range to exclude spec-store bookkeeping and untracked noise —
    through the single-commit `baseRef` of Step 1 or the gate's own bookkeeping and
@@ -157,7 +188,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `specName: <SPEC>`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` and the verifier job (task id, the
    files the implementer named, round number, and the `## Gate results` block verbatim)
-   from `references/briefs.md`. Spawn `sdd-verifier` with `Read and execute
+   from `references/briefs.md`. When the gate returned a `data.tdd` block, copy it into that
+   `## Gate results` block; when it shows `amended: true`, add the sentence "Judge the
+   amended author test against the task's criteria first." Spawn `sdd-verifier` with `Read and execute
    the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, so
    the dashboard and `spec-status` see the review, runs only the checks the gate did not
    run, and ends with `VERDICT: pass | fix-required`.
@@ -166,7 +199,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `GRAPH` is a path and `WORKTREE` is `no`, then return to step 4 (the gate). Assemble
    each fix brief
    with `harness` `brief`, `template: reviser`, `specName: <SPEC>`, `values` carrying the
-   output path `impl-brief-task-<N>-fix-<r>.md` and the findings:
+   output path `impl-brief-task-<N>-fix-<r>.md` and the findings (and, on a marked task,
+   the `## Red tests (from the test author)` section from `references/briefs.md` inside the
+   `reviser` `{{job}}` value):
    - After a `gate: fail`: the findings are `data.reasons` and `data.checks` verbatim;
      spawn no verifier; re-run the gate.
    - After a verifier `fix-required`: the findings are the verifier's findings; re-run
@@ -209,11 +244,14 @@ read the record back once (`deferrals` `get`) and confirm `originSpec` landed.
 ## Design defect
 
 The implementer says the task cannot be built as written because it contradicts the
-design, the requirements or a decomposition assumption. Do not force it. Revert the
+design, the requirements or a decomposition assumption; or, on a marked task, the test
+author (step 1b) reported `SEAM-DEFECT` or `RED-IMPOSSIBLE` for every criterion, in which
+case no implementer runs. Do not force it. Revert the
 task to `[ ]`. Append a retro-log entry with `retro.sh` (`deviation`, the defect in one sentence,
 evidence = task N). Write the HANDOFF section. Commit the spec store. Report
-`PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one
-line, from the implementer's flag>`. The supervisor re-opens design.
+`PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one line,
+from the flag — the author's when step 1b raised it, else the implementer's>`. The
+supervisor re-opens design.
 
 ## Escalate
 

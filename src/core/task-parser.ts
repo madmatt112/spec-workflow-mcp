@@ -2,6 +2,46 @@
  * Unified Task Parser Module
  * Provides consistent task parsing across all components
  */
+import { isTestPath, normalizePath } from './gate-rules.js';
+
+/** A test seam a task carries: the test file path and the call under test (R1 AC1). */
+export interface TaskTest {
+  path: string;                        // Test file path, normalised (one path form, R2-1)
+  seam: string;                        // The public call the test drives
+}
+
+/** Marks a `- Test:` bullet; the capture is the text after `Test:` (design Component 1). */
+export const TEST_BULLET_RE = /^[-*]\s+Test:\s*(.*)$/;
+
+/** A space-padded em dash splits the test path from the call text (R1 AC1). */
+const TEST_LINE_SEPARATOR = ' — ';
+
+/** Strip one wrapping backtick pair, then re-trim (design Component 1). */
+function stripWrappingBackticks(s: string): string {
+  if (s.length >= 2 && s.startsWith('`') && s.endsWith('`')) {
+    return s.slice(1, -1).trim();
+  }
+  return s;
+}
+
+/**
+ * Parse the text after `Test:` into a test seam, or the reason it is malformed
+ * (design Component 1, R1 AC1/AC3). Splits on the first space-em-dash-space, trims
+ * both sides, strips one wrapping backtick pair from each, and checks the path with
+ * the gate's `isTestPath`. The stored path runs through `normalizePath`, so the
+ * parser and the gate hold one path form (carried design item R2-1).
+ */
+export function parseTestLine(
+  text: string
+): { test: TaskTest } | { error: 'no-dash' | 'empty-call' | 'not-test-path' } {
+  const sep = text.indexOf(TEST_LINE_SEPARATOR);
+  if (sep === -1) return { error: 'no-dash' };
+  const path = stripWrappingBackticks(text.slice(0, sep).trim());
+  const seam = stripWrappingBackticks(text.slice(sep + TEST_LINE_SEPARATOR.length).trim());
+  if (seam.length === 0) return { error: 'empty-call' };
+  if (!isTestPath(path)) return { error: 'not-test-path' };
+  return { test: { path: normalizePath(path), seam } };
+}
 
 /**
  * Parse a prompt string into structured sections if it contains pipe separators
@@ -117,6 +157,7 @@ export interface ParsedTask {
   requirements?: string[];              // Referenced requirements
   leverage?: string;                   // Code to leverage
   files?: string[];                    // Files to modify/create
+  tests?: TaskTest[];                  // Test seams from `- Test:` lines, in document order (R1 AC1)
   purposes?: string[];                 // Purpose statements
   implementationDetails?: string[];    // Implementation bullet points
   prompt?: string;                     // AI prompt for this task (full text)
@@ -219,6 +260,7 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
     const requirements: string[] = [];
     const leverage: string[] = [];
     const files: string[] = [];
+    const tests: TaskTest[] = [];
     const purposes: string[] = [];
     const implementationDetails: string[] = [];
     let prompt: string | undefined;
@@ -276,6 +318,17 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
           const levText = levMatch[1].trim();
           leverage.push(...levText.split(',').map(l => l.trim()).filter(l => l));
         }
+      } else if (TEST_BULLET_RE.test(contentLine)) {
+        // A `- Test:` line, taken before the unanchored Files branch so a seam
+        // like `readFile: x` never lands in `files` (design Component 1). A valid
+        // line goes to `tests` in document order; a malformed one stays an
+        // implementation-detail bullet (R1 AC1/AC3).
+        const parsed = parseTestLine(contentLine.match(TEST_BULLET_RE)![1]);
+        if ('test' in parsed) {
+          tests.push(parsed.test);
+        } else {
+          implementationDetails.push(contentLine.replace(/^[-*]\s+/, '').trim());
+        }
       } else if (contentLine.match(/Files?:/)) {
         const fileMatch = contentLine.match(/Files?:\s*(.+)$/);
         if (fileMatch) {
@@ -298,10 +351,11 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
     }
     
     // Determine if this is a header task (has no implementation details)
-    const hasDetails = requirements.length > 0 || 
-                      leverage.length > 0 || 
-                      files.length > 0 || 
-                      purposes.length > 0 || 
+    const hasDetails = requirements.length > 0 ||
+                      leverage.length > 0 ||
+                      files.length > 0 ||
+                      tests.length > 0 ||
+                      purposes.length > 0 ||
                       implementationDetails.length > 0 ||
                       !!prompt;
     
@@ -325,6 +379,7 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
       ...(requirements.length > 0 && { requirements }),
       ...(leverage.length > 0 && { leverage: leverage.join(', ') }),
       ...(files.length > 0 && { files }),
+      ...(tests.length > 0 && { tests }),
       ...(purposes.length > 0 && { purposes }),
       ...(implementationDetails.length > 0 && { implementationDetails }),
       ...(prompt && { prompt }),

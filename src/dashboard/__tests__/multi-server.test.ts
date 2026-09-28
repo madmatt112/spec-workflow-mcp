@@ -19,6 +19,8 @@ import { tmpdir } from 'os';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { ApprovalStorage } from '../approval-storage.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
+import { TaskReviewManager } from '../../core/task-review-manager.js';
+import type { TddBlock } from '../../types.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import * as adversarialSettings from '../../core/adversarial-settings.js';
 import type { TaskReviewJob } from '../task-review-runner.js';
@@ -648,6 +650,62 @@ describe('Track-C: per-runner model + per-job storage retry consistency', () => 
       expect(res.status).toBe(200);
 
       expect(await readTaskState(specName)).toBeNull();
+    });
+  });
+
+  // ============== REVIEW ROUTES RETURN THE TDD PROOF (Component 10, R6.2 / R6.3) ==============
+
+  describe('review routes return the tdd proof', () => {
+    const sampleTdd: TddBlock = {
+      testFiles: ['src/foo.test.ts', 'src/bar.test.ts'],
+      seams: { 'src/foo.test.ts': 'createFoo' },
+      redCommit: 'abc1234',
+      baseSha: 'def5678',
+      base: 'assertion-red',
+      head: 'pass',
+      amended: false,
+      judged: null,
+    };
+
+    function reviewsListUrl(specName: string, taskId: string): string {
+      return `http://127.0.0.1:${port}/api/projects/${projectId}/specs/${specName}/tasks/${taskId}/reviews`;
+    }
+    function summaryUrl(specName: string): string {
+      return `http://127.0.0.1:${port}/api/projects/${projectId}/specs/${specName}/task-reviews/summary`;
+    }
+
+    async function saveReviewWithTdd(specName: string, taskId: string): Promise<void> {
+      const specPath = join(workflowRootPath, '.spec-workflow', 'specs', specName);
+      const manager = new TaskReviewManager(specPath);
+      await manager.saveReview({
+        taskId,
+        specName,
+        verdict: 'pass',
+        summary: 'Clean',
+        findings: [],
+        tdd: sampleTdd,
+      });
+    }
+
+    it('the list route returns tdd for a review saved with a block (6.2)', async () => {
+      const specName = 'tdd-list';
+      await saveReviewWithTdd(specName, '1');
+
+      const res = await realFetch(reviewsListUrl(specName, '1'));
+      expect(res.status).toBe(200);
+      const body = await res.json() as { reviews: Array<{ tdd?: TddBlock }> };
+      expect(body.reviews).toHaveLength(1);
+      expect(body.reviews[0].tdd).toEqual(sampleTdd);
+    });
+
+    it('the summary route returns tdd on the latest entry for the task (6.3)', async () => {
+      const specName = 'tdd-summary';
+      await saveReviewWithTdd(specName, '1');
+
+      const res = await realFetch(summaryUrl(specName));
+      expect(res.status).toBe(200);
+      const body = await res.json() as { summary: Record<string, { verdict: string; version: number; tdd?: TddBlock }> };
+      expect(body.summary['1'].tdd).toEqual(sampleTdd);
     });
   });
 });

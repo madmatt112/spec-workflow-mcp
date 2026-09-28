@@ -35,7 +35,7 @@ import {
   isLocalhostAddress,
   DEFAULT_SECURITY_CONFIG
 } from '../core/security-utils.js';
-import { SecurityConfig } from '../types.js';
+import { SecurityConfig, TddBlock } from '../types.js';
 import { STEERING_DOC_NAMES } from '../core/steering-docs.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1937,7 +1937,7 @@ export class MultiProjectDashboardServer {
         const specPath = join(project.projectPath, '.spec-workflow', 'specs', specName);
         const reviewManager = new TaskReviewManager(specPath);
         const reviews = await reviewManager.getReviewsForTask(taskId);
-        return { reviews: reviews.map(r => ({ id: r.id, version: r.version, verdict: r.verdict, timestamp: r.timestamp, summary: r.summary, findingsCount: r.findings.length })) };
+        return { reviews: reviews.map(r => ({ id: r.id, version: r.version, verdict: r.verdict, timestamp: r.timestamp, summary: r.summary, findingsCount: r.findings.length, tdd: r.tdd })) };
       } catch (error: any) {
         return reply.code(500).send({ error: error.message });
       }
@@ -1973,11 +1973,11 @@ export class MultiProjectDashboardServer {
         const allReviews = await reviewManager.loadAllReviews();
 
         // Group by taskId, keep latest version
-        const summary: Record<string, { verdict: string; version: number }> = {};
+        const summary: Record<string, { verdict: string; version: number; tdd?: TddBlock }> = {};
         for (const review of allReviews) {
           const existing = summary[review.taskId];
           if (!existing || review.version > existing.version) {
-            summary[review.taskId] = { verdict: review.verdict, version: review.version };
+            summary[review.taskId] = { verdict: review.verdict, version: review.version, tdd: review.tdd };
           }
         }
 

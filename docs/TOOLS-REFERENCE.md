@@ -202,8 +202,10 @@ completion.
 | `specName` | string | Yes | Spec name |
 | `projectPath` | string | No | Project root (defaults to server context) |
 
-**Returns**: `currentPhase`, `overallStatus`, per-phase detail, `taskProgress`, and
-best-effort `logCoverage` / `reviewCoverage` for completed tasks. It will **warn** when
+**Returns**: `currentPhase`, `overallStatus`, per-phase detail, `taskProgress`,
+best-effort `logCoverage` / `reviewCoverage` for completed tasks, and `tddCoverage` — the
+task count, a count for each base outcome, and the amended count — when a completed task's
+latest review carries a TDD proof. It will **warn** when
 completed tasks are missing implementation logs or reviews, and its `nextSteps`
 reiterate the log → review → mark-complete ordering.
 
@@ -424,6 +426,7 @@ does not change task status.
 | `checks` | string[] | for `gate` | Shell command strings to run in order — the task's named checks |
 | `files` | string[] | for `gate` | Paths relative to `root` the change should stay within |
 | `root` | string | for `gate` | Absolute directory; the working tree for the pre-computations, defaulting to the workspace under review |
+| `tdd` | object | for `gate` | `{ testFiles: string[], redCommit: string }` — proves the task's tests are red on the base commit and green on HEAD |
 | `projectPath` | string | No | Project root |
 
 **Flow**: `prepare` (gathers task context + an implementation-log summary and
@@ -443,6 +446,15 @@ review id and version, or `null`). The caller routes on `gate` and `risk`:
   complete.
 - `pass` and `risk: high` — an LLM verifier reviews the change through `prepare` then
   `record`.
+
+**TDD proof**: when the caller gives `tdd`, the gate also proves the task's tests were
+red before the change and green after it, and `data` carries `tdd`:
+`{ testFiles, seams, redCommit, baseSha, base, head, amended, judged }`. `base` is one of
+`assertion-red`, `structural-red`, `vacuous` or `inconclusive`; `head` is one of `pass`,
+`fail` or `not-run`. A `vacuous` base or a `fail` head fails the gate; a `structural-red`,
+`inconclusive` or `amended` outcome forces `risk: high`. The gate merges the test files
+into the change, so it scans them too. `judged` holds the shadow judge's answers or is
+`null`. `data.tdd` is present only when the caller gives `tdd`.
 
 **Enforced**: `record` requires a prior `prepare`; the task and an implementation log
 must exist; verdict/findings consistency is checked. On a `fail` verdict, `nextSteps`
@@ -565,7 +577,9 @@ pattern `spec-lint` uses) and spawns no child process.
   counts, the open items by target class, and the next step.
 - `brief` — fill a named server-side template and write a worker brief, returning the
   brief file's absolute path. An implementer brief for a `taskId` gets that task's
-  block from the server tasks parser. The optional values `graph`, `graphBuiltAt` and
+  block from the server tasks parser. A `test-author` brief fills the same task block for
+  `sdd-test-author`; it fails and writes no file when the task has no `Test:` line. The
+  optional values `graph`, `graphBuiltAt` and
   `graphBehind` add a `## Code graph` section to the end of the brief when `graph` is a
   path. When `graph` is a path but a freshness value is absent, the call fails and writes
   no file.

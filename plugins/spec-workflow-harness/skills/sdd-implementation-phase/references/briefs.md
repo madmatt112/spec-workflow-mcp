@@ -79,6 +79,27 @@ Read `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md` first and obey it.
 <none>
 ```
 
+## Red tests (from the test author) — the `redTests` value on a marked task
+
+Fill this into the implementer brief's `{{redTests}}` slot on a marked task, and into the
+`reviser` `{{job}}` value of a marked task's fix brief; leave it empty on an unmarked task.
+
+```markdown
+## Red tests (from the test author)
+
+- Make every author test pass.
+- Do not edit an author file without reporting `TEST-AMENDED: <file> — <reason>`.
+- You may add your own tests.
+- Run the author's files last and report `green: <passed>/<total>`.
+
+Author files: <the author's files>
+Test lines:
+<the `- Test:` lines from the task block>
+
+Author report (verbatim):
+<the author's report>
+```
+
 ## Fix brief — `impl-brief-task-<N>-fix-<r>.md` and `impl-brief-repair-<k>.md`
 
 ```markdown
@@ -106,6 +127,9 @@ paragraph with: "The gate returned `fail`. Fix every reason below, re-run the ta
 checks, update the implementation log with `log-implementation` if files changed, and
 report." and replace the `## Findings (from the verifier)` heading with `## Gate output`
 holding `data.reasons` and `data.checks` verbatim.
+
+On a marked task, the `reviser` `{{job}}` value of either fix brief also carries the
+`## Red tests (from the test author)` section above.
 
 ## Standing brief for verifiers — `/tmp/scratchpad/sdd/<SPEC>/verify-standing.md`
 
@@ -155,7 +179,7 @@ results` below. Do not re-run the gate's checks.
    is `pass` or `findings` with no warning-or-higher item; otherwise `fix-required`.
 
 ## Gate results (from the gate call, verbatim)
-<data.reasons, data.checks, data.stats, data.touched, data.typecheck>
+<data.reasons, data.checks, data.stats, data.touched, data.typecheck, data.tdd>
 ```
 
 The narrow verification after adjudication (`verify-brief-task-<N>-narrow.md`) adds:

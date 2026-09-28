@@ -1,6 +1,6 @@
 # Tasks Document
 
-[Shape rules, read by the parser and the implementer. Each task is `- [ ] N. Title` (sub-tasks `- [ ] N.M Title`), then `- File:` lines, one or two action lines, a `- Purpose:` line, `_Leverage: …_`, `_Requirements: …_`, and a `_Prompt: Task: … | Restrictions: … | Success: …_` line that ends with `_`. Every task numbered, so the parser counts it. Cap: 150 words per task block, excluding its prompt line. One paragraph before the first task states the dependency order: each task leaves the tree compiling and every existing suite green. A prompt never pins a call signature, label or helper name that another task in this document creates; it names the task that does. When a task uses an artefact a later task creates, the prompt names the bridge (a cast, a stub) and the later task's prompt says to remove it. For every existing test file a task names, say whether the change alters a value it asserts exactly.]
+[Shape rules, read by the parser and the implementer. Each task is `- [ ] N. Title` (sub-tasks `- [ ] N.M Title`), then `- File:` lines, one or two action lines, a `- Purpose:` line, `_Leverage: …_`, `_Requirements: …_`, and a `_Prompt: Task: … | Restrictions: … | Success: …_` line that ends with `_`. Every task numbered, so the parser counts it. A task that changes source may add `- Test: <test path> — <public call>` after its `File:` lines. Cap: 150 words per task block, excluding its prompt line. One paragraph before the first task states the dependency order: each task leaves the tree compiling and every existing suite green. A prompt never pins a call signature, label or helper name that another task in this document creates; it names the task that does. When a task uses an artefact a later task creates, the prompt names the bridge (a cast, a stub) and the later task's prompt says to remove it. For every existing test file a task names, say whether the change alters a value it asserts exactly.]
 
 [Dependency order: one paragraph.]
 
@@ -14,6 +14,7 @@
 
 - [ ] 2. Implement feature service in src/services/FeatureService.ts
   - File: src/services/FeatureService.ts
+  - Test: tests/services/FeatureService.test.ts — FeatureService.create(input)
   - Implement the service using the interfaces task 1 exports and the existing error utilities
   - Purpose: Business logic layer for feature operations
   - _Leverage: src/services/BaseService.ts, src/utils/errorHandler.ts_

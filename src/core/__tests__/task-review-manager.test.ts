@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { TaskReviewManager } from '../task-review-manager.js';
+import { TddBlock } from '../../types.js';
 
 describe('TaskReviewManager', () => {
   let tempDir: string;
@@ -329,6 +330,147 @@ describe('TaskReviewManager', () => {
       // Count how many Classification lines exist — should be exactly 1
       const matches = content.match(/- \*\*Classification:\*\*/g) || [];
       expect(matches.length).toBe(1);
+    });
+  });
+
+  describe('TDD proof', () => {
+    const sampleTdd: TddBlock = {
+      testFiles: ['src/foo.test.ts', 'src/bar.test.ts'],
+      seams: { 'src/foo.test.ts': 'createFoo' },
+      redCommit: 'abc1234',
+      baseSha: 'def5678',
+      base: 'assertion-red',
+      head: 'pass',
+      amended: false,
+      judged: null,
+    };
+
+    it('should round-trip a tdd block equal', async () => {
+      await manager.saveReview({
+        taskId: '4',
+        specName: 'my-feature',
+        verdict: 'pass',
+        summary: 'Clean',
+        findings: [],
+        tdd: sampleTdd,
+      });
+
+      const loaded = await manager.getLatestReview('4');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.tdd).toEqual(sampleTdd);
+    });
+
+    it('should parse a legacy review file without a tdd block', async () => {
+      await manager.saveReview({
+        taskId: '5',
+        specName: 'my-feature',
+        verdict: 'pass',
+        summary: 'No proof here',
+        findings: [],
+      });
+
+      const loaded = await manager.getLatestReview('5');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.tdd).toBeUndefined();
+    });
+
+    it('should leave tdd absent when the proof fence is malformed', async () => {
+      const reviewsDir = manager.getReviewsDir();
+      await fs.mkdir(reviewsDir, { recursive: true });
+      const broken = [
+        '---',
+        'id: broken-id',
+        'taskId: "6"',
+        'specName: legacy',
+        'version: 1',
+        'verdict: pass',
+        'timestamp: 2026-01-01T00:00:00.000Z',
+        'criticalCount: 0',
+        'warningCount: 0',
+        'infoCount: 0',
+        '---',
+        '',
+        '## Summary',
+        '',
+        'Broken proof.',
+        '',
+        '## Findings',
+        '',
+        '_No findings — clean review._',
+        '',
+        '## TDD proof',
+        '',
+        '```json',
+        '{not valid json',
+        '```',
+        '',
+      ].join('\n');
+      await fs.writeFile(join(reviewsDir, 'review-6_v1_broken.md'), broken, 'utf-8');
+
+      const loaded = await manager.getLatestReview('6');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.tdd).toBeUndefined();
+    });
+
+    it('should attach the latest-proof sidecar on saveReview', async () => {
+      await manager.writeLatestTdd('7', sampleTdd);
+      await manager.saveReview({
+        taskId: '7',
+        specName: 'my-feature',
+        verdict: 'pass',
+        summary: 'Sidecar attach',
+        findings: [],
+      });
+
+      const loaded = await manager.getLatestReview('7');
+      expect(loaded!.tdd).toEqual(sampleTdd);
+    });
+
+    it('should prefer a caller-provided tdd over the sidecar', async () => {
+      await manager.writeLatestTdd('8', sampleTdd);
+      const callerTdd: TddBlock = { ...sampleTdd, base: 'structural-red', amended: true };
+      await manager.saveReview({
+        taskId: '8',
+        specName: 'my-feature',
+        verdict: 'pass',
+        summary: 'Caller wins',
+        findings: [],
+        tdd: callerTdd,
+      });
+
+      const loaded = await manager.getLatestReview('8');
+      expect(loaded!.tdd).toEqual(callerTdd);
+    });
+
+    it('should read an unreadable sidecar as absent', async () => {
+      expect(await manager.readLatestTdd('999')).toBeNull();
+    });
+
+    it('should still parse summary and findings of a review carrying a proof', async () => {
+      await manager.saveReview({
+        taskId: '9.1',
+        specName: 'my-feature',
+        verdict: 'findings',
+        summary: 'Warnings plus a proof',
+        findings: [
+          {
+            severity: 'warning',
+            title: 'Unused import',
+            file: 'src/util.ts',
+            line: 5,
+            description: 'Import is never used',
+          },
+        ],
+        tdd: sampleTdd,
+      });
+
+      const loaded = await manager.getLatestReview('9.1');
+      expect(loaded).not.toBeNull();
+      expect(loaded!.summary).toBe('Warnings plus a proof');
+      expect(loaded!.findings).toHaveLength(1);
+      expect(loaded!.findings[0].title).toBe('Unused import');
+      expect(loaded!.findings[0].line).toBe(5);
+      expect(loaded!.tdd).toEqual(sampleTdd);
     });
   });
 });

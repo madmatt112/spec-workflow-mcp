@@ -531,11 +531,28 @@ const BRIEF_TEMPLATES: Record<string, string> = {
     '',
     '{{taskBlock}}',
     '',
+    '{{redTests}}',
+  ].join('\n'),
+  'test-author': [
+    '# {{title}}',
+    '',
+    'Read and obey {{agentRules}} first.',
+    '',
+    '## Job',
+    '{{job}}',
+    '',
+    '## Task text (from tasks.md)',
+    '',
+    '{{taskBlock}}',
+    '',
   ].join('\n'),
 };
 
 /** Placeholder keys the server fills itself; never required from `values`. */
 const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
+
+/** Placeholder keys that default to '' when the caller omits them (design Component 5). */
+const OPTIONAL_BRIEF_KEYS = new Set(['redTests']);
 
 /**
  * The `## Code graph` brief section (design C3, Requirement 3). Returns the exact
@@ -656,6 +673,22 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
       return { success: false, message: `brief: task ${taskId} not found in ${tasksPath}; no file written` };
     }
     serverValues.taskBlock = block;
+
+    // A test-author brief needs the task's `- Test:` seam; a task whose parse has
+    // no `tests` gives the author nothing to write, so fail and write nothing
+    // (design Component 4, R2).
+    if (template === 'test-author') {
+      const task = parseTasksFromMarkdown(tasksContent).tasks.find((t) => t.id === taskId);
+      if (!task?.tests || task.tests.length === 0) {
+        return { success: false, message: `brief: task ${taskId} has no Test: line; no file written` };
+      }
+    }
+  }
+
+  // Optional placeholder keys default to '' so an absent one neither trips the
+  // missing-value check below nor fills as the string 'undefined' (Component 5).
+  for (const key of OPTIONAL_BRIEF_KEYS) {
+    if (values[key] === undefined || values[key] === null) values[key] = '';
   }
 
   // Every remaining {{key}} must have a caller value. Report ALL missing keys at
