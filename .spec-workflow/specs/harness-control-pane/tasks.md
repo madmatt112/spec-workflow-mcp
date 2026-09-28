@@ -236,5 +236,6 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
 
 - **v1** (2026-09-28) — Initial draft.
 - **v2** (2026-09-28) — Round-1 adversarial response (adversarial-analysis-tasks.md, verdict iterate 1/0/0).
+  - **Lint pass.** 0 fixed; rejected: L-2, L-3, L-7 (bridge-missing warnings, unchanged since v1 — producer/consumer references as ruled at v1, no bridge applies).
   - **R1-1 — Accepted (MUST_FIX).** Task 19's Prompt cited the drafter document-phase briefs (the Job section, no commit-script content) while its Leverage line and the supporting text cited the implementation-phase briefs; retargeted the Prompt citation so the script line now reads "that changes into that repo (harness/skills/sdd-implementation-phase/references/briefs.md:12-15), message docs(sdd): harness-control-pane verification evidence pending".
   - **Lint pass.** 17 fixed; rejected: L-2, L-3, L-7 (bridge-missing warnings — the flagged task is the producer and the named later task is the consumer, a narrative reference, not a use of a later artefact, so no bridge applies).
