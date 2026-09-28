@@ -64,8 +64,11 @@ export const TYPECHECK_STATE_RANK = [
 
 // --- Path normalisation (shared by matchers, R1-4) --------------------------
 
-/** Forward-slash, root-relative, leading `./` stripped (requirement 2.3, R1-4). */
-function normalizePath(relPath: string): string {
+/**
+ * Forward-slash, root-relative, leading `./` stripped (requirement 2.3, R1-4).
+ * The one path form for Test-line paths and gate test files (carried item R2-1).
+ */
+export function normalizePath(relPath: string): string {
   return relPath.replace(/\\/g, '/').replace(/^\.\//, '').trim();
 }
 
@@ -113,6 +116,27 @@ export function parseProsePaths(markdown: string): string[] | null {
   return parseHeadingBullets(markdown, PROSE_PATHS_HEADING);
 }
 
+/**
+ * The value of the first `agent-rules.md` line that starts with `key:` (Component
+ * 7). A value opening with a backtick yields the first backtick span, else the
+ * trimmed rest; an empty value, or an absent key, yields `null`.
+ */
+export function parseAgentRuleKey(markdown: string, key: string): string | null {
+  const prefix = `${key}:`;
+  for (const line of markdown.split('\n')) {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith(prefix)) continue;
+    const value = trimmed.slice(prefix.length).trim();
+    if (value.length === 0) return null;
+    if (value.startsWith('`')) {
+      const end = value.indexOf('`', 1);
+      return end === -1 ? value.slice(1) : value.slice(1, end);
+    }
+    return value;
+  }
+  return null;
+}
+
 /** The entry a path matches, or `undefined`: `dir/` by prefix, else by equality. */
 function matchingEntry(relPath: string, entries: string[]): string | undefined {
   const p = normalizePath(relPath);
@@ -145,6 +169,17 @@ export function isGeneratedPath(relPath: string, entries: string[]): boolean {
  */
 export function isProsePath(relPath: string, entries: string[]): boolean {
   return normalizePath(relPath).endsWith('.md') && matchingEntry(relPath, entries) !== undefined;
+}
+
+/**
+ * A documentation path: a Markdown/MDX file, or anything under a `docs/`
+ * directory (retro P7). A change whose whole file set is docs is down-ranked so
+ * the per-task verifier is skipped and CI is the net.
+ */
+export function isDocPath(relPath: string): boolean {
+  const p = relPath.replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  if (p.endsWith('.md') || p.endsWith('.mdx')) return true;
+  return p === 'docs' || p.startsWith('docs/') || p.includes('/docs/');
 }
 
 /**

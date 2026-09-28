@@ -398,5 +398,228 @@ describe('handleGate', () => {
     expect(result.data.risk).toBe('medium');
     expect(result.data.reasons.some((r: string) => r.startsWith('no-product-code:'))).toBe(true);
   });
+
+  // --- Component 8: the tdd argument -----------------------------------------
+  // Real git and real `node` run the proof against the temp repo; the agent rules
+  // add `tdd-test-command: node {files}`. A wrong impl fails the copied test with
+  // an AssertionError on the base commit and passes after it is fixed.
+  describe('tdd argument', () => {
+    const IMPL_WRONG = 'module.exports.sum = (a, b) => 0;\n';
+    const IMPL_RIGHT = 'module.exports.sum = (a, b) => a + b;\n';
+    const SUM_TEST =
+      "const assert = require('node:assert');\n" +
+      "const { sum } = require('./impl.js');\n" +
+      'assert.strictEqual(sum(1, 2), 3);\n';
+
+    async function writeTddRules(extra = ''): Promise<void> {
+      await fs.writeFile(
+        join(tempDir, '.spec-workflow', 'agent-rules.md'),
+        ['# Agent rules', '', 'tdd-test-command: node {files}', extra, '', '## Sensitive paths', '', '- src/other.ts', ''].join('\n'),
+      );
+    }
+
+    async function writeTddTask(testPath = 'src/sum.test.js'): Promise<void> {
+      await fs.writeFile(
+        join(specPath, 'tasks.md'),
+        [
+          '# Tasks',
+          '',
+          '- [-] 1. Implement sum',
+          `  - Test: \`${testPath}\` — \`sum(a, b)\``,
+          '  _Requirements: 4.1_',
+          '  _Prompt: Task: Build sum | Restrictions: none | Success: sum adds two numbers_',
+          '',
+        ].join('\n'),
+      );
+    }
+
+    async function commit(rel: string, content: string, msg: string): Promise<string> {
+      await fs.writeFile(join(tempDir, rel), content);
+      gitCmd(tempDir, ['add', '-A']);
+      gitCmd(tempDir, ['commit', '-q', '-m', msg]);
+      return gitHead(tempDir);
+    }
+
+    const TDD_MS = 30_000;
+
+    it('without tdd the data keys are today\'s nine and no sidecar is written', async () => {
+      await addTask1Log();
+      await fs.writeFile(join(tempDir, 'src/feature.ts'), 'export const feature = 2;\n');
+
+      const result = await gate({ baseRef: base }, '1');
+
+      expect(result.success).toBe(true);
+      expect(Object.keys(result.data).sort()).toEqual(
+        ['checks', 'gate', 'hygiene', 'reasons', 'recorded', 'risk', 'stats', 'touched', 'typecheck'].sort(),
+      );
+      expect('tdd' in result.data).toBe(false);
+      const files = await reviewsFiles();
+      expect(files.some((f) => f.startsWith('.tdd-'))).toBe(false);
+    });
+
+    it('refuses tdd in item mode', async () => {
+      const result = await gate(
+        { commit: base, tdd: { testFiles: ['src/sum.test.js'], redCommit: base } },
+        'P7',
+      );
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('tdd needs a task');
+    });
+
+    it('an assertion-red proof passes at low risk and the review carries tdd', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      const implCommit = await commit('src/impl.js', IMPL_WRONG, 'impl wrong');
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red: failing test');
+      await commit('src/impl.js', IMPL_RIGHT, 'green: fix impl');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: implCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('pass');
+      expect(result.data.risk).toBe('low');
+      expect(result.data.tdd.base).toBe('assertion-red');
+      expect(result.data.tdd.head).toBe('pass');
+      expect(result.data.tdd.seams).toEqual({ 'src/sum.test.js': 'sum(a, b)' });
+      expect(result.data.recorded).not.toBeNull();
+
+      const files = await reviewsFiles();
+      expect(files.some((f) => f.startsWith('.tdd-'))).toBe(true);
+      const reviewFile = files.find((f) => f.startsWith('review-'));
+      expect(reviewFile).toBeDefined();
+      const md = await fs.readFile(join(specPath, 'reviews', reviewFile!), 'utf-8');
+      expect(md).toContain('## TDD proof');
+    }, TDD_MS);
+
+    it('fails vacuous when the author tests pass on the base commit (9.2)', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      const implCommit = await commit('src/impl.js', IMPL_RIGHT, 'impl already right');
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red: passes on base');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: implCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('fail');
+      expect(result.data.tdd.base).toBe('vacuous');
+      expect(result.data.reasons).toContain('tdd: tests pass on base');
+    }, TDD_MS);
+
+    it('fails when the red commit also changed a source file', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      const implCommit = await commit('src/impl.js', IMPL_WRONG, 'impl wrong');
+      // The red commit changes the test and the source together.
+      await fs.writeFile(join(tempDir, 'src/sum.test.js'), SUM_TEST);
+      await fs.writeFile(join(tempDir, 'src/impl.js'), IMPL_RIGHT);
+      gitCmd(tempDir, ['add', '-A']);
+      gitCmd(tempDir, ['commit', '-q', '-m', 'red+source']);
+      const redCommit = gitHead(tempDir);
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: implCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('fail');
+      expect(result.data.reasons).toContain('tdd: author changed source: src/impl.js');
+    }, TDD_MS);
+
+    it('red-on-base off forces high on a whitespace-only change (5.3)', async () => {
+      await writeTddRules('red-on-base: off');
+      await writeTddTask();
+      await commit('src/impl.js', IMPL_RIGHT, 'impl');
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red');
+      // A whitespace-only implementer commit: the trivial-change fast path would
+      // score it low, but the inconclusive (off) base forces high.
+      await commit('src/impl.js', '  ' + IMPL_RIGHT, 'whitespace only');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: redCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.risk).toBe('high');
+      expect(result.data.tdd.base).toBe('inconclusive');
+      expect(result.data.reasons.some((r: string) => r.startsWith('tdd-inconclusive'))).toBe(true);
+    }, TDD_MS);
+
+    it('matches a ./-prefixed test file to its seam', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      const implCommit = await commit('src/impl.js', IMPL_WRONG, 'impl wrong');
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red');
+      await commit('src/impl.js', IMPL_RIGHT, 'green');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: implCommit, tdd: { testFiles: ['./src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.tdd.seams).toEqual({ './src/sum.test.js': 'sum(a, b)' });
+    }, TDD_MS);
+
+    it('off and shadow judge modes give an identical verdict, risk and reasons', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      const implCommit = await commit('src/impl.js', IMPL_WRONG, 'impl wrong');
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red');
+      await commit('src/impl.js', IMPL_RIGHT, 'green');
+      await addTask1Log();
+
+      const args = { baseRef: implCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } };
+
+      const fetchMock = vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              model: 'jev-1.13.0',
+              usage: { input_tokens: 10 },
+              answers: {
+                tautological: { noul: 0 },
+                asserts_criteria: { score: 2 },
+                through_seam: { noul: 1 },
+                mocks_internals: { noul: 0 },
+              },
+            }),
+            { status: 200 },
+          ),
+      );
+      try {
+        // off: no key, so the judge never runs.
+        vi.stubEnv('TYPESAFE_API_KEY', '');
+        const offResult = await gate(args, '1');
+
+        // shadow: a key plus a stubbed global fetch answer the judge.
+        vi.stubEnv('TYPESAFE_API_KEY', 'test-key');
+        vi.stubGlobal('fetch', fetchMock);
+        const shadowResult = await gate(args, '1');
+
+        expect(shadowResult.data.gate).toBe(offResult.data.gate);
+        expect(shadowResult.data.risk).toBe(offResult.data.risk);
+        expect(shadowResult.data.reasons).toEqual(offResult.data.reasons);
+        expect(fetchMock).toHaveBeenCalled();
+        expect(offResult.data.tdd.judged).toBeNull();
+        expect(shadowResult.data.tdd.judged).not.toBeNull();
+      } finally {
+        vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
+      }
+    }, TDD_MS);
+  });
 });
 

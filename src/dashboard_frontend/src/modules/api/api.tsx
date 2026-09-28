@@ -193,7 +193,7 @@ type ApiActionsContextType = {
   cancelTaskReviewJob: (jobId: string) => Promise<{ ok: boolean; status: number }>;
   getTaskReviews: (specName: string, taskId: string) => Promise<{ reviews: any[] }>;
   getTaskReviewContent: (specName: string, taskId: string, version: number) => Promise<{ review: any }>;
-  getTaskReviewSummary: (specName: string) => Promise<{ summary: Record<string, { verdict: string; version: number }> }>;
+  getTaskReviewSummary: (specName: string) => Promise<{ summary: Record<string, { verdict: string; version: number; tdd?: any }> }>;
   getDeferrals: () => Promise<DeferralsResponse>;
 };
 

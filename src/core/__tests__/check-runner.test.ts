@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { runChecks, lastLine, CHECK_TIMEOUT_MS, CHECK_MAX_BUFFER } from '../check-runner.js';
+import { runChecks, runCaptured, lastLine, CHECK_TIMEOUT_MS, CHECK_MAX_BUFFER } from '../check-runner.js';
 
 // The real node binary running the tests; absolute, so PATH scrubbing is moot.
 const NODE = process.execPath;
@@ -76,5 +76,38 @@ describe('runChecks', () => {
     expect(results.map((r) => r.status)).toEqual(['pass', 'pass']);
     const written = await fs.readFile(marker, 'utf-8');
     expect(written).toBe('ab');
+  });
+});
+
+describe('runCaptured', () => {
+  it('returns the whole stdout and the last line as output', async () => {
+    const r = await runCaptured(
+      root,
+      `"${NODE}" -e "console.log('one');console.log('two');console.log('three')"`,
+    );
+    expect(r.status).toBe('pass');
+    expect(r.stdout.trim().split('\n')).toEqual(['one', 'two', 'three']);
+    expect(r.output).toBe('three');
+  });
+
+  it('captures stderr', async () => {
+    const r = await runCaptured(root, `"${NODE}" -e "console.error('to-stderr')"`);
+    expect(r.status).toBe('pass');
+    expect(r.stderr.trim()).toBe('to-stderr');
+  });
+
+  it('keeps the exit code of a non-zero exit', async () => {
+    const r = await runCaptured(root, `"${NODE}" -e "console.error('boom'); process.exit(4)"`);
+    expect(r.status).toBe('fail');
+    expect(r.exitCode).toBe(4);
+    expect(r.output).toBe('boom');
+  });
+
+  it('reports a check that exceeds the timeout as timeout', async () => {
+    const r = await runCaptured(root, `"${NODE}" -e "setTimeout(()=>{}, 5000)"`, {
+      timeoutMs: 100,
+    });
+    expect(r.status).toBe('timeout');
+    expect(r.exitCode).toBeNull();
   });
 });

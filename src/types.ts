@@ -250,6 +250,46 @@ export interface ReviewFinding {
   classification?: 'novel' | 'compounding' | 'recurring';
 }
 
+export type BaseOutcome = 'assertion-red' | 'structural-red' | 'vacuous' | 'inconclusive';
+export type HeadOutcome = 'pass' | 'fail' | 'not-run';
+
+export interface TddArgs {
+  testFiles: string[];
+  redCommit: string;
+}
+
+export interface JudgeAnswers {
+  tautological: number;      // 0..1
+  asserts_criteria: number;  // 0..2
+  through_seam: number;      // 0..1
+  mocks_internals: number;   // 0..1
+}
+
+export interface JudgeResult {
+  answers: JudgeAnswers;
+  model: string;
+  inputTokens: number;
+  ms: number;                // fetch wall time, retry included
+  cached: boolean;
+}
+
+export interface TddBlock {
+  testFiles: string[];             // as the caller gave them
+  seams: Record<string, string>;   // key: a testFiles path with a tests[] entry; no key otherwise
+  redCommit: string;
+  baseSha: string | null;          // resolved first parent; null when unresolved
+  base: BaseOutcome;
+  head: HeadOutcome;
+  amended: boolean;
+  judged: JudgeResult | null;      // null when off, failed, or no red text
+}
+
+export interface TddCoverage {     // spec-status data.tddCoverage
+  tasks: number;
+  base: Record<BaseOutcome, number>;  // all four keys present
+  amended: number;
+}
+
 export interface TaskReview {
   id: string;
   taskId: string;
@@ -260,6 +300,7 @@ export interface TaskReview {
   summary: string;
   findings: ReviewFinding[];
   reviewer?: 'gate' | 'agent';
+  tdd?: TddBlock;
 }
 
 export interface Deferral {

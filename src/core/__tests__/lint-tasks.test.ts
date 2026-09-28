@@ -6,6 +6,7 @@ import {
   designComponents,
   checkCoverage,
   checkBridges,
+  checkTestSeams,
 } from '../lint-tasks.js';
 import { taskBlocks } from '../lint-markdown.js';
 
@@ -207,5 +208,61 @@ describe('checkBridges', () => {
       '  - _Prompt: Task: do more_',
     ];
     expect(checkBridges(lines, taskBlocks(lines))).toEqual([]);
+  });
+});
+
+describe('checkTestSeams', () => {
+  it('warns on each malformed Test line: no dash, empty call, non-test path', () => {
+    const lines = [
+      '- [ ] 1. Do the work',
+      '  - Test: src/core/foo.test.ts calls foo()',
+      '  - Test: src/core/foo.test.ts — ``',
+      '  - Test: src/core/foo.ts — foo()',
+      '  - _Prompt: Task: do it_',
+    ];
+    expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([
+      { file: '', line: 2, rule: 'task-test-seam', severity: 'warning', message: 'Test line: no " — " separates the test path from the call' },
+      { file: '', line: 3, rule: 'task-test-seam', severity: 'warning', message: 'Test line: no call after the " — "' },
+      { file: '', line: 4, rule: 'task-test-seam', severity: 'warning', message: 'Test line: the path is not a test file' },
+    ]);
+  });
+
+  it('notes a source task that has no Test line', () => {
+    const lines = [
+      '- [ ] 1. Change source',
+      '  - Files: src/core/foo.ts',
+      '  - _Prompt: Task: do it_',
+    ];
+    expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([
+      { file: '', line: 1, rule: 'task-test-seam', severity: 'info', message: 'task 1 changes source and has no Test line' },
+    ]);
+  });
+
+  it('does not note a docs-only task', () => {
+    const lines = [
+      '- [ ] 1. Update docs',
+      '  - Files: docs/guide.md',
+      '  - _Prompt: Task: do it_',
+    ];
+    expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([]);
+  });
+
+  it('does not note a test-only task', () => {
+    const lines = [
+      '- [ ] 1. Add tests',
+      '  - Files: src/core/foo.test.ts',
+      '  - _Prompt: Task: do it_',
+    ];
+    expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([]);
+  });
+
+  it('reports nothing for a valid Test line on a source task', () => {
+    const lines = [
+      '- [ ] 1. Do the work',
+      '  - Files: src/core/foo.ts',
+      '  - Test: src/core/foo.test.ts — foo() returns 1',
+      '  - _Prompt: Task: do it_',
+    ];
+    expect(checkTestSeams(lines, taskBlocks(lines))).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { TaskReview, ReviewFinding } from '../types.js';
+import { TaskReview, ReviewFinding, TddBlock } from '../types.js';
 
 /**
  * Validate that verdict and findings are consistent.
@@ -103,6 +103,32 @@ export class TaskReviewManager {
   }
 
   /**
+   * Write the latest TDD proof for a task as a sidecar beside the prepare
+   * marker. The review loader only reads `review-*.md`, so it never sees this.
+   */
+  async writeLatestTdd(taskId: string, block: TddBlock): Promise<void> {
+    await this.ensureReviewsDir();
+    const sanitized = taskId.replace(/[/.]/g, '-');
+    const sidecarPath = join(this.reviewsDir, `.tdd-${sanitized}.json`);
+    await fs.writeFile(sidecarPath, JSON.stringify(block), 'utf-8');
+  }
+
+  /**
+   * Read the latest TDD proof sidecar for a task. A missing or unreadable
+   * sidecar reads as absent (null).
+   */
+  async readLatestTdd(taskId: string): Promise<TddBlock | null> {
+    const sanitized = taskId.replace(/[/.]/g, '-');
+    const sidecarPath = join(this.reviewsDir, `.tdd-${sanitized}.json`);
+    try {
+      const content = await fs.readFile(sidecarPath, 'utf-8');
+      return JSON.parse(content) as TddBlock;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Save a review to disk as a markdown file with YAML frontmatter
    */
   async saveReview(review: Omit<TaskReview, 'id' | 'version' | 'timestamp'>): Promise<TaskReview> {
@@ -112,12 +138,21 @@ export class TaskReviewManager {
     const id = randomUUID();
     const timestamp = new Date().toISOString();
 
+    // The caller's value wins; otherwise fall back to the latest-proof sidecar.
+    // When neither exists, the review carries no `tdd` key.
+    const tdd = review.tdd ?? (await this.readLatestTdd(review.taskId)) ?? undefined;
+
     const fullReview: TaskReview = {
       ...review,
       id,
       version,
       timestamp,
     };
+    if (tdd) {
+      fullReview.tdd = tdd;
+    } else {
+      delete fullReview.tdd;
+    }
 
     const fileName = this.generateFileName(fullReview.taskId, version, timestamp);
     const filePath = join(this.reviewsDir, fileName);
@@ -231,6 +266,13 @@ export class TaskReviewManager {
       }
     }
 
+    if (review.tdd) {
+      md += `\n## TDD proof\n\n`;
+      md += '```json\n';
+      md += `${JSON.stringify(review.tdd)}\n`;
+      md += '```\n';
+    }
+
     return md;
   }
 
@@ -306,7 +348,19 @@ export class TaskReviewManager {
         });
       }
 
-      return { id, taskId, specName, version, timestamp, verdict, summary, findings, reviewer };
+      // Parse the optional TDD proof section. A missing section or a parse
+      // error leaves `tdd` absent.
+      let tdd: TddBlock | undefined;
+      const tddMatch = content.match(/## TDD proof\n\n```json\n([\s\S]*?)\n```/);
+      if (tddMatch) {
+        try {
+          tdd = JSON.parse(tddMatch[1]) as TddBlock;
+        } catch {
+          tdd = undefined;
+        }
+      }
+
+      return { id, taskId, specName, version, timestamp, verdict, summary, findings, reviewer, ...(tdd ? { tdd } : {}) };
     } catch {
       return null;
     }

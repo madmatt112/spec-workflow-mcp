@@ -3,7 +3,8 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { specStatusHandler } from '../spec-status.js';
-import { ToolContext } from '../../types.js';
+import { TaskReviewManager } from '../../core/task-review-manager.js';
+import { ToolContext, TddBlock } from '../../types.js';
 
 describe('specStatusHandler — approval state', () => {
   let tempDir: string;
@@ -86,5 +87,68 @@ describe('specStatusHandler — approval state', () => {
     expect(result.data.currentPhase).toBe('completed');
     const implementation = result.data.phases[3];
     expect(implementation).toMatchObject({ name: 'Implementation', status: 'completed' });
+  });
+});
+
+describe('specStatusHandler — TDD coverage', () => {
+  let tempDir: string;
+  let specDir: string;
+  let context: ToolContext;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(join(tmpdir(), 'spec-status-tdd-test-'));
+    specDir = join(tempDir, '.spec-workflow', 'specs', 'alpha');
+    await fs.mkdir(specDir, { recursive: true });
+    await fs.writeFile(join(specDir, 'requirements.md'), '# R\n', 'utf-8');
+    await fs.writeFile(join(specDir, 'design.md'), '# D\n', 'utf-8');
+    await fs.writeFile(join(specDir, 'tasks.md'), '# Tasks\n\n- [x] 1. Task one\n- [x] 2. Task two\n', 'utf-8');
+    context = { projectPath: tempDir, workspacePath: tempDir };
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  function tddBlock(base: TddBlock['base'], amended: boolean): TddBlock {
+    return {
+      testFiles: ['a.test.ts'],
+      seams: {},
+      redCommit: 'abc123',
+      baseSha: amended ? null : 'def456',
+      base,
+      head: 'pass',
+      amended,
+      judged: null,
+    };
+  }
+
+  it('counts the latest reviews carrying a tdd block by base outcome', async () => {
+    const manager = new TaskReviewManager(specDir);
+    await manager.saveReview({
+      taskId: '1', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [],
+      tdd: tddBlock('assertion-red', false),
+    });
+    await manager.saveReview({
+      taskId: '2', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [],
+      tdd: tddBlock('structural-red', true),
+    });
+
+    const result = await specStatusHandler({ specName: 'alpha' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data.tddCoverage).toEqual({
+      tasks: 2,
+      base: { 'assertion-red': 1, 'structural-red': 1, 'vacuous': 0, 'inconclusive': 0 },
+      amended: 1,
+    });
+  });
+
+  it('omits tddCoverage when no latest review carries a tdd block', async () => {
+    const manager = new TaskReviewManager(specDir);
+    await manager.saveReview({ taskId: '1', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [] });
+    await manager.saveReview({ taskId: '2', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [] });
+
+    const result = await specStatusHandler({ specName: 'alpha' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data).not.toHaveProperty('tddCoverage');
   });
 });

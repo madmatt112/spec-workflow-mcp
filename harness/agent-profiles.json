@@ -65,6 +65,12 @@
     "role": "reviser",
     "cacheTtl": "default"
   },
+  "sdd-test-author": {
+    "model": "claude-sonnet-5",
+    "effort": "high",
+    "role": "test author",
+    "cacheTtl": "default"
+  },
   "sdd-verifier": {
     "model": "claude-opus-4-8",
     "effort": "xhigh",

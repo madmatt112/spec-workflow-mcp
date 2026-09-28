@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Pins the generated harness/agent-profiles.json to the twelve agent frontmatters
+// Pins the generated harness/agent-profiles.json to the thirteen agent frontmatters
 // (Task 1, design Component 2, Requirements 3.1, 3.2, 3.6, 3.7). The JSON is read
 // from disk, never imported, because it sits outside the TypeScript rootDir.
 
@@ -20,8 +20,8 @@ describe('harness/agent-profiles.json', () => {
   const text = readFileSync(PROFILES_PATH, 'utf8');
   const profiles = JSON.parse(text) as Record<string, { model: string; effort: string; role: string; cacheTtl: string }>;
 
-  it('has one entry per agent frontmatter (12 keys)', () => {
-    expect(Object.keys(profiles)).toHaveLength(12);
+  it('has one entry per agent frontmatter (13 keys)', () => {
+    expect(Object.keys(profiles)).toHaveLength(13);
   });
 
   it('matches each agent frontmatter model (line 4) and effort (line 5)', () => {
@@ -36,7 +36,7 @@ describe('harness/agent-profiles.json', () => {
     expect(profiles['sdd-checker'].effort).toBe('high');
   });
 
-  it('records cacheTtl as 1h for the three orchestrators and default for the other nine', () => {
+  it('records cacheTtl as 1h for the three orchestrators and default for the other ten', () => {
     const orchestrators = [
       'sdd-document-orchestrator',
       'sdd-implementation-orchestrator',
