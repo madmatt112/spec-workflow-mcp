@@ -89,3 +89,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 review-task gate ran its checks in the default root (main checkout on another branch, lacking this branch's changes), so get-task-review.test.ts failed there while green 21x in the worktree. Cost one spurious fix round. Fix: pass root=CODE_ROOT to every gate call. Tasks 1-5 gates likely ran in the main checkout too (checks passed vacuously); task 17 full-suite run is the net.
 Evidence: task 6; commit ed69108; gate reviewId c6cf9c8f
 Cost: 1 implementer + 1 fix spawn, 3 gate calls
+
+## 2026-09-28T15:36:57Z · implementation · task 7 · gotcha
+High risk on line-count only (289>200), verifier passed. Verifier INFO: proveRedGreen 'never throws' not airtight (fs.mkdtemp/mkdir/writeFile outside try can propagate on raw infra fault); task 9 gate caller should guard the call.
+Evidence: task 7; commit fedb70f; verifier VERDICT pass
+Cost: 1 implementer + 1 verifier spawn, 1 gate call, 0 fix rounds
