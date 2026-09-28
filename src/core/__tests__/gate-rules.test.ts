@@ -15,9 +15,12 @@ import {
   parseSensitivePaths,
   parseGeneratedPaths,
   parseProsePaths,
+  parseAgentRuleKey,
+  normalizePath,
   isSensitivePath,
   isGeneratedPath,
   isProsePath,
+  isDocPath,
   isBookkeepingPath,
   taskBlock,
   taskNamesTests,
@@ -146,6 +149,45 @@ describe('isBookkeepingPath (P5)', () => {
     expect(isBookkeepingPath('.spec-workflow/specs/s/design.md')).toBe(false);
     expect(isBookkeepingPath('src/core/tasks.md')).toBe(false);
     expect(isBookkeepingPath('src/core/gate-rules.ts')).toBe(false);
+  });
+});
+
+describe('parseAgentRuleKey (Component 7)', () => {
+  const md = [
+    'worktree-per-change: required',
+    'worktree-setup: `npm ci`; a task that runs a worktree Playwright e2e suite also runs `npx playwright install chromium` before it',
+    'empty-key:',
+  ].join('\n');
+
+  it('takes the first backtick span of a backticked value', () => {
+    expect(parseAgentRuleKey(md, 'worktree-setup')).toBe('npm ci');
+  });
+
+  it('takes the trimmed rest of a plain value', () => {
+    expect(parseAgentRuleKey(md, 'worktree-per-change')).toBe('required');
+  });
+
+  it('returns null for an absent key', () => {
+    expect(parseAgentRuleKey(md, 'no-such-key')).toBeNull();
+  });
+
+  it('returns null for an empty value', () => {
+    expect(parseAgentRuleKey(md, 'empty-key')).toBeNull();
+  });
+});
+
+describe('isDocPath', () => {
+  it('is true for a docs/ path or a *.md file, false for a source file', () => {
+    expect(isDocPath('docs/x.ts')).toBe(true);
+    expect(isDocPath('a.md')).toBe(true);
+    expect(isDocPath('src/a.ts')).toBe(false);
+  });
+});
+
+describe('normalizePath', () => {
+  it('strips a leading ./ and turns backslashes into forward slashes', () => {
+    expect(normalizePath('./src/a.ts')).toBe('src/a.ts');
+    expect(normalizePath('src\\core\\a.ts')).toBe('src/core/a.ts');
   });
 });
 

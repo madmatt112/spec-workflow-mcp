@@ -30,6 +30,7 @@ import {
   parseSensitivePaths,
   parseGeneratedPaths,
   isGeneratedPath,
+  isDocPath,
   taskBlock,
   scoreRisk,
   decideGate,
@@ -92,17 +93,6 @@ function recordedSummary(
     `checks ${passed}/${checks.length} pass; typecheck ${typecheckKind}; ` +
     `hygiene console ${hygiene.console ?? 0} todo ${hygiene.todo ?? 0} fixme ${hygiene.fixme ?? 0}`
   );
-}
-
-/**
- * A documentation path: a Markdown/MDX file, or anything under a `docs/`
- * directory (retro P7). A change whose whole file set is docs is down-ranked so
- * the per-task verifier is skipped and CI is the net.
- */
-function isDocPath(relPath: string): boolean {
-  const p = relPath.replace(/\\/g, '/').replace(/^\.\//, '').trim();
-  if (p.endsWith('.md') || p.endsWith('.mdx')) return true;
-  return p === 'docs' || p.startsWith('docs/') || p.includes('/docs/');
 }
 
 /** `nextSteps` by outcome; the skills route on `gate`/`risk`, this is guidance. */
