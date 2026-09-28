@@ -67,6 +67,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-27 | tdd-task-loop | tasks | v1 | approved | 1 round, clean converge 0/0/2 |
 | 2026-09-28 | tdd-task-loop | implementation | tasks 17/17 | complete | PR #72 open, 9.1/9.3/9.5 pending operator |
 | 2026-09-28 | tdd-task-loop | retrospective | n/a | retro-ready | 16 findings, 16 proposals (2 decisions: P2, P8), 2 graduation candidates |
+| 2026-09-28 | tdd-task-loop | retrospective | n/a | approved | plan APPROVED: P1, P3, P4, P5, P9, G1, G2; P2/P8 keep as is |
 
 ## Current state — 2026-08-04
 
