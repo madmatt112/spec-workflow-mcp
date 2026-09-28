@@ -111,3 +111,30 @@
 - harness/skills/sdd-retrospective/SKILL.md:17-18 — analyst spawn rule
 - src/__tests__/providers-map.test.ts:1-30 — `execFileSync` test pattern for `sdd-providers.sh`
 - docs/SDD-HARNESS.md:244-251 — headless command and the model refusal note
+
+## Tasks-phase additions: server, watch and tests (src)
+- src/watch/index.ts:7-9 — `WatchOptions.workflowRoot`, the directory ending in `.spec-workflow`
+- src/dashboard/multi-server.ts:62-68 — `MultiDashboardOptions`, the options the constructor takes
+- src/dashboard/multi-server.ts:93-118 — constructor, creates the manager, scheduler and both runners
+- src/dashboard/multi-server.ts:300-320 — event setup, route registration, port check and `listen` at 317
+- src/dashboard/multi-server.ts:872-876 — a runner in-flight error mapped to 409
+- src/dashboard/__tests__/multi-server.test.ts:74-107 — per-test temp global dir, stubbed fetch, `start()` and `stop()`
+- src/__tests__/providers-map.test.ts:17-34 — script path and the `execFileSync` run helper
+- src/__tests__/providers-map.test.ts:45-65 — temp dir, key and no-key env, rules-file writer
+- tsconfig.json:20 — the root compile excludes the frontend
+- package.json:26-33 — `build`, `build:dashboard` and `validate:i18n` scripts
+
+## Tasks-phase additions: frontend (src/dashboard_frontend)
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:59-63 — `onopen`, resets the retry delay
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:154-159 — the context value
+- src/dashboard_frontend/src/modules/components/PageNavigationSidebar.tsx:12-17 — `NavigationItem` shape
+- src/dashboard_frontend/src/modules/api/api.tsx:139-142 — `putJson`, returns null data on a non-ok response
+- src/dashboard_frontend/src/locales/en.json:5-15 — the `nav` label keys
+
+## Tasks-phase additions: harness (harness)
+- harness/skills/sdd-continue/references/sdd-providers.sh:1-20 — header comment pattern for a reference script
+- harness/skills/sdd-continue/references/sdd-providers.sh:31-41 — `none()` and `bad()`, short-circuits at 33, 35 and 41
+- harness/skills/sdd-continue/references/sdd-providers.sh:66-77 — zero-row short-circuit, key check (exit 3), output, argument pass
+- harness/skills/sdd-continue/SKILL.md:175-182 — retrospective blocked while an evidence line is not `passed`
+- harness/skills/sdd-implementation-phase/references/briefs.md:12-15 — spec-store commits through a script that changes directory
+- docs/SDD-HARNESS.md:253 — `## Workspace contract`, the heading after the headless command
