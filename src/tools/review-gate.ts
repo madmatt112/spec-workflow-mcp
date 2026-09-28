@@ -13,9 +13,17 @@
  */
 import path from 'node:path';
 import { promises as fs, existsSync } from 'node:fs';
-import { ToolContext, ToolResponse } from '../types.js';
+import { ToolContext, ToolResponse, TddArgs, TddBlock } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
+import { criteria } from '../core/lint-markdown.js';
+import {
+  proveRedGreen,
+  proofReasons,
+  type ProofRules,
+  type ProofResult,
+} from '../core/red-green.js';
+import { judgeTdd } from '../core/judge.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { TaskReviewManager } from '../core/task-review-manager.js';
 import { loadSettings, isTypecheckEnabled } from '../core/adversarial-settings.js';
@@ -29,8 +37,10 @@ import { runChecks, type CheckResult } from '../core/check-runner.js';
 import {
   parseSensitivePaths,
   parseGeneratedPaths,
+  parseAgentRuleKey,
   isGeneratedPath,
   isDocPath,
+  normalizePath,
   taskBlock,
   scoreRisk,
   decideGate,
@@ -53,6 +63,7 @@ export type GateArgs = {
   files?: string[];
   root?: string;
   projectPath?: string;
+  tdd?: TddArgs;
 };
 
 type HygienePattern = HygieneSignal['pattern'];
@@ -68,6 +79,8 @@ export type GateData = {
   typecheck: TypecheckMethodologyState | { kind: 'skipped' };
   hygiene: Partial<Record<HygienePattern, number>>;
   recorded: { reviewId: string; version: number } | null;
+  /** The proof and judge block; present only when `tdd` was given (Component 8). */
+  tdd?: TddBlock;
 };
 
 /** Counts of hygiene signals by pattern, bounded to the four patterns (D27). */
@@ -107,6 +120,26 @@ function gateNextSteps(gate: 'pass' | 'fail', risk: 'low' | 'medium' | 'high'): 
     return ['Risk is medium (no product code — docs-only, generated-only, or spec-store-only); the verifier is skipped and CI is the net. The gate recorded the review; mark the task complete.'];
   }
   return ['Risk is low; the gate recorded the review. Mark the task complete.'];
+}
+
+/**
+ * The acceptance-criteria texts the task's `_Requirements:` ids name, read from
+ * the spec's `requirements.md` with the shared `criteria` reader (Component 8).
+ * An id is `<requirement>.<index>`. A missing or unreadable file, or no ids,
+ * yields an empty list — the judge input degrades, the gate does not fail.
+ */
+async function readRequirementCriteria(specPath: string, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  let content: string;
+  try {
+    content = await fs.readFile(`${specPath}/requirements.md`, 'utf-8');
+  } catch {
+    return [];
+  }
+  const wanted = new Set(ids);
+  return criteria(content.split('\n'))
+    .filter((c) => wanted.has(`${c.requirement}.${c.index}`))
+    .map((c) => c.text);
 }
 
 /**
@@ -175,6 +208,28 @@ export async function handleGate(
       }
     }
 
+    // Component 8 step 1: the tdd argument is a task-only proof. In item mode
+    // (which includes files-only) it is refused, and its fields are validated
+    // before any git work (4.1, 4.3).
+    const tdd = args.tdd;
+    if (tdd) {
+      if (mode !== 'task') {
+        return {
+          success: false,
+          message: `tdd needs a task: '${taskId}' is not a task in tasks.md`,
+        };
+      }
+      if (!Array.isArray(tdd.testFiles) || tdd.testFiles.length === 0) {
+        return { success: false, message: 'tdd.testFiles must be a non-empty array of paths.' };
+      }
+      if (tdd.testFiles.some((f) => typeof f !== 'string')) {
+        return { success: false, message: 'tdd.testFiles entries must be strings.' };
+      }
+      if (typeof tdd.redCommit !== 'string' || tdd.redCommit.length === 0) {
+        return { success: false, message: 'tdd.redCommit must be a non-empty string.' };
+      }
+    }
+
     // Step 3: files-only detection (D23, R1-2). A task-mode `files`-only call
     // still takes the git path.
     const filesOnly = mode === 'item' && !hasCommit && !baseRef && hasFiles;
@@ -183,11 +238,19 @@ export async function handleGate(
     // sensitive (`null`); any other read error is a hard failure (2.1-2.4, 1.8).
     let sensitive: string[] | null = null;
     let generated: string[] | null = null;
+    // The proof obeys the two agent-rules keys plus `red-on-base` (Component 7);
+    // ENOENT leaves this all-null so the base run is skipped as inconclusive.
+    let proofRules: ProofRules = { testCommand: null, setupCommand: null, off: false };
     const agentRulesPath = path.join(PathUtils.getWorkflowRoot(workflowRoot), 'agent-rules.md');
     try {
       const agentRules = await fs.readFile(agentRulesPath, 'utf-8');
       sensitive = parseSensitivePaths(agentRules);
       generated = parseGeneratedPaths(agentRules);
+      proofRules = {
+        testCommand: parseAgentRuleKey(agentRules, 'tdd-test-command'),
+        setupCommand: parseAgentRuleKey(agentRules, 'red-on-base-setup'),
+        off: parseAgentRuleKey(agentRules, 'red-on-base') === 'off',
+      };
     } catch (err) {
       if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
         sensitive = null;
@@ -270,14 +333,71 @@ export async function handleGate(
     // pre-computations.
     const checks = await runChecks(root, args.checks ?? []);
 
-    // Step 8: verdict and risk over the whole touched list, then truncate.
+    // Component 8 step 3: the red-on-base proof, the shadow judge and the block.
+    // Runs after the checks; only reached in task mode (item mode was refused).
+    // `writeLatestTdd` records the sidecar before the review below reads it.
+    let proof: { fail: string[]; risk: string[] } = { fail: [], risk: [] };
+    let tddBlock: TddBlock | null = null;
+    if (tdd && task) {
+      const taskTests = task.tests ?? [];
+      // Key each seam by the caller's `testFiles` string, matched to the task's
+      // `tests[]` through the one path form (carried item R2-1); a path with no
+      // matching entry gets no key.
+      const seams: Record<string, string> = {};
+      for (const tf of tdd.testFiles) {
+        const match = taskTests.find((t) => t.path === normalizePath(tf));
+        if (match) seams[tf] = match.seam;
+      }
+
+      const proofResult: ProofResult = await proveRedGreen(root, tdd, proofRules);
+      proof = proofReasons(proofResult);
+
+      // The judge input criteria: the task's `Success` prompt section and the
+      // requirement criteria its `_Requirements:` ids name in requirements.md.
+      const successCriteria =
+        task.promptStructured?.find((s) => s.key === 'Success')?.value ?? '';
+      const requirementCriteria = await readRequirementCriteria(
+        specPath,
+        task.requirements ?? [],
+      );
+      const cacheDir = path.join(PathUtils.getWorkflowRoot(workflowRoot), '.cache');
+      const judged = await judgeTdd(
+        {
+          redText: proofResult.redText,
+          successCriteria,
+          requirementCriteria,
+          testLines: taskTests,
+          base: proofResult.base,
+        },
+        { cacheDir, env: process.env },
+      );
+
+      tddBlock = {
+        testFiles: tdd.testFiles,
+        seams,
+        redCommit: tdd.redCommit,
+        baseSha: proofResult.baseSha,
+        base: proofResult.base,
+        head: proofResult.head,
+        amended: proofResult.amended.length > 0,
+        judged,
+      };
+      await new TaskReviewManager(specPath).writeLatestTdd(taskId, tddBlock);
+    }
+
+    // Step 8: verdict and risk over the whole touched list, then truncate. When
+    // `tdd` was given the author test files count as listed for `file-outside-list`
+    // (only when a list was given) and as touched test paths for `tests-not-touched`
+    // (only when the range touched something) — no rule body changes (design D4).
     const gateFiles = hasFiles ? (files as string[]) : null;
+    const gateFilesWithTdd = tdd && gateFiles ? [...gateFiles, ...tdd.testFiles] : gateFiles;
+    const scoredTouched = tdd && touched.length > 0 ? [...touched, ...tdd.testFiles] : touched;
     const verdict = decideGate({
       checks,
       diagnostics,
       hygiene: hygieneSignals,
       touched,
-      files: gateFiles,
+      files: gateFilesWithTdd,
       generated,
       untracked,
       dirtyTracked,
@@ -289,7 +409,7 @@ export async function handleGate(
       : scoreRisk({
           mode,
           sensitive,
-          touched,
+          touched: scoredTouched,
           stats,
           perFile,
           generated,
@@ -308,8 +428,21 @@ export async function handleGate(
     // paths`). There is nothing the per-task verifier could judge, so it is
     // skipped and CI is the net; any other touched path keeps it high. Medium
     // still requires the log — the gate already refuses a task with no log above.
-    let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] } = scored;
-    if (scored.risk === 'high') {
+    // Step 8b: a weak proof (`tdd-` risk reason) forces high, appends its reasons
+    // and skips the down-rank, beating the trivial-change fast path that returns
+    // low inside scoreRisk (design step 6, 5.3). Otherwise the no-product-code
+    // down-rank from high to medium stands (retro P7 docs-only; retro P10
+    // generated-only and spec-store-only): a change is "no product code" when it
+    // touched no path under the code root at all (spec-store-only), or every
+    // touched path is documentation (*.md, *.mdx, docs/**), or every touched path
+    // is a generated artifact (`## Generated paths`). There is nothing the per-task
+    // verifier could judge, so it is skipped and CI is the net; any other touched
+    // path keeps it high. Medium still requires the log — the gate already refuses
+    // a task with no log above.
+    let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] };
+    if (proof.risk.length > 0) {
+      risk = { risk: 'high', reasons: [...scored.reasons, ...proof.risk] };
+    } else if (scored.risk === 'high') {
       let downrank: string | null = null;
       if (touched.length === 0) {
         downrank = 'no-product-code: the change touched no path under the code root; verifier skipped, CI is the net';
@@ -318,19 +451,24 @@ export async function handleGate(
       } else if (generated !== null && touched.every((p) => isGeneratedPath(p, generated))) {
         downrank = 'generated-only: every touched path is a generated artifact; verifier skipped, CI is the net';
       }
-      if (downrank !== null) {
-        risk = { risk: 'medium', reasons: [downrank, ...scored.reasons] };
-      }
+      risk = downrank !== null ? { risk: 'medium', reasons: [downrank, ...scored.reasons] } : scored;
+    } else {
+      risk = scored;
     }
 
-    const reasons = [...verdict.reasons, ...risk.reasons].map(truncateLine);
+    // Step 8c: the gate fails when the verdict fails or the proof has fail reasons;
+    // the reasons run verdict, proof fail, then risk (design step 5).
+    const gateOutcome: 'pass' | 'fail' =
+      verdict.gate === 'fail' || proof.fail.length > 0 ? 'fail' : 'pass';
+    const reasons = [...verdict.reasons, ...proof.fail, ...risk.reasons].map(truncateLine);
 
     // Step 9: record a `reviewer: gate` review for a task-mode pass at low or the
     // docs-only medium down-rank (retro P7); both skip the verifier and the gate
-    // stands as the review. No prepare marker is written or checked (5.1).
+    // stands as the review. No prepare marker is written or checked (5.1). The
+    // review picks up the tdd sidecar written above (task 6).
     const hygiene = filesOnly ? {} : hygieneCounts(hygieneSignals);
     let recorded: { reviewId: string; version: number } | null = null;
-    if (mode === 'task' && verdict.gate === 'pass' && risk.risk !== 'high' && stats) {
+    if (mode === 'task' && gateOutcome === 'pass' && risk.risk !== 'high' && stats) {
       const reviewManager = new TaskReviewManager(specPath);
       const review = await reviewManager.saveReview({
         taskId,
@@ -346,7 +484,7 @@ export async function handleGate(
     // Step 10: the response. `data.touched.paths` is cut to 100 for display only,
     // after every rule saw the whole list (R4-1).
     const data: GateData = {
-      gate: verdict.gate,
+      gate: gateOutcome,
       risk: risk.risk,
       reasons,
       checks,
@@ -355,13 +493,16 @@ export async function handleGate(
       typecheck: typecheckState,
       hygiene,
       recorded,
+      // `data.tdd` appears only when `tdd` was given; the proof output otherwise
+      // surfaces only as a cause in a reason (design step 7).
+      ...(tdd && tddBlock ? { tdd: tddBlock } : {}),
     };
 
     return {
       success: true,
-      message: `Gate ${verdict.gate} for ${mode === 'task' ? `task` : `item`} '${taskId}': risk ${risk.risk}.`,
+      message: `Gate ${gateOutcome} for ${mode === 'task' ? `task` : `item`} '${taskId}': risk ${risk.risk}.`,
       data,
-      nextSteps: gateNextSteps(verdict.gate, risk.risk),
+      nextSteps: gateNextSteps(gateOutcome, risk.risk),
       projectContext: {
         projectPath: workflowRoot,
         workflowRoot: PathUtils.getWorkflowRoot(workflowRoot),

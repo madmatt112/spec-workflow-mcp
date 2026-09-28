@@ -268,6 +268,22 @@ Note: If a review was triggered from the dashboard (fresh-context review), use g
       root: {
         type: 'string',
         description: "Absolute directory; the pre-computations' working tree, defaulting to the workspace under review (gate action only)"
+      },
+      tdd: {
+        type: 'object',
+        description: 'Red-on-base proof inputs for a marked task (gate action only)',
+        properties: {
+          testFiles: {
+            type: 'array',
+            description: "The author's test files, root-relative paths",
+            items: { type: 'string' }
+          },
+          redCommit: {
+            type: 'string',
+            description: 'The commit that introduced the failing tests'
+          }
+        },
+        required: ['testFiles', 'redCommit']
       }
     },
     required: ['action', 'specName', 'taskId']
