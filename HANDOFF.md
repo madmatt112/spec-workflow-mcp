@@ -1,7 +1,7 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (next in build order; no spec dir yet).
-> Live phase **requirements**, state **pending**, last result **pending**. Previous spec `tdd-task-loop` CLOSED (close-out PR #74 open, overwatch merges).
+> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
+> Live phase **requirements**, state **pending**, last result **pending**. Previous spec `tdd-task-loop` CLOSED (PRs #72, #74 merged).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
 > A re-run does: starts `harness-control-pane` at requirements (spawns the document orchestrator for v1 and gate A).
 
