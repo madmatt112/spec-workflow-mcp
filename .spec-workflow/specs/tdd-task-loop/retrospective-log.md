@@ -164,3 +164,8 @@ Cost: 1 verifier spawn that a low-risk docs task should not need
 After RED-IMPOSSIBLE the task 3 author left its test file untracked in the code root; nothing commits or removes it before the design-defect stop.
 Evidence: `git status` in the fixture code root shows `?? src/__tests__/clamp.test.js` after phase.end design-defect at 18:18:14Z
 Cost: stray file in the working tree for the next run
+
+## 2026-09-28T18:45:00Z · implementation · phase · tool-error
+The supervisor session in run-20260928-143508 ran from inside the feat/tdd-task-loop worktree. Claude Code's worktree isolation guard blocked plain git (the RTK `rtk git` rewrite) and Edit on main-checkout files such as HANDOFF.md. The session got around it with `/usr/bin/git` and a node helper script. Proposal: keep the supervisor in the main checkout and point only the implementation orchestrator's code root at the worktree, so no workaround is needed.
+Evidence: run-20260928-143508; harness-activity.jsonl shows repeated `/usr/bin/git commit`, `status` and `-C` calls
+Cost: workaround commands on every main-checkout write for the whole run
