@@ -625,3 +625,15 @@ Gotchas:
 | Cut scope | Concurrent terminal-launch race declared out of scope (R3-6): the single-live-run invariant is bounded to dashboard-initiated launches, per the decomposition's pointer-file lock (decomposition.md:673-674). |
 | Carried items | R3-minor-1 — AC 3.2 reuse of adversarial-runner.ts:156-220: design must state the reused spawn pattern does NOT adopt that runner's 10-min SIGTERM timeout or its on-shutdown child kill (both contradict D4's hours-long, restart-surviving run). R3-minor-2 — a page Launch re-saves harness-run.json with gates=record, clobbering a setup saved for a terminal run with gates=block (D6): design should state this overwrite is intended. |
 | Next phase loads | requirements.md v4 and the decomposition entry (spec 9); focus the design on the websocket subscribe/message contract (AC 4.7–4.9, 5.9–5.10), the failure/concurrency ACs (2.6, 3.10–3.14), and the read-only index-generator ordering without INDEX.md's write (AC 1.1). |
+
+## harness-control-pane — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-28 |
+| Rounds | 3 (2 review + 1 narrow check); verdicts 0/3/3 → 0/2/1 → SHOULD_FIX-only pass → VERIFIED 3/3 |
+| Approval | `approval_1790635324007_a1w0qavvk` |
+| Rulings | none from orchestrator. 4 RE-DECIDED requirement-literal flags closed as refinement by the reviewer at round 1: Req 1 AC 4 (a deepseek-mapped role pre-fills the model, D3); Req 3 AC 13 (pointer removal ports the deregister helper plus a retry, an append-race window remains); Req 3 AC 14 (an unmarked existing worktree gets setup re-run, not refused); Req 2 AC 6 (a malformed file is refused and deleted). |
+| Cut scope | Non-active routing states cannot launch; stale pointer lines have no explicit control; launch logs are not pruned (design Scope notes). Requirements already cut the concurrent terminal-launch race. |
+| Carried items | R2-3 — spawn-to-record crash window (MINOR): ruled out for word cap; a launcher crash between spawn and the record-write can leave a run untracked. Narrow-check deferred — the in-flight-race loser has no LaunchError.step value and its route-layer error shape (409 vs 500) is unstated (design.md:81,90). |
+| Next phase loads | design.md v3 (components C1–C10, Data Models, Testing Strategy) after codebase-context.md; the tasks drafter must cover the atomic launch admission (C4 launch step 1), the re-point-on-new-launch log seam (C5/C7), the post-merge validation pass in the providers script (C9), and resolve the carried LaunchError.step / 409-vs-500 gap. |

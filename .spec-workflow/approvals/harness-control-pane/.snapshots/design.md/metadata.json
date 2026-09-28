@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-control-pane/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-28T22:42:04.040Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790635324007_a1w0qavvk",
+      "approvalTitle": "harness-control-pane design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-28T22:42:17.701Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790635324007_a1w0qavvk",
+      "approvalTitle": "harness-control-pane design v3"
+    }
+  ]
+}

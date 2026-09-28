@@ -28,3 +28,13 @@ Cost: 1 reviewer spawn
 design R2 (fresh lens failure/concurrency): iterate 0/2/1; R2-1 launch admission not atomic with in-flight mark (double-spawn race), R2-2 log re-point fires on every launch-update not only new launch (reset storm, compounds R1-1); R2-3 minor spawn-to-record crash window. Routes to SHOULD_FIX-only pass (D=2).
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-09-28T22:41:54Z · design · v3 · gotcha
+Narrow check deferred finding: the R2-1 fix names no LaunchError.step value for a call that loses the in-flight check-and-set race; the loser's error shape/handling at the route layer (409 vs 500) is unstated. Left for the tasks/implementation phase.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design-r3.md
+Cost: 1 checker spawn
+
+## 2026-09-28T22:43:13Z · design · phase · cleanup
+design approved at v3 after 3 rounds; verdict trajectory 0/3/3 → 0/2/1 → SHOULD_FIX-only pass → VERIFIED 3/3; rulings 0 (4 RE-DECIDED flags closed as refinement by reviewer at round 1); cap not hit (SHOULD_FIX-only pass at v3; carried: R2-3 word cap); prune removed 0 records and 0 snapshots.
+Evidence: approval_1790635324007_a1w0qavvk; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-design-r2.md
+Cost: 2 reviewer + 2 reviser spawns; 1 drafter; 1 checker

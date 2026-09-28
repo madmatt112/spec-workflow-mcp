@@ -1,0 +1,12 @@
+{
+  "id": "approval_1790635324007_a1w0qavvk",
+  "title": "harness-control-pane design v3",
+  "filePath": ".spec-workflow/specs/harness-control-pane/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-09-28T22:42:04.007Z",
+  "category": "spec",
+  "categoryName": "harness-control-pane",
+  "response": "v3; 3 review rounds (2 reviewer + 1 narrow check); final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 1 (R2-3 ruled out for word cap, carried); rulings: none (4 RE-DECIDED flags closed as refinement by reviewer at round 1); cap: SHOULD_FIX-only pass at v3, VERIFIED 3/3",
+  "respondedAt": "2026-09-28T22:42:17.704Z"
+}
