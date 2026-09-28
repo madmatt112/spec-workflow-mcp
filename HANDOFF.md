@@ -595,3 +595,17 @@ Gotchas:
 | Deferred verification | verification-evidence.md — live criteria 9.1, 9.3, 9.5 pending an operator pre-merge session (rebuilt server, dev-link, restart, Jev key in ignored .mcp.json) |
 | Gotchas | review-task gate/prepare run against the default root = main checkout on another branch; always pass root=CODE_ROOT (and commit=<sha> to scope) or the checks/diff read the wrong tree (task 6). Verifier INFO task 7: proveRedGreen 'never throws' not airtight (fs.mkdtemp/mkdir/writeFile outside try). Verifier INFO task 9: readRequirementCriteria matches only N.M ids, not bare N (shadow-only, fail-open, unreachable this spec). |
 | Most worth next | resolve d-53b7f443 (lint skip-regex gap surfaces on every tasks-phase spec); run the operator pre-merge session to clear verification-evidence.md (9.1/9.3/9.5); the retro decides whether an assertion-red/green/unamended task may skip the verifier. |
+
+## tdd-task-loop — closeout
+
+| Field | Value |
+| --- | --- |
+| State | CLOSED — items 7/7 (P1, P3, P4, P5, P9, G1, G2 done; P2, P6, P7, P8, P10-P16 not carried) |
+| Done (this run) | P1 6c73071, P3 24741a5, P4 24f101e (tasks-template grep; agent-rules part bacb7116 on main), P5 81a41b9, P9 3451495 — all on chore/tdd-task-loop-retro |
+| Done (earlier store batch) | G1 cbe7116, G2 2fa1b62, P4 agent-rules bacb7116, all on main |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/74 (chore/tdd-task-loop-retro) — OVERWATCH MERGES, do not merge |
+| Gates | all 7 items gate pass, risk low; no verifier spawned (harness/code at low risk close as ok) |
+| Deferrals | d-53b7f443 resolved (P9 fixed the lint skip-regex at the check) |
+| P5 finding | CODE_ROOT is NOT exported to the MCP server process (sdd-launch.sh passes only ANTHROPIC_*/XDG_STATE_HOME and cds into SDD_CODE_ROOT); the explicit projectPath:<CODE_ROOT> on review-task calls is the reliable fix |
+| To-do (human) | merge PR #74 once CI is green; the separate operator pre-merge session for verification-evidence.md (9.1/9.3/9.5) tracked in the implementation HANDOFF section still stands |
+| Spawns | 2 implementers (harness batch, code batch); 0 verifiers, 0 adjudicators |

@@ -1,6 +1,6 @@
 # Retrospective plan — tdd-task-loop
 
-Status: APPROVED
+Status: CLOSED
 
 Approved 2026-09-28 by Matthew in the retrospective conversation (run-20260928-182316).
 Source: retrospective.md (F1-F16) and retrospective-proposals.md (P1-P16).
@@ -83,5 +83,7 @@ One line per proposal, written by the close-out phase.
 - P3: done — 24741a5
 - P4: done — bacb7116 (agent-rules count rule, on main) + 24f101e (tasks template grep)
 - P5: done — 81a41b9
+- P9: done — 3451495 (deferral d-53b7f443 resolved)
 - G1: done — cbe7116
 - G2: done — 2fa1b62
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/74

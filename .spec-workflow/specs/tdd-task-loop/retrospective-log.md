@@ -184,3 +184,13 @@ Cost: 1 implementer spawn, 0 verifier (store low-risk)
 P1, P3, P4 (tasks-template part), P5 landed in retro worktree; 0 to-do, 0 skipped. 1 implementer spawn, no verifier (all gate pass, risk low).
 Evidence: commits 6c73071 P1, 24741a5 P3, 24f101e P4, 81a41b9 P5
 Cost: 1 implementer spawn
+
+## 2026-09-28T19:15:16Z · closeout · code batch 1 · cleanup
+P9 landed in retro worktree; 0 to-do, 0 skipped. 1 implementer spawn, no verifier (gate pass, risk low). Deferral d-53b7f443 resolved.
+Evidence: commit 3451495; PR #74
+Cost: 1 implementer spawn
+
+## 2026-09-28T19:15:49Z · closeout · phase · cleanup
+tdd-task-loop closeout CLOSED: 7/7 items done (P1,P3,P4,P5,P9,G1,G2). 2 implementer spawns, 0 verifiers, 0 adjudicators. All gates pass, risk low. PR #74 open (overwatch merges).
+Evidence: retrospective-plan.md CLOSED; PR https://github.com/madmatt112/spec-workflow-mcp/pull/74
+Cost: 2 implementer spawns
