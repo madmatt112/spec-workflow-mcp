@@ -16,6 +16,7 @@ import {
   designComponents,
   checkCoverage,
   checkBridges,
+  checkTestSeams,
 } from '../core/lint-tasks.js';
 import { finishLint, lintMessage, type LintCaps, type LintFinding } from '../core/lint-types.js';
 import { readRejectedPriorContent } from '../core/approval-records.js';
@@ -184,6 +185,8 @@ export async function specLintHandler(args: any, context: ToolContext): Promise<
     findings.push(...checkCoverage(lines, blocks, components));
 
     findings.push(...checkBridges(lines, blocks));
+
+    findings.push(...checkTestSeams(lines, blocks));
   }
 
   // (9) Assemble the response (1.6-1.8). No `nextSteps`.
