@@ -159,6 +159,23 @@ describe('harnessHandler', () => {
     '',
   ].join('\n');
 
+  // A tasks fixture whose task 1 carries a `- Test:` seam and whose task 2 does
+  // not, for the test-author no-Test guard (design Component 4).
+  const TASKS_TDD = [
+    '# Tasks',
+    'Document version: v1',
+    '',
+    '- [ ] 1. Task with a test seam',
+    '  - File: src/foo.ts',
+    '  - Test: tests/foo.test.ts — foo()',
+    '  _Prompt: Task: a | Restrictions: none | Success: ok_',
+    '',
+    '- [ ] 2. Task without a test seam',
+    '  - File: src/bar.ts',
+    '  _Prompt: Task: b | Restrictions: none | Success: ok_',
+    '',
+  ].join('\n');
+
   const writeAgentRules = () =>
     fs.writeFile(join(tempDir, '.spec-workflow', 'agent-rules.md'), '# rules\n');
 
@@ -237,6 +254,95 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(false);
     expect(res.message).toContain('nope');
     await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  // Component 4 — the test-author template and its no-Test guard.
+
+  it('brief test-author writes the job and the task block for a task with a Test line', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'author-brief-task-1.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'test-author', taskId: '1',
+        values: { path: outPath, title: 'Author 1', job: 'write the red tests' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+
+    const written = await fs.readFile(outPath, 'utf-8');
+    // The task block is carried byte for byte and the job appears under ## Job.
+    expect(written).toContain(taskBlock(TASKS_TDD, '1')!);
+    expect(written).toContain('write the red tests');
+    expect(written).toMatch(/Read and obey .*[/\\]agent-rules\.md first\./);
+  });
+
+  it('brief test-author fails and writes no file when the task has no Test line', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'author-brief-task-2.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'test-author', taskId: '2',
+        values: { path: outPath, title: 'Author 2', job: 'write the red tests' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('has no Test: line');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('brief test-author names a missing job even when the task carries a Test line', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'author-brief-nojob.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'test-author', taskId: '1',
+        values: { path: outPath, title: 'Author 1' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('job');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  // Component 5 — the implementer red-tests slot.
+
+  it('brief implementer carries the redTests text after the task block', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-redtests.md');
+    const redTests = '## Red tests (from the test author)\nfoo.test.ts fails as expected.';
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
+        values: { path: outPath, title: 'Task 3', redTests } },
+      context,
+    );
+    expect(res.success).toBe(true);
+
+    const written = await fs.readFile(outPath, 'utf-8');
+    const block = taskBlock(TASKS, '3')!;
+    expect(written).toContain(redTests);
+    // The red-tests section follows the task block.
+    expect(written.indexOf(redTests)).toBeGreaterThan(written.indexOf(block));
+  });
+
+  it('brief implementer still succeeds when redTests is omitted', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-noredtests.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
+        values: { path: outPath, title: 'Task 3' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    // The absent optional key leaks no literal 'undefined'.
+    expect(written).not.toContain('undefined');
   });
 
   // Requirement 3 — the `## Code graph` brief section by tooling.
