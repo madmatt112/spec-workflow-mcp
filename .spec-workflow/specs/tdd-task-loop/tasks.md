@@ -3,7 +3,7 @@ Document version: v1
 
 Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parser, the lint rule, then the template and reviewer lens. Tasks 5 to 9 build the proof in import order (captured runner, shared types and review record, proof module, judge, gate wiring), and tasks 10 to 15 add the brief templates, `spec-status`, the dashboard, the test author agent, the implementation-phase skill and the documentation, each using only what an earlier task merged, so no task needs a bridge. Task 16 ships the fixture kit and the pending evidence record, task 17 runs the verification gate, and every task leaves `npx tsc --noEmit` clean and every existing suite green.
 
-- [ ] 1. Shared path and agent-rules helpers in the gate rules
+- [x] 1. Shared path and agent-rules helpers in the gate rules
   - File: src/core/gate-rules.ts
   - File: src/tools/review-gate.ts
   - File: src/core/__tests__/gate-rules.test.ts

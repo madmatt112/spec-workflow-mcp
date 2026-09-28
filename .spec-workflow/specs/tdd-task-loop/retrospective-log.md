@@ -59,3 +59,8 @@ Cost: 1 reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory converged 0/0/2 (clean first round); rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1790552073258_x9atj9mm4; reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer + 0 reviser spawns
+
+## 2026-09-28T14:48:36Z · implementation · task 1 · gotcha
+Gate against pre-implement HEAD picked up all uncommitted spec-store/working-tree noise (38 files); re-gated with commit=<implementer sha> to scope to the single commit. Use commit= per task.
+Evidence: task 1; commit 711c546; gate reviewId 81418a81
+Cost: 1 implementer spawn, 2 gate calls, 0 fix rounds

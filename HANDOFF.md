@@ -579,3 +579,11 @@ Gotchas:
 | Cut scope | none. 17 tasks cover all 13 design components; every task cites a real R1-R9 acceptance criterion. Carried design item R2-1 (gate path-form mismatch) is handled by tasks 1, 2 and 9: the parser and the gate share one exported path normaliser (decision D1). |
 | Carried items | none ruled out. The round-1 reviewer left 2 MINOR wording/off-by-one nits, non-blocking, recorded in `reviews/adversarial-analysis-tasks.md`; the implementer may fold them in. Separately, the 39 `citation-identifier` lint warnings on the `- _Prompt:`/`- _Leverage:` lines are a false-positive class (skip-regex gap at `src/core/lint-citations.ts:75`, deferral d-53b7f443); ignore them, they are not real citation errors. |
 | Next phase loads | implementation orchestrator reads `codebase-context.md`, then `tasks.md` in dependency order. Task 1 exports the shared path normaliser (`src/core/gate-rules.ts`); tasks 2-3 the parser and lint rule; 5-8 the red-green proof (`src/core/red-green.ts`) and judge (`src/core/judge.ts`); 9 the gate wiring (`src/tools/review-gate.ts`); 10-12 visibility; 13 the new `sdd-test-author` agent and profile; 14 the implementation-phase skill loop; 15 docs and the agent-rules test-command key; 16 the e2e fixture kit and pending verification-evidence record; 17 the end-to-end verification gate. Requirement 9 criteria 1, 3 and 5 stay pending in the task-16 verification-evidence record (need the built server, dev-link and a session restart plus the Jev key). |
+
+## tdd-task-loop — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/17 |
+| Last code commit | 711c546 (task 1) |
+| Next task | task 2 |
