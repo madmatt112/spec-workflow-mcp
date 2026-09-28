@@ -66,7 +66,7 @@ This aligns with the decomposition entry for spec 9, which puts the control pane
 11. WHEN the child exits on its own THEN the system SHALL NOT write `run.end` or touch the pointer file, and SHALL show the exit code.
 12. WHEN the dashboard process stops or restarts THEN the system SHALL leave a launched run running, and after a restart SHALL read each launch record back and re-check its recorded pid as AC 3.8 does: a live run shows its log and a working Stop; a run whose process is gone SHALL run the AC 3.10 finalisation so no dead run shows as running.
 13. WHEN the system removes a pointer line THEN it SHALL drop only this run's line and delete the file when none remains through the supervisor's `deregister.mjs` helper or an equivalent single-line removal atomic against a concurrent append or removal by another run on this shared file, never a `grep -v` rewrite (harness/skills/sdd-continue/SKILL.md:494-500).
-14. IF worktree creation, the `worktree-setup` command (agent-rules.md:6) or the `claude -p` spawn fails THEN the system SHALL surface the failing step and its error, SHALL leave no launch record for a child that never started, and SHALL never reuse under AC 3.3 a worktree whose `worktree-setup` has not completed.
+14. IF worktree creation, the `worktree-setup` command (.spec-workflow/agent-rules.md:6) or the `claude -p` spawn fails THEN the system SHALL surface the failing step and its error, SHALL leave no launch record for a child that never started, and SHALL never reuse under AC 3.3 a worktree whose `worktree-setup` has not completed.
 
 ### Requirement 4 — Live view
 
@@ -180,3 +180,4 @@ This aligns with the decomposition entry for spec 9, which puts the control pane
   - R3-5 (accepted) — AC 2.6 now deletes `harness-run.json` on a preflight refusal so the invalid file cannot re-refuse every future run of the spec.
   - R3-6 (accepted) — New scope note bounds the single-live-run invariant (AC 3.7, AC 3.8) to dashboard-initiated launches; a terminal run inside the admission-to-pointer-line window is out of scope, matching the decomposition's pointer-file lock (decomposition.md:673-674). Scoped rather than adding a new lock the terminal supervisor would also have to adopt, which the decomposition pins.
   - Minors (3) not kept per the brief. Body trimmed elsewhere (Introduction, Alignment, decision rationale, one scope note) to add the new requirements and hold the 3,500-word cap.
+  - **Lint pass.** 1 fixed; rejected: none.
