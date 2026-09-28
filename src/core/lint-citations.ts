@@ -67,12 +67,14 @@ const META_SECTION_HEADINGS = new Set([
 const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]{2,}$/;
 
 /**
- * A tasks.md `_Leverage:` or `_Prompt:` line. Both name symbols, options and
- * library/SQL API tokens the task will build — identifiers that do not yet exist
- * in any cited range — so the identifier check (2.5) skips them, which removes a
- * false-positive `citation-identifier` warning class (retro F5).
+ * A tasks.md `_Leverage:` or `_Prompt:` line, in either the flush form or the
+ * template's indented sub-bullet form (`  - _Prompt:`). Both name symbols,
+ * options and library/SQL API tokens the task will build — identifiers that do
+ * not yet exist in any cited range — so the identifier check (2.5) skips them,
+ * which removes a false-positive `citation-identifier` warning class (retro
+ * F5/F9).
  */
-const LEVERAGE_PROMPT_RE = /^\s*_(?:Leverage|Prompt):/;
+const LEVERAGE_PROMPT_RE = /^\s*(?:[-*]\s+)?_(?:Leverage|Prompt):/;
 
 /**
  * Lockfiles that live at a repo root and are therefore cited without a directory
