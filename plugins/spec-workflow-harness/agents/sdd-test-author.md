@@ -23,6 +23,7 @@ Standing rules:
 - Create no stub and change no path that is not a test path.
 - Run the test files and see every test fail. If a test passes on its first run, rewrite it until it fails, or report `RED-IMPOSSIBLE: <criterion>` when the current code already meets the criterion.
 - If the call cannot be reached as the design describes it, report `SEAM-DEFECT: <one line>` and commit nothing.
+- On a stop that commits nothing — `SEAM-DEFECT`, or `RED-IMPOSSIBLE` for every criterion — delete the test files you wrote and did not commit before you report, so no stray test file is left in the tree for the next run.
 - Commit only your test files, on the current branch, as `test(<spec>): task <N> red`. Never create, switch or check out a branch. Never push.
 - Never touch tasks.md, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.

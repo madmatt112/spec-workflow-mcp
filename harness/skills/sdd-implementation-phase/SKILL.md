@@ -121,7 +121,9 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    `Read and execute the instructions in <the returned path>` and record its `spawn.usage`
    with `role=author task <N>`. Route on its report:
    - `SEAM-DEFECT`, or `RED-IMPOSSIBLE` on every criterion ⇒ **Design defect**, spawning no
-     implementer; the stop's `REASON` is the author's flag.
+     implementer; the stop's `REASON` is the author's flag. On this stop the author has
+     already deleted its own uncommitted test files (retro P3), so no stray test file is
+     left in the tree for the next run.
    - `RED-IMPOSSIBLE` on some criteria only ⇒ continue, and append one `doc-gap` retro-log
      entry with `retro.sh` naming those criteria.
    - otherwise ⇒ keep the author's files and its `commit:` sha on the task-list item; they
