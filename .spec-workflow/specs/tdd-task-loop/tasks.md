@@ -109,7 +109,7 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
   - _Requirements: 6.1_
   - _Prompt: Task: In the review-coverage loop of src/tools/spec-status.ts (src/tools/spec-status.ts:184-191) count each completed task whose latest review has `tdd` into the coverage shape task 6 added (the task count, a count per base outcome with all four keys, the amended count), and add `tddCoverage` to the response data (src/tools/spec-status.ts:210-225) only when that count is above zero. Tests: two completed tasks, one latest review with an unamended `assertion-red` block and one with an amended `structural-red` block, give tasks 2, one count for each of those outcomes, zero for the other two, and amended 1; reviews without a block give no `tddCoverage` key | Restrictions: No other response field changes; no existing assertion in src/tools/__tests__/spec-status.test.ts changes value | Success: `npx tsc --noEmit`; `npx vitest run src/tools/__tests__/spec-status.test.ts` green_
 
-- [ ] 12. Dashboard routes and task-row line
+- [x] 12. Dashboard routes and task-row line
   - File: src/dashboard/multi-server.ts
   - File: src/dashboard/__tests__/multi-server.test.ts
   - File: src/dashboard_frontend/src/modules/api/api.tsx
