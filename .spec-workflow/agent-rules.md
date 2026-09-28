@@ -66,6 +66,13 @@ guarantee, and the design says which.
   count-changing task the tasks-phase decomposition names the grep that finds every
   dependent count/length assertion.
 
+## Lint false positives
+
+- A lint warning class that has been triaged as a known false positive in two or more
+  specs is fixed at the check (its skip-regex or exemption), not deferred again.
+  Skip-regexes for `_Leverage:` / `_Prompt:` lines must match the template's indented
+  sub-bullet form (`  - _Prompt:`).
+
 ## Run ledger
 
 Only the supervisor creates or writes `/tmp/scratchpad/sdd/<spec>/event.sh`, its
