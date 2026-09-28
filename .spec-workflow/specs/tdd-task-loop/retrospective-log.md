@@ -169,3 +169,8 @@ Cost: stray file in the working tree for the next run
 The supervisor session in run-20260928-143508 ran from inside the feat/tdd-task-loop worktree. Claude Code's worktree isolation guard blocked plain git (the RTK `rtk git` rewrite) and Edit on main-checkout files such as HANDOFF.md. The session got around it with `/usr/bin/git` and a node helper script. Proposal: keep the supervisor in the main checkout and point only the implementation orchestrator's code root at the worktree, so no workaround is needed.
 Evidence: run-20260928-143508; harness-activity.jsonl shows repeated `/usr/bin/git commit`, `status` and `-C` calls
 Cost: workaround commands on every main-checkout write for the whole run
+
+## 2026-09-28T18:31:12Z · retrospective · phase · cleanup
+retrospective compiled: 16 findings across 8 categories (gotchas 3, product bug 1, tool/MCP 2, harness defects 2, inefficiencies 2, docs 1, model behaviour 1, process 1, harness-for-human 3, repeat patterns 2); analyst wrote 16 proposals (P1-P16), 2 decisions needed (P2 verifier-on-line-count, P8 supervisor-in-worktree), 2 graduation candidates (worktree projectPath=CODE_ROOT; fix lint false-positive classes at the check).
+Evidence: retrospective.md; retrospective-proposals.md; d-53b7f443
+Cost: 1 analyst spawn
