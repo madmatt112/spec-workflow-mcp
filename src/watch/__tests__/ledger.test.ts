@@ -100,7 +100,7 @@ describe('loadAgentProfiles', () => {
 
   it('loads the generated profiles by default', () => {
     const profiles = loadAgentProfiles();
-    expect(Object.keys(profiles)).toHaveLength(12);
+    expect(Object.keys(profiles)).toHaveLength(13);
     expect(profiles['sdd-checker']).toEqual({ model: 'claude-sonnet-5', effort: 'high', role: 'checker', cacheTtl: 'default' });
   });
 
