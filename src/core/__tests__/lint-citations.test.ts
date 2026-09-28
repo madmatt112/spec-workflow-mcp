@@ -290,6 +290,28 @@ describe('checkCitations', () => {
     expect(flagged.some((m) => m.includes('plainMissing'))).toBe(true);
   });
 
+  it('skips the identifier check on the template’s indented sub-bullet _Prompt/_Leverage lines (retro F9)', async () => {
+    await fsp.mkdir(join(baseA, 'd'), { recursive: true });
+    await fsp.writeFile(join(baseA, 'd', 'real.ts'), 'function known() {}\n');
+    // tasks.md writes _Prompt/_Leverage as indented sub-bullets (`  - _Prompt:`).
+    // Each list item is its own block, so the sub-bullet must carry its own
+    // resolved citation for the identifier check to run on it. The _Leverage and
+    // _Prompt sub-bullets name to-be-built symbols and must be skipped; the plain
+    // Detail sub-bullet (a control that also resolves d/real.ts:1) is still
+    // flagged, proving the check runs on indented sub-bullet blocks.
+    const doc = [
+      '- [ ] 1. Build the widget',
+      '  - _Leverage: the `buildFutureThing` helper per `d/real.ts:1`_',
+      '  - _Prompt: Task: call `anotherFutureSymbol` at `d/real.ts:1` | ok_',
+      '  - Detail: `plainMissing` referenced at `d/real.ts:1`',
+    ].join('\n');
+    const findings = await checkCitations(split(doc), [baseA]);
+    const flagged = rulesOn(findings, 'citation-identifier').map((f) => f.message);
+    expect(flagged.some((m) => m.includes('buildFutureThing'))).toBe(false);
+    expect(flagged.some((m) => m.includes('anotherFutureSymbol'))).toBe(false);
+    expect(flagged.some((m) => m.includes('plainMissing'))).toBe(true);
+  });
+
   it('treats a repo-root lockfile as a valid citation path (retro F5)', async () => {
     await fsp.writeFile(join(baseA, 'package-lock.json'), 'l1\nl2\nl3\n');
     await fsp.writeFile(join(baseA, 'pnpm-lock.yaml'), 'x\ny\nz\n');
