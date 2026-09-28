@@ -37,7 +37,7 @@ const DIFF_HEADER_RE = /^diff --git a\/(.+) b\/(.+)$/;
 const BINARY_MARKER_RE = /^Binary files .* differ$/m;
 const HEAD_SHA_RE = /^[0-9a-f]{40}$/;
 
-type GitRun = { stdout: string; ok: boolean; cause?: string };
+export type GitRun = { stdout: string; ok: boolean; cause?: string };
 
 /** How long any single git invocation may run before it is killed (R2-1). */
 const GIT_TIMEOUT_MS = 10_000;
@@ -66,7 +66,7 @@ function gitRunCause(err: Error & { code?: unknown }): string {
  * no rejection, and the reviewing agent is told the changes were already
  * committed.
  */
-function runGit(projectPath: string, args: string[]): Promise<GitRun> {
+export function runGit(projectPath: string, args: string[]): Promise<GitRun> {
   return new Promise((resolve) => {
     const opts: ExecFileOptions = {
       cwd: projectPath,
