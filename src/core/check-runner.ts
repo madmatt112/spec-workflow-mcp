@@ -43,10 +43,20 @@ export function lastLine(stdout: string, stderr: string): string {
   return '';
 }
 
+/** The scrubbed environment every check runs under: no git state, no colour. */
+function checkEnv(): NodeJS.ProcessEnv {
+  return { ...scrubbedGitEnv(), FORCE_COLOR: '0', NO_COLOR: '1' };
+}
+
+/**
+ * Runs one command and resolves the `CheckResult` together with the raw stdout
+ * and stderr, so a caller can classify the whole output rather than the one
+ * reported line (design Component 6).
+ */
 function runOne(
   command: string,
   options: { cwd: string; env: NodeJS.ProcessEnv; timeout: number },
-): Promise<CheckResult> {
+): Promise<{ result: CheckResult; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     exec(
       command,
@@ -57,29 +67,32 @@ function runOne(
         killSignal: 'SIGTERM',
         maxBuffer: CHECK_MAX_BUFFER,
       },
-      (error, stdout, stderr) => {
-        const output = lastLine(stdout ?? '', stderr ?? '');
+      (error, rawStdout, rawStderr) => {
+        const stdout = rawStdout ?? '';
+        const stderr = rawStderr ?? '';
+        const output = lastLine(stdout, stderr);
+        const done = (result: CheckResult) => resolve({ result, stdout, stderr });
         if (error === null) {
-          resolve({ command, status: 'pass', exitCode: 0, output });
+          done({ command, status: 'pass', exitCode: 0, output });
           return;
         }
         const err = error as ExecError;
         // Timeout: the process was killed by SIGTERM, so it has no exit code.
         if (err.killed === true && err.signal === 'SIGTERM' && err.code === null) {
-          resolve({ command, status: 'timeout', exitCode: null, output });
+          done({ command, status: 'timeout', exitCode: null, output });
           return;
         }
         // maxBuffer overflow: a fail with no exit code.
         if (err.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
-          resolve({ command, status: 'fail', exitCode: null, output });
+          done({ command, status: 'fail', exitCode: null, output });
           return;
         }
         // A non-zero exit carries the numeric exit code.
         if (typeof err.code === 'number') {
-          resolve({ command, status: 'fail', exitCode: err.code, output });
+          done({ command, status: 'fail', exitCode: err.code, output });
           return;
         }
-        resolve({ command, status: 'fail', exitCode: null, output });
+        done({ command, status: 'fail', exitCode: null, output });
       },
     );
   });
@@ -95,10 +108,29 @@ export async function runChecks(
   opts?: { timeoutMs?: number },
 ): Promise<CheckResult[]> {
   const timeout = opts?.timeoutMs ?? CHECK_TIMEOUT_MS;
-  const env = { ...scrubbedGitEnv(), FORCE_COLOR: '0', NO_COLOR: '1' };
+  const env = checkEnv();
   const results: CheckResult[] = [];
   for (const command of commands) {
-    results.push(await runOne(command, { cwd: root, env, timeout }));
+    results.push((await runOne(command, { cwd: root, env, timeout })).result);
   }
   return results;
+}
+
+/**
+ * Runs one command with the same scrubbed environment, colour variables, buffer
+ * cap and timeout default as `runChecks`, and returns its result together with
+ * the full raw stdout and stderr (design Component 6, requirement 4.9).
+ */
+export async function runCaptured(
+  cwd: string,
+  command: string,
+  opts?: { timeoutMs?: number },
+): Promise<CheckResult & { stdout: string; stderr: string }> {
+  const timeout = opts?.timeoutMs ?? CHECK_TIMEOUT_MS;
+  const { result, stdout, stderr } = await runOne(command, {
+    cwd,
+    env: checkEnv(),
+    timeout,
+  });
+  return { ...result, stdout, stderr };
 }
