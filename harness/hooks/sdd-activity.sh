@@ -96,6 +96,23 @@ function readUsage(p) {
   return { ...s, tokens: s.input + s.output + s.cacheWrite + s.cacheRead, model: models.join("+"),
     cacheWrite5m: cf.cacheWrite5m, cacheWrite1h: cf.cacheWrite1h, gapRewrites: cf.gapRewrites };
 }
+// The worker final report: the text of the last non-empty assistant message in its
+// transcript. A resuming orchestrator drains this from the ledger instead of losing it
+// across the spawn boundary (retro P4). Returns null when the file has no assistant text.
+function readReport(p) {
+  let text; try { text = fs.readFileSync(String(p), "utf8"); } catch { return null; }
+  let last = null;
+  for (const line of text.split("\n")) {
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    if (!e || e.type !== "assistant" || !e.message) continue;
+    const c = e.message.content;
+    let s = "";
+    if (typeof c === "string") s = c;
+    else if (Array.isArray(c)) s = c.filter((b) => b && b.type === "text" && typeof b.text === "string").map((b) => b.text).join("");
+    if (s.trim()) last = s.trim();
+  }
+  return last;
+}
 // A bounded synchronous wait, so the read below can let the transcript tail land.
 function sleepMs(ms) { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { /* no shared memory: skip */ } }
 function waitForTail(p) {
@@ -134,6 +151,7 @@ const e = {
   agent,
 };
 let u = null;
+let report = null;
 const ev = d.hook_event_name;
 if (ev === "PreToolUse") {
   e.event = "tool";
@@ -161,6 +179,9 @@ if (ev === "PreToolUse") {
   if (tp) waitForTail(tp);
   u = tp ? readUsage(tp) : null;
   if (u) e.tokens = u.tokens;
+  // Persist the worker final report for a resuming orchestrator to drain (retro P4).
+  // Orchestrators report to the supervisor, not through this ledger, so skip them.
+  report = (tp && !/-orchestrator$/.test(agent)) ? readReport(tp) : null;
   // An orchestrator with background children yields, fires SubagentStop, resumes and makes
   // more calls, so SubagentStop fires several times per spawn. Each firing whose usage
   // differs from the last one written for this (run, session, agentId) writes a new
@@ -204,6 +225,12 @@ if (eventsFile) {
     }
     if (d.agent_id) row.agentId = String(d.agent_id);
     fs.appendFileSync(eventsFile, JSON.stringify(row) + "\n");
+    // The worker report a resuming orchestrator drains (retro P4), bounded to 4000 chars.
+    if (report) {
+      const rrow = { ts: e.ts, type: "spawn.report", run, spec, agent, report: report.length > 4000 ? report.slice(0, 4000) : report };
+      if (d.agent_id) rrow.agentId = String(d.agent_id);
+      fs.appendFileSync(eventsFile, JSON.stringify(rrow) + "\n");
+    }
   }
 }
 '
