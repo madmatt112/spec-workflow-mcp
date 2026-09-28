@@ -103,3 +103,10 @@
 {"ts":"2026-09-28T15:02:33.252Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","phase":"implementation","task":"3","result":"logged: yes/3 commit 53f1b3c"}
 {"ts":"2026-09-28T15:02:46.030Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"note","text":"gate: task 3 pass risk low"}
 {"ts":"2026-09-28T15:02:46.080Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-28T15:02:57.568Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.pick","task":"4","title":"Tasks template line and tasks reviewer lens"}
+{"ts":"2026-09-28T15:03:00.213Z","type":"spawn.start","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-28T15:03:03.885Z","type":"spawn.end","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementation-orchestrator","input":"74","output":"1093","cacheWrite":"210531","cacheRead":"3479191","tokens":"3690889","cacheWrite5m":"0","cacheWrite1h":"210531","gapRewrites":"1","model":"claude-opus-4-8","agentId":"a46fec387251fb6c6"}
+{"ts":"2026-09-28T15:05:36.127Z","type":"spawn.end","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementer","input":"42","output":"3478","cacheWrite":"28277","cacheRead":"691434","tokens":"723231","cacheWrite5m":"28277","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a18da83a4b016622e"}
+{"ts":"2026-09-28T15:05:47.675Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","phase":"implementation","task":"4","result":"logged: yes/4 commit b4ef274"}
+{"ts":"2026-09-28T15:06:01.987Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"note","text":"gate: task 4 pass risk medium"}
+{"ts":"2026-09-28T15:06:02.054Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.done","task":"4","rounds":"0","outcome":"gate"}

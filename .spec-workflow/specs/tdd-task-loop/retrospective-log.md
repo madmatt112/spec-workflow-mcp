@@ -74,3 +74,8 @@ Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
 Clean gate-path pass, no fix rounds.
 Evidence: task 3; commit 53f1b3c; gate reviewId 27d79a75
 Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
+
+## 2026-09-28T15:06:02Z · implementation · task 4 · gotcha
+Docs-only change, gate medium risk, verifier skipped by policy.
+Evidence: task 4; commit b4ef274; gate reviewId 197cd1fd
+Cost: 1 implementer spawn, 1 gate call, 0 fix rounds
