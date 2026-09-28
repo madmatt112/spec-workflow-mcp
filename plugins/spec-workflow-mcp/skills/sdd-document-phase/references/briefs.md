@@ -98,7 +98,10 @@ Every later reviewer, reviser and implementer reads it first.
   it. Order tasks so each step leaves the tree compiling and every existing suite
   green. State the dependency order in a short preamble. A prompt must not pin a call
   signature, UI label or helper name that a different task in this document creates;
-  write "the hook task 7 exports" and let the implementer read the merged code. For
+  write "the hook task 7 exports" and let the implementer read the merged code. When a
+  `_Prompt` cites a decision id (`D<n>`) as the reason for a behaviour, verify that
+  decision actually governs that behaviour before the brief ships, and cite the governing
+  requirement number alongside it (retro P8/P9/G2). For
   every existing test file a task names, say whether the change alters a value it
   asserts exactly. When a prompt enumerates assertion sites to update (line anchors
   like `:127`, `:479`), label the list an illustrative minimum ("at least these") and
