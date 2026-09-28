@@ -169,3 +169,10 @@
 {"ts":"2026-09-28T16:18:25.081Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 10","phase":"implementation","task":"10","result":"logged: yes/10 commit f2e332f"}
 {"ts":"2026-09-28T16:18:42.287Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"note","text":"gate: task 10 pass risk low"}
 {"ts":"2026-09-28T16:18:42.337Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.done","task":"10","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-28T16:18:42.443Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.pick","task":"11","title":"TDD coverage in spec-status"}
+{"ts":"2026-09-28T16:18:44.915Z","type":"spawn.start","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-28T16:18:47.658Z","type":"spawn.end","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementation-orchestrator","input":"174","output":"1753","cacheWrite":"308139","cacheRead":"10801853","tokens":"11111919","cacheWrite5m":"0","cacheWrite1h":"308139","gapRewrites":"1","model":"claude-opus-4-8","agentId":"a46fec387251fb6c6"}
+{"ts":"2026-09-28T16:22:53.868Z","type":"spawn.end","run":"run-20260928-143508","spec":"tdd-task-loop","agent":"sdd-implementer","input":"58","output":"5864","cacheWrite":"53596","cacheRead":"1347889","tokens":"1407407","cacheWrite5m":"53596","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a4b62af0fe687f435"}
+{"ts":"2026-09-28T16:23:01.959Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 11","phase":"implementation","task":"11","result":"logged: yes/11 commit 83b84df"}
+{"ts":"2026-09-28T16:23:19.057Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"note","text":"gate: task 11 pass risk low"}
+{"ts":"2026-09-28T16:23:19.104Z","run":"run-20260928-143508","spec":"tdd-task-loop","type":"task.done","task":"11","rounds":"0","outcome":"gate"}

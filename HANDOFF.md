@@ -584,6 +584,6 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 10/17 |
-| Last code commit | f2e332f (task 10) |
-| Next task | task 11 |
+| State | tasks 11/17 |
+| Last code commit | 83b84df (task 11) |
+| Next task | task 12 |
