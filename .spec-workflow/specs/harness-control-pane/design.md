@@ -300,6 +300,7 @@ Tests assert only on node 20 documented fields (.spec-workflow/agent-rules.md:31
 - **v1** (2026-09-28) — Initial draft.
   - **Lint pass.** 10 citation-path errors fixed; 63 citation-identifier warnings rejected (known false-positive class).
 - **v2** (2026-09-28) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/3/3).
+  - **Lint pass.** 0 errors; 73 citation-identifier warnings rejected — design-introduced identifiers, string-literal values and probe-verified node fields, each sharing a line with a context citation that was verified correct.
   - **R1-1 — Accepted (SHOULD_FIX).** C5 now re-points the log watch on a launch-update: it re-derives the path from the launcher, resets the byte offset, re-arms the watch and sends a reset batch, and the client discards a batch whose launch time differs from the current run; C7's launch-update note re-points the log watch too.
   - **R1-2 — Accepted (SHOULD_FIX).** C9 now validates the union of the agent-rules rows and the run-file roles in one post-merge pass and drops the no-heading, unreadable-file and zero-row short-circuits when a run file is passed, so an added or overridden role is always validated.
   - **R1-3 — Accepted (SHOULD_FIX).** The Testing Strategy now lists the plugin-sync, plugin-assets check and strict plugin validate the seven harness edits require, each a line of verification-evidence.
