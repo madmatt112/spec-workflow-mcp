@@ -180,6 +180,10 @@ verdict block). Append:
   pre-existing defect the last fix did not touch, so the orchestrator sees which
   MUST_FIX the last fix created; the label is guidance and does not change the round
   budget.>
+- Fix-induced re-check (round 2 onward): when a finding is caused by a fix a previous round
+  made — a regression of earlier-agreed wording, not a newly discovered defect — scope your
+  check of it to that fix's diff against the requirement it must satisfy, not a re-review of
+  the whole document, and record it as a fix-induced re-check, not a fresh corrective round.
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for
