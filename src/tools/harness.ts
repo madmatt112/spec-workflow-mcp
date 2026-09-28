@@ -10,7 +10,7 @@ import { parseSensitivePaths } from '../core/gate-rules.js';
 import { computeClassA, applyKeywordSaturationFallback, TaskVetoInput } from '../core/veto-rules.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
-import { parseJsonl, parseHandoffPhaseRows, LedgerEvent, ActivityEvent, PhaseRow } from '../watch/ledger.js';
+import { parseJsonl, parseHandoffPhaseRows, drainInFlightReports, LedgerEvent, ActivityEvent, InFlightReport, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
 import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts } from '../watch/usage.js';
 
@@ -348,10 +348,18 @@ async function orientImplementation(
     nextStep = 'Completion gate';
   }
 
+  // The persisted worker reports a resuming orchestrator must drain before it spawns anew
+  // (retro P4). A missing or unreadable ledger is simply no reports; it never fails orient.
+  let inFlightReports: InFlightReport[] = [];
+  const ledgerRead = await readSpecLedger(workflowRoot, specName);
+  if (!('error' in ledgerRead)) {
+    inFlightReports = drainInFlightReports(ledgerRead.events);
+  }
+
   return {
     success: true,
     message: `orient implementation ${tasks.done}/${tasks.total} → ${nextStep}`,
-    data: { phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep },
+    data: { phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep, inFlightReports },
   };
 }
 

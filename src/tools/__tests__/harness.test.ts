@@ -111,6 +111,29 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     expect(res.data.tasks).toEqual({ total: 2, done: 0, inProgress: 1, open: 1 });
     expect(res.data.nextStep).toBe('Per-task loop: resume task 1');
+    // No ledger: nothing to drain (retro P4).
+    expect(res.data.inFlightReports).toEqual([]);
+  });
+
+  it('(5b) implementation resume returns the undrained worker report (retro P4)', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [-] 1. First task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    // A worker finished (the hook wrote spawn.report) after the last spawn.usage, so the
+    // resuming orchestrator must drain it before it spawns anew.
+    await writeDoc('harness-events.jsonl', [
+      JSON.stringify({ ts: '2026-09-20T10:00:00.000Z', run: 'r1', spec: SPEC, type: 'run.start' }),
+      JSON.stringify({ ts: '2026-09-20T10:05:00.000Z', run: 'r1', spec: SPEC, type: 'spawn.report', agent: 'sdd-implementer', agentId: 'a1', report: 'task 1 done; logged: yes/1; commit: abc123' }),
+      '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.nextStep).toBe('Per-task loop: resume task 1');
+    expect(res.data.inFlightReports).toEqual([
+      { agent: 'sdd-implementer', agentId: 'a1', report: 'task 1 done; logged: yes/1; commit: abc123', ts: '2026-09-20T10:05:00.000Z' },
+    ]);
   });
 
   it('(6) close-out with open items → Step 2, open by class', async () => {

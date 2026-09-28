@@ -146,6 +146,14 @@ export interface TickerLine {
   text: string;
 }
 
+/** A persisted worker report a resuming orchestrator must drain before it spawns anew. */
+export interface InFlightReport {
+  agent: string;
+  agentId?: string;
+  report: string;
+  ts: string;
+}
+
 export interface RunModel {
   spec: string;
   runId?: string;
@@ -446,6 +454,38 @@ export function buildModel(input: {
     tokensByProvider,
     hasActivity: runActivity.length > 0,
   };
+}
+
+/**
+ * The persisted worker reports a resuming orchestrator must drain before it spawns anew
+ * (retro P4). The plugin hook writes one `spawn.report` at each worker's SubagentStop; the
+ * orchestrator writes one `spawn.usage` right after it reads and routes each report. So a
+ * `spawn.report` with no later `spawn.usage` is a report the orchestrator never processed —
+ * the in-flight report an orchestrator resume would otherwise lose. Scope to the current run
+ * (the last `run.start`, like `buildModel`), then return every `spawn.report` whose ts is
+ * after the last `spawn.usage`, oldest first.
+ */
+export function drainInFlightReports(ledger: LedgerEvent[]): InFlightReport[] {
+  const sorted = [...ledger].sort((a, b) => ms(a.ts) - ms(b.ts));
+  const runStart = [...sorted].reverse().find(e => e.type === 'run.start');
+  const runId = runStart?.run;
+  const scoped = runId ? sorted.filter(e => e.run === runId) : sorted;
+
+  let lastUsage = 0;
+  for (const e of scoped) {
+    if (e.type === 'spawn.usage') {
+      const t = ms(e.ts);
+      if (t > lastUsage) lastUsage = t;
+    }
+  }
+
+  const out: InFlightReport[] = [];
+  for (const e of scoped) {
+    if (e.type !== 'spawn.report') continue;
+    if (ms(e.ts) <= lastUsage) continue;
+    out.push({ agent: e.agent ?? 'unknown', agentId: e.agentId, report: e.report ?? '', ts: e.ts });
+  }
+  return out;
 }
 
 export function formatTokens(n: number): string {

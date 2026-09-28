@@ -167,7 +167,11 @@ verdict block). Append:
   `## Probes` line the document relies on.>
 - <D = 1 with RE-DECIDED flags: the drafter re-decided these requirement literals:
   <`<req> — <one line>` …>. Rule on each: `refinement` (closed) or `widening` (a
-  MUST_FIX).>
+  MUST_FIX). You may close a flag as a `refinement` and carry it to the next drafter on your
+  own authority when the change stays within the governing requirement's intent; this needs
+  no orchestrator ruling or adjudication — state the closure and its reason in your analysis.
+  Rule `widening` (a MUST_FIX) only when the flag reverses a requirement or crosses a
+  decision the human owns.>
   <D > 1: Read the Revision History line for v<D> first and attack those changes
   before anything else. Every MUST_FIX after round 1 in past specs was a claim error
   introduced by the previous delta. Mark a finding that lands in text the previous
@@ -180,6 +184,10 @@ verdict block). Append:
   pre-existing defect the last fix did not touch, so the orchestrator sees which
   MUST_FIX the last fix created; the label is guidance and does not change the round
   budget.>
+- Fix-induced re-check (round 2 onward): when a finding is caused by a fix a previous round
+  made — a regression of earlier-agreed wording, not a newly discovered defect — scope your
+  check of it to that fix's diff against the requirement it must satisfy, not a re-review of
+  the whole document, and record it as a fix-induced re-check, not a fresh corrective round.
 - <Over cap: <n> words against a cap of <cap>; a SHOULD_FIX naming what to cut.>
 - Fresh lens for this round: <requirements D = 1: wire contracts across a boundary
   (router, query params, response shapes, client state), the default first lens for

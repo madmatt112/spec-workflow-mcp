@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { buildModel, loadAgentProfiles, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
+import { buildModel, drainInFlightReports, loadAgentProfiles, parseHandoffActiveSpec, parseHandoffPhaseRows, parseJsonl, parseTasks, formatTokens, LedgerEvent, ActivityEvent } from '../ledger.js';
 
 const HANDOFF = `# HANDOFF
 
@@ -315,5 +315,44 @@ describe('buildModel', () => {
     expect(m.tokensByProvider).toEqual({ anthropic: 84_000, deepseek: 182_000 });
     expect(m.tokensTotal).toBe(84_000 + 182_000);
     expect(m.providers).toBe('sdd-reviewer:deepseek:deepseek-v4-pro');
+  });
+});
+
+describe('drainInFlightReports (retro P4)', () => {
+  // The resume boundary: a worker finished (the hook wrote its spawn.report) but the
+  // orchestrator's turn ended before it read the report and wrote its spawn.usage. That
+  // report is lost to the orchestrator today; drain must surface it on resume.
+  it('returns a spawn.report written after the last spawn.usage', () => {
+    const ledger: LedgerEvent[] = [
+      { ts: '2026-09-20T10:00:00.000Z', run: 'r1', spec: 's', type: 'run.start' },
+      { ts: '2026-09-20T10:01:00.000Z', run: 'r1', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 1', task: '1', result: 'logged: yes/1' },
+      { ts: '2026-09-20T10:05:00.000Z', run: 'r1', spec: 's', type: 'spawn.report', agent: 'sdd-implementer', agentId: 'a2', report: 'task 2 done; logged: yes/2; commit: abc123' },
+    ];
+    const drained = drainInFlightReports(ledger);
+    expect(drained).toEqual([
+      { agent: 'sdd-implementer', agentId: 'a2', report: 'task 2 done; logged: yes/2; commit: abc123', ts: '2026-09-20T10:05:00.000Z' },
+    ]);
+  });
+
+  // Normal processing: the orchestrator read the report and wrote its spawn.usage after it,
+  // so nothing is undrained.
+  it('does not return a report the orchestrator already processed', () => {
+    const ledger: LedgerEvent[] = [
+      { ts: '2026-09-20T10:00:00.000Z', run: 'r1', spec: 's', type: 'run.start' },
+      { ts: '2026-09-20T10:05:00.000Z', run: 'r1', spec: 's', type: 'spawn.report', agent: 'sdd-implementer', agentId: 'a2', report: 'task 2 done' },
+      { ts: '2026-09-20T10:05:02.000Z', run: 'r1', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', role: 'implement task 2', task: '2', result: 'logged: yes/2' },
+    ];
+    expect(drainInFlightReports(ledger)).toEqual([]);
+  });
+
+  it('scopes to the current run and returns [] with no reports', () => {
+    const ledger: LedgerEvent[] = [
+      { ts: '2026-09-20T09:00:00.000Z', run: 'r0', spec: 's', type: 'run.start' },
+      { ts: '2026-09-20T09:05:00.000Z', run: 'r0', spec: 's', type: 'spawn.report', agent: 'sdd-implementer', report: 'old-run report' },
+      { ts: '2026-09-20T10:00:00.000Z', run: 'r1', spec: 's', type: 'run.start' },
+      { ts: '2026-09-20T10:01:00.000Z', run: 'r1', spec: 's', type: 'spawn.usage', agent: 'sdd-implementer', task: '1', result: 'logged: yes/1' },
+    ];
+    expect(drainInFlightReports(ledger)).toEqual([]);
+    expect(drainInFlightReports([])).toEqual([]);
   });
 });
