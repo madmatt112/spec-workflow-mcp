@@ -43,7 +43,7 @@ Tasks 1 to 4 build the Test line: shared path and agent-rules helpers, the parse
   - _Requirements: 1.6, 1.7, 1.8_
   - _Prompt: Task: In src/markdown/templates/tasks-template.md add to the shape-rules paragraph (src/markdown/templates/tasks-template.md:3) the sentence "A task that changes source may add `- Test: <test path> — <public call>` after its `File:` lines.", and to example task 2 (src/markdown/templates/tasks-template.md:15-21) the line `  - Test: tests/services/FeatureService.test.ts — FeatureService.create(input)` after its File line. In harness/skills/sdd-document-phase/references/briefs.md add one bullet after the tasks gate-B bullet (harness/skills/sdd-document-phase/references/briefs.md:205-209), in its placeholder style: tasks phase, for every `Test:` line the call exists in the design's interfaces, an earlier task's prompt or this task's prompt, and the success criteria are assertable through it with values the requirements state; a miss is a normal finding. Run `node scripts/sync-plugin-assets.cjs` and commit the `plugins/` copies in the same commit | Restrictions: No other template, section, cap or gate tag changes. Do not edit the spec-store copy of the template: the server overwrites it from the shipped one at start (src/core/workspace-initializer.ts:54-85) | Success: `npm run check:plugin-assets` and `claude plugin validate . --strict` pass; `grep -c 'Test:' src/markdown/templates/tasks-template.md` prints 2_
 
-- [ ] 5. Captured command runner
+- [x] 5. Captured command runner
   - File: src/core/check-runner.ts
   - File: src/core/__tests__/check-runner.test.ts
   - Return the full output from the private runner and export a captured single-command runner.
