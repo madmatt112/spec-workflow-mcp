@@ -26,7 +26,9 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 - Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
   parameter, never `fork`. One worker at a time: tasks run sequentially in this
   version, whatever `agent-rules.md` says about parallelism.
-- Never pass `projectPath` to a spec-workflow MCP tool. Never poll dashboard state.
+- Pass `projectPath: <CODE_ROOT>` only on the `review-task` `gate`, `prepare` and
+  `record` calls (retro P5/G1: a worktree gate that resolves against the main checkout is
+  void); never pass it to any other spec-workflow MCP tool. Never poll dashboard state.
 - Code work happens in `CODE_ROOT` (a worktree when `WORKTREE: yes`). Spec state lives
   under `SPEC_STORE_ROOT`. Every brief carries both absolute paths; no worker infers
   them.
@@ -167,8 +169,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    on any other output keep them and record `note "text=graph refresh: <first line>"`. A
    refresh failure never stops the phase.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
-   `taskId: "<N>"`, `baseRef` = the task's `base` sha (`<implementer commit>^`, set in
-   Step 1) when it has one, and `checks` = the
+   `taskId: "<N>"`, `projectPath: <CODE_ROOT>` (retro P5), `baseRef` = the task's `base`
+   sha (`<implementer commit>^`, set in Step 1) when it has one, and `checks` = the
    check commands the task block and `agent-rules.md` name for the files the implementer
    touched, one shell string each, dropping a bare typecheck command (the gate runs the
    project typecheck itself). On a marked task, also pass `tdd: { testFiles: <the author's
@@ -198,9 +200,10 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    from `references/briefs.md`. When the gate returned a `data.tdd` block, copy it into that
    `## Gate results` block; when it shows `amended: true`, add the sentence "Judge the
    amended author test against the task's criteria first." Spawn `sdd-verifier` with `Read and execute
-   the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, so
-   the dashboard and `spec-status` see the review, runs only the checks the gate did not
-   run, and ends with `VERDICT: pass | fix-required`.
+   the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, each
+   with `projectPath: <CODE_ROOT>` (retro P5), so the dashboard and `spec-status` see the
+   review, runs only the checks the gate did not run, and ends with `VERDICT: pass |
+   fix-required`.
 5. **Fix rounds** (cap 3, counting gate fails and verifier `fix-required` alike). Spawn
    a fresh `sdd-implementer`, run the graph refresh (step 3) after its report when
    `GRAPH` is a path and `WORKTREE` is `no`, then return to step 4 (the gate). Assemble

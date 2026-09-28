@@ -166,12 +166,13 @@ The gate already passed for this task at `risk: high`; its results are in `## Ga
 results` below. Do not re-run the gate's checks.
 
 1. Call the spec-workflow `review-task` tool with `action: prepare`, `specName:
-   <SPEC>`, `taskId: "<N>"`. It returns the task, the implementation log summary and
-   the files to review.
+   <SPEC>`, `taskId: "<N>"`, `projectPath: <CODE_ROOT>` (retro P5). It returns the task,
+   the implementation log summary and the files to review.
 2. Read the files it names and the files the implementer reported:
    <list from the implementer's report>
    Run only checks the gate did not run.
-3. Call `review-task` with `action: record`, the same `specName` and `taskId`, `verdict`
+3. Call `review-task` with `action: record`, the same `specName` and `taskId`,
+   `projectPath: <CODE_ROOT>` (retro P5), `verdict`
    (`pass` when clean; `fail` when any critical finding; `findings` when only
    warnings or info), a one-line `summary`, and `findings` (severity, title, file,
    line, description, taskRequirement, category).
