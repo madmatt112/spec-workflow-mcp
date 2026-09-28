@@ -81,7 +81,7 @@ The spec store has no steering documents, so this aligns with the decomposition 
 6. WHEN a spawn has no tokens or the build has no agent profiles THEN the page SHALL render the row without them.
 7. WHEN no Harness page of a project is open THEN the system SHALL NOT keep a harness watcher running for that project (keyed on the harness-subscriber count of AC 4.8, not `connection.projectId`).
 8. WHEN a Harness page opens for a project THEN it SHALL send a subscribe message whose `type` names the harness view, distinct from the Specs page's `subscribe`, so the server can tell the two apart on one `projectId` — the existing socket binds each connection to a single `connection.projectId` and knows only the `subscribe`, `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294) — and SHALL key the AC 4.7 watcher lifecycle on the harness-subscriber count for that project.
-9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from `initial` and `projects-update`: one for the run model, one for a batch of new log lines, one for the gate sections; the run-model and gate pushes SHALL reach only that project's harness subscribers, keyed on the AC 4.8 subscription state, not the existing `broadcastToProject`, which filters on `projectId` alone (src/dashboard/multi-server.ts:2139-2151).
+9. WHEN the server pushes to a Harness page THEN each message SHALL carry a type field the page demultiplexes, distinct from the existing `initial` and `projects-update` messages (src/dashboard/multi-server.ts:205-294): one for the run model, one for a batch of new log lines, one for the gate sections; the run-model and gate pushes SHALL reach only that project's harness subscribers, keyed on the AC 4.8 subscription state, not `broadcastToProject`, which filters on `projectId` alone (src/dashboard/multi-server.ts:2139-2151).
 
 ### Requirement 5 — Overview page
 
@@ -171,3 +171,4 @@ The spec store has no steering documents, so this aligns with the decomposition 
   - Minor 2 — Introduction key names (rejected) — AC 2.9 still names both `overrides` and `setup`; no content lost.
   - Minor 3 — AC 2.4 vs 2.6 trigger wording (rejected) — covered because AC 1.11 writes a provider entry per non-omitted role, so a deepseek role always carries `provider=deepseek`.
   - Body trimmed elsewhere (Introduction) to offset the restored content, holding the 3,500-word cap.
+  - **Lint pass.** 1 fixed; rejected: none.
