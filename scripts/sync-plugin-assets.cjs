@@ -88,7 +88,7 @@ function cacheTtlOf(raw) {
 }
 
 /**
- * Build the agent-profiles.json text from the twelve agent frontmatters.
+ * Build the agent-profiles.json text from the thirteen agent frontmatters.
  * For each harness/agents/*.md in sorted order, read the lines between the first
  * two `---`, throw when they are not valid YAML, split each on its first `:`,
  * take `model` and `effort` as written

@@ -18,9 +18,9 @@ repository root.
   (requirements, design, tasks), `sdd-implementation-orchestrator`,
   `sdd-retro-orchestrator` and `sdd-closeout-orchestrator`. Each is spawned fresh,
   carries its phase skill, and reports in a fixed contract.
-- Eight **worker** agents with pinned models and per-role tool allowlists:
+- Nine **worker** agents with pinned models and per-role tool allowlists:
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-checker`,
-  `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`.
+  `sdd-test-author`, `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`.
 - A fifth skill, `sdd-deferrals`, that works the deferred-decision queue. It is invoked
   by name only and is never part of "continue the sdd process".
 
