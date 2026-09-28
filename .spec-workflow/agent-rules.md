@@ -46,6 +46,10 @@ guarantee, and the design says which.
   Write files to `/tmp/scratchpad/sdd/<spec>/` and `cp` them into place on their own line,
   and run git as one plain `/usr/bin/git <verb> <args>` line or from a script written with
   the Write tool.
+- In a worktree run, every `review-task` `gate`, `prepare` and `record` call passes
+  `projectPath: <CODE_ROOT>` and the implementer commit; never rely on the process default
+  root. A gate that reports the main checkout's tree is void — re-run it scoped to
+  CODE_ROOT.
 
 ## PR body
 
