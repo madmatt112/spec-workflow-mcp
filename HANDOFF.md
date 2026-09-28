@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **requirements**, state **pending**, last result **pending**. Previous spec `tdd-task-loop` CLOSED (PRs #72, #74 merged).
+> Live phase **design**, state **pending**, last result **approved** (requirements at v4).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: starts `harness-control-pane` at requirements (spawns the document orchestrator for v1 and gate A).
+> A re-run does: starts `harness-control-pane` design at v1 (spawns the document orchestrator).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -70,6 +70,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-28 | tdd-task-loop | retrospective | n/a | approved | plan APPROVED: P1, P3, P4, P5, P9, G1, G2; P2/P8 keep as is |
 | 2026-09-28 | tdd-task-loop | retrospective |  | retro-ready |  |
 | 2026-09-28 | tdd-task-loop | closeout | items 7/7 | closed |  |
+| 2026-09-28 | harness-control-pane | requirements | v1 | gate-a |  |
+| 2026-09-28 | harness-control-pane | requirements | v4 | approved | 4 rounds (3 review + narrow check), converged via SHOULD_FIX-only pass |
 
 ## Current state — 2026-08-04
 
