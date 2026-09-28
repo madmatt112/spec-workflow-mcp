@@ -81,8 +81,9 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
    - `error: tasks.md not approved` ⇒ report `PHASE: error`, `REASON: tasks.md not
      approved`.
    - `Repair` ⇒ go to **Repair**.
-   - `Per-task loop: resume task <N>` ⇒ the **Per-task loop**, working that `[-]` task
-     first from Step 2 (its implementer may have finished; the verifier decides).
+   - `Per-task loop: resume task <N>` ⇒ **Resume recovery** first, then the **Per-task
+     loop**, working that `[-]` task from Step 2 (its implementer may have finished; the
+     verifier decides).
    - `Per-task loop` ⇒ the **Per-task loop**.
    - `Completion gate` ⇒ the **Completion gate**.
 2. Read the HANDOFF section `## <SPEC> — implementation` if it exists.
@@ -261,6 +262,24 @@ Do not force it. Revert the task to `[ ]`. Append a retro-log entry with `retro.
 (`escalation`, the flag's line, evidence = task N). Write the HANDOFF section. Commit the
 spec store. Report `PHASE: escalate`, `STATE: tasks <done>/<total>`, `REASON: <the
 flag's line>`. The supervisor already stops on it.
+
+## Resume recovery
+
+A `[-]` task resumed from Step 0 may already carry the implementer's commit even though its
+report never reached you: its worker finished after your previous turn ended, so the report
+routed to the supervisor, not to you. Treat a commit with no matching worker report as
+ambiguous state, not unfinished work. Check the code repo for a commit that implements the
+resumed task (`git -C <CODE_ROOT> log`, the same read Step 1b makes for the author commit),
+then:
+- **A commit exists, no report ⇒ reconcile, do not re-implement.** Spawn one
+  `sdd-implementer` with a brief that says the task is already committed at `<sha>`, that it
+  must confirm the commit satisfies the task and call `log-implementation` naming that
+  commit, and that it must change no code; then gate and verify from Step 4 as usual.
+- **No commit ⇒** resume the task from Step 2 as a normal implement.
+
+This is the documented default; it stays as the fallback after P4's persist-and-drain
+lands — drain the persisted report first, and reconcile only when a committed task has no
+persisted report.
 
 ## Completion gate
 
