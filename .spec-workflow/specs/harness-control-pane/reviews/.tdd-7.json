@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/project-watch.test.ts"],"seams":{"src/dashboard/harness/__tests__/project-watch.test.ts":"new ProjectHarnessWatch(project, launcher, send).start()"},"redCommit":"62dc866","baseSha":"8872570585d3c42b1a6637df6b674386d5b95b91","base":"structural-red","head":"pass","amended":false,"judged":null}

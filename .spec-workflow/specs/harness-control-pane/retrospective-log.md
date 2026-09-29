@@ -83,3 +83,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Launcher stop/finalise/own-exit/restore added to task 5 class; gate pass risk high (line-count 251, tdd structural-red), verifier pass, no fix rounds.
 Evidence: task 6; src/dashboard/harness/launcher.ts; commit 8872570
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T14:56:26Z · implementation · task 7 · gotcha
+ProjectHarnessWatch added to task 3 module; start() is now async (hub in task 9 must await it); gate pass risk high (line-count 281, tdd structural-red), verifier pass, no fix rounds.
+Evidence: task 7; src/dashboard/harness/project-watch.ts; commit f359099
+Cost: 3 spawns (author, implementer, verifier)
