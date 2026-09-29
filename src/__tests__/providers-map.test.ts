@@ -169,4 +169,126 @@ describe('sdd-providers.sh', () => {
       expect(r.stderr).toMatch(/^providers: /);
     }
   });
+
+  // Task 14: optional RUN_FILE second argument (design C9, Requirement 2
+  // criteria 4 and 6). Each test's contract:
+  //   pre-condition -> the RULES and RUN_FILE fixtures written below
+  //   call -> run2(rules, runFile, env), which execFileSync's the real
+  //     script as `bash sdd-providers.sh RULES RUN_FILE`
+  //   observable result -> the exit status, stdout and stderr
+  //   expected value source -> design.md section C9's merge-then-validate
+  //     description and the unchanged key-check/output lines it cites
+  //     (script lines 67-75)
+  describe('RUN_FILE second argument (design C9)', () => {
+    function run2(rulesPath: string, runFilePath: string, env: NodeJS.ProcessEnv): Run {
+      try {
+        const stdout = execFileSync('bash', [SCRIPT, rulesPath, runFilePath], { env, encoding: 'utf8' });
+        return { status: 0, stdout, stderr: '' };
+      } catch (e: any) {
+        return { status: e.status as number, stdout: String(e.stdout ?? ''), stderr: String(e.stderr ?? '') };
+      }
+    }
+
+    async function writeRunFile(
+      name: string,
+      roles: Record<string, { provider: string; model?: string }>,
+    ): Promise<string> {
+      return write(name, JSON.stringify({ roles }));
+    }
+
+    it('an eligible role flipped to deepseek where the rules have no Providers heading gives its row', async () => {
+      const rules = await write('rules.md', '# Agent rules\n\nSome text and a\n\n## Layout\n\n- a bullet\n');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-reviewer': { provider: 'deepseek', model: 'deepseek-v4-pro' },
+      });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim()).toBe('providers=sdd-reviewer:deepseek:deepseek-v4-pro');
+      expect(r.stderr).toBe('');
+    });
+
+    it('a missing rules file with a run file still validates the run-file roles', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await writeRunFile('run.json', { 'sdd-reviewer': { provider: 'openai' } });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr).toMatch(/^providers: /);
+    });
+
+    it('a non-eligible role set to deepseek exits 2', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-planner': { provider: 'deepseek', model: 'deepseek-v4-pro' },
+      });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr).toMatch(/^providers: /);
+    });
+
+    it('an unknown DeepSeek model exits 2', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-reviewer': { provider: 'deepseek', model: 'deepseek-turbo' },
+      });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr).toMatch(/^providers: /);
+    });
+
+    it('a deepseek role without DEEPSEEK_API_KEY exits 3', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-reviewer': { provider: 'deepseek', model: 'deepseek-v4-pro' },
+      });
+      const r = run2(rules, runFile, noKey);
+      expect(r.status).toBe(3);
+      expect(r.stdout).toBe('');
+      expect(r.stderr).toContain('DEEPSEEK_API_KEY');
+      expect(r.stderr).toContain('sdd-reviewer');
+    });
+
+    it('a run-file role replaces the rules row of the same agent', async () => {
+      const rules = await write('rules.md', '## Providers\n\n- sdd-reviewer: anthropic\n');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-reviewer': { provider: 'deepseek', model: 'deepseek-v4-pro' },
+      });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim()).toBe('providers=sdd-reviewer:deepseek:deepseek-v4-pro');
+      expect(r.stderr).toBe('');
+    });
+
+    it('an anthropic role that is not eligible does not appear', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await writeRunFile('run.json', {
+        'sdd-checker': { provider: 'anthropic' },
+        'sdd-planner': { provider: 'anthropic' },
+      });
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(0);
+      expect(r.stdout.trim()).toBe('providers=sdd-checker:anthropic');
+      expect(r.stderr).toBe('');
+    });
+
+    it('an unreadable run file refuses with exit 2 and providers: bad run file', () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = join(dir, 'no-run-here.json');
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr.trim()).toBe('providers: bad run file');
+    });
+
+    it('a run file with bad JSON refuses with exit 2 and providers: bad run file', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await write('run.json', 'not json {');
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr.trim()).toBe('providers: bad run file');
+    });
+  });
 });

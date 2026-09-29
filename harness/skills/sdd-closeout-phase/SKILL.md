@@ -26,7 +26,9 @@ start.
 ## Standing rules
 
 - Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
-  parameter, never `fork`. One worker at a time.
+  parameter, never `fork`. When `MODEL_OVERRIDES` names the worker, pass that value as
+  the Agent tool's `model` parameter; the no-`model` default holds for a worker it does
+  not name. One worker at a time.
 - Never pass `projectPath` to a spec-workflow MCP tool.
 - Paths: spec dir `<SPEC_STORE_ROOT>/specs/<SPEC>/`; the plan
   `<spec dir>/retrospective-plan.md`; retro log `<spec dir>/retrospective-log.md`;

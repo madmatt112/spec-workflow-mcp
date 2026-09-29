@@ -21,3 +21,7 @@
 5. **Posture** — Top-level money, personal-data-and-erasure, and legal/compliance posture?
    - options: n/a — the spec touches no money, personal data, or legal surface
    - answer: n/a — the spec touches no money, personal data, or legal surface (single option — not asked)
+
+## Gate B
+
+Approved by Matthew on 2026-09-29 with the class-a veto items unannotated: tasks 6, 2, 20, 12.

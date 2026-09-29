@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { IndexGenerator } from '../index-generator.js';
+import { PathUtils } from '../path-utils.js';
 
 const ALL_PHASES = {
   requirements: '# Requirements\n',
@@ -305,5 +306,61 @@ describe('IndexGenerator', () => {
 
   it('rejects deferring a spec that does not exist', async () => {
     await expect(generator.defer('ghost', 'nope')).rejects.toThrow(/not found/);
+  });
+
+  // Contract for snapshot() (design.md C1, Requirements 1.1-1.2):
+  //
+  // Criterion 1.1 (design.md C1 interface: `snapshot()` runs the entry loop,
+  // `categorize` and `deriveRouting` of index-generator.ts:44-67 and returns
+  // `{ active, deferred, other, routing }`):
+  //   Pre-condition: temp project with a decomposition.md naming two specs.
+  //   Call: `new IndexGenerator(path).snapshot()`.
+  //   Observable result: the returned active/deferred/other arrays and routing
+  //   decision are identical (deep-equal) to what `generate()` on the same
+  //   on-disk state returns.
+  //   Expected-value source: `generate()`'s own return value on that fixture —
+  //   the task text names `generate()` as the value `snapshot()` must reproduce.
+  //
+  // Criterion 1.2 (Req 1 AC 2: the page SHALL NOT write INDEX.md; design.md C1:
+  // `generate()` becomes `snapshot()` plus the existing render and write):
+  //   Pre-condition: same temp project, no prior call to `generate()`.
+  //   Call: `new IndexGenerator(path).snapshot()`.
+  //   Observable result: `PathUtils.getIndexPath(path)` does not exist on disk
+  //   after `snapshot()` resolves.
+  //   Expected-value source: the task text's own assertion ("after snapshot()
+  //   alone the INDEX path does not exist").
+  describe('snapshot', () => {
+    it('returns the same order and routing that generate() returns', async () => {
+      await createSpec('alpha');
+      await createSpec('bravo');
+      await writeDecomposition('# Plan\n\n1. bravo\n2. alpha\n');
+
+      const snapshotResult = await generator.snapshot();
+      const generated = await generator.generate();
+      const index = await readIndex();
+
+      // Order: snapshot()'s active array must be in the same order the
+      // rendered INDEX.md table lists them in (both derive from the same
+      // categorize() call per design.md C1).
+      expect(snapshotResult.active.map(e => e.name)).toEqual(['bravo', 'alpha']);
+      expect(index.indexOf('| 1 | bravo |')).toBeGreaterThanOrEqual(0);
+      expect(index.indexOf('| 2 | alpha |')).toBeGreaterThan(index.indexOf('| 1 | bravo |'));
+      expect(snapshotResult.deferred).toEqual([]);
+      expect(snapshotResult.other).toEqual([]);
+
+      // Routing: snapshot()'s routing must equal generate()'s routing on the
+      // same on-disk state (design.md C1: generate() is snapshot() plus
+      // render/write, so both call deriveRouting with the same inputs).
+      expect(snapshotResult.routing).toEqual(generated.routing);
+    });
+
+    it('does not write INDEX.md', async () => {
+      await createSpec('alpha');
+      await writeDecomposition('alpha\n');
+
+      await generator.snapshot();
+
+      await expect(fs.access(PathUtils.getIndexPath(tempDir))).rejects.toThrow();
+    });
   });
 });

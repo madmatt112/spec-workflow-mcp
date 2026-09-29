@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-control-pane/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-09-28T23:22:58.172Z",
+      "trigger": "initial",
+      "approvalId": "approval_1790637778134_ua1ingjck",
+      "approvalTitle": "harness-control-pane tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-09-28T23:23:05.267Z",
+      "trigger": "approved",
+      "approvalId": "approval_1790637778134_ua1ingjck",
+      "approvalTitle": "harness-control-pane tasks v2"
+    }
+  ]
+}

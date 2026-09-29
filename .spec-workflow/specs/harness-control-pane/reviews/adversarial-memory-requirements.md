@@ -1,62 +1,86 @@
 # Adversarial Review Memory — requirements
-
-Last updated: 2026-09-28 (round 1, v1)
+Last updated: 2026-09-28 (after v3 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — first round)
+- **R1-1 (MUST_FIX, v1)** — AC 2.9 ledger-field contradiction. Resolved v2 (two `run.start`
+  provenance keys authorized by decomposition:665-667/711) and v3 (citation corrected).
+- **R1-2 (SHOULD_FIX, v1)** — websocket wire contract. AC 4.8/4.9/5.10 added. Substance
+  accepted; residue tracked as R2-2/R2-3 (now fixed) and R3-1 (open, log-push routing).
+- **R1-3 (SHOULD_FIX, v1)** — deepseek worker override. AC 2.4/2.6. Verified accurate.
+- **R1-4 (SHOULD_FIX, v1)** — provider-conditional model validation. AC 1.6. Accurate.
+- **R1-5 (SHOULD_FIX, v1)** — read-only spec listing without INDEX.md write. AC 1.1.
+- **R2-1 (MUST_FIX, v2)** — scope-note citation. v3 corrected to `decomposition.md:754-755`;
+  re-verified: 754-755 carries "it adds no ledger field", 753 no longer pulled in. CLOSED.
+- **R2-3 (SHOULD_FIX, v2)** — AC 4.9 run-model/gate pushes now keyed on AC 4.8 subscription
+  state, not `broadcastToProject` (which filters projectId-only, multi-server.ts:2143).
+  Verified accurate. CLOSED — but see R3-1: log-push left outside the same rule.
 
 ### Partially Accepted
-- (none yet)
+- **R2-2 (SHOULD_FIX, v2)** — v3 restored "distinct from `initial` and `projects-update`" in
+  AC 4.9 and AC 5.10; AC 5.10 still enumerates "overview rows and the todos list". Per-payload
+  source-AC cross-refs (AC 4.2 / Req 3 AC 5 / AC 4.5) stay dropped for the word cap. Verified:
+  no dangling reference; the three types are still named in prose. Acceptable.
 
 ### Rejected
-- (none yet)
+- **v1 minors** — waiting-state imprecision (self-correcting); launch flag list; log/
+  launch-record paths (design-phase). Do not re-raise without new evidence.
+- **v2 minors** — AC 1.1 R1-5 wording; Intro key names; AC 2.4/2.6 deepseek trigger wording.
+  Rejected in v3 Revision History. Do not re-raise.
 
-### Unresolved
-- **R1-1 (MUST_FIX)** — AC 2.9 adds `overrides` and `setup=harness-run` keys to the
-  `run.start` ledger row, contradicting decomposition.md:754 ("Spec 9 ... adds no ledger
-  field") and the document's own D14 ("the boundary notes forbid a new ledger field").
-  Keys confirmed absent from code today.
-- **R1-2 (SHOULD_FIX, wire contract)** — Overview cross-project stream (Req 5) and the
-  Harness-watcher lifecycle (AC 4.7, 5.9) rely on a websocket contract the existing `/ws`
-  lacks: one `connection.projectId` per socket (multi-server.ts:210,266-267), broadcasts
-  per-project or all only. No subscribe message for "all projects," no way to distinguish a
-  Harness subscriber from a Specs subscriber on the same projectId, no message types for
-  run-model/log/todos/overview payloads.
-- **R1-3 (SHOULD_FIX, wire contract)** — AC 2.4 ("Agent-tool spawn ... `model` parameter")
-  ignores DeepSeek workers, which run via `bash <LAUNCHER>` (sdd-document-phase/SKILL.md:24-34),
-  not the Agent tool. No AC defines how a DeepSeek role's overridden model reaches the worker.
-- **R1-4 (SHOULD_FIX)** — AC 1.6 (model must be `claude-` id or listed alias) collides with
-  AC 1.8 (deepseek role requires deepseek-v4-pro/deepseek-flash). Validation is not stated as
-  provider-conditional; literal AC 1.6 rejects the models AC 1.8 mandates.
-- **R1-5 (SHOULD_FIX)** — AC 1.1 sources spec order from IndexGenerator.generate()
-  (index-generator.ts:44-82), which writes INDEX.md (:72) and mkdirs (:70); AC 1.2 forbids the
-  page from writing. Order logic (categorize/render/deriveSpecStatus) is private, only reachable
-  via generate(); no read-only API.
-- **Minor** — AC 5.3/D7 "waiting" is transiently wrong for record-mode pane runs; AC 3.1/3.2
-  launch flag list under-specified (`--permission-mode auto` vs `--dangerously-skip-permissions`,
-  no `--effort` in runAgent); AC 3.4 log/launch-record paths unnamed.
+### Unresolved (found in v3, awaiting disposition)
+- **R3-1 (SHOULD_FIX, Compounding R2-3/R1-2)** — log-lines push has no routing rule; R2-3
+  tightened only run-model+gate to harness-subscribers. Highest-volume channel left able to
+  fan out via `broadcastToProject` to Specs tabs.
+- **R3-2 (SHOULD_FIX, Novel)** — dashboard is a 2nd concurrent writer of the machine-wide
+  `active-run` pointer file (SKILL.md:104-106; hook 11-25); AC 3.10/3.13 never require the
+  rewrite be atomic/safe vs a concurrent append; can drop a live run's line. SKILL.md:494-500
+  bans `grep -v` and mandates `deregister.mjs` for exactly this reason.
+- **R3-3 (SHOULD_FIX, Novel)** — no liveness reconciliation on restart (AC 3.12) or after a
+  crashed stop (AC 3.10); AC 3.8 checks pid liveness on admission but AC 3.12 omits it on
+  restore → zombie "running" rows, lost exit code, stale pointer line blocks future launches.
+- **R3-4 (SHOULD_FIX, Novel)** — launch (worktree create / `npm ci` / spawn, AC 3.3-3.4) has
+  no failure or rollback path; "reuse it" reuses a broken worktree after a failed `npm ci`.
+- **R3-5 (SHOULD_FIX, Novel)** — AC 2.6 preflight refusal writes no run.start/run.end
+  (SKILL.md:87-90); AC 2.10 deletes `harness-run.json` only on run.end → orphaned poison file
+  re-refuses every future run of the spec; no terminal-operator cleanup path.
+- **R3-6 (SHOULD_FIX, Novel)** — "one live run per spec store" invariant has a check-to-spawn
+  race: pointer line (the "lock") is written after spawn by the supervisor, so a concurrent
+  terminal launch passes AC 3.7/3.8 admission and both runs start.
+- **R3 minors** — AC 3.2 cites adversarial-runner.ts:156-220 whose 10-min timeout (185-188)
+  and shutdown-kill (250-254) contradict D4 (state they aren't adopted); page Launch clobbers
+  a saved terminal gates=block setup; AC 3.10 file/line delete idempotency unstated.
 
 ## Patterns & Themes
-- **Ledger-immutability promise vs. new provenance keys.** The document repeatedly asserts it
-  changes nothing in the ledger (Intro, D14, Req 6) yet AC 2.9 adds run.start keys. Watch every
-  future round for the same "no change" claim quietly violated.
-- **"Over the existing websocket" hides new contract work.** The single-projectId socket does
-  not fit the Overview page or per-page watcher lifecycle. Any design that keeps claiming pure
-  reuse should be probed for the missing subscribe/message types.
-- **Provider (DeepSeek) coupling under-modeled.** Model validation, model delivery, and the
-  provider map interact; the ACs treat model and provider as independent. Re-check in design.
-- Citations are accurate this round — no misstated artifacts. Spot-check remained worthwhile
-  (generate() write side-effect, DeepSeek launcher path were the load-bearing surprises).
+- **Delta verification is now the cheap part; failure paths are the soft spot.** v3 fixed all
+  three v2 residues cleanly (citations accurate at both ends, no new contradiction, no dangling
+  ref). Every open finding this round is a partial-failure / concurrency / rollback gap the
+  spec simply does not address — the doc specifies happy paths in detail and error paths not
+  at all.
+- **The shared machine-wide pointer file is the recurring hazard.** R3-2/R3-3/R3-6 all trace
+  to `active-run` being one file written by many processes, with the real lock (the pointer
+  line) written seconds after spawn. The supervisor's own code already flags the fragility
+  (bans `grep -v`, mandates `deregister.mjs`); the dashboard inherits the hazard as a new
+  writer without inheriting the safeguard as a requirement.
+- **A fix that narrows one push path can strand its siblings.** R2-3 tightened run-model+gate
+  routing; the log push (R3-1) was left on the old fan-out path, so the fix half-closed the
+  wire contract again — the same shape as the v2 lint-trim residue.
+- **Lifecycle asymmetry:** admission (AC 3.7/3.8) checks liveness and the pointer; restore
+  (AC 3.12), stop (AC 3.10) and refusal (AC 2.6→2.10) do not clean up what they leave behind.
 
 ## Guidance for Next Review
-- First confirm R1-1 is resolved: either the boundary reading is amended (state provenance keys
-  are in scope) or override provenance moved off run.start. If unresolved, it stays MUST_FIX.
-- For design phase, apply the wire-contract lens again to the actual message schemas: verify the
-  Overview subscribe path, the harness watcher start/stop keying, and the run-model/log payload
-  shapes are named and consistent with multi-server.ts broadcast helpers.
-- Re-probe the DeepSeek override path (R1-3) and provider-conditional validation (R1-4) — these
-  are the most likely to be papered over rather than fixed.
-- The overwatch-hud.json todos schema was verified live this round (id/title/owner/blocks/note/
-  since/done/priority present); no need to re-verify unless D1 changes.
+- If v4 responds to R3-1..R3-6, verify: (a) log push now under the AC 4.9 harness-subscriber
+  rule; (b) pointer rewrite stated concurrency-safe (reuse `deregister.mjs` or atomic); (c)
+  restart/stop reconcile pid liveness and finalise a dead run idempotently; (d) launch failure
+  surfaces + worktree reuse validity bar; (e) refused-run file cleanup; (f) single-live-run
+  invariant scoped or a real lock named.
+- Do not re-open R1-1..R1-5 substance, R2-1 (citation now correct), R2-2 (partial accepted),
+  R2-3 (fixed), or the v1/v2 rejected minors.
+- Code citations verified accurate at both ends through v3: decomposition.md:665-667/711/
+  754-755, multi-server.ts:205-294/2139-2151, adversarial-runner.ts:156-220/250-254,
+  sdd-continue/SKILL.md:83-96/100-129/331-345/486-500, sdd-activity.sh:1-31. No need to
+  re-verify unless a v4 delta touches them.
+- Next fresh lens candidate (not yet used): security/authz of the launch+stop routes under a
+  non-localhost bind (D10 was accepted in R1 but only for the "reuses existing hooks" claim);
+  or performance/backpressure of the five-second push + 300ms debounce under many projects.

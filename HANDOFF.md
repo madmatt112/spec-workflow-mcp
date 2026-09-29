@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **requirements**, state **pending**, last result **pending**. Previous spec `tdd-task-loop` CLOSED (PRs #72, #74 merged).
+> Live phase **implementation**, state **tasks 0/20**, last result **approved** (tasks at v2).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: starts `harness-control-pane` at requirements (spawns the document orchestrator for v1 and gate A).
+> A re-run does: runs gate B (if slot b is present), enters a feat/harness-control-pane worktree, spawns the implementation orchestrator.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -70,6 +70,10 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-28 | tdd-task-loop | retrospective | n/a | approved | plan APPROVED: P1, P3, P4, P5, P9, G1, G2; P2/P8 keep as is |
 | 2026-09-28 | tdd-task-loop | retrospective |  | retro-ready |  |
 | 2026-09-28 | tdd-task-loop | closeout | items 7/7 | closed |  |
+| 2026-09-28 | harness-control-pane | requirements | v1 | gate-a |  |
+| 2026-09-28 | harness-control-pane | requirements | v4 | approved | 4 rounds (3 review + narrow check), converged via SHOULD_FIX-only pass |
+| 2026-09-28 | harness-control-pane | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
+| 2026-09-28 | harness-control-pane | tasks | v2 | approved | 2 rounds, iterate→converged |
 
 ## Current state — 2026-08-04
 
@@ -611,3 +615,39 @@ Gotchas:
 | P5 finding | CODE_ROOT is NOT exported to the MCP server process (sdd-launch.sh passes only ANTHROPIC_*/XDG_STATE_HOME and cds into SDD_CODE_ROOT); the explicit projectPath:<CODE_ROOT> on review-task calls is the reliable fix |
 | To-do (human) | merge PR #74 once CI is green; the separate operator pre-merge session for verification-evidence.md (9.1/9.3/9.5) tracked in the implementation HANDOFF section still stands |
 | Spawns | 2 implementers (harness batch, code batch); 0 verifiers, 0 adjudicators |
+
+## harness-control-pane — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-09-28 |
+| Rounds | 4 (3 review + 1 narrow check); verdicts 1/4/3 → 1/2/3 → 0/6/3 → SHOULD_FIX-only pass → VERIFIED 6/6 |
+| Approval | `approval_1790630432518_ddccp0tmh` |
+| Rulings | none |
+| Cut scope | Concurrent terminal-launch race declared out of scope (R3-6): the single-live-run invariant is bounded to dashboard-initiated launches, per the decomposition's pointer-file lock (decomposition.md:673-674). |
+| Carried items | R3-minor-1 — AC 3.2 reuse of adversarial-runner.ts:156-220: design must state the reused spawn pattern does NOT adopt that runner's 10-min SIGTERM timeout or its on-shutdown child kill (both contradict D4's hours-long, restart-surviving run). R3-minor-2 — a page Launch re-saves harness-run.json with gates=record, clobbering a setup saved for a terminal run with gates=block (D6): design should state this overwrite is intended. |
+| Next phase loads | requirements.md v4 and the decomposition entry (spec 9); focus the design on the websocket subscribe/message contract (AC 4.7–4.9, 5.9–5.10), the failure/concurrency ACs (2.6, 3.10–3.14), and the read-only index-generator ordering without INDEX.md's write (AC 1.1). |
+
+## harness-control-pane — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-09-28 |
+| Rounds | 3 (2 review + 1 narrow check); verdicts 0/3/3 → 0/2/1 → SHOULD_FIX-only pass → VERIFIED 3/3 |
+| Approval | `approval_1790635324007_a1w0qavvk` |
+| Rulings | none from orchestrator. 4 RE-DECIDED requirement-literal flags closed as refinement by the reviewer at round 1: Req 1 AC 4 (a deepseek-mapped role pre-fills the model, D3); Req 3 AC 13 (pointer removal ports the deregister helper plus a retry, an append-race window remains); Req 3 AC 14 (an unmarked existing worktree gets setup re-run, not refused); Req 2 AC 6 (a malformed file is refused and deleted). |
+| Cut scope | Non-active routing states cannot launch; stale pointer lines have no explicit control; launch logs are not pruned (design Scope notes). Requirements already cut the concurrent terminal-launch race. |
+| Carried items | R2-3 — spawn-to-record crash window (MINOR): ruled out for word cap; a launcher crash between spawn and the record-write can leave a run untracked. Narrow-check deferred — the in-flight-race loser has no LaunchError.step value and its route-layer error shape (409 vs 500) is unstated (design.md:81,90). |
+| Next phase loads | design.md v3 (components C1–C10, Data Models, Testing Strategy) after codebase-context.md; the tasks drafter must cover the atomic launch admission (C4 launch step 1), the re-point-on-new-launch log seam (C5/C7), the post-merge validation pass in the providers script (C9), and resolve the carried LaunchError.step / 409-vs-500 gap. |
+
+## harness-control-pane — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-09-28 |
+| Rounds | 2 (2 review, no narrow check); verdicts iterate 1/0/0 → converged 0/0/1 |
+| Approval | `approval_1790637778134_ua1ingjck` |
+| Rulings | none from orchestrator. Round-1 MUST_FIX R1-1 (a lint-induced wrong-file citation in task 19's prompt) accepted and fixed. Three bridge-missing lint warnings (L-2, L-3, L-7) rejected at the lint pass: each flagged task is the producer and the named later task the consumer, so no forward-artefact bridge applies; the reviewer confirmed this at round 1. |
+| Cut scope | none new — the 20 tasks cover every design component C1–C10, the Data Models and the Testing Strategy. Design's own cut scope (non-active launch, stale-pointer control, log pruning) stands. |
+| Carried items | none. Both design carries resolved in v1: the in-flight-race loser is closed by D1 (admission refuses in-flight; a new `admission` LaunchError.step maps to 409 `run-live` with a null runId), and R2-3 is narrowed to the single event-loop turn between `spawn()` and the spawn handler (scoped in Scope notes). One benign MINOR (R2-1: task 13's dependency on task 12 is enforced by numeric order, not gating) left as-is on convergence, not a word-cap rejection. |
+| Next phase loads | tasks.md v2 (20 tasks in dependency order) after codebase-context.md; implementation starts at task 1 (spec snapshot), then types/parsers (2–4), launcher (5–6), routes/wiring (7–10), frontend (11–13), then the run-setup and providers shell scripts and the phase-skill edits (14–18), ending with the pending verification-evidence task (19) and the completion gate (20). |
