@@ -8,8 +8,163 @@ import { randomUUID } from 'crypto';
 import { HarnessLauncher, LaunchError } from '../launcher.js';
 import { writeRunFile } from '../run-setup.js';
 import { launchesDir, logsDir } from '../state-files.js';
-import type { HarnessRunFile } from '../types.js';
+import type { HarnessRunFile, LaunchRecord } from '../types.js';
 import type { ProjectContext } from '../../project-manager.js';
+
+// Contract additions for task 6 (design.md C4 "Stop", "Finalise", "Own exit",
+// "Run id"; task 6 _Prompt; Requirements 3.6, 3.9, 3.10, 3.11, 3.12, 3.13). Every
+// test below drives the real `HarnessLauncher` against a fake `cli` bash script
+// (no collaborator inside launcher.ts is mocked); the "ignore TERM" and
+// "self-exit" scripts are new fixtures alongside task 5's `FAKE_CLI_SCRIPT`.
+//
+// Criterion "own exit sets exited, exitCode, signal and endedAt, writes and
+//   emits, and touches no ledger or pointer" (design.md C4 "Own exit"; task 6
+//   _Prompt "Tests" item 6; Req 3.11):
+//   Pre-condition: a launched child that exits on its own with code 7 (no stop
+//   requested); a ledger file and a pointer line pre-populated with unrelated
+//   content.
+//   Test: `launcher.launch(project, file, null)`, then wait for
+//   `launcher.get(projectId).state === 'exited'`.
+//   Observable result: `state` `'exited'`, `exitCode` `7`, `signal` `null`,
+//   `endedAt` a string; the on-disk record equals the in-memory one; the
+//   ledger file and pointer file are byte-for-byte unchanged.
+//   Expected-value source: task 6 _Prompt ("an exit with no stop requested
+//   sets state exited, exitCode, signal and endedAt ... and touches no ledger
+//   or pointer") and design.md C4 "Own exit".
+//
+// Criterion "stop() rejects with an Error when there is no record in running
+//   or stopping state" (task 6 _Prompt; Req 3.10):
+//   Pre-condition: a fresh launcher with no launch for the project id.
+//   Test: `launcher.stop('no-such-project')`.
+//   Observable result: the call rejects with an `Error`.
+//   Expected-value source: task 6 _Prompt ("stop(projectId) rejects with an
+//   Error when there is no record in running or stopping state").
+//
+// Criterion "a second stop() call while a stop is pending returns the same
+//   pending promise" (design.md tasks D13; task 6 _Prompt; Req 3.10):
+//   Pre-condition: a launched child that ignores SIGTERM, so the first
+//   `stop()` call has not yet resolved.
+//   Test: call `launcher.stop(projectId)` twice without awaiting the first.
+//   Observable result: the second call's return value `===` the first call's
+//   return value (`toBe`); both resolve to the same finalised record.
+//   Expected-value source: task 6 _Prompt ("a second call while a stop is
+//   pending returns the pending promise (tasks D13; Req 3.10)").
+//
+// Criterion "stop() on a child that honours TERM sends only SIGTERM,
+//   transitions stopping then stopped, and finishes well under the grace
+//   period" (design.md C4 "Stop"; task 6 _Prompt "Tests" item 1; Req 3.9):
+//   Pre-condition: a launched child using task 5's `FAKE_CLI_SCRIPT`, which
+//   dies on SIGTERM; `stopGraceMs: 5000`.
+//   Test: `launcher.stop(projectId)`, having subscribed to `launch-update`
+//   first.
+//   Observable result: the resolved record's `state` is `'stopped'`; elapsed
+//   time is well under `stopGraceMs`; an emitted update has `state`
+//   `'stopping'` with a string `stopRequestedAt`; the last emitted update has
+//   `state` `'stopped'` with a string `endedAt`.
+//   Expected-value source: design.md C4 ("state: 'stopping', SIGTERM to
+//   -pgid, poll every pollMs, SIGKILL ... if alive after stopGraceMs,
+//   finalise once gone") and task 6 _Prompt Tests item 1 ("a fake that
+//   honours TERM ends with no SIGKILL").
+//
+// Criterion "stop() sends SIGKILL after the grace period when the group
+//   ignores SIGTERM" (design.md C4 "Stop"; task 6 _Prompt "Tests" item 2;
+//   Req 3.9):
+//   Pre-condition: a launched child that traps and ignores SIGTERM;
+//   `stopGraceMs: 300`, `pollMs: 30`.
+//   Test: `launcher.stop(projectId)`.
+//   Observable result: the resolved record's `state` is `'stopped'`; elapsed
+//   time is at least 300 ms; `process.kill(-record.pgid, 0)` now throws
+//   (the group is gone).
+//   Expected-value source: task 6 _Prompt Tests item 2 ("a fake with trap ''
+//   TERM and a 300 ms grace is killed") and design.md C4 ("SIGKILL to -pgid
+//   if alive after stopGraceMs").
+//
+// Criterion "finalise appends one run.end for the run's run.start and
+//   removes only its own pointer line" (design.md C4 "Finalise" steps 2-3;
+//   task 6 _Prompt "Tests" item 3; Req 3.10, 3.13):
+//   Pre-condition: a launched record with `noteRunId` set to a known run id;
+//   a ledger holding that run's `run.start`; a pointer file with two lines,
+//   one for this run and one for another.
+//   Test: `launcher.stop(projectId)`.
+//   Observable result: the ledger gains exactly one new line, `{ run,
+//   spec: 'demo-spec', type: 'run.end', status: 'stopped from the
+//   dashboard' }`; the pointer file keeps exactly the other line.
+//   Expected-value source: design.md C4 ("append { ts, run, spec, type:
+//   'run.end', status: 'stopped from the dashboard' } ... removePointerLine
+//   for that run id") and harness/skills/sdd-continue/references/formats.md:178.
+//
+// Criterion "finalise is idempotent: a second restore over an
+//   already-finalised run appends no duplicate run.end" (design.md C4
+//   "Finalise (... idempotent)"; task 6 _Prompt "Tests" item 4; Req 3.10):
+//   Pre-condition: a crafted dead record (pid the test process, so `isAlive`
+//   is false) whose run has a `run.start` in the ledger and a pointer line;
+//   one `restore()` finalises it; the persisted record file is then rewritten
+//   back to `running` to force a second finalise attempt.
+//   Test: `restore()` on two successive `HarnessLauncher` instances over the
+//   same directories.
+//   Observable result: the ledger holds exactly one `run.end` line after
+//   both restores, not two.
+//   Expected-value source: task 6 _Prompt Tests item 4 ("a second finalise
+//   adds nothing") and design.md C4 "Finalise (Req 3 AC 10; idempotent)".
+//
+// Criterion "finalise spares a newer setup file written after launch"
+//   (design.md C4 "Finalise" step 4, D14; task 6 _Prompt "Tests" item 5;
+//   Req 3.10):
+//   Pre-condition: a launched record; after launch, a new `harness-run.json`
+//   with a later `writtenAt` is written to the workflow root (a setup saved
+//   for the next run).
+//   Test: `launcher.stop(projectId)`.
+//   Observable result: `harness-run.json` still exists after stop, with the
+//   newer `writtenAt` unchanged.
+//   Expected-value source: task 6 _Prompt Tests item 5 ("deleteRunFileIf
+//   spares a newer file") and design.md D14 ("Finalisation deletes the setup
+//   file only when its written-at time matches").
+//
+// Criterion "finalise with no run id found skips the ledger and pointer
+//   steps" (design.md C4 "Finalise" step 1; task 6 _Prompt; Req 3.10):
+//   Pre-condition: a launched record with no `noteRunId` call, no ledger file
+//   for the spec, and no pointer line.
+//   Test: `launcher.stop(projectId)`.
+//   Observable result: the call resolves with `state: 'stopped'` and neither
+//   the ledger file nor the pointer file is created.
+//   Expected-value source: task 6 _Prompt ("With no run id found, skip the
+//   ledger and pointer steps").
+//
+// Criterion "restore() reattaches a live record (whose stop then works) and
+//   finalises a dead record with a note, in one pass" (design.md C4
+//   "restore()"; task 6 _Prompt "Tests" item 7; Req 3.12):
+//   Pre-condition: one launched (alive) record for one project; one crafted
+//   record for another project whose pid is the test process (so the `ps`
+//   liveness check fails); both records on disk under the same `launchesDir`.
+//   Test: `restore()` on a new `HarnessLauncher` instance over the same
+//   directories, then `stop()` on the reattached project.
+//   Observable result: the live project reattaches with `state: 'running'`
+//   and the same `pid`, and its subsequent `stop()` resolves `'stopped'`; the
+//   dead project's record is `state: 'stopped'` with `note: 'found gone
+//   after dashboard restart'`.
+//   Expected-value source: task 6 _Prompt ("a running or stopping record
+//   that is alive stays in memory ... a record that is not alive gets note
+//   'found gone after dashboard restart' and finalises") and Tests item 7.
+//
+// Criterion "restore() skips a missing launches directory and a malformed
+//   record file, without throwing" (task 6 _Prompt "restore()"; Req 3.12):
+//   Pre-condition: no `launchesDir()` on disk; then a directory holding one
+//   unparsable JSON file.
+//   Test: `launcher.restore()` in each situation.
+//   Observable result: both calls resolve without throwing.
+//   Expected-value source: task 6 _Prompt ("reads every JSON file in
+//   launchesDir() (a missing dir or a bad file is skipped)").
+//
+// Criterion "noteRunId sets, writes and emits once for a value, and not
+//   again for a repeat of the same value" (design.md C4 "Run id"; task 6
+//   _Prompt "Tests" item 8; Req 3.6):
+//   Pre-condition: a launched record with `runId: null`.
+//   Test: `launcher.noteRunId(projectId, runId)` called twice with the same
+//   `runId`, counting `launch-update` emissions.
+//   Observable result: exactly one emission total; `launcher.get(projectId)`
+//   and the on-disk record both show the new `runId` after the first call.
+//   Expected-value source: design.md C4 ("noteRunId sets, writes and emits
+//   only when the value changes") and task 6 _Prompt Tests item 8.
 
 // Contract for src/dashboard/harness/launcher.ts (design.md C4; task 5
 // _Prompt; Requirements 3.1, 3.2, 3.3, 3.4, 3.7, 3.8, 3.14). Every test drives
@@ -148,6 +303,29 @@ echo "$@"
 sleep 30 &
 wait
 `;
+
+// Traps and ignores SIGTERM at the group leader, so only SIGKILL ends it
+// (task 6 _Prompt Tests item 2).
+const IGNORE_TERM_CLI_SCRIPT = `#!/usr/bin/env bash
+trap '' TERM
+echo "$@"
+while true; do sleep 0.2; done
+`;
+
+// Exits on its own with a known code, no stop involved (task 6 _Prompt Tests
+// item 6).
+const SELF_EXIT_CLI_SCRIPT = `#!/usr/bin/env bash
+echo "$@"
+exit 7
+`;
+
+async function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 20): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error('waitFor: timed out');
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
 
 function gitEnv(): NodeJS.ProcessEnv {
   return {
@@ -412,5 +590,292 @@ describe('HarnessLauncher', () => {
 
     expect(record2.cwd).toBe(worktreePath);
     expect(readFileSync(counterFile, 'utf-8').trim().split('\n').filter(Boolean)).toHaveLength(1);
+  });
+
+  it('the child exiting on its own sets exited, exitCode and endedAt, and touches no ledger or pointer', async () => {
+    const { project, workflowRoot } = await makeProject();
+    const selfExitCli = join(base, 'self-exit-cli.sh');
+    writeFileSync(selfExitCli, SELF_EXIT_CLI_SCRIPT);
+    chmodSync(selfExitCli, 0o755);
+    const file = makeRunFile('demo-spec');
+    const pointerFile = join(base, 'pointer-t1');
+    const specDir = join(workflowRoot, 'specs', 'demo-spec');
+    mkdirSync(specDir, { recursive: true });
+    const ledgerPath = join(specDir, 'harness-events.jsonl');
+    const ledgerBefore = JSON.stringify({
+      ts: new Date().toISOString(), run: 'run-unrelated', spec: 'demo-spec', type: 'run.start',
+    }) + '\n';
+    writeFileSync(ledgerPath, ledgerBefore);
+    const pointerBefore = `main\t${specDir}\trun-unrelated\n`;
+    writeFileSync(pointerFile, pointerBefore);
+
+    const launcher = new HarnessLauncher({ cli: selfExitCli, pointerPath: pointerFile });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    await waitFor(() => launcher.get(project.projectId)?.state === 'exited');
+
+    const final = launcher.get(project.projectId) as LaunchRecord;
+    expect(final.state).toBe('exited');
+    expect(final.exitCode).toBe(7);
+    expect(final.signal).toBeNull();
+    expect(typeof final.endedAt).toBe('string');
+
+    const onDisk = JSON.parse(readFileSync(join(launchesDir(), `${project.projectId}.json`), 'utf-8'));
+    expect(onDisk).toEqual(final);
+
+    expect(readFileSync(ledgerPath, 'utf-8')).toBe(ledgerBefore);
+    expect(readFileSync(pointerFile, 'utf-8')).toBe(pointerBefore);
+  });
+
+  it('stop() rejects with an Error when there is no record in running or stopping state', async () => {
+    const launcher = new HarnessLauncher({ cli: fakeCli });
+    await expect(launcher.stop('no-such-project')).rejects.toBeInstanceOf(Error);
+  });
+
+  it('a second stop() call while a stop is pending returns the same pending promise', async () => {
+    const { project } = await makeProject();
+    const ignoreTermCli = join(base, 'ignore-term-cli-pending.sh');
+    writeFileSync(ignoreTermCli, IGNORE_TERM_CLI_SCRIPT);
+    chmodSync(ignoreTermCli, 0o755);
+    const file = makeRunFile('demo-spec');
+    const launcher = new HarnessLauncher({ cli: ignoreTermCli, stopGraceMs: 300, pollMs: 30 });
+
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const first = launcher.stop(project.projectId);
+    const second = launcher.stop(project.projectId);
+    expect(second).toBe(first);
+
+    const resolved = await first;
+    expect(resolved.state).toBe('stopped');
+  });
+
+  it('stop() on a child that honours TERM sends only SIGTERM, and finishes well under the grace period', async () => {
+    const { project } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const launcher = new HarnessLauncher({ cli: fakeCli, stopGraceMs: 5000, pollMs: 30 });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const events: LaunchRecord[] = [];
+    launcher.on('launch-update', (rec: LaunchRecord) => {
+      if (rec.projectId === project.projectId) events.push(rec);
+    });
+
+    const start = Date.now();
+    const result = await launcher.stop(project.projectId);
+    const elapsed = Date.now() - start;
+
+    expect(result.state).toBe('stopped');
+    expect(elapsed).toBeLessThan(2000);
+    const stoppingEvent = events.find((e) => e.state === 'stopping');
+    expect(stoppingEvent).toBeDefined();
+    expect(typeof stoppingEvent?.stopRequestedAt).toBe('string');
+    const lastEvent = events[events.length - 1];
+    expect(lastEvent.state).toBe('stopped');
+    expect(typeof lastEvent.endedAt).toBe('string');
+  });
+
+  it('stop() sends SIGKILL after the grace period when the group ignores SIGTERM', async () => {
+    const { project } = await makeProject();
+    const ignoreTermCli = join(base, 'ignore-term-cli-kill.sh');
+    writeFileSync(ignoreTermCli, IGNORE_TERM_CLI_SCRIPT);
+    chmodSync(ignoreTermCli, 0o755);
+    const file = makeRunFile('demo-spec');
+    const launcher = new HarnessLauncher({ cli: ignoreTermCli, stopGraceMs: 300, pollMs: 30 });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const start = Date.now();
+    const result = await launcher.stop(project.projectId);
+    const elapsed = Date.now() - start;
+
+    expect(result.state).toBe('stopped');
+    expect(elapsed).toBeGreaterThanOrEqual(300);
+    expect(() => process.kill(-record.pgid, 0)).toThrow();
+  });
+
+  it("finalise appends one run.end for the run's run.start and removes only its own pointer line", async () => {
+    const { project, workflowRoot } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const pointerFile = join(base, 'pointer-t6');
+    const launcher = new HarnessLauncher({
+      cli: fakeCli, stopGraceMs: 2000, pollMs: 30, pointerPath: pointerFile,
+    });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const runId = 'run-20260101-010101';
+    launcher.noteRunId(project.projectId, runId);
+
+    const specDir = join(workflowRoot, 'specs', 'demo-spec');
+    mkdirSync(specDir, { recursive: true });
+    const ledgerPath = join(specDir, 'harness-events.jsonl');
+    writeFileSync(ledgerPath, JSON.stringify({
+      ts: new Date().toISOString(), run: runId, spec: 'demo-spec', type: 'run.start',
+    }) + '\n');
+
+    const otherSpecDir = join(workflowRoot, 'specs', 'other-spec');
+    writeFileSync(pointerFile, `main\t${specDir}\t${runId}\nmain\t${otherSpecDir}\trun-other\n`);
+
+    await launcher.stop(project.projectId);
+
+    const ledgerLines = readFileSync(ledgerPath, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    expect(ledgerLines).toHaveLength(2);
+    expect(ledgerLines[1]).toMatchObject({
+      run: runId, spec: 'demo-spec', type: 'run.end', status: 'stopped from the dashboard',
+    });
+
+    const pointerLines = readFileSync(pointerFile, 'utf-8').trim().split('\n').filter(Boolean);
+    expect(pointerLines).toHaveLength(1);
+    expect(pointerLines[0]).toBe(`main\t${otherSpecDir}\trun-other`);
+  });
+
+  it('finalise is idempotent: a second restore over an already-finalised run appends no duplicate run.end', async () => {
+    const { project, workflowRoot } = await makeProject();
+    const specDir = join(workflowRoot, 'specs', 'demo-spec');
+    mkdirSync(specDir, { recursive: true });
+    const ledgerPath = join(specDir, 'harness-events.jsonl');
+    const runId = 'run-20260101-030303';
+    writeFileSync(ledgerPath, JSON.stringify({
+      ts: new Date().toISOString(), run: runId, spec: 'demo-spec', type: 'run.start',
+    }) + '\n');
+
+    const pointerFile = join(base, 'pointer-t7');
+    writeFileSync(pointerFile, `main\t${specDir}\t${runId}\n`);
+
+    mkdirSync(launchesDir(), { recursive: true });
+    const recordPath = join(launchesDir(), `${project.projectId}.json`);
+    const deadRecord = {
+      projectId: project.projectId, workflowRoot, spec: 'demo-spec',
+      pid: process.pid, pgid: process.pid, cwd: project.workspacePath, worktree: 'no',
+      logPath: join(base, 'dead-t7.log'), launchedAt: new Date().toISOString(),
+      setupWrittenAt: new Date().toISOString(), runId,
+      state: 'running', exitCode: null, signal: null,
+      stopRequestedAt: null, endedAt: null, note: null,
+    };
+    writeFileSync(recordPath, JSON.stringify(deadRecord, null, 2) + '\n');
+
+    const launcherA = new HarnessLauncher({ cli: fakeCli, pointerPath: pointerFile });
+    await launcherA.restore();
+    expect(launcherA.get(project.projectId)?.state).toBe('stopped');
+
+    const linesAfterFirst = readFileSync(ledgerPath, 'utf-8').trim().split('\n').filter(Boolean);
+    expect(linesAfterFirst).toHaveLength(2);
+
+    // Force a second finalise attempt over the same run: rewrite the
+    // persisted record back to 'running' (design.md C4 "Finalise ...
+    // idempotent").
+    writeFileSync(recordPath, JSON.stringify({ ...deadRecord, state: 'running' }, null, 2) + '\n');
+
+    const launcherB = new HarnessLauncher({ cli: fakeCli, pointerPath: pointerFile });
+    await launcherB.restore();
+
+    const linesAfterSecond = readFileSync(ledgerPath, 'utf-8').trim().split('\n').filter(Boolean);
+    expect(linesAfterSecond).toHaveLength(2);
+  });
+
+  it('finalise spares a newer setup file written after launch', async () => {
+    const { project, workflowRoot } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const launcher = new HarnessLauncher({ cli: fakeCli, stopGraceMs: 2000, pollMs: 30 });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const newerFile = makeRunFile('demo-spec', { writtenAt: new Date(Date.now() + 60000).toISOString() });
+    writeRunFile(workflowRoot, newerFile);
+
+    await launcher.stop(project.projectId);
+
+    expect(existsSync(join(workflowRoot, 'harness-run.json'))).toBe(true);
+    const onDisk = JSON.parse(readFileSync(join(workflowRoot, 'harness-run.json'), 'utf-8'));
+    expect(onDisk.writtenAt).toBe(newerFile.writtenAt);
+  });
+
+  it('finalise with no run id found skips the ledger and pointer steps', async () => {
+    const { project, workflowRoot } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const pointerFile = join(base, 'pointer-t9');
+    const launcher = new HarnessLauncher({
+      cli: fakeCli, stopGraceMs: 2000, pollMs: 30, pointerPath: pointerFile,
+    });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const specDir = join(workflowRoot, 'specs', 'demo-spec');
+
+    const result = await launcher.stop(project.projectId);
+
+    expect(result.state).toBe('stopped');
+    expect(existsSync(join(specDir, 'harness-events.jsonl'))).toBe(false);
+    expect(existsSync(pointerFile)).toBe(false);
+  });
+
+  it('restore() reattaches a live record (whose stop then works) and finalises a dead record with a note, in one pass', async () => {
+    const { project: liveProject } = await makeProject();
+    const { project: deadProject, workflowRoot: deadRoot } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const launcherA = new HarnessLauncher({ cli: fakeCli, stopGraceMs: 2000, pollMs: 30 });
+    const liveRecord = await launcherA.launch(liveProject, file, null);
+    pgidsToKill.push(liveRecord.pgid);
+
+    mkdirSync(launchesDir(), { recursive: true });
+    const deadRecord = {
+      projectId: deadProject.projectId, workflowRoot: deadRoot, spec: 'demo-spec',
+      pid: process.pid, pgid: process.pid, cwd: deadProject.workspacePath, worktree: 'no',
+      logPath: join(base, 'dead-t10.log'), launchedAt: new Date().toISOString(),
+      setupWrittenAt: new Date().toISOString(), runId: null,
+      state: 'running', exitCode: null, signal: null,
+      stopRequestedAt: null, endedAt: null, note: null,
+    };
+    writeFileSync(join(launchesDir(), `${deadProject.projectId}.json`), JSON.stringify(deadRecord, null, 2) + '\n');
+
+    const launcherB = new HarnessLauncher({ cli: fakeCli, stopGraceMs: 2000, pollMs: 30 });
+    await launcherB.restore();
+
+    expect(launcherB.get(liveProject.projectId)).toMatchObject({ state: 'running', pid: liveRecord.pid });
+    const stopped = await launcherB.stop(liveProject.projectId);
+    expect(stopped.state).toBe('stopped');
+
+    const deadAfter = launcherB.get(deadProject.projectId);
+    expect(deadAfter?.state).toBe('stopped');
+    expect(deadAfter?.note).toBe('found gone after dashboard restart');
+  });
+
+  it('restore() skips a missing launches directory and a malformed record file, without throwing', async () => {
+    const { project } = await makeProject();
+    const launcherA = new HarnessLauncher({ cli: fakeCli });
+    await expect(launcherA.restore()).resolves.toBeUndefined();
+    expect(launcherA.get(project.projectId)).toBeNull();
+
+    mkdirSync(launchesDir(), { recursive: true });
+    writeFileSync(join(launchesDir(), 'not-json.json'), '{ this is not json');
+
+    const launcherB = new HarnessLauncher({ cli: fakeCli });
+    await expect(launcherB.restore()).resolves.toBeUndefined();
+  });
+
+  it('noteRunId sets, writes and emits once for a value, and not again for a repeat of the same value', async () => {
+    const { project } = await makeProject();
+    const file = makeRunFile('demo-spec');
+    const launcher = new HarnessLauncher({ cli: fakeCli });
+    const record = await launcher.launch(project, file, null);
+    pgidsToKill.push(record.pgid);
+
+    const events: LaunchRecord[] = [];
+    launcher.on('launch-update', (rec: LaunchRecord) => {
+      if (rec.projectId === project.projectId) events.push(rec);
+    });
+
+    launcher.noteRunId(project.projectId, 'run-20260101-020202');
+    expect(events).toHaveLength(1);
+    expect(launcher.get(project.projectId)?.runId).toBe('run-20260101-020202');
+    const onDisk = JSON.parse(readFileSync(join(launchesDir(), `${project.projectId}.json`), 'utf-8'));
+    expect(onDisk.runId).toBe('run-20260101-020202');
+
+    launcher.noteRunId(project.projectId, 'run-20260101-020202');
+    expect(events).toHaveLength(1);
   });
 });
