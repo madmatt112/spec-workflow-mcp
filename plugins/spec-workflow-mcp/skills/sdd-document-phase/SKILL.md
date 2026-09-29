@@ -23,7 +23,9 @@ at the start.
   `grep -n '^#'` for structure, and worker reports. Nothing else.
 - Spawn workers with the Agent tool, foreground, `subagent_type:
   <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
-  parameter, never `fork`. Workers are
+  parameter, never `fork`. When `MODEL_OVERRIDES` names the worker, pass that value as
+  the Agent tool's `model` parameter; the no-`model` default holds for a worker it does
+  not name. Workers are
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator` and `sdd-checker`.
   Wait for the report. Exception: a worker `PROVIDERS` lists with `deepseek` (an entry
   `<agent>:deepseek:<model>`) you run with the Bash tool as
@@ -31,7 +33,11 @@ at the start.
   exact one the Agent tool would have got, and the command's stdout is the worker's
   report. When such a worker is due and `LAUNCHER` is `none` or the file is missing,
   report `PHASE: error` with `REASON: launcher missing for <agent>` and never spawn it
-  through the Agent tool. A non-zero launcher exit is the stall of Step 2 item 5.
+  through the Agent tool. A worker `PROVIDERS` routes to `deepseek` gets its model only
+  from `PROVIDERS` through the launcher
+  (harness/skills/sdd-continue/references/formats.md:236), never as an Agent-tool `model`
+  parameter, so `MODEL_OVERRIDES` never names it. A non-zero launcher exit is the stall
+  of Step 2 item 5.
 - Never pass `projectPath` to a spec-workflow MCP tool. Never poll approval status.
   `BLOCKED`, `canProceed: false` and `mustWait` are informational.
 - Commit on the current branch of the spec store repo. Never create or switch branches.
