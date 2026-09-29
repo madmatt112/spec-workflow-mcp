@@ -656,6 +656,6 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 16/20; last code commit e562054; next task 17 |
+| State | tasks 17/20; last code commit 2927e4a; next task 18 |
 | Mode | normal |
 | Notes | TDD loop active (marked tasks get a test author). Task 1 clean: gate pass risk high (tdd structural-red), verifier pass, 0 fix rounds. |

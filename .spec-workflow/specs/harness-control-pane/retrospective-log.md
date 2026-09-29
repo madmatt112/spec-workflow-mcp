@@ -143,3 +143,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Supervisor SKILL.md + formats.md honour harness-run.json (design C9); prose-only harness change, gate pass risk low (gate recorded review, no verifier), no fix rounds. All harness checks green.
 Evidence: task 16; harness/skills/sdd-continue/SKILL.md, formats.md + 6 plugin copies; commit e562054
 Cost: 1 spawn (implementer)
+
+## 2026-09-29T17:31:36Z · implementation · task 17 · gotcha
+MODEL_OVERRIDES spawn-rule sentence added to 4 phase skills + plugins sync; prose-only, gate pass risk low (gate recorded review, no verifier), no fix rounds. All harness checks green.
+Evidence: task 17; 4 phase SKILL.md + 12 plugin copies; commit 2927e4a
+Cost: 1 spawn (implementer)
