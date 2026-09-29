@@ -37,9 +37,10 @@ import {
 } from '../core/security-utils.js';
 import { SecurityConfig, TddBlock } from '../types.js';
 import { STEERING_DOC_NAMES } from '../core/steering-docs.js';
-import { HarnessLauncher } from './harness/launcher.js';
+import { HarnessLauncher, LaunchError } from './harness/launcher.js';
 import { HarnessHub } from './harness/hub.js';
-import type { HarnessMessage } from './harness/types.js';
+import { buildSetupView, validateSetup, toRunFile, writeRunFile, readAgentRules } from './harness/run-setup.js';
+import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -2173,6 +2174,128 @@ export class MultiProjectDashboardServer {
         return reply.code(500).send({ error: error.message });
       }
     });
+
+    // ── Harness control-pane routes (design C7; Requirement 3) ──
+    // These sit under the same global security hooks as every route above and add
+    // no other check. No request-body text ever reaches a shell.
+
+    // Read-only run-setup view.
+    this.app.get('/api/projects/:projectId/harness/setup', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+      return await buildSetupView(project);
+    });
+
+    // Save the run-setup file.
+    this.app.put('/api/projects/:projectId/harness/setup', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      const input = request.body as SetupInput;
+      const view = await buildSetupView(project);
+
+      const notLaunchable = this.harnessNotLaunchable(view, input.spec);
+      if (notLaunchable) {
+        return reply.code(409).send({ error: 'not-launchable', reason: notLaunchable });
+      }
+
+      const validationError = validateSetup(input, view);
+      if (validationError) {
+        return reply.code(400).send(validationError);
+      }
+
+      const workflowRoot = join(project.projectPath, '.spec-workflow');
+      const file = toRunFile(input, view, () => new Date());
+      writeRunFile(workflowRoot, file);
+      return { file };
+    });
+
+    // Launch a detached, recorded harness run (Req 3 AC 1, 7, 8, 14).
+    this.app.post('/api/projects/:projectId/harness/launch', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      // Launch always records; a headless run cannot answer a gate (Carried R3-minor-2).
+      const input: SetupInput = { ...(request.body as SetupInput), gates: 'record' };
+      const view = await buildSetupView(project);
+
+      const notLaunchable = this.harnessNotLaunchable(view, input.spec);
+      if (notLaunchable) {
+        return reply.code(409).send({ error: 'not-launchable', reason: notLaunchable });
+      }
+
+      const validationError = validateSetup(input, view);
+      if (validationError) {
+        return reply.code(400).send(validationError);
+      }
+
+      const workflowRoot = join(project.projectPath, '.spec-workflow');
+      const file = toRunFile(input, view, () => new Date());
+
+      // Admission, write and launch run with no await between them, so the
+      // launcher's synchronous in-flight guard decides a concurrent race (D1, D5).
+      const admission = this.harnessLauncher.admission(project);
+      if (!admission.ok) {
+        return reply.code(409).send({ error: 'run-live', runId: admission.runId, reason: admission.reason });
+      }
+      writeRunFile(workflowRoot, file);
+      const { worktreeSetup } = readAgentRules(workflowRoot);
+      const launchPromise = this.harnessLauncher.launch(project, file, worktreeSetup);
+
+      try {
+        const launch = await launchPromise;
+        return { launch };
+      } catch (error: any) {
+        if (error instanceof LaunchError) {
+          if (error.step === 'admission') {
+            return reply.code(409).send({ error: 'run-live', runId: null, reason: error.detail });
+          }
+          return reply.code(500).send({ error: 'launch-failed', step: error.step, detail: error.detail });
+        }
+        return reply.code(500).send({ error: error?.message || 'Internal server error' });
+      }
+    });
+
+    // Stop the running or stopping run for a project (Req 3 AC 9).
+    this.app.post('/api/projects/:projectId/harness/stop', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+
+      const record = this.harnessLauncher.get(projectId);
+      if (!record || (record.state !== 'running' && record.state !== 'stopping')) {
+        return reply.code(404).send({ error: 'not-running' });
+      }
+
+      const launch = await this.harnessLauncher.stop(projectId);
+      return { launch };
+    });
+  }
+
+  /**
+   * The reason a setup or launch is not launchable, or null when it is: a spec
+   * store with no launchable spec gives its `disabledReason`; a request for any
+   * spec other than the launchable one gives a sentence naming both (design C7).
+   */
+  private harnessNotLaunchable(view: SetupView, spec: string): string | null {
+    if (view.launchable === null) {
+      return view.disabledReason ?? 'No spec is launchable.';
+    }
+    if (view.launchable !== spec) {
+      return `The launchable spec is ${view.launchable}, not ${spec}.`;
+    }
+    return null;
   }
 
   private broadcastToAll(message: any) {

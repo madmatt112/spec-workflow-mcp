@@ -475,6 +475,9 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     workflowRoot = join(projectRoot, '.spec-workflow');
     const specDir = join(workflowRoot, 'specs', 'alpha');
     await fsp.mkdir(specDir, { recursive: true });
+    // A worktree:'no' launch spawns the run in the workspace, so the real
+    // (unmocked) spawn needs the workspace directory to exist as its cwd.
+    await fsp.mkdir(workspace, { recursive: true });
     writeFileSync(join(specDir, 'requirements.md'), '# R\n');
     writeFileSync(join(specDir, 'design.md'), '# D\n');
     writeFileSync(join(specDir, 'tasks.md'), '- [ ] 1. a\n');
