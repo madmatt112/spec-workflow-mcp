@@ -98,3 +98,8 @@ Cost: implementer RETRO flag; no extra spawns
 OverviewWatch + buildOverviewRow (design C6); D9 solved by watching the sdd directory not a never-existed file. Gate pass risk high (line-count 340, tdd structural-red), verifier pass with 1 advisory info (lastRow scans whole ledger, design-conformant), no fix rounds.
 Evidence: task 8; src/dashboard/harness/overview-watch.ts; commit 5e41fa5
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T15:44:50Z · implementation · task 9 · gotcha
+HarnessHub + multi-server wiring (design C7); gate pass risk high (line-count 223, tdd structural-red, hygiene console:4 confirmed false positive - error-path logs matching existing pattern), verifier pass, no fix rounds.
+Evidence: task 9; src/dashboard/harness/hub.ts, src/dashboard/multi-server.ts; commit 4b0afa3
+Cost: 3 spawns (author, implementer, verifier)

@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/harness-routes.test.ts"],"seams":{"src/dashboard/__tests__/harness-routes.test.ts":"a `ws` client sending `harness-subscribe`"},"redCommit":"d8998e4","baseSha":"5e41fa52fa71f809a9bdd09c9df40e5699dc11a5","base":"structural-red","head":"pass","amended":false,"judged":null}
