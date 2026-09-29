@@ -1,15 +1,28 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import type { ViewMessage } from '../harness/types';
 
 type InitialPayload = {
   specs: any[];
   approvals: any[];
 };
 
+/** A page's live view: the per-project harness pane, or the global overview. */
+export type WatchView =
+  | { kind: 'harness'; projectId: string }
+  | { kind: 'overview' };
+
 type WsContextType = {
   connected: boolean;
   initial?: InitialPayload;
   subscribe: (eventType: string, handler: (data: any) => void) => void;
   unsubscribe: (eventType: string, handler: (data: any) => void) => void;
+  /**
+   * Subscribe the socket to a view for as long as at least one caller holds it.
+   * The first caller sends the subscribe message; the returned release function,
+   * when it drops the last caller, sends the matching unsubscribe. Every held
+   * view is re-subscribed after a reconnect.
+   */
+  watchView: (view: WatchView) => () => void;
 };
 
 const WsContext = createContext<WsContextType | undefined>(undefined);
@@ -23,6 +36,22 @@ interface WebSocketProviderProps {
 const MAX_RETRY_DELAY = 30000;
 const INITIAL_RETRY_DELAY = 1000;
 
+function viewKey(view: WatchView): string {
+  return view.kind === 'harness' ? `harness:${view.projectId}` : 'overview';
+}
+
+function subscribeMessage(view: WatchView): ViewMessage {
+  return view.kind === 'harness'
+    ? { type: 'harness-subscribe', projectId: view.projectId }
+    : { type: 'overview-subscribe' };
+}
+
+function unsubscribeMessage(view: WatchView): ViewMessage {
+  return view.kind === 'harness'
+    ? { type: 'harness-unsubscribe', projectId: view.projectId }
+    : { type: 'overview-unsubscribe' };
+}
+
 export function WebSocketProvider({ children, projectId }: WebSocketProviderProps) {
   const [connected, setConnected] = useState(false);
   const [initial, setInitial] = useState<InitialPayload | undefined>(undefined);
@@ -31,6 +60,8 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
   const retryTimerRef = useRef<any>(null);
   const currentProjectIdRef = useRef<string | null>(null);
   const retryDelayRef = useRef(INITIAL_RETRY_DELAY);
+  // Reference count per view key; the descriptor is kept so onopen can re-subscribe.
+  const viewsRef = useRef<Map<string, { view: WatchView; count: number }>>(new Map());
 
   const connectToWebSocket = useCallback((targetProjectId: string | null) => {
     // Close existing connection if any
@@ -60,6 +91,10 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
       setConnected(true);
       // Reset retry delay on successful connection
       retryDelayRef.current = INITIAL_RETRY_DELAY;
+      // Re-subscribe every view that still has users, so a reconnect restores them.
+      viewsRef.current.forEach(({ view }) => {
+        ws.send(JSON.stringify(subscribeMessage(view)));
+      });
     };
 
     ws.onclose = (event) => {
@@ -100,7 +135,14 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
             handlers.forEach(handler => handler(msg.data));
           }
         }
-        // Handle project-scoped messages
+        // Handle the global overview messages by type, with no project check.
+        else if (msg.type === 'overview-rows' || msg.type === 'overview-todos') {
+          const handlers = eventHandlersRef.current.get(msg.type);
+          if (handlers) {
+            handlers.forEach(handler => handler(msg.data));
+          }
+        }
+        // Handle project-scoped messages (including harness-*, which carry projectId)
         else if (msg.projectId === targetProjectId) {
           const handlers = eventHandlersRef.current.get(msg.type);
           if (handlers) {
@@ -151,12 +193,42 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
     }
   }, []);
 
+  const sendView = useCallback((msg: ViewMessage) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  const watchView = useCallback((view: WatchView) => {
+    const key = viewKey(view);
+    const entry = viewsRef.current.get(key);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      viewsRef.current.set(key, { view, count: 1 });
+      // First user of this view: subscribe now if the socket is open; onopen
+      // re-sends it after a reconnect.
+      sendView(subscribeMessage(view));
+    }
+    return () => {
+      const held = viewsRef.current.get(key);
+      if (!held) return;
+      held.count -= 1;
+      if (held.count <= 0) {
+        viewsRef.current.delete(key);
+        sendView(unsubscribeMessage(view));
+      }
+    };
+  }, [sendView]);
+
   const value = useMemo(() => ({
     connected,
     initial,
     subscribe,
-    unsubscribe
-  }), [connected, initial, subscribe, unsubscribe]);
+    unsubscribe,
+    watchView
+  }), [connected, initial, subscribe, unsubscribe, watchView]);
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
