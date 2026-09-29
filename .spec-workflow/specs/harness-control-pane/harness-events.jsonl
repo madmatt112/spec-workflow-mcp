@@ -375,3 +375,11 @@
 {"ts":"2026-09-29T17:31:12.564Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 17","phase":"implementation","task":"17","result":"logged yes/17 commit 2927e4a"}
 {"ts":"2026-09-29T17:31:36.343Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"note","text":"gate: task 17 pass risk low"}
 {"ts":"2026-09-29T17:31:36.421Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"task.done","task":"17","rounds":"0","outcome":"gate"}
+{"ts":"2026-09-29T17:31:45.641Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"task.pick","task":"18","title":"Docs: dashboard control pane"}
+{"ts":"2026-09-29T17:31:55.751Z","type":"spawn.start","run":"run-20260928-191959","spec":"harness-control-pane","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-09-29T17:31:58.214Z","type":"spawn.end","run":"run-20260928-191959","spec":"harness-control-pane","agent":"sdd-implementation-orchestrator","input":"416","output":"4395","cacheWrite":"307099","cacheRead":"40486970","tokens":"40798880","cacheWrite5m":"0","cacheWrite1h":"307099","gapRewrites":"0","model":"claude-opus-4-8","agentId":"acbbaead0dba7b178"}
+{"ts":"2026-09-29T17:34:51.422Z","type":"spawn.end","run":"run-20260928-191959","spec":"harness-control-pane","agent":"sdd-implementer","input":"42","output":"5205","cacheWrite":"53407","cacheRead":"980797","tokens":"1039451","cacheWrite5m":"53407","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a39940576b76ec48a"}
+{"ts":"2026-09-29T17:34:51.422Z","type":"spawn.report","run":"run-20260928-191959","spec":"harness-control-pane","agent":"sdd-implementer","report":"Task 18 is complete and reported.","agentId":"a39940576b76ec48a"}
+{"ts":"2026-09-29T17:35:01.514Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 18","phase":"implementation","task":"18","result":"logged yes/18 commit 2258d2d"}
+{"ts":"2026-09-29T17:35:14.078Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"note","text":"gate: task 18 pass risk low"}
+{"ts":"2026-09-29T17:35:14.138Z","run":"run-20260928-191959","spec":"harness-control-pane","type":"task.done","task":"18","rounds":"0","outcome":"gate"}

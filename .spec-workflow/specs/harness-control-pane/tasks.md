@@ -182,7 +182,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 2.4_
   - _Prompt: Task: In each of the four spawn rules add: "When `MODEL_OVERRIDES` names the worker, pass that value as the Agent tool's `model` parameter." In the document-phase rule also add that a worker `PROVIDERS` routes to deepseek gets its model only from `PROVIDERS` through the launcher (harness/skills/sdd-continue/references/formats.md:236), never as an Agent-tool parameter (Req 2.4). Run `node scripts/sync-plugin-assets.cjs` and commit `plugins/` | Restrictions: Change only those sentences; the "no `model` parameter" default stays for a worker the line does not name | Success: `grep -c 'MODEL_OVERRIDES' harness/skills/sdd-document-phase/SKILL.md harness/skills/sdd-implementation-phase/SKILL.md harness/skills/sdd-closeout-phase/SKILL.md harness/skills/sdd-retrospective/SKILL.md` prints at least 1 per file; `npm run check:plugin-assets` and `claude plugin validate . --strict` pass_
 
-- [ ] 18. Docs: dashboard control pane
+- [x] 18. Docs: dashboard control pane
   - File: docs/SDD-HARNESS.md
   - Add the design C10 section.
   - Purpose: an operator can set up, launch, stop and watch a run from the dashboard with no other reference.

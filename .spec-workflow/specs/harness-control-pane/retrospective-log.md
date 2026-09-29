@@ -148,3 +148,8 @@ Cost: 1 spawn (implementer)
 MODEL_OVERRIDES spawn-rule sentence added to 4 phase skills + plugins sync; prose-only, gate pass risk low (gate recorded review, no verifier), no fix rounds. All harness checks green.
 Evidence: task 17; 4 phase SKILL.md + 12 plugin copies; commit 2927e4a
 Cost: 1 spawn (implementer)
+
+## 2026-09-29T17:35:14Z · implementation · task 18 · gotcha
+Dashboard control pane docs section (design C10); docs-only, gate pass risk low, no fix rounds.
+Evidence: task 18; docs/SDD-HARNESS.md; commit 2258d2d
+Cost: 1 spawn (implementer)
