@@ -118,3 +118,8 @@ Cost: 2 spawns (implementer, verifier)
 Harness page (design C8, 672 lines); gate pass risk high (line-count 797), verifier pass with 2 advisory info (5 unused i18n keys; a design-conformant log-reset ordering note), no fix rounds. 375px browser render deferred to task 19.
 Evidence: task 12; src/dashboard_frontend/.../HarnessPage.tsx +3; commit da808df
 Cost: 2 spawns (implementer, verifier)
+
+## 2026-09-29T16:46:45Z · implementation · task 13 · gotcha
+Overview page (design C8, read-only); gate pass risk high (line-count 202), verifier pass, no fix rounds. 375px browser render deferred to task 19.
+Evidence: task 13; src/dashboard_frontend/.../OverviewPage.tsx +3; commit a2bbb89
+Cost: 2 spawns (implementer, verifier)
