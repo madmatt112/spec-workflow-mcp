@@ -168,3 +168,13 @@ Cost: 1 spawn (implementer)
 harness-control-pane implemented: 20/20 tasks, 0 fix rounds, 0 adjudications. ~47 spawns (12 test authors, 20 implementers, 15 verifiers for high-risk gates; tasks 16-18 completed on the low/medium gate path with no verifier, tasks 19-20 verification-only). 1 deferral added (d-69b95f88 live e2e). In-loop full suite green; 7 live decomposition steps deferred to an operator pre-merge session. Every TDD new-module task scored tdd structural-red -> risk high -> verifier, as designed.
 Evidence: 20 tasks in tasks.md all [x]; harness-events.jsonl; retrospective-log.md
 Cost: 12 author + 20 implementer + 15 verifier spawns; 0 adjudication
+
+## 2026-09-29T17:54:57Z · implementation · task 5 · bug
+CI red round 1: launcher test 'records pid, pgid, cwd and writes the argument list to the log' failed on node 20 - it read the log synchronously before the detached child's async argv write landed (node 20 gives no such guarantee; the design probe was node 24). Test-only fix: poll with waitFor until the log holds the argv; launcher.ts unchanged. Passed local + CI.
+Evidence: check test; commit abf456c
+Cost: 2 spawns (fix implementer, verifier); ~4 minutes
+
+## 2026-09-29T17:57:52Z · implementation · task 20 · tool-error
+CI red round 2: src/core/__tests__/registry-lock.test.ts:190 'serialises the critical section when several processes break the same stale lock (req 6.5)' failed on CI. Untouched by this branch (empty diff main...HEAD) and present on main - a pre-existing timing-sensitive concurrency test that flaked on a loaded runner, not caused by harness-control-pane. Rerunning the failed job rather than changing code.
+Evidence: check test; registry-lock.test.ts untouched on this branch; run 36608321901
+Cost: rerun failed job; 0 code changes

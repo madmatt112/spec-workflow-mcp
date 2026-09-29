@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-09-29, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **implementation**, state **tasks 0/20**, last result **approved** (gate B approved by Matthew).
+> Live phase **retrospective**, state **blocked**, last result **complete** (tasks 20/20, PR #76 open and green).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-control-pane`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: resumes implementation in the feat/harness-control-pane worktree.
+> A re-run does: once every verification-evidence.md line (1)-(7) is `passed` (live dashboard session, d-69b95f88), runs the retrospective.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -74,6 +74,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-28 | harness-control-pane | requirements | v4 | approved | 4 rounds (3 review + narrow check), converged via SHOULD_FIX-only pass |
 | 2026-09-28 | harness-control-pane | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-09-28 | harness-control-pane | tasks | v2 | approved | 2 rounds, iterate→converged |
+| 2026-09-29 | harness-control-pane | implementation | tasks 20/20 | complete | PR #76 green; 1 CI fix (launcher node-20 race) + 1 flaky rerun; live e2e deferred d-69b95f88 |
 
 ## Current state — 2026-08-04
 
