@@ -11,6 +11,6 @@ requires every line below to read `passed` before it opens.
 - (5) pending — A terminal run started with no `harness-run.json` produces a ledger with the pre-spec event types and keys per row.
 - (6) pending — `npx tsc --noEmit`, `npm run build` and `npm test` pass and the Harness and Overview pages are usable at 375 px in browser device mode.
 - (7) pending — The Overview shows two projects, a `gate-a` row reaches "waiting" within five seconds, and a to-do change and delete push through.
-- (c1) pending — npm run check:plugin-assets
-- (c2) pending — claude plugin validate . --strict
-- (c3) pending — node scripts/sync-plugin-assets.cjs leaves no diff
+- (c1) passed (0) — npm run check:plugin-assets
+- (c2) passed (0) — claude plugin validate . --strict
+- (c3) passed (0) — node scripts/sync-plugin-assets.cjs leaves no diff
