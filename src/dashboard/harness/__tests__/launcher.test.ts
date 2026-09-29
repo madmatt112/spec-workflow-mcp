@@ -437,10 +437,13 @@ describe('HarnessLauncher', () => {
     expect(typeof record.pid).toBe('number');
 
     expect(existsSync(record.logPath)).toBe(true);
-    const logText = readFileSync(record.logPath, 'utf-8');
-    expect(logText).toContain(
-      '-p continue the sdd process --model claude-test-model --effort high --permission-mode auto',
-    );
+    // The detached child writes its argv to the log asynchronously, after the
+    // `spawn` event resolves launch(); node 20 does not guarantee that write has
+    // landed by then (agent-rules.md:31-33), so wait for the log to hold it.
+    const wantArgs =
+      '-p continue the sdd process --model claude-test-model --effort high --permission-mode auto';
+    await waitFor(() => readFileSync(record.logPath, 'utf-8').includes(wantArgs));
+    expect(readFileSync(record.logPath, 'utf-8')).toContain(wantArgs);
 
     expect(launcher.get(project.projectId)).toEqual(record);
 
