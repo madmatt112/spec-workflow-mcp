@@ -78,3 +78,8 @@ Cost: 3 spawns (author, implementer, verifier)
 HarnessLauncher admission + detached launch (design C4); gate pass risk high (line-count 335, tdd structural-red), verifier pass, no fix rounds.
 Evidence: task 5; src/dashboard/harness/launcher.ts; commit 1f8f237
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T14:30:19Z · implementation · task 6 · gotcha
+Launcher stop/finalise/own-exit/restore added to task 5 class; gate pass risk high (line-count 251, tdd structural-red), verifier pass, no fix rounds.
+Evidence: task 6; src/dashboard/harness/launcher.ts; commit 8872570
+Cost: 3 spawns (author, implementer, verifier)

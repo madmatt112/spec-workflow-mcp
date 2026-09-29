@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/launcher.test.ts"],"seams":{"src/dashboard/harness/__tests__/launcher.test.ts":"launcher.stop(projectId)`, `launcher.restore()"},"redCommit":"2f75484","baseSha":"1f8f2374b91c459f2aac6acd8ed3e55f4ec01a4d","base":"structural-red","head":"pass","amended":false,"judged":null}
