@@ -138,3 +138,8 @@ Cost: author RETRO flag; folded into implementer brief
 sdd-run-setup.sh reference script + plugins sync (design C9); gate pass risk high (tdd amended - orchestrator-requested green regression guard added, base assertion-red), verifier pass, no fix rounds. All harness checks green.
 Evidence: task 15; harness/.../sdd-run-setup.sh + 3 plugin copies + run-setup-script.test.ts; commit dec48a4
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T17:27:15Z · implementation · task 16 · gotcha
+Supervisor SKILL.md + formats.md honour harness-run.json (design C9); prose-only harness change, gate pass risk low (gate recorded review, no verifier), no fix rounds. All harness checks green.
+Evidence: task 16; harness/skills/sdd-continue/SKILL.md, formats.md + 6 plugin copies; commit e562054
+Cost: 1 spawn (implementer)
