@@ -3,21 +3,23 @@
 // One detached, logged, recorded harness run per project (design.md C4;
 // Requirement 3). `admission()` is an advisory route pre-check; `launch()` step 1
 // is the atomic in-flight guard that makes two concurrent launches produce one
-// run. Stop, finalise, own-exit and restore are added by task 6.
+// run. `stop()`, `finalise`, own-exit and `restore()` follow design C4.
 import { EventEmitter } from 'events';
 import { execFile, execFileSync, spawn } from 'child_process';
 import { promisify } from 'util';
 import {
   openSync, closeSync, writeFileSync, renameSync, unlinkSync, existsSync, mkdirSync,
+  readFileSync, readdirSync, appendFileSync,
 } from 'fs';
 import { join, resolve, sep } from 'path';
 import {
   scrubbedGitEnv, SPEC_WORKFLOW_WORKSPACE_ENV, SPEC_WORKFLOW_SHARED_ROOT_ENV,
 } from '../../core/git-utils.js';
 import {
-  launchesDir, logsDir, readPointer, pointerPath as defaultPointerPath,
+  launchesDir, logsDir, readPointer, removePointerLine, pointerPath as defaultPointerPath,
 } from './state-files.js';
 import { deleteRunFileIf } from './run-setup.js';
+import { parseJsonl } from '../../watch/ledger.js';
 import type { ProjectContext } from '../project-manager.js';
 import type { HarnessRunFile, LaunchRecord } from './types.js';
 
@@ -55,6 +57,29 @@ function fsSafeTime(iso: string): string {
   return iso.replace(/[:.]/g, '-');
 }
 
+/** One ledger row of harness-events.jsonl (the fields finalise reads/writes). */
+interface LedgerEvent { ts?: string; run?: string; spec?: string; type?: string; status?: string }
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function readTextIfExists(path: string): string | undefined {
+  try {
+    return readFileSync(path, 'utf-8');
+  } catch {
+    return undefined;
+  }
+}
+
+/** UTC epoch ms of a `run-YYYYMMDD-HHMMSS` id, or null when it is not that form. */
+function runIdTime(runId: string): number | null {
+  const m = /^run-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(runId);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m;
+  return Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+}
+
 export class HarnessLauncher extends EventEmitter {
   private readonly cli: string;
   private readonly pointerPathOpt: string | null;
@@ -64,6 +89,8 @@ export class HarnessLauncher extends EventEmitter {
 
   private readonly records = new Map<string, LaunchRecord>();
   private readonly inFlight = new Set<string>();
+  private readonly pending = new Map<string, Promise<LaunchRecord>>();
+  private readonly livenessTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(opts: LauncherOptions = {}) {
     super();
@@ -168,6 +195,211 @@ export class HarnessLauncher extends EventEmitter {
     }
   }
 
+  /**
+   * Reattach the launches on disk after a dashboard restart (design C4
+   * `restore()`; Req 3 AC 12). A missing directory or an unparsable file is
+   * skipped. A live `running` record stays in memory under a liveness poll; a
+   * live `stopping` record resumes its stop at the signal step; a record that is
+   * no longer alive gets the restart note and is finalised at once. Other states
+   * load unchanged.
+   */
+  async restore(): Promise<void> {
+    let files: string[];
+    try {
+      files = readdirSync(launchesDir());
+    } catch {
+      return; // no launches directory yet
+    }
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      let record: LaunchRecord;
+      try {
+        record = JSON.parse(readFileSync(join(launchesDir(), file), 'utf-8')) as LaunchRecord;
+      } catch {
+        continue; // an unparsable record file is skipped
+      }
+      if (!record || typeof record.projectId !== 'string') continue;
+      this.records.set(record.projectId, record);
+      if (record.state !== 'running' && record.state !== 'stopping') continue;
+      if (!this.isAlive(record)) {
+        record.note = 'found gone after dashboard restart';
+        this.finalise(record);
+      } else if (record.state === 'stopping') {
+        this.trackPending(record.projectId, this.signalAndFinalise(record));
+      } else {
+        this.armLivenessPoll(record);
+      }
+    }
+  }
+
+  /**
+   * Stop the run for a project (design C4 "Stop"; Req 3 AC 9-10). Rejects when no
+   * record is `running` or `stopping` (task 10 maps that to 404). A second call
+   * while a stop is pending returns the same promise (tasks D13).
+   */
+  stop(projectId: string): Promise<LaunchRecord> {
+    const existing = this.pending.get(projectId);
+    if (existing) return existing;
+    const record = this.records.get(projectId);
+    if (!record || (record.state !== 'running' && record.state !== 'stopping')) {
+      return Promise.reject(new Error(`no running or stopping run for project ${projectId}`));
+    }
+    const p = this.runStop(record);
+    this.trackPending(projectId, p);
+    return p;
+  }
+
+  /**
+   * Record the run id once C5 sees a `run.start` (design C4 "Run id"; Req 3 AC 6).
+   * Writes and emits only when the value changes.
+   */
+  noteRunId(projectId: string, runId: string): void {
+    const record = this.records.get(projectId);
+    if (!record || record.runId === runId) return;
+    record.runId = runId;
+    this.writeRecord(record);
+  }
+
+  // --- stop internals ---
+
+  private async runStop(record: LaunchRecord): Promise<LaunchRecord> {
+    this.clearLivenessPoll(record.projectId);
+    // Pid-reuse guard (design D7): probe liveness once before signalling.
+    if (!this.isAlive(record)) {
+      return this.finalise(record);
+    }
+    if (record.state !== 'stopping') {
+      record.state = 'stopping';
+      record.stopRequestedAt = new Date().toISOString();
+      this.writeRecord(record);
+    }
+    return this.signalAndFinalise(record);
+  }
+
+  private async signalAndFinalise(record: LaunchRecord): Promise<LaunchRecord> {
+    this.killGroup(record.pgid, 'SIGTERM');
+    const deadline = Date.now() + this.stopGraceMs;
+    let killed = false;
+    while (this.groupExists(record.pgid)) {
+      if (!killed && Date.now() >= deadline) {
+        this.killGroup(record.pgid, 'SIGKILL');
+        killed = true;
+      }
+      await sleep(this.pollMs);
+    }
+    return this.finalise(record);
+  }
+
+  /**
+   * Close out a run (design C4 "Finalise", idempotent). Resolve the run id, close
+   * the ledger with one `run.end`, drop this run's pointer line, delete the setup
+   * file only when it is still this run's, then mark the record `stopped`.
+   */
+  private finalise(record: LaunchRecord): LaunchRecord {
+    const runId = this.resolveRunId(record);
+    if (runId !== null) {
+      const ledgerPath = join(record.workflowRoot, 'specs', record.spec, 'harness-events.jsonl');
+      this.appendRunEndIfNeeded(ledgerPath, runId, record.spec);
+      removePointerLine(this.pointerPathOpt ?? defaultPointerPath(), runId);
+    }
+    deleteRunFileIf(record.workflowRoot, record.setupWrittenAt);
+    record.state = 'stopped';
+    record.endedAt = new Date().toISOString();
+    this.writeRecord(record);
+    return record;
+  }
+
+  /**
+   * The run id for finalisation (design C4 "Finalise" step 1): `record.runId`,
+   * else the newest ledger `run.start` at or after `launchedAt`, else a pointer
+   * line for this spec dir whose run-id time is at or after `launchedAt` truncated
+   * to the second.
+   */
+  private resolveRunId(record: LaunchRecord): string | null {
+    if (record.runId !== null) return record.runId;
+    const ledgerPath = join(record.workflowRoot, 'specs', record.spec, 'harness-events.jsonl');
+    const events = parseJsonl<LedgerEvent>(readTextIfExists(ledgerPath));
+    let newest: { run: string; ts: string } | null = null;
+    for (const e of events) {
+      if (e.type !== 'run.start' || typeof e.run !== 'string' || typeof e.ts !== 'string') continue;
+      if (e.ts < record.launchedAt) continue;
+      if (!newest || e.ts > newest.ts) newest = { run: e.run, ts: e.ts };
+    }
+    if (newest) return newest.run;
+    const specDir = resolve(record.workflowRoot, 'specs', record.spec);
+    const launchedSecond = Math.floor(Date.parse(record.launchedAt) / 1000) * 1000;
+    for (const line of readPointer(this.pointerPathOpt ?? defaultPointerPath())) {
+      if (resolve(line.specDir) !== specDir) continue;
+      const t = runIdTime(line.runId);
+      if (t !== null && t >= launchedSecond) return line.runId;
+    }
+    return null;
+  }
+
+  private appendRunEndIfNeeded(ledgerPath: string, runId: string, spec: string): void {
+    const text = readTextIfExists(ledgerPath);
+    if (text === undefined) return; // no ledger for this spec: nothing to close
+    const events = parseJsonl<LedgerEvent>(text);
+    const hasStart = events.some((e) => e.type === 'run.start' && e.run === runId);
+    const hasEnd = events.some((e) => e.type === 'run.end' && e.run === runId);
+    if (!hasStart || hasEnd) return; // absent start, or already closed (idempotent)
+    const row = { ts: new Date().toISOString(), run: runId, spec, type: 'run.end', status: 'stopped from the dashboard' };
+    appendFileSync(ledgerPath, JSON.stringify(row) + '\n');
+  }
+
+  private killGroup(pgid: number, signal: NodeJS.Signals): void {
+    try {
+      process.kill(-pgid, signal);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ESRCH') throw err; // the group already gone
+    }
+  }
+
+  private groupExists(pgid: number): boolean {
+    try {
+      process.kill(-pgid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private armLivenessPoll(record: LaunchRecord): void {
+    const projectId = record.projectId;
+    const timer = setInterval(() => {
+      const rec = this.records.get(projectId);
+      if (!rec || rec.state !== 'running') {
+        this.clearLivenessPoll(projectId);
+        return;
+      }
+      if (!this.groupExists(rec.pgid)) {
+        this.clearLivenessPoll(projectId);
+        // A reattached run gone on its own shows null exit (design Scope notes).
+        rec.state = 'exited';
+        rec.exitCode = null;
+        rec.signal = null;
+        rec.endedAt = new Date().toISOString();
+        this.writeRecord(rec);
+      }
+    }, this.pollMs);
+    timer.unref?.();
+    this.livenessTimers.set(projectId, timer);
+  }
+
+  private clearLivenessPoll(projectId: string): void {
+    const timer = this.livenessTimers.get(projectId);
+    if (timer) {
+      clearInterval(timer);
+      this.livenessTimers.delete(projectId);
+    }
+  }
+
+  private trackPending(projectId: string, p: Promise<LaunchRecord>): void {
+    this.pending.set(projectId, p);
+    const clear = () => { if (this.pending.get(projectId) === p) this.pending.delete(projectId); };
+    p.then(clear, clear);
+  }
+
   // --- launch internals ---
 
   private spawnRun(
@@ -230,9 +462,24 @@ export class HarnessLauncher extends EventEmitter {
           note: null,
         };
         this.writeRecord(record);
+        // Own exit (design C4 "Own exit"): an exit with no stop requested marks
+        // the record `exited` and touches no ledger or pointer.
+        child.on('exit', (code, signal) => this.onChildExit(record.projectId, code, signal));
         resolvePromise(record);
       });
     });
+  }
+
+  private onChildExit(projectId: string, code: number | null, signal: NodeJS.Signals | null): void {
+    const record = this.records.get(projectId);
+    if (!record) return;
+    if (record.stopRequestedAt !== null) return; // the stop path finalises this run
+    if (record.state !== 'running') return;
+    record.state = 'exited';
+    record.exitCode = code;
+    record.signal = signal;
+    record.endedAt = new Date().toISOString();
+    this.writeRecord(record);
   }
 
   private writeRecord(record: LaunchRecord): void {
