@@ -108,3 +108,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Four harness routes in multi-server (design C7); gate pass risk high (tdd amended - legitimate beforeEach mkdir fixture fix, base assertion-red), verifier pass, no fix rounds.
 Evidence: task 10; src/dashboard/multi-server.ts, harness-routes.test.ts; commit 57924c2
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T16:18:03Z · implementation · task 11 · gotcha
+Frontend watchView + wire types (design C8); unmarked task (no vitest, frontend outside root compile). Gate pass risk high (line-count 281, typecheck partial-coverage by design), verifier pass, no fix rounds.
+Evidence: task 11; src/dashboard_frontend/.../WebSocketProvider.tsx, harness/types.ts; commit 080afb0
+Cost: 2 spawns (implementer, verifier)
