@@ -24,7 +24,8 @@
 | 9 | agent-cache-ttl | Complete | 9/9 |
 | 10 | graph-orientation | Complete | 10/10 |
 | 11 | tdd-task-loop | Complete | 17/17 |
-| 12 | tighter-reviews | Complete | 29/29 |
+| 12 | harness-control-pane | Complete | 20/20 |
+| 13 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

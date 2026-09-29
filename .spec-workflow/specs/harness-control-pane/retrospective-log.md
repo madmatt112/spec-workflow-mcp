@@ -158,3 +158,13 @@ Cost: 1 spawn (implementer)
 Pending verification-evidence.md written (10 pending lines: 7 live decomposition steps + 3 harness checks); verification-only spec-store task, no gate, no verifier (retro P15), logged yes/19.
 Evidence: task 19; .spec-workflow/specs/harness-control-pane/verification-evidence.md; commit a25f99a
 Cost: 1 spawn (implementer)
+
+## 2026-09-29T17:43:55Z · implementation · task 20 · gotcha
+In-loop full-suite gate: tsc/build/npm test (1721 passed, task 7 parity green)/plugin checks all 0, render.ts untouched (Req 6.1); c1-c3 marked passed, 7 live lines stay pending for the operator. Verification-only task, no verifier.
+Evidence: task 20; .spec-workflow/specs/harness-control-pane/verification-evidence.md; commit 31e2810
+Cost: 1 spawn (implementer)
+
+## 2026-09-29T17:46:00Z · implementation · phase · cleanup
+harness-control-pane implemented: 20/20 tasks, 0 fix rounds, 0 adjudications. ~47 spawns (12 test authors, 20 implementers, 15 verifiers for high-risk gates; tasks 16-18 completed on the low/medium gate path with no verifier, tasks 19-20 verification-only). 1 deferral added (d-69b95f88 live e2e). In-loop full suite green; 7 live decomposition steps deferred to an operator pre-merge session. Every TDD new-module task scored tdd structural-red -> risk high -> verifier, as designed.
+Evidence: 20 tasks in tasks.md all [x]; harness-events.jsonl; retrospective-log.md
+Cost: 12 author + 20 implementer + 15 verifier spawns; 0 adjudication
