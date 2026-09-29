@@ -138,7 +138,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 5.1, 5.2, 5.3, 5.5, 5.6, 5.7, 5.8, 6.4_
   - _Prompt: Task: `OverviewPage` uses the view hook task 11 adds for `overview` and subscribes to `overview-rows` and `overview-todos`. It shows one card per row (project name, state, spec, live phase, run id, last row, and the age of `newestTs` ticking each second) with a waiting badge when `waiting` is true, and the to-do list with title, owner, blocks, note, since, priority and done state, open items first; an empty list shows an empty-state line, not an error (Req 5.7). The page has no control that edits the HUD file, launches or stops a run (Req 5.8). Phone width as task 12 states (Req 6.4). Add the `/overview` route and a nav item after the task 12 item, and new strings under an `overview` key and `nav.overview` in en.json only (design D16) | Restrictions: Read only; no fetch to a harness route; no other locale file changes | Success: `npm run validate:i18n` and `npm run build:dashboard` exit 0_
 
-- [ ] 14. Provider script: optional run-file merge with one post-merge validation pass
+- [x] 14. Provider script: optional run-file merge with one post-merge validation pass
   - File: harness/skills/sdd-continue/references/sdd-providers.sh
   - File: src/__tests__/providers-map.test.ts
   - File: plugins/ (generated copies)

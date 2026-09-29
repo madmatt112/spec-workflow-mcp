@@ -123,3 +123,8 @@ Cost: 2 spawns (implementer, verifier)
 Overview page (design C8, read-only); gate pass risk high (line-count 202), verifier pass, no fix rounds. 375px browser render deferred to task 19.
 Evidence: task 13; src/dashboard_frontend/.../OverviewPage.tsx +3; commit a2bbb89
 Cost: 2 spawns (implementer, verifier)
+
+## 2026-09-29T17:04:57Z · implementation · task 14 · gotcha
+sdd-providers.sh RUN_FILE second-arg merge + plugins sync (design C9); gate pass risk high (tdd amended - implementer added 2 strengthening tests, base assertion-red), verifier pass, no fix rounds. All harness checks green.
+Evidence: task 14; harness/.../sdd-providers.sh + 3 plugin copies + providers-map.test.ts; commit f1331aa
+Cost: 3 spawns (author, implementer, verifier)

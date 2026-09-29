@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/providers-map.test.ts"],"seams":{"src/__tests__/providers-map.test.ts":"bash sdd-providers.sh RULES RUN_FILE"},"redCommit":"60da58d","baseSha":"a2bbb89480fdce0cd1ff69d3694e4dbaa5354801","base":"assertion-red","head":"pass","amended":true,"judged":null}
