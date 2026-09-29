@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-28, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **implementation**, state **tasks 0/20**, last result **approved** (tasks at v2).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs gate B (if slot b is present), enters a feat/harness-control-pane worktree, spawns the implementation orchestrator.
+> **READ FIRST — SDD routing (2026-09-29, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
+> Live phase **implementation**, state **tasks 0/20**, last result **approved** (gate B approved by Matthew).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-control-pane`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: resumes implementation in the feat/harness-control-pane worktree.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
