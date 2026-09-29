@@ -651,3 +651,11 @@ Gotchas:
 | Cut scope | none new — the 20 tasks cover every design component C1–C10, the Data Models and the Testing Strategy. Design's own cut scope (non-active launch, stale-pointer control, log pruning) stands. |
 | Carried items | none. Both design carries resolved in v1: the in-flight-race loser is closed by D1 (admission refuses in-flight; a new `admission` LaunchError.step maps to 409 `run-live` with a null runId), and R2-3 is narrowed to the single event-loop turn between `spawn()` and the spawn handler (scoped in Scope notes). One benign MINOR (R2-1: task 13's dependency on task 12 is enforced by numeric order, not gating) left as-is on convergence, not a word-cap rejection. |
 | Next phase loads | tasks.md v2 (20 tasks in dependency order) after codebase-context.md; implementation starts at task 1 (spec snapshot), then types/parsers (2–4), launcher (5–6), routes/wiring (7–10), frontend (11–13), then the run-setup and providers shell scripts and the phase-skill edits (14–18), ending with the pending verification-evidence task (19) and the completion gate (20). |
+
+## harness-control-pane — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/20; last code commit 4a55b6c; next task 2 |
+| Mode | normal |
+| Notes | TDD loop active (marked tasks get a test author). Task 1 clean: gate pass risk high (tdd structural-red), verifier pass, 0 fix rounds. |

@@ -53,3 +53,8 @@ Cost: 1 reviewer spawn
 tasks approved at v2 after 2 rounds; verdict trajectory 1/0/0 → 0/0/1 → converged; rulings 0; cap not hit (one MINOR R2-1 left as-is, not word-cap); prune removed 0 records and 0 snapshots (2 snapshots kept).
 Evidence: approval_1790637778134_ua1ingjck; /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/harness-control-pane/reviews/adversarial-analysis-tasks-r2.md
 Cost: 2 reviewer + 1 reviser spawns; 1 drafter
+
+## 2026-09-29T13:05:05Z · implementation · task 1 · gotcha
+Read-only snapshot() split from generate(); gate pass risk high (tdd structural-red on base), verifier pass, no fix rounds.
+Evidence: task 1; src/core/index-generator.ts; commit 4a55b6c
+Cost: 3 spawns (author, implementer, verifier)

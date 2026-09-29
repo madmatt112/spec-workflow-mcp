@@ -1,0 +1,1 @@
+{"testFiles":["src/core/__tests__/index-generator.test.ts"],"seams":{"src/core/__tests__/index-generator.test.ts":"new IndexGenerator(path).snapshot()"},"redCommit":"f9047acff96202e3ca9a4216b2d9822af1bffa18","baseSha":"37d1658c18094183bbfaa33d75ab6d441a4c6177","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -5,7 +5,7 @@ Design components map to tasks as follows: C1 is task 1; the Data Models and C2 
 
 Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) depend on nothing. Task 3 creates `project-watch.ts` with its two pure parsers only. Task 4 uses tasks 1, 2 and 3. Task 5 uses tasks 2 and 4; task 6 extends task 5's class. Task 7 adds the watch class to the task 3 module and uses tasks 5 and 6. Task 8 uses tasks 2 and 3. Task 9 wires tasks 5 to 8 into the server; task 10 adds the routes over tasks 4 to 6 and 9. Task 11 depends on task 9's messages; tasks 12 and 13 use tasks 10 and 11. Task 14 changes the provider script; task 15 calls task 14's new mode; task 16 makes the supervisor call task 15's script; task 17 reads the launch line task 16 adds. Task 18 documents the result; task 19 writes the pending evidence; task 20 runs last. No task needs a bridge: each uses only artefacts an earlier task creates. Every task leaves `npx tsc --noEmit` clean and every existing suite green, and names each existing test file it touches with whether an exact assertion changes. No task changes a count or a length that another file asserts: no task adds or removes an agent profile, an enum case, a counted list member or a fixture.
 
-- [ ] 1. Read-only `IndexGenerator.snapshot()`
+- [x] 1. Read-only `IndexGenerator.snapshot()`
   - File: src/core/index-generator.ts
   - File: src/core/__tests__/index-generator.test.ts
   - Test: src/core/__tests__/index-generator.test.ts — `new IndexGenerator(path).snapshot()`
