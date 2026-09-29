@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/run-setup.test.ts"],"seams":{"src/dashboard/harness/__tests__/run-setup.test.ts":"validateSetup(input, view)"},"redCommit":"0fbd273","baseSha":"067fdef8a155f6a997b751a3bea47c3e3613bba8","base":"structural-red","head":"pass","amended":false,"judged":null}

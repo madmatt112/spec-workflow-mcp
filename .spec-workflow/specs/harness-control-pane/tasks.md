@@ -36,7 +36,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 1.3, 4.5_
   - _Prompt: Task: Export `parseHandoffRouting(md)` returning the HANDOFF routing type task 2 exports, or null: the spec comes from `parseHandoffActiveSpec` (src/watch/ledger.ts:219-223) and null means no spec; `phase`, `state` and `result` come from the header line of harness/skills/sdd-continue/references/formats.md:76 (`Live phase **X**, state **Y**, last result **Z**`, with or without the leading quote marker), each null when the line or its field is missing. Export `parseGateSections(md)` returning `{ gateA, gateB }`: the trimmed text under a `## Gate A` or `## Gate B` heading up to the next `## ` heading, null when the heading or the input is missing. Tests: a HANDOFF with the full header, one with the spec but no live-phase line, one with no header, undefined input; a questions file with Gate A only, with both, with neither | Restrictions: Pure functions only in this task; import nothing from the dashboard server | Success: `npx tsc --noEmit`; `npx vitest run src/dashboard/harness/__tests__/project-watch.test.ts` green_
 
-- [ ] 4. Run setup: view, validation and `harness-run.json`
+- [x] 4. Run setup: view, validation and `harness-run.json`
   - File: src/dashboard/harness/run-setup.ts
   - File: src/dashboard/harness/__tests__/run-setup.test.ts
   - Test: src/dashboard/harness/__tests__/run-setup.test.ts — `validateSetup(input, view)`

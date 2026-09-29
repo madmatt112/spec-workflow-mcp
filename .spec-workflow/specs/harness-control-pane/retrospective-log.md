@@ -68,3 +68,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Two pure HANDOFF/gate parsers in project-watch.ts; gate pass risk high (tdd structural-red, new module), verifier pass, no fix rounds.
 Evidence: task 3; src/dashboard/harness/project-watch.ts; commit 067fdef
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T13:48:38Z · implementation · task 4 · gotcha
+run-setup module (view/validate/write) over tasks 1-3; gate pass risk high (line-count 291, tdd structural-red), verifier pass, no fix rounds.
+Evidence: task 4; src/dashboard/harness/run-setup.ts; commit 63768ca
+Cost: 3 spawns (author, implementer, verifier)
