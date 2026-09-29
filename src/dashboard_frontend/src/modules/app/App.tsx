@@ -8,6 +8,8 @@ import { ApiProvider } from '../api/api';
 import { HighlightStyles } from '../theme/HighlightStyles';
 import { DashboardStatistics } from '../pages/DashboardStatistics';
 import { SpecsPage } from '../pages/SpecsPage';
+import { HarnessPage } from '../pages/HarnessPage';
+import { OverviewPage } from '../pages/OverviewPage';
 import { SteeringPage } from '../pages/SteeringPage';
 import { TasksPage } from '../pages/TasksPage';
 import { LogsPage } from '../pages/LogsPage';
@@ -241,6 +243,8 @@ function AppInner() {
                 <Route path="/steering" element={<SteeringPage />} />
                 <Route path="/specs" element={<SpecsPage />} />
                 <Route path="/specs/view" element={<SpecViewerPage />} />
+                <Route path="/harness" element={<HarnessPage />} />
+                <Route path="/overview" element={<OverviewPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/logs" element={<LogsPage />} />
                 <Route path="/approvals" element={<ApprovalsPage />} />

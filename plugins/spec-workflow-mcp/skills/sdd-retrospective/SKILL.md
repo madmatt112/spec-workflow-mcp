@@ -15,7 +15,9 @@ Your launch prompt gives you `SPEC`, `PHASE: retrospective`, the roots, `HANDOFF
 ## Standing rules
 
 - Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:sdd-retro-analyst` (just `sdd-retro-analyst` when `AGENT_PREFIX` is `none`), no
-  `model` parameter, never `fork`.
+  `model` parameter, never `fork`. When `MODEL_OVERRIDES` names the worker, pass that
+  value as the Agent tool's `model` parameter; the no-`model` default holds for a worker
+  it does not name.
 - Never pass `projectPath` to a spec-workflow MCP tool.
 - Search content with `grep` in Bash; there is no Grep tool here.
 - Every finding carries an evidence reference (a path, an approval id, a commit, a

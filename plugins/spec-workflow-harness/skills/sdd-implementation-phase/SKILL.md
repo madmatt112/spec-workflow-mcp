@@ -24,7 +24,9 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
 ## Standing rules
 
 - Agent tool, foreground, `subagent_type: <AGENT_PREFIX>:<agent>` (just `<agent>` when `AGENT_PREFIX` is `none`), no `model`
-  parameter, never `fork`. One worker at a time: tasks run sequentially in this
+  parameter, never `fork`. When `MODEL_OVERRIDES` names the worker, pass that value as
+  the Agent tool's `model` parameter; the no-`model` default holds for a worker it does
+  not name. One worker at a time: tasks run sequentially in this
   version, whatever `agent-rules.md` says about parallelism.
 - Pass `projectPath: <CODE_ROOT>` only on the `review-task` `gate`, `prepare` and
   `record` calls (retro P5/G1: a worktree gate that resolves against the main checkout is

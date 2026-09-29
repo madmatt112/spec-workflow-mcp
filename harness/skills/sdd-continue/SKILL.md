@@ -97,6 +97,34 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
 
 Say which roots you resolved in the handoff line (step 6).
 
+**Setup file.** Once the active spec is known (after step 2) and before the run id is
+chosen, run
+`bash <base dir>/references/sdd-run-setup.sh <spec store root> <spec> <agent-rules path | none>`
+(the base dir named in step 0). It reads the `harness-run.json` the dashboard or a terminal
+saved for this run in the spec store, and prints `key=value` lines:
+
+- `setup=none` — no file: the run proceeds exactly as today, `PROVIDERS` from step 1 stays
+  as it is and no override values are set (Req 2 AC 11).
+- `setup=mismatch file=... active=...` — the file is for another spec: print
+  `warning: harness-run.json is for <file spec>, the active spec is <spec>; ignoring it`,
+  then proceed as for `setup=none` (Req 2 AC 2).
+- `setup=applied`, followed by `written=<ts>`, `gates=`, `worktree=`, `orchestrators=`,
+  `workers=`, `providers=` and `overrides=`: print
+  `setup: applying <spec store root>/harness-run.json written <ts>` (Req 2 AC 1), replace
+  `PROVIDERS` from step 1 with this output's `providers=` value, and keep its
+  `orchestrators=` value as `ORCH_MODELS`, its `workers=` value as `WORKER_MODELS`, its
+  `gates=` value as `SETUP_GATES`, its `worktree=` value as `SETUP_WORKTREE` and its
+  `overrides=` value as `OVERRIDES` for the steps below. The file's `supervisorModel` is
+  never applied: a terminal supervisor cannot switch its own model (design D9).
+- A non-zero exit is a refusal: the script printed one `setup: <reason>` line on stderr and
+  deleted the file. Refuse exactly as the provider preflight does (lines 85-96): print that
+  stderr line, the roots line (step 6) and the status line
+  `<project>:- - refused — <the stderr line>`, then stop, so the run-ledger paragraph never
+  runs and no run id, `event.sh`, pointer line or `run.start` exists (Req 2 AC 6).
+
+With no file (or a mismatch) `ORCH_MODELS`, `WORKER_MODELS`, `SETUP_GATES`, `SETUP_WORKTREE`
+and `OVERRIDES` are all unset and every step below keeps today's behaviour (Req 2 AC 11).
+
 **Run ledger.** Once the roots and the active spec are known (after step 2), start the
 run's ledger as `references/formats.md` describes: choose a run id
 (`run-<YYYYMMDD>-<HHMMSS>` UTC), write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
@@ -118,7 +146,9 @@ lines; on any other output keep the old values and hold its refresh line. When `
 Then `bash <event.sh> run.start model=<your model>
 specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>
 cacheTtl=<CACHE_TTL>`, adding `graph=<GRAPH> graphBehind=<GRAPH_BEHIND>` only when `GRAPH`
-is a path
+is a path, and adding `overrides=<OVERRIDES> setup=harness-run` only when the setup file
+applied — never on `setup=none` or a mismatch, so a run with no file carries neither key
+(Req 2 AC 9, AC 11)
 (`headless=yes` when the AskUserQuestion tool is not available to you). A held graph-refresh
 failure line becomes `bash <event.sh> note "text=graph refresh: <line>"` right after
 `run.start`. When `PROVIDERS`
@@ -223,9 +253,11 @@ supervisor used to detect from the State row and stamp by hand.
 
 ## 4. Dispatch loop
 
-Spawn the orchestrator for the phase with the Agent tool, foreground, no `model`
-parameter, `subagent_type` = `<prefix>:<agent>`, or just `<agent>` when the prefix is
-`none`:
+Spawn the orchestrator for the phase with the Agent tool, foreground,
+`subagent_type` = `<prefix>:<agent>`, or just `<agent>` when the prefix is `none`. Pass the
+Agent tool's `model` parameter only when the setup file applied and its `ORCH_MODELS` names
+this agent (its `<agent>=<model>` pair), using that model; otherwise pass no `model`, as
+today (Req 2 AC 3):
 
 | Phase | Agent |
 | --- | --- |
@@ -251,6 +283,7 @@ AGENT_PREFIX: <prefix | none>
 HARNESS_REPO: <the preflight's source path | none>
 EVENT_SCRIPT: /tmp/scratchpad/sdd/<spec>/event.sh
 PROVIDERS: <the value>
+MODEL_OVERRIDES: <WORKER_MODELS | none>
 LAUNCHER: <path | none>
 GRAPH: <path | none>
 GRAPH_BEHIND: <n | unknown | n/a>
@@ -290,9 +323,12 @@ checkout for a plugin), so a session started before an edit, or a stale source, 
 an orchestrator on the wrong model. Before acting on the report, verify the model the
 spawn actually ran on: read the run's transcript (the newest
 `~/.claude/projects/*/*.jsonl`) and take `.message.model` from this spawn's assistant
-lines (its `isSidechain` entries). Every orchestrator must be `claude-opus-4-8`. On a
-mismatch, do not act on the report — write a HANDOFF row, print
-`model mismatch: <agent> ran <model>, expected claude-opus-4-8`, and stop the run.
+lines (its `isSidechain` entries). The expected model is `claude-opus-4-8`, unless the setup
+file applied and its `ORCH_MODELS` overrides this orchestrator, in which case expect that
+override: an alias `a` (for example `opus`) matches any model id that starts `claude-a-` (so
+`opus` matches `claude-opus-4-8`; design D12), and a full `claude-` id must match exactly. On
+a mismatch, do not act on the report — write a HANDOFF row, print
+`model mismatch: <agent> ran <model>, expected <the expected model>`, and stop the run.
 
 Act on the final `PHASE:` line of the orchestrator's report:
 
@@ -333,8 +369,11 @@ Act on the final `PHASE:` line of the orchestrator's report:
 tasks-revision round, deletes slot b, and returns here. Then apply the worktree rule and
 spawn implementation.
 
-**Worktree rule.** Before the first implementation spawn: if `agent-rules.md` exists
-and contains the line `worktree-per-change: required`, and the worktree check in
+**Worktree rule.** Before the first implementation spawn, decide whether a worktree is
+required for this run: when the setup file applied, `SETUP_WORKTREE=yes` counts as
+`worktree-per-change: required` and `SETUP_WORKTREE=no` skips this rule and enters no
+worktree (Req 2 AC 8); with no setup file, the requirement is `agent-rules.md`'s
+`worktree-per-change: required` line. If a worktree is required and the worktree check in
 step 1 said `no`, enter a worktree named after the spec with the EnterWorktree tool,
 then rename the branch to `feat/<spec>` (`git branch -m`). If `agent-rules.md`
 carries a `worktree-setup:` line, run its command once in the new worktree. Re-run
@@ -356,6 +395,8 @@ written with the Write tool if it does not exist yet), with the message
 
 Each gate resolves its own mode every time it runs:
 
+- If the setup file applied and set `SETUP_GATES` (`block` or `record`), use that value; it
+  wins over the `agent-rules.md` `gates:` key for both gates of this run (Req 2 AC 7).
 - If `agent-rules.md` exists and carries a top-of-file `gates: block | record` key — the
   optional key beside `worktree-per-change`, absent by default — use that value.
 - Otherwise `block` when the AskUserQuestion tool is available to you, `record` when it
@@ -497,4 +538,6 @@ are in the spec store, and remove this run's line from the pointer file
 which even under `rtk proxy` can splice summary text into the file a concurrent session
 shares: `node /tmp/scratchpad/sdd/<spec>/helpers/deregister.mjs <pointer path> <run id>`.
 It drops the line whose run id is this run's and deletes the file when none remain, so the
-hooks stop recording this run.
+hooks stop recording this run. When the setup file applied to this run, also
+`rm -f <spec store root>/harness-run.json` in this same step, so a page or terminal run
+consumes its setup exactly once (Req 2 AC 10); a run with no setup file deletes nothing.

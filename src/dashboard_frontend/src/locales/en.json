@@ -6,6 +6,8 @@
     "statistics": "Statistics",
     "steering": "Steering",
     "specs": "Specs",
+    "harness": "Harness",
+    "overview": "Overview",
     "tasks": "Tasks",
     "approvals": "Approvals",
     "deferrals": "Deferrals",
@@ -637,6 +639,143 @@
       "version": "Version",
       "loading": "Loading changelog...",
       "notFound": "Changelog not found for this version"
+    }
+  },
+  "harness": {
+    "title": "Harness",
+    "loadError": "Failed to load the run setup.",
+    "noProject": "Select a project to use the harness.",
+    "specs": {
+      "heading": "Specs",
+      "routed": "routed",
+      "phase": "Phase",
+      "status": "Status",
+      "progress": "Progress"
+    },
+    "handoff": {
+      "heading": "HANDOFF routing",
+      "spec": "Spec",
+      "phase": "Phase",
+      "state": "State",
+      "result": "Result",
+      "none": "No HANDOFF routing for the active spec."
+    },
+    "form": {
+      "heading": "Run setup",
+      "agent": "Agent",
+      "role": "Role",
+      "model": "Model",
+      "provider": "Provider",
+      "effort": "Effort",
+      "declaredModel": "Declared model",
+      "effortFixed": "Effort is fixed per agent.",
+      "supervisor": "Supervisor",
+      "supervisorEffortFixed": "Supervisor effort is always high.",
+      "worktree": "Worktree",
+      "worktreeYes": "Yes",
+      "worktreeNo": "No",
+      "gates": "Gates",
+      "gatesBlock": "Block",
+      "gatesRecord": "Record",
+      "save": "Save",
+      "launch": "Launch",
+      "saving": "Saving...",
+      "launching": "Launching...",
+      "savedNotice": "A saved setup file exists, written {{writtenAt}}.",
+      "disabled": "The form is disabled: {{reason}}"
+    },
+    "provider": {
+      "anthropic": "Anthropic",
+      "deepseek": "DeepSeek"
+    },
+    "error": {
+      "heading": "Error",
+      "field": "Field",
+      "value": "Value",
+      "reason": "Reason",
+      "runId": "Run id",
+      "step": "Step",
+      "detail": "Detail",
+      "notLaunchable": "Not launchable",
+      "runLive": "A run is already live",
+      "notRunning": "Nothing is running to stop.",
+      "generic": "The request failed."
+    },
+    "run": {
+      "heading": "Run",
+      "state": "State",
+      "pid": "PID",
+      "runId": "Run id",
+      "exitCode": "Exit code",
+      "stop": "Stop",
+      "stopping": "Stopping..."
+    },
+    "live": {
+      "heading": "Live view",
+      "empty": "No run model yet.",
+      "spec": "Spec",
+      "codeRoot": "Code root",
+      "worktree": "Worktree",
+      "runId": "Run id",
+      "uptime": "Uptime",
+      "tokens": "Tokens",
+      "providers": "Providers",
+      "phases": "Phases",
+      "livePhase": "Live phase",
+      "spawns": "Spawn tree",
+      "declaredModel": "Declared",
+      "actualModel": "Model",
+      "provider": "Provider",
+      "tokensLabel": "Tokens",
+      "rounds": "Rounds",
+      "round": "Round",
+      "verdict": "Verdict",
+      "version": "Version",
+      "picks": "Picks",
+      "done": "Done",
+      "outcome": "Outcome",
+      "ticker": "Ticker",
+      "tasks": "Tasks",
+      "tdd": "TDD"
+    },
+    "gates": {
+      "heading": "Gates",
+      "gateA": "Gate A",
+      "gateB": "Gate B",
+      "none": "No gate sections recorded."
+    },
+    "logs": {
+      "heading": "Logs",
+      "empty": "No log output yet."
+    }
+  },
+  "overview": {
+    "title": "Overview",
+    "projects": {
+      "heading": "Projects",
+      "empty": "No projects registered.",
+      "waiting": "waiting",
+      "state": "State",
+      "stateValue": {
+        "running": "Running",
+        "idle": "Idle"
+      },
+      "spec": "Spec",
+      "livePhase": "Live phase",
+      "runId": "Run id",
+      "age": "Last row age",
+      "lastRow": "Last row"
+    },
+    "todos": {
+      "heading": "To-do",
+      "empty": "No to-do items.",
+      "open": "open",
+      "done": "done",
+      "owner": "Owner",
+      "priority": "Priority",
+      "blocks": "Blocks",
+      "since": "Since",
+      "note": "Note"
     }
   }
 }
