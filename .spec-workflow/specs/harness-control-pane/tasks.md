@@ -116,7 +116,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 4.8, 4.9, 5.10_
   - _Prompt: Task: The context type gains `watchView(view)` returning a release function; `view` is `{ kind: 'harness', projectId }` or `{ kind: 'overview' }`. Keep a reference count per view key; the first user sends `harness-subscribe` with the project id, or `overview-subscribe`, when the socket is open; the last release sends the matching unsubscribe; `onopen` (:59-63) re-sends the subscribe for every key with users. `onmessage` (:88-113) routes `overview-rows` and `overview-todos` to their handlers by type with no project check, as it does `projects-update`; `harness-*` messages carry `projectId` and already take the project-scoped branch. types.ts copies the harness message, setup, launch, overview and to-do shapes from the types task 2 wrote, and `RunModel` with the row types it references from src/watch/ledger.ts, because the frontend is outside the root compile (./tsconfig.json:20) | Restrictions: The `initial`, `projects-update` and project-scoped handling does not change for existing pages; no import from outside the frontend tree | Success: `npm run build:dashboard` exits 0 (vite build; the frontend has no type-check step and vitest excludes it, ./vitest.config.ts:7-8)_
 
-- [ ] 12. Harness page
+- [x] 12. Harness page
   - File: src/dashboard_frontend/src/modules/pages/HarnessPage.tsx
   - File: src/dashboard_frontend/src/modules/app/App.tsx
   - File: src/dashboard_frontend/src/modules/components/PageNavigationSidebar.tsx

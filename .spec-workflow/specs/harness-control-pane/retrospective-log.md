@@ -113,3 +113,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Frontend watchView + wire types (design C8); unmarked task (no vitest, frontend outside root compile). Gate pass risk high (line-count 281, typecheck partial-coverage by design), verifier pass, no fix rounds.
 Evidence: task 11; src/dashboard_frontend/.../WebSocketProvider.tsx, harness/types.ts; commit 080afb0
 Cost: 2 spawns (implementer, verifier)
+
+## 2026-09-29T16:35:42Z · implementation · task 12 · gotcha
+Harness page (design C8, 672 lines); gate pass risk high (line-count 797), verifier pass with 2 advisory info (5 unused i18n keys; a design-conformant log-reset ordering note), no fix rounds. 375px browser render deferred to task 19.
+Evidence: task 12; src/dashboard_frontend/.../HarnessPage.tsx +3; commit da808df
+Cost: 2 spawns (implementer, verifier)
