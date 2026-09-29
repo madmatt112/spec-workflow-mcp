@@ -234,4 +234,20 @@ describe('sdd-run-setup.sh', () => {
     expect(r.stderr).toContain('DEEPSEEK_API_KEY');
     expect(existsSync(runFilePath)).toBe(false);
   });
+
+  // Task 15 Prompt final check (green regression guard). The sibling
+  // sdd-providers.sh that sdd-run-setup.sh drives must keep its single-argument
+  // contract: one rules file, no run file. Its `providers=` output is the value
+  // the pre-spec script prints, hard-coded here so a change to the merge path
+  // cannot silently move the one-argument line.
+  it('one-argument sdd-providers.sh prints the exact providers= line for a rules file', async () => {
+    const rules = join(dir, 'agent-rules.md');
+    await fs.writeFile(
+      rules,
+      ['# Agent rules', '', '## Providers', '', '- sdd-reviewer: deepseek deepseek-v4-pro', '- sdd-checker: anthropic', ''].join('\n'),
+    );
+    const providers = join(here, '../../harness/skills/sdd-continue/references/sdd-providers.sh');
+    const stdout = execFileSync('bash', [providers, rules], { env: withKey, encoding: 'utf8' });
+    expect(stdout.trim()).toBe('providers=sdd-reviewer:deepseek:deepseek-v4-pro,sdd-checker:anthropic');
+  });
 });
