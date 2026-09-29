@@ -250,6 +250,85 @@ claude -p "continue the sdd process" --model opus --effort high --permission-mod
 The supervisor refuses to start on a model below Opus 5.5 or Fable 5.1 and tells you which
 commands to run.
 
+## Dashboard control pane
+
+The dashboard has two pages for the harness. On the **Harness page** you set up,
+launch, stop and watch one run of a project. On the **Overview page** you see every
+project's live phase and your to-do list at the same time. The Overview page has no
+control that launches or stops a run.
+
+### The setup file
+
+The Harness page lists the project's specs in the order INDEX.md shows them, and marks
+the spec the routing names as active. Only the active spec is launchable. When the
+routing names no active spec, the page disables the form and shows the reason.
+
+The form shows one row for each agent and one row for the supervisor. Each row shows the
+declared model and effort. You set the model for each role. You set the provider for the
+three roles that accept DeepSeek (reviewer, checker and reviser). You also set the
+worktree choice (`yes` or `no`) and the gates choice (`block` or `record`).
+
+**Save** writes `.spec-workflow/harness-run.json` in the spec store. The file holds the
+spec, the time it was written, the supervisor model, the model and provider of each
+changed role, the worktree choice and the gates choice. A role that keeps its declared
+defaults is not written.
+
+The supervisor reads this file when a run starts:
+
+- When the file names the active spec, the supervisor applies it and prints one line
+  that names the file and the time it was written.
+- When the file names a different spec, the supervisor prints one warning line and runs
+  as if the file did not exist.
+- When the run ends, the supervisor deletes the file.
+
+The supervisor deletes an applied file, so a terminal run and a dashboard run use the
+same setup.
+
+### Launch
+
+**Launch** first saves the form with the gates choice set to `record`. It then spawns
+the headless command shown above, with the supervisor model from the form. The dashboard
+spawns the child detached, in its own process group, with a scrubbed git environment.
+
+When the worktree choice is `yes`, the dashboard first creates a git worktree of the
+checkout on branch `feat/<spec>`, or reuses that worktree. It runs the `worktree-setup`
+command once in a new worktree, and starts the child in the worktree.
+
+The dashboard refuses a launch with HTTP 409 when a run of this spec store is already
+live, and it names the live run id.
+
+### Logs and records
+
+The dashboard writes the child's stdout and stderr to a log file. It writes a launch
+record with the pid, process group, project, spec, log path and launch time. Both live
+under `~/.spec-workflow-mcp/harness/` (or under `$SPEC_WORKFLOW_HOME/harness/` when that
+variable is set): the logs in `logs/`, the records in `launches/`. These paths are
+outside the repository, so a launched run keeps running when the dashboard restarts.
+After a restart the dashboard reads each record back and re-checks its pid.
+
+New log lines stream to the open Harness pages of that project. The live view shows the
+run header, the phase rows, the spawn tree, the round rows, the task picks and the
+ticker, and updates without a reload.
+
+### Stop
+
+**Stop** sends SIGTERM to the child's process group. When the group still exists ten
+seconds later, the dashboard sends SIGKILL. After the child exits, the dashboard appends
+a `run.end` row with status `stopped from the dashboard` (when the run has a `run.start`
+and no `run.end`), removes only this run's line from the active-run pointer file, and
+deletes `harness-run.json`. Each step is idempotent. When the child exits on its own, the
+dashboard writes no `run.end`, does not touch the pointer file, and shows the exit code.
+
+### Overview to-do list
+
+The Overview page shows one row for each project in the registry, with its active spec,
+live phase, the newest ledger row and its age. A project waits for you when its newest
+phase ended at gate A, retro-ready or escalate. The page also shows a to-do list. It
+reads the `todos` array of `overwatch-hud.json` under the XDG state home
+(`${XDG_STATE_HOME:-~/.local/state}/sdd/overwatch-hud.json`) and shows each item, open
+items first. When the file is missing, unreadable or has no `todos` array, the list is
+empty and there is no error.
+
 ## Workspace contract
 
 - The **spec store root** is what the server reports as `projectContext.workflowRoot`
