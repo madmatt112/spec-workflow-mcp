@@ -190,7 +190,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 1.11, 2.1, 3.1, 3.4, 3.9, 5.5_
   - _Prompt: Task: Insert `## Dashboard control pane` after docs/SDD-HARNESS.md:251 and before `## Workspace contract` (:253). Cover: the Harness and Overview pages; `.spec-workflow/harness-run.json` (what it holds, that only the routed active spec is launchable, that the supervisor applies and then deletes it, that a mismatched file is ignored with a warning); Launch (forces record gates, spawns the headless command of :247 detached, with an optional worktree on `feat/SPEC`); logs and launch records under `~/.spec-workflow-mcp/harness/` (or `SPEC_WORKFLOW_HOME`); Stop (SIGTERM to the process group, SIGKILL after ten seconds, then `run.end` and pointer-line removal by the dashboard); the Overview to-do list from the `todos` array of `overwatch-hud.json` under the XDG state home. Write in ASD-STE100 Simplified Technical English | Restrictions: No other section changes | Success: `grep -n '^## Dashboard control pane' docs/SDD-HARNESS.md` finds one line_
 
-- [ ] 19. Pending live-verification record
+- [x] 19. Pending live-verification record
   - File: .spec-workflow/specs/harness-control-pane/verification-evidence.md
   - Verification-only task: its File line names no path under `CODE_ROOT`.
   - Purpose: the decomposition scenario's steps stay pending until an operator runs them in a rebuilt, restarted session, and the supervisor blocks the retrospective until they pass (design Testing Strategy).

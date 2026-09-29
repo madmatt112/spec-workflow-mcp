@@ -153,3 +153,8 @@ Cost: 1 spawn (implementer)
 Dashboard control pane docs section (design C10); docs-only, gate pass risk low, no fix rounds.
 Evidence: task 18; docs/SDD-HARNESS.md; commit 2258d2d
 Cost: 1 spawn (implementer)
+
+## 2026-09-29T17:38:13Z · implementation · task 19 · gotcha
+Pending verification-evidence.md written (10 pending lines: 7 live decomposition steps + 3 harness checks); verification-only spec-store task, no gate, no verifier (retro P15), logged yes/19.
+Evidence: task 19; .spec-workflow/specs/harness-control-pane/verification-evidence.md; commit a25f99a
+Cost: 1 spawn (implementer)
