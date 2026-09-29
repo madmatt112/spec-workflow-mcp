@@ -659,7 +659,7 @@ Gotchas:
 | State | implemented — 20/20 tasks, 2026-09-29; last code commit 2258d2d |
 | Deferrals | 1 added by this spec (d-69b95f88, live e2e verification); 16 deferred project-wide |
 | Deferred verification | d-69b95f88 — verification-evidence.md lines (1)-(7) pending; run in a rebuilt, restarted session with a browser |
-| PR | (pending) |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/76 (#76) |
 | Verification | in-loop full suite green (npx tsc --noEmit, npm run build, npm test 1721 passed incl. the task 7 parity test, sync-plugin-assets no-diff, check:plugin-assets, claude plugin validate --strict, render.ts untouched Req 6.1); the 7 live decomposition steps deferred to an operator pre-merge session |
 | Next deferrals worth working | d-69b95f88 (this spec's live e2e, operator pre-merge session); d-a38fea66 and d-1880d115 (other verification deferrals waiting on a session restart) |
 | Gotchas | Every TDD new-module task scored risk high via tdd structural-red (no module at base), forcing a verifier — expected. Task 8 D9 nuance: watch the sdd dir, not a never-existed file; task 7 ProjectHarnessWatch may share a latent gap for files created after start(), mitigated by the launch-update re-arm. Implementation logged from the main checkout, not the worktree (attribution note only). |
