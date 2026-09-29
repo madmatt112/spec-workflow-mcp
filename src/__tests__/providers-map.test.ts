@@ -272,5 +272,23 @@ describe('sdd-providers.sh', () => {
       expect(r.stdout.trim()).toBe('providers=sdd-checker:anthropic');
       expect(r.stderr).toBe('');
     });
+
+    it('an unreadable run file refuses with exit 2 and providers: bad run file', () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = join(dir, 'no-run-here.json');
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr.trim()).toBe('providers: bad run file');
+    });
+
+    it('a run file with bad JSON refuses with exit 2 and providers: bad run file', async () => {
+      const rules = join(dir, 'does-not-exist.md');
+      const runFile = await write('run.json', 'not json {');
+      const r = run2(rules, runFile, withKey);
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      expect(r.stderr.trim()).toBe('providers: bad run file');
+    });
   });
 });
