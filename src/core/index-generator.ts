@@ -33,6 +33,17 @@ export interface IndexResult {
 }
 
 /**
+ * Read-only view of spec state: the categorized roadmap lists and routing that
+ * `generate()` renders, computed without writing INDEX.md.
+ */
+export interface SpecSnapshot {
+  active: SpecIndexEntry[];
+  deferred: SpecIndexEntry[];
+  other: SpecIndexEntry[];
+  routing: RoutingDecision;
+}
+
+/**
  * Generates INDEX.md — the multi-spec roadmap roll-up — from spec state on disk.
  * Modeled on DeferralStorage: full deterministic re-serialize and overwrite, so the
  * same on-disk state always produces a byte-identical file (idempotent re-generation).
@@ -40,8 +51,11 @@ export interface IndexResult {
 export class IndexGenerator {
   constructor(private projectPath: string) {}
 
-  /** (Re)write INDEX.md from current spec state. */
-  async generate(): Promise<IndexResult> {
+  /**
+   * Read-only: compute the categorized roadmap lists and routing from current
+   * spec state without writing INDEX.md. `generate()` is this plus render/write.
+   */
+  async snapshot(): Promise<SpecSnapshot> {
     const parser = new SpecParser(this.projectPath);
     const specs = await parser.getAllSpecs();
     const decompContent = await this.readDecomposition();
@@ -65,6 +79,12 @@ export class IndexGenerator {
 
     const { active, deferred, other } = this.categorize(entries, decompContent);
     const routing = deriveRouting({ active, deferred, other });
+    return { active, deferred, other, routing };
+  }
+
+  /** (Re)write INDEX.md from current spec state. */
+  async generate(): Promise<IndexResult> {
+    const { active, deferred, other, routing } = await this.snapshot();
     const content = this.render(active, deferred, other, routing);
 
     await fs.mkdir(PathUtils.getDecompositionPath(this.projectPath), { recursive: true });
@@ -73,7 +93,7 @@ export class IndexGenerator {
 
     return {
       path: indexPath,
-      total: entries.length,
+      total: active.length + deferred.length + other.length,
       active: active.length,
       deferred: deferred.length,
       other: other.length,
