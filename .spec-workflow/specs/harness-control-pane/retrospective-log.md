@@ -128,3 +128,13 @@ Cost: 2 spawns (implementer, verifier)
 sdd-providers.sh RUN_FILE second-arg merge + plugins sync (design C9); gate pass risk high (tdd amended - implementer added 2 strengthening tests, base assertion-red), verifier pass, no fix rounds. All harness checks green.
 Evidence: task 14; harness/.../sdd-providers.sh + 3 plugin copies + providers-map.test.ts; commit f1331aa
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T17:10:13Z · implementation · task 15 · doc-gap
+Task 15 prompt lists a one-argument sdd-providers.sh 'hard-coded providers= line' check among the TDD test list, but sdd-providers.sh already exists and is unchanged by this task, so that check can never be red; the author omitted it and the implementer adds it as a green regression guard.
+Evidence: task 15; src/__tests__/run-setup-script.test.ts; commit 44c2d6e
+Cost: author RETRO flag; folded into implementer brief
+
+## 2026-09-29T17:20:23Z · implementation · task 15 · gotcha
+sdd-run-setup.sh reference script + plugins sync (design C9); gate pass risk high (tdd amended - orchestrator-requested green regression guard added, base assertion-red), verifier pass, no fix rounds. All harness checks green.
+Evidence: task 15; harness/.../sdd-run-setup.sh + 3 plugin copies + run-setup-script.test.ts; commit dec48a4
+Cost: 3 spawns (author, implementer, verifier)

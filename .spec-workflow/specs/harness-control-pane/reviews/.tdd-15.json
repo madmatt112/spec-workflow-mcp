@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/run-setup-script.test.ts"],"seams":{"src/__tests__/run-setup-script.test.ts":"bash sdd-run-setup.sh STORE SPEC RULES"},"redCommit":"44c2d6e","baseSha":"f1331aaa45826600f8ee813ef5d0ac0d8f58878a","base":"assertion-red","head":"pass","amended":true,"judged":null}
