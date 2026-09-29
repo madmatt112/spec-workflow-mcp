@@ -73,3 +73,8 @@ Cost: 3 spawns (author, implementer, verifier)
 run-setup module (view/validate/write) over tasks 1-3; gate pass risk high (line-count 291, tdd structural-red), verifier pass, no fix rounds.
 Evidence: task 4; src/dashboard/harness/run-setup.ts; commit 63768ca
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T14:08:55Z · implementation · task 5 · gotcha
+HarnessLauncher admission + detached launch (design C4); gate pass risk high (line-count 335, tdd structural-red), verifier pass, no fix rounds.
+Evidence: task 5; src/dashboard/harness/launcher.ts; commit 1f8f237
+Cost: 3 spawns (author, implementer, verifier)

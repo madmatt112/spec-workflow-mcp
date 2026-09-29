@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/launcher.test.ts"],"seams":{"src/dashboard/harness/__tests__/launcher.test.ts":"new HarnessLauncher(opts).launch(project, file, worktreeSetup)"},"redCommit":"d3d0359","baseSha":"63768ca11d0e054e6d5fe96d78fc14d5bc6a1ff9","base":"structural-red","head":"pass","amended":false,"judged":null}
