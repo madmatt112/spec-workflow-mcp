@@ -63,3 +63,8 @@ Cost: 3 spawns (author, implementer, verifier)
 Wire types + state-files helpers; gate pass risk high (line-count 248>200 intended two-file scope, tdd structural-red), verifier pass, no fix rounds.
 Evidence: task 2; src/dashboard/harness/types.ts, state-files.ts; commit 3cc5760
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T13:27:24Z · implementation · task 3 · gotcha
+Two pure HANDOFF/gate parsers in project-watch.ts; gate pass risk high (tdd structural-red, new module), verifier pass, no fix rounds.
+Evidence: task 3; src/dashboard/harness/project-watch.ts; commit 067fdef
+Cost: 3 spawns (author, implementer, verifier)

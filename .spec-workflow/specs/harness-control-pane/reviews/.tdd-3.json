@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/project-watch.test.ts"],"seams":{"src/dashboard/harness/__tests__/project-watch.test.ts":"parseHandoffRouting(md)"},"redCommit":"ab8cadb","baseSha":"3cc5760b27cef7ad497f233b6a58939bdafa8af6","base":"structural-red","head":"pass","amended":false,"judged":null}
