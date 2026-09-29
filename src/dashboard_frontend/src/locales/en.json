@@ -7,6 +7,7 @@
     "steering": "Steering",
     "specs": "Specs",
     "harness": "Harness",
+    "overview": "Overview",
     "tasks": "Tasks",
     "approvals": "Approvals",
     "deferrals": "Deferrals",
@@ -746,6 +747,35 @@
     "logs": {
       "heading": "Logs",
       "empty": "No log output yet."
+    }
+  },
+  "overview": {
+    "title": "Overview",
+    "projects": {
+      "heading": "Projects",
+      "empty": "No projects registered.",
+      "waiting": "waiting",
+      "state": "State",
+      "stateValue": {
+        "running": "Running",
+        "idle": "Idle"
+      },
+      "spec": "Spec",
+      "livePhase": "Live phase",
+      "runId": "Run id",
+      "age": "Last row age",
+      "lastRow": "Last row"
+    },
+    "todos": {
+      "heading": "To-do",
+      "empty": "No to-do items.",
+      "open": "open",
+      "done": "done",
+      "owner": "Owner",
+      "priority": "Priority",
+      "blocks": "Blocks",
+      "since": "Since",
+      "note": "Note"
     }
   }
 }
