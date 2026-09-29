@@ -37,6 +37,9 @@ import {
 } from '../core/security-utils.js';
 import { SecurityConfig, TddBlock } from '../types.js';
 import { STEERING_DOC_NAMES } from '../core/steering-docs.js';
+import { HarnessLauncher } from './harness/launcher.js';
+import { HarnessHub } from './harness/hub.js';
+import type { HarnessMessage } from './harness/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -57,6 +60,7 @@ interface WebSocketConnection {
   socket: WebSocket;
   projectId?: string;
   isAlive?: boolean;
+  views?: Set<'harness' | 'overview'>;
 }
 
 export interface MultiDashboardOptions {
@@ -65,6 +69,7 @@ export interface MultiDashboardOptions {
   bindAddress?: string; // Network binding address
   allowExternalAccess?: boolean; // Explicit opt-in for non-localhost binding
   security?: Partial<SecurityConfig>; // Security features configuration
+  harness?: { cli?: string; stopGraceMs?: number; pollMs?: number }; // Harness launcher options (C7)
 }
 
 export class MultiProjectDashboardServer {
@@ -74,6 +79,8 @@ export class MultiProjectDashboardServer {
   private adversarialRunner: AdversarialRunner;
   private taskReviewRunner: TaskReviewRunner;
   private sessionManager: DashboardSessionManager;
+  private harnessLauncher: HarnessLauncher;
+  private harnessHub: HarnessHub;
   private options: MultiDashboardOptions;
   private bindAddress: string;
   private allowExternalAccess: boolean;
@@ -97,6 +104,20 @@ export class MultiProjectDashboardServer {
     this.adversarialRunner = new AdversarialRunner();
     this.taskReviewRunner = new TaskReviewRunner();
     this.sessionManager = new DashboardSessionManager();
+
+    // Harness launcher and hub (design C7). The hub starts a watch only while a
+    // page of its view is open, and pushes reach only that view's subscribers.
+    this.harnessLauncher = new HarnessLauncher({
+      cli: options.harness?.cli,
+      stopGraceMs: options.harness?.stopGraceMs,
+      pollMs: options.harness?.pollMs,
+    });
+    this.harnessHub = new HarnessHub(
+      this.projectManager,
+      this.harnessLauncher,
+      (m: HarnessMessage) => this.sendToHarness((m as { projectId: string }).projectId, m),
+      (m: HarnessMessage) => this.sendToOverview(m),
+    );
 
     // Initialize network binding configuration
     this.bindAddress = options.bindAddress || '127.0.0.1';
@@ -252,6 +273,8 @@ export class MultiProjectDashboardServer {
         const cleanup = () => {
           self.clients.delete(connection);
           socket.removeAllListeners();
+          // A closed page may have been the last subscriber of a view (C7).
+          void self.harnessHub.reconcile(self.clients);
         };
 
         socket.on('close', cleanup);
@@ -286,6 +309,33 @@ export class MultiProjectDashboardServer {
                     console.error('Error getting initial data:', error);
                   });
               }
+              void self.harnessHub.reconcile(self.clients);
+            } else if (msg.type === 'harness-subscribe' && msg.projectId) {
+              // Watch this project's harness view; snapshot to this socket alone.
+              connection.projectId = msg.projectId;
+              (connection.views ??= new Set()).add('harness');
+              self.harnessHub.reconcile(self.clients)
+                .then(() => {
+                  for (const m of self.harnessHub.snapshotFor(msg.projectId)) {
+                    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(m));
+                  }
+                })
+                .catch((error) => console.error('Error handling harness-subscribe:', error));
+            } else if (msg.type === 'harness-unsubscribe') {
+              connection.views?.delete('harness');
+              void self.harnessHub.reconcile(self.clients);
+            } else if (msg.type === 'overview-subscribe') {
+              (connection.views ??= new Set()).add('overview');
+              self.harnessHub.reconcile(self.clients)
+                .then(() => {
+                  for (const m of self.harnessHub.overviewSnapshot()) {
+                    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(m));
+                  }
+                })
+                .catch((error) => console.error('Error handling overview-subscribe:', error));
+            } else if (msg.type === 'overview-unsubscribe') {
+              connection.views?.delete('overview');
+              void self.harnessHub.reconcile(self.clients);
             }
           } catch (error) {
             // Ignore invalid messages
@@ -312,6 +362,9 @@ export class MultiProjectDashboardServer {
 
     await validateAndCheckPort(this.options.port, this.bindAddress);
     this.actualPort = this.options.port;
+
+    // Reattach any launches on disk before we accept connections (design C7).
+    await this.harnessLauncher.restore();
 
     // Start server with configured network binding
     await this.app.listen({
@@ -2150,6 +2203,38 @@ export class MultiProjectDashboardServer {
     });
   }
 
+  /** Send to open clients whose harness view watches this project (design C7). */
+  private sendToHarness(projectId: string, message: any) {
+    const messageStr = JSON.stringify(message);
+    this.clients.forEach((connection) => {
+      try {
+        if (connection.socket.readyState === WebSocket.OPEN
+          && connection.projectId === projectId
+          && connection.views?.has('harness')) {
+          connection.socket.send(messageStr);
+        }
+      } catch (error) {
+        console.error('Error sending to harness client:', error);
+        this.scheduleConnectionCleanup(connection);
+      }
+    });
+  }
+
+  /** Send to open clients whose overview view is open (design C7). */
+  private sendToOverview(message: any) {
+    const messageStr = JSON.stringify(message);
+    this.clients.forEach((connection) => {
+      try {
+        if (connection.socket.readyState === WebSocket.OPEN && connection.views?.has('overview')) {
+          connection.socket.send(messageStr);
+        }
+      } catch (error) {
+        console.error('Error sending to overview client:', error);
+        this.scheduleConnectionCleanup(connection);
+      }
+    });
+  }
+
   private scheduleConnectionCleanup(connection: WebSocketConnection) {
     // Use setImmediate to avoid modifying Set during iteration
     setImmediate(() => {
@@ -2162,6 +2247,8 @@ export class MultiProjectDashboardServer {
       } catch {
         // Ignore cleanup errors
       }
+      // A cleaned-up connection may have been the last subscriber of a view (C7).
+      void this.harnessHub.reconcile(this.clients);
     });
   }
 
@@ -2247,6 +2334,9 @@ export class MultiProjectDashboardServer {
   async stop() {
     // Stop heartbeat monitoring
     this.stopHeartbeat();
+
+    // Close the harness watches before the clients; never stop a launched run (C7).
+    this.harnessHub.close();
 
     // Clear pending spec broadcasts
     for (const timeout of this.pendingSpecBroadcasts.values()) {
