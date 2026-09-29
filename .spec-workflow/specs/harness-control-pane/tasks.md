@@ -15,7 +15,7 @@ Dependency order: task 1 (index snapshot) and task 2 (wire types, state files) d
   - _Requirements: 1.1, 1.2_
   - _Prompt: Task: Add a public `async snapshot()` that runs the entry loop, `categorize` and the `deriveRouting` call of src/core/index-generator.ts:44-67 and returns `{ active, deferred, other, routing }` (three `SpecIndexEntry[]` and a `RoutingDecision`). `generate()` calls `snapshot()`, then runs the unchanged render, mkdir and write of :68-72 and returns the same result object as today. Add tests: on a temp project with a decomposition that names two specs, `snapshot()` returns the order and routing that `generate()` returns, and after `snapshot()` alone the INDEX path (`PathUtils.getIndexPath`) does not exist | Restrictions: `generate()` writes byte-identical INDEX.md and returns an identical result; do not change `render`, `categorize`, `mentionIndex` or `deriveRouting`; no existing assertion in src/core/__tests__/index-generator.test.ts changes value | Success: `npx tsc --noEmit`; `npx vitest run src/core/__tests__/index-generator.test.ts` green_
 
-- [ ] 2. Harness wire types and machine-wide state files
+- [x] 2. Harness wire types and machine-wide state files
   - File: src/dashboard/harness/types.ts
   - File: src/dashboard/harness/state-files.ts
   - File: src/dashboard/harness/__tests__/state-files.test.ts

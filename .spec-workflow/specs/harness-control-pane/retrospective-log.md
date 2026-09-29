@@ -58,3 +58,8 @@ Cost: 2 reviewer + 1 reviser spawns; 1 drafter
 Read-only snapshot() split from generate(); gate pass risk high (tdd structural-red on base), verifier pass, no fix rounds.
 Evidence: task 1; src/core/index-generator.ts; commit 4a55b6c
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T13:18:21Z · implementation · task 2 · gotcha
+Wire types + state-files helpers; gate pass risk high (line-count 248>200 intended two-file scope, tdd structural-red), verifier pass, no fix rounds.
+Evidence: task 2; src/dashboard/harness/types.ts, state-files.ts; commit 3cc5760
+Cost: 3 spawns (author, implementer, verifier)

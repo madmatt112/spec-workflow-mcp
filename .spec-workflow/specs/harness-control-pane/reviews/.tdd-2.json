@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/state-files.test.ts"],"seams":{"src/dashboard/harness/__tests__/state-files.test.ts":"removePointerLine(path, runId, read)"},"redCommit":"99bffc3","baseSha":"4a55b6c148487d36223d531da5dfe9ca4dfff4db","base":"structural-red","head":"pass","amended":false,"judged":null}
