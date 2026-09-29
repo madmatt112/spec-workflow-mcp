@@ -88,3 +88,13 @@ Cost: 3 spawns (author, implementer, verifier)
 ProjectHarnessWatch added to task 3 module; start() is now async (hub in task 9 must await it); gate pass risk high (line-count 281, tdd structural-red), verifier pass, no fix rounds.
 Evidence: task 7; src/dashboard/harness/project-watch.ts; commit f359099
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T15:20:21Z · implementation · task 8 · doc-gap
+Design D9 chokidar note holds for re-creation but not first creation of a never-existed single file path (chokidar 3.6.0 hung); impl watches the sdd directory instead. Task 7 ProjectHarnessWatch watches file paths directly and may share this latent gap for files created after start() (mitigated in practice by launch-update re-arm).
+Evidence: task 8; src/dashboard/harness/overview-watch.ts; commit 5e41fa5
+Cost: implementer RETRO flag; no extra spawns
+
+## 2026-09-29T15:24:47Z · implementation · task 8 · gotcha
+OverviewWatch + buildOverviewRow (design C6); D9 solved by watching the sdd directory not a never-existed file. Gate pass risk high (line-count 340, tdd structural-red), verifier pass with 1 advisory info (lastRow scans whole ledger, design-conformant), no fix rounds.
+Evidence: task 8; src/dashboard/harness/overview-watch.ts; commit 5e41fa5
+Cost: 3 spawns (author, implementer, verifier)
