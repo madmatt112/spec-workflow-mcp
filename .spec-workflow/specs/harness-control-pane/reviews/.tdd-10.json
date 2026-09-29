@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/harness-routes.test.ts"],"seams":{"src/dashboard/__tests__/harness-routes.test.ts":"POST /api/projects/:projectId/harness/launch"},"redCommit":"6c7321a","baseSha":"4b0afa30f342e9be5220af5619d6c958b7e5a702","base":"assertion-red","head":"pass","amended":true,"judged":null}

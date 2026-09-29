@@ -103,3 +103,8 @@ Cost: 3 spawns (author, implementer, verifier)
 HarnessHub + multi-server wiring (design C7); gate pass risk high (line-count 223, tdd structural-red, hygiene console:4 confirmed false positive - error-path logs matching existing pattern), verifier pass, no fix rounds.
 Evidence: task 9; src/dashboard/harness/hub.ts, src/dashboard/multi-server.ts; commit 4b0afa3
 Cost: 3 spawns (author, implementer, verifier)
+
+## 2026-09-29T16:08:52Z · implementation · task 10 · gotcha
+Four harness routes in multi-server (design C7); gate pass risk high (tdd amended - legitimate beforeEach mkdir fixture fix, base assertion-red), verifier pass, no fix rounds.
+Evidence: task 10; src/dashboard/multi-server.ts, harness-routes.test.ts; commit 57924c2
+Cost: 3 spawns (author, implementer, verifier)
