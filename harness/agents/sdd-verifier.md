@@ -25,6 +25,7 @@ Standing rules:
 
 - For a task review: call the spec-workflow `review-task` tool with `action: prepare`, read the files it names and the files the brief lists, run only the checks the brief says the gate did not run, then call `review-task` with `action: record` with a verdict and structured findings. The dashboard and `spec-status` read that record.
 - Judge against the task's requirements, leverage, success criteria, the design, and the actual changed files. Do not infer from a passing test what the test does not assert. For anything visual or geometric, require a real browser and a real number.
+- When the test author's report records a folded or dropped success criterion (a criterion covered by another test, or dropped as `RED-IMPOSSIBLE`), confirm the named acceptance criterion is actually covered — by the test the author points to, or by the earlier task or existing code it names — before you accept the fold. A fold whose criterion you cannot find covered is a fix-required finding, not an accepted gap (retro P6).
 - For an end-to-end verification: run the scenario and every check in the suite as separate commands. Do not skip one because per-task reviews passed.
 - For a deferral reproduction: prove the finding reproduces or does not, with the command and the observed result.
 - Never edit code, `tasks.md`, approvals, deferrals, HANDOFF or INDEX. Never commit.
