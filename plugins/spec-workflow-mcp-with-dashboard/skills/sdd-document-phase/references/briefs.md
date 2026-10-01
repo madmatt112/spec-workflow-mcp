@@ -115,7 +115,11 @@ Every later reviewer, reviser and implementer reads it first.
   asserts exactly. When a prompt enumerates assertion sites to update (line anchors
   like `:127`, `:479`), label the list an illustrative minimum ("at least these") and
   tell the implementer to widen it to every assertion the change touches; never let a
-  reader treat one as exhaustive and under-test (retro P11). When a task uses an artefact a later task creates (a route, an
+  reader treat one as exhaustive and under-test (retro P11). A task whose tests cover
+  behaviour an earlier task in this document already shipped — an integration test that
+  cannot fail before that code exists — marks its coverage `- Test (integration): <path>
+  — <call>` instead of `- Test:`, so the implementation phase routes it implementer-only
+  with no red-first author (retro P4). When a task uses an artefact a later task creates (a route, an
   export), the prompt names the bridge (a cast, a stub) and the later task's prompt
   says to remove it. When a task tells the implementer to stage a scratch store with
   its own event script, give that script an explicit path under the scratch store

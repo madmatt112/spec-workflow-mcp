@@ -116,7 +116,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    pre-implement HEAD. A `[-]` task resumed from Step 0 has no implementer commit yet:
    gate it without `baseRef`, which scores `risk: high`.
 1b. **Author** (marked tasks only). Only when the picked task's block holds a `- Test:`
-   bullet, and after the pre-implement HEAD capture (Step 1): assemble the author brief with the spec-workflow
+   bullet — not a `- Test (integration):` bullet, which routes implementer-only (see the
+   end of this step) — and after the pre-implement HEAD capture (Step 1): assemble the author brief with the spec-workflow
    `harness` tool, `action: brief`, `template: test-author`, `specName: <SPEC>`,
    `taskId: "<N>"`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/author-brief-task-<N>.md`, the `title`, and the `job`: the
@@ -135,6 +136,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    A `[-]` marked task resumed from Step 0 spawns the author only when
    `git -C <CODE_ROOT> log -1 --format=%H --grep "test(<SPEC>): task <N> red"` finds
    nothing (its author already committed on a prior turn otherwise). A task whose block
+   holds a `- Test (integration):` bullet — integration coverage over behaviour an earlier
+   task already shipped, which cannot be red before that code exists — is routed
+   implementer-only by rule (retro P4): skip this step, spawn no author, pass no `tdd`
+   argument later, and let the implementer write that integration test as part of the task.
+   Never hand-route it. A task whose block
    holds no `- Test:` bullet skips this step, spawns no author, passes no `tdd` argument
    later, and runs every step as today.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
