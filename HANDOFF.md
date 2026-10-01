@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-09-29, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **retrospective**, state **blocked**, last result **complete** (tasks 20/20, PR #76 open and green).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/harness-control-pane`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: once every verification-evidence.md line (1)-(7) is `passed` (live dashboard session, d-69b95f88), runs the retrospective.
+> **READ FIRST — SDD routing (2026-10-01, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
+> Live phase **retrospective**, state **n/a**, last result **complete** (tasks 20/20; all 7 live checks passed 2026-10-01).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: runs the retrospective (retro orchestrator, then the retro conversation), then close-out.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
