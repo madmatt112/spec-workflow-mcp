@@ -178,3 +178,8 @@ Cost: 2 spawns (fix implementer, verifier); ~4 minutes
 CI red round 2: src/core/__tests__/registry-lock.test.ts:190 'serialises the critical section when several processes break the same stale lock (req 6.5)' failed on CI. Untouched by this branch (empty diff main...HEAD) and present on main - a pre-existing timing-sensitive concurrency test that flaked on a loaded runner, not caused by harness-control-pane. Rerunning the failed job rather than changing code.
 Evidence: check test; registry-lock.test.ts untouched on this branch; run 36608321901
 Cost: rerun failed job; 0 code changes
+
+## 2026-10-01T20:10:08Z · verification · check 2 · bug
+A dashboard launch with supervisor model 'sonnet' passed setup validation (run-setup.ts:207 accepts any Anthropic model), then the supervisor preflight printed 'Run /model opus and /effort high, then continue' and exited 0. No run.start, no ledger, no HANDOFF header; harness-run.json was left unconsumed, the page showed 'exited, code 0', and --watch then failed with 'No active spec'. The page gives no sign the run refused to start.
+Evidence: sdd-sandbox launch log ~/.spec-workflow-mcp/harness/logs/0f4aeBWoAfgCpBpJ-2026-10-01T20-09-03-847Z.log; sdd-sandbox/.spec-workflow/harness-run.json (supervisorModel sonnet, roles {})
+Cost: 1 launch, about 1 minute
