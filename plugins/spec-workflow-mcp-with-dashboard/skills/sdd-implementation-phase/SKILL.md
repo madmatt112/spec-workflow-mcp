@@ -151,7 +151,14 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    1b ran an author), also pass `values.redTests` = the `## Red tests (from the test
    author)` section from `references/briefs.md`, filled with the author's files, its
    `Test:` lines and its report verbatim; on an unmarked task omit `redTests`, which the
-   template defaults to empty. Spawn `sdd-implementer`
+   template defaults to empty. Before you spawn, check the filled prompt's decision-id
+   citations (retro P5): for each `D<n>` the `_Prompt` cites as the reason for a behaviour,
+   confirm that decision governs that behaviour — `grep -n 'D<n>' <spec dir>/design.md`
+   and `requirements.md` for its `## Decisions taken in this document` entry, a structure
+   read, not the body. On a mis-cite — a `D<n>` that does not govern the behaviour it is
+   attached to — add the governing requirement number to the brief and append a `doc-gap`
+   retro-log entry with `retro.sh`; `agent-rules.md` already has the implementer code to
+   the governing requirement, this catches it upstream. Then spawn `sdd-implementer`
    with `Read and execute the instructions in <the returned path>`.
 3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
