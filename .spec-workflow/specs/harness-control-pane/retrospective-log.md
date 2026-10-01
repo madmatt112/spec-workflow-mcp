@@ -183,3 +183,8 @@ Cost: rerun failed job; 0 code changes
 A dashboard launch with supervisor model 'sonnet' passed setup validation (run-setup.ts:207 accepts any Anthropic model), then the supervisor preflight printed 'Run /model opus and /effort high, then continue' and exited 0. No run.start, no ledger, no HANDOFF header; harness-run.json was left unconsumed, the page showed 'exited, code 0', and --watch then failed with 'No active spec'. The page gives no sign the run refused to start.
 Evidence: sdd-sandbox launch log ~/.spec-workflow-mcp/harness/logs/0f4aeBWoAfgCpBpJ-2026-10-01T20-09-03-847Z.log; sdd-sandbox/.spec-workflow/harness-run.json (supervisorModel sonnet, roles {})
 Cost: 1 launch, about 1 minute
+
+## 2026-10-01T20:12:33Z · verification · check 3 · gotcha
+A second launch during the supervisor's preflight (about 40 s from launch to run.start, before the pointer line exists) is refused by the launch-record branch of admission (launcher.ts:128-129) with runId null, so the page shows 'a launch record is live' and no run id or PID. Once run.start lands the pointer branch refuses with the live run id, as Req 3 AC7 says. The page could name the PID in that window.
+Evidence: POST /harness/launch at 20:12:27Z returned run-live runId run-20261001-201124; Matthew's earlier click showed no run id (screenshot)
+Cost: 2 launch attempts
