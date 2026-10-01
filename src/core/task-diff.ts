@@ -379,8 +379,11 @@ function parseNumstat(text: string): {
   filesChanged: number;
   linesAdded: number;
   linesRemoved: number;
+  /** Paths git reported as binary (`-\t-\t<path>`), for the `--text` retry (retro P1). */
+  binaryPaths: string[];
 } {
   const perFile = new Map<string, { added: number; removed: number }>();
+  const binaryPaths: string[] = [];
   let filesChanged = 0;
   let linesAdded = 0;
   let linesRemoved = 0;
@@ -391,6 +394,9 @@ function parseNumstat(text: string): {
     if (parts.length < 3) continue;
     const [aStr, rStr, ...rest] = parts;
     const filePath = rest.join('\t');
+    // Git prints a binary file as `-\t-\t<path>`; record it so the caller can
+    // recover a line count with `--text` when the blob is really UTF-8 (retro P1).
+    if (aStr === '-' && rStr === '-') binaryPaths.push(filePath);
     const added = aStr === '-' ? 0 : Number.parseInt(aStr, 10);
     const removed = rStr === '-' ? 0 : Number.parseInt(rStr, 10);
     const a = Number.isFinite(added) ? added : 0;
@@ -401,7 +407,7 @@ function parseNumstat(text: string): {
     linesRemoved += r;
   }
 
-  return { perFile, filesChanged, linesAdded, linesRemoved };
+  return { perFile, filesChanged, linesAdded, linesRemoved, binaryPaths };
 }
 
 /** Sorted, de-duplicated copy of the paths (Component 5, one encoding — R2-1). */
@@ -430,6 +436,59 @@ function countFileNewlines(filePath: string): number {
     return count;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * True when a file's bytes decode as valid UTF-8 (retro P1). A path git flags
+ * binary in `--numstat` (both columns `-`) whose blob still decodes as UTF-8 is
+ * dense text — multibyte em-dashes or arrows, or a `.gitattributes` `binary` mark —
+ * not a real binary blob, so its changed-line count is worth recovering. A file
+ * with invalid UTF-8, or one that cannot be read, is left binary and keeps zero.
+ * The working-tree file is read as a proxy for the diffed blob.
+ */
+function isUtf8File(filePath: string): boolean {
+  try {
+    const buf = readFileSync(filePath);
+    new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Recover changed-line counts for the UTF-8 paths git reported binary, and fold
+ * them into `stats`/`perFile` (retro P1). `--numstat` always prints a binary file
+ * as `-`/`-` even under `--text`, so the retry runs a `-p --text` patch over those
+ * paths and counts its `+`/`-` hunk lines per file. `patchArgs` is the patch argv
+ * (git subcommand, `-p --text`, range) without a pathspec; this appends the
+ * `-- <paths>`. A path that is not valid UTF-8 is never retried, and a failed run
+ * leaves the zeros, so a genuine binary never inflates the count.
+ */
+async function recoverBinaryText(
+  root: string,
+  patchArgs: string[],
+  binaryPaths: string[],
+  perFile: Record<string, number>,
+  stats: { filesChanged: number; linesAdded: number; linesRemoved: number },
+): Promise<void> {
+  const utf8Paths = binaryPaths.filter((rel) => isUtf8File(path.join(root, rel)));
+  if (utf8Paths.length === 0) return;
+  const run = await runGit(root, [...patchArgs, '--', ...utf8Paths]);
+  if (!run.ok) return;
+  for (const sec of splitDiffSections(run.stdout)) {
+    let added = 0;
+    let removed = 0;
+    for (const line of sec.body.split('\n')) {
+      if (line.startsWith('+') && !line.startsWith('+++')) added++;
+      else if (line.startsWith('-') && !line.startsWith('---')) removed++;
+    }
+    const changed = added + removed;
+    if (changed === 0) continue;
+    perFile[sec.filePath] = changed;
+    stats.linesAdded += added;
+    stats.linesRemoved += removed;
   }
 }
 
@@ -493,20 +552,29 @@ export async function computeRangeStats(
   if (selector === 'commit') {
     // First-parent, one commit, raw UTF-8 (R1-1, R2-1, D16). The empty `--format=`
     // leaves no sha header, so `parseNumstat`'s three-field guard never fires.
-    const run = await runGit(root, [
+    const logArgs = [
       '-c', 'core.quotePath=false',
       'log', '--first-parent', '-1', '--numstat', ...ws, '--format=', '--no-renames', ref,
-    ]);
+    ];
+    const run = await runGit(root, logArgs);
     const numstat = parseNumstat(run.stdout);
+    const stats = {
+      filesChanged: numstat.filesChanged,
+      linesAdded: numstat.linesAdded,
+      linesRemoved: numstat.linesRemoved,
+    };
+    const perFile = changedByPath(numstat.perFile);
+    // A file git flagged binary but that is really UTF-8 gets its count back (retro P1).
+    const patchArgs = [
+      '-c', 'core.quotePath=false',
+      'log', '--first-parent', '-1', '-p', '--text', ...ws, '--format=', '--no-renames', ref,
+    ];
+    await recoverBinaryText(root, patchArgs, numstat.binaryPaths, perFile, stats);
     return {
       ok: true,
-      stats: {
-        filesChanged: numstat.filesChanged,
-        linesAdded: numstat.linesAdded,
-        linesRemoved: numstat.linesRemoved,
-      },
+      stats,
       touched: sortedUnique(numstat.perFile.keys()),
-      perFile: changedByPath(numstat.perFile),
+      perFile,
       untracked: [],
     };
   }
@@ -515,26 +583,34 @@ export async function computeRangeStats(
   // or not, from the diff; plus untracked non-ignored files from ls-files, each
   // adding one file and its newline count (D17, D18). `root` is assumed to
   // gitignore the spec store and generated artifacts (R2-2).
+  const diffArgs = ['-c', 'core.quotePath=false', 'diff', '--numstat', ...ws, '--no-renames', ref];
   const [diffRun, othersRun] = await Promise.all([
-    runGit(root, ['-c', 'core.quotePath=false', 'diff', '--numstat', ...ws, '--no-renames', ref]),
+    runGit(root, diffArgs),
     runGit(root, ['-c', 'core.quotePath=false', 'ls-files', '--others', '--exclude-standard']),
   ]);
 
   const numstat = parseNumstat(diffRun.stdout);
-  let { filesChanged, linesAdded, linesRemoved } = numstat;
+  const stats = {
+    filesChanged: numstat.filesChanged,
+    linesAdded: numstat.linesAdded,
+    linesRemoved: numstat.linesRemoved,
+  };
   const perFile = changedByPath(numstat.perFile);
+  // A file git flagged binary but that is really UTF-8 gets its count back (retro P1).
+  const patchArgs = ['-c', 'core.quotePath=false', 'diff', '-p', '--text', ...ws, '--no-renames', ref];
+  await recoverBinaryText(root, patchArgs, numstat.binaryPaths, perFile, stats);
 
   const untracked = othersRun.stdout.split('\n').filter((line) => line.length > 0);
   for (const rel of untracked) {
     const added = countFileNewlines(path.join(root, rel));
-    filesChanged += 1;
-    linesAdded += added;
+    stats.filesChanged += 1;
+    stats.linesAdded += added;
     perFile[rel] = added;
   }
 
   return {
     ok: true,
-    stats: { filesChanged, linesAdded, linesRemoved },
+    stats,
     touched: sortedUnique([...numstat.perFile.keys(), ...untracked]),
     perFile,
     untracked,
