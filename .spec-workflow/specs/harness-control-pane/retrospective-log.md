@@ -188,3 +188,8 @@ Cost: 1 launch, about 1 minute
 A second launch during the supervisor's preflight (about 40 s from launch to run.start, before the pointer line exists) is refused by the launch-record branch of admission (launcher.ts:128-129) with runId null, so the page shows 'a launch record is live' and no run id or PID. Once run.start lands the pointer branch refuses with the live run id, as Req 3 AC7 says. The page could name the PID in that window.
 Evidence: POST /harness/launch at 20:12:27Z returned run-live runId run-20261001-201124; Matthew's earlier click showed no run id (screenshot)
 Cost: 2 launch attempts
+
+## 2026-10-01T20:14:42Z · verification · check 2 · gotcha
+With sdd-drafter overridden to sonnet, --watch showed the drafter as 'declared claude-opus-5-5 high' (the agent frontmatter) while it ran on claude-sonnet-5-5; 'actual' stays blank until spawn.end. The override itself worked (spawn.end model claude-sonnet-5-5, run.start overrides sdd-drafter:sonnet:anthropic), but 'declared' ignores run.start overrides, so a live run with an override reads as the wrong model.
+Evidence: sdd-sandbox run-20261001-201124 ledger rows 20:13:33 spawn.start / 20:14:28 spawn.end; Matthew's --watch screenshot
+Cost: 1 run
