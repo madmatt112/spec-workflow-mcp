@@ -380,20 +380,30 @@ When no `[ ]` or `[-]` task remains:
     ```bash
     #!/bin/bash
     # usage: bash pr-checks.sh <pr number>
-    # Waits up to nine minutes for the PR's checks, then prints the check table.
+    # Waits up to nine minutes for the PR's checks, then prints the check table and, on a
+    # trailing "required-exit:" line, the exit code of the required-only checks (retro P13).
     # Exit code: 0 every check passed, 1 one or more failed, 8 still pending.
     cd "<CODE_ROOT>"
     timeout 540 gh pr checks "$1" --watch --interval 20 > /dev/null 2>&1
     gh pr checks "$1"
+    gh pr checks "$1" --required > /dev/null 2>&1
+    echo "required-exit: $?"
     ```
 
     Run it in the foreground, never in the background, one call at a time. While it
     exits 8, run it again, up to 30 minutes of waiting in all; after that treat the
     PR as red with the check named `pending`. A repo with no checks (an empty table,
-    exit 0) passes the gate. The table is the only CI output you read yourself.
+    exit 0) passes the gate. The table is the only CI output you read yourself; the
+    `required-exit:` line is the required-only checks' exit code.
     - Exit 0 ⇒ step 11.
-    - Exit 1 ⇒ record `note "text=ci red: <check names>, round <r>"` and go to
-      **Reconcile a red PR**. When it comes back green ⇒ step 11.
+    - Exit 1 with `required-exit: 0` ⇒ every required check is green and only a
+      non-required check is red (retro P13). Do not reconcile it and never direct a
+      squash-merge over it: record `note "text=ci red non-required: <check names>;
+      non-blocking"` and go to step 11, which reports that check with a non-blocking
+      assessment and leaves the merge to the human.
+    - Exit 1 with `required-exit:` 1 or 8 ⇒ a required check is red or pending: record
+      `note "text=ci red: <check names>, round <r>"` and go to **Reconcile a red PR**.
+      When it comes back green ⇒ step 11.
 11. Before you report, call `spec-status` for `<SPEC>` and read `data.logCoverage` and
     `data.reviewCoverage`: derive "verified" from those numbers, not from memory (retro
     P13). Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT:
@@ -404,7 +414,10 @@ When no `[ ]` or `[-]` task remains:
     verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
     verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
     but disclose the `reviewCoverage` gap plainly and never report the spec "all
-    verified" while `reviewCoverage` is below total.
+    verified" while `reviewCoverage` is below total. When step 10b found only non-required
+    checks red (retro P13), name each red non-required check with its non-blocking
+    assessment (why it does not block — for example a pre-existing, out-of-scope failure)
+    and state the merge is the human's call; never direct or recommend a squash-merge.
 
 ### Live verification
 
