@@ -194,3 +194,38 @@ With sdd-drafter overridden to sonnet, --watch showed the drafter as 'declared c
 Evidence: sdd-sandbox run-20261001-201124 ledger rows 20:13:33 spawn.start / 20:14:28 spawn.end; Matthew's --watch screenshot
 Cost: 1 run
 Fix idea: the hook already has the Agent call's tool_input at spawn.start (harness/hooks/sdd-activity.sh:211-216) but writes only agent and role; add tool_input.model when present, and have the page and --watch show it as declared.
+
+## 2026-10-01T20:26:52Z · requirements · phase · model-behaviour
+Cross-repo (tradr broker-csv-presets): the document orchestrator returned its PHASE line as the whole enum template instead of one value.
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: unknown
+
+## 2026-10-01T20:26:52Z · implementation · phase · harness-defect
+Cross-repo (jobscout task 6): TDD routing marked a task red-first that only tested earlier-task code (RED-IMPOSSIBLE), and the design-defect loop then forced a design revision for a defect that lived only in tasks.
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: unknown
+
+## 2026-10-01T20:26:52Z · implementation · phase · harness-defect
+Every change under src/markdown/templates leaves the store copy .spec-workflow/templates/*.md dirty after a session restart.
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: unknown
+
+## 2026-10-01T20:26:52Z · implementation · phase · mcp-deficiency
+The harness brief action demanded a redTests value for a task that carries no TDD marker.
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: unknown
+
+## 2026-10-01T20:26:52Z · closeout · phase · tool-error
+Cross-repo (jobscout close-out): the auto-mode classifier blocked the close-out orchestrator's routine event.sh ledger writes three times in a row, stalling the run about 19 hours.
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: ~19h stall
+
+## 2026-10-01T20:26:52Z · closeout · phase · harness-defect
+Close-out PRs miss regenerated generated files (tradr PR #120 left _how-its-built.json stale).
+Evidence: overwatch spec-workflow-mcp-66 observation, relayed 2026-10-01
+Cost: unknown
+
+## 2026-10-01T20:32:41Z · retrospective · phase · cleanup
+retrospective compiled: 19 findings (3 gotchas, 3 product bugs, 2 tool/MCP, 3 harness defects, 1 prompt, 2 inefficiencies, 1 model-behaviour, 2 harness-decisions, 2 repeat patterns) and 17 proposals (2 decisions needed, 2 graduation candidates). All 7 live e2e steps now passed; d-69b95f88 ready to resolve.
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 analyst spawn
