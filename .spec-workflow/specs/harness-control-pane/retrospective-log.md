@@ -193,3 +193,4 @@ Cost: 2 launch attempts
 With sdd-drafter overridden to sonnet, --watch showed the drafter as 'declared claude-opus-5-5 high' (the agent frontmatter) while it ran on claude-sonnet-5-5; 'actual' stays blank until spawn.end. The override itself worked (spawn.end model claude-sonnet-5-5, run.start overrides sdd-drafter:sonnet:anthropic), but 'declared' ignores run.start overrides, so a live run with an override reads as the wrong model.
 Evidence: sdd-sandbox run-20261001-201124 ledger rows 20:13:33 spawn.start / 20:14:28 spawn.end; Matthew's --watch screenshot
 Cost: 1 run
+Fix idea: the hook already has the Agent call's tool_input at spawn.start (harness/hooks/sdd-activity.sh:211-216) but writes only agent and role; add tool_input.model when present, and have the page and --watch show it as declared.
