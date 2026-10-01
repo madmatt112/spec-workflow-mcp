@@ -317,6 +317,11 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 
 ## Step 5 — Approve
 
+In the `design` phase and `MODE: normal`, run the **Design scope-cut gate** (below)
+before item 1; it may stop the phase to surface a majority scope cut to the human. Every
+other phase and mode, and a resume whose HANDOFF already records the cut was surfaced, go
+straight to item 1.
+
 1. Find a pending record for this version: `approvals` `list` with `categoryName:
    <SPEC>`, `filePath` as above, `status: pending`; take the newest whose title ends
    in `v<D>`, if any (a run under the older per-version flow may have left one).
@@ -330,6 +335,32 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
 3. `approvals` `approve` on the record with the response format from
    `references/cleanup.md`: version, rounds, final verdict counts, rulings, cap.
 4. Go to Step 6.
+
+## Design scope-cut gate — before Step 5 in the design phase (`MODE: normal`)
+
+Reached from Step 5, once per spec, before the first design approval, so the design never
+finalizes a majority scope cut the human has not seen (retro P12). The human set the scope
+bar at requirements Gate A without seeing how far the design would narrow it.
+
+1. **Already surfaced?** If the HANDOFF section `## <SPEC> — design` holds a
+   `Scope-cut surfaced | yes` row (Step 0 read it on this resume), the human has already
+   seen the cut: skip this gate and go to Step 5 item 1.
+2. **Measure the cut.** The planned scope is the decomposition entry's deliverables and
+   the approved requirements (`grep -n '^### Requirement' <spec dir>/requirements.md` for
+   the planned set — a structure read, never the body). The cut scope is what this design
+   does not build: the cut-and-deferred scope you already track from the drafter's
+   `RE-DECIDED` flags, the revisers' cut-scope reports and the Step 6 surfacing. A
+   **majority scope cut** is more than half of the planned requirements, or of the
+   decomposition's planned deliverables, dropped or deferred by the design.
+3. **No majority cut ⇒** go to Step 5 item 1.
+4. **Majority cut ⇒ surface it once.** Write the HANDOFF section with a
+   `Scope-cut surfaced | yes` row and, under it, one line per requirement or deliverable
+   the design will not build. Append a retro-log entry with `retro.sh` (`escalation`).
+   Commit the spec store. Report `PHASE: escalate`, `STATE: v<D>`,
+   `REASON: majority scope cut — <what will not be built, one line>`. The supervisor stops
+   and prints it for the human, who confirms before the phase finalizes. On the re-run the
+   human then starts, Step 0 routes back here, item 1 sees the row, and the phase approves.
+   The gate fires at most once per spec.
 
 ## Step 6 — Cleanup, then report
 
