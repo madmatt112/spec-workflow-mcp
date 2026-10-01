@@ -535,13 +535,14 @@ describe('handleGate', () => {
       expect(result.data.reasons).toContain('tdd: author changed source: src/impl.js');
     }, TDD_MS);
 
-    it('red-on-base off forces high on a whitespace-only change (5.3)', async () => {
+    it('tdd-inconclusive is neutral: off base no longer forces high (retro P3)', async () => {
       await writeTddRules('red-on-base: off');
       await writeTddTask();
       await commit('src/impl.js', IMPL_RIGHT, 'impl');
       const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red');
-      // A whitespace-only implementer commit: the trivial-change fast path would
-      // score it low, but the inconclusive (off) base forces high.
+      // A whitespace-only implementer commit on a non-sensitive path: the inconclusive
+      // (off) base no longer forces high (retro P3), so the trivial-change fast path
+      // scores it low; the inconclusive cause stays an informational reason.
       await commit('src/impl.js', '  ' + IMPL_RIGHT, 'whitespace only');
       await addTask1Log();
 
@@ -551,7 +552,7 @@ describe('handleGate', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data.risk).toBe('high');
+      expect(result.data.risk).toBe('low');
       expect(result.data.tdd.base).toBe('inconclusive');
       expect(result.data.reasons.some((r: string) => r.startsWith('tdd-inconclusive'))).toBe(true);
     }, TDD_MS);

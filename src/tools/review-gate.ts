@@ -428,19 +428,24 @@ export async function handleGate(
     // paths`). There is nothing the per-task verifier could judge, so it is
     // skipped and CI is the net; any other touched path keeps it high. Medium
     // still requires the log — the gate already refuses a task with no log above.
-    // Step 8b: a weak proof (`tdd-` risk reason) forces high, appends its reasons
-    // and skips the down-rank, beating the trivial-change fast path that returns
-    // low inside scoreRisk (design step 6, 5.3). Otherwise the no-product-code
-    // down-rank from high to medium stands (retro P7 docs-only; retro P10
-    // generated-only and spec-store-only): a change is "no product code" when it
-    // touched no path under the code root at all (spec-store-only), or every
-    // touched path is documentation (*.md, *.mdx, docs/**), or every touched path
-    // is a generated artifact (`## Generated paths`). There is nothing the per-task
-    // verifier could judge, so it is skipped and CI is the net; any other touched
-    // path keeps it high. Medium still requires the log — the gate already refuses
-    // a task with no log above.
+    // Step 8b: a weak proof forces high, but only a `tdd-structural-red` or
+    // `tdd-amended` reason counts (design step 6, 5.3). `tdd-inconclusive` is
+    // expected on a type-level or pure-function seam — no runnable red-at-base
+    // command — so it is neutral and never forces high on its own (retro P3); it
+    // stays an informational reason while the sensitive-path, line-count and gate
+    // components decide, so a sensitive, gate or data-loss task still scores high
+    // through those and keeps its verifier. Otherwise the no-product-code down-rank
+    // from high to medium stands (retro P7 docs-only; retro P10 generated-only and
+    // spec-store-only): a change is "no product code" when it touched no path under
+    // the code root at all (spec-store-only), or every touched path is documentation
+    // (*.md, *.mdx, docs/**), or every touched path is a generated artifact
+    // (`## Generated paths`). There is nothing the per-task verifier could judge, so
+    // it is skipped and CI is the net; any other touched path keeps it high. Medium
+    // still requires the log — the gate already refuses a task with no log above.
+    const hardProofRisk = proof.risk.filter((r) => !r.startsWith('tdd-inconclusive'));
+    const softProofRisk = proof.risk.filter((r) => r.startsWith('tdd-inconclusive'));
     let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] };
-    if (proof.risk.length > 0) {
+    if (hardProofRisk.length > 0) {
       risk = { risk: 'high', reasons: [...scored.reasons, ...proof.risk] };
     } else if (scored.risk === 'high') {
       let downrank: string | null = null;
@@ -451,9 +456,11 @@ export async function handleGate(
       } else if (generated !== null && touched.every((p) => isGeneratedPath(p, generated))) {
         downrank = 'generated-only: every touched path is a generated artifact; verifier skipped, CI is the net';
       }
-      risk = downrank !== null ? { risk: 'medium', reasons: [downrank, ...scored.reasons] } : scored;
+      risk = downrank !== null
+        ? { risk: 'medium', reasons: [downrank, ...scored.reasons, ...softProofRisk] }
+        : { risk: 'high', reasons: [...scored.reasons, ...softProofRisk] };
     } else {
-      risk = scored;
+      risk = { risk: scored.risk, reasons: [...scored.reasons, ...softProofRisk] };
     }
 
     // Step 8c: the gate fails when the verdict fails or the proof has fail reasons;
