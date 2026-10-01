@@ -79,6 +79,13 @@ Every later reviewer, reviser and implementer reads it first.
 - Design only: when you pin an interface whose Testing Strategy needs an extra argument
   (for example a `timeoutMs`), pin that argument as an optional trailing parameter, so the
   implementer does not have to invent a backward-compatible shim.
+- Design only: when you pin an interface you do not exercise live — a method on a fork or
+  integration branch — cite that branch's tip (for example `fork/integration`) and confirm
+  the symbol resolves there, never a historical commit hash that may predate the method
+  (retro P1).
+- Design only: pin the interface and its post-conditions, not a code shape. Label any inline
+  code "illustrative — verify against the test fake," so a shape bug in the sample does not
+  read as binding (retro P2).
 - When a design departs from a requirement's literal (a widened enum, a defaulted
   param, a changed shape), flag it in your report as `RE-DECIDED: <req> — <one line>`.
 - Record every call you make on the product's behalf under `## Decisions taken in
@@ -101,7 +108,9 @@ Every later reviewer, reviser and implementer reads it first.
   write "the hook task 7 exports" and let the implementer read the merged code. When a
   `_Prompt` cites a decision id (`D<n>`) as the reason for a behaviour, verify that
   decision actually governs that behaviour before the brief ships, and cite the governing
-  requirement number alongside it (retro P8/P9/G2). For
+  requirement number alongside it (retro P8/P9/G2). Cite code by symbol or
+  acceptance-criterion name plus line number. Any citation into a file merged by an earlier
+  task must be re-resolved before the tasks review (retro P8/G4). For
   every existing test file a task names, say whether the change alters a value it
   asserts exactly. When a prompt enumerates assertion sites to update (line anchors
   like `:127`, `:479`), label the list an illustrative minimum ("at least these") and
@@ -325,6 +334,10 @@ RI-2: <text>>
     classes you just fixed (a citation missing its directory prefix, a bare `:<line>`, an
     unproven rationale clause, a half-fixed cross-artifact seam). Fix any regression your
     own delta introduced now; it is cheaper here than as next round's finding (retro P7).
+14. After any re-anchor or agreed-wording fix, before you hand back, self-verify that every
+    new producer the delta introduced has a named consumer, and every acceptance criterion
+    the delta touched stays consistent with the rest of the document. Record this as part of
+    the fix-induced re-check (retro P7).
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
