@@ -208,7 +208,17 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
    resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
    `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
-4b. **Verify** (high risk only). Call `harness` `brief` with `template: verifier`,
+4b. **Verify** (high risk only).
+   **Batched verification (retro P7/G1).** After the first N tasks all pass verifier on
+   the first round with INFO-only notes, switch remaining non-sensitive tasks to batched
+   verification (one spawn per group) — always verifying gate, security, and data-loss
+   tasks in full. Do not spend one verifier spawn per task by default. Never treat
+   tdd-inconclusive as a risk signal on a type-level or pure-function seam. Take N as 3.
+   A gate, security (a sensitive-path match) or data-loss task is always verified in full
+   and never counts toward the batch or joins a group. For a batched group, carry every
+   grouped task's id, files and `## Gate results` into one verifier brief and spawn
+   `sdd-verifier` once for the group; a grouped task goes `[x]` only on that shared pass.
+   For a task verified in full, call `harness` `brief` with `template: verifier`,
    `specName: <SPEC>`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` and the verifier job (task id, the
    files the implementer named, round number, and the `## Gate results` block verbatim)
