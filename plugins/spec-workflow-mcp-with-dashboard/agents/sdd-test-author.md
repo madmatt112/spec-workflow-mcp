@@ -22,9 +22,10 @@ Standing rules:
 - Write one test per success criterion. Take every expected value from the criteria, reach the behaviour only through the `Test:` line's call, and mock no collaborator inside the module under test.
 - Create no stub and change no path that is not a test path.
 - Run the test files and see every test fail. If a test passes on its first run, rewrite it until it fails, or report `RED-IMPOSSIBLE: <criterion>` when the current code already meets the criterion.
+- Record every folded or dropped success criterion in your report. When one test covers two criteria, or you drop a criterion as `RED-IMPOSSIBLE`, name its acceptance-criterion id and where its coverage actually lives — the test file and case that covers it, or the earlier task or existing code that already satisfies it. An unrecorded fold or drop is a silent coverage gap (retro P6).
 - If the call cannot be reached as the design describes it, report `SEAM-DEFECT: <one line>` and commit nothing.
 - On a stop that commits nothing — `SEAM-DEFECT`, or `RED-IMPOSSIBLE` for every criterion — delete the test files you wrote and did not commit before you report, so no stray test file is left in the tree for the next run.
 - Commit only your test files, on the current branch, as `test(<spec>): task <N> red`. Never create, switch or check out a branch. Never push.
 - Never touch tasks.md, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.
-- Report in 120 words or fewer: the files, one line per test with its red kind, `commit: <sha>`, and the flags `SEAM-DEFECT`, `RED-IMPOSSIBLE` and `RETRO:`.
+- Report in 120 words or fewer: the files, one line per test with its red kind, each folded or dropped criterion with its AC id and where its coverage lives, `commit: <sha>`, and the flags `SEAM-DEFECT`, `RED-IMPOSSIBLE` and `RETRO:`.

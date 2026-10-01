@@ -116,7 +116,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    pre-implement HEAD. A `[-]` task resumed from Step 0 has no implementer commit yet:
    gate it without `baseRef`, which scores `risk: high`.
 1b. **Author** (marked tasks only). Only when the picked task's block holds a `- Test:`
-   bullet, and after the pre-implement HEAD capture (Step 1): assemble the author brief with the spec-workflow
+   bullet — not a `- Test (integration):` bullet, which routes implementer-only (see the
+   end of this step) — and after the pre-implement HEAD capture (Step 1): assemble the author brief with the spec-workflow
    `harness` tool, `action: brief`, `template: test-author`, `specName: <SPEC>`,
    `taskId: "<N>"`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/author-brief-task-<N>.md`, the `title`, and the `job`: the
@@ -135,6 +136,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    A `[-]` marked task resumed from Step 0 spawns the author only when
    `git -C <CODE_ROOT> log -1 --format=%H --grep "test(<SPEC>): task <N> red"` finds
    nothing (its author already committed on a prior turn otherwise). A task whose block
+   holds a `- Test (integration):` bullet — integration coverage over behaviour an earlier
+   task already shipped, which cannot be red before that code exists — is routed
+   implementer-only by rule (retro P4): skip this step, spawn no author, pass no `tdd`
+   argument later, and let the implementer write that integration test as part of the task.
+   Never hand-route it. A task whose block
    holds no `- Test:` bullet skips this step, spawns no author, passes no `tdd` argument
    later, and runs every step as today.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
@@ -145,7 +151,14 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    1b ran an author), also pass `values.redTests` = the `## Red tests (from the test
    author)` section from `references/briefs.md`, filled with the author's files, its
    `Test:` lines and its report verbatim; on an unmarked task omit `redTests`, which the
-   template defaults to empty. Spawn `sdd-implementer`
+   template defaults to empty. Before you spawn, check the filled prompt's decision-id
+   citations (retro P5): for each `D<n>` the `_Prompt` cites as the reason for a behaviour,
+   confirm that decision governs that behaviour — `grep -n 'D<n>' <spec dir>/design.md`
+   and `requirements.md` for its `## Decisions taken in this document` entry, a structure
+   read, not the body. On a mis-cite — a `D<n>` that does not govern the behaviour it is
+   attached to — add the governing requirement number to the brief and append a `doc-gap`
+   retro-log entry with `retro.sh`; `agent-rules.md` already has the implementer code to
+   the governing requirement, this catches it upstream. Then spawn `sdd-implementer`
    with `Read and execute the instructions in <the returned path>`.
 3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
@@ -195,7 +208,17 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
    resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
    `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
-4b. **Verify** (high risk only). Call `harness` `brief` with `template: verifier`,
+4b. **Verify** (high risk only).
+   **Batched verification (retro P7/G1).** After the first N tasks all pass verifier on
+   the first round with INFO-only notes, switch remaining non-sensitive tasks to batched
+   verification (one spawn per group) — always verifying gate, security, and data-loss
+   tasks in full. Do not spend one verifier spawn per task by default. Never treat
+   tdd-inconclusive as a risk signal on a type-level or pure-function seam. Take N as 3.
+   A gate, security (a sensitive-path match) or data-loss task is always verified in full
+   and never counts toward the batch or joins a group. For a batched group, carry every
+   grouped task's id, files and `## Gate results` into one verifier brief and spawn
+   `sdd-verifier` once for the group; a grouped task goes `[x]` only on that shared pass.
+   For a task verified in full, call `harness` `brief` with `template: verifier`,
    `specName: <SPEC>`, and `values` carrying the output path
    `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` and the verifier job (task id, the
    files the implementer named, round number, and the `## Gate results` block verbatim)
@@ -357,20 +380,30 @@ When no `[ ]` or `[-]` task remains:
     ```bash
     #!/bin/bash
     # usage: bash pr-checks.sh <pr number>
-    # Waits up to nine minutes for the PR's checks, then prints the check table.
+    # Waits up to nine minutes for the PR's checks, then prints the check table and, on a
+    # trailing "required-exit:" line, the exit code of the required-only checks (retro P13).
     # Exit code: 0 every check passed, 1 one or more failed, 8 still pending.
     cd "<CODE_ROOT>"
     timeout 540 gh pr checks "$1" --watch --interval 20 > /dev/null 2>&1
     gh pr checks "$1"
+    gh pr checks "$1" --required > /dev/null 2>&1
+    echo "required-exit: $?"
     ```
 
     Run it in the foreground, never in the background, one call at a time. While it
     exits 8, run it again, up to 30 minutes of waiting in all; after that treat the
     PR as red with the check named `pending`. A repo with no checks (an empty table,
-    exit 0) passes the gate. The table is the only CI output you read yourself.
+    exit 0) passes the gate. The table is the only CI output you read yourself; the
+    `required-exit:` line is the required-only checks' exit code.
     - Exit 0 ⇒ step 11.
-    - Exit 1 ⇒ record `note "text=ci red: <check names>, round <r>"` and go to
-      **Reconcile a red PR**. When it comes back green ⇒ step 11.
+    - Exit 1 with `required-exit: 0` ⇒ every required check is green and only a
+      non-required check is red (retro P13). Do not reconcile it and never direct a
+      squash-merge over it: record `note "text=ci red non-required: <check names>;
+      non-blocking"` and go to step 11, which reports that check with a non-blocking
+      assessment and leaves the merge to the human.
+    - Exit 1 with `required-exit:` 1 or 8 ⇒ a required check is red or pending: record
+      `note "text=ci red: <check names>, round <r>"` and go to **Reconcile a red PR**.
+      When it comes back green ⇒ step 11.
 11. Before you report, call `spec-status` for `<SPEC>` and read `data.logCoverage` and
     `data.reviewCoverage`: derive "verified" from those numbers, not from memory (retro
     P13). Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT:
@@ -381,7 +414,10 @@ When no `[ ]` or `[-]` task remains:
     verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
     verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
     but disclose the `reviewCoverage` gap plainly and never report the spec "all
-    verified" while `reviewCoverage` is below total.
+    verified" while `reviewCoverage` is below total. When step 10b found only non-required
+    checks red (retro P13), name each red non-required check with its non-blocking
+    assessment (why it does not block — for example a pre-existing, out-of-scope failure)
+    and state the merge is the human's call; never direct or recommend a squash-merge.
 
 ### Live verification
 

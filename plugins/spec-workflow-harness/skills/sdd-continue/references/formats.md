@@ -23,7 +23,7 @@ findings do not produce a new version.
 ## Orchestrator report contract
 
 The last lines of every orchestrator's final message. At most 150 words above it,
-never file contents.
+never file contents. Pick exactly one value per field; never send the enum template.
 
 ```
 PHASE: approved | gate-a | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
