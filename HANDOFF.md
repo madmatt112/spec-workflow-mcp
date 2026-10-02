@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-01, harness v4).** Active spec **`harness-control-pane`** (spec 9, last in build order).
-> Live phase **retrospective**, state **n/a**, last result **complete** (tasks 20/20; all 7 live checks passed 2026-10-01).
+> **READ FIRST — SDD routing (2026-10-02, harness v4).** Active spec **none** — every spec in decomposition.md is complete; `harness-control-pane` closed 2026-10-02.
+> Live phase **n/a**, state **items 19/19**, last result **closed** (close-out PR #79 open, awaiting merge; P4 refusal signal left as a human to-do).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs the retrospective (retro orchestrator, then the retro conversation), then close-out.
+> A re-run does: reports roadmap complete; add the next spec to decomposition.md first.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -77,6 +77,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-29 | harness-control-pane | implementation | tasks 20/20 | complete | PR #76 green; 1 CI fix (launcher node-20 race) + 1 flaky rerun; live e2e deferred d-69b95f88 |
 | 2026-10-01 | harness-control-pane | retrospective | n/a | retro-ready | 19 findings, 17 proposals, 2 graduation candidates |
 | 2026-10-01 | harness-control-pane | retrospective | APPROVED | approved | all 17 proposals + G1-G2 approved; P4 (B) preflight signal, P14 (A) keep as-is; close-out next |
+| 2026-10-01 | harness-control-pane | retrospective |  | retro-ready |  |
+| 2026-10-02 | harness-control-pane | closeout | items 18/19 | closed | P4 to-do; PR #79 open, not merged |
 
 ## Current state — 2026-08-04
 

@@ -510,3 +510,6 @@
 {"ts":"2026-10-02T18:07:48.794Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P7","outcome":"done"}
 {"ts":"2026-10-02T18:07:48.817Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P4","outcome":"to-do"}
 {"ts":"2026-10-02T18:07:48.839Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"P4 to-do (human): refusal-signal needs harness SKILL.md + design.md slice, not product-code-only"}
+{"ts":"2026-10-02T18:09:52.196Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"phase.end","phase":"closeout","result":"closed","state":"items 18/19","note":"P4 to-do; PR #79 open, not merged"}
+{"ts":"2026-10-02T18:10:04.562Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"70","output":"1353","cacheWrite":"85430","cacheRead":"2343857","tokens":"2430710","cacheWrite5m":"0","cacheWrite1h":"85430","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ab04df0aa64933038"}
+{"ts":"2026-10-02T18:10:10.397Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","result":"closed"}
