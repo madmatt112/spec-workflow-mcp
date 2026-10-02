@@ -342,6 +342,11 @@ RI-2: <text>>
     new producer the delta introduced has a named consumer, and every acceptance criterion
     the delta touched stays consistent with the rest of the document. Record this as part of
     the fix-induced re-check (retro P7).
+15. Post-trim citation check. After any trim that removes a line to keep the document under
+    its cap, re-verify that every surviving accepted acceptance criterion still carries its
+    original citation, anchored to the exact phrase it supports. Never relocate a citation
+    onto an unrelated note to save a line. A trim that drops an accepted AC's citation, or
+    moves one off the phrase it cited, is a MUST_FIX next round (retro P1).
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
