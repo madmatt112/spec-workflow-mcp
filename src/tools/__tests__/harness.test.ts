@@ -368,6 +368,39 @@ describe('harnessHandler', () => {
     expect(written).not.toContain('undefined');
   });
 
+  // retro P8 — redTests is required only when the task carries a TDD marker (a `- Test:` seam).
+
+  it('brief implementer fails and writes no file when a TDD-marked task omits redTests', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-tdd-noredtests.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
+        values: { path: outPath, title: 'Task 1' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('redTests');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('brief implementer succeeds for a TDD-marked task when redTests is supplied', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-tdd-redtests.md');
+    const redTests = '## Red tests (from the test author)\nfoo.test.ts fails as expected.';
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
+        values: { path: outPath, title: 'Task 1', redTests } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain(redTests);
+  });
+
   // Requirement 3 — the `## Code graph` brief section by tooling.
 
   const GRAPH = '/code/graphify-out/graph.json';
