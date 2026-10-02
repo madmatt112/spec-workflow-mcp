@@ -343,7 +343,14 @@ Act on the final `PHASE:` line of the orchestrator's report:
   the same phase with the same prompt.
 - `escalate`: write a HANDOFF row, print the `REASON:` line, and stop. Headless (no
   human can answer): the row is the record; exit.
-- `design-defect`: write a HANDOFF row. Spawn `sdd-document-orchestrator` for `design`
+- `design-defect`: write a HANDOFF row. Before you re-open design, confirm the defect
+  lives in the design document: when the `REASON:` is a `RED-IMPOSSIBLE` whose criteria
+  the shipped code already satisfies, or otherwise names a tasks-only defect (a wrong or
+  stale task with no design contradiction), do not revise design — spawn
+  `sdd-document-orchestrator` for `tasks` with `MODE: revision` and `REVISION_INPUT` = the
+  `REASON:` text, then, after it reports `approved`, resume implementation (retro P9).
+  Only a defect that contradicts the design document itself re-opens design: spawn
+  `sdd-document-orchestrator` for `design`
   with `MODE: revision` and `REVISION_INPUT` = the `REASON:` text. After it reports
   `approved`, spawn `sdd-document-orchestrator` for `tasks` with `MODE: revision` and
   `REVISION_INPUT: re-validate every task against the new design; at least one review
