@@ -2245,7 +2245,7 @@ export class MultiProjectDashboardServer {
       // launcher's synchronous in-flight guard decides a concurrent race (D1, D5).
       const admission = this.harnessLauncher.admission(project);
       if (!admission.ok) {
-        return reply.code(409).send({ error: 'run-live', runId: admission.runId, reason: admission.reason });
+        return reply.code(409).send({ error: 'run-live', runId: admission.runId, reason: admission.reason, pid: admission.pid });
       }
       writeRunFile(workflowRoot, file);
       const { worktreeSetup } = readAgentRules(workflowRoot);

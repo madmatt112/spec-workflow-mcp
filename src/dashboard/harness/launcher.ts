@@ -114,7 +114,7 @@ export class HarnessLauncher extends EventEmitter {
    */
   admission(
     project: ProjectContext,
-  ): { ok: true } | { ok: false; runId: string | null; reason: string } {
+  ): { ok: true } | { ok: false; runId: string | null; reason: string; pid?: number } {
     if (this.inFlight.has(project.projectId)) {
       return { ok: false, runId: null, reason: 'launch in flight' };
     }
@@ -126,7 +126,10 @@ export class HarnessLauncher extends EventEmitter {
     }
     const record = this.records.get(project.projectId);
     if (record && (record.state === 'running' || record.state === 'stopping') && this.isAlive(record)) {
-      return { ok: false, runId: record.runId, reason: 'a launch record is live' };
+      // Name the live launch PID: in the ~40 s before `run.start` lands the
+      // pointer line, `runId` is still null, so the PID is the only identifier
+      // the page can show for the run it refused to double-launch (retro P6).
+      return { ok: false, runId: record.runId, reason: 'a launch record is live', pid: record.pid };
     }
     return { ok: true };
   }
