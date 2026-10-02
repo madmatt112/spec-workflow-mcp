@@ -175,7 +175,12 @@ For each batch:
    each. Append one retro-log entry with `retro.sh` per batch (`cleanup`: items done, to-do, skipped,
    spawns) and one per skipped item (`deviation`, the reason).
 7. **PR.** When a `harness` or `code` class has no open items left and its branch has
-   commits: push with `git push -u origin chore/<SPEC>-retro` in the worktree, then
+   commits: first make sure the branch ships no stale generated artifact — a derived file
+   the landed changes feed (a build-produced manifest such as `_how-its-built.json`, or a
+   file a generator emits) is regenerated and staged in the same batch that changed its
+   source; when one is stale, spawn one `sdd-implementer` to regenerate and commit it on the
+   branch before the push (retro P11). Then push with `git push -u origin chore/<SPEC>-retro`
+   in the worktree, then
    `gh pr create` with the title `chore(retro): <SPEC> retrospective follow-ups` and a
    body with `## Summary` (one bullet per item landed) and `## Test plan` (the checks
    run, ticked), no attribution footer. For the code repo, follow the PR rules in
