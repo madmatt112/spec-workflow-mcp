@@ -105,6 +105,8 @@ export interface SpawnNode {
   result?: string;
   tokens?: number;
   model?: string;
+  /** The model the Agent call declared on spawn.start (an override, retro P5); the view shows it as declared. */
+  declaredModel?: string;
   /** The provider that ran this spawn; absent means Anthropic. */
   provider?: string;
   input?: number;
@@ -291,6 +293,7 @@ export function buildModel(input: {
         round: e.round,
         startedAt: e.ts,
         provider: e.provider,
+        declaredModel: e.model,
         level: agent.endsWith('-orchestrator') ? 1 : 2,
       });
     } else if (e.type === 'spawn.end') {

@@ -279,6 +279,17 @@ describe('buildModel', () => {
     expect(m.tokensTotal).toBe(84_000);
   });
 
+  it('carries the declared model from a spawn.start (an Agent-call override, retro P5)', () => {
+    const ev = ledger();
+    // The hook writes the Agent call's model onto the worker spawn.start.
+    ev[ev.length - 1] = { ...ev[ev.length - 1], model: 'claude-sonnet-5' };
+    ev.push({ ts: '2026-09-12T19:10:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', model: 'claude-sonnet-5', tokens: '84000' });
+    const m = buildModel({ spec: 's', ledger: ev, activity: [], tasksMd: TASKS });
+    const impl = m.spawns[1];
+    expect(impl.declaredModel).toBe('claude-sonnet-5');
+    expect(impl.model).toBe('claude-sonnet-5');
+  });
+
   it('updates an ended spawn from a later spawn.end with the same agentId (yield, resume, more calls)', () => {
     const ev = ledger();
     ev.push({ ts: '2026-09-12T19:05:00.000Z', run: 'run-2', spec: 's', type: 'spawn.end', agent: 'sdd-implementation-orchestrator', agentId: 'o1', tokens: '100' });

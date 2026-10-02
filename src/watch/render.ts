@@ -219,13 +219,18 @@ function agentLines(s: SpawnNode, level: 1 | 2, opts: RenderOptions, p: Palette,
   // marks a substitution. Omitted when neither is known.
   // The declared text is the model and effort, plus the cache lifetime when the profile
   // names one that is not the `default` (the three orchestrators declare `1h`).
-  let declared = profile ? `${profile.model} ${profile.effort}` : '';
+  // The declared model is the one the Agent call actually named (the hook's spawn.start,
+  // retro P5), so an overridden run shows its real model, not the agent frontmatter; it
+  // falls back to the frontmatter profile when the spawn.start carried none. Effort and the
+  // cache lifetime still come from the profile.
+  const declaredModel = s.declaredModel ?? profile?.model;
+  let declared = declaredModel ? (profile ? `${declaredModel} ${profile.effort}` : declaredModel) : '';
   if (profile?.cacheTtl && profile.cacheTtl !== 'default') declared += ` ${profile.cacheTtl}`;
   const model = fit(s.model ?? '', 30);
   // The provider precedes the model when the run used a non-Anthropic one.
   const actual = s.provider && s.provider !== 'anthropic' ? `${s.provider} ${model}` : model;
   if (declared || actual) {
-    const flag = profile && s.model && s.model !== profile.model ? ` ${p.bad('!=')}` : '';
+    const flag = declaredModel && s.model && s.model !== declaredModel ? ` ${p.bad('!=')}` : '';
     const pad = Math.max(23, stripAnsi(declared).length + 1);
     out.push(`${indent}   ${p.dim('declared')} ${padRight(declared, pad)}${p.dim('actual')} ${actual}${flag}`);
   }

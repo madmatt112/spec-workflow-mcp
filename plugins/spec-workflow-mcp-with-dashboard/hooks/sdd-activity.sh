@@ -213,7 +213,9 @@ if (eventsFile) {
     const m = String(ti.prompt || "").match(/([^\s/]+)-brief[^\s/]*\.md/);
     if (/(^|:)sdd-/.test(sub) && m) {
       const child = sub.slice(sub.lastIndexOf(":") + 1);
-      fs.appendFileSync(eventsFile, JSON.stringify({ ts: e.ts, type: "spawn.start", run, spec, agent: child, role: m[1] }) + "\n");
+      const startRow = { ts: e.ts, type: "spawn.start", run, spec, agent: child, role: m[1] };
+      if (ti.model) startRow.model = String(ti.model); // the Agent call's declared model (retro P5)
+      fs.appendFileSync(eventsFile, JSON.stringify(startRow) + "\n");
     }
   } else if (ev === "SubagentStop") {
     let row;

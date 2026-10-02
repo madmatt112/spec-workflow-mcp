@@ -122,6 +122,20 @@ describe('render', () => {
     expect(out).toContain('spawn.usage sdd-implementer  implement task 3 (v2)  -> logged: yes/3  84k tok');
   });
 
+  it('shows the Agent-call override as the declared model, not the frontmatter (retro P5)', () => {
+    const ledger: LedgerEvent[] = [
+      ...LEDGER.slice(0, 4),
+      { ts: '2026-09-12T19:01:05.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.start', agent: 'sdd-implementer', role: 'implement task 3', phase: 'implementation', task: '3', model: 'claude-sonnet-5' },
+      { ts: '2026-09-12T19:06:00.000Z', run: 'run-20260912-190000', spec: 's', type: 'spawn.end', agent: 'sdd-implementer', model: 'claude-sonnet-5' },
+    ];
+    const out = render(buildModel({ spec: 's', ledger, activity: ACTIVITY, tasksMd: TASKS, handoffMd: HANDOFF }), { now: NOW, width: 120, color: false });
+    // The declared model is the override the Agent call named, with the profile's effort.
+    expect(out).toContain('declared claude-sonnet-5 xhigh');
+    expect(out).toContain('actual claude-sonnet-5');
+    // Declared and actual agree, so no substitution flag.
+    expect(out).not.toContain('claude-sonnet-5 !=');
+  });
+
   it('flags the actual model on the tier line when it differs from the declared profile', () => {
     const ledger: LedgerEvent[] = [
       ...LEDGER,
