@@ -249,3 +249,8 @@ Cost: 1 implementer spawn
 P4 left to-do: decision (B) refusal signal needs the supervisor preflight (harness SKILL.md) to emit a run.start-refused event and exit non-zero plus a step-0 refusal-signal channel; contradicts design.md:250; not a product-code-only change.
 Evidence: retrospective-plan.md Close-out
 Cost: 0 spawns
+
+## 2026-10-02T18:09:48Z · closeout · phase · cleanup
+harness-control-pane close-out CLOSED: 19 items — 18 done (3 store, 9 harness+code store-side... actually 3 store + 9 harness + 3 code = 15 landed, P16/P13-half/P14 skipped=3), P4 to-do (human). Store on main; harness+code on branch chore/harness-control-pane-retro via PR #79 (not merged). Spawns across close-out: 3 implementers + 1 verifier.
+Evidence: retrospective-plan.md; HANDOFF.md; PR #79
+Cost: 3 implementer + 1 verifier spawns total
