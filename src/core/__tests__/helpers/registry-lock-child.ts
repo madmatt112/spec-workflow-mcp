@@ -12,7 +12,7 @@
  *
  * Usage:
  *   registry-lock-child.ts register <workspacePath> <workflowRootPath>
- *   registry-lock-child.ts critical <lockPath> <logPath> <holdMs>
+ *   registry-lock-child.ts critical <lockPath> <logPath> <holdMs> [timeoutMs]
  */
 import { promises as fs } from 'fs';
 import { ProjectRegistry } from '../../project-registry.js';
@@ -41,14 +41,18 @@ async function main(): Promise<string> {
   }
 
   if (mode === 'critical') {
-    const [lockPath, logPath, holdMs] = args;
+    const [lockPath, logPath, holdMs, timeoutMs] = args;
+    // The optional timeout lets the caller poll for acquisition well past the
+    // default 5 s budget: on a loaded runner the serial holds plus scheduler
+    // jitter can exceed that budget and make a contender give up spuriously.
+    const options = timeoutMs !== undefined ? { timeoutMs: Number(timeoutMs) } : {};
     const result = await withRegistryLock(lockPath, async () => {
       // O_APPEND writes of this size are atomic, so an interleaving in the log
       // is an interleaving of the critical sections, not of the writes.
       await fs.appendFile(logPath, `enter ${process.pid}\n`, 'utf-8');
       await new Promise(resolve => setTimeout(resolve, Number(holdMs)));
       await fs.appendFile(logPath, `exit ${process.pid}\n`, 'utf-8');
-    });
+    }, options);
     return `done ${result.acquired ? 'acquired' : 'not-acquired'}`;
   }
 
