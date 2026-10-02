@@ -330,6 +330,14 @@ override: an alias `a` (for example `opus`) matches any model id that starts `cl
 a mismatch, do not act on the report — write a HANDOFF row, print
 `model mismatch: <agent> ran <model>, expected <the expected model>`, and stop the run.
 
+A `PHASE:` line that carries the enum template rather than one value — two or more of the
+listed values separated by `|`, or the literal `<…>` placeholder — is not a decision: the
+orchestrator echoed the contract instead of choosing one. Do not act on it and do not treat
+it as `error` yet: re-spawn the orchestrator once with the same prompt plus the line
+`Report one PHASE value, not the enum template.`, and act on that report. A second
+template-only line is an `error` with reason "orchestrator returned the PHASE enum
+template" (retro P15).
+
 Act on the final `PHASE:` line of the orchestrator's report:
 
 - `approved` or `complete`: call the spec-workflow `harness` tool with
