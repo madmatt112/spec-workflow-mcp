@@ -229,3 +229,8 @@ Cost: unknown
 retrospective compiled: 19 findings (3 gotchas, 3 product bugs, 2 tool/MCP, 3 harness defects, 1 prompt, 2 inefficiencies, 1 model-behaviour, 2 harness-decisions, 2 repeat patterns) and 17 proposals (2 decisions needed, 2 graduation candidates). All 7 live e2e steps now passed; d-69b95f88 ready to resolve.
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 analyst spawn
+
+## 2026-10-02T02:48:01Z · closeout · phase · cleanup
+store batch: P13 (826418e), G1 (6e4b202), G2 (99053de) committed to agent-rules.md on main; P16 skipped (no-change scope decision); P17 deferral d-69b95f88 resolved. All 3 gates pass risk low; store class ok, no verifier.
+Evidence: retrospective-plan.md Close-out; agent-rules.md
+Cost: 1 implementer spawn

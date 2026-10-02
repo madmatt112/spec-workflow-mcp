@@ -217,3 +217,13 @@ Approved by: Matthew (retro conversation, supervisor run run-20261001-202525)
 ## Rejected proposals
 
 None.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P13: done — 826418e
+- G1: done — 6e4b202
+- G2: done — 99053de
+- P16: skipped — no-change scope decision, ratified as-is
+- P17: done — resolved deferral d-69b95f88 (all 7 live e2e steps passed)

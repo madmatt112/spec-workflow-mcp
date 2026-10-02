@@ -424,3 +424,24 @@
 {"ts":"2026-10-01T20:32:47.100Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-10-01T20:33:03.235Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-retro-orchestrator","input":"36","output":"8056","cacheWrite":"82205","cacheRead":"1084179","tokens":"1174476","cacheWrite5m":"82205","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"aa97596b6e8544906"}
 {"ts":"2026-10-01T20:33:09.953Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready"}
+{"ts":"2026-10-02T02:36:18.165Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-10-02T02:40:27.543Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"phase.start","phase":"closeout","state":"items 0/19"}
+{"ts":"2026-10-02T02:41:36.153Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P13","title":"store batch"}
+{"ts":"2026-10-02T02:41:36.176Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P16","title":"store batch"}
+{"ts":"2026-10-02T02:41:36.201Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P17","title":"store batch"}
+{"ts":"2026-10-02T02:41:36.225Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"G1","title":"store batch"}
+{"ts":"2026-10-02T02:41:36.252Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"G2","title":"store batch"}
+{"ts":"2026-10-02T02:42:44.771Z","type":"spawn.start","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-02T02:44:04.775Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"30","output":"849","cacheWrite":"91521","cacheRead":"1008073","tokens":"1100473","cacheWrite5m":"0","cacheWrite1h":"91521","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a50921773a682f6f4"}
+{"ts":"2026-10-02T02:47:00.763Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","input":"22","output":"4077","cacheWrite":"33300","cacheRead":"291432","tokens":"328831","cacheWrite5m":"33300","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a170d821e881a6c44"}
+{"ts":"2026-10-02T02:47:00.763Z","type":"spawn.report","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","report":"All four items handled. Reporting back.","agentId":"a170d821e881a6c44"}
+{"ts":"2026-10-02T02:47:20.634Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","phase":"closeout","result":"P13 G1 G2 done, P16 skipped (no-change)"}
+{"ts":"2026-10-02T02:47:40.931Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P13 pass risk low"}
+{"ts":"2026-10-02T02:47:40.959Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item G1 pass risk low"}
+{"ts":"2026-10-02T02:47:40.984Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item G2 pass risk low"}
+{"ts":"2026-10-02T02:47:41.010Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P13","outcome":"done"}
+{"ts":"2026-10-02T02:47:41.034Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-10-02T02:47:41.058Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"G2","outcome":"done"}
+{"ts":"2026-10-02T02:47:41.081Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P16","outcome":"skipped"}
+{"ts":"2026-10-02T02:47:41.106Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P17","outcome":"done"}
+{"ts":"2026-10-02T02:47:41.128Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"store batch: 3 done (P13 G1 G2), P16 skipped, P17 deferral resolved; verifier spawns skipped: store class ok on gate pass"}
