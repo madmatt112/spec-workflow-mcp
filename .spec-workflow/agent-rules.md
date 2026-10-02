@@ -119,6 +119,10 @@ Machine-read by the review gate. A task that touches any of these is high risk.
 - `harness/hooks/`
 - `.github/workflows/`
 
+A brand-new module with no code at base routes structural-red -> high risk -> verifier by
+default. When a whole phase is new-module TDD tasks, the tasks-phase decomposition states
+the expected verifier count up front so the spend is a planned figure, not a surprise.
+
 ## Generated paths
 
 Machine-read by the review gate: changed lines under these paths do not count toward the
