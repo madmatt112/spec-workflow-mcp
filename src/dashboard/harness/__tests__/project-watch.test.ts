@@ -439,6 +439,36 @@ describe('ProjectHarnessWatch', () => {
     expect(latest.data.model?.livePhase?.phase).toBe('document');
   }, 15000);
 
+  it('sees a spec file created after start() without a launch-update re-arm', async () => {
+    // The spec resolves from HANDOFF at start(), but harness-events.jsonl does
+    // not exist yet: a single-file-path watch would miss its first creation
+    // (chokidar 3.6.0). The containing-directory watch must catch it with no
+    // launch-update emitted.
+    const { project, workflowRoot, specDir } = await makeProject('spec-late');
+    writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffFixture('spec-late'));
+
+    const messages: HarnessMessage[] = [];
+    const { launcher } = stubLauncher(() => null);
+    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    watches.push(watch);
+
+    await watch.start();
+    await waitFor(() => ofType(messages, 'harness-model').length > 0);
+    const before = ofType(messages, 'harness-model').length;
+
+    const runId = 'run-late';
+    const now = () => new Date().toISOString();
+    writeFileSync(
+      join(specDir, 'harness-events.jsonl'),
+      JSON.stringify({ ts: now(), type: 'run.start', run: runId, spec: 'spec-late' }) + '\n' +
+        JSON.stringify({ ts: now(), type: 'phase.start', run: runId, phase: 'document', mode: 'auto', state: 'in-progress' }) + '\n',
+    );
+
+    await waitFor(() => ofType(messages, 'harness-model').slice(before).some((m) => m.data.model?.livePhase?.phase === 'document'), 5000);
+    const latest = ofType(messages, 'harness-model').slice(-1)[0];
+    expect(latest.data.model?.livePhase?.phase).toBe('document');
+  }, 15000);
+
   it('sends complete log lines in order and holds a partial line until its newline', async () => {
     const { project, workflowRoot, specDir } = await makeProject('spec-c');
     writeMinimalFixture(workflowRoot, specDir, 'spec-c', 'run-c', new Date(Date.now() - 60000).toISOString());

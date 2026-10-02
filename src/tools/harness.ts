@@ -664,6 +664,7 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   }
 
   // The implementer template's task block comes from the parser, byte for byte (2.2).
+  let tddMarked = false;
   if (body.includes('{{taskBlock}}')) {
     if (typeof taskId !== 'string' || taskId.length === 0) {
       return { success: false, message: `brief: template '${template}' needs a taskId; no file written` };
@@ -691,11 +692,22 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
         return { success: false, message: `brief: task ${taskId} has no Test: line; no file written` };
       }
     }
+
+    // An implementer brief for a TDD-marked task — its block carries a `- Test:` seam, so
+    // the parser gives it `tests` — must carry the red tests; a non-TDD task briefs without
+    // them (retro P8). The marker gates the redTests default below.
+    if (template === 'implementer') {
+      const task = parseTasksFromMarkdown(tasksContent).tasks.find((t) => t.id === taskId);
+      tddMarked = !!task?.tests && task.tests.length > 0;
+    }
   }
 
   // Optional placeholder keys default to '' so an absent one neither trips the
   // missing-value check below nor fills as the string 'undefined' (Component 5).
+  // Exception: on a TDD-marked implementer brief `redTests` is required, so it is not
+  // defaulted and the missing-value check below reports it (retro P8).
   for (const key of OPTIONAL_BRIEF_KEYS) {
+    if (key === 'redTests' && tddMarked) continue;
     if (values[key] === undefined || values[key] === null) values[key] = '';
   }
 

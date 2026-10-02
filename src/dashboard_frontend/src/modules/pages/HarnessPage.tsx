@@ -628,12 +628,13 @@ function SpawnRow({ spawn, profile, t }: { spawn: SpawnNode; profile?: AgentProf
 function OpErrorBody({ error }: { error: OpError }) {
   const { t } = useTranslation();
   const body = error.body || {};
-  // 409 run-live: reason and run id
+  // 409 run-live: reason, run id and (before run.start lands) the live PID
   if (body.error === 'run-live') {
     return (
       <div className="text-sm text-[var(--text-primary)] space-y-1">
         <Row label={t('harness.error.runLive')} value={body.reason} />
         <Row label={t('harness.error.runId')} value={body.runId} />
+        <Row label={t('harness.error.pid')} value={body.pid} />
       </div>
     );
   }

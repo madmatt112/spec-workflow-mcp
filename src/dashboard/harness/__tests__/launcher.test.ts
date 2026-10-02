@@ -471,7 +471,9 @@ describe('HarnessLauncher', () => {
     const record = await launcher.launch(project, file, null);
     pgidsToKill.push(record.pgid);
 
-    expect(launcher.admission(project)).toEqual({ ok: false, runId: record.runId, reason: expect.any(String) });
+    // The live-record refusal names the PID so the page has an identifier
+    // before run.start sets the run id (retro P6).
+    expect(launcher.admission(project)).toEqual({ ok: false, runId: record.runId, reason: expect.any(String), pid: record.pid });
   });
 
   it('two launch() calls in one tick give one record and one admission LaunchError, and the run file survives', async () => {

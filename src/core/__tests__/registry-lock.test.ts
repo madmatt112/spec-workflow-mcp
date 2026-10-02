@@ -164,8 +164,13 @@ describe('withRegistryLock — concurrent registration (requirements 6.1, 6.2)',
       await fs.utimes(lockPath, longAgo, longAgo);
 
       const contenders = 4;
+      // Poll for acquisition well past the default 5 s budget: a loaded runner
+      // can stretch the serial 150 ms holds and the retry waits past it, which
+      // used to make a contender give up and the log come up short. 60 s stays
+      // safely inside this test's 120 s bound.
+      const acquireTimeoutMs = String(DEFAULT_LOCK_TIMEOUT_MS * 12);
       const results = await runConcurrently(
-        Array.from({ length: contenders }, () => ['critical', lockPath, logPath, '150']),
+        Array.from({ length: contenders }, () => ['critical', lockPath, logPath, '150', acquireTimeoutMs]),
         { [SPEC_WORKFLOW_HOME_ENV]: globalDir }
       );
 

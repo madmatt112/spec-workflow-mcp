@@ -694,6 +694,7 @@
       "value": "Value",
       "reason": "Reason",
       "runId": "Run id",
+      "pid": "PID",
       "step": "Step",
       "detail": "Detail",
       "notLaunchable": "Not launchable",

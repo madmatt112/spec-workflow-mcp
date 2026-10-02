@@ -22,6 +22,7 @@ Standing rules:
 - Write one test per success criterion. Take every expected value from the criteria, reach the behaviour only through the `Test:` line's call, and mock no collaborator inside the module under test.
 - Create no stub and change no path that is not a test path.
 - Run the test files and see every test fail. If a test passes on its first run, rewrite it until it fails, or report `RED-IMPOSSIBLE: <criterion>` when the current code already meets the criterion.
+- List only tests and checks that can fail at base. A green regression guard over an unchanged file — a check that already passes before any implementation exists — is not a red test: leave it out of your red test list and name it for the implementer brief instead (retro P12).
 - Record every folded or dropped success criterion in your report. When one test covers two criteria, or you drop a criterion as `RED-IMPOSSIBLE`, name its acceptance-criterion id and where its coverage actually lives — the test file and case that covers it, or the earlier task or existing code that already satisfies it. An unrecorded fold or drop is a silent coverage gap (retro P6).
 - If the call cannot be reached as the design describes it, report `SEAM-DEFECT: <one line>` and commit nothing.
 - On a stop that commits nothing — `SEAM-DEFECT`, or `RED-IMPOSSIBLE` for every criterion — delete the test files you wrote and did not commit before you report, so no stray test file is left in the tree for the next run.

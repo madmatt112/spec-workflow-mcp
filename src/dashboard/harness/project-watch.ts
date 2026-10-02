@@ -5,7 +5,7 @@
 // the parsers import nothing from the dashboard server.
 import { openSync, closeSync, readSync, fstatSync } from 'fs';
 import { once } from 'events';
-import { join } from 'path';
+import { join, dirname, basename } from 'path';
 import chokidar from 'chokidar';
 import {
   parseHandoffActiveSpec, buildModel, parseJsonl, AGENT_PROFILES,
@@ -72,6 +72,14 @@ const WATCH_OPTS = {
   awaitWriteFinish: { stabilityThreshold: 150, pollInterval: 50 },
 } as const;
 
+/**
+ * The spec-directory files and the HANDOFF whose change schedules a rebuild.
+ * The watch is on the containing directory, so an event is filtered by basename.
+ */
+const WATCHED_FILES = new Set([
+  'harness-events.jsonl', 'harness-activity.jsonl', 'tasks.md', 'questions.md', 'HANDOFF.md',
+]);
+
 /** The read-if-exists helper renderOnce uses (src/watch/index.ts:26-32). */
 function readIfExists(path: string): string | undefined {
   try {
@@ -112,6 +120,7 @@ export class ProjectHarnessWatch {
   private readonly debounceMs: number;
 
   private spec: string | null = null;
+  private handoffWatcher?: FSWatcher;
   private specWatcher?: FSWatcher;
   private logWatcher?: FSWatcher;
   private rebuildTimer?: NodeJS.Timeout;
@@ -151,6 +160,7 @@ export class ProjectHarnessWatch {
 
   private async whenWatchersReady(): Promise<void> {
     const waits: Promise<unknown>[] = [];
+    if (this.handoffWatcher) waits.push(once(this.handoffWatcher, 'ready'));
     if (this.specWatcher) waits.push(once(this.specWatcher, 'ready'));
     if (this.logWatcher) waits.push(once(this.logWatcher, 'ready'));
     await Promise.all(waits);
@@ -182,8 +192,10 @@ export class ProjectHarnessWatch {
     this.closed = true;
     if (this.rebuildTimer) { clearTimeout(this.rebuildTimer); this.rebuildTimer = undefined; }
     this.launcher.removeListener('launch-update', this.onLaunchUpdate);
+    void this.handoffWatcher?.close();
     void this.specWatcher?.close();
     void this.logWatcher?.close();
+    this.handoffWatcher = undefined;
     this.specWatcher = undefined;
     this.logWatcher = undefined;
   }
@@ -197,20 +209,29 @@ export class ProjectHarnessWatch {
   }
 
   private armSpecWatch(): void {
+    void this.handoffWatcher?.close();
     void this.specWatcher?.close();
-    const paths = [handoffPath(this.workflowRoot)];
+    this.specWatcher = undefined;
+    // Watch the containing directories (not the file paths) and filter by
+    // filename, the pattern OverviewWatch.armState uses (overview-watch.ts):
+    // chokidar 3.6.0 does not report the first creation of a single file path
+    // that never existed, so a ledger, activity, tasks.md or questions.md
+    // created after start() would be missed until the next launch-update
+    // re-arm. A depth-0 directory watch sees that first creation at once.
+    const handoff = handoffPath(this.workflowRoot);
+    this.handoffWatcher = chokidar.watch(dirname(handoff), { ...WATCH_OPTS, depth: 0 });
+    this.handoffWatcher.on('add', this.onWatchedFile).on('change', this.onWatchedFile).on('unlink', this.onWatchedFile);
     if (this.spec) {
       const specDir = join(this.workflowRoot, 'specs', this.spec);
-      paths.push(
-        join(specDir, 'harness-events.jsonl'),
-        join(specDir, 'harness-activity.jsonl'),
-        join(specDir, 'tasks.md'),
-        join(specDir, 'questions.md'),
-      );
+      this.specWatcher = chokidar.watch(specDir, { ...WATCH_OPTS, depth: 0 });
+      this.specWatcher.on('add', this.onWatchedFile).on('change', this.onWatchedFile).on('unlink', this.onWatchedFile);
     }
-    this.specWatcher = chokidar.watch(paths, WATCH_OPTS);
-    this.specWatcher.on('add', this.schedule).on('change', this.schedule).on('unlink', this.schedule);
   }
+
+  /** Schedule a rebuild only for the ledger, activity, tasks, questions or HANDOFF file. */
+  private onWatchedFile = (changedPath: string): void => {
+    if (WATCHED_FILES.has(basename(changedPath))) this.schedule();
+  };
 
   private schedule = (): void => {
     if (this.closed) return;

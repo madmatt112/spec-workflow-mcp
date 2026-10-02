@@ -602,6 +602,8 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     expect(second.status).toBe(409);
     expect(second.body.error).toBe('run-live');
     expect(second.body.runId).toBe('run-fixed-1');
+    // The live-record refusal carries the PID so the page can name the run (retro P6).
+    expect(second.body.pid).toBe(first.body.launch.pid);
   });
 
   it('a pointer line in the project gives 409 naming it', async () => {

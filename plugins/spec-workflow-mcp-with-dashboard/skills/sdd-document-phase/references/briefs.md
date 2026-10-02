@@ -226,6 +226,11 @@ verdict block). Append:
   references has its full field shape pinned in Data Models, not only its union arms. A
   named result object whose shape is given only through its union members, with no
   enumerated fields, is a MUST_FIX.>
+- <design: Error-branch shape — every named error branch, a race loser included, pins both
+  its error-type discriminant (for example a `LaunchError.step` value) and its response
+  status code in the design, not only its message, before the phase closes. A named error
+  branch that leaves its discriminant or its status code unstated is a MUST_FIX; left
+  unpinned here, a race-loser shape is carried unresolved into tasks (retro P3).>
 - <tasks phase, gate B: if a task introduces a new external dependency, number it as a
   normal finding and append `[gate-b:T<task id>]` to that finding's title; if a task does
   more than the approved requirements ask, append `[gate-c:T<task id>]`. Judge from the
@@ -342,6 +347,11 @@ RI-2: <text>>
     new producer the delta introduced has a named consumer, and every acceptance criterion
     the delta touched stays consistent with the rest of the document. Record this as part of
     the fix-induced re-check (retro P7).
+15. Post-trim citation check. After any trim that removes a line to keep the document under
+    its cap, re-verify that every surviving accepted acceptance criterion still carries its
+    original citation, anchored to the exact phrase it supports. Never relocate a citation
+    onto an unrelated note to save a line. A trim that drops an accepted AC's citation, or
+    moves one off the phrase it cited, is a MUST_FIX next round (retro P1).
 ```
 
 ## Lint brief — `reviews/lint-brief-<PHASE>-v<D>.md`
