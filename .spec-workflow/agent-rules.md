@@ -30,7 +30,9 @@ Run each as its own command. Never run the Playwright e2e suites unless the task
 
 CI runs node 20 (`.github/workflows/ci.yml:20`); local node is 24. A test that asserts on
 `child_process`, `fs` or stream behaviour asserts only on fields the node 20 docs
-guarantee, and the design says which.
+guarantee, and the design says which. A design probe that informs a timing or
+stream-ordering decision runs under node 20 too, not just the tests that assert the
+node-20 fields.
 
 ## Git
 
