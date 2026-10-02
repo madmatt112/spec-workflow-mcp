@@ -75,6 +75,12 @@ node-20 fields.
   Skip-regexes for `_Leverage:` / `_Prompt:` lines must match the template's indented
   sub-bullet form (`  - _Prompt:`).
 
+## Citations
+
+- A cap or lint trim never moves a citation off the phrase it supports and never drops a
+  citation from an accepted AC. After any trim that removes lines, re-verify that every
+  surviving accepted AC still carries its original citation anchored to its quoted text.
+
 ## Run ledger
 
 Only the supervisor creates or writes `/tmp/scratchpad/sdd/<spec>/event.sh`, its
