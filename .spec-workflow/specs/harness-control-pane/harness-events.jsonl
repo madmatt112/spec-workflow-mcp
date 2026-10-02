@@ -484,3 +484,29 @@
 {"ts":"2026-10-02T03:31:40.347Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P15","outcome":"done"}
 {"ts":"2026-10-02T03:31:40.370Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P14","outcome":"skipped"}
 {"ts":"2026-10-02T03:31:40.393Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"harness batch: 9 done (P1 P3 P5 P8 P9 P10 P11 P12 P15), P13 harness-half skipped (covered by agent-rules.md), P14 skipped (decision A); 1 verifier spawn (P5 high-risk hooks path)"}
+{"ts":"2026-10-02T03:31:55.222Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P2","title":"code batch"}
+{"ts":"2026-10-02T03:31:55.249Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P4","title":"code batch"}
+{"ts":"2026-10-02T03:31:55.275Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P6","title":"code batch"}
+{"ts":"2026-10-02T03:31:55.299Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P7","title":"code batch"}
+{"ts":"2026-10-02T03:31:58.126Z","type":"spawn.start","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-02T03:32:00.825Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"62","output":"2029","cacheWrite":"119186","cacheRead":"2699675","tokens":"2820952","cacheWrite5m":"0","cacheWrite1h":"119186","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a50921773a682f6f4"}
+{"ts":"2026-10-02T17:42:44.228Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.end","agent":"sdd-closeout-orchestrator","result":"interrupted","tokens":"unknown","note":"Claude Code process exited (machine restart); last row spawn.start sdd-implementer closeout (code batch P2 P4 P6 P7)"}
+{"ts":"2026-10-02T17:42:44.254Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 2","phase":"closeout"}
+{"ts":"2026-10-02T17:44:46.214Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"phase.start","phase":"closeout","state":"items 15/19"}
+{"ts":"2026-10-02T17:45:05.675Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P2","title":"Watch the containing directory for not-yet-created files"}
+{"ts":"2026-10-02T17:45:05.696Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P4","title":"Signal a supervisor-model refusal instead of a clean exit"}
+{"ts":"2026-10-02T17:45:05.719Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P6","title":"Name the PID in the pre-run.start refusal window"}
+{"ts":"2026-10-02T17:45:05.741Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P7","title":"Deflake the stale-lock critical-section test"}
+{"ts":"2026-10-02T17:46:06.499Z","type":"spawn.start","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-02T17:46:08.430Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"28","output":"62","cacheWrite":"67423","cacheRead":"722926","tokens":"790439","cacheWrite5m":"0","cacheWrite1h":"67423","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ab04df0aa64933038"}
+{"ts":"2026-10-02T18:06:18.020Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","input":"128","output":"38142","cacheWrite":"199662","cacheRead":"8812111","tokens":"9050043","cacheWrite5m":"199662","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ab630db4d5f6f753d"}
+{"ts":"2026-10-02T18:06:18.020Z","type":"spawn.report","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","report":"All three code items are committed on `chore/harness-control-pane-retro`; working tree clean. P4 is reported to-do. Delivering my report.","agentId":"ab630db4d5f6f753d"}
+{"ts":"2026-10-02T18:06:33.860Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 1","phase":"closeout","result":"P2 P6 P7 done; P4 to-do (harness+design slice)"}
+{"ts":"2026-10-02T18:07:00.000Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-10-02T18:07:18.120Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P6 pass risk low"}
+{"ts":"2026-10-02T18:07:48.725Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-10-02T18:07:48.747Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-10-02T18:07:48.770Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-10-02T18:07:48.794Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-10-02T18:07:48.817Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P4","outcome":"to-do"}
+{"ts":"2026-10-02T18:07:48.839Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"P4 to-do (human): refusal-signal needs harness SKILL.md + design.md slice, not product-code-only"}

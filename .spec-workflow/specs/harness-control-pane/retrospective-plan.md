@@ -237,3 +237,8 @@ One line per proposal, written by the close-out phase.
 - P12: done — a783031
 - P14: skipped — decision (A) keep as-is, no harness change
 - P15: done — cca6e82
+- P2: done — 28265e4
+- P6: done — 20ce08e
+- P7: done — e675405
+- P4: to-do (human) — decision (B) refusal signal is not a product-code-only change: it needs the supervisor preflight (harness SKILL.md) to emit a run.start-refused event and exit non-zero, a new refusal-signal channel at step 0 (no spec/ledger yet), and reconciling design.md:250 ("exits non-zero before any ledger row"); plan it as a harness + design slice
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/79

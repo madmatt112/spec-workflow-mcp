@@ -239,3 +239,13 @@ Cost: 1 implementer spawn
 harness batch (retro worktree, branch chore/harness-control-pane-retro): 9 done (P1 385ba62, P3 e2beaa4, P5 3583c68, P8 741082d, P9 e9dd880, P10 f1aed28, P11 3ab5d23, P12 a783031, P15 cca6e82); P13 harness-half skipped (node-20 probe already deferred to agent-rules.md); P14 skipped (decision A). All gates pass; P5 high-risk (sensitive hooks path) verified pass; other 8 low risk. PR opened after code batch.
 Evidence: retrospective-plan.md Close-out
 Cost: 1 implementer + 1 verifier spawn
+
+## 2026-10-02T18:08:03Z · closeout · phase · cleanup
+code batch (retro worktree, branch chore/harness-control-pane-retro): 3 done (P2 28265e4, P6 20ce08e, P7 e675405); P4 to-do (refusal signal is a harness SKILL.md + design.md slice, not product-code-only). All 3 gates pass risk low; code class low risk, no verifier.
+Evidence: retrospective-plan.md Close-out
+Cost: 1 implementer spawn
+
+## 2026-10-02T18:08:03Z · closeout · task P4 · deviation
+P4 left to-do: decision (B) refusal signal needs the supervisor preflight (harness SKILL.md) to emit a run.start-refused event and exit non-zero plus a step-0 refusal-signal channel; contradicts design.md:250; not a product-code-only change.
+Evidence: retrospective-plan.md Close-out
+Cost: 0 spawns
