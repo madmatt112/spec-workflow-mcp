@@ -75,6 +75,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-09-28 | harness-control-pane | design | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-09-28 | harness-control-pane | tasks | v2 | approved | 2 rounds, iterate→converged |
 | 2026-09-29 | harness-control-pane | implementation | tasks 20/20 | complete | PR #76 green; 1 CI fix (launcher node-20 race) + 1 flaky rerun; live e2e deferred d-69b95f88 |
+| 2026-10-01 | harness-control-pane | retrospective | n/a | retro-ready | 19 findings, 17 proposals, 2 graduation candidates |
+| 2026-10-01 | harness-control-pane | retrospective | APPROVED | approved | all 17 proposals + G1-G2 approved; P4 (B) preflight signal, P14 (A) keep as-is; close-out next |
 
 ## Current state — 2026-08-04
 
