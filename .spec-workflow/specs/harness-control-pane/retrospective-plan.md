@@ -227,3 +227,13 @@ One line per proposal, written by the close-out phase.
 - G2: done — 99053de
 - P16: skipped — no-change scope decision, ratified as-is
 - P17: done — resolved deferral d-69b95f88 (all 7 live e2e steps passed)
+- P1: done — 385ba62
+- P3: done — e2beaa4
+- P5: done — 3583c68
+- P8: done — 741082d
+- P9: done — e9dd880
+- P10: done — f1aed28
+- P11: done — 3ab5d23
+- P12: done — a783031
+- P14: skipped — decision (A) keep as-is, no harness change
+- P15: done — cca6e82

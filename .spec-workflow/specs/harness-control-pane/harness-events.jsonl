@@ -445,3 +445,42 @@
 {"ts":"2026-10-02T02:47:41.081Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P16","outcome":"skipped"}
 {"ts":"2026-10-02T02:47:41.106Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P17","outcome":"done"}
 {"ts":"2026-10-02T02:47:41.128Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"store batch: 3 done (P13 G1 G2), P16 skipped, P17 deferral resolved; verifier spawns skipped: store class ok on gate pass"}
+{"ts":"2026-10-02T02:48:07.098Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P1","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.124Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P3","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.149Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P5","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.174Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P8","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.198Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P9","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.222Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P10","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.245Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P11","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.269Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P12","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.294Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P14","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.319Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.pick","task":"P15","title":"harness batch"}
+{"ts":"2026-10-02T02:48:07.441Z","type":"spawn.start","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-02T02:48:23.288Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"42","output":"1535","cacheWrite":"98933","cacheRead":"1579643","tokens":"1680153","cacheWrite5m":"0","cacheWrite1h":"98933","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a50921773a682f6f4"}
+{"ts":"2026-10-02T03:23:05.713Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","input":"170","output":"44912","cacheWrite":"464232","cacheRead":"14348392","tokens":"14857706","cacheWrite5m":"464232","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"acbc25778c2dbd0ed"}
+{"ts":"2026-10-02T03:23:05.713Z","type":"spawn.report","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-implementer","report":"All 9 actionable items are committed, two are skipped per the brief, and the worktree is clean. Here is my report.","agentId":"acbc25778c2dbd0ed"}
+{"ts":"2026-10-02T03:24:11.767Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"9 done (P1 P3 P5 P8 P9 P10 P11 P12 P15), P13 P14 skipped"}
+{"ts":"2026-10-02T03:25:32.625Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-10-02T03:25:32.652Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-10-02T03:25:32.679Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-10-02T03:25:32.704Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P11 pass risk low"}
+{"ts":"2026-10-02T03:25:32.729Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P12 pass risk low"}
+{"ts":"2026-10-02T03:25:32.754Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P15 pass risk low"}
+{"ts":"2026-10-02T03:25:32.780Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-10-02T03:25:32.806Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P10 pass risk low"}
+{"ts":"2026-10-02T03:25:32.831Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"gate: item P5 pass risk high"}
+{"ts":"2026-10-02T03:25:42.562Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-closeout-orchestrator","input":"52","output":"1575","cacheWrite":"114996","cacheRead":"2115097","tokens":"2231720","cacheWrite5m":"0","cacheWrite1h":"114996","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a50921773a682f6f4"}
+{"ts":"2026-10-02T03:31:24.461Z","type":"spawn.end","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-verifier","input":"28","output":"899","cacheWrite":"35839","cacheRead":"363088","tokens":"399854","cacheWrite5m":"35839","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a050b93feacaa12d9"}
+{"ts":"2026-10-02T03:31:24.461Z","type":"spawn.report","run":"run-20261001-202525","spec":"harness-control-pane","agent":"sdd-verifier","report":"The change is verified complete. Confirmed:\n\n- Hook (`harness/hooks/sdd-activity.sh:216-218`): the new `model` field is additive — `startRow` retains the existing spawn.start keys (`ts, type, run, spec, agent, role`) unchanged, and `model` is appended only when `ti.model` is present (`if (ti.model)`). No change to existing behaviour. Correct file; the three `plugins/` copies are the required generated mirrors.\n- Plumbing: `LedgerEvent` index signature carries `e.model`; `buildModel` sets `declaredModel: e.model` (ledger.ts:296); `render.ts` shows it as declared with fallback to `profile?.model` and updates the `!=` flag to compare against the declared model. This is exactly the \"show that value as declared\" half of the proposal.\n- Scope: only hook + 4 mirrors + watch display + two test files. No more, no less. Matches the approved-as-proposed decision.","agentId":"a050b93feacaa12d9"}
+{"ts":"2026-10-02T03:31:40.135Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"spawn.usage","agent":"sdd-verifier","role":"verify harness batch 1","phase":"closeout","result":"P5 ok, VERDICT pass"}
+{"ts":"2026-10-02T03:31:40.161Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.186Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.209Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.233Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.256Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.280Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P10","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.302Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.324Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P12","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.347Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P15","outcome":"done"}
+{"ts":"2026-10-02T03:31:40.370Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"task.done","task":"P14","outcome":"skipped"}
+{"ts":"2026-10-02T03:31:40.393Z","run":"run-20261001-202525","spec":"harness-control-pane","type":"note","text":"harness batch: 9 done (P1 P3 P5 P8 P9 P10 P11 P12 P15), P13 harness-half skipped (covered by agent-rules.md), P14 skipped (decision A); 1 verifier spawn (P5 high-risk hooks path)"}

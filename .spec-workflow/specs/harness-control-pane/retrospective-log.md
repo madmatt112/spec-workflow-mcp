@@ -234,3 +234,8 @@ Cost: 1 analyst spawn
 store batch: P13 (826418e), G1 (6e4b202), G2 (99053de) committed to agent-rules.md on main; P16 skipped (no-change scope decision); P17 deferral d-69b95f88 resolved. All 3 gates pass risk low; store class ok, no verifier.
 Evidence: retrospective-plan.md Close-out; agent-rules.md
 Cost: 1 implementer spawn
+
+## 2026-10-02T03:31:55Z · closeout · phase · cleanup
+harness batch (retro worktree, branch chore/harness-control-pane-retro): 9 done (P1 385ba62, P3 e2beaa4, P5 3583c68, P8 741082d, P9 e9dd880, P10 f1aed28, P11 3ab5d23, P12 a783031, P15 cca6e82); P13 harness-half skipped (node-20 probe already deferred to agent-rules.md); P14 skipped (decision A). All gates pass; P5 high-risk (sensitive hooks path) verified pass; other 8 low risk. PR opened after code batch.
+Evidence: retrospective-plan.md Close-out
+Cost: 1 implementer + 1 verifier spawn
