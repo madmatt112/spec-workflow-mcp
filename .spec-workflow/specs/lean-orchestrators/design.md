@@ -50,7 +50,7 @@ graph LR
 - **Interfaces:** `breakdownTranscript(text: string): TranscriptBreakdown | null`. It returns null when the text holds no assistant line with `message.usage`.
 - **Algorithm (normative):**
   1. Parse each line as JSON; skip lines that do not parse.
-  2. A call is the assistant lines sharing a `message.id` (a line with no id is its own call). Its usage is its **last** line's, as `readUsage` keeps it (`harness/hooks/sdd-activity.sh:70-87`); its context is the blocks appended before its **first** line.
+  2. A call is the assistant lines sharing a `message.id` (a line with no id is its own call). Its usage is its **last** line's, as `readUsage` keeps it (`harness/hooks/sdd-activity.sh:68-87`); its context is the blocks appended before its **first** line.
   3. Label blocks with the table below. Size is characters; a tool result sums its text parts and takes JSON length for a non-text part.
   4. Per call, `ctx = input_tokens + cache_creation_input_tokens + cache_read_input_tokens` and `inW = input_tokens + 1.25·ephemeral_5m + 2·ephemeral_1h + 0.1·cache_read_input_tokens`; a missing field counts 0.
   5. `base = max(0, ctx₁ − C₁/3.5)`, sized once from the transcript's first call, `C₁` its preceding characters. For call k, `b = min(base, ctx_k)`: `base` gets `inW·b/ctx_k`, source s gets `inW·((ctx_k − b)/ctx_k)·(chars_s/C_k)`; when `C_k` or `ctx_k` is 0, `base` gets all of `inW`.
@@ -92,7 +92,7 @@ implementation | sdd-implementation-orchestrator | a46fec387251fb6c6 | calls 127
 - **Interfaces:** for `implementation`, `data` adds:
   - `queue: QueuedTask[]`: the `[-]` task, then the `[ ]` tasks in file order, without header tasks (the rule at `src/core/task-parser.ts:490-492`).
   - `nextTask`: `queue[0]` or null.
-  - `decomposition: { title: string | null; scenario: string | null }`, only when `nextStep` is `Completion gate` or `Repair`. It reads `spec-decomposition/decomposition.md` through `safeJoin`; the entry runs from the first `### ` line holding the backticked slug to the next `### ` or `## ` line; the title is the heading text after the slug; the scenario runs from the line starting `**End-to-end verification` (`.**` form, `.spec-workflow/spec-decomposition/decomposition.md:771`; `**:` form, `/home/mcf/repo/tradr-hosted/.spec-workflow/spec-decomposition/decomposition.md:72`) to before the next line starting `**` or `#`. Anything missing gives null.
+  - `decomposition: { title: string | null; scenario: string | null }`, only when `nextStep` is `Completion gate` or `Repair`. It reads `spec-decomposition/decomposition.md` through `safeJoin`; the entry runs from the first `### ` line holding the backticked slug to the next `### ` or `## ` line; the title is the heading text after the slug; the scenario runs from the line starting `**End-to-end verification` (`.**` form, `.spec-workflow/spec-decomposition/decomposition.md:771`; the parser also accepts the `**:` form) to before the next line starting `**` or `#`. Anything missing gives null.
 
 ### C6 — Server brief templates (`src/tools/brief-templates.ts`)
 - **Purpose:** Requirement 3 criteria 3 and 4.
@@ -270,3 +270,4 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 ## Revision History
 
 - **v1** (2026-10-02) — Initial draft.
+  - **Lint pass.** 2 fixed (readUsage citation tightened to the line the symbol starts on; cross-repo absolute path dropped from the C5 scenario-form note, keeping the in-repo citation); rejected: the 45 remaining citation-identifier warnings — all name design-introduced identifiers (new types and fields such as the W and unknown-W cells, per-unit fields, the orient queue and next-task, and the new worker report keys), data values matched against behaviour code, or cross-file tokens the rule mis-associated with a correct behavioural citation; each cited range was re-verified to anchor its adjacent claim.
