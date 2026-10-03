@@ -1,64 +1,69 @@
 # Adversarial Review Memory — tasks
-
-Last updated: 2026-10-03 (round 1)
+Last updated: 2026-10-03 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1 just delivered)
+- **R1-1 (v1, SHOULD_FIX).** `reconcile` fix variant had no source/consumer. Fixed in v2:
+  task 9 sources `ci`+`reconcile` from briefs.md:232-253; task 13 names the Reconcile step
+  as consumer. **Verified accurate in round 2** (Reconcile step uses reviser template with
+  CI-fix content; verifier/ci from :255-267).
+- **R1-2 (v1, SHOULD_FIX).** Task 11 report-cap grep swept frontmatter + out-of-scope agents.
+  Fixed in v2: grep scoped to `harness/agents`; all 14 hits dispositioned; implementer
+  frontmatter :3 corrected to 80. **Verified clean in round 2.**
+- **R1-3 (v1, SHOULD_FIX).** Task 13 20-task grep reached :291 (task 14's line). Fixed in
+  v2: grep scoped to `harness/skills/sdd-implementation-phase docs/SDD-HARNESS.md` + "twenty
+  tasks". **Verified: no longer hits :291.**
+- **R1-4 (v1, SHOULD_FIX).** Task 14 guard grep missed the word-form "twelve" doc statement.
+  Fixed in v2: grep adds "twelve spawns"; points at SDD-HARNESS.md:130-134/:133. **Verified:
+  finds :379 and :133.**
+- **R1-5 (v1, MINOR).** Inert six/drafter-reviser grep. Fixed in v2: tasks 7/10 now prove no
+  brief-kind count word exists. **Verified: grep returns nothing.**
 
 ### Partially Accepted
 - (none)
 
 ### Rejected
-- (none)
+- (none from the drafter yet)
+- Lint L-2/L-3/L-4 (v2 lint pass) rejected as scope-boundary notes, not bridges. Not re-raised.
 
-### Unresolved (round 1, awaiting drafter)
-- **R1-1 — SHOULD_FIX.** Task 9 lists a `reconcile` variant of the `fix` kind (design C6)
-  with no verbatim source and no rule distinguishing it from `ci`; unbuildable cold, and
-  task 13 never consumes a `reconcile` fix variant. Cite its source or fold into `ci`.
-- **R1-2 — SHOULD_FIX.** Task 11's grep `"150 words\|120 words\|100 words"` over
-  `harness/agents docs/SDD-HARNESS.md` hits (a) `sdd-implementer.md:3` frontmatter (task
-  forbids frontmatter edits; leaves it stating 150 vs new 80-word cap), (b)
-  `sdd-retro-analyst.md:26` (out-of-scope; retro orchestrator keeps its shape), (c)
-  `docs/SDD-HARNESS.md:78` "each task block 150 words" (task-block size, not a report cap).
-  "orchestrator caps stay" does not cover these.
-- **R1-3 — SHOULD_FIX.** Task 13's grep `"20 tasks\|default 20\|20-task"` over `harness…`
-  returns `sdd-continue/SKILL.md:291` — the supervisor launch line that task 14 owns and
-  that is NOT in task 13's File list. Its only exception names
-  `docs/harness-efficiency-plan.md`, outside the grep scope. Scope the grep to the impl
-  skill or except :291.
-- **R1-4 — SHOULD_FIX.** Task 14's grep `"12 orchestrator spawns\|Runaway guard"` misses
-  `docs/SDD-HARNESS.md:133` ("More than twelve spawns for one phase is an error" — spelled
-  "twelve", no "Runaway guard" label). The phase-agnostic statement then ships wrong for
-  implementation. "finds each statement" is false.
-- **R1-5 — MINOR.** Tasks 7/10 grep `"six\|drafter, reviser"` finds only false positives
-  (`harness.test.ts:50` "six fixture states"; `TOOLS-REFERENCE.md:523` "sixteen" rules — a
-  correct count); no brief-kind count word exists. "update every count word it finds" risks
-  corrupting "sixteen". Tasks 8/9 (the real count-changers) name no count grep.
+### Unresolved (round 2, awaiting drafter)
+- **R2-1 — SHOULD_FIX (Compounds R1-1, carried).** Task 13 directs only the Reconcile (and
+  e2e) brief re-point. The kept Per-task loop (Implement `redTests`→`authorFiles`/`authorReport`
+  at SKILL.md:146-153; full/narrow verify :221-248; Fix rounds `template: reviser` :236-238;
+  task adjudication :245) and the Repair step (:493-504, `fix`/`ci`+`fix`/`repair`) are never
+  named, yet tasks 8/9 replace those templates and task 13 deletes briefs.md. Task 12 has the
+  blanket "every brief/prompt block comes from the kinds"; task 13 lacks it. Skill-split test
+  (headings) + 3 harness checks do not catch an incomplete re-point.
+- **R2-2 — MINOR (Compounds R1-2, fix-induced).** Task 11 keeps `docs/SDD-HARNESS.md` in its
+  File list but the R1-2 fix removed the only edit to it; "Note the block ... where it
+  describes worker reports" points at no real block (only a formats pointer at :155).
+- **R2-3 — MINOR (Novel, carried).** Task 12 over-cites "tasks 8 and 9" as the source for the
+  document-phase split; document phase uses only task 8's kinds. The blanket it carries is
+  what task 13 is missing (R2-1).
 
-## Rulings carried (closed on reviewer authority)
-- **Req 7.3 runaway-guard basis → refinement (closed).** Design D14 / task 14 size the
-  guard from `data.tasks.total`, not Req 7.3's literal "open tasks at phase start." Stays
-  within the requirement's intent (allowance never shrinks, never trips spuriously; total
-  also survives supervisor restart) and was already adjudicated in design R2-4 (approved
-  v4). NOTE for next drafter: Req 7.3 TEXT is now stale; reconcile on a requirements touch.
+## Rulings carried (closed)
+- **Req 7.3 runaway-guard basis → refinement (closed, round 1).** Guard sized from
+  `data.tasks.total` (design D14), not Req 7.3's literal "open tasks." Do not re-open. NOTE:
+  Req 7.3 TEXT still stale ("open tasks") — reconcile on a requirements touch.
 
 ## Patterns & Themes
-- **Count/length greps are the weak spot.** 4 of 5 pinned greps are defective: digit-form
-  patterns ("12","20","six") miss word-form doc statements ("twelve","twenty"), collide
-  with forbidden frontmatter, over-reach into another task's files / out-of-scope agents, or
-  match only noise. `agent-rules.md` "Documents" bar (a grep that finds every dependent
-  count/length assertion) is not met across tasks 7, 10, 11, 13, 14.
-- **Clean elsewhere.** Citations (including the full `## Changes since` lint delta), brief
-  verbatim source ranges, Test-line seams, success-clause coverage, requirement→task
-  coverage, ordering of the server/brief/skill chain, and gate-B/gate-C are all sound.
+- **Count/length grep theme is RESOLVED.** All five re-pointed greps (tasks 7, 10, 11, 13,
+  14) now return exactly their intended hits against the tree. The `agent-rules.md`
+  "Documents" bar is met.
+- **New weak spot: per-task-loop re-pointing in task 13.** The skill's dozen brief calls span
+  kept text (per-task loop) and moved sections; task 13's prompt names only the moved
+  Reconcile/e2e, leaving the kept Implement/verify/fix/adjudication and Repair calls to
+  inference. The `redTests → authorFiles/authorReport` change is owned by neither task 9
+  ("do not edit the skills") nor task 13 (silent on it).
+- **Clean elsewhere.** All v2-delta citations resolve at both ends; Test-line seams,
+  success-clause coverage, requirement→task coverage, ordering, gate-B/gate-C all sound.
 
 ## Guidance for Next Review
-- Verify the drafter fixed the five greps (scope + word-form terms + explicit exceptions)
-  and resolved the `reconcile` variant; re-check that task 13 no longer edits
-  `sdd-continue/SKILL.md:291`.
-- Do not re-open the Req 7.3 refinement ruling.
-- If greps are corrected, re-confirm each still catches its intended targets AND nothing
-  out of scope by running them against the tree.
+- Verify the drafter added task 13's blanket (every impl brief/prompt block from task 9's
+  kinds) and the explicit Implement-step and Repair-step re-points (R2-1).
+- Confirm task 11's `docs/SDD-HARNESS.md` entry is resolved (R2-2) and task 12's source
+  citation corrected to task 8 (R2-3).
+- Do NOT re-run the five count/length greps unless a prompt changes one — they are verified
+  clean. Do not re-open the Req 7.3 refinement ruling.
 - A clean round is acceptable; do not keep the loop alive on MINOR-only residue.

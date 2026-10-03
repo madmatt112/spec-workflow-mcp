@@ -53,3 +53,8 @@ Cost: 4 reviewer (3 review rounds + 1 narrow check) + 3 reviser spawns (v2, v3, 
 tasks R1: iterate 0 MUST_FIX / 4 SHOULD_FIX / 1 MINOR; cold-prompt lens found 4 grep/brief-variant defects (R1-1..R1-4) and 1 MINOR (R1-5). Req 7.3 runaway-guard basis ruled refinement by the reviewer on its own authority (design D14 sizes the guard from task total, not the requirement's open-tasks); closed and carried to the next drafter, so the Req 7.3 text is now stale.
 Evidence: .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks.md
 Cost: 1 reviewer spawn
+
+## 2026-10-03T09:02:06Z · tasks · v2 · gotcha
+tasks R2: iterate 0 MUST_FIX / 1 SHOULD_FIX / 2 MINOR. All five v2 fix-induced greps verified clean; every v2-delta citation resolves. R2-1 (SHOULD_FIX, Compounds R1-1): task 13 names only the Reconcile/e2e brief re-point, leaving the kept per-task-loop and Repair calls unaddressed though tasks 8/9 replace those templates and task 13 deletes briefs.md. R2-2, R2-3 MINOR. Routes to SHOULD_FIX-only corrective pass (D=2, MUST_FIX 0).
+Evidence: .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r2.md
+Cost: 1 reviewer spawn
