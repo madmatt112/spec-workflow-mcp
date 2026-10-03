@@ -239,6 +239,10 @@ verdict block). Append:
 - <tasks phase, for every `Test:` line: the call exists in the design's interfaces, an
   earlier task's prompt or this task's prompt, and the success criteria are assertable
   through it with values the requirements state; a miss is a normal finding.>
+- <tasks phase, Success-clause coverage (retro P7): for every task, each test the `Task:`
+  body of its `_Prompt` names must also appear in that task's `Success:` clause. The
+  test-author writes to the `Success:` clause, so a test the prompt requires but the
+  `Success:` clause omits is silently dropped; flag it as a normal finding.>
 - Closed by ruling, do not re-open: <none | `<finding id>: <one line>` …>.
 - Rejected findings from earlier rounds are recorded with their reasons in the
   Revision History and the memory file. Re-raise one only with new evidence, marked
