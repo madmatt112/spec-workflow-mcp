@@ -317,7 +317,14 @@ export class ImplementationLogManager {
    */
   private entryToMarkdown(entry: ImplementationLogEntry): string {
     let markdown = `# Implementation Log: Task ${entry.taskId}\n\n`;
-    markdown += `**Summary:** ${entry.summary}\n\n`;
+    // Collapse the summary to a single line (retro P3). The parser reads only the
+    // first `**Summary:**` line, so a summary carrying newlines or tag-like text
+    // (the task-6 log leaked `</summary>`, `<filesModified">`, `<filesCreated">`
+    // from a mangled tool call) injected stray lines that corrupted the sections
+    // below. Flattening the whitespace keeps the summary on one line and the
+    // Files Modified / Created / Statistics sections intact and round-trippable.
+    const summaryLine = (entry.summary ?? '').replace(/\s+/g, ' ').trim();
+    markdown += `**Summary:** ${summaryLine}\n\n`;
     markdown += `**Timestamp:** ${entry.timestamp}\n`;
     markdown += `**Log ID:** ${entry.id}\n\n`;
     markdown += `---\n\n`;
