@@ -163,3 +163,4 @@ The implementation spawn made 127 calls and reached a 229k-token context; 51 of 
 ## Revision History
 
 - **v1** (2026-10-02) — Initial draft.
+  - **Lint pass.** 0 fixed; rejected: L-1 (`base` is a document-defined source name, not a symbol claimed in the `readUsage` citation), L-2 and L-3/L-4/L-5 (`harness`, `orient`, `implementation` are the MCP tool, action and phase names; each citation backs its own claim, not those tokens).
