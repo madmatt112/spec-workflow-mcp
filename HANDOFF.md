@@ -681,3 +681,15 @@ Gotchas:
 | PR | https://github.com/madmatt112/spec-workflow-mcp/pull/79 (#79) — harness + code batches; NOT merged |
 | To-do (human) | P4: supervisor-model refusal signal is a harness SKILL.md + design.md slice, not product-code-only — it needs the step-0 preflight to emit run.start-refused and exit non-zero, a new refusal-signal channel before any spec/ledger exists, and reconciling design.md:250 ("exits non-zero before any ledger row"). Plan as its own harness+design slice. |
 | Gotchas | Gates pass risk low for all landed items; code class low risk so no verifier spawned. The close-out commit script dropped the core.hooksPath=/dev/null bypass (auto-mode classifier blocked writing it); plain signed commits used instead. |
+
+## lean-orchestrators — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-03 |
+| Rounds | 3; verdicts 0/4/3 → 0/2/3 → narrow 2/2 |
+| Approval | `approval_1790999009526_1ta45f5k3` |
+| Rulings | none |
+| Cut scope | none — v3 keeps the decomposition entry's scope (W and per-source breakdown in usage, baseline survives transcript cleanup, step-scoped skill text, no whole spec-store reads, short fixed-shape worker reports, batched bookkeeping, fewer tasks per implementation spawn, must-keeps and end-to-end proof) |
+| Carried items | none (no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap) |
+| Next phase loads | requirements.md v3 after codebase-context.md. Design should resolve the narrow-check deferred note: Req 1.5's `base` formula does not restate which call it is scoped to (first call of a spawn vs first overall). Three round-2 MINORs (R2-3/R2-4/R2-5) left unaddressed at convergence, for design's judgement. |
