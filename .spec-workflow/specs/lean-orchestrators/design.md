@@ -38,7 +38,7 @@ graph LR
 - **Interfaces:**
   - `spawnW(row: LedgerEvent): number | undefined` returns `input + 1.25·cacheWrite5m + 2·cacheWrite1h + 0.1·cacheRead + 5·output` from a `spawn.end` row, or `undefined` when any of the five is not a digit string.
   - `UsageCell` gains `w` and `wUnknown`; W comes from the row that sets tokens (`src/watch/usage.ts:259-275`), and a spawn with tokens only from `spawn.usage`, or undefined W, adds 1 to `wUnknown`.
-  - `listSpawns(events: LedgerEvent[]): SpawnSummary[]`: each reduced spawn, same pairing (`src/watch/usage.ts:137-155`) and phase rule (`src/watch/usage.ts:290-296`), with the latest `spawn.end` row's `agentId` and W.
+  - `listSpawns(events: LedgerEvent[]): SpawnSummary[]`: each reduced spawn, same pairing (`src/watch/usage.ts:137-155`) and phase rule (`src/watch/usage.ts:290-296`), with the latest `spawn.end` row's `agentId` and W from the row that sets tokens (`src/watch/usage.ts:259-275`), as in C1.
   - `unitCount(events: LedgerEvent[], phase: string): number`: `round` rows whose `phase` key matches, for a document phase; for `implementation`, `task.done` rows inside an implementation window (`src/watch/usage.ts:116-124`).
   - `UsagePhase` gains `orchW` (the two orchestrator cells' W), `units` and `orchWPerUnit: number | null` (null at 0 units).
   - `formatUsageTable(report, compare?, opts?: { perUnit?: boolean })`, trailing parameter optional: a `W` column after `tokens` in every row, ` (+N unknown)` as in `src/watch/usage.ts:365-367`; with `perUnit`, phase totals add `orch W/round` or `orch W/task`, and the compare table prints both and the delta.
@@ -209,10 +209,10 @@ type SpawnSources =
   | { phase: string; agent: string; agentId: string; ledgerW: number | null; ok: true; breakdown: TranscriptBreakdown; diff: number | null }
   | { phase: string; agent: string; agentId: string | undefined; ledgerW: number | null; ok: false; reason: 'no-agent-id' | 'no-session' | 'invalid-id' | 'missing' | 'unreadable' }
 interface SourcesReport { spec: string; spawns: SpawnSources[]; unknown: number }
-interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progress'; files: string[]; testFiles: string[]; integration: boolean }
+interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progress'; files: string[] }
 ```
 
-`testFiles` holds the paths of the task's `- Test:` seams (`src/core/task-parser.ts:8-11`). `integration` is true when the block holds `- Test (integration):`.
+`data.sources` is a `SourcesReport`; `data.compareSources` is `SourcesReport | null`.
 
 ## Error Handling
 
@@ -269,5 +269,9 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 
 ## Revision History
 
+- **v2** (2026-10-02) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Cut the two consumerless fields from the open-task queue entry (the test-file list and the integration flag), leaving only its id, title, status and file list, and deleted the paragraph that defined them off an absent test-bullet convention.
+  - **R1-2 — Accepted (MINOR).** Data Models now pins both source-breakdown response fields, the compare field as a nullable source report.
+  - **R1-3 — Accepted (MINOR).** The spawn-listing function now states its weighted-token figure comes from the same token-setting row as the usage fold, so it cannot diverge on an unknown re-fire.
 - **v1** (2026-10-02) — Initial draft.
   - **Lint pass.** 2 fixed (readUsage citation tightened to the line the symbol starts on; cross-repo absolute path dropped from the C5 scenario-form note, keeping the in-repo citation); rejected: the 45 remaining citation-identifier warnings — all name design-introduced identifiers (new types and fields such as the W and unknown-W cells, per-unit fields, the orient queue and next-task, and the new worker report keys), data values matched against behaviour code, or cross-file tokens the rule mis-associated with a correct behavioural citation; each cited range was re-verified to anchor its adjacent claim.
