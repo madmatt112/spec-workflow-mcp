@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-10-03, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **design**, state **pending**, last result **approved** (requirements v3).
+> Live phase **tasks**, state **pending**, last result **approved** (design v4).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts design v1 for spec 14 `lean-orchestrators`.
+> A re-run does: drafts tasks v1 for spec 14 `lean-orchestrators`.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -81,6 +81,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-02 | harness-control-pane | closeout | items 18/19 | closed | P4 to-do; PR #79 open, not merged |
 | 2026-10-03 | lean-orchestrators | requirements | v1 | gate-a |  |
 | 2026-10-03 | lean-orchestrators | requirements | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
+| 2026-10-03 | lean-orchestrators | design | v4 | approved | 4 rounds, converged via SHOULD_FIX-only pass + narrow check 2/2 |
 
 ## Current state — 2026-08-04
 
