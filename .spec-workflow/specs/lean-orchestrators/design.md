@@ -270,6 +270,7 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 ## Revision History
 
 - **v4** (2026-10-03) — Round-3 adversarial response (adversarial-analysis-design-r3.md, verdict iterate 0/2/0), SHOULD_FIX-only corrective pass.
+  - **Lint pass.** 0 fixed; rejected: the 45 citation-identifier warnings — same disposition as v1, v2 and v3, each names a design-introduced identifier (a new type, field, report key, or orient datum), a data value matched against behaviour code, or a cross-file token the rule mis-associated with a correct behavioural citation; every token is unchanged since a prior pass rejected it with a reason, and every cited range re-verified to anchor its adjacent claim. No errors.
   - **R3-1 — Accepted (SHOULD_FIX).** Testing Strategy now adds a render snapshot per distinct rendered output, covering each kind's variant and phase/D branches, rather than one per brief kind, so the reviser variants and the round section's D-conditional blocks each ship a test.
   - **R3-2 — Accepted (SHOULD_FIX).** The test-author report block now lists its test files as a key, and the worker-report passthrough states that on a marked task the implementer brief's author-files value is that files key and its author-report value is the test-author block verbatim; the implementer row names the test-author block as the source, wiring both ends of the seam.
 - **v3** (2026-10-02) — Round-2 adversarial response (adversarial-analysis-design-r2.md, verdict iterate 1/1/0).
