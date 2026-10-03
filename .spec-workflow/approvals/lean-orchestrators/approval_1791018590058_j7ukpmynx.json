@@ -1,0 +1,12 @@
+{
+  "id": "approval_1791018590058_j7ukpmynx",
+  "title": "lean-orchestrators tasks v3",
+  "filePath": ".spec-workflow/specs/lean-orchestrators/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-03T09:09:50.058Z",
+  "category": "spec",
+  "categoryName": "lean-orchestrators",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0 (round 2 was 0/1/2; the SHOULD_FIX item and both MINORs were fixed in the v3 SHOULD_FIX-only corrective pass, narrow check VERIFIED 3/3); rulings: Req 7.3 runaway-guard basis ruled a refinement (design D14 sizes the guard from the task total, not the requirement's open-tasks), closed and carried to the next drafter; cap: not hit — SHOULD_FIX-only pass at v3, VERIFIED 3/3.",
+  "respondedAt": "2026-10-03T09:09:57.005Z"
+}

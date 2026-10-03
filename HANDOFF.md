@@ -708,3 +708,15 @@ Gotchas:
 | Cut scope | none — v4 keeps the decomposition entry's scope (per-source breakdown in `harness usage`, the measure-then-cut levers, document and implementation orchestrators only, close-out and retro orchestrators unchanged by the decomposition's own decision, must-keeps and end-to-end proof) |
 | Carried items | none (both round-3 SHOULD_FIX accepted and fixed in the v4 corrective pass; no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap) |
 | Next phase loads | design.md v4 after codebase-context.md. Tasks should consider the narrow-check deferred readability note (retro log, v4): the passthrough sentence lists only findings/folds/notes/re-decided; the author-files/author-report wire is a separate sentence not folded into that enumerated list, so a reader skimming only the list could miss it. The body is at the 4,000-word cap, so tasks must not grow design.md. |
+
+## lean-orchestrators — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-03 |
+| Rounds | 3; verdicts 0/4/1 → 0/1/2 → SHOULD_FIX-only pass at v3, narrow 3/3 |
+| Approval | `approval_1791018590058_j7ukpmynx` |
+| Rulings | Req 7.3 runaway-guard basis = refinement (design D14 sizes the guard from the task total, not the requirement's open-tasks); closed by the round-1 reviewer on its own authority and carried to the next drafter — the Req 7.3 requirement text is now stale. |
+| Cut scope | none — v3 keeps decomposition entry 14's scope (16 tasks). Verification scenarios 2 and 3 stay pending in verification-evidence.md (task 15 stages the fixture kit and records them; the live runs need a rebuilt checkout and a fresh session); Req 5.4 needs no task. |
+| Carried items | none (round-1 R1-1..R1-4 and round-2 R2-1 SHOULD_FIX all accepted and fixed; the two round-2 MINORs fixed in the v3 pass; no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap). |
+| Next phase loads | codebase-context.md first, then design.md v4 and requirements.md v3. Implementation starts at task 1 in the dependency order the tasks preamble states; tasks 15 and 16 cover the end-to-end verification gate. Every task block is within the 150-words-per-block cap. |

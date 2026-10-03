@@ -58,3 +58,8 @@ Cost: 1 reviewer spawn
 tasks R2: iterate 0 MUST_FIX / 1 SHOULD_FIX / 2 MINOR. All five v2 fix-induced greps verified clean; every v2-delta citation resolves. R2-1 (SHOULD_FIX, Compounds R1-1): task 13 names only the Reconcile/e2e brief re-point, leaving the kept per-task-loop and Repair calls unaddressed though tasks 8/9 replace those templates and task 13 deletes briefs.md. R2-2, R2-3 MINOR. Routes to SHOULD_FIX-only corrective pass (D=2, MUST_FIX 0).
 Evidence: .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-10-03T09:10:32Z · tasks · phase · cleanup
+tasks approved at v3 after 3 rounds; verdict trajectory 0/4/1 → 0/1/2 → SHOULD_FIX-only pass at v3, narrow check VERIFIED 3/3; rulings 1 (Req 7.3 runaway-guard basis = refinement, carried to next drafter); cap not hit; prune removed 0 records and 0 snapshots (2 kept).
+Evidence: approval_1791018590058_j7ukpmynx; .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r2.md; .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r3.md
+Cost: 2 reviewer + 2 reviser spawns, 1 narrow-check checker, 1 drafter
