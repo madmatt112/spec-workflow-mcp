@@ -48,3 +48,8 @@ Cost: part of narrow-check spawn (no extra cost)
 design approved at v4 after 4 rounds; verdict trajectory 0/1/2 -> 1/1/0 -> 0/2/0 -> SHOULD_FIX-only pass, narrow check VERIFIED 2/2; rulings 0; cap not hit (SHOULD_FIX-only corrective pass at v4 after round 3, not a post-cap adjudication); prune removed 0 records and 0 snapshots (2 kept). One narrow-check deferred readability note logged above.
 Evidence: approval_1791014244719_pyabfk5zm; reviews/adversarial-analysis-design-r3.md; reviews/adversarial-analysis-design-r4.md
 Cost: 4 reviewer (3 review rounds + 1 narrow check) + 3 reviser spawns (v2, v3, v4); no adjudicator
+
+## 2026-10-03T08:38:17Z · tasks · v1 · gotcha
+tasks R1: iterate 0 MUST_FIX / 4 SHOULD_FIX / 1 MINOR; cold-prompt lens found 4 grep/brief-variant defects (R1-1..R1-4) and 1 MINOR (R1-5). Req 7.3 runaway-guard basis ruled refinement by the reviewer on its own authority (design D14 sizes the guard from task total, not the requirement's open-tasks); closed and carried to the next drafter, so the Req 7.3 text is now stale.
+Evidence: .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks.md
+Cost: 1 reviewer spawn
