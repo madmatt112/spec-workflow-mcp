@@ -270,6 +270,7 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 ## Revision History
 
 - **v2** (2026-10-02) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/2).
+  - **Lint pass.** 0 fixed; rejected: the 43 citation-identifier warnings — same disposition as v1, each names a design-introduced identifier (a new type, field, report key, or orient datum), a data value matched against behaviour code, or a cross-file token the rule mis-associated with a correct behavioural citation; every cited range re-verified to anchor its adjacent claim. No errors.
   - **R1-1 — Accepted (SHOULD_FIX).** Cut the two consumerless fields from the open-task queue entry (the test-file list and the integration flag), leaving only its id, title, status and file list, and deleted the paragraph that defined them off an absent test-bullet convention.
   - **R1-2 — Accepted (MINOR).** Data Models now pins both source-breakdown response fields, the compare field as a nullable source report.
   - **R1-3 — Accepted (MINOR).** The spawn-listing function now states its weighted-token figure comes from the same token-setting row as the usage fold, so it cannot diverge on an unknown re-fire.
