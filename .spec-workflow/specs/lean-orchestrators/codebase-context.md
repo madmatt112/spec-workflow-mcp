@@ -133,3 +133,58 @@
 - /tmp/scratchpad/sdd/lean-orchestrators/design-probe-w.js — last-line usage per message id matches ledger W (0.000%) on the 5 baseline spawns; first-line usage is 0.3-6.3% low (probe 2026-10-02)
 - /tmp/scratchpad/sdd/lean-orchestrators/design-probe-base.js — baseline implementation spawn: 127 calls, peak 229,380, base 33,546 tokens, base 24.7% of W
 - /tmp/scratchpad/sdd/lean-orchestrators/design-probe-fs.mjs — readdir withFileTypes flags a symlinked entry not a directory; realpath exposes an escaping symlink (node 22, 24)
+
+## Usage tests (tasks)
+- src/watch/__tests__/usage.test.ts:9 — `ce` cell builder behind every exact cell assertion
+- src/watch/__tests__/usage.test.ts:271-286 — `usageDelta` test; exact delta rows at 281-284
+- src/watch/__tests__/usage.test.ts:333-352 — compare-table header and total-line `toContain` assertions
+- src/watch/__tests__/usage.test.ts:416-453 — one-spec cache-column header and total-line assertions
+- src/watch/__tests__/usage.test.ts:554-556 — graph-column header and total line
+- src/tools/__tests__/harness.test.ts:799-803 — usage action: exact report total cell and agent row text
+- src/tools/__tests__/harness.test.ts:827 — usage compare: exact delta row
+- src/tools/__tests__/harness.test.ts:865-866 — usage: exact provider and total cells
+
+## Brief and orient tests (tasks)
+- src/tools/__tests__/harness.test.ts:7 — imports `harnessHandler` and `codeGraphSection` from the tool module
+- src/tools/__tests__/harness.test.ts:110-116 — orient implementation with a `[-]` task: per-key assertions
+- src/tools/__tests__/harness.test.ts:131-136 — orient implementation resume: `inFlightReports` assertion
+- src/tools/__tests__/harness.test.ts:205-280 — brief tests: task block, all-missing message, agent-rules drop, relative path, unknown template
+- src/tools/__tests__/harness.test.ts:243-269 — the two drafter tests that pass `title` and `job`
+- src/tools/__tests__/harness.test.ts:284-331 — test-author brief tests
+- src/tools/__tests__/harness.test.ts:335-402 — implementer `redTests` tests
+- src/tools/__tests__/harness.test.ts:409-437 — `GRAPH_BASE_VALUES` and the graph-append loop over kinds
+- src/tools/__tests__/harness.test.ts:491-504 — drift guard: document `briefs.md` code graph block equals `codeGraphSection`
+- src/tools/harness.ts:717-719 — missing-value set from the `{{key}}` placeholder scan
+- vitest.config.ts:7 — test include pattern `src/**/*.{test,spec}.{js,ts}`
+
+## Brief source text (tasks)
+- harness/skills/sdd-document-phase/references/briefs.md:361-417 — lint brief
+- harness/skills/sdd-document-phase/references/briefs.md:418-454 — post-cap adjudication brief
+- harness/skills/sdd-document-phase/references/briefs.md:455-480 — narrow-check prompt
+- harness/skills/sdd-document-phase/references/briefs.md:481-494 — code graph block
+- harness/skills/sdd-implementation-phase/references/briefs.md:67-101 — implementer brief and red-tests section
+- harness/skills/sdd-implementation-phase/references/briefs.md:103-132 — fix and repair brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:158-191 — verifier brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:193-207 — task adjudication brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:209-230 — end-to-end verification brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:232-253 — CI fix brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:255-267 — CI verify brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:269-279 — PR body rules
+
+## Skill text and docs (tasks)
+- harness/skills/sdd-implementation-phase/SKILL.md:14-22 — `BUDGET` default 20, its rationale, the briefs read
+- harness/skills/sdd-implementation-phase/SKILL.md:49-58 — `spec-edit.mjs` and commit script taken from the document-phase `cleanup.md`
+- harness/skills/sdd-implementation-phase/SKILL.md:146-162 — Implement step: `redTests` filled from `briefs.md`
+- harness/skills/sdd-implementation-phase/SKILL.md:232-251 — fix rounds through the `reviser` template
+- harness/skills/sdd-document-phase/SKILL.md:193-196 — `round` row and round retro entry
+- harness/skills/sdd-closeout-phase/SKILL.md:23 — close-out reads its own `references/briefs.md` (not touched)
+- harness/skills/sdd-continue/SKILL.md:27 — names the document-phase `cleanup.md` (kept)
+- harness/skills/sdd-retrospective/SKILL.md:31 — takes script text from the document-phase `cleanup.md` (kept)
+- docs/TOOLS-REFERENCE.md:572-577 — `orient` action bullet
+- docs/TOOLS-REFERENCE.md:591-601 — `usage` action bullet
+- docs/harness-efficiency-plan.md:59 — historical quote of the 20-task budget
+- .spec-workflow/agent-rules.md:26-29 — harness checks and the full-suite commands
+
+## Fixture precedent (tasks)
+- .spec-workflow/specs/tdd-task-loop/e2e/stage.sh:1-20 — kit header: `set -eu`, optional inputs read as `${VAR:-default}`
+- .spec-workflow/specs/graph-orientation/verification-evidence.md:1-9 — evidence record shape: H1, paragraph, one line per scenario
