@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/lean-orchestrators/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-03T07:57:24.761Z",
+      "trigger": "initial",
+      "approvalId": "approval_1791014244719_pyabfk5zm",
+      "approvalTitle": "lean-orchestrators design v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-03T07:57:35.759Z",
+      "trigger": "approved",
+      "approvalId": "approval_1791014244719_pyabfk5zm",
+      "approvalTitle": "lean-orchestrators design v4"
+    }
+  ]
+}

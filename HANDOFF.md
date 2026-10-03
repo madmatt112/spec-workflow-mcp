@@ -695,3 +695,15 @@ Gotchas:
 | Cut scope | none — v3 keeps the decomposition entry's scope (W and per-source breakdown in usage, baseline survives transcript cleanup, step-scoped skill text, no whole spec-store reads, short fixed-shape worker reports, batched bookkeeping, fewer tasks per implementation spawn, must-keeps and end-to-end proof) |
 | Carried items | none (no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap) |
 | Next phase loads | requirements.md v3 after codebase-context.md. Design should resolve the narrow-check deferred note: Req 1.5's `base` formula does not restate which call it is scoped to (first call of a spawn vs first overall). Three round-2 MINORs (R2-3/R2-4/R2-5) left unaddressed at convergence, for design's judgement. |
+
+## lean-orchestrators — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-10-03 |
+| Rounds | 4; verdicts 0/1/2 → 1/1/0 → 0/2/0 → SHOULD_FIX-only pass, narrow 2/2 |
+| Approval | `approval_1791014244719_pyabfk5zm` |
+| Rulings | none |
+| Cut scope | none — v4 keeps the decomposition entry's scope (per-source breakdown in `harness usage`, the measure-then-cut levers, document and implementation orchestrators only, close-out and retro orchestrators unchanged by the decomposition's own decision, must-keeps and end-to-end proof) |
+| Carried items | none (both round-3 SHOULD_FIX accepted and fixed in the v4 corrective pass; no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap) |
+| Next phase loads | design.md v4 after codebase-context.md. Tasks should consider the narrow-check deferred readability note (retro log, v4): the passthrough sentence lists only findings/folds/notes/re-decided; the author-files/author-report wire is a separate sentence not folded into that enumerated list, so a reader skimming only the list could miss it. The body is at the 4,000-word cap, so tasks must not grow design.md. |
