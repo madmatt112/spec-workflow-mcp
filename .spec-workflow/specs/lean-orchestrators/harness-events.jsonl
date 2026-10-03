@@ -119,3 +119,4 @@
 {"ts":"2026-10-03T09:09:16.736Z","type":"spawn.report","run":"run-20261003-013823","spec":"lean-orchestrators","agent":"sdd-checker","report":"Now let me read tasks.md v3, focusing on tasks 11, 12, 13, and its Revision History.","agentId":"af35790d6b5b9eb92"}
 {"ts":"2026-10-03T09:09:26.758Z","run":"run-20261003-013823","spec":"lean-orchestrators","type":"spawn.usage","agent":"sdd-checker","role":"narrow-check r3","phase":"tasks","round":"3","result":"VERIFIED 3/3"}
 {"ts":"2026-10-03T09:09:26.783Z","run":"run-20261003-013823","spec":"lean-orchestrators","type":"round","phase":"tasks","round":"3","version":"v3","verdict":"narrow-check 3/3"}
+{"ts":"2026-10-03T09:11:51.786Z","run":"run-20261003-013823","spec":"lean-orchestrators","type":"phase.end","phase":"tasks","result":"approved","state":"v3","note":"3 rounds, converged via SHOULD_FIX-only pass (0/4/1 -> 0/1/2 -> narrow 3/3)"}
