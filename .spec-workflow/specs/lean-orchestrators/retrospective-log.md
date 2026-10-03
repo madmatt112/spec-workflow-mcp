@@ -33,3 +33,8 @@ Cost: no extra spawn (ruled in round 1)
 Round 2: iterate MUST_FIX 1 / SHOULD_FIX 1 / MINOR 0, both Novel. R2-2 MUST_FIX (carried): Error Handling 'no usage line' branch has no discriminant in the SpawnSources union (breakdownTranscript null maps to no reason). R2-1 SHOULD_FIX: C6 brief-template refactor under-accounts for the existing briefAction test suite. v2 deltas verified clean, no fix-induced regression.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-design-r2.md
 Cost: 1 reviewer spawn
+
+## 2026-10-03T07:48:37Z · design · v3 · gotcha
+design round 3: iterate 0 MUST_FIX / 2 SHOULD_FIX / 0 MINOR; both v3 deltas (no-usage discriminant, brief-template test-accounting) re-verified clean; two residual halves of R2-1 open as R3-1, R3-2 (both Compounding SHOULD_FIX) -> SHOULD_FIX-only corrective pass
+Evidence: reviews/adversarial-analysis-design-r3.md
+Cost: 1 reviewer spawn

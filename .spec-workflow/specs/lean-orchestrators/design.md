@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds W and a per-source transcript breakdown to `harness usage`, then cuts orchestrator context with step-scoped skills, server-side briefs, short worker report blocks, one batched bookkeeping script and a 5-task implementation budget. Server changes sit in `src/watch/` (pure folds) and `src/tools/harness.ts` (actions); harness changes sit in `harness/skills/`, `harness/agents/` and the supervisor skill. It reuses the usage fold, the `orient` and `brief` actions, the task parser, and the run's `event.sh` and `retro.sh`.
+This design adds W and a per-source transcript breakdown to `harness usage`, then cuts orchestrator context with step-scoped skills, server-side briefs, short worker report blocks, one batched bookkeeping script and a 5-task implementation budget. Server changes sit in `src/watch/` (pure folds) and `src/tools/harness.ts` (actions); harness changes sit in `harness/skills/`, `harness/agents/` and the supervisor skill.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ N/A.
 
 ## Architecture
 
-The orchestrator holds a core skill and reads a routed reference only when a step needs it. Briefs, prompt blocks and the bookkeeping script come from `harness` `brief`, keeping their text out of orchestrator context. Workers end with a key block; between two spawns the orchestrator makes one `book.sh` call, which writes rows only through `EVENT_SCRIPT`.
+The orchestrator holds a core skill and reads a routed reference only when a step needs it. Briefs, prompt blocks and the bookkeeping script come from `harness` `brief`. Workers end with a key block; between two spawns the orchestrator makes one `book.sh` call, which writes rows only through `EVENT_SCRIPT`.
 
 ```mermaid
 graph LR
@@ -108,7 +108,7 @@ implementation | sdd-implementation-orchestrator | a46fec387251fb6c6 | calls 127
 | `adjudicator` | write | `items`, `phase`, `docPath` or `taskId` |
 | `checker` | write over `promptOutputPath` | `phase`, `items`, `specDir`, `codeRoot` |
 | `impl-standing`, `verify-standing` | write to scratch | `codeRoot`, `mainCheckout`, `specStoreRoot`, `specDir` |
-| `implementer` | write | `taskId`; `authorFiles`, `authorReport` build the red-tests section |
+| `implementer` | write | `taskId`; `authorFiles`, `authorReport` (from the test-author block) build the red-tests section |
 | `test-author` | write | as today |
 | `fix` | write | `taskId`, `round`, `variant` (`gate`, `verifier`, `repair`, `ci`, `reconcile`), `findings` (text or path), `commit` |
 | `verifier` | write | `variant` (`task`, `batch`, `narrow`, `e2e`, `ci`), `taskIds`, `files`, `round`, `gateResults`, `scenario` |
@@ -179,10 +179,10 @@ Both skills' `references/briefs.md` files are deleted; the drift-guard test (`sr
 | `sdd-adjudicator` (`harness/agents/sdd-adjudicator.md:29`) | `version` or `commit`, `fixed`, `ruled-out` (ids), `notes` (path), `flags` |
 | `sdd-checker` (`harness/agents/sdd-checker.md:25`) | `verified`, `deferred`, `analysis` |
 | `sdd-implementer` (`harness/agents/sdd-implementer.md:38`) | `logged`, `commit`, `checks`, `checks-file` (path of a JSON array of the commands run), `green`, `flag`, `retro` |
-| `sdd-test-author` (`harness/agents/sdd-test-author.md:32`) | `commit`, `tests`, `folds` (path or `none`), `flag`, `retro` |
+| `sdd-test-author` (`harness/agents/sdd-test-author.md:32`) | `commit`, `files`, `tests`, `folds` (path or `none`), `flag`, `retro` |
 | `sdd-verifier` (`harness/agents/sdd-verifier.md:34`) | `verdict`, `findings` (path or `none`), `retro` |
 
-- The orchestrator passes the `findings`, `folds`, `notes` and `re-decided` paths into the next brief as values, unread; it reads only the few-line `checks-file` for the gate's `checks`.
+- The orchestrator passes the `findings`, `folds`, `notes` and `re-decided` paths into the next brief as values, unread; it reads only the few-line `checks-file` for the gate's `checks`. On a marked task the implementer's `authorFiles` is the test-author block's `files` and `authorReport` is that block, verbatim.
 
 ### C10 — Supervisor (`harness/skills/sdd-continue/SKILL.md`)
 - **Purpose:** Requirement 7 criteria 1 to 3.
@@ -232,7 +232,7 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
   - `src/watch/__tests__/usage.test.ts`: `spawnW`, `wUnknown`, `unitCount` per phase kind, per-unit and compare delta, the W column (update existing table assertions).
   - New `src/watch/__tests__/sources.test.ts`, fixture transcripts: one per source kind; a multi-line message counted once with its last usage; no usage line gives null; totals equal `w`; `base` sizing; a zero-character call.
   - New `src/watch/__tests__/transcripts.test.ts` (temp dirs): env override, invalid ids, symlinked project entry skipped, escaping session symlink skipped, first match wins.
-  - `src/tools/__tests__/harness.test.ts`: `usage` with `sources` (stubbed `CLAUDE_CONFIG_DIR`), the description, `queue`, `nextTask`, `decomposition` (both label forms, missing entry). The existing `briefAction` tests (all-missing message, agent-rules drop, `taskBlock`, `redTests` gating, graph append/none/behind-0) keep their assertions under each kind's new value set, the `redTests` ones re-pointed to the `authorFiles`/`authorReport` build; new tests add one `render()` snapshot per brief kind, append mode and its missing target.
+  - `src/tools/__tests__/harness.test.ts`: `usage` with `sources` (stubbed `CLAUDE_CONFIG_DIR`), the description, `queue`, `nextTask`, `decomposition` (both label forms, missing entry). The existing `briefAction` tests (all-missing message, agent-rules drop, `taskBlock`, `redTests` gating, graph append/none/behind-0) keep their assertions under each kind's new value set, the `redTests` ones re-pointed to the `authorFiles`/`authorReport` build; new tests add a `render()` snapshot per distinct rendered output (each kind's variant and phase/D branches), append mode and its missing target.
 - **Integration:**
   - New `src/__tests__/skill-split.test.ts` (Requirement 3 criterion 6): a frozen list of today's rule headings of both skills; each is in `SKILL.md` or exactly one of that skill's `references/*.md`; neither `SKILL.md` names `briefs.md`.
   - New `src/__tests__/book-script.test.ts`: renders `book-script` into a temp git store with stub `event.sh` and `retro.sh`, runs every segment, forces a commit failure (a held `index.lock`), re-runs, and asserts no doubled row or retro entry, exit codes 1 and 2, and the step name. It asserts only on exit codes and file contents.
@@ -263,12 +263,15 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 ## Scope notes
 
 - Carried items: R2-3 resolved by D15 and C11; R2-4 by D14 and C10; R2-5 by citing the whole object, `src/tools/harness.ts:493-557`; the narrow-check note by D2.
-- Unchanged: the cheaper-model lever (requirements D10), approval calls, the base prefix, the close-out and retro orchestrators and their `references/cleanup.md`.
+- Unchanged: the cheaper-model lever (requirements D10), approval calls, the base prefix, the close-out and retro orchestrators.
 - The retro computes the Requirement 8 criterion 4 signals from the ledger; no tool prints them.
 - `docs/TOOLS-REFERENCE.md` and `docs/SDD-HARNESS.md` get the new fields and skill layout in the same tasks.
 
 ## Revision History
 
+- **v4** (2026-10-03) — Round-3 adversarial response (adversarial-analysis-design-r3.md, verdict iterate 0/2/0), SHOULD_FIX-only corrective pass.
+  - **R3-1 — Accepted (SHOULD_FIX).** Testing Strategy now adds a render snapshot per distinct rendered output, covering each kind's variant and phase/D branches, rather than one per brief kind, so the reviser variants and the round section's D-conditional blocks each ship a test.
+  - **R3-2 — Accepted (SHOULD_FIX).** The test-author report block now lists its test files as a key, and the worker-report passthrough states that on a marked task the implementer brief's author-files value is that files key and its author-report value is the test-author block verbatim; the implementer row names the test-author block as the source, wiring both ends of the seam.
 - **v3** (2026-10-02) — Round-2 adversarial response (adversarial-analysis-design-r2.md, verdict iterate 1/1/0).
   - **Lint pass.** 0 fixed; rejected: the 45 citation-identifier warnings — same disposition as v1 and v2, each names a design-introduced identifier (a new type, field, report key, or orient datum; the two on the refactored brief-templates line are the new author-files and author-report build names, absent from the behaviour code being refactored), a data value matched against behaviour code, or a cross-file token the rule mis-associated with a correct behavioural citation; every cited range re-verified to anchor its adjacent claim. No errors.
   - **R2-1 — Accepted (SHOULD_FIX).** The brief-templates component now states that the brief action keeps its behaviours but re-implements the missing-value set from each template's required list rather than the placeholder scan, and that the red-tests value moves to the author-files build; the component no longer claims the deleted drift-guard test becomes a per-kind snapshot and instead says that test, which checked the reference file against the code-graph helper, is deleted with the reference files; Testing Strategy now names which existing brief tests keep their assertions under the new per-kind value sets and which tests are new.
