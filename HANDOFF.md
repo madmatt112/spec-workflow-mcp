@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-02, harness v4).** Active spec **none** — every spec in decomposition.md is complete; `harness-control-pane` closed 2026-10-02.
-> Live phase **n/a**, state **items 19/19**, last result **closed** (close-out PR #79 open, awaiting merge; P4 refusal signal left as a human to-do).
+> **READ FIRST — SDD routing (2026-10-03, harness v4).** Active spec **`lean-orchestrators`**.
+> Live phase **requirements**, state **pending**, last result **pending**.
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: reports roadmap complete; add the next spec to decomposition.md first.
+> A re-run does: drafts requirements v1 for spec 14 `lean-orchestrators`.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
