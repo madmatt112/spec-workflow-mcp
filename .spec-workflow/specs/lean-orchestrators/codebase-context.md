@@ -66,3 +66,70 @@
 - .spec-workflow/specs/tdd-task-loop/harness-events.jsonl — 51 orchestrator `spawn.end` rows, each with `cacheWrite5m`/`cacheWrite1h` (probe 2026-10-02)
 - /home/mcf/repo/tradr-hosted/.spec-workflow/specs/trading-rules/harness-events.jsonl — 36 orchestrator `spawn.end` rows, same keys (probe 2026-10-02)
 - /tmp/scratchpad/sdd/lean-orchestrators/source-probe.js — drafter probe: char-apportioned W per source for one orchestrator transcript
+
+## Orient and task parser (design)
+- src/tools/harness.ts:311-364 — `orientImplementation`: task counts, approvals, `nextStep`, `inFlightReports`; no task id or title
+- src/core/task-parser.ts:8-11 — `TaskTest`: normalised test path and seam
+- src/core/task-parser.ts:148-169 — `ParsedTask`: id, description, status, isHeader, files, tests
+- src/core/task-parser.ts:420-439 — `taskBlock`: task line to the next checkbox line
+- src/core/task-parser.ts:446-485 — `updateTaskStatus`: checkbox regex and in-place marker rewrite
+- src/core/task-parser.ts:490-492 — `findNextPendingTask`: first pending non-header task
+
+## Brief action (design)
+- src/tools/harness.ts:493-557 — `BRIEF_TEMPLATES`: six string templates (drafter, reviser, adjudicator, verifier, implementer, test-author)
+- src/tools/harness.ts:560-563 — server-filled keys and optional `redTests`
+- src/tools/harness.ts:572-588 — `codeGraphSection`: the appended code graph block
+- src/tools/harness.ts:595-765 — `briefAction`: fill, agent-rules line, task block, graph append, safeJoin write
+- src/tools/__tests__/harness.test.ts:491-495 — drift guard that reads the document-phase `briefs.md`
+- harness/skills/sdd-document-phase/references/briefs.md:6-137 — drafter brief section
+- harness/skills/sdd-document-phase/references/briefs.md:139-158 — gate-A re-spawn brief
+- harness/skills/sdd-document-phase/references/briefs.md:160-262 — round section appended to the reviewer scaffold
+- harness/skills/sdd-document-phase/references/briefs.md:264-359 — reviser brief and disposition rules
+- harness/skills/sdd-implementation-phase/references/briefs.md:5-65 — implementer standing brief
+- harness/skills/sdd-implementation-phase/references/briefs.md:134-156 — verifier standing brief
+
+## Run scripts (design)
+- harness/skills/sdd-continue/references/formats.md:101-117 — `retro.sh` text and entry header
+- harness/skills/sdd-continue/references/formats.md:164-183 — `event.sh` text: `SDD_LEDGER`, `SDD_RUN`, `SDD_SPEC` lines
+- harness/skills/sdd-document-phase/references/cleanup.md:71-97 — `commit-spec-store.sh`
+- harness/skills/sdd-document-phase/references/cleanup.md:99-125 — `spec-edit.mjs`
+- harness/skills/sdd-document-phase/references/cleanup.md:127-159 — `append-changes.sh`
+
+## Skill sections that move (design)
+- harness/skills/sdd-document-phase/SKILL.md:114-141 — Lint step (kept)
+- harness/skills/sdd-document-phase/SKILL.md:143-167 — Gate A
+- harness/skills/sdd-document-phase/SKILL.md:175-182 — Step 2 item 3: prompt read, overwrite, `append-changes.sh`
+- harness/skills/sdd-document-phase/SKILL.md:224-273 — Standoff, Circling and Cap convergence checks
+- harness/skills/sdd-document-phase/SKILL.md:275-316 — Step 4a and Step 4b
+- harness/skills/sdd-document-phase/SKILL.md:339-363 — Design scope-cut gate
+- harness/skills/sdd-document-phase/SKILL.md:379-412 — Gate B
+- harness/skills/sdd-document-phase/SKILL.md:414-426 — Step R
+- harness/skills/sdd-document-phase/SKILL.md:436-444 — Legacy rules
+- harness/skills/sdd-implementation-phase/SKILL.md:186-198 — Gate step: `files` and `checks` sources
+- harness/skills/sdd-implementation-phase/SKILL.md:269-277 — Deferral bar (kept)
+- harness/skills/sdd-implementation-phase/SKILL.md:279-322 — Design defect, Escalate, Resume recovery
+- harness/skills/sdd-implementation-phase/SKILL.md:324-491 — Completion gate, Live verification, Reconcile a red PR
+- harness/skills/sdd-implementation-phase/SKILL.md:493-520 — Repair and the stop table
+
+## Worker report bullets (design)
+- harness/agents/sdd-drafter.md:30 — 150-word report
+- harness/agents/sdd-reviewer.md:26 — 100-word final message
+- harness/agents/sdd-reviser.md:35 — 150-word report with per-finding dispositions
+- harness/agents/sdd-adjudicator.md:29 — 150-word report
+- harness/agents/sdd-checker.md:25 — 100-word final message
+- harness/agents/sdd-implementer.md:38 — 150-word report with file list
+- harness/agents/sdd-test-author.md:32 — 120-word report
+- harness/agents/sdd-verifier.md:34 — 150-word report with findings
+
+## Gate and note consumers (design)
+- src/tools/review-task.ts:263-267 — gate `files`: paths the change should stay within
+- src/dashboard/harness/overview-watch.ts:51-54 — `mentionsGate`: only "gate a" or "gate b" in note text
+
+## Decomposition scenario labels (design)
+- .spec-workflow/spec-decomposition/decomposition.md:771 — `**End-to-end verification.**` form
+- /home/mcf/repo/tradr-hosted/.spec-workflow/spec-decomposition/decomposition.md:72 — `**End-to-end verification**:` form
+
+## Design probes
+- /tmp/scratchpad/sdd/lean-orchestrators/design-probe-w.js — last-line usage per message id matches ledger W (0.000%) on the 5 baseline spawns; first-line usage is 0.3-6.3% low (probe 2026-10-02)
+- /tmp/scratchpad/sdd/lean-orchestrators/design-probe-base.js — baseline implementation spawn: 127 calls, peak 229,380, base 33,546 tokens, base 24.7% of W
+- /tmp/scratchpad/sdd/lean-orchestrators/design-probe-fs.mjs — readdir withFileTypes flags a symlinked entry not a directory; realpath exposes an escaping symlink (node 22, 24)
