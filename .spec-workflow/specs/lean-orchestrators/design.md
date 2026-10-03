@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds W and a per-source transcript breakdown to `harness usage`, then cuts orchestrator context with step-scoped skills, server-side briefs, short worker report blocks, one batched bookkeeping script and a 5-task implementation budget. The server changes sit in `src/watch/` (pure folds) and `src/tools/harness.ts` (actions); the harness changes sit in `harness/skills/`, `harness/agents/` and the supervisor skill. It reuses the usage fold, the `orient` and `brief` actions, the task parser, and the run's `event.sh` and `retro.sh`.
+This design adds W and a per-source transcript breakdown to `harness usage`, then cuts orchestrator context with step-scoped skills, server-side briefs, short worker report blocks, one batched bookkeeping script and a 5-task implementation budget. Server changes sit in `src/watch/` (pure folds) and `src/tools/harness.ts` (actions); harness changes sit in `harness/skills/`, `harness/agents/` and the supervisor skill. It reuses the usage fold, the `orient` and `brief` actions, the task parser, and the run's `event.sh` and `retro.sh`.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ N/A.
 
 ## Architecture
 
-The orchestrator holds a core skill and reads a routed reference file only when a step needs it. Briefs, prompt blocks and the bookkeeping script come from `harness` `brief`, so their fixed text never enters orchestrator context. Workers end with a key block; between two spawns the orchestrator makes one `book.sh` call, which writes rows only through `EVENT_SCRIPT`.
+The orchestrator holds a core skill and reads a routed reference only when a step needs it. Briefs, prompt blocks and the bookkeeping script come from `harness` `brief`, keeping their text out of orchestrator context. Workers end with a key block; between two spawns the orchestrator makes one `book.sh` call, which writes rows only through `EVENT_SCRIPT`.
 
 ```mermaid
 graph LR
@@ -41,7 +41,7 @@ graph LR
   - `listSpawns(events: LedgerEvent[]): SpawnSummary[]`: each reduced spawn, same pairing (`src/watch/usage.ts:137-155`) and phase rule (`src/watch/usage.ts:290-296`), with the latest `spawn.end` row's `agentId` and W from the row that sets tokens (`src/watch/usage.ts:259-275`), as in C1.
   - `unitCount(events: LedgerEvent[], phase: string): number`: `round` rows whose `phase` key matches, for a document phase; for `implementation`, `task.done` rows inside an implementation window (`src/watch/usage.ts:116-124`).
   - `UsagePhase` gains `orchW` (the two orchestrator cells' W), `units` and `orchWPerUnit: number | null` (null at 0 units).
-  - `formatUsageTable(report, compare?, opts?: { perUnit?: boolean })`, trailing parameter optional: a `W` column after `tokens` in every row, ` (+N unknown)` as in `src/watch/usage.ts:365-367`; with `perUnit`, phase totals add `orch W/round` or `orch W/task`, and the compare table prints both and the delta.
+  - `formatUsageTable(report, compare?, opts?: { perUnit?: boolean })`: a `W` column after `tokens` in every row, ` (+N unknown)` as in `src/watch/usage.ts:365-367`; with `perUnit`, phase totals add `orch W/round` or `orch W/task`, and the compare table prints both and the delta.
   - `UsageDelta` gains `w` and `orchWPerUnit`.
 - **Reuses:** `buildUsageReport` (`src/watch/usage.ts:126-231`), `usageDelta` (`src/watch/usage.ts:302-314`), the formatters (`src/watch/usage.ts:403-457`).
 
@@ -79,7 +79,7 @@ graph LR
 - **Purpose:** Requirement 1 criteria 2, 7 and 9.
 - **Interfaces:** the schema gains `sources: { type: 'boolean' }`. The description (`src/tools/harness.ts:30-43`) gains this text: "Pass `sources: true` to also read each document and implementation orchestrator spawn's subagent transcript under `$CLAUDE_CONFIG_DIR/projects`, else `~/.claude/projects`, and print its W by context source. Without it the action reads only the spec store." The existing "never spawns a process" sentence stays.
 - **Flow:** `usageAction` (`src/tools/harness.ts:1215-1244`), then with `sources`: `listSpawns`, keep the two orchestrator agents, and run `resolveSession`, `findTranscript`, `readFile`, `breakdownTranscript` per spawn, for both specs, with `perUnit` set; `data` adds `sources` and `compareSources`.
-- **Block** (illustrative; the numbers come from `/tmp/scratchpad/sdd/lean-orchestrators/design-probe-base.js` run on the baseline implementation spawn):
+- **Block** (illustrative; numbers from `/tmp/scratchpad/sdd/lean-orchestrators/design-probe-base.js` on the baseline implementation spawn):
 
 ```
 sources tdd-task-loop  spawns 5  unknown 0  (shares are estimates; W totals are floors)
@@ -96,8 +96,8 @@ implementation | sdd-implementation-orchestrator | a46fec387251fb6c6 | calls 127
 
 ### C6 — Server brief templates (`src/tools/brief-templates.ts`)
 - **Purpose:** Requirement 3 criteria 3 and 4.
-- **Interfaces:** `BRIEF_TEMPLATES` (`src/tools/harness.ts:493-557`) moves here as `Record<string, BriefTemplate>`. `briefAction` (`src/tools/harness.ts:595-765`) keeps its behaviours (unknown kind, all missing values at once, agent-rules line, `taskBlock`, graph append at `src/tools/harness.ts:572-588`, `safeJoin` write) and adds append mode, which fails on a missing target.
-- Each kind's text is the matching `references/briefs.md` section, word for word, with slots as values and phase and D conditionals rendered on the server.
+- **Interfaces:** `BRIEF_TEMPLATES` (`src/tools/harness.ts:493-557`) moves here as `Record<string, BriefTemplate>`. `briefAction` (`src/tools/harness.ts:595-765`) keeps its unknown-kind, all-missing-at-once, agent-rules-line, `taskBlock`, graph-append (`src/tools/harness.ts:572-588`) and `safeJoin`-write behaviours, but the missing-value set now comes from each template's `required[]` rather than the `{{key}}` scan (`src/tools/harness.ts:717-719`), and `redTests` moves from a caller value to the `authorFiles`/`authorReport` build. It adds append mode, which fails on a missing target.
+- Each kind's text is the matching `references/briefs.md` section verbatim, slots as values, phase and D conditionals rendered on the server.
 
 | Kind | Mode, target | Values beyond `path`, `title` |
 | --- | --- | --- |
@@ -116,11 +116,11 @@ implementation | sdd-implementation-orchestrator | a46fec387251fb6c6 | calls 127
 
 Illustrative, verify against the test fake: `type BriefTemplate = { mode: 'write' | 'append'; required: string[]; optional?: string[]; render(v: Record<string, string>): string }`.
 
-Both skills' `references/briefs.md` files are deleted; the drift-guard test reading one (`src/tools/__tests__/harness.test.ts:491-495`) becomes one snapshot test per kind.
+Both skills' `references/briefs.md` files are deleted; the drift-guard test (`src/tools/__tests__/harness.test.ts:491-504`) that checked the `briefs.md` `## Code graph block` against `codeGraphSection` is deleted with them.
 
 ### C7 — Bookkeeping script `book.sh`
 - **Purpose:** Requirement 6 and Requirement 3 criterion 5.
-- **Interfaces:** `/tmp/scratchpad/sdd/<SPEC>/book.sh`. Step 0 writes it with `harness` `brief`, `template: book-script`, when the file is missing. Invocation: `bash book.sh <segment> [-- <segment>]...`. The segments run in order. The script reads the run id and ledger path from `EVENT_SCRIPT`'s `SDD_RUN` and `SDD_LEDGER` lines (`harness/skills/sdd-continue/references/formats.md:164-183`).
+- **Interfaces:** `/tmp/scratchpad/sdd/<SPEC>/book.sh`. Step 0 writes it with `harness` `brief`, `template: book-script`, when the file is missing. Invocation: `bash book.sh <segment> [-- <segment>]...`, segments in order. The script reads the run id and ledger path from `EVENT_SCRIPT`'s `SDD_RUN` and `SDD_LEDGER` lines (`harness/skills/sdd-continue/references/formats.md:164-183`).
 
 | Segment | Effect | Already landed when |
 | --- | --- | --- |
@@ -154,9 +154,9 @@ Both skills' `references/briefs.md` files are deleted; the drift-guard test read
 | `sdd-implementation-phase/references/completion.md` | Completion gate (Live verification, Reconcile a red PR), Repair |
 | `sdd-implementation-phase/references/stops.md` | Design defect, Escalate, Resume recovery, Stop conditions and their reports |
 
-- **Routers:** one line replaces each moved step. Reads happen at these points:
+- **Routers:** one line replaces each moved step; reads happen at:
   - `gates.md`: Step 1 item 6 in requirements; Step 5 in design; Step 6 in tasks.
-  - `convergence.md`: a Step 2 item 9 `iterate` at round 2 or later or at D ≥ 4, the SHOULD_FIX-only route, or a Step 0 `nextStep` of Step 4a or 4b. Round 1 goes straight to Step 3 because no check can fire on round 1 (`harness/skills/sdd-document-phase/SKILL.md:224-273`).
+  - `convergence.md`: a Step 2 item 9 `iterate` at round 2 or later or at D ≥ 4, the SHOULD_FIX-only route, or a Step 0 `nextStep` of Step 4a or 4b. Round 1 goes straight to Step 3, as no check can fire then (`harness/skills/sdd-document-phase/SKILL.md:224-273`).
   - `revision.md`: Step R.
   - `completion.md`: a Step 0 `nextStep` of Completion gate or Repair.
   - `stops.md`: `resume task`, a `DESIGN-DEFECT`, `ESCALATE` or `SEAM-DEFECT` flag, or any stop other than Budget.
@@ -187,11 +187,11 @@ Both skills' `references/briefs.md` files are deleted; the drift-guard test read
 ### C10 — Supervisor (`harness/skills/sdd-continue/SKILL.md`)
 - **Purpose:** Requirement 7 criteria 1 to 3.
 - The launch line (`harness/skills/sdd-continue/SKILL.md:291`) reads `BUDGET: <4 review rounds | 5 tasks | all items | n/a>`. Resume does not change (`harness/skills/sdd-continue/SKILL.md:350-351`).
-- The runaway guard (`harness/skills/sdd-continue/SKILL.md:379-380`): for implementation, more than `max(12, ceil(T/B) + 4)` spawns is an error, T being `data.tasks.total` from a `harness` `orient` call the supervisor makes before its first implementation spawn of the run and B the budget; other phases keep 12.
+- The runaway guard (`harness/skills/sdd-continue/SKILL.md:379-380`): for implementation, more than `max(12, ceil(T/B) + 4)` spawns is an error, T being `data.tasks.total` from a `harness` `orient` call before the run's first implementation spawn, B the budget; other phases keep 12.
 
 ### C11 — Baseline file (Requirement 2)
-- The first task after C1 to C4 writes `.spec-workflow/specs/lean-orchestrators/baseline-sources.md`: date, HEAD, and both `sources: true` messages verbatim (`trading-rules` through `projectPath: /home/mcf/repo/tradr-hosted`). It also runs scenario 1 (Requirement 1 criterion 6).
-- Probe, 2026-10-02: all 5 `tdd-task-loop` and all 3 `trading-rules` orchestrator transcripts resolve; the latter sit under slug `-home-mcf-repo-tradr--claude-worktrees-trading-rules`, dated 2026-09-28, and the oldest transcript under `-home-mcf-repo-tradr` is dated 2026-09-04.
+- The first task after C1–C4 writes `.spec-workflow/specs/lean-orchestrators/baseline-sources.md`: date, HEAD, and both `sources: true` messages verbatim (`trading-rules` through `projectPath: /home/mcf/repo/tradr-hosted`). It also runs scenario 1 (Requirement 1 criterion 6).
+- Probe, 2026-10-02: all 5 `tdd-task-loop` and all 3 `trading-rules` orchestrator transcripts resolve; the oldest, under `-home-mcf-repo-tradr`, is dated 2026-09-04.
 
 ## Data Models
 
@@ -207,7 +207,7 @@ interface TranscriptBreakdown { calls: number; peak: number; base: number; w: nu
 type TranscriptLookup = { ok: true; path: string } | { ok: false; reason: 'invalid-id' | 'missing' }
 type SpawnSources =
   | { phase: string; agent: string; agentId: string; ledgerW: number | null; ok: true; breakdown: TranscriptBreakdown; diff: number | null }
-  | { phase: string; agent: string; agentId: string | undefined; ledgerW: number | null; ok: false; reason: 'no-agent-id' | 'no-session' | 'invalid-id' | 'missing' | 'unreadable' }
+  | { phase: string; agent: string; agentId: string | undefined; ledgerW: number | null; ok: false; reason: 'no-agent-id' | 'no-session' | 'invalid-id' | 'missing' | 'unreadable' | 'no-usage' }
 interface SourcesReport { spec: string; spawns: SpawnSources[]; unknown: number }
 interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progress'; files: string[] }
 ```
@@ -216,7 +216,7 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 
 ## Error Handling
 
-1. **No `agentId`, no session, invalid id, no or unreadable transcript, no usage line, or no projects directory:** `SpawnSources.ok: false` with `reason`; the block prints `sources unknown (<reason>)` and the ledger W, the header counts it, and the action returns `success: true`.
+1. **`SpawnSources.ok: false` with `reason`:** no `agentId` (`no-agent-id`), no session (`no-session`), an id failing the check (`invalid-id`), no transcript or no projects directory (`missing`, from `findTranscript`), an unreadable transcript (`unreadable`), or a readable transcript whose `breakdownTranscript` returns null for want of a `message.usage` line (`no-usage`). The block prints `sources unknown (<reason>)` and the ledger W, the header counts it, and the action returns `success: true`.
 2. **W unknown** (non-digit tokens or cache field): `wUnknown` increments; the cell prints ` (+N unknown)`.
 3. **Transcript W differs from ledger W:** the block prints `diff`; evidence for scenario 1, not an error.
 4. **Ledger or activity read error:** as today, `success: false` naming the path (`src/tools/harness.ts:1139-1207`).
@@ -232,7 +232,7 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
   - `src/watch/__tests__/usage.test.ts`: `spawnW`, `wUnknown`, `unitCount` per phase kind, per-unit and compare delta, the W column (update existing table assertions).
   - New `src/watch/__tests__/sources.test.ts`, fixture transcripts: one per source kind; a multi-line message counted once with its last usage; no usage line gives null; totals equal `w`; `base` sizing; a zero-character call.
   - New `src/watch/__tests__/transcripts.test.ts` (temp dirs): env override, invalid ids, symlinked project entry skipped, escaping session symlink skipped, first match wins.
-  - `src/tools/__tests__/harness.test.ts`: `usage` with `sources` (stubbed `CLAUDE_CONFIG_DIR`), the description, `queue`, `nextTask`, `decomposition` (both label forms, missing entry), one snapshot per brief kind, append mode and its missing target.
+  - `src/tools/__tests__/harness.test.ts`: `usage` with `sources` (stubbed `CLAUDE_CONFIG_DIR`), the description, `queue`, `nextTask`, `decomposition` (both label forms, missing entry). The existing `briefAction` tests (all-missing message, agent-rules drop, `taskBlock`, `redTests` gating, graph append/none/behind-0) keep their assertions under each kind's new value set, the `redTests` ones re-pointed to the `authorFiles`/`authorReport` build; new tests add one `render()` snapshot per brief kind, append mode and its missing target.
 - **Integration:**
   - New `src/__tests__/skill-split.test.ts` (Requirement 3 criterion 6): a frozen list of today's rule headings of both skills; each is in `SKILL.md` or exactly one of that skill's `references/*.md`; neither `SKILL.md` names `briefs.md`.
   - New `src/__tests__/book-script.test.ts`: renders `book-script` into a temp git store with stub `event.sh` and `retro.sh`, runs every segment, forces a commit failure (a held `index.lock`), re-runs, and asserts no doubled row or retro entry, exit codes 1 and 2, and the step name. It asserts only on exit codes and file contents.
@@ -242,23 +242,23 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 
 ## Decisions taken in this document
 
-- D1 — Usage of a call: the last transcript line per message id (chosen) over the probe's first line; chosen because the first line misses 0.3 to 6.3 percent of ledger W in the design probe, failing the 1 percent check, while the last line matches exactly.
-- D2 — Base scope (narrow-check deferred note): the first call of the spawn's own transcript (chosen) over the first call overall; chosen because one transcript holds one agent id and a resumed segment keeps its prefix.
-- D3 — Breakdown modules: a pure source module plus a locator module (chosen) over code in the tool file; chosen because Requirement 1 criterion 10 wants pure, tested functions in the watch directory.
-- D4 — Batch shape: one generic segment script (chosen) over four verb scripts or server actions; chosen because commits need git and one script keeps one writer per row.
-- D5 — Script delivery: the brief action writes it from a server template (chosen) over a Write from reference text or a copy from the skill directory; chosen because the text stays out of context and a preloaded skill's base directory is uncertain.
-- D6 — Row idempotency: exact row match after the run's latest phase start, with unique values for repeats (chosen) over stamp files or a new key; chosen because Requirement 6 criterion 5 freezes keys and stamps die with the scratch directory.
-- D7 — Retro marker: a short hash of stage, ref, category and body (chosen) over a task-number match; chosen because a ruling and a task entry can share a number.
-- D8 — Close also picks the next task (chosen) over separate calls; chosen because Requirement 6 criterion 1 allows one bookkeeping call between spawns.
-- D9 — Task routing: an open-task queue from orient (chosen) over orient per task or script-side parsing; chosen because it is one read per spawn and keeps one parser.
-- D10 — Gate file scope: the task's declared files (chosen) over the implementer's list; chosen because Requirement 5 forbids file lists in reports and the gate takes the paths a change must stay within.
-- D11 — Lint rules: inline in the kept Lint step (chosen) over a lint template; chosen because the orchestrator fixes lint itself and would have to read a brief back.
-- D12 — Brief source: server templates only, both phase briefs files deleted (chosen) over a kept copy with a sync test; chosen because two copies drift.
-- D13 — Skill grouping: reference files by trigger (chosen) over one file per step; chosen to follow requirements decision D5.
-- D14 — Runaway guard basis: the task total (chosen) over open tasks at phase start; chosen because the total never shrinks, so a restarted supervisor gets the same allowance (R2-4).
-- D15 — Transcript expiry (R2-3): baseline task first, ledger-only per-unit W as fallback (chosen) over a snapshot; chosen because per-unit W needs no transcript, every baseline transcript is present, and a snapshot commits large files.
-- D16 — Round section: appended by the server (chosen) over read-then-overwrite; chosen because the scaffold leaves context.
-- D17 — Gate checks: an implementer-named checks file (chosen) over commands in the report or a rules-file read; chosen because the report stays within 80 words and Requirement 4 criterion 1 forbids the read.
+- D1 — Usage of a call: the last transcript line per message id (chosen) over the first line; because the first misses 0.3 to 6.3 percent of ledger W, failing the 1 percent check; the last matches exactly.
+- D2 — Base scope (narrow-check deferred note): the spawn's own first call (chosen) over the overall first call; because one transcript holds one agent id and a resumed segment keeps its prefix.
+- D3 — Breakdown modules: a pure source module plus a locator module (chosen) over code in the tool file; because Requirement 1 criterion 10 wants pure, tested watch-directory functions.
+- D4 — Batch shape: one generic segment script (chosen) over four verb scripts or server actions; because commits need git and one script is one writer per row.
+- D5 — Script delivery: the brief action writes it from a server template (chosen) over a Write from reference text or a skill-directory copy; because the text stays out of context and a preloaded skill's base directory is uncertain.
+- D6 — Row idempotency: exact row match after the run's latest phase start, unique values for repeats (chosen) over stamp files or a new key; because Requirement 6 criterion 5 freezes keys and stamps die with the scratch directory.
+- D7 — Retro marker: a short hash of stage, ref, category and body (chosen) over a task-number match; because a ruling and a task entry can share a number.
+- D8 — Close also picks the next task (chosen) over separate calls; because Requirement 6 criterion 1 allows one bookkeeping call between spawns.
+- D9 — Task routing: an open-task queue from orient (chosen) over orient per task or script-side parsing; because it is one read per spawn and one parser.
+- D10 — Gate file scope: the task's declared files (chosen) over the implementer's list; because Requirement 5 forbids report file lists and the gate takes the paths a change must stay within.
+- D11 — Lint rules: inline in the kept Lint step (chosen) over a lint template; because the orchestrator fixes lint itself and would read a brief back.
+- D12 — Brief source: server templates only, both phase briefs files deleted (chosen) over a kept copy with a sync test; because two copies drift.
+- D13 — Skill grouping: reference files by trigger (chosen) over one file per step; to follow requirements decision D5.
+- D14 — Runaway guard basis: the task total (chosen) over open tasks at phase start; because the total never shrinks, so a restarted supervisor gets the same allowance (R2-4).
+- D15 — Transcript expiry (R2-3): baseline task first, ledger-only per-unit W as fallback (chosen) over a snapshot; because per-unit W needs no transcript, every baseline transcript is present, and snapshots commit large files.
+- D16 — Round section: appended by the server (chosen) over read-then-overwrite; because the scaffold leaves context.
+- D17 — Gate checks: an implementer-named checks file (chosen) over commands in the report or a rules-file read; because the report stays within 80 words and Requirement 4 criterion 1 forbids the read.
 
 ## Scope notes
 
@@ -269,6 +269,9 @@ interface QueuedTask { id: string; title: string; status: 'pending' | 'in-progre
 
 ## Revision History
 
+- **v3** (2026-10-02) — Round-2 adversarial response (adversarial-analysis-design-r2.md, verdict iterate 1/1/0).
+  - **R2-1 — Accepted (SHOULD_FIX).** The brief-templates component now states that the brief action keeps its behaviours but re-implements the missing-value set from each template's required list rather than the placeholder scan, and that the red-tests value moves to the author-files build; the component no longer claims the deleted drift-guard test becomes a per-kind snapshot and instead says that test, which checked the reference file against the code-graph helper, is deleted with the reference files; Testing Strategy now names which existing brief tests keep their assertions under the new per-kind value sets and which tests are new.
+  - **R2-2 — Accepted (MUST_FIX).** Added a no-usage discriminant to the spawn-sources failure union for a readable transcript with no usage line, and rewrote Error Handling item 1 to map every enumerated condition to a named reason, folding the no-projects-directory case into the missing reason.
 - **v2** (2026-10-02) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/2).
   - **Lint pass.** 0 fixed; rejected: the 43 citation-identifier warnings — same disposition as v1, each names a design-introduced identifier (a new type, field, report key, or orient datum), a data value matched against behaviour code, or a cross-file token the rule mis-associated with a correct behavioural citation; every cited range re-verified to anchor its adjacent claim. No errors.
   - **R1-1 — Accepted (SHOULD_FIX).** Cut the two consumerless fields from the open-task queue entry (the test-file list and the integration flag), leaving only its id, title, status and file list, and deleted the paragraph that defined them off an absent test-bullet convention.

@@ -28,3 +28,8 @@ Cost: 1 reviewer spawn
 Reviewer ruled all five drafter RE-DECIDED flags refinement (closed), within each governing requirement's intent: Req 1.5 per-call W from last line of each message.id; Req 3.3 lint rules inline in the Lint step; Req 4.2 orient returns the whole open-task queue with files and test files; Req 6.4 one generic book.sh written by a harness brief template; Req 7.3 runaway guard uses the task total. Carry to the tasks drafter.
 Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-design.md
 Cost: no extra spawn (ruled in round 1)
+
+## 2026-10-03T04:38:59Z · design · v2 · gotcha
+Round 2: iterate MUST_FIX 1 / SHOULD_FIX 1 / MINOR 0, both Novel. R2-2 MUST_FIX (carried): Error Handling 'no usage line' branch has no discriminant in the SpawnSources union (breakdownTranscript null maps to no reason). R2-1 SHOULD_FIX: C6 brief-template refactor under-accounts for the existing briefAction test suite. v2 deltas verified clean, no fix-induced regression.
+Evidence: /home/mcf/repo/spec-workflow-mcp/.spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-design-r2.md
+Cost: 1 reviewer spawn
