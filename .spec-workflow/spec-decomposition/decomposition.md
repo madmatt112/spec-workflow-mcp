@@ -725,6 +725,62 @@ without a reload. When the file is deleted, the page shows an empty list.
 without them), on spec 10 for the provider map the form pre-fills (soft: the field defaults
 to `anthropic`), and on `harness-bookkeeping` (spec 6) for the pointer file and hook events.
 
+### 14. `lean-orchestrators` — measure where orchestrator tokens go, then cut them (active)
+
+The document and implementation orchestrators (`sdd-document-orchestrator`,
+`sdd-implementation-orchestrator`, Opus 4.8) do no drafting and no coding. Each keeps one
+context for its whole phase. The context grows at every round or task, and each turn reads
+all of it again. Specs 4 to 13 cut worker spend (gate-only verification, round caps, lint,
+Opus reviser, one-hour cache, batched verification), so the orchestrator share rose. The
+step-4 measurement of 2026-09-25 (per-subagent transcripts, one usage per `message.id`, unit
+W = input + 1.25 cw5m + 2 cw1h + 0.1 read + 5 output) put it at 22-36% of document-phase W
+(before: 20-24%) and 34-43% of implementation W (before: 16-22%). The remeasures of
+2026-09-28 (`tdd-task-loop`, tradr `trading-rules`) still show 29-33%. Single spawns are
+large: a jobscout design orchestrator spawn read 5.0M of its 5.17M tokens from cache; one
+segment of the `harness-control-pane` implementation orchestrator read 5.9M of 6.04M.
+
+**Delivers.**
+
+- **Measure first.** A breakdown of each orchestrator spawn's context by source: worker
+  reports, tool results by tool (file reads, MCP calls, Bash), skill and reference text, and
+  the orchestrator's own output. `harness usage` prints it per phase and per orchestrator,
+  so the retro reads the drop against the baseline specs (`tdd-task-loop` in swm,
+  `trading-rules` in tradr). The requirements phase names the cuts from this breakdown.
+- **Cut what the breakdown shows.** The cuts may use these levers, all accepted by Matthew
+  on 2026-10-02:
+  - Orchestrators read less detail: gate output, verdict blocks and short summaries in place
+    of full worker reports and full files.
+  - The supervisor does more of the looping (it is a main session with a one-hour cache), so
+    each orchestrator context is shorter.
+  - A cheaper model for an orchestrator role, when the retro shows its quality holds. Spec 9's
+    per-role model override is the way to try it on one run.
+  - Bookkeeping that an orchestrator does turn by turn moves into scripts or server actions.
+
+**Decided.**
+
+- One spec: measure, then cut. A measure-only spec is not split off.
+- Scope is the document and implementation orchestrators. The close-out and retro
+  orchestrators keep their current shape.
+- Done means a measurable drop in orchestrator W per spec in the retro, with no loss of
+  quality. There is no fixed target number.
+- Wall clock is not an accepted trade-off. A cut that makes a phase much slower (for
+  example, many more orchestrator restarts) needs Matthew's decision.
+- Must-keeps hold: the ledger and `--watch`, a fresh worker per round and per task, one PR
+  per spec that agents never merge.
+
+**End-to-end verification.** (1) `harness usage` on the `tdd-task-loop` ledger and
+transcripts prints the per-source breakdown for each document and implementation
+orchestrator spawn, and the source totals equal the spawn's W within 1%. (2) A fixture spec
+run on the changed harness completes requirements, design, tasks and implementation with
+the same must-keeps in its ledger (fresh worker per round and task, one PR). (3) On that
+run, orchestrator W per document round and per implementation task is lower than on the
+baseline, and the retro shows the numbers. (4) `npm run check:plugin-assets`,
+`claude plugin validate . --strict`, `npx tsc --noEmit` and `npm test` are green.
+
+**Depends on** spec 8 for `harness usage` and the hook-written `spawn.end` rows, spec 13 for
+the one-hour orchestrator cache (the baseline includes it), and spec 9 for the per-role model
+override used to try a cheaper orchestrator model.
+
 ## Build order
 
 1 → (2 and 3 in either order). 2 and 3 are independent of each other.
@@ -744,6 +800,9 @@ step, one usage column), 13's run is its baseline, and every later worker, 11's
 test author included, orients through it. 11 fifth: its budget is measured with 8's per-role usage, and its author role is the
 next candidate for 10's map. 9 last: it renders 10's `provider` and 11's `tdd` block. Each is
 its own release, and the spec after 11 is the first to run with `Test:` lines.
+
+14 after 9. It is judged on spec 8's usage numbers, its baseline runs include 13's cache,
+and it uses 9's per-role model override.
 
 ## Boundary notes
 
