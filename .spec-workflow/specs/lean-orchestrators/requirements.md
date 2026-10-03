@@ -171,3 +171,4 @@ The implementation spawn peaked at 229k tokens. The cuts below target the rows o
   - **R1-5 — Accepted (MINOR).** Req 1.6 ties scenario-1 capture to Req 2.1's early write.
   - **R1-6 — Accepted (MINOR).** Req 7.1 requires the `:16` default and `:17-20` rationale rewritten.
   - **R1-7 — Partially accepted (MINOR).** Req 3.5 resolves the close-path overlap; other `spec-edit.mjs` uses left to design.
+  - **Lint pass.** 0 fixed; rejected: L-1 (`base` is a document-defined source name), L-2/L-5 (`harness` is the MCP tool name), L-3/L-4 (`reviewer`, `checker` are worker-kind names), L-6 (`orient` is the MCP action name), L-7 (`implementation` is the phase name) — each citation backs its own claim, not those tokens, so every citation-identifier warning is a false positive.
