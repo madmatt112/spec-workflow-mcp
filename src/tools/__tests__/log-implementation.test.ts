@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { logImplementationTool, logImplementationHandler } from '../log-implementation.js';
+import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
 import { _resetRootSelection } from '../root-selection.js';
 import { TASK_STATE_FILE, type TaskAttribution } from '../../core/task-state-store.js';
 import {
@@ -117,6 +118,39 @@ describe('log-implementation attribution', () => {
       commit: head,
       source: 'override',
     });
+  });
+
+  it('reconciles files-changed and single-lines a tag-like summary (retro P3)', async () => {
+    _resetRootSelection();
+    const repo = await fixture.createRepo('p3-workspace');
+    const specDir = await seedSpec(repo.path, 'p3-spec');
+    const context: ToolContext = {
+      projectPath: repo.path,
+      workspacePath: repo.path,
+      dashboardUrl: 'http://localhost:5000',
+    };
+
+    // The task-6 shape: a mangled call dropped the file list into the summary and
+    // left the arrays empty, so the log read "0 files changed" despite +78 lines.
+    const summary =
+      'Did a thing.</summary>\n<filesModified">["x.py"]</filesModified>\n<filesCreated">[]';
+    const result = await logImplementationHandler(
+      baseArgs('p3-spec', {
+        summary,
+        filesModified: [],
+        filesCreated: [],
+        statistics: { linesAdded: 78, linesRemoved: 0 },
+      }),
+      context
+    );
+    expect(result.success).toBe(true);
+
+    const entries = (await new ImplementationLogManager(specDir).loadLog()).entries;
+    expect(entries).toHaveLength(1);
+    // Empty file arrays but +78 lines → counter reconciled to at least one file.
+    expect(entries[0].statistics.filesChanged).toBe(1);
+    // The tag-like, multi-line summary is flattened to one line in the stored log.
+    expect(entries[0].summary).not.toContain('\n');
   });
 
   it('records a null commit for a non-repository workspace and still writes the log entry', async () => {
