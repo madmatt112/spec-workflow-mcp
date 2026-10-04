@@ -15,6 +15,7 @@ import { handoffPath } from '../watch/index.js';
 import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts, listSpawns } from '../watch/usage.js';
 import { resolveSession, findTranscript } from '../watch/transcripts.js';
 import { breakdownTranscript, formatSources, SpawnSources, SourcesReport, SourcesReason } from '../watch/sources.js';
+import { BRIEF_TEMPLATES, templateUsesTaskBlock } from './brief-templates.js';
 
 /**
  * The `harness` tool (design Components 1-6). One tool, five actions:
@@ -552,88 +553,8 @@ function classifyTarget(block: string): TargetClass {
 
 // --- brief -------------------------------------------------------------------
 
-/**
- * Named server-side brief templates, one per brief kind the harness spawns
- * (design Component 3, D2). Placeholders are `{{key}}`, filled from `values`;
- * an unknown template name or a `{{key}}` with no value fails naming it and
- * writes nothing (2.3). `{{agentRules}}` is filled with the spec-store
- * `agent-rules.md` path when that file exists, and its line is dropped when it
- * does not (2.4, `harness/skills/sdd-document-phase/references/briefs.md:4-11`).
- * The implementer template's `{{taskBlock}}` is filled by the tasks parser, not
- * the caller (2.2). Porting the skills' `references/briefs.md` verbatim and
- * guarding the two in sync is a deferred follow-up (design Scope notes, D2).
- */
-const BRIEF_TEMPLATES: Record<string, string> = {
-  drafter: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-  ].join('\n'),
-  reviser: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-    '## Findings',
-    '{{findings}}',
-    '',
-  ].join('\n'),
-  adjudicator: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Open items',
-    '{{items}}',
-    '',
-  ].join('\n'),
-  verifier: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-  ].join('\n'),
-  implementer: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Task text (from tasks.md)',
-    '',
-    '{{taskBlock}}',
-    '',
-    '{{redTests}}',
-  ].join('\n'),
-  'test-author': [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-    '## Task text (from tasks.md)',
-    '',
-    '{{taskBlock}}',
-    '',
-  ].join('\n'),
-};
-
 /** Placeholder keys the server fills itself; never required from `values`. */
 const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
-
-/** Placeholder keys that default to '' when the caller omits them (design Component 5). */
-const OPTIONAL_BRIEF_KEYS = new Set(['redTests']);
 
 /**
  * The `## Code graph` brief section (design C3, Requirement 3). Returns the exact
@@ -677,8 +598,8 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
       message: `brief: a template name is required, one of: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
     };
   }
-  const templateBody = BRIEF_TEMPLATES[template];
-  if (templateBody === undefined) {
+  const tmpl = BRIEF_TEMPLATES[template];
+  if (tmpl === undefined) {
     return {
       success: false,
       message: `brief: unknown template '${template}'. Known templates: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
@@ -719,26 +640,20 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
   const serverValues: Record<string, string> = {};
 
-  // agent-rules.md at the spec-store root ⇒ keep and fill the read-and-obey line;
-  // otherwise drop that line entirely (2.4, briefs.md:4-11).
-  let body = templateBody;
+  // agent-rules.md at the spec-store root ⇒ fill the read-and-obey line; otherwise
+  // leave `agentRules` unset so render drops that line entirely (2.4, briefs.md:4-11).
   const agentRulesPath = PathUtils.safeJoin(specStoreRoot, 'agent-rules.md');
-  let agentRulesExists = false;
   try {
     await stat(agentRulesPath);
-    agentRulesExists = true;
-  } catch {
-    agentRulesExists = false;
-  }
-  if (agentRulesExists) {
     serverValues.agentRules = agentRulesPath;
-  } else {
-    body = body.split('\n').filter((l) => !l.includes('{{agentRules}}')).join('\n');
+  } catch {
+    // agent-rules.md absent; the read-and-obey line is dropped at render.
   }
 
-  // The implementer template's task block comes from the parser, byte for byte (2.2).
+  // The implementer and test-author templates' task block comes from the parser,
+  // byte for byte (2.2).
   let tddMarked = false;
-  if (body.includes('{{taskBlock}}')) {
+  if (templateUsesTaskBlock(template)) {
     if (typeof taskId !== 'string' || taskId.length === 0) {
       return { success: false, message: `brief: template '${template}' needs a taskId; no file written` };
     }
@@ -779,16 +694,15 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   // missing-value check below nor fills as the string 'undefined' (Component 5).
   // Exception: on a TDD-marked implementer brief `redTests` is required, so it is not
   // defaulted and the missing-value check below reports it (retro P8).
-  for (const key of OPTIONAL_BRIEF_KEYS) {
+  for (const key of tmpl.optional ?? []) {
     if (key === 'redTests' && tddMarked) continue;
     if (values[key] === undefined || values[key] === null) values[key] = '';
   }
 
-  // Every remaining {{key}} must have a caller value. Report ALL missing keys at
-  // once, with the template's full required-placeholder list, so a single re-call
-  // fixes them instead of one failed call per missing key (2.3, F2).
-  const keys = new Set((body.match(/\{\{(\w+)\}\}/g) ?? []).map((p) => p.slice(2, -2)));
-  const required = [...keys].filter((key) => !SERVER_BRIEF_KEYS.has(key));
+  // Every required value must be present. Report ALL missing keys at once, with
+  // the template's full required list (in placeholder order), so a single re-call
+  // fixes them instead of one failed call per missing key (2.3, F2, design C6).
+  const required = tmpl.required;
   const missing = required.filter((key) => values[key] === undefined || values[key] === null);
   if (missing.length > 0) {
     const plural = missing.length > 1 ? 's' : '';
@@ -800,9 +714,16 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     };
   }
 
-  const filled = body.replace(/\{\{(\w+)\}\}/g, (_full, key: string) =>
-    key in serverValues ? serverValues[key] : String(values[key]),
-  );
+  // Caller values (stringified) fill the template; server-filled keys (agentRules,
+  // taskBlock) come only from serverValues, so render drops the read-and-obey line
+  // when no agent-rules.md was found.
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (SERVER_BRIEF_KEYS.has(key)) continue;
+    merged[key] = String(value);
+  }
+  Object.assign(merged, serverValues);
+  const filled = tmpl.render(merged);
 
   // With a graph path, append the `## Code graph` section; the separator is a
   // single newline when the filled text already ends in one (giving one blank
