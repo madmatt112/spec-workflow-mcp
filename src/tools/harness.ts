@@ -333,6 +333,13 @@ async function orientImplementation(
     open: parsed.summary.pending,
   };
 
+  // The task queue the orchestrator picks from (R4.2): the `[-]` task then the `[ ]`
+  // tasks in file order, dropping header tasks (the rule of `findNextPendingTask`).
+  const queue = parsed.tasks
+    .filter((t) => (t.status === 'in-progress' || t.status === 'pending') && !t.isHeader)
+    .map((t) => ({ id: t.id, title: t.description, status: t.status, files: t.files ?? [] }));
+  const nextTask = queue[0] ?? null;
+
   // Approval/phase state through the server's existing derivation (1.6).
   const parser = new SpecParser(workflowRoot);
   const spec = await parser.getSpec(specName);
@@ -361,11 +368,72 @@ async function orientImplementation(
     inFlightReports = drainInFlightReports(ledgerRead.events);
   }
 
+  const data: Record<string, unknown> = {
+    phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep, inFlightReports,
+    queue, nextTask,
+  };
+  // At the completion gate or repair the orchestrator reads this spec's decomposition
+  // entry — its title and end-to-end scenario — without a whole-file read (R4.3, C5).
+  if (nextStep === 'Completion gate' || nextStep === 'Repair') {
+    data.decomposition = await readDecompositionEntry(workflowRoot, specName);
+  }
+
   return {
     success: true,
     message: `orient implementation ${tasks.done}/${tasks.total} → ${nextStep}`,
-    data: { phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep, inFlightReports },
+    data,
   };
+}
+
+/**
+ * Read this spec's decomposition entry from `spec-decomposition/decomposition.md`
+ * under the spec-store root (C5). The entry runs from the first `### ` line holding
+ * the backticked slug to the next `### ` or `## ` line; the title is the heading text
+ * after the slug (leading em-dash/whitespace trimmed); the scenario runs from the line
+ * starting `**End-to-end verification` (both the `.**` and `**:` label forms) to before
+ * the next line starting `**` or `#`. Anything missing is null and never fails orient.
+ */
+async function readDecompositionEntry(
+  workflowRoot: string, specName: string,
+): Promise<{ title: string | null; scenario: string | null }> {
+  const path = PathUtils.safeJoin(PathUtils.getDecompositionPath(workflowRoot), 'decomposition.md');
+  let content: string;
+  try {
+    content = await readFile(path, 'utf-8');
+  } catch {
+    return { title: null, scenario: null };
+  }
+
+  const lines = content.split('\n');
+  const slug = '`' + specName + '`';
+  const start = lines.findIndex((l) => /^###\s/.test(l) && l.includes(slug));
+  if (start === -1) return { title: null, scenario: null };
+
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^###\s/.test(lines[i]) || /^##\s/.test(lines[i])) { end = i; break; }
+  }
+
+  const heading = lines[start];
+  const after = heading.slice(heading.indexOf(slug) + slug.length);
+  const title = after.replace(/^[\s—–-]+/, '').trim() || null;
+
+  let scenario: string | null = null;
+  const scenarioStart = lines
+    .slice(start, end)
+    .findIndex((l) => l.trimStart().startsWith('**End-to-end verification'));
+  if (scenarioStart !== -1) {
+    const from = start + scenarioStart;
+    const collected = [lines[from]];
+    for (let i = from + 1; i < end; i++) {
+      const t = lines[i].trimStart();
+      if (t.startsWith('**') || t.startsWith('#')) break;
+      collected.push(lines[i]);
+    }
+    scenario = collected.join('\n').trim() || null;
+  }
+
+  return { title, scenario };
 }
 
 type TargetClass = 'none' | 'store' | 'harness' | 'code' | 'home';

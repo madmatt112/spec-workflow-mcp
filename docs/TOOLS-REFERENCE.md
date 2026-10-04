@@ -573,8 +573,12 @@ pattern `spec-lint` uses) and spawns no child process.
   one call. For a document phase (`requirements`, `design`, `tasks`) it returns the
   document version `D`, the latest analysis index `A` with its verdict, the post-cap
   marker `P`, whether the latest analysis is the narrow check, and the next step; for
-  `implementation` the task counts and the next step; for `closeout` the plan-item
-  counts, the open items by target class, and the next step.
+  `implementation` the task counts, the next step, the task `queue` (the `[-]` task then
+  the `[ ]` tasks in file order, no header tasks, each `{ id, title, status, files }`),
+  `nextTask` (`queue[0]` or null), and — only at the completion gate or repair — the
+  spec's `decomposition` (`{ title, scenario }` from `spec-decomposition/decomposition.md`,
+  nulls when absent); for `closeout` the plan-item counts, the open items by target class,
+  and the next step.
 - `brief` — fill a named server-side template and write a worker brief, returning the
   brief file's absolute path. An implementer brief for a `taskId` gets that task's
   block from the server tasks parser. A `test-author` brief fills the same task block for
