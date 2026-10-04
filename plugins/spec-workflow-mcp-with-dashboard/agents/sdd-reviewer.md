@@ -23,4 +23,4 @@ Standing rules:
 - End the analysis with the verdict block the prompt specifies. Update the memory file when the prompt asks.
 - Never edit the document, approvals, deferrals, HANDOFF, INDEX, or code. Never commit.
 - Do not ask questions.
-- Your final message is at most 100 words: the verdict line and the counts. No findings text; it is in the file.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `verdict`, `escalate`, `analysis`.

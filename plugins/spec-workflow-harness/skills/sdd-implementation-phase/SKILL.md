@@ -6,20 +6,30 @@ description: "Runs the implementation phase of one SDD spec: works the task queu
 # SDD implementation phase
 
 You orchestrate the task queue of one spec. You never implement, read source, edit
-source, run tests, or grep source. Workers do that. Your own reads are `tasks.md`, the
-decomposition entry, `agent-rules.md`, HANDOFF, the retro log and worker reports of
-150 words or fewer. If file contents, diffs or test output start accumulating in your
-context, stop and report `PHASE: error` with `REASON: drift (worker over-shared)`.
+source, run tests, or grep source. Workers do that. Your own reads are the `orient` data
+(the task queue, the next task and, at the completion gate, the decomposition entry), the
+HANDOFF section `## <SPEC> — implementation`, the retro log, the few-line `checks-file` a
+worker names, and worker report blocks of 80 words or fewer. Never read `tasks.md`, the
+decomposition file or `agent-rules.md` whole (Requirement 4.1). If file contents, diffs or
+test output start accumulating in your context, stop and report `PHASE: error` with
+`REASON: drift (worker over-shared)`.
 
 Your launch prompt gives you `SPEC`, `PHASE: implementation`, `MODE` (`normal` or
-`repair`), the roots, `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `BUDGET` (tasks per
-spawn, default 20), `REVISION_INPUT` (repair: the failing scenario) and `GRAPH`,
-`GRAPH_BEHIND`, `GRAPH_BUILT_AT`. The 20-task
-budget assumes the reduced orchestrator context this harness produces: you route only —
-the `orient` action runs Step 0, `harness brief` assembles each brief, and the plugin
-hook writes the worker spawn boundary, so none of that fills your context.
+`repair`), the roots (`SPEC_STORE_ROOT`, `SPEC_STORE_REPO`, `CODE_ROOT`, `MAIN_CHECKOUT`,
+`WORKTREE`), `HANDOFF`, `AGENT_RULES`, `AGENT_PREFIX`, `EVENT_SCRIPT`, `MODEL_OVERRIDES`,
+`BUDGET` (tasks per spawn, default 5), `REVISION_INPUT` (repair: the failing scenario) and
+`GRAPH`, `GRAPH_BEHIND`, `GRAPH_BUILT_AT`. The 5-task budget keeps the orchestrator's
+context small: you route only — the `orient` action returns the task queue, `harness brief`
+assembles each brief, `book.sh` batches the bookkeeping and the plugin hook writes the
+worker spawn boundary, so none of that fills your context. Five tasks of routing is the
+span that fits before a fresh orchestrator resumes from Step 0.
 
-Brief templates are in `references/briefs.md`. Read it once at the start.
+Briefs, prompt blocks and the bookkeeping script `book.sh` come from the `harness` `brief`
+server kinds (Step 0 writes `book.sh` and the two standing briefs); you pass only the
+values each kind needs. The completion gate (with **Live verification** and **Reconcile a
+red PR**) and **Repair** live in `references/completion.md`; the stop sections — **Design
+defect**, **Escalate**, **Resume recovery** and **Stop conditions and their reports** —
+live in `references/stops.md`. Read each file only when a step routes to it.
 
 ## Standing rules
 
@@ -27,7 +37,8 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   parameter, never `fork`. When `MODEL_OVERRIDES` names the worker, pass that value as
   the Agent tool's `model` parameter; the no-`model` default holds for a worker it does
   not name. One worker at a time: tasks run sequentially in this
-  version, whatever `agent-rules.md` says about parallelism.
+  version, whatever `agent-rules.md` says about parallelism. A fresh worker per task
+  (Requirement 8.1); never reuse a worker across tasks.
 - Pass `projectPath: <CODE_ROOT>` only on the `review-task` `gate`, `prepare` and
   `record` calls (retro P5/G1: a worktree gate that resolves against the main checkout is
   void); never pass it to any other spec-workflow MCP tool. Never poll dashboard state.
@@ -36,80 +47,107 @@ Brief templates are in `references/briefs.md`. Read it once at the start.
   them.
 - Commit on the current branch of the code repo. Never create or switch branches. Pass
   that rule to every worker.
-- Paths: spec dir `<SPEC_STORE_ROOT>/specs/<SPEC>/`; `tasks.md` in it; retro log
-  `<spec dir>/retrospective-log.md` (create with `# Retrospective log — <SPEC>` if
-  missing); briefs in `/tmp/scratchpad/sdd/<SPEC>/` (create it).
-- Every brief starts with `Read and obey <AGENT_RULES> first.` when `AGENT_RULES` is a
-  path.
+- Paths: spec dir `<SPEC_STORE_ROOT>/specs/<SPEC>/`; `tasks.md` and the retro log
+  `<spec dir>/retrospective-log.md` live in it (`book.sh` reads and writes them; you do
+  not read `tasks.md` whole); briefs in `/tmp/scratchpad/sdd/<SPEC>/` (create it).
+- The `harness` `brief` action fills the `Read and obey <AGENT_RULES> first.` line of
+  every worker brief server-side when the spec store holds `agent-rules.md`; you never
+  write it.
 - When `GRAPH` is a path, every `harness` `brief` call carries `values.graph`,
   `values.graphBuiltAt` and `values.graphBehind`, set to your current `GRAPH`,
   `GRAPH_BUILT_AT` and `GRAPH_BEHIND`. When `GRAPH` is `none`, pass none of them. Never
   read `graph.json` or run a graphify read call yourself.
-- Keep a task list: one item per task in `tasks.md`.
-- Edit `tasks.md` and HANDOFF with the Edit tool. When the tool refuses the path (a
-  worktree-isolated session), write `/tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs` once with
-  the Write tool from the script text in the document-phase skill's
-  `references/cleanup.md`, then call it on its own shell line:
-  `node /tmp/scratchpad/sdd/<SPEC>/spec-edit.mjs <file> <old> <new>` replaces one exact
-  match (non-zero exit on 0 or 2+ matches). Never `sed -i` on the spec store, never a
-  heredoc; write scripts with the Write tool.
+- Keep a task list: one item per task in the `orient` queue.
 - Do not ask questions.
-- Spec store commits go through the script in the document-phase skill's
-  `references/cleanup.md` (same script, same path); write it if it does not exist.
-- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
-  as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
-  at the end of Step 0 (`state=tasks <done>/<total>`); `task.pick task=<N> "title=<title>"`
-  when you mark a task `[-]`; one `spawn.usage` right after each worker's report
-  (`agent=`, `role=author task <N> | implement task <N> | verify task <N> | fix task <N>
-  round <r> | adjudicate task <N> | end-to-end verification | fix ci <check> round <r>`,
-  `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT | VERIFY>`);
-  `note "text=gate: task <N> <pass|fail> risk <low|high>"`, appending ` tdd <base outcome>`
-  to that text when the gate returned a `data.tdd` block, after every gate call; one
-  `judge task=<N> site=tdd` event carrying the four `data.tdd.judged.answers`
-  (`tautological`, `asserts_criteria`, `through_seam`, `mocks_internals`),
-  `tokens=<data.tdd.judged.inputTokens>` and `ms=<data.tdd.judged.ms>` after a gate whose
-  `data.tdd.judged` is non-null and not a cache hit;
-  `task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>` when you mark `[x]`;
-  `note` for deferrals, design defects, drift and every red CI check; `phase.end` right
-  before your final report. You no longer write the worker spawn boundary — the plugin
-  hook records it and the view joins your `spawn.usage` to it by agent and time window.
-  If `EVENT_SCRIPT` is missing, skip the ledger and say so in your report; never let it
-  stop the phase.
+- **Bookkeeping.** All ledger rows, checkbox edits, retro entries, the HANDOFF State row
+  and spec-store commits go through `book.sh`, written in Step 0 from the `book-script`
+  kind. Call it as `bash /tmp/scratchpad/sdd/<SPEC>/book.sh <segment> [-- <segment>]…`,
+  segments in order: `event <type> key=value…` (quote values with spaces), `check <N>
+  todo|doing|done`, `retro <stage> <ref> <category> <body> <evidence> <cost>`, `state
+  <text>` (the HANDOFF `## <SPEC> — implementation` State row), `commit <message>` and
+  `head` (prints `head: <sha>` of `CODE_ROOT`). Each segment is idempotent: a re-run after
+  a partial failure lands no duplicate row, checkbox flip, retro entry or commit. Use the
+  design C7 compositions, so a spawn's `spawn.usage`, the gate `note` and `judge` rows, the
+  `task.done`, the checkbox flips, the retro entry, the State row, the commit and the next
+  pick ride one `book.sh` call between two spawns (Requirement 6.2):
+  - First pick of a spawn: `check <N> doing -- event task.pick task=<N> "title=<T>" -- head`.
+  - Close plus next pick (drop the last two segments when the budget is full): `event
+    spawn.usage … -- event task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate> --
+    check <N> done -- retro implementation "task <N>" <category> "<body>" "<evidence>"
+    "<cost>" -- state "tasks <done>/<total>, last commit <sha>, next task <M>" -- commit
+    "docs(sdd): <SPEC> task <N>" -- check <M> doing -- event task.pick task=<M>
+    "title=<…>" -- head`.
+  - After a gate: `event note "text=gate: task <N> <pass|fail> risk <low|high>" -- event
+    judge task=<N> site=tdd …` (the `judge` segment only after a gate whose
+    `data.tdd.judged` is non-null and not a cache hit).
+  - `spawn.usage` keys: `agent=`, `role=author task <N> | implement task <N> | verify task
+    <N> | fix task <N> round <r> | adjudicate task <N> | end-to-end verification | fix ci
+    <check> round <r>`, `phase=implementation`, `task=<N>`, `result=<logged line | VERDICT
+    | VERIFY>`. The gate `note` text appends ` tdd <base outcome>` when the gate returned a
+    `data.tdd` block; the `judge` event carries the four `data.tdd.judged.answers`
+    (`tautological`, `asserts_criteria`, `through_seam`, `mocks_internals`),
+    `tokens=<data.tdd.judged.inputTokens>` and `ms=<data.tdd.judged.ms>`. Add a `note` for
+    deferrals, design defects, drift and every red CI check.
+  - Uniqueness (C7): one spawn never passes two identical rows. The gate `note` text and
+    the verify `role` add ` round <r>` for r ≥ 1, and the `logged: no` re-spawn `role`
+    adds ` retry`. Row types and keys never change.
+  Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
+  <done>/<total>"` at the end of Step 0 and `phase.end` right before your final report. The
+  event types, keys and roles are listed in the supervisor's `references/formats.md`. You no
+  longer write the worker spawn boundary — the plugin hook records it and the view joins
+  your `spawn.usage` to it by agent and time window. On a non-zero `book.sh` exit re-run the
+  same command once; a second failure of that step is that step's failure as today, and a
+  usage error (exit 2) is `PHASE: error`. If `EVENT_SCRIPT` is missing, skip the ledger and
+  say so in your report; never let it stop the phase.
 
 ## Step 0 — Orient
 
 1. Call the spec-workflow `harness` tool with `action: orient`, `specName: <SPEC>`,
    `phase: implementation`, `mode: <MODE>`, and no `projectPath`. It returns `tasks`
-   (`total`, `done`, `inProgress`, `open`), `tasksApproved`, `currentPhase`, `nextStep`, and
-   `inFlightReports` (the drain list — see **Resume recovery**).
-   Route on `nextStep`:
+   (`total`, `done`, `inProgress`, `open`), `tasksApproved`, `currentPhase`, `nextStep`,
+   `queue` (the `[-]` task then the `[ ]` tasks in file order, each with its `id`, `title`,
+   `status` and `files`), `nextTask` (`queue[0]` or null), `inFlightReports` (the drain
+   list — see **Resume recovery**), and, at the completion gate or repair, `decomposition`
+   (`title`, `scenario`). Route on `nextStep`:
    - `error: tasks.md not approved` ⇒ report `PHASE: error`, `REASON: tasks.md not
      approved`.
-   - `Repair` ⇒ go to **Repair**.
-   - `Per-task loop: resume task <N>` ⇒ **Resume recovery** first, then the **Per-task
-     loop**, working that `[-]` task from Step 2 (its implementer may have finished; the
-     verifier decides).
+   - `Repair` ⇒ read `references/completion.md` and go to **Repair**.
+   - `Per-task loop: resume task <N>` ⇒ read `references/stops.md` and run **Resume
+     recovery** first, then the **Per-task loop**, working that `[-]` task from Step 2 (its
+     implementer may have finished; the verifier decides).
    - `Per-task loop` ⇒ the **Per-task loop**.
-   - `Completion gate` ⇒ the **Completion gate**.
+   - `Completion gate` ⇒ read `references/completion.md` and run the **Completion gate**.
 2. Read the HANDOFF section `## <SPEC> — implementation` if it exists.
-3. Write `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md` and `verify-standing.md` from
-   the templates once per run.
-4. Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET>
-   "state=tasks <done>/<total>"`.
+3. **Scripts.** If `/tmp/scratchpad/sdd/<SPEC>/retro.sh` is missing, write it with the
+   Write tool from the supervisor's `references/formats.md` (the spec dir filled in), so
+   `book.sh`'s `retro` segment can call it. If `/tmp/scratchpad/sdd/<SPEC>/book.sh` is
+   missing, call the `harness` tool with `action: brief`, `template: book-script`,
+   `specName: <SPEC>`, and `values` carrying `path: /tmp/scratchpad/sdd/<SPEC>/book.sh`,
+   `eventScript: <EVENT_SCRIPT>`, `retroScript: /tmp/scratchpad/sdd/<SPEC>/retro.sh`,
+   `specDir: <spec dir>`, `specStoreRepo: <SPEC_STORE_REPO>`, `codeRoot: <CODE_ROOT>` and
+   `handoff: <HANDOFF>`. Keep the path it returns.
+4. **Standing briefs.** Once per run, write `/tmp/scratchpad/sdd/<SPEC>/impl-standing.md`
+   and `verify-standing.md` from the `impl-standing` and `verify-standing` `harness`
+   `brief` kinds, each with `values` carrying its `path`, `codeRoot: <CODE_ROOT>`,
+   `mainCheckout: <MAIN_CHECKOUT>`, `specStoreRoot: <SPEC_STORE_ROOT>` and `specDir: <spec
+   dir>`.
+5. Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
+   <done>/<total>"` through `book.sh` (`event`).
 
 ## Per-task loop
 
-Loop until no `[ ]` or `[-]` task remains, or the budget trips.
+Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remains, read
+`references/completion.md` and run the **Completion gate**.
 
-1. **Pick.** The first `[ ]` task in file order (or the `[-]` task from Step 0).
-   Print `▶ Task <N>: <title>`. Edit `tasks.md` to mark it `[-]` before any work. Then
-   run `git -C <CODE_ROOT> rev-parse HEAD` and note the sha as the task's pre-implement
-   HEAD on the task-list item — a record of where the task started, never the gate base.
-   **Gate the implementer commit, not pre-implement HEAD (retro P1).** Wherever
-   `CODE_ROOT` and the spec store resolve to the same git repo (`git -C <CODE_ROOT>
-   rev-parse --show-toplevel` equals the spec store's) — the normal layout here — a
-   pre-implement-HEAD`..HEAD` range also sweeps the orchestrator's own bookkeeping
-   commits and untracked spec-store files added after this capture (retro F1/F7), so the
+1. **Pick.** `nextTask` from Step 0's orient data (its `id`, `title`, `status` and `files`;
+   or the `[-]` task Step 0 resumed). Print `▶ Task <N>: <title>`. Mark it `[-]` and open
+   the spawn with one `book.sh` call before any work: `bash book.sh check <N> doing --
+   event task.pick task=<N> "title=<title>" -- head`. Note the `head: <sha>` line as the
+   task's pre-implement HEAD — a record of where the task started, never the gate base.
+   **Gate the implementer commit, not pre-implement HEAD (retro P1).** Where `CODE_ROOT`
+   and the spec store resolve to the same git repo — the normal layout here — a
+   pre-implement-HEAD`..HEAD` range also sweeps the orchestrator's own bookkeeping commits
+   and untracked spec-store files added after this capture (retro F1/F7), so the
    single-commit range is the default: once the implementer reports its `commit: <sha>`
    (Step 3), set `base=<sha>^` (its parent), so every gate call for this task ranges over
    exactly that one commit, through every fix round. Never gate against the captured
@@ -125,14 +163,15 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    rules name from these roots; commit in the code root." Spawn `sdd-test-author` with
    `Read and execute the instructions in <the returned path>` and record its `spawn.usage`
    with `role=author task <N>`. Route on its report:
-   - `SEAM-DEFECT`, or `RED-IMPOSSIBLE` on every criterion ⇒ **Design defect**, spawning no
-     implementer; the stop's `REASON` is the author's flag. On this stop the author has
-     already deleted its own uncommitted test files (retro P3), so no stray test file is
-     left in the tree for the next run.
+   - `SEAM-DEFECT`, or `RED-IMPOSSIBLE` on every criterion ⇒ read `references/stops.md` and
+     go to **Design defect**, spawning no implementer; the stop's `REASON` is the author's
+     flag. On this stop the author has already deleted its own uncommitted test files (retro
+     P3), so no stray test file is left in the tree for the next run.
    - `RED-IMPOSSIBLE` on some criteria only ⇒ continue, and append one `doc-gap` retro-log
-     entry with `retro.sh` naming those criteria.
-   - otherwise ⇒ keep the author's files and its `commit:` sha on the task-list item; they
-     feed step 2's `redTests` and every gate call's `tdd`.
+     entry through `book.sh` (`retro`) naming those criteria.
+   - otherwise ⇒ keep the author's report block (its `files` key and the block verbatim)
+     and its `commit:` sha on the task-list item; they feed step 2's `authorFiles` /
+     `authorReport` and every gate call's `tdd`.
    A `[-]` marked task resumed from Step 0 spawns the author only when
    `git -C <CODE_ROOT> log -1 --format=%H --grep "test(<SPEC>): task <N> red"` finds
    nothing (its author already committed on a prior turn otherwise). A task whose block
@@ -145,29 +184,37 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    later, and runs every step as today.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,
    `template: implementer`, `specName: <SPEC>`, `taskId: "<N>"`, and `values` carrying the
-   output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md`. The tool fills the
+   output path `/tmp/scratchpad/sdd/<SPEC>/impl-brief-task-<N>.md` and `title: <nextTask.title>`.
+   The tool fills the
    task's full text (its `- [ ]` line to the next checkbox, so an intervening `##` heading
    is included) from `tasks.md` and writes the read-and-obey line. On a marked task (step
-   1b ran an author), also pass `values.redTests` = the `## Red tests (from the test
-   author)` section from `references/briefs.md`, filled with the author's files, its
-   `Test:` lines and its report verbatim; on an unmarked task omit `redTests`, which the
-   template defaults to empty. Before you spawn, check the filled prompt's decision-id
-   citations (retro P5): for each `D<n>` the `_Prompt` cites as the reason for a behaviour,
-   confirm that decision governs that behaviour — `grep -n 'D<n>' <spec dir>/design.md`
-   and `requirements.md` for its `## Decisions taken in this document` entry, a structure
-   read, not the body. On a mis-cite — a `D<n>` that does not govern the behaviour it is
-   attached to — add the governing requirement number to the brief and append a `doc-gap`
-   retro-log entry with `retro.sh`; `agent-rules.md` already has the implementer code to
-   the governing requirement, this catches it upstream. Then spawn `sdd-implementer`
-   with `Read and execute the instructions in <the returned path>`.
-3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
+   1b ran an author), also pass `values.authorFiles` = the test-author report block's
+   `files` key and `values.authorReport` = that block verbatim; the server builds the red
+   tests section from them and the task block's `- Test:` lines. On an unmarked task pass
+   neither (the server defaults the red tests section to empty). Before you spawn, check the
+   filled prompt's decision-id citations (retro P5): for each `D<n>` the `_Prompt` cites as
+   the reason for a behaviour, confirm that decision governs that behaviour — `grep -n
+   'D<n>' <spec dir>/design.md` and `requirements.md` for its `## Decisions taken in this
+   document` entry, a structure read, not the body. On a mis-cite — a `D<n>` that does not
+   govern the behaviour it is attached to — add the governing requirement number to the
+   brief and append a `doc-gap` retro-log entry through `book.sh` (`retro`);
+   `agent-rules.md` already has the implementer code to the governing requirement, this
+   catches it upstream. Then spawn `sdd-implementer` with `Read and execute the instructions
+   in <the returned path>`.
+3. **Read the report.** Route only on the report block's keys (`logged`, `checks-file`
+   and the flags below); a report that arrives without its block is a stall: spawn a
+   fresh `sdd-implementer` once more from the same brief, and a second report still
+   missing its block ⇒ `PHASE: error` (the missing-verdict-block rule, document-phase
+   Step 2). It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
-   for task <N> now; the code is done". Flags:
-   - `DESIGN-DEFECT` ⇒ **Design defect**.
+   for task <N> now; the code is done" (its `spawn.usage` `role` adds ` retry`). Its report
+   block names a `checks-file` (a path to a JSON array of the commands it ran); keep that
+   path for the gate's `checks` (Step 4) — the only worker file you read. Flags:
+   - `DESIGN-DEFECT` ⇒ read `references/stops.md` and go to **Design defect**.
    - `AFFECTS-FUTURE-SPECS` ⇒ **Deferral bar**.
-   - `RETRO:` ⇒ append a retro-log entry with `retro.sh` (its category, its line, evidence = task N
-     and the implementer's files).
-   - `ESCALATE:` ⇒ **Escalate**.
+   - `RETRO:` ⇒ append a retro-log entry through `book.sh` (`retro`) with its category, its
+     line, evidence = task N and the implementer's files.
+   - `ESCALATE:` ⇒ read `references/stops.md` and go to **Escalate**.
    A **verification-only task** (a spec-store-only task) — its `File:` lines name no
    path under `CODE_ROOT` — has no gate: skip step 4 and spawn no verifier for it. Run
    its check commands as part of step 8 (end-to-end verification), then mark it `[x]`
@@ -181,22 +228,23 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    **Graph refresh.** After reading the report, when `GRAPH` is a path and `WORKTREE` is
    `no`, run `bash /tmp/scratchpad/sdd/<SPEC>/sdd-graph.sh refresh <CODE_ROOT>` before the
    gate. On `refresh: ok` replace `GRAPH_BEHIND` and `GRAPH_BUILT_AT` with its two lines;
-   on any other output keep them and record `note "text=graph refresh: <first line>"`. A
-   refresh failure never stops the phase.
+   on any other output keep them and record `note "text=graph refresh: <first line>"`
+   through `book.sh` (`event`). A refresh failure never stops the phase.
 4. **Gate.** Call the spec-workflow `review-task` tool with `action: gate`, `specName`,
    `taskId: "<N>"`, `projectPath: <CODE_ROOT>` (retro P5), `baseRef` = the task's `base`
-   sha (`<implementer commit>^`, set in Step 1) when it has one, and `checks` = the
-   check commands the task block and `agent-rules.md` name for the files the implementer
-   touched, one shell string each, dropping a bare typecheck command (the gate runs the
-   project typecheck itself). On a marked task, also pass `tdd: { testFiles: <the author's
-   test files>, redCommit: <the author's `commit:` sha from step 1b> }` on every gate call
-   for this task, through every fix round. Pass `files` as the exact per-file paths the task
-   changed, from the diff — never a directory, which mis-scores the gate (retro P8).
+   sha (`<implementer commit>^`, set in Step 1) when it has one, `files` = `nextTask.files`
+   (the task's declared files from the orient queue, design D10), and `checks` = the
+   commands in the implementer's `checks-file` (design D17), one shell string each,
+   dropping a bare typecheck command (the gate runs the project typecheck itself). On a
+   marked task, also pass `tdd: { testFiles: <the author's test files>, redCommit: <the
+   author's `commit:` sha from step 1b> }` on every gate call for this task, through every
+   fix round.
    Narrowing the gate range to exclude spec-store bookkeeping and untracked noise —
    through the single-commit `baseRef` of Step 1 or the gate's own bookkeeping and
    untracked skips — is a sanctioned self-resolution, not a human-decision escalation
-   (retro P11): apply it and continue; never stop the phase for it. Record the ledger note, then route on `data.gate` and
-   `data.risk`:
+   (retro P11): apply it and continue; never stop the phase for it. Record the gate `note`
+   (and, when `data.tdd.judged` is non-null and not a cache hit, the `judge` row) through
+   `book.sh`, then route on `data.gate` and `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
    - `pass` and `risk: low` or `medium` ⇒ **step 6**, with the gate-recorded review as the
@@ -205,8 +253,8 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
      verifier.
    - `pass` and `risk: high` ⇒ **step 4b**.
    A gate `success: false` after the implementer's `logged: yes` is a tool error, not a
-   fix round: write the HANDOFF section, commit the spec store, and report `PHASE:
-   resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
+   fix round: write the HANDOFF State row and commit the spec store (`book.sh`), and report
+   `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
    `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
 4b. **Verify** (high risk only).
    **Batched verification (retro P7/G1).** After the first N tasks all pass verifier on
@@ -216,55 +264,66 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips.
    tdd-inconclusive as a risk signal on a type-level or pure-function seam. Take N as 3.
    A gate, security (a sensitive-path match) or data-loss task is always verified in full
    and never counts toward the batch or joins a group. For a batched group, carry every
-   grouped task's id, files and `## Gate results` into one verifier brief and spawn
-   `sdd-verifier` once for the group; a grouped task goes `[x]` only on that shared pass.
+   grouped task's id, files and `## Gate results` into one verifier brief (the `batch`
+   variant, `taskIds` the grouped ids) and spawn `sdd-verifier` once for the group; a
+   grouped task goes `[x]` only on that shared pass.
    For a task verified in full, call `harness` `brief` with `template: verifier`,
    `specName: <SPEC>`, and `values` carrying the output path
-   `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md` and the verifier job (task id, the
-   files the implementer named, round number, and the `## Gate results` block verbatim)
-   from `references/briefs.md`. When the gate returned a `data.tdd` block, copy it into that
-   `## Gate results` block; when it shows `amended: true`, add the sentence "Judge the
-   amended author test against the task's criteria first." Spawn `sdd-verifier` with `Read and execute
-   the instructions in <brief path>`. It runs `review-task` `prepare` then `record`, each
-   with `projectPath: <CODE_ROOT>` (retro P5), so the dashboard and `spec-status` see the
-   review, runs only the checks the gate did not run, and ends with `VERDICT: pass |
-   fix-required`.
+   `/tmp/scratchpad/sdd/<SPEC>/verify-brief-task-<N>.md`, `variant: task` (`batch` for a
+   group), `title`, `taskIds: "<N>"` (the grouped ids for a batch), `files` (the files the
+   implementer named), `round`, `gateResults` (the `## Gate results` block verbatim —
+   `data.reasons`, `data.checks`, `data.stats`, `data.touched`, `data.typecheck` and
+   `data.tdd`), and `scenario: ""`. When the gate returned a `data.tdd` block, include it in
+   `gateResults`; when it shows `amended: true`, add the sentence "Judge the amended author
+   test against the task's criteria first." to the `gateResults` value. Spawn `sdd-verifier`
+   with `Read and execute the instructions in <brief path>`. It runs `review-task` `prepare`
+   then `record`, each with `projectPath: <CODE_ROOT>` (retro P5), so the dashboard and
+   `spec-status` see the review, runs only the checks the gate did not run, and ends with
+   `VERDICT: pass | fix-required`.
 5. **Fix rounds** (cap 3, counting gate fails and verifier `fix-required` alike). Spawn
    a fresh `sdd-implementer`, run the graph refresh (step 3) after its report when
    `GRAPH` is a path and `WORKTREE` is `no`, then return to step 4 (the gate). Assemble
-   each fix brief
-   with `harness` `brief`, `template: reviser`, `specName: <SPEC>`, `values` carrying the
-   output path `impl-brief-task-<N>-fix-<r>.md` and the findings (and, on a marked task,
-   the `## Red tests (from the test author)` section from `references/briefs.md` inside the
-   `reviser` `{{job}}` value):
-   - After a `gate: fail`: the findings are `data.reasons` and `data.checks` verbatim;
-     spawn no verifier; re-run the gate.
-   - After a verifier `fix-required`: the findings are the verifier's findings; re-run
-     step 4.
+   each fix brief with `harness` `brief`, `template: fix`, `specName: <SPEC>`, and `values`
+   carrying the output path `impl-brief-task-<N>-fix-<r>.md`, `taskId: "<N>"`, `round: "<r>"`,
+   `commit: "<the implementer commit>"` and the `variant` and `findings`:
+   - After a `gate: fail`: `variant: gate`, `findings` = `data.reasons` and `data.checks`
+     verbatim; spawn no verifier; re-run the gate.
+   - After a verifier `fix-required`: `variant: verifier`, `findings` = the verifier's
+     findings; re-run step 4.
+   On a marked task, prefix the `findings` value with the `## Red tests (from the test
+   author)` block built from the author report (the test-author block verbatim, not the
+   deleted `references` text), so the fix implementer keeps the red tests in view.
    After three fix rounds still failing: assemble `adjudication-brief-task-<N>.md` with
-   `harness` `brief`, `template: adjudicator`, the open findings as its items, spawn
-   `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts), then
-   one narrow verification (assemble `verify-brief-task-<N>-narrow.md` with `harness`
-   `brief`, `template: verifier`: verify only the listed findings, and when the terminus
-   was a gate fail re-run the checks that were failing; `review-task` `prepare` and
-   `record` again). Append a retro-log entry with `retro.sh` (`ruling`, with the narrow
-   verdict) and continue to step 6 whatever the narrow verdict says.
+   `harness` `brief`, `template: adjudicator`, `specName: <SPEC>`, `values` carrying the
+   output path, `taskId: "<N>"`, `phase: implementation` and `items` = the open findings,
+   spawn `sdd-adjudicator` once (it rules on each open finding and fixes what it accepts),
+   then one narrow verification (assemble `verify-brief-task-<N>-narrow.md` with `harness`
+   `brief`, `template: verifier`, `variant: narrow`, the same task values — `title`,
+   `taskIds`, `files`, `round`, `scenario: ""` — and `gateResults` carrying the open
+   findings to verify and, when the terminus was a gate fail, the checks that were failing;
+   `review-task` `prepare` and `record` again). Append a retro-log entry through `book.sh`
+   (`retro`, `ruling`, with the narrow verdict) and continue to step 6 whatever the narrow
+   verdict says.
 6. **Complete.** Only with a `gate: pass` and `risk: low` or `medium`, a verifier
-   `VERDICT: pass`, or after adjudication, and `logged: yes`: edit `tasks.md` `[-]` → `[x]` (`task.done`
-   `outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
-   adjudication). Append a retro-log entry with `retro.sh` for the task:
-   `## <ts> · implementation · task <N> · <inefficiency if fix rounds > 1, else gotcha>`
-   with rounds, outcome, cost in spawns. Then rewrite the State row of the HANDOFF
-   section `## <SPEC> — implementation` (`tasks <done>/<total>`, last code commit, next
-   task) and commit the spec store. Count it against `BUDGET`. A task whose
+   `VERDICT: pass`, or after adjudication, and `logged: yes`: mark the task `[x]` and record
+   the close through one `book.sh` call (the C7 close-plus-next-pick composition):
+   `check <N> done`, `event task.done task=<N> rounds=<r> outcome=<pass|adjudicated|gate>`
+   (`outcome=gate` on the gate path, `pass` on a verifier pass, `adjudicated` after
+   adjudication), a `retro implementation "task <N>" <inefficiency if fix rounds > 1, else
+   gotcha> "<rounds, outcome, cost in spawns>" …`, the `state` segment for the HANDOFF
+   `## <SPEC> — implementation` State row (`tasks <done>/<total>`, last code commit, next
+   task), the spec-store `commit`, and the next task's `check <M> doing -- event task.pick
+   … -- head` (dropped when the budget is full). Count it against `BUDGET`. A task whose
    verification is only partly done may still go `[x]`, but only when a `deferrals`
    record tagged `verification` names the exact command still to run and the evidence
    it must show; on that, add the row `Deferred verification | <id>` to the HANDOFF
    `## <SPEC> — implementation` section and carry that item unticked in the PR body's
    Test plan (step 10). A silent skip is not allowed: no record, no `[x]`.
 7. **Budget.** When the count of tasks completed in this run reaches `BUDGET` and open
-   tasks remain: write the HANDOFF section, commit the spec store, report
-   `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <next N>`.
+   tasks remain: write the HANDOFF State row and commit the spec store (`book.sh`), record
+   `phase.end`, and report `PHASE: resume`, `STATE: tasks <done>/<total>`. `NEXT: task
+   <next N>` when open tasks remain, or — when the budget-filling task was the last open
+   one — `NEXT: completion gate` (Requirement 7.5).
 
 ## Deferral bar
 
@@ -275,246 +334,3 @@ plausibly fire, and enough weight that you would spend an hour on it if it were 
 last item in the queue. A reviewer's nit never becomes a record. Anything that fails
 the bar but is worth knowing goes into the HANDOFF section as a gotcha. After adding,
 read the record back once (`deferrals` `get`) and confirm `originSpec` landed.
-
-## Design defect
-
-The implementer says the task cannot be built as written because it contradicts the
-design, the requirements or a decomposition assumption; or, on a marked task, the test
-author (step 1b) reported `SEAM-DEFECT` or `RED-IMPOSSIBLE` for every criterion, in which
-case no implementer runs. Do not force it. Revert the
-task to `[ ]`. Append a retro-log entry with `retro.sh` (`deviation`, the defect in one sentence,
-evidence = task N). Write the HANDOFF section. Commit the spec store. Report
-`PHASE: design-defect`, `STATE: tasks <done>/<total>`, `REASON: <the defect, one line,
-from the flag — the author's when step 1b raised it, else the implementer's>`. The
-supervisor re-opens design.
-
-## Escalate
-
-The implementer says a task's own instructions make a measured outcome need a human
-ruling before any later task runs — a failed vendor probe, not a design contradiction.
-Do not force it. Revert the task to `[ ]`. Append a retro-log entry with `retro.sh`
-(`escalation`, the flag's line, evidence = task N). Write the HANDOFF section. Commit the
-spec store. Report `PHASE: escalate`, `STATE: tasks <done>/<total>`, `REASON: <the
-flag's line>`. The supervisor already stops on it.
-
-## Resume recovery
-
-An `[-]` task resumed from Step 0 may already carry a worker's commit even though its report
-never reached you: the worker finished after your previous turn ended, so its report routed
-to the supervisor, not to you. The plugin hook persists every worker's final report to the
-ledger as a `spawn.report`, and `orient` returns the undrained ones — those with no matching
-`spawn.usage` — as `data.inFlightReports` (retro P4).
-
-1. **Drain first.** For each report in `data.inFlightReports`, treat it as that worker's
-   report arriving now: it belongs to the resumed `[-]` task (work is sequential). Record its
-   `spawn.usage`, then route it through Step 3 onward (log check, then Step 4 gate, verify,
-   complete) exactly as if the Agent tool had just returned it — before you spawn any new
-   worker. A drained report needs no reconcile.
-2. **Reconcile only when drain finds nothing.** When the resumed `[-]` task has a commit but
-   `data.inFlightReports` holds no report for it (an older run before persistence, or a report
-   the hook could not capture), treat a commit with no matching worker report as ambiguous
-   state, not unfinished work. Check the code repo for a commit that implements the resumed
-   task (`git -C <CODE_ROOT> log`, the same read Step 1b makes for the author commit), then:
-   - **A commit exists, no report ⇒ reconcile, do not re-implement.** Spawn one
-     `sdd-implementer` with a brief that says the task is already committed at `<sha>`, that it
-     must confirm the commit satisfies the task and call `log-implementation` naming that
-     commit, and that it must change no code; then gate and verify from Step 4 as usual.
-   - **No commit ⇒** resume the task from Step 2 as a normal implement.
-
-## Completion gate
-
-When no `[ ]` or `[-]` task remains:
-
-8. **End-to-end verification.** Grep the decomposition entry for `SPEC` in
-   `<SPEC_STORE_ROOT>/spec-decomposition/decomposition.md` and take its verification
-   scenario. Call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
-   `values` carrying the output path `/tmp/scratchpad/sdd/<SPEC>/verify-e2e.md` and the
-   end-to-end job (the scenario, plus the full check suite as `agent-rules.md` defines it:
-   typecheck, tests, lint, migrations, e2e, each as a separate command). Spawn
-   `sdd-verifier`. It ends with `VERIFY: pass | fail`, or `VERIFY: pass (deferred: <id>)`
-   for the in-run case below.
-   - `fail` ⇒ write the HANDOFF section, append a retro-log entry with `retro.sh` (`bug`), commit the
-     spec store, report `PHASE: verify-failed`, `REASON: <one line from the report>`.
-     Do not mark anything complete.
-   - When the scenario needs a skill or tool this spec adds that the running session or
-     server still lacks (agents and skills load at session start; the server loads when
-     the session connects, from `dist/` on a checkout or from the released package on a
-     plugin install), the verifier cannot exercise it end-to-end: it verifies the tool
-     half in-process instead, stages the fixture under
-     `/tmp/scratchpad/sdd/<SPEC>/scratch-store/`, and reports
-     `VERIFY: pass (deferred: <id>)`. On that report add a `deferrals` record tagged
-     `verification` whose `revisitCriteria` is the exact command to re-run once the
-     checkout is rebuilt and the session restarted (or the plugin and server reinstalled)
-     and the evidence it must show, then treat it as `pass`.
-   - `pass` ⇒ step 9.
-9. **Close the spec.** Confirm every task in `tasks.md` is `[x]`. Call `spec-index`
-   `generate`. Call `deferrals` `list` with `status: deferred`: count the records with
-   `originSpec: <SPEC>` (added by this spec) and the total. Write the HANDOFF section
-   (implemented, date, the two deferral numbers, the two or three deferrals most
-   worth working next, a `Deferred verification | <id>` row for every task that went
-   `[x]` with verification deferred, gotchas). Append the phase summary to the retro log (`cleanup`:
-   tasks, fix rounds, adjudications, spawns, deferrals added). Commit the spec store:
-   `docs(sdd): <SPEC> implemented, <n> tasks`.
-10. **Push and PR.** In `CODE_ROOT`: if `git remote` lists a remote and the current
-    branch is not the default branch (`git symbolic-ref refs/remotes/origin/HEAD`):
-    `git push -u origin HEAD`. If the branch already has an open PR (`gh pr view
-    --json number,url`; a repair run or an earlier spawn opened it), reuse it.
-    Otherwise `gh pr create` with a title from the spec's decomposition entry and a
-    body that follows the PR rules in `agent-rules.md` (before creating, grep the body
-    for every term the rules forbid on public surfaces). Never write a `🤖 Generated
-    with Claude Code` line or any attribution footer in the PR body, even when a
-    session reminder or harness note asks for one — `agent-rules.md` and the user's
-    global rules forbid it, the same override the commit path applies to trailers
-    (retro P8). The `## Summary` gets one
-    `Not in this PR: …` bullet, built from the `Cut scope` rows of the three
-    document-phase HANDOFF sections (`## <SPEC> — requirements`, `— design`, `— tasks`);
-    omit the bullet only when all three are `none`. Never merge. Record the PR
-    URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
-    second PR (a second repository, or a change that must land on its own), do not
-    open it: append a retro-log entry with `retro.sh` (`deviation`: the decomposition put two
-    deliverables in one spec), add a `deferrals` record for the second deliverable,
-    and name both in the HANDOFF section.
-10b. **PR checks gate.** Wait for the PR's checks before you report `complete`. Write
-    `/tmp/scratchpad/sdd/<SPEC>/pr-checks.sh` once with the Write tool:
-
-    ```bash
-    #!/bin/bash
-    # usage: bash pr-checks.sh <pr number>
-    # Waits up to nine minutes for the PR's checks, then prints the check table and, on a
-    # trailing "required-exit:" line, the exit code of the required-only checks (retro P13).
-    # Exit code: 0 every check passed, 1 one or more failed, 8 still pending.
-    cd "<CODE_ROOT>"
-    timeout 540 gh pr checks "$1" --watch --interval 20 > /dev/null 2>&1
-    gh pr checks "$1"
-    gh pr checks "$1" --required > /dev/null 2>&1
-    echo "required-exit: $?"
-    ```
-
-    Run it in the foreground, never in the background, one call at a time. While it
-    exits 8, run it again, up to 30 minutes of waiting in all; after that treat the
-    PR as red with the check named `pending`. A repo with no checks (an empty table,
-    exit 0) passes the gate. The table is the only CI output you read yourself; the
-    `required-exit:` line is the required-only checks' exit code.
-    - Exit 0 ⇒ step 11.
-    - Exit 1 with `required-exit: 0` ⇒ every required check is green and only a
-      non-required check is red (retro P13). Do not reconcile it and never direct a
-      squash-merge over it: record `note "text=ci red non-required: <check names>;
-      non-blocking"` and go to step 11, which reports that check with a non-blocking
-      assessment and leaves the merge to the human.
-    - Exit 1 with `required-exit:` 1 or 8 ⇒ a required check is red or pending: record
-      `note "text=ci red: <check names>, round <r>"` and go to **Reconcile a red PR**.
-      When it comes back green ⇒ step 11.
-11. Before you report, call `spec-status` for `<SPEC>` and read `data.logCoverage` and
-    `data.reviewCoverage`: derive "verified" from those numbers, not from memory (retro
-    P13). Report `PHASE: complete`, `STATE: tasks <total>/<total>`, `NEXT:
-    retrospective`, and the PR URL in the 150 words above the contract, with the
-    deferral numbers, and state the coverage verbatim — `logCoverage <logged>/<completed>`
-    and `reviewCoverage <reviewed>/<completed>` — naming by id every task in `unlogged`
-    or `unreviewed`. Any task below the completed total is flagged, never reported as
-    verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
-    verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
-    but disclose the `reviewCoverage` gap plainly and never report the spec "all
-    verified" while `reviewCoverage` is below total. When step 10b found only non-required
-    checks red (retro P13), name each red non-required check with its non-blocking
-    assessment (why it does not block — for example a pre-existing, out-of-scope failure)
-    and state the merge is the human's call; never direct or recommend a squash-merge.
-
-### Live verification
-
-Some completion-gate scenarios cannot run inside the normal loop — a live check may
-need a real cross-turn gap or a foreground worker the tooling will not give you.
-
-- **Confirm the instrumentation first.** When a scenario asserts on ledger or activity
-  ordering, first confirm the code records the event the assertion reads — a dry read of
-  the row it should write — then pay for the live spawn; a live run against uninstrumented
-  code only re-proves the gap you already have (retro P5).
-- **Long-gap probe.** The Bash tool caps at 600 s and Claude Code backgrounds a
-  subagent spawn, so a foreground probe cannot force a gap over 600 s. To measure a
-  longer gap, spawn the worker, end your turn, and wake on its completion notification.
-- **Reap background shells at turn end.** A live probe or dry-run you launched in the
-  background is owned by the turn that started it. Before you stop — a budget trip, a
-  `resume`, or an escalate — kill the background shells this turn started, and only
-  those: a shell an earlier turn or another agent owns is not yours to reap. On resume,
-  before you start another dry-run against the same hosts, check whether one this run
-  already launched is still running and wait on it, rather than starting a second
-  against the same targets. A worker whose report lands after your turn has ended routes
-  to the supervisor, not to you; take the supervisor's forwarded late report as this
-  task's result on the next turn (retro P5).
-- **Iterate narrow, run the full set once.** When a live or dry-run check runs against
-  many external targets, iterate against a narrow subset (an `--only`-style filter on a
-  handful) while you converge, then pay for one full run across every target at the end.
-  Re-running all targets on each iteration only re-pays for the ones already green
-  (retro P8).
-- **Dry-run the fixture kit.** A verification task that ships a fixture kit runs the
-  kit once in the scratch store — registration and a no-op probe — and records it green
-  before the gated live run begins (the fixtures rule, G1, in `agent-rules.md`).
-- **Operator pre-merge session.** A live scenario that needs the rebuilt harness stays
-  pending behind a tracked `verification-evidence.md`; the standing way to clear it is
-  the operator pre-merge-session pattern — an operator runs it in a rebuilt, restarted
-  session. This is the Fixtures and live verification rule (G2) in `agent-rules.md`;
-  follow it there rather than restating its steps.
-
-### Reconcile a red PR
-
-Cap 3 rounds per PR. Round r:
-
-1. **Log tail.** For each failing check, take the run id and job id from its URL in
-   the table (`.../actions/runs/<run id>/job/<job id>`) and save the failing steps'
-   log with a script file: `gh run view <run id> --job <job id> --log-failed | tail
-   -80 > /tmp/scratchpad/sdd/<SPEC>/ci-<check>-r<r>.log`. Read nothing of it yourself
-   beyond `wc -l`.
-2. **Fix.** Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and
-   `values` carrying the output path `impl-brief-ci-r<r>.md` and, as the findings, the CI
-   fix content from `references/briefs.md` (the check names, the log file paths,
-   "reproduce locally first"). Spawn `sdd-implementer`; its `spawn.usage` carries
-   `role=fix ci <check> round <r>`. It fixes the cause, commits on the branch without
-   pushing, and reports the command that reproduces the check locally, or `INFRA:` when
-   the failure is not in the code.
-3. **Verify.** Call `harness` `brief` with `template: verifier`, `specName: <SPEC>`, and
-   `values` carrying the output path `verify-brief-ci-r<r>.md` and the CI verify job (the
-   check names, the commit, the reproduce commands from the implementer's report). Spawn
-   `sdd-verifier`. `VERIFY: fail` ⇒ the next round from step 2, without pushing.
-   `VERIFY: pass` (or `INFRA:` from the implementer) ⇒ `git push` in `CODE_ROOT` (on
-   `INFRA:`, rerun the failed jobs instead: `gh run rerun <run id> --failed`) and the
-   gate again (10b).
-4. **Record.** One retro-log entry per round: `bug` when the fix touched product or
-   test code, `tool-error` when the failure was CI infrastructure (runner, network, a
-   flaky job that reran green); evidence = the check name and the commit; cost =
-   spawns and minutes.
-5. After three rounds still red: assemble `adjudication-brief-ci.md` with `harness`
-   `brief`, `template: adjudicator`, `specName: <SPEC>`, its items each failing check with
-   its last log file ("rule on each: fix it, or state why it cannot be fixed here"),
-   spawn `sdd-adjudicator` once, push, run the gate once more. Still red ⇒ write the
-   HANDOFF section (the PR URL, the red checks, what was tried), append a retro-log
-   entry with `retro.sh` (`escalation`), commit the spec store, and report `PHASE: verify-failed`,
-   `REASON: ci: <check>`. The supervisor's repair path takes over; its brief carries the
-   check name, and steps 9 to 11 reuse the open PR.
-
-## Repair
-
-`MODE: repair` with `REVISION_INPUT` = the failing scenario or check.
-
-1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
-   carrying the output path `impl-brief-repair-<k>.md` and, as the findings, the failing
-   scenario with the instruction to reproduce first, fix the cause, add coverage that
-   fails without the fix, and report. Spawn `sdd-implementer`. When `REVISION_INPUT`
-   starts with `ci:`, the failing scenario is that PR check: use the CI fix content
-   instead, with the log tail saved as in **Reconcile a red PR** step 1.
-2. Re-run step 8 of the completion gate. On `pass` continue with steps 9–11. On
-   `fail` report `PHASE: verify-failed` again; the supervisor caps repairs at two.
-
-## Stop conditions and their reports
-
-Record `phase.end phase=implementation result=<PHASE value> "state=tasks <done>/<total>"
-"note=<one line>"` right before the report.
-
-| Condition | PHASE | REASON |
-| --- | --- | --- |
-| Every task `[x]`, gate passed, INDEX regenerated, HANDOFF written, PR opened, checks green | `complete` | — |
-| Budget reached with open tasks | `resume` | — |
-| Implementer flagged a design defect | `design-defect` | the defect |
-| Implementer flagged an escalate | `escalate` | the flag's line |
-| Gate failed, or the PR stayed red after three reconcile rounds and an adjudication | `verify-failed` | the failing scenario, or `ci: <check>` |
-| `tasks.md` not approved, drift, a tool error you cannot route around | `error` | the cause |
-
-Every stop writes the HANDOFF section and commits the spec store first.

@@ -573,12 +573,25 @@ pattern `spec-lint` uses) and spawns no child process.
   one call. For a document phase (`requirements`, `design`, `tasks`) it returns the
   document version `D`, the latest analysis index `A` with its verdict, the post-cap
   marker `P`, whether the latest analysis is the narrow check, and the next step; for
-  `implementation` the task counts and the next step; for `closeout` the plan-item
-  counts, the open items by target class, and the next step.
+  `implementation` the task counts, the next step, the task `queue` (the `[-]` task then
+  the `[ ]` tasks in file order, no header tasks, each `{ id, title, status, files }`),
+  `nextTask` (`queue[0]` or null), and — only at the completion gate or repair — the
+  spec's `decomposition` (`{ title, scenario }` from `spec-decomposition/decomposition.md`,
+  nulls when absent); for `closeout` the plan-item counts, the open items by target class,
+  and the next step.
 - `brief` — fill a named server-side template and write a worker brief, returning the
-  brief file's absolute path. An implementer brief for a `taskId` gets that task's
-  block from the server tasks parser. A `test-author` brief fills the same task block for
-  `sdd-test-author`; it fails and writes no file when the task has no `Test:` line. The
+  brief file's absolute path. The document-phase kinds are `drafter`, `gate-a`,
+  `reviewer`, `reviser`, `adjudicator` and `checker`; the implementation-phase kinds are
+  `implementer`, `test-author`, `fix`, `verifier`, `impl-standing` and `verify-standing`;
+  `book-script` writes the bookkeeping script. Most kinds write a fresh file. `reviewer`
+  is append mode: it appends its round section to the scaffold at the caller's path and
+  fails, writing nothing, when that target is missing. An implementer brief for a `taskId`
+  gets that task's block from the server tasks parser. A `test-author` brief fills the same
+  task block for `sdd-test-author`; it fails and writes no file when the task has no
+  `Test:` line. The `book-script` kind writes `book.sh`, an idempotent, segment-driven
+  bookkeeping script run as `bash book.sh <segment> [-- <segment>]...` (segments `event`,
+  `check`, `retro`, `state`, `commit`, `head`, `changes`, `edit`); it appends ledger rows
+  only through the run's event script and re-runs safely after a partial failure. The
   optional values `graph`, `graphBuiltAt` and
   `graphBehind` add a `## Code graph` section to the end of the brief when `graph` is a
   path. When `graph` is a path but a freshness value is absent, the call fails and writes
@@ -589,16 +602,26 @@ pattern `spec-lint` uses) and spawns no child process.
   computes the gate-B class (a) veto items; `put`, `get` and `delete` manage the
   `gate-<slot>.json` payload file for slot `a` or `b`.
 - `usage` — fold one spec's `harness-events.jsonl` into a report of tokens and spawns
-  by phase and agent, with each phase's orchestrator share and any `unknown` marks. The
-  report also has a `graph` column: for each agent, the count of `graphify explain`,
-  `query` and `path` calls, read from `harness-activity.jsonl`. The `graph` column counts
-  Agent-tool workers only. It is a floor, not an exact count: it records only
-  activity-stream graph calls, so a `graphify` read that runs in a separate reader process
-  is not observed and the column is a lower bound. An
+  by phase and agent, with each phase's orchestrator share and any `unknown` marks. Each
+  cell also has a weighted `W` column (`input + 1.25·cacheWrite5m + 2·cacheWrite1h +
+  0.1·cacheRead + 5·output`); a spawn whose tokens or cache fields are not digit strings
+  adds ` (+N unknown)` to the cell instead. Like every ledger count, `W` is a floor, not an
+  exact total. The report also has a `graph` column: for each agent, the count of
+  `graphify explain`, `query` and `path` calls, read from `harness-activity.jsonl`. The
+  `graph` column counts Agent-tool workers only. It is a floor, not an exact count: it
+  records only activity-stream graph calls, so a `graphify` read that runs in a separate
+  reader process is not observed and the column is a lower bound. An
   agent row names its provider when it is not `anthropic` (`sdd-reviewer@deepseek`); the
   phase and spec total lines print the `anthropic` and `deepseek` figures side by side; and
   `data.report.providers` carries those per-provider cells. Pass `compareSpecName` for a
-  second spec side by side with a per-phase delta of tokens and spawns.
+  second spec side by side with a per-phase delta of tokens and spawns. Pass `sources: true`
+  to also read each document and implementation orchestrator spawn's subagent transcript
+  under `$CLAUDE_CONFIG_DIR/projects` (else `~/.claude/projects`) and print its `W` broken
+  down by context source, plus each phase's per-unit orchestrator W (`orch W/round` for a
+  document phase, `orch W/task` for implementation). A spawn whose transcript cannot be
+  found or read prints `sources unknown (<reason>)` with its ledger W and is counted in the
+  block header; the action still succeeds. Without `sources` the action reads only the spec
+  store. The tool never spawns a process.
 
 ---
 

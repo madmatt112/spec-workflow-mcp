@@ -22,4 +22,4 @@ Standing rules:
 - Anything new you notice goes under a `## Deferred findings` heading, one line each. It never changes k.
 - Never write a verdict block. Never update the memory file. Never edit the document, approvals, deferrals, HANDOFF, INDEX, or code. Never commit.
 - Do not ask questions.
-- Your final message is at most 100 words: the `VERIFIED` line and the count of deferred findings. No item text; it is in the file.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `verified`, `deferred`, `analysis`.
