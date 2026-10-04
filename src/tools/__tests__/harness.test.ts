@@ -1092,6 +1092,451 @@ describe('harnessHandler', () => {
     }
   });
 
+  // Task 9 — implementation-phase brief kinds (`impl-standing`, `verify-standing`,
+  // `implementer`, `fix`, `verifier`, and the `taskId` form of `adjudicator`) ported
+  // verbatim from harness/skills/sdd-implementation-phase/references/briefs.md
+  // (design C6 table, Requirement 3 criteria 3 and 4; Requirement 5 criteria 1 and 2).
+
+  // --- impl-standing / verify-standing (design C6 table "write to scratch") ----
+
+  it('brief impl-standing renders the standing implementer rules, the worktree clause and the implementer C9 report keys', async () => {
+    const outPath = join(tempDir, 'impl-standing.md');
+    const mainCheckout = '/home/mcf/repo/spec-workflow-mcp';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'impl-standing',
+        values: { path: outPath, codeRoot: tempDir, mainCheckout, specStoreRoot: join(tempDir, '.spec-workflow'), specDir },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:8, :12-15, :19-20.
+    expect(written).toContain(`# Standing instructions — implementer, spec ${SPEC}`);
+    expect(written).toContain(`a worktree of \`${mainCheckout}\``);
+    expect(written).toContain('Work in the code root. Use absolute paths.');
+    expect(written).toContain('Never `cd` out of the');
+    expect(written).toContain(`\`${specDir}/Implementation Logs/\` for endpoints,`);
+    expect(written).toContain(`Read \`${specDir}/codebase-context.md\` first: it maps the files this spec touches`);
+
+    // The old free-text report sentence (briefs.md:60-62) is replaced by the C9
+    // block and the implementer's own report keys (design C9 table).
+    expect(written).not.toContain('Report in 150 words or fewer: files touched');
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['logged:', 'commit:', 'checks:', 'checks-file:', 'green:', 'flag:', 'retro:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief verify-standing renders the standing verifier rules and the verifier C9 report keys', async () => {
+    const outPath = join(tempDir, 'verify-standing.md');
+    const mainCheckout = tempDir;
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verify-standing',
+        values: { path: outPath, codeRoot: tempDir, mainCheckout, specStoreRoot: join(tempDir, '.spec-workflow'), specDir },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:137, :141-143.
+    expect(written).toContain(`# Standing instructions — verifier, spec ${SPEC}`);
+    expect(written).toContain(`Code root: \`${tempDir}\`. Spec store: \`${join(tempDir, '.spec-workflow')}\`. Absolute paths. Read-only`);
+    expect(written).toContain('on source: you never edit code, and you never commit.');
+    expect(written).toContain(`Read \`${specDir}/codebase-context.md\` first: it maps the files this spec touches.`);
+
+    // The old free-text report sentence (briefs.md:151-155) is replaced by the C9
+    // block and the verifier's own report keys (design C9 table).
+    expect(written).not.toContain('Report in 150 words or fewer: findings grouped by severity');
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['verdict:', 'findings:', 'retro:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  // --- implementer: redTests → authorFiles/authorReport (design C6 table; the
+  // red-tests section is now built by the server from the test-author block,
+  // briefs.md:82-101, instead of being a single caller-supplied blob). These four
+  // tests re-point the base redTests tests, keeping their placement and
+  // required-only-when-marked assertions (task 9 prompt).
+
+  it('brief implementer renders the red-tests section built from authorFiles/authorReport after the task block', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-authorfiles.md');
+    const authorFiles = 'src/foo.test.ts';
+    const authorReport = 'commit: abc1234\nfiles: src/foo.test.ts\ntests: 1';
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
+        values: { path: outPath, title: 'Task 3', authorFiles, authorReport } },
+      context,
+    );
+    expect(res.success).toBe(true);
+
+    const written = await fs.readFile(outPath, 'utf-8');
+    const block = taskBlock(TASKS, '3')!;
+    expect(written).toContain('## Red tests (from the test author)');
+    expect(written).toContain(`Author files: ${authorFiles}`);
+    expect(written).toContain('Author report (verbatim):');
+    expect(written).toContain(authorReport);
+    // The red-tests section follows the task block.
+    expect(written.indexOf(authorReport)).toBeGreaterThan(written.indexOf(block));
+  });
+
+  it('brief implementer still succeeds, renders no red-tests section, and ignores a caller-supplied redTests value, when authorFiles/authorReport are omitted', async () => {
+    await writeDoc('tasks.md', TASKS);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-noauthorfiles.md');
+
+    const res = await harnessHandler(
+      // redTests stops being a caller value (task 9 prompt): a caller still
+      // passing the old key must not see it rendered.
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
+        values: { path: outPath, title: 'Task 3', redTests: 'OLD-REDTESTS-SENTINEL' } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    // An unmarked task takes neither value, so no literal 'undefined' leaks, no
+    // red-tests section is rendered at all, and the old redTests value is dropped.
+    expect(written).not.toContain('undefined');
+    expect(written).not.toContain('## Red tests (from the test author)');
+    expect(written).not.toContain('OLD-REDTESTS-SENTINEL');
+  });
+
+  it('brief implementer fails and writes no file when a TDD-marked task omits authorFiles and authorReport', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-tdd-noauthorfiles.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
+        values: { path: outPath, title: 'Task 1' } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('authorFiles');
+    expect(res.message).toContain('authorReport');
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('brief implementer succeeds for a TDD-marked task when authorFiles and authorReport are supplied', async () => {
+    await writeDoc('tasks.md', TASKS_TDD);
+    await writeAgentRules();
+    const outPath = join(tempDir, 'impl-tdd-authorfiles.md');
+    const authorFiles = 'tests/foo.test.ts';
+    const authorReport = 'commit: def5678\nfiles: tests/foo.test.ts\ntests: 2';
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
+        values: { path: outPath, title: 'Task 1', authorFiles, authorReport } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain(`Author files: ${authorFiles}`);
+    expect(written).toContain(authorReport);
+  });
+
+  // --- fix (design C6 table: taskId, round, variant, findings, commit) --------
+
+  it('brief fix reports every missing required value in one message and writes no file', async () => {
+    const outPath = join(tempDir, 'fix-missing.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'fix', values: { path: outPath } },
+      context,
+    );
+    expect(res.success).toBe(false);
+    for (const key of ['taskId', 'round', 'variant', 'findings', 'commit']) {
+      expect(res.message).toContain(key);
+    }
+    await expect(fs.access(outPath)).rejects.toThrow();
+  });
+
+  it('brief fix (variant: verifier) renders the fix-required paragraph, the Findings heading and the task reference', async () => {
+    const outPath = join(tempDir, 'fix-verifier.md');
+    const findings = 'F-1: the retry loop never exits.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: '3', round: '1', variant: 'verifier', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:106, :108, :110-112, :114-118.
+    expect(written).toContain(`# Task 3 — fix round 1 (spec ${SPEC})`);
+    expect(written).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/impl-standing.md\` first and obey it.`);
+    expect(written).toContain('The independent review of task 3 returned `fix-required`.');
+    expect(written).toContain('## Findings (from the verifier)');
+    expect(written).toContain(findings);
+    expect(written).toContain('`<spec dir>/tasks.md` lines <A>–<B>.');
+  });
+
+  it('brief fix (variant: repair) replaces the paragraph with the end-to-end repair text', async () => {
+    const outPath = join(tempDir, 'fix-repair.md');
+    const findings = 'F-1: the retry loop never exits.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: '3', round: '1', variant: 'repair', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:121-123.
+    expect(written).toContain('The end-to-end verification of the spec failed.');
+    expect(written).toContain('Reproduce the failure first, fix its cause (not the symptom), add');
+    expect(written).not.toContain('The independent review of task');
+  });
+
+  it('brief fix (variant: gate) replaces the paragraph and the Findings heading with Gate output', async () => {
+    const outPath = join(tempDir, 'fix-gate.md');
+    const findings = 'reasons: lint failed\nchecks: tsc fail';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: '3', round: '1', variant: 'gate', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:126-129.
+    expect(written).toContain('The gate returned `fail`.');
+    expect(written).toContain("Fix every reason below, re-run the task's checks");
+    expect(written).toContain('## Gate output');
+    expect(written).not.toContain('## Findings (from the verifier)');
+  });
+
+  it('brief fix (variants ci and reconcile) both render the CI-fix content byte for byte, with the C9 report block replacing the old sentence', async () => {
+    const ciPath = join(tempDir, 'fix-ci.md');
+    const reconcilePath = join(tempDir, 'fix-reconcile.md');
+    const base = { taskId: '3', round: '2', findings: 'npm test failed on Node 20', commit: 'none' };
+
+    const ciRes = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'fix', values: { ...base, path: ciPath, variant: 'ci' } },
+      context,
+    );
+    const reconcileRes = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'fix', values: { ...base, path: reconcilePath, variant: 'reconcile' } },
+      context,
+    );
+    expect(ciRes.success).toBe(true);
+    expect(reconcileRes.success).toBe(true);
+
+    const ciWritten = await fs.readFile(ciPath, 'utf-8');
+    const reconcileWritten = await fs.readFile(reconcilePath, 'utf-8');
+
+    // Verbatim briefs.md:235, :237, :239, :243-244, :247.
+    expect(ciWritten).toContain(`# CI red — fix round 2 (spec ${SPEC})`);
+    expect(ciWritten).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/impl-standing.md\` first and obey it.`);
+    expect(ciWritten).toContain("The PR's checks failed:");
+    expect(ciWritten).toContain('Reproduce the failure locally first, with the command the');
+    expect(ciWritten).toContain('If the failure is CI infrastructure and not the code');
+
+    // The old "Report: files touched..." sentence (briefs.md:251-252) is replaced
+    // by the C9 block and the implementer's own report keys.
+    expect(ciWritten).not.toContain('Report: files touched one per line, the reproduce command');
+    expect(ciWritten).toContain(C9_SENTENCE);
+    for (const key of ['logged:', 'commit:', 'checks:', 'checks-file:', 'green:', 'flag:', 'retro:']) {
+      expect(ciWritten).toContain(key);
+    }
+
+    // ci and reconcile both render the CI-fix content (today's Reconcile step
+    // reuses it).
+    expect(reconcileWritten).toBe(ciWritten);
+  });
+
+  // --- verifier (design C6 table: variant, taskIds, files, round, gateResults,
+  // scenario) ---------------------------------------------------------------
+
+  it('brief verifier (variant: task) renders the per-task review job and the Gate results section, with no own report block', async () => {
+    const outPath = join(tempDir, 'verify-task.md');
+    const gateResults = 'reasons: none; checks: tsc pass, vitest pass';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: 'Task 3 review', variant: 'task', taskIds: '3',
+          files: 'src/foo.ts, src/foo.test.ts', round: '1', gateResults, scenario: '',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:161, :163, :165-166, :168-169, :182.
+    expect(written).toContain(`# Review task 3 — Task 3 review (spec ${SPEC}), round 1`);
+    expect(written).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/verify-standing.md\` first and obey it.`);
+    expect(written).toContain('The gate already passed for this task at `risk: high`');
+    expect(written).toContain('`action: prepare`, `specName:');
+    expect(written).toContain('## Gate results (from the gate call, verbatim)');
+    expect(written).toContain(gateResults);
+    expect(written).toContain('src/foo.ts, src/foo.test.ts');
+
+    // The per-task brief has no report sentence of its own (step 4 defers to the
+    // verify-standing instructions), so no C9 block is injected here.
+    expect(written).not.toContain(C9_SENTENCE);
+  });
+
+  it('brief verifier (variant: narrow) keeps the per-task job and adds the post-adjudication narrow-verification text', async () => {
+    const outPath = join(tempDir, 'verify-narrow.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: 'Task 3 review', variant: 'narrow', taskIds: '3',
+          files: 'src/foo.ts', round: '2', gateResults: 'reasons: none', scenario: '',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:186-191.
+    expect(written).toContain('Verify only the findings listed below; each is `addressed` or `not addressed`');
+    expect(written).toContain('When the terminus was a gate fail, re-run the checks listed as failing.');
+    expect(written).toContain('`VERDICT: pass` when every listed finding is');
+    // Still the per-task job underneath.
+    expect(written).toContain('The gate already passed for this task at `risk: high`');
+  });
+
+  it('brief verifier (variant: e2e) renders the end-to-end scenario and full check suite, with the C9 report block', async () => {
+    const outPath = join(tempDir, 'verify-e2e.md');
+    const scenario = 'Submit a form and confirm the record appears.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: '', variant: 'e2e', taskIds: '', files: '', round: '',
+          gateResults: '', scenario,
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:212, :214, :216, :219, :227.
+    expect(written).toContain(`# End-to-end verification — spec ${SPEC}`);
+    expect(written).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/verify-standing.md\` first and obey it.`);
+    expect(written).toContain('## Scenario (from the decomposition entry)');
+    expect(written).toContain(scenario);
+    expect(written).toContain('## Full check suite (from the agent rules; run each as a separate command)');
+    expect(written).toContain('Pass-bar note: when a scenario measures cached prompt content across a subagent');
+
+    // The old report sentence (briefs.md:222-225) is replaced by the C9 block.
+    expect(written).not.toContain("Report in 150 words or fewer: each check with its result");
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['verdict:', 'findings:', 'retro:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief verifier (variant: ci) renders the CI verify brief, with the C9 report block', async () => {
+    const outPath = join(tempDir, 'verify-ci.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: '', variant: 'ci', taskIds: '', files: '', round: '2',
+          gateResults: '', scenario: '',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:258, :260, :262, :263.
+    expect(written).toContain(`# CI red — verification round 2 (spec ${SPEC})`);
+    expect(written).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/verify-standing.md\` first and obey it.`);
+    expect(written).toContain('Checks that failed:');
+    expect(written).toContain('Run that command yourself in `');
+
+    // The old report sentence (briefs.md:264-266) is replaced by the C9 block.
+    expect(written).not.toContain('Report each command with its result on one line, findings by severity');
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['verdict:', 'findings:', 'retro:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief verifier (variant: batch) accepts more than one taskId and still renders', async () => {
+    const outPath = join(tempDir, 'verify-batch.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: 'Batch review', variant: 'batch', taskIds: '3, 4, 5',
+          files: 'src/foo.ts, src/bar.ts', round: '1', gateResults: 'reasons: none', scenario: '',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain('3, 4, 5');
+  });
+
+  // --- adjudicator, taskId form (design C6 table: `docPath` or `taskId`) ------
+
+  it('brief adjudicator (taskId form) renders the task adjudication job and the commit-keyed C9 report block', async () => {
+    const outPath = join(tempDir, 'adjudication-task.md');
+    const items = '1 — Timeout still too short (MUST_FIX)';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'adjudicator',
+        values: { path: outPath, items, phase: 'tasks', taskId: '5' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:196, :198, :200-201, :205.
+    expect(written).toContain(`# Task 5 — adjudication (spec ${SPEC})`);
+    expect(written).toContain(`Read and obey`);
+    expect(written).toContain(`then \`/tmp/scratchpad/sdd/${SPEC}/impl-standing.md\`.`);
+    expect(written).toContain('Three fix rounds did not converge.');
+    expect(written).toContain('## Open findings (from the last verification)');
+    expect(written).toContain(items);
+    // The docPath form's heading must not appear in the taskId form.
+    expect(written).not.toContain('## Open items');
+
+    // The old report sentence (briefs.md:202-203) is replaced by the C9 block;
+    // the adjudicator's own report key is `commit` on a task, not `version`.
+    expect(written).toContain(C9_SENTENCE);
+    expect(written).toContain('commit:');
+    expect(written).not.toContain('version:');
+    for (const key of ['fixed:', 'ruled-out:', 'notes:', 'flags:']) {
+      expect(written).toContain(key);
+    }
+  });
+
   // Requirement 5 — the `phase-log` action.
 
   const handoffPathFile = () => join(tempDir, '.spec-workflow', 'HANDOFF.md');
