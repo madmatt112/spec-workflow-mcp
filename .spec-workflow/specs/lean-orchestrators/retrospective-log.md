@@ -118,3 +118,8 @@ Cost: 1 author + 1 implementer + shared batched verifier
 Ported document-phase brief kinds; batched verify caught non-verbatim reviewer round section (dropped 'Compounds: R<k>-<n>' seam + 2 warnings + stale adjudicator bullet); 1 fix round restored verbatim text and corrected a mis-pinned snapshot. rounds 1, outcome pass. Lesson: ported-verbatim briefs need snapshots pinned to the exact source text, else a paraphrase slips through the gate.
 Evidence: task 8; commit 9c4cd9f
 Cost: 1 author + 1 implementer + 1 fix + shared batched verifier + 1 narrow verifier
+
+## 2026-10-04T06:20:10Z · implementation · task 11 · gotcha
+C9 report blocks across 8 agent files + plugin sync; gate low, review recorded, plugin-assets + validate green. rounds 0, outcome gate.
+Evidence: task 11; reviewId a09f064c
+Cost: 1 implementer spawn
