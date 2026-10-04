@@ -580,9 +580,18 @@ pattern `spec-lint` uses) and spawns no child process.
   nulls when absent); for `closeout` the plan-item counts, the open items by target class,
   and the next step.
 - `brief` — fill a named server-side template and write a worker brief, returning the
-  brief file's absolute path. An implementer brief for a `taskId` gets that task's
-  block from the server tasks parser. A `test-author` brief fills the same task block for
-  `sdd-test-author`; it fails and writes no file when the task has no `Test:` line. The
+  brief file's absolute path. The document-phase kinds are `drafter`, `gate-a`,
+  `reviewer`, `reviser`, `adjudicator` and `checker`; the implementation-phase kinds are
+  `implementer`, `test-author`, `fix`, `verifier`, `impl-standing` and `verify-standing`;
+  `book-script` writes the bookkeeping script. Most kinds write a fresh file. `reviewer`
+  is append mode: it appends its round section to the scaffold at the caller's path and
+  fails, writing nothing, when that target is missing. An implementer brief for a `taskId`
+  gets that task's block from the server tasks parser. A `test-author` brief fills the same
+  task block for `sdd-test-author`; it fails and writes no file when the task has no
+  `Test:` line. The `book-script` kind writes `book.sh`, an idempotent, segment-driven
+  bookkeeping script run as `bash book.sh <segment> [-- <segment>]...` (segments `event`,
+  `check`, `retro`, `state`, `commit`, `head`, `changes`, `edit`); it appends ledger rows
+  only through the run's event script and re-runs safely after a partial failure. The
   optional values `graph`, `graphBuiltAt` and
   `graphBehind` add a `## Code graph` section to the end of the brief when `graph` is a
   path. When `graph` is a path but a freshness value is absent, the call fails and writes

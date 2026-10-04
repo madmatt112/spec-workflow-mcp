@@ -824,6 +824,316 @@ function renderVerifier(v: Record<string, string>): string {
   return lines.join('\n') + '\n';
 }
 
+// --- book-script (design C7) -------------------------------------------------
+
+/**
+ * The static body of `book.sh` (design C7): an idempotent, segment-driven
+ * bookkeeping script run as `bash book.sh <segment> [-- <segment>]...`. Each
+ * segment runs in order; on a step failure the script prints
+ * `book: segment <i> <step> failed: <cause>` to stderr and exits 1 with no later
+ * segment run; an unknown segment is a usage error (exit 2). The run id and
+ * ledger path come from `EVENT_SCRIPT`'s `SDD_RUN`/`SDD_LEDGER` lines
+ * (`harness/skills/sdd-continue/references/formats.md:164-183`); rows reach the
+ * ledger only through that script (Requirement 6 criteria 4, 5). Every write is
+ * idempotent across re-runs (Requirement 6 criteria 6, 7). Written with
+ * `String.raw` so the embedded node regexes keep their backslashes; the four
+ * `${...}` array expansions and the fenced-diff backticks are the only
+ * interpolations. The run header (paths filled per call) is prepended in
+ * `renderBookScript`.
+ */
+const BOOK_BODY = String.raw`
+RUN_ID=""
+LEDGER=""
+RETRO_LOG=""
+if [ -f "$EVENT_SCRIPT" ]; then
+  RUN_ID="$(grep '^export SDD_RUN=' "$EVENT_SCRIPT" | head -n1 | cut -d'"' -f2)"
+  LEDGER="$(grep '^export SDD_LEDGER=' "$EVENT_SCRIPT" | head -n1 | cut -d'"' -f2)"
+fi
+if [ -f "$RETRO_SCRIPT" ]; then
+  RETRO_LOG="$(grep '^export SDD_RETRO_LOG=' "$RETRO_SCRIPT" | head -n1 | cut -d'"' -f2)"
+fi
+
+RESULT=""
+CAUSE=""
+idx=0
+
+# event <type> key=value… — already landed when this run has a row after its
+# latest phase.start with the same type and every passed key equal.
+event_landed() {
+  local type="$1"; shift
+  [ -n "$LEDGER" ] || return 1
+  [ -f "$LEDGER" ] || return 1
+  node -e '
+const fs = require("fs");
+const [ledger, run, type, ...kv] = process.argv.slice(1);
+let rows;
+try { rows = fs.readFileSync(ledger, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); }
+catch (e) { process.exit(1); }
+rows = rows.filter((r) => r.run === run);
+let start = -1;
+for (let i = 0; i < rows.length; i++) if (rows[i].type === "phase.start") start = i;
+const after = rows.slice(start + 1);
+const want = {};
+for (const a of kv) { const i = a.indexOf("="); if (i > 0) want[a.slice(0, i)] = a.slice(i + 1); }
+const hit = after.some((r) => r.type === type && Object.keys(want).every((k) => String(r[k]) === want[k]));
+process.exit(hit ? 0 : 1);
+' "$LEDGER" "$RUN_ID" "$type" "$@"
+}
+
+seg_event() {
+  if [ "$#" -lt 1 ]; then CAUSE="event needs a type"; return 2; fi
+  local type="$1"; shift
+  if event_landed "$type" "$@"; then RESULT="skipped"; return 0; fi
+  if bash "$EVENT_SCRIPT" "$type" "$@" >/dev/null; then RESULT="ok"; return 0; fi
+  CAUSE="event.sh failed"; return 1
+}
+
+# check <N> todo|doing|done — sets the checkbox with the updateTaskStatus pattern
+# (src/core/task-parser.ts:446-485); already landed when the line is in that state.
+seg_check() {
+  if [ "$#" -lt 2 ]; then CAUSE="check needs <N> todo|doing|done"; return 2; fi
+  local id="$1" state="$2"
+  local marker
+  case "$state" in
+    todo) marker=" " ;;
+    doing) marker="-" ;;
+    done) marker="x" ;;
+    *) CAUSE="check: unknown state '$state'"; return 2 ;;
+  esac
+  local tasks="$SPEC_DIR/tasks.md"
+  if [ ! -f "$tasks" ]; then CAUSE="tasks.md not found at $tasks"; return 1; fi
+  local out
+  out="$(node -e '
+const fs = require("fs");
+const [file, id, marker] = process.argv.slice(1);
+const content = fs.readFileSync(file, "utf8");
+const lines = content.split("\n");
+let found = false, changed = false;
+for (let i = 0; i < lines.length; i++) {
+  const m = lines[i].match(/^(\s*)([-*])\s+\[([ x-])\]\s+(.+)/);
+  if (!m) continue;
+  const prefix = m[1], listMarker = m[2], cur = m[3], taskText = m[4];
+  const tm = taskText.match(/^(\d+(?:\.\d+)*)\s*\\?\.?\s+(.+)/);
+  if (tm && tm[1] === id) {
+    found = true;
+    if (cur !== marker) { lines[i] = prefix + listMarker + " [" + marker + "] " + taskText; changed = true; }
+    break;
+  }
+}
+if (!found) { process.stderr.write("task " + id + " not found"); process.exit(1); }
+if (changed) { fs.writeFileSync(file, lines.join("\n")); process.stdout.write("ok"); }
+else process.stdout.write("skipped");
+' "$tasks" "$id" "$marker")" || { CAUSE="check update failed"; return 1; }
+  RESULT="$out"; return 0
+}
+
+# head — prints the CODE_ROOT HEAD sha; read only.
+seg_head() {
+  local sha
+  sha="$(cd "$CODE_ROOT" && /usr/bin/git rev-parse HEAD 2>/dev/null)" || { CAUSE="git rev-parse failed"; return 1; }
+  echo "head: $sha"
+  RESULT="ok"; return 0
+}
+
+# edit <file> <old> <new> — one exact replacement
+# (harness/skills/sdd-document-phase/references/cleanup.md:99-125); already landed
+# when old is absent and new is present.
+seg_edit() {
+  if [ "$#" -lt 3 ]; then CAUSE="edit needs <file> <old> <new>"; return 2; fi
+  local file="$1" olds="$2" news="$3"
+  if [ ! -f "$file" ]; then CAUSE="edit: file not found $file"; return 1; fi
+  local out
+  out="$(node -e '
+const fs = require("fs");
+const [file, oldS, newS] = process.argv.slice(1);
+const text = fs.readFileSync(file, "utf8");
+const first = text.indexOf(oldS);
+if (first < 0) {
+  if (text.indexOf(newS) >= 0) { process.stdout.write("skipped"); process.exit(0); }
+  process.stderr.write("edit: old string not found"); process.exit(1);
+}
+if (text.indexOf(oldS, first + oldS.length) >= 0) { process.stderr.write("edit: old string not unique"); process.exit(1); }
+fs.writeFileSync(file, text.slice(0, first) + newS + text.slice(first + oldS.length));
+process.stdout.write("ok");
+' "$file" "$olds" "$news")" || { CAUSE="edit replacement failed"; return 1; }
+  RESULT="$out"; return 0
+}
+
+# changes <phase> <D> <prompt> — the round-diff logic
+# (harness/skills/sdd-document-phase/references/cleanup.md:127-159); already landed
+# when the prompt already holds a ## Changes heading.
+seg_changes() {
+  if [ "$#" -lt 3 ]; then CAUSE="changes needs <phase> <D> <prompt>"; return 2; fi
+  local phase="$1" D="$2" prompt="$3"
+  if [ -f "$prompt" ] && grep -q '^## Changes' "$prompt"; then RESULT="skipped"; return 0; fi
+  local doc="$SPEC_DIR/$phase.md"
+  local cap=500
+  local want pat
+  if [ "$D" = 1 ]; then want=1; pat="^docs\(sdd\): $SPEC $phase v1$"
+  else want=$((D - 1)); pat="^docs\(sdd\): $SPEC $phase v$want( |$)"; fi
+  local base
+  base="$(cd "$SPEC_STORE_REPO" && /usr/bin/git log -1 --format=%H -E --grep="$pat" -- "$doc" 2>/dev/null || true)"
+  if [ -z "$base" ]; then
+    printf '\n## Changes: no checkpoint commit found for v%s\n' "$want" >> "$prompt"
+    RESULT="ok"; return 0
+  fi
+  local short body n
+  short="$(cd "$SPEC_STORE_REPO" && /usr/bin/git rev-parse --short "$base")"
+  body="$(cd "$SPEC_STORE_REPO" && /usr/bin/git diff "$base" -- "$doc")"
+  n="$(printf '%s\n' "$body" | wc -l)"
+  {
+    printf '\n## Changes since %s\n\n${'````'}diff\n' "$short"
+    printf '%s\n' "$body" | head -n "$cap"
+    [ "$n" -gt "$cap" ] && printf '[truncated at %s lines; read the document]\n' "$cap"
+    printf '${'````'}\n'
+  } >> "$prompt"
+  RESULT="ok"; return 0
+}
+
+# retro <stage> <ref> <category> <body> <evidence> <cost> — bash <retroScript>
+# (harness/skills/sdd-continue/references/formats.md:101-117) with
+# a mark <run> <h> suffix appended to the evidence, h the first 8 hex of the
+# SHA-1 of stage, ref, category and body; landed when grep -F finds the marker.
+seg_retro() {
+  if [ "$#" -ne 6 ]; then CAUSE="retro needs 6 arguments"; return 2; fi
+  local stage="$1" ref="$2" category="$3" body="$4" evidence="$5" cost="$6"
+  local h
+  h="$(node -e '
+const c = require("crypto");
+process.stdout.write(c.createHash("sha1").update(process.argv.slice(1).join("|")).digest("hex").slice(0, 8));
+' "$stage" "$ref" "$category" "$body")" || { CAUSE="retro hash failed"; return 1; }
+  local marker="mark $RUN_ID $h"
+  if [ -n "$RETRO_LOG" ] && [ -f "$RETRO_LOG" ] && grep -Fq "$marker" "$RETRO_LOG"; then RESULT="skipped"; return 0; fi
+  if bash "$RETRO_SCRIPT" "$stage" "$ref" "$category" "$body" "$evidence · $marker" "$cost" >/dev/null; then RESULT="ok"; return 0; fi
+  CAUSE="retro.sh failed"; return 1
+}
+
+# state <text> — rewrites the | State | row of ## <SPEC> — implementation in
+# HANDOFF, creating the section when missing; idempotent by overwrite.
+seg_state() {
+  if [ "$#" -lt 1 ]; then CAUSE="state needs <text>"; return 2; fi
+  local text="$1"
+  node -e '
+const fs = require("fs");
+const [file, spec, text] = process.argv.slice(1);
+let content = "";
+try { content = fs.readFileSync(file, "utf8"); } catch (e) { content = ""; }
+const header = "## " + spec + " — implementation";
+const row = "| State | " + text + " |";
+const lines = content.split("\n");
+let hi = -1;
+for (let i = 0; i < lines.length; i++) if (lines[i].trim() === header) { hi = i; break; }
+if (hi < 0) {
+  let out = content;
+  if (out.length && !out.endsWith("\n")) out += "\n";
+  out += "\n" + header + "\n\n" + row + "\n";
+  fs.writeFileSync(file, out);
+} else {
+  let end = lines.length;
+  for (let i = hi + 1; i < lines.length; i++) if (lines[i].indexOf("## ") === 0) { end = i; break; }
+  let ri = -1;
+  for (let i = hi + 1; i < end; i++) if (lines[i].trim().indexOf("| State") === 0) { ri = i; break; }
+  if (ri >= 0) lines[ri] = row;
+  else lines.splice(end, 0, row);
+  fs.writeFileSync(file, lines.join("\n"));
+}
+' "$HANDOFF" "$SPEC" "$text" || { CAUSE="state update failed"; return 1; }
+  RESULT="ok"; return 0
+}
+
+# commit <message> — the commit-script logic
+# (harness/skills/sdd-document-phase/references/cleanup.md:71-97); already landed
+# when nothing is staged.
+seg_commit() {
+  if [ "$#" -lt 1 ]; then CAUSE="commit needs <message>"; return 2; fi
+  local msg="$1"
+  local out rc
+  out="$(
+    cd "$SPEC_STORE_REPO" || { echo cdfail; exit 3; }
+    staged=0
+    for p in ".spec-workflow/specs/$SPEC" ".spec-workflow/approvals/$SPEC" ".spec-workflow/HANDOFF.md" ".spec-workflow/spec-decomposition/INDEX.md" ".spec-workflow/deferrals" "HANDOFF.md"; do
+      [ -e "$p" ] || continue
+      /usr/bin/git check-ignore -q "$p" && continue
+      if ! /usr/bin/git add -A -- "$p"; then echo addfail; exit 4; fi
+      staged=1
+    done
+    if [ "$staged" -eq 0 ]; then echo skipped; exit 0; fi
+    if /usr/bin/git diff --cached --quiet; then echo skipped; exit 0; fi
+    if /usr/bin/git -c core.hooksPath=/dev/null commit -q -s -m "$msg"; then echo ok; exit 0; fi
+    echo commitfail; exit 5
+  )"
+  rc=$?
+  case "$rc" in
+    0) RESULT="$out"; return 0 ;;
+    4) CAUSE="git add failed"; return 1 ;;
+    5) CAUSE="git commit failed"; return 1 ;;
+    *) CAUSE="commit failed"; return 1 ;;
+  esac
+}
+
+run_one() {
+  if [ "$#" -eq 0 ]; then return 0; fi
+  idx=$((idx + 1))
+  local step="$1"; shift
+  RESULT=""; CAUSE=""
+  local rc=0
+  case "$step" in
+    event) seg_event "$@"; rc=$? ;;
+    check) seg_check "$@"; rc=$? ;;
+    retro) seg_retro "$@"; rc=$? ;;
+    state) seg_state "$@"; rc=$? ;;
+    commit) seg_commit "$@"; rc=$? ;;
+    head) seg_head "$@"; rc=$? ;;
+    changes) seg_changes "$@"; rc=$? ;;
+    edit) seg_edit "$@"; rc=$? ;;
+    *) echo "book: segment $idx $step failed: unknown segment" >&2; exit 2 ;;
+  esac
+  if [ "$rc" -eq 0 ]; then
+    echo "book: $step $RESULT"
+  elif [ "$rc" -eq 2 ]; then
+    echo "book: segment $idx $step failed: $CAUSE" >&2
+    exit 2
+  else
+    echo "book: segment $idx $step failed: $CAUSE" >&2
+    exit 1
+  fi
+}
+
+seg=()
+for tok in "$@"; do
+  if [ "$tok" = "--" ]; then
+    if [ "${'$'}{#seg[@]}" -gt 0 ]; then run_one "${'$'}{seg[@]}"; fi
+    seg=()
+  else
+    seg+=("$tok")
+  fi
+done
+if [ "${'$'}{#seg[@]}" -gt 0 ]; then run_one "${'$'}{seg[@]}"; fi
+exit 0
+`;
+
+/**
+ * Render `book.sh` (design C6 `book-script` row, C7). Prepends the run header
+ * (the caller-named event/retro scripts, spec dir, spec-store repo, code root,
+ * HANDOFF path and spec, each single-quoted) to the static body. Runs under
+ * `set -u`.
+ */
+function renderBookScript(v: Record<string, string>): string {
+  const header = [
+    '#!/bin/bash',
+    'set -u',
+    '',
+    "EVENT_SCRIPT='" + v.eventScript + "'",
+    "RETRO_SCRIPT='" + v.retroScript + "'",
+    "SPEC_DIR='" + v.specDir + "'",
+    "SPEC_STORE_REPO='" + v.specStoreRepo + "'",
+    "CODE_ROOT='" + v.codeRoot + "'",
+    "HANDOFF='" + v.handoff + "'",
+    "SPEC='" + v.spec + "'",
+  ].join('\n');
+  return header + '\n' + BOOK_BODY.replace(/^\n/, '') + '\n';
+}
+
 // --- implementer, test-author ({{key}} bodies) -------------------------------
 
 /**
@@ -942,6 +1252,11 @@ export const BRIEF_TEMPLATES: Record<string, BriefTemplate> = {
     render: renderVerifier,
   },
   'test-author': { mode: 'write', required: ['title', 'job'], render: (v) => renderBody(BODIES['test-author'], v) },
+  'book-script': {
+    mode: 'write',
+    required: ['eventScript', 'retroScript', 'specDir', 'specStoreRepo', 'codeRoot', 'handoff'],
+    render: renderBookScript,
+  },
 };
 
 /** Whether a template fills the server-provided `{{taskBlock}}` slot. */
