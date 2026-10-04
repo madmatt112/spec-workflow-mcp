@@ -98,3 +98,8 @@ Cost: 1 implementer spawn + orchestrator relocation
 orient queue/nextTask/decomposition added to harness.ts; gate risk low, review recorded. rounds 0, outcome gate.
 Evidence: task 6; reviewId d532fb24
 Cost: 1 author + 1 implementer spawn
+
+## 2026-10-04T04:07:29Z · implementation · task 7 · gotcha
+New module brief-templates.ts (pure move of 6 kinds); gate high (260 lines + tests-not-touched, both expected); verifier confirmed byte-identical, 0 findings. rounds 0, outcome pass.
+Evidence: task 7; src/tools/brief-templates.ts
+Cost: 1 implementer + 1 verifier spawn
