@@ -21,3 +21,7 @@
 5. **Posture** — What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing) for this spec?
    - options: n/a — the spec touches no money, personal data, or legal surface (recorded)
    - answer: not asked — single option; recorded choice stands: n/a
+
+## Gate B
+
+Approved by Matthew (2026-10-04T02:04:58Z) with no annotation. Class-a veto items left unannotated: tasks 12, 13, 8, 6, 16.

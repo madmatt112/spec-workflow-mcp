@@ -82,6 +82,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-03 | lean-orchestrators | requirements | v1 | gate-a |  |
 | 2026-10-03 | lean-orchestrators | requirements | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-10-03 | lean-orchestrators | design | v4 | approved | 4 rounds, converged via SHOULD_FIX-only pass + narrow check 2/2 |
+| 2026-10-03 | lean-orchestrators | tasks | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass (0/4/1 -> 0/1/2 -> narrow 3/3) |
 
 ## Current state — 2026-08-04
 
