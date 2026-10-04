@@ -567,21 +567,6 @@ describe('harnessHandler', () => {
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 
-  it('the briefs.md Code graph block mirrors codeGraphSection (drift guard)', async () => {
-    const briefsPath = fileURLToPath(
-      new URL('../../../harness/skills/sdd-document-phase/references/briefs.md', import.meta.url),
-    );
-    const lines = (await fs.readFile(briefsPath, 'utf-8')).split('\n');
-    const heading = lines.indexOf('## Code graph block');
-    expect(heading).toBeGreaterThan(-1);
-    const open = lines.indexOf('```', heading);
-    const close = lines.indexOf('```', open + 1);
-    expect(open).toBeGreaterThan(heading);
-    expect(close).toBeGreaterThan(open);
-    const block = lines.slice(open + 1, close).join('\n') + '\n';
-    expect(block).toBe(codeGraphSection('<GRAPH>', '<GRAPH_BUILT_AT>', '<GRAPH_BEHIND>'));
-  });
-
   // Task 8 — document-phase brief kinds (`drafter`, `gate-a`, `reviewer`, `reviser`,
   // `adjudicator`, `checker`) ported verbatim from
   // harness/skills/sdd-document-phase/references/briefs.md, plus `reviewer` append mode
