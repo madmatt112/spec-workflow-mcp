@@ -3,7 +3,7 @@ Document version: v3
 
 Tasks 1 to 4 build the W fold, the source breakdown, the transcript locator and the `sources` option in import order, and task 5 writes the baseline file at once, before the transcripts age out (Requirement 2). Task 6 adds the orient task queue; tasks 7 to 10 move the brief templates into their own module, then add the document kinds, the implementation kinds and the bookkeeping-script kind; task 11 sets the worker report blocks; tasks 12 to 14 rewrite the two phase skills and the supervisor on top of tasks 6 to 11; task 15 stages the fixture kit and the pending live record; task 16 runs the full checks. Each task leaves `npx tsc --noEmit` and every existing suite green, and a harness-only task changes no compiled code. Planned verifier spend: tasks 2, 3 and 7 create brand-new modules, so expect at least three verifier spawns; every other task routes on the gate's risk.
 
-- [ ] 1. W fold, spawn list and unit count in the usage module
+- [x] 1. W fold, spawn list and unit count in the usage module
   - File: src/watch/usage.ts
   - File: src/watch/__tests__/usage.test.ts
   - File: src/tools/__tests__/harness.test.ts

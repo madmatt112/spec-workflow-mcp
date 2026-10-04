@@ -721,3 +721,11 @@ Gotchas:
 | Cut scope | none — v3 keeps decomposition entry 14's scope (16 tasks). Verification scenarios 2 and 3 stay pending in verification-evidence.md (task 15 stages the fixture kit and records them; the live runs need a rebuilt checkout and a fresh session); Req 5.4 needs no task. |
 | Carried items | none (round-1 R1-1..R1-4 and round-2 R2-1 SHOULD_FIX all accepted and fixed; the two round-2 MINORs fixed in the v3 pass; no ruled-out SHOULD_FIX; no MINOR rejected only for the word cap). |
 | Next phase loads | codebase-context.md first, then design.md v4 and requirements.md v3. Implementation starts at task 1 in the dependency order the tasks preamble states; tasks 15 and 16 cover the end-to-end verification gate. Every task block is within the 150-words-per-block cap. |
+
+## lean-orchestrators — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/16 |
+| Last code commit | 20fe6bf |
+| Next task | 2 |

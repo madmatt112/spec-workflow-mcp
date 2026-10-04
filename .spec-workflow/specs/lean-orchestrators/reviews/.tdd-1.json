@@ -1,0 +1,1 @@
+{"testFiles":["src/watch/__tests__/usage.test.ts","src/tools/__tests__/harness.test.ts"],"seams":{"src/watch/__tests__/usage.test.ts":"spawnW(row), listSpawns(events), unitCount(events, phase), formatUsageTable(report, compare, opts)"},"redCommit":"f160680","baseSha":"42ece7df2339451254a789624f32442556fdbd75","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -63,3 +63,8 @@ Cost: 1 reviewer spawn
 tasks approved at v3 after 3 rounds; verdict trajectory 0/4/1 → 0/1/2 → SHOULD_FIX-only pass at v3, narrow check VERIFIED 3/3; rulings 1 (Req 7.3 runaway-guard basis = refinement, carried to next drafter); cap not hit; prune removed 0 records and 0 snapshots (2 kept).
 Evidence: approval_1791018590058_j7ukpmynx; .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r2.md; .spec-workflow/specs/lean-orchestrators/reviews/adversarial-analysis-tasks-r3.md
 Cost: 2 reviewer + 2 reviser spawns, 1 narrow-check checker, 1 drafter
+
+## 2026-10-04T02:36:17Z · implementation · task 1 · gotcha
+New-module-scale change (241 changed lines) routed high risk; verifier passed round 1 with 0 findings. rounds 0, outcome pass.
+Evidence: task 1; src/watch/usage.ts
+Cost: 1 author + 1 implementer + 1 verifier spawn
