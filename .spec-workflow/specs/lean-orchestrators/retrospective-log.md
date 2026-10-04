@@ -123,3 +123,13 @@ Cost: 1 author + 1 implementer + 1 fix + shared batched verifier + 1 narrow veri
 C9 report blocks across 8 agent files + plugin sync; gate low, review recorded, plugin-assets + validate green. rounds 0, outcome gate.
 Evidence: task 11; reviewId a09f064c
 Cost: 1 implementer spawn
+
+## 2026-10-04T06:45:04Z · implementation · task 12 · harness-defect
+Task 8's document-phase renderChecker/renderAdjudicator leave literal placeholders (<analysis output path>, <D>, <r<A> analysis path>, <memory file path>, <CODE_ROOT>) that are not server-filled and the lean orchestrator no longer fills; a checker/adjudicator brief would render with unfilled slots. Flagged by task 12's implementer at Step 4b; needs a task-8 follow-up fix on brief-templates.ts before the e2e gate.
+Evidence: task 12; src/tools/brief-templates.ts renderChecker/renderAdjudicator
+Cost: flagged during task 12 split
+
+## 2026-10-04T07:06:01Z · implementation · task 12 · inefficiency
+Doc-phase skill split (verifier pass, headings preserved, briefs.md+drift-guard deleted, bookkeeping via book.sh). Verifier investigation exposed a tasks-8+12 regression: document-phase checker/adjudicator server kinds left orchestrator-filled slots (<D>, analysis paths, CODE_ROOT, MUST_FIX/SHOULD_FIX counts, memory path, checker write target) as literal <...>; 1 fix round wired them as template keys and passed them from convergence.md. Lesson: when a brief slot the orchestrator used to fill moves server-side, it must become a template key, not stay literal. rounds 1, outcome pass.
+Evidence: task 12; commits 53b7d1c + d2977a7; reviewId 2ed94b98
+Cost: 1 author + 1 implementer + 1 fix + 1 verifier spawn
