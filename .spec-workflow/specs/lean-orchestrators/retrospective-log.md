@@ -68,3 +68,8 @@ Cost: 2 reviewer + 2 reviser spawns, 1 narrow-check checker, 1 drafter
 New-module-scale change (241 changed lines) routed high risk; verifier passed round 1 with 0 findings. rounds 0, outcome pass.
 Evidence: task 1; src/watch/usage.ts
 Cost: 1 author + 1 implementer + 1 verifier spawn
+
+## 2026-10-04T02:56:12Z · implementation · task 2 · gotcha
+New pure module sources.ts; verifier passed round 1 with 1 immaterial info (substring form). rounds 0, outcome pass.
+Evidence: task 2; src/watch/sources.ts
+Cost: 1 author + 1 implementer + 1 verifier spawn

@@ -1,0 +1,1 @@
+{"testFiles":["src/watch/__tests__/sources.test.ts"],"seams":{"src/watch/__tests__/sources.test.ts":"breakdownTranscript(text)"},"redCommit":"b7b51b1","baseSha":"20fe6bfa16b69b5decba2ea5acd9a8bfd156a7c5","base":"structural-red","head":"pass","amended":false,"judged":null}
