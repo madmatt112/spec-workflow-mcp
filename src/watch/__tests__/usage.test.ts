@@ -2,12 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { buildUsageReport, usageDelta, formatUsageTable, isGraphCall, applyGraphCounts, UsageReport, UsageCell } from '../usage.js';
+import { buildUsageReport, usageDelta, formatUsageTable, isGraphCall, applyGraphCounts, spawnW, listSpawns, unitCount, UsageReport, UsageCell } from '../usage.js';
 import { LedgerEvent, ActivityEvent, parseJsonl } from '../ledger.js';
 
-/** A full UsageCell from a partial; the cache fields and graph default to 0 (design C5). */
+/**
+ * A full UsageCell from a partial; the cache fields and graph default to 0 (design C5).
+ * No fixture in this file sets a spawn's full five W fields, so every spawn here is
+ * W-unknown: wUnknown defaults to the cell's spawn count, w to 0 (design C1).
+ */
 function ce(p: Partial<UsageCell> & Pick<UsageCell, 'spawns' | 'tokens' | 'unknown'>): UsageCell {
-  return { cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0, ...p };
+  return { w: 0, wUnknown: p.spawns, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0, ...p };
 }
 
 /** The committed new-shape ledger, shared with the index and harness-tool tests (D8). */
@@ -278,9 +282,9 @@ describe('usageDelta', () => {
       ev('spawn.usage', { agent: 'x', phase: 'design', tokens: '40' }),
     ], 'b');
     const d = usageDelta(a, b);
-    expect(d).toEqual([
-      { phase: 'requirements', spawns: 0, tokens: 150 },
-      { phase: 'design', spawns: 1, tokens: 40 },
+    expect(d).toMatchObject([
+      { phase: 'requirements', spawns: 0, tokens: 150, w: 0 },
+      { phase: 'design', spawns: 1, tokens: 40, w: 0 },
     ]);
   });
 });
@@ -330,11 +334,11 @@ describe('formatUsageTable — two specs', () => {
     const text = formatUsageTable(a, b);
     expect(text).toContain('usage left  runs 0  spawns 1  tokens 100');
     expect(text).toContain('usage right  runs 0  spawns 2  tokens 290');
-    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph | spawns | tokens | cw5m | cw1h | gapRewrites | graph');
-    // design exists only on the right: the left side is six dashes.
-    expect(text).toContain('design | sdd-reviser | - | - | - | - | - | - | 1 | 40 | unknown | unknown | unknown | 0');
-    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 0 | 1 | 250 | unknown | unknown | unknown | 0  delta spawns 0 tokens 150');
-    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190');
+    expect(text).toContain('phase | agent | spawns | tokens | W | cw5m | cw1h | gapRewrites | graph | spawns | tokens | W | cw5m | cw1h | gapRewrites | graph');
+    // design exists only on the right: the left side is seven dashes (W added).
+    expect(text).toContain('design | sdd-reviser | - | - | - | - | - | - | - | 1 | 40 | 0 (+1 unknown) | unknown | unknown | unknown | 0');
+    expect(text).toContain('requirements | total | 1 | 100 | 0 (+1 unknown) | unknown | unknown | unknown | 0 | 1 | 250 | 0 (+1 unknown) | unknown | unknown | unknown | 0  delta spawns 0 tokens 150');
+    expect(text).toContain('total |  | 1 | 100 | 0 (+1 unknown) | unknown | unknown | unknown | 0 | 2 | 290 | 0 (+2 unknown) | unknown | unknown | unknown | 0  delta spawns 1 tokens 190');
   });
 
   it('appends the provider pair after the delta on compare total lines', () => {
@@ -349,8 +353,8 @@ describe('formatUsageTable — two specs', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '40', provider: 'deepseek' }),
     ], 'right');
     const text = formatUsageTable(a, b);
-    expect(text).toContain('requirements | total | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
-    expect(text).toContain('total |  | 1 | 100 | unknown | unknown | unknown | 0 | 2 | 290 | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('requirements | total | 1 | 100 | 0 (+1 unknown) | unknown | unknown | unknown | 0 | 2 | 290 | 0 (+2 unknown) | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
+    expect(text).toContain('total |  | 1 | 100 | 0 (+1 unknown) | unknown | unknown | unknown | 0 | 2 | 290 | 0 (+2 unknown) | unknown | unknown | unknown | 0  delta spawns 1 tokens 190  anthropic 100 | 250  deepseek 0 | 40');
   });
 });
 
@@ -413,8 +417,8 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000', cacheWrite5m: '10', cacheWrite1h: '20', gapRewrites: '2' }),
     ];
     const text = formatUsageTable(buildUsageReport(rows, 'demo'));
-    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites');
-    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2');
+    expect(text).toContain('phase | agent | spawns | tokens | W | cw5m | cw1h | gapRewrites');
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 0 (+1 unknown) | 10 | 20 | 2');
   });
 
   it('prints three dashes for a deepseek line and an all-deepseek total', () => {
@@ -423,9 +427,9 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '250', provider: 'deepseek', cacheWrite5m: '5', cacheWrite1h: '5', gapRewrites: '0' }),
     ];
     const text = formatUsageTable(buildUsageReport(rows, 'demo'));
-    expect(text).toContain('requirements | sdd-reviewer@deepseek | 1 | 250 | - | - | -');
-    expect(text).toContain('requirements | total | 1 | 250 | - | - | -');
-    expect(text).toContain('total |  | 1 | 250 | - | - | -');
+    expect(text).toContain('requirements | sdd-reviewer@deepseek | 1 | 250 | 0 (+1 unknown) | - | - | -');
+    expect(text).toContain('requirements | total | 1 | 250 | 0 (+1 unknown) | - | - | -');
+    expect(text).toContain('total |  | 1 | 250 | 0 (+1 unknown) | - | - | -');
   });
 
   it('ends the gap column with (+N unknown) when some spawns are gap-unknown', () => {
@@ -436,8 +440,8 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '200', cacheWrite5m: '5', cacheWrite1h: '5', gapRewrites: 'unknown' }),
     ];
     const text = formatUsageTable(buildUsageReport(rows, 'demo'));
-    expect(text).toContain('requirements | sdd-reviewer | 1 | 200 | 5 | 5 | unknown');
-    expect(text).toContain('requirements | total | 2 | 300 | 15 | 25 | 3 (+1 unknown)');
+    expect(text).toContain('requirements | sdd-reviewer | 1 | 200 | 0 (+1 unknown) | 5 | 5 | unknown');
+    expect(text).toContain('requirements | total | 2 | 300 | 0 (+2 unknown) | 15 | 25 | 3 (+1 unknown)');
   });
 
   it('prints unknown in every cache column and unchanged tokens for a ledger with no keys (Req 4.8)', () => {
@@ -448,10 +452,10 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-reviewer', tokens: '500' }),
     ];
     const text = formatUsageTable(buildUsageReport(rows, 'demo'));
-    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | unknown | unknown | unknown');
-    expect(text).toContain('requirements | sdd-reviewer | 1 | 500 | unknown | unknown | unknown');
-    expect(text).toContain('requirements | total | 2 | 1,500 | unknown | unknown | unknown');
-    expect(text).toContain('total |  | 2 | 1,500 | unknown | unknown | unknown');
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 0 (+1 unknown) | unknown | unknown | unknown');
+    expect(text).toContain('requirements | sdd-reviewer | 1 | 500 | 0 (+1 unknown) | unknown | unknown | unknown');
+    expect(text).toContain('requirements | total | 2 | 1,500 | 0 (+2 unknown) | unknown | unknown | unknown');
+    expect(text).toContain('total |  | 2 | 1,500 | 0 (+2 unknown) | unknown | unknown | unknown');
   });
 
   it('compares a ledger with the keys against one without (Req 4.7, 4.9)', () => {
@@ -464,7 +468,7 @@ describe('formatUsageTable — cache columns (Req 4)', () => {
       ev('spawn.end', { agent: 'sdd-drafter', tokens: '1000' }),
     ], 'nokeys');
     const text = formatUsageTable(a, b);
-    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 10 | 20 | 2 | 0 | 1 | 1,000 | unknown | unknown | unknown | 0');
+    expect(text).toContain('requirements | sdd-drafter | 1 | 1,000 | 0 (+1 unknown) | 10 | 20 | 2 | 0 | 1 | 1,000 | 0 (+1 unknown) | unknown | unknown | unknown | 0');
   });
 });
 
@@ -551,9 +555,292 @@ describe('applyGraphCounts (Req 6.3-6.5, D9)', () => {
     const report = buildUsageReport(events, 'demo');
     applyGraphCounts(report, events, [tool('sdd-implementer', 'graphify explain "x"')]);
     const text = formatUsageTable(report);
-    expect(text).toContain('phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph');
-    expect(text).toContain('implementation | sdd-implementer | 0 | 0 | - | - | - | 1');
-    expect(text).toContain('implementation | total | 0 | 0 | - | - | - | 1');
-    expect(text).toContain('total |  | 0 | 0 | - | - | - | 1');
+    expect(text).toContain('phase | agent | spawns | tokens | W | cw5m | cw1h | gapRewrites | graph');
+    expect(text).toContain('implementation | sdd-implementer | 0 | 0 | 0 | - | - | - | 1');
+    expect(text).toContain('implementation | total | 0 | 0 | 0 | - | - | - | 1');
+    expect(text).toContain('total |  | 0 | 0 | 0 | - | - | - | 1');
+  });
+});
+
+describe('spawnW (design C1, Req 1.1)', () => {
+  it('computes input + 1.25*cw5m + 2*cw1h + 0.1*cacheRead + 5*output from a spawn.end row', () => {
+    const row = ev('spawn.end', {
+      agent: 'sdd-document-orchestrator',
+      input: '100',
+      output: '10',
+      cacheRead: '20',
+      cacheWrite5m: '8',
+      cacheWrite1h: '4',
+    });
+    expect(spawnW(row)).toBe(170);
+  });
+
+  it('is undefined when cacheWrite5m is not a digit string', () => {
+    const row = ev('spawn.end', {
+      input: '100',
+      output: '10',
+      cacheRead: '20',
+      cacheWrite5m: 'unknown',
+      cacheWrite1h: '4',
+    });
+    expect(spawnW(row)).toBeUndefined();
+  });
+});
+
+describe('buildUsageReport — W per cell (Req 1.1)', () => {
+  it('sets cell.w from the spawn.end row that sets tokens, unmarked', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '9999',
+        input: '100',
+        output: '10',
+        cacheRead: '20',
+        cacheWrite5m: '8',
+        cacheWrite1h: '4',
+      }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    const c = cell(r, 'design', 'sdd-document-orchestrator');
+    expect(c?.w).toBe(170);
+    expect(c?.wUnknown).toBe(0);
+  });
+
+  it('marks wUnknown when W is undefined though tokens are a known digit', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '500', input: '10', output: '1' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    const c = cell(r, 'requirements', 'sdd-drafter');
+    expect(c?.w).toBe(0);
+    expect(c?.wUnknown).toBe(1);
+  });
+
+  it('marks wUnknown when tokens come only from spawn.usage', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.usage', { agent: 'sdd-reviewer', phase: 'requirements', tokens: '1000' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    const c = cell(r, 'requirements', 'sdd-reviewer');
+    expect(c?.w).toBe(0);
+    expect(c?.wUnknown).toBe(1);
+  });
+});
+
+describe('formatUsageTable — W column (Req 1.1)', () => {
+  it('prints the W column after tokens, with the unknown mark like the token cell', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '9999',
+        input: '100',
+        output: '10',
+        cacheRead: '20',
+        cacheWrite5m: '8',
+        cacheWrite1h: '4',
+      }),
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'design' }),
+      ev('spawn.end', { agent: 'sdd-drafter', tokens: '500' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'));
+    expect(text).toContain('phase | agent | spawns | tokens | W |');
+    expect(text).toContain('design | sdd-document-orchestrator | 1 | 9,999 | 170 |');
+    expect(text).toContain('design | sdd-drafter | 1 | 500 | 0 (+1 unknown) |');
+  });
+});
+
+describe('unitCount (design C1)', () => {
+  it('counts round rows whose phase key matches, for a document phase', () => {
+    const rows: LedgerEvent[] = [
+      ev('round', { phase: 'requirements', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'requirements', round: '2', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+    ];
+    expect(unitCount(rows, 'requirements')).toBe(2);
+  });
+
+  it('counts task.done rows inside the implementation window', () => {
+    const rows: LedgerEvent[] = [
+      ev('phase.start', { phase: 'implementation' }),
+      ev('task.done', { task: '1', outcome: 'done' }),
+      ev('task.done', { task: '2', outcome: 'done' }),
+      ev('phase.end', { phase: 'implementation' }),
+      ev('task.done', { task: '3', outcome: 'done' }),
+    ];
+    expect(unitCount(rows, 'implementation')).toBe(2);
+  });
+});
+
+describe('buildUsageReport — orchW, units, orchWPerUnit (Req 1.8)', () => {
+  it('sums the orchestrator cells W into orchW and divides by units', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '600',
+        input: '100',
+        output: '20',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    const ph = phase(r, 'design');
+    expect(ph?.units).toBe(2);
+    expect(ph?.orchW).toBe(200);
+    expect(ph?.orchWPerUnit).toBe(100);
+  });
+
+  it('is null when units is 0', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '600',
+        input: '100',
+        output: '20',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+    ];
+    const r = buildUsageReport(rows, 's');
+    expect(phase(r, 'design')?.orchWPerUnit).toBeNull();
+  });
+});
+
+describe('usageDelta — w and orchWPerUnit (Req 1.8)', () => {
+  it('is b minus a for w and orchWPerUnit per phase', () => {
+    const a = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '600',
+        input: '100',
+        output: '20',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+    ], 'a');
+    const b = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '900',
+        input: '100',
+        output: '160',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '3', verdict: 'approve' }),
+    ], 'b');
+    const d = usageDelta(a, b);
+    const designDelta = d.find(x => x.phase === 'design');
+    expect(designDelta?.w).toBe(700);
+    expect(designDelta?.orchWPerUnit).toBe(200);
+  });
+});
+
+describe('formatUsageTable — per-unit option (Req 1.8)', () => {
+  it('adds orch W/round or orch W/task to each phase total when perUnit is set', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '600',
+        input: '100',
+        output: '20',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+      ev('phase.start', { phase: 'implementation' }),
+      ev('spawn.start', { agent: 'sdd-implementation-orchestrator', phase: 'implementation' }),
+      ev('spawn.end', {
+        agent: 'sdd-implementation-orchestrator',
+        tokens: '1200',
+        input: '100',
+        output: '100',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('task.done', { task: '1', outcome: 'done' }),
+      ev('task.done', { task: '2', outcome: 'done' }),
+      ev('phase.end', { phase: 'implementation' }),
+    ];
+    const text = formatUsageTable(buildUsageReport(rows, 'demo'), undefined, { perUnit: true });
+    expect(text).toContain('orch W/round 100');
+    expect(text).toContain('orch W/task 300');
+  });
+
+  it('prints both specs per-unit W and the delta when compare is given', () => {
+    const a = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '600',
+        input: '100',
+        output: '20',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+    ], 'a');
+    const b = buildUsageReport([
+      ev('spawn.start', { agent: 'sdd-document-orchestrator', phase: 'design' }),
+      ev('spawn.end', {
+        agent: 'sdd-document-orchestrator',
+        tokens: '900',
+        input: '100',
+        output: '160',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('round', { phase: 'design', round: '1', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '2', verdict: 'approve' }),
+      ev('round', { phase: 'design', round: '3', verdict: 'approve' }),
+    ], 'b');
+    const text = formatUsageTable(a, b, { perUnit: true });
+    expect(text).toContain('orch W/round 100 | 300  delta 200');
+  });
+});
+
+describe('listSpawns (design C1)', () => {
+  it('lists each reduced spawn with phase, agent, the latest spawn.end agentId, and W from the tokens-setting row', () => {
+    const rows: LedgerEvent[] = [
+      ev('spawn.start', { agent: 'sdd-drafter', phase: 'requirements' }),
+      ev('spawn.end', {
+        agent: 'sdd-drafter',
+        agentId: 'a1',
+        tokens: '500',
+        input: '10',
+        output: '1',
+        cacheRead: '0',
+        cacheWrite5m: '0',
+        cacheWrite1h: '0',
+      }),
+      ev('spawn.end', { agent: 'sdd-drafter', agentId: 'a2', tokens: 'unknown' }),
+    ];
+    const spawns = listSpawns(rows);
+    expect(spawns).toHaveLength(1);
+    expect(spawns[0]).toMatchObject({ phase: 'requirements', agent: 'sdd-drafter', agentId: 'a2', w: 15 });
   });
 });
