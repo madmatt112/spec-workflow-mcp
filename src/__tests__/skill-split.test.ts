@@ -91,4 +91,9 @@ describe('document-phase and implementation-phase skill split (task 12, design C
     const skillText = readFileSync(join(DOCUMENT_PHASE_DIR, 'SKILL.md'), 'utf-8');
     expect(skillText).not.toContain('briefs.md');
   });
+
+  it('the implementation-phase SKILL.md does not name briefs.md (task 13, design C8; Requirement 3 criterion 3)', () => {
+    const skillText = readFileSync(join(IMPLEMENTATION_PHASE_DIR, 'SKILL.md'), 'utf-8');
+    expect(skillText).not.toContain('briefs.md');
+  });
 });
