@@ -1283,7 +1283,10 @@ describe('harnessHandler', () => {
   it('brief fix (variants ci and reconcile) both render the CI-fix content byte for byte, with the C9 report block replacing the old sentence', async () => {
     const ciPath = join(tempDir, 'fix-ci.md');
     const reconcilePath = join(tempDir, 'fix-reconcile.md');
-    const base = { taskId: '3', round: '2', findings: 'npm test failed on Node 20', commit: 'none' };
+    const base = {
+      taskId: '3', round: '2', findings: 'npm test failed on Node 20', commit: 'none',
+      checkNames: 'build (20)', logPaths: 'ci-build-r2.log',
+    };
 
     const ciRes = await harnessHandler(
       { action: 'brief', specName: SPEC, template: 'fix', values: { ...base, path: ciPath, variant: 'ci' } },
@@ -1302,7 +1305,11 @@ describe('harnessHandler', () => {
     // Verbatim briefs.md:235, :237, :239, :243-244, :247.
     expect(ciWritten).toContain(`# CI red — fix round 2 (spec ${SPEC})`);
     expect(ciWritten).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/impl-standing.md\` first and obey it.`);
-    expect(ciWritten).toContain("The PR's checks failed:");
+    // The passed check names and log paths render filled; no literal slot remains.
+    expect(ciWritten).toContain("The PR's checks failed: build (20).");
+    expect(ciWritten).toContain('log tail is in ci-build-r2.log;');
+    expect(ciWritten).not.toContain('<check names>');
+    expect(ciWritten).not.toContain('<log file path(s)>');
     expect(ciWritten).toContain('Reproduce the failure locally first, with the command the');
     expect(ciWritten).toContain('If the failure is CI infrastructure and not the code');
 
@@ -1419,6 +1426,7 @@ describe('harnessHandler', () => {
         values: {
           path: outPath, title: '', variant: 'ci', taskIds: '', files: '', round: '2',
           gateResults: '', scenario: '',
+          checkNames: 'build (20)', sha: 'abc1234', command: 'npm test',
         },
       },
       context,
@@ -1429,7 +1437,13 @@ describe('harnessHandler', () => {
     // Verbatim briefs.md:258, :260, :262, :263.
     expect(written).toContain(`# CI red — verification round 2 (spec ${SPEC})`);
     expect(written).toContain(`Read \`/tmp/scratchpad/sdd/${SPEC}/verify-standing.md\` first and obey it.`);
-    expect(written).toContain('Checks that failed:');
+    // The passed check names, fix commit and reproduce command render filled.
+    expect(written).toContain('Checks that failed: build (20).');
+    expect(written).toContain("The implementer's fix is commit abc1234;");
+    expect(written).toContain('its reproduce command: npm test.');
+    expect(written).not.toContain('<check names>');
+    expect(written).not.toContain('<sha>');
+    expect(written).not.toContain('<command>');
     expect(written).toContain('Run that command yourself in `');
 
     // The old report sentence (briefs.md:264-266) is replaced by the C9 block.

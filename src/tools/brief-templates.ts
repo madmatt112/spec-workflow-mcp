@@ -665,12 +665,14 @@ function renderVerifyStanding(v: Record<string, string>): string {
 
 /** The CI-fix content (briefs.md:235-249), reused by both `ci` and `reconcile`. */
 function renderCiFix(v: Record<string, string>): string {
+  const checkNames = v.checkNames ?? '<check names>';
+  const logPaths = v.logPaths ?? '<log file path(s)>';
   const lines: string[] = [
     '# CI red — fix round ' + v.round + ' (spec ' + v.spec + ')',
     '',
     'Read `/tmp/scratchpad/sdd/' + v.spec + '/impl-standing.md` first and obey it.',
     '',
-    "The PR's checks failed: <check names>. The failing steps' log tail is in <log file path(s)>; " +
+    "The PR's checks failed: " + checkNames + ". The failing steps' log tail is in " + logPaths + '; ' +
       'read those files. Reproduce the failure locally first, with the command the job runs ' +
       '(read its workflow file under `.github/workflows/`). Fix the cause, not the symptom: when ' +
       "the spec's change made shared test fixtures or setup stale, fix the fixtures. Run the " +
@@ -790,13 +792,16 @@ function renderVerifierE2e(v: Record<string, string>): string {
 
 /** CI verify brief (briefs.md:255-267); report sentence → C9 block. */
 function renderVerifierCi(v: Record<string, string>): string {
+  const checkNames = v.checkNames ?? '<check names>';
+  const sha = v.sha ?? '<sha>';
+  const command = v.command ?? '<command>';
   const lines: string[] = [
     '# CI red — verification round ' + v.round + ' (spec ' + v.spec + ')',
     '',
     'Read `/tmp/scratchpad/sdd/' + v.spec + '/verify-standing.md` first and obey it.',
     '',
-    "Checks that failed: <check names>. The implementer's fix is commit <sha>; its reproduce " +
-      'command: <command>. Run that command yourself in `<CODE_ROOT>`, then every check the agent ' +
+    'Checks that failed: ' + checkNames + ". The implementer's fix is commit " + sha + '; its reproduce ' +
+      'command: ' + command + '. Run that command yourself in `<CODE_ROOT>`, then every check the agent ' +
       'rules list for the files the fix touched, each as its own command.',
     '',
     ...reportBlockLines(VERIFIER_REPORT_KEYS),

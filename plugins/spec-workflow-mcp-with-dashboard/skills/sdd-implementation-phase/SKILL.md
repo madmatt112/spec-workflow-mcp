@@ -201,7 +201,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    `agent-rules.md` already has the implementer code to the governing requirement, this
    catches it upstream. Then spawn `sdd-implementer` with `Read and execute the instructions
    in <the returned path>`.
-3. **Read the report.** It must contain `logged: yes/<taskId>`. If it says `logged:
+3. **Read the report.** Route only on the report block's keys (`logged`, `checks-file`
+   and the flags below); a report that arrives without its block is a stall: spawn a
+   fresh `sdd-implementer` once more from the same brief, and a second report still
+   missing its block ⇒ `PHASE: error` (the missing-verdict-block rule, document-phase
+   Step 2). It must contain `logged: yes/<taskId>`. If it says `logged:
    no`, spawn a fresh `sdd-implementer` with the brief plus "call log-implementation
    for task <N> now; the code is done" (its `spawn.usage` `role` adds ` retry`). Its report
    block names a `checks-file` (a path to a JSON array of the commands it ran); keep that

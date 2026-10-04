@@ -164,16 +164,20 @@ Cap 3 rounds per PR. Round r:
    beyond `wc -l`.
 2. **Fix.** Call `harness` `brief` with `template: fix`, `specName: <SPEC>`, `variant:
    reconcile`, and `values` carrying the output path `impl-brief-ci-r<r>.md`, `round:
-   "<r>"`, and the required-but-unused slots `taskId: "ci"`, `findings: ""`, `commit:
-   "none"` (the `reconcile` variant renders the CI-fix content, which keys on `round`).
+   "<r>"`, `checkNames: "<the failing check names>"`, `logPaths: "<the `ci-<check>-r<r>.log`
+   paths saved in step 1>"`, and the required-but-unused slots `taskId: "ci"`, `findings:
+   ""`, `commit: "none"` (the `reconcile` variant renders the CI-fix content from `round`,
+   `checkNames` and `logPaths`).
    Spawn `sdd-implementer`; its `spawn.usage` carries `role=fix ci <check> round <r>`. It
    reproduces the failure from the PR's workflow files and the saved log tail, fixes the
    cause, commits on the branch without pushing, and reports the command that reproduces
    the check locally, or `INFRA:` when the failure is not in the code.
 3. **Verify.** Call `harness` `brief` with `template: verifier`, `specName: <SPEC>`,
    `variant: ci`, and `values` carrying the output path `verify-brief-ci-r<r>.md`, `round:
-   "<r>"`, and the unused per-task slots as empty strings (`title: ""`, `taskIds: ""`,
-   `files: ""`, `gateResults: ""`, `scenario: ""`). Spawn `sdd-verifier`. `VERIFY: fail` ⇒
+   "<r>"`, `checkNames: "<the failing check names>"`, `sha: "<the implementer's fix
+   commit>"`, `command: "<the reproduce command from the implementer's report>"`, and the
+   unused per-task slots as empty strings (`title: ""`, `taskIds: ""`, `files: ""`,
+   `gateResults: ""`, `scenario: ""`). Spawn `sdd-verifier`. `VERIFY: fail` ⇒
    the next round from step 2, without pushing. `VERIFY: pass` (or `INFRA:` from the
    implementer) ⇒ `git push` in `CODE_ROOT` (on `INFRA:`, rerun the failed jobs instead:
    `gh run rerun <run id> --failed`) and the gate again (10b).
@@ -200,7 +204,9 @@ Cap 3 rounds per PR. Round r:
    = the failing scenario with the instruction to reproduce first, fix the cause, add
    coverage that fails without the fix, and report, plus `taskId: "repair"` and `commit:
    "none"`. Spawn `sdd-implementer`. When `REVISION_INPUT` starts with `ci:`, the failing
-   scenario is that PR check: use `variant: ci` instead (the CI fix content), with the log
-   tail saved as in **Reconcile a red PR** step 1.
+   scenario is that PR check: use `variant: ci` instead (the CI fix content), passing
+   `checkNames` (the failing check names) and `logPaths` (the saved log-tail paths) as in
+   **Reconcile a red PR** step 2, with the log tail saved as in **Reconcile a red PR**
+   step 1.
 2. Re-run step 8 of the completion gate. On `pass` continue with steps 9–11. On
    `fail` report `PHASE: verify-failed` again; the supervisor caps repairs at two.
