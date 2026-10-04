@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/book-script.test.ts"],"seams":{"src/__tests__/book-script.test.ts":"`harnessHandler({ action: 'brief', template: 'book-script' })` then bash book.sh"},"redCommit":"0c96f9a","baseSha":"dd71a72d5f929bd48b87cede465276f569914486","base":"assertion-red","head":"pass","amended":false,"judged":null}

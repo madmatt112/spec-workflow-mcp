@@ -103,3 +103,13 @@ Cost: 1 author + 1 implementer spawn
 New module brief-templates.ts (pure move of 6 kinds); gate high (260 lines + tests-not-touched, both expected); verifier confirmed byte-identical, 0 findings. rounds 0, outcome pass.
 Evidence: task 7; src/tools/brief-templates.ts
 Cost: 1 implementer + 1 verifier spawn
+
+## 2026-10-04T06:06:38Z · implementation · task 9 · gotcha
+Implementation brief kinds ported; batched verify (with 8,10) passed task 9, report sentences replaced by C9, redTests repointed without weakening coverage. rounds 0, outcome pass.
+Evidence: task 9; commit dd71a72
+Cost: 1 author + 1 implementer + shared batched verifier
+
+## 2026-10-04T06:06:38Z · implementation · task 10 · gotcha
+book-script kind with all 8 C7 segments; batched verify passed task 10, strong idempotency test. rounds 0, outcome pass.
+Evidence: task 10; commit bee6506
+Cost: 1 author + 1 implementer + shared batched verifier

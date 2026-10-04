@@ -1,0 +1,1 @@
+{"testFiles":["src/tools/__tests__/harness.test.ts"],"seams":{"src/tools/__tests__/harness.test.ts":"harnessHandler({ action: 'brief', template: 'fix' })"},"redCommit":"d4a0c05","baseSha":"0b33f2fe9a624415f7065802df176c05f5e12e57","base":"assertion-red","head":"pass","amended":true,"judged":null}
