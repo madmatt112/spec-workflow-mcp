@@ -15,7 +15,7 @@ import { handoffPath } from '../watch/index.js';
 import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts, listSpawns } from '../watch/usage.js';
 import { resolveSession, findTranscript } from '../watch/transcripts.js';
 import { breakdownTranscript, formatSources, SpawnSources, SourcesReport, SourcesReason } from '../watch/sources.js';
-import { BRIEF_TEMPLATES, templateUsesTaskBlock } from './brief-templates.js';
+import { BRIEF_TEMPLATES, templateUsesTaskBlock, buildRedTestsSection } from './brief-templates.js';
 
 /**
  * The `harness` tool (design Components 1-6). One tool, five actions:
@@ -685,7 +685,7 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
     // An implementer brief for a TDD-marked task — its block carries a `- Test:` seam, so
     // the parser gives it `tests` — must carry the red tests; a non-TDD task briefs without
-    // them (retro P8). The marker gates the redTests default below.
+    // them (retro P8). The marker gates the authorFiles/authorReport defaults below.
     if (template === 'implementer') {
       const task = parseTasksFromMarkdown(tasksContent).tasks.find((t) => t.id === taskId);
       tddMarked = !!task?.tests && task.tests.length > 0;
@@ -694,10 +694,10 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
   // Optional placeholder keys default to '' so an absent one neither trips the
   // missing-value check below nor fills as the string 'undefined' (Component 5).
-  // Exception: on a TDD-marked implementer brief `redTests` is required, so it is not
-  // defaulted and the missing-value check below reports it (retro P8).
+  // Exception: on a TDD-marked implementer brief `authorFiles` and `authorReport` are
+  // required, so they are not defaulted and the missing-value check reports them (retro P8).
   for (const key of tmpl.optional ?? []) {
-    if (key === 'redTests' && tddMarked) continue;
+    if ((key === 'authorFiles' || key === 'authorReport') && tddMarked) continue;
     if (values[key] === undefined || values[key] === null) values[key] = '';
   }
 
@@ -714,6 +714,35 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
         `brief: required value${plural} ${missing.map((k) => `'${k}'`).join(', ')} missing; no file written. ` +
         `Template '${template}' requires: ${required.map((k) => `'${k}'`).join(', ')}`,
     };
+  }
+
+  // The adjudicator kind takes either the document form (`docPath`) or the task form
+  // (`taskId`); at least one must be present (design C6, Requirement 3.4).
+  if (
+    template === 'adjudicator' &&
+    (values.docPath === undefined || values.docPath === null) &&
+    (values.taskId === undefined || values.taskId === null)
+  ) {
+    return { success: false, message: `brief: template 'adjudicator' needs 'docPath' or 'taskId'; no file written` };
+  }
+
+  // `redTests` is no longer a caller value: on the implementer kind the red-tests
+  // section is built from `authorFiles`/`authorReport` and the task block's `- Test:`
+  // lines, and is '' when the caller supplies neither (design C6, C9). Setting it on
+  // serverValues drops any caller-passed `redTests` key (retro P8).
+  if (template === 'implementer') {
+    const af = typeof values.authorFiles === 'string' ? values.authorFiles : '';
+    const ar = typeof values.authorReport === 'string' ? values.authorReport : '';
+    if (af !== '' && ar !== '') {
+      const testLines = (serverValues.taskBlock ?? '')
+        .split('\n')
+        .filter((l) => /^\s*- Test/.test(l))
+        .map((l) => l.trim())
+        .join('\n');
+      serverValues.redTests = buildRedTestsSection(af, testLines, ar);
+    } else {
+      serverValues.redTests = '';
+    }
   }
 
   // Caller values (stringified) fill the template; server-filled keys (agentRules,

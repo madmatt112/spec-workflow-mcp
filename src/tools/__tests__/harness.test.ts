@@ -351,15 +351,15 @@ describe('harnessHandler', () => {
     await writeAgentRules();
     const outPath = join(tempDir, 'verifier-brief.md');
 
-    // The verifier template requires both `title` and `job`; omit both.
+    // The verifier template requires `title`, `variant` and more; omit them all.
     const res = await harnessHandler(
       { action: 'brief', specName: SPEC, template: 'verifier', values: { path: outPath } },
       context,
     );
     expect(res.success).toBe(false);
-    // Both missing keys are named together in the one message.
+    // The missing keys are named together in the one message.
     expect(res.message).toContain('title');
-    expect(res.message).toContain('job');
+    expect(res.message).toContain('variant');
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 
@@ -465,76 +465,9 @@ describe('harnessHandler', () => {
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 
-  // Component 5 — the implementer red-tests slot.
-
-  it('brief implementer carries the redTests text after the task block', async () => {
-    await writeDoc('tasks.md', TASKS);
-    await writeAgentRules();
-    const outPath = join(tempDir, 'impl-redtests.md');
-    const redTests = '## Red tests (from the test author)\nfoo.test.ts fails as expected.';
-
-    const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
-        values: { path: outPath, title: 'Task 3', redTests } },
-      context,
-    );
-    expect(res.success).toBe(true);
-
-    const written = await fs.readFile(outPath, 'utf-8');
-    const block = taskBlock(TASKS, '3')!;
-    expect(written).toContain(redTests);
-    // The red-tests section follows the task block.
-    expect(written.indexOf(redTests)).toBeGreaterThan(written.indexOf(block));
-  });
-
-  it('brief implementer still succeeds when redTests is omitted', async () => {
-    await writeDoc('tasks.md', TASKS);
-    await writeAgentRules();
-    const outPath = join(tempDir, 'impl-noredtests.md');
-
-    const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '3',
-        values: { path: outPath, title: 'Task 3' } },
-      context,
-    );
-    expect(res.success).toBe(true);
-    const written = await fs.readFile(outPath, 'utf-8');
-    // The absent optional key leaks no literal 'undefined'.
-    expect(written).not.toContain('undefined');
-  });
-
-  // retro P8 — redTests is required only when the task carries a TDD marker (a `- Test:` seam).
-
-  it('brief implementer fails and writes no file when a TDD-marked task omits redTests', async () => {
-    await writeDoc('tasks.md', TASKS_TDD);
-    await writeAgentRules();
-    const outPath = join(tempDir, 'impl-tdd-noredtests.md');
-
-    const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
-        values: { path: outPath, title: 'Task 1' } },
-      context,
-    );
-    expect(res.success).toBe(false);
-    expect(res.message).toContain('redTests');
-    await expect(fs.access(outPath)).rejects.toThrow();
-  });
-
-  it('brief implementer succeeds for a TDD-marked task when redTests is supplied', async () => {
-    await writeDoc('tasks.md', TASKS_TDD);
-    await writeAgentRules();
-    const outPath = join(tempDir, 'impl-tdd-redtests.md');
-    const redTests = '## Red tests (from the test author)\nfoo.test.ts fails as expected.';
-
-    const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'implementer', taskId: '1',
-        values: { path: outPath, title: 'Task 1', redTests } },
-      context,
-    );
-    expect(res.success).toBe(true);
-    const written = await fs.readFile(outPath, 'utf-8');
-    expect(written).toContain(redTests);
-  });
+  // Component 5 — the implementer red-tests slot is now built from the test-author
+  // block (authorFiles/authorReport); see the task-9 implementer tests below. The four
+  // pre-existing `redTests` tests are re-pointed there to the new value set.
 
   // Requirement 3 — the `## Code graph` brief section by tooling.
 
@@ -553,7 +486,10 @@ describe('harnessHandler', () => {
       findings: 'the findings', memoryPath: '/x/mem.md', closedByRuling: 'none', variant: 'round',
     },
     adjudicator: { items: 'the items', phase: 'design', docPath: '/x/design.md' },
-    verifier: { title: 'T', job: 'do it' },
+    verifier: {
+      title: 'T', variant: 'task', taskIds: '3', files: 'src/x.ts', round: '1',
+      gateResults: 'none', scenario: '',
+    },
     implementer: { title: 'T' },
   };
 
