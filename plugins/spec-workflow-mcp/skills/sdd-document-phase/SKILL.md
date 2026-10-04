@@ -12,9 +12,13 @@ you `SPEC`, `PHASE`, `MODE`, `SPEC_STORE_ROOT`, `SPEC_STORE_REPO`, `CODE_ROOT`,
 Workers read and write the document. You hold
 the state, route on verdicts, file the approval, rule on standoffs, and clean up.
 
-Templates for every brief and prompt are in `references/briefs.md`. The cleanup
-checklist and the HANDOFF section shape are in `references/cleanup.md`. Read both once
-at the start.
+Briefs, prompt blocks and the bookkeeping script `book.sh` come from the `harness` `brief`
+server kinds (Step 0 writes `book.sh`); you pass only the values each kind needs. The
+cleanup checklist, the HANDOFF section shape and the approval-response format are in
+`references/cleanup.md`, read in Step 6. The gate steps live in `references/gates.md`, the
+convergence checks and the two cap corrective passes in `references/convergence.md`, and
+the revision input and legacy rules in `references/revision.md`; read each file only when a
+step routes to it.
 
 ## Standing rules
 
@@ -47,25 +51,34 @@ at the start.
   retro log `<spec dir>/retrospective-log.md` (create it with the line
   `# Retrospective log — <SPEC>` if missing); approval `filePath` is always
   `.spec-workflow/specs/<SPEC>/<PHASE>.md`.
-- Every worker brief starts with `Read and obey <AGENT_RULES> first.` when
-  `AGENT_RULES` is a path.
+- The `harness` `brief` action fills the `Read and obey <AGENT_RULES> first.` line of
+  every worker brief server-side when the spec store holds `agent-rules.md`; you never
+  write it.
 - When `GRAPH` is a path, every `harness` `brief` call carries `values.graph`,
   `values.graphBuiltAt` and `values.graphBehind`, set to your current `GRAPH`,
   `GRAPH_BUILT_AT` and `GRAPH_BEHIND`. When `GRAPH` is `none`, pass none of them. Never
   read `graph.json` or run a graphify read call yourself.
 - Do not ask questions. Make the call, record it in the retro log, continue.
-- Spec store commits go through a script file (see `references/cleanup.md`), never a
-  compound shell line.
+- Spec store commits, spec-store edits and the round diff go through `book.sh` (the
+  `commit`, `edit` and `changes` segments), never a compound shell line.
 - **One approval record per phase.** The approval `request` happens once, in Step 5,
   for the version being approved. Versions live in the checkpoint commits.
-- **Ledger.** `EVENT_SCRIPT` from the launch prompt records the run for `--watch`. Call it
-  as `bash <EVENT_SCRIPT> <type> key=value ...` (quote values with spaces): `phase.start`
-  at the end of Step 0; one `spawn.usage` right after each worker's report (`agent=`,
-  `role=`, `phase=`, `round=` or `task=`, `result=`); `round` after every verdict; `note` for rulings and
-  escalations; `phase.end` right before your final report. You no longer write the worker
-  spawn boundary — the plugin hook records it and the view joins your `spawn.usage` to it
-  by agent and time window. Event types and keys are listed in the supervisor's
-  `references/formats.md`. If `EVENT_SCRIPT` is missing, skip the ledger and say so in
+- **Bookkeeping.** All ledger rows, retro entries, commits, spec-store edits and the
+  round diff go through `book.sh`, written in Step 0 from the `book-script` kind. Call it
+  as `bash /tmp/scratchpad/sdd/<SPEC>/book.sh <segment> [-- <segment>]…`, segments in
+  order: `event <type> key=value…` (quote values with spaces), `retro <stage> <ref>
+  <category> <body> <evidence> <cost>`, `commit <message>`, `edit <file> <old> <new>`,
+  `changes <phase> <D> <prompt>`, `head`. Each segment is idempotent: a re-run after a
+  partial failure lands no duplicate row, retro entry or commit. Record `phase.start` at
+  the end of Step 0; one `spawn.usage` right after each worker's report (`agent=`, `role=`,
+  `phase=`, `round=` or `task=`, `result=`); `round` after every verdict; `note` for
+  rulings and escalations; `phase.end` right before your final report. After a verdict the
+  `spawn.usage`, the `round` row and the retro entry are one `book.sh` call. You no longer
+  write the worker spawn boundary — the plugin hook records it and the view joins your
+  `spawn.usage` to it by agent and time window. Event types and keys are listed in the
+  supervisor's `references/formats.md`. On a non-zero `book.sh` exit re-run the same command
+  once; a second failure of that step is that step's failure as today, and a usage error
+  (exit 2) is `PHASE: error`. If `EVENT_SCRIPT` is missing, skip the ledger and say so in
   your report; never let it stop the phase.
 
 ## Step 0 — Orient
@@ -76,12 +89,22 @@ at the start.
    table server-side and returns `D` (the document version — 0 when the document does not
    exist), `A` (the latest analysis number), `verdict`, `P` (corrective pass),
    `narrowCheck` (the latest analysis is the `VERIFIED:` narrow check) and `nextStep`.
-3. Route to the step `nextStep` names, first match already applied: `Step R`, `Step 1`,
-   `Step 5`, `Step 4b`, `Step 2`, `Step 2 item 9` (the SHOULD_FIX-only pass), `Step 4a` or
-   `Step 3`. Keep `D`, `A`, `verdict`, `P` and `narrowCheck` on your task list; the later
-   steps read them and advance `D` as they revise.
+3. **Scripts.** If `/tmp/scratchpad/sdd/<SPEC>/retro.sh` is missing, write it with the
+   Write tool from the supervisor's `references/formats.md` (the spec dir filled in), so
+   `book.sh`'s `retro` segment can call it. If `/tmp/scratchpad/sdd/<SPEC>/book.sh` is
+   missing, call the `harness` tool with `action: brief`, `template: book-script`,
+   `specName: <SPEC>`, and `values` carrying `path: /tmp/scratchpad/sdd/<SPEC>/book.sh`,
+   `eventScript: <EVENT_SCRIPT>`, `retroScript: /tmp/scratchpad/sdd/<SPEC>/retro.sh`,
+   `specDir: <spec dir>`, `specStoreRepo: <SPEC_STORE_REPO>`, `codeRoot: <CODE_ROOT>` and
+   `handoff: <HANDOFF>`. Keep the path it returns.
 4. Print one line: `orient: <SPEC> <PHASE> D=<D> A=<A> verdict=<…> → <nextStep>`, and
-   record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>`.
+   record `phase.start phase=<PHASE> mode=<MODE> budget=<BUDGET> state=v<D>` through
+   `book.sh` (`event`).
+5. Route to the step `nextStep` names, first match already applied: `Step R`, `Step 1`,
+   `Step 5`, `Step 4b`, `Step 2`, `Step 2 item 9` (the SHOULD_FIX-only pass), `Step 4a` or
+   `Step 3`. When it is `Step R`, read `references/revision.md`; when it is `Step 4a` or
+   `Step 4b`, read `references/convergence.md`. Keep `D`, `A`, `verdict`, `P` and
+   `narrowCheck` on your task list; the later steps read them and advance `D` as they revise.
 
 ## Step 1 — v1
 
@@ -89,27 +112,30 @@ at the start.
    section `## <SPEC> — requirements`; for tasks, inside `## <SPEC> — design`. Take
    the row's value (`none`, or one line per item). Requirements has none.
 2. Call the spec-workflow `harness` tool with `action: brief`, `template: drafter`,
-   `specName: <SPEC>`, and `values` carrying the output path
-   `reviews/drafter-brief-<PHASE>.md` and the drafter fields from `references/briefs.md`
-   (the job, including the carried items for the `## Carried from <previous phase>`
-   section). The tool fills the read-and-obey line and writes the file; keep the path it
-   returns.
+   `specName: <SPEC>`, and `values` carrying `path: reviews/drafter-brief-<PHASE>.md`,
+   `phase: <PHASE>`, `docPath: <document path>`, `specDir: <spec dir>`, `specStoreRoot:
+   <SPEC_STORE_ROOT>`, `codeRoot: <CODE_ROOT>` and `carried` (the carried items from item
+   1, one per line, or `none`), plus the graph values when `GRAPH` is a path. The server
+   renders the drafter brief and writes the file; keep the path it returns.
 3. Spawn `sdd-drafter` with the prompt `Read and execute the instructions in <brief
-   path>`. Note each `RE-DECIDED: <req> — <one line>` flag it raised and put them into
-   the round-1 reviewer prompt's `## This round` section (Step 2) for a ruling: the
+   path>`. Its report block's `re-decided` key is a count and a file path (or `none`);
+   pass that path unread as the round-1 reviewer's `reDecided` value (Step 2), so the
    reviewer rules each `refinement` (closed) or `widening` (a MUST_FIX). Copy each ruling
-   into the retro log (`ruling`), the HANDOFF Rulings row, and the next phase's drafter
-   brief carried section, so the tasks drafter stops re-flagging it.
+   the reviewer returns into the retro log (`ruling`), the HANDOFF Rulings row, and the
+   next phase's drafter `carried` value, so the tasks drafter stops re-flagging it.
 4. Spot-check: `grep -n '^#' <document>` shows the template's sections; the Revision
-   History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`). A missing
-   context file is `PHASE: error` with `REASON: drafter wrote no codebase-context.md`.
-   Note the word count the report states (the cap counts the body only — the H1
-   down to the line before `## Revision History`); over the cap is a finding for
-   round 1 (write it into the round section as `Over cap: <n> words`), not a stop.
-5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v1`.
-6. D = 1. Run the Lint step. In the `requirements` phase and `MODE: normal`, run the
-   **Gate A** step (below), which returns `PHASE: gate-a`; every other phase and mode
-   goes to Step 2.
+   History has a v1 line; `<spec dir>/codebase-context.md` exists (`ls`) — the drafter's
+   `context` key names it. A missing context file is `PHASE: error` with
+   `REASON: drafter wrote no codebase-context.md`. Note the word count from the report's
+   `words` key (the cap counts the body only — the H1 down to the line before
+   `## Revision History`); over the cap is a finding for round 1 (write it into the round
+   section as `Over cap: <n> words`), not a stop.
+5. Record the drafter's `spawn.usage` and the checkpoint commit in one `book.sh` call:
+   `event spawn.usage agent=sdd-drafter role="draft v1" phase=<PHASE> round=1 result=<…>
+   -- commit "docs(sdd): <SPEC> <PHASE> v1"`.
+6. D = 1. Run the Lint step. In the `requirements` phase and `MODE: normal`, read
+   `references/gates.md` and run the **Gate A** step there, which returns `PHASE: gate-a`;
+   every other phase and mode goes to Step 2.
 
 ## Lint step
 
@@ -118,53 +144,32 @@ It never changes D.
 
 1. Call `spec-lint` with `specName: <SPEC>`, `phase: <PHASE>`, and no `projectPath`. If
    the call fails naming an unknown tool (an older server), record `note
-   text="spec-lint unavailable; lint skipped"`, set `LINT = skipped`, and end the step:
-   no lint pass, no round-prompt bullet.
+   text="spec-lint unavailable; lint skipped"` through `book.sh` (`event`), set
+   `LINT = skipped`, and end the step: no lint pass, no round-prompt value.
 2. Keep `LINT = { checks: data.checks, findings: data.findings }` in the task list, and
    number `data.findings` `L-1`, `L-2`, … in file order. When `summary.error +
    summary.warning` is 0, set `LINT.open` to every `info` finding and end the step here;
    `info` findings alone spawn nothing.
 3. Apply the error and warning findings in place in `<document>` yourself — do not spawn a
    reviser; these are mechanical fixes (bare or wrong citations, MDX bare angle brackets,
-   task shape, over-cap words). Follow the Lint brief's disposition rules in
-   `references/briefs.md`: assess each on its merits, verify every citation you add or
-   change against the real tree under `CODE_ROOT`, fix every sibling of an accepted
-   finding, and never widen scope or grow the document past its cap (retro P11).
-4. Append under the v<D> Revision History line one nested bullet: `- **Lint pass.** <n>
-   fixed; rejected: <none | L-n reason, …>`. Write no `spawn.usage` — the lint pass now
-   spawns nothing.
+   task shape, over-cap words), made through `book.sh` (`edit`, one exact replacement each).
+   Disposition rules, inline: assess each finding on its merits (accept, partially accept
+   or reject, each with one line of reasoning); verify every citation you add or change
+   against the real tree under `<CODE_ROOT>`, reading both ends of a range; every citation
+   you insert carries its directory-prefixed path (`src/core/typecheck.ts:30`), never a
+   bare filename or a bare `:<line>`; after you accept a finding, fix every sibling of the
+   same construct; suppress (do not re-fire) a citation-identifier warning on a token
+   unchanged since a version that rejected it with a reason; never widen scope or grow the
+   document past its cap (retro P11).
+4. Append under the v<D> Revision History line one nested bullet (through `book.sh`
+   `edit`): `- **Lint pass.** <n> fixed; rejected: <none | L-n reason, …>`. Write no
+   `spawn.usage` — the lint pass now spawns nothing.
 5. Spot-check: `grep -n 'Lint pass' <document>`.
-6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through the commit script
-   (`references/cleanup.md`); D does not change — a lint pass consumes no cap fuel.
+6. Commit `docs(sdd): <SPEC> <PHASE> v<D> lint` through `book.sh` (`commit`); D does not
+   change — a lint pass consumes no cap fuel.
 7. Set `LINT.open` to every `L-n` the `v<D>` Lint-pass bullet (disposition rule 4) names
    rejected, plus every `info` finding. The Lint step runs at most once per version;
    findings left open go to the round prompt.
-
-## Gate A — emit after the v1 lint (requirements, `MODE: normal` only)
-
-Reached from Step 1 item 6, right after the Lint step, only in the `requirements` phase
-and only in `MODE: normal`. A resume never reaches it: once v1 is checkpointed Step 0's
-`nextStep` is `Step 2`, `Step 3` or `Step R`, never `Step 1`, so a review round or a
-revision pass never re-emits gate A (Req 2 AC 3). The drafter already wrote the ranked
-gate-A triples to the server surface when it drafted v1 (`sdd-drafter` gate-A step); you
-never read them and never read the document body.
-
-1. **Reword trigger.** This pass's fixed findings are `LINT.findings` minus `LINT.open`
-   (both on your task list from the Lint step; when `LINT = skipped` there are none).
-   From `grep -n '^#' <document>` take the line range of the `## Decisions taken in this
-   document` section — its heading line through the line before the next `^#` heading (or
-   end of file). Structure read only; never read the section body.
-2. **Re-spawn the drafter if a fix landed there.** If any fixed finding's `line` falls
-   inside that range, a lint fix may have reworded a ranked decision and the surface is
-   stale. Write the gate-A re-spawn brief (`references/briefs.md`) to
-   `reviews/gate-a-brief-requirements.md` and spawn `sdd-drafter` with `Read and execute
-   the instructions in <brief path>`; it re-reads the lint-corrected section, re-extracts
-   and re-ranks the full set, and re-`put`s the complete list (`gate put` overwrites the
-   whole file). Record one `spawn.usage` with `role="gate-a v1"` from its report. If no
-   fixed finding falls in the range, skip this — the v1 surface still holds.
-3. Record `phase.end phase=requirements result=gate-a state=v1`, then report
-   `PHASE: gate-a`, `STATE: v1`, `NEXT: run gate A, then re-spawn requirements`. Do not
-   run Step 2; the supervisor resolves gate A and re-spawns the phase.
 
 ## Step 2 — Review round
 
@@ -172,155 +177,80 @@ never read them and never read the document body.
    `BUDGET + 1`, do not spawn it: go to **Budget**.
 2. Call `adversarial-review` with `specName: <SPEC>`, `phase: <PHASE>`,
    `verdictBlock: true`. Keep `promptOutputPath`, `analysisOutputPath`, `version`.
-3. Read the prompt file (the file tool refuses to overwrite a file it has not read),
-   then overwrite it with the scaffold plus the round section from the template. Keep
-   everything the scaffold wrote, including its standing directives and verdict block.
-   When `GRAPH` is a path, replace the round section's final `<GRAPH is a path: the code
-   graph block, filled.>` line with the code graph block (`references/briefs.md`), filled
-   from your `GRAPH`, `GRAPH_BUILT_AT` and `GRAPH_BEHIND`; when `GRAPH` is `none`, drop
-   that line. Run `bash /tmp/scratchpad/sdd/<SPEC>/append-changes.sh <D> <promptOutputPath>`;
-   read only its exit code.
+3. Call the `harness` tool with `action: brief`, `template: reviewer`, `specName: <SPEC>`,
+   and `values` carrying `path: <promptOutputPath>` (append mode, onto the scaffold the
+   previous call wrote), the graph values when `GRAPH` is a path, and the reviewer values:
+   `phase: <PHASE>`, `D: <D>`, `specDir: <spec dir>`, `lintChecks` (`LINT.checks`, or `''`
+   when `LINT = skipped`), `lintOpen` (the open findings `L-n (<severity>, <rule>, line
+   <line>): <message>`, one per line, or `''`), `reDecided` (the drafter's re-decided path,
+   or `none`), `overCap` (the over-cap note `<n> words against a cap of <cap>`, or `none`),
+   `lens` (one lens the previous rounds did not use, or `none` on requirements D=1 where
+   the server fixes it), `closedByRuling` (the closed-by-ruling list, or `none`),
+   `memoryPath: <reviews/adversarial-memory-<PHASE>.md>`, `codeRoot: <CODE_ROOT>` and
+   `specStoreRoot: <SPEC_STORE_ROOT>`. The server appends the `## This round` section to
+   the scaffold and, when `GRAPH` is a path, the code graph block; you do not read the
+   prompt file. Then run `bash /tmp/scratchpad/sdd/<SPEC>/book.sh changes <PHASE> <D>
+   <promptOutputPath>` and read only its exit code — it appends the round diff after the
+   round section.
 4. Spawn `sdd-reviewer` per the standing spawn rule, with exactly `Read and execute the
    instructions in <promptOutputPath>` as the launch message. Put nothing else in it.
-5. Read the verdict block: `tail -8 <analysisOutputPath>`. If the file does not exist,
-   the reviewer stalled: spawn it once more from the same prompt file. Still missing ⇒
-   `PHASE: error`.
-6. **ESCALATE.** If the `ESCALATE:` value is not `none`: when it names security,
+5. Read the reviewer's report block. Route only on its keys: `verdict` (`iterate m/s/k` or
+   `converged m/s/k`), `escalate`, and `analysis` (the analysis file path). A report
+   without its block is a stall: spawn the reviewer once more from the same prompt file; a
+   second report still missing its block ⇒ `PHASE: error`. Keep the `analysis` path to pass
+   to the reviser unread and to `grep` for the standoff and circling checks.
+6. **ESCALATE.** If the `escalate` key is not `none`: when it names security,
    secrets, auth bypass, data loss, destructive migrations, money, billing, pricing,
-   legal or compliance, write the HANDOFF section, append a retro-log entry with `retro.sh`
-   (`escalation`), and report `PHASE: escalate` with the line as `REASON`. Otherwise
-   it is a finding: log it (`gotcha`) and continue.
-7. Record `round phase=<PHASE> round=<A> version=v<D> "verdict=<iterate m/s/k | converged m/s/k>"`.
-8. Append a retro-log entry with `retro.sh` for the round: category `ruling` if you ruled this round,
-   `inefficiency` if this is round 4 or later or the findings came from the previous
-   delta, otherwise `gotcha`; the verdict counts in the body; cost = one reviewer spawn.
-9. Route:
+   legal or compliance, write the HANDOFF section, append a retro-log entry through
+   `book.sh` (`retro`, `escalation`), and report `PHASE: escalate` with the line as
+   `REASON`. Otherwise it is a finding: log it through `book.sh` (`retro`, `gotcha`) and
+   continue.
+7. Record the review round — the `spawn.usage`, the `round` row and the retro entry — in
+   one `book.sh` call: `event spawn.usage agent=sdd-reviewer role="review v<D>"
+   phase=<PHASE> round=<A> result=<verdict> -- event round phase=<PHASE> round=<A>
+   version=v<D> "verdict=<iterate m/s/k | converged m/s/k>" -- retro <PHASE> "round <A>"
+   <category> "<body; the verdict counts>" <evidence> "<cost: one reviewer spawn>"`.
+8. The retro entry's category is `ruling` if you ruled this round, `inefficiency` if this
+   is round 4 or later or the findings came from the previous delta, otherwise `gotcha`;
+   the verdict counts in the body; cost = one reviewer spawn.
+9. Route (read `references/convergence.md` before running any check there):
    - `converged`, or `iterate` with `MUST_FIX: 0` and `SHOULD_FIX: 0` ⇒ Step 5.
    - `iterate` with `MUST_FIX: 0`, `SHOULD_FIX > 0` and D ≥ 2 ⇒ **SHOULD_FIX-only pass**:
-     run Step 3's `harness brief` (`template: reviser`) for the SHOULD_FIX items only,
-     telling the reviser to end the v(D+1) Revision History line `SHOULD_FIX-only
-     corrective pass`; spawn
-     `sdd-reviser`, spot-check, checkpoint commit `docs(sdd): <SPEC> <PHASE> v(D+1)
-     SHOULD_FIX-only corrective pass`, D = D + 1. Run the Lint step. Then Step 4b
-     (narrow check on those items), then Step 5. No further review round.
-   - `iterate` with fuel and D ≥ 4 ⇒ **Cap convergence check**.
-   - `iterate` with fuel ⇒ **Circling check**; when it does not fire, **Standoff check**,
-     then Step 3.
+     call Step 3's `harness brief` (`template: reviser`, `variant: should-fix-only`) for
+     the SHOULD_FIX items only; spawn `sdd-reviser`, spot-check, checkpoint commit
+     `docs(sdd): <SPEC> <PHASE> v(D+1) SHOULD_FIX-only corrective pass` through `book.sh`
+     (`commit`), D = D + 1. Run the Lint step. Then read `references/convergence.md` and run
+     **Step 4b** (narrow check on those items), then Step 5. No further review round.
+   - `iterate` with fuel at round 1 ⇒ Step 3 (no convergence check can fire on round 1).
+   - `iterate` with fuel and D ≥ 4 ⇒ **Cap convergence check** (`references/convergence.md`).
+   - `iterate` with fuel at round 2 or later ⇒ **Circling check**
+     (`references/convergence.md`); when it does not fire, the **Standoff check**, then
+     Step 3.
 
 ## Step 3 — Revise to v(D+1)
 
 1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
-   carrying the output path `reviews/reviser-brief-<PHASE>-v<D+1>.md` and the reviser
-   fields (job, findings) from `references/briefs.md`.
+   carrying `path: reviews/reviser-brief-<PHASE>-v<D+1>.md`, `variant: round`, `phase:
+   <PHASE>`, `D: <D>`, `docPath: <document path>`, `specDir: <spec dir>`, `findings:
+   <the latest analysis path>` (the reviewer's `analysis` key, passed unread), `memoryPath:
+   <memory file path>` and `closedByRuling: <none | list>`, plus the graph values when
+   `GRAPH` is a path.
 2. Spawn `sdd-reviser` with `Read and execute the instructions in <brief path>`.
-3. Spot-check: `git diff --stat` on the document (through the script in
-   `references/cleanup.md`) shows a change, and `grep -n -E '^- \*\*v<D+1>\*\*'
-   <document>` finds the new Revision History line.
-4. From the reviser's report, record which findings it rejected (id and round) in your
-   task list. That tally feeds the standoff check.
-5. Checkpoint commit: `docs(sdd): <SPEC> <PHASE> v<D+1> after round <A>`.
+3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the new Revision History
+   line; the reviser's `version` key states v<D+1>.
+4. From the reviser's report block (`rejected` key), record which findings it rejected (id
+   and round) in your task list. That tally feeds the standoff check.
+5. Record the reviser's `spawn.usage` and the checkpoint commit in one `book.sh` call:
+   `event spawn.usage agent=sdd-reviser role="revise v<D+1>" phase=<PHASE> round=<A>
+   result=<…> -- commit "docs(sdd): <SPEC> <PHASE> v<D+1> after round <A>"`.
 6. D = D + 1. Run the Lint step. Go to Step 2.
-
-## Standoff check
-
-A standoff is one finding that the reviewer marks **Recurring** and **MUST_FIX**, and
-that the reviser **rejected in the two most recent consecutive rounds**. Detect it with
-your rejection tally and `grep -n -i 'recurring' <analysis>`.
-
-When you find one, rule on it yourself: accept or reject on the merits, in one
-paragraph. Append to the document's Revision History, under the current version's
-line, one bullet `- **Ruling — <finding id>: <accepted | rejected>.** <reason>`. Append
-a retro-log entry with `retro.sh` (`ruling`). Add the finding to the "Closed by ruling" list in every
-later reviewer prompt and reviser brief for this phase. If you accepted it, it becomes
-a finding for the next reviser brief.
-
-## Circling check
-
-Review is circling when the substantive findings — every MUST_FIX and SHOULD_FIX — of
-the two most recent consecutive rounds all concern one requirement or one rule: the round
-is re-litigating that single item against a fixture, where an adjudication resolves it
-faster than another review round. It needs two rounds, so it cannot fire on round 1.
-Detect it from the two analyses' finding lines (`grep -n -E 'MUST_FIX|SHOULD_FIX'
-<analysis>` for round `A` and round `A-1`) and the requirement or rule each names; the
-condition holds only when both rounds name the same single item and nothing else.
-
-When it holds, adjudicate that item instead of spawning another review round. This may
-fire before D ≥ 4; the v4 cap in the Cap convergence check and Step 4a is unchanged.
-
-1. Call `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, and `values`
-   carrying the output path `reviews/adjudication-brief-<PHASE>-r<A>.md` and, as the open
-   items, every open MUST_FIX and SHOULD_FIX for that requirement or rule by id, title and
-   severity; the adjudication fields are in `references/briefs.md`.
-2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`. After
-   its report write one `spawn.usage` carrying `role="adjudication r<A>"` and its result.
-3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the new line.
-4. From the report, list the **ruled-out SHOULD_FIX** items (id and title); keep them as
-   carried items for the HANDOFF section in Step 6.
-5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> circling adjudication`.
-6. Append a retro-log entry with `retro.sh` (`inefficiency`: review circled one item for two
-   rounds; every item id with `fixed` or `ruled out`).
-7. D = D + 1. Go to Step 4b (narrow check on the adjudicated items), then Step 5.
-
-## Cap convergence check
-
-At the cap — an `iterate` with fuel at D ≥ 4 — a converging run earns one more review
-round instead of an adjudicator spawn. Grant it, once per phase, only when the last
-round's `MUST_FIX` count strictly decreased from the round before it (compare the two
-most recent `round` ledger `verdict=` counts, or your per-round task list). When it
-decreased and the extra round is not yet spent: note in your task list that the cap's
-one extra round is spent, then run the **Standoff check** and Step 3 — a normal revise
-and review round. Otherwise — `MUST_FIX` flat or rising, or the extra round already
-spent — go to Step 4a. The extra round still obeys `BUDGET` (Step 2, item 1) (retro P11/G3).
-
-## Step 4a — Cap: corrective pass at v(D+1)
-
-Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` or
-`SHOULD_FIX` above zero. Nothing reviews the corrective version again.
-
-1. Call `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, and `values`
-   carrying the output path `reviews/adjudication-brief-<PHASE>.md` and, as the open
-   items, every open MUST_FIX and SHOULD_FIX from the r<A> analysis by id, title and
-   severity (`grep -n -E 'MUST_FIX|SHOULD_FIX' <r<A> analysis>` gives the lines; read only
-   those); the adjudication fields are in `references/briefs.md`.
-2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`.
-3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the line and it
-   contains `Post-cap corrective pass`.
-4. From the report, list the **ruled-out SHOULD_FIX** items (id and title). They are the
-   carried items for the next phase: keep them for the HANDOFF section in Step 6. Also
-   carry every MINOR from the r<A> analysis the cap leaves unaddressed — rejected only
-   because the word cap forbids the extra words — by id and title with the reason `word
-   cap` (retro P11).
-5. Checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> post-cap corrective pass`.
-6. Append a retro-log entry with `retro.sh` (`inefficiency`: cap hit; every item id with `fixed` or
-   `ruled out`).
-7. D = D + 1. Go to Step 4b.
-
-## Step 4b — Narrow check
-
-1. Call `adversarial-review` (no `verdictBlock`). Read the prompt file, then overwrite
-   it with the narrow-check prompt from the template, listing the items the corrective
-   pass fixed (Step 4a's adjudicated items, the Circling check's adjudicated items, or the
-   SHOULD_FIX-only pass's SHOULD_FIX items). When `GRAPH` is a path, replace the prompt's
-   final `<GRAPH is a path: the code graph block, filled.>` line with the code graph block
-   (`references/briefs.md`), filled from your `GRAPH`, `GRAPH_BUILT_AT` and `GRAPH_BEHIND`;
-   when `GRAPH` is `none`, drop that line.
-2. Spawn `sdd-checker` per the standing spawn rule, with exactly `Read and execute the
-   instructions in <promptOutputPath>` as the launch message.
-3. If `<analysis>` does not exist, the checker stalled and the run is incomplete: spawn
-   it once more from the same prompt file; still missing ⇒ `PHASE: error`. Never accept
-   the `VERIFIED:` line alone without its analysis file. Then read `grep -n '^VERIFIED:'
-   <analysis>` and, if present, the lines from `## Deferred findings` to the end
-   (`sed -n '/^## Deferred findings/,$p'`). Copy each deferred finding into the retro log
-   as one entry (`gotcha`, evidence = the analysis path).
-4. Go to Step 5. Approval always follows the narrow check, whatever `k/n` says; the
-   count goes into the approval response.
 
 ## Step 5 — Approve
 
-In the `design` phase and `MODE: normal`, run the **Design scope-cut gate** (below)
-before item 1; it may stop the phase to surface a majority scope cut to the human. Every
-other phase and mode, and a resume whose HANDOFF already records the cut was surfaced, go
-straight to item 1.
+In the `design` phase and `MODE: normal`, read `references/gates.md` and run the
+**Design scope-cut gate** there before item 1; it may stop the phase to surface a majority
+scope cut to the human. Every other phase and mode, and a resume whose HANDOFF already
+records the cut was surfaced, go straight to item 1.
 
 1. Find a pending record for this version: `approvals` `list` with `categoryName:
    <SPEC>`, `filePath` as above, `status: pending`; take the newest whose title ends
@@ -328,117 +258,40 @@ straight to item 1.
 2. Otherwise `approvals` `request` now, with title `<SPEC> <PHASE> v<D>`, the
    `filePath` above, `type: document`, `category: spec`, `categoryName: <SPEC>`. If it
    fails on MDX or tasks-format errors, assemble a reviser brief with `harness` `brief`
-   (`template: reviser`, `specName: <SPEC>`) whose findings are the error lines (numbered
-   `RI-1`, …), spawn `sdd-reviser`, checkpoint commit `docs(sdd):
-   <SPEC> <PHASE> v<D+1> lint fixes`, D = D + 1, and request again once. A second
+   (`template: reviser`, `specName: <SPEC>`, `values` carrying `path:
+   reviews/reviser-brief-<PHASE>-v<D+1>.md`, `variant: revision`, `phase: <PHASE>`, `D:
+   <D>`, `docPath: <document path>`, `specDir: <spec dir>`, `findings` = the error lines
+   numbered `RI-1`, …, `memoryPath: <memory file path>`, `closedByRuling: <none | list>`),
+   spawn `sdd-reviser`, checkpoint commit `docs(sdd): <SPEC> <PHASE> v<D+1> lint fixes`
+   through `book.sh` (`commit`), D = D + 1, and request again once. A second
    failure is `PHASE: error`.
 3. `approvals` `approve` on the record with the response format from
    `references/cleanup.md`: version, rounds, final verdict counts, rulings, cap.
 4. Go to Step 6.
-
-## Design scope-cut gate — before Step 5 in the design phase (`MODE: normal`)
-
-Reached from Step 5, once per spec, before the first design approval, so the design never
-finalizes a majority scope cut the human has not seen (retro P12). The human set the scope
-bar at requirements Gate A without seeing how far the design would narrow it.
-
-1. **Already surfaced?** If the HANDOFF section `## <SPEC> — design` holds a
-   `Scope-cut surfaced | yes` row (Step 0 read it on this resume), the human has already
-   seen the cut: skip this gate and go to Step 5 item 1.
-2. **Measure the cut.** The planned scope is the decomposition entry's deliverables and
-   the approved requirements (`grep -n '^### Requirement' <spec dir>/requirements.md` for
-   the planned set — a structure read, never the body). The cut scope is what this design
-   does not build: the cut-and-deferred scope you already track from the drafter's
-   `RE-DECIDED` flags, the revisers' cut-scope reports and the Step 6 surfacing. A
-   **majority scope cut** is more than half of the planned requirements, or of the
-   decomposition's planned deliverables, dropped or deferred by the design.
-3. **No majority cut ⇒** go to Step 5 item 1.
-4. **Majority cut ⇒ surface it once.** Write the HANDOFF section with a
-   `Scope-cut surfaced | yes` row and, under it, one line per requirement or deliverable
-   the design will not build. Append a retro-log entry with `retro.sh` (`escalation`).
-   Commit the spec store. Report `PHASE: escalate`, `STATE: v<D>`,
-   `REASON: majority scope cut — <what will not be built, one line>`. The supervisor stops
-   and prints it for the human, who confirms before the phase finalizes. On the re-run the
-   human then starts, Step 0 routes back here, item 1 sees the row, and the phase approves.
-   The gate fires at most once per spec.
 
 ## Step 6 — Cleanup, then report
 
 Follow `references/cleanup.md` in order: prune, delete the listed files, keep the
 memory file and the context file, retro-log phase summary, HANDOFF section (with the
 carried items — the ruled-out SHOULD_FIX items from Step 4a plus every MINOR a reviser
-or adjudicator rejected in this phase only for the word cap — or `none`), commit. Record
-`phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`.
-In the `tasks` phase and `MODE: normal` only, run the **Gate B** step (below) before you
-report, so the veto surface holds the list for the supervisor.
+or adjudicator rejected in this phase only for the word cap — or `none`). Make every
+commit and spec-store edit the checklist calls for through `book.sh` (`commit`, `edit`),
+and the retro-log phase summary through `book.sh` (`retro`). Record
+`phase.end phase=<PHASE> result=approved state=v<D> "note=<rounds> rounds, <trajectory>"`
+through `book.sh` (`event`).
+In the `tasks` phase and `MODE: normal` only, read `references/gates.md` and run the
+**Gate B** step there before you report, so the veto surface holds the list for the
+supervisor.
 Then report `PHASE: approved`, `STATE: v<D>`, `NEXT: <next phase> v1` (after tasks:
 `NEXT: implementation`). In the 150 words above the contract, name any scope the
 decomposition entry lists that the document cut or deferred, every ruling, and the
 carried items.
 
-## Gate B — assemble the veto list (tasks, `MODE: normal`, first approval)
-
-Reached from Step 6, before the report, only in the `tasks` phase and only in
-`MODE: normal` — the first time this spec's tasks phase reaches `approved`. In
-`MODE: revision` (an annotation's advisory round or a design-defect revalidation) write
-no list and skip this step (Req 5 AC 6); the supervisor already holds gate B's result.
-You never read the document body.
-
-1. **Class (a).** Call the `harness` tool with `action: gate`, `op: class-a`,
-   `specName: <SPEC>`. It reads `tasks.md` and the `## Sensitive paths` list server-side
-   and returns `data.items: ClassAItem[]` (`{taskId, title, kind, reason, score}`;
-   `score` 2 for a sensitive-path item, 1 for a keyword item). You compute none of it.
-2. **Classes (b)/(c).** Collect the kept tags the reviser recorded:
-   `grep -n -E '\[gate-(b|c):' <document>` over the Revision History lines (a permitted
-   read, the tracking Step 3 item 4 already does for the standoff tally). For each
-   distinct `[gate-b:T<id>]`/`[gate-c:T<id>]` tag take its most recent bullet; keep it as
-   a VetoCandidateItem `{taskId, class: 'b'|'c', reason}` only when that bullet is marked
-   **Rejected** (the task was intentionally kept) — `taskId` and `class` from the tag,
-   `reason` from the bullet's one line. Drop a tag whose latest bullet is **Accepted**
-   (the task was removed).
-3. **Fold into one ranked list.** Map each `ClassAItem` to a `VetoItem`
-   (`taskId`→`taskId`, `reason`→`summary`, `kind`→`class: 'a'`) and each
-   VetoCandidateItem to a `VetoItem` (`taskId`, `reason`→`summary`, `class`). Order all
-   three classes into one list, most consequential first — class (a) items pre-ordered by
-   `score` descending — and assign each `rank` last (1 = most consequential). One list,
-   not three (Req 4 AC 4).
-4. **Compact plan.** Build `tasks: [{id, title}]` for presentation from the task headers:
-   `grep -n -E '^- \[[ xX-]\] [0-9]' <document>` gives each task's number and title (a
-   structure read like `grep -n '^#'`, never the body); strip any `[gate-b:*]`/
-   `[gate-c:*]` tag from a title.
-5. **Put.** Call the `harness` tool with `action: gate`, `op: put`, `slot: b`,
-   `specName: <SPEC>`, and top-level `payload = { tasks: [...], veto: VetoItem[] }`
-   (`gate put` overwrites the whole file). Then finish the Step 6 report as normal
-   (`PHASE: approved`); the supervisor reads slot b before the first implementation spawn.
-
-## Step R — Revision input
-
-`MODE: revision` means a human left `needs-revision` comments, or the supervisor
-re-opened this phase after a design defect.
-
-1. Call `harness` `brief` with `template: reviser`, `specName: <SPEC>`, and `values`
-   carrying the output path `reviews/reviser-brief-<PHASE>-v<D+1>.md` and, as the
-   findings, `REVISION_INPUT` (numbered `RI-1`, `RI-2`, …) instead of an analysis file.
-   Every item is a MUST_FIX; the reviser may still reject one with a reason.
-2. Spawn `sdd-reviser`. Spot-check. Checkpoint commit.
-3. D = D + 1. Run the Lint step. Go to Step 2. At least one review round runs before approval, even if
-   the document had converged before. The cap rule applies as written: a revised
-   document already at v4 or later that iterates goes to Step 4a.
-
 ## Budget
 
 When the next review round would exceed `BUDGET`: write the HANDOFF section (state,
-D, A, last verdict, rejection tally, rulings), commit, record `phase.end
-phase=<PHASE> result=resume state=v<D>`, and report `PHASE: resume`,
+D, A, last verdict, rejection tally, rulings) through `book.sh` (`edit`), commit through
+`book.sh` (`commit`), record `phase.end phase=<PHASE> result=resume state=v<D>` through
+`book.sh` (`event`), and report `PHASE: resume`,
 `STATE: v<D>`, `NEXT: review v<D>` or `NEXT: revise to v<D+1>` depending on where you
 stopped. A fresh orchestrator resumes from Step 0.
-
-## Legacy rules that stay in force
-
-- Never wait on dashboard state; never poll; never treat `BLOCKED` as a stop.
-- Load steering documents by phase (the briefs do this): requirements ⇒ `product.md`
-  and the decomposition entry; design ⇒ `tech.md`, `structure.md`, `design-system.md`
-  when present; tasks ⇒ `structure.md` and this spec's `design.md`.
-- Surface any cut scope in the phase report.
-- One version of the document in context at a time. Workers read the whole document;
-  you do not.

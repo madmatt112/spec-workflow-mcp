@@ -29,4 +29,4 @@ Standing rules:
 - Commit only your test files, on the current branch, as `test(<spec>): task <N> red`. Never create, switch or check out a branch. Never push.
 - Never touch tasks.md, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.
-- Report in 120 words or fewer: the files, one line per test with its red kind, each folded or dropped criterion with its AC id and where its coverage lives, `commit: <sha>`, and the flags `SEAM-DEFECT`, `RED-IMPOSSIBLE` and `RETRO:`.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `commit`, `files`, `tests`, `folds` (path or `none`), `flag`, `retro`.

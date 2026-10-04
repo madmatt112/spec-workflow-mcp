@@ -1,6 +1,6 @@
 ---
 name: sdd-implementer
-description: "SDD implementer: implements one task or one fix from a brief file, runs the checks, logs the implementation with log-implementation, commits on the current branch, and reports in 150 words. Spawned with \"Read and execute the instructions in <brief>\"; not for direct use."
+description: "SDD implementer: implements one task or one fix from a brief file, runs the checks, logs the implementation with log-implementation, commits on the current branch, and reports in 80 words. Spawned with \"Read and execute the instructions in <brief>\"; not for direct use."
 model: claude-opus-4-8
 effort: xhigh
 color: green
@@ -35,4 +35,4 @@ Standing rules:
 - Never touch `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
 - When the task stages a scratch store with its own event script, write that script to the explicit path the brief names under the scratch store; never write to, re-initialize or repoint the supervisor's `EVENT_SCRIPT` path from the launch prompt.
 - Do not ask questions.
-- Report in 150 words or fewer: files touched one per line, checks run with result, the `logged:` line, flags. No diffs, no file contents, no test output beyond one line.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `logged`, `commit`, `checks`, `checks-file` (path of a JSON array of the commands run), `green`, `flag`, `retro`.

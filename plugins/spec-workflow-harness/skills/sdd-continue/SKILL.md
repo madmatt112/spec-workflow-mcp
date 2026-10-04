@@ -288,7 +288,7 @@ LAUNCHER: <path | none>
 GRAPH: <path | none>
 GRAPH_BEHIND: <n | unknown | n/a>
 GRAPH_BUILT_AT: <sha | unknown | n/a>
-BUDGET: <4 review rounds | 20 tasks | all items | n/a>
+BUDGET: <4 review rounds | 5 tasks | all items | n/a>
 REVISION_INPUT: <none | the text, verbatim>
 ```
 
@@ -376,8 +376,11 @@ Act on the final `PHASE:` line of the orchestrator's report:
 - Anything else, or no `PHASE:` line: treat as `error` with reason
   "orchestrator did not report in contract".
 
-**Runaway guard.** More than 12 orchestrator spawns for one phase in this run is an
-`error`.
+**Runaway guard.** For the implementation phase, more than `max(12, ceil(T/B) + 4)`
+orchestrator spawns in this run is an `error`, where T is `data.tasks.total` from one
+`harness` `orient` call made before the run's first implementation spawn and B the budget
+(5 tasks); the error names the spawn count and the allowance. Every other phase keeps the
+limit of 12 spawns.
 
 **Gate B.** Before the first implementation spawn and before worktree entry, run the
 **Gate B** procedure below once — it asks or records, runs at most one advisory

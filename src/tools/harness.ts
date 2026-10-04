@@ -12,7 +12,10 @@ import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, drainInFlightReports, LedgerEvent, ActivityEvent, InFlightReport, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
-import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts } from '../watch/usage.js';
+import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts, listSpawns } from '../watch/usage.js';
+import { resolveSession, findTranscript } from '../watch/transcripts.js';
+import { breakdownTranscript, formatSources, SpawnSources, SourcesReport, SourcesReason } from '../watch/sources.js';
+import { BRIEF_TEMPLATES, templateUsesTaskBlock, buildRedTestsSection } from './brief-templates.js';
 
 /**
  * The `harness` tool (design Components 1-6). One tool, five actions:
@@ -40,7 +43,7 @@ next step. For \`implementation\` it returns the task counts and the next step; 
 gate-B class (a) veto items, \`put\`/\`get\`/\`delete\` manage the \`gate-<slot>.json\` file.
 Call \`usage\` to fold one spec's \`harness-events.jsonl\` into a report of tokens and spawns
 by phase and agent; pass \`compareSpecName\` for a second spec side by side with a per-phase
-delta. The tool reads only the spec store; it never spawns a process.`,
+delta. Pass \`sources: true\` to also read each document and implementation orchestrator spawn's subagent transcript under \`$CLAUDE_CONFIG_DIR/projects\`, else \`~/.claude/projects\`, and print its W by context source. Without it the action reads only the spec store. The tool reads only the spec store; it never spawns a process.`,
   inputSchema: {
     type: 'object',
     properties: {
@@ -56,6 +59,9 @@ delta. The tool reads only the spec store; it never spawns a process.`,
       compareSpecName: {
         type: 'string',
         description: 'Second spec for a side-by-side usage table (usage action)',
+      },
+      sources: {
+        type: 'boolean',
       },
       phase: {
         type: 'string',
@@ -328,6 +334,13 @@ async function orientImplementation(
     open: parsed.summary.pending,
   };
 
+  // The task queue the orchestrator picks from (R4.2): the `[-]` task then the `[ ]`
+  // tasks in file order, dropping header tasks (the rule of `findNextPendingTask`).
+  const queue = parsed.tasks
+    .filter((t) => (t.status === 'in-progress' || t.status === 'pending') && !t.isHeader)
+    .map((t) => ({ id: t.id, title: t.description, status: t.status, files: t.files ?? [] }));
+  const nextTask = queue[0] ?? null;
+
   // Approval/phase state through the server's existing derivation (1.6).
   const parser = new SpecParser(workflowRoot);
   const spec = await parser.getSpec(specName);
@@ -356,11 +369,72 @@ async function orientImplementation(
     inFlightReports = drainInFlightReports(ledgerRead.events);
   }
 
+  const data: Record<string, unknown> = {
+    phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep, inFlightReports,
+    queue, nextTask,
+  };
+  // At the completion gate or repair the orchestrator reads this spec's decomposition
+  // entry — its title and end-to-end scenario — without a whole-file read (R4.3, C5).
+  if (nextStep === 'Completion gate' || nextStep === 'Repair') {
+    data.decomposition = await readDecompositionEntry(workflowRoot, specName);
+  }
+
   return {
     success: true,
     message: `orient implementation ${tasks.done}/${tasks.total} → ${nextStep}`,
-    data: { phase: 'implementation', tasks, tasksApproved, currentPhase, nextStep, inFlightReports },
+    data,
   };
+}
+
+/**
+ * Read this spec's decomposition entry from `spec-decomposition/decomposition.md`
+ * under the spec-store root (C5). The entry runs from the first `### ` line holding
+ * the backticked slug to the next `### ` or `## ` line; the title is the heading text
+ * after the slug (leading em-dash/whitespace trimmed); the scenario runs from the line
+ * starting `**End-to-end verification` (both the `.**` and `**:` label forms) to before
+ * the next line starting `**` or `#`. Anything missing is null and never fails orient.
+ */
+async function readDecompositionEntry(
+  workflowRoot: string, specName: string,
+): Promise<{ title: string | null; scenario: string | null }> {
+  const path = PathUtils.safeJoin(PathUtils.getDecompositionPath(workflowRoot), 'decomposition.md');
+  let content: string;
+  try {
+    content = await readFile(path, 'utf-8');
+  } catch {
+    return { title: null, scenario: null };
+  }
+
+  const lines = content.split('\n');
+  const slug = '`' + specName + '`';
+  const start = lines.findIndex((l) => /^###\s/.test(l) && l.includes(slug));
+  if (start === -1) return { title: null, scenario: null };
+
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^###\s/.test(lines[i]) || /^##\s/.test(lines[i])) { end = i; break; }
+  }
+
+  const heading = lines[start];
+  const after = heading.slice(heading.indexOf(slug) + slug.length);
+  const title = after.replace(/^[\s—–-]+/, '').trim() || null;
+
+  let scenario: string | null = null;
+  const scenarioStart = lines
+    .slice(start, end)
+    .findIndex((l) => l.trimStart().startsWith('**End-to-end verification'));
+  if (scenarioStart !== -1) {
+    const from = start + scenarioStart;
+    const collected = [lines[from]];
+    for (let i = from + 1; i < end; i++) {
+      const t = lines[i].trimStart();
+      if (t.startsWith('**') || t.startsWith('#')) break;
+      collected.push(lines[i]);
+    }
+    scenario = collected.join('\n').trim() || null;
+  }
+
+  return { title, scenario };
 }
 
 type TargetClass = 'none' | 'store' | 'harness' | 'code' | 'home';
@@ -479,88 +553,8 @@ function classifyTarget(block: string): TargetClass {
 
 // --- brief -------------------------------------------------------------------
 
-/**
- * Named server-side brief templates, one per brief kind the harness spawns
- * (design Component 3, D2). Placeholders are `{{key}}`, filled from `values`;
- * an unknown template name or a `{{key}}` with no value fails naming it and
- * writes nothing (2.3). `{{agentRules}}` is filled with the spec-store
- * `agent-rules.md` path when that file exists, and its line is dropped when it
- * does not (2.4, `harness/skills/sdd-document-phase/references/briefs.md:4-11`).
- * The implementer template's `{{taskBlock}}` is filled by the tasks parser, not
- * the caller (2.2). Porting the skills' `references/briefs.md` verbatim and
- * guarding the two in sync is a deferred follow-up (design Scope notes, D2).
- */
-const BRIEF_TEMPLATES: Record<string, string> = {
-  drafter: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-  ].join('\n'),
-  reviser: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-    '## Findings',
-    '{{findings}}',
-    '',
-  ].join('\n'),
-  adjudicator: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Open items',
-    '{{items}}',
-    '',
-  ].join('\n'),
-  verifier: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-  ].join('\n'),
-  implementer: [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Task text (from tasks.md)',
-    '',
-    '{{taskBlock}}',
-    '',
-    '{{redTests}}',
-  ].join('\n'),
-  'test-author': [
-    '# {{title}}',
-    '',
-    'Read and obey {{agentRules}} first.',
-    '',
-    '## Job',
-    '{{job}}',
-    '',
-    '## Task text (from tasks.md)',
-    '',
-    '{{taskBlock}}',
-    '',
-  ].join('\n'),
-};
-
 /** Placeholder keys the server fills itself; never required from `values`. */
-const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
-
-/** Placeholder keys that default to '' when the caller omits them (design Component 5). */
-const OPTIONAL_BRIEF_KEYS = new Set(['redTests']);
+const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock', 'spec']);
 
 /**
  * The `## Code graph` brief section (design C3, Requirement 3). Returns the exact
@@ -604,8 +598,8 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
       message: `brief: a template name is required, one of: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
     };
   }
-  const templateBody = BRIEF_TEMPLATES[template];
-  if (templateBody === undefined) {
+  const tmpl = BRIEF_TEMPLATES[template];
+  if (tmpl === undefined) {
     return {
       success: false,
       message: `brief: unknown template '${template}'. Known templates: ${Object.keys(BRIEF_TEMPLATES).join(', ')}`,
@@ -644,28 +638,24 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
   const { workflowRoot } = selectRoots(args, context);
   const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
-  const serverValues: Record<string, string> = {};
+  // The spec name is a server-filled value: the document-phase kinds render it
+  // into their `# <kind> brief — <SPEC> …` headers (design C6), never the caller.
+  const serverValues: Record<string, string> = { spec: specName };
 
-  // agent-rules.md at the spec-store root ⇒ keep and fill the read-and-obey line;
-  // otherwise drop that line entirely (2.4, briefs.md:4-11).
-  let body = templateBody;
+  // agent-rules.md at the spec-store root ⇒ fill the read-and-obey line; otherwise
+  // leave `agentRules` unset so render drops that line entirely (2.4, briefs.md:4-11).
   const agentRulesPath = PathUtils.safeJoin(specStoreRoot, 'agent-rules.md');
-  let agentRulesExists = false;
   try {
     await stat(agentRulesPath);
-    agentRulesExists = true;
-  } catch {
-    agentRulesExists = false;
-  }
-  if (agentRulesExists) {
     serverValues.agentRules = agentRulesPath;
-  } else {
-    body = body.split('\n').filter((l) => !l.includes('{{agentRules}}')).join('\n');
+  } catch {
+    // agent-rules.md absent; the read-and-obey line is dropped at render.
   }
 
-  // The implementer template's task block comes from the parser, byte for byte (2.2).
+  // The implementer and test-author templates' task block comes from the parser,
+  // byte for byte (2.2).
   let tddMarked = false;
-  if (body.includes('{{taskBlock}}')) {
+  if (templateUsesTaskBlock(template)) {
     if (typeof taskId !== 'string' || taskId.length === 0) {
       return { success: false, message: `brief: template '${template}' needs a taskId; no file written` };
     }
@@ -695,7 +685,7 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
     // An implementer brief for a TDD-marked task — its block carries a `- Test:` seam, so
     // the parser gives it `tests` — must carry the red tests; a non-TDD task briefs without
-    // them (retro P8). The marker gates the redTests default below.
+    // them (retro P8). The marker gates the authorFiles/authorReport defaults below.
     if (template === 'implementer') {
       const task = parseTasksFromMarkdown(tasksContent).tasks.find((t) => t.id === taskId);
       tddMarked = !!task?.tests && task.tests.length > 0;
@@ -704,18 +694,17 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
   // Optional placeholder keys default to '' so an absent one neither trips the
   // missing-value check below nor fills as the string 'undefined' (Component 5).
-  // Exception: on a TDD-marked implementer brief `redTests` is required, so it is not
-  // defaulted and the missing-value check below reports it (retro P8).
-  for (const key of OPTIONAL_BRIEF_KEYS) {
-    if (key === 'redTests' && tddMarked) continue;
+  // Exception: on a TDD-marked implementer brief `authorFiles` and `authorReport` are
+  // required, so they are not defaulted and the missing-value check reports them (retro P8).
+  for (const key of tmpl.optional ?? []) {
+    if ((key === 'authorFiles' || key === 'authorReport') && tddMarked) continue;
     if (values[key] === undefined || values[key] === null) values[key] = '';
   }
 
-  // Every remaining {{key}} must have a caller value. Report ALL missing keys at
-  // once, with the template's full required-placeholder list, so a single re-call
-  // fixes them instead of one failed call per missing key (2.3, F2).
-  const keys = new Set((body.match(/\{\{(\w+)\}\}/g) ?? []).map((p) => p.slice(2, -2)));
-  const required = [...keys].filter((key) => !SERVER_BRIEF_KEYS.has(key));
+  // Every required value must be present. Report ALL missing keys at once, with
+  // the template's full required list (in placeholder order), so a single re-call
+  // fixes them instead of one failed call per missing key (2.3, F2, design C6).
+  const required = tmpl.required;
   const missing = required.filter((key) => values[key] === undefined || values[key] === null);
   if (missing.length > 0) {
     const plural = missing.length > 1 ? 's' : '';
@@ -727,9 +716,45 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
     };
   }
 
-  const filled = body.replace(/\{\{(\w+)\}\}/g, (_full, key: string) =>
-    key in serverValues ? serverValues[key] : String(values[key]),
-  );
+  // The adjudicator kind takes either the document form (`docPath`) or the task form
+  // (`taskId`); at least one must be present (design C6, Requirement 3.4).
+  if (
+    template === 'adjudicator' &&
+    (values.docPath === undefined || values.docPath === null) &&
+    (values.taskId === undefined || values.taskId === null)
+  ) {
+    return { success: false, message: `brief: template 'adjudicator' needs 'docPath' or 'taskId'; no file written` };
+  }
+
+  // `redTests` is no longer a caller value: on the implementer kind the red-tests
+  // section is built from `authorFiles`/`authorReport` and the task block's `- Test:`
+  // lines, and is '' when the caller supplies neither (design C6, C9). Setting it on
+  // serverValues drops any caller-passed `redTests` key (retro P8).
+  if (template === 'implementer') {
+    const af = typeof values.authorFiles === 'string' ? values.authorFiles : '';
+    const ar = typeof values.authorReport === 'string' ? values.authorReport : '';
+    if (af !== '' && ar !== '') {
+      const testLines = (serverValues.taskBlock ?? '')
+        .split('\n')
+        .filter((l) => /^\s*- Test/.test(l))
+        .map((l) => l.trim())
+        .join('\n');
+      serverValues.redTests = buildRedTestsSection(af, testLines, ar);
+    } else {
+      serverValues.redTests = '';
+    }
+  }
+
+  // Caller values (stringified) fill the template; server-filled keys (agentRules,
+  // taskBlock) come only from serverValues, so render drops the read-and-obey line
+  // when no agent-rules.md was found.
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (SERVER_BRIEF_KEYS.has(key)) continue;
+    merged[key] = String(value);
+  }
+  Object.assign(merged, serverValues);
+  const filled = tmpl.render(merged);
 
   // With a graph path, append the `## Code graph` section; the separator is a
   // single newline when the filled text already ends in one (giving one blank
@@ -752,12 +777,36 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   const finalPath = isAbsolute(outPath)
     ? PathUtils.safeJoin(dirname(outPath), basename(outPath))
     : PathUtils.safeJoin(PathUtils.getSpecPath(workflowRoot, specName), outPath);
-  try {
-    await mkdir(dirname(finalPath), { recursive: true });
-    await writeFile(finalPath, output, 'utf-8');
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+
+  // Append mode (the `reviewer` round section): the target scaffold must already
+  // exist; a missing one fails naming it and writes nothing (design Error
+  // Handling 5). Write mode creates the file fresh.
+  if (tmpl.mode === 'append') {
+    let existing: string;
+    try {
+      existing = await readFile(finalPath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return { success: false, message: `brief: ${finalPath} missing; nothing appended` };
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${finalPath}: ${message}` };
+    }
+    const sep = existing.endsWith('\n') ? '\n' : '\n\n';
+    try {
+      await writeFile(finalPath, existing + sep + output, 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+    }
+  } else {
+    try {
+      await mkdir(dirname(finalPath), { recursive: true });
+      await writeFile(finalPath, output, 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+    }
   }
 
   const absolute = resolve(finalPath);
@@ -1206,14 +1255,68 @@ async function readSpecActivity(
   return { activity: parseJsonl<ActivityEvent>(activityText) };
 }
 
+/** The two orchestrator agents whose transcripts the `sources` option breaks down (design C4). */
+const SOURCE_ORCHESTRATORS = new Set(['sdd-document-orchestrator', 'sdd-implementation-orchestrator']);
+
+/**
+ * Break down every orchestrator spawn's subagent transcript into per-source W (design C4).
+ * Keeps the document and implementation orchestrator spawns of `listSpawns`, and for each
+ * resolves the session, locates and reads the transcript, and runs `breakdownTranscript`.
+ * Every failure of design Error Handling 1 (`no-agent-id`, `no-session`, `invalid-id`,
+ * `missing`, `unreadable`, `no-usage`) becomes an `ok: false` spawn counted in `unknown`;
+ * a missing transcript never fails the action. Transcripts are read only through the C3
+ * locator, which refuses a path outside the projects directory; no process is spawned.
+ */
+async function buildSourcesReport(
+  spec: string, events: LedgerEvent[], activity: ActivityEvent[],
+): Promise<SourcesReport> {
+  const spawns: SpawnSources[] = [];
+  let unknown = 0;
+  for (const s of listSpawns(events)) {
+    if (!SOURCE_ORCHESTRATORS.has(s.agent)) continue;
+    const ledgerW = s.wUnknown ? null : s.w;
+    const fail = (agentId: string | undefined, reason: SourcesReason): void => {
+      spawns.push({ phase: s.phase, agent: s.agent, agentId, ledgerW, ok: false, reason });
+      unknown += 1;
+    };
+
+    if (s.agentId === undefined) { fail(undefined, 'no-agent-id'); continue; }
+    const agentId = s.agentId;
+    const session = resolveSession(activity, agentId);
+    if (session === undefined) { fail(agentId, 'no-session'); continue; }
+
+    const lookup = await findTranscript(session, agentId);
+    if (!lookup.ok) { fail(agentId, lookup.reason); continue; }
+
+    let text: string;
+    try {
+      text = await readFile(lookup.path, 'utf-8');
+    } catch {
+      fail(agentId, 'unreadable');
+      continue;
+    }
+
+    const breakdown = breakdownTranscript(text);
+    if (breakdown === null) { fail(agentId, 'no-usage'); continue; }
+
+    const diff = ledgerW === null || ledgerW === 0 ? null : (breakdown.w - ledgerW) / ledgerW;
+    spawns.push({ phase: s.phase, agent: s.agent, agentId, ledgerW, ok: true, breakdown, diff });
+  }
+  return { spec, spawns, unknown };
+}
+
 /**
  * `usage` action (design Component 6): fold one spec's ledger into the
  * tokens-and-spawns-by-phase report, or two specs into a side-by-side table with
  * a per-phase delta when `compareSpecName` is given (Req 5.7). Read-only; spawns
- * no process. `compare` and `delta` sit on `data` only for two specs.
+ * no process. `compare` and `delta` sit on `data` only for two specs. With
+ * `sources: true` (design C4) each orchestrator spawn's transcript is broken down
+ * per context source, the per-unit W is shown, and `data` adds `sources` and
+ * `compareSources`; without it the output is byte-identical to the spec-store-only report.
  */
 async function usageAction(args: any, context: ToolContext): Promise<ToolResponse> {
   const { specName, compareSpecName } = args;
+  const sourcesOn = args.sources === true;
   const { workflowRoot } = selectRoots(args, context);
 
   const primary = await readSpecLedger(workflowRoot, specName);
@@ -1224,6 +1327,8 @@ async function usageAction(args: any, context: ToolContext): Promise<ToolRespons
     buildUsageReport(primary.events, specName), primary.events, primaryActivity.activity,
   );
 
+  const opts = sourcesOn ? { perUnit: true } : undefined;
+
   if (typeof compareSpecName === 'string' && compareSpecName.length > 0) {
     const second = await readSpecLedger(workflowRoot, compareSpecName);
     if ('error' in second) return { success: false, message: second.error };
@@ -1233,12 +1338,34 @@ async function usageAction(args: any, context: ToolContext): Promise<ToolRespons
       buildUsageReport(second.events, compareSpecName), second.events, secondActivity.activity,
     );
     const delta = usageDelta(report, compare);
+
+    if (!sourcesOn) {
+      return {
+        success: true,
+        message: formatUsageTable(report, compare),
+        data: { report, compare, delta },
+      };
+    }
+
+    const sources = await buildSourcesReport(specName, primary.events, primaryActivity.activity);
+    const compareSources = await buildSourcesReport(
+      compareSpecName, second.events, secondActivity.activity,
+    );
     return {
       success: true,
-      message: formatUsageTable(report, compare),
-      data: { report, compare, delta },
+      message: [formatUsageTable(report, compare, opts), formatSources(sources), formatSources(compareSources)].join('\n\n'),
+      data: { report, compare, delta, sources, compareSources },
     };
   }
 
-  return { success: true, message: formatUsageTable(report), data: { report } };
+  if (!sourcesOn) {
+    return { success: true, message: formatUsageTable(report), data: { report } };
+  }
+
+  const sources = await buildSourcesReport(specName, primary.events, primaryActivity.activity);
+  return {
+    success: true,
+    message: [formatUsageTable(report, undefined, opts), formatSources(sources)].join('\n\n'),
+    data: { report, sources, compareSources: null },
+  };
 }

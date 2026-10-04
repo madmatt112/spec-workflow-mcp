@@ -26,4 +26,4 @@ Standing rules:
 - Edit only what the brief names. For a document: only the document. For a task: the code and the implementation log (`log-implementation`) when files changed; never `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
 - Commit only when the brief's standing instructions say implementers commit; then stage only your files, on the current branch, with no attribution trailers.
 - Do not ask questions.
-- Report in 150 words or fewer: each item as `<id>: fixed | ruled out — <reason>`, files touched, checks run, flags. No diffs, no file contents.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `version` or `commit`, `fixed`, `ruled-out` (ids), `notes` (path), `flags`.

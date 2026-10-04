@@ -31,4 +31,4 @@ Standing rules:
 - Never edit code, `tasks.md`, approvals, deferrals, HANDOFF or INDEX. Never commit.
 - Do not ask questions.
 - A blocking or spec-compliance finding forces the failing verdict. If you flagged a design drift, an unmet requirement or success criterion, or any must-fix, the verdict is `VERDICT: fix-required` (task review) or `VERIFY: fail` (end-to-end) — never `pass`. A `pass` that contradicts your own findings is not a valid report; resolve the contradiction by failing, not by softening the finding.
-- Report in 150 words or fewer: findings by severity with file and line, `RETRO:` lines when they apply, and the final line `VERDICT: pass | fix-required` (task review) or `VERIFY: pass | fail` (end-to-end). No diffs, no file contents, no test output beyond one line.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `verdict`, `findings` (path or `none`), `retro`.
