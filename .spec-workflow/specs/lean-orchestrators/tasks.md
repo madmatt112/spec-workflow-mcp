@@ -76,7 +76,7 @@ Tasks 1 to 4 build the W fold, the source breakdown, the transcript locator and 
   - _Requirements: 3.3_
   - _Prompt: Task: Create src/tools/brief-templates.ts holding today's six kinds of `BRIEF_TEMPLATES` (src/tools/harness.ts:493-557) as a record of templates, each with `mode` (`write` for all six), `required`, `optional` and `render`; the illustrative type in design C6 is a guide, check it against the tests. `briefAction` (:595-765) keeps its unknown-kind, all-missing-at-once, agent-rules-line, task-block, test-author no-Test, TDD-marked `redTests`, graph-append and `safeJoin`-write behaviours, but builds the missing set from the template's `required` instead of the placeholder scan (:717-719). List each kind's `required` keys in today's placeholder order, so every message is byte-identical. Keep `codeGraphSection` exported from src/tools/harness.ts, which src/tools/__tests__/harness.test.ts:7 imports. No existing harness.test.ts value changes; every test whose title starts `brief`, and the drift guard, must pass unedited (base lines :205-402, :409-504). No count word states the number of brief kinds: `grep -rn "six templates\|six kinds\|six brief" src/tools docs/TOOLS-REFERENCE.md` returns nothing, so this move and the kinds tasks 8 to 10 add change no count assertion | Restrictions: No new kind and no append mode in this task (tasks 8 and 10 add them, D2); do not change output bytes or messages | Success: `npx tsc --noEmit`, then `npx vitest run src/tools/__tests__/harness.test.ts` are green with no test edited_
 
-- [-] 8. Document-phase brief kinds and append mode
+- [x] 8. Document-phase brief kinds and append mode
   - File: src/tools/brief-templates.ts
   - File: src/tools/harness.ts
   - File: src/tools/__tests__/harness.test.ts

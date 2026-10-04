@@ -113,3 +113,8 @@ Cost: 1 author + 1 implementer + shared batched verifier
 book-script kind with all 8 C7 segments; batched verify passed task 10, strong idempotency test. rounds 0, outcome pass.
 Evidence: task 10; commit bee6506
 Cost: 1 author + 1 implementer + shared batched verifier
+
+## 2026-10-04T06:15:16Z · implementation · task 8 · gotcha
+Ported document-phase brief kinds; batched verify caught non-verbatim reviewer round section (dropped 'Compounds: R<k>-<n>' seam + 2 warnings + stale adjudicator bullet); 1 fix round restored verbatim text and corrected a mis-pinned snapshot. rounds 1, outcome pass. Lesson: ported-verbatim briefs need snapshots pinned to the exact source text, else a paraphrase slips through the gate.
+Evidence: task 8; commit 9c4cd9f
+Cost: 1 author + 1 implementer + 1 fix + shared batched verifier + 1 narrow verifier
