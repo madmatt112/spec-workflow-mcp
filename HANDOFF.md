@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-10-03, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **tasks**, state **pending**, last result **approved** (design v4).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: drafts tasks v1 for spec 14 `lean-orchestrators`.
+> Live phase **implementation**, state **tasks 0/16**, last result **approved** (tasks v3; gate B approved).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/lean-orchestrators`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: works the implementation task queue on `feat/lean-orchestrators`.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
