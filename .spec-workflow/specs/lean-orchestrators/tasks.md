@@ -162,7 +162,7 @@ Tasks 1 to 4 build the W fold, the source breakdown, the transcript locator and 
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
   - _Prompt: Task: Change the launch line (harness/skills/sdd-continue/SKILL.md:291) to `BUDGET: <4 review rounds | 5 tasks | all items | n/a>`. Rewrite the runaway guard (:379-380): for implementation, more than max(12, ceil(T/B) + 4) orchestrator spawns is an `error`, where T is `data.tasks.total` from one `harness` `orient` call before the run's first implementation spawn and B the budget; the error names the count and the allowance; other phases keep 12. Leave resume (:350-351) and the document budget unchanged. Update the guard text in docs/SDD-HARNESS.md where it states the limit (the phase-agnostic "More than twelve spawns for one phase" statement at docs/SDD-HARNESS.md:130-134) so it states the scaled implementation allowance while other phases keep 12; `grep -rn "12 orchestrator spawns\|twelve spawns\|Runaway guard" harness docs` finds each statement (harness/skills/sdd-continue/SKILL.md:379 and docs/SDD-HARNESS.md:133). Run `node scripts/sync-plugin-assets.cjs`, `npm run check:plugin-assets` and `claude plugin validate . --strict`, and commit the `plugins/` copies | Restrictions: Use the task total, not open tasks (design D14); do not change Gate A, Gate B or dispatch | Success: the line reads 5 tasks, the guard states the formula, and the three harness checks pass_
 
-- [ ] 15. Fixture kit and pending live record
+- [x] 15. Fixture kit and pending live record
   - File: .spec-workflow/specs/lean-orchestrators/e2e/stage.sh
   - File: .spec-workflow/specs/lean-orchestrators/e2e/fixture-decomposition.md
   - File: .spec-workflow/specs/lean-orchestrators/e2e/fixture-agent-rules.md

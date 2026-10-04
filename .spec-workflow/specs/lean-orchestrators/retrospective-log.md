@@ -148,3 +148,8 @@ Cost: 1 author + 1 implementer + 1 fix + 1 verifier spawn
 Supervisor launch budget set to 5 tasks and runaway guard scaled to max(12, ceil(T/B)+4) for implementation (D14 task total); gate low, review recorded, harness checks pass. rounds 0, outcome gate.
 Evidence: task 14; reviewId bb963c24
 Cost: 1 implementer spawn
+
+## 2026-10-04T07:56:36Z · implementation · task 15 · gotcha
+Fixture kit (stage.sh + fixture-decomposition/agent-rules) staged and dry-run green; verification-evidence.md now carries (1) passed, (kit) passed, (2)/(3) pending for the operator pre-merge session. Verification-only; same worktree-commit-then-relocate as task 5 (committed acc4e2f on feat, orchestrator relocated to main spec store). rounds 0, outcome gate.
+Evidence: task 15; main spec store e2e/ + verification-evidence.md; feat acc4e2f
+Cost: 1 implementer spawn + orchestrator relocation
