@@ -626,6 +626,452 @@ describe('harnessHandler', () => {
     expect(block).toBe(codeGraphSection('<GRAPH>', '<GRAPH_BUILT_AT>', '<GRAPH_BEHIND>'));
   });
 
+  // Task 8 — document-phase brief kinds (`drafter`, `gate-a`, `reviewer`, `reviser`,
+  // `adjudicator`, `checker`) ported verbatim from
+  // harness/skills/sdd-document-phase/references/briefs.md, plus `reviewer` append mode
+  // (design C6 table, Requirement 3 criterion 3; Requirement 5 criteria 1 and 2).
+
+  // The C9 block sentence every report-ending sentence is replaced with (design C9).
+  const C9_SENTENCE =
+    'End with this block, at most 8 lines; the whole report is at most 80 words; ' +
+    'put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line.';
+
+  it('brief drafter (requirements phase) renders the requirements Job/Load/Size branches and the C9 report block', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-requirements.md');
+    const docPath = join(specDir, 'requirements.md');
+    const specStoreRoot = join(tempDir, '.spec-workflow');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'drafter',
+        values: {
+          path: outPath,
+          phase: 'requirements',
+          docPath,
+          specDir,
+          specStoreRoot,
+          codeRoot: tempDir,
+          carried: 'none',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Job sentence, verbatim briefs.md:13-16.
+    expect(written).toContain(`Write v1 of \`${docPath}\` in place`);
+    // Requirements has no context file to start from yet (briefs.md:21).
+    expect(written).toContain('nothing yet; you write the context file');
+    // Requirements steering load (briefs.md:22).
+    expect(written).toContain('steering/product.md');
+    // Requirements word cap (briefs.md:42).
+    expect(written).toContain('Cap: 3,500 words');
+    // No earlier documents for requirements (briefs.md:30).
+    expect(written).toContain('## Carried from');
+
+    // The old free-text report sentence is gone; the C9 block sentence and the
+    // drafter's own report keys (design C9 table) replace it (Requirement 5.1, 5.2).
+    expect(written).not.toContain('report in 150 words or fewer: files touched');
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['doc:', 'words:', 'context:', 're-decided:', 'scope-cut:', 'gate-a:', 'flags:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief drafter (design phase) renders the design Load/Size branches', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-design.md');
+    const docPath = join(specDir, 'design.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'drafter',
+        values: {
+          path: outPath,
+          phase: 'design',
+          docPath,
+          specDir,
+          specStoreRoot: join(tempDir, '.spec-workflow'),
+          codeRoot: tempDir,
+          carried: 'none',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain(`Write v1 of \`${docPath}\` in place`);
+    // Design and tasks start from the context file (briefs.md:19-20).
+    expect(written).toContain('it maps the code the');
+    expect(written).toContain('Start from it instead of exploring from cold');
+    // Design steering load (briefs.md:23).
+    expect(written).toContain('steering/tech.md');
+    expect(written).toContain('design-system.md');
+    // Design word cap (briefs.md:42).
+    expect(written).toContain('Cap: 4,000 words');
+    // Design's only earlier document is requirements.md (briefs.md:30-31).
+    expect(written).toContain(`${specDir}/requirements.md`.replace(/\\/g, '/'));
+  });
+
+  it('brief drafter (tasks phase) renders the tasks Size cap, the tasks-only Rules bullet and carried items', async () => {
+    await writeAgentRules();
+    const outPath = join(tempDir, 'drafter-tasks.md');
+    const docPath = join(specDir, 'tasks.md');
+    const carried = 'R2-3 — Baseline persistence: ruled out, superseded by D15';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'drafter',
+        values: {
+          path: outPath,
+          phase: 'tasks',
+          docPath,
+          specDir,
+          specStoreRoot: join(tempDir, '.spec-workflow'),
+          codeRoot: tempDir,
+          carried,
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Tasks word cap, per task block (briefs.md:42-43).
+    expect(written).toContain('Cap: 150 words per task block');
+    // Tasks-only Rules bullet (briefs.md:101, :133).
+    expect(written).toContain('tasks.md only: follow');
+    expect(written).toContain('templates/tasks-template.md` exactly');
+    expect(written).toContain('Document version: v1');
+    // The carried item is listed and must be addressed (briefs.md:36-39).
+    expect(written).toContain(carried);
+    expect(written).toContain('Address each carried item in this document');
+  });
+
+  it('brief gate-a renders the gate-A re-spawn job pointing at the gate put call', async () => {
+    const outPath = join(tempDir, 'gate-a-brief.md');
+    const docPath = join(specDir, 'requirements.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'gate-a', values: { path: outPath, docPath } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:150-157.
+    expect(written).toContain('Do only your gate-A step again');
+    expect(written).toContain('`op: put`, `slot: a`');
+    expect(written).toContain('Report in 40 words or fewer');
+  });
+
+  // The reviewer kind appends the "## This round" section to an existing scaffold at
+  // `values.path` (design C6 table, "append to promptOutputPath"; Error Handling 5).
+
+  const REVIEWER_VALUES = (overrides: Record<string, unknown>) => ({
+    phase: 'design',
+    specDir,
+    lintChecks: '',
+    lintOpen: 'none',
+    reDecided: 'none',
+    overCap: 'none',
+    lens: 'a cold read for internal contradictions and a truth table of the stated cases',
+    closedByRuling: 'none',
+    memoryPath: join(specDir, 'reviews', 'memory-design.md'),
+    codeRoot: tempDir,
+    specStoreRoot: join(tempDir, '.spec-workflow'),
+    ...overrides,
+  });
+
+  const writeScaffold = (name: string) =>
+    fs.writeFile(join(specDir, 'reviews', name), '# Scaffold\n\nStanding directives here.\n');
+
+  it('brief reviewer (D=1) renders the first-review bullet and the default requirements lens, not the D>1 recap', async () => {
+    await writeScaffold('adversarial-prompt-requirements.md');
+    const target = join(specDir, 'reviews', 'adversarial-prompt-requirements.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviewer',
+        values: REVIEWER_VALUES({ path: target, phase: 'requirements', D: '1' }),
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(target, 'utf-8');
+
+    // D=1 first-review branch (briefs.md:180-183).
+    expect(written).toContain('First review. Read the decomposition entry for');
+    // Default first lens for requirements at D=1 (briefs.md:208-210).
+    expect(written).toContain('the default first lens for requirements');
+    // The D>1 recap branch must not appear.
+    expect(written).not.toContain('Read the Revision History line for v1 first');
+
+    // Report block replaced with the C9 sentence and the reviewer's own keys (design C9).
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['verdict:', 'escalate:', 'analysis:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief reviewer (D=2) renders the Revision-History recap bullet and the caller-given lens, not the D=1 branch', async () => {
+    await writeScaffold('adversarial-prompt-requirements-r2.md');
+    const target = join(specDir, 'reviews', 'adversarial-prompt-requirements-r2.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviewer',
+        values: REVIEWER_VALUES({
+          path: target, phase: 'requirements', D: '2',
+          lens: 'vendor or format facts checked against their source',
+        }),
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(target, 'utf-8');
+
+    // D>1 recap branch (briefs.md:191-193).
+    expect(written).toContain('Read the Revision History line for v2 first and attack those changes');
+    expect(written).not.toContain('First review. Read the decomposition entry for');
+    // The caller-given lens is used verbatim, not the requirements default.
+    expect(written).toContain('vendor or format facts checked against their source');
+    expect(written).not.toContain('the default first lens for requirements');
+  });
+
+  it('brief reviewer omits the Machine-verified bullet when lintChecks is empty (lint skipped)', async () => {
+    await writeScaffold('adversarial-prompt-design.md');
+    const target = join(specDir, 'reviews', 'adversarial-prompt-design.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'reviewer', values: REVIEWER_VALUES({ path: target, D: '1', lintChecks: '' }) },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(target, 'utf-8');
+    expect(written).not.toContain('Machine-verified:');
+  });
+
+  it('brief reviewer renders the Machine-verified bullet with the lint checks and open findings when lintChecks is set', async () => {
+    await writeScaffold('adversarial-prompt-design-r2.md');
+    const target = join(specDir, 'reviews', 'adversarial-prompt-design-r2.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviewer',
+        values: REVIEWER_VALUES({
+          path: target, D: '2',
+          lintChecks: 'L-1, L-2, L-3',
+          lintOpen: 'L-2 (warning, prose-cap, line 40): over cap.',
+        }),
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(target, 'utf-8');
+    // Verbatim briefs.md:171-176.
+    expect(written).toContain('Machine-verified:');
+    expect(written).toContain('`spec-lint` ran');
+    expect(written).toContain('L-1, L-2, L-3');
+    expect(written).toContain('L-2 (warning, prose-cap, line 40): over cap.');
+  });
+
+  it('brief reviewer appends the round section after the existing scaffold content, keeping it intact', async () => {
+    await writeScaffold('adversarial-prompt-tasks.md');
+    const target = join(specDir, 'reviews', 'adversarial-prompt-tasks.md');
+    const before = await fs.readFile(target, 'utf-8');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'reviewer', values: REVIEWER_VALUES({ path: target, phase: 'tasks', D: '1' }) },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(target, 'utf-8');
+
+    // The existing scaffold survives byte for byte, with the new section appended after it.
+    expect(written.startsWith(before)).toBe(true);
+    expect(written).toContain('## This round');
+    expect(written.indexOf('## This round')).toBeGreaterThan(before.length - 1);
+  });
+
+  it('brief reviewer fails naming the missing target and writes nothing when promptOutputPath does not exist', async () => {
+    const target = join(specDir, 'reviews', 'adversarial-prompt-missing.md');
+
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'reviewer', values: REVIEWER_VALUES({ path: target, D: '1' }) },
+      context,
+    );
+    // Error Handling 5: a missing append target fails naming it and writes nothing.
+    expect(res.success).toBe(false);
+    expect(res.message).toBe(`brief: ${target} missing; nothing appended`);
+    await expect(fs.access(target)).rejects.toThrow();
+  });
+
+  // The reviser kind's four variants (design C6 table): `round`, `should-fix-only`,
+  // `revision` (Step R) and `lint-fix` (the lint brief, briefs.md:361-417).
+
+  const reviserBase = () => ({
+    phase: 'design',
+    specDir,
+    memoryPath: join(specDir, 'reviews', 'memory-design.md'),
+    closedByRuling: 'none',
+  });
+
+  it('brief reviser (variant: round) renders the Round-<A> adversarial-response Revision History instruction', async () => {
+    const outPath = join(tempDir, 'reviser-round.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = join(specDir, 'reviews', 'adversarial-analysis-design.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '2', findings, variant: 'round' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Header and Job sentence filled with D+1 (briefs.md:267, :272).
+    expect(written).toContain(`# Reviser brief — ${SPEC} design v3`);
+    expect(written).toContain('Produce v3 of');
+    // The findings path is carried through (briefs.md:285).
+    expect(written).toContain(findings);
+    // The round variant leaves the reviser's own fill-in placeholder untouched (briefs.md:306-308).
+    expect(written).toContain('Round-<A> adversarial response');
+    expect(written).toContain('Cap: 4,000 words');
+
+    // Report block replaced with the C9 sentence and the reviser's own keys.
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['version:', 'words:', 'accepted:', 'partial:', 'rejected:', 'cut-scope:', 'flags:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief reviser (variant: should-fix-only) tells the reviser to end the Revision History line "SHOULD_FIX-only corrective pass" instead', async () => {
+    const outPath = join(tempDir, 'reviser-sfo.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = join(specDir, 'reviews', 'adversarial-analysis-design-r2.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '2', findings, variant: 'should-fix-only' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // SKILL.md:201-204: the SHOULD_FIX-only pass ends the Revision History line this way.
+    expect(written).toContain('SHOULD_FIX-only corrective pass');
+    expect(written).not.toContain('Round-<A> adversarial response');
+  });
+
+  it('brief reviser (variant: revision) renders the ## Revision input section from RI items instead of an analysis path', async () => {
+    const outPath = join(tempDir, 'reviser-revision.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = 'RI-1: Clarify the retry budget.\nRI-2: Add the missing error code.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '3', findings, variant: 'revision' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // briefs.md:285, :294-296: revision input replaces the analysis-path Findings line.
+    expect(written).toContain('the list below (revision input)');
+    expect(written).toContain('## Revision input');
+    expect(written).toContain('RI-1: Clarify the retry budget.');
+    expect(written).toContain('RI-2: Add the missing error code.');
+  });
+
+  it('brief reviser (variant: lint-fix) renders the Lint brief job, header and "Add no version line" rule', async () => {
+    const outPath = join(tempDir, 'reviser-lintfix.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = 'L-1 (error, citation-identifier, line 42): bad citation.\nL-2 (warning, prose-cap, line 10): over cap.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '3', findings, variant: 'lint-fix' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // briefs.md:364, :369, :386, :398-399.
+    expect(written).toContain(`# Lint brief — ${SPEC} design v3`);
+    expect(written).toContain('Fix the lint findings below in v3 of');
+    expect(written).toContain('## Revision input');
+    expect(written).toContain('L-1 (error, citation-identifier, line 42): bad citation.');
+    expect(written).toContain('Add no version line');
+    expect(written).toContain('**Lint pass.**');
+  });
+
+  it('brief adjudicator (docPath form) renders the post-cap corrective-pass job and the C9 report block', async () => {
+    const outPath = join(tempDir, 'adjudication-brief.md');
+    const docPath = join(specDir, 'design.md');
+    const items = '1 — Missing field (MUST_FIX)\n2 — Ambiguous enum (SHOULD_FIX)';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'adjudicator',
+        values: { path: outPath, items, phase: 'design', docPath },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:421, :425-427, :432-433, :446-450.
+    expect(written).toContain('post-cap corrective pass');
+    expect(written).toContain('## Open items');
+    expect(written).toContain(items);
+    expect(written).toContain('Post-cap corrective pass');
+    expect(written).toContain('150 words or fewer');
+
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['fixed:', 'ruled-out:', 'notes:', 'flags:']) {
+      expect(written).toContain(key);
+    }
+  });
+
+  it('brief checker renders the narrow-check prompt (not a review) and the C9 report block', async () => {
+    const outPath = join(tempDir, 'narrow-check.md');
+    const items = '1 — Gate B tag missing\n2 — Success-clause gap';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'checker',
+        values: { path: outPath, phase: 'tasks', items, specDir, codeRoot: tempDir },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Verbatim briefs.md:460-477.
+    expect(written).toContain('This is not a review');
+    expect(written).toContain('## Items');
+    expect(written).toContain(items);
+    expect(written).toContain('VERIFIED: <k>/<n>');
+    expect(written).toContain('Do not write a verdict block. Do not update the memory file. Do not edit the document.');
+
+    expect(written).toContain(C9_SENTENCE);
+    for (const key of ['verified:', 'deferred:', 'analysis:']) {
+      expect(written).toContain(key);
+    }
+  });
+
   // Requirement 5 — the `phase-log` action.
 
   const handoffPathFile = () => join(tempDir, '.spec-workflow', 'HANDOFF.md');
