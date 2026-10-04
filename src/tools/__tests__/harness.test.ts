@@ -961,12 +961,18 @@ describe('harnessHandler', () => {
   it('brief adjudicator (docPath form) renders the post-cap corrective-pass job and the C9 report block', async () => {
     const outPath = join(tempDir, 'adjudication-brief.md');
     const docPath = join(specDir, 'design.md');
+    const analysisPath = join(specDir, 'reviews', 'design-r4-analysis.md');
+    const memoryPath = join(specDir, 'reviews', 'design-memory.md');
     const items = '1 — Missing field (MUST_FIX)\n2 — Ambiguous enum (SHOULD_FIX)';
 
     const res = await harnessHandler(
       {
         action: 'brief', specName: SPEC, template: 'adjudicator',
-        values: { path: outPath, items, phase: 'design', docPath },
+        values: {
+          path: outPath, items, phase: 'design', docPath,
+          D: '4', analysisPath, mustFix: '1', shouldFix: '1',
+          specDir, memoryPath, codeRoot: tempDir,
+        },
       },
       context,
     );
@@ -981,6 +987,19 @@ describe('harnessHandler', () => {
     expect(written).toContain('Post-cap corrective pass');
     expect(written).not.toContain('Report in 150 words or fewer:');
 
+    // The orchestrator-supplied slots are now filled keys, not literal placeholders
+    // (fix-1: the lean orchestrator no longer fills them in by hand).
+    expect(written).toContain('v4 of `' + docPath + '` was reviewed in `' + analysisPath + '`');
+    expect(written).toContain('MUST_FIX 1 / SHOULD_FIX 1');
+    expect(written).toContain('write v5 in place');
+    expect(written).toContain('- Context file: `' + specDir + '/codebase-context.md`');
+    expect(written).toContain('the memory file `' + memoryPath + '`');
+    expect(written).toContain('Code under `' + tempDir + '`');
+    expect(written).toContain('- **v5** (<today>) — Post-cap corrective pass');
+    for (const stale of ['v<D>', 'v<D+1>', '<r<A> analysis path>', 'MUST_FIX <m>', 'SHOULD_FIX <s>', '<memory file path>', '<CODE_ROOT>', '<spec dir>']) {
+      expect(written).not.toContain(stale);
+    }
+
     expect(written).toContain(C9_SENTENCE);
     for (const key of ['fixed:', 'ruled-out:', 'notes:', 'flags:']) {
       expect(written).toContain(key);
@@ -989,12 +1008,18 @@ describe('harnessHandler', () => {
 
   it('brief checker renders the narrow-check prompt (not a review) and the C9 report block', async () => {
     const outPath = join(tempDir, 'narrow-check.md');
+    const docPath = join(specDir, 'tasks.md');
+    const analysisPath = join(specDir, 'reviews', 'tasks-r4-analysis.md');
+    const analysisOutputPath = join(specDir, 'reviews', 'tasks-narrow-check.md');
     const items = '1 — Gate B tag missing\n2 — Success-clause gap';
 
     const res = await harnessHandler(
       {
         action: 'brief', specName: SPEC, template: 'checker',
-        values: { path: outPath, phase: 'tasks', items, specDir, codeRoot: tempDir },
+        values: {
+          path: outPath, phase: 'tasks', items, specDir, codeRoot: tempDir,
+          D: '5', docPath, analysisPath, analysisOutputPath,
+        },
       },
       context,
     );
@@ -1007,6 +1032,16 @@ describe('harnessHandler', () => {
     expect(written).toContain(items);
     expect(written).toContain('VERIFIED: <k>/<n>');
     expect(written).toContain('Do not write a verdict block. Do not update the memory file. Do not edit the document.');
+
+    // The orchestrator-supplied slots are now filled keys, not literal placeholders
+    // (fix-1: the lean orchestrator no longer fills them in by hand).
+    expect(written).toContain('# Narrow check — ' + SPEC + '/tasks v5');
+    expect(written).toContain('v4 of `' + docPath + '` was reviewed in `' + analysisPath + '`');
+    expect(written).toContain('produced v5 and addressed');
+    expect(written).toContain('Write to `' + analysisOutputPath + '`:');
+    for (const stale of ['v<D>', 'v<D-1>', '<document path>', '<r<A> analysis path>', '<analysis output path>']) {
+      expect(written).not.toContain(stale);
+    }
 
     expect(written).toContain(C9_SENTENCE);
     for (const key of ['verified:', 'deferred:', 'analysis:']) {

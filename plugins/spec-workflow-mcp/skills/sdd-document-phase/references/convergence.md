@@ -37,8 +37,10 @@ fire before D ≥ 4; the v4 cap in the Cap convergence check and Step 4a is unch
 1. Call `harness` `brief` with `template: adjudicator`, `specName: <SPEC>`, and `values`
    carrying `path: reviews/adjudication-brief-<PHASE>-r<A>.md`, `items` (every open
    MUST_FIX and SHOULD_FIX for that requirement or rule by id, title and severity, one per
-   line), `phase: <PHASE>`, `docPath: <document path>`, and the graph values when `GRAPH`
-   is a path.
+   line), `phase: <PHASE>`, `docPath: <document path>`, `D: <D>` (the reviewed version),
+   `analysisPath: <r<A> analysis path>`, `mustFix: <open MUST_FIX count>`, `shouldFix:
+   <open SHOULD_FIX count>`, `specDir: <spec dir>`, `memoryPath: <memory file path>`,
+   `codeRoot: <CODE_ROOT>`, and the graph values when `GRAPH` is a path.
 2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`. After
    its report write one `spawn.usage` carrying `role="adjudication r<A>"` and its result
    through `book.sh` (`event`).
@@ -71,7 +73,10 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
    carrying `path: reviews/adjudication-brief-<PHASE>.md`, `items` (every open MUST_FIX and
    SHOULD_FIX from the r<A> analysis by id, title and severity; `grep -n -E
    'MUST_FIX|SHOULD_FIX' <r<A> analysis>` gives the lines, read only those), `phase:
-   <PHASE>`, `docPath: <document path>`, and the graph values when `GRAPH` is a path.
+   <PHASE>`, `docPath: <document path>`, `D: <D>` (the reviewed version), `analysisPath:
+   <r<A> analysis path>`, `mustFix: <open MUST_FIX count>`, `shouldFix: <open SHOULD_FIX
+   count>`, `specDir: <spec dir>`, `memoryPath: <memory file path>`, `codeRoot:
+   <CODE_ROOT>`, and the graph values when `GRAPH` is a path.
 2. Spawn `sdd-adjudicator` with `Read and execute the instructions in <brief path>`.
 3. Spot-check: `grep -n -E '^- \*\*v<D+1>\*\*' <document>` finds the line and it
    contains `Post-cap corrective pass`.
@@ -94,8 +99,11 @@ Reached when the fourth reviewed version (or a later one) still has `MUST_FIX` o
    scaffold), `phase: <PHASE>`, `items` (the items the corrective pass fixed — Step 4a's
    adjudicated items, the Circling check's adjudicated items, or the SHOULD_FIX-only pass's
    SHOULD_FIX items, one per line `<id> — <title>`), `specDir: <spec dir>`, `codeRoot:
-   <CODE_ROOT>`, and the graph values when `GRAPH` is a path. The server writes the
-   narrow-check prompt and appends the code graph block; you do not read the prompt file.
+   <CODE_ROOT>`, `D: <D>` (the corrective version the pass produced), `docPath: <document
+   path>`, `analysisPath: <r<A> analysis path>`, `analysisOutputPath: <the
+   analysisOutputPath this call's adversarial-review returned>`, and the graph values when
+   `GRAPH` is a path. The server writes the narrow-check prompt and appends the code graph
+   block; you do not read the prompt file.
 2. Spawn `sdd-checker` per the standing spawn rule, with exactly `Read and execute the
    instructions in <promptOutputPath>` as the launch message.
 3. Read the checker's report block. If it lacks its block the checker stalled: spawn it

@@ -508,23 +508,25 @@ function renderAdjudicatorTask(v: Record<string, string>): string {
 function renderAdjudicator(v: Record<string, string>): string {
   if (v.taskId !== undefined && v.taskId !== '') return renderAdjudicatorTask(v);
 
+  const D = Number(v.D);
+  const dPlus1 = String(D + 1);
   const lines: string[] = ['# Adjudication brief — ' + v.spec + ' ' + v.phase + ', post-cap corrective pass', ''];
   if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first.', '');
   lines.push(
-    'The review loop reached its cap: v<D> of `' + v.docPath + '` was reviewed in `<r<A> analysis path>` and still carries MUST_FIX <m> / SHOULD_FIX <s>. You are the corrective pass. Fix or rule out each open item, write v<D+1> in place, and stop. Nothing reviews v<D+1> again; a narrow check only verifies that each listed item was addressed. A SHOULD_FIX you rule out is carried into the next phase\'s drafter brief, so its reason must stand on its own.',
+    'The review loop reached its cap: v' + v.D + ' of `' + v.docPath + '` was reviewed in `' + v.analysisPath + '` and still carries MUST_FIX ' + v.mustFix + ' / SHOULD_FIX ' + v.shouldFix + '. You are the corrective pass. Fix or rule out each open item, write v' + dPlus1 + ' in place, and stop. Nothing reviews v' + dPlus1 + ' again; a narrow check only verifies that each listed item was addressed. A SHOULD_FIX you rule out is carried into the next phase\'s drafter brief, so its reason must stand on its own.',
     '',
     '## Open items',
     v.items,
     '',
     '## Inputs',
-    '- Context file: `<spec dir>/codebase-context.md`. Read it first.',
-    '- Document (v<D>); the r<A> analysis; the memory file `<memory file path>`; <requirements and design as applicable>. Code under `<CODE_ROOT>`.',
+    '- Context file: `' + v.specDir + '/codebase-context.md`. Read it first.',
+    '- Document (v' + v.D + '); the r<A> analysis; the memory file `' + v.memoryPath + '`; <requirements and design as applicable>. Code under `' + v.codeRoot + '`.',
     '- Cap: <requirements: 3,500 words | design: 4,000 words | tasks: 150 words per task block excluding its prompt>. Do not grow the document past it.',
     '',
     '## Rules',
     '- For each item: fix it in the document, or rule it out with a stated reason. A rule-out is a ruling; it is final for this phase.',
     '- Verify every citation against the real tree, both ends of every range.',
-    '- Revision History line: `- **v<D+1>** (<today>) — Post-cap corrective pass, adjudicated, not re-reviewed.` followed by one nested bullet per item: `- **<id> — fixed | ruled out (<severity>).** <one line>`. Keep the words `Post-cap corrective pass` exactly; the orchestrator greps for them.',
+    '- Revision History line: `- **v' + dPlus1 + '** (<today>) — Post-cap corrective pass, adjudicated, not re-reviewed.` followed by one nested bullet per item: `- **<id> — fixed | ruled out (<severity>).** <one line>`. Keep the words `Post-cap corrective pass` exactly; the orchestrator greps for them.',
     '- Edit only the document. Do not ask questions.',
     '',
     ...reportBlockLines(['version', 'fixed', 'ruled-out', 'notes', 'flags']),
@@ -535,9 +537,11 @@ function renderAdjudicator(v: Record<string, string>): string {
 // --- checker (narrow check, write over the prompt) ---------------------------
 
 function renderChecker(v: Record<string, string>): string {
-  const lines: string[] = ['# Narrow check — ' + v.spec + '/' + v.phase + ' v<D>', ''];
+  const D = Number(v.D);
+  const dMinus1 = String(D - 1);
+  const lines: string[] = ['# Narrow check — ' + v.spec + '/' + v.phase + ' v' + v.D, ''];
   let para =
-    'This is not a review. v<D-1> of `<document path>` was reviewed in `<r<A> analysis path>`; a corrective pass produced v<D> and addressed the items below. Verify only that each item was addressed in v<D>: fixed, or ruled out with a stated reason under the v<D> Revision History line. Read `' +
+    'This is not a review. v' + dMinus1 + ' of `' + v.docPath + '` was reviewed in `' + v.analysisPath + '`; a corrective pass produced v' + v.D + ' and addressed the items below. Verify only that each item was addressed in v' + v.D + ': fixed, or ruled out with a stated reason under the v' + v.D + ' Revision History line. Read `' +
     v.specDir +
     '/codebase-context.md` first, then the document, then the code the items cite under `' +
     v.codeRoot +
@@ -550,7 +554,7 @@ function renderChecker(v: Record<string, string>): string {
     v.items,
     '',
     '## Output',
-    'Write to `<analysis output path>`:',
+    'Write to `' + v.analysisOutputPath + '`:',
     '- One line per item: `<id>: addressed | not addressed — <one line>`.',
     '- The line `VERIFIED: <k>/<n>` where k is the number addressed.',
     '- Any new observation under a `## Deferred findings` heading, one line each. Do not write a verdict block. Do not update the memory file. Do not edit the document.',
@@ -1222,8 +1226,17 @@ export const BRIEF_TEMPLATES: Record<string, BriefTemplate> = {
     required: ['phase', 'D', 'docPath', 'specDir', 'findings', 'memoryPath', 'closedByRuling', 'variant'],
     render: renderReviser,
   },
-  adjudicator: { mode: 'write', required: ['items', 'phase'], render: renderAdjudicator },
-  checker: { mode: 'write', required: ['phase', 'items', 'specDir', 'codeRoot'], render: renderChecker },
+  adjudicator: {
+    mode: 'write',
+    required: ['items', 'phase'],
+    optional: ['D', 'analysisPath', 'mustFix', 'shouldFix', 'specDir', 'memoryPath', 'codeRoot'],
+    render: renderAdjudicator,
+  },
+  checker: {
+    mode: 'write',
+    required: ['phase', 'D', 'docPath', 'analysisPath', 'items', 'specDir', 'codeRoot', 'analysisOutputPath'],
+    render: renderChecker,
+  },
   'impl-standing': {
     mode: 'write',
     required: ['codeRoot', 'mainCheckout', 'specStoreRoot', 'specDir'],
