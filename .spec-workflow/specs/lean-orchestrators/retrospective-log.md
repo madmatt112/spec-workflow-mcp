@@ -73,3 +73,8 @@ Cost: 1 author + 1 implementer + 1 verifier spawn
 New pure module sources.ts; verifier passed round 1 with 1 immaterial info (substring form). rounds 0, outcome pass.
 Evidence: task 2; src/watch/sources.ts
 Cost: 1 author + 1 implementer + 1 verifier spawn
+
+## 2026-10-04T03:07:10Z · implementation · task 3 · gotcha
+New module transcripts.ts (path-traversal defense); verifier passed round 1 with 0 findings. rounds 0, outcome pass. Third consecutive clean new-module verifier; batching enabled for later non-sensitive tasks.
+Evidence: task 3; src/watch/transcripts.ts
+Cost: 1 author + 1 implementer + 1 verifier spawn

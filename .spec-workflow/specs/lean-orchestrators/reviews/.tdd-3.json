@@ -1,0 +1,1 @@
+{"testFiles":["src/watch/__tests__/transcripts.test.ts"],"seams":{"src/watch/__tests__/transcripts.test.ts":"findTranscript(session, agentId, dir)"},"redCommit":"ec4b116","baseSha":"b6845946b2746baecfa75d84dd478423fe272ec9","base":"structural-red","head":"pass","amended":false,"judged":null}
