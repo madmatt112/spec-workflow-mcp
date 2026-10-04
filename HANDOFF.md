@@ -728,7 +728,7 @@ Gotchas:
 | --- | --- |
 | State | implemented — 16/16 tasks on 2026-10-04 |
 | Branch | feat/lean-orchestrators (last code commit 1aacfb9) |
-| PR | (opened at completion gate — see below) |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/81 |
 | Deferrals | 1 added this spec (d-8a58ed18, tag verification); 16 open total |
 | Deferred verification | d-8a58ed18 — live scenarios (2) and (3) stay pending in verification-evidence.md; an operator runs `e2e/stage.sh` then the fixture run + `usage sources:true` on the rebuilt/restarted merged checkout before the retro opens |
 | Most worth next | d-9d600d11 (sdd-launch.sh readUsage token inflation — same W/usage area this spec built); d-a38fea66 (provider-per-role restarted-session verification); d-4c9198e3 (wire review-gate.ts to the prose-paths set) |
