@@ -363,16 +363,28 @@ describe('harnessHandler', () => {
     await expect(fs.access(outPath)).rejects.toThrow();
   });
 
+  // The drafter now takes the document-phase value set (design C6); these two
+  // existing tests pass that set but keep their behaviour assertions.
+  const drafterValues = (overrides: Record<string, unknown>) => ({
+    phase: 'requirements',
+    docPath: join(specDir, 'requirements.md'),
+    specDir,
+    specStoreRoot: join(tempDir, '.spec-workflow'),
+    codeRoot: tempDir,
+    carried: 'none',
+    ...overrides,
+  });
+
   it('brief drops the read-and-obey line when agent-rules.md is absent', async () => {
     const outPath = join(tempDir, 'drafter-brief.md');
     const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'drafter', values: { path: outPath, title: 'Draft', job: 'write it' } },
+      { action: 'brief', specName: SPEC, template: 'drafter', values: drafterValues({ path: outPath }) },
       context,
     );
     expect(res.success).toBe(true);
     const written = await fs.readFile(outPath, 'utf-8');
     expect(written).not.toContain('Read and obey');
-    expect(written).toContain('write it');
+    expect(written).toContain('Write v1 of');
   });
 
   it('brief resolves a relative output path under the spec dir, not the spec-store root (retro P14)', async () => {
@@ -380,7 +392,7 @@ describe('harnessHandler', () => {
     const relPath = join('reviews', 'drafter-brief-requirements.md');
 
     const res = await harnessHandler(
-      { action: 'brief', specName: SPEC, template: 'drafter', values: { path: relPath, title: 'Draft', job: 'write it' } },
+      { action: 'brief', specName: SPEC, template: 'drafter', values: drafterValues({ path: relPath }) },
       context,
     );
     expect(res.success).toBe(true);
@@ -388,7 +400,7 @@ describe('harnessHandler', () => {
     expect(res.data.path).toBe(join(specDir, relPath));
     expect(res.data.path.startsWith(tempDir)).toBe(true);
     const written = await fs.readFile(join(specDir, relPath), 'utf-8');
-    expect(written).toContain('write it');
+    expect(written).toContain('Write v1 of');
   });
 
   it('brief fails naming an unknown template and writes no file', async () => {
@@ -528,11 +540,19 @@ describe('harnessHandler', () => {
 
   const GRAPH = '/code/graphify-out/graph.json';
 
-  // The non-graph required values for each of the five templates.
+  // The non-graph required values for each of the five templates (the three
+  // document-phase kinds now take the design C6 value sets; literal paths, since
+  // this runs before beforeEach assigns specDir).
   const GRAPH_BASE_VALUES: Record<string, Record<string, unknown>> = {
-    drafter: { title: 'T', job: 'do it' },
-    reviser: { title: 'T', job: 'do it', findings: 'the findings' },
-    adjudicator: { title: 'T', items: 'the items' },
+    drafter: {
+      phase: 'requirements', docPath: '/x/requirements.md', specDir: '/x',
+      specStoreRoot: '/x/.spec-workflow', codeRoot: '/x', carried: 'none',
+    },
+    reviser: {
+      phase: 'design', D: '1', docPath: '/x/design.md', specDir: '/x',
+      findings: 'the findings', memoryPath: '/x/mem.md', closedByRuling: 'none', variant: 'round',
+    },
+    adjudicator: { items: 'the items', phase: 'design', docPath: '/x/design.md' },
     verifier: { title: 'T', job: 'do it' },
     implementer: { title: 'T' },
   };
@@ -564,7 +584,7 @@ describe('harnessHandler', () => {
     const outPath = join(tempDir, 'drafter-graph0.md');
     const res = await harnessHandler(
       { action: 'brief', specName: SPEC, template: 'drafter',
-        values: { title: 'T', job: 'do it', path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '0' } },
+        values: drafterValues({ path: outPath, graph: GRAPH, graphBuiltAt: 'abc1234', graphBehind: '0' }) },
       context,
     );
     expect(res.success).toBe(true);
@@ -578,7 +598,7 @@ describe('harnessHandler', () => {
     await writeAgentRules();
     const noGraphPath = join(tempDir, 'drafter-nograph.md');
     const nonePath = join(tempDir, 'drafter-none.md');
-    const base = { title: 'T', job: 'do it' };
+    const base = drafterValues({});
 
     const r1 = await harnessHandler(
       { action: 'brief', specName: SPEC, template: 'drafter', values: { ...base, path: noGraphPath } },

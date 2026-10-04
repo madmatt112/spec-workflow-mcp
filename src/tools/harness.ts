@@ -554,7 +554,7 @@ function classifyTarget(block: string): TargetClass {
 // --- brief -------------------------------------------------------------------
 
 /** Placeholder keys the server fills itself; never required from `values`. */
-const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock']);
+const SERVER_BRIEF_KEYS = new Set(['agentRules', 'taskBlock', 'spec']);
 
 /**
  * The `## Code graph` brief section (design C3, Requirement 3). Returns the exact
@@ -638,7 +638,9 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
 
   const { workflowRoot } = selectRoots(args, context);
   const specStoreRoot = PathUtils.getWorkflowRoot(workflowRoot);
-  const serverValues: Record<string, string> = {};
+  // The spec name is a server-filled value: the document-phase kinds render it
+  // into their `# <kind> brief — <SPEC> …` headers (design C6), never the caller.
+  const serverValues: Record<string, string> = { spec: specName };
 
   // agent-rules.md at the spec-store root ⇒ fill the read-and-obey line; otherwise
   // leave `agentRules` unset so render drops that line entirely (2.4, briefs.md:4-11).
@@ -746,12 +748,36 @@ async function briefAction(args: any, context: ToolContext): Promise<ToolRespons
   const finalPath = isAbsolute(outPath)
     ? PathUtils.safeJoin(dirname(outPath), basename(outPath))
     : PathUtils.safeJoin(PathUtils.getSpecPath(workflowRoot, specName), outPath);
-  try {
-    await mkdir(dirname(finalPath), { recursive: true });
-    await writeFile(finalPath, output, 'utf-8');
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+
+  // Append mode (the `reviewer` round section): the target scaffold must already
+  // exist; a missing one fails naming it and writes nothing (design Error
+  // Handling 5). Write mode creates the file fresh.
+  if (tmpl.mode === 'append') {
+    let existing: string;
+    try {
+      existing = await readFile(finalPath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return { success: false, message: `brief: ${finalPath} missing; nothing appended` };
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to read ${finalPath}: ${message}` };
+    }
+    const sep = existing.endsWith('\n') ? '\n' : '\n\n';
+    try {
+      await writeFile(finalPath, existing + sep + output, 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+    }
+  } else {
+    try {
+      await mkdir(dirname(finalPath), { recursive: true });
+      await writeFile(finalPath, output, 'utf-8');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Failed to write ${finalPath}: ${message}` };
+    }
   }
 
   const absolute = resolve(finalPath);
