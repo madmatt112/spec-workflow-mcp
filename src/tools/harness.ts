@@ -12,7 +12,9 @@ import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl, parseHandoffPhaseRows, drainInFlightReports, LedgerEvent, ActivityEvent, InFlightReport, PhaseRow } from '../watch/ledger.js';
 import { handoffPath } from '../watch/index.js';
-import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts } from '../watch/usage.js';
+import { buildUsageReport, usageDelta, formatUsageTable, applyGraphCounts, listSpawns } from '../watch/usage.js';
+import { resolveSession, findTranscript } from '../watch/transcripts.js';
+import { breakdownTranscript, formatSources, SpawnSources, SourcesReport, SourcesReason } from '../watch/sources.js';
 
 /**
  * The `harness` tool (design Components 1-6). One tool, five actions:
@@ -40,7 +42,7 @@ next step. For \`implementation\` it returns the task counts and the next step; 
 gate-B class (a) veto items, \`put\`/\`get\`/\`delete\` manage the \`gate-<slot>.json\` file.
 Call \`usage\` to fold one spec's \`harness-events.jsonl\` into a report of tokens and spawns
 by phase and agent; pass \`compareSpecName\` for a second spec side by side with a per-phase
-delta. The tool reads only the spec store; it never spawns a process.`,
+delta. Pass \`sources: true\` to also read each document and implementation orchestrator spawn's subagent transcript under \`$CLAUDE_CONFIG_DIR/projects\`, else \`~/.claude/projects\`, and print its W by context source. Without it the action reads only the spec store. The tool reads only the spec store; it never spawns a process.`,
   inputSchema: {
     type: 'object',
     properties: {
@@ -56,6 +58,9 @@ delta. The tool reads only the spec store; it never spawns a process.`,
       compareSpecName: {
         type: 'string',
         description: 'Second spec for a side-by-side usage table (usage action)',
+      },
+      sources: {
+        type: 'boolean',
       },
       phase: {
         type: 'string',
@@ -1206,14 +1211,68 @@ async function readSpecActivity(
   return { activity: parseJsonl<ActivityEvent>(activityText) };
 }
 
+/** The two orchestrator agents whose transcripts the `sources` option breaks down (design C4). */
+const SOURCE_ORCHESTRATORS = new Set(['sdd-document-orchestrator', 'sdd-implementation-orchestrator']);
+
+/**
+ * Break down every orchestrator spawn's subagent transcript into per-source W (design C4).
+ * Keeps the document and implementation orchestrator spawns of `listSpawns`, and for each
+ * resolves the session, locates and reads the transcript, and runs `breakdownTranscript`.
+ * Every failure of design Error Handling 1 (`no-agent-id`, `no-session`, `invalid-id`,
+ * `missing`, `unreadable`, `no-usage`) becomes an `ok: false` spawn counted in `unknown`;
+ * a missing transcript never fails the action. Transcripts are read only through the C3
+ * locator, which refuses a path outside the projects directory; no process is spawned.
+ */
+async function buildSourcesReport(
+  spec: string, events: LedgerEvent[], activity: ActivityEvent[],
+): Promise<SourcesReport> {
+  const spawns: SpawnSources[] = [];
+  let unknown = 0;
+  for (const s of listSpawns(events)) {
+    if (!SOURCE_ORCHESTRATORS.has(s.agent)) continue;
+    const ledgerW = s.wUnknown ? null : s.w;
+    const fail = (agentId: string | undefined, reason: SourcesReason): void => {
+      spawns.push({ phase: s.phase, agent: s.agent, agentId, ledgerW, ok: false, reason });
+      unknown += 1;
+    };
+
+    if (s.agentId === undefined) { fail(undefined, 'no-agent-id'); continue; }
+    const agentId = s.agentId;
+    const session = resolveSession(activity, agentId);
+    if (session === undefined) { fail(agentId, 'no-session'); continue; }
+
+    const lookup = await findTranscript(session, agentId);
+    if (!lookup.ok) { fail(agentId, lookup.reason); continue; }
+
+    let text: string;
+    try {
+      text = await readFile(lookup.path, 'utf-8');
+    } catch {
+      fail(agentId, 'unreadable');
+      continue;
+    }
+
+    const breakdown = breakdownTranscript(text);
+    if (breakdown === null) { fail(agentId, 'no-usage'); continue; }
+
+    const diff = ledgerW === null || ledgerW === 0 ? null : (breakdown.w - ledgerW) / ledgerW;
+    spawns.push({ phase: s.phase, agent: s.agent, agentId, ledgerW, ok: true, breakdown, diff });
+  }
+  return { spec, spawns, unknown };
+}
+
 /**
  * `usage` action (design Component 6): fold one spec's ledger into the
  * tokens-and-spawns-by-phase report, or two specs into a side-by-side table with
  * a per-phase delta when `compareSpecName` is given (Req 5.7). Read-only; spawns
- * no process. `compare` and `delta` sit on `data` only for two specs.
+ * no process. `compare` and `delta` sit on `data` only for two specs. With
+ * `sources: true` (design C4) each orchestrator spawn's transcript is broken down
+ * per context source, the per-unit W is shown, and `data` adds `sources` and
+ * `compareSources`; without it the output is byte-identical to the spec-store-only report.
  */
 async function usageAction(args: any, context: ToolContext): Promise<ToolResponse> {
   const { specName, compareSpecName } = args;
+  const sourcesOn = args.sources === true;
   const { workflowRoot } = selectRoots(args, context);
 
   const primary = await readSpecLedger(workflowRoot, specName);
@@ -1224,6 +1283,8 @@ async function usageAction(args: any, context: ToolContext): Promise<ToolRespons
     buildUsageReport(primary.events, specName), primary.events, primaryActivity.activity,
   );
 
+  const opts = sourcesOn ? { perUnit: true } : undefined;
+
   if (typeof compareSpecName === 'string' && compareSpecName.length > 0) {
     const second = await readSpecLedger(workflowRoot, compareSpecName);
     if ('error' in second) return { success: false, message: second.error };
@@ -1233,12 +1294,34 @@ async function usageAction(args: any, context: ToolContext): Promise<ToolRespons
       buildUsageReport(second.events, compareSpecName), second.events, secondActivity.activity,
     );
     const delta = usageDelta(report, compare);
+
+    if (!sourcesOn) {
+      return {
+        success: true,
+        message: formatUsageTable(report, compare),
+        data: { report, compare, delta },
+      };
+    }
+
+    const sources = await buildSourcesReport(specName, primary.events, primaryActivity.activity);
+    const compareSources = await buildSourcesReport(
+      compareSpecName, second.events, secondActivity.activity,
+    );
     return {
       success: true,
-      message: formatUsageTable(report, compare),
-      data: { report, compare, delta },
+      message: [formatUsageTable(report, compare, opts), formatSources(sources), formatSources(compareSources)].join('\n\n'),
+      data: { report, compare, delta, sources, compareSources },
     };
   }
 
-  return { success: true, message: formatUsageTable(report), data: { report } };
+  if (!sourcesOn) {
+    return { success: true, message: formatUsageTable(report), data: { report } };
+  }
+
+  const sources = await buildSourcesReport(specName, primary.events, primaryActivity.activity);
+  return {
+    success: true,
+    message: [formatUsageTable(report, undefined, opts), formatSources(sources)].join('\n\n'),
+    data: { report, sources, compareSources: null },
+  };
 }

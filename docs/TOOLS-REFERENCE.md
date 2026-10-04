@@ -589,16 +589,26 @@ pattern `spec-lint` uses) and spawns no child process.
   computes the gate-B class (a) veto items; `put`, `get` and `delete` manage the
   `gate-<slot>.json` payload file for slot `a` or `b`.
 - `usage` — fold one spec's `harness-events.jsonl` into a report of tokens and spawns
-  by phase and agent, with each phase's orchestrator share and any `unknown` marks. The
-  report also has a `graph` column: for each agent, the count of `graphify explain`,
-  `query` and `path` calls, read from `harness-activity.jsonl`. The `graph` column counts
-  Agent-tool workers only. It is a floor, not an exact count: it records only
-  activity-stream graph calls, so a `graphify` read that runs in a separate reader process
-  is not observed and the column is a lower bound. An
+  by phase and agent, with each phase's orchestrator share and any `unknown` marks. Each
+  cell also has a weighted `W` column (`input + 1.25·cacheWrite5m + 2·cacheWrite1h +
+  0.1·cacheRead + 5·output`); a spawn whose tokens or cache fields are not digit strings
+  adds ` (+N unknown)` to the cell instead. Like every ledger count, `W` is a floor, not an
+  exact total. The report also has a `graph` column: for each agent, the count of
+  `graphify explain`, `query` and `path` calls, read from `harness-activity.jsonl`. The
+  `graph` column counts Agent-tool workers only. It is a floor, not an exact count: it
+  records only activity-stream graph calls, so a `graphify` read that runs in a separate
+  reader process is not observed and the column is a lower bound. An
   agent row names its provider when it is not `anthropic` (`sdd-reviewer@deepseek`); the
   phase and spec total lines print the `anthropic` and `deepseek` figures side by side; and
   `data.report.providers` carries those per-provider cells. Pass `compareSpecName` for a
-  second spec side by side with a per-phase delta of tokens and spawns.
+  second spec side by side with a per-phase delta of tokens and spawns. Pass `sources: true`
+  to also read each document and implementation orchestrator spawn's subagent transcript
+  under `$CLAUDE_CONFIG_DIR/projects` (else `~/.claude/projects`) and print its `W` broken
+  down by context source, plus each phase's per-unit orchestrator W (`orch W/round` for a
+  document phase, `orch W/task` for implementation). A spawn whose transcript cannot be
+  found or read prints `sources unknown (<reason>)` with its ledger W and is counted in the
+  block header; the action still succeeds. Without `sources` the action reads only the spec
+  store. The tool never spawns a process.
 
 ---
 

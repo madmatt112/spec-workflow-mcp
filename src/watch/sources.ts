@@ -216,3 +216,79 @@ export function breakdownTranscript(text: string): TranscriptBreakdown | null {
 
   return { calls: active.length, peak, base, w, rows };
 }
+
+/**
+ * Why a spawn's transcript could not be broken down (design Error Handling 1): no agentId on
+ * the ledger row, no session for it in the activity rows, an id failing the path check, no
+ * transcript or projects directory, an unreadable transcript, or a transcript with no
+ * `message.usage` line.
+ */
+export type SourcesReason =
+  | 'no-agent-id' | 'no-session' | 'invalid-id' | 'missing' | 'unreadable' | 'no-usage';
+
+/** One orchestrator spawn's per-source breakdown, or why it is unknown (design Data Models). */
+export type SpawnSources =
+  | {
+      phase: string;
+      agent: string;
+      agentId: string;
+      ledgerW: number | null;
+      ok: true;
+      breakdown: TranscriptBreakdown;
+      diff: number | null;
+    }
+  | {
+      phase: string;
+      agent: string;
+      agentId: string | undefined;
+      ledgerW: number | null;
+      ok: false;
+      reason: SourcesReason;
+    };
+
+/** The `sources` report for one spec (design Data Models). */
+export interface SourcesReport {
+  spec: string;
+  spawns: SpawnSources[];
+  unknown: number;
+}
+
+/** Thousands-grouped integer, as the usage table formats numbers. W totals are floors. */
+function grp(x: number): string {
+  return Math.round(x).toLocaleString('en-US');
+}
+
+/** The ledger W cell: its floor, or `unknown` when the spawn.end carried no digit W. */
+function ledgerWStr(w: number | null): string {
+  return w === null ? 'unknown' : grp(w);
+}
+
+/**
+ * The `sources` block of the usage message (design C4). A header with the spawn count, the
+ * unknown count and the floors caveat, then per spawn either its
+ * `phase | agent | agentId | calls | peak | W | ledger W | diff` line with one indented row
+ * per source, or a `phase | agent | agentId | sources unknown (<reason>) | ledger W` line.
+ * Shares are estimates and W totals are floors; it reads and spawns nothing.
+ */
+export function formatSources(report: SourcesReport): string {
+  const lines: string[] = [
+    `sources ${report.spec}  spawns ${report.spawns.length}  unknown ${report.unknown}`
+      + `  (shares are estimates; W totals are floors)`,
+  ];
+  for (const s of report.spawns) {
+    const head = `${s.phase} | ${s.agent} | ${s.agentId ?? '-'}`;
+    if (s.ok) {
+      const diff = s.diff === null ? '-' : `${(s.diff * 100).toFixed(2)}%`;
+      lines.push(
+        `${head} | calls ${grp(s.breakdown.calls)} | peak ${grp(s.breakdown.peak)} `
+          + `| W ${grp(s.breakdown.w)} | ledger W ${ledgerWStr(s.ledgerW)} | diff ${diff}`,
+      );
+      for (const row of s.breakdown.rows) {
+        lines.push(`  ${row.source} | ${grp(row.w)} | ${(row.share * 100).toFixed(1)}%`);
+      }
+    } else {
+      lines.push(`${head} | sources unknown (${s.reason}) | ledger W ${ledgerWStr(s.ledgerW)}`);
+    }
+  }
+  return lines.join('\n');
+}
