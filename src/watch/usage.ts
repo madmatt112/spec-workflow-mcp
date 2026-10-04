@@ -14,6 +14,8 @@ export interface UsageCell {
   spawns: number;
   tokens: number;
   unknown: number;
+  w: number;
+  wUnknown: number;
   cacheWrite5m: number;
   cacheWrite1h: number;
   gapRewrites: number;
@@ -29,10 +31,27 @@ export interface UsagePhase {
   total: UsageCell;
   kinds: UsageKinds;
   orchestratorShare: number | null;
+  orchW: number;
+  units: number;
+  orchWPerUnit: number | null;
   providers: UsageByProvider;
 }
 export interface UsageReport { spec: string; runs: number; phases: UsagePhase[]; total: UsageCell; kinds: UsageKinds; providers: UsageByProvider }
-export interface UsageDelta { phase: string; spawns: number; tokens: number }
+export interface UsageDelta { phase: string; spawns: number; tokens: number; w: number; orchWPerUnit: number }
+
+/** One reduced spawn for callers that need per-spawn rows (design C1, C2). */
+export interface SpawnSummary {
+  phase: string;
+  agent: string;
+  provider: string;
+  agentId?: string;
+  tokens: number | undefined;
+  w: number;
+  wUnknown: boolean;
+}
+
+/** The formatting options for `formatUsageTable` (design C1). */
+export interface UsageFormatOpts { perUnit?: boolean }
 
 /** Milliseconds of an ISO timestamp; 0 when absent or unparseable (as `buildModel`). */
 function ms(ts: string | undefined): number {
@@ -44,6 +63,18 @@ const DIGITS = /^\d+$/;
 
 function digitOr0(v: string | undefined): number {
   return v !== undefined && DIGITS.test(v) ? Number(v) : 0;
+}
+
+/**
+ * The weighted W of a `spawn.end` row (design C1): `input + 1.25·cacheWrite5m +
+ * 2·cacheWrite1h + 0.1·cacheRead + 5·output`. Undefined when any of the five is not a
+ * digit string.
+ */
+export function spawnW(row: LedgerEvent): number | undefined {
+  const fields = [row.input, row.cacheWrite5m, row.cacheWrite1h, row.cacheRead, row.output];
+  if (fields.some(f => f === undefined || !DIGITS.test(f))) return undefined;
+  return Number(row.input) + 1.25 * Number(row.cacheWrite5m) + 2 * Number(row.cacheWrite1h)
+    + 0.1 * Number(row.cacheRead) + 5 * Number(row.output);
 }
 
 /** An open spawn: the `spawn.start` (or a start-less `spawn.usage`) and its closing rows. */
@@ -67,14 +98,17 @@ interface ReducedSpawn {
   phase: string;
   agent: string;
   provider: string;
+  agentId?: string;
   tokens: number | undefined;
   unknown: boolean;
+  w: number;
+  wUnknown: boolean;
   kinds: UsageKinds;
   cache: SpawnCache;
 }
 
 function emptyCell(): UsageCell {
-  return { spawns: 0, tokens: 0, unknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0 };
+  return { spawns: 0, tokens: 0, unknown: 0, w: 0, wUnknown: 0, cacheWrite5m: 0, cacheWrite1h: 0, gapRewrites: 0, cacheUnknownWrite: 0, cacheUnknownGap: 0, graph: 0 };
 }
 
 function emptyProviders(): UsageByProvider {
@@ -85,6 +119,8 @@ function addCell(dst: UsageCell, src: UsageCell): void {
   dst.spawns += src.spawns;
   dst.tokens += src.tokens;
   dst.unknown += src.unknown;
+  dst.w += src.w;
+  dst.wUnknown += src.wUnknown;
   dst.cacheWrite5m += src.cacheWrite5m;
   dst.cacheWrite1h += src.cacheWrite1h;
   dst.gapRewrites += src.gapRewrites;
@@ -129,43 +165,15 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
   const runIds = new Set<string>();
   for (const e of sorted) if (e.run !== undefined) runIds.add(e.run);
 
-  // (b) Walk the rows, keeping one open spawn per agent. A spawn.start opens (and replaces)
-  // the agent's current spawn; a spawn.end or spawn.usage attaches to it. With none open a
-  // spawn.usage becomes its own spawn (not entered as current) and a spawn.end is dropped.
-  // A later spawn.end with an agentId already seen belongs to that same spawn (the hook
-  // writes one per SubagentStop of a yielding orchestrator), whatever started since.
-  const spawns: Spawn[] = [];
-  const current = new Map<string, Spawn>();
-  const byAgentId = new Map<string, Spawn>();
-  for (const e of sorted) {
-    const agent = e.agent ?? 'unknown';
-    if (e.type === 'spawn.start') {
-      const s: Spawn = { agent, startedAt: e.ts, phaseKey: e.phase, provider: e.provider, rows: [] };
-      spawns.push(s);
-      current.set(agent, s);
-    } else if (e.type === 'spawn.end' || e.type === 'spawn.usage') {
-      const open = (e.type === 'spawn.end' && e.agentId !== undefined && byAgentId.get(e.agentId)) || current.get(agent);
-      if (open && e.type === 'spawn.end' && e.agentId !== undefined) byAgentId.set(e.agentId, open);
-      if (open) {
-        open.rows.push(e);
-      } else if (e.type === 'spawn.usage') {
-        spawns.push({ agent, startedAt: e.ts, phaseKey: e.phase, rows: [e] });
-      }
-    }
-  }
-
-  const phaseStarts = sorted.filter(e => e.type === 'phase.start');
-  const phaseEnds = sorted.filter(e => e.type === 'phase.end');
-
-  // (c)-(e) Reduce each spawn to phase, agent, tokens, kinds and its unknown mark.
-  const reduced: ReducedSpawn[] = spawns.map(s => reduceSpawn(s, phaseStarts, phaseEnds));
+  // (b)-(e) Walk and reduce the spawns.
+  const reduced = reduceSpawns(sorted);
 
   // (f) Aggregate into per-phase, per-agent cells.
   const phaseMap = new Map<string, UsagePhase>();
   for (const r of reduced) {
     let ph = phaseMap.get(r.phase);
     if (!ph) {
-      ph = { phase: r.phase, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, providers: emptyProviders() };
+      ph = { phase: r.phase, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, orchW: 0, units: 0, orchWPerUnit: null, providers: emptyProviders() };
       phaseMap.set(r.phase, ph);
     }
     const anthropic = r.provider === 'anthropic';
@@ -189,6 +197,15 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
       ph.total.unknown += 1;
       pcell.unknown += 1;
     }
+    if (r.wUnknown) {
+      cell.wUnknown += 1;
+      ph.total.wUnknown += 1;
+      pcell.wUnknown += 1;
+    } else {
+      cell.w += r.w;
+      ph.total.w += r.w;
+      pcell.w += r.w;
+    }
     if (anthropic) {
       for (const dst of [cell, ph.total, ph.providers.anthropic]) {
         dst.cacheWrite5m += r.cache.w5m;
@@ -206,10 +223,17 @@ export function buildUsageReport(events: LedgerEvent[], spec: string): UsageRepo
 
   for (const ph of phaseMap.values()) {
     let orchTokens = 0;
+    let orchW = 0;
     for (const [agent, cell] of Object.entries(ph.agents)) {
-      if (agent.endsWith('-orchestrator')) orchTokens += cell.tokens;
+      if (agent.endsWith('-orchestrator')) {
+        orchTokens += cell.tokens;
+        orchW += cell.w;
+      }
     }
     ph.orchestratorShare = ph.total.tokens > 0 ? orchTokens / ph.total.tokens : null;
+    ph.orchW = orchW;
+    ph.units = unitCount(sorted, ph.phase);
+    ph.orchWPerUnit = ph.units > 0 ? orchW / ph.units : null;
   }
 
   const phases = [...phaseMap.values()].sort((a, b) => cmpPhase(a.phase, b.phase));
@@ -252,16 +276,21 @@ function cacheOf(r: LedgerEvent): SpawnCache {
 function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEvent[]): ReducedSpawn {
   let phaseKey = s.phaseKey;
   let provider = s.provider;
+  let agentId: string | undefined;
   let tokens: number | undefined;
   let kinds = emptyKinds();
   let cache: SpawnCache = unknownWriteCache();
+  // W from the row that sets tokens; undefined W (or tokens only from spawn.usage) is unknown.
+  let w = 0;
+  let wUnknown = true;
 
-  // (c) tokens = the later digit-string spawn.end value; kinds and cache from that same row. A
-  // spawn.usage phase overwrites the phase key. The last spawn.end carrying provider wins.
-  // Rows are already in ts order.
+  // (c) tokens = the later digit-string spawn.end value; kinds, cache and W from that same row. A
+  // spawn.usage phase overwrites the phase key. The last spawn.end carrying provider wins, and
+  // the latest spawn.end agentId is kept. Rows are already in ts order.
   for (const r of s.rows) {
     if (r.type === 'spawn.usage' && r.phase !== undefined) phaseKey = r.phase;
     if (r.type === 'spawn.end' && r.provider !== undefined) provider = r.provider;
+    if (r.type === 'spawn.end' && r.agentId !== undefined) agentId = r.agentId;
     if (r.type === 'spawn.end' && r.tokens !== undefined && DIGITS.test(r.tokens)) {
       tokens = Number(r.tokens);
       kinds = {
@@ -271,6 +300,14 @@ function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEven
         cacheRead: digitOr0(r.cacheRead),
       };
       cache = cacheOf(r);
+      const computed = spawnW(r);
+      if (computed !== undefined) {
+        w = computed;
+        wUnknown = false;
+      } else {
+        w = 0;
+        wUnknown = true;
+      }
     }
   }
   // Else the later digit-string spawn.usage value.
@@ -295,7 +332,71 @@ function reduceSpawn(s: Spawn, phaseStarts: LedgerEvent[], phaseEnds: LedgerEven
     phase = windowPhase(ms(s.startedAt), phaseStarts, phaseEnds) ?? 'unknown';
   }
 
-  return { phase, agent: s.agent, provider: provider ?? 'anthropic', tokens, unknown, kinds, cache };
+  return { phase, agent: s.agent, provider: provider ?? 'anthropic', agentId, tokens, unknown, w, wUnknown, kinds, cache };
+}
+
+/**
+ * Walk the sorted rows into spawns and reduce each (design C1). A spawn.start opens (and
+ * replaces) the agent's current spawn; a spawn.end or spawn.usage attaches to it. With none
+ * open a spawn.usage becomes its own spawn and a spawn.end is dropped. A later spawn.end with
+ * an agentId already seen belongs to that same spawn (the hook writes one per SubagentStop of
+ * a yielding orchestrator), whatever started since.
+ */
+function reduceSpawns(sorted: LedgerEvent[]): ReducedSpawn[] {
+  const spawns: Spawn[] = [];
+  const current = new Map<string, Spawn>();
+  const byAgentId = new Map<string, Spawn>();
+  for (const e of sorted) {
+    const agent = e.agent ?? 'unknown';
+    if (e.type === 'spawn.start') {
+      const s: Spawn = { agent, startedAt: e.ts, phaseKey: e.phase, provider: e.provider, rows: [] };
+      spawns.push(s);
+      current.set(agent, s);
+    } else if (e.type === 'spawn.end' || e.type === 'spawn.usage') {
+      const open = (e.type === 'spawn.end' && e.agentId !== undefined && byAgentId.get(e.agentId)) || current.get(agent);
+      if (open && e.type === 'spawn.end' && e.agentId !== undefined) byAgentId.set(e.agentId, open);
+      if (open) {
+        open.rows.push(e);
+      } else if (e.type === 'spawn.usage') {
+        spawns.push({ agent, startedAt: e.ts, phaseKey: e.phase, rows: [e] });
+      }
+    }
+  }
+  const phaseStarts = sorted.filter(e => e.type === 'phase.start');
+  const phaseEnds = sorted.filter(e => e.type === 'phase.end');
+  return spawns.map(s => reduceSpawn(s, phaseStarts, phaseEnds));
+}
+
+/** Each reduced spawn with its phase, agent, latest `spawn.end` agentId and W (design C1). */
+export function listSpawns(events: LedgerEvent[]): SpawnSummary[] {
+  const sorted = [...events].sort((a, b) => ms(a.ts) - ms(b.ts));
+  return reduceSpawns(sorted).map(r => ({
+    phase: r.phase,
+    agent: r.agent,
+    provider: r.provider,
+    agentId: r.agentId,
+    tokens: r.tokens,
+    w: r.w,
+    wUnknown: r.wUnknown,
+  }));
+}
+
+/**
+ * The unit count of a phase (design C1): `round` rows whose `phase` key matches, for a
+ * document phase; for `implementation`, `task.done` rows inside an implementation window.
+ */
+export function unitCount(events: LedgerEvent[], phase: string): number {
+  if (phase === 'implementation') {
+    const sorted = [...events].sort((a, b) => ms(a.ts) - ms(b.ts));
+    const phaseStarts = sorted.filter(e => e.type === 'phase.start');
+    const phaseEnds = sorted.filter(e => e.type === 'phase.end');
+    let count = 0;
+    for (const e of sorted) {
+      if (e.type === 'task.done' && windowPhase(ms(e.ts), phaseStarts, phaseEnds) === 'implementation') count += 1;
+    }
+    return count;
+  }
+  return events.filter(e => e.type === 'round' && e.phase === phase).length;
 }
 
 /** Per phase of the union (in report order), `b` minus `a`. */
@@ -304,12 +405,22 @@ export function usageDelta(a: UsageReport, b: UsageReport): UsageDelta[] {
   for (const p of a.phases) names.push(p.phase);
   for (const p of b.phases) if (!names.includes(p.phase)) names.push(p.phase);
   names.sort(cmpPhase);
-  const aMap = new Map(a.phases.map(p => [p.phase, p.total]));
-  const bMap = new Map(b.phases.map(p => [p.phase, p.total]));
+  const aMap = new Map(a.phases.map(p => [p.phase, p]));
+  const bMap = new Map(b.phases.map(p => [p.phase, p]));
   return names.map(phase => {
-    const at = aMap.get(phase) ?? emptyCell();
-    const bt = bMap.get(phase) ?? emptyCell();
-    return { phase, spawns: bt.spawns - at.spawns, tokens: bt.tokens - at.tokens };
+    const ap = aMap.get(phase);
+    const bp = bMap.get(phase);
+    const at = ap?.total ?? emptyCell();
+    const bt = bp?.total ?? emptyCell();
+    const aPer = ap?.orchWPerUnit ?? 0;
+    const bPer = bp?.orchWPerUnit ?? 0;
+    return {
+      phase,
+      spawns: bt.spawns - at.spawns,
+      tokens: bt.tokens - at.tokens,
+      w: bt.w - at.w,
+      orchWPerUnit: bPer - aPer,
+    };
   });
 }
 
@@ -339,7 +450,7 @@ export function applyGraphCounts(report: UsageReport, events: LedgerEvent[], act
     const phaseName = windowPhase(ms(row.ts), phaseStarts, phaseEnds) ?? 'unknown';
     let ph = report.phases.find(p => p.phase === phaseName);
     if (!ph) {
-      ph = { phase: phaseName, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, providers: emptyProviders() };
+      ph = { phase: phaseName, agents: {}, total: emptyCell(), kinds: emptyKinds(), orchestratorShare: null, orchW: 0, units: 0, orchWPerUnit: null, providers: emptyProviders() };
       report.phases.push(ph);
       report.phases.sort((a, b) => cmpPhase(a.phase, b.phase));
     }
@@ -364,6 +475,20 @@ function grp(x: number): string {
 
 function tokenCell(c: UsageCell): string {
   return `${grp(c.tokens)}${c.unknown ? ` (+${c.unknown} unknown)` : ''}`;
+}
+
+/** The W column of a cell: its sum, with ` (+N unknown)` as `tokenCell` does (design C1). */
+function wCell(c: UsageCell): string {
+  return `${grp(c.w)}${c.wUnknown ? ` (+${c.wUnknown} unknown)` : ''}`;
+}
+
+/** `orch W/task` for the implementation phase, else `orch W/round` (design C1). */
+function perUnitLabel(phase: string): string {
+  return `orch W/${phase === 'implementation' ? 'task' : 'round'}`;
+}
+
+function perUnitVal(v: number | null): string {
+  return v === null ? '-' : grp(v);
 }
 
 /**
@@ -400,27 +525,28 @@ function headLine(r: UsageReport): string {
   return `usage ${r.spec}  runs ${r.runs}  spawns ${grp(r.total.spawns)}  tokens ${grp(r.total.tokens)}`;
 }
 
-export function formatUsageTable(report: UsageReport, compare?: UsageReport): string {
-  if (!compare) return formatOne(report);
-  return formatCompare(report, compare);
+export function formatUsageTable(report: UsageReport, compare?: UsageReport, opts?: UsageFormatOpts): string {
+  if (!compare) return formatOne(report, opts);
+  return formatCompare(report, compare, opts);
 }
 
-function formatOne(report: UsageReport): string {
-  const lines: string[] = [headLine(report), 'phase | agent | spawns | tokens | cw5m | cw1h | gapRewrites | graph'];
+function formatOne(report: UsageReport, opts?: UsageFormatOpts): string {
+  const lines: string[] = [headLine(report), 'phase | agent | spawns | tokens | W | cw5m | cw1h | gapRewrites | graph'];
   for (const ph of report.phases) {
     for (const agent of Object.keys(ph.agents).sort((a, b) => a.localeCompare(b))) {
       const c = ph.agents[agent];
       const anthropicSpawns = agent.endsWith('@deepseek') ? 0 : c.spawns;
-      lines.push(`${ph.phase} | ${agent} | ${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}`);
+      lines.push(`${ph.phase} | ${agent} | ${grp(c.spawns)} | ${tokenCell(c)} | ${wCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}`);
     }
-    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)} | ${cacheStr(ph.total, ph.providers.anthropic.spawns)} | ${grp(ph.total.graph)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}  ${provStr(ph.providers)}`);
+    const perUnit = opts?.perUnit ? `  ${perUnitLabel(ph.phase)} ${perUnitVal(ph.orchWPerUnit)}` : '';
+    lines.push(`${ph.phase} | total | ${grp(ph.total.spawns)} | ${tokenCell(ph.total)} | ${wCell(ph.total)} | ${cacheStr(ph.total, ph.providers.anthropic.spawns)} | ${grp(ph.total.graph)}  orch ${orchStr(ph.orchestratorShare)}  ${kindsStr(ph.kinds)}  ${provStr(ph.providers)}${perUnit}`);
   }
-  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)} | ${cacheStr(report.total, report.providers.anthropic.spawns)} | ${grp(report.total.graph)}  ${kindsStr(report.kinds)}  ${provStr(report.providers)}`);
+  lines.push(`total |  | ${grp(report.total.spawns)} | ${tokenCell(report.total)} | ${wCell(report.total)} | ${cacheStr(report.total, report.providers.anthropic.spawns)} | ${grp(report.total.graph)}  ${kindsStr(report.kinds)}  ${provStr(report.providers)}`);
   return lines.join('\n');
 }
 
-function formatCompare(report: UsageReport, compare: UsageReport): string {
-  const cols = 'spawns | tokens | cw5m | cw1h | gapRewrites | graph';
+function formatCompare(report: UsageReport, compare: UsageReport, opts?: UsageFormatOpts): string {
+  const cols = 'spawns | tokens | W | cw5m | cw1h | gapRewrites | graph';
   const lines: string[] = [headLine(report), headLine(compare), `phase | agent | ${cols} | ${cols}`];
   const aMap = new Map(report.phases.map(p => [p.phase, p]));
   const bMap = new Map(compare.phases.map(p => [p.phase, p]));
@@ -430,7 +556,7 @@ function formatCompare(report: UsageReport, compare: UsageReport): string {
   names.sort(cmpPhase);
   const deltas = new Map(usageDelta(report, compare).map(d => [d.phase, d]));
   const pair = (c: UsageCell | undefined, anthropicSpawns: number) =>
-    c ? `${grp(c.spawns)} | ${tokenCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}` : '- | - | - | - | - | -';
+    c ? `${grp(c.spawns)} | ${tokenCell(c)} | ${wCell(c)} | ${cacheStr(c, anthropicSpawns)} | ${grp(c.graph)}` : '- | - | - | - | - | - | -';
   const provPair = (a: UsageByProvider | undefined, b: UsageByProvider | undefined) =>
     `anthropic ${grp(a?.anthropic.tokens ?? 0)} | ${grp(b?.anthropic.tokens ?? 0)}  deepseek ${grp(a?.deepseek.tokens ?? 0)} | ${grp(b?.deepseek.tokens ?? 0)}`;
 
@@ -448,7 +574,10 @@ function formatCompare(report: UsageReport, compare: UsageReport): string {
       lines.push(`${phase} | ${agent} | ${pair(ac, aCount)} | ${pair(bc, bCount)}`);
     }
     const d = deltas.get(phase);
-    lines.push(`${phase} | total | ${pair(ap?.total, ap?.providers.anthropic.spawns ?? 0)} | ${pair(bp?.total, bp?.providers.anthropic.spawns ?? 0)}  delta spawns ${d ? d.spawns : 0} tokens ${grp(d ? d.tokens : 0)}  ${provPair(ap?.providers, bp?.providers)}`);
+    const perUnit = opts?.perUnit
+      ? `  ${perUnitLabel(phase)} ${perUnitVal(ap?.orchWPerUnit ?? null)} | ${perUnitVal(bp?.orchWPerUnit ?? null)}  delta ${grp(d ? d.orchWPerUnit : 0)}`
+      : '';
+    lines.push(`${phase} | total | ${pair(ap?.total, ap?.providers.anthropic.spawns ?? 0)} | ${pair(bp?.total, bp?.providers.anthropic.spawns ?? 0)}  delta spawns ${d ? d.spawns : 0} tokens ${grp(d ? d.tokens : 0)}  ${provPair(ap?.providers, bp?.providers)}${perUnit}`);
   }
   const dSpawns = compare.total.spawns - report.total.spawns;
   const dTokens = compare.total.tokens - report.total.tokens;
