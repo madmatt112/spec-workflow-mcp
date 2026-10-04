@@ -17,7 +17,13 @@ repository root.
 - Four **orchestrator** agents, one per phase kind: `sdd-document-orchestrator`
   (requirements, design, tasks), `sdd-implementation-orchestrator`,
   `sdd-retro-orchestrator` and `sdd-closeout-orchestrator`. Each is spawned fresh,
-  carries its phase skill, and reports in a fixed contract.
+  carries its phase skill, and reports in a fixed contract. The document and
+  implementation phase skills are split: a core `SKILL.md` holds the standing rules and
+  the main loop, and step-scoped `references/*.md` files (gates, convergence and revision
+  for the document phase; completion and stops for the implementation phase) are read only
+  when a step routes to them. Each orchestrator pulls its worker briefs, prompt blocks and
+  the bookkeeping script `book.sh` from the `harness` tool's `brief` action rather than
+  from reference text in the skill.
 - Nine **worker** agents with pinned models and per-role tool allowlists:
   `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-checker`,
   `sdd-test-author`, `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`.
@@ -128,7 +134,7 @@ plugin was installed from; the supervisor's preflight also warns when the instal
 plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
 
 Budgets: a document orchestrator runs at most four review rounds per spawn and an
-implementation orchestrator at most twenty tasks; then it reports `resume` and the
+implementation orchestrator at most five tasks; then it reports `resume` and the
 supervisor spawns a fresh one. A close-out orchestrator works every open item of every
 class in one spawn, one implementer batch per class. More than twelve spawns for one
 phase is an error.
