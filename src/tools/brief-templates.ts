@@ -288,13 +288,13 @@ function renderReviewer(v: Record<string, string>): string {
     if (v.reDecided !== 'none') {
       lines.push(
         '- The drafter re-decided these requirement literals (see `' + v.reDecided +
-          '`). Rule on each: `refinement` (closed) or `widening` (a MUST_FIX). Close a flag as a `refinement` and carry it to the next drafter on your own authority when the change stays within the governing requirement\'s intent; rule `widening` (a MUST_FIX) only when the flag reverses a requirement or crosses a decision the human owns.',
+          '`). Rule on each: `refinement` (closed) or `widening` (a MUST_FIX). You may close a flag as a `refinement` and carry it to the next drafter on your own authority when the change stays within the governing requirement\'s intent; this needs no orchestrator ruling or adjudication — state the closure and its reason in your analysis. Rule `widening` (a MUST_FIX) only when the flag reverses a requirement or crosses a decision the human owns.',
       );
     }
   } else {
     lines.push(
       '- Read the Revision History line for v' + v.D +
-        ' first and attack those changes before anything else. Every MUST_FIX after round 1 in past specs was a claim error introduced by the previous delta. Mark a finding that lands in text the previous delta wrote `Compounds: R<A-1>-<n>`, naming the round-<A-1> finding whose fix wrote the clause. Label each round-<A> MUST_FIX `fix-induced` when the last delta introduced it or `carried` when it is a pre-existing defect the last fix did not touch.',
+        ' first and attack those changes before anything else. Every MUST_FIX after round 1 in past specs was a claim error introduced by the previous delta. Mark a finding that lands in text the previous delta wrote `Compounds: R<A-1>-<n>`, naming the round-<A-1> finding whose fix wrote the clause. A finding that re-flags a cross-artifact seam an earlier round already raised — a producer-to-consumer wire, or an acceptance criterion that contradicts the component that implements it — is marked `Compounds: R<k>-<n>` for the round `k` that first raised that seam. Label each round-<A> MUST_FIX `fix-induced` when the last delta introduced it (a `Compounds` finding is fix-induced) or `carried` when it is a pre-existing defect the last fix did not touch, so the orchestrator sees which MUST_FIX the last fix created; the label is guidance and does not change the round budget.',
     );
   }
 
@@ -376,7 +376,7 @@ function reviserDispositionRules(dPlus1: string, revDescriptor: string, closedBy
     '4. Write v' + dPlus1 + ' in place. Add the Revision History line `- **v' + dPlus1 + '** (<today>) — ' + revDescriptor + '` followed by one nested bullet per finding: `- **<id> — <Accepted | Partially accepted | Rejected> (<severity>).** <what changed, or why not>`. If the document carries a `Document version:` header, set it to v' + dPlus1 + '. A Revision-History or decision-log bullet cites findings by id and prose only; it carries no backticked path or identifier token. State what the fix did, not what it did not, and cite the exact post-fix line the changed text now reads.',
     '5. Closed by ruling, leave as is: ' + closedByRuling + '.',
     '6. MDX rule: no bare angle brackets outside code spans. tasks.md: keep the template\'s task shape; every task numbered; `_Prompt: …_` ends with `_`.',
-    '7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file belong to others. You may replace a context-file line that an accepted finding refutes: same line, corrected text, the probe that proves it. Tasks phase only: when an accepted finding changes a call signature that `design.md` states, apply the same text to that design component and add to `design.md` a Revision History line `- **v<D> amended** (<date>) — tasks R<A>-<n>: <what>`; list it under the finding\'s bullet as `also applied to design.md`. This does not widen scope and needs no re-approval — approval records do not hash content.',
+    '7. Edit only the document. Approvals, deferrals, HANDOFF, INDEX and the memory file belong to others. You may replace a context-file line that an accepted finding refutes: same line, corrected text, the probe that proves it. Tasks phase only: when an accepted finding changes a call signature that `design.md` states, apply the same text to that design component and add to `design.md` a Revision History line `- **v<D> amended** (<date>) — tasks R<A>-<n>: <what>` (v<D> is design.md\'s current version); list it under the finding\'s bullet as `also applied to design.md`. This does not widen scope and needs no re-approval — approval records do not hash content.',
     '8. Do not ask questions.',
     '9. After you accept a finding, search the document for every other place with the same construct (the same rule table, command, fixture shape or union member) and fix each; list them under the finding\'s bullet. A sibling left unchanged is next round\'s finding.',
     '10. A finding marked `Compounds: R<A-1>-<n>` lands in text a previous delta wrote: do not reword the clause again. Write one plain sentence of what the clause must claim, delete the old text, and probe the new claim as round 1 would. A claim you cannot probe is deleted, not kept.',
@@ -525,7 +525,6 @@ function renderAdjudicator(v: Record<string, string>): string {
     '- For each item: fix it in the document, or rule it out with a stated reason. A rule-out is a ruling; it is final for this phase.',
     '- Verify every citation against the real tree, both ends of every range.',
     '- Revision History line: `- **v<D+1>** (<today>) — Post-cap corrective pass, adjudicated, not re-reviewed.` followed by one nested bullet per item: `- **<id> — fixed | ruled out (<severity>).** <one line>`. Keep the words `Post-cap corrective pass` exactly; the orchestrator greps for them.',
-    '- Report in 150 words or fewer: each item as `<id>: fixed | ruled out (<severity>) — <reason>`, files touched, flags. No file contents.',
     '- Edit only the document. Do not ask questions.',
     '',
     ...reportBlockLines(['version', 'fixed', 'ruled-out', 'notes', 'flags']),

@@ -988,12 +988,13 @@ describe('harnessHandler', () => {
     expect(res.success).toBe(true);
     const written = await fs.readFile(outPath, 'utf-8');
 
-    // Verbatim briefs.md:421, :425-427, :432-433, :446-450.
+    // Verbatim briefs.md:421, :425-427, :432-433, :446-449; the C9 block replaces the
+    // :450 report sentence (design C9), so the stale "Report in 150 words" bullet is gone.
     expect(written).toContain('post-cap corrective pass');
     expect(written).toContain('## Open items');
     expect(written).toContain(items);
     expect(written).toContain('Post-cap corrective pass');
-    expect(written).toContain('150 words or fewer');
+    expect(written).not.toContain('Report in 150 words or fewer:');
 
     expect(written).toContain(C9_SENTENCE);
     for (const key of ['fixed:', 'ruled-out:', 'notes:', 'flags:']) {
