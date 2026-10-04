@@ -136,8 +136,10 @@ plugin differs from that checkout, so a merged but unrefreshed plugin is visible
 Budgets: a document orchestrator runs at most four review rounds per spawn and an
 implementation orchestrator at most five tasks; then it reports `resume` and the
 supervisor spawns a fresh one. A close-out orchestrator works every open item of every
-class in one spawn, one implementer batch per class. More than twelve spawns for one
-phase is an error.
+class in one spawn, one implementer batch per class. For the implementation phase the
+runaway guard allows the larger of twelve spawns and ceil(task total / budget) + 4, the
+task total read once before the first implementation spawn so the allowance never shrinks;
+every other phase stops at twelve spawns.
 
 ## Report contract
 
