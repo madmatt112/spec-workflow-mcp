@@ -32,4 +32,4 @@ Standing rules:
 - No bare angle brackets outside code spans.
 - Edit only the document. Never touch approvals, deferrals, HANDOFF, INDEX, the memory file, or code. Never commit.
 - Do not ask questions.
-- Report in 150 words or fewer: files touched; each finding as `<id>: accepted | partially accepted | rejected`; citations verified; flags. No file contents.
+- End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `version`, `words`, `accepted`, `partial`, `rejected` (ids), `cut-scope`, `flags`.
