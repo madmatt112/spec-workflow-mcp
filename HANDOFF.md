@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-03, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **implementation**, state **tasks 0/16**, last result **approved** (tasks v3; gate B approved).
+> **READ FIRST — SDD routing (2026-10-04, harness v4).** Active spec **`lean-orchestrators`**.
+> Live phase **retrospective (blocked)**, state **tasks 16/16**, last result **complete** (PR #81 open, green; verification-evidence (2) and (3) pending, deferral d-8a58ed18).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/lean-orchestrators`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: works the implementation task queue on `feat/lean-orchestrators`.
+> A re-run does: once PR #81 is merged, the checkout rebuilt and sessions restarted, and live scenarios 2 and 3 are recorded passed (d-8a58ed18 resolved), runs the retrospective.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -83,6 +83,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-03 | lean-orchestrators | requirements | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass |
 | 2026-10-03 | lean-orchestrators | design | v4 | approved | 4 rounds, converged via SHOULD_FIX-only pass + narrow check 2/2 |
 | 2026-10-03 | lean-orchestrators | tasks | v3 | approved | 3 rounds, converged via SHOULD_FIX-only pass (0/4/1 -> 0/1/2 -> narrow 3/3) |
+| 2026-10-04 | lean-orchestrators | implementation | tasks 16/16 | complete | PR #81 green; logCoverage 16/16; reviewCoverage 13/16 (5,15,16 verification-only); deferral d-8a58ed18 live 2/3 pending |
 
 ## Current state — 2026-08-04
 
