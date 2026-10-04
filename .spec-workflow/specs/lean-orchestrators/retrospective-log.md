@@ -143,3 +143,8 @@ Cost: flagged during task 13 split
 Impl-phase skill split (verifier confirmed C8 split, routing, book.sh, orient reads, 5-task budget, Req 7.5). Verifier caught 2 criticals: (1) missing Req 5.3 'missing report block re-spawns once then PHASE: error' rule in SKILL.md; (2) task-9 CI variants (renderCiFix/renderVerifierCi) ignored findings and emitted literal <check names>/<sha>/<command> with no slot — a hard gap breaking the reconcile-red-PR path. 1 fix round added the rule and slotted the CI variants. Lesson: dynamic brief variants (CI/reconcile) need real value slots, not literal placeholders; and every skill-split must carry the stall-on-missing-block rule. rounds 1, outcome pass.
 Evidence: task 13; commits 39420cb + 6162859; reviewId 44653a6c
 Cost: 1 author + 1 implementer + 1 fix + 1 verifier spawn
+
+## 2026-10-04T07:42:40Z · implementation · task 14 · gotcha
+Supervisor launch budget set to 5 tasks and runaway guard scaled to max(12, ceil(T/B)+4) for implementation (D14 task total); gate low, review recorded, harness checks pass. rounds 0, outcome gate.
+Evidence: task 14; reviewId bb963c24
+Cost: 1 implementer spawn
