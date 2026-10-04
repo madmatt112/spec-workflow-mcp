@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { harnessHandler, codeGraphSection } from '../harness.js';
+import { harnessHandler, harnessTool, codeGraphSection } from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
@@ -967,5 +967,158 @@ describe('harnessHandler', () => {
     const res = await harnessHandler({ action: 'usage', specName: SPEC }, context);
     expect(res.success).toBe(true);
     expect(res.data.report.total.graph).toBe(0);
+  });
+
+  // Requirement 1 criteria 2, 7, 8, 9 — the `sources` option of `usage` (design C4).
+
+  describe('usage sources', () => {
+    let cfgDir: string;
+    let origCfgDir: string | undefined;
+
+    beforeEach(() => {
+      origCfgDir = process.env.CLAUDE_CONFIG_DIR;
+      cfgDir = join(tempDir, 'claude-config');
+      process.env.CLAUDE_CONFIG_DIR = cfgDir;
+    });
+
+    afterEach(() => {
+      if (origCfgDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = origCfgDir;
+    });
+
+    const writeTranscript = async (project: string, session: string, agentId: string, lines: unknown[]) => {
+      const dir = join(cfgDir, 'projects', project, session, 'subagents');
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(join(dir, `agent-${agentId}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+    };
+
+    it('prints one block per orchestrator spawn with its per-source breakdown (Req 1.2)', async () => {
+      await writeLedger([
+        { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+        { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator', phase: 'design' },
+        {
+          ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator',
+          agentId: 'ag1', tokens: '150', input: '100', output: '10', cacheRead: '0', cacheWrite5m: '0', cacheWrite1h: '0',
+        },
+      ]);
+      await writeSpecActivity(SPEC, [
+        { ts: '2026-09-20T10:00:03Z', agent: 'sdd-document-orchestrator', event: 'tool', agentId: 'ag1', session: 'sess1' },
+      ]);
+      // One call, no preceding context: ctx = 100, base sizing = 100 (no chars to subtract),
+      // so the whole input W (100) goes to `base` and 5*output (50) goes to `own-output`;
+      // w = 150, matching the ledger W exactly (design C2 algorithm).
+      await writeTranscript('proj1', 'sess1', 'ag1', [
+        { type: 'assistant', message: { id: 'm1', content: [{ type: 'text', text: 'hi' }], usage: { input_tokens: 100, output_tokens: 10 } } },
+      ]);
+
+      const res = await harnessHandler({ action: 'usage', specName: SPEC, sources: true }, context);
+      expect(res.success).toBe(true);
+      const report = res.data.sources;
+      expect(report.spec).toBe(SPEC);
+      const found = report.spawns.find((s: any) => s.agentId === 'ag1');
+      expect(found.ok).toBe(true);
+      expect(found.phase).toBe('design');
+      expect(found.agent).toBe('sdd-document-orchestrator');
+      expect(found.ledgerW).toBeCloseTo(150);
+      expect(found.diff).toBeCloseTo(0);
+      expect(found.breakdown.calls).toBe(1);
+      expect(found.breakdown.peak).toBe(100);
+      expect(found.breakdown.w).toBeCloseTo(150);
+      const baseRow = found.breakdown.rows.find((r: any) => r.source === 'base');
+      expect(baseRow.w).toBeCloseTo(100);
+      const outRow = found.breakdown.rows.find((r: any) => r.source === 'own-output');
+      expect(outRow.w).toBeCloseTo(50);
+      // The block names the spawn (phase, agent, agentId) and its sources.
+      expect(res.message).toContain('design');
+      expect(res.message).toContain('sdd-document-orchestrator');
+      expect(res.message).toContain('ag1');
+      expect(res.message).toContain('base');
+      expect(res.message).toContain('own-output');
+    });
+
+    it('never fails on a spawn with no resolvable transcript: sources unknown with the ledger W (Req 1.7)', async () => {
+      await writeLedger([
+        { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+        { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-implementation-orchestrator', phase: 'implementation' },
+        {
+          ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-implementation-orchestrator',
+          agentId: 'ag2', tokens: '550', input: '500', output: '10', cacheRead: '0', cacheWrite5m: '0', cacheWrite1h: '0',
+        },
+      ]);
+      await writeSpecActivity(SPEC, [
+        { ts: '2026-09-20T10:00:03Z', agent: 'sdd-implementation-orchestrator', event: 'tool', agentId: 'ag2', session: 'sess2' },
+      ]);
+      // No transcript file (and no projects directory at all) for sess2/ag2.
+
+      const res = await harnessHandler({ action: 'usage', specName: SPEC, sources: true }, context);
+      expect(res.success).toBe(true);
+      const report = res.data.sources;
+      expect(report.unknown).toBe(1);
+      const found = report.spawns.find((s: any) => s.agentId === 'ag2');
+      expect(found.ok).toBe(false);
+      expect(found.reason).toBe('missing');
+      expect(found.ledgerW).toBeCloseTo(550);
+      expect(res.message).toContain('sources unknown (missing)');
+      expect(res.message).toContain('550');
+    });
+
+    it('prints orch W per unit on the phase total when sources is true (Req 1.8)', async () => {
+      await writeLedger([
+        { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+        { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator', phase: 'design' },
+        {
+          ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator',
+          tokens: '600', input: '100', output: '20', cacheRead: '0', cacheWrite5m: '0', cacheWrite1h: '0',
+        },
+        { ts: '2026-09-20T10:00:03Z', type: 'round', run: 'r1', spec: SPEC, phase: 'design', round: '1', verdict: 'approve' },
+        { ts: '2026-09-20T10:00:04Z', type: 'round', run: 'r1', spec: SPEC, phase: 'design', round: '2', verdict: 'approve' },
+      ]);
+
+      const res = await harnessHandler({ action: 'usage', specName: SPEC, sources: true }, context);
+      expect(res.success).toBe(true);
+      // orchW 200 (100 input + 5*20 output) over 2 rounds = 100 W/round.
+      expect(res.message).toContain('orch W/round 100');
+    });
+
+    it('prints both specs per-unit W and the delta on the compare table when sources is true (Req 1.8)', async () => {
+      await writeLedger([
+        { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r1', spec: SPEC },
+        { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator', phase: 'design' },
+        {
+          ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r1', spec: SPEC, agent: 'sdd-document-orchestrator',
+          tokens: '600', input: '100', output: '20', cacheRead: '0', cacheWrite5m: '0', cacheWrite1h: '0',
+        },
+        { ts: '2026-09-20T10:00:03Z', type: 'round', run: 'r1', spec: SPEC, phase: 'design', round: '1', verdict: 'approve' },
+        { ts: '2026-09-20T10:00:04Z', type: 'round', run: 'r1', spec: SPEC, phase: 'design', round: '2', verdict: 'approve' },
+      ]);
+      await writeSpecLedger('other-spec', [
+        { ts: '2026-09-20T10:00:00Z', type: 'run.start', run: 'r9', spec: 'other-spec' },
+        { ts: '2026-09-20T10:00:01Z', type: 'spawn.start', run: 'r9', spec: 'other-spec', agent: 'sdd-document-orchestrator', phase: 'design' },
+        {
+          ts: '2026-09-20T10:00:02Z', type: 'spawn.end', run: 'r9', spec: 'other-spec', agent: 'sdd-document-orchestrator',
+          tokens: '600', input: '100', output: '100', cacheRead: '0', cacheWrite5m: '0', cacheWrite1h: '0',
+        },
+        { ts: '2026-09-20T10:00:03Z', type: 'round', run: 'r9', spec: 'other-spec', phase: 'design', round: '1', verdict: 'approve' },
+        { ts: '2026-09-20T10:00:04Z', type: 'round', run: 'r9', spec: 'other-spec', phase: 'design', round: '2', verdict: 'approve' },
+      ]);
+
+      const res = await harnessHandler(
+        { action: 'usage', specName: SPEC, compareSpecName: 'other-spec', sources: true }, context,
+      );
+      expect(res.success).toBe(true);
+      // Primary 100 W/round, compare 300 W/round (100 input + 5*100 output = 600 / 2 rounds), delta 200.
+      expect(res.message).toContain('orch W/round 100 | 300  delta 200');
+    });
+  });
+
+  it('usage schema and description add a sources option naming the transcript read (Req 1.9)', () => {
+    const props = (harnessTool.inputSchema as any).properties;
+    expect(props.sources).toEqual({ type: 'boolean' });
+    expect(harnessTool.description).toContain(
+      "Pass `sources: true` to also read each document and implementation orchestrator spawn's subagent "
+      + 'transcript under `$CLAUDE_CONFIG_DIR/projects`, else `~/.claude/projects`, and print its W by context '
+      + 'source. Without it the action reads only the spec store.',
+    );
+    expect(harnessTool.description).toContain('never spawns a process');
   });
 });
