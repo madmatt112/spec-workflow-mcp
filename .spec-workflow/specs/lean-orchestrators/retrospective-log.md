@@ -78,3 +78,13 @@ Cost: 1 author + 1 implementer + 1 verifier spawn
 New module transcripts.ts (path-traversal defense); verifier passed round 1 with 0 findings. rounds 0, outcome pass. Third consecutive clean new-module verifier; batching enabled for later non-sensitive tasks.
 Evidence: task 3; src/watch/transcripts.ts
 Cost: 1 author + 1 implementer + 1 verifier spawn
+
+## 2026-10-04T03:15:13Z · implementation · task 4 · doc-gap
+AC 1.9 'without sources the output is byte-identical' is RED-IMPOSSIBLE at base (sources is an ignored arg today, so omitting it already yields spec-store-only output before any code exists). Carried to the implementer brief as a regression guard, not a red test.
+Evidence: task 4; src/tools/__tests__/harness.test.ts
+Cost: 0 extra spawns
+
+## 2026-10-04T03:22:55Z · implementation · task 4 · gotcha
+sources option wired across harness.ts/sources.ts/docs; gate risk low (existing file, 182 lines added), review recorded by gate. rounds 0, outcome gate.
+Evidence: task 4; reviewId 7ea76279
+Cost: 1 author + 1 implementer spawn

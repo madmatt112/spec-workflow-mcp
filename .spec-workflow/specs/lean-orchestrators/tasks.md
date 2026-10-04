@@ -34,7 +34,7 @@ Tasks 1 to 4 build the W fold, the source breakdown, the transcript locator and 
   - _Requirements: 1.3, 1.10_
   - _Prompt: Task: Create src/watch/transcripts.ts with the three functions of design C3. `projectsDir(env, home)` returns `$CLAUDE_CONFIG_DIR/projects` when the variable is set, else `<home>/.claude/projects`. `resolveSession(activity, agentId)` returns the `session` of the first activity row that carries this `agentId` (src/watch/ledger.ts:26-36). `findTranscript(session, agentId, dir)` returns `invalid-id` when either id fails `^[A-Za-z0-9-]+$`; else it lists `dir` with `withFileTypes`, keeps directory entries only, tries `<dir>/<entry>/<session>/subagents/agent-<agentId>.jsonl` (the segment the hook builds, harness/hooks/sdd-activity.sh:135-142), skips a candidate whose realpath is not under `realpath(dir)`, and returns the first readable one, else `missing` (also when `dir` does not exist). Tests in temp dirs: the env override, invalid ids, a symlinked project entry skipped, an escaping session symlink skipped, first match wins, a missing directory | Restrictions: Assert only the two node behaviours design C3 names (a symlinked entry is not a directory under `withFileTypes`; realpath exposes an escaping link), which node 20 also has; never follow a path taken from row content | Success: `npx tsc --noEmit`, then `npx vitest run src/watch/__tests__/transcripts.test.ts` are green_
 
-- [ ] 4. The `sources` option of the usage action
+- [x] 4. The `sources` option of the usage action
   - File: src/tools/harness.ts
   - File: src/watch/sources.ts
   - File: src/tools/__tests__/harness.test.ts
