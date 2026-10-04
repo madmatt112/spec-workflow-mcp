@@ -93,3 +93,8 @@ Cost: 1 author + 1 implementer spawn
 A spec-store-only (verification-only) task's implementer runs in the worktree session, where the shell guard blocks reaching the main checkout, so it cannot run commit-spec-store.sh; baseline files landed on feat (7b83f87). Orchestrator relocated them to the main spec store and committed there. For task 15, have the implementer leave files in the scratch dir and let the orchestrator relocate+commit.
 Evidence: task 5; 7b83f87 on feat; main commit of baseline files
 Cost: 1 implementer spawn + orchestrator relocation
+
+## 2026-10-04T03:51:22Z · implementation · task 6 · gotcha
+orient queue/nextTask/decomposition added to harness.ts; gate risk low, review recorded. rounds 0, outcome gate.
+Evidence: task 6; reviewId d532fb24
+Cost: 1 author + 1 implementer spawn
