@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/skill-split.test.ts"],"seams":{"src/__tests__/skill-split.test.ts":"headings of each SKILL.md and its references/*.md files"},"redCommit":"36f7cd5","baseSha":"d2977a7174ddee83da108910d9f7547c2ad3ca97","base":"assertion-red","head":"pass","amended":false,"judged":null}

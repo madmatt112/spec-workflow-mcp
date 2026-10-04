@@ -726,6 +726,6 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 12/16 |
-| Last code commit | d2977a7 |
-| Next task | 13 |
+| State | tasks 13/16 |
+| Last code commit | 6162859 |
+| Next task | 14 |

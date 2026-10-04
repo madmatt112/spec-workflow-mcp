@@ -133,3 +133,13 @@ Cost: flagged during task 12 split
 Doc-phase skill split (verifier pass, headings preserved, briefs.md+drift-guard deleted, bookkeeping via book.sh). Verifier investigation exposed a tasks-8+12 regression: document-phase checker/adjudicator server kinds left orchestrator-filled slots (<D>, analysis paths, CODE_ROOT, MUST_FIX/SHOULD_FIX counts, memory path, checker write target) as literal <...>; 1 fix round wired them as template keys and passed them from convergence.md. Lesson: when a brief slot the orchestrator used to fill moves server-side, it must become a template key, not stay literal. rounds 1, outcome pass.
 Evidence: task 12; commits 53b7d1c + d2977a7; reviewId 2ed94b98
 Cost: 1 author + 1 implementer + 1 fix + 1 verifier spawn
+
+## 2026-10-04T07:24:46Z · implementation · task 13 · doc-gap
+Task-9 fix ci/reconcile and verifier ci/e2e kinds render literal <check names>/<log paths>/<suite> with no value slot; unlike task 12's checker/adjudicator this degrades gracefully (the CI/e2e worker self-discovers them, and the orchestrator supplies the scenario+suite via the brief job). Flagged for the task-13 verifier to confirm hard-vs-soft before deciding a fix.
+Evidence: task 13; src/tools/brief-templates.ts fix/verifier ci+e2e variants
+Cost: flagged during task 13 split
+
+## 2026-10-04T07:39:17Z · implementation · task 13 · inefficiency
+Impl-phase skill split (verifier confirmed C8 split, routing, book.sh, orient reads, 5-task budget, Req 7.5). Verifier caught 2 criticals: (1) missing Req 5.3 'missing report block re-spawns once then PHASE: error' rule in SKILL.md; (2) task-9 CI variants (renderCiFix/renderVerifierCi) ignored findings and emitted literal <check names>/<sha>/<command> with no slot — a hard gap breaking the reconcile-red-PR path. 1 fix round added the rule and slotted the CI variants. Lesson: dynamic brief variants (CI/reconcile) need real value slots, not literal placeholders; and every skill-split must carry the stall-on-missing-block rule. rounds 1, outcome pass.
+Evidence: task 13; commits 39420cb + 6162859; reviewId 44653a6c
+Cost: 1 author + 1 implementer + 1 fix + 1 verifier spawn
