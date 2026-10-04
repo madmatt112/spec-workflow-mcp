@@ -88,3 +88,8 @@ Cost: 0 extra spawns
 sources option wired across harness.ts/sources.ts/docs; gate risk low (existing file, 182 lines added), review recorded by gate. rounds 0, outcome gate.
 Evidence: task 4; reviewId 7ea76279
 Cost: 1 author + 1 implementer spawn
+
+## 2026-10-04T03:40:45Z · implementation · task 5 · harness-defect
+A spec-store-only (verification-only) task's implementer runs in the worktree session, where the shell guard blocks reaching the main checkout, so it cannot run commit-spec-store.sh; baseline files landed on feat (7b83f87). Orchestrator relocated them to the main spec store and committed there. For task 15, have the implementer leave files in the scratch dir and let the orchestrator relocate+commit.
+Evidence: task 5; 7b83f87 on feat; main commit of baseline files
+Cost: 1 implementer spawn + orchestrator relocation
