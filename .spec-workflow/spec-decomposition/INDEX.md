@@ -25,7 +25,8 @@
 | 10 | graph-orientation | Complete | 10/10 |
 | 11 | tdd-task-loop | Complete | 17/17 |
 | 12 | harness-control-pane | Complete | 20/20 |
-| 13 | tighter-reviews | Complete | 29/29 |
+| 13 | lean-orchestrators | Complete | 16/16 |
+| 14 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

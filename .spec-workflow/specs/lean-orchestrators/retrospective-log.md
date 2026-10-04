@@ -153,3 +153,13 @@ Cost: 1 implementer spawn
 Fixture kit (stage.sh + fixture-decomposition/agent-rules) staged and dry-run green; verification-evidence.md now carries (1) passed, (kit) passed, (2)/(3) pending for the operator pre-merge session. Verification-only; same worktree-commit-then-relocate as task 5 (committed acc4e2f on feat, orchestrator relocated to main spec store). rounds 0, outcome gate.
 Evidence: task 15; main spec store e2e/ + verification-evidence.md; feat acc4e2f
 Cost: 1 implementer spawn + orchestrator relocation
+
+## 2026-10-04T08:01:19Z · implementation · task 16 · gotcha
+End-to-end verification gate: npm run build, npx tsc --noEmit, npm test (1813 pass), check:plugin-assets, claude plugin validate all exit 0; scenario (1) recorded; live (2)/(3) pending for operator. Log-only (no implementer code), logged via a minimal implementer spawn to satisfy retro P9. rounds 0, outcome gate.
+Evidence: task 16; e2e verifier VERIFY pass; logged yes/16
+Cost: 1 e2e verifier + 1 log-only implementer spawn
+
+## 2026-10-04T08:02:35Z · implementation · phase · cleanup
+lean-orchestrators implemented: 16/16 tasks complete. Fix rounds: 3 (task 8 non-verbatim reviewer section; task 12 doc-phase checker/adjudicator placeholder wiring; task 13 missing Req 5.3 stall rule + CI-variant placeholder slots). Adjudications: 0. Deferrals added: 1 (d-8a58ed18, live scenarios 2/3). Batched verification used for tasks 8/9/10 (one verifier spawn). Verification-only tasks 5/15/16 relocated feat-committed files to the main spec store. e2e gate green: build, tsc, npm test (1813 pass), check:plugin-assets, plugin validate all exit 0; scenario (1) + (kit) passed, (2)/(3) pending.
+Evidence: 16 tasks; e2e VERIFY pass; verification-evidence.md (1)+(kit) passed
+Cost: ~10 author + ~19 implementer/fix + 9 verifier spawns

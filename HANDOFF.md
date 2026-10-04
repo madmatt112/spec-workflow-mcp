@@ -726,6 +726,11 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 15/16 |
-| Last code commit | 1aacfb9 |
-| Next task | 16 |
+| State | implemented — 16/16 tasks on 2026-10-04 |
+| Branch | feat/lean-orchestrators (last code commit 1aacfb9) |
+| PR | (opened at completion gate — see below) |
+| Deferrals | 1 added this spec (d-8a58ed18, tag verification); 16 open total |
+| Deferred verification | d-8a58ed18 — live scenarios (2) and (3) stay pending in verification-evidence.md; an operator runs `e2e/stage.sh` then the fixture run + `usage sources:true` on the rebuilt/restarted merged checkout before the retro opens |
+| Most worth next | d-9d600d11 (sdd-launch.sh readUsage token inflation — same W/usage area this spec built); d-a38fea66 (provider-per-role restarted-session verification); d-4c9198e3 (wire review-gate.ts to the prose-paths set) |
+| Gotchas | (1) Worktree verification-only tasks (5, 15) can't reach the main spec store (shell guard), so their files committed on feat (7b83f87, acc4e2f) and the orchestrator relocated them to the main spec store — identical content, so the merge resolves clean. (2) Moving a brief slot the orchestrator used to fill to a server kind must make it a template key, not a literal: the doc-phase checker/adjudicator (fixed in task 12 r1) and the impl-phase CI fix/verify variants (fixed in task 13 r1) both shipped unfilled `<...>` first. (3) `git reset --hard` is blocked (irreversible-destruction guard); use revert or relocate instead. |
+| Next phase loads | retrospective: read retrospective-log.md, baseline-sources.md, verification-evidence.md, and resolve deferral d-8a58ed18 once the operator runs the live scenarios |
