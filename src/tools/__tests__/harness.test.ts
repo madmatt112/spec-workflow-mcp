@@ -28,6 +28,11 @@ describe('harnessHandler', () => {
 
   const writeDoc = (name: string, content: string) => fs.writeFile(join(specDir, name), content);
   const writeReview = (name: string, content: string) => fs.writeFile(join(specDir, 'reviews', name), content);
+  const writeDecomposition = async (content: string) => {
+    const dir = join(tempDir, '.spec-workflow', 'spec-decomposition');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(join(dir, 'decomposition.md'), content);
+  };
 
   it('requires specName', async () => {
     const res = await harnessHandler({ action: 'orient', phase: 'requirements' }, context);
@@ -134,6 +139,124 @@ describe('harnessHandler', () => {
     expect(res.data.inFlightReports).toEqual([
       { agent: 'sdd-implementer', agentId: 'a1', report: 'task 1 done; logged: yes/1; commit: abc123', ts: '2026-09-20T10:05:00.000Z' },
     ]);
+  });
+
+  // Requirement 4 criteria 2 and 3 — orient's implementation `queue`, `nextTask` and
+  // `decomposition` (design C5), so the orchestrator picks tasks and reads the
+  // scenario without a whole-file read.
+
+  it('(5c) implementation queue: the [-] task first, then [ ] tasks in file order; nextTask is queue[0]', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [-] 1. First task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_',
+      '- [ ] 2. Second task',
+      '  - File: src/a.ts',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_',
+      '- [ ] 3. Third task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.queue).toEqual([
+      { id: '1', title: 'First task', status: 'in-progress', files: [] },
+      { id: '2', title: 'Second task', status: 'pending', files: ['src/a.ts'] },
+      { id: '3', title: 'Third task', status: 'pending', files: [] },
+    ]);
+    expect(res.data.nextTask).toEqual({ id: '1', title: 'First task', status: 'in-progress', files: [] });
+    // Mid-loop (not the completion gate or repair): no decomposition key (design C5).
+    expect(res.data.decomposition).toBeUndefined();
+  });
+
+  it('(5d) implementation queue drops header tasks (no implementation details)', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [ ] 1. Group header, no details',
+      '- [ ] 1.1 Real task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.queue).toEqual([
+      { id: '1.1', title: 'Real task', status: 'pending', files: [] },
+    ]);
+    expect(res.data.nextTask).toEqual({ id: '1.1', title: 'Real task', status: 'pending', files: [] });
+  });
+
+  it('(5e) completion gate: decomposition entry read with the "." label form', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [x] 1. Done task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    await writeDecomposition([
+      '## Specs', '',
+      '### 7. `my-spec` — Example title (active)', '',
+      'Some body text describing the spec.', '',
+      '**End-to-end verification.** Do the thing and check it works.',
+      '**Depends on** nothing.', '',
+      '### 8. `other-spec` — Other title (active)', '',
+      'Other body.', '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.nextStep).toBe('Completion gate');
+    expect(res.data.decomposition).toEqual({
+      title: 'Example title (active)',
+      scenario: '**End-to-end verification.** Do the thing and check it works.',
+    });
+  });
+
+  it('(5f) completion gate: decomposition entry read with the "**:" label form', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [x] 1. Done task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    await writeDecomposition([
+      '## Specs', '',
+      '### 7. `my-spec` — Example title (active)', '',
+      'Some body text describing the spec.', '',
+      '**End-to-end verification**: Do the other thing.',
+      '**Depends on** nothing.', '',
+      '### 8. `other-spec` — Other title (active)', '',
+      'Other body.', '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.decomposition).toEqual({
+      title: 'Example title (active)',
+      scenario: '**End-to-end verification**: Do the other thing.',
+    });
+  });
+
+  it('(5g) completion gate: decomposition file missing gives nulls, orient still succeeds', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [x] 1. Done task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    // No decomposition.md written.
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.nextStep).toBe('Completion gate');
+    expect(res.data.decomposition).toEqual({ title: null, scenario: null });
+  });
+
+  it('(5h) completion gate: no matching decomposition entry gives nulls, orient still succeeds', async () => {
+    await writeDoc('tasks.md', [
+      '# Tasks', '',
+      '- [x] 1. Done task',
+      '  _Prompt: Task: do it | Restrictions: none | Success: works_', '',
+    ].join('\n'));
+    await writeDecomposition([
+      '## Specs', '',
+      '### 7. `other-spec` — Other title (active)', '',
+      '**End-to-end verification.** Something else entirely.', '',
+    ].join('\n'));
+    const res = await harnessHandler({ action: 'orient', specName: SPEC, phase: 'implementation' }, context);
+    expect(res.success).toBe(true);
+    expect(res.data.decomposition).toEqual({ title: null, scenario: null });
   });
 
   it('(6) close-out with open items → Step 2, open by class', async () => {
