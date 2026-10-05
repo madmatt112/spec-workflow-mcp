@@ -3,6 +3,7 @@ import { join } from 'path';
 import { PathUtils } from './path-utils.js';
 import { SpecParser } from './parser.js';
 import { deriveSpecStatus } from './spec-status-deriver.js';
+import { hasUnresolvedCompletionGate } from './completion-gate.js';
 import { deriveRouting, RoutingDecision } from './spec-routing-deriver.js';
 import { DeferredSpec, DeferredSpecMarker, SpecIndexEntry } from '../types.js';
 
@@ -64,7 +65,13 @@ export class IndexGenerator {
     const entries: SpecIndexEntry[] = [];
     for (const spec of specs) {
       const marker = await this.readDeferredMarker(spec.name);
-      const { currentPhase, overallStatus } = deriveSpecStatus(spec);
+      let { currentPhase, overallStatus } = deriveSpecStatus(spec);
+      // Completion gate: an unresolved `escalate` phase.end in the run ledger blocks
+      // "completed" regardless of task count, so the spec stays active (retro F5).
+      if (overallStatus === 'completed' && await hasUnresolvedCompletionGate(this.projectPath, spec.name)) {
+        currentPhase = 'implementation';
+        overallStatus = 'implementing';
+      }
       entries.push({
         name: spec.name,
         currentPhase,
