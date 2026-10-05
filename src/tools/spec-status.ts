@@ -7,6 +7,7 @@ import { ImplementationLogManager } from '../dashboard/implementation-log-manage
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
+import { parseAgentRuleKey } from '../core/gate-rules.js';
 
 export const specStatusTool: Tool = {
   name: 'spec-status',
@@ -209,7 +210,18 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
 
         reviewCoverage = { reviewed, unreviewed };
         if (tddTasks > 0) {
-          tddCoverage = { tasks: tddTasks, base: tddBase, amended: tddAmended };
+          // No wired `tdd-test-command` means every base run was skipped as
+          // inconclusive, so the red/green metric is N/A, not a signal (retro
+          // canonical-link F6). A missing agent-rules.md counts as not wired.
+          let tddTestCommandWired = false;
+          try {
+            const agentRulesPath = `${PathUtils.getWorkflowRoot(translatedPath)}/agent-rules.md`;
+            const agentRules = await fsPromises.readFile(agentRulesPath, 'utf-8');
+            tddTestCommandWired = parseAgentRuleKey(agentRules, 'tdd-test-command') !== null;
+          } catch {
+            tddTestCommandWired = false;
+          }
+          tddCoverage = { tasks: tddTasks, base: tddBase, amended: tddAmended, tddTestCommandWired };
         }
       } catch {
         // Coverage checks are best-effort
