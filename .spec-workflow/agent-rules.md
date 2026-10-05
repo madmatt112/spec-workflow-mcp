@@ -113,6 +113,10 @@ each pay the base+skill prefix (lean-orchestrators cut W/review 50-67% but ran W
 +20%). This is accepted provided the per-spawn prefix work lands (P7/G3) and W/task is
 re-measured on the next real spec.
 
+- When decomposing into orchestrator spawns, never leave a final spawn of one task: fold
+  a trailing remainder of one into the previous batch. Treat the base+skill prefix as a
+  fixed per-spawn cost when choosing the number of spawns.
+
 ## Fixtures and live verification
 
 - A fixture or generated artifact used in a live check must meet the same validity bar
