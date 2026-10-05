@@ -110,7 +110,7 @@ The implementation spawn peaked at 229k tokens. The cuts below target the rows o
 
 1. The supervisor's implementation `BUDGET` SHALL default to 5 tasks per spawn (today 20: `harness/skills/sdd-continue/SKILL.md:291`), and the skill text that states 20 SHALL say 5 (D1). The default at `harness/skills/sdd-implementation-phase/SKILL.md:16` and the rationale at `:17-20` for why 20 is safe SHALL both change; the rationale is rewritten for the 5-task budget, not merely renumbered.
 2. WHEN a spawn reports `PHASE: resume` THEN the supervisor SHALL spawn a fresh orchestrator as today (`harness/skills/sdd-continue/SKILL.md:350-351`).
-3. The runaway guard (`harness/skills/sdd-continue/SKILL.md:379-380`) SHALL allow, for the implementation phase, the larger of 12 and ceil(open tasks / BUDGET) + 4 spawns. The open-tasks count SHALL be read once at phase start and held fixed, so the allowance does not shrink as tasks close and cannot trip the guard spuriously mid-phase.
+3. The runaway guard (`harness/skills/sdd-continue/SKILL.md:379-380`) SHALL allow, for the implementation phase, the larger of 12 and ceil(total tasks / BUDGET) + 4 spawns. The task total (`data.tasks.total`) SHALL be read once before the run's first implementation spawn; because the total never shrinks as tasks close, a restarted supervisor gets the same allowance and the guard cannot trip spuriously mid-phase (D14).
 4. The document orchestrator's lifetime SHALL be unchanged: 4 review rounds per spawn (D4).
 5. WHEN the task that fills the budget is also the last open task THEN the orchestrator SHALL report `PHASE: resume` with `NEXT: completion gate`, so a fresh spawn runs it (today Budget fires only while open tasks remain: `harness/skills/sdd-implementation-phase/SKILL.md:265-267`).
 
