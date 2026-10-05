@@ -66,8 +66,9 @@ export class IndexGenerator {
     for (const spec of specs) {
       const marker = await this.readDeferredMarker(spec.name);
       let { currentPhase, overallStatus } = deriveSpecStatus(spec);
-      // Completion gate: an unresolved `escalate` phase.end in the run ledger blocks
-      // "completed" regardless of task count, so the spec stays active (retro F5).
+      // Completion gate: an unresolved `escalate`/`verify-failed` (or empty) phase.end
+      // in the run ledger blocks "completed" regardless of task count, so the spec
+      // stays active (retro F5).
       if (overallStatus === 'completed' && await hasUnresolvedCompletionGate(this.projectPath, spec.name)) {
         currentPhase = 'implementation';
         overallStatus = 'implementing';

@@ -15,6 +15,14 @@ describe('ledgerHasUnresolvedCompletionGate', () => {
     expect(ledgerHasUnresolvedCompletionGate(ledger)).toBe(true);
   });
 
+  it('blocks when the newest phase.end has result verify-failed and nothing reopens', () => {
+    const ledger: LedgerEvent[] = [
+      ev('phase.start', { ts: '2026-01-01T00:00:01.000Z', phase: 'implementation' }),
+      ev('phase.end', { ts: '2026-01-01T00:00:02.000Z', phase: 'implementation', result: 'verify-failed', state: 'tasks 18/18' }),
+    ];
+    expect(ledgerHasUnresolvedCompletionGate(ledger)).toBe(true);
+  });
+
   it('blocks when the newest phase.end has no result key', () => {
     const ledger: LedgerEvent[] = [
       ev('phase.end', { ts: '2026-01-01T00:00:02.000Z', phase: 'implementation', state: 'tasks 18/18' }),

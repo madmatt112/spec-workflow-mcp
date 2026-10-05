@@ -70,10 +70,11 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
     // Determine current phase and overall status (shared with the INDEX roll-up generator)
     let { currentPhase, overallStatus } = deriveSpecStatus(spec);
 
-    // Completion gate: an unresolved completion-gate escalation blocks "completed"
+    // Completion gate: an unresolved completion-gate stop blocks "completed"
     // regardless of task count (retro mobile-pwa F5). When every task reads [x] but
-    // the run ledger ends on an unresolved `escalate` phase.end, implementation is
-    // not finished — report it as still implementing so routing stays on the spec.
+    // the run ledger ends on an unresolved `escalate`/`verify-failed` (or empty)
+    // phase.end, implementation is not finished — report it as still implementing
+    // so routing stays on the spec.
     if (overallStatus === 'completed' && await hasUnresolvedCompletionGate(translatedPath, specName)) {
       currentPhase = 'implementation';
       overallStatus = 'implementing';

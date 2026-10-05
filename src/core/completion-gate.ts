@@ -5,12 +5,13 @@ import { parseJsonl, LedgerEvent } from '../watch/ledger.js';
 
 /**
  * The single completion gate the routers share (spec-index, spec-status, and the
- * supervisor's sdd-continue step-3 rule 1). An unresolved completion-gate
- * escalation blocks "implementation complete" regardless of the task count.
+ * supervisor's sdd-continue step-3 rule 1). An unresolved completion-gate stop
+ * blocks "implementation complete" regardless of the task count.
  *
- * After 18/18 a run can still be parked on an escalation the owner has not
- * discharged: the implementation phase's last `phase.end` carried result
- * `escalate` (or no/empty result) and no `phase.start` reopened a phase after it.
+ * After 18/18 a run can still be parked on a stop the owner has not discharged:
+ * the implementation phase's last `phase.end` carried result `escalate`,
+ * `verify-failed`, or no/empty result, and no `phase.start` reopened a phase
+ * after it.
  * Routing that trusted the task count alone sent such a run to retrospective;
  * only the HANDOFF header held it in implementation (retro mobile-pwa F5). Both
  * tools call this before they trust a `completed` status; sdd-continue states the
@@ -24,11 +25,11 @@ function ms(ts: string | undefined): number {
 }
 
 /**
- * Pure core: true when the ledger ends on an unresolved completion-gate
- * escalation. The newest `phase.end` has result `escalate` or an empty/absent
- * `result`, and no `phase.start` follows it. A later `phase.start` means a new
- * phase (e.g. the repair run) reopened, so the escalation has been acted on and
- * no longer blocks on its own. An empty ledger never blocks.
+ * Pure core: true when the ledger ends on an unresolved completion-gate stop.
+ * The newest `phase.end` has result `escalate`, `verify-failed`, or an
+ * empty/absent `result`, and no `phase.start` follows it. A later `phase.start`
+ * means a new phase (e.g. the repair run) reopened, so the stop has been acted
+ * on and no longer blocks on its own. An empty ledger never blocks.
  */
 export function ledgerHasUnresolvedCompletionGate(ledger: LedgerEvent[]): boolean {
   const sorted = [...ledger].sort((a, b) => ms(a.ts) - ms(b.ts));
@@ -41,7 +42,7 @@ export function ledgerHasUnresolvedCompletionGate(ledger: LedgerEvent[]): boolea
     if (sorted[i].type === 'phase.start') return false;
   }
   const result = (sorted[lastEndIdx].result ?? '').trim();
-  return result === '' || result === 'escalate';
+  return result === '' || result === 'escalate' || result === 'verify-failed';
 }
 
 /**
