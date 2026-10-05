@@ -72,6 +72,9 @@ node-20 fields.
   decomposition names the source file and line range and requires the snapshot to be
   pinned from that exact text; the batched verifier diffs the snapshot against that
   source.
+- Any task that relocates an orchestrator-filled slot into a template enumerates every
+  `<...>` / path placeholder in that slot and converts each to a template key; the task
+  verifier greps the rendered output for residual `<...>`.
 
 ## Lint false positives
 
