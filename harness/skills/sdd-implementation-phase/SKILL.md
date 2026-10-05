@@ -163,10 +163,22 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    rules name from these roots; commit in the code root." Spawn `sdd-test-author` with
    `Read and execute the instructions in <the returned path>` and record its `spawn.usage`
    with `role=author task <N>`. Route on its report:
-   - `SEAM-DEFECT`, or `RED-IMPOSSIBLE` on every criterion ⇒ read `references/stops.md` and
-     go to **Design defect**, spawning no implementer; the stop's `REASON` is the author's
-     flag. On this stop the author has already deleted its own uncommitted test files (retro
-     P3), so no stray test file is left in the tree for the next run.
+   - `SEAM-DEFECT` (the criteria cannot be expressed as a red test on the seam the design
+     gives — untestable) ⇒ read `references/stops.md` and go to **Design defect**, spawning
+     no implementer; the stop's `REASON` is the author's flag. On this stop the author has
+     already deleted its own uncommitted test files (retro P3), so no stray test file is
+     left in the tree for the next run.
+   - `RED-IMPOSSIBLE` on every criterion ⇒ separate "untestable" from "already satisfied"
+     (retro F6/F17). When the task is finding-driven — its acceptance criteria assert that
+     an existing surface already behaves correctly ("if the case passes with no change, say
+     so") — and every criterion is `RED-IMPOSSIBLE` because the shipped code already meets
+     it, the surface is compliant, not defective: route implementer-only (the F17 ruling),
+     not **Design defect**. Continue to step 2 and spawn the implementer with no `tdd`
+     argument, as for an unmarked task — it confirms the surface meets the criteria (and
+     makes any change the task still needs) and logs it; the author already deleted its
+     uncommitted tests, so none is left behind. Otherwise — a build task that asked to build
+     what already fully exists, with no finding behind it — read `references/stops.md` and
+     go to **Design defect** as for `SEAM-DEFECT`.
    - `RED-IMPOSSIBLE` on some criteria only ⇒ continue, and append one `doc-gap` retro-log
      entry through `book.sh` (`retro`) naming those criteria.
    - otherwise ⇒ keep the author's report block (its `files` key and the block verbatim)

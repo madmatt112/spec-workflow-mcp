@@ -6,7 +6,9 @@ import { TaskReviewManager } from '../core/task-review-manager.js';
 import { ImplementationLogManager } from '../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveSpecStatus } from '../core/spec-status-deriver.js';
+import { hasUnresolvedCompletionGate } from '../core/completion-gate.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
+import { parseAgentRuleKey } from '../core/gate-rules.js';
 
 export const specStatusTool: Tool = {
   name: 'spec-status',
@@ -66,7 +68,17 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
     }
 
     // Determine current phase and overall status (shared with the INDEX roll-up generator)
-    const { currentPhase, overallStatus } = deriveSpecStatus(spec);
+    let { currentPhase, overallStatus } = deriveSpecStatus(spec);
+
+    // Completion gate: an unresolved completion-gate stop blocks "completed"
+    // regardless of task count (retro mobile-pwa F5). When every task reads [x] but
+    // the run ledger ends on an unresolved `escalate`/`verify-failed` (or empty)
+    // phase.end, implementation is not finished — report it as still implementing
+    // so routing stays on the spec.
+    if (overallStatus === 'completed' && await hasUnresolvedCompletionGate(translatedPath, specName)) {
+      currentPhase = 'implementation';
+      overallStatus = 'implementing';
+    }
 
     // Approval state per document, from the approval records on disk. The
     // phase/status derivation above deliberately ignores approvals (file
@@ -209,7 +221,18 @@ export async function specStatusHandler(args: any, context: ToolContext): Promis
 
         reviewCoverage = { reviewed, unreviewed };
         if (tddTasks > 0) {
-          tddCoverage = { tasks: tddTasks, base: tddBase, amended: tddAmended };
+          // No wired `tdd-test-command` means every base run was skipped as
+          // inconclusive, so the red/green metric is N/A, not a signal (retro
+          // canonical-link F6). A missing agent-rules.md counts as not wired.
+          let tddTestCommandWired = false;
+          try {
+            const agentRulesPath = `${PathUtils.getWorkflowRoot(translatedPath)}/agent-rules.md`;
+            const agentRules = await fsPromises.readFile(agentRulesPath, 'utf-8');
+            tddTestCommandWired = parseAgentRuleKey(agentRules, 'tdd-test-command') !== null;
+          } catch {
+            tddTestCommandWired = false;
+          }
+          tddCoverage = { tasks: tddTasks, base: tddBase, amended: tddAmended, tddTestCommandWired };
         }
       } catch {
         // Coverage checks are best-effort

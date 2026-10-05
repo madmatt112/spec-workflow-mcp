@@ -288,6 +288,10 @@ export interface TddCoverage {     // spec-status data.tddCoverage
   tasks: number;
   base: Record<BaseOutcome, number>;  // all four keys present
   amended: number;
+  // False when agent-rules.md wires no `tdd-test-command`: every base run is
+  // skipped as inconclusive, so the red/green metric is N/A rather than a signal
+  // (retro canonical-link F6). Consumers show `TDD: N/A (no tdd-test-command wired)`.
+  tddTestCommandWired: boolean;
 }
 
 export interface TaskReview {

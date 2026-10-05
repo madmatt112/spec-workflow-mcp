@@ -139,7 +139,42 @@ describe('specStatusHandler — TDD coverage', () => {
       tasks: 2,
       base: { 'assertion-red': 1, 'structural-red': 1, 'vacuous': 0, 'inconclusive': 0 },
       amended: 1,
+      tddTestCommandWired: false,
     });
+  });
+
+  it('reports tddTestCommandWired true when agent-rules wires a tdd-test-command', async () => {
+    await fs.writeFile(
+      join(tempDir, '.spec-workflow', 'agent-rules.md'),
+      '# Rules\n\ntdd-test-command: `pytest {files}`\n',
+      'utf-8',
+    );
+    const manager = new TaskReviewManager(specDir);
+    await manager.saveReview({
+      taskId: '1', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [],
+      tdd: tddBlock('assertion-red', false),
+    });
+
+    const result = await specStatusHandler({ specName: 'alpha' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data.tddCoverage.tddTestCommandWired).toBe(true);
+  });
+
+  it('reports tddTestCommandWired false when agent-rules wires no tdd-test-command', async () => {
+    await fs.writeFile(
+      join(tempDir, '.spec-workflow', 'agent-rules.md'),
+      '# Rules\n\nred-on-base: off\n',
+      'utf-8',
+    );
+    const manager = new TaskReviewManager(specDir);
+    await manager.saveReview({
+      taskId: '1', specName: 'alpha', verdict: 'pass', summary: 'ok', findings: [],
+      tdd: tddBlock('inconclusive', false),
+    });
+
+    const result = await specStatusHandler({ specName: 'alpha' }, context);
+    expect(result.success).toBe(true);
+    expect(result.data.tddCoverage.tddTestCommandWired).toBe(false);
   });
 
   it('omits tddCoverage when no latest review carries a tdd block', async () => {

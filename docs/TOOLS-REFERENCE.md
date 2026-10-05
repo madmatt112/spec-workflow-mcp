@@ -204,8 +204,11 @@ completion.
 
 **Returns**: `currentPhase`, `overallStatus`, per-phase detail, `taskProgress`,
 best-effort `logCoverage` / `reviewCoverage` for completed tasks, and `tddCoverage` — the
-task count, a count for each base outcome, and the amended count — when a completed task's
-latest review carries a TDD proof. It will **warn** when
+task count, a count for each base outcome, the amended count, and `tddTestCommandWired` —
+when a completed task's latest review carries a TDD proof. `tddTestCommandWired` is `false`
+when `agent-rules.md` wires no `tdd-test-command`: every base run is then skipped as
+inconclusive, so the red/green metric is N/A rather than a signal (consumers show
+`TDD: N/A (no tdd-test-command wired)`). It will **warn** when
 completed tasks are missing implementation logs or reviews, and its `nextSteps`
 reiterate the log → review → mark-complete ordering.
 

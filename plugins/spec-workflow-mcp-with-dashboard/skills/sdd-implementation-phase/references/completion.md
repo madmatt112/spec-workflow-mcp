@@ -96,7 +96,12 @@ When no `[ ]` or `[-]` task remains:
     retrospective`, and the PR URL in the 150 words above the contract, with the
     deferral numbers, and state the coverage verbatim — `logCoverage <logged>/<completed>`
     and `reviewCoverage <reviewed>/<completed>` — naming by id every task in `unlogged`
-    or `unreviewed`. Any task below the completed total is flagged, never reported as
+    or `unreviewed`. When `data.tddCoverage` is present, state the TDD coverage in the same
+    Coverage row: when `data.tddCoverage.tddTestCommandWired` is false, write `TDD: N/A (no
+    tdd-test-command wired)` rather than listing the inconclusive base counts, because no
+    wired command means every base run was skipped as inconclusive and the red/green metric
+    carries no signal (retro canonical-link F6); otherwise state the base-outcome breakdown.
+    Any task below the completed total is flagged, never reported as
     verified. Spec-store-only tasks may skip the verifier (retro P15), so mark a
     verifier-skipped task in `unreviewed` as skipped-by-policy rather than a defect —
     but disclose the `reviewCoverage` gap plainly and never report the spec "all
