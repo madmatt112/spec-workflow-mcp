@@ -144,12 +144,17 @@ once. On `refresh: ok` replace `GRAPH_BEHIND` and `GRAPH_BUILT_AT` with its two 
 lines; on any other output keep the old values and hold its refresh line. When `GRAPH` is
 `none` none of this runs and the ledger keeps its pre-spec shape.
 Then `bash <event.sh> run.start model=<your model>
-specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> providers=<PROVIDERS>
+specStore=<root> codeRoot=<cwd> worktree=<yes|no> headless=<yes|no> remote=<yes|no> providers=<PROVIDERS>
 cacheTtl=<CACHE_TTL>`, adding `graph=<GRAPH> graphBehind=<GRAPH_BEHIND>` only when `GRAPH`
 is a path, and adding `overrides=<OVERRIDES> setup=harness-run` only when the setup file
 applied — never on `setup=none` or a mismatch, so a run with no file carries neither key
 (Req 2 AC 9, AC 11)
-(`headless=yes` when the AskUserQuestion tool is not available to you). A held graph-refresh
+(`headless=yes` when the AskUserQuestion tool is not available to you; `remote=no` when
+`git -C <CODE_ROOT> remote` prints nothing). Probe both at run start — neither check blocks
+an interactive session — and record them, so a headless or no-remote kit run declares up
+front which gates it cannot satisfy and leaves them `pending` by design: a `headless=yes`
+run leaves its AskUserQuestion approval gates `pending`, and a `remote=no` run leaves the
+one-PR criterion `pending` (there is nowhere to push). A held graph-refresh
 failure line becomes `bash <event.sh> note "text=graph refresh: <line>"` right after
 `run.start`. When `PROVIDERS`
 contains `:deepseek:`, write the per-run wrapper `/tmp/scratchpad/sdd/<spec>/launch.sh`

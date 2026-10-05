@@ -60,6 +60,11 @@ cat > "$CODE_ROOT/README.md" <<'MD'
 A throwaway code root for the lean-orchestrators end-to-end scenario
 (Requirement 8). It ships one small ES module, `src/strings.js`; the
 `lean-fixture` spec adds six small string helpers to it.
+
+This repo has NO git remote on purpose: it is a local `git init` with no
+`origin`. A run against it records `remote=no` at `run.start` and leaves the
+one-PR criterion `pending` by design — there is nowhere to push, so the kit
+cannot exercise that gate.
 MD
 
 # --- Spec store: agent rules and the decomposition, under their routable names.
