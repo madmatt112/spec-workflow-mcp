@@ -112,6 +112,10 @@ that no further events occurred.
   every generated agent, and no incomplete spec folder that spec-index would route. A
   task that ships a fixture kit dry-runs it in the scratch store and records it green
   before the gated run.
+- A verification-only task (one that produces baseline, fixture or verification-evidence
+  artifacts and no source change) is still reviewed and counted in reviewCoverage. It
+  writes its artifacts on the feature branch and the orchestrator relocates them to the
+  main spec store at the merge gate; the brief states this relocation step explicitly.
 - A live-verification scenario that cannot run inside the normal loop stays `pending`
   and is gated by a tracked `verification-evidence.md` whose every line must read
   `passed` before the retrospective opens; an operator runs it in a rebuilt, restarted
