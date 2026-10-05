@@ -1,6 +1,6 @@
 # Retrospective plan — lean-orchestrators
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-05
 Decided by: Matthew, in the retro conversation of run `run-20261005-154530`.
 Sources: `retrospective.md` (14 findings), `retrospective-proposals.md` (14 proposals,
@@ -206,8 +206,11 @@ One line per proposal, written by the close-out phase.
 
 - P1: done — 72b914e
 - P2: done — 4293771
+- P3: done — 9d5d9c1
 - P4: done — 3a74a32
 - P5: done — 0699b95
+- P6: done — 68c3fc0
+- P7: done — 6d7ff5d
 - P8: done — aa4c97d
 - P9: done — 707dc71
 - P10: done — cf67578
@@ -218,3 +221,4 @@ One line per proposal, written by the close-out phase.
 - G1: done — 0699b95
 - G2: done — 98bd597
 - G3: done — dcb1a5f
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/84 (harness batch P3, P6, P7); store batch committed directly to main (no PR)

@@ -737,3 +737,20 @@ Gotchas:
 | Most worth next | d-9d600d11 (sdd-launch.sh readUsage token inflation — same W/usage area this spec built); d-a38fea66 (provider-per-role restarted-session verification); d-4c9198e3 (wire review-gate.ts to the prose-paths set) |
 | Gotchas | (1) Worktree verification-only tasks (5, 15) can't reach the main spec store (shell guard), so their files committed on feat (7b83f87, acc4e2f) and the orchestrator relocated them to the main spec store — identical content, so the merge resolves clean. (2) Moving a brief slot the orchestrator used to fill to a server kind must make it a template key, not a literal: the doc-phase checker/adjudicator (fixed in task 12 r1) and the impl-phase CI fix/verify variants (fixed in task 13 r1) both shipped unfilled `<...>` first. (3) `git reset --hard` is blocked (irreversible-destruction guard); use revert or relocate instead. |
 | Next phase loads | retrospective: read retrospective-log.md, baseline-sources.md, verification-evidence.md, and resolve deferral d-8a58ed18 once the operator runs the live scenarios |
+
+## lean-orchestrators — closeout
+
+Plan CLOSED. 17/17 items closed (14 done, 3 skipped as no-change, 0 to-do).
+
+- done — store (11, committed directly to `main`, no PR): P1 72b914e, P2 4293771, P4 3a74a32, P5 0699b95, P8 aa4c97d, P9 707dc71, P10 cf67578, P14 1ee7acc, G1 0699b95, G2 98bd597, G3 dcb1a5f. These landed as convention bullets in `.spec-workflow/agent-rules.md` and a Req 7.3 fix in this spec's `requirements.md`.
+- done — harness (3, PR #84, branch `chore/lean-orchestrators-retro`): P3 9d5d9c1 (hook emits `spawn.start` role `reviewer` for `reviews/` prompts + hook test), P6 68c3fc0 (supervisor `run.start` capability probe + fixture README note), P7 6d7ff5d (launch-budget folds a trailing remainder of one). `plugins/*` mirrors synced in-commit.
+- skipped (no change / ratified as-is): P11, P12, P13.
+- to-do (human): none.
+
+PR: spec-workflow-mcp #84 https://github.com/madmatt112/spec-workflow-mcp/pull/84 — NOT merged (close-out never merges).
+Worktree: `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/lean-orchestrators-retro`.
+
+Gotchas:
+- Store batch is on `main` already (direct commits), not in PR #84; PR #84 carries only the harness batch.
+- P5 and G1 share commit 0699b95 (one agent-rules bullet satisfies both).
+- P8's +20%-W acceptance decision was recorded in `agent-rules.md` because `.spec-workflow/steering/` is empty; a `~/.claude` memory copy is a separate home-class action, out of this root. P8/P14 stay conditional on a re-measure of W/task on the next real spec (P7 is the prefix fix).

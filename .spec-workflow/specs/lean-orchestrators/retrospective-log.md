@@ -193,3 +193,13 @@ Cost: 1 analyst spawn (28.8k tokens)
 store batch 1: 11 items done (P1,P2,P4,P5,P8,P9,P10,P14,G1,G2,G3), 0 to-do, 0 skipped; recorded in agent-rules.md + requirements.md on main, one commit each (P5/G1 share).
 Evidence: retrospective-plan.md Close-out; commits 72b914e..dcb1a5f
 Cost: 1 implementer spawn, 0 verifier (store class gate-only)
+
+## 2026-10-05T16:25:06Z · closeout · phase · cleanup
+harness batch 1: 3 items done (P3 hook+test, P6 run.start probe, P7 launch-budget) on chore/lean-orchestrators-retro; plugins/ mirrors synced; P3 verified (high risk, pass).
+Evidence: commits 9d5d9c1,68c3fc0,6d7ff5d
+Cost: 1 implementer + 1 verifier spawn (P6/P7 low-risk gate-only)
+
+## 2026-10-05T16:26:20Z · closeout · phase · cleanup
+lean-orchestrators close-out: 17/17 closed — 14 done (11 store on main, 3 harness in PR #84), 3 skipped (no-change P11/P12/P13), 0 to-do; plan CLOSED.
+Evidence: retrospective-plan.md Close-out; PR #84
+Cost: 3 spawns total: 2 implementer + 1 verifier; 11 verifier spawns skipped (store gate-only), 2 skipped (P6/P7 low-risk)
