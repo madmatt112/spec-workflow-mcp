@@ -108,6 +108,11 @@ Every `harness usage` producer records a `spawn.start` for every orchestrator AN
 reviewer spawn, matching both the `-brief*.md` and the `reviews/` prompt paths. Any
 column that cannot observe a class of events is labelled a floor at its source.
 
+W per task can rise even when W per review round falls, because more, smaller spawns
+each pay the base+skill prefix (lean-orchestrators cut W/review 50-67% but ran W/task
++20%). This is accepted provided the per-spawn prefix work lands (P7/G3) and W/task is
+re-measured on the next real spec.
+
 ## Fixtures and live verification
 
 - A fixture or generated artifact used in a live check must meet the same validity bar
