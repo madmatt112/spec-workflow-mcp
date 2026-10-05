@@ -120,6 +120,9 @@ that no further events occurred.
   and is gated by a tracked `verification-evidence.md` whose every line must read
   `passed` before the retrospective opens; an operator runs it in a rebuilt, restarted
   session. Do not close it with a silent harness decision.
+- A verification result worse than baseline is recorded as a retro finding, not a silent
+  pass and not a merge block (D9): the operator records the signal and lets the merge
+  proceed.
 
 ## Sensitive paths
 
