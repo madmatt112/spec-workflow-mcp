@@ -104,6 +104,9 @@ observe a whole class of events — a separate-process worker, a truncated summa
 yield that fires before the last transcript line — is a lower bound. When you add or read
 such a column, name its known blind spots next to it, and never treat a count as proof
 that no further events occurred.
+Every `harness usage` producer records a `spawn.start` for every orchestrator AND
+reviewer spawn, matching both the `-brief*.md` and the `reviews/` prompt paths. Any
+column that cannot observe a class of events is labelled a floor at its source.
 
 ## Fixtures and live verification
 
