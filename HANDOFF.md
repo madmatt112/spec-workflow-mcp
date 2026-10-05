@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-04, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **retrospective**, state **tasks 16/16**, last result **complete** (PR #81 merged; verification-evidence (2) and (3) pending, deferral d-8a58ed18).
+> **READ FIRST — SDD routing (2026-10-05, harness v4).** Active spec **`lean-orchestrators`**.
+> Live phase **retrospective**, state **tasks 16/16**, last result **complete** (verification-evidence (1) (kit) (2) (3) all passed after the lean-fixture live run; deferral d-8a58ed18 resolved).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: the retrospective conversation and close-out once every verification-evidence.md line reads passed; until then it stops with "retrospective blocked".
+> A re-run does: spawns the retro orchestrator (with retrospective.md and retrospective-proposals.md present, holds the retro conversation instead), then the close-out of the approved plan.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
