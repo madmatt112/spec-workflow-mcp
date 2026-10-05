@@ -445,3 +445,4 @@
 {"ts":"2026-10-05T16:26:21.002Z","run":"run-20261005-154530","spec":"lean-orchestrators","type":"phase.end","phase":"closeout","result":"closed","state":"items 17/17"}
 {"ts":"2026-10-05T16:26:31.654Z","type":"spawn.end","run":"run-20261005-154530","spec":"lean-orchestrators","agent":"sdd-closeout-orchestrator","input":"66","output":"4175","cacheWrite":"111072","cacheRead":"2947950","tokens":"3063263","cacheWrite5m":"0","cacheWrite1h":"111072","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a13177457eb33185a"}
 {"ts":"2026-10-05T19:11:40.007Z","run":"run-20261005-154530","spec":"lean-orchestrators","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed"}
+{"ts":"2026-10-05T19:12:18.942Z","run":"run-20261005-154530","spec":"lean-orchestrators","type":"run.end","status":"spec-workflow-mcp:lean-orchestrators closeout items 17/17 — closed; PR #84 open (not merged); a re-run starts the next spec"}
