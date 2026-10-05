@@ -44,6 +44,7 @@ node-20 fields.
   supervisor enters a worktree for the spec before implementation.
 - Never push except where the phase skill says to (the implementation orchestrator pushes
   once to open the PR). Never merge a pull request.
+- Undo a mis-commit with revert or relocate, not `git reset --hard`.
 - In a worktree-isolated session the Edit and Write tools refuse paths under
   `.spec-workflow`, and the shell guard refuses `git` with `-C`, a glob or a compound line.
   Write files to `/tmp/scratchpad/sdd/<spec>/` and `cp` them into place on their own line,
