@@ -37,6 +37,11 @@ tasks <done>/<total>`, `REASON: <the flag's line>`. The supervisor already stops
 
 ## Resume recovery
 
+A 429/credit interruption mid-review is resumable: re-run only the interrupted spawn. A gate
+that already passed, and author or implementer commits already made, are intact — never redo
+committed work on resume (retro G3). The steps below reconcile the resumed task against those
+commits rather than re-running them.
+
 An `[-]` task resumed from Step 0 may already carry a worker's commit even though its report
 never reached you: the worker finished after your previous turn ended, so its report routed
 to the supervisor, not to you. The plugin hook persists every worker's final report to the
