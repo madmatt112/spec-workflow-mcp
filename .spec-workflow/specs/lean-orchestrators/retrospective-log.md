@@ -188,3 +188,8 @@ Cost: unknown
 retrospective compiled: 14 findings (F1-F14) across gotchas/harness-defects/inefficiencies/doc-gaps/model-behaviour/rulings/harness-decisions; analyst wrote 14 proposals (P1-P14), 3 decisions needed (P5, P7, P8), 3 graduation candidates (verification-only convention, usage blind-spots, per-spawn prefix).
 Evidence: specs/lean-orchestrators/retrospective.md; specs/lean-orchestrators/retrospective-proposals.md
 Cost: 1 analyst spawn (28.8k tokens)
+
+## 2026-10-05T16:11:48Z · closeout · phase · cleanup
+store batch 1: 11 items done (P1,P2,P4,P5,P8,P9,P10,P14,G1,G2,G3), 0 to-do, 0 skipped; recorded in agent-rules.md + requirements.md on main, one commit each (P5/G1 share).
+Evidence: retrospective-plan.md Close-out; commits 72b914e..dcb1a5f
+Cost: 1 implementer spawn, 0 verifier (store class gate-only)

@@ -199,3 +199,22 @@ Sources: `retrospective.md` (14 findings), `retrospective-proposals.md` (14 prop
 ## Rejected proposals
 
 None.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- P1: done — 72b914e
+- P2: done — 4293771
+- P4: done — 3a74a32
+- P5: done — 0699b95
+- P8: done — aa4c97d
+- P9: done — 707dc71
+- P10: done — cf67578
+- P11: skipped — no change: round-1 reviewer handled the RE-DECIDED flags correctly; ratified as-is.
+- P12: skipped — no change: three rulings converged with zero adjudications; ratified as-is.
+- P13: skipped — no change: deferring live scenarios to an operator session is the sanctioned path; ratified as-is.
+- P14: done — 1ee7acc
+- G1: done — 0699b95
+- G2: done — 98bd597
+- G3: done — dcb1a5f
