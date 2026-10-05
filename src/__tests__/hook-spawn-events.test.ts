@@ -147,6 +147,31 @@ describe('sdd-activity.sh spawn events', () => {
     expect(events[0]).toMatchObject({ type: 'spawn.start', agent: 'sdd-adjudicator', role: 'adjudication' });
   });
 
+  it('records a reviewer spawn from a reviews/adversarial-prompt path, and a -brief path still records (retro P3)', () => {
+    // Reviewer: launched from a reviews/adversarial-prompt-*.md path that has no -brief stem.
+    runHook({
+      hook_event_name: 'PreToolUse',
+      agent_type: 'spec-workflow-harness:sdd-document-orchestrator',
+      tool_input: {
+        subagent_type: 'spec-workflow-harness:sdd-reviewer',
+        prompt: 'Read and execute the instructions in /tmp/project/.spec-workflow/specs/harness-bookkeeping/reviews/adversarial-prompt-requirements-r2.md',
+      },
+    });
+    // A -brief path continues to record with the stem role.
+    runHook({
+      hook_event_name: 'PreToolUse',
+      agent_type: 'spec-workflow-harness:sdd-document-orchestrator',
+      tool_input: {
+        subagent_type: 'spec-workflow-harness:sdd-drafter',
+        prompt: 'Read and execute the instructions in /tmp/scratchpad/sdd/harness-bookkeeping/reviews/drafter-brief-requirements.md',
+      },
+    });
+    const events = eventLines();
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({ type: 'spawn.start', agent: 'sdd-reviewer', role: 'reviewer' });
+    expect(events[1]).toMatchObject({ type: 'spawn.start', agent: 'sdd-drafter', role: 'drafter' });
+  });
+
   it('writes one spawn.end for a non-orchestrator sdd worker on SubagentStop', () => {
     runHook({
       hook_event_name: 'SubagentStop',

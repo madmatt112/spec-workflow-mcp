@@ -210,10 +210,15 @@ if (eventsFile) {
   if (ev === "PreToolUse") {
     const ti = d.tool_input || {};
     const sub = String(ti.subagent_type || "");
-    const m = String(ti.prompt || "").match(/([^\s/]+)-brief[^\s/]*\.md/);
-    if (/(^|:)sdd-/.test(sub) && m) {
+    const prompt = String(ti.prompt || "");
+    // A worker brief path (<role>-brief*.md) names the role in its stem; a reviewer is
+    // launched from a reviews/adversarial-prompt-*.md path that carries no -brief stem, so
+    // match that path too and label it reviewer, making reviewer W observable (retro P3).
+    const m = prompt.match(/([^\s/]+)-brief[^\s/]*\.md/);
+    const role = m ? m[1] : (/reviews\/adversarial-prompt[^\s/]*\.md/.test(prompt) ? "reviewer" : null);
+    if (/(^|:)sdd-/.test(sub) && role) {
       const child = sub.slice(sub.lastIndexOf(":") + 1);
-      const startRow = { ts: e.ts, type: "spawn.start", run, spec, agent: child, role: m[1] };
+      const startRow = { ts: e.ts, type: "spawn.start", run, spec, agent: child, role };
       if (ti.model) startRow.model = String(ti.model); // declared model from the Agent call (retro P5)
       fs.appendFileSync(eventsFile, JSON.stringify(startRow) + "\n");
     }
