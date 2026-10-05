@@ -163,3 +163,23 @@ Cost: 1 e2e verifier + 1 log-only implementer spawn
 lean-orchestrators implemented: 16/16 tasks complete. Fix rounds: 3 (task 8 non-verbatim reviewer section; task 12 doc-phase checker/adjudicator placeholder wiring; task 13 missing Req 5.3 stall rule + CI-variant placeholder slots). Adjudications: 0. Deferrals added: 1 (d-8a58ed18, live scenarios 2/3). Batched verification used for tasks 8/9/10 (one verifier spawn). Verification-only tasks 5/15/16 relocated feat-committed files to the main spec store. e2e gate green: build, tsc, npm test (1813 pass), check:plugin-assets, plugin validate all exit 0; scenario (1) + (kit) passed, (2)/(3) pending.
 Evidence: 16 tasks; e2e VERIFY pass; verification-evidence.md (1)+(kit) passed
 Cost: ~10 author + ~19 implementer/fix + 9 verifier spawns
+
+## 2026-10-05T15:45:00Z · verification · phase · ruling
+Operator ruling on the lean-fixture live run (run-20261005-141456): evidence lines (2) and (3) marked passed with findings rather than left pending. (2): fresh worker per review round and per task shown (reviser spawn.start, 4 reviewer spawn.end with new agentIds, 6x test-author/implementer/verifier spawn.start); the one-PR half cannot be shown because the staged fixture has no git remote, PR #81 evidences the path. (3): W per review round 50-67% below the tdd-task-loop baseline; W per task 189,451 vs 157,800 (+20%) is a D9 finding for Matthew, passed on D9's reading that a worse signal becomes a retro finding, not a silent pass.
+Evidence: specs/lean-orchestrators/verification-evidence.md lines (2) (3); e2e/fixture-usage.md; deferral d-8a58ed18 resolved
+Cost: 1h23m wall clock, 17.9M tokens, W 4.56M for the fixture run; 0 extra spawns
+
+## 2026-10-05T15:45:00Z · implementation · phase · inefficiency
+Per-task orchestrator W in the fixture is 20% above the tdd-task-loop baseline because the 5-task budget split 6 tasks over two implementation orchestrator spawns: spawn 1 did tasks 1-5 at 152,198 W per task (-4% vs baseline), spawn 2 did task 6 plus the end-to-end gate for 375,714 W, of which base 163,847 + skill 85,971 is fixed per-spawn prefix. A spec of B+1 tasks pays a whole second prefix for one task.
+Evidence: e2e/fixture-usage.md per-unit table; e2e/lean-fixture-harness-events.jsonl phase.end tasks 5/6 then 6/6
+Cost: 375,714 W for one task; wall clock 13.8 min for the second spawn
+
+## 2026-10-05T15:45:00Z · verification · phase · harness-defect
+sdd-reviewer spawns leave no spawn.start row and count as tokens unknown in harness usage, in the fixture and in both baselines (tdd-task-loop, trading-rules): the activity hook writes spawn.start only for a prompt that names a -brief*.md path, and reviewers launch from a reviews/ prompt path; harness-activity.jsonl does carry their agent.start/agent.stop rows with tokens.
+Evidence: harness/hooks/sdd-activity.sh:213 (brief-path match); e2e/lean-fixture-harness-events.jsonl spawn.end agent=sdd-reviewer x4; baseline-sources.md sdd-reviewer rows 0 (+n unknown)
+Cost: 4 reviewer spawns per fixture run with W unknown; baseline reviewer W unknown in 6 of 6 rows
+
+## 2026-10-05T15:45:00Z · verification · phase · harness-defect
+Under claude -p the fixture supervisor recorded headless=no at run.start and only discovered AskUserQuestion unavailable at the retrospective (plan written DRAFT, status line 'AskUserQuestion unavailable'); the gate B HANDOFF row also landed outside the phase-log table in the fixture store (repaired by overwatch in fixture commit 22355f3). The fixture has no git remote, so a headless kit run can never show the one-PR criterion.
+Evidence: e2e/lean-fixture-harness-events.jsonl note 2026-10-05T15:38:22Z; e2e/fixture-run.log; fixture HANDOFF 'PR | none — no git remote configured'
+Cost: unknown
