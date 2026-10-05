@@ -183,3 +183,8 @@ Cost: 4 reviewer spawns per fixture run with W unknown; baseline reviewer W unkn
 Under claude -p the fixture supervisor recorded headless=no at run.start and only discovered AskUserQuestion unavailable at the retrospective (plan written DRAFT, status line 'AskUserQuestion unavailable'); the gate B HANDOFF row also landed outside the phase-log table in the fixture store (repaired by overwatch in fixture commit 22355f3). The fixture has no git remote, so a headless kit run can never show the one-PR criterion.
 Evidence: e2e/lean-fixture-harness-events.jsonl note 2026-10-05T15:38:22Z; e2e/fixture-run.log; fixture HANDOFF 'PR | none — no git remote configured'
 Cost: unknown
+
+## 2026-10-05T15:52:03Z · retrospective · phase · cleanup
+retrospective compiled: 14 findings (F1-F14) across gotchas/harness-defects/inefficiencies/doc-gaps/model-behaviour/rulings/harness-decisions; analyst wrote 14 proposals (P1-P14), 3 decisions needed (P5, P7, P8), 3 graduation candidates (verification-only convention, usage blind-spots, per-spawn prefix).
+Evidence: specs/lean-orchestrators/retrospective.md; specs/lean-orchestrators/retrospective-proposals.md
+Cost: 1 analyst spawn (28.8k tokens)
