@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-10-05, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **closeout**, state **items 0/17**, last result **retro-ready** (plan APPROVED: P5 (A), P7 (A), P8 (A); 14 proposals + G1-G3).
+> Live phase **closeout**, state **items 17/17**, last result **closed** (retrospective plan CLOSED; harness batch on PR #84, open, not merged; store batch on main).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: spawns the close-out orchestrator for the approved plan (store items committed on main, harness items on a chore/lean-orchestrators-retro branch with one PR), then marks the plan CLOSED.
+> A re-run does: starts the next spec — lean-orchestrators is finished; routing falls through INDEX (tighter-reviews has no retro log, so it counts as finished) to the first decomposition spec with no directory.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -86,6 +86,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-04 | lean-orchestrators | implementation | tasks 16/16 | complete | PR #81 green; logCoverage 16/16; reviewCoverage 13/16 (5,15,16 verification-only); deferral d-8a58ed18 live 2/3 pending |
 | 2026-10-05 | lean-orchestrators | retrospective | n/a | retro-ready | 14 findings, 14 proposals (3 decisions: P5, P7, P8), 3 graduation candidates; fixture live run passed (2)/(3) with findings |
 | 2026-10-05 | lean-orchestrators | retrospective | APPROVED | retro-ready | plan APPROVED by Matthew: P5 (A), P7 (A), P8 (A); all 14 proposals + G1-G3 approved, none rejected |
+| 2026-10-05 | lean-orchestrators | retrospective |  | retro-ready |  |
+| 2026-10-05 | lean-orchestrators | closeout | items 17/17 | closed |  |
 
 ## Current state — 2026-08-04
 
