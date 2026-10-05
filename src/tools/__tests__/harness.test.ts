@@ -1610,6 +1610,24 @@ describe('harnessHandler', () => {
     expect(out).toContain('| 2026-09-15 | my-spec | design | v2 | approved | ok |');
   });
 
+  it('phase-log rejects a phase.end with no result key (retro F7)', async () => {
+    await writeHandoff(HANDOFF_HEADER);
+    await writeLedger([
+      { ts: '2026-09-15T10:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC },
+      // result omitted: the text went into state and `result` was dropped.
+      { ts: '2026-09-15T10:30:00Z', type: 'phase.end', run: 'run-1', spec: SPEC, phase: 'implementation', state: 'repair 2' },
+    ]);
+
+    const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);
+    expect(res.success).toBe(false);
+    expect(res.message).toContain('result');
+    expect(res.message).toContain('implementation');
+    // The empty-result row was never rendered into HANDOFF.
+    const out = await readHandoff();
+    expect(out).toContain('| 2026-09-10 | other-spec | design | v2 | approved | keep me verbatim |');
+    expect(out).not.toContain('| my-spec | implementation |');
+  });
+
   it('phase-log fails naming HANDOFF when it is missing', async () => {
     await writeLedger([{ ts: '2026-09-15T10:00:00Z', type: 'run.start', run: 'run-1', spec: SPEC }]);
     const res = await harnessHandler({ action: 'phase-log', specName: SPEC }, context);

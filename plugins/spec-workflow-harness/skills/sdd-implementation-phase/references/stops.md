@@ -3,7 +3,9 @@
 The core skill routes here: to **Resume recovery** on a Step 0 `nextStep` of
 `Per-task loop: resume task <N>`; to **Design defect** on a `DESIGN-DEFECT` from the
 implementer or a `SEAM-DEFECT`/all-criteria `RED-IMPOSSIBLE` from the test author (step
-1b); to **Escalate** on an `ESCALATE:` flag; and to **Stop conditions and their reports**
+1b, except a finding-driven already-compliant case, which step 1b routes implementer-only —
+see **Design defect**); to **Escalate** on an `ESCALATE:` flag; and to **Stop conditions
+and their reports**
 for any stop other than Budget. All bookkeeping — ledger rows, retro entries, the HANDOFF
 State row and spec-store commits — goes through `book.sh` as the core skill's
 **Bookkeeping** rule describes. Every stop writes the HANDOFF section and commits the spec
@@ -14,7 +16,9 @@ store first.
 The implementer says the task cannot be built as written because it contradicts the
 design, the requirements or a decomposition assumption; or, on a marked task, the test
 author (step 1b) reported `SEAM-DEFECT` or `RED-IMPOSSIBLE` for every criterion, in which
-case no implementer runs. Do not force it. Revert the
+case no implementer runs. (A finding-driven task whose every criterion is `RED-IMPOSSIBLE`
+because the shipped code already satisfies it is already-compliant, not defective — step 1b
+routes it implementer-only, not here, retro F6/F17.) Do not force it. Revert the
 task to `[ ]` (`book.sh` `check <N> todo`). Append a retro-log entry through `book.sh`
 (`retro`, `deviation`, the defect in one sentence, evidence = task N). Write the HANDOFF
 section and commit the spec store (`book.sh`). Report
@@ -32,6 +36,11 @@ the HANDOFF section and commit the spec store (`book.sh`). Report `PHASE: escala
 tasks <done>/<total>`, `REASON: <the flag's line>`. The supervisor already stops on it.
 
 ## Resume recovery
+
+A 429/credit interruption mid-review is resumable: re-run only the interrupted spawn. A gate
+that already passed, and author or implementer commits already made, are intact — never redo
+committed work on resume (retro G3). The steps below reconcile the resumed task against those
+commits rather than re-running them.
 
 An `[-]` task resumed from Step 0 may already carry a worker's commit even though its report
 never reached you: the worker finished after your previous turn ended, so its report routed

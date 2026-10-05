@@ -202,6 +202,14 @@ Call `spec-status` once for the active spec. Read `overallStatus`, the three doc
 entries in `phases` (`approved`, `approvalStatus`, `approvalId`) and `taskProgress`.
 Apply these rules in order; the first match wins.
 
+**Completion gate (retro F5).** An unresolved completion-gate stop blocks completion
+before the task count is read: if the spec's `harness-events.jsonl` ends on a `phase.end`
+whose `result` is `escalate`, `verify-failed`, or empty/absent with no later `phase.start`,
+implementation is not complete regardless of `taskProgress` — treat the spec as `implementing` and go to
+rule 7, never rules 1–3 (retrospective/closeout/finished). `spec-status` and `spec-index`
+apply this same shared gate, so a `completed` `overallStatus` already reflects it; this
+prose is the supervisor's copy of the rule.
+
 1. `overallStatus == completed` and `specs/<spec>/retrospective-log.md` exists and
    `specs/<spec>/retrospective-plan.md` either does not exist or has
    `Status: DRAFT` ⇒ phase **retrospective**. Before the retrospective phase, when
