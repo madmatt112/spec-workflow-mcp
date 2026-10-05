@@ -876,6 +876,21 @@ async function phaseLogAction(args: any, context: ToolContext): Promise<ToolResp
   }
 
   const events = parseJsonl<LedgerEvent>(ledgerText);
+
+  // A `phase.end` must carry a `result` key. One that omits it (its text put in
+  // `state` and `result` dropped) would render a HANDOFF row with an empty Result
+  // column that the supervisor hand-patches (retro F7). Fail fast naming the
+  // offending event rather than silently rendering an empty cell.
+  const missingResult = events.find(e => e.type === 'phase.end' && !('result' in e));
+  if (missingResult) {
+    const where = `phase=${missingResult.phase ?? '?'} ts=${missingResult.ts ?? '?'}`;
+    return {
+      success: false,
+      message: `Malformed ledger ${ledgerPath}: a phase.end event is missing its required `
+        + `\`result\` key (${where}). Record phase.end with result=<the PHASE value>.`,
+    };
+  }
+
   const derived = derivePhaseRows(events, parseHandoffPhaseRows(handoffMd, specName));
   const updated = rewriteHandoffPhaseLog(handoffMd, specName, derived);
 
