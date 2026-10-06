@@ -783,3 +783,15 @@ Gotchas:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | tasks reads this spec's design.md after codebase-context.md, then requirements.md |
+
+## dashboard-shell — tasks
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-10-06 |
+| Rounds | 1; verdict converged 0/0/3 (MINOR 3: dependency-paragraph gaps, generatedAt, exited-clear test naming) |
+| Approval | `approval_1791313591369_cbub35dbw` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | implementation reads tasks.md, then design.md and codebase-context.md |

@@ -18,3 +18,13 @@ Cost: one reviewer spawn
 design approved at v1 after 1 round; verdict trajectory 0/0/3 converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1791311998141_1lwohdodk; reviews/adversarial-analysis-design.md · mark run-20261006-170927 0f28e6ac
 Cost: 1 reviewer + 0 reviser spawns
+
+## 2026-10-06T19:06:25Z · tasks · round 1 · gotcha
+Reviewer converged on v1: MUST_FIX 0, SHOULD_FIX 0, MINOR 3 (dependency-paragraph gaps, generatedAt, exited-clear test naming); full AC and design-component coverage, no orphan or scope invention.
+Evidence: reviews/adversarial-analysis-tasks.md · mark run-20261006-170927 57b89134
+Cost: one reviewer spawn
+
+## 2026-10-06T19:07:43Z · tasks · phase cleanup · cleanup
+tasks approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1791313591369_cbub35dbw; reviews/adversarial-analysis-tasks.md · mark run-20261006-170927 26183c66
+Cost: 1 reviewer + 0 reviser spawns
