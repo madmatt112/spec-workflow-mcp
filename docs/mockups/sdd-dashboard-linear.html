@@ -1,0 +1,571 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SDD Dashboard, Linear Style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one app frame (sidebar · main · detail panel) in the Linear idiom, then a short notes column. Desk first; the frame stacks on a narrow screen but is not designed for it. */
+:root{
+  --bg:#fcfcfc;--panel:#fff;--side:#f7f8f8;--line:#e8e8ec;--line2:#f0f0f3;--fg:#282a30;--mute:#6f7480;--mute2:#9a9ea8;
+  --acc:#5e6ad2;--accbg:rgba(94,106,210,.12);--ok:#2f9e5f;--okbg:rgba(47,158,95,.12);--warn:#c98500;--warnbg:rgba(201,133,0,.14);--bad:#e5484d;--badbg:rgba(229,72,77,.12);
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Roboto Mono",ui-monospace,Menlo,monospace;--r:6px;
+  --pg-bg:#f3f4f6;--pg-fg:#1b1f26;--pg-mute:#5f6873;--pg-line:#d9dee5;--pg-card:#fff;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#0f1011;--panel:#121314;--side:#151617;--line:#23252a;--line2:#1b1d21;--fg:#e3e4e6;--mute:#8a8f98;--mute2:#5f6470;--acc:#7170ff;--accbg:rgba(113,112,255,.16);--ok:#4cb782;--okbg:rgba(76,183,130,.16);--warn:#f2c94c;--warnbg:rgba(242,201,76,.14);--bad:#eb5757;--badbg:rgba(235,87,87,.16);--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--pg-bg:#101318;--pg-fg:#e6e9ee;--pg-mute:#9aa3ae;--pg-line:#2a3038;--pg-card:#171b21;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0f1011;--panel:#121314;--side:#151617;--line:#23252a;--line2:#1b1d21;--fg:#e3e4e6;--mute:#8a8f98;--mute2:#5f6470;--acc:#7170ff;--accbg:rgba(113,112,255,.16);--ok:#4cb782;--okbg:rgba(76,183,130,.16);--warn:#f2c94c;--warnbg:rgba(242,201,76,.14);--bad:#eb5757;--badbg:rgba(235,87,87,.16);--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--pg-bg:#101318;--pg-fg:#e6e9ee;--pg-mute:#9aa3ae;--pg-line:#2a3038;--pg-card:#171b21;color-scheme:dark}
+
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--pg-bg);color:var(--pg-fg);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin-inline:auto;padding-inline:16px;padding-block:18px 56px}
+.col{max-width:720px}
+h1{font-size:1.5rem;font-weight:600;letter-spacing:-.01em;margin:0 0 4px;text-wrap:balance}
+h2{font-size:1.1rem;font-weight:600;margin:36px 0 8px}
+p{margin:0 0 10px}
+.lead{color:var(--pg-mute)}
+.top-ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:14px 0 12px;font-size:.85rem}
+.seg{display:inline-flex;border:1px solid var(--pg-line);border-radius:8px;overflow:hidden;background:var(--pg-card)}
+.seg button{font:inherit;font-size:.82rem;font-weight:500;padding:6px 11px;border:0;background:none;color:var(--pg-mute);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accbg);color:var(--acc)}
+.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.ctl-label{color:var(--pg-mute);margin-right:6px}
+
+/* ---------- app frame ---------- */
+.frame{border:1px solid var(--pg-line);border-radius:10px;overflow:hidden;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.app{display:grid;grid-template-columns:208px 1fr 360px;min-height:760px;color:var(--fg);font-size:12.5px}
+.app.nopanel{grid-template-columns:208px 1fr}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+.clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mute{color:var(--mute)} .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .acc{color:var(--acc)}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:0 8px;font-size:11px;line-height:18px;color:var(--mute);background:var(--panel);white-space:nowrap;vertical-align:middle}
+.chip.on{border-color:var(--acc);color:var(--acc);background:var(--accbg)}
+.chip.ok{color:var(--ok);background:var(--okbg);border-color:transparent}
+.chip.warn{color:var(--warn);background:var(--warnbg);border-color:transparent}
+.chip.bad{color:var(--bad);background:var(--badbg);border-color:transparent}
+.chip.mute2{color:var(--mute2)}
+.st{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--mute2);display:inline-block;flex:none;vertical-align:middle}
+.st.warn{border-color:var(--warn);background:conic-gradient(var(--warn) 0 50%,transparent 50%)}
+.st.run{border-color:var(--ok);background:conic-gradient(var(--ok) 0 35%,transparent 35%)}
+.st.ok{border-color:var(--ok);background:var(--ok)}
+.st.done{border-color:var(--mute2);background:var(--mute2)}
+.st.bad{border-color:var(--bad);background:var(--bad)}
+.st.half{border-color:var(--acc);background:conic-gradient(var(--acc) 0 33%,transparent 33%)}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:var(--r);padding:3px 10px;font-size:11.5px;font-weight:500;white-space:nowrap;line-height:18px}
+.btn:hover{border-color:var(--mute2)}
+.btn.pri{background:var(--acc);border-color:transparent;color:#fff}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:1px 7px;font-size:11px}
+.btn[disabled]{opacity:.5;cursor:default}
+kbd{font-family:var(--font);font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:0 5px;background:var(--panel);color:var(--mute)}
+.badge{display:inline-block;min-width:16px;border-radius:999px;background:var(--accbg);color:var(--acc);font-size:10.5px;line-height:16px;text-align:center;padding:0 5px;font-weight:500}
+.age{color:var(--mute);font-size:11.5px;white-space:nowrap}
+.age.hot{color:var(--warn)} .age.stale{color:var(--bad)}
+
+/* sidebar */
+.side{background:var(--side);border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:16px}
+.ws{font-weight:600;display:flex;align-items:center;gap:8px;padding:2px 6px}
+.ws i{width:18px;height:18px;border-radius:5px;background:var(--acc);display:inline-block}
+.ws .v{margin-left:auto;font-weight:400;color:var(--mute2);font-size:11px}
+.nav a{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);color:var(--fg);text-decoration:none}
+.nav a:hover{background:var(--panel)}
+.nav a.on{background:var(--accbg);color:var(--acc);font-weight:500}
+.nav a .c{margin-left:auto;color:var(--mute);font-size:11px}
+.nav a.on .c{color:var(--acc)}
+.grp{font-size:11px;color:var(--mute);padding:0 8px;margin-bottom:4px;font-weight:500;display:flex;align-items:center}
+.grp .r{margin-left:auto;font-weight:400}
+.proj a{display:flex;align-items:center;gap:8px;padding:4px 8px;color:var(--fg);text-decoration:none;border-radius:var(--r);font-size:12px}
+.proj a:hover{background:var(--panel)}
+.proj a.off{color:var(--mute2)}
+.proj a i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+.proj a.off i{opacity:.3}
+.proj a .c{margin-left:auto;color:var(--mute2);font-size:11px}
+.sfoot{margin-top:auto;display:grid;gap:8px;color:var(--mute);font-size:11px}
+.sfoot .k{display:flex;gap:6px;align-items:center}
+.sfoot a{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);color:var(--fg);text-decoration:none;font-size:12px}
+.sfoot a.on{background:var(--accbg);color:var(--acc)}
+
+/* main */
+.main{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.lhead{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:2}
+.lhead b{font-weight:600;font-size:13px}
+.lhead .r{margin-left:auto;display:flex;gap:8px;align-items:center;color:var(--mute);font-size:11.5px}
+.search{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);color:var(--mute);padding:2px 8px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;min-width:170px}
+.crumb{display:flex;align-items:center;gap:6px;color:var(--mute);font-size:12px}
+.crumb b{color:var(--fg);font-weight:500}
+.gh{display:flex;align-items:center;gap:8px;padding:5px 14px;background:var(--side);border-bottom:1px solid var(--line);font-size:11.5px;font-weight:500;color:var(--mute);cursor:pointer;user-select:none}
+.gh b{color:var(--fg);font-weight:600}
+.gh .r{margin-left:auto;font-weight:400}
+.gh .tri{display:inline-block;transition:transform .15s;font-size:10px;color:var(--mute2)}
+.gh.closed .tri{transform:rotate(-90deg)}
+.lrow{display:grid;gap:10px;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--line2);cursor:pointer;font-size:12.5px}
+.lrow:hover{background:var(--panel)}
+.lrow.sel{background:var(--accbg)}
+.lrow .t{font-weight:500}
+.lrow .sub{color:var(--mute);font-size:12px}
+.lrow .tok{font-family:var(--mono);font-size:11.5px;color:var(--mute);white-space:nowrap;text-align:right}
+.pager{display:flex;align-items:center;gap:10px;padding:8px 14px;color:var(--mute);font-size:11.5px;border-bottom:1px solid var(--line2)}
+.pager .btn{margin-left:auto}
+.empty{padding:14px;color:var(--mute);font-size:12px}
+
+/* run page */
+.page{padding:14px 18px 24px;display:grid;gap:18px;align-content:start}
+.ptitle{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ptitle h3{margin:0;font-size:16px;font-weight:600}
+.ptitle .sub{color:var(--mute);font-size:12px;flex-basis:100%}
+.sec{display:grid;gap:8px}
+.sec > h4{margin:0;font-size:12px;font-weight:600;color:var(--mute);display:flex;align-items:center;gap:8px}
+.sec > h4 .r{margin-left:auto;font-weight:400;display:flex;gap:6px;align-items:center}
+.phases{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.ph{border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;background:var(--panel);display:grid;gap:2px;cursor:pointer}
+.ph.live{border-color:var(--ok);background:var(--okbg)}
+.ph.wait{border-color:var(--warn);background:var(--warnbg)}
+.ph.todo{opacity:.55}
+.ph .n{font-weight:500;font-size:12px;display:flex;align-items:center;gap:6px}
+.ph .d{color:var(--mute);font-size:11px}
+.card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:10px 12px}
+.spawn{display:grid;gap:6px}
+.spawn .row{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center}
+.spawn .row.sub{padding-left:22px}
+.spawn .row .r{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:11.5px;white-space:nowrap}
+.spawn .tool{font-family:var(--mono);font-size:11.5px;color:var(--mute);padding-left:36px}
+table.t{border-collapse:collapse;width:100%;font-size:12px}
+table.t th{text-align:left;font-weight:500;color:var(--mute);padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11px}
+table.t td{padding:5px 8px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
+table.t td.w{white-space:normal;min-width:180px}
+table.t tr.live td{background:var(--okbg)}
+table.t tr.queued td{color:var(--mute2)}
+table.t td.n{font-family:var(--mono);font-size:11.5px;text-align:right}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;color:var(--mute);padding:6px 10px;border-bottom:2px solid transparent;font-size:12px;font-weight:500}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--acc)}
+.log{font-family:var(--mono);font-size:11.5px;display:grid;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.log .ln{display:grid;grid-template-columns:62px 92px 1fr;gap:10px;padding:3px 10px;border-top:1px solid var(--line2)}
+.log .ln:first-child{border-top:0}
+.log .ln .lv{font-weight:500}
+details.fold{border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+details.fold > summary{cursor:pointer;list-style:none;padding:7px 12px;font-weight:500;font-size:12px;display:flex;align-items:center;gap:8px;color:var(--fg)}
+details.fold > summary::-webkit-details-marker{display:none}
+details.fold > summary .r{margin-left:auto;color:var(--mute);font-weight:400;font-size:11.5px}
+details.fold > summary::before{content:"▸";color:var(--mute2);font-size:10px;transition:transform .15s}
+details.fold[open] > summary::before{transform:rotate(90deg)}
+details.fold .body{border-top:1px solid var(--line)}
+
+/* panel */
+.panel{background:var(--panel);border-left:1px solid var(--line);padding:14px;display:grid;align-content:start;gap:12px;font-size:12.5px;overflow:auto}
+.panel .ph2{display:flex;align-items:center;gap:8px}
+.panel .ph2 b{font-size:13.5px;font-weight:600}
+.props{display:grid;grid-template-columns:96px 1fr;gap:5px 10px;font-size:12px}
+.props span:nth-child(odd){color:var(--mute)}
+.props .mono{font-size:11.5px}
+.sheet{display:grid;gap:10px}
+.sheet .q{display:grid;gap:5px}
+.sheet .q b{font-weight:600}
+.sheet .q .qh{font-size:11px;color:var(--mute)}
+.sheet label{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer;font-size:12px}
+.sheet label:has(input:checked){border-color:var(--acc);background:var(--accbg)}
+.sheet input{margin:3px 0 0;accent-color:var(--acc)}
+.sheet .rec{font-size:10.5px;color:var(--mute);margin-left:auto;white-space:nowrap}
+.sheet .foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.sheet .foot .hint{font-size:11px;color:var(--mute);flex:1 1 160px}
+.sheet .checks{display:grid;gap:4px;font-size:12px}
+.sheet .checks div{display:flex;gap:8px;align-items:center}
+.sheet .plist{display:grid;gap:3px;font-size:12px}
+.sheet .plist label{padding:3px 6px;border:0}
+.sheet .plist label:has(input:checked){background:none}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.hr{border-top:1px solid var(--line)}
+.setup table.t td{padding:3px 6px}
+.setup select,.setup input[type=text]{font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);padding:1px 4px;width:100%}
+.setup input[type=text]{min-width:118px;font-family:var(--mono);font-size:11px}
+.setup table.t td:first-child{max-width:118px;overflow:hidden;text-overflow:ellipsis}
+.setup table.t th:nth-child(3),.setup table.t td:nth-child(3){width:40px}
+.ph .n{font-size:11.5px;overflow-wrap:anywhere}
+.plink{color:var(--acc);text-decoration:none}
+.plink:hover{text-decoration:underline}
+.filelist{display:grid;gap:3px;font-size:12px}
+.filelist div{display:flex;gap:8px;align-items:center}
+.filelist .mono{color:var(--mute)}
+.filelist .btn{margin-left:auto}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
+.toggle .sw{width:28px;height:16px;border-radius:999px;background:var(--mute2);position:relative;flex:none}
+.toggle .sw.on{background:var(--acc)}
+.toggle .sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .15s}
+.toggle .sw.on::after{left:14px}
+
+/* usage */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:10px 12px}
+.tile .l{font-size:11.5px;color:var(--mute)}
+.tile .v{font-size:24px;font-weight:600;line-height:1.2}
+.tile .d{font-size:11.5px;color:var(--mute)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mute)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.sbar{display:grid;grid-template-columns:170px 1fr 60px;gap:10px;align-items:center;font-size:12px}
+.sbar svg{width:100%;height:16px;display:block}
+.chart{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:10px 12px}
+.chart svg{width:100%;height:auto;display:block;font-family:var(--font)}
+.chart .ax{fill:var(--mute);font-size:10.5px}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .lbl{fill:var(--fg);font-size:11px;font-weight:500}
+.chart .lbl2{fill:var(--mute);font-size:10.5px}
+.chart .ring{fill:none;stroke:var(--fg);stroke-width:1.5}
+
+/* notes */
+.notes{margin-top:34px}
+.cmp{width:100%;border-collapse:collapse;font-size:.88rem;margin:8px 0 14px}
+.cmp th,.cmp td{text-align:left;vertical-align:top;padding:7px 10px;border-top:1px solid var(--pg-line)}
+.cmp th{font-weight:600;color:var(--pg-mute);font-size:.8rem}
+.cmp tr:first-child th{border-top:0}
+.cmp code{font-family:var(--mono);font-size:.85em}
+.notes ul{padding-left:20px;margin:0 0 10px}
+.notes li{margin:3px 0}
+
+@media (max-width: 1000px){ .app,.app.nopanel{grid-template-columns:1fr} .side{display:none} .panel{border-left:0;border-top:1px solid var(--line)} .phases{grid-template-columns:repeat(3,1fr)} .tiles{grid-template-columns:1fr} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+  <div class="col">
+    <h1>SDD Dashboard, Linear Style</h1>
+    <p class="lead">All five pages in the direction you picked, with the same example state. Use the sidebar inside the frame to move between pages; tap rows to change the detail panel. The gear opens Settings.</p>
+  </div>
+  <div class="top-ctl">
+    <div><span class="ctl-label">Theme</span><div class="seg" id="thseg"><button type="button" data-th="" aria-pressed="true">System</button><button type="button" data-th="light" aria-pressed="false">Light</button><button type="button" data-th="dark" aria-pressed="false">Dark</button></div></div>
+    <span class="mute" style="font-size:.82rem">Example data from the real specs as of 2026-10-02, not live.</span>
+  </div>
+  <div class="frame"><div id="app" class="app"></div></div>
+
+  <div class="col notes">
+    <h2>Where each thing on the pages comes from</h2>
+    <p>Nothing is hand-written. Every row is derived from a file the harness already writes, or from GitHub.</p>
+    <table class="cmp">
+      <tr><th style="width:30%">On the page</th><th>Source</th></tr>
+      <tr><td>A gate waits</td><td>Ledger <code>phase.end</code> with result <code>gate-a</code> or <code>gate-b</code> and no later <code>phase.start</code>; the questions from <code>gate-a.json</code> / <code>gate-b.json</code>; recorded picks from <code>questions.md</code>.</td></tr>
+      <tr><td>Retro decisions wait</td><td><code>retrospective-proposals.md</code> DECISION NEEDED blocks while <code>retrospective-plan.md</code> is absent or DRAFT.</td></tr>
+      <tr><td>A PR is green</td><td><code>gh pr view</code> on the spec's PR: checks, mergeable, review state. Merge method from the project's <code>agent-rules.md</code>.</td></tr>
+      <tr><td>A deferral needs you</td><td>Deferral records whose owner is you, or whose revisit trigger has fired; blocking ones come first.</td></tr>
+      <tr><td>A run is stuck or failed</td><td>Launch record exit code with no <code>run.end</code>; the supervisor's refusal signal (harness-control-pane P4, still a to-do); activity file older than 15 minutes while a spawn is open.</td></tr>
+      <tr><td>Live run, spawns, rounds, tasks</td><td><code>harness-events.jsonl</code> and <code>harness-activity.jsonl</code> through the existing model builder; task verdicts from the task-review summary.</td></tr>
+      <tr><td>Tokens</td><td>The hook's <code>spawn.end</code> rows per run; <code>harness usage</code> per spec; the trend from every closed spec's ledger.</td></tr>
+      <tr><td>Specs list</td><td>INDEX snapshot and routing (read-only), HANDOFF phase log, approvals, task progress, the PR number in HANDOFF.</td></tr>
+    </table>
+
+    <h2>Notifications, as decided</h2>
+    <p>You're not acting from the phone, so the box needs no path in. Two channels, both outbound only:</p>
+    <ul>
+      <li>Desktop: the open dashboard tab raises an OS notification when a wait appears, so you see it from any window. Click brings the tab forward on the item.</li>
+      <li>Phone: the server posts one line to a push service (Pushover or ntfy, your choice of app) when a wait appears. No reply path; it just says what waits.</li>
+    </ul>
+    <p>Same rule as the overwatch push today: one message per wait, none for progress. The overwatch session stops sending pushes once this is live.</p>
+
+    <h2>Harness changes this needs</h2>
+    <ul>
+      <li>A third gates mode next to block and record: the run stops at gate A, gate B and retro-ready, leaves the payload, and exits with a signal the dashboard reads. The dashboard writes the answers and relaunches; the supervisor continues from the recorded answers. Retro and close-out already work this way for headless runs.</li>
+      <li>The supervisor refusal signal from harness-control-pane P4, so a refused launch reads as refused.</li>
+      <li>Per-project merge method and post-merge command in <code>agent-rules.md</code>, so the dashboard merges by each repo's rule and runs the sync-and-build step for this repo.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')};
+var PROJ=[['spec-workflow-mcp','#3fb950',12],['tradr','#d29922',9],['jobscout','#a371f7',6],['matthew-field.ca','#8d96a0',0]];
+var W=[
+ {id:'w1',kind:'Gate A',st:'warn',project:'jobscout',spec:'canonical-link',title:'Gate A on requirements v1',text:'2 questions need you. 3 were recorded as mechanics.',age:'12 min',action:'Answer'},
+ {id:'w2',kind:'Retro',st:'warn',project:'spec-workflow-mcp',spec:'harness-control-pane',title:'Retro plan: 17 proposals, 2 decisions',text:'P4 refusal signal and P14 verifier spend need a decision. PR #76 is merged.',age:'1 h 20 min',action:'Decide'},
+ {id:'w3',kind:'PR',st:'ok',project:'tradr',spec:'broker-csv-presets',title:'PR #120 is green',text:'Close-out branch. 4 of 4 checks passed, mergeable, squash.',age:'25 min',action:'Merge'},
+ {id:'w4',kind:'Deferral',st:'',project:'tradr',spec:'account-export-import',title:'d-228d1647 Staging 256 MiB memory bench',text:'Owner you. Blocks the next tradr release tag.',age:'6 days',action:'Open'}
+];
+var RUNS=[
+ {id:'r1',project:'tradr',spec:'mobile-pwa',phase:'implementation',state:'running',detail:'task 7 of 18, implementer on Service worker registration',tokens:'11.2M',age:'2 h 05 min',run:'run-20261002-193220',spawnAge:'12 s'},
+ {id:'r2',project:'spec-workflow-mcp',spec:'harness-control-pane',phase:'retrospective',state:'waiting',detail:'retro-ready, 2 decisions needed',tokens:'58.4M',age:'1 h 20 min',run:'run-20261001-202525',spawnAge:''},
+ {id:'r3',project:'jobscout',spec:'canonical-link',phase:'requirements',state:'waiting',detail:'gate A, waiting 12 min',tokens:'1.9M',age:'47 min',run:'run-20261003-024739',spawnAge:''}
+];
+var CLOSED=[
+ {project:'jobscout',spec:'liveness-verify',text:'Closed 7 of 7, PR #80 merged',age:'3 h'},
+ {project:'tradr',spec:'trading-rules',text:'Closed 10 of 10, PRs #117 and #75 merged',age:'5 days'},
+ {project:'spec-workflow-mcp',spec:'tdd-task-loop',text:'Closed 7 of 7, PRs #72 and #74 merged',age:'5 days'}
+];
+var G={
+ w1:{props:[['Project','jobscout'],['Spec','canonical-link'],['Phase','requirements v1'],['Waiting','12 min']],
+   questions:[{h:'Canonical source',q:'When two postings share a canonical link, which record wins?',o:['Newest posting','Oldest posting','The one with more fields filled'],rec:0},{h:'Unlinked posts',q:'What happens to a posting with no canonical link?',o:['Keep it as its own record','Drop it from the digest','Match by title and company'],rec:0}],
+   recorded:'3 recorded as mechanics: dedupe key, cache layout, fixture source',primary:'Answer and continue',hint:'Writes questions.md and relaunches the run.'},
+ w2:{props:[['Project','spec-workflow-mcp'],['Spec','harness-control-pane'],['Proposals','17, plus 2 graduation candidates'],['Waiting','1 h 20 min']],
+   questions:[{h:'P4 refusal signal',q:'Where should the supervisor-model mismatch be caught?',o:['Keep the preflight refusal, emit a refusal event and exit non-zero','Reject it in run-setup validation so the launch never starts','Both'],rec:0},{h:'P14 verifier spend',q:'Should a clean-red new-module TDD task still always draw a verifier?',o:['Keep as is','Exempt clean-red tasks under the line threshold','Sample a fixed fraction per phase'],rec:0}],
+   plist:['P1 citation check after a trim','P2 watch the sdd directory','P3 error shapes decided at design','P5 record the Agent call model','P6 name the PID in the refusal window','P7 deflake the stale-lock test','P8 redTests only with a TDD marker'],
+   primary:'Approve plan and continue',hint:'Writes retrospective-plan.md as APPROVED and relaunches for close-out.'},
+ w3:{props:[['Repo','madmatt112/tradr'],['Branch','chore/broker-csv-presets-retro'],['Method','squash, per agent-rules'],['Author','sdd-closeout-orchestrator']],
+   checks:[['ok','ci / test'],['ok','ci / build'],['ok','ci / lint'],['ok','docs / lychee']],primary:'Merge PR #120',hint:'Squash triggers the staging deploy; that is not a release.'},
+ w4:{props:[['Deferral','d-228d1647'],['Origin','account-export-import, tasks'],['Owner','you'],['Blocks','next tradr release tag']],text:'Account import peaked at 228.6 MiB locally. Deploy staging and run the bench before the next release tag.',primary:'Mark resolved',hint:'Or open the file in your editor.'}
+};
+var TASKS=[
+ [1,'Manifest and install prompt','done','pass','low','',0,''],[2,'App shell and offline page','done','pass','high','red-first',0,'verifier ok'],[3,'Icon set and splash','done','pass','low','',0,''],
+ [4,'Cache strategy for trade lists','done','pass','high','red-first',1,'verifier ok'],[5,'Background sync queue','done','pass','high','red-first',0,'verifier ok'],[6,'Push subscription endpoint','done','pass','medium','',0,''],
+ [7,'Service worker registration','live','','high','red-first','',''],[8,'Update prompt on new version','queued','','','','',''],[9,'Offline banner and retry','queued','','','','',''],
+ [10,'Install analytics event','queued','','','','',''],[11,'Share target for CSV imports','queued','','','','',''],[12,'Settings: offline cache size','queued','','','','','']
+];
+var ROUNDS=[
+ ['requirements',1,'v1','iterate','1 / 4 / 3','sdd-reviewer','sdd-reviser','1.9M'],['requirements',2,'v2','iterate','0 / 3 / 2','sdd-reviewer','sdd-reviser','1.4M'],['requirements',3,'v3','converged','0 / 0 / 2','sdd-reviewer','','0.9M'],
+ ['design',1,'v1','iterate','0 / 3 / 3','sdd-reviewer','sdd-reviser','2.2M'],['design',2,'v2','should-fix only','0 / 2 / 1','sdd-reviewer','sdd-reviser + checker','1.6M'],
+ ['tasks',1,'v1','iterate','1 / 0 / 0','sdd-reviewer','sdd-reviser','1.1M'],['tasks',2,'v2','converged','0 / 0 / 1','sdd-reviewer','','0.7M']
+];
+var SPAWNS=[
+ ['19:32','sdd-document-orchestrator','requirements, spawn 1','claude-opus-4-8','claude-opus-4-8','anthropic','41 min','1.43M'],['19:33','sdd-drafter','drafter','claude-opus-5-5','claude-opus-5-5','anthropic','9 min','5.6M'],['19:44','sdd-reviewer','round 1','claude-opus-4-8','claude-opus-4-8','anthropic','7 min','1.9M'],
+ ['19:52','sdd-reviser','round 1','claude-opus-4-8','claude-opus-4-8','anthropic','6 min','1.3M'],['01:39','sdd-implementation-orchestrator','implementation, spawn 1','claude-opus-4-8','claude-opus-4-8','anthropic','live','3.2M'],['01:41','sdd-test-author','task 2','claude-sonnet-5','claude-sonnet-5','anthropic','4 min','0.4M']
+];
+var LEDGER=[
+ ['02:58:12','tool','Edit src/sw/register.ts','INFO'],['02:57:40','tool','Bash npm test -- sw','INFO'],['02:49:01','task.pick','7 Service worker registration','INFO'],['02:48:51','task.done','6 Push subscription endpoint, pass, 0 rounds','OK'],
+ ['02:41:30','note','gate: task 6 pass risk medium','INFO'],['02:31:05','spawn.end','sdd-verifier, 0.9M, task 5 verified','OK'],['02:20:14','spawn.start','sdd-verifier, task 5','INFO'],['02:19:58','note','gate: task 5 pass risk high tdd structural-red','INFO']
+];
+var SPECS=[
+ ['spec-workflow-mcp','harness-control-pane','retrospective','waiting','R4 D3 T2','20/20','#76 ✓ #79 ✓','1','2 decisions','1 h 20 min','s1'],
+ ['spec-workflow-mcp','lean-orchestrators','not started','next','','','','','','2 days','s2'],
+ ['spec-workflow-mcp','tdd-task-loop','closed','closed','R3 D3 T2','17/17','#72 ✓ #74 ✓','2','closed 7/7','5 days','s3'],
+ ['spec-workflow-mcp','graph-orientation','closed','closed','R3 D2 T2','10/10','#67 ✓ #69 ✓','','closed 11/11','6 days','s4'],
+ ['spec-workflow-mcp','agent-cache-ttl','closed','closed','R3 D1 T1','9/9','#64 ✓ #66 ✓','1','closed 6/6','8 days','s5'],
+ ['spec-workflow-mcp','provider-per-role','closed','closed','R4 D3 T2','10/10','#59 ✓ #62 ✓','2','closed 15/15','9 days','s6'],
+ ['spec-workflow-mcp','worktree-dashboard-concurrency','deferred','deferred','','','','','','18 days','s7'],
+ ['tradr','mobile-pwa','implementation 6/18','running','R3 D3 T2','6/18','','','','12 s','s8'],
+ ['tradr','broker-csv-presets','close-out','waiting','R3 D2 T2','11/11','#78 ✓ #120 ●','1','closed 11/11','25 min','s9'],
+ ['tradr','trading-rules','closed','closed','R3 D2 T1','10/10','#117 ✓ #75 ✓','','closed 10/10','5 days','s10'],
+ ['jobscout','canonical-link','requirements v1','waiting','R1','','','','','12 min','s11'],
+ ['jobscout','liveness-verify','closed','closed','R2 D2 T1','13/13','#80 ✓','2','closed 7/7','3 h','s12'],
+ ['jobscout','dedupe-normalization','closed','closed','R3 D2 T2','13/13','#77 ✓','','closed 13/13','2 days','s13']
+];
+var DEFS=[
+ ['d-a38fea66','Verify the provider-per-role supervisor and orchestrator halves in a restarted session','provider-per-role','spec-workflow-mcp','you','open','verification','9 days','',''],
+ ['d-1880d115','question-gates gate A/B live scenarios: changed answer, annotation, headless runs','question-gates','spec-workflow-mcp','you','open','verification','15 days','',''],
+ ['d-9d600d11','sdd-launch.sh readUsage has the same multi-block token inflation P17 fixed in the hook','provider-per-role','spec-workflow-mcp','harness','open','ledger','9 days','',''],
+ ['d-0829d1e3','Dashboard repo grouping UI deferred (backend duplication now handled)','worktree-execution-context','spec-workflow-mcp','harness','open','dashboard','3 months','',''],
+ ['d-4ee04d64','Dashboard misses closely spaced registrations because writeRegistry renames a new inode','worktree-execution-context','spec-workflow-mcp','harness','open','dashboard','3 months','',''],
+ ['d-75761c78','Concurrent agent edits to shared tasks.md are unprotected','worktree-execution-context','spec-workflow-mcp','harness','open','concurrency','3 months','',''],
+ ['d-228d1647','Staging 256 MiB memory bench','account-export-import','tradr','you','open','release','6 days','next tradr release tag',''],
+ ['d-a05dc610','Review the jobscout dry-run digest','vendor-lane-relevance','jobscout','you','open','review','6 days','',''],
+ ['d-69b95f88','harness-control-pane live end-to-end verification','harness-control-pane','spec-workflow-mcp','you','resolved','verification','2 days','',''],
+ ['d-3091be1c','Live orchestrator SubagentStop usage half','harness-usage-and-tiers','spec-workflow-mcp','you','resolved','hook','9 days','','']
+];
+var S={page:'now',sel:'w1',runSel:'r1',specSel:'s1',defSel:'d-a38fea66',usageTab:'live',settings:false,proj:{}};
+
+function sidebar(){
+  var nav=[['now','Now',4],['runs','Runs',3],['specs','Specs',null],['usage','Usage',null],['deferrals','Deferrals',15]];
+  var h='<aside class="side"><div class="ws"><i></i>SDD<span class="v">v6</span></div><div class="nav">'+nav.map(function(n){return '<a href="#" data-page="'+n[0]+'" class="'+(S.page===n[0]&&!S.settings?'on':'')+'">'+n[1]+(n[2]?'<span class="c">'+n[2]+'</span>':'')+'</a>'}).join('')+'</div>';
+  h+='<div><div class="grp">Projects<span class="r">filter</span></div><div class="proj">'+PROJ.map(function(p){return '<a href="#" data-proj="'+p[0]+'" class="'+(S.proj[p[0]]?'off':'')+'"><i style="background:'+p[1]+'"></i><span class="clip">'+esc(p[0])+'</span><span class="c">'+(p[2]||'')+'</span></a>'}).join('')+'</div></div>';
+  h+='<div class="sfoot"><a href="#" data-settings="1" class="'+(S.settings?'on':'')+'">⚙ Settings</a><div class="k"><kbd>⌘</kbd><kbd>K</kbd> jump to a spec, run or deferral</div></div></aside>';
+  return h;
+}
+function sheet(id,btn){
+  var g=G[id]; var h='<div class="sheet"><div class="props">'+g.props.map(function(p){return '<span>'+esc(p[0])+'</span><span>'+esc(p[1])+'</span>'}).join('')+'</div>';
+  if(g.questions){ g.questions.forEach(function(q,i){ h+='<div class="q"><span class="qh">'+esc(q.h)+'</span><b>'+esc(q.q)+'</b>'+q.o.map(function(o,j){return '<label><input type="radio" name="'+id+'q'+i+'" '+(j===q.rec?'checked':'')+'><span>'+esc(o)+'</span>'+(j===q.rec?'<span class="rec">recommended</span>':'')+'</label>'}).join('')+'</div>'; }); }
+  if(g.plist){ h+='<div class="q"><span class="qh">Proposals with no decision</span><div class="plist">'+g.plist.map(function(p){return '<label><input type="checkbox" checked><span>'+esc(p)+'</span></label>'}).join('')+'<span class="mute" style="font-size:11px;padding:2px 6px">and 8 more, all ticked</span></div></div>'; }
+  if(g.recorded){ h+='<div class="mute" style="font-size:11.5px">'+esc(g.recorded)+'</div>'; }
+  if(g.checks){ h+='<div class="checks">'+g.checks.map(function(c){return '<div><span class="dot ok"></span>'+esc(c[1])+'</div>'}).join('')+'</div>'; }
+  if(g.text){ h+='<p style="margin:0;font-size:12px">'+esc(g.text)+'</p>'; }
+  h+='<div class="foot"><button type="button" class="btn '+(btn||'pri')+'">'+esc(g.primary)+'</button><span class="hint">'+esc(g.hint)+'</span></div></div>';
+  return h;
+}
+function stFor(w){return w.st==='ok'?'ok':w.st==='warn'?'warn':''}
+
+/* ---------- Now ---------- */
+function pageNow(){
+  var h='<section class="main"><div class="lhead"><b>Now</b><span class="chip on">All projects</span><span class="chip">Waiting</span><span class="chip">Running</span><span class="r"><span class="search">⌕ Search…</span>Display ▾</span></div>';
+  h+='<div class="gh"><span class="tri">▾</span><b>Waiting on you</b> 4<span class="r">sorted by what blocks a run</span></div>';
+  W.forEach(function(w){ h+='<div class="lrow" style="grid-template-columns:14px minmax(150px,1.4fr) auto 1fr auto auto" data-sel="'+w.id+'" '+(S.sel===w.id?'class="lrow sel"':'')+'><span class="st '+stFor(w)+'"></span><span class="t clip">'+esc(w.title)+'</span><span class="chip">'+esc(w.spec)+'</span><span class="sub clip">'+esc(w.project)+' · '+esc(w.text)+'</span><span class="age '+(w.id==='w2'?'hot':'')+'">'+esc(w.age)+'</span><button type="button" class="btn sm '+(w.action==='Merge'?'pri':'')+'">'+esc(w.action)+'</button></div>'; });
+  h+='<div class="gh"><span class="tri">▾</span><b>Live runs</b> 3<span class="r">1 running, 2 waiting</span></div>';
+  RUNS.forEach(function(r){ h+='<div class="lrow" style="grid-template-columns:14px minmax(150px,1.4fr) auto 1fr auto auto" data-run="'+r.id+'"><span class="st '+(r.state==='running'?'run':'warn')+'"></span><span class="t clip">'+esc(r.project)+' › '+esc(r.spec)+'</span><span class="chip">'+esc(r.phase)+'</span><span class="sub clip">'+esc(r.detail)+'</span><span class="tok">'+esc(r.tokens)+'</span><span class="age">'+esc(r.age)+'</span></div>'; });
+  h+='<div class="gh"><span class="tri">▾</span><b>Idle</b> 1</div>';
+  h+='<div class="lrow" style="grid-template-columns:14px minmax(150px,1.4fr) auto 1fr auto auto"><span class="st"></span><span class="t clip">matthew-field.ca</span><span class="chip">no spec</span><span class="sub clip">No spec routed. INDEX names nothing under Next.</span><span></span><button type="button" class="btn sm" disabled>Launch</button></div>';
+  h+='<div class="gh closed" data-fold="closed"><span class="tri">▾</span><b>Recently closed</b> 3<span class="r">last 7 days</span></div>';
+  h+='<div id="fold-closed" hidden>'+CLOSED.map(function(c){return '<div class="lrow" style="grid-template-columns:14px minmax(150px,1.4fr) 1fr auto"><span class="st done"></span><span class="t clip" style="font-weight:400;color:var(--mute)">'+esc(c.project)+' › '+esc(c.spec)+'</span><span class="sub clip">'+esc(c.text)+'</span><span class="age">'+esc(c.age)+'</span></div>'}).join('')+'</div>';
+  h+='</section>';
+  var w=W.filter(function(x){return x.id===S.sel})[0];
+  h+='<aside class="panel"><div class="ph2"><span class="st '+stFor(w)+'"></span><b>'+esc(w.title)+'</b></div>'+sheet(S.sel)+'</aside>';
+  return h;
+}
+
+/* ---------- Runs ---------- */
+function pageRuns(){
+  var r=RUNS.filter(function(x){return x.id===S.runSel})[0];
+  var launch=S.runSel==='launch';
+  var h='<section class="main"><div class="lhead"><span class="crumb">Runs <span>›</span> '+(launch?'<b>Launch</b>':'<b>'+esc(r.project)+'</b><span>›</span><b>'+esc(r.spec)+'</b>')+'</span><span class="r">';
+  RUNS.forEach(function(x){ h+='<span class="chip '+(S.runSel===x.id?'on':'')+'" data-runsel="'+x.id+'" style="cursor:pointer">'+esc(x.spec)+'</span>'; });
+  h+='<span class="chip '+(launch?'on':'')+'" data-runsel="launch" style="cursor:pointer">+ Launch</span></span></div>';
+  if(launch){
+    h+='<div class="page"><div class="ptitle"><h3>Launch a run</h3><span class="sub">One tap with the saved setup. Edit setup only when a run needs something different.</span></div>';
+    h+='<div class="card" style="display:grid;gap:8px;max-width:560px"><div class="props"><span>Project</span><span>spec-workflow-mcp ▾</span><span>Spec</span><span>lean-orchestrators <span class="chip">routed next</span></span><span>Supervisor</span><span>claude-opus-5-5, high</span><span>Roles</span><span>13 at declared defaults <span class="mute">(sdd-reviewer: deepseek-reasoner)</span></span><span>Worktree</span><span>yes, feat/lean-orchestrators</span><span>Gates</span><span>dashboard: stop and ask here</span><span>Graph</span><span>graphify-out/graph.json, 0 behind</span></div><div class="hr"></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn pri" disabled>Launch</button><button type="button" class="btn">Edit setup</button><span class="mute" style="font-size:11.5px">Blocked: harness-control-pane is still open on this store. Close it first.</span></div></div>';
+    h+='<div class="card" style="display:grid;gap:8px;max-width:560px"><div class="props"><span>Project</span><span>matthew-field.ca ▾</span><span>Spec</span><span class="mute">none routed</span></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn pri" disabled>Launch</button><span class="mute" style="font-size:11.5px">Add a decomposition entry or a Next line in INDEX first.</span></div></div></div></section>';
+    h+='<aside class="panel"><div class="ph2"><b>Saved setup, spec-workflow-mcp</b></div><div class="mute" style="font-size:11.5px">Applies to every launch on this store until you change it. Roles at their declared default are not written.</div>'+setupTable()+'<div style="display:flex;gap:8px"><button type="button" class="btn pri">Save</button><button type="button" class="btn">Reset to declared</button></div></aside>';
+    return h;
+  }
+  h+='<div class="page">';
+  h+='<div class="ptitle"><h3>'+esc(r.spec)+'</h3><span class="chip '+(r.state==='running'?'ok':'warn')+'">'+(r.state==='running'?'running':'waiting on you')+'</span><span class="chip">'+esc(r.phase)+'</span><span class="sub">'+esc(r.project)+' · '+esc(r.run)+' · started 2 h 05 min ago · worktree feat/mobile-pwa</span></div>';
+  h+='<div class="sec"><h4>Phases<span class="r">tap one for its rounds</span></h4><div class="phases">';
+  [['requirements','done','v3 · 3 rounds','approved Oct 2 19:51'],['design','done','v3 · 2 rounds + check','approved Oct 2 21:04'],['tasks','done','v2 · 2 rounds','gate B approved 22:20'],['implementation','live','6 of 18 tasks','0 fix rounds, 4 verifiers'],['retrospective','todo','',''],['close-out','todo','','']].forEach(function(p){ h+='<div class="ph '+p[1]+'"><span class="n"><span class="st '+(p[1]==='done'?'ok':p[1]==='live'?'run':'')+'"></span>'+esc(p[0])+'</span><span class="d">'+esc(p[2])+'</span><span class="d">'+esc(p[3])+'</span></div>'; });
+  h+='</div></div>';
+  h+='<div class="sec"><h4>Live now<span class="r"><span class="age">spawn 9 min 40 s</span><span class="age">last tool 12 s</span></span></h4><div class="card spawn">';
+  h+='<div class="row"><span class="st run"></span><span><b>sdd-implementation-orchestrator</b> <span class="mute">spawn 1 · claude-opus-4-8 · high · 1 h 19 min · 3.2M</span></span><span class="r">task 7 of 18</span></div>';
+  h+='<div class="row sub"><span class="st run"></span><span><b>sdd-implementer</b> <span class="mute">claude-opus-4-8 · xhigh · 9 min 40 s · 0.6M</span></span><span class="r"><span class="chip ok">12 s</span></span></div>';
+  h+='<div class="tool">Edit src/sw/register.ts</div>';
+  h+='<div class="row sub" style="opacity:.6"><span class="st"></span><span><b>sdd-verifier</b> <span class="mute">queued if the gate scores high</span></span><span class="r"></span></div>';
+  h+='</div></div>';
+  h+='<div class="sec"><h4>Tasks <span class="badge">6 of 18</span><span class="r"><span class="chip on">All</span><span class="chip">Live</span><span class="chip">Done</span><span class="chip">High risk</span><span class="chip">Fix rounds</span></span></h4><div class="tblwrap"><table class="t"><tr><th>#</th><th>Task</th><th>State</th><th>Gate</th><th>Risk</th><th>TDD</th><th>Fix rounds</th><th>Review</th></tr>';
+  TASKS.forEach(function(t){ var cls=t[2]==='live'?'live':t[2]==='queued'?'queued':''; h+='<tr class="'+cls+'"><td class="n">'+t[0]+'</td><td class="w">'+esc(t[1])+'</td><td><span class="st '+(t[2]==='done'?'ok':t[2]==='live'?'run':'')+'"></span> '+t[2]+'</td><td>'+(t[3]?'<span class="chip ok">'+t[3]+'</span>':'')+'</td><td>'+(t[4]?'<span class="chip '+(t[4]==='high'?'warn':'')+'">'+t[4]+'</span>':'')+'</td><td class="mute">'+esc(t[5])+'</td><td class="n">'+(t[6]===''?'':t[6])+'</td><td class="mute">'+esc(t[7])+'</td></tr>'; });
+  h+='</table></div><div class="pager">Showing 12 of 18<button type="button" class="btn sm">Show 6 more</button></div></div>';
+  h+='<details class="fold"><summary>Document rounds<span class="r">7 rounds · 0 rulings · 0 adjudications</span></summary><div class="body"><div class="tblwrap" style="border:0;border-radius:0"><table class="t"><tr><th>Phase</th><th>Round</th><th>Version</th><th>Verdict</th><th>Must / should / minor</th><th>Reviewer</th><th>Reviser</th><th>Tokens</th></tr>'+ROUNDS.map(function(r){return '<tr><td>'+r[0]+'</td><td class="n">'+r[1]+'</td><td class="mono">'+r[2]+'</td><td><span class="chip '+(r[3]==='converged'?'ok':'')+'">'+r[3]+'</span></td><td class="mono">'+r[4]+'</td><td class="mute">'+r[5]+'</td><td class="mute">'+r[6]+'</td><td class="n">'+r[7]+'</td></tr>'}).join('')+'</table></div></div></details>';
+  h+='<details class="fold"><summary>Spawns<span class="r">41 spawns · 11.2M · orchestrators 29%</span></summary><div class="body"><div class="tblwrap" style="border:0;border-radius:0"><table class="t"><tr><th>At</th><th>Agent</th><th>Role</th><th>Declared</th><th>Actual</th><th>Provider</th><th>Took</th><th>Tokens</th></tr>'+SPAWNS.map(function(s){return '<tr><td class="mono">'+s[0]+'</td><td>'+s[1]+'</td><td class="mute">'+s[2]+'</td><td class="mono mute">'+s[3]+'</td><td class="mono">'+s[4]+'</td><td class="mute">'+s[5]+'</td><td class="n">'+s[6]+'</td><td class="n">'+s[7]+'</td></tr>'}).join('')+'</table></div><div class="pager">Showing 6 of 41<button type="button" class="btn sm">Show more</button></div></div></details>';
+  h+='<div class="sec"><div class="tabs"><button type="button" aria-selected="true">Ledger</button><button type="button" aria-selected="false">Activity</button><button type="button" aria-selected="false">Process log</button><span style="margin-left:auto;display:flex;gap:6px;align-items:center;padding-right:4px"><span class="search" style="min-width:140px">⌕ Filter rows…</span><span class="chip on">Follow</span></span></div><div class="log">'+LEDGER.map(function(l){return '<div class="ln"><span class="mute">'+l[0]+'</span><span class="lv '+(l[3]==='OK'?'ok':'')+'">'+esc(l[1])+'</span><span class="clip">'+esc(l[2])+'</span></div>'}).join('')+'</div></div>';
+  h+='</div></section>';
+  h+='<aside class="panel"><div class="ph2"><b>Run</b></div><div class="props"><span>State</span><span><span class="chip ok">running</span></span><span>Phase</span><span>implementation, task 7 of 18</span><span>Run id</span><span class="mono">run-20261002-193220</span><span>Started</span><span>Oct 2, 19:32 · 2 h 05 min ago</span><span>Code root</span><span class="mono">tradr/.claude/worktrees/mobile-pwa</span><span>Spec store</span><span class="mono">tradr-hosted/.spec-workflow</span><span>Supervisor</span><span>claude-opus-5-5, high</span><span>Providers</span><span>reviewer: deepseek</span><span>Gates</span><span>dashboard</span><span>Tokens</span><span>11.2M · orchestrators 29% · <a href="#" class="plink" data-page="usage">usage</a></span><span>PID</span><span class="mono">214890</span></div><div class="hr"></div><div style="display:flex;gap:8px"><button type="button" class="btn danger">Stop run</button><button type="button" class="btn">Open worktree</button></div>';
+  h+='<details class="fold"><summary>Setup for the next launch<span class="r">1 override</span></summary><div class="body setup" style="padding:8px">'+setupTable()+'<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn pri">Save</button><button type="button" class="btn">Reset to declared</button></div></div></details>';
+  h+='<details class="fold"><summary>Gate answers<span class="r">A 5 · B 4 veto</span></summary><div class="body" style="padding:8px;font-size:12px"><div class="props"><span>Gate A</span><span>Offline scope: last 30 days (you). Push provider: APNs via web push (recorded). 3 mechanics recorded.</span><span>Gate B</span><span>Approved Oct 2 22:20, class-a veto items 3, 7, 11, 15 unannotated.</span></div></div></details>';
+  h+='</aside>';
+  return h;
+}
+function setupTable(){
+  var roles=[['supervisor','claude-opus-5-5','high',''],['sdd-document-orchestrator','claude-opus-4-8','high',''],['sdd-implementation-orchestrator','claude-opus-4-8','high',''],['sdd-drafter','claude-opus-5-5','high',''],['sdd-reviewer','deepseek-reasoner','xhigh','deepseek'],['sdd-reviser','claude-opus-4-8','high','anthropic'],['sdd-checker','claude-sonnet-5','high','anthropic'],['sdd-adjudicator','claude-opus-5-5','high',''],['sdd-test-author','claude-sonnet-5','high',''],['sdd-implementer','claude-opus-4-8','xhigh',''],['sdd-verifier','claude-opus-4-8','xhigh','']];
+  var h='<div class="setup"><table class="t"><tr><th>Role</th><th>Model</th><th>Effort</th><th>Provider</th></tr>'+roles.map(function(r){return '<tr><td class="mute" style="font-size:11.5px">'+r[0]+'</td><td><input type="text" value="'+r[1]+'" aria-label="model for '+r[0]+'"></td><td class="mute">'+r[2]+'</td><td>'+(r[3]?'<select aria-label="provider for '+r[0]+'"><option '+(r[3]==='anthropic'?'selected':'')+'>anthropic</option><option '+(r[3]==='deepseek'?'selected':'')+'>deepseek</option></select>':'<span class="mute2">anthropic</span>')+'</td></tr>'}).join('')+'<tr><td class="mute">worktree</td><td colspan="3"><select><option selected>yes</option><option>no</option></select></td></tr><tr><td class="mute">gates</td><td colspan="3"><select><option selected>dashboard: stop and ask here</option><option>record: use the recommended picks</option><option>block: ask in the terminal</option></select></td></tr></table><div class="mute" style="font-size:11px;margin-top:4px">and 4 more roles at declared defaults</div></div>';
+  return h;
+}
+
+/* ---------- Specs ---------- */
+function pageSpecs(){
+  var h='<section class="main"><div class="lhead"><b>Specs</b><span class="chip on">All projects</span><span class="chip">Live</span><span class="chip">Closed</span><span class="chip">Deferred</span><span class="chip">Not started</span><span class="r"><span class="search">⌕ Search specs…</span>Group: project ▾</span></div>';
+  var groups={};var order=[];
+  SPECS.forEach(function(s){ if(!groups[s[0]]){groups[s[0]]=[];order.push(s[0])} groups[s[0]].push(s); });
+  h+='<div class="lrow" style="height:28px;grid-template-columns:14px minmax(140px,1.2fr) 96px 64px 46px 96px 26px minmax(80px,.8fr) 52px;cursor:default;color:var(--mute);font-size:11px;background:var(--side)"><span></span><span>Spec</span><span>Phase</span><span>Versions</span><span>Tasks</span><span>PRs</span><span>Def.</span><span>Retro</span><span>Updated</span></div>';
+  order.forEach(function(p){
+    var n=PROJ.filter(function(x){return x[0]===p})[0][2];
+    h+='<div class="gh"><span class="tri">▾</span><b>'+esc(p)+'</b> '+groups[p].length+' of '+n+'</div>';
+    groups[p].forEach(function(s){
+      var st=s[3]==='running'?'run':s[3]==='waiting'?'warn':s[3]==='closed'?'done':s[3]==='next'?'half':'';
+      h+='<div class="lrow '+(S.specSel===s[10]?'sel':'')+'" style="grid-template-columns:14px minmax(140px,1.2fr) 96px 64px 46px 96px 26px minmax(80px,.8fr) 52px" data-spec="'+s[10]+'"><span class="st '+st+'"></span><span class="t clip">'+esc(s[1])+'</span><span class="sub clip">'+esc(s[2])+'</span><span class="mono mute clip" style="font-size:11px">'+esc(s[4])+'</span><span class="mono mute" style="font-size:11px">'+esc(s[5])+'</span><span class="mono mute clip" style="font-size:11px">'+esc(s[6])+'</span><span class="mono mute" style="font-size:11px">'+esc(s[7])+'</span><span class="sub clip">'+esc(s[8])+'</span><span class="age">'+esc(s[9].replace(' days',' d').replace(' min',' m').replace(' h 20 m','h 20m'))+'</span></div>';
+    });
+    if(p==='spec-workflow-mcp'){ h+='<div class="pager">Showing 7 of 12<button type="button" class="btn sm">Show 5 more</button></div>'; }
+  });
+  h+='</section>';
+  h+='<aside class="panel"><div class="ph2"><span class="st warn"></span><b>harness-control-pane</b><span class="chip warn">retro waiting</span></div>';
+  h+='<div class="props"><span>Project</span><span>spec-workflow-mcp</span><span>Order</span><span>#9 of the harness operations specs</span><span>Depends on</span><span>8, 10, 6 (all closed)</span><span>Store</span><span class="mono">.spec-workflow/specs/harness-control-pane</span><span>Runs</span><span>2 · 67.7M tokens · <a href="#" class="plink" data-page="usage">usage</a></span><span>PRs</span><span>#76 merged Sep 29 · #79 open, close-out</span></div>';
+  h+='<div class="hr"></div><div class="sec"><h4>Phases</h4><table class="t"><tr><td>requirements</td><td class="mono">v4</td><td class="mute">3 rounds + check</td><td class="mute">Sep 28</td></tr><tr><td>design</td><td class="mono">v3</td><td class="mute">2 rounds + check</td><td class="mute">Sep 28</td></tr><tr><td>tasks</td><td class="mono">v2</td><td class="mute">2 rounds</td><td class="mute">Sep 28</td></tr><tr><td>implementation</td><td class="mono">20/20</td><td class="mute">0 fix, 2 CI rounds</td><td class="mute">Sep 29</td></tr><tr style="background:var(--warnbg)"><td>retrospective</td><td class="mono">17 + 2</td><td class="warn">2 decisions</td><td class="mute">now</td></tr><tr><td class="mute2">close-out</td><td></td><td></td><td></td></tr></table></div>';
+  h+='<div class="sec"><h4>Deferrals <span class="badge">1</span></h4><div class="filelist"><div><span class="mono">d-69b95f88</span><span class="clip">live end-to-end verification</span><span class="chip ok">resolved</span></div></div></div>';
+  h+='<div class="sec"><h4>Files<span class="r">open in your editor</span></h4><div class="filelist"><div><span class="mono">requirements.md</span><span class="mute">v4 · 3,480 words</span><button type="button" class="btn sm">Open</button></div><div><span class="mono">design.md</span><span class="mute">v3</span><button type="button" class="btn sm">Open</button></div><div><span class="mono">tasks.md</span><span class="mute">v2 · 20 tasks</span><button type="button" class="btn sm">Open</button></div><div><span class="mono">retrospective-proposals.md</span><span class="warn">needs you</span><button type="button" class="btn sm">Open</button></div><div><span class="mono">HANDOFF.md</span><span class="mute">section</span><button type="button" class="btn sm">Open</button></div></div></div>';
+  h+='<div class="hr"></div><button type="button" class="btn pri" data-page="now">Decide the retro plan</button></aside>';
+  return h;
+}
+
+/* ---------- Usage ---------- */
+function stack(parts,total,maxv){
+  var w=300,h=16,x=0,gap=2,out='',scale=w/maxv;
+  var cols=['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
+  parts.forEach(function(p,i){ var pw=Math.max(0,p*scale-(i<parts.length-1?gap:0)); if(pw<=0)return; var last=i===parts.length-1||parts.slice(i+1).every(function(v){return v===0}); if(last){ out+='<path d="M'+x+',0 H'+(x+pw-4)+' a4,4 0 0 1 4,4 V'+(h-4)+' a4,4 0 0 1 -4,4 H'+x+' Z" fill="'+cols[i]+'"><title>'+p.toFixed(1)+'M</title></path>'; } else { out+='<rect x="'+x+'" y="0" width="'+pw+'" height="'+h+'" fill="'+cols[i]+'"><title>'+p.toFixed(1)+'M</title></rect>'; } x+=p*scale; });
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" role="img" aria-label="'+total+' million tokens">'+out+'</svg>';
+}
+function trendChart(){
+  var W_=720,H=260,ml=40,mr=120,mt=16,mb=34,pw=W_-ml-mr,ph=H-mt-mb;
+  var x0=Date.UTC(2026,8,14),x1=Date.UTC(2026,9,3); var xs=function(d){return ml+(d-x0)/(x1-x0)*pw}; var ys=function(v){return mt+ph-(v/4)*ph};
+  var swm=[['harness-bookkeeping',Date.UTC(2026,8,15),3.6,0],['question-gates',Date.UTC(2026,8,17),3.1,0],['harness-usage-and-tiers',Date.UTC(2026,8,21),2.8,0],['provider-per-role',Date.UTC(2026,8,23),2.4,0],['agent-cache-ttl',Date.UTC(2026,8,25),2.0,0],['graph-orientation',Date.UTC(2026,8,27),1.8,0],['tdd-task-loop',Date.UTC(2026,8,28),1.4,1],['harness-control-pane',Date.UTC(2026,9,1),1.5,0]];
+  var tr=[['trust-pages',Date.UTC(2026,8,21),3.9,0],['account-deletion',Date.UTC(2026,8,24),3.7,0],['account-export-import',Date.UTC(2026,8,27),3.2,0],['trading-rules',Date.UTC(2026,8,28),2.62,1],['broker-csv-presets',Date.UTC(2026,9,1),2.4,0]];
+  var s='<svg viewBox="0 0 '+W_+' '+H+'" role="img" aria-label="Tokens per task by spec, two repositories">';
+  [0,1,2,3,4].forEach(function(v){ s+='<line class="gl" x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+ys(v)+'" y2="'+ys(v)+'"/><text class="ax" x="'+(ml-6)+'" y="'+(ys(v)+3.5)+'" text-anchor="end">'+v+'M</text>'; });
+  [[Date.UTC(2026,8,14),'Sep 14'],[Date.UTC(2026,8,21),'Sep 21'],[Date.UTC(2026,8,28),'Sep 28'],[Date.UTC(2026,9,3),'Oct 3']].forEach(function(t){ s+='<text class="ax" x="'+xs(t[0])+'" y="'+(H-mb+16)+'" text-anchor="middle">'+t[1]+'</text>'; });
+  function series(pts,col,name){
+    var line=pts.map(function(p){return xs(p[1]).toFixed(1)+','+ys(p[2]).toFixed(1)}).join(' ');
+    var out='<polyline points="'+line+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    pts.forEach(function(p){ out+='<circle cx="'+xs(p[1])+'" cy="'+ys(p[2])+'" r="4.5" fill="'+col+'" stroke="var(--panel)" stroke-width="2"><title>'+p[0]+': '+p[2]+'M per task</title></circle>'; if(p[3]) out+='<circle class="ring" cx="'+xs(p[1])+'" cy="'+ys(p[2])+'" r="8"/>'; });
+    var last=pts[pts.length-1]; out+='<text class="lbl" x="'+(xs(last[1])+12)+'" y="'+(ys(last[2])+4)+'">'+name+' '+last[2]+'M</text>';
+    return out;
+  }
+  s+=series(swm,'var(--s1)','spec-workflow-mcp')+series(tr,'var(--s2)','tradr');
+  s+='<text class="lbl2" x="'+(xs(Date.UTC(2026,8,28))+10)+'" y="'+(ys(1.4)+16)+'">baseline</text><text class="lbl2" x="'+(xs(Date.UTC(2026,8,28))+10)+'" y="'+(ys(2.62)-10)+'">baseline</text>';
+  s+='</svg>';
+  return s;
+}
+function pageUsage(){
+  var tab=S.usageTab;
+  var h='<section class="main"><div class="lhead"><b>Usage</b><span class="r"><span class="chip on">All projects</span><span class="chip">Anthropic</span><span class="chip">DeepSeek</span></span></div>';
+  h+='<div class="page"><div class="tabs"><button type="button" data-ut="live" aria-selected="'+(tab==='live')+'">Live</button><button type="button" data-ut="spec" aria-selected="'+(tab==='spec')+'">Per spec</button><button type="button" data-ut="trend" aria-selected="'+(tab==='trend')+'">Trend</button></div>';
+  var legend='<div class="legend"><span><i style="background:var(--s1)"></i>orchestrators</span><span><i style="background:var(--s2)"></i>document workers</span><span><i style="background:var(--s3)"></i>implementation workers</span><span><i style="background:var(--s4)"></i>retro and other</span></div>';
+  if(tab==='live'){
+    h+='<div class="tiles"><div class="tile"><div class="l">Tokens today</div><div class="v">24.3M</div><div class="d">W, Anthropic, 3 runs</div></div><div class="tile"><div class="l">Orchestrator share today</div><div class="v">31%</div><div class="d">lean-orchestrators aims lower</div></div><div class="tile"><div class="l">Cache hit, 24 h</div><div class="v">93%</div><div class="d">one-hour cache on 3 orchestrators</div></div></div>';
+    h+='<div class="sec"><h4>Live runs<span class="r">tokens so far, by role group</span></h4><div class="card" style="display:grid;gap:8px">'+legend;
+    [['tradr › mobile-pwa',[3.2,3.1,4.6,0.3],11.2],['swm › harness-control-pane',[18.1,19.6,19.2,1.5],58.4],['jobscout › canonical-link',[0.5,1.4,0,0],1.9]].forEach(function(r){ h+='<div class="sbar"><span class="clip">'+esc(r[0])+'</span>'+stack(r[1],r[2],60)+'<span class="mono" style="text-align:right">'+r[2]+'M</span></div>'; });
+    h+='</div></div>';
+    h+='<div class="sec"><h4>Current spawn<span class="r">updates on every spawn.end</span></h4><div class="tblwrap"><table class="t"><tr><th>Run</th><th>Agent</th><th>Model</th><th>Input</th><th>Cache read</th><th>Cache write</th><th>Output</th><th>W</th></tr><tr><td>mobile-pwa</td><td>sdd-implementer</td><td class="mono">claude-opus-4-8</td><td class="n">1,204</td><td class="n">412,906</td><td class="n">61,002</td><td class="n">3,418</td><td class="n">0.6M</td></tr><tr><td>mobile-pwa</td><td>sdd-implementation-orchestrator</td><td class="mono">claude-opus-4-8</td><td class="n">88</td><td class="n">2,980,114</td><td class="n">141,900</td><td class="n">9,206</td><td class="n">3.2M</td></tr></table></div></div>';
+  } else if(tab==='spec'){
+    h+='<div class="sec"><h4>Spec<span class="r"><span class="chip on">harness-control-pane</span><span class="chip">tdd-task-loop</span><span class="chip">trading-rules</span><span class="chip">choose… ▾</span></span></h4>';
+    h+='<div class="tiles"><div class="tile"><div class="l">Total W</div><div class="v">67.7M</div><div class="d">2 runs, 4 phases + retro</div></div><div class="tile"><div class="l">Per task</div><div class="v">1.5M</div><div class="d">20 tasks · baseline 1.4M</div></div><div class="tile"><div class="l">Orchestrator share</div><div class="v">31%</div><div class="d">implementation 38%</div></div></div>';
+    h+='<div class="card" style="display:grid;gap:8px">'+legend;
+    [['requirements',[2.9,6.5,0,0],9.4],['design',[2.4,4.7,0,0],7.1],['tasks',[1.5,2.7,0,0],4.2],['implementation',[15.6,0,25.4,0],41.0],['retrospective + close-out',[1.9,0,2.1,2.0],6.0]].forEach(function(r){ h+='<div class="sbar"><span class="clip">'+esc(r[0])+'</span>'+stack(r[1],r[2],41)+'<span class="mono" style="text-align:right">'+r[2]+'M</span></div>'; });
+    h+='</div>';
+    h+='<div class="tblwrap"><table class="t"><tr><th>Role</th><th>Spawns</th><th>Model</th><th>W</th><th>Share</th><th>Cache read</th><th>Per spawn</th></tr>'+[['sdd-implementation-orchestrator',3,'claude-opus-4-8','15.6M','23%','96%','5.2M'],['sdd-implementer',22,'claude-opus-4-8','14.8M','22%','91%','0.67M'],['sdd-verifier',15,'claude-opus-4-8','8.1M','12%','90%','0.54M'],['sdd-drafter',3,'claude-opus-5-5','7.9M','12%','84%','2.6M'],['sdd-document-orchestrator',3,'claude-opus-4-8','6.8M','10%','95%','2.3M'],['sdd-reviewer',7,'claude-opus-4-8','5.1M','8%','88%','0.73M'],['sdd-reviser',6,'claude-opus-4-8','4.4M','6%','89%','0.73M'],['sdd-test-author',12,'claude-sonnet-5','2.5M','4%','87%','0.21M'],['other',6,'','2.5M','4%','','']].map(function(r){return '<tr><td>'+r[0]+'</td><td class="n">'+r[1]+'</td><td class="mono mute">'+r[2]+'</td><td class="n">'+r[3]+'</td><td class="n">'+r[4]+'</td><td class="n">'+r[5]+'</td><td class="n">'+r[6]+'</td></tr>'}).join('')+'</table></div></div>';
+  } else {
+    h+='<div class="sec"><h4>Tokens per task, by spec<span class="r">closed specs · W per implementation task · baselines ringed</span></h4><div class="chart">'+trendChart()+'<div class="legend" style="margin-top:6px"><span><i style="background:var(--s1)"></i>spec-workflow-mcp</span><span><i style="background:var(--s2)"></i>tradr</span><span><i style="border:1.5px solid var(--fg);border-radius:50%;width:9px;height:9px"></i>step-4 baseline</span></div></div><div class="mute" style="font-size:11.5px">Example series. The two baselines are measured; the rest illustrate the shape.</div></div>';
+    h+='<details class="fold"><summary>Table view<span class="r">13 specs</span></summary><div class="body"><div class="tblwrap" style="border:0;border-radius:0"><table class="t"><tr><th>Closed</th><th>Repo</th><th>Spec</th><th>Tasks</th><th>W total</th><th>W per task</th><th>Orch. share</th></tr>'+[['Oct 1','spec-workflow-mcp','harness-control-pane',20,'67.7M','1.5M','31%'],['Oct 1','tradr','broker-csv-presets',11,'26.4M','2.4M','30%'],['Sep 28','spec-workflow-mcp','tdd-task-loop',17,'23.8M','1.4M','33%'],['Sep 28','tradr','trading-rules',10,'26.2M','2.62M','29%'],['Sep 27','spec-workflow-mcp','graph-orientation',10,'18.0M','1.8M','30%'],['Sep 27','tradr','account-export-import',12,'38.4M','3.2M','27%']].map(function(r){return '<tr><td class="mute">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="n">'+r[3]+'</td><td class="n">'+r[4]+'</td><td class="n">'+r[5]+'</td><td class="n">'+r[6]+'</td></tr>'}).join('')+'</table></div></div></details>';
+  }
+  h+='</div></section>';
+  return h;
+}
+
+/* ---------- Deferrals ---------- */
+function pageDefs(){
+  var h='<section class="main"><div class="lhead"><b>Deferrals</b><span class="chip on">Open 15</span><span class="chip">Resolved 8</span><span class="chip">Owner: you 4</span><span class="chip">Blocking 1</span><span class="r"><span class="search">⌕ Search deferrals…</span>Group: project ▾</span></div>';
+  var groups={};var order=[];
+  DEFS.forEach(function(d){ if(!groups[d[3]]){groups[d[3]]=[];order.push(d[3])} groups[d[3]].push(d); });
+  order.forEach(function(p){
+    h+='<div class="gh"><span class="tri">▾</span><b>'+esc(p)+'</b> '+groups[p].length+'</div>';
+    groups[p].forEach(function(d){ h+='<div class="lrow '+(S.defSel===d[0]?'sel':'')+'" style="grid-template-columns:14px 86px minmax(200px,1.6fr) auto auto auto auto" data-def="'+d[0]+'"><span class="st '+(d[5]==='resolved'?'done':d[4]==='you'?'warn':'')+'"></span><span class="mono mute" style="font-size:11px">'+d[0]+'</span><span class="t clip" style="font-weight:'+(d[5]==='resolved'?'400':'500')+';'+(d[5]==='resolved'?'color:var(--mute)':'')+'">'+esc(d[1])+'</span><span class="chip">'+esc(d[2])+'</span><span class="chip '+(d[4]==='you'?'warn':'')+'">'+esc(d[4])+'</span>'+(d[8]?'<span class="chip bad">blocks</span>':'<span></span>')+'<span class="age">'+esc(d[7])+'</span></div>'; });
+  });
+  h+='<div class="pager">Showing 10 of 23<button type="button" class="btn sm">Show 13 more</button></div></section>';
+  var d=DEFS.filter(function(x){return x[0]===S.defSel})[0];
+  h+='<aside class="panel"><div class="ph2"><span class="st '+(d[5]==='resolved'?'done':d[4]==='you'?'warn':'')+'"></span><b>'+esc(d[1])+'</b></div>';
+  h+='<div class="props"><span>Id</span><span class="mono">'+d[0]+'</span><span>Status</span><span>'+d[5]+'</span><span>Origin</span><span>'+esc(d[2])+', '+(d[0]==='d-a38fea66'?'implementation':'tasks')+'</span><span>Project</span><span>'+esc(d[3])+'</span><span>Owner</span><span>'+esc(d[4])+'</span><span>Tags</span><span><span class="chip">'+esc(d[6])+'</span></span><span>Created</span><span>'+esc(d[7])+' ago</span>'+(d[8]?'<span>Blocks</span><span class="bad">'+esc(d[8])+'</span>':'')+'</div>';
+  h+='<div class="hr"></div><div style="font-size:12px;display:grid;gap:6px"><b>Revisit when</b><span>Next session restart after this spec\'s harness skills merge, with the DeepSeek provider routing in a real document phase.</span><b>Context</b><span class="mute">The provider-per-role supervisor and orchestrator halves could not run in the implementation session: the DeepSeek launcher needs the restarted session\'s linked skills.</span></div>';
+  h+='<div class="hr"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn pri">Mark resolved</button><button type="button" class="btn">Open file</button><button type="button" class="btn">Copy path</button></div></aside>';
+  return h;
+}
+
+/* ---------- Settings ---------- */
+function pageSettings(){
+  var h='<section class="main"><div class="lhead"><b>Settings</b></div><div class="page" style="max-width:640px">';
+  h+='<div class="sec"><h4>Tell me when something waits</h4><div class="card" style="display:grid;gap:4px"><div class="toggle"><span class="sw on"></span>Desktop notification from the open tab</div><div class="toggle"><span class="sw on"></span>Phone push through a push service</div><div class="props" style="margin:6px 0 2px 36px"><span>Service</span><span>ntfy ▾ <span class="mute">or Pushover</span></span><span>Topic</span><span class="mono">sdd-mcf-7f3a…</span><span>Test</span><span><button type="button" class="btn sm">Send a test push</button></span></div><div class="hr" style="margin:6px 0"></div><div class="mute" style="font-size:11.5px;margin-bottom:4px">One message per wait, none for progress. Send for:</div><div class="toggle"><span class="sw on"></span>Gate A or B</div><div class="toggle"><span class="sw on"></span>Retro decisions</div><div class="toggle"><span class="sw on"></span>A PR turns green</div><div class="toggle"><span class="sw on"></span>A run exits with an error or a refusal</div><div class="toggle"><span class="sw on"></span>A run goes quiet for 15 minutes mid-spawn</div><div class="toggle"><span class="sw"></span>A deferral assigned to you</div></div></div>';
+  h+='<div class="sec"><h4>Merging</h4><div class="tblwrap"><table class="t"><tr><th>Project</th><th>Remote</th><th>Method</th><th>After merge</th></tr><tr><td>spec-workflow-mcp</td><td class="mono">madmatt112/spec-workflow-mcp</td><td>merge commit</td><td class="mute w">sync main, npm run build, restart this dashboard</td></tr><tr><td>tradr</td><td class="mono">madmatt112/tradr</td><td>squash</td><td class="mute w">staging deploy runs on green main</td></tr><tr><td>jobscout</td><td class="mute">none</td><td class="mute">commits on branch</td><td></td></tr><tr><td>matthew-field.ca</td><td class="mono">madmatt112/matthew-field.ca</td><td>merge commit</td><td></td></tr></table></div><div class="mute" style="font-size:11.5px">Read from each project\'s agent-rules.md. Edit there.</div></div>';
+  h+='<div class="sec"><h4>Appearance</h4><div class="card" style="display:grid;gap:4px"><div class="props"><span>Theme</span><span>System ▾</span><span>Density</span><span>Compact ▾</span><span>Language</span><span>English ▾</span><span>Sound</span><span>Off ▾</span></div></div></div>';
+  h+='</div></section>';
+  return h;
+}
+
+function draw(){
+  var app=document.getElementById('app');
+  var body;
+  if(S.settings){ body=pageSettings(); app.className='app nopanel'; }
+  else { app.className='app'; body=({now:pageNow,runs:pageRuns,specs:pageSpecs,usage:pageUsage,deferrals:pageDefs})[S.page](); if(S.page==='usage') app.className='app nopanel'; }
+  app.innerHTML=sidebar()+body;
+}
+document.getElementById('app').addEventListener('click',function(e){
+  var a=e.target.closest('a'); if(a) e.preventDefault();
+  var t;
+  if((t=e.target.closest('[data-settings]'))){ S.settings=true; draw(); return; }
+  if((t=e.target.closest('[data-page]'))){ S.settings=false; S.page=t.dataset.page; draw(); return; }
+  if((t=e.target.closest('[data-proj]'))){ S.proj[t.dataset.proj]=!S.proj[t.dataset.proj]; draw(); return; }
+  if((t=e.target.closest('[data-fold]'))){ t.classList.toggle('closed'); var f=document.getElementById('fold-'+t.dataset.fold); if(f) f.hidden=!f.hidden; return; }
+  if((t=e.target.closest('[data-ut]'))){ S.usageTab=t.dataset.ut; draw(); return; }
+  if((t=e.target.closest('[data-runsel]'))){ S.runSel=t.dataset.runsel; draw(); return; }
+  if((t=e.target.closest('[data-run]'))){ S.runSel=t.dataset.run; S.page='runs'; draw(); return; }
+  if(e.target.closest('label,input,select,summary,details')) return;
+  if((t=e.target.closest('[data-sel]'))){ S.sel=t.dataset.sel; draw(); return; }
+  if((t=e.target.closest('[data-spec]'))){ S.specSel=t.dataset.spec; draw(); return; }
+  if((t=e.target.closest('[data-def]'))){ S.defSel=t.dataset.def; draw(); return; }
+});
+document.getElementById('thseg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});if(b.dataset.th){document.documentElement.setAttribute('data-theme',b.dataset.th)}else{document.documentElement.removeAttribute('data-theme')}});
+draw();
+})();
+</script>
+
+</body></html>

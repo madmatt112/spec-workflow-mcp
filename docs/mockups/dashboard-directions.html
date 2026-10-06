@@ -1,0 +1,577 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>SDD Dashboard Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a quiet reading column for the notes; a wide frame that holds one mock at a time. The four directions carry their own palettes and type; the page chrome stays neutral. */
+:root{
+  --pg-bg:#f3f4f6; --pg-fg:#1b1f26; --pg-mute:#5f6873; --pg-line:#d9dee5; --pg-card:#ffffff;
+  --pg-acc:#2a5bd7; --pg-acc-soft:rgba(42,91,215,.12); --pg-warn:#b06f14; --pg-ok:#1f8a4c;
+  --pg-font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --pg-mono:"Roboto Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --pg-bg:#101318; --pg-fg:#e6e9ee; --pg-mute:#9aa3ae; --pg-line:#2a3038; --pg-card:#171b21; --pg-acc:#7aa2ff; --pg-acc-soft:rgba(122,162,255,.16); --pg-warn:#e0a44a; --pg-ok:#45c47e; color-scheme:dark }
+}
+:root[data-theme="dark"]{ --pg-bg:#101318; --pg-fg:#e6e9ee; --pg-mute:#9aa3ae; --pg-line:#2a3038; --pg-card:#171b21; --pg-acc:#7aa2ff; --pg-acc-soft:rgba(122,162,255,.16); --pg-warn:#e0a44a; --pg-ok:#45c47e; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--pg-bg);color:var(--pg-fg);font-family:var(--pg-font);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin-inline:auto;padding-inline:16px;padding-block:20px 56px}
+.col{max-width:720px}
+h1{font-size:1.6rem;font-weight:600;letter-spacing:-.01em;margin:0 0 6px;text-wrap:balance}
+h2{font-size:1.15rem;font-weight:600;margin:40px 0 10px;text-wrap:balance}
+h3{font-size:.95rem;font-weight:600;margin:18px 0 6px}
+p{margin:0 0 10px}
+.lead{color:var(--pg-mute);margin-bottom:18px}
+ul{margin:0 0 12px;padding-left:20px}
+li{margin:2px 0}
+code{font-family:var(--pg-mono);font-size:.88em;background:var(--pg-acc-soft);padding:1px 5px;border-radius:4px}
+a{color:var(--pg-acc)}
+
+.controls{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--pg-bg) 90%,transparent);backdrop-filter:blur(8px);border-block:1px solid var(--pg-line);margin:18px -16px 14px;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--pg-line);border-radius:8px;overflow:hidden;background:var(--pg-card)}
+.seg button{font:inherit;font-size:.85rem;font-weight:500;padding:7px 12px;border:0;background:none;color:var(--pg-mute);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--pg-acc-soft);color:var(--pg-acc)}
+.seg button:focus-visible{outline:2px solid var(--pg-acc);outline-offset:-2px}
+.ctl-label{font-size:.78rem;color:var(--pg-mute);margin-right:6px}
+.dirnote{font-size:.9rem;color:var(--pg-mute);margin:0 0 12px}
+.dirnote b{color:var(--pg-fg);font-weight:600}
+
+.frame{container-type:inline-size;width:100%;max-width:1180px;margin-inline:auto;border:1px solid var(--pg-line);border-radius:10px;overflow:hidden;background:var(--pg-card);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.frame.ph{max-width:402px;border-radius:30px;border:6px solid #1a1d22;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.frame.ph .m{min-height:640px}
+
+/* mock base */
+.m{font-family:var(--font);background:var(--bg);color:var(--fg);font-size:13px;line-height:1.45;min-height:560px}
+.m *{box-sizing:border-box;min-width:0}
+.m button{font:inherit;cursor:pointer}
+.m button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.m .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.m .num{font-variant-numeric:tabular-nums}
+.m .clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m .wrap-anywhere{overflow-wrap:anywhere}
+
+/* shared action sheet (the "act from the dashboard" part) */
+.sheet{display:grid;gap:10px}
+.sheet .q{display:grid;gap:5px}
+.sheet .q b{font-weight:600}
+.sheet .q .qh{font-size:.78em;color:var(--mute)}
+.sheet label{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer}
+.sheet label:has(input:checked){border-color:var(--acc);background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.sheet input{margin:3px 0 0;accent-color:var(--acc)}
+.sheet .rec{font-size:.75em;color:var(--mute);margin-left:auto;white-space:nowrap}
+.sheet .foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.sheet .foot .hint{font-size:.78em;color:var(--mute);flex:1 1 180px}
+.sheet .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:.9em}
+.sheet .kv span:nth-child(odd){color:var(--mute)}
+.sheet .checks{display:grid;gap:4px;font-size:.9em}
+.sheet .checks div{display:flex;gap:8px;align-items:center}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mute{color:var(--mute)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.dot.live{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 25%,transparent)}
+
+/* ============ A · GitHub ============ */
+.dA{--bg:#f6f8fa;--panel:#fff;--line:#d0d7de;--fg:#1f2328;--mute:#636c76;--acc:#0969da;--ok:#1a7f37;--okbg:#dafbe1;--warn:#9a6700;--warnbg:#fff8c5;--bad:#cf222e;--badbg:#ffebe9;--btn:#f6f8fa;--btnline:#d0d7de;--primary:#1f883d;--logbg:#24292f;--logfg:#d0d7de;--font:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;--r:6px}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .dA{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--mute:#8d96a0;--acc:#2f81f7;--ok:#3fb950;--okbg:rgba(63,185,80,.15);--warn:#d29922;--warnbg:rgba(210,153,34,.15);--bad:#f85149;--badbg:rgba(248,81,73,.15);--btn:#21262d;--btnline:#363b42;--primary:#238636;--logbg:#010409;--logfg:#c9d1d9} }
+:root[data-theme="dark"] .dA{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--mute:#8d96a0;--acc:#2f81f7;--ok:#3fb950;--okbg:rgba(63,185,80,.15);--warn:#d29922;--warnbg:rgba(210,153,34,.15);--bad:#f85149;--badbg:rgba(248,81,73,.15);--btn:#21262d;--btnline:#363b42;--primary:#238636;--logbg:#010409;--logfg:#c9d1d9}
+.dA .top{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px 0}
+.dA .top .row1{display:flex;align-items:center;gap:12px;padding-bottom:8px}
+.dA .brand{font-weight:600;display:flex;align-items:center;gap:8px}
+.dA .brand i{width:22px;height:22px;border-radius:50%;background:var(--fg);display:inline-block}
+.dA .ghbtn{border:1px solid var(--btnline);background:var(--btn);color:var(--fg);border-radius:var(--r);padding:4px 10px;font-size:12px;font-weight:500;white-space:nowrap}
+.dA .ghbtn.primary{background:var(--primary);border-color:transparent;color:#fff}
+.dA .ghbtn.sm{padding:3px 8px}
+.dA .spacer{flex:1}
+.dA .tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.dA .tabs a{padding:8px 10px;border-bottom:2px solid transparent;color:var(--fg);text-decoration:none;white-space:nowrap;font-size:13px}
+.dA .tabs a.on{border-color:#fd8c73;font-weight:600}
+.dA .counter{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--fg) 12%,transparent);font-size:11px;line-height:18px;text-align:center;margin-left:4px}
+.dA .main{padding:16px;display:grid;gap:16px;max-width:1080px;margin-inline:auto}
+.dA .box{border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.dA .boxh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--line);border-radius:var(--r) var(--r) 0 0;font-weight:600}
+.dA .boxh .tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.dA .ghrow{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.dA .ghrow:first-of-type{border-top:0}
+.dA .ghrow .t{font-weight:600}
+.dA .ghrow .t a{color:var(--fg);text-decoration:none}
+.dA .ghrow .meta{color:var(--mute);font-size:12px;display:flex;gap:6px;flex-wrap:wrap}
+.dA .ghrow .right{display:flex;gap:8px;align-items:center;color:var(--mute);font-size:12px;white-space:nowrap}
+.dA .ic{width:16px;height:16px;border-radius:50%;display:inline-block}
+.dA .ic.warn{background:var(--warn)} .dA .ic.ok{background:var(--ok)} .dA .ic.mute{background:var(--mute)} .dA .ic.run{border:2px solid var(--warn);background:conic-gradient(var(--warn) 0 60%,transparent 60%)}
+.dA .lbl{border:1px solid var(--line);border-radius:999px;padding:0 7px;font-size:11px;line-height:18px;color:var(--mute)}
+.dA .lbl.warn{background:var(--warnbg);color:var(--warn);border-color:transparent}
+.dA .lbl.ok{background:var(--okbg);color:var(--ok);border-color:transparent}
+.dA .lbl.bad{background:var(--badbg);color:var(--bad);border-color:transparent}
+.dA .steps{border-top:1px solid var(--line);background:var(--bg);padding:6px 14px 10px 44px;display:grid;gap:2px}
+.dA .step{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:center;padding:4px 0;font-size:12.5px}
+.dA .step .dur{color:var(--mute);font-family:var(--mono);font-size:11.5px}
+.dA .step.sub{padding-left:22px;color:var(--mute)}
+.dA .step.sub b{color:var(--fg);font-weight:500}
+.dA .log{margin:8px 0 2px 26px;background:var(--logbg);color:var(--logfg);font-family:var(--mono);font-size:11.5px;border-radius:var(--r);padding:8px 10px;display:grid;gap:2px;overflow-x:auto}
+.dA .log span{color:#8b949e;margin-right:10px}
+.dA .inline-sheet{border-top:1px solid var(--line);padding:12px 14px 14px 44px;background:var(--bg)}
+.dA .inline-sheet .ghbtn.primary{color:#fff}
+.dA details summary{cursor:pointer;list-style:none;padding:10px 14px;font-weight:600;color:var(--mute)}
+.dA details summary::-webkit-details-marker{display:none}
+.dA .closed .ghrow{grid-template-columns:20px 1fr auto}
+@container (max-width: 760px){
+  .dA .main{padding:10px}
+  .dA .ghrow{grid-template-columns:20px 1fr}
+  .dA .ghrow .right{grid-column:2;justify-content:space-between}
+  .dA .steps{padding-left:14px}
+  .dA .log{margin-left:0}
+  .dA .inline-sheet{padding-left:14px}
+  .dA .boxh .tools{display:none}
+}
+
+/* ============ B · Linear ============ */
+.dB{--bg:#fcfcfc;--panel:#fff;--side:#f7f8f8;--line:#e8e8ec;--fg:#282a30;--mute:#6f7480;--acc:#5e6ad2;--accbg:rgba(94,106,210,.12);--ok:#2f9e5f;--warn:#d8902a;--bad:#e5484d;--font:"Inter",system-ui,sans-serif;--mono:"Roboto Mono",ui-monospace,monospace;--r:6px}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .dB{--bg:#0f1011;--panel:#121314;--side:#151617;--line:#23252a;--fg:#e3e4e6;--mute:#8a8f98;--acc:#7170ff;--accbg:rgba(113,112,255,.16);--ok:#4cb782;--warn:#f2c94c;--bad:#eb5757} }
+:root[data-theme="dark"] .dB{--bg:#0f1011;--panel:#121314;--side:#151617;--line:#23252a;--fg:#e3e4e6;--mute:#8a8f98;--acc:#7170ff;--accbg:rgba(113,112,255,.16);--ok:#4cb782;--warn:#f2c94c;--bad:#eb5757}
+.dB{display:grid;grid-template-columns:200px 1fr 340px;min-height:620px}
+.dB .side{background:var(--side);border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:14px;font-size:12.5px}
+.dB .ws{font-weight:600;display:flex;align-items:center;gap:8px;padding:2px 6px}
+.dB .ws i{width:18px;height:18px;border-radius:5px;background:var(--acc);display:inline-block}
+.dB .nav a{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);color:var(--fg);text-decoration:none}
+.dB .nav a.on{background:var(--accbg);color:var(--acc);font-weight:500}
+.dB .nav a .c{margin-left:auto;color:var(--mute);font-size:11px}
+.dB .grp{font-size:11px;color:var(--mute);padding:0 8px;margin-bottom:4px;font-weight:500}
+.dB .proj a{display:flex;align-items:center;gap:8px;padding:4px 8px;color:var(--fg);text-decoration:none;border-radius:var(--r)}
+.dB .proj a i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dB .kbd{margin-top:auto;color:var(--mute);font-size:11px;display:flex;gap:6px;align-items:center}
+.dB kbd{font-family:var(--font);font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:0 5px;background:var(--panel)}
+.dB .list{background:var(--bg);display:flex;flex-direction:column;min-width:0}
+.dB .lhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px}
+.dB .lhead b{font-weight:600;font-size:13px}
+.dB .chip{border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--mute);background:var(--panel);white-space:nowrap}
+.dB .lhead .chip.on{border-color:var(--acc);color:var(--acc)}
+.dB .lhead .r{margin-left:auto;color:var(--mute);font-size:11.5px}
+.dB .gh{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--side);border-bottom:1px solid var(--line);font-size:11.5px;font-weight:500;color:var(--mute)}
+.dB .gh b{color:var(--fg);font-weight:600}
+.dB .lrow{display:grid;grid-template-columns:14px minmax(140px,1.4fr) auto 1fr auto auto;gap:10px;align-items:center;padding:0 14px;height:36px;border-bottom:1px solid var(--line);cursor:pointer;font-size:12.5px}
+.dB .lrow:hover{background:var(--panel)}
+.dB .lrow.sel{background:var(--accbg)}
+.dB .lrow .t{font-weight:500}
+.dB .lrow .sub{color:var(--mute);font-size:12px}
+.dB .lrow .age{color:var(--mute);font-size:11.5px;white-space:nowrap}
+.dB .lrow .tok{font-family:var(--mono);font-size:11.5px;color:var(--mute);white-space:nowrap}
+.dB .st{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--mute);display:inline-block}
+.dB .st.warn{border-color:var(--warn);background:conic-gradient(var(--warn) 0 50%,transparent 50%)}
+.dB .st.run{border-color:var(--ok);background:conic-gradient(var(--ok) 0 35%,transparent 35%)}
+.dB .st.ok{border-color:var(--ok);background:var(--ok)}
+.dB .st.done{border-color:var(--mute);background:var(--mute);opacity:.6}
+.dB .lbtn{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:var(--r);padding:2px 9px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.dB .lbtn.pri{background:var(--acc);border-color:transparent;color:#fff}
+.dB .panel{background:var(--panel);border-left:1px solid var(--line);padding:14px;display:grid;align-content:start;gap:12px;font-size:12.5px}
+.dB .panel .ph{display:flex;align-items:center;gap:8px}
+.dB .panel .ph b{font-size:13.5px;font-weight:600}
+.dB .props{display:grid;grid-template-columns:90px 1fr;gap:5px 10px;font-size:12px}
+.dB .props span:nth-child(odd){color:var(--mute)}
+.dB .lrow.collapsed{color:var(--mute)}
+@container (max-width: 980px){ .dB{grid-template-columns:1fr} .dB .side{display:none} .dB .panel{border-left:0;border-top:1px solid var(--line)} }
+@container (max-width: 760px){
+  .dB .lrow{grid-template-columns:14px 1fr auto;height:auto;padding-block:7px;row-gap:2px}
+  .dB .lrow .sub{grid-column:2;grid-row:2} .dB .lrow .tok{display:none} .dB .lrow .age{grid-column:3;grid-row:2;justify-self:end}
+  .dB .lrow .lbtn{grid-column:3;grid-row:1}
+  .dB .lrow .chip{grid-column:2;grid-row:3;justify-self:start}
+  .dB .mtop{display:flex!important}
+}
+.dB .mtop{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--side);font-weight:600}
+.dB .mtop .c{margin-left:auto;color:var(--acc);font-weight:500;font-size:12px}
+
+/* ============ C · Grafana ============ */
+.dC{--bg:#f4f5f5;--panel:#fff;--line:#dce1e6;--fg:#24292e;--mute:#6e7079;--acc:#3d71d9;--ok:#1a7f4b;--okbg:rgba(26,127,75,.14);--warn:#b86e00;--warnbg:rgba(255,120,10,.16);--bad:#d10e5c;--badbg:rgba(209,14,92,.14);--font:"Roboto",system-ui,sans-serif;--mono:"Roboto Mono",monospace;--r:2px}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .dC{--bg:#111217;--panel:#181b1f;--line:#2c3235;--fg:#ccccdc;--mute:#9fa7b3;--acc:#6e9fff;--ok:#73bf69;--okbg:rgba(115,191,105,.16);--warn:#ff9830;--warnbg:rgba(255,152,48,.16);--bad:#f2495c;--badbg:rgba(242,73,92,.16)} }
+:root[data-theme="dark"] .dC{--bg:#111217;--panel:#181b1f;--line:#2c3235;--fg:#ccccdc;--mute:#9fa7b3;--acc:#6e9fff;--ok:#73bf69;--okbg:rgba(115,191,105,.16);--warn:#ff9830;--warnbg:rgba(255,152,48,.16);--bad:#f2495c;--badbg:rgba(242,73,92,.16)}
+.dC .top{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap}
+.dC .top .brand{font-weight:700;display:flex;align-items:center;gap:8px}
+.dC .top .brand i{width:18px;height:18px;background:linear-gradient(135deg,#f05a28,#fbca0a);border-radius:4px;display:inline-block}
+.dC .top nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.dC .top nav a{padding:4px 9px;color:var(--fg);text-decoration:none;border-radius:var(--r);white-space:nowrap}
+.dC .top nav a.on{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc)}
+.dC .var{border:1px solid var(--line);border-radius:var(--r);padding:3px 8px;background:var(--bg);font-size:12px;white-space:nowrap}
+.dC .var b{font-weight:500;color:var(--mute);margin-right:4px}
+.dC .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;padding:8px}
+.dC .pnl{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-height:90px}
+.dC .pnl h4{margin:0;padding:6px 10px;font-size:12px;font-weight:500;color:var(--fg);border-bottom:1px solid transparent;display:flex;align-items:center;gap:8px}
+.dC .pnl h4 .info{color:var(--mute);font-size:11px;margin-left:auto}
+.dC .stat{grid-column:span 3;justify-content:center;padding:8px 12px 10px}
+.dC .stat .v{font-size:30px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
+.dC .stat .l{font-size:12px;color:var(--mute)}
+.dC .stat svg{width:100%;height:28px;margin-top:4px}
+.dC .alerts{grid-column:span 7}
+.dC .arow{display:grid;grid-template-columns:4px 1fr auto;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);font-size:12.5px}
+.dC .arow .stripe{width:4px;align-self:stretch;border-radius:2px;background:var(--warn)}
+.dC .arow .stripe.ok{background:var(--ok)} .dC .arow .stripe.mute{background:var(--mute)}
+.dC .arow .lbls{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+.dC .tag{font-family:var(--mono);font-size:10.5px;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc);padding:0 5px;border-radius:2px}
+.dC .gbtn{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:var(--r);padding:3px 9px;font-size:12px;white-space:nowrap}
+.dC .gbtn.pri{background:var(--acc);border-color:transparent;color:#fff}
+.dC .bars{grid-column:span 5}
+.dC .brow{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;padding:6px 10px;font-size:12px}
+.dC .brow .bar{height:10px;background:color-mix(in srgb,var(--acc) 18%,transparent);border-radius:1px;overflow:hidden}
+.dC .brow .bar i{display:block;height:100%;background:var(--acc)}
+.dC .table{grid-column:span 12;overflow-x:auto}
+.dC table{border-collapse:collapse;width:100%;font-size:12.5px}
+.dC th{text-align:left;font-weight:500;color:var(--mute);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.dC td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.dC td.cell{font-weight:500}
+.dC td.cell.run{background:var(--okbg);color:var(--ok)} .dC td.cell.wait{background:var(--warnbg);color:var(--warn)} .dC td.cell.idle{color:var(--mute)}
+.dC .logs{grid-column:span 12;font-family:var(--mono);font-size:11.5px}
+.dC .logs .ln{display:grid;grid-template-columns:62px 90px 1fr;gap:10px;padding:3px 10px;border-top:1px solid var(--line)}
+.dC .logs .ln .lv{font-weight:500}
+.dC .selected{grid-column:span 12}
+.dC .selected .body{padding:10px}
+@container (max-width: 980px){ .dC .stat{grid-column:span 6} .dC .alerts,.dC .bars{grid-column:span 12} }
+@container (max-width: 760px){ .dC .stat{grid-column:span 6} .dC .top .var{display:none} .dC .arow{grid-template-columns:4px 1fr} .dC .arow .gbtn{grid-column:2;justify-self:start} .dC .brow{grid-template-columns:1fr auto} .dC .brow .bar{grid-column:1/-1} }
+
+/* ============ D · Vercel ============ */
+.dD{--bg:#fafafa;--panel:#fff;--line:#eaeaea;--fg:#171717;--mute:#666;--acc:#0070f3;--ok:#0a8f4a;--warn:#c27a00;--bad:#e00;--btn:#000;--btnfg:#fff;--font:"Geist",system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace;--r:8px}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .dD{--bg:#000;--panel:#0a0a0a;--line:#2a2a2a;--fg:#ededed;--mute:#a1a1a1;--acc:#3291ff;--ok:#30c67c;--warn:#f5a623;--bad:#ff5555;--btn:#fff;--btnfg:#000} }
+:root[data-theme="dark"] .dD{--bg:#000;--panel:#0a0a0a;--line:#2a2a2a;--fg:#ededed;--mute:#a1a1a1;--acc:#3291ff;--ok:#30c67c;--warn:#f5a623;--bad:#ff5555;--btn:#fff;--btnfg:#000}
+.dD .top{background:var(--panel);border-bottom:1px solid var(--line);padding:0 20px}
+.dD .top .row1{display:flex;align-items:center;gap:14px;height:52px}
+.dD .tri{width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid var(--fg)}
+.dD .crumb{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500}
+.dD .crumb .sl{color:var(--line);font-size:18px;font-weight:300}
+.dD .crumb .sel{border:1px solid var(--line);border-radius:var(--r);padding:3px 8px;font-size:12.5px;display:flex;gap:6px;align-items:center}
+.dD .top .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.dD .search{border:1px solid var(--line);border-radius:var(--r);padding:4px 10px;font-size:12px;color:var(--mute);width:180px;background:var(--bg)}
+.dD .bell{position:relative;width:28px;height:28px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font-size:12px}
+.dD .bell i{position:absolute;top:-4px;right:-4px;background:var(--acc);color:#fff;font-size:10px;font-style:normal;border-radius:999px;padding:0 5px;line-height:15px}
+.dD .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7928ca,#ff0080)}
+.dD .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.dD .tabs a{padding:9px 10px 11px;border-bottom:2px solid transparent;color:var(--mute);text-decoration:none;font-size:13px;white-space:nowrap}
+.dD .tabs a.on{color:var(--fg);border-color:var(--fg)}
+.dD .main{padding:22px 20px;max-width:1080px;margin-inline:auto;display:grid;gap:26px}
+.dD h3{margin:0 0 10px;font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:8px}
+.dD h3 small{color:var(--mute);font-weight:400;font-size:12.5px}
+.dD .need{display:grid;gap:8px}
+.dD .nrow{display:grid;grid-template-columns:10px 1fr auto;gap:12px;align-items:center;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.dD .nrow .t{font-weight:500}
+.dD .nrow .d{color:var(--mute);font-size:12.5px}
+.dD .nrow .right{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:12px;white-space:nowrap}
+.dD .vbtn{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:500;white-space:nowrap}
+.dD .vbtn.pri{background:var(--btn);color:var(--btnfg);border-color:transparent}
+.dD .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.dD .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:8px}
+.dD .card .n{font-weight:600;display:flex;align-items:center;gap:8px}
+.dD .card .n .st{margin-left:auto;font-size:11.5px;display:flex;align-items:center;gap:6px;color:var(--mute);font-weight:400}
+.dD .card .spec{font-family:var(--mono);font-size:12px}
+.dD .card .act{color:var(--mute);font-size:12.5px}
+.dD .card .ft{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.dD .card .ft a{color:var(--fg);text-decoration:none;font-weight:500}
+.dD .tl{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.dD .tlr{display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);font-size:12.5px}
+.dD .tlr:first-child{border-top:0}
+.dD .tlr .who{color:var(--mute)}
+.dD .tlr .when{color:var(--mute);font-size:12px;white-space:nowrap}
+.dD .tlr .d{width:8px;height:8px;border-radius:50%;background:var(--mute);justify-self:center}
+.dD .tlr .d.ok{background:var(--ok)} .dD .tlr .d.warn{background:var(--warn)} .dD .tlr .d.acc{background:var(--acc)}
+.dD .vsheet{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+@container (max-width: 760px){ .dD .top{padding:0 14px} .dD .main{padding:14px} .dD .search,.dD .crumb .sel{display:none} .dD .nrow{grid-template-columns:10px 1fr} .dD .nrow .right{grid-column:2;justify-content:space-between} }
+
+/* ======= notes section ======= */
+.cmp{width:100%;border-collapse:collapse;font-size:.9rem;margin:8px 0 14px}
+.cmp th,.cmp td{text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--pg-line)}
+.cmp th{font-weight:600;color:var(--pg-mute);font-size:.8rem}
+.cmp tr:first-child th{border-top:0}
+.tblwrap{overflow-x:auto}
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0 14px}
+.map .pg{background:var(--pg-card);border:1px solid var(--pg-line);border-radius:8px;padding:12px 14px}
+.map .pg b{display:block;font-weight:600;margin-bottom:4px}
+.map .pg p{font-size:.86rem;color:var(--pg-mute);margin:0}
+.map .pg.home{border-color:var(--pg-acc)}
+.gone{font-size:.88rem;color:var(--pg-mute)}
+.callout{border-left:3px solid var(--pg-acc);background:var(--pg-acc-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.callout p:last-child{margin:0}
+.pick{border:1px solid var(--pg-line);background:var(--pg-card);border-radius:8px;padding:12px 14px;margin:12px 0}
+.pick b{font-weight:600}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+</style>
+
+<div class="wrap">
+  <div class="col">
+    <h1>SDD Dashboard Directions</h1>
+    <p class="lead">The same Home screen, four ways. Pick the one whose density and structure fit how you work. The data is example state from the real specs, not live.</p>
+    <p>Every direction shows the same thing: what waits on you first, then the live runs, then idle projects and recently closed. Tap a waiting item to see how you would act on it from that direction. Switch to the phone frame to see the same screen at your phone's width.</p>
+  </div>
+
+  <div class="controls">
+    <div><span class="ctl-label">Direction</span>
+      <div class="seg" id="dirseg" role="group" aria-label="Direction">
+        <button type="button" data-dir="A" aria-pressed="true">A · GitHub</button>
+        <button type="button" data-dir="B" aria-pressed="false">B · Linear</button>
+        <button type="button" data-dir="C" aria-pressed="false">C · Grafana</button>
+        <button type="button" data-dir="D" aria-pressed="false">D · Vercel</button>
+      </div>
+    </div>
+    <div><span class="ctl-label">Frame</span>
+      <div class="seg" id="devseg" role="group" aria-label="Frame">
+        <button type="button" data-dev="desk" aria-pressed="true">Desk</button>
+        <button type="button" data-dev="ph" aria-pressed="false">Phone</button>
+      </div>
+    </div>
+    <div><span class="ctl-label">Theme</span>
+      <div class="seg" id="thseg" role="group" aria-label="Theme">
+        <button type="button" data-th="" aria-pressed="true">System</button>
+        <button type="button" data-th="light" aria-pressed="false">Light</button>
+        <button type="button" data-th="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="dirnote" id="dirnote"></p>
+  <div class="frame" id="frame"><div id="mock"></div></div>
+
+  <div class="col">
+    <h2>What is the same in all four</h2>
+    <p>Five pages, no project switcher. Every list shows all projects and filters by project, phase or kind. The dashboard derives everything from the ledgers, the gate files, the retro files, the deferrals and the PR state. Nothing on it is hand-written.</p>
+    <div class="map">
+      <div class="pg home"><b>Now</b><p>What waits on you, with the action. Then live runs, idle projects, recently closed. This replaces the HUD and the TUI.</p></div>
+      <div class="pg"><b>Runs</b><p>One run in full: phases, current spawn, rounds, tasks, tokens, ticker, log. Launch with saved defaults; edit setup behind a control. Run history per spec.</p></div>
+      <div class="pg"><b>Specs</b><p>Harness state per spec: versions, verdicts, rounds, task outcomes, PR, deferrals, retro outcome. Links to the files; no document viewer.</p></div>
+      <div class="pg"><b>Usage</b><p>Tokens live per run, per spec by phase and role with orchestrator share, and the trend across specs per repo.</p></div>
+      <div class="pg"><b>Deferrals</b><p>The queue with filters. Items that need you also appear under Now.</p></div>
+    </div>
+    <p class="gone">Gone: Statistics, Steering, Tasks kanban, Implementation Logs, Approvals, Adversarial Analysis, the cleanup-job Settings page, the document editors, and the project dropdown. Theme, language and notification settings move behind a gear.</p>
+
+    <h3>The loop the dashboard runs</h3>
+    <p>Launch a headless run. The run stops at gate A, at gate B and at retro-ready, and the dashboard shows the questions. You answer, and the dashboard relaunches the run, which continues from the recorded answers. At the end the run opens its PR; the dashboard shows the checks and you merge. Then you start the next spec yourself.</p>
+    <p class="gone">Why stop and relaunch rather than keep a process waiting: a gate can wait for hours, a relaunch is a fresh supervisor that reads the answers from the spec folder, and it survives dashboard restarts. This is a change in the harness, not only the UI: today a headless run records default picks and carries on.</p>
+
+    <h2>How you get told that something waits</h2>
+    <p>Two facts shape this. The dashboard binds to localhost only, and this machine has no Tailscale. Today your phone cannot reach it at all. Acting from the phone needs a path in, whichever way the notification goes.</p>
+    <div class="tblwrap">
+    <table class="cmp">
+      <tr><th style="width:22%"></th><th>1 · Push from the dashboard</th><th>2 · Claude push from overwatch</th></tr>
+      <tr><td>How it works</td><td>Install the dashboard on the phone as a web app. It sends a push through Apple's push service when a wait appears. The push opens the exact gate or PR.</td><td>The overwatch session watches the ledgers and sends a Claude push over Remote Control. The push opens the Claude app; you then switch to the dashboard to act.</td></tr>
+      <tr><td>What it needs</td><td>HTTPS reachable from the phone (Tailscale is the simple route), the web app added to the Home Screen once, and a small push module in the server.</td><td>An overwatch session alive with Remote Control on and its ledger watch armed. The watch expires every 30 minutes and is off after every PC restart.</td></tr>
+      <tr><td>Who decides what waits</td><td>The dashboard, from the same derivation that draws the Now page. One source of truth.</td><td>The overwatch session's own reading. It can disagree with the dashboard, and it costs tokens to keep reading.</td></tr>
+      <tr><td>Fails when</td><td>The home machine is off. Then nothing runs either, so nothing waits.</td><td>The session died, Remote Control is off, or the watch expired. These have all happened.</td></tr>
+      <tr><td>Covers</td><td>Gates, retro decisions, green PRs, deferrals for you, a run that exited with an error. Badge count on the icon.</td><td>Whatever the session noticed and chose to send.</td></tr>
+    </table>
+    </div>
+    <h3>A hosted bridge, since you raised it</h3>
+    <p>A small service of your own on the internet could sit between the dashboard and the phone. The dashboard talks out to it; the phone talks to it. It would buy three things: no VPN on the phone, pushes through a server that is always up, and a last-known state you can read when the home machine is rebuilding. It would cost a second deployment to run, a second copy of the state to keep honest, and an authenticated path from the internet to gate answers and PR merges. The harness still runs at home, so an answer given while the home machine is down waits there until it is back.</p>
+    <div class="pick"><b>My pick.</b> Start with direction 1 over Tailscale. It gives one source of truth and no session to babysit, and the reachability work is needed anyway once you act from the phone. Keep the overwatch push running during the switch. Build the bridge only if the VPN step on the phone turns out to annoy you; the dashboard's push module would move there unchanged.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var D = {
+  nav:[['Now',4],['Runs',3],['Specs',null],['Usage',null],['Deferrals',15]],
+  projects:[['spec-workflow-mcp','#3fb950'],['tradr','#d29922'],['jobscout','#a371f7'],['matthew-field.ca','#8d96a0']],
+  waiting:[
+    {id:'w1',kind:'Gate A',sev:'warn',project:'jobscout',spec:'canonical-link',title:'Gate A on requirements v1',text:'2 questions need you. 3 were recorded as mechanics.',age:'12 min',action:'Answer'},
+    {id:'w2',kind:'Retro',sev:'warn',project:'tradr',spec:'mobile-pwa',title:'Retro plan: 9 proposals, 2 decisions',text:'P4 verifier sampling and P7 offline cache policy need a decision. PR #121 is merged.',age:'1 h 20 min',action:'Decide'},
+    {id:'w3',kind:'PR',sev:'ok',project:'spec-workflow-mcp',spec:'harness-control-pane',title:'PR #79 is green',text:'Close-out branch. 3 of 3 checks passed, mergeable, merge commit.',age:'25 min',action:'Merge'},
+    {id:'w4',kind:'Deferral',sev:'mute',project:'tradr',spec:'account-export-import',title:'d-228d1647 Staging 256 MiB memory bench',text:'Owner you. Blocks the next tradr release tag.',age:'6 days',action:'Open'}
+  ],
+  runs:[
+    {project:'spec-workflow-mcp',spec:'lean-orchestrators',phase:'requirements',state:'running',detail:'round 1 of 4, reviewer on v1',spawn:'sdd-reviewer, claude-opus-4-8, 3 min 12 s, last tool 40 s ago',tokens:'7.78M',age:'1 h 18 min',run:'run-20261003-013823',
+      phases:[['requirements','live','v1, round 1 of 4','14 min'],['design','todo','',''],['tasks','todo','',''],['implementation','todo','',''],['retrospective','todo','',''],['close-out','todo','','']],
+      ticker:[['02:48:40','spawn.end','sdd-document-orchestrator, 730k tokens'],['02:48:52','spawn.start','sdd-reviewer, requirements round 1'],['02:49:31','tool','Read requirements.md'],['02:51:02','tool','Bash spec-lint requirements']]},
+    {project:'tradr',spec:'mobile-pwa',phase:'retrospective',state:'waiting',detail:'retro-ready, 2 decisions needed',spawn:'',tokens:'14.6M',age:'1 h 20 min',run:'run-20261002-193220'},
+    {project:'jobscout',spec:'canonical-link',phase:'requirements',state:'waiting',detail:'gate A, waiting 12 min',spawn:'',tokens:'1.9M',age:'47 min',run:'run-20261003-024739'}
+  ],
+  idle:[{project:'matthew-field.ca',text:'No spec routed. INDEX names nothing under Next.'}],
+  closed:[
+    {project:'spec-workflow-mcp',spec:'harness-control-pane',text:'Closed 19 of 19, PR #79 open',age:'2 days'},
+    {project:'jobscout',spec:'liveness-verify',text:'Closed 7 of 7, PR #80 merged',age:'3 h'},
+    {project:'tradr',spec:'broker-csv-presets',text:'Closed 11 of 11, PRs #78 and #120 merged',age:'2 days'}
+  ],
+  events:[
+    ['ok','spec-lint passed on requirements v1','spec-workflow-mcp / lean-orchestrators','2 min'],
+    ['warn','Gate A recorded, run stopped','jobscout / canonical-link','12 min'],
+    ['ok','Checks passed on PR #79','spec-workflow-mcp / harness-control-pane','25 min'],
+    ['acc','Retro proposals written, 2 decisions','tradr / mobile-pwa','1 h 20 min'],
+    ['','PR #121 merged by you','tradr / mobile-pwa','2 h'],
+    ['ok','Close-out complete, 7 of 7','jobscout / liveness-verify','3 h']
+  ]
+};
+var G = {
+  w1:{kind:'gate',props:[['Project','jobscout'],['Spec','canonical-link'],['Phase','requirements v1'],['Waiting','12 min']],
+      questions:[
+        {h:'Canonical source',q:'When two postings share a canonical link, which record wins?',o:['Newest posting','Oldest posting','The one with more fields filled'],rec:0},
+        {h:'Unlinked posts',q:'What happens to a posting with no canonical link?',o:['Keep it as its own record','Drop it from the digest','Match by title and company'],rec:0}
+      ],recorded:'3 recorded as mechanics: dedupe key, cache layout, fixture source',primary:'Answer and continue',hint:'Writes the answers to questions.md and relaunches the run.'},
+  w2:{kind:'retro',props:[['Project','tradr'],['Spec','mobile-pwa'],['Proposals','9, all recommended'],['Waiting','1 h 20 min']],
+      questions:[
+        {h:'P4 verifier sampling',q:'Should new-module TDD tasks still each draw a verifier?',o:['Keep as is','Exempt clean-red tasks under the line threshold','Sample a fixed fraction'],rec:0},
+        {h:'P7 offline cache',q:'What does the PWA cache when offline?',o:['Last 30 days of trades','Everything the account holds','Nothing, read-only banner'],rec:0}
+      ],recorded:'7 proposals need no decision: P1 P2 P3 P5 P6 P8 P9, approve all or untick any',primary:'Approve plan and continue',hint:'Writes retrospective-plan.md as APPROVED and relaunches for close-out.'},
+  w3:{kind:'pr',props:[['Repo','madmatt112/spec-workflow-mcp'],['Branch','chore/harness-control-pane-retro'],['Method','merge commit'],['Author','sdd-closeout-orchestrator']],
+      checks:[['ok','ci / test (node 20)'],['ok','ci / build'],['ok','plugin / validate']],primary:'Merge PR #79',hint:'Then: sync local main, build, since src changed.'},
+  w4:{kind:'def',props:[['Deferral','d-228d1647'],['Origin','account-export-import, tasks'],['Owner','you'],['Blocks','next tradr release tag']],
+      text:'Account import peaked at 228.6 MiB locally. Deploy staging and run the bench before the next release tag.',primary:'Mark resolved',hint:'Or open the file in your editor.'}
+};
+var sel = 'w1';
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function sheet(id, btnClass){
+  var g=G[id]; if(!g) return '';
+  var h='<div class="sheet">';
+  h+='<div class="kv">'+g.props.map(function(p){return '<span>'+esc(p[0])+'</span><span>'+esc(p[1])+'</span>'}).join('')+'</div>';
+  if(g.questions){
+    g.questions.forEach(function(q,i){
+      h+='<div class="q"><span class="qh">'+esc(q.h)+'</span><b>'+esc(q.q)+'</b>';
+      q.o.forEach(function(o,j){ h+='<label><input type="radio" name="'+id+'q'+i+'" '+(j===q.rec?'checked':'')+'><span>'+esc(o)+'</span>'+(j===q.rec?'<span class="rec">recorded pick</span>':'')+'</label>'; });
+      h+='</div>';
+    });
+    h+='<div class="mute" style="font-size:.85em">'+esc(g.recorded)+'</div>';
+  }
+  if(g.checks){ h+='<div class="checks">'+g.checks.map(function(c){return '<div><span class="dot '+c[0]+'"></span>'+esc(c[1])+'</div>'}).join('')+'</div>'; }
+  if(g.text){ h+='<p style="margin:0">'+esc(g.text)+'</p>'; }
+  h+='<div class="foot"><button type="button" class="'+btnClass+'">'+esc(g.primary)+'</button><span class="hint">'+esc(g.hint)+'</span></div></div>';
+  return h;
+}
+
+/* ---------- A · GitHub ---------- */
+function renderA(){
+  var h='<div class="m dA">';
+  h+='<div class="top"><div class="row1"><span class="brand"><i></i>sdd</span><span class="spacer"></span><button type="button" class="ghbtn">All projects ▾</button><button type="button" class="ghbtn">⚙</button></div>';
+  h+='<div class="tabs">'+D.nav.map(function(n,i){return '<a href="#" class="'+(i===0?'on':'')+'">'+n[0]+(n[1]?'<span class="counter">'+n[1]+'</span>':'')+'</a>'}).join('')+'</div></div>';
+  h+='<div class="main">';
+  h+='<div class="box"><div class="boxh">Waiting on you <span class="counter">4</span><div class="tools"><button type="button" class="ghbtn sm">Kind ▾</button><button type="button" class="ghbtn sm">Project ▾</button></div></div>';
+  D.waiting.forEach(function(w){
+    h+='<div class="ghrow" data-sel="'+w.id+'"><span class="ic '+w.sev+'"></span><div><div class="t"><a href="#">'+esc(w.title)+'</a> <span class="lbl '+(w.sev==='mute'?'':w.sev)+'">'+esc(w.kind)+'</span></div><div class="meta"><span>'+esc(w.project)+' / '+esc(w.spec)+'</span><span>·</span><span>'+esc(w.text)+'</span></div></div><div class="right"><span>'+esc(w.age)+'</span><button type="button" class="ghbtn sm '+(w.action==='Merge'?'primary':'')+'" data-act="'+w.id+'">'+esc(w.action)+'</button></div></div>';
+    if(sel===w.id){ h+='<div class="inline-sheet">'+sheet(w.id,'ghbtn primary')+'</div>'; }
+  });
+  h+='</div>';
+  h+='<div class="box"><div class="boxh">Live runs <span class="counter">3</span><div class="tools"><button type="button" class="ghbtn sm">Project ▾</button><button type="button" class="ghbtn sm">Phase ▾</button><button type="button" class="ghbtn sm">State ▾</button></div></div>';
+  D.runs.forEach(function(r,i){
+    var ic=r.state==='running'?'run':'warn';
+    h+='<div class="ghrow"><span class="ic '+ic+'"></span><div><div class="t">'+esc(r.project)+' / '+esc(r.spec)+' <span class="lbl">'+esc(r.phase)+'</span> '+(r.state==='waiting'?'<span class="lbl warn">waiting on you</span>':'<span class="lbl ok">running</span>')+'</div><div class="meta"><span>'+esc(r.detail)+'</span>'+(r.spawn?'<span>·</span><span>'+esc(r.spawn)+'</span>':'')+'</div></div><div class="right"><span class="mono">'+esc(r.tokens)+'</span><span>'+esc(r.age)+'</span><button type="button" class="ghbtn sm">'+(i===0?'Collapse':'Expand')+'</button></div></div>';
+    if(i===0){
+      h+='<div class="steps">';
+      r.phases.forEach(function(p){
+        var icon=p[1]==='live'?'<span class="ic run" style="width:14px;height:14px"></span>':'<span class="ic mute" style="width:14px;height:14px;opacity:.35"></span>';
+        h+='<div class="step">'+icon+'<span>'+esc(p[0])+(p[2]?' <span class="mute">'+esc(p[2])+'</span>':'')+'</span><span class="dur">'+esc(p[3])+'</span></div>';
+        if(p[1]==='live'){
+          h+='<div class="step sub"><span></span><span><b>sdd-document-orchestrator</b> claude-opus-4-8, spawn 2, 1.43M</span><span class="dur">16 min</span></div>';
+          h+='<div class="step sub"><span></span><span>└ <b>sdd-reviewer</b> claude-opus-4-8 · xhigh · Bash spec-lint requirements</span><span class="dur">3 min 12 s</span></div>';
+          h+='<div class="log">'+r.ticker.map(function(t){return '<div><span>'+t[0]+'</span>'+esc(t[1])+'  '+esc(t[2])+'</div>'}).join('')+'</div>';
+        }
+      });
+      h+='</div>';
+    }
+  });
+  h+='</div>';
+  h+='<div class="box"><div class="boxh" style="font-weight:500;color:var(--mute)">Idle <span class="counter">1</span></div>'+D.idle.map(function(i){return '<div class="ghrow"><span class="ic mute" style="opacity:.4"></span><div><div class="t">'+esc(i.project)+'</div><div class="meta"><span>'+esc(i.text)+'</span></div></div><div class="right"><button type="button" class="ghbtn sm" disabled>Launch</button></div></div>'}).join('')+'</div>';
+  h+='<div class="box closed"><details><summary>▸ Recently closed (3)</summary>'+D.closed.map(function(c){return '<div class="ghrow"><span class="ic ok" style="opacity:.6"></span><div><div class="t" style="font-weight:500">'+esc(c.project)+' / '+esc(c.spec)+'</div><div class="meta"><span>'+esc(c.text)+'</span></div></div><div class="right"><span>'+esc(c.age)+'</span></div></div>'}).join('')+'</details></div>';
+  h+='</div></div>';
+  return h;
+}
+
+/* ---------- B · Linear ---------- */
+function renderB(){
+  var h='<div class="m dB">';
+  h+='<aside class="side"><div class="ws"><i></i>SDD</div><div class="nav">'+D.nav.map(function(n,i){return '<a href="#" class="'+(i===0?'on':'')+'">'+n[0]+(n[1]?'<span class="c">'+n[1]+'</span>':'')+'</a>'}).join('')+'</div>';
+  h+='<div><div class="grp">Projects</div><div class="proj">'+D.projects.map(function(p){return '<a href="#"><i style="background:'+p[1]+'"></i>'+esc(p[0])+'</a>'}).join('')+'</div></div>';
+  h+='<div class="kbd"><kbd>⌘</kbd><kbd>K</kbd> jump to a spec or run</div></aside>';
+  h+='<section class="list"><div class="mtop">Now<span class="c">4 waiting</span></div><div class="lhead"><b>Now</b><span class="chip on">All projects</span><span class="chip">Waiting</span><span class="chip">Running</span><span class="r">Display ▾</span></div>';
+  h+='<div class="gh"><b>Waiting on you</b> 4</div>';
+  D.waiting.forEach(function(w){
+    h+='<div class="lrow '+(sel===w.id?'sel':'')+'" data-sel="'+w.id+'"><span class="st '+(w.sev==='ok'?'ok':w.sev==='mute'?'':'warn')+'"></span><span class="t clip">'+esc(w.title)+'</span><span class="chip">'+esc(w.spec)+'</span><span class="sub clip">'+esc(w.text)+'</span><span class="age">'+esc(w.age)+'</span><button type="button" class="lbtn '+(w.action==='Merge'?'pri':'')+'">'+esc(w.action)+'</button></div>';
+  });
+  h+='<div class="gh"><b>Live runs</b> 3</div>';
+  D.runs.forEach(function(r){
+    h+='<div class="lrow"><span class="st '+(r.state==='running'?'run':'warn')+'"></span><span class="t clip">'+esc(r.project)+' › '+esc(r.spec)+'</span><span class="chip">'+esc(r.phase)+'</span><span class="sub clip">'+esc(r.detail)+(r.spawn?' · '+esc(r.spawn):'')+'</span><span class="tok">'+esc(r.tokens)+'</span><span class="age">'+esc(r.age)+'</span></div>';
+  });
+  h+='<div class="gh"><b>Idle</b> 1</div>';
+  D.idle.forEach(function(i){ h+='<div class="lrow"><span class="st"></span><span class="t clip">'+esc(i.project)+'</span><span class="chip">no spec</span><span class="sub clip">'+esc(i.text)+'</span><span class="tok"></span><span class="age"></span></div>'; });
+  h+='<div class="gh"><b>Recently closed</b> 3 <span style="margin-left:auto">▸</span></div>';
+  h+='</section>';
+  var g=G[sel]; var w=D.waiting.filter(function(x){return x.id===sel})[0];
+  h+='<aside class="panel"><div class="ph"><span class="st '+(w.sev==='ok'?'ok':'warn')+'"></span><b>'+esc(w.title)+'</b></div>'+sheet(sel,'lbtn pri')+'</aside>';
+  h+='</div>';
+  return h;
+}
+
+/* ---------- C · Grafana ---------- */
+function spark(vals,color){
+  var w=120,hh=28,max=Math.max.apply(null,vals),pts=vals.map(function(v,i){return (i*(w/(vals.length-1))).toFixed(1)+','+(hh-2-(v/max)*(hh-6)).toFixed(1)}).join(' ');
+  return '<svg viewBox="0 0 '+w+' '+hh+'" preserveAspectRatio="none" aria-hidden="true"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5"/><polygon points="0,'+hh+' '+pts+' '+w+','+hh+'" fill="'+color+'" opacity=".15"/></svg>';
+}
+function renderC(){
+  var h='<div class="m dC">';
+  h+='<div class="top"><span class="brand"><i></i>SDD</span><nav>'+D.nav.map(function(n,i){return '<a href="#" class="'+(i===0?'on':'')+'">'+n[0]+(n[1]?' '+n[1]:'')+'</a>'}).join('')+'</nav><span class="var" style="margin-left:auto"><b>project</b>All</span><span class="var"><b>range</b>Last 24h</span><span class="var">⟳ 10s</span></div>';
+  h+='<div class="grid">';
+  h+='<div class="pnl stat"><div class="l">Waiting on you</div><div class="v warn">4</div><div class="l">oldest 6 days</div></div>';
+  h+='<div class="pnl stat"><div class="l">Live runs</div><div class="v ok">3</div><div class="l">1 running, 2 waiting</div></div>';
+  h+='<div class="pnl stat"><div class="l">Tokens today</div><div class="v">24.3M</div>'+spark([2,3,5,4,7,6,9,8,11,10,12,14],'var(--acc)')+'</div>';
+  h+='<div class="pnl stat"><div class="l">Cache hit, 24h</div><div class="v">93%</div>'+spark([88,90,89,92,93,91,94,93,95,93,92,93],'var(--ok)')+'</div>';
+  h+='<div class="pnl alerts"><h4>Waiting on you<span class="info">sorted by kind, then age</span></h4>';
+  D.waiting.forEach(function(w){
+    h+='<div class="arow" data-sel="'+w.id+'"><span class="stripe '+w.sev+'"></span><div><div><b>'+esc(w.title)+'</b> <span class="mute">'+esc(w.age)+'</span></div><div class="lbls"><span class="tag">project='+esc(w.project)+'</span><span class="tag">spec='+esc(w.spec)+'</span><span class="tag">kind='+esc(w.kind.toLowerCase().replace(' ',''))+'</span></div></div><button type="button" class="gbtn '+(w.action==='Merge'?'pri':'')+'">'+esc(w.action)+'</button></div>';
+  });
+  h+='</div>';
+  h+='<div class="pnl bars"><h4>Tokens per live run<span class="info">W, Anthropic</span></h4>';
+  [['lean-orchestrators',7.78,14.6],['mobile-pwa',14.6,14.6],['canonical-link',1.9,14.6]].forEach(function(b){ h+='<div class="brow"><span class="clip">'+b[0]+'</span><div class="bar"><i style="width:'+(b[1]/b[2]*100)+'%"></i></div><span class="mono">'+b[1]+'M</span></div>'; });
+  h+='<div class="brow" style="border-top:1px solid var(--line);margin-top:4px"><span class="mute">orchestrator share</span><div class="bar"><i style="width:31%;background:var(--warn)"></i></div><span class="mono">31%</span></div></div>';
+  h+='<div class="pnl table"><h4>Live runs</h4><table><tr><th>Project</th><th>Spec</th><th>Phase</th><th>State</th><th>Activity</th><th>Spawn age</th><th>Tokens</th><th>Run</th></tr>';
+  D.runs.forEach(function(r){ h+='<tr><td>'+esc(r.project)+'</td><td>'+esc(r.spec)+'</td><td>'+esc(r.phase)+'</td><td class="cell '+(r.state==='running'?'run':'wait')+'">'+(r.state==='running'?'running':'waiting')+'</td><td>'+esc(r.detail)+'</td><td class="mono">'+(r.spawn?'40 s':'')+'</td><td class="mono">'+esc(r.tokens)+'</td><td class="mono">'+esc(r.run)+'</td></tr>'; });
+  D.idle.forEach(function(i){ h+='<tr><td>'+esc(i.project)+'</td><td class="mute">no spec</td><td></td><td class="cell idle">idle</td><td class="mute">'+esc(i.text)+'</td><td></td><td></td><td></td></tr>'; });
+  h+='</table></div>';
+  h+='<div class="pnl selected"><h4>Selected: '+esc(D.waiting.filter(function(x){return x.id===sel})[0].title)+'</h4><div class="body">'+sheet(sel,'gbtn pri')+'</div></div>';
+  h+='<div class="pnl logs"><h4>Recent events<span class="info">all ledgers</span></h4>';
+  var lv={ok:'ok',warn:'warn',acc:'',"":''};
+  D.events.forEach(function(e){ h+='<div class="ln"><span class="mute">'+esc(e[3])+'</span><span class="lv '+lv[e[0]]+'">'+(e[0]==='warn'?'WAIT':e[0]==='ok'?'OK':'INFO')+'</span><span class="clip">'+esc(e[2])+'  '+esc(e[1])+'</span></div>'; });
+  h+='</div></div></div>';
+  return h;
+}
+
+/* ---------- D · Vercel ---------- */
+function renderD(){
+  var h='<div class="m dD">';
+  h+='<div class="top"><div class="row1"><span class="tri"></span><span class="crumb"><span class="sl">/</span><span class="sel">All projects ▾</span></span><div class="right"><span class="search">Search specs and runs…</span><span class="bell">◔<i>4</i></span><span class="avatar"></span></div></div>';
+  h+='<div class="tabs">'+D.nav.map(function(n,i){return '<a href="#" class="'+(i===0?'on':'')+'">'+n[0]+(n[1]?' '+n[1]:'')+'</a>'}).join('')+'</div></div>';
+  h+='<div class="main">';
+  h+='<section><h3>Needs you <small>4 items</small></h3><div class="need">';
+  D.waiting.forEach(function(w){
+    h+='<div class="nrow" data-sel="'+w.id+'"><span class="dot '+(w.sev==='mute'?'mute':w.sev)+'"></span><div><div class="t">'+esc(w.title)+'</div><div class="d">'+esc(w.project)+' / '+esc(w.spec)+' · '+esc(w.text)+'</div></div><div class="right"><span>'+esc(w.age)+'</span><button type="button" class="vbtn '+(w.action==='Merge'?'pri':'')+'">'+esc(w.action)+'</button></div></div>';
+    if(sel===w.id){ h+='<div class="vsheet">'+sheet(w.id,'vbtn pri')+'</div>'; }
+  });
+  h+='</div></section>';
+  h+='<section><h3>Projects <small>3 live, 1 idle</small></h3><div class="cards">';
+  D.runs.forEach(function(r){
+    h+='<div class="card"><div class="n">'+esc(r.project)+'<span class="st"><span class="dot '+(r.state==='running'?'ok live':'warn')+'"></span>'+(r.state==='running'?'running':'waiting')+'</span></div><div class="spec">'+esc(r.spec)+'</div><div class="act">'+esc(r.phase)+' · '+esc(r.detail)+'</div><div class="ft"><span>'+esc(r.tokens)+' · '+esc(r.age)+'</span><a href="#">Open run</a></div></div>';
+  });
+  D.idle.forEach(function(i){ h+='<div class="card"><div class="n">'+esc(i.project)+'<span class="st"><span class="dot mute"></span>idle</span></div><div class="spec mute">no spec routed</div><div class="act">'+esc(i.text)+'</div><div class="ft"><span></span><a href="#" class="mute">Launch</a></div></div>'; });
+  h+='</div></section>';
+  h+='<section><h3>Activity <small>all projects</small></h3><div class="tl">'+D.events.map(function(e){return '<div class="tlr"><span class="d '+e[0]+'"></span><span><span>'+esc(e[1])+'</span> <span class="who">'+esc(e[2])+'</span></span><span class="when">'+esc(e[3])+' ago</span></div>'}).join('')+'</div></section>';
+  h+='</div></div>';
+  return h;
+}
+
+var NOTES={
+  A:'<b>A · GitHub.</b> Box lists with a toolbar of filters, status icons, collapsible steps under each run like an Actions job, a dark log pane. The action opens inline under the row. Familiar, dense, text first.',
+  B:'<b>B · Linear.</b> Narrow sidebar, 36 px rows grouped by kind, a right panel that holds the selected item and its action. Tap a row to change the panel. Keyboard first; the densest of the four.',
+  C:'<b>C · Grafana.</b> Panels on a grid: stat tiles, an alert list with severity stripes, a table of runs, a log panel. Monitoring look, numbers first, best on a wide screen.',
+  D:'<b>D · Vercel.</b> Cards and a timeline on a quiet neutral ground. The most whitespace of the four; tap a row to expand the action under it.'
+};
+var dir='A', dev='desk';
+var R={A:renderA,B:renderB,C:renderC,D:renderD};
+function draw(){
+  document.getElementById('mock').innerHTML=R[dir]();
+  document.getElementById('dirnote').innerHTML=NOTES[dir];
+}
+document.getElementById('dirseg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;dir=b.dataset.dir;this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});draw();try{localStorage.setItem('sdd-dir',dir)}catch(_){}});
+document.getElementById('devseg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;dev=b.dataset.dev;this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});document.getElementById('frame').className='frame'+(dev==='ph'?' ph':'');});
+document.getElementById('thseg').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;this.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});if(b.dataset.th){document.documentElement.setAttribute('data-theme',b.dataset.th)}else{document.documentElement.removeAttribute('data-theme')}});
+document.getElementById('mock').addEventListener('click',function(e){
+  if(e.target.closest('a')) e.preventDefault();
+  if(e.target.closest('details,summary,label,input')) return;
+  var row=e.target.closest('[data-sel]'); if(row){ sel=row.dataset.sel; draw(); }
+});
+try{var s=localStorage.getItem('sdd-dir');if(s&&R[s]){dir=s;document.querySelectorAll('#dirseg button').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.dir===dir)})}}catch(_){}
+draw();
+})();
+</script>
+
+</body></html>
