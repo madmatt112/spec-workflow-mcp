@@ -38,7 +38,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 2. IF that newest `phase.end` row has result `escalate` and no `phase.start` row of that run follows it THEN the system SHALL derive a `ruling` wait, timed from that row (D5).
 3. IF a spec directory holds `retrospective-proposals.md` AND its `retrospective-plan.md` is absent or has a `Status:` line whose value starts with `DRAFT` (harness/skills/sdd-continue/SKILL.md:218-230) THEN the system SHALL derive a `retro` wait whose detail is the count of `DECISION NEEDED: yes` lines (harness/skills/sdd-retrospective/SKILL.md:94-95), timed from the proposals file's modification time.
 4. IF a project's launch record has state `exited` AND its run id is null or that run has no `run.end` row in the spec's ledger THEN the system SHALL derive an `exited` wait with the exit code or signal, timed from the record's end time (src/dashboard/harness/types.ts:52-61). A new launch for the project SHALL clear it.
-5. IF a project has a pointer line in its spec store AND the current run has a spawn with no matching `spawn.end` (`buildModel`, src/watch/ledger.ts:283-317) AND the spec's `harness-activity.jsonl` was last modified more than fifteen minutes ago THEN the system SHALL derive a `quiet` wait naming the open spawn's agent, timed from that modification time (D10).
+5. IF a project has a pointer line in its spec store AND the current run has a spawn with no matching `spawn.end` (`buildModel`, src/watch/ledger.ts:245-317) AND the spec's `harness-activity.jsonl` was last modified more than fifteen minutes ago THEN the system SHALL derive a `quiet` wait naming the open spawn's agent, timed from that modification time (D10).
 6. WHEN a `quiet` condition starts or ends with no file event THEN the Now page SHALL show the change within 60 seconds.
 7. The system SHALL evaluate the `gate`, `ruling` and `quiet` conditions on the spec the overview watch resolves for each project (the pointer spec, else the HANDOFF active spec; src/dashboard/harness/overview-watch.ts:238-265), and the `retro` condition on every spec directory of every registered project.
 8. The system SHALL order waits by kind (`gate`, `ruling`, `retro`, `exited`, `quiet`), then oldest first.
@@ -55,7 +55,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 1. WHEN the operator opens Now THEN the system SHALL show four groups in this order: Waiting on you, Live runs, Idle projects, Recently closed. Recently closed SHALL be collapsed by default.
 2. Each Waiting row SHALL show the project, the spec, the wait kind, one line of detail and the age.
 3. The system SHALL show one Live runs row per registered project with a pointer line in its spec store: project, spec, live phase chip, one line of detail (the newest open worker spawn's agent with its round or task, else the gate it waits on), the run's token total, and the age since `run.start`.
-4. The system SHALL show one Idle projects row per registered project with no live run: the project and the launchable spec of `buildSetupView`, else its disabled reason (src/dashboard/harness/run-setup.ts:167-168) (D12).
+4. The system SHALL show one Idle projects row per registered project with no live run: the project and the launchable spec (`launchable`), else its disabled reason (`disabledReason`, src/dashboard/harness/run-setup.ts:166-168) (D12).
 5. The system SHALL show one Recently closed row per spec whose HANDOFF `## Phase log` holds a `closeout` row with result `closed` dated within the last seven days (`parseHandoffPhaseRows`, src/watch/ledger.ts:202-218): project, spec, close date.
 6. WHEN the operator selects a wait THEN the panel SHALL show it read-only: `gate`, the spec's `gate-a.json` or `gate-b.json` decisions, else its `questions.md` section (src/dashboard/harness/project-watch.ts:62-65); `retro`, the `DECISION NEEDED: yes` lines; `exited`, exit code, signal, end time and log path; `quiet`, the open spawn's agent, last tool and last activity time.
 7. The Now panel SHALL offer no control that answers a gate, approves a plan, dismisses a wait or relaunches a run; acting on a wait is spec 16.
@@ -126,7 +126,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 #### Acceptance Criteria
 
 1. Invariant (verified, not red-first): `buildModel` output for a given input, src/watch/render.ts and `--watch` SHALL be unchanged.
-2. Invariant (verified, not red-first): the watch sets of `OverviewWatch` and `ProjectHarnessWatch` SHALL be unchanged and no new file watcher SHALL be added (src/dashboard/harness/overview-watch.ts:267-291, src/dashboard/harness/project-watch.ts:79-81).
+2. Invariant (verified, not red-first): the watch sets of the overview and project harness watches SHALL be unchanged and no new file watcher SHALL be added (src/dashboard/harness/overview-watch.ts:267-291, src/dashboard/harness/project-watch.ts:79-81).
 3. Invariant (verified, not red-first): no file under `harness/` and no ledger, activity or pointer format SHALL change.
 4. WHEN this spec lands THEN docs/SDD-HARNESS.md:261-339 SHALL describe the five pages, and docs/USER-GUIDE.md:171-198 SHALL send approvals to the VS Code extension and adversarial reviews to the CLI instead of the removed pages (D16).
 5. WHEN this spec lands THEN `npm run build`, `npx tsc --noEmit` and `npm test` SHALL pass.
@@ -172,3 +172,4 @@ This repository has no steering `product.md`, so this document aligns with the d
 ## Revision History
 
 - **v1** (2026-10-06) — Initial draft.
+  - **Lint pass.** 4 fixed (L-4 buildModel range, L-12 launchable/disabledReason fields, L-21/L-22 watch-set anchors); rejected: L-1 (localStorage is the browser API the new toggle uses, outside the cited /api/projects/list range); L-2, L-3, L-5, L-6, L-13, L-14, L-18, L-19, L-20 (backticked row-type, result-value and filename tokens, not code symbols at the cited range; parseHandoffPhaseRows and SpecIndexEntry resolve); L-7, L-8, L-9, L-10, L-15, L-16, L-17 (wait-kind names, prose); L-11 (vitest.config.ts is a repository-root file with no directory prefix; line 8 confirms the frontend exclude).
