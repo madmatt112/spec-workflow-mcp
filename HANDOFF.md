@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-05, harness v4).** Active spec **`lean-orchestrators`**.
-> Live phase **closeout**, state **items 17/17**, last result **closed** (retrospective plan CLOSED; harness batch on PR #84, open, not merged; store batch on main).
+> **READ FIRST — SDD routing (2026-10-06, harness v4).** Active spec **`dashboard-shell`**.
+> Live phase **requirements**, state **pending**, last result **pending** (run-20261006-170927 started; spec 15, first decomposition spec with no directory).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: starts the next spec — lean-orchestrators is finished; routing falls through INDEX (tighter-reviews has no retro log, so it counts as finished) to the first decomposition spec with no directory.
+> A re-run does: resumes dashboard-shell requirements (gate A recheck first if `questions.md` holds an unanswered receipt).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
