@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/spec-rows.test.ts"],"seams":{"src/dashboard/shell/__tests__/spec-rows.test.ts":"buildSpecRows(project, pointers, cache), buildSpecDetail(project, spec)"},"redCommit":"6cf1e00","baseSha":"5c1f67dc872246ed5128413f9fa3b6774affe2e3","base":"structural-red","head":"pass","amended":false,"judged":null}

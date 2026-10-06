@@ -53,3 +53,18 @@ Cost: 0 spawns
 rounds 0, gate pass risk high (227 lines + tdd structural-red), verifier pass; implementer named a checks-file it did not write, gated from the report's vitest cmd
 Evidence: task 3 · mark run-20261006-170927 7d356143
 Cost: 3 spawns
+
+## 2026-10-06T21:34:50Z · implementation · task 5 · doc-gap
+prompt cites D1 for the harness-run-detail HarnessMessage member; design D1 is the hub-owned overview feed, not the project harness watch message. design D6 (Run-page extras come as a message from the project harness watch) governs. Inline authority Req 4 AC 2 is correct
+Evidence: task 5 _Prompt vs design.md D1/D6 · mark run-20261006-170927 d164cdf4
+Cost: 0 spawns
+
+## 2026-10-06T21:54:16Z · implementation · task 4 · gotcha
+rounds 0, gate pass risk high (268 lines + tdd structural-red), batched verify {4,5} pass
+Evidence: task 4 · mark run-20261006-170927 a278aa4a
+Cost: shared verify
+
+## 2026-10-06T21:54:16Z · implementation · task 5 · gotcha
+rounds 0, gate pass risk high (tdd structural-red + amended value-preserving non-null assertion), batched verify {4,5} pass; edits existing harness project-watch.ts/types.ts, watch set unchanged
+Evidence: task 5 · mark run-20261006-170927 cdeafa42
+Cost: 3 spawns for 2 tasks via batch
