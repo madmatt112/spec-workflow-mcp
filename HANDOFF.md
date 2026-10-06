@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-10-06, harness v4).** Active spec **`dashboard-shell`**.
-> Live phase **design**, state **pending**, last result **approved** (requirements v3 approved; gate A answered; run-20261006-170927).
+> Live phase **tasks**, state **pending**, last result **approved** (requirements v3, design v1 approved; run-20261006-170927).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs dashboard-shell design (v1 draft, then review rounds).
+> A re-run does: runs dashboard-shell tasks (v1 draft, then review rounds).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -90,6 +90,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-05 | lean-orchestrators | closeout | items 17/17 | closed |  |
 | 2026-10-06 | dashboard-shell | requirements | v1 | gate-a |  |
 | 2026-10-06 | dashboard-shell | requirements | v3 | approved | 2 rounds, 0/2/4 then SHOULD_FIX-only pass, VERIFIED 2/2 |
+| 2026-10-06 | dashboard-shell | design | v1 | approved | 1 round, converged on first review |
 
 ## Current state — 2026-08-04
 
