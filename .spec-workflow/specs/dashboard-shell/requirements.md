@@ -1,6 +1,6 @@
 # Requirements Document — dashboard-shell
 
-Document version: v2
+Document version: v3
 
 ## Introduction
 
@@ -8,7 +8,7 @@ This spec replaces the dashboard shell with five pages (Now, Runs, Specs, Usage,
 
 ## Alignment with Product Vision
 
-This repository has no steering `product.md`, so this document aligns with the decomposition entry and the approved redesign memo. It serves the memo's decision that the dashboard replaces the HUD and the TUI with derived state only. Specs 16, 17 and 18 render inside this shell.
+This repository has no steering `product.md`, so this document aligns with the decomposition entry and the approved redesign memo's decision that the dashboard replaces the HUD and the TUI with derived state only. Specs 16, 17 and 18 render inside this shell.
 
 ## Requirements
 
@@ -19,11 +19,11 @@ This repository has no steering `product.md`, so this document aligns with the d
 #### Acceptance Criteria
 
 1. WHEN the dashboard loads THEN the system SHALL show one sidebar with exactly five routes in this order: Now (`/`), Runs (`/runs`), Specs (`/specs`), Usage (`/usage`), Deferrals (`/deferrals`). Now, Runs, Specs and Deferrals SHALL show the filtered count of waits, live runs, specs and `deferred` records; Usage shows none.
-2. WHEN the dashboard loads THEN the sidebar SHALL list every registered project from `/api/projects/list` (src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx:62-105) as a toggle, all on by default, kept in `localStorage`. Every list on every page SHALL show only rows of projects whose toggle is on.
+2. WHEN the dashboard loads THEN the sidebar SHALL list every registered project from `/api/projects/list` (src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx:62-105) as a toggle, all on by default (a project absent from the stored toggle map counts as on), kept in `localStorage`. Every list on every page SHALL show only rows of projects whose toggle is on.
 3. The system SHALL NOT render a project dropdown or any control that selects one current project, and every page SHALL render with any number of projects toggled on. Today the route table renders only when one project is selected (src/dashboard_frontend/src/modules/app/App.tsx:240-270).
 4. WHEN the operator opens the gear at the foot of the sidebar THEN it SHALL show the theme (light or dark), the language, the list density and the notification sound volume.
 5. Every page SHALL be a list area and a detail panel. WHEN the operator selects a row THEN the panel SHALL show that row's details.
-6. Every list row SHALL render at the list density the operator selects in the gear, kept in `localStorage`. Every group a page names SHALL collapse and expand on a click of its header, and the collapsed state SHALL persist per page in `localStorage`.
+6. Every list row SHALL render at the list density the operator selects in the gear — compact (32 CSS px per row) or comfortable (36 CSS px per row), comfortable when `localStorage` holds no density — kept in `localStorage`. Every group a page names SHALL collapse and expand on a click of its header, and the collapsed state SHALL persist per page in `localStorage`.
 7. Every list SHALL have the filter chips its page names, a search box that filters rows by their text 200 ms after the last keystroke, and a pager of 20 rows per page that shows only when more than 20 rows pass the filters.
 8. IF the viewport is at least 1280 CSS px wide THEN the panel SHALL sit right of the list; otherwise the panel SHALL stack under the list. At 1000 px and at 375 px no page SHALL scroll sideways.
 9. Every page SHALL render in the light and the dark theme of the existing theme provider.
@@ -56,11 +56,11 @@ This repository has no steering `product.md`, so this document aligns with the d
 2. Each Waiting row SHALL show the project, the spec, the wait kind, one line of detail and the age.
 3. The system SHALL show one Live runs row per registered project with a pointer line in its spec store: project, spec, live phase chip, one line of detail (the newest open worker spawn's agent with its round or task, else the gate it waits on), the run's token total, and the age since `run.start`.
 4. The system SHALL show one Idle projects row per registered project with no live run: the project and the launchable spec (`launchable`), else its disabled reason (`disabledReason`, src/dashboard/harness/run-setup.ts:166-168) (D12).
-5. The system SHALL show one Recently closed row per spec whose HANDOFF `## Phase log` holds a `closeout` row with result `closed` dated within the last seven days (`parseHandoffPhaseRows`, src/watch/ledger.ts:202-218): project, spec, close date.
+5. The system SHALL show one Recently closed row per spec whose HANDOFF `## Phase log` holds a `closeout` row with result `closed` dated within the last seven days (`parseHandoffPhaseRows`, src/watch/ledger.ts:202-218): project, spec, close date. A spec closed only by a `CLOSED` plan, with no dated closeout row, is omitted here because this group orders by close date, unlike the Specs page closed chip (D17).
 6. WHEN the operator selects a wait THEN the panel SHALL show it read-only: `gate`, the spec's `gate-a.json` or `gate-b.json` decisions, else its `questions.md` section (src/dashboard/harness/project-watch.ts:62-65); `retro`, the `DECISION NEEDED: yes` lines; `exited`, exit code, signal, end time and log path; `quiet`, the open spawn's agent, last tool and last activity time.
 7. The Now panel SHALL offer no control that answers a gate, approves a plan, dismisses a wait or relaunches a run; acting on a wait is spec 16.
 8. WHEN the operator selects a Live runs row THEN the system SHALL open that project's run page.
-9. WHEN a watched ledger, HANDOFF or pointer file changes THEN an open Now page SHALL update within five seconds without a reload.
+9. WHEN a watched ledger, HANDOFF, pointer file, a spec's `retrospective-proposals.md` or `retrospective-plan.md` (seen by the existing spec-markdown watcher, src/dashboard/watcher.ts:36-45), or a launch record (the `launch-update` event, src/dashboard/harness/hub.ts:41) changes THEN an open Now page SHALL re-derive every wait kind and update within five seconds without a reload, so a `retro` or `exited` wait appears or clears on its source change.
 10. The Now page SHALL NOT show the HUD to-do list (D8).
 
 ### Requirement 4 — Runs
@@ -69,7 +69,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 
 #### Acceptance Criteria
 
-1. WHEN the operator opens `/runs` THEN the system SHALL list one row per registered project whose resolved spec (`resolveSpec`, src/watch/index.ts:42-56) has a ledger, grouped Live then Ended: project, spec, run id, state (live, ended, stopped, exited), phase, age.
+1. WHEN the operator opens `/runs` THEN the system SHALL list one row per registered project whose resolved spec (`resolveSpec`, src/watch/index.ts:42-56) has a ledger, grouped Live then Ended (a `stopped` or `exited` run groups under Ended): project, spec, run id, state (live, ended, stopped, exited), phase, age.
 2. WHEN the operator selects a row or opens `/runs/:projectId` THEN the system SHALL show that project's current or last run from the harness view's run model (src/dashboard/harness/project-watch.ts:242-278) (D11).
 3. The run page SHALL show a phase strip of the six phases of `PHASE_ORDER` (src/watch/ledger.ts:87), each with its newest version, its round count and its approval date, the live phase highlighted.
 4. The run page SHALL show each open spawn's agent, role, declared and actual model, elapsed time, current tool, and an age badge (since its last activity) marked past fifteen minutes.
@@ -93,7 +93,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 2. A spec SHALL be live when a pointer line names its directory; closed when its HANDOFF phase log holds a `closeout` row with result `closed` or its `retrospective-plan.md` status is `CLOSED`; deferred when `SpecIndexEntry.deferred` is true (src/types.ts:126-136); not started when it has no document and no ledger; in progress otherwise (D17).
 3. Each row SHALL show state, spec, phase, document versions (the newest phase-log state `v` plus digits for requirements, design and tasks, shown as `R4 D3 T2`), tasks done of total, the distinct `PR #` numbers in its phase-log notes, the count of `deferred` records whose `originSpec` is the spec, the retro outcome (the plan's status word, else none) and the updated time (newest ledger row or phase-log date) (D18).
 4. WHEN the operator selects a spec THEN the panel SHALL show: its number in the decomposition heading that names it, else none; the text of that entry's `**Depends on**` paragraph, else none; one row per `run.start` in its ledger with run id, start, end, status and token total; its phase table from `parseHandoffPhaseRows`; its deferral records (id, title, status); and each file at the top level of its directory.
-5. Each file row SHALL have an Open action that copies the file's absolute path to the clipboard; no file row SHALL offer an editor-open link (D3).
+5. Each file row SHALL have a Copy-path action that copies the file's absolute path to the clipboard; no file row SHALL offer an editor-open link (D3).
 6. The Specs page SHALL render no document content, and no route SHALL render a spec document.
 7. WHEN a spec markdown file, a deferral record or a HANDOFF changes THEN an open Specs page SHALL update within five seconds without a reload.
 
@@ -141,24 +141,24 @@ This repository has no steering `product.md`, so this document aligns with the d
 
 ## Decisions taken in this document
 
-- D1 — The new pages keep react-i18next with English strings only; other locales fall back to English: options were keep react-i18next with English only, drop i18n from the new pages, translate every new string into all eleven locales; chosen because the gear keeps a language setting and the English fallback exists.
-- D2 — One run per spec store holds for dashboard launches: options were keep one run per spec store, allow one run per spec; chosen because the launcher's admission already enforces it and end-to-end check 3 requires it.
-- D3 — The Open action copies the file's absolute path and there is no editor-open link: options were a link plus copy path, a VS Code link only, copy path only; chosen by Gate A because copy always works, where a plain file link may not resolve under WSL.
-- D4 — Lists use a user-selected density setting in the gear, not a fixed row height: options were 36 px fixed, a density setting in the gear, 32 px rows; chosen by Gate A, which picked the gear density setting.
-- D5 — An `escalate` phase end is a `ruling` wait: options were include it as a ruling wait, leave it out of Now; chosen because the Overview page Now replaces counts it as waiting.
-- D6 — The deferral-owner wait is not derived here: options were defer it to spec 17, derive it from deferral tags, show every open deferral; chosen because deferral records have no owner or blocks field until spec 17.
-- D7 — The Harness and Overview pages are removed; their parts move into Runs and Now: options were remove them, keep them as hidden routes; chosen because the decomposition moves them.
-- D8 — Now does not show the HUD to-do list: options were omit it, show it as a fifth group; chosen because every row must be derived and the HUD is hand-written.
-- D9 — Removed and unknown paths redirect to Now: options were redirect to Now, show a not-found page; chosen because the approvals deeplink then lands somewhere useful.
-- D10 — The quiet wait uses the activity file's modification time, re-evaluated at least every minute: options were modification time with periodic re-evaluation, add the activity file to the overview watch, compute it in the browser from pushed timestamps; chosen because new watching is out of scope and a quiet run makes no file event.
-- D11 — A run page shows a project's current or last run only; earlier runs are listed in the Specs panel: options were current or last run only, any run by id; chosen because the run model scopes to the last run.
-- D12 — An idle project's routed spec comes from the routing that Launch uses, not the HANDOFF header: options were the launch routing, the HANDOFF header; chosen because Now and the Launch card then agree.
-- D13 — Waits and spec rows are derived in server modules: options were server modules, browser code; chosen because vitest covers only server code.
-- D14 — Pager 20 rows, search debounce 200 ms, panel stacks below 1280 px: options were these values, 25 rows with 300 ms and 1024 px; chosen because spec 17 paginates past twenty and check 6 stacks at 1000 px.
-- D15 — The gear holds theme, language, list density and sound; notification settings come with spec 16: options were defer them, ship an empty section; chosen because no notification exists before spec 16.
-- D16 — The Approvals page goes; the approvals tool and its deeplink stay unchanged; docs point manual approvals at the VS Code extension: options were accept the removal, keep the Approvals page, change the tool's deeplink here; chosen because the decomposition removes the page and the tool is a sensitive path.
-- D17 — A spec is closed on a closed close-out row or a CLOSED plan: options were either signal, the close-out row only; chosen because older specs have only the plan.
-- D18 — The PRs column shows HANDOFF PR numbers without state: options were numbers only, numbers with state from the PR host; chosen because PR state is spec 17.
+- D1 — The new pages keep react-i18next with English strings only; other locales fall back to English, because the gear keeps a language setting and the English fallback exists.
+- D2 — One run per spec store holds for dashboard launches, because the launcher's admission already enforces it and end-to-end check 3 requires it.
+- D3 — The Copy-path action copies the file's absolute path and there is no editor-open link; chosen by Gate A because copy always works, where a plain file link may not resolve under WSL.
+- D4 — Lists use a user-selected density setting in the gear, not a fixed row height; chosen by Gate A. The setting has two levels, compact (32 CSS px) and comfortable (36 CSS px), comfortable by default, so the 20-row pager and the no-sideways-scroll checks assume a known row height.
+- D5 — An `escalate` phase end is a `ruling` wait, because the Overview page Now replaces counts it as waiting.
+- D6 — The deferral-owner wait is not derived here, because deferral records have no owner or blocks field until spec 17.
+- D7 — The Harness and Overview pages are removed; their parts move into Runs and Now, because the decomposition moves them.
+- D8 — Now does not show the HUD to-do list, because every row must be derived and the HUD is hand-written.
+- D9 — Removed and unknown paths redirect to Now, because the approvals deeplink then lands somewhere useful.
+- D10 — The quiet wait uses the activity file's modification time, re-evaluated at least every minute, because new watching is out of scope and a quiet run makes no file event.
+- D11 — A run page shows a project's current or last run only; earlier runs are listed in the Specs panel, because the run model scopes to the last run.
+- D12 — An idle project's routed spec comes from the routing that Launch uses, not the HANDOFF header, because Now and the Launch card then agree.
+- D13 — Waits and spec rows are derived in server modules, because vitest covers only server code.
+- D14 — Pager 20 rows, search debounce 200 ms, panel stacks below 1280 px, because spec 17 paginates past twenty and check 6 stacks at 1000 px.
+- D15 — The gear holds theme, language, list density and sound; notification settings come with spec 16, because no notification exists before spec 16.
+- D16 — The Approvals page goes; the approvals tool and its deeplink stay unchanged; docs point manual approvals at the VS Code extension, because the decomposition removes the page and the tool is a sensitive path.
+- D17 — A spec is closed on a closed close-out row or a CLOSED plan, because older specs have only the plan.
+- D18 — The PRs column shows HANDOFF PR numbers without state, because PR state is spec 17.
 
 ## Scope notes
 
@@ -167,13 +167,21 @@ This repository has no steering `product.md`, so this document aligns with the d
 - Added: the `ruling` wait (D5) and the docs update (Requirement 8 AC 4) the removal needs.
 - Not in this spec: PR state, merge and the Deferrals rebuild (spec 17); usage content (spec 18); answering waits (spec 16); removing the server routes or npm dependencies only the removed pages used.
 - End-to-end checks 1 to 4 and 6 need live projects and runs; the design decides which become tests and which an operator records in `verification-evidence.md`.
+- Each within-N-seconds live-update criterion (Requirement 2 AC 6 and AC 9, Requirement 3 AC 9, Requirement 4 AC 7, Requirement 5 AC 7) is verified by a vitest test, a Playwright spec or a `verification-evidence.md` line, as the design decides.
 - Carried items: none.
 
 ## Revision History
 
 - **v1** (2026-10-06) — Initial draft.
-  - **Lint pass.** 4 fixed (L-4 buildModel range, L-12 launchable/disabledReason fields, L-21/L-22 watch-set anchors); rejected: L-1 (localStorage is the browser API the new toggle uses, outside the cited /api/projects/list range); L-2, L-3, L-5, L-6, L-13, L-14, L-18, L-19, L-20 (backticked row-type, result-value and filename tokens, not code symbols at the cited range; parseHandoffPhaseRows and SpecIndexEntry resolve); L-7, L-8, L-9, L-10, L-15, L-16, L-17 (wait-kind names, prose); L-11 (vitest.config.ts is a repository-root file with no directory prefix; line 8 confirms the frontend exclude).
+  - **Lint pass.** 4 fixed (L-4 buildModel range, L-12 launchable/disabledReason fields, L-21/L-22 watch-set anchors); the rest rejected as citation-identifier false positives on prose/concept tokens (the browser API localStorage, backticked row-type/result/filename tokens, wait-kind names, the repository-root vitest.config.ts).
 - **v2** (2026-10-06) — Revision from the input below.
-  - **Lint pass.** 1 fixed (L-10 vitest.config.ts directory prefix); rejected: L-1 through L-9 and L-11 through L-18 (citation-identifier re-fires on prose/concept tokens — browser API localStorage, backticked jsonl, wait-kind names start/quiet/gate/ruling/retro/closeout/closed/exited/CLOSED — all unchanged since v1 rejected them with reasons).
-  - **RI-1 — Accepted (MUST_FIX).** Gate A chose copy-path-only, so Requirement 5 AC 5 now reads that each file row has an Open action that copies the file's absolute path to the clipboard and offers no editor-open link; D3 is restated to that choice and its false clause claiming the link is one tap is removed.
-  - **RI-2 — Accepted (MUST_FIX).** Gate A chose a gear density setting, so Requirement 1 AC 6 now renders rows at the list density the operator selects in the gear, AC 4 adds the list density to the gear menu, and D4 and D15 are restated to that choice; i18n and the one-run-per-store rule are left unchanged as recorded.
+  - **Lint pass.** 1 fixed (L-10 vitest.config.ts directory prefix); L-1..L-9 and L-11..L-18 rejected, the same prose/concept tokens v1 rejected.
+  - **RI-1 — Accepted (MUST_FIX).** Gate A chose copy-path-only, so Requirement 5 AC 5 copies the absolute path with no editor-open link and D3 is restated, its false one-tap-link clause removed.
+  - **RI-2 — Accepted (MUST_FIX).** Gate A chose a gear density setting, so Requirement 1 AC 6 renders rows at the selected density, AC 4 adds it to the gear, and D4 and D15 are restated; i18n and one-run-per-store unchanged.
+- **v3** (2026-10-06) — SHOULD_FIX-only corrective pass.
+  - **R1-1 — Accepted (SHOULD_FIX).** Requirement 1 AC 6 and D4 now name two density levels, compact 32 CSS px and comfortable 36 CSS px, comfortable the default when none is stored, so the pager and no-sideways-scroll checks have a known row height.
+  - **R1-2 — Accepted (SHOULD_FIX).** Requirement 3 AC 9 now re-derives every wait kind on a retrospective-file change (the spec-markdown watcher) and a launch-update event, so retro and exited refresh within five seconds with no new watcher; a Scope note maps each within-N-seconds criterion to a verification path.
+  - **R1-3 — Accepted (MINOR).** Requirement 3 AC 5 now notes that a spec closed only by a CLOSED plan is omitted from Recently closed, which orders by close date.
+  - **R1-4 — Accepted (MINOR).** Requirement 5 AC 5 and D3 rename the Open action to Copy-path, matching the copy-only behaviour.
+  - **R1-5 — Accepted (MINOR).** Requirement 4 AC 1 now states a stopped or exited run groups under Ended.
+  - **R1-6 — Accepted (MINOR).** Requirement 1 AC 2 now states a project absent from the stored toggle map counts as on.
