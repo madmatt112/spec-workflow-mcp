@@ -44,7 +44,7 @@ This repository has no steering `product.md`, so this document aligns with the d
 8. The system SHALL order waits by kind (`gate`, `ruling`, `retro`, `exited`, `quiet`), then oldest first.
 9. WHEN a `phase.end` row with result `gate-a` is appended to a watched ledger THEN an open Now page SHALL list the wait within five seconds without a reload.
 10. IF a file the derivation reads is missing, empty or holds a torn line THEN the system SHALL derive no wait from it and SHALL raise no error (the torn-line skip of src/watch/ledger.ts:186-199).
-11. The wait and Specs row derivations SHALL be server modules under `src/` with vitest tests; vitest excludes the frontend (vitest.config.ts:7-8) (D13).
+11. The wait and Specs row derivations SHALL be server modules under `src/` with vitest tests; vitest excludes the frontend (./vitest.config.ts:7-8) (D13).
 
 ### Requirement 3 — Now
 
@@ -174,5 +174,6 @@ This repository has no steering `product.md`, so this document aligns with the d
 - **v1** (2026-10-06) — Initial draft.
   - **Lint pass.** 4 fixed (L-4 buildModel range, L-12 launchable/disabledReason fields, L-21/L-22 watch-set anchors); rejected: L-1 (localStorage is the browser API the new toggle uses, outside the cited /api/projects/list range); L-2, L-3, L-5, L-6, L-13, L-14, L-18, L-19, L-20 (backticked row-type, result-value and filename tokens, not code symbols at the cited range; parseHandoffPhaseRows and SpecIndexEntry resolve); L-7, L-8, L-9, L-10, L-15, L-16, L-17 (wait-kind names, prose); L-11 (vitest.config.ts is a repository-root file with no directory prefix; line 8 confirms the frontend exclude).
 - **v2** (2026-10-06) — Revision from the input below.
+  - **Lint pass.** 1 fixed (L-10 vitest.config.ts directory prefix); rejected: L-1 through L-9 and L-11 through L-18 (citation-identifier re-fires on prose/concept tokens — browser API localStorage, backticked jsonl, wait-kind names start/quiet/gate/ruling/retro/closeout/closed/exited/CLOSED — all unchanged since v1 rejected them with reasons).
   - **RI-1 — Accepted (MUST_FIX).** Gate A chose copy-path-only, so Requirement 5 AC 5 now reads that each file row has an Open action that copies the file's absolute path to the clipboard and offers no editor-open link; D3 is restated to that choice and its false clause claiming the link is one tap is removed.
   - **RI-2 — Accepted (MUST_FIX).** Gate A chose a gear density setting, so Requirement 1 AC 6 now renders rows at the list density the operator selects in the gear, AC 4 adds the list density to the gear menu, and D4 and D15 are restated to that choice; i18n and the one-run-per-store rule are left unchanged as recorded.
