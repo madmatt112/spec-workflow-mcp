@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/now-model.test.ts"],"seams":{"src/dashboard/shell/__tests__/now-model.test.ts":"buildNowModel(projects, pointers, launchOf, now, cache)"},"redCommit":"9f6a19a","baseSha":"84aee2f341f3d980567ab16f968bb03f926fcd6b","base":"structural-red","head":"pass","amended":false,"judged":null}

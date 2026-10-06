@@ -799,4 +799,4 @@ Gotchas:
 
 ## dashboard-shell — implementation
 
-| State | tasks 2/16, last commit 84aee2f, next task 3 |
+| State | tasks 3/16, last commit 5c1f67d, next task 4 |

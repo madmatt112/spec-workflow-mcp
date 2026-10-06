@@ -43,3 +43,13 @@ Cost: 0 spawns
 rounds 0, gate pass risk high (line-count 224 + tdd structural-red), verifier pass
 Evidence: task 2 · mark run-20261006-170927 71809787
 Cost: 3 spawns
+
+## 2026-10-06T21:02:31Z · implementation · task 3 · doc-gap
+prompt cites D8 for the run-phase fallback (else newest ledger phase.end, else null); neither design D8 (Launch card overlay) nor requirements D8 (no HUD to-do) governs it. Governing authority is inline Req 4 AC 1. D12 correctly cited
+Evidence: task 3 _Prompt vs design.md/requirements.md D8 · mark run-20261006-170927 2457d01e
+Cost: 0 spawns
+
+## 2026-10-06T21:13:55Z · implementation · task 3 · gotcha
+rounds 0, gate pass risk high (227 lines + tdd structural-red), verifier pass; implementer named a checks-file it did not write, gated from the report's vitest cmd
+Evidence: task 3 · mark run-20261006-170927 7d356143
+Cost: 3 spawns
