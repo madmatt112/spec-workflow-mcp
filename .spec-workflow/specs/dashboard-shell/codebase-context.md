@@ -104,3 +104,45 @@
 - e2e/worktree-no-shared.spec.ts:87-118 — drives the Specs and Approvals pages
 - docs/SDD-HARNESS.md:261-339 — `## Dashboard control pane` (Harness and Overview pages)
 - docs/USER-GUIDE.md:171-198 — approval and adversarial review steps that name the Approvals and Adversarial Analysis pages
+
+## Design-phase additions — harness server modules
+- src/dashboard/harness/hub.ts:124-132 — `onLaunchUpdate` and `onProjectsUpdate` refresh the overview watch only
+- src/dashboard/harness/overview-watch.ts:325-339 — `flush`, `pushRows`, `pushTodos`: the overview watch's only send points
+- src/dashboard/harness/run-setup.ts:99-109 — `readRunFile`: `harness-run.json`, null when missing or unparsable
+- src/dashboard/harness/launcher.ts:208-235 — `restore`: launch records reloaded from disk at dashboard start
+
+## Design-phase additions — dashboard server
+- src/dashboard/multi-server.ts:391-398 — `projects-update` broadcast to every client
+- src/dashboard/multi-server.ts:401-431 — `spec-change` debounced `spec-update` broadcast to one project's clients
+- src/dashboard/multi-server.ts:2246-2249 — launch admission refusal: 409 with `runId`, `reason`, `pid`
+- src/dashboard/multi-server.ts:2286-2299 — `harnessNotLaunchable`
+- src/dashboard/multi-server.ts:2301-2313 — `broadcastToAll`
+- src/dashboard/project-manager.ts:11-23 — `ProjectContext` (translated `projectPath`, original `workflowRootPath`)
+- src/dashboard/project-manager.ts:246-258 — `getProjectsList`
+- src/dashboard/watcher.ts:150-156 — change dispatch: deferral, spec, steering
+- src/dashboard/watcher.ts:163-195 — `handleSpecChange`: emits `change` for any spec markdown file
+- src/dashboard/parser.ts:27-45 — `getAllSpecs`: one entry per spec directory
+- src/core/deferral-storage.ts:266 — `DeferralStorage.list` with `status`/`originSpec`/`tag` filters
+
+## Design-phase additions — run model
+- src/watch/ledger.ts:18-36 — `LedgerEvent`, `ActivityEvent`
+- src/watch/ledger.ts:186-199 — `parseJsonl`, torn-line skip
+- src/watch/ledger.ts:256-261 — current-run scoping to the last `run.start`
+- src/watch/index.ts:34-39 — `handoffPath`: inside the workflow root, else beside it
+
+## Design-phase additions — frontend
+- src/dashboard_frontend/src/main.tsx:16-18 — `HashRouter` around `App`
+- src/dashboard_frontend/src/modules/theme/ThemeProvider.tsx:13-30 — theme in `localStorage`, dark by default
+- src/dashboard_frontend/src/modules/notifications/NotificationProvider.tsx:25-57 — sound on/off and volume state in `localStorage`
+- src/dashboard_frontend/src/modules/harness/types.ts:1-7 — wire types copied by hand from the server
+- src/dashboard_frontend/src/modules/pages/HarnessPage.tsx:103-125 — `fetchSetup`: form initialised from view defaults, not the saved file
+- src/dashboard_frontend/src/modules/pages/HarnessPage.tsx:211-244 — `buildInput` and `runOp`: save, launch, stop calls
+- tsconfig.json:20 — root `tsc` excludes `src/dashboard_frontend/**`
+
+## Design-phase additions — tests and probes
+- src/dashboard/__tests__/harness-routes.test.ts:267-291 — live-server overview test: gate-a append seen within five seconds
+- playwright.worktree.config.ts:39-61 — worktree e2e web servers and their env
+- playwright.worktree-pattern.ts:21 — `WORKTREE_SPEC_PATTERN`
+- e2e/worktree-shared.spec.ts:401-405 — API-only spec list checks, no page selectors
+- node_modules/tailwindcss/theme.css:281 — probe (tailwindcss 4.1.18): `--breakpoint-xl: 80rem`
+- node_modules/react-router/dist/lib/hooks.d.ts:79 — probe (react-router 6.30.3): `useParams`
