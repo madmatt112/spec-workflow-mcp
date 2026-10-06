@@ -862,7 +862,9 @@ a terminal session, which is why the overwatch session exists: to notice the wai
 the operator's phone. This spec adds a third gates mode, `dashboard`: the run stops at gate
 A, gate B and retro-ready, the dashboard shows the questions, the operator answers on the
 Now page, the dashboard writes the answers and relaunches, and the supervisor continues
-from them. With it, a notification when a wait appears.
+from them. With it, a notification when a wait appears. A headless run also stops when the
+claude.ai usage limit is reached, and nothing continues it; an interactive session waits for
+the reset and continues by itself. This spec gives a dashboard launch the same continue.
 
 **Delivers.**
 
@@ -874,6 +876,13 @@ from them. With it, a notification when a wait appears.
   APPROVED plan it runs close-out. The `block` and `record` modes are unchanged.
 - **The refusal signal** of harness-control-pane P4 (option B): a preflight that refuses
   the run emits a refusal event and exits non-zero, so a refused launch reads as refused.
+- **Continue after a usage limit.** When a headless run stops on the usage limit, the
+  harness records the limit and its reset time in the ledger and the run exits with a known
+  exit code. The Now page shows the run as paused with the reset time, not as a run that
+  exited without `run.end`. At the reset the dashboard relaunches the run with the saved
+  setup, and the supervisor continues from the ledger and the spec files. After two
+  relaunches in a row that stop on the limit again, the dashboard stops relaunching and
+  shows a wait for the operator. A paused run sends no push; a stopped one does.
 - **Answer sheets** in the Now panel. Gate: the questions and options from the gate file,
   the recommended pick marked, the recorded mechanics listed; "Answer and continue" writes
   `questions.md` in the harness's format and relaunches with the saved setup. Retro: the
@@ -894,6 +903,10 @@ from them. With it, a notification when a wait appears.
 - The phone gets a notification, not a page. The operator does not act from the phone.
 - The overwatch push and the HUD are retired by the operator once this is live; the spec
   does not touch them.
+- A usage-limit continue uses the same stop-and-relaunch path as a gate, with the reset
+  time in place of the operator's answer. How a headless run detects the limit and reads
+  the reset time is for the design phase. A phase orchestrator stopped by the limit
+  restarts its phase, as today; this spec does not resume a phase part-way.
 - Open for gate A: the push service, ntfy or Pushover.
 
 **End-to-end verification.** (1) A fixture spec launched from the dashboard with gates
@@ -904,8 +917,11 @@ attributed to the operator, relaunches, and the new run continues into requireme
 without asking again. (3) The same at gate B and at retro-ready: approving the plan writes
 it APPROVED with the two decisions and relaunches into close-out. (4) A launch with a
 refused supervisor model shows "refused" with the preflight's reason, not "exited 0". (5)
-A push arrives on the phone for the gate and none for a `spawn.end`. (6) A terminal run with
-gates `block` behaves as before. (7) `npm run build`, `npx tsc --noEmit`, `npm test`,
+A push arrives on the phone for the gate and none for a `spawn.end`. (6) A fixture run that
+stops on a simulated usage limit shows as paused with the reset time on the Now page, is
+relaunched at that time without operator action, and continues the phase; a third stop in a
+row shows a wait and sends one push. (7) A terminal run with gates `block` behaves as
+before. (8) `npm run build`, `npx tsc --noEmit`, `npm test`,
 `npm run check:plugin-assets` and `claude plugin validate . --strict` are green.
 
 **Depends on** spec 15 for the Now page and the panel, spec 7 for the gate files and
