@@ -756,3 +756,15 @@ Gotchas:
 - Store batch is on `main` already (direct commits), not in PR #84; PR #84 carries only the harness batch.
 - P5 and G1 share commit 0699b95 (one agent-rules bullet satisfies both).
 - P8's +20%-W acceptance decision was recorded in `agent-rules.md` because `.spec-workflow/steering/` is empty; a `~/.claude` memory copy is a separate home-class action, out of this root. P8/P14 stay conditional on a re-measure of W/task on the next real spec (P7 is the prefix fix).
+
+## dashboard-shell — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-06 |
+| Rounds | 2; verdicts 0/2/4 (round 1) → SHOULD_FIX-only pass at v3 → narrow check VERIFIED 2/2 |
+| Approval | `approval_1791309888276_5ccez1ej8` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | design reads this spec's requirements.md after codebase-context.md; steering tech.md, structure.md, design-system.md when present |

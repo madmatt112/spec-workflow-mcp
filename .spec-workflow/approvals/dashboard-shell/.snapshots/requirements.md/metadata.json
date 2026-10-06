@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-shell/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-06T18:04:48.343Z",
+      "trigger": "initial",
+      "approvalId": "approval_1791309888276_5ccez1ej8",
+      "approvalTitle": "dashboard-shell requirements v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-06T18:05:11.236Z",
+      "trigger": "approved",
+      "approvalId": "approval_1791309888276_5ccez1ej8",
+      "approvalTitle": "dashboard-shell requirements v3"
+    }
+  ]
+}

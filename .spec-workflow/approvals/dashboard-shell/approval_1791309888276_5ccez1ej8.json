@@ -1,0 +1,12 @@
+{
+  "id": "approval_1791309888276_5ccez1ej8",
+  "title": "dashboard-shell requirements v3",
+  "filePath": ".spec-workflow/specs/dashboard-shell/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-06T18:04:48.276Z",
+  "category": "spec",
+  "categoryName": "dashboard-shell",
+  "response": "v3; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: SHOULD_FIX-only pass at v3, VERIFIED 2/2",
+  "respondedAt": "2026-10-06T18:05:11.277Z"
+}
