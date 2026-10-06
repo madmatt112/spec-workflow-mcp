@@ -6,6 +6,7 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { parseHandoffRouting, parseGateSections, ProjectHarnessWatch } from '../project-watch.js';
 import { buildModel, parseJsonl, AGENT_PROFILES } from '../../../watch/ledger.js';
+import { buildRunDetail } from '../../shell/run-detail.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { HarnessLauncher } from '../launcher.js';
 import type { LaunchRecord, HarnessMessage } from '../types.js';
@@ -638,5 +639,125 @@ describe('ProjectHarnessWatch', () => {
     await sleep(800);
 
     expect(messages.length).toBe(countAfterClose);
+  }, 15000);
+
+  // Contract additions for task 5 (design.md C6; task 5 _Prompt;
+  // Requirements 4.3, 4.5, 4.7). The stub launcher is the only collaborator;
+  // `ProjectHarnessWatch` and `buildRunDetail` both run for real over fixture
+  // files on a temp directory.
+  //
+  // Criterion "a harness-run-detail arrives after harness-gates and equals
+  //   buildRunDetail over the same fixtures" (task 5 _Prompt: "send
+  //   `harness-run-detail` after `harness-gates`"; Requirements 4.3, 4.5):
+  //   Pre-condition: a spec directory with a ledger (`run.start`,
+  //   `phase.start`, `spawn.start`), a `tasks.md`, a HANDOFF naming the spec.
+  //   Test: `new ProjectHarnessWatch(project, launcher, send).start()`.
+  //   Observable result: the first `harness-run-detail` message's array index
+  //   is greater than the first `harness-gates` message's index; its `data`
+  //   deep-equals `buildRunDetail({ spec, ledger: parseJsonl(ledgerText),
+  //   activity: [], handoffMd })` computed from the same fixture text.
+  //   Expected-value source: `buildRunDetail` (task 5) called directly on the
+  //   fixture text, per the _Prompt's send-order and parity rule.
+  //
+  // Criterion "snapshot() holds the run detail after harness-gates" (task 5
+  //   _Prompt: "`snapshot()` appends it after `harness-gates`"):
+  //   Pre-condition: a started watch over a minimal fixture.
+  //   Test: `watch.snapshot()`.
+  //   Observable result: the returned array's message at index 0 has type
+  //   `harness-model`, index 1 has type `harness-gates`, index 2 has type
+  //   `harness-run-detail`.
+  //   Expected-value source: the _Prompt's "appends it after harness-gates"
+  //   sentence, matching the existing `snapshot()` order of model then gates
+  //   (src/dashboard/harness/project-watch.ts:170-188).
+  //
+  // Criterion "a ledger append gives a new harness-run-detail within five
+  //   seconds" (task 5 _Prompt "Tests" item 3, the pattern of :420-440;
+  //   Requirement 4.7):
+  //   Pre-condition: a started watch (`debounceMs: 50`) over a minimal
+  //   fixture whose ledger holds one `run.start`.
+  //   Test: append a `round` row for phase `design` to the ledger file, then
+  //   poll `send`'s captured messages.
+  //   Observable result: within five seconds a new `harness-run-detail`
+  //   arrives whose `data.phaseStrip` entry for `design` has `rounds` `1`
+  //   (the appended round).
+  //   Expected-value source: the appended ledger row's phase and count, per
+  //   the design C6 rounds rule and Requirement 4.7's five-second bound.
+
+  it('sends a harness-run-detail after harness-gates matching buildRunDetail over the same fixtures', async () => {
+    const { project, workflowRoot, specDir } = await makeProject('spec-j');
+    const runId = 'run-20260301-000000';
+    const ledgerEvents = [
+      { ts: '2026-03-01T00:00:00.000Z', type: 'run.start', run: runId, spec: 'spec-j', model: 'claude-test', codeRoot: '/tmp/spec-j', worktree: 'no', headless: 'yes' },
+      { ts: '2026-03-01T00:00:05.000Z', type: 'phase.start', run: runId, phase: 'document', mode: 'auto', state: 'in-progress' },
+      { ts: '2026-03-01T00:00:10.000Z', type: 'spawn.start', run: runId, agent: 'sdd-document-orchestrator', role: 'orchestrator', phase: 'document' },
+    ] satisfies LedgerEvent[];
+    const ledgerText = ledgerEvents.map((e) => JSON.stringify(e)).join('\n') + '\n';
+    writeFileSync(join(specDir, 'harness-events.jsonl'), ledgerText);
+    const tasksText = '- [x] 1. Do thing\n- [ ] 2. Another thing\n';
+    writeFileSync(join(specDir, 'tasks.md'), tasksText);
+    const handoffText = handoffFixture('spec-j');
+    writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffText);
+
+    const messages: HarnessMessage[] = [];
+    const { launcher } = stubLauncher(() => null);
+    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    watches.push(watch);
+
+    await watch.start();
+    await waitFor(() => ofType(messages, 'harness-run-detail').length > 0);
+
+    const gatesIndex = messages.findIndex((m) => m.type === 'harness-gates');
+    const detailIndex = messages.findIndex((m) => m.type === 'harness-run-detail');
+    expect(gatesIndex).toBeGreaterThanOrEqual(0);
+    expect(detailIndex).toBeGreaterThan(gatesIndex);
+
+    const detailMsg = ofType(messages, 'harness-run-detail')[0];
+    const expectedDetail = buildRunDetail({
+      spec: 'spec-j',
+      ledger: parseJsonl(ledgerText),
+      activity: [],
+      handoffMd: handoffText,
+    });
+    expect(detailMsg.data).toEqual(expectedDetail);
+  }, 15000);
+
+  it('holds the run detail after harness-gates in snapshot()', async () => {
+    const { project, workflowRoot, specDir } = await makeProject('spec-k');
+    writeMinimalFixture(workflowRoot, specDir, 'spec-k', 'run-k', new Date(Date.now() - 60000).toISOString());
+
+    const messages: HarnessMessage[] = [];
+    const { launcher } = stubLauncher(() => null);
+    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    watches.push(watch);
+
+    await watch.start();
+    await waitFor(() => ofType(messages, 'harness-model').length > 0);
+
+    const snap = watch.snapshot();
+    expect(snap[0].type).toBe('harness-model');
+    expect(snap[1].type).toBe('harness-gates');
+    expect(snap[2].type).toBe('harness-run-detail');
+  }, 15000);
+
+  it('sends a new harness-run-detail within five seconds of a ledger append (debounce 50ms)', async () => {
+    const { project, workflowRoot, specDir } = await makeProject('spec-l');
+    const runId = 'run-l';
+    const runStartTs = new Date(Date.now() - 60000).toISOString();
+    const ledgerPath = writeMinimalFixture(workflowRoot, specDir, 'spec-l', runId, runStartTs);
+
+    const messages: HarnessMessage[] = [];
+    const { launcher } = stubLauncher(() => null);
+    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    watches.push(watch);
+
+    await watch.start();
+    await waitFor(() => ofType(messages, 'harness-run-detail').length > 0);
+    const before = ofType(messages, 'harness-run-detail').length;
+
+    appendFileSync(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), type: 'round', run: runId, phase: 'design', round: '1', verdict: 'approved' }) + '\n');
+    await waitFor(() => ofType(messages, 'harness-run-detail').length > before, 5000);
+
+    const latest = ofType(messages, 'harness-run-detail').slice(-1)[0];
+    expect(latest.data.phaseStrip.find((p) => p.phase === 'design')?.rounds).toBe(1);
   }, 15000);
 });
