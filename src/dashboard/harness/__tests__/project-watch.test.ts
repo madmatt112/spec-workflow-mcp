@@ -758,6 +758,6 @@ describe('ProjectHarnessWatch', () => {
     await waitFor(() => ofType(messages, 'harness-run-detail').length > before, 5000);
 
     const latest = ofType(messages, 'harness-run-detail').slice(-1)[0];
-    expect(latest.data.phaseStrip.find((p) => p.phase === 'design')?.rounds).toBe(1);
+    expect(latest.data!.phaseStrip.find((p) => p.phase === 'design')?.rounds).toBe(1);
   }, 15000);
 });

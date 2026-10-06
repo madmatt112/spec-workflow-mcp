@@ -12,6 +12,8 @@ import {
 } from '../../watch/ledger.js';
 import type { LedgerEvent, ActivityEvent, RunModel } from '../../watch/ledger.js';
 import { resolveSpec, handoffPath } from '../../watch/index.js';
+import { buildRunDetail } from '../shell/run-detail.js';
+import type { RunDetail } from '../shell/types.js';
 import type { ProjectContext } from '../project-manager.js';
 import type { HarnessLauncher } from './launcher.js';
 import type { HandoffRouting, HarnessMessage, LaunchRecord } from './types.js';
@@ -134,6 +136,7 @@ export class ProjectHarnessWatch {
 
   private lastModel: RunModel | null = null;
   private lastGates: GateData | null = null;
+  private lastDetail: RunDetail | null = null;
 
   constructor(
     private readonly project: ProjectContext,
@@ -180,6 +183,7 @@ export class ProjectHarnessWatch {
         projectId,
         data: this.lastGates ?? { spec: this.spec, gateA: null, gateB: null },
       },
+      { type: 'harness-run-detail', projectId, data: this.lastDetail },
     ];
     if (this.logPath !== null && this.launchedAt !== null) {
       msgs.push({ type: 'harness-log', projectId, data: { launchedAt: this.launchedAt, lines: [...this.keptLines], reset: true } });
@@ -252,16 +256,22 @@ export class ProjectHarnessWatch {
 
     const launch = this.launcher.get(projectId);
     let model: RunModel | null = null;
+    let detail: RunDetail | null = null;
     let gates = { gateA: null as string | null, gateB: null as string | null };
     if (this.spec) {
       const specDir = join(this.workflowRoot, 'specs', this.spec);
+      // Parse the ledger and activity once; both builders read the same arrays.
+      const ledger = parseJsonl<LedgerEvent>(readIfExists(join(specDir, 'harness-events.jsonl')));
+      const activity = parseJsonl<ActivityEvent>(readIfExists(join(specDir, 'harness-activity.jsonl')));
+      const handoffMd = readIfExists(handoffPath(this.workflowRoot));
       model = buildModel({
         spec: this.spec,
-        ledger: parseJsonl<LedgerEvent>(readIfExists(join(specDir, 'harness-events.jsonl'))),
-        activity: parseJsonl<ActivityEvent>(readIfExists(join(specDir, 'harness-activity.jsonl'))),
+        ledger,
+        activity,
         tasksMd: readIfExists(join(specDir, 'tasks.md')),
-        handoffMd: readIfExists(handoffPath(this.workflowRoot)),
+        handoffMd,
       });
+      detail = buildRunDetail({ spec: this.spec, ledger, activity, handoffMd });
       gates = parseGateSections(readIfExists(join(specDir, 'questions.md')));
       // Req 3.6: adopt the run id once the model's run started at or after this
       // launch and the record does not already carry it.
@@ -272,9 +282,11 @@ export class ProjectHarnessWatch {
     }
 
     this.lastModel = model;
+    this.lastDetail = detail;
     this.lastGates = { spec: this.spec, gateA: gates.gateA, gateB: gates.gateB };
     this.send({ type: 'harness-model', projectId, data: { spec: this.spec, model, profiles: AGENT_PROFILES, launch } });
     this.send({ type: 'harness-gates', projectId, data: this.lastGates });
+    this.send({ type: 'harness-run-detail', projectId, data: detail });
   }
 
   private onLaunchUpdate = (record: LaunchRecord): void => {
