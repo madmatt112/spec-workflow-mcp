@@ -91,6 +91,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-06 | dashboard-shell | requirements | v1 | gate-a |  |
 | 2026-10-06 | dashboard-shell | requirements | v3 | approved | 2 rounds, 0/2/4 then SHOULD_FIX-only pass, VERIFIED 2/2 |
 | 2026-10-06 | dashboard-shell | design | v1 | approved | 1 round, converged on first review |
+| 2026-10-06 | dashboard-shell | tasks | v1 | approved | 1 round, converged 0/0/3 on v1 |
 
 ## Current state — 2026-08-04
 
