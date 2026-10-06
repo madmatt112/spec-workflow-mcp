@@ -28,3 +28,8 @@ Cost: one reviewer spawn
 tasks approved at v1 after 1 round; verdict trajectory converged 0/0/3; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1791313591369_cbub35dbw; reviews/adversarial-analysis-tasks.md · mark run-20261006-170927 26183c66
 Cost: 1 reviewer + 0 reviser spawns
+
+## 2026-10-06T20:28:15Z · implementation · task 1 · gotcha
+rounds 0, gate pass risk high + verifier pass; verifier prepare needed projectPath CODE_ROOT worktree not main checkout
+Evidence: task 1 · mark run-20261006-170927 1f6ffbad
+Cost: 3 spawns

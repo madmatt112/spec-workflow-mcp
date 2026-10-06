@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/file-cache.test.ts"],"seams":{"src/dashboard/shell/__tests__/file-cache.test.ts":"new FileCache().text(path), jsonl(path), mtimeMs(path)"},"redCommit":"764b111","baseSha":"2c5c968999e53d4ea17c338a5f3d0ab8a3033f52","base":"structural-red","head":"pass","amended":false,"judged":null}

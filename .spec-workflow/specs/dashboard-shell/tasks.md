@@ -5,7 +5,7 @@ Design components map to tasks as follows: C1 and C2 are task 1, C3 is task 2, C
 
 Dependency order: tasks 1 to 7 are server-only and land first, so each frontend task reads merged server messages. Task 1 has no dependency; tasks 2, 3, 4 and 5 use the task 1 types and file cache; task 3 uses the task 2 waits; task 6 calls tasks 3 and 4; task 7 wires the task 6 feed into the hub and adds the route and push. Task 8 swaps the frontend shell with stub pages for Deferrals, Now, Runs and Specs; tasks 9, 10, 11 and 12 replace one stub each; task 13 deletes the legacy modules that task 8 leaves on disk with no importer; task 14 adds the end-to-end suite; tasks 15 and 16 depend on no code. Every task leaves `npx tsc --noEmit`, `npm test` and the dashboard build green, and task 8 keeps the worktree e2e suite green by editing `e2e/worktree-no-shared.spec.ts` in the same commit.
 
-- [ ] 1. Shell wire types and file cache
+- [x] 1. Shell wire types and file cache
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard/shell/file-cache.ts
   - File: src/dashboard/shell/__tests__/file-cache.test.ts

@@ -796,3 +796,7 @@ Gotchas:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | implementation reads tasks.md, then design.md and codebase-context.md |
+
+## dashboard-shell — implementation
+
+| State | tasks 1/16, last commit 67fcb0c, next task 2 |
