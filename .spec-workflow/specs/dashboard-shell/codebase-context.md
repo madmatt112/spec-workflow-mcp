@@ -146,3 +146,53 @@
 - e2e/worktree-shared.spec.ts:401-405 — API-only spec list checks, no page selectors
 - node_modules/tailwindcss/theme.css:281 — probe (tailwindcss 4.1.18): `--breakpoint-xl: 80rem`
 - node_modules/react-router/dist/lib/hooks.d.ts:79 — probe (react-router 6.30.3): `useParams`
+
+## Tasks-phase additions — server
+- src/dashboard/harness/hub.ts:34-43 — hub constructor: `sendHarness`/`sendOverview` callbacks, `launch-update` and `projects-update` listeners
+- src/dashboard/harness/hub.ts:113-122 — hub `close`: removes listeners, closes every watch
+- src/dashboard/harness/overview-watch.ts:44-48 — private `isInside` (target strictly inside dir)
+- src/dashboard/harness/overview-watch.ts:243-246 — private `pointerForProject`: first pointer line inside the project's specs dir
+- src/dashboard/harness/overview-watch.ts:319-323 — overview watch debounce: resetting `setTimeout`
+- src/dashboard/harness/project-watch.ts:83-102 — `readIfExists` via fd read, undefined on error
+- src/watch/ledger.ts:263-269 — phase rows: HANDOFF rows plus ledger `phase.end` rows not already present
+- src/watch/ledger.ts:411-413 — `RoundRow` from current-run `round` rows
+- src/watch/ledger.ts:423 — `task.done` ticker text reads the `rounds` key
+- src/watch/ledger.ts:428 — `note` text key is `text`, else `note`
+- src/dashboard/multi-server.ts:120 — hub overview send lambda typed `HarnessMessage`
+- src/dashboard/multi-server.ts:497-501 — `deferral-change` sends `deferrals-update` through `broadcastToProject`
+- src/dashboard/multi-server.ts:563-578 — project info route returns `version`
+- src/core/gate-rules.ts:31 — `RISK_LINE_THRESHOLD = 200`
+
+## Tasks-phase additions — frontend
+- src/dashboard_frontend/src/modules/app/App.tsx:9-28 — imports of the legacy pages, dropdown, sidebar and header parts
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:66-156 — `connectToWebSocket`: URL with optional `projectId`, re-subscribe on open, backoff, type dispatch
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:159-177 — connect only when a `projectId` is set
+- src/dashboard_frontend/src/modules/notifications/NotificationProvider.tsx:27 — `useApi` for approvals, specs and task progress
+- src/dashboard_frontend/src/modules/notifications/NotificationProvider.tsx:127-181 — `handleTaskUpdate`
+- src/dashboard_frontend/src/modules/notifications/NotificationProvider.tsx:210-219 — mount effect seeding task data from specs
+- src/dashboard_frontend/src/modules/notifications/NotificationProvider.tsx:221-297 — `task-status-update` subscription effect
+- src/dashboard_frontend/src/modules/pages/HarnessPage.tsx:10-29 — `callHarness`: fetch that keeps a non-ok body
+- src/dashboard_frontend/src/modules/pages/HarnessPage.tsx:186-209 — task-review summary poll, only in implementation
+- src/dashboard_frontend/src/modules/pages/OverviewPage.tsx:49-75 — overview view hold, row/to-do handlers, 1 s tick
+- src/dashboard_frontend/src/modules/pages/DeferralsPage.tsx:1-80 — status filter, single-project load and push handler
+- src/dashboard_frontend/src/modules/harness/types.ts:193-203 — frontend `HarnessMessage` and `ViewMessage` copies
+- src/dashboard_frontend/src/modules/modals/ChangelogModal.tsx:28-36 — project changelog route, else the global one
+- src/dashboard_frontend/src/modules/theme/ThemeProvider.tsx:13-30 — theme toggle and `localStorage` key `theme`
+
+## Tasks-phase additions — tests, e2e and checks
+- src/dashboard/harness/__tests__/project-watch.test.ts:313-318 — `ofType` message filter
+- src/dashboard/harness/__tests__/project-watch.test.ts:355-376 — `makeProject`, `writeMinimalFixture`, `stubLauncher`
+- src/dashboard/harness/__tests__/project-watch.test.ts:378-418 — model and gates messages equal the pure builders
+- src/dashboard/harness/__tests__/project-watch.test.ts:622-641 — no send after `close()`
+- src/dashboard/__tests__/harness-routes.test.ts:104-141 — `waitFor`, `connect`, `collect`, `send` helpers
+- src/dashboard/__tests__/harness-routes.test.ts:153-202 — two-project live server fixture with temp `XDG_STATE_HOME`
+- e2e/worktree-no-shared.spec.ts:23-63 — two-worktree harness setup and cleanup
+- e2e/worktree-no-shared.spec.ts:65-119 — dropdown, specs-isolation and approvals tests
+- e2e/helpers/worktree-harness.ts:162-180 — `HarnessWorktree` with `writeFile` and `mkdirp`
+- playwright.worktree.config.ts:8-11 — shared `SPEC_WORKFLOW_HOME` set in the config process
+- playwright.config.ts:13 — default config ignores the worktree pattern
+- scripts/validate-i18n.js:127-131 — interpolation check only across locales holding a key
+- .github/workflows/ci.yml:38-39 — CI runs `npm test -- --run`
+- node_modules/tailwindcss/theme.css:281 — probe (tailwindcss 4.1.18): `--breakpoint-lg: 64rem`
+- harness/skills/sdd-continue/SKILL.md:218-225 — retrospective blocked unless every evidence line is `passed`
+- README.md:28 — Implementation Logs listed as a feature
