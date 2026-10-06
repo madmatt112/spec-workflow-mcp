@@ -33,3 +33,13 @@ Cost: 1 reviewer + 0 reviser spawns
 rounds 0, gate pass risk high + verifier pass; verifier prepare needed projectPath CODE_ROOT worktree not main checkout
 Evidence: task 1 · mark run-20261006-170927 1f6ffbad
 Cost: 3 spawns
+
+## 2026-10-06T20:41:54Z · implementation · task 2 · doc-gap
+prompt cites D9 for pointer-matching, D7 for exited, D6 for summary; in design.md and requirements.md those decision ids govern unrelated behaviours. Governing authority is the inline ACs Req 8 AC 2, Req 2 AC 4, Req 3 AC 2
+Evidence: task 2 _Prompt vs design.md D6/D7/D9, requirements.md D6/D7/D9 · mark run-20261006-170927 e99b37d1
+Cost: 0 spawns
+
+## 2026-10-06T20:51:46Z · implementation · task 2 · gotcha
+rounds 0, gate pass risk high (line-count 224 + tdd structural-red), verifier pass
+Evidence: task 2 · mark run-20261006-170927 71809787
+Cost: 3 spawns

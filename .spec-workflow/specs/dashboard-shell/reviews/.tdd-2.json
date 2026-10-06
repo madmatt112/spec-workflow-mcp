@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/waits.test.ts"],"seams":{"src/dashboard/shell/__tests__/waits.test.ts":"gateOrRuling(ledger), deriveProjectWaits(project, pointer, launch, now, cache), orderWaits(waits)"},"redCommit":"5829a35","baseSha":"67fcb0c73e2b59c6bba85ea613f5a8def5b5274f","base":"structural-red","head":"pass","amended":false,"judged":null}
