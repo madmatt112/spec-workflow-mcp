@@ -770,3 +770,15 @@ Gotchas:
 | Cut scope | none |
 | Carried items | none |
 | Next phase loads | design reads this spec's requirements.md after codebase-context.md; steering tech.md, structure.md, design-system.md when present |
+
+## dashboard-shell — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-10-06 |
+| Rounds | 1; verdict converged 0/0/3 (MINOR 3: FileCache hot-flush bypass, run-detail arm unpinned, two-sends undersell) |
+| Approval | `approval_1791311998141_1lwohdodk` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | tasks reads this spec's design.md after codebase-context.md, then requirements.md |

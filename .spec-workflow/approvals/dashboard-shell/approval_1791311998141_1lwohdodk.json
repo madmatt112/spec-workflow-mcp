@@ -1,0 +1,12 @@
+{
+  "id": "approval_1791311998141_1lwohdodk",
+  "title": "dashboard-shell design v1",
+  "filePath": ".spec-workflow/specs/dashboard-shell/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-06T18:39:58.141Z",
+  "category": "spec",
+  "categoryName": "dashboard-shell",
+  "response": "v1; 1 review round; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 3; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-06T18:40:02.802Z"
+}

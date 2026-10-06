@@ -8,3 +8,13 @@ Cost: one reviewer spawn
 requirements approved at v3 after 2 rounds; verdict trajectory 0/2/4 (round 1) -> SHOULD_FIX-only pass at v3 -> narrow check VERIFIED 2/2; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
 Evidence: approval_1791309888276_5ccez1ej8; reviews/adversarial-analysis-requirements-r2.md · mark run-20261006-170927 83660fdf
 Cost: 1 reviewer + 2 reviser + 1 checker spawns
+
+## 2026-10-06T18:39:22Z · design · round 1 · gotcha
+reviewer converged MUST_FIX 0 SHOULD_FIX 0 MINOR 3; MINORs noted: FileCache bypass on hot flush path, harness-run-detail arm unpinned in Data Models, two-additive-sends undersells hub rewrite
+Evidence: reviews/adversarial-analysis-design.md · mark run-20261006-170927 1a2d8cf8
+Cost: one reviewer spawn
+
+## 2026-10-06T18:40:41Z · design · cleanup · phase
+design approved at v1 after 1 round; verdict trajectory 0/0/3 converged; rulings 0; cap not hit; prune removed 0 records and 0 snapshots.
+Evidence: approval_1791311998141_1lwohdodk; reviews/adversarial-analysis-design.md · mark run-20261006-170927 0f28e6ac
+Cost: 1 reviewer + 0 reviser spawns
