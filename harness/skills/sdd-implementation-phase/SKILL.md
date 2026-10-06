@@ -331,7 +331,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    it must show; on that, add the row `Deferred verification | <id>` to the HANDOFF
    `## <SPEC> — implementation` section and carry that item unticked in the PR body's
    Test plan (step 10). A silent skip is not allowed: no record, no `[x]`.
-7. **Budget.** When the count of tasks completed in this run reaches `BUDGET` and open
+7. **Budget.** When reaching `BUDGET` would leave exactly one open task, fold it: run that
+   one task in this spawn too (this batch is `BUDGET + 1`, once) and go to the **Completion
+   gate**, rather than paying a whole second base+skill prefix for a one-task spawn. The
+   fold applies only to a final remainder of one; the cap logic is unchanged (retro P7/G3).
+   Otherwise, when the count of tasks completed in this run reaches `BUDGET` and open
    tasks remain: write the HANDOFF State row and commit the spec store (`book.sh`), record
    `phase.end`, and report `PHASE: resume`, `STATE: tasks <done>/<total>`. `NEXT: task
    <next N>` when open tasks remain, or — when the budget-filling task was the last open
