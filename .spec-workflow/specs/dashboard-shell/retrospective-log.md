@@ -68,3 +68,8 @@ Cost: shared verify
 rounds 0, gate pass risk high (tdd structural-red + amended value-preserving non-null assertion), batched verify {4,5} pass; edits existing harness project-watch.ts/types.ts, watch set unchanged
 Evidence: task 5 · mark run-20261006-170927 cdeafa42
 Cost: 3 spawns for 2 tasks via batch
+
+## 2026-10-06T23:51:32Z · implementation · phase · harness-defect
+The implementation orchestrator's batch-end phase.end (2026-10-06T21:54:21.396Z, tasks 5/16) carried no result= field, the same defect tradr's run hit; the supervisor patched the row to result=resume from the orchestrator's PHASE: resume report so phase-log can read the ledger.
+Evidence: harness-events.jsonl phase.end implementation ts 2026-10-06T21:54:21.396Z; overwatch heads-up from tradr-5e
+Cost: 1 supervisor patch
