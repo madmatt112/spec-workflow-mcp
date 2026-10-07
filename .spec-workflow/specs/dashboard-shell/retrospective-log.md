@@ -123,3 +123,13 @@ Cost: 2 spawns
 Gate's temp frontend tsc config swept a pre-existing TS18046 in legacy pages/TasksPage.tsx (untouched by task, deleted by task 13); narrowed checks to vite build + i18n, listed shell files explicitly. Verifier re-ran scoped tsc: clean.
 Evidence: task 11 · mark run-20261006-170927 21abfa08
 Cost: 2 spawns, 0 fix rounds, gate narrow
+
+## 2026-10-07T03:15:44Z · implementation · task 12 · test-harness
+worktree e2e frontend port never in dashboard CORS allow-list; live WS data silently never worked in worktree e2e until a test required it; fixed in vite.config.ts
+Evidence: task 12 · mark run-20261006-170927 33650835
+Cost: 1 spawn
+
+## 2026-10-07T03:19:53Z · implementation · task 12 · gotcha
+verifier pass, 2 info findings; 1 implementer + 1 verifier spawn
+Evidence: task 12 · mark run-20261006-170927 caf4f344
+Cost: 2 spawns
