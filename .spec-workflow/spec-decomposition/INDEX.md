@@ -26,7 +26,8 @@
 | 11 | tdd-task-loop | Complete | 17/17 |
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
-| 14 | tighter-reviews | Complete | 29/29 |
+| 14 | dashboard-shell | Complete | 16/16 |
+| 15 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 

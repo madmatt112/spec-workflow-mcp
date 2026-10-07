@@ -801,4 +801,17 @@ Gotchas:
 
 ## dashboard-shell — implementation
 
-| State | tasks 16/16, last commit f938ca5, completion gate |
+| State | implemented 2026-10-07, 16/16 tasks, PR #86 |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/86 |
+| Deferred verification | d-fd0d4f60 |
+
+Implemented 2026-10-07: all 16 tasks. The five-page shell (Now, Runs, Specs, Deferrals, Usage) replaces the legacy frontend; legacy pages, components and modules removed (539 dead i18n keys pruned, all 11 locale files kept); the e2e worktree-shell suite added; the dashboard docs rewritten; invariants and operator evidence recorded in verification-evidence.md (relocated to the spec store this run).
+
+Deferrals added by this spec: 1 (d-fd0d4f60, verification). Total project deferred: 16.
+
+Most worth next: d-fd0d4f60 (operator pre-merge session for live dashboard checks 1-4); d-84dc43e7 and d-3580c072 (shared-server e2e flakiness cluster, see gotcha).
+
+Gotchas:
+- E2E flake: `npm run test:e2e:worktree` flaked once on a cold start (shell beforeAll waitForProjects timeout: the shared dashboard server still showed a prior race test's wt-race-* projects); rerun passed 17/17. Shell code sound in isolation. Overlaps d-84dc43e7 and d-3580c072.
+- Task 16 wrote verification-evidence.md on the feature branch; it was relocated to the main spec store this run (branch commit 9e1d746 removes it) so the PR stays code-only.
+- log-implementation can silently drop the artifacts arg on large payloads (task 14 entry 28eb8506 has empty filesModified).
