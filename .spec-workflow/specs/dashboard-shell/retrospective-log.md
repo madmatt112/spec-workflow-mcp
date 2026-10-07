@@ -178,3 +178,13 @@ Cost: 6 spawns
 Spawn 5's final phase.end (2026-10-07T06:10:14.513Z, tasks 16/16) carried result=implementation (the stage name) instead of its PHASE value complete. This is the second malformed batch-end row this run, after spawn 1's missing result=. The supervisor patched it to result=complete.
 Evidence: harness-events.jsonl phase.end implementation ts 2026-10-07T06:10:14.513Z
 Cost: 1 supervisor patch
+
+## 2026-10-07T20:23:20Z · implementation · live-check · gotcha
+Overwatch pre-merge live check (1) passed, but the Now page's gate-A wait arrived in 4.1-4.2 s against the 5 s bound. shell-feed flush recomputes every spec of every project (src/dashboard/shell/shell-feed.ts flush -> spec-rows.ts), so a larger registry may exceed 5 s.
+Evidence: .spec-workflow/specs/dashboard-shell/verification-evidence.md (1) · overwatch subagent run 2026-10-07, isolated dashboard on :5599
+Cost: none yet; latency risk
+
+## 2026-10-07T20:23:20Z · implementation · live-check · product-bug
+Run row spec/runId mismatch: now-model.ts collectProject builds `runs` from resolveSpec (the HANDOFF spec) but `live` from the active-run pointer's spec, so a project whose pointer names a different spec (tradr pointer trading-rules) showed in Runs as self-host-experience with the live runId.
+Evidence: src/dashboard/shell/now-model.ts collectProject · overwatch live check 2026-10-07
+Cost: wrong run label on the Runs list when HANDOFF and pointer disagree
