@@ -282,7 +282,10 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    the first round with INFO-only notes, switch remaining non-sensitive tasks to batched
    verification (one spawn per group) — always verifying gate, security, and data-loss
    tasks in full. Do not spend one verifier spawn per task by default. Never treat
-   tdd-inconclusive as a risk signal on a type-level or pure-function seam. Take N as 3.
+   tdd-inconclusive as a risk signal on a type-level or pure-function seam. A marked task
+   whose seam is pure-function or type/schema-level either supplies a `tdd-test-command`
+   that is red at base, or the gate records `tdd-inconclusive` as an explicit not-a-risk
+   disposition; an unscored marked task is never a silent pass (retro G2). Take N as 3.
    A gate, security (a sensitive-path match) or data-loss task is always verified in full
    and never counts toward the batch or joins a group. For a batched group, carry every
    grouped task's id, files and `## Gate results` into one verifier brief (the `batch`
