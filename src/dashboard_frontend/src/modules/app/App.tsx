@@ -9,7 +9,8 @@ import { I18nErrorBoundary } from '../../components/I18nErrorBoundary';
 import { Sidebar } from '../shell/Sidebar';
 import { UsagePage } from '../shell/UsagePage';
 import { DeferralsPage } from '../shell/DeferralsPage';
-import { NowStub, RunsStub, RunDetailStub, SpecsStub } from '../shell/stubs';
+import { NowPage } from '../shell/NowPage';
+import { RunsStub, RunDetailStub, SpecsStub } from '../shell/stubs';
 
 function Shell() {
   return (
@@ -17,7 +18,7 @@ function Shell() {
       <Sidebar />
       <main className="min-w-0 flex-1 px-4 py-4 sm:px-6">
         <Routes>
-          <Route path="/" element={<NowStub />} />
+          <Route path="/" element={<NowPage />} />
           <Route path="/runs" element={<RunsStub />} />
           <Route path="/runs/:projectId" element={<RunDetailStub />} />
           <Route path="/specs" element={<SpecsStub />} />

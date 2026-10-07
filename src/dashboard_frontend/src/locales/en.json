@@ -792,6 +792,39 @@
       "usage": "Usage",
       "deferrals": "Deferrals"
     },
+    "now": {
+      "waiting": "Waiting on you",
+      "live": "Live runs",
+      "idle": "Idle projects",
+      "closed": "Recently closed",
+      "none": "—",
+      "tok": "tok",
+      "noLaunchable": "No launchable spec",
+      "noGatePayload": "no gate payload",
+      "phase": "Phase",
+      "state": "State",
+      "note": "Note",
+      "exitCode": "Exit code",
+      "signal": "Signal",
+      "endTime": "End time",
+      "logPath": "Log path",
+      "agent": "Agent",
+      "lastTool": "Last tool",
+      "lastActivity": "Last activity",
+      "empty": {
+        "waiting": "Nothing waiting on you.",
+        "live": "No live runs.",
+        "idle": "No idle projects.",
+        "closed": "Nothing closed recently."
+      },
+      "kind": {
+        "gate": "Gate",
+        "ruling": "Ruling",
+        "retro": "Retro",
+        "exited": "Exited",
+        "quiet": "Quiet"
+      }
+    },
     "usage": {
       "placeholder": "The usage views arrive in a later release."
     },
