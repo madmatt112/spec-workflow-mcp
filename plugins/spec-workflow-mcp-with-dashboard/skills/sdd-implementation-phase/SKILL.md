@@ -247,7 +247,11 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    sha (`<implementer commit>^`, set in Step 1) when it has one, `files` = `nextTask.files`
    (the task's declared files from the orient queue, design D10), and `checks` = the
    commands in the implementer's `checks-file` (design D17), one shell string each,
-   dropping a bare typecheck command (the gate runs the project typecheck itself). On a
+   dropping a bare typecheck command (the gate runs the project typecheck itself). Reject a
+   `checks-file` that is not a flat array of shell strings (an array of objects, say) rather
+   than reconstruct it by hand: re-spawn the implementer with the brief plus "re-emit
+   `checks-file` as a JSON array of the runnable shell-command strings you ran, one per
+   entry" and read the re-emitted file (retro P2). On a
    marked task, also pass `tdd: { testFiles: <the author's test files>, redCommit: <the
    author's `commit:` sha from step 1b> }` on every gate call for this task, through every
    fix round.
