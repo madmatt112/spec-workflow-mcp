@@ -6,6 +6,8 @@
 // copied by hand from src/dashboard/harness/types.ts and, for RunModel and the
 // rows it references, from src/watch/ledger.ts. Keep them in step.
 
+import type { RunDetail } from '../shell/types';
+
 // --- Row types copied from src/watch/ledger.ts ---
 
 export interface AgentProfile {
@@ -195,6 +197,7 @@ export type HarnessMessage =          // server to client
       profiles: Record<string, AgentProfile>; launch: LaunchRecord | null } }
   | { type: 'harness-log'; projectId: string; data: { launchedAt: string; lines: string[]; reset: boolean } }
   | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
+  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null }
   | { type: 'overview-rows'; data: { rows: OverviewRow[] } }
   | { type: 'overview-todos'; data: { todos: Todo[] } };
 

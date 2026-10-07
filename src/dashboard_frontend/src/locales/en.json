@@ -778,5 +778,30 @@
       "since": "Since",
       "note": "Note"
     }
+  },
+  "shell": {
+    "title": "Spec Workflow",
+    "disconnected": "Disconnected",
+    "projects": "Projects",
+    "openMenu": "Open menu",
+    "stub": "This page arrives in a later task.",
+    "nav": {
+      "now": "Now",
+      "runs": "Runs",
+      "specs": "Specs",
+      "usage": "Usage",
+      "deferrals": "Deferrals"
+    },
+    "usage": {
+      "placeholder": "The usage views arrive in a later release."
+    },
+    "gear": {
+      "settings": "Settings",
+      "theme": "Theme",
+      "density": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact",
+      "volume": "Volume"
+    }
   }
 }

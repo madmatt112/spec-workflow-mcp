@@ -1,21 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { ViewMessage } from '../harness/types';
 
-type InitialPayload = {
-  specs: any[];
-  approvals: any[];
-};
-
 /** A page's live view: the per-project harness pane, or the global overview. */
 export type WatchView =
   | { kind: 'harness'; projectId: string }
   | { kind: 'overview' };
 
+type MessageHandler = (data: any, projectId?: string) => void;
+
 type WsContextType = {
   connected: boolean;
-  initial?: InitialPayload;
-  subscribe: (eventType: string, handler: (data: any) => void) => void;
-  unsubscribe: (eventType: string, handler: (data: any) => void) => void;
+  subscribe: (eventType: string, handler: MessageHandler) => void;
+  unsubscribe: (eventType: string, handler: MessageHandler) => void;
   /**
    * Subscribe the socket to a view for as long as at least one caller holds it.
    * The first caller sends the subscribe message; the returned release function,
@@ -26,11 +22,6 @@ type WsContextType = {
 };
 
 const WsContext = createContext<WsContextType | undefined>(undefined);
-
-interface WebSocketProviderProps {
-  children: React.ReactNode;
-  projectId: string | null;
-}
 
 // Reconnection constants
 const MAX_RETRY_DELAY = 30000;
@@ -52,18 +43,16 @@ function unsubscribeMessage(view: WatchView): ViewMessage {
     : { type: 'overview-unsubscribe' };
 }
 
-export function WebSocketProvider({ children, projectId }: WebSocketProviderProps) {
+export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false);
-  const [initial, setInitial] = useState<InitialPayload | undefined>(undefined);
   const wsRef = useRef<WebSocket | null>(null);
-  const eventHandlersRef = useRef<Map<string, Set<(data: any) => void>>>(new Map());
+  const eventHandlersRef = useRef<Map<string, Set<MessageHandler>>>(new Map());
   const retryTimerRef = useRef<any>(null);
-  const currentProjectIdRef = useRef<string | null>(null);
   const retryDelayRef = useRef(INITIAL_RETRY_DELAY);
   // Reference count per view key; the descriptor is kept so onopen can re-subscribe.
   const viewsRef = useRef<Map<string, { view: WatchView; count: number }>>(new Map());
 
-  const connectToWebSocket = useCallback((targetProjectId: string | null) => {
+  const connect = useCallback(() => {
     // Close existing connection if any
     if (wsRef.current) {
       wsRef.current.onclose = null; // Prevent reconnection
@@ -77,15 +66,11 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
       retryTimerRef.current = null;
     }
 
-    // Build WebSocket URL with projectId query parameter
+    // One socket with no project; the run page binds one project at a time via a
+    // harness-subscribe message (design D11).
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = targetProjectId
-      ? `${protocol}//${location.host}/ws?projectId=${encodeURIComponent(targetProjectId)}`
-      : `${protocol}//${location.host}/ws`;
-
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`${protocol}//${location.host}/ws`);
     wsRef.current = ws;
-    currentProjectIdRef.current = targetProjectId;
 
     ws.onopen = () => {
       setConnected(true);
@@ -105,15 +90,12 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
         return;
       }
 
-      // Only retry if we're still on the same project
-      if (currentProjectIdRef.current === targetProjectId) {
-        retryTimerRef.current = setTimeout(() => {
-          connectToWebSocket(targetProjectId);
-        }, retryDelayRef.current);
+      retryTimerRef.current = setTimeout(() => {
+        connect();
+      }, retryDelayRef.current);
 
-        // Exponential backoff for next retry
-        retryDelayRef.current = Math.min(retryDelayRef.current * 1.5, MAX_RETRY_DELAY);
-      }
+      // Exponential backoff for next retry
+      retryDelayRef.current = Math.min(retryDelayRef.current * 1.5, MAX_RETRY_DELAY);
     };
 
     ws.onerror = () => {
@@ -123,31 +105,11 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-
-        // Handle initial message
-        if (msg.type === 'initial' && msg.projectId === targetProjectId) {
-          setInitial({ specs: msg.data?.specs || [], approvals: msg.data?.approvals || [] });
-        }
-        // Handle projects-update (global message)
-        else if (msg.type === 'projects-update') {
-          const handlers = eventHandlersRef.current.get('projects-update');
-          if (handlers) {
-            handlers.forEach(handler => handler(msg.data));
-          }
-        }
-        // Handle the global overview messages by type, with no project check.
-        else if (msg.type === 'overview-rows' || msg.type === 'overview-todos') {
-          const handlers = eventHandlersRef.current.get(msg.type);
-          if (handlers) {
-            handlers.forEach(handler => handler(msg.data));
-          }
-        }
-        // Handle project-scoped messages (including harness-*, which carry projectId)
-        else if (msg.projectId === targetProjectId) {
-          const handlers = eventHandlersRef.current.get(msg.type);
-          if (handlers) {
-            handlers.forEach(handler => handler(msg.data));
-          }
+        // Call every handler of this message's type with its data and projectId;
+        // handlers that care about a single project filter on projectId.
+        const handlers = eventHandlersRef.current.get(msg.type);
+        if (handlers) {
+          handlers.forEach(handler => handler(msg.data, msg.projectId));
         }
       } catch {
         // ignore
@@ -155,16 +117,8 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
     };
   }, []);
 
-  // Connect/reconnect when projectId changes
   useEffect(() => {
-    if (projectId) {
-      // Clear initial data when switching projects
-      setInitial(undefined);
-      // Reset retry delay when switching projects
-      retryDelayRef.current = INITIAL_RETRY_DELAY;
-      connectToWebSocket(projectId);
-    }
-
+    connect();
     return () => {
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
@@ -174,16 +128,16 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
         wsRef.current.close();
       }
     };
-  }, [projectId, connectToWebSocket]);
+  }, [connect]);
 
-  const subscribe = useCallback((eventType: string, handler: (data: any) => void) => {
+  const subscribe = useCallback((eventType: string, handler: MessageHandler) => {
     if (!eventHandlersRef.current.has(eventType)) {
       eventHandlersRef.current.set(eventType, new Set());
     }
     eventHandlersRef.current.get(eventType)!.add(handler);
   }, []);
 
-  const unsubscribe = useCallback((eventType: string, handler: (data: any) => void) => {
+  const unsubscribe = useCallback((eventType: string, handler: MessageHandler) => {
     const handlers = eventHandlersRef.current.get(eventType);
     if (handlers) {
       handlers.delete(handler);
@@ -224,11 +178,10 @@ export function WebSocketProvider({ children, projectId }: WebSocketProviderProp
 
   const value = useMemo(() => ({
     connected,
-    initial,
     subscribe,
     unsubscribe,
     watchView
-  }), [connected, initial, subscribe, unsubscribe, watchView]);
+  }), [connected, subscribe, unsubscribe, watchView]);
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
@@ -238,5 +191,3 @@ export function useWs(): WsContextType {
   if (!ctx) throw new Error('useWs must be used within WebSocketProvider');
   return ctx;
 }
-
-
