@@ -92,7 +92,9 @@ live in `references/stops.md`. Read each file only when a step routes to it.
     the verify `role` add ` round <r>` for r ≥ 1, and the `logged: no` re-spawn `role`
     adds ` retry`. Row types and keys never change.
   Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
-  <done>/<total>"` at the end of Step 0 and `phase.end` right before your final report. The
+  <done>/<total>"` at the end of Step 0 and `phase.end` — always carrying
+  `result=<the PHASE value of your final report>` (phase-log rejects a row without it, and
+  the supervisor must never be left to patch it in) — right before your final report. The
   event types, keys and roles are listed in the supervisor's `references/formats.md`. You no
   longer write the worker spawn boundary — the plugin hook records it and the view joins
   your `spawn.usage` to it by agent and time window. On a non-zero `book.sh` exit re-run the
