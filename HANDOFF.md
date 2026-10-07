@@ -801,4 +801,4 @@ Gotchas:
 
 ## dashboard-shell — implementation
 
-| State | tasks 15/16, last commit 926112a, next task 16 |
+| State | tasks 16/16, last commit f938ca5, completion gate |

@@ -158,3 +158,8 @@ Cost: 1 spawn
 Implementer checks-file carried human-readable annotations and inverted-exit greps (no-match = exit 1 = pass); orchestrator normalized to gate-valid shell with ! and -q so exit 0 = pass.
 Evidence: task 15; 0 fix rounds, gate pass · mark run-20261006-170927 0ab57339
 Cost: 1 spawn
+
+## 2026-10-07T05:50:01Z · implementation · task 16 · gotcha
+Verification-only task: no gate/verifier; implementer ran invariants.sh (a/b/c no violation) plus full build/tsc/test (1889 passed, 2 skipped); evidence file committed on the feature branch, orchestrator relocates to the main spec store at the merge gate.
+Evidence: task 16; 0 fix rounds, verification-only · mark run-20261006-170927 74dfe349
+Cost: 1 spawn

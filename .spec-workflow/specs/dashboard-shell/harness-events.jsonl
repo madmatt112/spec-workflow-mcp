@@ -320,3 +320,10 @@
 {"ts":"2026-10-07T05:44:12.976Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"note","text":"gate: task 15 pass risk low"}
 {"ts":"2026-10-07T05:44:13.080Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 15","phase":"implementation","task":"15","result":"logged: yes/15"}
 {"ts":"2026-10-07T05:44:13.189Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"task.done","task":"15","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-07T05:44:13.660Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"task.pick","task":"16","title":"Invariant checks and operator evidence"}
+{"ts":"2026-10-07T05:44:44.438Z","type":"spawn.start","run":"run-20261006-170927","spec":"dashboard-shell","agent":"sdd-implementer","role":"impl"}
+{"ts":"2026-10-07T05:44:46.527Z","type":"spawn.end","run":"run-20261006-170927","spec":"dashboard-shell","agent":"sdd-implementation-orchestrator","input":"86","output":"832","cacheWrite":"117536","cacheRead":"3653647","tokens":"3772101","cacheWrite5m":"0","cacheWrite1h":"117536","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ae1bd50f31ddfcde7"}
+{"ts":"2026-10-07T05:49:46.463Z","type":"spawn.end","run":"run-20261006-170927","spec":"dashboard-shell","agent":"sdd-implementer","input":"50","output":"377","cacheWrite":"44617","cacheRead":"1069638","tokens":"1114682","cacheWrite5m":"44617","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a89a2620699366420"}
+{"ts":"2026-10-07T05:49:46.463Z","type":"spawn.report","run":"run-20261006-170927","spec":"dashboard-shell","agent":"sdd-implementer","report":"Now I'll write the checks JSON file, then log the implementation.","agentId":"a89a2620699366420"}
+{"ts":"2026-10-07T05:50:01.220Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 16","phase":"implementation","task":"16","result":"logged: yes/16"}
+{"ts":"2026-10-07T05:50:01.261Z","run":"run-20261006-170927","spec":"dashboard-shell","type":"task.done","task":"16","rounds":"0","outcome":"gate"}
