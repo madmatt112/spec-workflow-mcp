@@ -1,636 +1,19 @@
 {
-  "documentTitle": "{{projectName}} Dashboard",
-  "projectNameDefault": "Spec Workflow",
-  "projectDescription": "Development workflow dashboard",
-  "nav": {
-    "statistics": "Statistics",
-    "steering": "Steering",
-    "specs": "Specs",
-    "harness": "Harness",
-    "overview": "Overview",
-    "tasks": "Tasks",
-    "approvals": "Approvals",
-    "deferrals": "Deferrals",
-    "adversarial": "Adversarial Analysis",
-    "settings": "Settings",
-    "logs": "Implementation Logs"
-  },
-  "connectionStatus": {
-    "connected": "Connected",
-    "disconnected": "Disconnected"
-  },
   "theme": {
-    "toggle": "Toggle theme",
     "dark": "Dark",
     "light": "Light"
-  },
-  "mobile": {
-    "menu": "Menu",
-    "closeMenu": "Close menu",
-    "notificationVolume": "Notification Volume",
-    "theme": "Theme"
-  },
-  "stats": {
-    "specifications": {
-      "title": "Specifications",
-      "label": "Active specs"
-    },
-    "taskProgress": {
-      "title": "Task Progress",
-      "summary_one": "{{count}} task across {{specs}} spec",
-      "summary_other": "{{count}} tasks across {{specs}} specs",
-      "noActiveSpecs": "No active specs"
-    },
-    "approvals": {
-      "title": "Approvals",
-      "awaiting": "Awaiting review",
-      "allClear": "All clear"
-    }
-  },
-  "comingSoon": {
-    "title": "More Features Coming Soon",
-    "description": "We're working on additional analytics and insights for your development workflow. Stay tuned for updates!"
-  },
-  "links": {
-    "npm": "npm package",
-    "github": "GitHub"
-  },
-  "editor": {
-    "markdown": {
-      "title": "Markdown Editor",
-      "saving": "Saving...",
-      "save": "Save",
-      "saved": "Saved",
-      "error": "Error",
-      "unsavedChanges": "Unsaved changes",
-      "hints": "Ctrl+S to save • Tab to indent",
-      "placeholder": "Start typing your markdown content...",
-      "lines": "Lines",
-      "characters": "Characters"
-    }
-  },
-  "specViewer": {
-    "header": { "title": "Spec Documents" },
-    "tooltips": { "viewRendered": "View rendered document", "viewSource": "View source markdown" },
-    "empty": { "docNotCreated": "This {{doc}} document hasn't been created yet." }
   },
   "language": {
     "select": "Select language"
   },
   "common": {
-    "refresh": "Refresh",
-    "all": "All",
-    "loading": "Loading…",
-    "viewMode": {
-      "rendered": "Rendered",
-      "source": "Source",
-      "editor": "Editor"
-    },
-    "loadingContent": "Loading content...",
-    "noContentAvailable": "No content available",
-    "percentComplete": "{{percent}}% complete",
-    "lastModified": "Last modified {{date}}",
     "never": "Never",
-    "unknown": "Unknown",
-    "close": "Close",
-    "keepEditing": "Keep Editing",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "processing": "Processing...",
-    "closeModalAria": "Close modal",
-    "ok": "OK",
-    "unsavedChanges": {
-      "title": "Unsaved Changes",
-      "message": "You have unsaved changes. Are you sure you want to close without saving?"
-    }
-  },
-  "tasksPage": {
-    "header": {
-      "title": "Task Management",
-      "subtitle": {
-        "selected": "Manage and track task completion",
-        "unselected": "Select a specification to view and manage its tasks"
-      }
-    },
-    "taskDetails": "Task Details",
-    "status": "Status",
-    "noTasksFound": "No tasks found",
-    "showAllTasks": "Show all tasks",
-    "noTasksWithStatus": "No tasks with status \"{{status}}\" found.",
-    "noTasksAvailable": "No tasks available for this specification",
-    "showingTasksWithStatus": "Showing {{count}} tasks with status \"{{status}}\"",
-    "filters": {
-      "all": "All",
-      "pending": "Pending",
-      "inProgress": "In Progress",
-      "completed": "Completed",
-      "filterByTooltip": "Filter by {{status}} tasks"
-    },
-    "sort": {
-      "label": "Sort",
-      "defaultOrder": "Default Order",
-      "defaultOrderDesc": "Original task order",
-      "status": "Status",
-      "statusDesc": "Group by task status",
-      "taskId": "Task ID",
-      "taskIdDesc": "Sort by task identifier",
-      "description": "Description",
-      "descriptionDesc": "Sort alphabetically by description",
-      "byStatus": "By Status",
-      "byTaskId": "By Task ID",
-      "byDescription": "By Description",
-      "changeSortOrder": "Change sort order",
-      "sortOrder": "Sort Order",
-      "ascending": "Ascending",
-      "descending": "Descending",
-      "sortAscending": "Sort ascending",
-      "sortDescending": "Sort descending"
-    },
-    "statusPill": {
-      "pending": "Pending",
-      "inProgress": "In Progress",
-      "completed": "Completed",
-      "clickToChange": "Click to change status"
-    },
-    "dropdown": {
-      "selectPlaceholder": "Select a spec...",
-      "completedOutOfTotal": "{{completed}} / {{total}} tasks completed",
-      "completedOutOfTotalShort": "{{completed}} / {{total}} tasks"
-    },
-    "search": {
-      "placeholder": "Search specs...",
-      "noSpecsFound": "No specs found",
-      "tryAdjusting": "Try adjusting your search"
-    },
-    "loading": "Loading task progress…",
-    "overallProgress": "Overall Progress",
-    "item": {
-      "section": "Section",
-      "task": "Task",
-      "groupBadge": "Task Group"
-    },
-    "files": { "label": "Files:" },
-    "implementation": { "label": "Implementation:" },
-    "labels": { "spec": "Spec:" },
-    "noSpecsFound": {
-      "title": "No specs found",
-      "noMatch": "No specs match \"{{query}}\"",
-      "noSpecsAvailable": "No specifications available to manage tasks for."
-    },
-    "copyFailed": {
-      "title": "Copy Failed",
-      "message": "Copy failed. Please copy this text manually:"
-    },
-    "copyPrompt": {
-      "tooltip": "Copy prompt for AI agent",
-      "copied": "Copied!",
-      "copyPrompt": "Copy Prompt",
-      "copy": "Copy"
-    },
-    "notifications": {
-      "statusUpdated": "Task {{taskId}} marked as {{status}}",
-      "updateFailed": "Failed to update task {{taskId}} status",
-      "updateError": "Error updating task {{taskId}} status"
-    },
-    "noTaskData": "No task data available",
-    "stats": {
-      "total": "Total",
-      "totalDesc": "All tasks",
-      "done": "Done",
-      "doneDesc": "Completed",
-      "left": "Left",
-      "leftDesc": "Remaining",
-      "progress": "Progress",
-      "progressDesc": "Complete"
-    }
-  },
-  "specsPage": {
-    "header": {
-      "title": "Specifications",
-      "subtitle": {
-        "active": "View and manage active requirements, design and task documents",
-        "archived": "View archived specifications"
-      }
-    },
-    "modal": {
-      "archivedBadge": "Archived",
-      "archivedNotice": "Archived specification (editing enabled)",
-      "closeAria": "Close spec viewer",
-      "docLabel": "Doc:",
-      "docSelectAria": "Select document type"
-    },
-    "documents": {
-      "requirements": "Requirements",
-      "design": "Design",
-      "tasks": "Tasks"
-    },
-    "table": {
-      "name": "Name",
-      "progress": "Progress",
-      "lastModified": "Last Modified",
-      "actions": "Actions"
-    },
-    "sort": {
-      "defaultOrder": "Default Order",
-      "defaultOrderDesc": "Original spec order",
-      "name": "Name",
-      "nameDesc": "Sort alphabetically by name",
-      "progress": "Progress",
-      "progressDesc": "Sort by task completion percentage",
-      "lastModified": "Last Modified",
-      "lastModifiedDesc": "Sort by modification date"
-    },
-    "noTasks": "No tasks",
-    "search": {
-      "placeholder": {
-        "active": "Search active specs...",
-        "archived": "Search archived specs..."
-      }
-    },
-    "empty": {
-      "title": "No Documents Available",
-      "description": "This spec doesn't have any documents created yet.",
-      "noResults": "No specs found",
-      "noResultsDescription": "Try adjusting your search or filters"
-    },
-    "tabs": {
-      "active": "Active",
-      "archived": "Archive"
-    }
-  },
-  "steeringPage": {
-    "header": {
-      "title": "Steering Documents",
-      "subtitle": "View and manage project steering documents for product guidance, technical architecture, structure, and design system"
-    },
-    "table": {
-      "document": "Document",
-      "status": "Status",
-      "lastModified": "Last Modified",
-      "actions": "Actions"
-    },
-    "badge": {
-      "available": "Available",
-      "notCreated": "Not Created"
-    },
-    "modal": {
-      "title": "{{name}} Steering Document",
-      "closeAria": "Close steering document"
-    },
-    "controls": {
-      "documentLabel": "Document:"
-    },
-    "empty": {
-      "title": "No Steering Documents",
-      "description": "Steering documents provide project context and guidance. Click on any document above to create or view it."
-    }
-  },
-  "approvals": {
-    "status": {
-      "pending": "pending",
-      "needsRevision": "needs revision",
-      "approved": "approved",
-      "rejected": "rejected"
-    },
-    "annotator": {
-      "instructions": {
-        "title": "How to annotate:",
-        "mobile": "Select text → double tap selection → comment dialog appears. Tap highlighted text to edit comments.",
-        "step1": "• Select any text to add a comment - a dialog will appear automatically",
-        "step2": "• Click on existing highlights (colored text) to view or edit comments",
-        "step3": "• Use the \"Add General Comment\" button for document-wide feedback"
-      },
-      "editCommentTitle": "Edit Comment",
-      "addCommentTitle": "Add Comment",
-      "subtitle": "Comment on the highlighted text below",
-      "highlightedText": "Highlighted Text:",
-      "chooseHighlightColor": "Choose Highlight Color:",
-      "pickColorTooltip": "Pick highlight color",
-      "yourComment": "Your Comment:",
-      "commentPlaceholder": "Enter your comment here...",
-      "hints": {
-        "desktop": "Press Ctrl/Cmd + Enter to save, or Escape to cancel",
-        "mobile": "Tap Save to confirm"
-      },
-      "updateCommentButton": "Update Comment",
-      "addCommentButton": "Add Comment",
-      "updateShort": "Update",
-      "saveShort": "Save",
-      "tooltips": {
-        "viewEditComment": "Click to view/edit comment",
-        "editComment": "Edit comment",
-        "deleteComment": "Delete comment"
-      },
-      "badge": {
-        "textSelection": "Text Selection",
-        "generalComment": "General Comment"
-      },
-      "colorHighlight": "{{color}} highlight",
-      "addGeneralComment": {
-        "title": "Add General Comment",
-        "placeholder": "Enter a general comment...",
-        "submit": "Add Comment",
-        "button": "Add General Comment"
-      },
-      "addCommentShort": "Add Comment",
-      "empty": {
-        "title": "No comments yet",
-        "description": "Select text or add a general comment"
-      },
-      "switchHelp": "Switch to Annotate mode to add comments by selecting text or add general feedback.",
-      "viewMode": {
-        "preview": "Preview",
-        "annotate": "Annotate",
-        "sideBySide": "Side by Side"
-      },
-      "sideBySide": {
-        "title": "Side by Side View",
-        "buttonLabel": "Side by Side",
-        "tooltip": "View source and preview side by side",
-        "sourceLabel": "Source (Annotate)",
-        "previewLabel": "Preview",
-        "syncEnabled": "Scroll sync is enabled",
-        "syncDisabled": "Scroll sync is disabled",
-        "syncOn": "Sync On",
-        "syncOff": "Sync Off",
-        "instructions": "Select text in the source panel (left) to add comments. The preview panel (right) shows the rendered document."
-      },
-      "delete": {
-        "title": "Delete Comment",
-        "message": "Are you sure you want to remove this comment? This action cannot be undone."
-      }
-    }
-  },
-  "approvalsPage": {
-    "header": {
-      "title": "Approvals",
-      "subtitle": "Review and manage pending approval requests"
-    },
-    "pendingCount_one": "{{count}} pending",
-    "pendingCount_other": "{{count}} pending",
-    "messages": {
-      "approvedViaDashboard": "Approved via dashboard"
-    },
-    "actions": {
-      "openReview": "Review & Annotate",
-      "closeReview": "Close Review",
-      "reviewShort": "Review",
-      "quickApprove": "Quick Approve",
-      "approve": "Approve",
-      "quickReject": "Quick Reject",
-      "reject": "Reject",
-      "requestRevisions": "Request Revisions",
-      "revisions": "Revisions",
-      "useBatchActions": "Use batch actions for multiple items"
-    },
-    "tooltips": {
-      "goToAnnotations": "Go to annotations",
-      "goToComments": "Go to comments"
-    },
-    "filter": {
-      "label": "Filter by:",
-      "options": {
-        "all": "All Documents",
-        "steering": "Steering Documents"
-      }
-    },
-    "empty": {
-      "title": "No Pending Approvals",
-      "description": "All approvals have been processed. New approval requests will appear here."
-    },
-    "revisions": {
-      "header": "Pending Revisions",
-      "description": "These items are awaiting revision by the agent. No actions are available until revisions are complete.",
-      "count_one": "{{count}} awaiting revision",
-      "count_other": "{{count}} awaiting revision"
-    },
-    "reject": {
-      "title": "Reject Approval",
-      "placeholder": "Please provide feedback explaining why this is being rejected...",
-      "submit": "Reject"
-    },
-    "batchReject": {
-      "title": "Reject {{count}} Items",
-      "placeholder": "Enter a rejection reason that will apply to all selected items (e.g., 'Needs Principal Engineer review')...",
-      "submit": "Reject All"
-    },
-    "approvalWarning": {
-      "title": "Cannot Approve",
-      "message": "Cannot approve when comments exist. Use \"Request Revisions\" to send feedback."
-    },
-    "revision": {
-      "noCommentsTitle": "No Comments Added",
-      "noCommentsMessage": "Please add at least one comment before requesting revisions."
-    },
-    "selection": {
-      "enterMode": "Select Items",
-      "exitMode": "Cancel Selection",
-      "select": "Select",
-      "selectAll": "Select All",
-      "selectedCount_one": "{{count}} selected",
-      "selectedCount_other": "{{count}} selected",
-      "selectItem": "Select {{title}}",
-      "approveSelected": "Approve Selected",
-      "rejectSelected": "Reject Selected"
-    },
-    "batchConfirm": {
-      "title": "Confirm Batch Action",
-      "message": "You are about to {{action}} {{count}} items. This action cannot be undone. Are you sure you want to continue?",
-      "confirm": "Yes, proceed"
-    },
-    "batchResult": {
-      "title": "{{succeeded}} of {{total}} items processed",
-      "failedCount_one": "{{count}} item failed",
-      "failedCount_other": "{{count}} items failed",
-      "undo": "Undo"
-    },
-    "notifications": {
-      "approved": "\"{{title}}\" has been approved",
-      "approveFailed": "Failed to approve \"{{title}}\"",
-      "rejected": "\"{{title}}\" has been rejected",
-      "rejectFailed": "Failed to reject \"{{title}}\"",
-      "revisionRequested": "Revisions requested for \"{{title}}\"",
-      "revisionFailed": "Failed to request revisions for \"{{title}}\""
-    },
-    "adversarialReview": {
-      "button": "Adversarial Review",
-      "confirmTitle": "Start Adversarial Review",
-      "confirmMessage": "This will launch a background adversarial review using a Claude subagent. The review typically takes a few minutes. Continue?",
-      "confirmYes": "Yes, start review",
-      "started": "Adversarial review started. Progress is shown on the approval card.",
-      "error": "Failed to start adversarial review",
-      "stepRunningReview": "Running review",
-      "reviewComplete": "Adversarial review complete",
-      "reviewFailed": "Adversarial review failed",
-      "nextStep": "Next: Tell a Claude agent to respond to the requested revision on this approval.",
-      "retry": "Retry",
-      "retryResume": "Resume review",
-      "dismiss": "Dismiss",
-      "reviewIncomplete": "Adversarial review incomplete",
-      "reviewIncompleteDescription": "A previous review was started but did not finish. This may have been caused by a server restart."
-    }
-  },
-  "adversarialPage": {
-    "header": {
-      "title": "Adversarial Analysis",
-      "subtitle": "Browse historical adversarial reviews and configure review settings"
-    },
-    "tabs": {
-      "reviews": "Reviews",
-      "settings": "Settings"
-    },
-    "reviews": {
-      "selectSpec": "Specification",
-      "selectReview": "Select a phase and version to view the review",
-      "emptyTitle": "No Adversarial Reviews",
-      "emptyDesc": "Adversarial reviews will appear here once triggered from the Approvals page or MCP tools.",
-      "loadError": "Failed to load review content"
-    },
-    "settings": {
-      "preambleLabel": "Custom Preamble",
-      "preambleHelp": "Additional instructions prepended to every adversarial review prompt. The defaults work well for most projects.",
-      "preamblePlaceholder": "e.g., Focus on security implications and data privacy concerns...",
-      "preambleOptional": "Optional",
-      "requiredPhasesLabel": "Required Phases",
-      "requiredPhasesHelp": "Phases that must have an adversarial review before approval.",
-      "save": "Save Settings",
-      "saved": "Settings saved",
-      "saveError": "Failed to save settings",
-      "reviewMethodologyLabel": "Review Methodology",
-      "reviewMethodologyHelp": "Instructions for how the adversarial review prompt is constructed. Leave empty to use the default.",
-      "responseMethodologyLabel": "Response Methodology",
-      "responseMethodologyHelp": "Instructions for how to evaluate and respond to adversarial findings. Leave empty to use the default.",
-      "resetToDefault": "Reset to default",
-      "usingDefault": "Default",
-      "usingCustom": "Custom"
-    }
-  },
-  "deferrals": {
-    "title": "Deferrals",
-    "subtitle": "Decisions and specs explicitly deferred during spec work. {{deferred}} open, {{resolved}} resolved, {{superseded}} superseded.",
-    "noProject": "Select a project to view deferrals.",
-    "specsHeading": "Deferred Specs ({{count}})",
-    "specsDescription": "Whole specs postponed in the build order. Excluded from the active roadmap in INDEX.md.",
-    "deferredAt": "Deferred",
-    "decisionsHeading": "Deferred Decisions",
-    "decisionsDescription": "Individual decisions punted during spec work, recorded with the conditions that should trigger a revisit.",
-    "duplicatesHeading": "Potential duplicates ({{count}} group(s))",
-    "duplicatesHint": "— consider merging",
-    "filterStatus": "Status",
-    "filterScope": "Scope",
-    "filterTag": "Tag",
-    "scopeProject": "Project-level",
-    "originSpec": "spec",
-    "revisit": "Revisit",
-    "created": "Created",
-    "resolved": "Resolved",
-    "supersedes": "Supersedes",
-    "supersededBy": "Superseded by",
-    "showDetails": "Show details",
-    "hideDetails": "Hide details",
-    "context": "Context",
-    "decision": "Decision Deferred",
-    "revisitCriteria": "Revisit Criteria",
-    "empty": "No deferrals recorded for this project yet.",
-    "emptyFiltered": "No deferrals match the current filters."
-  },
-  "logsPage": {
-    "header": {
-      "title": "Implementation Logs"
-    },
-    "search": {
-      "placeholder": "Search logs..."
-    },
-    "specDropdown": {
-      "selectPlaceholder": "Select Specification",
-      "searchPlaceholder": "Search specs...",
-      "noSpecsFound": "No specs found"
-    },
-    "filter": {
-      "label": "Filter by Task",
-      "all": "All",
-      "taskPrefix": "Task"
-    },
-    "sort": {
-      "timestamp": "Date/Time",
-      "timestampDesc": "Sort by log timestamp",
-      "taskId": "Task ID",
-      "taskIdDesc": "Sort by task identifier",
-      "linesAdded": "Lines Added",
-      "linesAddedDesc": "Sort by lines of code added",
-      "filesChanged": "Files Changed",
-      "filesChangedDesc": "Sort by number of files modified"
-    },
-    "stats": {
-      "title": "Code Statistics",
-      "linesAdded": "Lines Added",
-      "linesRemoved": "Lines Removed",
-      "filesChanged": "Files Changed",
-      "netChange": "Net Change",
-      "totalEntries": "Total Entries"
-    },
-    "files": {
-      "modified": "Files Modified",
-      "created": "Files Created"
-    },
-    "artifacts": {
-      "title": "Artifacts",
-      "apiEndpoints": "API Endpoints",
-      "components": "Components",
-      "functions": "Functions",
-      "classes": "Classes",
-      "integrations": "Integrations",
-      "details": {
-        "request": "Request:",
-        "response": "Response:",
-        "props": "Props:",
-        "exports": "Exports:",
-        "exported": "Exported",
-        "private": "Private",
-        "methods": "Methods:",
-        "component": "Component:",
-        "endpoint": "Endpoint:",
-        "flow": "Flow:"
-      }
-    },
-    "empty": {
-      "selectSpec": "Select a specification to view implementation logs",
-      "noResults": "No logs match your search filters",
-      "noLogs": "No implementation logs yet for this specification"
-    },
-    "loading": "Loading logs...",
-    "taskBadge": "Task"
+    "close": "Close"
   },
   "volumeControl": {
     "mute": "Mute notifications",
     "enable": "Enable notification sounds",
     "volumeLevel": "Volume: {{percentage}}%"
-  },
-  "settings": {
-    "title": "Settings",
-    "description": "Manage automated cleanup jobs that run across all connected projects",
-    "addJob": "Add Job",
-    "loading": "Loading jobs...",
-    "noJobs": "No automation jobs",
-    "noJobsDesc": "Create your first automation job to get started",
-    "createFirst": "Create First Job",
-    "addNewJob": "Add New Job",
-    "editJob": "Edit Job",
-    "deleteJob": "Delete Job",
-    "deleteConfirm": "Are you sure you want to delete this automation job? This action cannot be undone.",
-    "lastRun": "Last Run",
-    "schedule": "Schedule",
-    "runNow": "Run Now",
-    "running": "Running...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "cancel": "Cancel",
-    "close": "Close",
-    "jobDescription": "Delete records older than {{days}} days on schedule: {{schedule}}",
-    "section": {
-      "automatedCleanup": "Automated Cleanup",
-      "automatedCleanupDesc": "Automatically delete old approval records, specifications, and archived specifications based on a schedule. Configure cleanup jobs to run on a recurring basis across all connected projects."
-    }
   },
   "changelog": {
     "viewChangelog": "View changelog",
@@ -641,142 +24,242 @@
       "notFound": "Changelog not found for this version"
     }
   },
-  "harness": {
-    "title": "Harness",
-    "loadError": "Failed to load the run setup.",
-    "noProject": "Select a project to use the harness.",
-    "specs": {
-      "heading": "Specs",
-      "routed": "routed",
-      "phase": "Phase",
-      "status": "Status",
-      "progress": "Progress"
+  "shell": {
+    "title": "Spec Workflow",
+    "disconnected": "Disconnected",
+    "projects": "Projects",
+    "openMenu": "Open menu",
+    "nav": {
+      "now": "Now",
+      "runs": "Runs",
+      "specs": "Specs",
+      "usage": "Usage",
+      "deferrals": "Deferrals"
     },
-    "handoff": {
-      "heading": "HANDOFF routing",
-      "spec": "Spec",
+    "now": {
+      "waiting": "Waiting on you",
+      "live": "Live runs",
+      "idle": "Idle projects",
+      "closed": "Recently closed",
+      "none": "—",
+      "tok": "tok",
+      "noLaunchable": "No launchable spec",
+      "noGatePayload": "no gate payload",
       "phase": "Phase",
       "state": "State",
-      "result": "Result",
-      "none": "No HANDOFF routing for the active spec."
-    },
-    "form": {
-      "heading": "Run setup",
-      "agent": "Agent",
-      "role": "Role",
-      "model": "Model",
-      "provider": "Provider",
-      "effort": "Effort",
-      "declaredModel": "Declared model",
-      "effortFixed": "Effort is fixed per agent.",
-      "supervisor": "Supervisor",
-      "supervisorEffortFixed": "Supervisor effort is always high.",
-      "worktree": "Worktree",
-      "worktreeYes": "Yes",
-      "worktreeNo": "No",
-      "gates": "Gates",
-      "gatesBlock": "Block",
-      "gatesRecord": "Record",
-      "save": "Save",
-      "launch": "Launch",
-      "saving": "Saving...",
-      "launching": "Launching...",
-      "savedNotice": "A saved setup file exists, written {{writtenAt}}.",
-      "disabled": "The form is disabled: {{reason}}"
-    },
-    "provider": {
-      "anthropic": "Anthropic",
-      "deepseek": "DeepSeek"
-    },
-    "error": {
-      "heading": "Error",
-      "field": "Field",
-      "value": "Value",
-      "reason": "Reason",
-      "runId": "Run id",
-      "pid": "PID",
-      "step": "Step",
-      "detail": "Detail",
-      "notLaunchable": "Not launchable",
-      "runLive": "A run is already live",
-      "notRunning": "Nothing is running to stop.",
-      "generic": "The request failed."
-    },
-    "run": {
-      "heading": "Run",
-      "state": "State",
-      "pid": "PID",
-      "runId": "Run id",
+      "note": "Note",
       "exitCode": "Exit code",
-      "stop": "Stop",
-      "stopping": "Stopping..."
-    },
-    "live": {
-      "heading": "Live view",
-      "empty": "No run model yet.",
-      "spec": "Spec",
-      "codeRoot": "Code root",
-      "worktree": "Worktree",
-      "runId": "Run id",
-      "uptime": "Uptime",
-      "tokens": "Tokens",
-      "providers": "Providers",
-      "phases": "Phases",
-      "livePhase": "Live phase",
-      "spawns": "Spawn tree",
-      "declaredModel": "Declared",
-      "actualModel": "Model",
-      "provider": "Provider",
-      "tokensLabel": "Tokens",
-      "rounds": "Rounds",
-      "round": "Round",
-      "verdict": "Verdict",
-      "version": "Version",
-      "picks": "Picks",
-      "done": "Done",
-      "outcome": "Outcome",
-      "ticker": "Ticker",
-      "tasks": "Tasks",
-      "tdd": "TDD"
-    },
-    "gates": {
-      "heading": "Gates",
-      "gateA": "Gate A",
-      "gateB": "Gate B",
-      "none": "No gate sections recorded."
-    },
-    "logs": {
-      "heading": "Logs",
-      "empty": "No log output yet."
-    }
-  },
-  "overview": {
-    "title": "Overview",
-    "projects": {
-      "heading": "Projects",
-      "empty": "No projects registered.",
-      "waiting": "waiting",
-      "state": "State",
-      "stateValue": {
-        "running": "Running",
-        "idle": "Idle"
+      "signal": "Signal",
+      "endTime": "End time",
+      "logPath": "Log path",
+      "agent": "Agent",
+      "lastTool": "Last tool",
+      "lastActivity": "Last activity",
+      "empty": {
+        "waiting": "Nothing waiting on you.",
+        "live": "No live runs.",
+        "idle": "No idle projects.",
+        "closed": "Nothing closed recently."
       },
-      "spec": "Spec",
-      "livePhase": "Live phase",
-      "runId": "Run id",
-      "age": "Last row age",
-      "lastRow": "Last row"
+      "kind": {
+        "gate": "Gate",
+        "ruling": "Ruling",
+        "retro": "Retro",
+        "exited": "Exited",
+        "quiet": "Quiet"
+      }
     },
-    "todos": {
-      "heading": "To-do",
-      "empty": "No to-do items.",
-      "open": "open",
-      "done": "done",
-      "owner": "Owner",
-      "priority": "Priority",
-      "blocks": "Blocks",
-      "since": "Since",
-      "note": "Note"
+    "usage": {
+      "placeholder": "The usage views arrive in a later release."
+    },
+    "deferrals": {
+      "search": "Search title, id or origin spec",
+      "empty": "No deferrals.",
+      "projectScope": "Project-level",
+      "id": "ID",
+      "project": "Project",
+      "originSpec": "Origin spec",
+      "phase": "Phase",
+      "created": "Created",
+      "updated": "Updated",
+      "resolved": "Resolved",
+      "tags": "Tags",
+      "revisitTrigger": "Revisit trigger",
+      "resolution": "Resolution",
+      "context": "Context",
+      "decision": "Decision",
+      "revisitCriteria": "Revisit criteria",
+      "status": {
+        "deferred": "Deferred",
+        "resolved": "Resolved",
+        "superseded": "Superseded"
+      }
+    },
+    "specs": {
+      "search": "Search specs",
+      "empty": "No specs.",
+      "none": "—",
+      "loading": "Loading…",
+      "notFound": "spec not found",
+      "deferred": "deferred",
+      "project": "Project",
+      "order": "Order",
+      "dependsOn": "Depends on",
+      "runs": "Runs",
+      "phases": "Phases",
+      "deferrals": "Deferrals",
+      "files": "Files",
+      "noRuns": "No runs.",
+      "noPhases": "No phases.",
+      "noDeferrals": "No deferrals.",
+      "noFiles": "No files.",
+      "copyPath": "Copy path",
+      "state": {
+        "live": "Live",
+        "in-progress": "In progress",
+        "closed": "Closed",
+        "deferred": "Deferred",
+        "not-started": "Not started"
+      },
+      "run": {
+        "id": "Run",
+        "start": "Start",
+        "end": "End",
+        "status": "Status",
+        "tokens": "Tokens"
+      },
+      "phase": {
+        "phase": "Phase",
+        "state": "State",
+        "result": "Result",
+        "date": "Date"
+      }
+    },
+    "gear": {
+      "settings": "Settings",
+      "theme": "Theme",
+      "density": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact",
+      "volume": "Volume"
+    },
+    "runs": {
+      "title": "Runs",
+      "none": "—",
+      "launch": "Launch",
+      "noProjects": "No projects.",
+      "group": {
+        "live": "Live",
+        "ended": "Ended"
+      },
+      "empty": {
+        "live": "No live runs.",
+        "ended": "No ended runs."
+      },
+      "provider": {
+        "anthropic": "Anthropic",
+        "deepseek": "DeepSeek"
+      },
+      "card": {
+        "loadError": "Could not load setup.",
+        "spec": "Spec",
+        "supervisor": "Supervisor",
+        "worktree": "Worktree",
+        "worktree_yes": "yes",
+        "worktree_no": "no",
+        "model": "Model",
+        "provider": "Provider",
+        "gates": "Gates",
+        "gates_block": "block",
+        "gates_record": "record",
+        "roles": "Roles",
+        "launch": "Launch",
+        "launching": "Launching…",
+        "edit": "Edit setup",
+        "save": "Save setup",
+        "saving": "Saving…",
+        "noLaunchable": "No launchable spec.",
+        "disabledLive": "A run is live for this project.",
+        "disabledLaunching": "A launch is in progress."
+      },
+      "err": {
+        "heading": "The run was refused",
+        "runLive": "A run is already live",
+        "runId": "Run id",
+        "pid": "PID",
+        "notLaunchable": "Not launchable",
+        "notRunning": "No run is running for this project.",
+        "step": "Step",
+        "detail": "Detail",
+        "field": "Field",
+        "value": "Value",
+        "generic": "The operation failed."
+      },
+      "run": {
+        "back": "← Runs",
+        "noRun": "no run for this project",
+        "rounds": "Rounds",
+        "noRounds": "No rounds.",
+        "openSpawns": "Open spawns",
+        "noOpenSpawns": "No open spawns.",
+        "spawns": "Spawns",
+        "noSpawns": "No spawns.",
+        "stale": "idle >15m",
+        "declared": "declared",
+        "actual": "actual",
+        "elapsed": "elapsed",
+        "lastTool": "last tool",
+        "tasks": "Tasks",
+        "filter": "Filter",
+        "follow": "Follow",
+        "noRows": "No rows.",
+        "stop": "Stop",
+        "stopping": "Stopping…",
+        "savedSetup": "Saved setup",
+        "defaults": "Defaults",
+        "status": {
+          "done": "Done",
+          "in-progress": "In progress",
+          "open": "Open"
+        },
+        "task": {
+          "id": "ID",
+          "title": "Title",
+          "status": "Status",
+          "verdict": "Verdict",
+          "tdd": "TDD",
+          "risk": "Risk",
+          "fixRounds": "Fix rounds"
+        },
+        "round": {
+          "phase": "Phase",
+          "round": "Round",
+          "verdict": "Verdict",
+          "version": "Version"
+        },
+        "spawn": {
+          "role": "Role",
+          "declared": "Declared",
+          "actual": "Actual",
+          "tokens": "Tokens",
+          "elapsed": "Elapsed"
+        },
+        "tab": {
+          "ledger": "Ledger",
+          "activity": "Activity",
+          "process": "Process log"
+        },
+        "panel": {
+          "runId": "Run id",
+          "start": "Start",
+          "codeRoot": "Code root",
+          "worktree": "Worktree",
+          "headless": "Headless",
+          "providers": "Providers",
+          "tokens": "Tokens",
+          "pid": "Launch PID"
+        }
+      }
     }
   }
 }

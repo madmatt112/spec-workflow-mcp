@@ -41,6 +41,8 @@ import { HarnessLauncher, LaunchError } from './harness/launcher.js';
 import { HarnessHub } from './harness/hub.js';
 import { buildSetupView, validateSetup, toRunFile, writeRunFile, readAgentRules } from './harness/run-setup.js';
 import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
+import { buildSpecDetail } from './shell/spec-rows.js';
+import type { ShellMessage } from './shell/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -117,7 +119,7 @@ export class MultiProjectDashboardServer {
       this.projectManager,
       this.harnessLauncher,
       (m: HarnessMessage) => this.sendToHarness((m as { projectId: string }).projectId, m),
-      (m: HarnessMessage) => this.sendToOverview(m),
+      (m: HarnessMessage | ShellMessage) => this.sendToOverview(m),
     );
 
     // Initialize network binding configuration
@@ -488,13 +490,16 @@ export class MultiProjectDashboardServer {
       });
     });
 
-    // Broadcast deferral changes (deferred decisions and deferred specs)
+    // Broadcast deferral changes (deferred decisions and deferred specs). The
+    // shell overview socket carries no fixed project, so the push reaches each
+    // socket whose project matches or whose overview view is open, once per
+    // socket (design D12, Requirement 7 AC 2).
     this.projectManager.on('deferral-change', async (event) => {
       try {
         const { projectId } = event;
         const project = this.projectManager.getProject(projectId);
         if (project) {
-          this.broadcastToProject(projectId, {
+          this.sendToProjectOrOverview(projectId, {
             type: 'deferrals-update',
             projectId,
             data: await this.buildDeferralsPayload(project.projectPath)
@@ -2041,6 +2046,17 @@ export class MultiProjectDashboardServer {
       }
     });
 
+    // Shell spec detail panel (design C8). 404 for an unknown project or a bad,
+    // missing or foreign spec name; otherwise the SpecDetail with no file content.
+    this.app.get('/api/shell/projects/:projectId/specs/:specName', async (request, reply) => {
+      const { projectId, specName } = request.params as { projectId: string; specName: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) return reply.code(404).send({ error: 'Project not found' });
+      const detail = await buildSpecDetail(project, specName);
+      if (!detail) return reply.code(404).send({ error: 'Spec not found' });
+      return detail;
+    });
+
     // Global changelog endpoint
     this.app.get('/api/changelog/:version', async (request, reply) => {
       const { version } = request.params as { version: string };
@@ -2338,6 +2354,26 @@ export class MultiProjectDashboardServer {
         }
       } catch (error) {
         console.error('Error sending to harness client:', error);
+        this.scheduleConnectionCleanup(connection);
+      }
+    });
+  }
+
+  /**
+   * Send once to each open client whose project matches or whose overview view
+   * is open (design D12, Requirement 7 AC 2). A single socket that both binds the
+   * project and holds the overview view still receives the message exactly once.
+   */
+  private sendToProjectOrOverview(projectId: string, message: any) {
+    const messageStr = JSON.stringify(message);
+    this.clients.forEach((connection) => {
+      try {
+        if (connection.socket.readyState === WebSocket.OPEN
+          && (connection.projectId === projectId || connection.views?.has('overview'))) {
+          connection.socket.send(messageStr);
+        }
+      } catch (error) {
+        console.error('Error sending deferral update to client:', error);
         this.scheduleConnectionCleanup(connection);
       }
     });

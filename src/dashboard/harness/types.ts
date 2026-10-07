@@ -5,6 +5,7 @@
 // rows and the server/client message unions.
 import type { RunModel, AgentProfile } from '../../watch/ledger.js';
 import type { RoutingDecision } from '../../core/spec-routing-deriver.js';
+import type { RunDetail } from '../shell/types.js';
 
 export type Provider = 'anthropic' | 'deepseek';
 
@@ -79,6 +80,7 @@ export type HarnessMessage =          // server to client
       profiles: Record<string, AgentProfile>; launch: LaunchRecord | null } }
   | { type: 'harness-log'; projectId: string; data: { launchedAt: string; lines: string[]; reset: boolean } }
   | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
+  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null }
   | { type: 'overview-rows'; data: { rows: OverviewRow[] } }
   | { type: 'overview-todos'; data: { todos: Todo[] } };
 

@@ -11,7 +11,9 @@ import type { ProjectManager } from '../project-manager.js';
 import type { HarnessLauncher } from './launcher.js';
 import { ProjectHarnessWatch } from './project-watch.js';
 import { OverviewWatch } from './overview-watch.js';
+import { ShellFeed } from '../shell/shell-feed.js';
 import type { HarnessMessage } from './types.js';
+import type { ShellMessage } from '../shell/types.js';
 
 /** The connection fields reconcile reads (a subset of the server's WebSocketConnection). */
 interface ViewClient {
@@ -29,17 +31,20 @@ interface ViewClient {
 export class HarnessHub {
   private readonly projectWatches = new Map<string, ProjectHarnessWatch>();
   private overviewWatch: OverviewWatch | null = null;
+  private shellFeed: ShellFeed | null = null;
   private closed = false;
 
   constructor(
     private readonly projects: ProjectManager,
     private readonly launcher: HarnessLauncher,
     private readonly sendHarness: (m: HarnessMessage) => void,
-    private readonly sendOverview: (m: HarnessMessage) => void,
+    private readonly sendOverview: (m: HarnessMessage | ShellMessage) => void,
     private readonly opts: { debounceMs?: number } = {},
   ) {
     this.launcher.on('launch-update', this.onLaunchUpdate);
     this.projects.on('projects-update', this.onProjectsUpdate);
+    this.projects.on('spec-change', this.onSourceChange);
+    this.projects.on('deferral-change', this.onSourceChange);
   }
 
   /**
@@ -79,14 +84,26 @@ export class HarnessHub {
       }
     }
 
-    // The one overview watch: start above zero, close at zero.
+    // The one overview watch and its shell feed: start above zero, close at
+    // zero (design C7). The feed is created before the watch and torn down with
+    // it; the watch's send callback forwards every message to `sendOverview` and
+    // re-arms the feed on each `overview-rows` it emits. Both fields are set
+    // before the `await` so two concurrent reconciles cannot double-start.
     if (overviewCount > 0 && !this.overviewWatch) {
-      const watch = new OverviewWatch(this.projects, this.sendOverview, this.opts);
+      const feed = new ShellFeed(this.projects, this.launcher, this.sendOverview);
+      this.shellFeed = feed;
+      const watch = new OverviewWatch(this.projects, (m) => {
+        this.sendOverview(m);
+        if (m.type === 'overview-rows') feed.schedule();
+      }, this.opts);
       this.overviewWatch = watch;
+      await feed.start();
       await watch.start();
     } else if (overviewCount === 0 && this.overviewWatch) {
       this.overviewWatch.close();
       this.overviewWatch = null;
+      this.shellFeed?.close();
+      this.shellFeed = null;
     }
   }
 
@@ -95,9 +112,12 @@ export class HarnessHub {
     return this.projectWatches.get(projectId)?.snapshot() ?? [];
   }
 
-  /** The overview snapshot, or `[]` when no overview watch runs. */
-  overviewSnapshot(): HarnessMessage[] {
-    return this.overviewWatch?.snapshot() ?? [];
+  /** The overview snapshot plus the shell feed's last pair, or `[]` when idle. */
+  overviewSnapshot(): (HarnessMessage | ShellMessage)[] {
+    return [
+      ...(this.overviewWatch?.snapshot() ?? []),
+      ...(this.shellFeed?.snapshot() ?? []),
+    ];
   }
 
   /** Test accessor: the project ids with a live harness watch (tasks D12). */
@@ -115,19 +135,31 @@ export class HarnessHub {
     this.closed = true;
     this.launcher.removeListener('launch-update', this.onLaunchUpdate);
     this.projects.removeListener('projects-update', this.onProjectsUpdate);
+    this.projects.removeListener('spec-change', this.onSourceChange);
+    this.projects.removeListener('deferral-change', this.onSourceChange);
     for (const watch of this.projectWatches.values()) watch.close();
     this.projectWatches.clear();
     this.overviewWatch?.close();
     this.overviewWatch = null;
+    this.shellFeed?.close();
+    this.shellFeed = null;
   }
 
   // A new launch re-points its project watch's log inside that watch (C5); the hub
-  // only refreshes the overview so a run's state change shows there too.
+  // refreshes the overview so a run's state change shows there too, and re-arms the
+  // shell feed so its Now model picks up the launch (C7).
   private onLaunchUpdate = (): void => {
     this.overviewWatch?.refresh();
+    this.shellFeed?.schedule();
   };
 
   private onProjectsUpdate = (): void => {
     this.overviewWatch?.refresh();
+  };
+
+  // A spec-document or deferral change re-arms the shell feed so its Specs rows
+  // and Now model recompute (C7); the overview watch owns its own file triggers.
+  private onSourceChange = (): void => {
+    this.shellFeed?.schedule();
   };
 }
