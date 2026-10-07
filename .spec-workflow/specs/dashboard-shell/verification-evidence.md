@@ -2,10 +2,10 @@
 
 An operator runs the four decomposition checks below in a rebuilt, restarted dashboard with the four registered projects.
 
-- (1) pending — The Now page with two live runs, the idle project and closed specs.
-- (2) pending — The run page against `--watch` on the same store with the Ledger tab following.
-- (3) pending — Launch from a card and its disabled reason while a run is live.
-- (4) pending — The Specs panel of a closed spec with two runs, its phase table and its files.
+- (1) passed (overwatch, 2026-10-07, isolated dashboard on port 5599 with the four real spec stores copied in as registered projects; Now showed two live runs — swm/dashboard-shell implementation and tradr/trading-rules requirements — the idle jobsync with its routed spec mcp-write-tools, and Recently closed (8); a `phase.end` result gate-a appended to tradr's live ledger surfaced under Waiting on you with no reload, measured 4135-4187 ms over the websocket (<5 s), screenshot /tmp/claude-1000/-home-mcf-repo-spec-workflow-mcp/a9feef33-db1b-4dd8-b194-aca8cd7de099/scratchpad/dash-live/shots/check1-now-gate-a-appeared.png)
+- (2) passed (overwatch, 2026-10-07, swm run page matched `node dist/index.js --watch <copied store> --spec dashboard-shell --once` — same phase strip, same two open spawns (sdd-implementation-orchestrator, sdd-implementer task 7) and 16/16 task table; an appended ledger row appeared in the Ledger tab with Follow on and no reload, screenshot /tmp/claude-1000/-home-mcf-repo-spec-workflow-mcp/a9feef33-db1b-4dd8-b194-aca8cd7de099/scratchpad/dash-live/shots/check2-run-page-swm.png)
+- (3) partial: disabled-reason verified; launch-start left to the operator (overwatch, 2026-10-07, the harness setup API returns the routed spec and setup the card renders — jobsync launchable mcp-write-tools, supervisor claude-opus-5-5, 13 roles, worktree no, gates block; with a scratch live run added on launchable jobsync the now-model `live` includes it, so the card's Launch is disabled with reason "A run is live for this project." per RunsPage.tsx:176-184,234; the enabled Launch was not pressed, screenshot /tmp/claude-1000/-home-mcf-repo-spec-workflow-mcp/a9feef33-db1b-4dd8-b194-aca8cd7de099/scratchpad/dash-live/shots/check3-runs-live-runs.png)
+- (4) passed (overwatch, 2026-10-07, Specs panel for the closed swm spec harness-control-pane showed its two runs (run-20260928-191959 and run-20261001-202525 with start/end/status/tokens), the full phase table (requirements v1 gate-a through closeout items 18/19 closed) and 14 files with Copy path, screenshot /tmp/claude-1000/-home-mcf-repo-spec-workflow-mcp/a9feef33-db1b-4dd8-b194-aca8cd7de099/scratchpad/dash-live/shots/check4-specs-panel-closed-spec.png)
 
 ## Invariants (check 5a, run on this branch)
 
