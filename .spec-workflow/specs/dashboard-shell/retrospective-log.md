@@ -113,3 +113,8 @@ Cost: 0 fix rounds; 1 shared verifier spawn for 9+10
 Implementation spawn 2 finished at 01:40Z with its contract report in its last message, but the hand-back never reached the supervisor; the task notification said it was waiting on background work, so the run sat idle ~40 min until the human asked. The supervisor read the report from the subagent transcript and continued.
 Evidence: subagents/agent-a1d35193b51a20bc8.jsonl last assistant text; ledger phase.end 2026-10-07T01:40:16Z result=resume
 Cost: ~40 min idle
+
+## 2026-10-07T02:50:38Z · implementation · task 11 · gotcha
+verifier pass, 0 findings; 1 implementer + 1 verifier spawn; external process mutated files mid-task, implementer reconciled
+Evidence: task 11 · mark run-20261006-170927 2d58f441
+Cost: 2 spawns
