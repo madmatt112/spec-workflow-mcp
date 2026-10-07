@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/shell-routes.test.ts"],"seams":{"src/dashboard/__tests__/shell-routes.test.ts":"live MultiProjectDashboardServer with `/ws` overview subscribers and GET /api/shell/projects/:projectId/specs/:specName"},"redCommit":"5a6abb7","baseSha":"7297cdcda24e130a3564b489e89415923271550f","base":"assertion-red","head":"pass","amended":true,"judged":null}

@@ -78,3 +78,13 @@ Cost: 1 supervisor patch
 Gate pass at high risk, verifier pass round 0, no fixes; tdd base structural-red
 Evidence: task 6: src/dashboard/shell/shell-feed.ts · mark run-20261006-170927 665015b4
 Cost: 0 fix rounds, 3 spawns (author, implementer, verifier)
+
+## 2026-10-07T00:46:26Z · implementation · task 7 · tooling
+SpecWatcher deferrals glob misses a post-watch-created dir; first deferral in a fresh project does not push live (pre-existing, out of scope)
+Evidence: task 7: src/dashboard/__tests__/shell-routes.test.ts, src/dashboard/harness/hub.ts, src/dashboard/multi-server.ts · mark run-20261006-170927 e033854e
+Cost: author test amended for chokidar dir-watch and undici %2e collapse
+
+## 2026-10-07T00:52:19Z · implementation · task 7 · gotcha
+Gate pass high risk, verifier pass round 0; author test amended (chokidar dir-watch, undici %2e collapse), judged does not weaken coverage
+Evidence: task 7: hub.ts, multi-server.ts, shell-routes.test.ts · mark run-20261006-170927 0b31e339
+Cost: 0 fix rounds, 3 spawns
