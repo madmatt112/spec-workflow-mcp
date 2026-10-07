@@ -795,6 +795,29 @@
     "usage": {
       "placeholder": "The usage views arrive in a later release."
     },
+    "deferrals": {
+      "search": "Search title, id or origin spec",
+      "empty": "No deferrals.",
+      "projectScope": "Project-level",
+      "id": "ID",
+      "project": "Project",
+      "originSpec": "Origin spec",
+      "phase": "Phase",
+      "created": "Created",
+      "updated": "Updated",
+      "resolved": "Resolved",
+      "tags": "Tags",
+      "revisitTrigger": "Revisit trigger",
+      "resolution": "Resolution",
+      "context": "Context",
+      "decision": "Decision",
+      "revisitCriteria": "Revisit criteria",
+      "status": {
+        "deferred": "Deferred",
+        "resolved": "Resolved",
+        "superseded": "Superseded"
+      }
+    },
     "gear": {
       "settings": "Settings",
       "theme": "Theme",

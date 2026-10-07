@@ -8,7 +8,8 @@ import { NotificationProvider } from '../notifications/NotificationProvider';
 import { I18nErrorBoundary } from '../../components/I18nErrorBoundary';
 import { Sidebar } from '../shell/Sidebar';
 import { UsagePage } from '../shell/UsagePage';
-import { NowStub, RunsStub, RunDetailStub, SpecsStub, DeferralsStub } from '../shell/stubs';
+import { DeferralsPage } from '../shell/DeferralsPage';
+import { NowStub, RunsStub, RunDetailStub, SpecsStub } from '../shell/stubs';
 
 function Shell() {
   return (
@@ -21,7 +22,7 @@ function Shell() {
           <Route path="/runs/:projectId" element={<RunDetailStub />} />
           <Route path="/specs" element={<SpecsStub />} />
           <Route path="/usage" element={<UsagePage />} />
-          <Route path="/deferrals" element={<DeferralsStub />} />
+          <Route path="/deferrals" element={<DeferralsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
