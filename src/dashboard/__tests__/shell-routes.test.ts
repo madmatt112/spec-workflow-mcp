@@ -219,6 +219,12 @@ describe('shell hub wiring and routes (task 7)', () => {
     alphaWorkflowRoot = join(tempDir, 'alpha-project');
     alphaSpecDir = join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-a');
     await fsp.mkdir(alphaSpecDir, { recursive: true });
+    // Pre-create the deferrals directory so the project watcher's
+    // `${workflowRoot}/deferrals/*.md` glob sees a later deferral create. The
+    // watcher does not detect files in a deferrals dir that did not exist when
+    // it started (chokidar glob limitation), so without this the project
+    // manager's `deferral-change` event never fires.
+    await fsp.mkdir(join(alphaWorkflowRoot, '.spec-workflow', 'deferrals'), { recursive: true });
     alphaHandoffPath = join(alphaWorkflowRoot, '.spec-workflow', 'HANDOFF.md');
     writeFileSync(alphaHandoffPath, handoffFixture('spec-a'));
     alphaLedgerPath = join(alphaSpecDir, 'harness-events.jsonl');
@@ -448,11 +454,13 @@ describe('shell hub wiring and routes (task 7)', () => {
     }
   });
 
-  it('GET spec detail returns 404 for an encoded .. spec name', async () => {
-    // %2e%2e is a percent-encoded '..': the URL layer does not dot-segment
-    // collapse it, so it reaches the server as the literal path segment
-    // '%2e%2e', which Fastify decodes back to '..' for the route param.
-    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/projects/${alphaId}/specs/%2e%2e`);
+  it('GET spec detail returns 404 for an encoded traversal spec name', async () => {
+    // %2e%2e%2fsecret is a percent-encoded '../secret'. A standalone encoded
+    // '..' segment is dot-segment collapsed by the WHATWG URL layer (undici's
+    // fetch) before the request is sent, so it never reaches the route; keeping
+    // the encoded '/' (%2f) makes it a single path segment that reaches the
+    // route param as '../secret', which the detail builder's name guard rejects.
+    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/projects/${alphaId}/specs/%2e%2e%2fsecret`);
     expect(res.status).toBe(404);
     const body: any = await res.json();
     expect(body).toEqual({ error: 'Spec not found' });
