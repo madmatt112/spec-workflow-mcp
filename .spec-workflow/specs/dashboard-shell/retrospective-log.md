@@ -108,3 +108,8 @@ Cost: 0 fix rounds
 Now page; gate pass high risk (line-count 324, tests-not-touched expected), batched verify with task 9, pass round 0
 Evidence: task 10: NowPage.tsx, stubs.tsx, App.tsx, en.json · mark run-20261006-170927 64f57167
 Cost: 0 fix rounds; 1 shared verifier spawn for 9+10
+
+## 2026-10-07T02:21:43Z · implementation · phase · tool-error
+Implementation spawn 2 finished at 01:40Z with its contract report in its last message, but the hand-back never reached the supervisor; the task notification said it was waiting on background work, so the run sat idle ~40 min until the human asked. The supervisor read the report from the subagent transcript and continued.
+Evidence: subagents/agent-a1d35193b51a20bc8.jsonl last assistant text; ledger phase.end 2026-10-07T01:40:16Z result=resume
+Cost: ~40 min idle

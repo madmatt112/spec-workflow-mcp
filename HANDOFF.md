@@ -1,7 +1,7 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-06, harness v4).** Active spec **`dashboard-shell`**.
-> Live phase **implementation**, state **tasks 5/16**, last result **resume** (spawn 1 done tasks 1-5; run-20261006-170927).
+> **READ FIRST — SDD routing (2026-10-07, harness v4).** Active spec **`dashboard-shell`**.
+> Live phase **implementation**, state **tasks 10/16**, last result **resume** (spawn 2 done tasks 6-10; run-20261006-170927).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/dashboard-shell`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
 > A re-run does: resumes dashboard-shell implementation on feat/dashboard-shell from the next open task.
 
@@ -93,6 +93,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-06 | dashboard-shell | design | v1 | approved | 1 round, converged on first review |
 | 2026-10-06 | dashboard-shell | tasks | v1 | approved | 1 round, converged 0/0/3 on v1 |
 | 2026-10-06 | dashboard-shell | implementation | tasks 5/16 | resume |  |
+| 2026-10-07 | dashboard-shell | implementation | tasks 10/16 | resume |  |
 
 ## Current state — 2026-08-04
 
