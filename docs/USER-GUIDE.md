@@ -177,25 +177,17 @@ When documents are ready for review:
 
 ### Adversarial Review
 
-Before approving a critical document, you can run an adversarial review — an automated, independent analysis that stress-tests the document for gaps, contradictions, and unstated assumptions.
+Before you approve a critical document, you can run an adversarial review. This is an automated, independent analysis. It stress-tests the document for gaps, contradictions, and unstated assumptions.
 
-From the dashboard approvals page:
+Approve a document by hand in the VS Code extension. Open the pending approval and select **Approve**, **Request Changes**, or **Reject**.
 
-1. Click **Adversarial Review** on any pending approval
-2. A background subagent generates a tailored critique
-3. Progress appears directly on the approval card
-4. On completion, the approval moves to **needs-revision** with a link to the analysis
-5. Tell your AI assistant to respond to the revision, and it will read the analysis, address valid findings, and resubmit
-
-![Adversarial review progress stepper on approval card](screenshots/07-adversarial-progress-stepper.png)
-
-You can also trigger reviews from the CLI:
+Request an adversarial review from the CLI:
 
 ```
 "Run an adversarial review on the design phase of payment-gateway"
 ```
 
-Browse past reviews and configure methodology on the **Adversarial Analysis** page in the dashboard sidebar.
+A background subagent writes a tailored critique. When it completes, the approval moves to **needs-revision** with a link to the analysis. Tell your AI assistant to respond to the revision. It reads the analysis, corrects the valid findings, and resubmits.
 
 ## Bug Fixes
 

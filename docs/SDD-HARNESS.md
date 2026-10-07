@@ -260,50 +260,103 @@ commands to run.
 
 ## Dashboard control pane
 
-The dashboard has two pages for the harness. On the **Harness page** you set up,
-launch, stop and watch one run of a project. On the **Overview page** you see every
-project's live phase and your to-do list at the same time. The Overview page has no
-control that launches or stops a run.
+The dashboard is one shell. A sidebar sits on the left and a page fills the rest. The
+sidebar has five pages — **Now**, **Runs**, **Specs**, **Deferrals** and **Usage** — a
+switch for each registered project, and a gear at the foot. A project switch that is off
+hides that project's rows on every page. The gear holds the theme, the language, the list
+density and the sound setting, and shows the version with a link to the changelog. When
+the socket closes, the sidebar shows a disconnected marker.
 
-### The setup file
+### Now
 
-The Harness page lists the project's specs in the order INDEX.md shows them, and marks
-the spec the routing names as active. Only the active spec is launchable. When the
-routing names no active spec, the page disables the form and shows the reason.
+Now shows four groups, always in this order:
 
-The form shows one row for each agent and one row for the supervisor. Each row shows the
-declared model and effort. You set the model for each role. You set the provider for the
-three roles that accept DeepSeek (reviewer, checker and reviser). You also set the
-worktree choice (`yes` or `no`) and the gates choice (`block` or `record`).
+- **Waiting on you** — one row for each wait across all projects (see below).
+- **Live runs** — one row for each project with a live run. It shows the spec, the phase,
+  a one-line detail, the token count and the age since the run started. Select a row to
+  open its run page.
+- **Idle projects** — one row for each project with no live run. It shows the launchable
+  spec, or the reason the project cannot launch.
+- **Recently closed** — one row for each spec closed in the last seven days. This group
+  is collapsed by default.
 
-**Save** writes `.spec-workflow/harness-run.json` in the spec store. The file holds the
-spec, the time it was written, the supervisor model, the model and provider of each
-changed role, the worktree choice and the gates choice. A role that keeps its declared
-defaults is not written.
+A wait is one of five kinds. The dashboard derives each kind from the harness files;
+there is no hand-written to-do list.
 
-The supervisor reads this file when a run starts:
+- **gate** — a run is at gate A or gate B. The dashboard reads the newest `phase.end` row
+  of the spec's `harness-events.jsonl` ledger. The panel shows the gate items from
+  `gate-a.json` or `gate-b.json`, else the `questions.md` section, else "no gate payload".
+- **ruling** — a phase ended with `escalate` and needs your ruling. The dashboard reads
+  the same ledger. The panel shows the phase, the state and the note.
+- **retro** — a spec has a `retrospective-proposals.md` file and no `retrospective-plan.md`
+  file, or a DRAFT plan. The panel lists the decisions to make.
+- **exited** — a launched run exited. The dashboard reads the launch record. The panel
+  shows the exit code, the signal, the end time and the log path.
+- **quiet** — a run had no activity for more than fifteen minutes and still has an open
+  spawn. The dashboard reads the modification time of `harness-activity.jsonl`. The panel
+  shows the agent, the last tool and the last activity time.
 
-- When the file names the active spec, the supervisor applies it and prints one line
-  that names the file and the time it was written.
-- When the file names a different spec, the supervisor prints one warning line and runs
-  as if the file did not exist.
-- When the run ends, the supervisor deletes the file.
+The spec of a gate, ruling or quiet wait comes from the active-run pointer, or the
+HANDOFF active spec when no pointer resolves inside the project.
 
-The supervisor deletes an applied file, so a terminal run and a dashboard run use the
-same setup.
+### Runs
 
-### Launch
+Runs lists every project's current or last run, in a **Live** group and an **Ended**
+group. Each row shows the project, the spec, the run id, the state, the phase and the
+age. A stopped or exited run groups under Ended. Select a row to open the run page.
 
-**Launch** first saves the form with the gates choice set to `record`. It then spawns
-the headless command shown above, with the supervisor model from the form. The dashboard
-spawns the child detached, in its own process group, with a scrubbed git environment.
+The run page shows one project's run. It shows the six-phase strip with each phase's
+version, round count and approval date; each open spawn with its role, declared and actual
+model, elapsed time and last tool; the task table with each task's status, review verdict,
+risk and fix rounds; the round and spawn tables; and tabs for the ledger, the activity and
+the process log. The panel shows the run id, the start time, the code root, the worktree,
+the tokens and the launch pid. A run page for a project with no ledger shows "no run for
+this project".
+
+**Stop** sends SIGTERM to the child's process group. When the group still exists ten
+seconds later, the dashboard sends SIGKILL. After the child exits, the dashboard appends
+a `run.end` row with status `stopped from the dashboard` (when the run has a `run.start`
+and no `run.end`), removes only this run's line from the active-run pointer file, and
+deletes `harness-run.json`. Each step runs again with no harm. When the child exits on its
+own, the dashboard writes no `run.end`, does not touch the pointer file, and shows the
+exit code.
+
+### Launch card
+
+A Launch card on the Runs page starts a run for one project. The card names the launchable
+spec and shows the saved setup. **Launch** first saves the setup with the gates choice set
+to `record`, so a launch always records gates. It then spawns the headless supervisor
+command with the supervisor model from the setup. The dashboard spawns the child detached,
+in its own process group, with a scrubbed git environment.
 
 When the worktree choice is `yes`, the dashboard first creates a git worktree of the
 checkout on branch `feat/<spec>`, or reuses that worktree. It runs the `worktree-setup`
 command once in a new worktree, and starts the child in the worktree.
 
-The dashboard refuses a launch with HTTP 409 when a run of this spec store is already
-live, and it names the live run id.
+The dashboard allows one run per spec store. It refuses a launch with HTTP 409 when a run
+of this spec store is already live, and it names the live run id.
+
+**Edit setup** on the card opens the setup form. The form shows one row for the supervisor
+and one row for each agent. Each row shows the declared model and effort. You set the model
+for each role. You set the provider for the three roles that accept DeepSeek (reviewer,
+checker and reviser). You also set the worktree choice (`yes` or `no`) and the gates choice
+(`block` or `record`). **Save** writes `.spec-workflow/harness-run.json` in the spec store.
+
+### The setup file
+
+`.spec-workflow/harness-run.json` holds the spec, the time it was written, the supervisor
+model, the model and provider of each changed role, the worktree choice and the gates
+choice. A role that keeps its declared defaults is not written. The supervisor reads this
+file when a run starts:
+
+- When the file names the active spec, the supervisor applies it and prints one line that
+  names the file and the time it was written.
+- When the file names a different spec, the supervisor prints one warning line and runs as
+  if the file did not exist.
+- When the run ends, the supervisor deletes the file.
+
+The supervisor deletes an applied file, so a terminal run and a dashboard run use the same
+setup.
 
 ### Logs and records
 
@@ -312,30 +365,36 @@ record with the pid, process group, project, spec, log path and launch time. Bot
 under `~/.spec-workflow-mcp/harness/` (or under `$SPEC_WORKFLOW_HOME/harness/` when that
 variable is set): the logs in `logs/`, the records in `launches/`. These paths are
 outside the repository, so a launched run keeps running when the dashboard restarts.
-After a restart the dashboard reads each record back and re-checks its pid.
+After a restart the dashboard reads each record back and re-checks its pid. New log lines
+stream to the open run page of that project without a reload.
 
-New log lines stream to the open Harness pages of that project. The live view shows the
-run header, the phase rows, the spawn tree, the round rows, the task picks and the
-ticker, and updates without a reload.
+### Specs
 
-### Stop
+Specs lists every spec of every enabled project, grouped by project. Each row shows the
+spec state, the phase, the document versions, the task count, the PR numbers, the deferral
+count, the retro word and the update time. A spec has one state: **live** (a run points at
+it), **closed** (a close-out row or a CLOSED plan), **deferred**, **not-started** (no
+document and no ledger), else **in-progress**. State chips, a search box and a pager filter
+the list.
 
-**Stop** sends SIGTERM to the child's process group. When the group still exists ten
-seconds later, the dashboard sends SIGKILL. After the child exits, the dashboard appends
-a `run.end` row with status `stopped from the dashboard` (when the run has a `run.start`
-and no `run.end`), removes only this run's line from the active-run pointer file, and
-deletes `harness-run.json`. Each step is idempotent. When the child exits on its own, the
-dashboard writes no `run.end`, does not touch the pointer file, and shows the exit code.
+Select a row to open its panel. The panel shows the spec order, the specs it depends on, a
+runs table, the phase table, the deferral records and the spec files. Each file row has a
+**Copy path** action. It copies the file's absolute path. When the clipboard is not
+available, the path shows in a selected read-only field, so you can copy it by hand. The
+panel shows no document content.
 
-### Overview to-do list
+### Deferrals
 
-The Overview page shows one row for each project in the registry, with its active spec,
-live phase, the newest ledger row and its age. A project waits for you when its newest
-phase ended at gate A, retro-ready or escalate. The page also shows a to-do list. It
-reads the `todos` array of `overwatch-hud.json` under the XDG state home
-(`${XDG_STATE_HOME:-~/.local/state}/sdd/overwatch-hud.json`) and shows each item, open
-items first. When the file is missing, unreadable or has no `todos` array, the list is
-empty and there is no error.
+Deferrals lists the deferral records of every enabled project, grouped by project. Status
+chips (deferred, resolved, superseded), a search box over the title, the id and the origin
+spec, and a pager filter the list. Select a row to see the whole record: the status, the
+id, the project, the origin spec and phase, the created, updated and resolved dates, the
+tags, the revisit trigger, the resolution, and the context, decision and revisit-criteria
+text. The page is read-only. It has no resolve, supersede or edit control.
+
+### Usage
+
+Usage is a placeholder. A later spec fills it with token and spend reporting.
 
 ## Workspace contract
 
