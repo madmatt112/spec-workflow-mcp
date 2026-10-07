@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { PageLayout } from './PageLayout';
 
 /**
- * Bridge stub pages. Tasks 11 to 12 replace each with its real list-plus-panel
- * page built on PageLayout and the shell primitives; until then these keep the
- * remaining routes mounted so the shell renders end to end.
+ * Bridge stub page. Task 12 replaces it with the real list-plus-panel Specs page
+ * built on PageLayout and the shell primitives; until then this keeps the route
+ * mounted so the shell renders end to end.
  */
 function Stub({ page, title }: { page: string; title: string }) {
   const { t } = useTranslation();
@@ -21,16 +21,6 @@ function Stub({ page, title }: { page: string; title: string }) {
       }
     />
   );
-}
-
-export function RunsStub() {
-  const { t } = useTranslation();
-  return <Stub page="runs" title={t('shell.nav.runs', 'Runs')} />;
-}
-
-export function RunDetailStub() {
-  const { t } = useTranslation();
-  return <Stub page="run-detail" title={t('shell.nav.runs', 'Runs')} />;
 }
 
 export function SpecsStub() {

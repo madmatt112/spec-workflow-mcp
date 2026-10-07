@@ -858,6 +858,126 @@
       "comfortable": "Comfortable",
       "compact": "Compact",
       "volume": "Volume"
+    },
+    "runs": {
+      "title": "Runs",
+      "none": "—",
+      "launch": "Launch",
+      "noProjects": "No projects.",
+      "group": {
+        "live": "Live",
+        "ended": "Ended"
+      },
+      "empty": {
+        "live": "No live runs.",
+        "ended": "No ended runs."
+      },
+      "provider": {
+        "anthropic": "Anthropic",
+        "deepseek": "DeepSeek"
+      },
+      "card": {
+        "loadError": "Could not load setup.",
+        "spec": "Spec",
+        "supervisor": "Supervisor",
+        "worktree": "Worktree",
+        "worktree_yes": "yes",
+        "worktree_no": "no",
+        "model": "Model",
+        "provider": "Provider",
+        "gates": "Gates",
+        "gates_block": "block",
+        "gates_record": "record",
+        "roles": "Roles",
+        "model": "Model",
+        "provider": "Provider",
+        "launch": "Launch",
+        "launching": "Launching…",
+        "edit": "Edit setup",
+        "save": "Save setup",
+        "saving": "Saving…",
+        "noLaunchable": "No launchable spec.",
+        "disabledLive": "A run is live for this project.",
+        "disabledLaunching": "A launch is in progress."
+      },
+      "err": {
+        "heading": "The run was refused",
+        "runLive": "A run is already live",
+        "runId": "Run id",
+        "pid": "PID",
+        "notLaunchable": "Not launchable",
+        "notRunning": "No run is running for this project.",
+        "step": "Step",
+        "detail": "Detail",
+        "field": "Field",
+        "value": "Value",
+        "generic": "The operation failed."
+      },
+      "run": {
+        "back": "← Runs",
+        "noRun": "no run for this project",
+        "rounds": "Rounds",
+        "noRounds": "No rounds.",
+        "openSpawns": "Open spawns",
+        "noOpenSpawns": "No open spawns.",
+        "spawns": "Spawns",
+        "noSpawns": "No spawns.",
+        "stale": "idle >15m",
+        "declared": "declared",
+        "actual": "actual",
+        "elapsed": "elapsed",
+        "lastTool": "last tool",
+        "tasks": "Tasks",
+        "filter": "Filter",
+        "follow": "Follow",
+        "noRows": "No rows.",
+        "stop": "Stop",
+        "stopping": "Stopping…",
+        "savedSetup": "Saved setup",
+        "defaults": "Defaults",
+        "status": {
+          "done": "Done",
+          "in-progress": "In progress",
+          "open": "Open"
+        },
+        "task": {
+          "id": "ID",
+          "title": "Title",
+          "status": "Status",
+          "verdict": "Verdict",
+          "tdd": "TDD",
+          "risk": "Risk",
+          "fixRounds": "Fix rounds"
+        },
+        "round": {
+          "phase": "Phase",
+          "round": "Round",
+          "verdict": "Verdict",
+          "version": "Version"
+        },
+        "spawn": {
+          "role": "Role",
+          "declared": "Declared",
+          "actual": "Actual",
+          "tokens": "Tokens",
+          "elapsed": "Elapsed"
+        },
+        "tab": {
+          "ledger": "Ledger",
+          "activity": "Activity",
+          "process": "Process log"
+        },
+        "panel": {
+          "runId": "Run id",
+          "start": "Start",
+          "codeRoot": "Code root",
+          "worktree": "Worktree",
+          "headless": "Headless",
+          "providers": "Providers",
+          "tokens": "Tokens",
+          "pid": "Launch PID"
+        }
+      }
     }
   }
 }

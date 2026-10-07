@@ -10,7 +10,9 @@ import { Sidebar } from '../shell/Sidebar';
 import { UsagePage } from '../shell/UsagePage';
 import { DeferralsPage } from '../shell/DeferralsPage';
 import { NowPage } from '../shell/NowPage';
-import { RunsStub, RunDetailStub, SpecsStub } from '../shell/stubs';
+import { RunsPage } from '../shell/RunsPage';
+import { RunPage } from '../shell/RunPage';
+import { SpecsStub } from '../shell/stubs';
 
 function Shell() {
   return (
@@ -19,8 +21,8 @@ function Shell() {
       <main className="min-w-0 flex-1 px-4 py-4 sm:px-6">
         <Routes>
           <Route path="/" element={<NowPage />} />
-          <Route path="/runs" element={<RunsStub />} />
-          <Route path="/runs/:projectId" element={<RunDetailStub />} />
+          <Route path="/runs" element={<RunsPage />} />
+          <Route path="/runs/:projectId" element={<RunPage />} />
           <Route path="/specs" element={<SpecsStub />} />
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/deferrals" element={<DeferralsPage />} />
