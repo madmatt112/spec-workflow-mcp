@@ -12,7 +12,7 @@ import { DeferralsPage } from '../shell/DeferralsPage';
 import { NowPage } from '../shell/NowPage';
 import { RunsPage } from '../shell/RunsPage';
 import { RunPage } from '../shell/RunPage';
-import { SpecsStub } from '../shell/stubs';
+import { SpecsPage } from '../shell/SpecsPage';
 
 function Shell() {
   return (
@@ -23,7 +23,7 @@ function Shell() {
           <Route path="/" element={<NowPage />} />
           <Route path="/runs" element={<RunsPage />} />
           <Route path="/runs/:projectId" element={<RunPage />} />
-          <Route path="/specs" element={<SpecsStub />} />
+          <Route path="/specs" element={<SpecsPage />} />
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/deferrals" element={<DeferralsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

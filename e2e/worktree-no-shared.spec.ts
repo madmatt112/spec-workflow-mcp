@@ -65,4 +65,22 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
 
     await expect(page.locator('[data-testid^="project-dropdown"]')).toHaveCount(0);
   });
+
+  test('specs page groups each worktree spec under its project and a toggle hides it', async ({ page }) => {
+    const projectA = getProjectByPathSuffix(registeredProjects, 'wt-a');
+    const projectB = getProjectByPathSuffix(registeredProjects, 'wt-b');
+
+    await page.goto('/#/specs');
+
+    // With both toggles on, each worktree's seeded spec shows under its project.
+    const specRowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
+    const specRowB = page.getByTestId(`spec-row-${projectB.projectId}-spec-b`);
+    await expect(specRowA).toBeVisible({ timeout: 15000 });
+    await expect(specRowB).toBeVisible();
+
+    // Toggling project B off hides its rows and keeps project A's.
+    await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
+    await expect(specRowB).toHaveCount(0);
+    await expect(specRowA).toBeVisible();
+  });
 });

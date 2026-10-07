@@ -851,6 +851,46 @@
         "superseded": "Superseded"
       }
     },
+    "specs": {
+      "search": "Search specs",
+      "empty": "No specs.",
+      "none": "—",
+      "loading": "Loading…",
+      "notFound": "spec not found",
+      "deferred": "deferred",
+      "project": "Project",
+      "order": "Order",
+      "dependsOn": "Depends on",
+      "runs": "Runs",
+      "phases": "Phases",
+      "deferrals": "Deferrals",
+      "files": "Files",
+      "noRuns": "No runs.",
+      "noPhases": "No phases.",
+      "noDeferrals": "No deferrals.",
+      "noFiles": "No files.",
+      "copyPath": "Copy path",
+      "state": {
+        "live": "Live",
+        "in-progress": "In progress",
+        "closed": "Closed",
+        "deferred": "Deferred",
+        "not-started": "Not started"
+      },
+      "run": {
+        "id": "Run",
+        "start": "Start",
+        "end": "End",
+        "status": "Status",
+        "tokens": "Tokens"
+      },
+      "phase": {
+        "phase": "Phase",
+        "state": "State",
+        "result": "Result",
+        "date": "Date"
+      }
+    },
     "gear": {
       "settings": "Settings",
       "theme": "Theme",
