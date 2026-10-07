@@ -203,6 +203,10 @@ Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 | `task.done` | implementation or close-out orchestrator | `task`, `rounds` (implementation), `outcome` (`pass`, `adjudicated`; close-out: `done`, `to-do`, `skipped`) |
 | `note` | any | `text` (rulings, escalations, deviations) |
 
+Every `phase.end` row carries a `result` key whose value matches the orchestrator's PHASE
+report; `phase-log` rejects a row that omits it (`src/tools/harness.ts`), so the orchestrator
+sets it before writing and never leaves the supervisor to patch it (retro G1).
+
 The supervisor writes `spawn.start` and `spawn.usage` for each orchestrator it spawns
 (`agent=sdd-document-orchestrator`, `role=design phase, spawn 2`, `result=<PHASE value>`);
 the hook writes each orchestrator's `spawn.end`.
