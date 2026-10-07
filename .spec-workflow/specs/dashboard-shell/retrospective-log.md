@@ -88,3 +88,13 @@ Cost: author test amended for chokidar dir-watch and undici %2e collapse
 Gate pass high risk, verifier pass round 0; author test amended (chokidar dir-watch, undici %2e collapse), judged does not weaken coverage
 Evidence: task 7: hub.ts, multi-server.ts, shell-routes.test.ts · mark run-20261006-170927 0b31e339
 Cost: 0 fix rounds, 3 spawns
+
+## 2026-10-07T00:53:05Z · implementation · task 8 · doc-gap
+_Prompt cites D5 for the gear version/changelog link; D5 governs run-log 500-row caps, not the gear. Governing refs are D13 and Requirement 1 AC 4.
+Evidence: task 8: tasks.md _Prompt, design.md D5/D13 · mark run-20261006-170927 e4b48aad
+Cost: added governing-ref note to implementer brief
+
+## 2026-10-07T01:18:23Z · implementation · task 8 · gotcha
+Gate fail cleared by P11 declared-files narrowing (dir prefix did not match; passed 16 explicit paths); scoped frontend typecheck unrunnable from gate cwd, verifier ran it clean. Frontend has no root tsc coverage by design.
+Evidence: task 8: 16 files, shell/*.tsx + providers + e2e · mark run-20261006-170927 3c34957a
+Cost: 1 gate re-run (self-resolved), 2 spawns (implementer, verifier)
