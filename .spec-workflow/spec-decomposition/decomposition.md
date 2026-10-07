@@ -1006,6 +1006,153 @@ row. (4) `npm run build`, `npx tsc --noEmit` and `npm test` are green.
 **Depends on** spec 15 for the shell, spec 8 for the `usage` action and the hook-written
 `spawn.end` rows, and spec 14 for the per-source breakdown.
 
+Specs 20 and 21 share these assumptions: the runtime is Claude Code with a Claude subscription
+(other runtimes and API billing are not supported); mechanisms are deterministic code and the
+model does only judgement and prose; the harness is opinionated, and a repository that does not
+meet the stated requirements does not complete the bootstrap. Spec 19 is reserved for the
+overwatch role and is not drafted yet.
+
+### 20. `harness-home` — one home for the state that is not one project's (active)
+
+The harness keeps state in three places. The spec store (`.spec-workflow/`) of each project
+holds the documents, ledgers, gate files, deferrals and agent rules. Claude Code keeps the
+session transcripts under `~/.claude/projects/`, and `harness usage` reads them. The third
+place, `~/.local/state/sdd/`, grew one file at a time with no plan: the active-run pointer, the
+overwatch handoff, the HUD file, the overwatch event log, briefs and backups. Different agents
+and scripts write some of these files, and some are written by hand. This spec makes the third
+place a defined harness home with a fixed layout, one writer for each file, and a schema
+version on each record.
+
+**Delivers.**
+
+- **The home directory.** The default is `~/.local/state/sdd`. The `SDD_HOME` variable
+  overrides it. The server, the hook, the dashboard and the overwatch tools all resolve it
+  with the same rule.
+- **A fixed layout.** `registry.json` lists the projects. `active-run` keeps its current
+  tab-separated format. `overwatch/` holds `events.jsonl`, `hud.json`, `handoff.md` and
+  `sessions/` (one summary for each closed overwatch session). `setups/` holds the dashboard
+  setup files if they are not already in the home.
+- **The project registry.** Each entry records the project name, the code root, the store
+  root and the store placement (`in-repo`, `separate-repo` or `excluded`). The dashboard reads
+  this registry. The bootstrap (spec 21) writes it. A server that starts in a project that is
+  not in the registry adds it, as the server does today.
+- **One writer for each file.** Each file in the home has one named writer: a server tool
+  action, the hook or `owctl`. `docs/SDD-HARNESS.md` gets a table of file, writer, readers and
+  schema. No skill tells an agent to write one of these files by hand.
+- **Schema versions.** Each JSONL row and each JSON file in the home carries a `v` field.
+  Readers ignore fields they do not know and refuse a `v` that is newer than they support,
+  with a message that names the file.
+- **Migration.** On the first start after this spec, a move step relocates the current
+  `~/.local/state/sdd/` files to the new layout, keeps a backup, and prints what it moved. The
+  step does nothing on the second start.
+
+**Decided.**
+
+- The spec store of each project does not change. It keeps only spec artifacts.
+- Nothing in the home is committed to a repository. It is the state of one machine.
+- The overwatch TUI and `owctl` (repository `~/repo/overwatch-tui`) read the home path from the
+  same rule. Their change lands in their own repository and is part of this spec's
+  verification, not of its code.
+
+**End-to-end verification.** (1) With `SDD_HOME` set to an empty directory, a fixture project
+started through the dashboard appears in `registry.json` with its placement, and a run writes
+its active-run line and its overwatch events in the new layout. (2) A machine with the current
+`~/.local/state/sdd/` layout migrates once: every file reaches its new path, a backup exists,
+and a second start moves nothing. (3) Each file in the writer table is written only by its
+writer during a full fixture run, which a test confirms by checksum before and after each
+other writer runs. (4) A record with an unknown field is read without error, and a record with
+a newer `v` is refused with the file name. (5) `npm run build`, `npx tsc --noEmit`,
+`npm test`, `npm run check:plugin-assets` and `claude plugin validate . --strict` are green.
+
+**Depends on** spec 6 for the pointer file and the hook events, and spec 9 for the dashboard
+setup file and the run model.
+
+### 21. `repo-bootstrap` — put the harness on a new repository (active)
+
+`docs/SDD-HARNESS.md` tells an operator how to install the plugin and configure `.mcp.json`.
+It does not tell them how to make a repository ready for a run: where the spec store goes,
+what `agent-rules.md` must contain (the gate test command, the checks, the sensitive paths,
+the git and merge rules), which steering documents to write, and how to get a first
+`decomposition.md`. The four repositories that use the harness today got these by hand, and
+each did it differently. This spec adds a bootstrap that takes a repository from nothing to a
+first run, a check that tells the operator whether a configured repository is healthy, and a
+clean way to remove the harness.
+
+**Delivers.**
+
+- **Requirements, stated and checked.** A repository can complete the bootstrap only if:
+  - it is a git repository with a GitHub remote, and `gh` is authenticated for it;
+  - it has a test command that runs and exits 0 on the default branch;
+  - Claude Code is installed and can run the supervisor model.
+
+  The bootstrap checks each requirement. When one fails, it stops and prints the exact fix.
+- **`init`, a deterministic command.** `npx @madmatt112org/spec-workflow-mcp init` does
+  these steps:
+  1. Check the requirements.
+  2. Detect the test, lint and typecheck commands from `package.json`, `pyproject.toml`, the
+     `Makefile` and the CI workflows.
+  3. Ask a fixed set of questions, with the detected values as defaults: the store placement,
+     the merge method (merge commit or squash), DCO sign-off, and the sensitive paths. The
+     suggested sensitive paths are the CI workflows, the migrations, the auth code and the
+     deploy files that detection found.
+  4. Scaffold the store in its fixed layout, with `agent-rules.md` filled from the answers
+     and the templates copied.
+  5. Add `.claude/worktrees/` and `.spec-workflow/.cache/` to `.gitignore` (today
+     `src/core/typecheck.ts` appends the cache line itself during a task review, which leaves
+     an uncommitted `.gitignore` change in the repository mid-run; after this spec the server
+     only reports a missing line through `doctor`), add the `spec-workflow` server to
+     `.mcp.json`, and print the plugin install command.
+  6. Add the project to the harness home registry (spec 20).
+  7. Write `init-manifest.json` in the store. It lists every path that `init` created or
+     changed.
+
+  `init --yes` takes every default and asks nothing, so a script can run it.
+- **Store placement.** There are three placements, each with a fixed layout: `in-repo`
+  (`.spec-workflow/` committed with the code; the default), `separate-repo` (the store in a
+  second repository, given by its path; the code repository gets only `.mcp.json` with
+  `SPEC_WORKFLOW_SHARED_ROOT`), and `excluded` (`.spec-workflow/` in the repository, listed in
+  `.git/info/exclude`, never committed). `init` explains each placement in one line before it
+  asks.
+- **`/sdd-init`, the judgement half.** A skill runs `init`. Then it drafts the steering
+  documents (product, tech, structure) from the codebase, and turns the operator's goal into
+  a first `decomposition.md`. Both go through the normal document approval. The operator
+  approves them before the first run.
+- **`doctor`, a deterministic check.** `npx @madmatt112org/spec-workflow-mcp doctor` checks a
+  configured repository: the store is found, `agent-rules.md` parses and has the required
+  keys, the gate test command runs, the hook is registered, the plugin prefix (or the
+  checkout layout) is consistent, and the project is in the registry. It prints one line for
+  each check and exits non-zero when one fails. The supervisor's preflight runs the same
+  checks.
+- **`uninstall`.** It reverses `init` from `init-manifest.json`: it removes the `.mcp.json`
+  entry, the `.gitignore` line and the registry entry, and it prints the plugin uninstall
+  command. It keeps the spec store unless the operator passes `--purge`.
+- **Docs.** `docs/SDD-HARNESS.md` gets a "Start on a new repository" section: requirements,
+  `init`, `/sdd-init`, the first run, `doctor` and `uninstall`.
+
+**Decided.**
+
+- The bootstrap is opinionated. It supports the three placements and no other layout. A
+  repository that does not meet the requirements does not complete it.
+- The bootstrap does not install the plugin. Plugin installation is a Claude Code command that
+  the operator runs, and `init` prints it.
+- `init` never edits product code. It writes only the store, `.mcp.json`, `.gitignore` (or
+  `.git/info/exclude`), the registry and the manifest.
+
+**End-to-end verification.** (1) On a fresh Node fixture repository with a GitHub remote,
+`init --yes` completes, `doctor` passes every check, `/sdd-init` drafts the steering documents
+and a decomposition from a stated goal, and "continue the sdd process" starts the first spec
+and drafts requirements v1. (2) The same on a Python fixture repository: detection finds its
+test command. (3) A repository without a remote, and a repository whose test command fails,
+each stop at the requirement check with the exact fix printed and no files written. (4) Each
+placement produces its fixed layout, and the `separate-repo` placement leaves only `.mcp.json`
+changed in the code repository. (5) `uninstall` removes exactly the paths in the manifest
+(other than the store) and nothing else, which a test confirms by diffing the repository
+before `init` and after `uninstall`. (6) `npm run build`, `npx tsc --noEmit`, `npm test`,
+`npm run check:plugin-assets` and `claude plugin validate . --strict` are green.
+
+**Depends on** spec 20 for the home and the registry, spec 7 for the document approval path
+that `/sdd-init` uses, and spec 9 for the dashboard's project list.
+
 ## Build order
 
 1 → (2 and 3 in either order). 2 and 3 are independent of each other.
@@ -1032,6 +1179,9 @@ and it uses 9's per-role model override.
 15 → 16 → 17 → 18 after 14. 15 first because every later dashboard spec renders inside it. 16
 second because it removes the reason the overwatch session exists. 17 before 18 because
 merging is in the daily loop and usage is not.
+
+> 20 → 21 after 18. 20 first because 21 writes the registry that 20 defines. Matthew can move
+> both ahead of 17 and 18 if onboarding a new repository comes before merge and usage work.
 
 ## Boundary notes
 
@@ -1062,6 +1212,11 @@ merging is in the daily loop and usage is not.
   writes the same records 7 defined.
 - **The usage action belongs to 8 and 14; its display belongs to 18.**
 - **The TUI is not replaced by a spec.** The operator retires it when Now shows what it shows.
+
+- **The home layout and its writers belong to 20; the bootstrap commands belong to 21.** 21
+  writes the registry through the writer that 20 names.
+- **The spec store layout belongs to the existing specs; the placements belong to 21.** 21
+  does not change what is inside a store.
 
 ## Open question deferred to spec 2
 
