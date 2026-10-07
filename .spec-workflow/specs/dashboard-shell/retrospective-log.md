@@ -153,3 +153,8 @@ Cost: n/a
 E2E worktree suite cleared the deterministic gate at low risk; playwright install plus test:e2e:worktree both pass (17 tests, 8 shell cases).
 Evidence: task 14; 0 fix rounds, gate pass · mark run-20261006-170927 779b2512
 Cost: 1 spawn
+
+## 2026-10-07T05:44:13Z · implementation · task 15 · gotcha
+Implementer checks-file carried human-readable annotations and inverted-exit greps (no-match = exit 1 = pass); orchestrator normalized to gate-valid shell with ! and -q so exit 0 = pass.
+Evidence: task 15; 0 fix rounds, gate pass · mark run-20261006-170927 0ab57339
+Cost: 1 spawn
