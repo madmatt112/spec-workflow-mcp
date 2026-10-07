@@ -53,6 +53,13 @@ ledger as a `spawn.report`, and `orient` returns the undrained ones — those wi
    `spawn.usage`, then route it through Step 3 onward (log check, then Step 4 gate, verify,
    complete) exactly as if the Agent tool had just returned it — before you spawn any new
    worker. A drained report needs no reconcile.
+   When `data.inFlightReports` is empty but the resumed task is `[-]` — a worker was in
+   flight — a force-handed-back report may still be landing: it routes to the supervisor
+   session and the hook persists it as a `spawn.report` a moment later. Hold a short drain
+   window before concluding there is nothing to drain — wait briefly, then call `orient`
+   once more; if a report now appears, drain it as above. Only when that second `orient`
+   still returns none do you fall to Step 2, and never spawn a second worker for a `[-]`
+   task before this re-check (retro P7).
 2. **Reconcile only when drain finds nothing.** When the resumed `[-]` task has a commit but
    `data.inFlightReports` holds no report for it (an older run before persistence, or a report
    the hook could not capture), treat a commit with no matching worker report as ambiguous
