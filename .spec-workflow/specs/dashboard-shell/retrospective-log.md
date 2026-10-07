@@ -133,3 +133,13 @@ Cost: 1 spawn
 verifier pass, 2 info findings; 1 implementer + 1 verifier spawn
 Evidence: task 12 · mark run-20261006-170927 caf4f344
 Cost: 2 spawns
+
+## 2026-10-07T04:51:37Z · implementation · phase · misunderstanding
+After an accidental /exit the supervisor saw an orchestrator spawn.end row at 02:25Z and reported spawn 3 dead, then launched spawn 4; spawn 3 was alive (the hook writes a spawn.end per orchestrator yield). Two orchestrators ran the same run id; spawn 4 detected the collision and yielded without damage, then both hit the API 429 session limit at 12/16. Liveness should come from the task list or the transcript mtime, never from a single spawn.end row.
+Evidence: harness-events.jsonl note CONCURRENCY 2026-10-07T03:21:42Z; spawn.end rows 02:25:18Z..03:20:12Z
+Cost: 1 duplicate orchestrator spawn (~10 min of tokens), no corrupt commits
+
+## 2026-10-07T05:18:09Z · implementation · task 13 · gotcha
+Removal task: gate file-outside-list wants exact touched paths, not trailing-slash dir globs; large deletion line-count always trips risk high, routing to verifier.
+Evidence: task 13; 0 fix rounds, verifier pass · mark run-20261006-170927 f3fd7a02
+Cost: 2 spawns
