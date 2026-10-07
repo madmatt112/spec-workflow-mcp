@@ -98,3 +98,13 @@ Cost: added governing-ref note to implementer brief
 Gate fail cleared by P11 declared-files narrowing (dir prefix did not match; passed 16 explicit paths); scoped frontend typecheck unrunnable from gate cwd, verifier ran it clean. Frontend has no root tsc coverage by design.
 Evidence: task 8: 16 files, shell/*.tsx + providers + e2e · mark run-20261006-170927 3c34957a
 Cost: 1 gate re-run (self-resolved), 2 spawns (implementer, verifier)
+
+## 2026-10-07T01:40:09Z · implementation · task 9 · gotcha
+Deferrals page; gate pass high risk (line-count 287), batched verify with task 10, pass round 0
+Evidence: task 9: DeferralsPage.tsx, stubs.tsx, App.tsx, en.json · mark run-20261006-170927 be8016fc
+Cost: 0 fix rounds
+
+## 2026-10-07T01:40:09Z · implementation · task 10 · gotcha
+Now page; gate pass high risk (line-count 324, tests-not-touched expected), batched verify with task 9, pass round 0
+Evidence: task 10: NowPage.tsx, stubs.tsx, App.tsx, en.json · mark run-20261006-170927 64f57167
+Cost: 0 fix rounds; 1 shared verifier spawn for 9+10
