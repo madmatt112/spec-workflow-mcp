@@ -73,3 +73,8 @@ Cost: 3 spawns for 2 tasks via batch
 The implementation orchestrator's batch-end phase.end (2026-10-06T21:54:21.396Z, tasks 5/16) carried no result= field, the same defect tradr's run hit; the supervisor patched the row to result=resume from the orchestrator's PHASE: resume report so phase-log can read the ledger.
 Evidence: harness-events.jsonl phase.end implementation ts 2026-10-06T21:54:21.396Z; overwatch heads-up from tradr-5e
 Cost: 1 supervisor patch
+
+## 2026-10-07T00:09:31Z · implementation · task 6 · gotcha
+Gate pass at high risk, verifier pass round 0, no fixes; tdd base structural-red
+Evidence: task 6: src/dashboard/shell/shell-feed.ts · mark run-20261006-170927 665015b4
+Cost: 0 fix rounds, 3 spawns (author, implementer, verifier)

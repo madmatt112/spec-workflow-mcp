@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/shell-feed.test.ts"],"seams":{"src/dashboard/shell/__tests__/shell-feed.test.ts":"new ShellFeed(projects, launcher, send, opts).start(), schedule(), snapshot(), close()"},"redCommit":"0ab736b","baseSha":"ae1f44fed9c7e4a777dc5b4561276ba34162a85e","base":"structural-red","head":"pass","amended":false,"judged":null}
