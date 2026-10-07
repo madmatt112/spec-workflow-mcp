@@ -92,7 +92,9 @@ live in `references/stops.md`. Read each file only when a step routes to it.
     the verify `role` add ` round <r>` for r ≥ 1, and the `logged: no` re-spawn `role`
     adds ` retry`. Row types and keys never change.
   Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
-  <done>/<total>"` at the end of Step 0 and `phase.end` right before your final report. The
+  <done>/<total>"` at the end of Step 0 and `phase.end` — always carrying
+  `result=<the PHASE value of your final report>` (phase-log rejects a row without it, and
+  the supervisor must never be left to patch it in) — right before your final report. The
   event types, keys and roles are listed in the supervisor's `references/formats.md`. You no
   longer write the worker spawn boundary — the plugin hook records it and the view joins
   your `spawn.usage` to it by agent and time window. On a non-zero `book.sh` exit re-run the
@@ -247,7 +249,14 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    sha (`<implementer commit>^`, set in Step 1) when it has one, `files` = `nextTask.files`
    (the task's declared files from the orient queue, design D10), and `checks` = the
    commands in the implementer's `checks-file` (design D17), one shell string each,
-   dropping a bare typecheck command (the gate runs the project typecheck itself). On a
+   dropping a bare typecheck command (the gate runs the project typecheck itself) and any
+   `prettier --check` on an `.env*` path (prettier has no parser for dotenv files and fails
+   spuriously; the real fix is the `prettier --write` the implementer ran on the formatted
+   file, e.g. `docker-compose.yml`) (retro P3). Reject a
+   `checks-file` that is not a flat array of shell strings (an array of objects, say) rather
+   than reconstruct it by hand: re-spawn the implementer with the brief plus "re-emit
+   `checks-file` as a JSON array of the runnable shell-command strings you ran, one per
+   entry" and read the re-emitted file (retro P2). On a
    marked task, also pass `tdd: { testFiles: <the author's test files>, redCommit: <the
    author's `commit:` sha from step 1b> }` on every gate call for this task, through every
    fix round.
@@ -273,7 +282,10 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    the first round with INFO-only notes, switch remaining non-sensitive tasks to batched
    verification (one spawn per group) — always verifying gate, security, and data-loss
    tasks in full. Do not spend one verifier spawn per task by default. Never treat
-   tdd-inconclusive as a risk signal on a type-level or pure-function seam. Take N as 3.
+   tdd-inconclusive as a risk signal on a type-level or pure-function seam. A marked task
+   whose seam is pure-function or type/schema-level either supplies a `tdd-test-command`
+   that is red at base, or the gate records `tdd-inconclusive` as an explicit not-a-risk
+   disposition; an unscored marked task is never a silent pass (retro G2). Take N as 3.
    A gate, security (a sensitive-path match) or data-loss task is always verified in full
    and never counts toward the batch or joins a group. For a batched group, carry every
    grouped task's id, files and `## Gate results` into one verifier brief (the `batch`

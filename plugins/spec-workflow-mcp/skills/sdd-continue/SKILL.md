@@ -469,9 +469,15 @@ decided it and recorded it silently.
    two calls (four questions per call), each decision offering its `options` verbatim (at
    most four). A decision is **approve** when the reply selects `options[0]` with no
    appended free text; anything else — a different option, added free text, or both — is
-   **needs revision**. If the second call is denied, errors, or times out after the first
-   answered, keep the first call's answers and treat the unreturned decisions as
-   `no answer`.
+   **needs revision**. A **non-committal** reply that hands the choice back rather than
+   making it — free text like "your call", "you decide" or "up to you" with no clear pick —
+   is neither, and is not approval of `options[0]`: re-ask that one decision once, naming the
+   recorded default (`options[0]`) explicitly and requiring an explicit pick, then resolve on
+   the re-ask's answer (an explicit `options[0]` is **approve**, any other pick or added
+   direction is **needs revision**); a second non-committal or absent reply falls to the
+   `no answer` path (step 7) (retro P15). If the second call is denied, errors, or times out
+   after the first answered, keep the first call's answers and treat the unreturned decisions
+   as `no answer`.
 5. **Record the answers.** Fill each decision's `answer:` line in `questions.md` with its
    selected option and any free text (or `no answer`) and commit.
 6. **Route.** If any decision needs revision, re-spawn `sdd-document-orchestrator` for
