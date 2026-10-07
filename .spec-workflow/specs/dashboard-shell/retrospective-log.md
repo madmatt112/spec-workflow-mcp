@@ -143,3 +143,13 @@ Cost: 1 duplicate orchestrator spawn (~10 min of tokens), no corrupt commits
 Removal task: gate file-outside-list wants exact touched paths, not trailing-slash dir globs; large deletion line-count always trips risk high, routing to verifier.
 Evidence: task 13; 0 fix rounds, verifier pass · mark run-20261006-170927 f3fd7a02
 Cost: 2 spawns
+
+## 2026-10-07T05:36:16Z · implementation · task 14 · tooling
+log-implementation silently drops the artifacts arg on large payloads; only a terse call logged (entry 28eb8506), so filesModified is empty there.
+Evidence: task 14; e2e/worktree-shell.spec.ts, playwright.worktree.config.ts · mark run-20261006-170927 24964099
+Cost: n/a
+
+## 2026-10-07T05:37:36Z · implementation · task 14 · gotcha
+E2E worktree suite cleared the deterministic gate at low risk; playwright install plus test:e2e:worktree both pass (17 tests, 8 shell cases).
+Evidence: task 14; 0 fix rounds, gate pass · mark run-20261006-170927 779b2512
+Cost: 1 spawn
