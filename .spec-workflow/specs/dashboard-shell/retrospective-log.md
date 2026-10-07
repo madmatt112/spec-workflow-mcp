@@ -173,3 +173,8 @@ Cost: 1 verifier spawn
 16 tasks total (13-16 this run, 1-12 prior). This run: 0 fix rounds, 0 adjudications; 6 spawns (4 implementer, 1 task-13 verifier, 1 e2e verifier); 1 deferral added (d-fd0d4f60 verification).
 Evidence: tasks 16/16; PR #86 · mark run-20261006-170927 e3988354
 Cost: 6 spawns
+
+## 2026-10-07T06:11:07Z · implementation · phase · harness-defect
+Spawn 5's final phase.end (2026-10-07T06:10:14.513Z, tasks 16/16) carried result=implementation (the stage name) instead of its PHASE value complete. This is the second malformed batch-end row this run, after spawn 1's missing result=. The supervisor patched it to result=complete.
+Evidence: harness-events.jsonl phase.end implementation ts 2026-10-07T06:10:14.513Z
+Cost: 1 supervisor patch
