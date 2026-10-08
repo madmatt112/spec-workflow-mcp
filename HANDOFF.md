@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-08, harness v4).** Active spec **`dashboard-shell`**.
-> Live phase **closeout**, state **items 0/15**, last result **retro-ready** (retrospective plan APPROVED 2026-10-08: 12 proposals + 3 graduation rules).
+> **READ FIRST — SDD routing (2026-10-08, harness v4).** Last spec **`dashboard-shell`** is **CLOSED**.
+> Live phase **closeout**, state **items 15/15**, last result **closed** (retrospective plan CLOSED 2026-10-08: 13 landed, 2 to-do; PR #88).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs the dashboard-shell close-out of the approved retrospective plan.
+> A re-run does: starts the next spec (dashboard-shell is closed).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
@@ -96,6 +96,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-07 | dashboard-shell | implementation | tasks 10/16 | resume |  |
 | 2026-10-07 | dashboard-shell | implementation | tasks 16/16 | complete |  |
 | 2026-10-08 | dashboard-shell | retrospective |  | retro-ready |  |
+| 2026-10-08 | dashboard-shell | closeout | items 15/15 | closed | 13 landed, 2 to-do, PR #88 |
 
 ## Current state — 2026-08-04
 
@@ -817,3 +818,24 @@ Gotchas:
 - E2E flake: `npm run test:e2e:worktree` flaked once on a cold start (shell beforeAll waitForProjects timeout: the shared dashboard server still showed a prior race test's wt-race-* projects); rerun passed 17/17. Shell code sound in isolation. Overlaps d-84dc43e7 and d-3580c072.
 - Task 16 wrote verification-evidence.md on the feature branch; it was relocated to the main spec store this run (branch commit 9e1d746 removes it) so the PR stays code-only.
 - log-implementation can silently drop the artifacts arg on large payloads (task 14 entry 28eb8506 has empty filesModified).
+
+## dashboard-shell — closeout
+
+| State | CLOSED 2026-10-08, items 15/15 (13 landed, 2 to-do) |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/88 (branch chore/dashboard-shell-retro) |
+
+Retrospective plan CLOSED. Worked all 15 open items of the APPROVED plan in three batches.
+
+- Store (spec store, direct commits on main): G1, G2 (Run-ledger rules, 6fb95fe), G3 (Citations rule, d7514ed), P14 (deferral d-d0e6f1e8). All gate pass low.
+- Harness (worktree chore/dashboard-shell-retro, in PR #88): P3 19cb41c, P7 0bd9711, P10 c0c6cf0, P11 f3d7ef2, P12 76ec013, P13 325fbdf, P15 56210e4. All gate pass low; no verifier needed.
+- Code (same worktree, in PR #88): P5 9faa5fe, P9 dc5c90f. Both gate pass low.
+
+To-do for the human:
+- P2 (gate frontend tsc): no server-side "gate frontend tsc" exists — the root gate excludes `src/dashboard_frontend/**` and the frontend ships no tsconfig. Option A is a new subsystem; needs its own scoped spec.
+- P6 (log-implementation size cap): no server-side size cap exists — `addLogEntry` persists artifacts at any size; the 28eb8506 loss was a client-mangled tool call, not a drop. Needs its own scoped spec.
+- PR #88 is open, CI green at push; merge it (overwatch merges harness-session PRs).
+- P9 e2e worktree suite was NOT run (needs a live dashboard + chromium); run it in a rebuilt, restarted session. P9 removes the foreign-project symptom only — the chokidar dead-watch cause behind d-3580c072 / d-84dc43e7 remains open.
+
+Gotchas:
+- The PR was opened from origin/main (1a26f4c); the spec-store commits (agent-rules.md G1/G2/G3) live on local main, not in the PR, because agent-rules.md is under `.spec-workflow` (store class, direct commit).
+- P2/P6 are retro proposals whose asserted mechanisms do not exist; their real causes (frontend has no TS config; a client-mangled tool call) each want a scoped spec.

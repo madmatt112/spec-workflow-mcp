@@ -399,3 +399,14 @@
 {"ts":"2026-10-08T22:02:14.757Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P15","outcome":"done"}
 {"ts":"2026-10-08T22:02:14.784Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P2","outcome":"to-do"}
 {"ts":"2026-10-08T22:02:14.809Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P6","outcome":"to-do"}
+{"ts":"2026-10-08T22:02:39.914Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P5","title":"now-model live label from pointer spec"}
+{"ts":"2026-10-08T22:02:39.938Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P9","title":"scope e2e waitForProjects to own ids"}
+{"ts":"2026-10-08T22:02:47.730Z","type":"spawn.start","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-08T22:02:50.854Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-closeout-orchestrator","input":"64","output":"2274","cacheWrite":"106951","cacheRead":"2566953","tokens":"2676242","cacheWrite5m":"0","cacheWrite1h":"106951","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a26e41a19f9cb3938"}
+{"ts":"2026-10-08T22:16:30.017Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","input":"80","output":"17144","cacheWrite":"111375","cacheRead":"3022618","tokens":"3151217","cacheWrite5m":"111375","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ac0637ec650223b64"}
+{"ts":"2026-10-08T22:16:30.017Z","type":"spawn.report","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","report":"Both items are done and committed on `chore/dashboard-shell-retro`. Handing back my report.","agentId":"ac0637ec650223b64"}
+{"ts":"2026-10-08T22:16:44.994Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 1","phase":"closeout","result":"2 done (P5 9faa5fe, P9 dc5c90f); P9 e2e suite deferred to verification"}
+{"ts":"2026-10-08T22:17:03.682Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P5 pass risk low"}
+{"ts":"2026-10-08T22:17:03.704Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-10-08T22:17:03.727Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-10-08T22:17:03.749Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P9","outcome":"done"}

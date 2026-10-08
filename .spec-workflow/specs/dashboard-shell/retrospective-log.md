@@ -218,3 +218,13 @@ Cost: to-do
 P6 to-do: no server-side size cap; addLogEntry persists artifacts at any size. Entry 28eb8506 loss was a client-mangled tool call, not a drop. Option A has no target; needs its own spec.
 Evidence: harness batch 1 report
 Cost: to-do
+
+## 2026-10-08T22:17:03Z · closeout · phase · cleanup
+code batch 1: P5,P9 done (gate pass risk low). P9 e2e suite deferred to verification; removes foreign-project symptom only, chokidar dead-watch cause (d-3580c072/d-84dc43e7) remains. 1 implementer spawn, 0 verifier.
+Evidence: 9faa5fe,dc5c90f
+Cost: 1 implementer spawn
+
+## 2026-10-08T22:19:12Z · closeout · phase · cleanup
+dashboard-shell CLOSED. 15 items: 13 landed (G1,G2,G3,P14,P3,P7,P10,P11,P12,P13,P15,P5,P9), 2 to-do (P2,P6 target mechanisms do not exist, each needs own spec). 3 implementer spawns, 0 verifier (all gate pass low), 0 adjudication. PR #88.
+Evidence: PR #88; branch chore/dashboard-shell-retro
+Cost: 3 implementer spawns

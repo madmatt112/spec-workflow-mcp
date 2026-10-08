@@ -1,6 +1,6 @@
 # Retrospective plan — dashboard-shell
 
-Status: APPROVED
+Status: CLOSED
 
 Approved by Matthew on 2026-10-08 in the retrospective conversation. Proposal text is
 from `retrospective-proposals.md`.
@@ -179,3 +179,6 @@ One line per proposal, written by the close-out phase.
 - P12: done — 76ec013
 - P13: done — 325fbdf
 - P15: done — 56210e4
+- P5: done — 9faa5fe
+- P9: done — dc5c90f
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/88 (branch chore/dashboard-shell-retro)
