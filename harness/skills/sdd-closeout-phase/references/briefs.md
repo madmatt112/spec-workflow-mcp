@@ -9,7 +9,7 @@ Put the class's checks in every brief, each as its own command.
 | Class | Checks |
 | --- | --- |
 | `store` | none (Markdown files); the verifier reads the changed files |
-| `harness` | `npm install` once when `node_modules` is missing; after any change under `harness/`: `node scripts/sync-plugin-assets.cjs` (commit the `plugins/` copies in the same commit as the source), `npm run check:plugin-assets`, `claude plugin validate . --strict`; after any change under `src/`: `npx tsc --noEmit` and `npx vitest run <the test files of the modules touched>` |
+| `harness` | `npm install` once when `node_modules` is missing; after any change under `harness/`: `node scripts/sync-plugin-assets.cjs` (commit the `plugins/` copies in the same commit as the source), `npm run check:plugin-assets`, `claude plugin validate . --strict`; after any change under `src/`: `npx tsc --noEmit` and `npx vitest run --exclude '**/.claude/**' <the test files of the modules touched>` |
 | `code` | the checks `agent-rules.md` names for the files touched; with no rules, the repo's lint and test scripts scoped to the files touched |
 | `home` | none |
 
