@@ -1,9 +1,9 @@
 # HANDOFF
 
 > **READ FIRST — SDD routing (2026-10-08, harness v4).** Active spec **`dashboard-shell`**.
-> Live phase **retrospective**, state **tasks 16/16**, last result **complete** (PR #86 merged; check 3 accepted as partial by Matthew 2026-10-08, Launch press carried as d-40df3cdb).
+> Live phase **closeout**, state **items 0/15**, last result **retro-ready** (retrospective plan APPROVED 2026-10-08: 12 proposals + 3 graduation rules).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: runs the dashboard-shell retrospective, then the retro conversation and close-out.
+> A re-run does: runs the dashboard-shell close-out of the approved retrospective plan.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
