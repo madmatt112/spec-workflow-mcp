@@ -410,3 +410,7 @@
 {"ts":"2026-10-08T22:17:03.704Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P5","outcome":"done"}
 {"ts":"2026-10-08T22:17:03.727Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P9 pass risk low"}
 {"ts":"2026-10-08T22:17:03.749Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-10-08T22:19:12.881Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"phase.end","phase":"closeout","result":"closed","state":"items 15/15"}
+{"ts":"2026-10-08T22:19:24.978Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-closeout-orchestrator","input":"94","output":"6175","cacheWrite":"121747","cacheRead":"4299506","tokens":"4427522","cacheWrite5m":"0","cacheWrite1h":"121747","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a26e41a19f9cb3938"}
+{"ts":"2026-10-08T22:19:33.791Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","result":"closed","phase":"closeout"}
+{"ts":"2026-10-08T22:19:59.217Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"run.end","status":"spec-workflow-mcp:dashboard-shell closeout items 15/15 — closed; PR #88 open for overwatch to merge; next spec dashboard-gates"}

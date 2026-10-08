@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-08, harness v4).** Last spec **`dashboard-shell`** is **CLOSED**.
-> Live phase **closeout**, state **items 15/15**, last result **closed** (retrospective plan CLOSED 2026-10-08: 13 landed, 2 to-do; PR #88).
+> **READ FIRST — SDD routing (2026-10-08, harness v4).** Active spec **`dashboard-gates`** (next; dashboard-shell CLOSED).
+> Live phase **requirements**, state **pending**, last result **closed** (dashboard-shell close-out: 13 landed, 2 to-do, PR #88 open).
 > Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: starts the next spec (dashboard-shell is closed).
+> A re-run does: starts dashboard-gates (spec 16) at requirements.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
