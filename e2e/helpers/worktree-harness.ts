@@ -47,6 +47,7 @@ import {
   GitRepoFixture,
   WorktreeLayout
 } from '../../src/core/__tests__/helpers/git-fixture.js';
+import { generateProjectId } from '../../src/core/project-registry.js';
 
 export type { WorktreeLayout };
 
@@ -589,13 +590,18 @@ export class WorktreeHarness {
   }
 
   /**
-   * Waits until `expectedCount` of this fixture's worktrees are listed by the
-   * dashboard.
+   * Waits until `expectedCount` of this fixture's own worktrees are listed by
+   * the dashboard.
    *
-   * Matching is exact, not by suffix: both sides are `realpath`-normalized —
-   * the fixture root by {@link GitFixture}, the registered path by
-   * `generateProjectId`/`registerProject` — so an inexact match here would be
-   * hiding a normalization bug rather than tolerating one.
+   * Scoped to this run's own project ids — `generateProjectId(worktree.path)`,
+   * the same id the server assigns at registration — never the full list. The
+   * dashboard is shared across every worktree suite, so a prior test's leftover
+   * projects (the race suite's `wt-race-*`) can still be listed on it; matching
+   * on our own ids never counts or waits on those.
+   *
+   * `generateProjectId` realpaths its argument and the fixture paths are already
+   * physical ({@link GitFixture}), so our computed ids equal the registered
+   * ones — an inexact match would hide a normalization bug, not tolerate one.
    */
   async waitForProjects(
     expectedCount = this.worktrees.size,
@@ -603,7 +609,7 @@ export class WorktreeHarness {
   ): Promise<RegisteredProject[]> {
     const startedAt = Date.now();
     const url = `${this.options.dashboardApiBaseUrl}/api/projects/list`;
-    const fixturePaths = new Set(this.getWorktrees().map((worktree) => worktree.path));
+    const fixtureIds = new Set(this.getWorktrees().map((worktree) => generateProjectId(worktree.path)));
     let lastBody = '';
 
     while (Date.now() - startedAt < timeoutMs) {
@@ -612,7 +618,7 @@ export class WorktreeHarness {
         if (response.ok) {
           const body = await response.json() as RegisteredProject[];
           lastBody = JSON.stringify(body);
-          const worktreeProjects = body.filter((project) => fixturePaths.has(project.projectPath));
+          const worktreeProjects = body.filter((project) => fixtureIds.has(project.projectId));
 
           if (worktreeProjects.length === expectedCount) {
             return worktreeProjects;
@@ -627,7 +633,8 @@ export class WorktreeHarness {
 
     throw new Error(
       `Timed out waiting for ${expectedCount} MCP projects.\n` +
-      `Expected worktree paths: ${[...fixturePaths].join(', ')}\n` +
+      `Expected worktree ids: ${[...fixtureIds].join(', ')}\n` +
+      `Expected worktree paths: ${this.getWorktrees().map((worktree) => worktree.path).join(', ')}\n` +
       `Last /api/projects/list payload: ${lastBody}\n` +
       `Recent MCP logs:\n${this.getCapturedLogs()}`
     );

@@ -544,6 +544,27 @@ describe('decideGate', () => {
     expect(r).toEqual({ gate: 'pass', reasons: [] });
   });
 
+  it('d: a trailing-slash dir entry matches every path beneath it by prefix (dashboard-shell P3)', () => {
+    const r = decideGate({
+      ...passGate,
+      files: ['src/dashboard_frontend/src/modules/shell/'],
+      touched: [
+        'src/dashboard_frontend/src/modules/shell/RunsPage.tsx',
+        'src/dashboard_frontend/src/modules/shell/SpecsPage.tsx',
+      ],
+    });
+    expect(r).toEqual({ gate: 'pass', reasons: [] });
+  });
+
+  it('d: a trailing-slash dir entry does not accept a sibling outside it', () => {
+    const r = decideGate({
+      ...passGate,
+      files: ['src/dashboard_frontend/src/modules/shell/'],
+      touched: ['src/dashboard_frontend/src/modules/other/X.tsx'],
+    });
+    expect(r.reasons).toContain('file-outside-list: src/dashboard_frontend/src/modules/other/X.tsx');
+  });
+
   it('e: fails when a listed file is missing under root (files-only)', () => {
     const r = decideGate({ ...passGate, filesOnly: true, missing: ['src/gone.ts'] });
     expect(r.reasons).toContain('listed-file-missing: src/gone.ts');
