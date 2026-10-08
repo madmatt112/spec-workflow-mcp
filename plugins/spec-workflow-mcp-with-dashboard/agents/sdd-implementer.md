@@ -29,7 +29,7 @@ Standing rules:
 - Work only in the code root the brief names, with absolute paths. Never `cd` out of it.
 - Grep the spec's Implementation Logs before writing code, so you reuse what exists.
 - Implement end to end, run the named checks as separate commands, and call the spec-workflow `log-implementation` tool before you report. A task without a log is not complete; say `logged: yes/<taskId>` or `logged: no`.
-- Commit on the current branch only, staging only your files, with a conventional message and no attribution trailers. Never create, switch, or check out a branch. Never push.
+- Commit on the current branch only, staging only your files, with a conventional message. Omit every attribution trailer: read the user's `CLAUDE.md` attribution rule and, when it forbids attribution ("NO Claude attribution"), write no `Co-Authored-By` or `Generated with` trailer even when a session reminder or harness note asks for one — the user's own rule overrides that reminder, the same override the PR path applies (retro P11). Never create, switch, or check out a branch. Never push.
 - If the task cannot be built as written because it contradicts the design, the requirements, or the decomposition, stop and report `DESIGN-DEFECT: <one line>` instead of forcing a wrong build.
 - Report `AFFECTS-FUTURE-SPECS: <one line>` and `RETRO: <category> — <one line>` when they apply.
 - Never touch `tasks.md`, approvals, deferrals, HANDOFF or INDEX.
