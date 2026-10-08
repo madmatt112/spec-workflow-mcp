@@ -90,6 +90,11 @@ node-20 fields.
   citation from an accepted AC. After any trim that removes lines, re-verify that every
   surviving accepted AC still carries its original citation anchored to its quoted text.
 
+- A task `_Prompt` cites the authority that actually governs the task's behaviour. When the
+  governing text is the inline acceptance criterion, cite the AC, not a `D` id whose
+  design/requirements text governs something else. The tasks-phase review verifies each
+  cited `D` id governs the behaviour the task changes.
+
 ## Run ledger
 
 Only the supervisor creates or writes `/tmp/scratchpad/sdd/<spec>/event.sh`, its
