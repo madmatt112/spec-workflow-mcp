@@ -381,6 +381,37 @@ describe('buildNowModel', () => {
     expect(endedRow?.phase).toBe('retrospective');
   });
 
+  it('labels the live runs row with the pointer\'s spec when HANDOFF names a different spec', async () => {
+    // The pointer and the HANDOFF disagree: resolveSpec names 'spec-handoff'
+    // but the active-run pointer names 'spec-pointer' with runId 'run-ptr'. The
+    // live runs row's runId comes from the pointer, so its spec label must come
+    // from the same source — the pointer's spec, not the HANDOFF spec.
+    const { project, specsDir, workflowRoot } = makeProject(base, 'Mismatch Project');
+    const handoffDir = makeSpecDir(specsDir, 'spec-handoff');
+    const pointerDir = makeSpecDir(specsDir, 'spec-pointer');
+    writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffFixture('spec-handoff'));
+    writeLedger(handoffDir, [
+      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-handoff' },
+      { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'run-handoff', phase: 'implementation' },
+    ]);
+    writeLedger(pointerDir, [
+      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-ptr' },
+      { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'run-ptr', phase: 'implementation' },
+    ]);
+
+    const model = await buildNowModel(
+      [project],
+      [pointerFor(project, 'spec-pointer', 'run-ptr')],
+      () => null,
+      Date.now(),
+    );
+
+    const runsRow = model.runs.find((r) => r.projectId === project.projectId);
+    expect(runsRow?.state).toBe('live');
+    expect(runsRow?.runId).toBe('run-ptr');
+    expect(runsRow?.spec).toBe('spec-pointer');
+  });
+
   it('omits a project whose launchOf throws from every group, logging once, while the other project\'s rows remain', async () => {
     const { project: bad, specsDir: badSpecsDir } = makeProject(base, 'Bad Project');
     const badDir = makeSpecDir(badSpecsDir, 'bad-spec');
