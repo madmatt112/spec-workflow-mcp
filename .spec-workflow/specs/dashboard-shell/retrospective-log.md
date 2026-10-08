@@ -188,3 +188,13 @@ Cost: none yet; latency risk
 Run row spec/runId mismatch: now-model.ts collectProject builds `runs` from resolveSpec (the HANDOFF spec) but `live` from the active-run pointer's spec, so a project whose pointer names a different spec (tradr pointer trading-rules) showed in Runs as self-host-experience with the live runId.
 Evidence: src/dashboard/shell/now-model.ts collectProject · overwatch live check 2026-10-07
 Cost: wrong run label on the Runs list when HANDOFF and pointer disagree
+
+## 2026-10-08T21:10:32Z · implementation · phase · ruling
+Verification check 3 (Launch on the Runs page) passed only in part: the disabled reason was verified, the enabled Launch was not pressed. Matthew accepted it as partial so the retrospective could run; the Launch press is carried as a verification deferral.
+Evidence: verification-evidence.md (3); d-40df3cdb; d-fd0d4f60 resolved
+Cost: one blocked run (run-20261008-022312)
+
+## 2026-10-08T21:15:28Z · retrospective · phase · cleanup
+retrospective compiled: 16 findings across 9 categories, 16 proposals (4 decisions needed, 3 graduation candidates).
+Evidence: retrospective.md; retrospective-proposals.md
+Cost: 1 analyst spawn
