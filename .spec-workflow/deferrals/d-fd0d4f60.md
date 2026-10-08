@@ -1,16 +1,16 @@
 ---
 id: "d-fd0d4f60"
-status: "deferred"
+status: "resolved"
 title: "dashboard-shell live checks 1-4 need an operator pre-merge session in a rebuilt dashboard"
 createdAt: "2026-10-07T06:06:16.675Z"
-updatedAt: "2026-10-07T06:06:16.675Z"
-resolvedAt: null
+updatedAt: "2026-10-08T21:10:17.464Z"
+resolvedAt: "2026-10-08T21:10:17.464Z"
 originSpec: "dashboard-shell"
 originPhase: "implementation"
 revisitTrigger: "Before merging the dashboard-shell PR: an operator rebuilds (npm run build) and restarts the dashboard with the four registered projects and runs decomposition checks 1-4."
 tags: ["verification", "dashboard-shell"]
-resolution: null
-resolvedInSpec: null
+resolution: "Overwatch ran checks 1-4 on 2026-10-07; 1, 2, 4 passed. Check 3 was partial (enabled Launch not pressed); Matthew accepted it as partial on 2026-10-08 and the Launch press is carried as d-40df3cdb."
+resolvedInSpec: "dashboard-shell"
 supersededBy: null
 supersedes: null
 ---

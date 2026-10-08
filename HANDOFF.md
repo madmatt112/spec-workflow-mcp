@@ -1,9 +1,9 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-07, harness v4).** Active spec **`dashboard-shell`**.
-> Live phase **retrospective**, state **tasks 16/16**, last result **complete** (PR #86 open, green; retrospective blocked — verification-evidence.md (1)-(4) pending operator live checks, deferral d-fd0d4f60; run-20261006-170927 ended).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/dashboard-shell`, worktree of `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: once verification-evidence.md (1)-(4) read passed, runs the dashboard-shell retrospective, then the retro conversation and close-out.
+> **READ FIRST — SDD routing (2026-10-08, harness v4).** Active spec **`dashboard-shell`**.
+> Live phase **retrospective**, state **tasks 16/16**, last result **complete** (PR #86 merged; check 3 accepted as partial by Matthew 2026-10-08, Launch press carried as d-40df3cdb).
+> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: runs the dashboard-shell retrospective, then the retro conversation and close-out.
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
