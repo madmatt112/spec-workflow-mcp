@@ -117,6 +117,16 @@ re-measured on the next real spec.
   a trailing remainder of one into the previous batch. Treat the base+skill prefix as a
   fixed per-spawn cost when choosing the number of spawns.
 
+- A `spawn.end` row is written on every orchestrator yield, not only at death. Never treat
+  a single `spawn.end` as liveness proof: before re-launching a spawn, confirm it is gone
+  from another source (the active-run pointer or an explicit hand-back). Reading one
+  `spawn.end` as death risks a duplicate orchestrator on the same run id.
+
+- An orchestrator's batch-end `phase.end` row always sets `result=` to the outcome
+  (`complete`), never to the stage name and never empty. phase-log reads the ledger from
+  this field; a missing or stage-named result voids the batch's reconciliation and the
+  supervisor must patch it.
+
 ## Fixtures and live verification
 
 - A fixture or generated artifact used in a live check must meet the same validity bar
