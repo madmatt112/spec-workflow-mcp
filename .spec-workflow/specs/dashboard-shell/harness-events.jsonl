@@ -351,3 +351,21 @@
 {"ts":"2026-10-08T21:15:28.090Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"phase.end","phase":"retrospective","result":"retro-ready"}
 {"ts":"2026-10-08T21:15:58.124Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-retro-orchestrator","input":"38","output":"7913","cacheWrite":"100333","cacheRead":"1478700","tokens":"1586984","cacheWrite5m":"100333","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ad303964545f977c4"}
 {"ts":"2026-10-08T21:16:05.658Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-retro-orchestrator","role":"retrospective phase, spawn 1","result":"retro-ready","phase":"retrospective"}
+{"ts":"2026-10-08T21:29:48.694Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.start","agent":"sdd-closeout-orchestrator","role":"closeout phase, spawn 1","phase":"closeout"}
+{"ts":"2026-10-08T21:32:46.615Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"phase.start","phase":"closeout","state":"items 0/15"}
+{"ts":"2026-10-08T21:34:10.537Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"G1","title":"spawn.end is never proof of death"}
+{"ts":"2026-10-08T21:34:10.562Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"G2","title":"Batch-end phase.end must carry result=complete"}
+{"ts":"2026-10-08T21:34:10.586Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"G3","title":"Cite the governing authority not a loose D id"}
+{"ts":"2026-10-08T21:34:10.612Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P14","title":"Shell-feed flush incremental (defer)"}
+{"ts":"2026-10-08T21:34:13.264Z","type":"spawn.start","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-08T21:35:27.747Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-closeout-orchestrator","input":"30","output":"636","cacheWrite":"84454","cacheRead":"968444","tokens":"1053564","cacheWrite5m":"0","cacheWrite1h":"84454","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a26e41a19f9cb3938"}
+{"ts":"2026-10-08T21:36:13.043Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","input":"32","output":"2704","cacheWrite":"38125","cacheRead":"491772","tokens":"532633","cacheWrite5m":"38125","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"ae2347778ce972ba8"}
+{"ts":"2026-10-08T21:36:13.043Z","type":"spawn.report","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","report":"All items complete. Here is my report.","agentId":"ae2347778ce972ba8"}
+{"ts":"2026-10-08T21:36:30.549Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","phase":"closeout","result":"4 items done (G1/G2 6fb95fe, G3 d7514ed, P14 deferral d-d0e6f1e8)"}
+{"ts":"2026-10-08T21:36:55.089Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item G1 pass risk low"}
+{"ts":"2026-10-08T21:36:55.111Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item G2 pass risk low"}
+{"ts":"2026-10-08T21:36:55.134Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item G3 pass risk low"}
+{"ts":"2026-10-08T21:36:55.156Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-10-08T21:36:55.179Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"G2","outcome":"done"}
+{"ts":"2026-10-08T21:36:55.201Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"G3","outcome":"done"}
+{"ts":"2026-10-08T21:36:55.223Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P14","outcome":"done"}

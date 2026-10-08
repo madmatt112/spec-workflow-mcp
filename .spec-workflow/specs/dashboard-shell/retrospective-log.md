@@ -198,3 +198,8 @@ Cost: one blocked run (run-20261008-022312)
 retrospective compiled: 16 findings across 9 categories, 16 proposals (4 decisions needed, 3 graduation candidates).
 Evidence: retrospective.md; retrospective-proposals.md
 Cost: 1 analyst spawn
+
+## 2026-10-08T21:36:55Z · closeout · phase · cleanup
+store batch 1 landed: G1,G2,G3 (agent-rules.md rules), P14 deferral d-d0e6f1e8. 4 done, 0 to-do, 0 skipped.
+Evidence: 6fb95fe,d7514ed,d-d0e6f1e8
+Cost: 1 implementer spawn, 0 verifier (store)

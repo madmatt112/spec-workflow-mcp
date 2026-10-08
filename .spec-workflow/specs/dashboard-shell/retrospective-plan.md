@@ -161,3 +161,12 @@ from `retrospective-proposals.md`.
   `run.start` lands in that spec's `harness-events.jsonl` and the card shows the run live.
 - d-a38fea66 — provider-per-role supervisor/orchestrator halves in a restarted session.
 - d-1880d115 — question-gates live scenarios 1b, 3b, 2, 4.
+
+## Close-out
+
+One line per proposal, written by the close-out phase.
+
+- G1: done — 6fb95fe
+- G2: done — 6fb95fe
+- G3: done — d7514ed
+- P14: done — deferral d-d0e6f1e8
