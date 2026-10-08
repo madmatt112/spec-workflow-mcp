@@ -203,3 +203,18 @@ Cost: 1 analyst spawn
 store batch 1 landed: G1,G2,G3 (agent-rules.md rules), P14 deferral d-d0e6f1e8. 4 done, 0 to-do, 0 skipped.
 Evidence: 6fb95fe,d7514ed,d-d0e6f1e8
 Cost: 1 implementer spawn, 0 verifier (store)
+
+## 2026-10-08T22:02:14Z · closeout · phase · cleanup
+harness batch 1: 7 done (P3,P7,P10,P11,P12,P13,P15 all gate pass risk low), 2 to-do (P2,P6). 1 implementer spawn, 0 verifier (all low).
+Evidence: 19cb41c,0bd9711,c0c6cf0,f3d7ef2,76ec013,325fbdf,56210e4
+Cost: 1 implementer spawn
+
+## 2026-10-08T22:02:14Z · closeout · phase · deviation
+P2 to-do: no server-side gate frontend tsc exists; root gate excludes dashboard_frontend and the frontend has no tsconfig. Option A is a new subsystem, needs its own spec + human call.
+Evidence: harness batch 1 report
+Cost: to-do
+
+## 2026-10-08T22:02:14Z · closeout · phase · deviation
+P6 to-do: no server-side size cap; addLogEntry persists artifacts at any size. Entry 28eb8506 loss was a client-mangled tool call, not a drop. Option A has no target; needs its own spec.
+Evidence: harness batch 1 report
+Cost: to-do

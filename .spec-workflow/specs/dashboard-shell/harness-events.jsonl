@@ -369,3 +369,33 @@
 {"ts":"2026-10-08T21:36:55.179Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"G2","outcome":"done"}
 {"ts":"2026-10-08T21:36:55.201Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"G3","outcome":"done"}
 {"ts":"2026-10-08T21:36:55.223Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P14","outcome":"done"}
+{"ts":"2026-10-08T21:37:22.519Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P2","title":"gate frontend tsc scoped to changed files"}
+{"ts":"2026-10-08T21:37:22.544Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P3","title":"gate trailing-slash dir prefix match"}
+{"ts":"2026-10-08T21:37:22.567Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P6","title":"log-implementation persist artifacts"}
+{"ts":"2026-10-08T21:37:22.592Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P7","title":"SpecWatcher re-resolve new deferral dir"}
+{"ts":"2026-10-08T21:37:22.616Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P10","title":"orchestrator phase.end result=complete"}
+{"ts":"2026-10-08T21:37:22.640Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P11","title":"supervisor liveness not bare spawn.end"}
+{"ts":"2026-10-08T21:37:22.663Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P12","title":"supervisor reads transcript on stuck wait"}
+{"ts":"2026-10-08T21:37:22.686Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P13","title":"tasks-phase verify cited D id governs"}
+{"ts":"2026-10-08T21:37:22.709Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.pick","task":"P15","title":"implementer checks-file shell-only rule"}
+{"ts":"2026-10-08T21:37:29.560Z","type":"spawn.start","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","role":"closeout"}
+{"ts":"2026-10-08T21:37:32.582Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-closeout-orchestrator","input":"48","output":"1163","cacheWrite":"91907","cacheRead":"1766124","tokens":"1859242","cacheWrite5m":"0","cacheWrite1h":"91907","gapRewrites":"0","model":"claude-opus-4-8","agentId":"a26e41a19f9cb3938"}
+{"ts":"2026-10-08T22:00:33.824Z","type":"spawn.end","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","input":"192","output":"30728","cacheWrite":"206089","cacheRead":"14137283","tokens":"14374292","cacheWrite5m":"206089","cacheWrite1h":"0","gapRewrites":"0","model":"claude-opus-4-8","agentId":"aa5a7b23c622832e5"}
+{"ts":"2026-10-08T22:00:33.824Z","type":"spawn.report","run":"run-20261008-211004","spec":"dashboard-shell","agent":"sdd-implementer","report":"All items processed. Let me compose the close-out report.","agentId":"aa5a7b23c622832e5"}
+{"ts":"2026-10-08T22:00:56.559Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 1","phase":"closeout","result":"7 done (P3,P7,P10,P11,P12,P13,P15), 2 to-do (P2,P6 target mechanism does not exist)"}
+{"ts":"2026-10-08T22:02:14.440Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-10-08T22:02:14.462Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.485Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-10-08T22:02:14.509Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.532Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P10 pass risk low"}
+{"ts":"2026-10-08T22:02:14.556Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P10","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.579Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P11 pass risk low"}
+{"ts":"2026-10-08T22:02:14.605Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P11","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.633Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P12 pass risk low"}
+{"ts":"2026-10-08T22:02:14.658Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P12","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.681Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P13 pass risk low"}
+{"ts":"2026-10-08T22:02:14.706Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P13","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.731Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"note","text":"gate: item P15 pass risk low"}
+{"ts":"2026-10-08T22:02:14.757Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P15","outcome":"done"}
+{"ts":"2026-10-08T22:02:14.784Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P2","outcome":"to-do"}
+{"ts":"2026-10-08T22:02:14.809Z","run":"run-20261008-211004","spec":"dashboard-shell","type":"task.done","task":"P6","outcome":"to-do"}
