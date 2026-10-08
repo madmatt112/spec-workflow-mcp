@@ -74,7 +74,9 @@ ledger as a `spawn.report`, and `orient` returns the undrained ones — those wi
 ## Stop conditions and their reports
 
 Record `phase.end phase=implementation result=<PHASE value> "state=tasks <done>/<total>"
-"note=<one line>"` through `book.sh` (`event`) right before the report.
+"note=<one line>"` through `book.sh` (`event`) right before the report. `result=` is the
+PHASE value from the table below — `complete` at a clean batch end, otherwise the real
+stop outcome — never the `phase=` stage name and never empty.
 
 | Condition | PHASE | REASON |
 | --- | --- | --- |
