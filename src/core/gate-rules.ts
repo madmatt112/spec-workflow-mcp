@@ -472,7 +472,11 @@ export function decideGate(input: GateInput): { gate: 'pass' | 'fail'; reasons: 
       if (untracked.has(normalizePath(p))) continue;
       if (dirtyTracked.has(normalizePath(p))) continue;
       if (isBookkeepingPath(p)) continue;
-      if (!listed.includes(normalizePath(p))) {
+      // A `files` entry ending in `/` is a directory prefix and matches every
+      // path beneath it; any other entry matches by equality. Reusing
+      // `matchingEntry` lets a task list a dir once instead of enumerating every
+      // file under it (dashboard-shell retro P3).
+      if (matchingEntry(p, listed) === undefined) {
         reasons.push(`file-outside-list: ${p}`);
       }
     }
