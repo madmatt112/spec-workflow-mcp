@@ -892,6 +892,10 @@ the reset and continues by itself. This spec gives a dashboard launch the same c
 - **Notifications.** A desktop notification from the open tab when a wait appears, and one
   line posted to a push service (ntfy or Pushover, configured in Settings) for the wait
   kinds the operator ticks. One message per wait, none for progress. A test button.
+- **Frontend typecheck in the review gate.** Add a frontend tsconfig for src/dashboard_frontend
+  and include it in the review gate's typecheck (today the gate excludes src/dashboard_frontend/**
+  and nothing type-checks the frontend). Gate only on errors in touched files (dashboard-shell
+  retro P2).
 - **Docs.** `docs/SDD-HARNESS.md` gains the `dashboard` mode and the answer path.
 
 **Decided.**

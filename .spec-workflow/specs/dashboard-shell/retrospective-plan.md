@@ -170,9 +170,9 @@ One line per proposal, written by the close-out phase.
 - G2: done — 6fb95fe
 - G3: done — d7514ed
 - P14: done — deferral d-d0e6f1e8
-- P2: to-do (human) — no server-side "gate frontend tsc" exists; the root gate excludes `src/dashboard_frontend/**` and the frontend ships no tsconfig. Option A is a new subsystem, not a close-out edit; needs its own scoped spec and a human call.
+- P2: to-do (human) — no server-side "gate frontend tsc" exists; the root gate excludes `src/dashboard_frontend/**` and the frontend ships no tsconfig. Option A is a new subsystem, not a close-out edit; needs its own scoped spec and a human call. Ruled 2026-10-09 by overwatch: folded into spec 16 dashboard-gates (frontend tsconfig for src/dashboard_frontend in the review gate typecheck, gating only on touched files; scope line added to decomposition.md).
 - P3: done — 19cb41c
-- P6: to-do (human) — no server-side size cap; `addLogEntry` persists artifacts at any size. The 28eb8506 loss was a client-mangled tool call (filesModified leaked into the summary), not a drop. Option A has no target; needs its own scoped spec.
+- P6: to-do (human) — no server-side size cap; `addLogEntry` persists artifacts at any size. The 28eb8506 loss was a client-mangled tool call (filesModified leaked into the summary), not a drop. Option A has no target; needs its own scoped spec. Ruled 2026-10-09 by overwatch: dropped, not a bug (addLogEntry saves artifacts at any size; the 28eb8506 loss was a malformed tool call).
 - P7: done — 0bd9711
 - P10: done — c0c6cf0
 - P11: done — f3d7ef2
