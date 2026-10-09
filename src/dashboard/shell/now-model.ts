@@ -165,7 +165,9 @@ async function collectProject(
       runs = {
         projectId,
         projectName,
-        spec: resolvedSpec,
+        // Pair the spec label with the source that produced the runId: the live
+        // run's pointer spec, else the HANDOFF spec resolveSpec named.
+        spec: pointer ? basename(pointer.specDir) : resolvedSpec,
         runId: pointer?.runId ?? model.runId ?? null,
         state,
         phase: model.livePhase?.phase ?? newestPhaseEnd(ledger),

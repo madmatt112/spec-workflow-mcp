@@ -155,7 +155,10 @@ It never changes D.
    task shape, over-cap words), made through `book.sh` (`edit`, one exact replacement each).
    Disposition rules, inline: assess each finding on its merits (accept, partially accept
    or reject, each with one line of reasoning); verify every citation you add or change
-   against the real tree under `<CODE_ROOT>`, reading both ends of a range; every citation
+   against the real tree under `<CODE_ROOT>`, reading both ends of a range; in the `tasks`
+   phase also verify each cited `D` id actually governs the behaviour the task changes —
+   when the governing authority is the task's inline acceptance criterion, cite the AC, not
+   a `D` id whose design/requirements text governs something else (retro P13); every citation
    you insert carries its directory-prefixed path (`src/core/typecheck.ts:30`), never a
    bare filename or a bare `:<line>`; after you accept a finding, fix every sibling of the
    same construct; suppress (do not re-fire) a citation-identifier warning on a token

@@ -93,8 +93,11 @@ live in `references/stops.md`. Read each file only when a step routes to it.
     adds ` retry`. Row types and keys never change.
   Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
   <done>/<total>"` at the end of Step 0 and `phase.end` — always carrying
-  `result=<the PHASE value of your final report>` (phase-log rejects a row without it, and
-  the supervisor must never be left to patch it in) — right before your final report. The
+  `result=<the PHASE value of your final report>`: the batch outcome (`complete` when the
+  batch finished, else the real stop outcome `resume`, `design-defect`, `escalate`,
+  `verify-failed` or `error`), never the `phase=` stage name (`implementation`) and never
+  empty (phase-log rejects a row missing it or carrying the stage name, and the supervisor
+  must never be left to patch it in) — right before your final report. The
   event types, keys and roles are listed in the supervisor's `references/formats.md`. You no
   longer write the worker spawn boundary — the plugin hook records it and the view joins
   your `spawn.usage` to it by agent and time window. On a non-zero `book.sh` exit re-run the
@@ -193,7 +196,12 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    task already shipped, which cannot be red before that code exists — is routed
    implementer-only by rule (retro P4): skip this step, spawn no author, pass no `tdd`
    argument later, and let the implementer write that integration test as part of the task.
-   Never hand-route it. A task whose block
+   Never hand-route it. A task whose block carries a `kind: e2e` marker — a task that
+   exercises a running server and so has no meaningful pre-implementation red state — is
+   routed implementer-only the same way (retro P2): skip this step, spawn no author, pass
+   no `tdd` argument later, and skip the red-first gate for it, relying instead on the
+   type-check, the lint and the live run (step 8), which is what catches its real defects.
+   A task whose block
    holds no `- Test:` bullet skips this step, spawns no author, passes no `tdd` argument
    later, and runs every step as today.
 2. **Implement.** Call the spec-workflow `harness` tool with `action: brief`,

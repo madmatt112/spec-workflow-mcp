@@ -313,6 +313,20 @@ phase=<phase>`. After the report the supervisor writes `bash <event.sh> spawn.us
 agent=<agent> "role=<phase> phase, spawn <n>" result=<PHASE value>`; the hook writes the
 orchestrator's `spawn.end` (Requirement 2.3).
 
+A `spawn.end` row is not proof the orchestrator is gone: the hook writes one on every
+yield, not only at death, so a bare `spawn.end` with no report must never by itself
+trigger a re-launch — reading it as death risks a duplicate orchestrator on the same run
+id. Before you treat a spawn as finished or dead and re-launch it, require a stronger
+signal: an explicit hand-back (its `PHASE:` report, or a `spawn.end` you wrote yourself
+for an interruption) or a stale active-run pointer line for this run (retro P11).
+
+When a spawn's task notification still reads "waiting on background work" past a
+reasonable bound and no report has arrived, do not assume the spawn is stuck or re-launch
+it. Read the run's transcript (the newest `~/.claude/projects/*/*.jsonl`) and take this
+spawn's last assistant line: when it holds the orchestrator's final `PHASE:` report, the
+hand-back was produced but never reached you, so act on that report by the dispatch rules
+below rather than spawn again (retro P12).
+
 When an orchestrator spawn is interrupted before it reports — no `PHASE:` line, and the
 hook's `spawn.end` never landed (an API 429 session limit, the Claude Code process
 exiting, a manual stop, or a context limit) — write its `spawn.end` yourself in place of

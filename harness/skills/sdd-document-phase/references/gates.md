@@ -35,6 +35,18 @@ never read them and never read the document body.
    `NEXT: run gate A, then re-spawn requirements`. Do not run Step 2; the supervisor
    resolves gate A and re-spawns the phase.
 
+## Scope added after Gate A approval (requirements, `MODE: normal`)
+
+Once the human has approved Gate A, the approved requirements are frozen. A later revision
+that introduces a new requirement (a `### Requirement` heading absent at Gate-A approval)
+is new scope, not a reopening of an approved one. Do not reopen the approved requirement in
+place and do not let the late addition blow the round cap (retro P13).
+
+Option (a): open a fresh scoped round for the added requirements only. Reset the round
+counter (Step 2 item 1) for them and review and revise only the added requirements; leave
+the Gate-A-approved requirements frozen and untouched. When the addition is large enough to
+need its own convergence, carve it into a new spec rather than carrying it in this one.
+
 ## Design scope-cut gate — before Step 5 in the design phase (`MODE: normal`)
 
 Reached from Step 5, once per spec, before the first design approval, so the design never

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import chokidar from 'chokidar';
-import { stat } from 'fs/promises';
+import { stat, mkdir } from 'fs/promises';
 import { PathUtils } from '../core/path-utils.js';
 import { SpecParser, ParsedSpec } from './parser.js';
 
@@ -29,6 +29,19 @@ export class SpecWatcher extends EventEmitter {
     const workflowRoot = PathUtils.getWorkflowRoot(this.projectPath);
     const specsPath = PathUtils.getSpecPath(this.projectPath, '');
     const steeringPath = PathUtils.getSteeringPath(this.projectPath);
+    const deferralsPath = `${workflowRoot}/deferrals`;
+
+    // chokidar only watches a glob once its base directory exists at start. When
+    // the deferrals dir is created after watch start — the first deferral of a
+    // run — the `deferrals/*.md` glob below never sees it, so the deferral is
+    // missed (retro P7). Ensure the dir exists first so the glob watches it and
+    // catches files added later. Best-effort: a failure just reverts to the old
+    // miss, it never blocks the watcher.
+    try {
+      await mkdir(deferralsPath, { recursive: true });
+    } catch {
+      // ignore; the glob still covers a deferrals dir that exists at start
+    }
 
     // Watch for changes in specs, steering and deferral directories.
     // Deferred DECISIONS live in deferrals/*.md; deferred SPECS are marked by a
@@ -36,7 +49,7 @@ export class SpecWatcher extends EventEmitter {
     this.watcher = chokidar.watch([
       `${specsPath}/**/*.md`,
       `${steeringPath}/*.md`,
-      `${workflowRoot}/deferrals/*.md`,
+      `${deferralsPath}/*.md`,
       `${specsPath}/*/deferred.json`
     ], {
       ignoreInitial: true,

@@ -119,6 +119,40 @@ describe('SpecWatcher Error Handling', () => {
     expect(steeringEvents.length).toBeGreaterThanOrEqual(0); // May be 0 or 1 depending on timing
   });
 
+  it('creates the deferrals dir at start so a later deferral is watched (retro P7)', async () => {
+    const deferralsDir = join(testDir, '.spec-workflow', 'deferrals');
+    // Not present before start.
+    await expect(fs.stat(deferralsDir)).rejects.toBeDefined();
+
+    await watcher.start();
+
+    // start() ensured the glob's base dir exists.
+    const stats = await fs.stat(deferralsDir);
+    expect(stats.isDirectory()).toBe(true);
+  });
+
+  it('emits deferral-change for a deferral created after watch start (retro P7)', async () => {
+    await watcher.start();
+
+    const events: any[] = [];
+    watcher.on('deferral-change', (event) => events.push(event));
+
+    // Let chokidar finish its initial scan: with `ignoreInitial`, a file written
+    // before the watcher is ready is treated as pre-existing and dropped.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    // Written after start, into the dir start() ensured exists.
+    const deferralPath = join(testDir, '.spec-workflow', 'deferrals', 'd-abc.md');
+    await fs.writeFile(deferralPath, '# Deferral\n\nsome decision');
+
+    // Poll up to ~3s for the debounced + stabilised event.
+    for (let i = 0; i < 30 && events.length === 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0]).toMatchObject({ type: 'deferral', name: 'd-abc' });
+  });
+
   it('should stop cleanly', async () => {
     await watcher.start();
     await expect(watcher.stop()).resolves.not.toThrow();
