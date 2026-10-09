@@ -1,15 +1,15 @@
 ---
 id: "d-40df3cdb"
-status: "deferred"
+status: "resolved"
 title: "dashboard-shell check 3: press the enabled Launch once"
 createdAt: "2026-10-08T21:09:22.102Z"
-updatedAt: "2026-10-08T21:09:22.102Z"
-resolvedAt: null
+updatedAt: "2026-10-09T16:42:53.571Z"
+resolvedAt: "2026-10-09T16:42:53.571Z"
 originSpec: "dashboard-shell"
 originPhase: "implementation"
 revisitTrigger: "Next time Matthew runs the rebuilt dashboard. Press Launch once on a fixture project and confirm a run starts: run.start appears in that spec's harness-events.jsonl and the card shows the run as live."
 tags: ["verification", "dashboard"]
-resolution: null
+resolution: "Verified 2026-10-09: Matthew pressed the enabled Launch on the tradr-hosted card (after a stale pointer line was removed). It started tmux session security-hardening-5a; run.start run-20261009-164212 appeared in security-hardening/harness-events.jsonl and the active-run pointer named the new run, so the card shows it live."
 resolvedInSpec: null
 supersededBy: null
 supersedes: null
