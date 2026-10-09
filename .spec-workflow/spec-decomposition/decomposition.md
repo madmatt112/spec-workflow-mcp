@@ -896,6 +896,15 @@ the reset and continues by itself. This spec gives a dashboard launch the same c
   and include it in the review gate's typecheck (today the gate excludes src/dashboard_frontend/**
   and nothing type-checks the frontend). Gate only on errors in touched files (dashboard-shell
   retro P2).
+- **Run liveness within ~5 s of an ungraceful exit.** The hook that writes the active-run
+  pointer line also records the supervisor's Claude process PID and its start time (from
+  /proc, so a reused PID can't look live). The dashboard checks /proc/<pid>/stat every 2-3 s
+  per live run; if the process is gone or its start time differs, it shows the run as stopped
+  (process gone) and enables Launch as a resume. The dashboard never deletes the pointer line;
+  whatever resumes the run rewrites it. Dashboard launches already store a pid
+  (LaunchRecord.pid); this extends that to runs started from a terminal. Trigger: 2026-10-09 a
+  tradr session exited mid-implementation and the stale pointer kept Launch disabled until it
+  was removed by hand.
 - **Docs.** `docs/SDD-HARNESS.md` gains the `dashboard` mode and the answer path.
 
 **Decided.**
