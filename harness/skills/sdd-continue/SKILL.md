@@ -47,13 +47,9 @@ Formats (report contract, HANDOFF rows, retro-log entry, status line) are in
    `Install the harness (docs/SDD-HARNESS.md, Installing), then continue` and stop.
    Every orchestrator gets the prefix in its launch prompt; skills never hardcode it.
 4. **Harness source.** This skill's base directory holds `references/harness-source.sh`.
-   Run `bash <base dir>/references/harness-source.sh`. It prints `source: <path | none>`
-   (the checkout the harness runs from: the `harness/` tree itself when the skills are
-   linked from a checkout, else the local marketplace checkout a plugin was installed
-   from) and `drift: yes | no | unknown`. On `yes` (plugin installs only), print one line
-   and continue: `warning: the installed plugin differs from <source>/plugins/<plugin>;
-   refresh it (uninstall, then install at this scope) unless that is intended`. Keep the
-   `source` value: it is `HARNESS_REPO` in every launch prompt.
+   Run `bash <base dir>/references/harness-source.sh`. It prints `source: <path | none>` —
+   the checkout the harness runs from, the `harness/` tree itself. Keep the `source`
+   value: it is `HARNESS_REPO` in every launch prompt.
 5. **Cache lifetime.** Run `bash <base dir>/references/sdd-cache-ttl.sh` (the base dir named
    in item 4) and keep the text after `cacheTtl=` on its stdout line as `CACHE_TTL`. When
    `CACHE_TTL` is not `per-agent`, print one warning line and continue, as item 4 does:

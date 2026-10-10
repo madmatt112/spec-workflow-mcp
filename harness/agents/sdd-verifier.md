@@ -10,13 +10,8 @@ tools:
   - Glob
   - Bash
   - mcp__spec-workflow__review-task
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__review-task
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__review-task
   - mcp__spec-workflow__get-task-review
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__get-task-review
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__get-task-review
   - mcp__playwright
-  - mcp__plugin_playwright_playwright
 ---
 
 You verify. You did not write the code you look at, and you never edit it. Your whole instruction is the brief file named in your launch message, and the standing-instructions file it points at: read both first and follow them exactly.

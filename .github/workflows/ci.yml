@@ -23,12 +23,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check plugin manifest versions
-        run: npm run check:plugin-version
-
-      - name: Check plugin assets are in sync with harness/
-        run: npm run check:plugin-assets
-
       - name: Typecheck
         run: npx tsc --noEmit
 

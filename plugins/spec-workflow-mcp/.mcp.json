@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "."]
-    }
-  }
-}

@@ -5,9 +5,8 @@ workflow of this server without a human at the dashboard. One command takes the 
 spec from wherever it stands through its retrospective and the close-out of the approved
 retrospective plan, then stops. The next run starts the next spec.
 
-It ships in this repository as the plugin `spec-workflow-harness` and is also bundled
-into the two MCP plugins. Its source of truth is the `harness/` directory at the
-repository root.
+It ships in this repository as the `harness/` directory at the repository root, a
+plugin-shaped directory loadable with `--plugin-dir`.
 
 ## What it is
 
@@ -129,9 +128,7 @@ Every proposal gets one line under `## Close-out` in `retrospective-plan.md`
 (`done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`, plus one line per
 PR); when every proposal has one, the plan's status becomes `CLOSED` and the spec is
 finished. A proposal the agent cannot land is an explicit to-do; it never blocks the
-close. The harness's own repository is found through the local marketplace checkout the
-plugin was installed from; the supervisor's preflight also warns when the installed
-plugin differs from that checkout, so a merged but unrefreshed plugin is visible.
+close. The harness's own repository is the checkout it runs from.
 
 Budgets: a document orchestrator runs at most four review rounds per spawn and an
 implementation orchestrator at most five tasks; then it reports `resume` and the
@@ -193,31 +190,17 @@ deleted, with their snapshots.
 
 ## Installing
 
-The repository is a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`)
-with three plugins under `plugins/`:
+The harness runs from this checkout. `scripts/dev-link.sh` symlinks every
+`harness/agents/*.md` into `~/.claude/agents/`, every `harness/skills/*` into
+`~/.claude/skills/`, and adds the `PreToolUse`, `SubagentStart` and `SubagentStop` hook
+entries for `harness/hooks/sdd-activity.sh` to `~/.claude/settings.json`. Nothing is
+copied, so a merged change is live after a rebuild and a session restart.
 
-| Plugin | Contents | Use when |
-| --- | --- | --- |
-| `spec-workflow-harness` | agents and skills; **no** MCP server | your project configures `spec-workflow` in its own `.mcp.json` (the common case; avoids two servers loading) |
-| `spec-workflow-mcp` | the same harness plus an `.mcp.json` that runs `npx -y @madmatt112org/spec-workflow-mcp@latest .` | you want the server and the harness from one plugin |
-| `spec-workflow-mcp-with-dashboard` | as above, dashboard variant | as above |
+`harness/` is also a plugin-shaped directory — it carries `.claude-plugin/plugin.json`
+and `hooks/hooks.json` — so you can load it directly with `claude --plugin-dir harness`
+instead of the symlinks.
 
-Register the marketplace once, then install a plugin for a project:
-
-```bash
-claude plugin marketplace add /path/to/spec-workflow-mcp      # or the GitHub repo
-claude plugin install spec-workflow-harness@spec-workflow-mcp-marketplace --scope project
-claude plugin details spec-workflow-harness
-```
-
-`--scope project` writes to `.claude/settings.json`; use `--scope local` for
-`.claude/settings.local.json` when the project's settings file is shared or public.
-Restart the session after installing. Plugin components are namespaced: the skill is
-`/spec-workflow-harness:sdd-continue`, the agents are
-`spec-workflow-harness:sdd-reviewer` and so on. The supervisor finds the prefix at
-run time, so the same skills work under any of the three plugins.
-
-### From a checkout, no plugin
+### From a checkout
 
 When you develop the harness or the server, run both from your working copy instead.
 Nothing is copied, so a merged change is live after a rebuild and a session restart,
@@ -232,11 +215,10 @@ and the server and the harness always come from the same commit.
    `~/.claude/agents/`, every `harness/skills/*` into `~/.claude/skills/`, and adds the
    `PreToolUse`, `SubagentStart` and `SubagentStop` hook entries for
    `harness/hooks/sdd-activity.sh` to `~/.claude/settings.json` (absolute path; the
-   plugin's `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}`, which does not exist here).
-4. Uninstall any harness plugin at every scope (`claude plugin uninstall
-   spec-workflow-harness@spec-workflow-mcp-marketplace --scope <user|project|local>`
-   from each project), or you get the agents twice, once prefixed and once bare.
-5. Restart your sessions. Agents and skills are read at session start.
+   plugin's `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}`, which does not exist here). Do
+   not also load `harness/` with `--plugin-dir`, or you get the agents twice, once
+   prefixed and once bare.
+4. Restart your sessions. Agents and skills are read at session start.
 
 Under this layout the agents are unprefixed (`sdd-reviewer`), the skill is
 `/sdd-continue`, and the supervisor's preflight reports the prefix as `none` and the
@@ -471,10 +453,9 @@ Sonnet-class model at high effort does it. The reviser runs on Opus 4.8: on Sonn
 used 2 to 4 times more tokens per revision. The open-ended roles (review, implement,
 verify) stay on Opus.
 
-Models are pinned in each agent's frontmatter with full model ids. `scripts/sync-plugin-assets.cjs`
-reads that frontmatter into `harness/agent-profiles.json`, the generated source the watch
-view reads for the orchestrators, the analyst and the workers; CI's `check:plugin-assets`
-fails when it drifts. Skills never pass a `model` parameter to the Agent tool and never use
+Models are pinned in each agent's frontmatter with full model ids. `harness/agent-profiles.json`
+mirrors that frontmatter and is the source the watch view reads for the orchestrators, the
+analyst and the workers. Skills never pass a `model` parameter to the Agent tool and never use
 `subagent_type: fork` (a fork runs on the parent's model). The `opus` alias is never used:
 it resolves to the newest Opus.
 
@@ -556,17 +537,8 @@ splits the totals by kind and by provider; there is no dollar estimate.
 
 ## Developing the harness
 
-Edit `harness/` only. `npm run sync:plugin-assets` copies it into the three plugin
-roots (`npm run build` does this too); `npm run check:plugin-assets` fails in CI when
-the copies drift. `claude plugin validate <plugin root> --strict` validates each
-plugin; `claude plugin validate . --strict` validates the marketplace.
-
-Run the harness you are editing from the checkout (Installing, "From a checkout, no
-plugin"), not from an installed plugin: a plugin install copies the files at install
-time and reads agent frontmatter from the marketplace source, so an edit is picked up
-only after an uninstall and install, and only partly. From the checkout, an edit is live
-at the next session start. Cut a release when you want to publish, not to use a change.
+Edit `harness/` only. It runs from the checkout, so an edit is live at the next session
+start. Cut a release when you want to publish a change, not to use it.
 
 An orchestrator (or any agent) that calls the `harness` tool must allowlist it in its
-frontmatter `tools:` list, in all three plugin-name variants
-(`mcp__spec-workflow__harness` and its two `mcp__plugin_…__harness` forms).
+frontmatter `tools:` list as `mcp__spec-workflow__harness`.

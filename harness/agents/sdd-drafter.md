@@ -12,8 +12,6 @@ tools:
   - Write
   - Edit
   - mcp__spec-workflow__harness
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__harness
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__harness
 ---
 
 You write the first version of one SDD document. Your whole instruction is the brief file named in your launch message: read it first and follow it exactly. It tells you which steering documents, decomposition entry, prior documents and template to load, where the code lives, and where to write.
