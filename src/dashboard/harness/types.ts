@@ -1,8 +1,8 @@
 // src/dashboard/harness/types.ts
 //
 // The wire shapes of the harness control pane (design.md Data Models). One typed
-// home for the setup file, launch records, pointer lines, HUD to-dos, the overview
-// rows and the server/client message unions.
+// home for the setup file, launch records, pointer lines, the overview rows and
+// the server/client message unions.
 import type { RunModel, AgentProfile } from '../../watch/ledger.js';
 import type { RoutingDecision } from '../../core/spec-routing-deriver.js';
 import type { RunDetail } from '../shell/types.js';
@@ -63,11 +63,6 @@ export interface LaunchRecord {       // <global dir>/harness/launches/<projectI
 
 export interface PointerLine { mainCheckout: string; specDir: string; runId: string }
 
-export interface Todo {
-  id: string; title: string; owner: string; blocks: string; note: string;
-  since: string; done: boolean; priority: string;
-}
-
 export interface OverviewRow {
   projectId: string; projectName: string; state: 'running' | 'idle';
   spec: string | null; livePhase: string | null; runId: string | null;
@@ -81,8 +76,7 @@ export type HarnessMessage =          // server to client
   | { type: 'harness-log'; projectId: string; data: { launchedAt: string; lines: string[]; reset: boolean } }
   | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
   | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null }
-  | { type: 'overview-rows'; data: { rows: OverviewRow[] } }
-  | { type: 'overview-todos'; data: { todos: Todo[] } };
+  | { type: 'overview-rows'; data: { rows: OverviewRow[] } };
 
 export type ViewMessage =             // client to server
   | { type: 'harness-subscribe' | 'harness-unsubscribe'; projectId: string }

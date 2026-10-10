@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell, DeferralRecord } from './ShellProvider';
 import { PageLayout } from './PageLayout';
@@ -16,6 +15,10 @@ import { formatDate } from '../../lib/dateUtils';
  */
 
 const STATUSES = ['deferred', 'resolved', 'superseded'] as const;
+
+const STATUS_LABELS: Record<string, string> = {
+  deferred: 'Deferred', resolved: 'Resolved', superseded: 'Superseded',
+};
 
 interface FullDeferral extends DeferralRecord {
   createdAt?: string;
@@ -54,7 +57,6 @@ function key(projectId: string, id: string): string {
 }
 
 export function DeferralsPage() {
-  const { t } = useTranslation();
   const { projects, enabled } = useProjects();
   const { deferralsByProject } = useShell();
 
@@ -130,7 +132,7 @@ export function DeferralsPage() {
 
   const chips: Chip[] = STATUSES.map((s) => ({
     value: s,
-    label: t(`shell.deferrals.status.${s}`, s),
+    label: STATUS_LABELS[s] ?? s,
     count: statusCounts[s],
   }));
 
@@ -140,13 +142,13 @@ export function DeferralsPage() {
   const list = (
     <div>
       <div className="mb-3 flex flex-col gap-2">
-        <SearchBox onChange={setQuery} placeholder={t('shell.deferrals.search', 'Search title, id or origin spec')} />
+        <SearchBox onChange={setQuery} placeholder={'Search title, id or origin spec'} />
         <Chips chips={chips} active={active} onToggle={toggle} />
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          {t('shell.deferrals.empty', 'No deferrals.')}
+          {'No deferrals.'}
         </div>
       ) : (
         <>
@@ -163,7 +165,7 @@ export function DeferralsPage() {
                   <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
                   <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
                   <span className="hidden shrink-0 text-xs text-[var(--text-secondary)] sm:inline">
-                    {d.originSpec || t('shell.deferrals.projectScope', 'Project-level')}
+                    {d.originSpec || 'Project-level'}
                   </span>
                   <span className="hidden shrink-0 text-xs text-[var(--text-muted)] md:inline">
                     {formatDate(d.updatedAt)}
@@ -202,7 +204,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function DeferralPanel({ item }: { item: Item }) {
-  const { t } = useTranslation();
   const { d, projectName } = item;
   return (
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="deferral-panel">
@@ -212,21 +213,21 @@ function DeferralPanel({ item }: { item: Item }) {
       </div>
 
       <div className="space-y-1.5">
-        <Field label={t('shell.deferrals.id', 'ID')} value={<span className="font-mono text-xs">{d.id}</span>} />
-        <Field label={t('shell.deferrals.project', 'Project')} value={projectName} />
-        <Field label={t('shell.deferrals.originSpec', 'Origin spec')} value={d.originSpec || t('shell.deferrals.projectScope', 'Project-level')} />
-        <Field label={t('shell.deferrals.phase', 'Phase')} value={d.originPhase || undefined} />
-        <Field label={t('shell.deferrals.created', 'Created')} value={formatDate(d.createdAt)} />
-        <Field label={t('shell.deferrals.updated', 'Updated')} value={formatDate(d.updatedAt)} />
+        <Field label={'ID'} value={<span className="font-mono text-xs">{d.id}</span>} />
+        <Field label={'Project'} value={projectName} />
+        <Field label={'Origin spec'} value={d.originSpec || 'Project-level'} />
+        <Field label={'Phase'} value={d.originPhase || undefined} />
+        <Field label={'Created'} value={formatDate(d.createdAt)} />
+        <Field label={'Updated'} value={formatDate(d.updatedAt)} />
         {d.status === 'resolved' && (
           <Field
-            label={t('shell.deferrals.resolved', 'Resolved')}
+            label={'Resolved'}
             value={`${formatDate(d.resolvedAt || undefined)}${d.resolvedInSpec ? ` (${d.resolvedInSpec})` : ''}`}
           />
         )}
         {Array.isArray(d.tags) && d.tags.length > 0 && (
           <Field
-            label={t('shell.deferrals.tags', 'Tags')}
+            label={'Tags'}
             value={
               <span className="flex flex-wrap gap-1">
                 {d.tags.map((tg) => (
@@ -239,11 +240,11 @@ function DeferralPanel({ item }: { item: Item }) {
       </div>
 
       <div className="mt-3 space-y-3 border-t border-[var(--border-default)] pt-3">
-        <DetailText heading={t('shell.deferrals.revisitTrigger', 'Revisit trigger')} body={d.revisitTrigger} />
-        {d.status === 'resolved' && <DetailText heading={t('shell.deferrals.resolution', 'Resolution')} body={d.resolution || undefined} />}
-        <DetailText heading={t('shell.deferrals.context', 'Context')} body={d.body?.context} />
-        <DetailText heading={t('shell.deferrals.decision', 'Decision')} body={d.body?.decision} />
-        <DetailText heading={t('shell.deferrals.revisitCriteria', 'Revisit criteria')} body={d.body?.revisitCriteria} />
+        <DetailText heading={'Revisit trigger'} body={d.revisitTrigger} />
+        {d.status === 'resolved' && <DetailText heading={'Resolution'} body={d.resolution || undefined} />}
+        <DetailText heading={'Context'} body={d.body?.context} />
+        <DetailText heading={'Decision'} body={d.body?.decision} />
+        <DetailText heading={'Revisit criteria'} body={d.body?.revisitCriteria} />
       </div>
     </div>
   );

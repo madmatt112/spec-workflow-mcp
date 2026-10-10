@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWs } from '../ws/WebSocketProvider';
 import { Group, Chips, Pager, ROWS_PER_PAGE, type Chip } from './primitives';
@@ -10,6 +9,10 @@ import type {
   RunModel, AgentProfile, LaunchRecord, SpawnNode, SetupView,
 } from '../harness/types';
 import type { RunDetail, LedgerEvent, ActivityEvent } from './types';
+
+const TASK_STATUS_LABELS: Record<string, string> = {
+  done: 'Done', 'in-progress': 'In progress', open: 'Open',
+};
 
 /**
  * The run page (design C10 Runs, D6, D11; Requirement 4 AC 2 to 8, 13). Holds the
@@ -39,7 +42,6 @@ function fmtDuration(ms: number): string {
 }
 
 export function RunPage() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const { subscribe, unsubscribe, watchView } = useWs();
@@ -155,14 +157,14 @@ export function RunPage() {
           onClick={() => navigate('/runs')}
           className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
-          {t('shell.runs.run.back', '← Runs')}
+          {'← Runs'}
         </button>
         {spec && <h1 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec}</h1>}
       </div>
 
       {loaded && !hasRun ? (
         <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]" data-testid="run-empty">
-          {t('shell.runs.run.noRun', 'no run for this project')}
+          {'no run for this project'}
         </div>
       ) : (
         <>
@@ -193,7 +195,6 @@ export function RunPage() {
 // --- Phase strip -----------------------------------------------------------
 
 function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
-  const { t } = useTranslation();
   if (!strip || strip.length === 0) return null;
   return (
     <ScrollBox>
@@ -208,8 +209,8 @@ function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
             }`}
           >
             <div className="font-medium text-[var(--text-primary)] break-words">{p.phase}</div>
-            <div className="text-[var(--text-muted)]">{p.version ?? t('shell.runs.none', '—')}</div>
-            <div className="text-[var(--text-muted)]">{t('shell.runs.run.rounds', 'Rounds')}: {p.rounds}</div>
+            <div className="text-[var(--text-muted)]">{p.version ?? '—'}</div>
+            <div className="text-[var(--text-muted)]">{'Rounds'}: {p.rounds}</div>
             {p.approvedOn && <div className="text-[var(--text-muted)]">{formatDate(p.approvedOn)}</div>}
           </div>
         ))}
@@ -221,12 +222,11 @@ function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
 // --- Open spawns -----------------------------------------------------------
 
 function OpenSpawns({ spawns, profiles, now }: { spawns: SpawnNode[]; profiles: Record<string, AgentProfile>; now: number }) {
-  const { t } = useTranslation();
   return (
     <div className="min-w-0">
-      <div className="mb-1 text-sm font-medium text-[var(--text-primary)]">{t('shell.runs.run.openSpawns', 'Open spawns')}</div>
+      <div className="mb-1 text-sm font-medium text-[var(--text-primary)]">{'Open spawns'}</div>
       {spawns.length === 0 ? (
-        <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{t('shell.runs.run.noOpenSpawns', 'No open spawns.')}</p>
+        <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No open spawns.'}</p>
       ) : (
         <div className="space-y-1">
           {spawns.map((s, i) => {
@@ -244,15 +244,15 @@ function OpenSpawns({ spawns, profiles, now }: { spawns: SpawnNode[]; profiles: 
                     <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums ${
                       stale ? 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]' : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
                     }`}>
-                      {fmtDuration(idleMs)}{stale ? ` ${t('shell.runs.run.stale', 'idle >15m')}` : ''}
+                      {fmtDuration(idleMs)}{stale ? ` ${'idle >15m'}` : ''}
                     </span>
                   )}
                 </div>
                 <div className="mt-0.5 text-xs text-[var(--text-secondary)] break-words">
-                  {present(declared) && <>{t('shell.runs.run.declared', 'declared')}: {declared} · </>}
-                  {present(s.model) && <>{t('shell.runs.run.actual', 'actual')}: {s.model} · </>}
-                  {t('shell.runs.run.elapsed', 'elapsed')}: {elapsed}
-                  {present(s.lastTool) && <> · {t('shell.runs.run.lastTool', 'last tool')}: {s.lastTool}</>}
+                  {present(declared) && <>{'declared'}: {declared} · </>}
+                  {present(s.model) && <>{'actual'}: {s.model} · </>}
+                  {'elapsed'}: {elapsed}
+                  {present(s.lastTool) && <> · {'last tool'}: {s.lastTool}</>}
                 </div>
               </div>
             );
@@ -272,7 +272,6 @@ const TASK_STATUS_STYLES: Record<string, string> = {
 };
 
 function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDetail | null; summary: TaskReviewSummary }) {
-  const { t } = useTranslation();
   const [active, setActive] = useState<string[]>([]);
   const [page, setPage] = useState(0);
 
@@ -289,27 +288,27 @@ function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDet
   useEffect(() => { setPage(0); }, [active]);
 
   const pageRows = filtered.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE);
-  const chips: Chip[] = TASK_STATUSES.map((s) => ({ value: s, label: t(`shell.runs.run.status.${s}`, s), count: counts[s] }));
+  const chips: Chip[] = TASK_STATUSES.map((s) => ({ value: s, label: TASK_STATUS_LABELS[s] ?? s, count: counts[s] }));
   const toggle = (v: string) => setActive((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
-  const dash = t('shell.runs.none', '—');
+  const dash = '—';
 
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="text-sm font-medium text-[var(--text-primary)]">{t('shell.runs.run.tasks', 'Tasks')}</div>
+        <div className="text-sm font-medium text-[var(--text-primary)]">{'Tasks'}</div>
         <Chips chips={chips} active={active} onToggle={toggle} />
       </div>
       <ScrollBox>
         <table className="w-full border-collapse text-sm" data-testid="task-table">
           <thead>
             <tr className="text-left text-xs text-[var(--text-muted)]">
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.id', 'ID')}</th>
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.title', 'Title')}</th>
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.status', 'Status')}</th>
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.verdict', 'Verdict')}</th>
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.tdd', 'TDD')}</th>
-              <th className="py-1 pr-3 font-medium">{t('shell.runs.run.task.risk', 'Risk')}</th>
-              <th className="py-1 font-medium">{t('shell.runs.run.task.fixRounds', 'Fix rounds')}</th>
+              <th className="py-1 pr-3 font-medium">{'ID'}</th>
+              <th className="py-1 pr-3 font-medium">{'Title'}</th>
+              <th className="py-1 pr-3 font-medium">{'Status'}</th>
+              <th className="py-1 pr-3 font-medium">{'Verdict'}</th>
+              <th className="py-1 pr-3 font-medium">{'TDD'}</th>
+              <th className="py-1 pr-3 font-medium">{'Risk'}</th>
+              <th className="py-1 font-medium">{'Fix rounds'}</th>
             </tr>
           </thead>
           <tbody>
@@ -344,23 +343,22 @@ function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDet
 // --- Rounds and spawns, two collapsed tables -------------------------------
 
 function CollapsedTables({ model, profiles, now }: { model: RunModel | null; profiles: Record<string, AgentProfile>; now: number }) {
-  const { t } = useTranslation();
   if (!model) return null;
-  const dash = t('shell.runs.none', '—');
+  const dash = '—';
   return (
     <div className="min-w-0">
-      <Group name="run-rounds" title={t('shell.runs.run.rounds', 'Rounds')} count={model.rounds.length} defaultCollapsed>
+      <Group name="run-rounds" title={'Rounds'} count={model.rounds.length} defaultCollapsed>
         {model.rounds.length === 0 ? (
-          <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{t('shell.runs.run.noRounds', 'No rounds.')}</p>
+          <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No rounds.'}</p>
         ) : (
           <ScrollBox>
             <table className="w-full border-collapse text-sm" data-testid="rounds-table">
               <thead>
                 <tr className="text-left text-xs text-[var(--text-muted)]">
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.round.phase', 'Phase')}</th>
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.round.round', 'Round')}</th>
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.round.verdict', 'Verdict')}</th>
-                  <th className="py-1 font-medium">{t('shell.runs.run.round.version', 'Version')}</th>
+                  <th className="py-1 pr-3 font-medium">{'Phase'}</th>
+                  <th className="py-1 pr-3 font-medium">{'Round'}</th>
+                  <th className="py-1 pr-3 font-medium">{'Verdict'}</th>
+                  <th className="py-1 font-medium">{'Version'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,19 +376,19 @@ function CollapsedTables({ model, profiles, now }: { model: RunModel | null; pro
         )}
       </Group>
 
-      <Group name="run-spawns" title={t('shell.runs.run.spawns', 'Spawns')} count={model.spawns.length} defaultCollapsed>
+      <Group name="run-spawns" title={'Spawns'} count={model.spawns.length} defaultCollapsed>
         {model.spawns.length === 0 ? (
-          <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{t('shell.runs.run.noSpawns', 'No spawns.')}</p>
+          <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No spawns.'}</p>
         ) : (
           <ScrollBox>
             <table className="w-full border-collapse text-sm" data-testid="spawns-table">
               <thead>
                 <tr className="text-left text-xs text-[var(--text-muted)]">
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.spawn.role', 'Role')}</th>
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.spawn.declared', 'Declared')}</th>
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.spawn.actual', 'Actual')}</th>
-                  <th className="py-1 pr-3 font-medium">{t('shell.runs.run.spawn.tokens', 'Tokens')}</th>
-                  <th className="py-1 font-medium">{t('shell.runs.run.spawn.elapsed', 'Elapsed')}</th>
+                  <th className="py-1 pr-3 font-medium">{'Role'}</th>
+                  <th className="py-1 pr-3 font-medium">{'Declared'}</th>
+                  <th className="py-1 pr-3 font-medium">{'Actual'}</th>
+                  <th className="py-1 pr-3 font-medium">{'Tokens'}</th>
+                  <th className="py-1 font-medium">{'Elapsed'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -440,7 +438,6 @@ function activityLine(a: ActivityEvent): string {
 }
 
 function LogTabs({ detail, logLines }: { detail: RunDetail | null; logLines: string[] }) {
-  const { t } = useTranslation();
   const [tab, setTab] = useState<'ledger' | 'activity' | 'process'>('ledger');
 
   const lines = useMemo(() => {
@@ -450,9 +447,9 @@ function LogTabs({ detail, logLines }: { detail: RunDetail | null; logLines: str
   }, [tab, detail, logLines]);
 
   const tabs: { id: typeof tab; label: string }[] = [
-    { id: 'ledger', label: t('shell.runs.run.tab.ledger', 'Ledger') },
-    { id: 'activity', label: t('shell.runs.run.tab.activity', 'Activity') },
-    { id: 'process', label: t('shell.runs.run.tab.process', 'Process log') },
+    { id: 'ledger', label: 'Ledger' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'process', label: 'Process log' },
   ];
 
   return (
@@ -478,7 +475,6 @@ function LogTabs({ detail, logLines }: { detail: RunDetail | null; logLines: str
 }
 
 function LogView({ lines }: { lines: string[] }) {
-  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [follow, setFollow] = useState(true);
   const boxRef = useRef<HTMLPreElement>(null);
@@ -498,17 +494,17 @@ function LogView({ lines }: { lines: string[] }) {
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={t('shell.runs.run.filter', 'Filter')}
+          placeholder={'Filter'}
           data-testid="log-filter"
           className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-1 text-sm text-[var(--text-primary)]"
         />
         <label className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--text-secondary)]">
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} data-testid="log-follow" />
-          {t('shell.runs.run.follow', 'Follow')}
+          {'Follow'}
         </label>
       </div>
       {shown.length === 0 ? (
-        <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{t('shell.runs.run.noRows', 'No rows.')}</p>
+        <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No rows.'}</p>
       ) : (
         <pre ref={boxRef} className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]">
           {shown.join('\n')}
@@ -540,21 +536,20 @@ function RunPanel({
   opError: OpError | null;
   onStop: () => void;
 }) {
-  const { t } = useTranslation();
   const canStop = launch?.state === 'running' || launch?.state === 'stopping';
   const saved = view?.saved ?? null;
 
   return (
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="run-panel">
       <div className="space-y-1">
-        <PanelField label={t('shell.runs.run.panel.runId', 'Run id')} value={model?.runId ?? launch?.runId ?? undefined} />
-        <PanelField label={t('shell.runs.run.panel.start', 'Start')} value={model?.runStartedAt ? formatDate(model.runStartedAt) : undefined} />
-        <PanelField label={t('shell.runs.run.panel.codeRoot', 'Code root')} value={model?.codeRoot} />
-        <PanelField label={t('shell.runs.run.panel.worktree', 'Worktree')} value={model?.worktree} />
-        <PanelField label={t('shell.runs.run.panel.headless', 'Headless')} value={model?.headless} />
-        <PanelField label={t('shell.runs.run.panel.providers', 'Providers')} value={model?.providers} />
-        <PanelField label={t('shell.runs.run.panel.tokens', 'Tokens')} value={typeof model?.tokensTotal === 'number' ? model.tokensTotal.toLocaleString() : undefined} />
-        <PanelField label={t('shell.runs.run.panel.pid', 'Launch PID')} value={launch?.pid} />
+        <PanelField label={'Run id'} value={model?.runId ?? launch?.runId ?? undefined} />
+        <PanelField label={'Start'} value={model?.runStartedAt ? formatDate(model.runStartedAt) : undefined} />
+        <PanelField label={'Code root'} value={model?.codeRoot} />
+        <PanelField label={'Worktree'} value={model?.worktree} />
+        <PanelField label={'Headless'} value={model?.headless} />
+        <PanelField label={'Providers'} value={model?.providers} />
+        <PanelField label={'Tokens'} value={typeof model?.tokensTotal === 'number' ? model.tokensTotal.toLocaleString() : undefined} />
+        <PanelField label={'Launch PID'} value={launch?.pid} />
       </div>
 
       <button
@@ -564,7 +559,7 @@ function RunPanel({
         data-testid="run-stop"
         className="mt-3 rounded-md bg-[var(--status-error)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
       >
-        {launch?.state === 'stopping' ? t('shell.runs.run.stopping', 'Stopping…') : t('shell.runs.run.stop', 'Stop')}
+        {launch?.state === 'stopping' ? 'Stopping…' : 'Stop'}
       </button>
 
       {opError && (
@@ -575,11 +570,11 @@ function RunPanel({
 
       {view && (
         <div className="mt-4">
-          <Group name="run-setup" title={saved ? t('shell.runs.run.savedSetup', 'Saved setup') : t('shell.runs.run.defaults', 'Defaults')} defaultCollapsed>
+          <Group name="run-setup" title={saved ? 'Saved setup' : 'Defaults'} defaultCollapsed>
             <table className="w-full border-collapse text-sm" data-testid="run-setup-table">
               <tbody>
                 <tr className="border-b border-[var(--border-default)]">
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{t('shell.runs.card.supervisor', 'Supervisor')}</td>
+                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Supervisor'}</td>
                   <td className="py-1 break-words text-[var(--text-primary)]">{saved?.supervisorModel ?? view.supervisor.model}</td>
                 </tr>
                 {view.roles.map((r) => {
@@ -596,11 +591,11 @@ function RunPanel({
                   );
                 })}
                 <tr className="border-b border-[var(--border-default)]">
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{t('shell.runs.card.worktree', 'Worktree')}</td>
+                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Worktree'}</td>
                   <td className="py-1 text-[var(--text-primary)]">{saved?.worktree ?? view.worktree}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{t('shell.runs.card.gates', 'Gates')}</td>
+                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Gates'}</td>
                   <td className="py-1 text-[var(--text-primary)]">{saved?.gates ?? view.gates}</td>
                 </tr>
               </tbody>

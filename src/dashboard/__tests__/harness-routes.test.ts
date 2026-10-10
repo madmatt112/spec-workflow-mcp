@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  promises as fsp, writeFileSync, appendFileSync, unlinkSync, mkdirSync,
+  promises as fsp, writeFileSync, appendFileSync, mkdirSync,
   chmodSync, readFileSync, readdirSync,
 } from 'fs';
 import { tmpdir } from 'os';
@@ -10,7 +10,7 @@ import { WebSocket } from 'ws';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
-import { hudPath, pointerPath, launchesDir } from '../harness/state-files.js';
+import { pointerPath, launchesDir } from '../harness/state-files.js';
 import { AGENT_PROFILES } from '../../watch/ledger.js';
 
 // Real fetch, captured before any test below monkeypatches globalThis.fetch to
@@ -73,16 +73,6 @@ const realFetch: typeof fetch = globalThis.fetch;
 //   Expected-value source: the literal `result: 'gate-a'` value written into
 //   the appended row, folded by the existing D7 waiting rule (task 8,
 //   overview-watch.ts `computeWaiting`) that C6 already implements.
-//
-// Criterion "a HUD rewrite and delete push to-dos" (task 9 _Prompt literal
-// test name; Req 5.9, 5.10):
-//   Pre-condition: an overview subscriber connected; no HUD file yet.
-//   Test: write the HUD file with one to-do, then delete it.
-//   Observable result: an `overview-todos` message arrives whose
-//   `data.todos` holds exactly the written to-do, then a later
-//   `overview-todos` message arrives whose `data.todos` is empty.
-//   Expected-value source: the literal to-do fields written into the HUD
-//   fixture, and Req 5.7 (a missing HUD file gives an empty list).
 
 async function getFreePort(): Promise<number> {
   return await new Promise((resolvePort, reject) => {
@@ -288,41 +278,6 @@ describe('harness hub and websocket wiring (task 9)', () => {
     // Two registered projects are visible on the same shared watch (Req 5.9).
     const finalRows = messages.filter((m) => m.type === 'overview-rows').pop().data.rows;
     expect(finalRows.map((r: any) => r.projectId).sort()).toEqual([alphaId, betaId].sort());
-  });
-
-  it('pushes to-dos on a HUD rewrite, then again on a HUD delete', async () => {
-    const ws = await connect(port);
-    sockets.push(ws);
-    const messages = collect(ws);
-    send(ws, { type: 'overview-subscribe' });
-    await waitFor(() => messages.some((m) => m.type === 'overview-todos'));
-
-    const todosMsgs = () => messages.filter((m) => m.type === 'overview-todos');
-    const baselineCount = todosMsgs().length;
-
-    writeFileSync(hudPath(), JSON.stringify({
-      todos: [{
-        id: 'todo-1', title: 'Check something', owner: 'matthew', blocks: '',
-        note: '', since: '2026-01-01', done: false, priority: 'P1',
-      }],
-    }));
-
-    await waitFor(() => {
-      const msgs = todosMsgs();
-      if (msgs.length <= baselineCount) return false;
-      const last = msgs[msgs.length - 1];
-      return last.data.todos.length === 1 && last.data.todos[0].id === 'todo-1';
-    }, 5000);
-    const afterWriteCount = todosMsgs().length;
-
-    unlinkSync(hudPath());
-
-    await waitFor(() => {
-      const msgs = todosMsgs();
-      if (msgs.length <= afterWriteCount) return false;
-      const last = msgs[msgs.length - 1];
-      return last.data.todos.length === 0;
-    }, 5000);
   });
 });
 

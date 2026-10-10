@@ -4,8 +4,6 @@ import { ThemeProvider } from '../theme/ThemeProvider';
 import { WebSocketProvider } from '../ws/WebSocketProvider';
 import { ProjectProvider } from '../projects/ProjectProvider';
 import { ShellProvider } from '../shell/ShellProvider';
-import { NotificationProvider } from '../notifications/NotificationProvider';
-import { I18nErrorBoundary } from '../../components/I18nErrorBoundary';
 import { Sidebar } from '../shell/Sidebar';
 import { UsagePage } from '../shell/UsagePage';
 import { DeferralsPage } from '../shell/DeferralsPage';
@@ -35,18 +33,14 @@ function Shell() {
 
 export default function App() {
   return (
-    <I18nErrorBoundary>
-      <ThemeProvider>
-        <ProjectProvider>
-          <WebSocketProvider>
-            <ShellProvider>
-              <NotificationProvider>
-                <Shell />
-              </NotificationProvider>
-            </ShellProvider>
-          </WebSocketProvider>
-        </ProjectProvider>
-      </ThemeProvider>
-    </I18nErrorBoundary>
+    <ThemeProvider>
+      <ProjectProvider>
+        <WebSocketProvider>
+          <ShellProvider>
+            <Shell />
+          </ShellProvider>
+        </WebSocketProvider>
+      </ProjectProvider>
+    </ThemeProvider>
   );
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fsp, writeFileSync, appendFileSync, unlinkSync, mkdirSync, existsSync } from 'fs';
+import { promises as fsp, writeFileSync, appendFileSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { buildOverviewRow, OverviewWatch } from '../overview-watch.js';
-import { pointerPath, hudPath } from '../state-files.js';
+import { pointerPath } from '../state-files.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
 import type { HarnessMessage, PointerLine } from '../types.js';
@@ -129,51 +129,20 @@ import type { HarnessMessage, PointerLine } from '../types.js';
 //   appears.
 //   Expected-value source: Req 5.4 ("within five seconds") and tasks D7.
 //
-// Criterion "HUD write pushes to-dos open first, file order" (task 8 _Prompt
-//   Tests item 3; Req 5.5):
-//   Pre-condition: a HUD file whose todos array holds one done item, then
-//   two open items, in that file order.
-//   Test: start the watch, read the captured overview-todos message.
-//   Observable result: the todos array's ids are ['t-open-1', 't-open-2',
-//   't-done'] — open items first, in their original file order.
-//   Expected-value source: the fixture's own ids, reordered per the _Prompt
-//   sentence ("open items first in file order").
-//
-// Criterion "HUD delete and bad JSON push an empty list" (task 8 _Prompt
-//   Tests item 4; Req 5.7):
-//   Pre-condition: a started watch that has already pushed a non-empty
-//   to-do list from an existing HUD file.
-//   Test: delete the HUD file, poll for an overview-todos push; then write
-//   invalid JSON to the same path, poll for a further push.
-//   Observable result: both pushes carry todos: [].
-//   Expected-value source: Req 5.7 ("missing, unreadable ... an empty list").
-//
-// Criterion "a HUD created after start() when sdd did not exist is picked
-//   up" (task 8 _Prompt Tests item 5; Req 5.6; tasks D9):
-//   Pre-condition: a fresh XDG_STATE_HOME with no sdd subdirectory.
-//   Test: new OverviewWatch(stubManager, send).start(), then write the HUD
-//   file at hudPath() and poll for its content.
-//   Observable result: right after start() the sdd directory exists; an
-//   overview-todos push later carries the written todo's id.
-//   Expected-value source: tasks D9 ("create the directories ... before it
-//   watches") and Req 5.6.
-//
-// Criterion "snapshot() returns both messages" (design.md C6 interfaces:
-//   "the snapshot emits both overview-rows and overview-todos"):
-//   Pre-condition: a started watch over one project, with a HUD file
-//   present.
+// Criterion "snapshot() returns the rows message" (design.md C6 interfaces:
+//   "the snapshot emits overview-rows"):
+//   Pre-condition: a started watch over one project.
 //   Test: watch.snapshot().
 //   Observable result: the returned array holds exactly one overview-rows
-//   message (whose rows include the project) and exactly one overview-todos
-//   message (whose todos match the fixture).
+//   message whose rows include the project.
 //   Expected-value source: design.md C6's snapshot() interface sentence.
 //
 // Criterion "close() stops further sends" (design.md C6 interfaces:
 //   "close(): closes the watchers and timers"):
 //   Pre-condition: a started watch that has sent at least one overview-rows
 //   message.
-//   Test: watch.close(), then append to the ledger and write the HUD file,
-//   and wait past the debounce window.
+//   Test: watch.close(), then append to the ledger, and wait past the
+//   debounce window.
 //   Observable result: the captured message count is unchanged from
 //   immediately after close().
 //   Expected-value source: design.md C6's close() interface sentence.
@@ -436,80 +405,9 @@ describe('OverviewWatch', () => {
     }, 5000);
   }, 20000);
 
-  it('pushes the HUD todos with open items first in file order', async () => {
-    const { project } = await makeProject(base, 'spec-hud1', 'Project H1');
-    mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(hudPath(), JSON.stringify({
-      todos: [
-        { id: 't-done', title: 'Done item', owner: 'a', blocks: '', note: '', since: '2026-01-01', done: true, priority: 'low' },
-        { id: 't-open-1', title: 'Open item one', owner: 'a', blocks: '', note: '', since: '2026-01-01', done: false, priority: 'high' },
-        { id: 't-open-2', title: 'Open item two', owner: 'a', blocks: '', note: '', since: '2026-01-02', done: false, priority: 'low' },
-      ],
-    }));
-
-    const messages: HarnessMessage[] = [];
-    const stubManager = { getAllProjects: () => [project] } as unknown as ProjectManager;
-    const watch = new OverviewWatch(stubManager, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-
-    await watch.start();
-    await waitFor(() => ofType(messages, 'overview-todos').length > 0);
-
-    const todos = ofType(messages, 'overview-todos').slice(-1)[0].data.todos;
-    expect(todos.map((t) => t.id)).toEqual(['t-open-1', 't-open-2', 't-done']);
-  }, 15000);
-
-  it('pushes an empty todos list when the HUD file is deleted, and again when it holds invalid JSON', async () => {
-    const { project } = await makeProject(base, 'spec-hud2', 'Project H2');
-    mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(hudPath(), JSON.stringify({ todos: [{ id: 't1', title: 'x', owner: '', blocks: '', note: '', since: '', done: false, priority: '' }] }));
-
-    const messages: HarnessMessage[] = [];
-    const stubManager = { getAllProjects: () => [project] } as unknown as ProjectManager;
-    const watch = new OverviewWatch(stubManager, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-    await watch.start();
-    await waitFor(() => {
-      const latest = ofType(messages, 'overview-todos').slice(-1)[0];
-      return !!latest && latest.data.todos.length > 0;
-    });
-
-    unlinkSync(hudPath());
-    await waitFor(() => {
-      const latest = ofType(messages, 'overview-todos').slice(-1)[0];
-      return latest.data.todos.length === 0;
-    }, 5000);
-
-    writeFileSync(hudPath(), '{ not valid json');
-    const beforeBad = ofType(messages, 'overview-todos').length;
-    await waitFor(() => ofType(messages, 'overview-todos').length > beforeBad, 5000);
-    expect(ofType(messages, 'overview-todos').slice(-1)[0].data.todos).toEqual([]);
-  }, 20000);
-
-  it('picks up a HUD file created after start() when the sdd directory did not exist yet', async () => {
-    const { project } = await makeProject(base, 'spec-hud3', 'Project H3');
-    expect(existsSync(join(xdgBase, 'sdd'))).toBe(false);
-
-    const messages: HarnessMessage[] = [];
-    const stubManager = { getAllProjects: () => [project] } as unknown as ProjectManager;
-    const watch = new OverviewWatch(stubManager, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-    await watch.start();
-
-    expect(existsSync(join(xdgBase, 'sdd'))).toBe(true);
-
-    writeFileSync(hudPath(), JSON.stringify({ todos: [{ id: 't-new', title: 'New', owner: '', blocks: '', note: '', since: '', done: false, priority: '' }] }));
-
-    await waitFor(() => {
-      const latest = ofType(messages, 'overview-todos').slice(-1)[0];
-      return !!latest && latest.data.todos.some((t) => t.id === 't-new');
-    }, 5000);
-  }, 15000);
-
-  it('snapshot() returns one overview-rows and one overview-todos message reflecting current state', async () => {
+  it('snapshot() returns one overview-rows message reflecting current state', async () => {
     const { project } = await makeProject(base, 'spec-snap', 'Project S');
     mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(hudPath(), JSON.stringify({ todos: [{ id: 't-s', title: 'S', owner: '', blocks: '', note: '', since: '', done: false, priority: '' }] }));
 
     const stubManager = { getAllProjects: () => [project] } as unknown as ProjectManager;
     const watch = new OverviewWatch(stubManager, () => {}, { debounceMs: 50 });
@@ -520,9 +418,7 @@ describe('OverviewWatch', () => {
     const snap = watch.snapshot();
 
     expect(ofType(snap, 'overview-rows').length).toBe(1);
-    expect(ofType(snap, 'overview-todos').length).toBe(1);
     expect(ofType(snap, 'overview-rows')[0].data.rows.some((r) => r.projectId === project.projectId)).toBe(true);
-    expect(ofType(snap, 'overview-todos')[0].data.todos.map((t) => t.id)).toEqual(['t-s']);
   }, 15000);
 
   it('sends nothing further after close()', async () => {
@@ -544,7 +440,6 @@ describe('OverviewWatch', () => {
     const countAfterClose = messages.length;
 
     appendFileSync(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), type: 'phase.start', run: runId, phase: 'document', mode: 'auto', state: 'v1' }) + '\n');
-    writeFileSync(hudPath(), JSON.stringify({ todos: [] }));
     await sleep(600);
 
     expect(messages.length).toBe(countAfterClose);

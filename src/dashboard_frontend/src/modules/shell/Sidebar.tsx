@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
@@ -39,7 +38,6 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate: () => void })
 }
 
 function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
-  const { t } = useTranslation();
   const { projects, enabled, toggle } = useProjects();
   const { now, specRows, deferralsByProject, connected } = useShell();
 
@@ -51,17 +49,17 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
     .reduce((sum, p) => sum + (deferralsByProject[p.projectId]?.deferrals ?? []).filter((d) => d.status === 'deferred').length, 0);
 
   const items: NavItem[] = [
-    { to: '/', testId: 'nav-now', label: t('shell.nav.now', 'Now'), count: waitsCount, end: true },
-    { to: '/runs', testId: 'nav-runs', label: t('shell.nav.runs', 'Runs'), count: liveCount },
-    { to: '/specs', testId: 'nav-specs', label: t('shell.nav.specs', 'Specs'), count: specsCount },
-    { to: '/usage', testId: 'nav-usage', label: t('shell.nav.usage', 'Usage') },
-    { to: '/deferrals', testId: 'nav-deferrals', label: t('shell.nav.deferrals', 'Deferrals'), count: deferredCount },
+    { to: '/', testId: 'nav-now', label: 'Now', count: waitsCount, end: true },
+    { to: '/runs', testId: 'nav-runs', label: 'Runs', count: liveCount },
+    { to: '/specs', testId: 'nav-specs', label: 'Specs', count: specsCount },
+    { to: '/usage', testId: 'nav-usage', label: 'Usage' },
+    { to: '/deferrals', testId: 'nav-deferrals', label: 'Deferrals', count: deferredCount },
   ];
 
   return (
     <div className="flex h-full flex-col">
       <div className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]">
-        {t('shell.title', 'Spec Workflow')}
+        {'Spec Workflow'}
       </div>
 
       {!connected && (
@@ -69,7 +67,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
           data-testid="disconnected-marker"
           className="mx-3 mb-2 rounded-md bg-[var(--status-error)]/10 px-3 py-1.5 text-xs text-[var(--status-error)]"
         >
-          {t('shell.disconnected', 'Disconnected')}
+          {'Disconnected'}
         </div>
       )}
 
@@ -81,7 +79,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
 
       <div className="mt-4 px-3">
         <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-          {t('shell.projects', 'Projects')}
+          {'Projects'}
         </div>
         <div className="flex flex-col gap-1">
           {projects.map((p) => (
@@ -107,7 +105,6 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
 }
 
 export function Sidebar() {
-  const { t } = useTranslation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -124,13 +121,13 @@ export function Sidebar() {
           onClick={() => setDrawerOpen(true)}
           data-testid="sidebar-drawer-toggle"
           className="rounded-md p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
-          title={t('shell.openMenu', 'Open menu')}
+          title={'Open menu'}
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-[var(--text-primary)]">{t('shell.title', 'Spec Workflow')}</span>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{'Spec Workflow'}</span>
       </div>
 
       {/* Mobile drawer */}

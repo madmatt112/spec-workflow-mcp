@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { PageLayout, ScrollBox } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { SpecListRow, SpecDetail } from './types';
+
+const STATE_LABELS: Record<string, string> = {
+  live: 'Live', 'in-progress': 'In progress', closed: 'Closed',
+  deferred: 'Deferred', 'not-started': 'Not started',
+};
 
 /**
  * The read-only Specs page (design C10 Specs, D9; Requirement 5). Every spec of
@@ -32,10 +36,9 @@ const STATE_STYLES: Record<string, string> = {
 };
 
 function StateBadge({ state }: { state: SpecListRow['state'] }) {
-  const { t } = useTranslation();
   return (
     <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATE_STYLES[state] ?? STATE_STYLES['not-started']}`}>
-      {t(`shell.specs.state.${state}`, state)}
+      {STATE_LABELS[state] ?? state}
     </span>
   );
 }
@@ -67,7 +70,6 @@ interface Item {
 }
 
 export function SpecsPage() {
-  const { t } = useTranslation();
   const { projects, enabled } = useProjects();
   const { specRows } = useShell();
 
@@ -142,7 +144,7 @@ export function SpecsPage() {
 
   const chips: Chip[] = STATES.map((s) => ({
     value: s,
-    label: t(`shell.specs.state.${s}`, s),
+    label: STATE_LABELS[s] ?? s,
     count: stateCounts[s],
   }));
 
@@ -152,13 +154,13 @@ export function SpecsPage() {
   const list = (
     <div>
       <div className="mb-3 flex flex-col gap-2">
-        <SearchBox onChange={setQuery} placeholder={t('shell.specs.search', 'Search specs')} />
+        <SearchBox onChange={setQuery} placeholder={'Search specs'} />
         <Chips chips={chips} active={active} onToggle={toggle} />
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          {t('shell.specs.empty', 'No specs.')}
+          {'No specs.'}
         </div>
       ) : (
         <>
@@ -182,7 +184,7 @@ export function SpecsPage() {
                     {prs && <span className="hidden shrink-0 text-xs text-[var(--text-muted)] lg:inline">{prs}</span>}
                     {r.deferrals > 0 && (
                       <span className="hidden shrink-0 text-xs text-[var(--text-muted)] lg:inline">
-                        {r.deferrals} {t('shell.specs.deferred', 'deferred')}
+                        {r.deferrals} {'deferred'}
                       </span>
                     )}
                     {r.retro && <span className="hidden shrink-0 text-xs text-[var(--text-secondary)] lg:inline">{r.retro}</span>}
@@ -234,7 +236,6 @@ const DEFERRAL_STATUS_STYLES: Record<string, string> = {
 };
 
 function SpecPanel({ item }: { item: Item }) {
-  const { t } = useTranslation();
   const { projectId, projectName, row } = item;
   const spec = row.spec;
   const updated = row.updated;
@@ -263,7 +264,7 @@ function SpecPanel({ item }: { item: Item }) {
     return () => { alive = false; };
   }, [projectId, spec, updated]);
 
-  const dash = t('shell.specs.none', '—');
+  const dash = '—';
 
   return (
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="spec-panel">
@@ -274,33 +275,33 @@ function SpecPanel({ item }: { item: Item }) {
 
       {notFound ? (
         <p className="text-sm text-[var(--text-secondary)]" data-testid="spec-not-found">
-          {t('shell.specs.notFound', 'spec not found')}
+          {'spec not found'}
         </p>
       ) : !detail ? (
         <p className="text-sm text-[var(--text-muted)]">
-          {loading ? t('shell.specs.loading', 'Loading…') : dash}
+          {loading ? 'Loading…' : dash}
         </p>
       ) : (
         <>
           <div className="space-y-1.5">
-            <Field label={t('shell.specs.project', 'Project')} value={projectName} />
-            <Field label={t('shell.specs.order', 'Order')} value={detail.order ?? undefined} />
-            <Field label={t('shell.specs.dependsOn', 'Depends on')} value={detail.dependsOn || undefined} />
+            <Field label={'Project'} value={projectName} />
+            <Field label={'Order'} value={detail.order ?? undefined} />
+            <Field label={'Depends on'} value={detail.dependsOn || undefined} />
           </div>
 
-          <Section title={t('shell.specs.runs', 'Runs')}>
+          <Section title={'Runs'}>
             {detail.runs.length === 0 ? (
-              <p className="px-1 text-sm text-[var(--text-muted)]">{t('shell.specs.noRuns', 'No runs.')}</p>
+              <p className="px-1 text-sm text-[var(--text-muted)]">{'No runs.'}</p>
             ) : (
               <ScrollBox>
                 <table className="w-full border-collapse text-sm" data-testid="spec-runs-table">
                   <thead>
                     <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.run.id', 'Run')}</th>
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.run.start', 'Start')}</th>
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.run.end', 'End')}</th>
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.run.status', 'Status')}</th>
-                      <th className="py-1 font-medium">{t('shell.specs.run.tokens', 'Tokens')}</th>
+                      <th className="py-1 pr-3 font-medium">{'Run'}</th>
+                      <th className="py-1 pr-3 font-medium">{'Start'}</th>
+                      <th className="py-1 pr-3 font-medium">{'End'}</th>
+                      <th className="py-1 pr-3 font-medium">{'Status'}</th>
+                      <th className="py-1 font-medium">{'Tokens'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -319,18 +320,18 @@ function SpecPanel({ item }: { item: Item }) {
             )}
           </Section>
 
-          <Section title={t('shell.specs.phases', 'Phases')}>
+          <Section title={'Phases'}>
             {detail.phases.length === 0 ? (
-              <p className="px-1 text-sm text-[var(--text-muted)]">{t('shell.specs.noPhases', 'No phases.')}</p>
+              <p className="px-1 text-sm text-[var(--text-muted)]">{'No phases.'}</p>
             ) : (
               <ScrollBox>
                 <table className="w-full border-collapse text-sm" data-testid="spec-phases-table">
                   <thead>
                     <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.phase.phase', 'Phase')}</th>
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.phase.state', 'State')}</th>
-                      <th className="py-1 pr-3 font-medium">{t('shell.specs.phase.result', 'Result')}</th>
-                      <th className="py-1 font-medium">{t('shell.specs.phase.date', 'Date')}</th>
+                      <th className="py-1 pr-3 font-medium">{'Phase'}</th>
+                      <th className="py-1 pr-3 font-medium">{'State'}</th>
+                      <th className="py-1 pr-3 font-medium">{'Result'}</th>
+                      <th className="py-1 font-medium">{'Date'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -348,9 +349,9 @@ function SpecPanel({ item }: { item: Item }) {
             )}
           </Section>
 
-          <Section title={t('shell.specs.deferrals', 'Deferrals')}>
+          <Section title={'Deferrals'}>
             {detail.deferrals.length === 0 ? (
-              <p className="px-1 text-sm text-[var(--text-muted)]">{t('shell.specs.noDeferrals', 'No deferrals.')}</p>
+              <p className="px-1 text-sm text-[var(--text-muted)]">{'No deferrals.'}</p>
             ) : (
               <div className="space-y-1">
                 {detail.deferrals.map((d) => (
@@ -366,9 +367,9 @@ function SpecPanel({ item }: { item: Item }) {
             )}
           </Section>
 
-          <Section title={t('shell.specs.files', 'Files')}>
+          <Section title={'Files'}>
             {detail.files.length === 0 ? (
-              <p className="px-1 text-sm text-[var(--text-muted)]">{t('shell.specs.noFiles', 'No files.')}</p>
+              <p className="px-1 text-sm text-[var(--text-muted)]">{'No files.'}</p>
             ) : (
               <div className="space-y-1">
                 {detail.files.map((f) => <FileRow key={f.path} file={f} />)}
@@ -382,7 +383,6 @@ function SpecPanel({ item }: { item: Item }) {
 }
 
 function FileRow({ file }: { file: SpecDetail['files'][number] }) {
-  const { t } = useTranslation();
   const [fallback, setFallback] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -420,7 +420,7 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
           data-testid={`copy-path-${file.name}`}
           className="shrink-0 rounded border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
         >
-          {t('shell.specs.copyPath', 'Copy path')}
+          {'Copy path'}
         </button>
       </div>
       {fallback && (

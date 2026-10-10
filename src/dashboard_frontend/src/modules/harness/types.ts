@@ -180,26 +180,12 @@ export interface LaunchRecord {       // <global dir>/harness/launches/<projectI
 
 export interface PointerLine { mainCheckout: string; specDir: string; runId: string }
 
-export interface Todo {
-  id: string; title: string; owner: string; blocks: string; note: string;
-  since: string; done: boolean; priority: string;
-}
-
-export interface OverviewRow {
-  projectId: string; projectName: string; state: 'running' | 'idle';
-  spec: string | null; livePhase: string | null; runId: string | null;
-  lastRow: { ts: string; type: string; text: string } | null;
-  newestTs: string | null; waiting: boolean;
-}
-
 export type HarnessMessage =          // server to client
   | { type: 'harness-model'; projectId: string; data: { spec: string | null; model: RunModel | null;
       profiles: Record<string, AgentProfile>; launch: LaunchRecord | null } }
   | { type: 'harness-log'; projectId: string; data: { launchedAt: string; lines: string[]; reset: boolean } }
   | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
-  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null }
-  | { type: 'overview-rows'; data: { rows: OverviewRow[] } }
-  | { type: 'overview-todos'; data: { todos: Todo[] } };
+  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null };
 
 export type ViewMessage =             // client to server
   | { type: 'harness-subscribe' | 'harness-unsubscribe'; projectId: string }
