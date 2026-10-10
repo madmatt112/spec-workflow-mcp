@@ -1,6 +1,6 @@
 # Spec Workflow MCP
 
-A Model Context Protocol (MCP) server for structured spec-driven development with real-time dashboard and VSCode extension.
+A Model Context Protocol (MCP) server for structured spec-driven development with real-time dashboard.
 
 ## What It Does
 
@@ -22,7 +22,6 @@ One deliberate removal: every prompt the server generates dropped its expert-per
 - **Structured Development Workflow** — Sequential spec creation (Requirements → Design → Tasks) with required decomposition phase.
 - **Guided Build Order** — `INDEX.md` states which spec is next and why, and says so when it cannot tell.
 - **Real-Time Web Dashboard** — Monitor specs, tasks, and progress with live updates.
-- **VSCode Extension** — Integrated sidebar dashboard (build from source; see below).
 - **Approval Workflow** — Full approval process with revisions and adversarial review.
 - **Task Progress Tracking** — Visual progress bars and detailed status.
 - **Implementation Logs** — Searchable logs of all task implementations with code statistics.
@@ -65,17 +64,6 @@ The dashboard will be accessible at: http://localhost:5000
 
 > **Note:** Only one dashboard instance is needed. All your projects will connect to the same dashboard.
 
-**Option B: VSCode Extension** (Build from source)
-
-The extension is not yet published to the VSCode Marketplace. Build and side-install:
-
-```bash
-cd vscode-extension
-npm install
-npm run package    # produces a .vsix file
-code --install-extension spec-workflow-mcp-<version>.vsix
-```
-
 ## 📝 How to Use
 
 Simply mention spec-workflow in your conversation:
@@ -88,44 +76,11 @@ Simply mention spec-workflow in your conversation:
 
 ## 🔧 MCP Client Setup
 
-<details>
-<summary><strong>Augment Code</strong></summary>
-
-Configure in your Augment settings:
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>Claude Code plugins</strong></summary>
-
-This repository is a plugin marketplace with three plugins under `plugins/`:
-`spec-workflow-mcp` (server + harness), `spec-workflow-mcp-with-dashboard` (dashboard
-variant) and `spec-workflow-harness` (harness only, for projects that configure the
-server in their own `.mcp.json`).
-
-```bash
-claude plugin marketplace add madmatt112/spec-workflow-mcp
-claude plugin install spec-workflow-mcp@spec-workflow-mcp-marketplace --scope project
-```
-
-See [docs/SDD-HARNESS.md](docs/SDD-HARNESS.md) for what the harness does and which
-plugin to pick.
-
 Developing the harness or the server? Skip the plugin and run both from your
 checkout: point `.mcp.json` at `node <checkout>/dist/index.js` and run
 `scripts/dev-link.sh` to symlink `harness/agents` and `harness/skills` into `~/.claude`
 and register the activity hook. See
 [docs/SDD-HARNESS.md, Installing](docs/SDD-HARNESS.md#installing).
-</details>
 
 <details>
 <summary><strong>Claude Code CLI</strong></summary>
@@ -146,136 +101,6 @@ claude mcp add spec-workflow cmd.exe /c "npx @madmatt112org/spec-workflow-mcp@la
 ```
 </details>
 
-<details>
-<summary><strong>Claude Desktop</strong></summary>
-
-Add to `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-
-> **Important:** Run the dashboard separately with `--dashboard` before starting the MCP server.
-
-</details>
-
-<details>
-<summary><strong>Cline/Claude Dev</strong></summary>
-
-Add to your MCP server configuration:
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>Continue IDE Extension</strong></summary>
-
-Add to your Continue configuration:
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>Cursor IDE</strong></summary>
-
-Add to your Cursor settings (`settings.json`):
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>OpenCode</strong></summary>
-
-Add to your `opencode.json` configuration file:
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "spec-workflow": {
-      "type": "local",
-      "command": ["npx", "-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"],
-      "enabled": true
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>Windsurf</strong></summary>
-
-Add to your `~/.codeium/windsurf/mcp_config.json` configuration file:
-```json
-{
-  "mcpServers": {
-    "spec-workflow": {
-      "command": "npx",
-      "args": ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>Codex</strong></summary>
-
-Add to your `~/.codex/config.toml` configuration file:
-```toml
-[mcp_servers.spec-workflow]
-command = "npx"
-args = ["-y", "@madmatt112org/spec-workflow-mcp@latest", "/path/to/your/project"]
-```
-</details>
-
-## 🐳 Docker Deployment
-
-Run the dashboard in a Docker container for isolated deployment:
-
-```bash
-# Using Docker Compose (recommended)
-cd containers
-docker-compose up --build
-
-# Or using Docker CLI
-docker build -f containers/Dockerfile -t spec-workflow-mcp .
-docker run -p 5000:5000 -v "./workspace/.spec-workflow:/workspace/.spec-workflow:rw" spec-workflow-mcp
-```
-
-The dashboard will be available at: http://localhost:5000
-
-[See Docker setup guide →](containers/README.md)
-
 ## 🔒 Security
 
 Spec-Workflow MCP includes enterprise-grade security features suitable for corporate environments:
@@ -289,7 +114,6 @@ Spec-Workflow MCP includes enterprise-grade security features suitable for corpo
 | **Audit Logging** | Structured JSON logs with timestamp, actor, action, and result |
 | **Security Headers** | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, CSP, Referrer-Policy |
 | **CORS Protection** | Restricted to localhost origins by default |
-| **Docker Hardening** | Non-root user, read-only filesystem, dropped capabilities, resource limits |
 
 ### ⚠️ Not Yet Implemented
 
@@ -328,8 +152,6 @@ server {
     }
 }
 ```
-
-[See Docker security guide →](containers/README.md#security-configuration)
 
 ## 🌳 Git Worktrees
 
