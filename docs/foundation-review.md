@@ -260,9 +260,60 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
 | Watchdog, test harness, budget cap, cancel | Accepted (design §2, §9, §13). |
 | "Resume is cheap" is wrong for usage pauses; the self-rebuild swaps `dist/` under a live tradr run | Accepted. Claim dropped; cost to quantify in the prototypes; the post-merge hold waits on any run sharing the checkout, including legacy pointer lines. |
 
-### Round 6 (2026-10-10): the questions the review surfaced
+### Round 6 (2026-10-10): the questions the review surfaced. All seven accepted.
 
-Answers: pending.
+1. Switch-off events, never automatic: a merge that breaks main or loses data; a run touching
+   a repo it was not launched for. Tokens over a ceiling is a wait, not a switch-off.
+2. Only Matthew reaches the dashboard and the advisor, from this machine and his phone.
+   Loopback by default, secret on everything, LAN opt-in.
+3. The advisor stages an action with its reason; Matthew confirms with one click in the
+   dashboard. It never executes from the chat.
+4. Overnight bad build: the last good build keeps every other project running; one error
+   wait names the commit.
+5. Empty roadmap: idle, one notification. The harness never picks its own work.
+6. jobscout falls off the harness unless it gets a GitHub remote.
+7. Step (0) done in this session.
+
+### Progress log
+
+- 2026-10-10 step (0) done: `8fa7327` parks specs 16-21 in
+  `.spec-workflow/spec-decomposition/superseded-2026-10-10.md`, rewrites the HANDOFF routing
+  header, regenerates INDEX (routing: all-on-disk-complete, no backticked slug without a
+  directory left in decomposition.md). `e7aef0c` commits the foundation docs, ADRs and
+  glossary. Both on main, pushed.
+- 2026-10-10 step (a) in flight: four worktrees under `.claude/worktrees/`, branches
+  `chore/delete-vscode-extension`, `chore/delete-plugin-mirrors`,
+  `chore/delete-legacy-server`, `chore/delete-frontend-residue`. Merge order: extension,
+  plugins, frontend, legacy server; rebase on conflicts (package.json build script,
+  multi-server.ts). The gate-B `phase.end` fix is dropped: step (b) replaces the gate path.
+  The adjudicator grant fix is its own one-line PR after the plugins PR merges.
+- 2026-10-10 PR #89 merged (`cd78b3b`): VS Code extension, containers, README client matrix,
+  29.5k lines. Not yet pulled into the main checkout (tradr run live).
+- 2026-10-10 PR #90 merged (`1b604d8`): plugins/, marketplace, sync scripts, 64 duplicate
+  agent tool ids, the plugin drift check; `harness/.claude-plugin/plugin.json` added.
+  CLAUDE.md (gitignored, local) trimmed by hand and pointed at the foundation docs.
+- 2026-10-10 PR #91 merged (`080510c`): the adjudicator `log-implementation` grant. Its first CI
+  run failed on `registry-lock.test.ts:195` (expected exit, got enter), a timing-flaky lock test;
+  the rerun passed. Worth a look when the controller test harness is built.
+- 2026-10-10 PR #92 merged (`856129c`): i18n stack, 11 locales, notifications, changelog
+  modal and routes, the HUD read and `overview-todos`. Left for a later tidy: `howler` and
+  `@heroicons/react` are now unused dependencies; `scripts/copy-static.cjs` keeps a no-op
+  locales block; `overview-rows` stays because the shell's live refresh is armed by it.
+- 2026-10-10 PR #93 merged (`599ff80`): guide tools, prompts, archive service, log migrator,
+  legacy runners and managers, 1,650 lines of dead routes and eight broadcasts, the unconsumed
+  WebSocket `initial` message; e2e rewritten to use `TaskStateStore.recordBase`. Kept on
+  purpose: `src/dashboard/parser.ts` (still feeds `deferrals-update` and the shell detail; its
+  API differs from `core/parser`) and the steering templates (copied on every MCP connect).
+- **Step (a) complete 2026-10-10.** Five PRs (#89-#93), about 56,000 lines removed, 440 added.
+  Main pulled and rebuilt in the checkout. Harness sessions and the dashboard need a restart
+  by Matthew to pick up the new agent files and server.
+- Found on the way, not acted on: the tradr `security-hardening` run (run-20261009-164212)
+  died without `run.end`; its pointer line in `~/.local/state/sdd/active-run` is stale and
+  blocks Launch for tradr until Matthew removes it or presses Stop in the dashboard. A test
+  wrote a fixture launch record (run id 2026-01-01) into the real `~/.spec-workflow-mcp/
+  harness/launches/`; the controller test harness must sandbox the home.
+- The `del-legacy` worktree is left in place (this session's cwd); remove it with
+  `git worktree remove --force .claude/worktrees/del-legacy`.
 
 ## 8. Pointers
 
