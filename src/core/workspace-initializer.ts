@@ -2,8 +2,6 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { PathUtils } from './path-utils.js';
-import { ImplementationLogMigrator } from './implementation-log-migrator.js';
-import { getGlobalDir } from './global-dir.js';
 import { STEERING_TEMPLATE_NAMES } from './steering-docs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -26,9 +24,6 @@ export class WorkspaceInitializer {
 
     // Create user templates README
     await this.createUserTemplatesReadme();
-
-    // Migrate implementation logs from JSON to Markdown format
-    await this.migrateImplementationLogs();
   }
   
   private async initializeDirectories(): Promise<void> {
@@ -160,27 +155,6 @@ Templates can include placeholders that will be replaced when documents are crea
     } catch {
       // File doesn't exist, create it
       await fs.writeFile(readmePath, readmeContent, 'utf-8');
-    }
-  }
-
-  /**
-   * Migrate implementation logs from JSON to Markdown format
-   * Runs on server startup to handle automatic migration for existing specs
-   */
-  private async migrateImplementationLogs(): Promise<void> {
-    try {
-      const userDataDir = getGlobalDir();
-      const specsDir = join(PathUtils.getWorkflowRoot(this.projectPath), 'specs');
-
-      // Create user data directory if it doesn't exist
-      await fs.mkdir(userDataDir, { recursive: true });
-
-      const migrator = new ImplementationLogMigrator(userDataDir);
-      await migrator.migrateAllSpecs(specsDir);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Implementation log migration failed: ${errorMessage}`);
-      // Don't throw - migration failure shouldn't break server startup
     }
   }
 }

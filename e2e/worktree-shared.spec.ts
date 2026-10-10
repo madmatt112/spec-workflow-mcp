@@ -10,6 +10,8 @@ import {
   WorktreeHarness,
   resetSpecWorkflowHome
 } from './helpers/worktree-harness';
+import { TaskStateStore } from '../src/core/task-state-store.js';
+import { readHeadCommit } from '../src/core/task-diff.js';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
 
@@ -390,28 +392,25 @@ test.describe('Shared worktree specs', () => {
       .toEqual(harness.getWorktrees().map((worktree) => worktree.path).sort());
   });
 
-  // Scenario 1: two worktrees register as distinct projects sharing one spec list.
-  test('registers two distinct projects that serve the same shared spec list', async () => {
+  // Scenario 1: two worktrees register as distinct projects that both serve the
+  // one shared spec. The legacy per-project specs-list route this used has been
+  // removed; the shell spec-detail route is the kept replacement and answers 200
+  // only when the project resolves the shared spec.
+  test('registers two distinct projects that serve the same shared spec', async () => {
     const projectIds = registeredProjects.map((project) => project.projectId);
     expect(new Set(projectIds).size).toBe(2);
 
-    const specLists: string[][] = [];
+    // The only `.spec-workflow` in this fixture is in the main checkout, so a
+    // project that resolved its workflow root to its own worktree would 404 for
+    // the shared spec. Both must serve it.
     for (const project of registeredProjects) {
       const response = await fetch(
-        `${DASHBOARD_API_BASE_URL}/api/projects/${project.projectId}/specs`
+        `${DASHBOARD_API_BASE_URL}/api/shell/projects/${project.projectId}/specs/${encodeURIComponent(SHARED_SPEC_NAME)}`
       );
-      expect(response.ok, `specs request for ${project.projectPath}`).toBe(true);
-      const specs = await response.json() as Array<{ name: string }>;
-      specLists.push(specs.map((spec) => spec.name).sort());
+      expect(response.ok, `shared spec detail for ${project.projectPath}`).toBe(true);
+      const detail = await response.json() as { phases: unknown[] };
+      expect(Array.isArray(detail.phases)).toBe(true);
     }
-
-    // The only `.spec-workflow` in this fixture is in the main checkout, so a
-    // project that resolved its workflow root to its own worktree would list
-    // nothing at all.
-    for (const names of specLists) {
-      expect(names).toContain(SHARED_SPEC_NAME);
-    }
-    expect(specLists[0]).toEqual(specLists[1]);
   });
 
   // Scenario 2: a review triggered from worktree A diffs A's files, not B's.
@@ -537,18 +536,16 @@ test.describe('Shared worktree specs', () => {
     const projectA = registeredProjects.find((project) => project.projectPath === worktreeA.path);
     expect(projectA, 'project A must be registered').toBeTruthy();
 
-    // 1. The dashboard sets the task in-progress. This is the ONLY site that
-    //    records a diff base, and it records A's current HEAD — before the
-    //    commit below exists.
-    const statusResponse = await fetch(
-      `${DASHBOARD_API_BASE_URL}/api/projects/${projectA!.projectId}/specs/${SHARED_SPEC_NAME}/tasks/${RECORDED_TASK_ID}/status`,
-      {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'in-progress' })
-      }
-    );
-    expect(statusResponse.ok, 'the status route must accept the in-progress transition').toBe(true);
+    // 1. Record A's current HEAD as the task's diff base, before the commit
+    //    below exists. The dashboard PUT task-status route that used to record
+    //    the base on an in-progress transition has been removed (legacy
+    //    manual-workflow server code); its one mechanism was
+    //    TaskStateStore.recordBase, which the harness never calls, so it is
+    //    driven directly here and the test no longer depends on the route.
+    const baseCommit = await readHeadCommit(worktreeA.path);
+    expect(baseCommit, 'A must have a HEAD commit to record as the diff base').toBeTruthy();
+    const baseStore = new TaskStateStore(join(repoPath, '.spec-workflow', 'specs', SHARED_SPEC_NAME));
+    await baseStore.recordBase(RECORDED_TASK_ID, worktreeA.path, baseCommit!);
 
     // 2. Commit the work on A's branch AFTER the base was recorded, so the change
     //    lives strictly between the recorded base and HEAD. A diff taken from

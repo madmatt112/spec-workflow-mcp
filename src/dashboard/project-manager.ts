@@ -3,7 +3,6 @@ import chokidar from 'chokidar';
 import { SpecParser } from './parser.js';
 import { SpecWatcher } from './watcher.js';
 import { ApprovalStorage } from './approval-storage.js';
-import { SpecArchiveService } from '../core/archive-service.js';
 import { ProjectRegistry, ProjectRegistryEntry, ProjectInstance } from '../core/project-registry.js';
 import { PathUtils } from '../core/path-utils.js';
 import { resolveGitRoot, resolveGitWorkspaceRoot } from '../core/git-utils.js';
@@ -19,7 +18,6 @@ export interface ProjectContext {
   parser: SpecParser;
   watcher: SpecWatcher;
   approvalStorage: ApprovalStorage;
-  archiveService: SpecArchiveService;
 }
 
 export class ProjectManager extends EventEmitter {
@@ -149,7 +147,6 @@ export class ProjectManager extends EventEmitter {
         originalPath: entry.workflowRootPath,
         fileResolutionPath: translatedWorkspacePath
       });
-      const archiveService = new SpecArchiveService(translatedWorkflowRootPath);
 
       // Start watchers
       await watcher.start();
@@ -186,8 +183,7 @@ export class ProjectManager extends EventEmitter {
         instances: entry.instances || [],       // Track MCP server instances
         parser,
         watcher,
-        approvalStorage,
-        archiveService
+        approvalStorage
       };
 
       this.projects.set(entry.projectId, context);
