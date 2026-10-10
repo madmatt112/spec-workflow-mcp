@@ -3,13 +3,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
   McpError,
   ErrorCode
 } from '@modelcontextprotocol/sdk/types.js';
 import { registerTools, handleToolCall } from './tools/index.js';
-import { registerPrompts, handlePromptList, handlePromptGet } from './prompts/index.js';
 import { validateProjectPath } from './core/path-utils.js';
 import { WorkspaceInitializer } from './core/workspace-initializer.js';
 import { ProjectRegistry } from './core/project-registry.js';
@@ -108,9 +105,8 @@ export class SpecWorkflowMCPServer {
     const packageJsonPath = join(__dirname, '..', 'package.json');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
-    // Get all registered tools and prompts
+    // Get all registered tools
     const tools = registerTools();
-    const prompts = registerPrompts();
 
     // Create tools capability object with each tool name
     const toolsCapability = tools.reduce((acc, tool) => {
@@ -123,10 +119,7 @@ export class SpecWorkflowMCPServer {
       version: packageJson.version
     }, {
       capabilities: {
-        tools: toolsCapability,
-        prompts: {
-          listChanged: true
-        }
+        tools: toolsCapability
       }
     });
 
@@ -268,27 +261,6 @@ export class SpecWorkflowMCPServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         return await handleToolCall(request.params.name, request.params.arguments || {}, context);
-      } catch (error: any) {
-        throw new McpError(ErrorCode.InternalError, error.message);
-      }
-    });
-
-    // Prompt handlers
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
-      try {
-        return await handlePromptList();
-      } catch (error: any) {
-        throw new McpError(ErrorCode.InternalError, error.message);
-      }
-    });
-
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-      try {
-        return await handlePromptGet(
-          request.params.name,
-          request.params.arguments || {},
-          context
-        );
       } catch (error: any) {
         throw new McpError(ErrorCode.InternalError, error.message);
       }
