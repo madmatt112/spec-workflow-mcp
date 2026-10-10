@@ -1,10 +1,10 @@
 // src/dashboard/harness/overview-watch.ts
 //
 // The Overview watch (design.md C6). One watcher set feeds every Overview client
-// the per-project rows and the operator to-do list, pushed on change (Req 5). The
-// pure `buildOverviewRow` reads a project's HANDOFF and its resolved spec ledger;
-// `OverviewWatch` watches the pointer file, the HUD file and each project's HANDOFF
-// and row ledger, and pushes `overview-rows`/`overview-todos` on change.
+// the per-project rows, pushed on change (Req 5). The pure `buildOverviewRow`
+// reads a project's HANDOFF and its resolved spec ledger; `OverviewWatch` watches
+// the pointer file and each project's HANDOFF and row ledger, and pushes
+// `overview-rows` on change.
 import { readFileSync, mkdirSync } from 'fs';
 import { once } from 'events';
 import { join, basename, dirname, relative, isAbsolute } from 'path';
@@ -13,9 +13,9 @@ import { buildModel, parseJsonl } from '../../watch/ledger.js';
 import type { LedgerEvent } from '../../watch/ledger.js';
 import { handoffPath } from '../../watch/index.js';
 import { parseHandoffRouting } from './project-watch.js';
-import { pointerPath, hudPath, readPointer, readTodos } from './state-files.js';
+import { pointerPath, readPointer } from './state-files.js';
 import type { ProjectContext, ProjectManager } from '../project-manager.js';
-import type { HarnessMessage, OverviewRow, PointerLine, Todo } from './types.js';
+import type { HarnessMessage, OverviewRow, PointerLine } from './types.js';
 
 /** The four-file watch options shared with the TUI watch (src/watch/index.ts:101-104). */
 const WATCH_OPTS = {
@@ -146,30 +146,23 @@ export function buildOverviewRow(project: ProjectContext, pointer: PointerLine |
   };
 }
 
-/** Open to-dos first, each group in its original file order (Req 5.5). */
-function sortTodos(todos: Todo[]): Todo[] {
-  return [...todos].sort((a, b) => Number(a.done) - Number(b.done));
-}
-
 /**
- * The Overview watch (design.md C6). One watcher set — the pointer file, the HUD
- * file, and each project's HANDOFF and resolved row ledger — feeds every Overview
- * client. A pointer or HANDOFF change recomputes the ledger set and pushes
- * `overview-rows`; a ledger change pushes `overview-rows`; a HUD change pushes
- * `overview-todos` (open items first, file order). `snapshot()` returns both
- * messages; `close()` stops the watchers and timers.
+ * The Overview watch (design.md C6). One watcher set — the pointer file and each
+ * project's HANDOFF and resolved row ledger — feeds every Overview client. A
+ * pointer or HANDOFF change recomputes the ledger set and pushes `overview-rows`;
+ * a ledger change pushes `overview-rows`. `snapshot()` returns that message;
+ * `close()` stops the watchers and timers.
  */
 export class OverviewWatch {
   private readonly debounceMs: number;
   private closed = false;
 
-  private stateWatcher?: FSWatcher;       // the sdd state dir (pointer + HUD)
+  private stateWatcher?: FSWatcher;       // the sdd state dir (pointer)
   private handoffWatcher?: FSWatcher;     // each project's HANDOFF
   private ledgerWatcher?: FSWatcher;      // each project's resolved row ledger
 
   private timer?: NodeJS.Timeout;
   private rowsDirty = false;
-  private todosDirty = false;
   private reArmLedgers = false;
 
   constructor(
@@ -181,38 +174,34 @@ export class OverviewWatch {
   }
 
   /**
-   * Create the pointer and HUD directories (tasks D9: a chokidar 3.6.0 probe
-   * showed a watched file whose parent directory is missing reports no events),
-   * arm the watchers, wait for their initial scan, then push both messages. The
-   * pointer and HUD share one directory watch so a file created after start() —
-   * when the watched path did not exist yet — is still seen.
+   * Create the pointer directory (tasks D9: a chokidar 3.6.0 probe showed a
+   * watched file whose parent directory is missing reports no events), arm the
+   * watchers, wait for their initial scan, then push the rows. The state watch is
+   * on the directory so a pointer file created after start() — when the watched
+   * path did not exist yet — is still seen.
    */
   async start(): Promise<void> {
     mkdirSync(dirname(pointerPath()), { recursive: true });
-    mkdirSync(dirname(hudPath()), { recursive: true });
     this.armState();
     this.armHandoffs();
     this.armLedgers();
     await this.whenReady();
     this.pushRows();
-    this.pushTodos();
   }
 
-  /** The current rows and to-dos, recomputed from disk (design.md C6). */
+  /** The current rows, recomputed from disk (design.md C6). */
   snapshot(): HarnessMessage[] {
     return [
       { type: 'overview-rows', data: { rows: this.buildRows() } },
-      { type: 'overview-todos', data: { todos: sortTodos(readTodos(hudPath())) } },
     ];
   }
 
-  /** Re-arm the watch set (projects may have changed) and push both messages. */
+  /** Re-arm the watch set (projects may have changed) and push the rows. */
   refresh(): void {
     if (this.closed) return;
     this.armHandoffs();
     this.armLedgers();
     this.pushRows();
-    this.pushTodos();
   }
 
   /** Close every watcher and clear the debounce timer. */
@@ -266,9 +255,9 @@ export class OverviewWatch {
 
   private armState(): void {
     void this.stateWatcher?.close();
-    // Watch the sdd directory (not the file paths) so the pointer or HUD is seen
-    // even when it is created after start() — chokidar 3.6.0 does not report the
-    // first creation of a single file path that never existed.
+    // Watch the sdd directory (not the file path) so the pointer is seen even when
+    // it is created after start() — chokidar 3.6.0 does not report the first
+    // creation of a single file path that never existed.
     this.stateWatcher = chokidar.watch(dirname(pointerPath()), { ...WATCH_OPTS, depth: 0 });
     this.stateWatcher.on('add', this.onState).on('change', this.onState).on('unlink', this.onState);
   }
@@ -293,10 +282,7 @@ export class OverviewWatch {
   private onState = (changedPath: string): void => {
     if (this.closed) return;
     const name = basename(changedPath);
-    if (name === basename(hudPath())) {
-      this.todosDirty = true;
-      this.schedule();
-    } else if (name === basename(pointerPath())) {
+    if (name === basename(pointerPath())) {
       this.rowsDirty = true;
       this.reArmLedgers = true;
       this.schedule();
@@ -327,14 +313,9 @@ export class OverviewWatch {
     if (this.closed) return;
     if (this.reArmLedgers) { this.reArmLedgers = false; this.armLedgers(); }
     if (this.rowsDirty) { this.rowsDirty = false; this.pushRows(); }
-    if (this.todosDirty) { this.todosDirty = false; this.pushTodos(); }
   };
 
   private pushRows(): void {
     this.send({ type: 'overview-rows', data: { rows: this.buildRows() } });
-  }
-
-  private pushTodos(): void {
-    this.send({ type: 'overview-todos', data: { todos: sortTodos(readTodos(hudPath())) } });
   }
 }

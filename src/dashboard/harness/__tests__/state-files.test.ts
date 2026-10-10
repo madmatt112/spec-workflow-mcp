@@ -6,13 +6,11 @@ import { getGlobalDir } from '../../../core/global-dir.js';
 import {
   stateHome,
   pointerPath,
-  hudPath,
   harnessStateDir,
   launchesDir,
   logsDir,
   readPointer,
   removePointerLine,
-  readTodos,
 } from '../state-files.js';
 
 // Contract for src/dashboard/harness/state-files.ts (design.md C2; task 2
@@ -24,11 +22,11 @@ import {
 //   reads the environment when called"):
 //   Pre-condition: XDG_STATE_HOME and SPEC_WORKFLOW_HOME set to distinct temp
 //   dirs.
-//   Call: stateHome(), pointerPath(), hudPath(), harnessStateDir(),
+//   Call: stateHome(), pointerPath(), harnessStateDir(),
 //   launchesDir(), logsDir().
 //   Observable result: each equals the set env var joined with the literal
-//   sub-path the design names (sdd/active-run, sdd/overwatch-hud.json,
-//   harness, harness/launches, harness/logs).
+//   sub-path the design names (sdd/active-run, harness, harness/launches,
+//   harness/logs).
 //   Expected-value source: design.md C2 (lines 51-52).
 //
 // Criterion "home default" (design.md C2, same interfaces' default branch):
@@ -91,29 +89,6 @@ import {
 //   Observable result: the file on disk ends up holding only the concurrent
 //   line — the target line removed, the concurrent line kept, not deleted.
 //   Expected-value source: the _Prompt sentence (restart-from-new-text rule).
-//
-// Criterion "readTodos on a missing file / bad JSON / no array" (task 2
-//   _Prompt: "a missing file, bad JSON or no array returns an empty array
-//   (Req 5.7)"; Requirement 5 AC 7):
-//   Pre-condition: (a) a path that does not exist; (b) a file with invalid
-//   JSON text; (c) a file with valid JSON whose `todos` field is not an
-//   array.
-//   Call: readTodos(path).
-//   Observable result: [] in every case.
-//   Expected-value source: Requirement 5 AC 7 and the _Prompt sentence.
-//
-// Criterion "readTodos on a good file" (task 2 _Prompt: "returns the todos
-//   array with each object item coerced to the to-do shape (a missing
-//   string field is empty, done is a boolean) and non-object items
-//   dropped"; Requirement 5 AC 5's field list):
-//   Pre-condition: a `todos` array with one fully-populated object, one
-//   object missing most string fields and `done`, and three non-object
-//   items.
-//   Call: readTodos(path).
-//   Observable result: an array of exactly the two object items — the first
-//   unchanged, the second with empty strings for its missing fields and
-//   `done: false` — with the three non-object items absent.
-//   Expected-value source: the _Prompt sentence and Requirement 5 AC 5.
 
 describe('state-files', () => {
   let originalXdg: string | undefined;
@@ -144,7 +119,6 @@ describe('state-files', () => {
 
       expect(stateHome()).toBe(tempXdg);
       expect(pointerPath()).toBe(join(tempXdg, 'sdd', 'active-run'));
-      expect(hudPath()).toBe(join(tempXdg, 'sdd', 'overwatch-hud.json'));
       expect(harnessStateDir()).toBe(join(tempSwm, 'harness'));
       expect(launchesDir()).toBe(join(tempSwm, 'harness', 'launches'));
       expect(logsDir()).toBe(join(tempSwm, 'harness', 'logs'));
@@ -156,7 +130,6 @@ describe('state-files', () => {
 
       expect(stateHome()).toBe(join(homedir(), '.local', 'state'));
       expect(pointerPath()).toBe(join(homedir(), '.local', 'state', 'sdd', 'active-run'));
-      expect(hudPath()).toBe(join(homedir(), '.local', 'state', 'sdd', 'overwatch-hud.json'));
       expect(harnessStateDir()).toBe(join(getGlobalDir(), 'harness'));
       expect(launchesDir()).toBe(join(getGlobalDir(), 'harness', 'launches'));
       expect(logsDir()).toBe(join(getGlobalDir(), 'harness', 'logs'));
@@ -246,64 +219,6 @@ describe('state-files', () => {
       expect(calls).toBeGreaterThanOrEqual(2);
       expect(removed).toBe(1);
       expect(readFileSync(path, 'utf-8')).toBe('/main/checkout-b\t/specs/b\tRUN-2\n');
-    });
-  });
-
-  describe('readTodos', () => {
-    it('returns an empty array for a missing HUD file', () => {
-      const path = join(tempXdg, 'nope', 'overwatch-hud.json');
-      expect(readTodos(path)).toEqual([]);
-    });
-
-    it('returns an empty array for invalid JSON', () => {
-      const path = join(tempXdg, 'overwatch-hud.json');
-      writeFileSync(path, '{ not valid json');
-      expect(readTodos(path)).toEqual([]);
-    });
-
-    it('returns an empty array when todos is missing or not an array', () => {
-      const path = join(tempXdg, 'overwatch-hud.json');
-      writeFileSync(path, JSON.stringify({ todos: { not: 'an array' } }));
-      expect(readTodos(path)).toEqual([]);
-    });
-
-    it('returns coerced to-do objects and drops non-object items', () => {
-      const path = join(tempXdg, 'overwatch-hud.json');
-      writeFileSync(
-        path,
-        JSON.stringify({
-          todos: [
-            {
-              id: 't1',
-              title: 'Fix bug',
-              owner: 'matt',
-              blocks: 'PR #1',
-              note: 'urgent',
-              since: '2026-09-01',
-              done: true,
-              priority: 'high',
-            },
-            { id: 't2' },
-            'not an object',
-            42,
-            null,
-          ],
-        }),
-      );
-
-      expect(readTodos(path)).toEqual([
-        {
-          id: 't1',
-          title: 'Fix bug',
-          owner: 'matt',
-          blocks: 'PR #1',
-          note: 'urgent',
-          since: '2026-09-01',
-          done: true,
-          priority: 'high',
-        },
-        { id: 't2', title: '', owner: '', blocks: '', note: '', since: '', done: false, priority: '' },
-      ]);
     });
   });
 });

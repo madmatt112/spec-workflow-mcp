@@ -5,7 +5,6 @@ import App from './modules/app/App';
 import './assets/fonts/fonts.css';
 import './modules/theme/tailwind.css';
 import './modules/theme/theme.css';
-import './i18n';
 
 const container = document.getElementById('root');
 if (container) {

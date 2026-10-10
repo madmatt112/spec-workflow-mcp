@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useProjects, type Project } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
@@ -77,7 +76,6 @@ function RunRows({ rows, now, onOpen, empty }: {
 }
 
 export function RunsPage() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { enabled, projects } = useProjects();
   const { now } = useShell();
@@ -100,7 +98,7 @@ export function RunsPage() {
   const list = (
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h1 className="text-base font-semibold text-[var(--text-primary)]">{t('shell.runs.title', 'Runs')}</h1>
+        <h1 className="text-base font-semibold text-[var(--text-primary)]">{'Runs'}</h1>
         <button
           type="button"
           onClick={() => setLaunchOpen((v) => !v)}
@@ -112,26 +110,26 @@ export function RunsPage() {
               : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
           }`}
         >
-          {t('shell.runs.launch', 'Launch')}
+          {'Launch'}
         </button>
       </div>
 
       {launchOpen && (
         <div className="mb-4 space-y-3" data-testid="launch-cards">
           {enabledProjects.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{t('shell.runs.noProjects', 'No projects.')}</p>
+            <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'No projects.'}</p>
           ) : (
             enabledProjects.map((p) => <LaunchCard key={p.projectId} project={p} now={now} />)
           )}
         </div>
       )}
 
-      <Group name="runs-live" title={t('shell.runs.group.live', 'Live')} count={live.length}>
-        <RunRows rows={live} now={tick} onOpen={open} empty={t('shell.runs.empty.live', 'No live runs.')} />
+      <Group name="runs-live" title={'Live'} count={live.length}>
+        <RunRows rows={live} now={tick} onOpen={open} empty={'No live runs.'} />
       </Group>
 
-      <Group name="runs-ended" title={t('shell.runs.group.ended', 'Ended')} count={ended.length}>
-        <RunRows rows={ended} now={tick} onOpen={open} empty={t('shell.runs.empty.ended', 'No ended runs.')} />
+      <Group name="runs-ended" title={'Ended'} count={ended.length}>
+        <RunRows rows={ended} now={tick} onOpen={open} empty={'No ended runs.'} />
       </Group>
     </div>
   );
@@ -151,7 +149,6 @@ function SummaryLine({ label, value }: { label: string; value: React.ReactNode }
 }
 
 function LaunchCard({ project, now }: { project: Project; now: NowModel | null }) {
-  const { t } = useTranslation();
   const [view, setView] = useState<SetupView | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -180,9 +177,9 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
 
   // The disable reason, in the order of design D8 / Requirement 4 AC 12.
   let disabledReason: string | null = null;
-  if (view && !launchable) disabledReason = view.disabledReason ?? t('shell.runs.card.noLaunchable', 'No launchable spec.');
-  else if (liveRun) disabledReason = t('shell.runs.card.disabledLive', 'A run is live for this project.');
-  else if (launching) disabledReason = t('shell.runs.card.disabledLaunching', 'A launch is in progress.');
+  if (view && !launchable) disabledReason = view.disabledReason ?? 'No launchable spec.';
+  else if (liveRun) disabledReason = 'A run is live for this project.';
+  else if (launching) disabledReason = 'A launch is in progress.';
 
   const input = view && launchable ? buildLaunchInput(view) : null;
 
@@ -208,17 +205,17 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
       </div>
 
       {loadError ? (
-        <p className="text-sm text-[var(--status-error)]">{t('shell.runs.card.loadError', 'Could not load setup.')}</p>
+        <p className="text-sm text-[var(--status-error)]">{'Could not load setup.'}</p>
       ) : !view ? (
-        <p className="text-sm text-[var(--text-muted)]">{t('shell.runs.none', '—')}</p>
+        <p className="text-sm text-[var(--text-muted)]">{'—'}</p>
       ) : (
         <>
           <div className="space-y-1">
-            <SummaryLine label={t('shell.runs.card.spec', 'Spec')} value={view.launchable ?? t('shell.runs.none', '—')} />
-            <SummaryLine label={t('shell.runs.card.supervisor', 'Supervisor')} value={input?.supervisorModel ?? view.supervisor.model} />
-            <SummaryLine label={t('shell.runs.card.roles', 'Roles')} value={input ? Object.keys(input.roles).length : view.roles.length} />
-            <SummaryLine label={t('shell.runs.card.worktree', 'Worktree')} value={input?.worktree ?? view.worktree} />
-            <SummaryLine label={t('shell.runs.card.gates', 'Gates')} value={input?.gates ?? view.gates} />
+            <SummaryLine label={'Spec'} value={view.launchable ?? '—'} />
+            <SummaryLine label={'Supervisor'} value={input?.supervisorModel ?? view.supervisor.model} />
+            <SummaryLine label={'Roles'} value={input ? Object.keys(input.roles).length : view.roles.length} />
+            <SummaryLine label={'Worktree'} value={input?.worktree ?? view.worktree} />
+            <SummaryLine label={'Gates'} value={input?.gates ?? view.gates} />
           </div>
 
           {disabledReason && (
@@ -235,7 +232,7 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
               data-testid={`launch-button-${project.projectId}`}
               className="rounded-md bg-[var(--interactive-primary)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
             >
-              {busy ? t('shell.runs.card.launching', 'Launching…') : t('shell.runs.card.launch', 'Launch')}
+              {busy ? 'Launching…' : 'Launch'}
             </button>
             <button
               type="button"
@@ -244,13 +241,13 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
               data-testid={`edit-setup-${project.projectId}`}
               className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
             >
-              {t('shell.runs.card.edit', 'Edit setup')}
+              {'Edit setup'}
             </button>
           </div>
 
           {opError && (
             <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-              <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{t('shell.runs.err.heading', 'The run was refused')}</div>
+              <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
               <OpErrorView error={opError} />
             </div>
           )}
@@ -273,7 +270,6 @@ function EditSetup({ view, prefix, onSaved }: {
   prefix: string;
   onSaved: () => Promise<void> | void;
 }) {
-  const { t } = useTranslation();
   const saved = view.saved;
   const [supervisorModel, setSupervisorModel] = useState(saved?.supervisorModel ?? view.supervisor.model);
   const [worktree, setWorktree] = useState<'yes' | 'no'>(saved?.worktree ?? view.worktree);
@@ -320,7 +316,7 @@ function EditSetup({ view, prefix, onSaved }: {
       <table className="w-full border-collapse text-sm">
         <tbody>
           <tr className="border-b border-[var(--border-default)]">
-            <td className="py-1 pr-3 align-top text-[var(--text-muted)]">{t('shell.runs.card.supervisor', 'Supervisor')}</td>
+            <td className="py-1 pr-3 align-top text-[var(--text-muted)]">{'Supervisor'}</td>
             <td className="py-1" colSpan={2}>
               <input type="text" value={supervisorModel} onChange={(e) => setSupervisorModel(e.target.value)} className={inputCls} />
             </td>
@@ -333,7 +329,7 @@ function EditSetup({ view, prefix, onSaved }: {
                   type="text"
                   value={roleValues[r.agent]?.model ?? ''}
                   onChange={(e) => setModel(r.agent, e.target.value)}
-                  aria-label={t('shell.runs.card.model', 'Model')}
+                  aria-label={'Model'}
                   className={inputCls}
                 />
               </td>
@@ -342,31 +338,31 @@ function EditSetup({ view, prefix, onSaved }: {
                   <select
                     value={roleValues[r.agent]?.provider ?? r.defaultProvider}
                     onChange={(e) => setProvider(r.agent, e.target.value as Provider)}
-                    aria-label={t('shell.runs.card.provider', 'Provider')}
+                    aria-label={'Provider'}
                     className={inputCls}
                   >
-                    <option value="anthropic">{t('shell.runs.provider.anthropic', 'Anthropic')}</option>
-                    <option value="deepseek">{t('shell.runs.provider.deepseek', 'DeepSeek')}</option>
+                    <option value="anthropic">{'Anthropic'}</option>
+                    <option value="deepseek">{'DeepSeek'}</option>
                   </select>
                 ) : null}
               </td>
             </tr>
           ))}
           <tr className="border-b border-[var(--border-default)]">
-            <td className="py-1 pr-3 text-[var(--text-muted)]">{t('shell.runs.card.worktree', 'Worktree')}</td>
+            <td className="py-1 pr-3 text-[var(--text-muted)]">{'Worktree'}</td>
             <td className="py-1" colSpan={2}>
               <select value={worktree} onChange={(e) => setWorktree(e.target.value as 'yes' | 'no')} className={inputCls}>
-                <option value="yes">{t('shell.runs.card.worktree_yes', 'yes')}</option>
-                <option value="no">{t('shell.runs.card.worktree_no', 'no')}</option>
+                <option value="yes">{'yes'}</option>
+                <option value="no">{'no'}</option>
               </select>
             </td>
           </tr>
           <tr>
-            <td className="py-1 pr-3 text-[var(--text-muted)]">{t('shell.runs.card.gates', 'Gates')}</td>
+            <td className="py-1 pr-3 text-[var(--text-muted)]">{'Gates'}</td>
             <td className="py-1" colSpan={2}>
               <select value={gates} onChange={(e) => setGates(e.target.value as 'block' | 'record')} className={inputCls}>
-                <option value="block">{t('shell.runs.card.gates_block', 'block')}</option>
-                <option value="record">{t('shell.runs.card.gates_record', 'record')}</option>
+                <option value="block">{'block'}</option>
+                <option value="record">{'record'}</option>
               </select>
             </td>
           </tr>
@@ -381,13 +377,13 @@ function EditSetup({ view, prefix, onSaved }: {
           data-testid="save-setup"
           className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
         >
-          {busy ? t('shell.runs.card.saving', 'Saving…') : t('shell.runs.card.save', 'Save setup')}
+          {busy ? 'Saving…' : 'Save setup'}
         </button>
       </div>
 
       {saveError && (
         <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-          <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{t('shell.runs.err.heading', 'The run was refused')}</div>
+          <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
           <OpErrorView error={saveError} />
         </div>
       )}

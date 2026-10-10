@@ -1,5 +1,4 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
 import type { SetupView, SetupInput, Provider } from '../harness/types';
 
 // The harness routes are called with fetch directly rather than the shared PUT
@@ -73,43 +72,42 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
  * `step` and `detail`. Ported from HarnessPage.tsx:628-673.
  */
 export function OpErrorView({ error }: { error: OpError }) {
-  const { t } = useTranslation();
   const body = error.body || {};
   if (body.error === 'run-live') {
     return (
       <div className="space-y-1 text-sm text-[var(--text-primary)]">
-        <Field label={t('shell.runs.err.runLive', 'A run is already live')} value={body.reason} />
-        <Field label={t('shell.runs.err.runId', 'Run id')} value={body.runId} />
-        <Field label={t('shell.runs.err.pid', 'PID')} value={body.pid} />
+        <Field label={'A run is already live'} value={body.reason} />
+        <Field label={'Run id'} value={body.runId} />
+        <Field label={'PID'} value={body.pid} />
       </div>
     );
   }
   if (body.error === 'not-launchable') {
     return (
       <div className="space-y-1 text-sm text-[var(--text-primary)]">
-        <Field label={t('shell.runs.err.notLaunchable', 'Not launchable')} value={body.reason} />
+        <Field label={'Not launchable'} value={body.reason} />
       </div>
     );
   }
   if (body.error === 'not-running') {
-    return <div className="break-words text-sm text-[var(--text-primary)]">{t('shell.runs.err.notRunning', 'No run is running for this project.')}</div>;
+    return <div className="break-words text-sm text-[var(--text-primary)]">{'No run is running for this project.'}</div>;
   }
   if (present(body.step)) {
     return (
       <div className="space-y-1 text-sm text-[var(--text-primary)]">
-        <Field label={t('shell.runs.err.step', 'Step')} value={body.step} />
-        <Field label={t('shell.runs.err.detail', 'Detail')} value={body.detail || body.error} />
+        <Field label={'Step'} value={body.step} />
+        <Field label={'Detail'} value={body.detail || body.error} />
       </div>
     );
   }
   if (present(body.field)) {
     return (
       <div className="space-y-1 text-sm text-[var(--text-primary)]">
-        <Field label={t('shell.runs.err.field', 'Field')} value={body.field} />
-        <Field label={t('shell.runs.err.value', 'Value')} value={body.value} />
+        <Field label={'Field'} value={body.field} />
+        <Field label={'Value'} value={body.value} />
         <div className="min-w-0 break-words">{body.error}</div>
       </div>
     );
   }
-  return <div className="break-words text-sm text-[var(--text-primary)]">{body.error || t('shell.runs.err.generic', 'The operation failed.')}</div>;
+  return <div className="break-words text-sm text-[var(--text-primary)]">{body.error || 'The operation failed.'}</div>;
 }

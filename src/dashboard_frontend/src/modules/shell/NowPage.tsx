@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
@@ -7,6 +6,10 @@ import { PageLayout } from './PageLayout';
 import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { Wait } from './types';
+
+const KIND_LABELS: Record<string, string> = {
+  gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
+};
 
 /**
  * The Now page (design C10 Now; Requirement 3). The home page of waits, live
@@ -61,7 +64,6 @@ function Age({ value }: { value: string | null }) {
 }
 
 export function NowPage() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { enabled } = useProjects();
   const { now } = useShell();
@@ -86,13 +88,13 @@ export function NowPage() {
     [selectedKey, waits]
   );
 
-  const dash = t('shell.now.none', '—');
+  const dash = '—';
 
   const list = (
     <div>
-      <Group name="now-waits" title={t('shell.now.waiting', 'Waiting on you')} count={waits.length}>
+      <Group name="now-waits" title={'Waiting on you'} count={waits.length}>
         {waits.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{t('shell.now.empty.waiting', 'Nothing waiting on you.')}</p>
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'Nothing waiting on you.'}</p>
         ) : (
           waits.map((w) => (
             <Row
@@ -101,7 +103,7 @@ export function NowPage() {
               selected={selectedKey === waitKey(w)}
               onClick={() => setSelectedKey(waitKey(w))}
             >
-              <KindBadge label={t(`shell.now.kind.${w.kind}`, w.kind)} />
+              <KindBadge label={KIND_LABELS[w.kind] ?? w.kind} />
               <span className="shrink-0 text-xs text-[var(--text-muted)]">{w.projectName}</span>
               <span className="shrink-0 font-medium text-[var(--text-primary)]">{w.spec ?? dash}</span>
               <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{w.summary}</span>
@@ -111,9 +113,9 @@ export function NowPage() {
         )}
       </Group>
 
-      <Group name="now-live" title={t('shell.now.live', 'Live runs')} count={live.length}>
+      <Group name="now-live" title={'Live runs'} count={live.length}>
         {live.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{t('shell.now.empty.live', 'No live runs.')}</p>
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'No live runs.'}</p>
         ) : (
           live.map((r) => (
             <Row
@@ -126,7 +128,7 @@ export function NowPage() {
               {r.phase && <PhaseChip phase={r.phase} />}
               <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{r.detail}</span>
               <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
-                {r.tokens.toLocaleString()} {t('shell.now.tok', 'tok')}
+                {r.tokens.toLocaleString()} {'tok'}
               </span>
               <Age value={fmtAge(r.startedAt, tick)} />
             </Row>
@@ -134,9 +136,9 @@ export function NowPage() {
         )}
       </Group>
 
-      <Group name="now-idle" title={t('shell.now.idle', 'Idle projects')} count={idle.length}>
+      <Group name="now-idle" title={'Idle projects'} count={idle.length}>
         {idle.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{t('shell.now.empty.idle', 'No idle projects.')}</p>
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'No idle projects.'}</p>
         ) : (
           idle.map((r) => (
             <Row key={r.projectId} testId={`idle-row-${r.projectId}`}>
@@ -145,7 +147,7 @@ export function NowPage() {
                 <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{r.launchable}</span>
               ) : (
                 <span className="min-w-0 flex-1 truncate text-[var(--text-muted)]">
-                  {r.disabledReason ?? t('shell.now.noLaunchable', 'No launchable spec')}
+                  {r.disabledReason ?? 'No launchable spec'}
                 </span>
               )}
             </Row>
@@ -153,9 +155,9 @@ export function NowPage() {
         )}
       </Group>
 
-      <Group name="now-closed" title={t('shell.now.closed', 'Recently closed')} count={closed.length} defaultCollapsed>
+      <Group name="now-closed" title={'Recently closed'} count={closed.length} defaultCollapsed>
         {closed.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{t('shell.now.empty.closed', 'Nothing closed recently.')}</p>
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'Nothing closed recently.'}</p>
         ) : (
           closed.map((r) => (
             <Row key={`${r.projectId}:${r.spec}`} testId={`closed-row-${r.projectId}-${r.spec}`}>
@@ -193,7 +195,6 @@ function DetailText({ heading, body }: { heading: string; body?: string | null }
 }
 
 function WaitDetail({ wait }: { wait: Wait }) {
-  const { t } = useTranslation();
   const d = wait.detail;
   switch (d.kind) {
     case 'gate':
@@ -219,13 +220,13 @@ function WaitDetail({ wait }: { wait: Wait }) {
       if (d.questions && d.questions.trim()) {
         return <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">{d.questions}</p>;
       }
-      return <p className="text-sm text-[var(--text-muted)]">{t('shell.now.noGatePayload', 'no gate payload')}</p>;
+      return <p className="text-sm text-[var(--text-muted)]">{'no gate payload'}</p>;
     case 'ruling':
       return (
         <div className="space-y-1.5">
-          <Field label={t('shell.now.phase', 'Phase')} value={d.phase} />
-          <Field label={t('shell.now.state', 'State')} value={d.state} />
-          <DetailText heading={t('shell.now.note', 'Note')} body={d.note} />
+          <Field label={'Phase'} value={d.phase} />
+          <Field label={'State'} value={d.state} />
+          <DetailText heading={'Note'} body={d.note} />
         </div>
       );
     case 'retro':
@@ -239,18 +240,18 @@ function WaitDetail({ wait }: { wait: Wait }) {
     case 'exited':
       return (
         <div className="space-y-1.5">
-          <Field label={t('shell.now.exitCode', 'Exit code')} value={d.exitCode === null ? '—' : String(d.exitCode)} />
-          <Field label={t('shell.now.signal', 'Signal')} value={d.signal ?? '—'} />
-          <Field label={t('shell.now.endTime', 'End time')} value={formatDate(d.endedAt ?? undefined)} />
-          <Field label={t('shell.now.logPath', 'Log path')} value={<span className="font-mono text-xs">{d.logPath}</span>} />
+          <Field label={'Exit code'} value={d.exitCode === null ? '—' : String(d.exitCode)} />
+          <Field label={'Signal'} value={d.signal ?? '—'} />
+          <Field label={'End time'} value={formatDate(d.endedAt ?? undefined)} />
+          <Field label={'Log path'} value={<span className="font-mono text-xs">{d.logPath}</span>} />
         </div>
       );
     case 'quiet':
       return (
         <div className="space-y-1.5">
-          <Field label={t('shell.now.agent', 'Agent')} value={d.agent} />
-          <Field label={t('shell.now.lastTool', 'Last tool')} value={d.lastTool ?? '—'} />
-          <Field label={t('shell.now.lastActivity', 'Last activity')} value={formatDate(d.lastActivityAt)} />
+          <Field label={'Agent'} value={d.agent} />
+          <Field label={'Last tool'} value={d.lastTool ?? '—'} />
+          <Field label={'Last activity'} value={formatDate(d.lastActivityAt)} />
         </div>
       );
     default:
@@ -259,16 +260,15 @@ function WaitDetail({ wait }: { wait: Wait }) {
 }
 
 function WaitPanel({ wait }: { wait: Wait }) {
-  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-panel">
       <div className="mb-3">
         <div className="flex items-center gap-2">
-          <KindBadge label={t(`shell.now.kind.${wait.kind}`, wait.kind)} />
+          <KindBadge label={KIND_LABELS[wait.kind] ?? wait.kind} />
           <span className="text-xs text-[var(--text-muted)]">{wait.projectName}</span>
         </div>
         <h2 className="mt-1 break-words text-base font-semibold text-[var(--text-primary)]">
-          {wait.spec ?? t('shell.now.none', '—')}
+          {wait.spec ?? '—'}
         </h2>
       </div>
       <div className="border-t border-[var(--border-default)] pt-3">
