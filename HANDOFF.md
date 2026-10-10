@@ -1,9 +1,12 @@
 # HANDOFF
 
-> **READ FIRST — SDD routing (2026-10-08, harness v4).** Active spec **`dashboard-gates`** (next; dashboard-shell CLOSED).
-> Live phase **requirements**, state **pending**, last result **closed** (dashboard-shell close-out: 13 landed, 2 to-do, PR #88 open).
-> Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`, code `/home/mcf/repo/spec-workflow-mcp`.
-> A re-run does: starts dashboard-gates (spec 16) at requirements.
+> **READ FIRST — SDD routing (2026-10-10, harness v4).** No active spec. The roadmap is frozen:
+> specs 16 to 21 are superseded by the controller design (`docs/foundation-review.md`,
+> `docs/controller-design.md`) and parked in `.spec-workflow/spec-decomposition/superseded-2026-10-10.md`.
+> dashboard-shell is CLOSED. Roots: spec store `/home/mcf/repo/spec-workflow-mcp/.spec-workflow`,
+> code `/home/mcf/repo/spec-workflow-mcp`.
+> A re-run does: finds every spec on disk complete and no spec named in decomposition.md without
+> a directory, reports the roadmap complete, and stops. Do not create a spec here until step (d).
 
 Rolling state for the SDD loops. The implementation loop updates this at its completion gate; the document loop updates it when a spec's documents converge.
 
