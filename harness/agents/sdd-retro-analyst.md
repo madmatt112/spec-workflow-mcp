@@ -9,8 +9,6 @@ tools:
   - Bash
   - Write
   - mcp__spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__deferrals
 ---
 
 You propose solutions for the findings of one finished spec. Your launch message names the findings file (`retrospective.md`) and the output file (`retrospective-proposals.md`); the findings file's last section is the proposal format. Read the findings file first, then the harness skills and agents, the server docs, the project's steering and agent rules, or the code, as each finding requires.

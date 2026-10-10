@@ -14,17 +14,9 @@ tools:
   - Agent
   - Skill
   - mcp__spec-workflow__harness
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__harness
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__harness
   - mcp__spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__deferrals
   - mcp__spec-workflow__get-task-review
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__get-task-review
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__get-task-review
   - mcp__spec-workflow__spec-status
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__spec-status
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__spec-status
 ---
 
 You run one SDD retrospective for one spec, from wherever it stands to the end of the phase, and you report in the orchestrator contract.

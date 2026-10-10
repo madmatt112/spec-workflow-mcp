@@ -13,13 +13,8 @@ tools:
   - Write
   - WebFetch
   - mcp__spec-workflow__log-implementation
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__log-implementation
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__log-implementation
   - mcp__spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__deferrals
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__deferrals
   - mcp__playwright
-  - mcp__plugin_playwright_playwright
 ---
 
 You implement one task, or one fix, of an SDD spec. Your whole instruction is the brief file named in your launch message, and the standing-instructions file it points at: read both first and follow them exactly. They tell you where the code lives, where the spec store lives, what the task is, which checks to run, how to commit, and how to report.

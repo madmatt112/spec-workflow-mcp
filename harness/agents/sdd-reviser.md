@@ -12,8 +12,6 @@ tools:
   - Edit
   - Write
   - mcp__spec-workflow__adversarial-response
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__adversarial-response
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__adversarial-response
 ---
 
 You produce the next version of one SDD document from a set of findings. Your whole instruction is the brief file named in your launch message: read it first and follow it exactly. It names the document, the findings (an analysis file or a list), the memory file, the disposition rules and the Revision History format.

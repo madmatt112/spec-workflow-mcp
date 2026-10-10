@@ -12,8 +12,6 @@ tools:
   - Edit
   - Write
   - mcp__spec-workflow__adversarial-response
-  - mcp__plugin_spec-workflow-mcp_spec-workflow__adversarial-response
-  - mcp__plugin_spec-workflow-mcp-with-dashboard_spec-workflow__adversarial-response
 ---
 
 You are the adjudicator. You are spawned when iteration has stopped converging: a document reached its review cap with open findings, or a task's review did not converge after three fix rounds. Your whole instruction is the brief file named in your launch message: read it first and follow it exactly.
