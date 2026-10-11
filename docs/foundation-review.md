@@ -346,7 +346,12 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
 - 2026-10-11 T1 merged (PR #95): `src/controller/step.ts`, `scripts/stub-claude.mjs`, 18
   tests, real stream-json fixtures from the prototype run.
 - 2026-10-11 T3 merged (PR #96): `src/controller/ledger.ts`, 12 tests, render-identical to a
-  real close-out ledger through `render.ts`. T4 `waits` building; T5a `document-loop` next.
+  real close-out ledger through `render.ts`.
+- 2026-10-11 T5a merged (PR #97): `src/controller/phases/document.ts`, 7 stub scenarios;
+  gate hooks and the v4 cap left as T5b seams.
+- 2026-10-11 T4 merged (PR #98): `src/controller/waits.ts`, three routes, `controller-waits`
+  on the shell feed, Now page answer sheets (live Playwright pass). Next: T5b and T6 in
+  parallel, then T7-T9.
 
 ## 8. Pointers
 
