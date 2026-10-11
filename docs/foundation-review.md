@@ -335,8 +335,12 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   blocks Launch for tradr until Matthew removes it or presses Stop in the dashboard. A test
   wrote a fixture launch record (run id 2026-01-01) into the real `~/.spec-workflow-mcp/
   harness/launches/`; the controller test harness must sandbox the home.
-- The `del-legacy` worktree is left in place (this session's cwd); remove it with
-  `git worktree remove --force .claude/worktrees/del-legacy`.
+- 2026-10-11: Matthew restarted the harness sessions and the dashboard (port 5000 now runs
+  the new `dist/`). The stale tradr pointer line was removed on his instruction (no process,
+  no `run.end`). A leftover dev dashboard from the `dashboard-shell` worktree still listens on
+  port 5090. All step (a) worktrees removed. Seven-day window reset 09:00 MDT.
+- 2026-10-11 step (b) started: `docs/controller-tasks.md` (T1-T11). T1 `step`, T2 `state`,
+  T3 `ledger` building in parallel on branches `feat/controller-step`, `-state`, `-ledger`.
 
 ## 8. Pointers
 

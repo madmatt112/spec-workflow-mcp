@@ -36,10 +36,11 @@ untouched, the `registry-lock.test.ts:195` timing flake.
 
 ## Next
 
-1. Confirm with Matthew that the sessions and dashboard were restarted on the new build.
+1. Done 2026-10-11: sessions and dashboard restarted on the new build; stale pointer removed.
 2. Prototype checks: done 2026-10-10, all six passed (answers in `docs/foundation-review.md`
    section 2, kit in `scripts/prototypes/`). Step (b) is unblocked.
-3. Step (b): write its task breakdown from `docs/controller-design.md` sections 2-4, 6-11,
-   13, 17 and the plan table, then build it by hand (Matthew's round 4 answer 5).
+3. Step (b): the breakdown is `docs/controller-tasks.md` (T1-T11, order and conventions).
+   Progress per task is in the Progress log of `docs/foundation-review.md`. Build by hand
+   (briefed subagents in worktrees, one PR per task, merge commit when green).
 4. Before the advisor's state-of-the-world mechanism: a research and design session with
    Matthew (he has ideas: graph generators, indices). Do not design it solo.
