@@ -1,0 +1,413 @@
+// src/controller/state.ts
+//
+// The controller's machine state in the harness home (controller-design.md §3,
+// §7, §8, §9). One writer: the controller. Every record carries `v: 1`. Writes
+// are atomic (a temp file in the same directory, then rename). Readers treat a
+// missing file as absent, never an error.
+//
+// The home path is an internal detail; the only exported path is
+// `controllerHome()`. The home resolution rule (`SDD_HOME` first, then the
+// existing XDG rule) lives in `state-files.ts` so the controller does not
+// duplicate it.
+import { promises as fs, readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { createHash } from 'crypto';
+import { sddHome } from '../dashboard/harness/state-files.js';
+import { withRegistryLock } from '../core/registry-lock.js';
+
+// ---------------------------------------------------------------------------
+// Records (controller-design.md §3 and §7). Every one carries `v: 1`.
+// ---------------------------------------------------------------------------
+
+/** A run's phase-and-step position (controller-tasks.md T2: "step cursor"). */
+export interface StepCursor {
+  phase: string;
+  /** The adversarial round, when the phase runs rounds. */
+  round?: number;
+  /** The task id, when the phase works a task queue. */
+  task?: string;
+  /** Which role/step produced this cursor (drafter, reviewer, implementer, …). */
+  stepKind: string;
+  /** How many times this step has been attempted. */
+  attempt: number;
+}
+
+/** The step process currently running for a run (§8: PID and start time). */
+export interface InFlightStep {
+  id: string;
+  pid: number;
+  /** `/proc/<pid>/stat` field 22 at spawn, so a reused pid reads dead. */
+  startTime: number;
+  /** The Claude Code session id, for `--resume`. */
+  session?: string;
+}
+
+/** Running token totals for a run. */
+export interface TokenTotals {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
+
+export type RunStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'waiting'
+  | 'done'
+  | 'abandoned'
+  | 'error';
+
+/** `runs/<id>/run.json`: the machine state of one run. */
+export interface RunRecord {
+  v: 1;
+  id: string;
+  /** Project id. */
+  project: string;
+  codeRoot: string;
+  specStore: string;
+  spec: string;
+  worktree: string;
+  branch: string;
+  status: RunStatus;
+  /** Why the run is paused, when `status` is `paused`. */
+  pauseReason?: string;
+  /** ISO time the run may resume (a usage window's `resetsAt`). */
+  resumeAt?: string;
+  phase?: string;
+  cursor?: StepCursor;
+  inFlight?: InFlightStep;
+  /** ISO. */
+  created: string;
+  /** ISO. */
+  updated: string;
+  tokens: TokenTotals;
+}
+
+export type WaitKind =
+  | 'gate-a'
+  | 'gate-b'
+  | 'retro-plan'
+  | 'merge'
+  | 'escalation'
+  | 'error'
+  | 'question';
+
+export type WaitState = 'open' | 'answered' | 'expired';
+
+/** One question in a wait (§7). */
+export interface WaitQuestion {
+  id: string;
+  text: string;
+  /** The choices; absent when the question is free text. */
+  options?: string[];
+  /** True when the operator types an answer rather than picking. */
+  free?: boolean;
+  /** The run's recommended pick. */
+  recommended?: string;
+  reason?: string;
+}
+
+/** The operator's answer to one question (§7: with `by` and `answered`). */
+export interface WaitAnswer {
+  value: string;
+  by: string;
+  /** ISO. */
+  answered: string;
+}
+
+/** `waits/<id>.json`: a run's request for the operator (§7). */
+export interface WaitRecord {
+  v: 1;
+  id: string;
+  kind: WaitKind;
+  run: string;
+  project: string;
+  spec: string;
+  /** ISO. */
+  created: string;
+  questions: WaitQuestion[];
+  /** Answers keyed by question id; absent until answered. */
+  answer?: Record<string, WaitAnswer>;
+  /** Optional second opinion from an advisor step. */
+  advice?: string;
+  state: WaitState;
+}
+
+/** `queue.json`: run ids waiting for a slot, in order. */
+export interface QueueFile {
+  v: 1;
+  runs: string[];
+}
+
+/** One usage window's utilisation and reset (§9). */
+export interface RateLimitWindow {
+  /** 0..1. */
+  utilization: number;
+  /** ISO. */
+  resetsAt: string;
+}
+
+/** `rate-limit.json`: the latest five-hour and seven-day windows (§9). */
+export interface RateLimitFile {
+  v: 1;
+  fiveHour: RateLimitWindow;
+  sevenDay: RateLimitWindow;
+  /** ISO time these values were last seen. */
+  updated: string;
+}
+
+/** `controller.lock`: the single live controller (pid and start time). */
+export interface ControllerLock {
+  v: 1;
+  pid: number;
+  /** `/proc/<pid>/stat` field 22, so a reused pid reads dead. */
+  startTime: number;
+}
+
+// ---------------------------------------------------------------------------
+// Home and layout. Internal except `controllerHome()`.
+// ---------------------------------------------------------------------------
+
+/** The controller's home directory (`$SDD_HOME` or `<state home>/sdd`). */
+export function controllerHome(): string {
+  return sddHome();
+}
+
+function runsDir(): string {
+  return join(controllerHome(), 'runs');
+}
+
+function runDir(id: string): string {
+  return join(runsDir(), id);
+}
+
+function runPath(id: string): string {
+  return join(runDir(id), 'run.json');
+}
+
+function waitsDir(): string {
+  return join(controllerHome(), 'waits');
+}
+
+function waitPath(id: string): string {
+  return join(waitsDir(), `${id}.json`);
+}
+
+function queuePath(): string {
+  return join(controllerHome(), 'queue.json');
+}
+
+function rateLimitPath(): string {
+  return join(controllerHome(), 'rate-limit.json');
+}
+
+function controllerLockPath(): string {
+  return join(controllerHome(), 'controller.lock');
+}
+
+function storeLockPath(specStoreRoot: string): string {
+  const key = createHash('sha256').update(specStoreRoot).digest('hex').slice(0, 16);
+  return join(controllerHome(), 'locks', `${key}.lock`);
+}
+
+// ---------------------------------------------------------------------------
+// Atomic JSON I/O.
+// ---------------------------------------------------------------------------
+
+let tmpCounter = 0;
+
+/** Write JSON atomically: a temp file in the same directory, then rename. */
+async function writeJsonAtomic(path: string, data: unknown): Promise<void> {
+  await fs.mkdir(dirname(path), { recursive: true });
+  const tmp = `${path}.${process.pid}.${tmpCounter++}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  await fs.rename(tmp, path);
+}
+
+/** Read and parse a JSON file; `undefined` when it does not exist. */
+async function readJson<T>(path: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await fs.readFile(path, 'utf-8')) as T;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Runs.
+// ---------------------------------------------------------------------------
+
+export async function listRuns(): Promise<RunRecord[]> {
+  let entries;
+  try {
+    entries = await fs.readdir(runsDir(), { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const out: RunRecord[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const record = await readRun(entry.name);
+    if (record) out.push(record);
+  }
+  return out;
+}
+
+export function readRun(id: string): Promise<RunRecord | undefined> {
+  return readJson<RunRecord>(runPath(id));
+}
+
+export function writeRun(record: RunRecord): Promise<void> {
+  return writeJsonAtomic(runPath(record.id), record);
+}
+
+// ---------------------------------------------------------------------------
+// Waits.
+// ---------------------------------------------------------------------------
+
+export async function listWaits(opts: { state?: WaitState } = {}): Promise<WaitRecord[]> {
+  let files: string[];
+  try {
+    files = await fs.readdir(waitsDir());
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const out: WaitRecord[] = [];
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    const record = await readWait(file.slice(0, -'.json'.length));
+    if (!record) continue;
+    if (opts.state && record.state !== opts.state) continue;
+    out.push(record);
+  }
+  return out;
+}
+
+export function readWait(id: string): Promise<WaitRecord | undefined> {
+  return readJson<WaitRecord>(waitPath(id));
+}
+
+export function writeWait(record: WaitRecord): Promise<void> {
+  return writeJsonAtomic(waitPath(record.id), record);
+}
+
+// ---------------------------------------------------------------------------
+// Queue and rate limit.
+// ---------------------------------------------------------------------------
+
+export async function readQueue(): Promise<QueueFile> {
+  return (await readJson<QueueFile>(queuePath())) ?? { v: 1, runs: [] };
+}
+
+export function writeQueue(queue: QueueFile): Promise<void> {
+  return writeJsonAtomic(queuePath(), queue);
+}
+
+export function readRateLimit(): Promise<RateLimitFile | undefined> {
+  return readJson<RateLimitFile>(rateLimitPath());
+}
+
+export function writeRateLimit(rateLimit: RateLimitFile): Promise<void> {
+  return writeJsonAtomic(rateLimitPath(), rateLimit);
+}
+
+// ---------------------------------------------------------------------------
+// Process liveness. `/proc/<pid>/stat` field 22 (starttime, clock ticks) so a
+// reused pid with a different start time is not mistaken for the step.
+// ---------------------------------------------------------------------------
+
+/** Field 22 of `/proc/<pid>/stat`, or `undefined` if the process is gone. */
+export function processStartTime(pid: number): number | undefined {
+  let stat: string;
+  try {
+    stat = readFileSync(`/proc/${pid}/stat`, 'utf-8');
+  } catch {
+    return undefined;
+  }
+  // `comm` (field 2) is parenthesised and may contain spaces or ')', so parse
+  // from the last ')'. After it, the fields are space-separated starting at
+  // field 3 (state); field 22 is therefore index 19.
+  const close = stat.lastIndexOf(')');
+  if (close < 0) return undefined;
+  const fields = stat.slice(close + 1).trim().split(/\s+/);
+  const starttime = Number(fields[19]);
+  return Number.isFinite(starttime) ? starttime : undefined;
+}
+
+/**
+ * Is `pid` the same process that was spawned with start time `startTime`?
+ * False when the process is gone or the pid was reused (a different start time).
+ */
+export function isProcessAlive(pid: number, startTime: number): boolean {
+  const current = processStartTime(pid);
+  return current !== undefined && current === startTime;
+}
+
+// ---------------------------------------------------------------------------
+// The controller lock: one live controller. O_EXCL create; a lock whose pid is
+// dead (by the liveness check above) is taken over. Staleness is liveness, not
+// mtime — the opposite of the registry lock, which deliberately never trusts
+// `isProcessAlive`.
+// ---------------------------------------------------------------------------
+
+export async function acquireControllerLock(): Promise<boolean> {
+  const path = controllerLockPath();
+  await fs.mkdir(dirname(path), { recursive: true });
+  const payload: ControllerLock = {
+    v: 1,
+    pid: process.pid,
+    startTime: processStartTime(process.pid) ?? 0,
+  };
+  // Two attempts: the second runs only after a stale lock has been removed.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const handle = await fs.open(path, 'wx');
+      try {
+        await handle.writeFile(JSON.stringify(payload, null, 2) + '\n', 'utf-8');
+      } finally {
+        await handle.close();
+      }
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    const holder = await readJson<ControllerLock>(path);
+    if (holder && isProcessAlive(holder.pid, holder.startTime)) {
+      return false; // a live controller holds it
+    }
+    await fs.rm(path, { force: true }); // dead or unreadable: take it over
+  }
+  return false;
+}
+
+export async function releaseControllerLock(): Promise<void> {
+  const holder = await readJson<ControllerLock>(controllerLockPath());
+  if (holder && holder.pid === process.pid) {
+    await fs.rm(controllerLockPath(), { force: true });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The per-store lock. Reuses the registry lock as a generic per-path lock
+// (controller-design.md §11: "one lock per store"). Serialises writers to one
+// spec store across runs. The lock file lives in the home, keyed by the store
+// path, so it never lands inside the git store itself.
+// ---------------------------------------------------------------------------
+
+export async function withStoreLock<T>(
+  specStoreRoot: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const result = await withRegistryLock(storeLockPath(specStoreRoot), fn);
+  if (!result.acquired) {
+    throw new Error(
+      `could not acquire the store lock for ${specStoreRoot}: ${result.reason}`,
+    );
+  }
+  return result.value;
+}
