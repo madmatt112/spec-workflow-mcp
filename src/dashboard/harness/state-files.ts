@@ -18,6 +18,17 @@ export function stateHome(): string {
   return env && env.length > 0 ? env : join(homedir(), '.local', 'state');
 }
 
+/**
+ * The harness home: `$SDD_HOME` when it is a non-empty string, else
+ * `<state home>/sdd` (the existing rule). Default `~/.local/state/sdd`
+ * (docs/bootstrap-decomposition-draft.md). Additive and backward-compatible:
+ * callers that do not set `SDD_HOME` are unaffected.
+ */
+export function sddHome(): string {
+  const env = process.env.SDD_HOME;
+  return env && env.length > 0 ? env : join(stateHome(), 'sdd');
+}
+
 /** The shared active-run pointer: `<state home>/sdd/active-run`. */
 export function pointerPath(): string {
   return join(stateHome(), 'sdd', 'active-run');
