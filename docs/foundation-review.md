@@ -341,6 +341,12 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   port 5090. All step (a) worktrees removed. Seven-day window reset 09:00 MDT.
 - 2026-10-11 step (b) started: `docs/controller-tasks.md` (T1-T11). T1 `step`, T2 `state`,
   T3 `ledger` building in parallel on branches `feat/controller-step`, `-state`, `-ledger`.
+- 2026-10-11 T2 merged (PR #94, `358676a`): `src/controller/state.ts`, 14 tests;
+  `sddHome()` added to `state-files.ts`; store lock reuses `registry-lock`.
+- 2026-10-11 T1 merged (PR #95): `src/controller/step.ts`, `scripts/stub-claude.mjs`, 18
+  tests, real stream-json fixtures from the prototype run.
+- 2026-10-11 T3 merged (PR #96): `src/controller/ledger.ts`, 12 tests, render-identical to a
+  real close-out ledger through `render.ts`. T4 `waits` building; T5a `document-loop` next.
 
 ## 8. Pointers
 
