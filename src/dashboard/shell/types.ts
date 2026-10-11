@@ -100,6 +100,43 @@ export interface RunDetail {
   activityRows: ActivityEvent[];
 }
 
+// --- Controller waits (controller-design.md §7; T4) ---------------------------
+// The design §7 wire shape, minus the `specDir` the server strips. The frontend
+// keeps a hand copy in src/dashboard_frontend/src/modules/shell/types.ts.
+
+export type ControllerWaitKind =
+  | 'gate-a' | 'gate-b' | 'retro-plan' | 'merge' | 'escalation' | 'error' | 'question';
+
+export interface ControllerWaitQuestion {
+  id: string;
+  text: string;
+  options?: string[];
+  free?: boolean;
+  recommended?: string;
+  reason?: string;
+}
+
+export interface ControllerWaitAnswer {
+  value: string;
+  by: string;
+  answered: string;
+}
+
+export interface ControllerWait {
+  id: string;
+  kind: ControllerWaitKind;
+  run: string;
+  project: string;
+  spec: string;
+  created: string;
+  questions: ControllerWaitQuestion[];
+  answer?: Record<string, ControllerWaitAnswer>;
+  advice?: string;
+  state: 'open' | 'answered' | 'expired';
+  proposals?: string[];
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
-  | { type: 'shell-specs'; data: { rows: SpecListRow[] } };
+  | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
+  | { type: 'controller-waits'; data: { waits: ControllerWait[] } };

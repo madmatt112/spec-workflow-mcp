@@ -30,6 +30,7 @@ import { buildSetupView, validateSetup, toRunFile, writeRunFile, readAgentRules 
 import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
 import type { ShellMessage } from './shell/types.js';
+import { answerWait, attachAdvice, listWaitsForWire } from '../controller/waits.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -574,6 +575,32 @@ export class MultiProjectDashboardServer {
 
       const launch = await this.harnessLauncher.stop(projectId);
       return { launch };
+    });
+
+    // ── Controller wait routes (controller-tasks.md T4; controller-design.md §7) ──
+    // Under the same global security hooks as every route above; add nothing else.
+
+    // Open and answered waits, newest first.
+    this.app.get('/api/controller/waits', async () => {
+      return { waits: await listWaitsForWire() };
+    });
+
+    // Answer one wait: body `{ answers: {questionId: value}, by }`.
+    this.app.post('/api/controller/waits/:id/answer', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = (request.body ?? {}) as { answers?: Record<string, string>; by?: string };
+      const record = await answerWait(id, body.answers ?? {}, body.by ?? 'operator');
+      if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      return { ok: true };
+    });
+
+    // Attach an advisor's second opinion: body `{ advice }`.
+    this.app.post('/api/controller/waits/:id/advice', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = (request.body ?? {}) as { advice?: string };
+      const record = await attachAdvice(id, body.advice ?? '');
+      if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      return { ok: true };
     });
   }
 

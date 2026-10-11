@@ -57,10 +57,12 @@ import type { ShellMessage } from '../types.js';
 //   pair, or [] before the first flush"):
 //   Pre-condition: a fresh ShellFeed over no projects.
 //   Test: feed.snapshot() before any flush, then again after feed.start().
-//   Observable result: [] before start(); after start(), the two message
-//   types in order ['shell-now', 'shell-specs'].
+//   Observable result: [] before start(); after start(), the message types
+//   in order ['shell-now', 'shell-specs', 'controller-waits'] (T4 adds the
+//   controller-waits message to the feed).
 //   Expected-value source: the literal "[]" / "shell-now then shell-specs"
-//   wording of the C7 interface and _Prompt sentences.
+//   wording of the C7 interface and _Prompt sentences, plus T4's controller
+//   waits message riding the same feed.
 //
 // Criterion "no send after close" (task 6 _Prompt: "close() clears both
 //   timers and no send follows"):
@@ -234,7 +236,7 @@ describe('ShellFeed', () => {
     });
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs pair in order after it', async () => {
+  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits trio in order after it', async () => {
     const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -242,7 +244,7 @@ describe('ShellFeed', () => {
 
     await feed.start();
     const snap = feed.snapshot();
-    expect(snap.map((m) => m.type)).toEqual(['shell-now', 'shell-specs']);
+    expect(snap.map((m) => m.type)).toEqual(['shell-now', 'shell-specs', 'controller-waits']);
   });
 
   it('sends nothing for 200 ms once close() is called', async () => {

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useWs } from '../ws/WebSocketProvider';
 import { useProjects } from '../projects/ProjectProvider';
-import type { NowModel, SpecListRow } from './types';
+import type { NowModel, SpecListRow, ControllerWait } from './types';
 
 export type Density = 'comfortable' | 'compact';
 
@@ -22,10 +22,22 @@ export interface DeferralsPayload {
 interface ShellContextType {
   now: NowModel | null;
   specRows: SpecListRow[];
+  controllerWaits: ControllerWait[];
   deferralsByProject: Record<string, DeferralsPayload>;
   connected: boolean;
   density: Density;
   setDensity: (density: Density) => void;
+}
+
+/** One desktop notification per new wait (T4): no sound, no other kinds. */
+function notifyWait(wait: ControllerWait): void {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('Waiting on you', { body: `${wait.kind} — ${wait.spec}` });
+    }
+  } catch {
+    /* a browser without the Notification API: silent */
+  }
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
@@ -45,24 +57,48 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const { projects } = useProjects();
   const [now, setNow] = useState<NowModel | null>(null);
   const [specRows, setSpecRows] = useState<SpecListRow[]>([]);
+  const [controllerWaits, setControllerWaits] = useState<ControllerWait[]>([]);
   const [deferralsByProject, setDeferralsByProject] = useState<Record<string, DeferralsPayload>>({});
   const [density, setDensityState] = useState<Density>(() => readDensity());
+
+  // Open wait ids already seen; the first payload seeds it so a reconnect or a
+  // reload does not re-notify. One notification per newly appearing open wait.
+  const seenWaitIds = useRef<Set<string>>(new Set());
+  const seenSeeded = useRef(false);
 
   // Hold the overview view for the life of the page and listen for its pushes.
   useEffect(() => {
     const onNow = (data: NowModel) => setNow(data);
     const onSpecs = (data: { rows: SpecListRow[] }) => setSpecRows(data?.rows ?? []);
+    const onControllerWaits = (data: { waits: ControllerWait[] }) => {
+      const waits = data?.waits ?? [];
+      setControllerWaits(waits);
+      const open = waits.filter((w) => w.state === 'open');
+      if (!seenSeeded.current) {
+        open.forEach((w) => seenWaitIds.current.add(w.id));
+        seenSeeded.current = true;
+        return;
+      }
+      for (const w of open) {
+        if (!seenWaitIds.current.has(w.id)) {
+          seenWaitIds.current.add(w.id);
+          notifyWait(w);
+        }
+      }
+    };
     const onDeferrals = (data: DeferralsPayload, projectId?: string) => {
       if (projectId) setDeferralsByProject((prev) => ({ ...prev, [projectId]: data }));
     };
     subscribe('shell-now', onNow);
     subscribe('shell-specs', onSpecs);
+    subscribe('controller-waits', onControllerWaits);
     subscribe('deferrals-update', onDeferrals);
     const release = watchView({ kind: 'overview' });
     return () => {
       release();
       unsubscribe('shell-now', onNow);
       unsubscribe('shell-specs', onSpecs);
+      unsubscribe('controller-waits', onControllerWaits);
       unsubscribe('deferrals-update', onDeferrals);
     };
   }, [subscribe, unsubscribe, watchView]);
@@ -97,11 +133,12 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ShellContextType>(() => ({
     now,
     specRows,
+    controllerWaits,
     deferralsByProject,
     connected,
     density,
     setDensity
-  }), [now, specRows, deferralsByProject, connected, density, setDensity]);
+  }), [now, specRows, controllerWaits, deferralsByProject, connected, density, setDensity]);
 
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }
