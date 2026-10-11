@@ -69,7 +69,7 @@ function drafterRun(content: string): StubRun {
 
 function reviewerRun(opts: {
   verdict: 'converged' | 'iterate'; mustFix?: string[]; shouldFix?: string[];
-  escalate?: string; suffix: string;
+  recurring?: string[]; escalate?: string; suffix: string;
 }): StubRun {
   return {
     edits: [{ path: ANALYSIS(opts.suffix), content: `analysis\nVERDICT: ${opts.verdict}\n` }],
@@ -77,7 +77,23 @@ function reviewerRun(opts: {
       subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'reviewed',
       structured_output: {
         verdict: opts.verdict, mustFix: opts.mustFix ?? [], shouldFix: opts.shouldFix ?? [],
-        recurring: [], escalate: opts.escalate ?? 'none', analysisPath: '',
+        recurring: opts.recurring ?? [], escalate: opts.escalate ?? 'none', analysisPath: '',
+      },
+      usage: USAGE,
+    },
+  };
+}
+
+/** A post-cap adjudicator run: writes v(D+1) and reports fixed/ruledOut/carried. */
+function adjudicatorRun(content: string, report: {
+  fixed?: string[]; ruledOut?: { item: string; reason: string }[]; carried?: string[];
+}): StubRun {
+  return {
+    edits: [{ path: DOC_REL, content }],
+    result: {
+      subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'adjudicated',
+      structured_output: {
+        fixed: report.fixed ?? [], ruledOut: report.ruledOut ?? [], carried: report.carried ?? [],
       },
       usage: USAGE,
     },
@@ -327,7 +343,7 @@ describe('runDocumentPhase', () => {
     expect(commitSubjects(fx)).toEqual([`docs(sdd): ${SPEC} requirements v1`, 'init']);
   });
 
-  it('returns a cap error when a v4 review still iterates (T5b owns adjudication)', async () => {
+  it('adjudicates at the v4 cap: adjudicator, narrow check, approve, carried in HANDOFF', async () => {
     const ctx = makeContext(fx, [
       drafterRun(cleanDoc(1)),
       reviewerRun({ verdict: 'iterate', mustFix: ['M1'], suffix: '' }),
@@ -337,10 +353,55 @@ describe('runDocumentPhase', () => {
       reviewerRun({ verdict: 'iterate', mustFix: ['M3'], suffix: '-r3' }),
       reviserRun(cleanDoc(4)),
       reviewerRun({ verdict: 'iterate', mustFix: ['M4'], suffix: '-r4' }),
+      adjudicatorRun(cleanDoc(5), {
+        fixed: ['M4'],
+        ruledOut: [{ item: 'S-2', reason: 'word cap' }],
+        carried: ['MINOR-1 — rejected for the word cap'],
+      }),
+      checkerRun('-r5'),
     ]);
     const outcome = await runDocumentPhase(ctx);
-    expect(outcome).toMatchObject({ result: 'error', version: 4, reason: 'cap' });
-    expect(await approvedRecords(fx)).toHaveLength(0);
+
+    // The cap at v4 ran the adjudicator (v5), the narrow check, then approval.
+    expect(outcome).toMatchObject({ result: 'approved', version: 5 });
+    const subjects = commitSubjects(fx);
+    expect(subjects).toContain(`docs(sdd): ${SPEC} requirements v5 post-cap corrective pass`);
+    expect(subjects).toContain(`docs(sdd): ${SPEC} requirements approved at v5`);
+
+    const rows = ledgerRows(fx);
+    const agents = rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent);
+    expect(agents).toContain('sdd-adjudicator');
+    expect(agents).toContain('sdd-checker');
+    // Four review rounds, then the adjudicator/checker corrective pass (no round).
+    expect(rows.filter((r) => r.type === 'round')).toHaveLength(4);
+
+    // The ruled-out SHOULD_FIX and the carried MINOR reach the HANDOFF section.
+    expect(handoff(fx)).toContain('S-2 — word cap');
+    expect(handoff(fx)).toContain('MINOR-1 — rejected for the word cap');
+
+    expect(await approvedRecords(fx)).toHaveLength(1);
+  });
+
+  it('rules a standoff (Recurring MUST_FIX rejected twice): a note, dropped, then converges', async () => {
+    const ctx = makeContext(fx, [
+      drafterRun(cleanDoc(1)),
+      reviewerRun({ verdict: 'iterate', mustFix: ['M1'], suffix: '' }),
+      reviserRun(cleanDoc(2)),
+      reviewerRun({ verdict: 'iterate', mustFix: ['M1'], recurring: ['M1'], suffix: '-r2' }),
+    ]);
+    const outcome = await runDocumentPhase(ctx);
+
+    // The standoff dropped the only open MUST_FIX, so v2 approved with the ruling.
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    const notes = rows.filter((r) => r.type === 'note');
+    expect(notes.some((n) => /standoff/.test(n.text) && /M1/.test(n.text))).toBe(true);
+    // No reviser after round 2 (the item was ruled, not revised again).
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual([
+      'sdd-drafter', 'sdd-reviewer', 'sdd-reviser', 'sdd-reviewer',
+    ]);
+    expect(handoff(fx)).toContain('M1: rejected (standoff)');
+    expect(await approvedRecords(fx)).toHaveLength(1);
   });
 
   it('returns an error when a step hits the usage limit', async () => {
