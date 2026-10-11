@@ -177,10 +177,14 @@ fifteen minutes) is still a wait of kind `error` after the turn cap, never a sil
 
 - Slots: two concurrent runs by default, configurable. Within a run, steps are sequential
   unless a loop fans out. First come, first served from `queue.json`.
-- Before each step the controller checks the run's pause state. A step that fails with a
-  usage-limit error pauses the run with the reset time if the error carries one, otherwise
-  with a backoff that starts at fifteen minutes. A paused run keeps its slot for ten minutes
-  then yields it. On resume the same step runs with `--resume`.
+- Every step runs with `--output-format stream-json`, and every run emits a
+  `rate_limit_event` carrying the five-hour and seven-day windows' `utilization` and
+  `resetsAt`. The controller keeps the latest values. Before starting a step it refuses to
+  start when either window is above a threshold (default 0.95) and parks the run until that
+  window's `resetsAt`. A step that still fails with a limit error pauses the run until the
+  nearest `resetsAt`, or fifteen minutes when none is known. A paused run keeps its slot for
+  ten minutes then yields it. On resume the same step runs with `--resume` (verified across
+  processes). The dashboard's Usage page shows the two windows from the same event.
 - One run per spec store at a time, as decided on 2026-10-06.
 - A per-run token cap, default twice the project's measured baseline W per spec (from the
   step-4 numbers, overridable in `agent-rules.md`). At the cap the controller stops
@@ -258,9 +262,10 @@ caught a bad build at least once.
   tokens. Each loop has a fixture spec and a scripted sequence of step outcomes: converge at
   v2, iterate to the cap, gate fail then fix, usage-limit error, crash mid-step and resume.
 
-## 14. To verify by prototype before step (b)
+## 14. Verified by prototype (2026-10-10)
 
-Each is one throwaway script; `docs/foundation-review.md` records the answers.
+All six checks passed (`scripts/prototypes/`, answers in `docs/foundation-review.md`
+section 2). What each settled:
 
 1. Which flag makes an agent file's body the persona of a `-p` session with that role's
    tool list, and whether `--allowedTools` plus `--permission-mode` gives a worker file edits

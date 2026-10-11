@@ -70,6 +70,29 @@ Claude Code primitives, checked against code.claude.com/docs on 2026-10-09:
   eval --json` runs skill/agent cases in CI with exit codes.
 - Agent-tool subagents still have no schema output; only workflow `agent()` and `-p` do.
 
+Prototype checks (`scripts/prototypes/`, run by Matthew 2026-10-10, Sonnet 5.5, all PASS):
+
+1. Persona and permissions: `--append-system-prompt-file <agent body>` plus `--allowedTools`
+   and `--permission-prompts none` let a `-p` worker edit a file and run an allowed shell
+   command with `permission_denials: []` in every mode tried (default, acceptEdits, dontAsk,
+   bypassPermissions). No nested-process denial: the controller is not a Claude session.
+2. Usage-limit error shape: not forced. But `--output-format stream-json` emits a
+   `rate_limit_event` with `rate_limit_info` on every run: `status`, `resetsAt` (epoch),
+   `rateLimitType`, `utilization` and `resetsAt` per window (`five_hour`, `seven_day`),
+   `overageStatus`. The controller reads the window state from every step instead of waiting
+   for a failure.
+3. `--resume <session-id>` from a different parent process (setsid, fresh shell) continued
+   the step with its context.
+4. A transient systemd user unit on WSL2 ran `claude -p` on the subscription login (no API
+   key, no keychain prompt).
+5. `--json-schema` returned a valid reviewer-style verdict object 3/3.
+6. stream-json shows `tool_use` blocks with tool names in order (Read, Bash): enough for the
+   Run page's "current tool" line without the activity hook.
+
+Also measured: a `-p` main conversation writes its cache at the one-hour tier
+(`ephemeral_1h_input_tokens` 25,325 on the first call, 0 on later calls with 107k cache read).
+Matthew's seven-day window stood at 91% utilisation during the checks (resets 2026-10-11 09:00 MDT).
+
 ## 3. Design tree
 
 Root: the destination. What the product is in a year, for whom.

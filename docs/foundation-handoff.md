@@ -37,10 +37,8 @@ untouched, the `registry-lock.test.ts:195` timing flake.
 ## Next
 
 1. Confirm with Matthew that the sessions and dashboard were restarted on the new build.
-2. Run the six prototype checks in `docs/controller-design.md` section 14: the kit is
-   `scripts/prototypes/run-all.sh` (Matthew runs it from a plain terminal; a nested
-   `claude -p` is refused inside a session). Record the answers in `docs/foundation-review.md`.
-   These gate step (b). The scripts are untested as written; fix them before trusting a FAIL.
+2. Prototype checks: done 2026-10-10, all six passed (answers in `docs/foundation-review.md`
+   section 2, kit in `scripts/prototypes/`). Step (b) is unblocked.
 3. Step (b): write its task breakdown from `docs/controller-design.md` sections 2-4, 6-11,
    13, 17 and the plan table, then build it by hand (Matthew's round 4 answer 5).
 4. Before the advisor's state-of-the-world mechanism: a research and design session with
