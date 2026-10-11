@@ -5,21 +5,23 @@ import { useShell } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
-import type { Wait } from './types';
+import type { Wait, ControllerWait } from './types';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
 };
 
+const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
+  'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
+  merge: 'Merge', escalation: 'Escalation', error: 'Error', question: 'Question',
+};
+
 /**
- * The Now page (design C10 Now; Requirement 3). The home page of waits, live
- * runs, idle projects and recently closed specs over the NowModel the task 8
- * provider exposes, filtered to enabled projects. Four groups in a fixed order
- * (Waiting on you, Live runs, Idle projects, Recently closed), Recently closed
- * collapsed by default. Read-only: selecting a wait shows its `detail` in the
- * panel; selecting a live run opens that project's run page. No control answers a
- * gate, approves a plan, dismisses a wait or relaunches a run (Requirement 3
- * AC 7), and no HUD to-do list (AC 10).
+ * The Now page (design C10 Now; Requirement 3; controller spec 16 T4). The home
+ * page of waits, live runs, idle projects and recently closed specs. Controller
+ * waits (from the controller, over the `controller-waits` topic) head the
+ * "Waiting on you" group and open an answer sheet in the panel; the derived
+ * waits below them stay read-only (spec 15).
  */
 
 /** Human age of an ISO timestamp relative to `now`, ticking each second. */
@@ -40,6 +42,21 @@ function fmtAge(iso: string | null, now: number): string | null {
 /** Stable identity of a wait so the open panel re-derives across pushes. */
 function waitKey(w: Wait): string {
   return `${w.kind}::${w.projectId}::${w.spec ?? ''}::${w.since}`;
+}
+
+/** One-line summary of a controller wait for its row. */
+function ctrlSummary(w: ControllerWait): string {
+  const q0 = w.questions[0]?.text;
+  switch (w.kind) {
+    case 'gate-a': return `Gate A — ${w.questions.length} decision(s)`;
+    case 'gate-b': return `Gate B — ${w.questions.length} item(s)`;
+    case 'retro-plan': return `Retro plan — ${w.proposals?.length ?? 0} proposal(s)`;
+    case 'merge': return q0 ?? 'Ready to merge';
+    case 'escalation': return q0 ?? 'A reviewer escalated';
+    case 'error': return q0 ?? 'A step needs a decision';
+    case 'question': return q0 ?? 'A step needs one fact';
+    default: return q0 ?? '';
+  }
 }
 
 function KindBadge({ label }: { label: string }) {
@@ -65,8 +82,8 @@ function Age({ value }: { value: string | null }) {
 
 export function NowPage() {
   const navigate = useNavigate();
-  const { enabled } = useProjects();
-  const { now } = useShell();
+  const { enabled, projects } = useProjects();
+  const { now, controllerWaits } = useShell();
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tick, setTick] = useState(Date.now());
@@ -77,39 +94,70 @@ export function NowPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Open controller waits head the group; answered ones drop out on the push.
+  const ctrlWaits = useMemo(
+    () => controllerWaits.filter((w) => w.state === 'open'),
+    [controllerWaits]
+  );
+  const projectName = useMemo(() => {
+    const byId = new Map(projects.map((p) => [p.projectId, p.projectName]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [projects]);
+
   const waits = useMemo(() => (now?.waits ?? []).filter((w) => enabled(w.projectId)), [now, enabled]);
   const live = useMemo(() => (now?.live ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
   const idle = useMemo(() => (now?.idle ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
   const closed = useMemo(() => (now?.closed ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
 
   // Re-derive the selected wait from current data so a push refreshes the panel.
+  const selectedCtrl = useMemo<ControllerWait | null>(
+    () => (selectedKey?.startsWith('cw::') ? ctrlWaits.find((w) => `cw::${w.id}` === selectedKey) ?? null : null),
+    [selectedKey, ctrlWaits]
+  );
   const selected = useMemo<Wait | null>(
-    () => (selectedKey ? waits.find((w) => waitKey(w) === selectedKey) ?? null : null),
+    () => (selectedKey && !selectedKey.startsWith('cw::') ? waits.find((w) => waitKey(w) === selectedKey) ?? null : null),
     [selectedKey, waits]
   );
 
   const dash = '—';
+  const waitCount = ctrlWaits.length + waits.length;
 
   const list = (
     <div>
-      <Group name="now-waits" title={'Waiting on you'} count={waits.length}>
-        {waits.length === 0 ? (
+      <Group name="now-waits" title={'Waiting on you'} count={waitCount}>
+        {waitCount === 0 ? (
           <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'Nothing waiting on you.'}</p>
         ) : (
-          waits.map((w) => (
-            <Row
-              key={waitKey(w)}
-              testId={`wait-row-${w.kind}-${w.projectId}`}
-              selected={selectedKey === waitKey(w)}
-              onClick={() => setSelectedKey(waitKey(w))}
-            >
-              <KindBadge label={KIND_LABELS[w.kind] ?? w.kind} />
-              <span className="shrink-0 text-xs text-[var(--text-muted)]">{w.projectName}</span>
-              <span className="shrink-0 font-medium text-[var(--text-primary)]">{w.spec ?? dash}</span>
-              <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{w.summary}</span>
-              <Age value={fmtAge(w.since, tick)} />
-            </Row>
-          ))
+          <>
+            {ctrlWaits.map((w) => (
+              <Row
+                key={`cw::${w.id}`}
+                testId={`ctrl-wait-row-${w.id}`}
+                selected={selectedKey === `cw::${w.id}`}
+                onClick={() => setSelectedKey(`cw::${w.id}`)}
+              >
+                <KindBadge label={CTRL_KIND_LABELS[w.kind] ?? w.kind} />
+                <span className="shrink-0 text-xs text-[var(--text-muted)]">{projectName(w.project)}</span>
+                <span className="shrink-0 font-medium text-[var(--text-primary)]">{w.spec || dash}</span>
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{ctrlSummary(w)}</span>
+                <Age value={fmtAge(w.created, tick)} />
+              </Row>
+            ))}
+            {waits.map((w) => (
+              <Row
+                key={waitKey(w)}
+                testId={`wait-row-${w.kind}-${w.projectId}`}
+                selected={selectedKey === waitKey(w)}
+                onClick={() => setSelectedKey(waitKey(w))}
+              >
+                <KindBadge label={KIND_LABELS[w.kind] ?? w.kind} />
+                <span className="shrink-0 text-xs text-[var(--text-muted)]">{w.projectName}</span>
+                <span className="shrink-0 font-medium text-[var(--text-primary)]">{w.spec ?? dash}</span>
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{w.summary}</span>
+                <Age value={fmtAge(w.since, tick)} />
+              </Row>
+            ))}
+          </>
         )}
       </Group>
 
@@ -171,7 +219,18 @@ export function NowPage() {
     </div>
   );
 
-  return <PageLayout list={list} panel={selected ? <WaitPanel wait={selected} /> : undefined} />;
+  const panel = selectedCtrl ? (
+    <AnswerSheet
+      key={selectedCtrl.id}
+      wait={selectedCtrl}
+      projectName={projectName(selectedCtrl.project)}
+      onDone={() => setSelectedKey(null)}
+    />
+  ) : selected ? (
+    <WaitPanel wait={selected} />
+  ) : undefined;
+
+  return <PageLayout list={list} panel={panel} />;
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -190,6 +249,226 @@ function DetailText({ heading, body }: { heading: string; body?: string | null }
     <div>
       <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{heading}</h4>
       <p className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">{body}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Controller wait answer sheets (T4). One sheet per kind; submitting POSTs the
+// answer and the server's next `controller-waits` push drops the row.
+// ---------------------------------------------------------------------------
+
+/** The question id a non-gate decision records under. */
+function decisionKey(wait: ControllerWait): string {
+  return wait.questions[0]?.id ?? wait.kind;
+}
+
+/** Recommended pick, else the first option, else '' for free text. */
+function defaultValue(q: ControllerWait['questions'][number]): string {
+  if (q.recommended) return q.recommended;
+  if (!q.free && q.options && q.options.length > 0) return q.options[0];
+  return '';
+}
+
+function SheetHeader({ wait, projectName, title }: { wait: ControllerWait; projectName: string; title: string }) {
+  return (
+    <div className="mb-3">
+      <div className="flex items-center gap-2">
+        <KindBadge label={CTRL_KIND_LABELS[wait.kind] ?? wait.kind} />
+        <span className="text-xs text-[var(--text-muted)]">{projectName}</span>
+      </div>
+      <h2 className="mt-1 break-words text-base font-semibold text-[var(--text-primary)]">{title}</h2>
+      {wait.spec && <p className="text-xs text-[var(--text-muted)]">{wait.spec}</p>}
+    </div>
+  );
+}
+
+function SubmitButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-testid="answer-submit"
+      className="rounded-md bg-[var(--accent-primary,#2563eb)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 hover:opacity-90"
+    >
+      {label}
+    </button>
+  );
+}
+
+function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; projectName: string; onDone: () => void }) {
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const v: Record<string, string> = {};
+    for (const q of wait.questions) v[q.id] = defaultValue(q);
+    return v;
+  });
+  const [approved, setApproved] = useState<boolean[]>(() => (wait.proposals ?? []).map(() => true));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setValue = (id: string, value: string) => setValues((prev) => ({ ...prev, [id]: value }));
+
+  async function submit(answers: Record<string, string>) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/waits/${wait.id}/answer`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ answers, by: 'operator' }),
+      });
+      if (!res.ok) throw new Error(`answer failed (${res.status})`);
+      onDone();
+    } catch (e: any) {
+      setError(e?.message ?? 'answer failed');
+      setSubmitting(false);
+    }
+  }
+
+  const title =
+    wait.kind === 'gate-a' ? 'Gate A' :
+    wait.kind === 'gate-b' ? 'Gate B' :
+    CTRL_KIND_LABELS[wait.kind] ?? wait.kind;
+
+  const questionFields = wait.questions.map((q) => (
+    <div key={q.id}>
+      <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">{q.text}</p>
+      {!q.free && q.options && q.options.length > 0 ? (
+        <div className="space-y-1">
+          {q.options.map((opt) => (
+            <label key={opt} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input
+                type="radio"
+                name={q.id}
+                checked={values[q.id] === opt}
+                onChange={() => setValue(q.id, opt)}
+                data-testid={`answer-opt-${q.id}`}
+              />
+              {opt}
+              {q.recommended === opt && <span className="text-xs text-[var(--text-muted)]">(recommended)</span>}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <textarea
+          value={values[q.id] ?? ''}
+          onChange={(e) => setValue(q.id, e.target.value)}
+          data-testid={`answer-text-${q.id}`}
+          rows={2}
+          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+        />
+      )}
+      {q.reason && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{q.reason}</p>}
+    </div>
+  ));
+
+  let body: React.ReactNode;
+  let footer: React.ReactNode;
+
+  if (wait.kind === 'gate-a' || wait.kind === 'gate-b') {
+    body = <div className="space-y-4">{questionFields}</div>;
+    footer = (
+      <>
+        <p className="text-xs text-[var(--text-muted)]">
+          Mechanics are recorded, not asked. Leave the recommended pick to record the agent's choice unchanged.
+        </p>
+        <SubmitButton label={'Answer and continue'} onClick={() => submit(values)} disabled={submitting} />
+      </>
+    );
+  } else if (wait.kind === 'retro-plan') {
+    body = (
+      <div className="space-y-4">
+        {questionFields}
+        {wait.proposals && wait.proposals.length > 0 && (
+          <div>
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Proposals</h4>
+            <div className="space-y-1">
+              {wait.proposals.map((p, i) => (
+                <label key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={approved[i]}
+                    onChange={() => setApproved((prev) => prev.map((v, j) => (j === i ? !v : v)))}
+                    data-testid={`proposal-${i}`}
+                    className="mt-1"
+                  />
+                  <span className="min-w-0 break-words">{p}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    footer = (
+      <SubmitButton
+        label={'Approve plan and continue'}
+        disabled={submitting}
+        onClick={() => {
+          const answers = { ...values };
+          (wait.proposals ?? []).forEach((_, i) => { answers[`proposal:${i}`] = approved[i] ? 'approve' : 'drop'; });
+          submit(answers);
+        }}
+      />
+    );
+  } else if (wait.kind === 'merge') {
+    body = questionFields.length > 0 ? <div className="space-y-4">{questionFields}</div>
+      : <p className="text-sm text-[var(--text-secondary)]">{ctrlSummary(wait)}</p>;
+    footer = (
+      <div className="flex gap-2">
+        <SubmitButton label={'Merge'} disabled={submitting} onClick={() => submit({ [decisionKey(wait)]: 'merge' })} />
+        <button
+          type="button"
+          onClick={() => submit({ [decisionKey(wait)]: 'hold' })}
+          disabled={submitting}
+          data-testid="answer-hold"
+          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+        >
+          Hold
+        </button>
+      </div>
+    );
+  } else if (wait.kind === 'error' || wait.kind === 'escalation') {
+    body = questionFields.length > 0 ? <div className="space-y-4">{questionFields}</div>
+      : <p className="text-sm text-[var(--text-secondary)]">{ctrlSummary(wait)}</p>;
+    footer = (
+      <div className="flex gap-2">
+        <SubmitButton label={'Retry'} disabled={submitting} onClick={() => submit({ [decisionKey(wait)]: 'retry' })} />
+        <button
+          type="button"
+          onClick={() => submit({ [decisionKey(wait)]: 'abandon' })}
+          disabled={submitting}
+          data-testid="answer-abandon"
+          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+        >
+          Abandon
+        </button>
+      </div>
+    );
+  } else {
+    // question
+    body = <div className="space-y-4">{questionFields.length > 0 ? questionFields : (
+      <textarea
+        value={values['answer'] ?? ''}
+        onChange={(e) => setValue('answer', e.target.value)}
+        data-testid="answer-text-answer"
+        rows={3}
+        className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+      />
+    )}</div>;
+    footer = <SubmitButton label={'Answer and continue'} disabled={submitting} onClick={() => submit(values)} />;
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-answer-sheet">
+      <SheetHeader wait={wait} projectName={projectName} title={title} />
+      <div className="space-y-4 border-t border-[var(--border-default)] pt-3">
+        {body}
+        <DetailText heading={'Advice'} body={wait.advice} />
+        {error && <p className="text-sm text-[var(--accent-danger,#dc2626)]">{error}</p>}
+        <div className="flex items-center gap-3">{footer}</div>
+      </div>
     </div>
   );
 }

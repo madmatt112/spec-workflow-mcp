@@ -14,6 +14,15 @@ export function Gear() {
   const { projects } = useProjects();
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState<string>('');
+  const notifySupported = typeof Notification !== 'undefined';
+  const [notifyPermission, setNotifyPermission] = useState<string>(
+    notifySupported ? Notification.permission : 'unsupported'
+  );
+
+  const requestNotify = () => {
+    if (!notifySupported) return;
+    Notification.requestPermission().then((p) => setNotifyPermission(p)).catch(() => { /* ignore */ });
+  };
 
   const firstProjectId = projects[0]?.projectId ?? null;
 
@@ -87,6 +96,25 @@ export function Gear() {
                 </label>
               </div>
             </div>
+
+            {notifySupported && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">Notifications</span>
+                {notifyPermission === 'granted' ? (
+                  <span className="text-xs text-[var(--text-muted)]" data-testid="notify-state">On</span>
+                ) : notifyPermission === 'denied' ? (
+                  <span className="text-xs text-[var(--text-muted)]" data-testid="notify-state">Blocked</span>
+                ) : (
+                  <button
+                    onClick={requestNotify}
+                    data-testid="notify-enable"
+                    className="rounded-md bg-[var(--surface-inset)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    Enable
+                  </button>
+                )}
+              </div>
+            )}
 
             {version && (
               <div className="border-t border-[var(--border-default)] pt-2 text-center">

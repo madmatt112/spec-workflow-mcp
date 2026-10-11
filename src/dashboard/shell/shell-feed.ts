@@ -13,7 +13,8 @@ import type { HarnessLauncher } from '../harness/launcher.js';
 import { buildNowModel } from './now-model.js';
 import { buildSpecRows } from './spec-rows.js';
 import { FileCache } from './file-cache.js';
-import type { ShellMessage, SpecListRow } from './types.js';
+import { listWaitsForWire } from '../../controller/waits.js';
+import type { ShellMessage, SpecListRow, ControllerWait } from './types.js';
 
 export class ShellFeed {
   private readonly throttleMs: number;
@@ -68,7 +69,9 @@ export class ShellFeed {
   /**
    * One recompute: read the pointer once, run the Now builder over every project
    * and the Specs-row builder per project (a project whose rows throw is left out
-   * and logged once), keep the pair and send `shell-now` then `shell-specs`.
+   * and logged once), read the controller waits, keep the trio and send
+   * `shell-now`, `shell-specs` then `controller-waits`. The waits ride the same
+   * broadcast path as the other shell topics (T4; controller-design.md §7).
    */
   private flush = async (): Promise<void> => {
     this.timer = undefined;
@@ -89,13 +92,20 @@ export class ShellFeed {
       }
     }
 
+    let waits: ControllerWait[] = [];
+    try {
+      waits = (await listWaitsForWire()) as ControllerWait[];
+    } catch (err) {
+      console.error('ShellFeed: skipping controller waits', err);
+    }
+
     if (this.closed) return;
-    const pair: ShellMessage[] = [
+    const messages: ShellMessage[] = [
       { type: 'shell-now', data: nowModel },
       { type: 'shell-specs', data: { rows } },
+      { type: 'controller-waits', data: { waits } },
     ];
-    this.last = pair;
-    this.send(pair[0]);
-    this.send(pair[1]);
+    this.last = messages;
+    for (const m of messages) this.send(m);
   };
 }
