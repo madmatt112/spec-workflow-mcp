@@ -22,6 +22,7 @@ import {
 } from './state.js';
 import { waitEvents, type ControllerWaitRecord } from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
+import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
@@ -188,13 +189,35 @@ export class Controller extends EventEmitter {
   async cancel(runId: string): Promise<RunRecord | undefined> {
     this.cancelled.add(runId);
     await this.dropFromQueue(runId);
+    clearRunActivity(runId);
     return cancelRun(this.cancelDeps(), runId);
   }
 
   async discard(runId: string): Promise<RunRecord | undefined> {
     this.cancelled.add(runId);
     await this.dropFromQueue(runId);
+    clearRunActivity(runId);
     return discardRun(this.cancelDeps(), runId);
+  }
+
+  /**
+   * The controller's Launch guard, or `null` when a run could start now (T10;
+   * design §9). Surfaced on the setup-view route so the Launch card can disable
+   * with the reason: a queued or live run on this store, a usage window over the
+   * threshold, or every slot in use.
+   */
+  async launchBlock(projectId: string, specStore: string): Promise<string | null> {
+    const live = (await listRuns()).filter((r) => isLive(r.status));
+    if (live.some((r) => r.project === projectId || r.specStore === specStore)) {
+      return 'This store already has a queued or live run.';
+    }
+    if (this.windowBlock().blocked) {
+      return 'A usage window is above the threshold; launch is paused until it resets.';
+    }
+    if (this.active.size >= this.slots) {
+      return `All ${this.slots} run slots are in use.`;
+    }
+    return null;
   }
 
   private async dropFromQueue(runId: string): Promise<void> {
@@ -379,6 +402,7 @@ export class Controller extends EventEmitter {
       tokenCap: (run) => this.tokenCap(run),
       windowBlock: () => this.windowBlock(),
       onRateLimit: (w) => { void this.persistRateLimit(w); },
+      onActivity: (a) => recordActivity(a),
       claudeBin: () => this.claudeBin(),
       pointerFile: () => this.pointerFile(),
       isCancelled: (id) => this.cancelled.has(id),

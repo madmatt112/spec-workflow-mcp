@@ -18,6 +18,7 @@
 import { spawn, execFileSync } from 'child_process';
 import {
   existsSync, readFileSync, createWriteStream, mkdirSync, readdirSync, writeFileSync, renameSync,
+  statSync,
 } from 'fs';
 import { join, dirname } from 'path';
 import { randomUUID } from 'crypto';
@@ -35,6 +36,7 @@ import {
   processStartTime, isProcessAlive,
 } from './state.js';
 import { openRunLedger, type RunLedger } from './ledger.js';
+import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import {
   runMergeStage, findPullRequest, MERGE_POLL_INTERVAL_MS, type MergeRules,
@@ -309,6 +311,8 @@ export interface RunDeps {
   windowBlock(): { blocked: boolean; resumeAt?: string };
   /** Persist the latest windows from a step or the supervisor stream. */
   onRateLimit(windows: RateLimitWindows): void;
+  /** Forward a step's live tool activity for the Run page's "Live now" line. */
+  onActivity?(activity: ControllerActivity): void;
   /** The `claude` binary (overridable so tests swap in the stub). */
   claudeBin(): string;
   /** The active-run pointer file the supervisor's hook still needs. */
@@ -317,6 +321,19 @@ export interface RunDeps {
   isCancelled(runId: string): boolean;
   /** Record an in-flight supervisor step so cancel/crash-recovery can find it. */
   setInFlight(pid: number, startTime: number): void;
+}
+
+/**
+ * Wrap `deps.onActivity` as the document loop's `onStepActivity`: the loop
+ * supplies the step id, role and tool; this stamps the run id and forwards it as
+ * one {@link ControllerActivity}. Returns `undefined` when no sink is wired.
+ */
+function stepActivityForwarder(
+  deps: RunDeps, runId: string,
+): DocumentPhaseContext['onStepActivity'] {
+  const sink = deps.onActivity;
+  if (!sink) return undefined;
+  return (e) => sink({ runId, stepId: e.stepId, role: e.role, tool: e.tool, inputSummary: e.inputSummary, ts: e.ts });
 }
 
 // ---------------------------------------------------------------------------
@@ -709,7 +726,8 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         run, phase: decision.phase, specStoreRoot, specDir, codeRoot: run.worktree,
         ledger, stepLogDir: stepLogDir(specDir, run.id),
         mcpConfig, gates: deps.gates ?? NO_OP_GATES,
-        onRateLimit: deps.onRateLimit, now: deps.now,
+        onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        now: deps.now,
       };
       const outcome = await runDocumentPhase(ctx);
       const handled = await handleDocumentOutcome(deps, run, ledger, specDir, decision.phase, outcome);
@@ -781,7 +799,8 @@ async function handleDocumentOutcome(
       run, phase, specStoreRoot: run.specStore, specDir, codeRoot: run.worktree,
       ledger, stepLogDir: stepLogDir(specDir, run.id),
       mcpConfig: deps.mcpConfigFor(run), gates: deps.gates ?? NO_OP_GATES,
-      onRateLimit: deps.onRateLimit, now: deps.now,
+      onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+      now: deps.now,
     });
     if (retry.result === 'approved') return 'go';
     if (retry.result === 'waiting') { await save(deps, run, { status: 'waiting', inFlight: undefined }); return 'stop'; }
@@ -1063,5 +1082,57 @@ export function listStepLogs(specDir: string, runId: string): string[] {
     return readdirSync(stepLogDir(specDir, runId));
   } catch {
     return [];
+  }
+}
+
+/**
+ * The last `tail` lines of a run's in-flight (or, with none, most recently
+ * written) step stream log, as plain text (T10; the Run page's "Live now" log
+ * tail). `null` when the run does not exist; `''` when it has no step log yet.
+ * The in-flight step is `run.inFlight.id`; otherwise the newest `.jsonl` in the
+ * run's step-log directory.
+ */
+export async function readRunLogTail(runId: string, tail: number): Promise<string | null> {
+  const run = await readRun(runId);
+  if (!run) return null;
+  const specDir = PathUtils.getSpecPath(run.specStore, run.spec);
+  const dir = stepLogDir(specDir, runId);
+
+  let file: string | undefined;
+  if (run.inFlight?.id) {
+    const candidate = join(dir, `${run.inFlight.id}.jsonl`);
+    if (existsSync(candidate)) file = candidate;
+  }
+  if (!file) {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return ''; // no step-log directory yet
+    }
+    const logs = entries
+      .filter((e) => e.endsWith('.jsonl'))
+      .map((e) => ({ path: join(dir, e), mtime: safeMtime(join(dir, e)) }))
+      .sort((a, b) => b.mtime - a.mtime);
+    if (logs.length === 0) return '';
+    file = logs[0].path;
+  }
+
+  let text: string;
+  try {
+    text = readFileSync(file, 'utf-8');
+  } catch {
+    return '';
+  }
+  const lines = text.split('\n').filter((l) => l.length > 0);
+  const n = Number.isFinite(tail) && tail > 0 ? Math.floor(tail) : 50;
+  return lines.slice(-n).join('\n');
+}
+
+function safeMtime(path: string): number {
+  try {
+    return statSync(path).mtimeMs;
+  } catch {
+    return 0;
   }
 }

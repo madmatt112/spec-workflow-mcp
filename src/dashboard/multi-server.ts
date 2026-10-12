@@ -32,7 +32,7 @@ import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire } from '../controller/waits.js';
-import { listRunsForWire } from '../controller/runs.js';
+import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit } from '../controller/state.js';
@@ -557,14 +557,21 @@ export class MultiProjectDashboardServer {
     // These sit under the same global security hooks as every route above and add
     // no other check. No request-body text ever reaches a shell.
 
-    // Read-only run-setup view.
+    // Read-only run-setup view. The controller's Launch guards (slots, usage
+    // window, a queued/live run on the store) extend the disabled reason so the
+    // Launch card disables with that reason (controller-tasks.md T10, §9).
     this.app.get('/api/projects/:projectId/harness/setup', async (request, reply) => {
       const { projectId } = request.params as { projectId: string };
       const project = this.projectManager.getProject(projectId);
       if (!project) {
         return reply.code(404).send({ error: 'Project not found' });
       }
-      return await buildSetupView(project);
+      const view = await buildSetupView(project);
+      if (view.launchable) {
+        const block = await this.controller.launchBlock(projectId, project.projectPath);
+        if (block) { view.launchable = null; view.disabledReason = block; }
+      }
+      return view;
     });
 
     // Save the run-setup file.
@@ -694,6 +701,22 @@ export class MultiProjectDashboardServer {
       const run = await this.controller.discard(id);
       if (!run) return reply.code(404).send({ error: 'run-not-found' });
       return { ok: true };
+    });
+
+    // The tail of a run's in-flight (or last) step stream log, as plain text
+    // (controller-tasks.md T10; the Run page's "Live now" log tail).
+    this.app.get('/api/controller/runs/:id/log', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { tail } = (request.query ?? {}) as { tail?: string };
+      const n = Math.min(Math.max(Number(tail) || 50, 1), 1000);
+      const text = await readRunLogTail(id, n);
+      if (text === null) return reply.code(404).type('text/plain').send('');
+      return reply.type('text/plain').send(text);
+    });
+
+    // The latest five-hour and seven-day usage windows, or null (§9; the Usage page).
+    this.app.get('/api/controller/rate-limit', async () => {
+      return (await readRateLimit()) ?? null;
     });
   }
 

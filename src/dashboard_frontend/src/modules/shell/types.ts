@@ -159,7 +159,38 @@ export interface ControllerWait {
   proposals?: string[];
 }
 
+// --- Controller runs and activity (controller-tasks.md T6/T10) ----------------
+// Hand copy of src/dashboard/shell/types.ts and src/controller/runs.ts; keep in step.
+
+export type ControllerRunStatus =
+  | 'queued' | 'running' | 'merging' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
+
+export interface ControllerRun {
+  id: string;
+  project: string;
+  spec: string;
+  status: ControllerRunStatus;
+  phase?: string;
+  stepKind?: string;
+  pauseReason?: string;
+  resumeAt?: string;
+  tokens: number;
+  created: string;
+  updated: string;
+}
+
+export interface ControllerActivity {
+  runId: string;
+  stepId: string;
+  role: string;
+  tool: string;
+  inputSummary: string;
+  ts?: string;
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
-  | { type: 'controller-waits'; data: { waits: ControllerWait[] } };
+  | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
+  | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
+  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } };

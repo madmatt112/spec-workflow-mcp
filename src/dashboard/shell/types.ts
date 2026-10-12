@@ -141,7 +141,7 @@ export interface ControllerRun {
   id: string;
   project: string;
   spec: string;
-  status: 'queued' | 'running' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
+  status: 'queued' | 'running' | 'merging' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
   phase?: string;
   stepKind?: string;
   pauseReason?: string;
@@ -151,8 +151,23 @@ export interface ControllerRun {
   updated: string;
 }
 
+/**
+ * One step's latest live tool activity for a run (controller-tasks.md T10;
+ * controller-design.md §4). The Run page's "Live now" line reads the entry whose
+ * `runId` matches the run. The frontend keeps a hand copy.
+ */
+export interface ControllerActivity {
+  runId: string;
+  stepId: string;
+  role: string;
+  tool: string;
+  inputSummary: string;
+  ts?: string;
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
-  | { type: 'controller-runs'; data: { runs: ControllerRun[] } };
+  | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
+  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } };
