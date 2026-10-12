@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 /**
  * Normalize line endings to LF (Unix-style)
@@ -100,3 +101,19 @@ if (fs.existsSync(newDashSrc)) {
   copyDir(newDashSrc, publicDest);
   console.log('✓ Copied dashboard as main dashboard');
 }
+
+// Write dist/build-info.json: the commit and the time this build was made.
+// The controller's /api/health route reports `builtAt` from it so the operator
+// (and the staged self-update smoke check) can tell which build is running.
+const repoRoot = path.join(__dirname, '..');
+let commit = 'unknown';
+try {
+  commit = execSync('git rev-parse HEAD', { cwd: repoRoot }).toString().trim();
+} catch {
+  // Not a git checkout (e.g. an unpacked tarball): keep 'unknown'.
+}
+const buildInfo = { v: 1, commit, builtAt: new Date().toISOString() };
+const buildInfoDest = path.join(repoRoot, 'dist', 'build-info.json');
+fs.mkdirSync(path.dirname(buildInfoDest), { recursive: true });
+fs.writeFileSync(buildInfoDest, JSON.stringify(buildInfo, null, 2) + '\n', 'utf-8');
+console.log(`✓ Wrote build-info.json (commit ${commit.slice(0, 8)})`);

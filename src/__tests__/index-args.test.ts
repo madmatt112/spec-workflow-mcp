@@ -166,7 +166,7 @@ describe('boolean flags in --flag=value form (requirement 1.17)', () => {
   // suite with it automatically.
   it('covers every boolean flag the parser knows about', () => {
     expect([...BOOLEAN_FLAGS].sort()).toEqual(
-      ['--dashboard', '--help', '--no-open', '--no-shared-worktree-specs', '--no-workspace-inference', '--once', '--watch', '-h'].sort()
+      ['--dashboard', '--help', '--no-open', '--no-shared-worktree-specs', '--no-workspace-inference', '--once', '--smoke', '--watch', '-h'].sort()
     );
   });
 

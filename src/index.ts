@@ -3,16 +3,17 @@
 import { SpecWorkflowMCPServer } from './server.js';
 import { MultiProjectDashboardServer } from './dashboard/multi-server.js';
 import { DashboardSessionManager } from './core/dashboard-session.js';
-import { homedir } from 'os';
+import { homedir, tmpdir } from 'os';
 import {
   resolveGitWorkspaceRoot,
   resolveWorkspaceRoots,
   SPEC_WORKFLOW_WORKSPACE_ENV
 } from './core/git-utils.js';
 import type { WorkspaceSource } from './core/git-utils.js';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { realpathSync } from 'fs';
+import { mkdtemp } from 'fs/promises';
 
 // Default dashboard port
 const DEFAULT_DASHBOARD_PORT = 5000;
@@ -50,6 +51,11 @@ OPTIONS:
   --spec <name>           With --watch: the spec to show (default: the active
                          spec named in HANDOFF.md, else the newest run)
   --once                  With --watch: render one frame and exit
+  --smoke                 With --dashboard: start on an isolated session,
+                          request /api/health once, print it and exit 0; any
+                          failure exits 1 within 30 seconds. The staged
+                          self-update boots a new build this way before it
+                          swaps dist/ in.
 
 ENVIRONMENT:
   SPEC_WORKFLOW_WORKSPACE Explicit workspace path, overriding inference
@@ -142,6 +148,7 @@ const CLI_FLAGS = {
   '--no-workspace-inference': 'boolean',
   '--once': 'boolean',
   '--port': 'value',
+  '--smoke': 'boolean',
   '--spec': 'value',
   '--watch': 'boolean'
 } as const;
@@ -178,6 +185,7 @@ export function parseArguments(args: string[]): {
   workflowRootPath: string;
   expandedPath: string;
   isDashboardMode: boolean;
+  isSmokeMode: boolean;
   isWatchMode: boolean;
   watchOnce: boolean;
   specName?: string;
@@ -190,6 +198,7 @@ export function parseArguments(args: string[]): {
 } {
   const flags = readBooleanFlags(args);
   const isDashboardMode = flags['--dashboard'];
+  const isSmokeMode = flags['--smoke'];
   const isWatchMode = flags['--watch'];
   const watchOnce = flags['--once'];
   let specName: string | undefined;
@@ -298,6 +307,7 @@ export function parseArguments(args: string[]): {
     workflowRootPath,
     expandedPath,
     isDashboardMode,
+    isSmokeMode,
     isWatchMode,
     watchOnce,
     specName,
@@ -385,7 +395,23 @@ async function main() {
       return;
     }
 
+    const isSmokeMode = cliArgs.isSmokeMode || false;
+
     if (isDashboardMode) {
+      // --smoke is a scratch boot the staged self-update runs to prove a new
+      // build serves its health route before it swaps dist/ in (design §2).
+      // Isolate the global session dir to a throwaway so the boot never finds,
+      // overwrites or deletes the live dashboard's session, and arm a hard
+      // 30-second timeout so a hang (e.g. the npm version fetch) still exits 1.
+      if (isSmokeMode) {
+        const smokeHome = await mkdtemp(join(tmpdir(), 'sdd-smoke-home-'));
+        process.env.SPEC_WORKFLOW_HOME = smokeHome;
+        setTimeout(() => {
+          console.error('Smoke check timed out after 30 seconds');
+          process.exit(1);
+        }, 30000);
+      }
+
       // Dashboard mode skips inference (requirement 1.14) and never validates a
       // workspace, so the resolution is already settled here.
       logWorkspaceResolution({
@@ -474,7 +500,7 @@ async function main() {
       let dashboardServer: MultiProjectDashboardServer;
       try {
         dashboardServer = new MultiProjectDashboardServer({
-          autoOpen: !noOpen,
+          autoOpen: !noOpen && !isSmokeMode,
           port: dashboardPort,
           bindAddress,
           allowExternalAccess,
@@ -502,6 +528,26 @@ async function main() {
       try {
         const dashboardUrl = await dashboardServer.start();
         console.error(`Dashboard started at: ${dashboardUrl}`);
+
+        if (isSmokeMode) {
+          // Prove the health route answers, print it, and exit. Any failure
+          // (unreachable, non-200, or `ok !== true`) exits 1.
+          try {
+            const response = await fetch(`${dashboardUrl}/api/health`);
+            const body = await response.json() as { ok?: boolean };
+            if (!response.ok || body.ok !== true) {
+              console.error(`Smoke check failed: /api/health returned ${response.status}`);
+              process.exit(1);
+            }
+            console.log(JSON.stringify(body));
+            try { await dashboardServer.stop(); } catch { /* best effort */ }
+            process.exit(0);
+          } catch (error: any) {
+            console.error(`Smoke check failed: ${error?.message ?? error}`);
+            process.exit(1);
+          }
+        }
+
         console.error('Projects will automatically appear as MCP servers register.');
         console.error('Press Ctrl+C to stop the dashboard');
       } catch (error: any) {
