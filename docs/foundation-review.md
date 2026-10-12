@@ -415,6 +415,9 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `answered`, `questions.md` was rendered, a `note` row written, and the run resumed straight
   into round 1 (reviewer step) with no reviser step, as designed. First proof of the
   wait-and-resume path on a real run.
+- 2026-10-12 20:10-20:22Z: requirements approved (round 1, converged 0/0/0); design drafted,
+  lint-fixed, approved (round 1); tasks drafted, reviewer step live. Each step is one headless
+  process of two to four minutes; the controller re-routes between phases with no supervisor.
 
 ## 8. Pointers
 
