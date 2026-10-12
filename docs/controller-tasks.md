@@ -15,6 +15,8 @@ returns. Terms from `GLOSSARY.md`.
 
 ## T1 `step`: run one model step
 
+_Status: done — PR #95._
+
 `src/controller/step.ts`. `runStep(spec: StepSpec): Promise<StepResult>` spawns one
 `claude -p "Read and execute the instructions in <brief>"` with: `--model`, `--effort`,
 `--append-system-prompt-file <role body>` (the agent file under `harness/agents/` with its
@@ -44,6 +46,8 @@ exit; a usage-limit rate_limit_event; a resume (`--resume` seen in argv); env sc
 
 ## T2 `state`: the harness home records
 
+_Status: done — PR #94._
+
 `src/controller/state.ts`. Resolves the home with the same rule as `state-files.ts`
 (`SDD_HOME` or `~/.local/state/sdd`). Layout: `runs/<run-id>/run.json`,
 `runs/<run-id>/steps/<step-id>.jsonl` (the raw stream logs), `waits/<wait-id>.json`,
@@ -61,6 +65,8 @@ file), the lock, and the liveness check against a spawned `sleep`.
 
 ## T3 `ledger`: controller-written run events
 
+_Status: done — PR #96._
+
 `src/controller/ledger.ts`. Appends rows to `<spec dir>/harness-events.jsonl` in exactly
 the formats of `harness/skills/sdd-continue/references/formats.md` ("Run ledger"), so
 `--watch` and the shell render a controller run as they render today's: `run.start`
@@ -74,6 +80,8 @@ written by this module renders in `src/watch` (`render.ts`) with the same phase,
 token lines as a fixture ledger from a real run; `now-model.ts` sees the run as live.
 
 ## T4 `waits`: wait records, answers, the Now page
+
+_Status: done — PR #98._
 
 `src/controller/waits.ts` plus routes in `multi-server.ts` and the shell. Create a wait
 (kinds `gate-a`, `gate-b`, `retro-plan`, `merge`, `escalation`, `error`, `question`), list
@@ -90,6 +98,8 @@ Notification API), nothing else. Tests: record round trip, `questions.md` output
 fixture, routes with supertest or the existing route test pattern.
 
 ## T5a `document-loop`: drafter, lint, rounds, approval, cleanup
+
+_Status: done — PR #97._
 
 `src/controller/phases/document.ts`. `runDocumentPhase(run, phase)` for requirements,
 design, tasks, following `harness/skills/sdd-document-phase/SKILL.md` and its references
@@ -113,6 +123,8 @@ ledger rows and the approval record after each.
 
 ## T5b `document-gates`: gate A, gate B, the cap, adjudication
 
+_Status: done — PR #99._
+
 Extends T5a. Gate A after requirements v1: the drafter's `decisions` become a `gate-a` wait
 (questions ranked as `gates.md` says, at most five, the rest recorded); the phase returns
 `waiting`; on answer, changed answers go to a reviser step as revision comments, then
@@ -125,6 +137,8 @@ next phase's drafter brief. Standoff rule (a Recurring MUST_FIX rejected twice) 
 Tests: gate A with two changed answers; gate B with an annotation; cap at v4.
 
 ## T6 `runs`: queue, routing, the supervisor for the other phases
+
+_Status: done — PR #100._
 
 `src/controller/runs.ts` and `src/controller/controller.ts`. Launch = enqueue
 (`POST /api/controller/launch` replaces the launcher's route; the Launch button stays).
@@ -146,6 +160,9 @@ done; a controller restart mid-phase resumes; a window above threshold parks the
 
 ## T7 `merge`: the merge rule
 
+_Status: done — PR #101 (`merge.ts` and its rule). Wiring the merge stage into the run
+loop after the implementation phase is in flight._
+
 `src/controller/merge.ts`. After the supervisor's implementation phase reports complete,
 read the PR number (HANDOFF section or `gh pr list --head`), poll `gh pr view` for checks,
 mergeability and the body; the rule (design §10): checks green, mergeable, no attribution
@@ -157,12 +174,16 @@ stub claude).
 
 ## T8 `access`: the shared secret
 
+_Status: in flight — PR #103._
+
 Design §17. Bind 127.0.0.1 unless `--host`. Generate `secret` in the home on first start.
 Every mutating route and `/api/controller/*` require `Authorization: Bearer <secret>` or
 the session cookie set by `POST /api/login`; the shell shows a login box once per device
 and stores the cookie. Read routes open on loopback only. Tests: 401 without, 200 with.
 
 ## T9 `service`: unit, health, watchdog, staged restart
+
+_Status: done — PR #102._
 
 `scripts/sdd-service.sh install|uninstall|status` writes a systemd user unit for
 `spec-workflow-mcp --dashboard --port 5000` with `Restart=always`, and a user timer that
@@ -174,6 +195,8 @@ or three restarts in an hour. `scripts/sdd-self-update.sh`: pull, `npm ci`, buil
 
 ## T10 `dashboard`: queue, runs and live steps in the shell
 
+_Status: in flight._
+
 Runs page shows the queue and controller runs (status, phase, step, pause reason) from the
 controller, with Cancel and Discard; Run page shows the in-flight step's current tool from
 the activity callback (WS topic `controller-activity`) and the step log tail; Usage shows
@@ -181,6 +204,11 @@ the two windows. Launch disabled reasons come from the controller (slot, window,
 spec). No new visual design: the Linear layout of spec 15 as is.
 
 ## T11 `docs-and-retire`: documentation, the document orchestrator retired
+
+_Status: documentation half done in `feat/controller-docs` (this PR) — "The controller" in
+`docs/SDD-HARNESS.md`, the README bullet, the glossary and this task list. Deletion half
+(`harness/agents/sdd-document-orchestrator.md`, `harness/skills/sdd-document-phase/`, and
+the `sdd-continue/SKILL.md` headless guard) deferred to step (d)._
 
 `docs/SDD-HARNESS.md` gains "The controller" (what runs where, the home, waits, the merge
 rule, access, the service) and loses the document-orchestrator description;

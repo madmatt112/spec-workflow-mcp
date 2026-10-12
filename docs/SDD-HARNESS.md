@@ -34,23 +34,150 @@ The harness approves its own documents. It uses the `approvals` tool's `approve`
 `spec-status` reports (server 5.2.0 or later). There is no human gate before
 implementation: the retrospective conversation is the one checkpoint per spec.
 
+## The controller
+
+The controller is the always-on part of the harness. It holds the queue, starts and
+resumes runs, watches capacity, answers the operator through waits, and merges by rule.
+It is code, not a model. No model runs in the control loop (ADR 0004). The controller is
+a module of the dashboard server process, built in place beside the launcher and the
+watchers (ADR 0005).
+
+### What runs where
+
+- The **dashboard server process** holds the controller. Run it as a service (see
+  "Running the controller as a service"). It keeps running with every browser tab closed.
+- Each model **step** is one fresh headless `claude -p` process. The controller spawns it
+  with a role, a brief and a report schema. The step exits with a typed result. The
+  controller reads the result for the report, the token usage and the usage windows, and
+  writes the ledger itself.
+- The **supervisor** is spawned once per phase, as a step, for implementation, the
+  retrospective and close-out. The controller runs the three document phases itself. It
+  takes over implementation at step (c2) and the last two phases at step (c3); until then
+  it spawns today's supervisor for them.
+
+### The harness home
+
+The controller keeps all machine state in the harness home (`~/.local/state/sdd`, or
+`$SDD_HOME`). One writer: the controller. Every record carries a `v` field and is written
+atomically.
+
+- `runs/<run-id>/run.json` — one record per run: the project, the spec, the status, the
+  phase, the step cursor, the worktree, and the in-flight step's process id.
+- `waits/<wait-id>.json` — one record per wait.
+- `queue.json` — the launched runs waiting for a slot, in order.
+- `rate-limit.json` — the latest usage windows.
+- `secret` — the shared access secret (see "Access").
+- `controller.lock` — the single-controller lock. A second controller that finds the
+  lock held exits.
+
+The spec store keeps everything the operator reads later, in git, in the formats the
+harness already writes: the documents, the analyses, the gate receipt (`questions.md`),
+the retro files, the deferrals and `harness-events.jsonl`. The controller commits these
+as the skills do.
+
+### Launch and capacity
+
+Launch means enqueue. The operator launches a spec; the controller writes a `queued` run
+and starts it when it has a slot (ADR 0004). It allows one run per spec store.
+
+- **Slots.** The controller carries up to two runs at once. Set `CONTROLLER_SLOTS` to
+  change the count. Launched runs over the slot count wait in the queue, first come first
+  served.
+- **Windows.** Every step reports the two usage windows of the subscription: the
+  five-hour window and the seven-day window. The controller keeps the latest values.
+  Before it starts a step, it checks both windows. It holds every run back while either
+  window is over the threshold, and starts them again at the window's reset. Set
+  `CONTROLLER_WINDOW_THRESHOLD` to change the threshold (default `0.95`).
+- **Token cap.** A per-run cap stops a runaway run. The default is twice the project's
+  measured baseline W per spec, from `baseline-w-per-spec` in `agent-rules.md`. At the cap
+  the controller writes an `error` wait; the operator raises the cap or abandons the run.
+
+### Waits
+
+A wait is the only way a run speaks to the operator. The controller writes a wait, parks
+the run, and carries on with other work. The operator answers the wait on the dashboard
+Now page. The answer resumes the run.
+
+A wait is one of these kinds: `gate-a`, `gate-b`, `retro-plan`, `merge`, `escalation`,
+`error`, `question`. When the operator answers a gate wait, the controller renders the
+gate receipt into `questions.md` in the spec store and appends a `note` row to the ledger.
+The dashboard shows one answer sheet per kind.
+
+### The merge rule
+
+After the implementation phase reports complete, the controller reads the pull request and
+decides by a fixed rule (ADR 0003, design §10). It merges when the checks are green, the
+PR is mergeable, no commit or body carries a Claude attribution trailer, and the head
+branch is the run's. It then runs the post-merge command. A model never runs this rule.
+Three keys in `agent-rules.md` set the behaviour per project:
+
+- `merge-method` — `merge` or `squash`.
+- `post-merge` — the command to run after a successful merge.
+- `merge` — `auto` (merge by rule) or `ask` (write a `merge` wait instead). The default is
+  `auto`. The harness's own repository is set to `ask`, because a bad merge there takes
+  down the control plane of every project.
+
+### Access
+
+The dashboard binds to loopback. Exposure on the LAN is opt-in (`--host`). Every mutating
+route and every `/api/controller/*` route needs the shared secret or the session cookie.
+The controller makes the secret on first start and keeps it in the harness home. The
+browser sends it from a login once per device. Read routes are open on loopback and need
+the secret on the LAN. `/api/health` is the one route that needs no secret. There is no
+second user and no roles. (Design §17; access control lands in PR #103.)
+
+### The service, the watchdog and the self-update
+
+Run the controller as a systemd user service, with a watchdog and a staged self-update.
+See "Running the controller as a service" below.
+
+### Cancel and discard
+
+The operator can stop a run from the dashboard. **Cancel** signals the in-flight step,
+marks the run abandoned, and leaves the worktree, the branch and any open PR in place.
+**Discard** cancels the run and then removes the worktree, deletes the branch and closes
+the PR.
+
+### Running the loop tests without tokens
+
+The controller's loops run in tests against two stubs, so no test calls a model or GitHub.
+`scripts/stub-claude.mjs` stands in for `claude`: it reads canned step results from
+`STUB_CLAUDE_SCRIPT` and prints the stream a real step would. `scripts/stub-gh.mjs` stands
+in for `gh` in the merge and discard tests. A test points `CONTROLLER_CLAUDE_BIN` at the
+first stub and `CONTROLLER_GH_BIN` at the second.
+
+### What the old supervisor still does
+
+The supervisor skill (`sdd-continue`) still runs the phases the controller has not inlined
+yet. The controller spawns it as one headless step per phase for implementation, the
+retrospective and close-out. Its retrospective stops at a DRAFT plan; the controller turns
+that into a `retro-plan` wait and writes the APPROVED plan from the answers. The
+supervisor and its remaining orchestrators are deleted phase by phase, and the last of
+them at step (d).
+
 ## Phase flow
 
 ```
-continue the sdd process
+launch (enqueue) ─ the controller starts the run when it has a slot
   │
-  ├─ preflight: model, server (spec-index generate), agent prefix
-  ├─ roots: spec store = projectContext.workflowRoot, code = cwd (worktree aware)
-  ├─ active spec: INDEX routing (## Next), decomposition fallback
-  ├─ live phase: spec-status approval flags
+  ├─ route: spec store state (approval records, tasks.md, retro plan status)
   │
-  ├─ requirements ─┐
-  ├─ design        ├─ sdd-document-orchestrator ─ drafter → (reviewer → reviser)* → approve → prune → clean
-  ├─ tasks        ─┘
-  ├─ implementation ─ sdd-implementation-orchestrator ─ (implementer → verifier → fix*)* → gate → INDEX → PR → CI gate
-  ├─ retrospective  ─ sdd-retro-orchestrator ─ findings → analyst proposals → conversation → plan APPROVED
-  └─ closeout       ─ sdd-closeout-orchestrator ─ per target repo: (implementer → verifier → fix*)* → PR → plan CLOSED
+  ├─ requirements ─┐                       each role runs as one headless step
+  ├─ design        ├─ the controller ─ drafter → lint → (reviewer → reviser)* → approve → prune → clean
+  ├─ tasks        ─┘                       gate A (after requirements v1), gate B (after tasks) are waits
+  │
+  ├─ implementation ─ supervisor step ─ (implementer → verifier → fix*)* → gate → INDEX → PR → CI gate → merge by rule
+  ├─ retrospective  ─ supervisor step ─ findings → analyst proposals → retro-plan wait → plan APPROVED
+  └─ closeout       ─ supervisor step ─ per target repo: (implementer → verifier → fix*)* → PR → plan CLOSED
 ```
+
+The controller drives the three document phases itself, in code. Each role — drafter,
+reviewer, reviser, checker and adjudicator — runs as one headless step. Gate A (after
+requirements v1) and gate B (after tasks approval) are waits the operator answers in the
+dashboard. For implementation, the retrospective and close-out, the controller spawns
+today's supervisor as one headless step per phase; the supervisor runs those phases
+unchanged (see "The controller"). The per-version loop below is the document loop the
+controller now runs.
 
 Document phase, per version:
 
@@ -59,7 +186,7 @@ Document phase, per version:
    reads it first). Checkpoint commit, then the Lint step — a `spec-lint` pass whose
    findings a reviser fixes in place, committed `docs(sdd): <SPEC> <PHASE> v<N> lint`
    (it consumes no version cap).
-2. Round: `adversarial-review` (with `verdictBlock: true`), the orchestrator tailors
+2. Round: `adversarial-review` (with `verdictBlock: true`), the controller tailors
    the prompt, `sdd-reviewer` writes the analysis and the verdict block. The tailored
    prompt carries a Machine-verified bullet naming the `spec-lint` checks that ran and a
    `## Changes since <version>` diff of what changed since the last reviewed version.
@@ -69,7 +196,7 @@ Document phase, per version:
    corrective version, `sdd-checker` verifies the listed items, and approval follows — no
    further review round.
 4. A standoff (a Recurring MUST_FIX rejected twice running) is ruled on by the
-   orchestrator and recorded.
+   controller and recorded.
 5. Cap at v4: when the fourth reviewed version still iterates, `sdd-adjudicator`
    fixes or rules out every open item as v5; one narrow check by `sdd-checker`
    verifies the list; approval always follows. A SHOULD_FIX the adjudicator rules

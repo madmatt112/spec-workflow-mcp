@@ -28,6 +28,12 @@ The harness working one spec, from launch until the spec is closed. One thing to
 operator, even when several processes carry it.
 _Avoid_: session, job, process
 
+**Step**:
+One role doing one job, as one headless process the controller spawns: draft the
+requirements, review the design, implement a task, verify a task. A run is carried out as
+a sequence of steps.
+_Avoid_: agent (that is the role), subagent, spawn, turn
+
 **Wait**:
 A run's request for the operator's decision or attention. The only way a run speaks to the
 operator.
@@ -45,6 +51,16 @@ _Avoid_: supervisor, overwatch, daemon, orchestrator
 **Launch**:
 The operator putting a spec on the queue. The controller starts the run when it has capacity.
 _Avoid_: start, kick off, spawn
+
+**Slot**:
+One of the controller's concurrent run positions. The controller carries a run only while
+it holds a slot; a launched run with no slot waits in the queue.
+_Avoid_: thread, worker, lane
+
+**Window**:
+A usage limit the subscription enforces over a rolling period, reported as how full it is
+and when it resets. The controller holds runs back while a window is near full.
+_Avoid_: quota, rate limit, budget, token cap
 
 **Advisor**:
 The model the operator talks to about any or all projects, the harness itself, and the
