@@ -70,6 +70,8 @@ export interface RunRecord {
   spec: string;
   worktree: string;
   branch: string;
+  /** The open PR's number, once the implementation phase recorded it (T7 merge). */
+  pr?: number;
   status: RunStatus;
   /** Why the run is paused, when `status` is `paused`. */
   pauseReason?: string;

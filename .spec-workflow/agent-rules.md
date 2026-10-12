@@ -6,6 +6,8 @@ worktree-per-change: required
 worktree-setup: `npm ci`; a task that runs a worktree Playwright e2e suite also runs `npx playwright install chromium` before it
 tdd-test-command: npx vitest run {files}
 tdd-regression-guard: an AC whose behaviour already holds at base is a regression guard, not forced into a red test
+<!-- controller merge rule (ADR 0003): a green build here proves the tests, not that the controller boots, so this repo is merged by hand -->
+merge: ask
 
 ## Layout
 

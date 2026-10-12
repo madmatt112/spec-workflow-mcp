@@ -356,14 +356,55 @@ describe('run-setup', () => {
         { agent: 'sdd-reviewer', provider: 'deepseek', model: 'deepseek-flash' },
         { agent: 'sdd-checker', provider: 'anthropic' },
       ]);
+      // No merge keys in this file: the defaults.
+      expect(rules.mergeMethod).toBe('merge');
+      expect(rules.postMerge).toBeNull();
+      expect(rules.merge).toBe('auto');
     });
 
-    it('defaults to no/block/null/[] when agent-rules.md is missing (Req 1.9)', async () => {
+    it('reads the merge keys (controller-design.md §10)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await fsp.writeFile(
+        join(workflowRoot, 'agent-rules.md'),
+        [
+          'worktree-per-change: required',
+          'merge-method: squash',
+          'post-merge: `npm run deploy && echo done`',
+          'merge: ask',
+          '',
+        ].join('\n'),
+      );
+
+      const rules = readAgentRules(workflowRoot);
+
+      expect(rules.mergeMethod).toBe('squash');
+      expect(rules.postMerge).toBe('npm run deploy && echo done');
+      expect(rules.merge).toBe('ask');
+    });
+
+    it('defaults the merge keys and does not mistake merge-method for merge', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await fsp.writeFile(
+        join(workflowRoot, 'agent-rules.md'),
+        ['worktree-per-change: required', 'merge-method: squash', ''].join('\n'),
+      );
+
+      const rules = readAgentRules(workflowRoot);
+
+      expect(rules.mergeMethod).toBe('squash');
+      expect(rules.merge).toBe('auto');
+      expect(rules.postMerge).toBeNull();
+    });
+
+    it('defaults to no/block/null/[]/merge/null/auto when agent-rules.md is missing (Req 1.9)', async () => {
       const { workflowRoot } = await makeWorkflowRoot();
 
       const rules = readAgentRules(workflowRoot);
 
-      expect(rules).toEqual({ worktree: 'no', gates: 'block', worktreeSetup: null, providers: [] });
+      expect(rules).toEqual({
+        worktree: 'no', gates: 'block', worktreeSetup: null, providers: [],
+        mergeMethod: 'merge', postMerge: null, merge: 'auto',
+      });
     });
   });
 
