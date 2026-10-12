@@ -205,6 +205,27 @@ async function breakStaleLock(
     await onStaleVerdict();
   }
 
+  // Re-confirm the file is still the exact stale one we judged, right before we
+  // move it. When several processes judge the same stale lock at once, more than
+  // one carries a verdict for it; by the time a later one acts, a peer may have
+  // already broken the stale lock and acquired a LIVE one in its place. Renaming
+  // blindly then would move that live lock aside and open a vacancy a third
+  // contender could acquire in — two holders in the critical section at once, the
+  // very serialisation the atomic break exists to guarantee. A live replacement
+  // carries a fresh mtime, so a `dev`+`ino`+`mtime` match proves this is still
+  // the dead file and not a peer's live lock. The after-the-fact verification
+  // below stays as the backstop for the microseconds between this check and the
+  // rename, which POSIX gives no way to close.
+  try {
+    const recheck = await fs.stat(lockPath);
+    if (!sameStaleFile({ dev: recheck.dev, ino: recheck.ino, mtimeMs: recheck.mtimeMs }, judged)) {
+      return false;
+    }
+  } catch {
+    // Gone or unreadable now — the next acquisition attempt decides.
+    return false;
+  }
+
   const asidePath = `${lockPath}.${process.pid}.${fileCounter++}.stale`;
   try {
     await fs.rename(lockPath, asidePath);

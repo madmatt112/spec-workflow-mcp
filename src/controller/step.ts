@@ -448,7 +448,6 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         handleLine(buffer);
         buffer = '';
       }
-      log.end();
       const result = resultEvent as Record<string, unknown> | null;
       const structuredOutput = result && 'structured_output' in result
         ? result.structured_output ?? null
@@ -457,7 +456,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
       const classification = classify(
         result, lastRateLimit, exitCode, schemaRequested, hasStructuredOutput,
       );
-      resolvePromise({
+      const stepResult: StepResult = {
         structuredOutput,
         usage: mapUsage(result?.usage),
         sessionId: (result && typeof result.session_id === 'string' ? result.session_id : null)
@@ -469,7 +468,14 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         exitCode,
         classification,
         durationMs: result && typeof result.duration_ms === 'number' ? result.duration_ms : null,
-      });
+      };
+      // Resolve only once the raw-stream log has flushed to disk. Callers (and
+      // the tests) read the log file the instant runStep resolves; a write
+      // stream that is merely `end()`ed can still hold its last chunks in the
+      // buffer, so resolving synchronously hands back a truncated log under load.
+      // `resolve` is idempotent, so the error fallback cannot resolve twice.
+      log.once('error', () => resolvePromise(stepResult));
+      log.end(() => resolvePromise(stepResult));
     };
 
     const child = spawn(claudeBin(), args, {
