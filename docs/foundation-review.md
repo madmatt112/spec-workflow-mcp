@@ -350,8 +350,12 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
 - 2026-10-11 T5a merged (PR #97): `src/controller/phases/document.ts`, 7 stub scenarios;
   gate hooks and the v4 cap left as T5b seams.
 - 2026-10-11 T4 merged (PR #98): `src/controller/waits.ts`, three routes, `controller-waits`
-  on the shell feed, Now page answer sheets (live Playwright pass). Next: T5b and T6 in
-  parallel, then T7-T9.
+  on the shell feed, Now page answer sheets (live Playwright pass).
+- 2026-10-11 T5b merged (PR #99, `4c975d8`; its CI had to be re-triggered by a re-push): `phases/gates.ts` (gate A ranking and five-question cap,
+  gate B veto list via `harness gate class-a`), the v4 cap with adjudicator and checker,
+  the standoff rule, re-entry idempotence; 7 new tests. T6 building; T7, T8, T9 started in
+  parallel (branches `feat/controller-merge`, `-access`, `-service`). All four builders were
+  cut off by the five-hour usage window on 2026-10-11 afternoon and resumed on 2026-10-12.
 
 ## 8. Pointers
 
