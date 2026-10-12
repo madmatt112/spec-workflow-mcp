@@ -418,6 +418,8 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
 - 2026-10-12 20:10-20:22Z: requirements approved (round 1, converged 0/0/0); design drafted,
   lint-fixed, approved (round 1); tasks drafted, reviewer step live. Each step is one headless
   process of two to four minutes; the controller re-routes between phases with no supervisor.
+- 2026-10-12 20:28Z tasks converged at round 1; gate B wait `w-f1e69d0d` open (veto list).
+  Waiting on Matthew. After it: the first supervisor step (implementation) through the bridge.
 
 ## 8. Pointers
 
