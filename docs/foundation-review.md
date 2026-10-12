@@ -406,6 +406,11 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `spawn.end` row carries usage; step logs are written to `controller-steps/` inside the spec
   dir (design §3 puts them in the home; check they are at least gitignored). Waiting on
   Matthew to answer gate A on the Now page.
+- 2026-10-12 PR #108 (test-home guard): `vitest.setup.ts` gives every worker temp homes;
+  `stateHome()`/`controllerHome()` throw under vitest when they resolve to the real home.
+  The launcher test had leaked 665 junk launch records into
+  `~/.spec-workflow-mcp/harness/launches/`; archived to `launches-junk-2026-10-12.tar.gz`
+  beside the directory and removed. Two real records remain.
 
 ## 8. Pointers
 
