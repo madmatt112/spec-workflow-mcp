@@ -4,7 +4,8 @@ import {
   chmodSync, readFileSync, readdirSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import net from 'net';
 import { WebSocket } from 'ws';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
@@ -425,6 +426,15 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = stateHomeDir;
 
+    // Point the controller's steps at the stub with an empty script, so a run the
+    // launch route enqueues fails its first step fast instead of spawning the real
+    // `claude` or the long-sleeping fake cli while these route tests run.
+    const controllerStub = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-claude.mjs');
+    const emptyScript = join(tempDir, 'empty-claude-script.json');
+    writeFileSync(emptyScript, '[]');
+    process.env.CONTROLLER_CLAUDE_BIN = controllerStub;
+    process.env.STUB_CLAUDE_SCRIPT = emptyScript;
+
     const workspace = join(tempDir, 'workspace');
     projectRoot = join(tempDir, 'project'); // becomes project.projectPath
     workflowRoot = join(projectRoot, '.spec-workflow');
@@ -532,47 +542,32 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     expect(body.reason).toContain('bogus-spec');
   });
 
-  it('launch gives 200, the record, a live group and a run file with gates record', async () => {
+  // Launch now enqueues to the controller (controller-tasks.md T6): the route
+  // keeps the launchability/routed-spec check and persists the setup with gates
+  // record, then the controller owns the run. The launcher's spawn/stop contract
+  // is tested directly in launcher.test.ts.
+  it('launch enqueues, returns a runId, and writes harness-run.json with gates record', async () => {
     const { status, body } = await postJson('launch', baseInput({ gates: 'block' }));
     expect(status).toBe(200);
-    launchedPgids.push(body.launch.pgid);
+    expect(typeof body.runId).toBe('string');
+    expect(body.runId).toMatch(/^run-/);
 
-    expect(body.launch.state).toBe('running');
-    expect(typeof body.launch.pid).toBe('number');
-    expect(typeof body.launch.pgid).toBe('number');
-    expect(() => process.kill(-body.launch.pgid, 0)).not.toThrow();
-
+    // Launch always records; a headless run cannot answer a gate (Carried R3-minor-2).
     const runFile = JSON.parse(readFileSync(join(workflowRoot, 'harness-run.json'), 'utf-8'));
     expect(runFile.gates).toBe('record');
+
+    // The run is recorded and shows on the controller runs route.
+    const runs: any = await (await realFetch(`http://127.0.0.1:${port}/api/controller/runs`)).json();
+    expect(runs.runs.some((r: any) => r.id === body.runId)).toBe(true);
   });
 
-  it('a second launch gives 409 with the run id', async () => {
+  it('a second launch for the same spec store gives 409', async () => {
     const first = await postJson('launch', baseInput());
     expect(first.status).toBe(200);
-    launchedPgids.push(first.body.launch.pgid);
-
-    (server as any).harnessLauncher.noteRunId(projectId, 'run-fixed-1');
 
     const second = await postJson('launch', baseInput());
     expect(second.status).toBe(409);
     expect(second.body.error).toBe('run-live');
-    expect(second.body.runId).toBe('run-fixed-1');
-    // The live-record refusal carries the PID so the page can name the run (retro P6).
-    expect(second.body.pid).toBe(first.body.launch.pid);
-  });
-
-  it('a pointer line in the project gives 409 naming it', async () => {
-    const pointerFile = pointerPath();
-    await fsp.mkdir(join(stateHomeDir, 'sdd'), { recursive: true });
-    const specDirLine = join(workflowRoot, 'specs', 'alpha');
-    writeFileSync(pointerFile, `${projectRoot}\t${specDirLine}\trun-existing-42\n`);
-
-    const { status, body } = await postJson('launch', baseInput());
-
-    expect(status).toBe(409);
-    expect(body.error).toBe('run-live');
-    expect(body.runId).toBe('run-existing-42');
-    expect(body.reason).toContain(specDirLine);
   });
 
   it('two concurrent launch posts give one 200 and one 409, never 500', async () => {
@@ -580,65 +575,15 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
       postJson('launch', baseInput()),
       postJson('launch', baseInput()),
     ]);
-
     const statuses = [a.status, b.status].sort((x, y) => x - y);
     expect(statuses).toEqual([200, 409]);
-
-    const winner = a.status === 200 ? a : b;
-    launchedPgids.push(winner.body.launch.pgid);
   });
 
-  it('a missing cli gives 500 step spawn and no record', async () => {
-    const badCli = join(tempDir, 'no-such-cli.sh');
-    const badPort = await getFreePort();
-    const badServer = new MultiProjectDashboardServer({
-      autoOpen: false,
-      port: badPort,
-      harness: { cli: badCli, stopGraceMs: 300, pollMs: 50 },
-    });
-    await badServer.start();
-
-    try {
-      const res = await realFetch(
-        `http://127.0.0.1:${badPort}/api/projects/${projectId}/harness/launch`,
-        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(baseInput()) },
-      );
-      expect(res.status).toBe(500);
-      const body: any = await res.json();
-      expect(body.step).toBe('spawn');
-      expect(typeof body.detail).toBe('string');
-      expect(body.detail.length).toBeGreaterThan(0);
-
-      let files: string[] = [];
-      try { files = readdirSync(launchesDir()); } catch { /* directory never created */ }
-      expect(files.includes(`${projectId}.json`)).toBe(false);
-    } finally {
-      await badServer.stop();
-    }
-  });
-
-  it('stop gives 200 and stopped', async () => {
-    const launch = await postJson('launch', baseInput());
-    expect(launch.status).toBe(200);
-    launchedPgids.push(launch.body.launch.pgid);
-
-    const res = await realFetch(routeUrl('stop'), { method: 'POST' });
-    expect(res.status).toBe(200);
-    const body: any = await res.json();
-    expect(body.launch.state).toBe('stopped');
-  });
-
-  it('a second stop gives 404', async () => {
-    const launch = await postJson('launch', baseInput());
-    expect(launch.status).toBe(200);
-    launchedPgids.push(launch.body.launch.pgid);
-
-    const first = await realFetch(routeUrl('stop'), { method: 'POST' });
-    expect(first.status).toBe(200);
-
-    const second = await realFetch(routeUrl('stop'), { method: 'POST' });
-    expect(second.status).toBe(404);
-    const body: any = await second.json();
-    expect(body.error).toBe('not-running');
+  it('launch for another spec gives 409 not-launchable', async () => {
+    const { status, body } = await postJson('launch', baseInput({ spec: 'bogus-spec' }));
+    expect(status).toBe(409);
+    expect(body.error).toBe('not-launchable');
+    expect(body.reason).toContain('alpha');
+    expect(body.reason).toContain('bogus-spec');
   });
 });

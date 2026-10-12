@@ -236,7 +236,7 @@ describe('ShellFeed', () => {
     });
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits trio in order after it', async () => {
+  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs quartet in order after it', async () => {
     const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -244,7 +244,7 @@ describe('ShellFeed', () => {
 
     await feed.start();
     const snap = feed.snapshot();
-    expect(snap.map((m) => m.type)).toEqual(['shell-now', 'shell-specs', 'controller-waits']);
+    expect(snap.map((m) => m.type)).toEqual(['shell-now', 'shell-specs', 'controller-waits', 'controller-runs']);
   });
 
   it('sends nothing for 200 ms once close() is called', async () => {

@@ -13,6 +13,7 @@ import { ProjectHarnessWatch } from './project-watch.js';
 import { OverviewWatch } from './overview-watch.js';
 import { ShellFeed } from '../shell/shell-feed.js';
 import { waitEvents } from '../../controller/waits.js';
+import { runEvents } from '../../controller/runs.js';
 import type { HarnessMessage } from './types.js';
 import type { ShellMessage } from '../shell/types.js';
 
@@ -47,6 +48,7 @@ export class HarnessHub {
     this.projects.on('spec-change', this.onSourceChange);
     this.projects.on('deferral-change', this.onSourceChange);
     waitEvents.on('change', this.onSourceChange);
+    runEvents.on('change', this.onSourceChange);
   }
 
   /**
@@ -140,6 +142,7 @@ export class HarnessHub {
     this.projects.removeListener('spec-change', this.onSourceChange);
     this.projects.removeListener('deferral-change', this.onSourceChange);
     waitEvents.removeListener('change', this.onSourceChange);
+    runEvents.removeListener('change', this.onSourceChange);
     for (const watch of this.projectWatches.values()) watch.close();
     this.projectWatches.clear();
     this.overviewWatch?.close();
@@ -160,9 +163,9 @@ export class HarnessHub {
     this.overviewWatch?.refresh();
   };
 
-  // A spec-document, deferral or controller-wait change re-arms the shell feed so
-  // its Specs rows, Now model and controller waits recompute (C7; T4); the
-  // overview watch owns its own file triggers.
+  // A spec-document, deferral, controller-wait or controller-run change re-arms
+  // the shell feed so its Specs rows, Now model, controller waits and runs
+  // recompute (C7; T4/T6); the overview watch owns its own file triggers.
   private onSourceChange = (): void => {
     this.shellFeed?.schedule();
   };

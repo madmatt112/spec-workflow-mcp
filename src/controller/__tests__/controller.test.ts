@@ -1,0 +1,253 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
+import { Controller } from '../controller.js';
+import { writeRun, readRun, writeRateLimit, type RunRecord } from '../state.js';
+import { listOpenWaits, answerWait } from '../waits.js';
+import { approvalsHandler } from '../../tools/approvals.js';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
+const SPEC = 'ctrl-ctl';
+const savedEnv = { ...process.env };
+
+function git(repo: string, args: string[]): string {
+  return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
+}
+
+function cleanDoc(title: string): string {
+  return [
+    `# ${title}`, '',
+    '## Introduction',
+    'The controller drafts documents. It serves the operator. It changes nothing else.', '',
+    '## Requirements',
+    'The controller SHALL draft, review and approve each document in order.', '',
+    '## Revision History', '- **v1** (2026-10-11) — Initial draft.', '',
+  ].join('\n');
+}
+
+const USAGE = {
+  input_tokens: 5, output_tokens: 50, cache_read_input_tokens: 10,
+  cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
+};
+interface StubRun { edits?: { path: string; content: string }[]; result: Record<string, unknown>; }
+
+function drafterRun(doc: string): StubRun {
+  return {
+    edits: [
+      { path: `.spec-workflow/specs/${SPEC}/${doc}.md`, content: cleanDoc(doc) },
+      { path: `.spec-workflow/specs/${SPEC}/codebase-context.md`, content: `# ctx\n` },
+    ],
+    result: { subtype: 'success', is_error: false, num_turns: 3, session_id: 's', result: 'drafted', structured_output: { wordCount: 40, decisions: [], contextFileWritten: true }, usage: USAGE },
+  };
+}
+function reviewerRun(suffix: string): StubRun {
+  return {
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/reviews/adversarial-analysis-${suffix}.md`, content: 'ok\nVERDICT: converged\n' }],
+    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'reviewed', structured_output: { verdict: 'converged', mustFix: [], shouldFix: [], recurring: [], escalate: 'none', analysisPath: '' }, usage: USAGE },
+  };
+}
+const PROPOSALS = [
+  `# Retrospective proposals — ${SPEC}`, '',
+  '## Proposals',
+  '- **P1 (F1) — Tidy the ledger.** Make it nicer.',
+  '  Target: harness skills or agents.',
+  '  DECISION NEEDED: no.', '',
+  '## Graduation candidates', 'None found.', '',
+].join('\n');
+function supervisorImplRun(): StubRun {
+  return {
+    edits: [
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS },
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT — decisions needed\n' },
+    ],
+    result: { subtype: 'success', is_error: false, num_turns: 5, session_id: 's', result: 'impl done', usage: USAGE },
+  };
+}
+function supervisorCloseoutRun(): StubRun {
+  return {
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: CLOSED\n\n## Close-out\n- P1: done\n' }],
+    result: { subtype: 'success', is_error: false, num_turns: 4, session_id: 's', result: 'closed', usage: USAGE },
+  };
+}
+
+interface Fixture { base: string; repo: string; specDir: string; home: string; }
+
+function setup(): Fixture {
+  const base = mkdtempSync(join(tmpdir(), 'ctrl-ctl-'));
+  const repo = join(base, 'repo');
+  const specDir = join(repo, '.spec-workflow', 'specs', SPEC);
+  mkdirSync(specDir, { recursive: true });
+  git(repo, ['init', '-q']);
+  git(repo, ['config', 'user.email', 't@test']);
+  git(repo, ['config', 'user.name', 'Tester']);
+  git(repo, ['config', 'commit.gpgsign', 'false']);
+  writeFileSync(join(repo, 'README.md'), 'init\n');
+  git(repo, ['add', '-A']);
+  git(repo, ['commit', '-q', '-m', 'init']);
+  const home = join(base, 'home');
+  mkdirSync(home, { recursive: true });
+  process.env.SDD_HOME = home;
+  process.env.CONTROLLER_CLAUDE_BIN = STUB;
+  return { base, repo, specDir, home };
+}
+
+function writeScript(fx: Fixture, runs: StubRun[]): void {
+  const scriptPath = join(fx.base, 'script.json');
+  writeFileSync(scriptPath, JSON.stringify(runs));
+  process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+}
+
+async function approve(fx: Fixture, doc: 'requirements' | 'design' | 'tasks'): Promise<void> {
+  const ctx = { projectPath: fx.repo, workspacePath: fx.repo };
+  writeFileSync(join(fx.specDir, `${doc}.md`), cleanDoc(doc));
+  const req = await approvalsHandler({
+    action: 'request', title: `${SPEC} ${doc}`, filePath: `.spec-workflow/specs/${SPEC}/${doc}.md`,
+    type: 'document', category: 'spec', categoryName: SPEC,
+  }, ctx);
+  const approvalId = (req.data as { approvalId: string }).approvalId;
+  await approvalsHandler({ action: 'approve', approvalId, response: 'ok' }, ctx);
+}
+
+function makeController(fx: Fixture): Controller {
+  return new Controller({
+    resolveProject: () => ({ projectPath: fx.repo, workspacePath: fx.repo }),
+    mcpConfigFor: () => ({ mcpServers: {} }),
+    ensureWorktree: async () => ({ worktree: fx.repo, branch: 'main' }),
+    claudeBin: () => STUB,
+    tickMs: 25,
+    graceMs: 1500,
+  });
+}
+
+async function waitForStatus(id: string, status: RunRecord['status'], ms = 15000): Promise<RunRecord> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const run = await readRun(id);
+    if (run && run.status === status) return run;
+    if (Date.now() > deadline) throw new Error(`run ${id} never reached ${status}; last: ${run?.status}`);
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+let fx: Fixture;
+let controller: Controller | null;
+beforeEach(() => { chmodSync(STUB, 0o755); fx = setup(); controller = null; });
+afterEach(async () => {
+  if (controller) { try { await controller.stop(); } catch { /* ignore */ } controller = null; }
+  for (const key of Object.keys(process.env)) if (!(key in savedEnv)) delete process.env[key];
+  for (const [key, value] of Object.entries(savedEnv)) process.env[key] = value;
+  try { rmSync(fx.base, { recursive: true, force: true }); } catch { /* ignore */ }
+});
+
+describe('Controller.enqueue validation', () => {
+  it('rejects an unknown project, a missing spec, and a second live run', async () => {
+    controller = new Controller({ resolveProject: (id) => (id === 'p' ? { projectPath: fx.repo, workspacePath: fx.repo } : undefined) });
+    await expect(controller.enqueue({ projectId: 'nope', spec: SPEC })).rejects.toThrow(/unknown project/);
+    await expect(controller.enqueue({ projectId: 'p', spec: 'no-such-spec' })).rejects.toThrow(/no directory/);
+
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+    expect(id).toMatch(/^run-/);
+    await expect(controller.enqueue({ projectId: 'p', spec: SPEC })).rejects.toThrow(/already live/);
+  });
+});
+
+describe('Controller full run', () => {
+  it('drives requirements and design, a supervisor step, a retro-plan wait, close-out, done', async () => {
+    writeScript(fx, [
+      drafterRun('requirements'), reviewerRun('requirements'),
+      drafterRun('design'), reviewerRun('design'),
+      supervisorImplRun(), supervisorCloseoutRun(),
+    ]);
+    await approve(fx, 'tasks');
+
+    controller = makeController(fx);
+    expect(await controller.start()).toBe(true);
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.phase).toBe('retrospective');
+
+    const open = await listOpenWaits();
+    const retro = open.find((w) => w.run === id && w.kind === 'retro-plan');
+    expect(retro).toBeTruthy();
+    expect(retro!.proposals?.length).toBe(1);
+
+    await answerWait(retro!.id, { 'proposal:0': 'approve' }, 'matthew');
+
+    await waitForStatus(id, 'done');
+  });
+});
+
+describe('Controller usage window', () => {
+  it('parks a run while a window is over the threshold and releases it when it falls', async () => {
+    // Routing resolves straight to done, so the run needs no claude step.
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
+
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.99, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      sevenDay: { utilization: 0.1, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      updated: new Date().toISOString(),
+    });
+
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    const paused = await waitForStatus(id, 'paused');
+    expect(paused.pauseReason).toBe('usage-window');
+
+    // The window falls; the next tick releases the run and it completes.
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.1, resetsAt: new Date().toISOString() },
+      sevenDay: { utilization: 0.1, resetsAt: new Date().toISOString() },
+      updated: new Date().toISOString(),
+    });
+    await controller.pump();
+    await waitForStatus(id, 'done');
+  });
+});
+
+describe('Controller crash recovery', () => {
+  it('resumes a run left running mid document phase and finishes it', async () => {
+    // Requirements v1 committed but not approved (mid review round); design and
+    // tasks already approved; no retro files yet.
+    writeFileSync(join(fx.specDir, 'requirements.md'), cleanDoc('requirements'));
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', `docs(sdd): ${SPEC} requirements v1`]);
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+
+    writeScript(fx, [
+      reviewerRun('requirements'), supervisorImplRun(), supervisorCloseoutRun(),
+    ]);
+
+    // A run record left `running` by a crashed controller (no live step).
+    const id = 'run-20261011-010101';
+    const iso = '2026-10-11T01:01:01.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'main', status: 'running', created: iso, updated: iso,
+      phase: 'requirements', cursor: { phase: 'requirements', stepKind: 'reviewer', attempt: 1 },
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    controller = makeController(fx);
+    await controller.start(); // recovery drives the running run
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.phase).toBe('retrospective');
+    const retro = (await listOpenWaits()).find((w) => w.run === id && w.kind === 'retro-plan');
+    await answerWait(retro!.id, {}, 'matthew');
+
+    await waitForStatus(id, 'done');
+  });
+});

@@ -499,9 +499,11 @@ export class HarnessLauncher extends EventEmitter {
   /**
    * Reuse the porcelain worktree entry on `refs/heads/feat/<spec>`, else create
    * the worktree at `<checkout>/.claude/worktrees/<spec>` on that branch (design
-   * D6). An unmarked worktree always re-runs its setup (Req 3.14).
+   * D6). An unmarked worktree always re-runs its setup (Req 3.14). Public so the
+   * controller's run driver reuses it (controller-tasks.md T6: "reuse
+   * launcher.ensureWorktree").
    */
-  private async ensureWorktree(
+  async ensureWorktree(
     project: ProjectContext,
     spec: string,
     worktreeSetup: string | null,

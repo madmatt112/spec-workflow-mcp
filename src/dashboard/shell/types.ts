@@ -136,7 +136,23 @@ export interface ControllerWait {
   proposals?: string[];
 }
 
+/** One controller run, path-free for the wire (controller-tasks.md T6; §17). */
+export interface ControllerRun {
+  id: string;
+  project: string;
+  spec: string;
+  status: 'queued' | 'running' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
+  phase?: string;
+  stepKind?: string;
+  pauseReason?: string;
+  resumeAt?: string;
+  tokens: number;
+  created: string;
+  updated: string;
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
-  | { type: 'controller-waits'; data: { waits: ControllerWait[] } };
+  | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
+  | { type: 'controller-runs'; data: { runs: ControllerRun[] } };
