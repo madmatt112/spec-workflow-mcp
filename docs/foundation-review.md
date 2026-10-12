@@ -390,6 +390,15 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   §13 (b)), a real fixture run through the controller. Needs Matthew: restart the dashboard
   on the new build (or install the service), sign in with `~/.local/state/sdd/secret`, and a
   fixture project with a GitHub remote to launch.
+- 2026-10-12 done-when started: the service is installed and active (`sdd-controller`, new
+  build, secret in place, controller API 401 without a session). Fixture repo
+  `madmatt112/sdd-fixture` (private) created by the session with Matthew's go: one Node
+  module, `npm test`, a store with `agent-rules.md` (`merge: auto`), steering docs, one spec
+  `greeting-endpoint`. Registered as project `_Dgt_snFrWSyYP-0`; run `run-20261012-191315`
+  launched through the controller (`POST .../harness/launch` needs the full setup body:
+  spec, worktree, gates, supervisorModel, roles). Found and cleaned: route and controller
+  tests had written run and wait records into the real home; fix PR in flight
+  (`fix/tests-never-touch-real-home`).
 
 ## 8. Pointers
 
