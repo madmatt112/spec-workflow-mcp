@@ -356,6 +356,20 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   the standoff rule, re-entry idempotence; 7 new tests. T6 building; T7, T8, T9 started in
   parallel (branches `feat/controller-merge`, `-access`, `-service`). All four builders were
   cut off by the five-hour usage window on 2026-10-11 afternoon and resumed on 2026-10-12.
+- 2026-10-12 T6 merged (PR #100, `f0cc4b1`): `controller.ts`, `runs.ts`, launch = enqueue,
+  the supervisor bridge, crash recovery, cancel and discard, T5b's gates wired; 2 CI runs
+  (the `registry-lock` flake again). T10 and a flake fix started; T7-T9 still building.
+- 2026-10-12 T9 merged (PR #102, `f54f15d`): `/api/health`, `--smoke`, `sdd-service.sh`,
+  `sdd-watchdog.sh` with timer, `sdd-self-update.sh` (refuses while a step or a legacy
+  pointer line is live; stages, smoke-boots, swaps). Nothing installed yet.
+- 2026-10-12 T7 PR #101: conflicted with #100 on `scripts/stub-gh.mjs` (both created it);
+  resolved as one stub (T7 behaviour with `STUB_GH_SCRIPT`, T6 behaviour without), rebased,
+  tests green, merged on the CI rerun (`1479a1a`; the lock flake a third time). Lesson: a PR
+  that is DIRTY against main never gets a CI run.
+- 2026-10-12 follow-ups started: the merge stage wired into the run loop (`feat/controller-
+  merge-wiring`), T11 docs (`feat/controller-docs`). T11's retirement of the document
+  orchestrator and the document-phase skill moves to step (d): tradr and jobsync still run
+  document phases on the old harness until they move to the controller.
 
 ## 8. Pointers
 

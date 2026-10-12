@@ -26,8 +26,12 @@ Progress log in `docs/foundation-review.md` is the running record). Read in this
 ## State at handoff
 
 See the Progress log in `docs/foundation-review.md` for commit ids and PR numbers. In
-short: step (0) and step (a) are done and on main (PRs #89-#93, about 56k lines removed);
-main is pulled and built in the checkout; steps (b) onward are not started. Two loose ends
+short: steps (0), (a) and the code of (b) are on main (PRs #89-#106); main is pulled and
+built in the checkout. Step (b)'s done-when (a real fixture run through the controller,
+design §13) has not run yet. The controller goes live the moment the dashboard restarts on
+the new build; the dashboard then needs the secret from `~/.local/state/sdd/secret` for
+anything that acts. The old supervisor still runs implementation, retro and close-out, and
+tradr/jobsync still run whole specs on it until they move to the controller. Two loose ends
 for Matthew: the stale tradr pointer line (see the Progress log) and restarting the harness
 sessions and the dashboard. Small tidy items left: unused `howler` and `@heroicons/react`
 dependencies, a no-op locales block in `scripts/copy-static.cjs`, `docs/` still mentions the
@@ -39,8 +43,14 @@ untouched, the `registry-lock.test.ts:195` timing flake.
 1. Done 2026-10-11: sessions and dashboard restarted on the new build; stale pointer removed.
 2. Prototype checks: done 2026-10-10, all six passed (answers in `docs/foundation-review.md`
    section 2, kit in `scripts/prototypes/`). Step (b) is unblocked.
-3. Step (b): the breakdown is `docs/controller-tasks.md` (T1-T11, order and conventions).
-   Progress per task is in the Progress log of `docs/foundation-review.md`. Build by hand
-   (briefed subagents in worktrees, one PR per task, merge commit when green).
-4. Before the advisor's state-of-the-world mechanism: a research and design session with
+3. Step (b) done-when: with Matthew, restart the dashboard (or `bash scripts/sdd-service.sh
+   install`), sign in, launch a fixture spec, answer gate A and gate B on the Now page,
+   watch the supervisor phases, the merge, the retro-plan wait and close-out; restart the
+   controller once mid-phase; force a window threshold. Record the outcome in the Progress
+   log. Then step (c2) (implementation loop in code) per `docs/controller-tasks.md`, then
+   (c3), then (d) which also retires the document orchestrator and the old gates path.
+4. Known flakes: `registry-lock.test.ts:195` and `step.test.ts` "scrubs the ANTHROPIC keys"
+   (fix PR in flight on branch `fix/registry-lock-test-flake`). A PR that is DIRTY against
+   main gets no CI run; rebase first.
+5. Before the advisor's state-of-the-world mechanism: a research and design session with
    Matthew (he has ideas: graph generators, indices). Do not design it solo.
