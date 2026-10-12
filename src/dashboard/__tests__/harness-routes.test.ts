@@ -13,6 +13,7 @@ import { ProjectRegistry, generateProjectId } from '../../core/project-registry.
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { pointerPath, launchesDir } from '../harness/state-files.js';
 import { AGENT_PROFILES } from '../../watch/ledger.js';
+import { loadOrCreateSecret } from '../../controller/access.js';
 
 // Real fetch, captured before any test below monkeypatches globalThis.fetch to
 // stub the dashboard's npm-version check (task 9's and task 10's beforeEach
@@ -416,6 +417,7 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
   let projectRoot: string;
   let workflowRoot: string;
   let fakeCli: string;
+  let secret: string;
   const launchedPgids: number[] = [];
   const originalEnv = { ...process.env };
 
@@ -464,6 +466,9 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
       harness: { cli: fakeCli, stopGraceMs: 300, pollMs: 50 },
     });
     await server.start();
+    // A mutating harness route now needs the shared secret (access control,
+    // controller-design.md §17); the server created it under this test's home.
+    secret = await loadOrCreateSecret();
     _resetMultiServerWarningsForTests();
   });
 
@@ -497,7 +502,7 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
   async function postJson(path: string, body: object): Promise<{ status: number; body: any }> {
     const res = await realFetch(routeUrl(path), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify(body),
     });
     return { status: res.status, body: await res.json() };
@@ -515,7 +520,7 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
   it('PUT setup with a bad model gives 400 naming the field', async () => {
     const res = await realFetch(routeUrl('setup'), {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify(baseInput({ supervisorModel: 'gpt-4' })),
     });
     expect(res.status).toBe(400);
@@ -530,7 +535,7 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
   it('PUT setup for another spec gives 409 naming both specs', async () => {
     const res = await realFetch(routeUrl('setup'), {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify(baseInput({ spec: 'bogus-spec' })),
     });
     expect(res.status).toBe(409);
@@ -557,7 +562,9 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     expect(runFile.gates).toBe('record');
 
     // The run is recorded and shows on the controller runs route.
-    const runs: any = await (await realFetch(`http://127.0.0.1:${port}/api/controller/runs`)).json();
+    const runs: any = await (await realFetch(`http://127.0.0.1:${port}/api/controller/runs`, {
+      headers: { authorization: `Bearer ${secret}` },
+    })).json();
     expect(runs.runs.some((r: any) => r.id === body.runId)).toBe(true);
   });
 
