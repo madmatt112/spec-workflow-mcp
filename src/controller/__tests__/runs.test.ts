@@ -11,7 +11,8 @@ import {
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
-import { writeRun, readRun, processStartTime, type RunRecord } from '../state.js';
+import { writeRun, readRun, listWaits, processStartTime, type RunRecord } from '../state.js';
+import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -99,6 +100,8 @@ function deps(fx: Fixture, over: Partial<RunDeps> = {}): RunDeps {
   return {
     gates: NO_OP_GATES,
     now: () => new Date('2026-10-11T00:00:00.000Z'),
+    mergeRules: () => ({ method: 'merge', postMerge: null, merge: 'auto' }),
+    mergePollMs: 0,
     mcpConfigFor: () => ({ mcpServers: {} }),
     ensureWorktree: async (run) => ({ worktree: run.codeRoot, branch: 'main' }),
     tokenCap: () => undefined,
@@ -245,4 +248,130 @@ describe('cancelRun and discardRun', () => {
     expect(log).toContain('"close"');
     expect(log).toContain('feat/x');
   });
+});
+
+describe('runOnce merge stage', () => {
+  const BRANCH = 'feat/x';
+
+  /** A `gh pr view` payload that passes the merge rule for branch `feat/x`. */
+  const readyView = {
+    mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
+    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+    headRefName: BRANCH, body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    author: { login: 'someone' },
+  };
+  const pendingView = { ...readyView, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null }] };
+
+  /** Point stub-gh at a scripted sequence of responses. */
+  function writeGhScript(fx: Fixture, runs: unknown[]): void {
+    const scriptPath = join(fx.base, 'gh-script.json');
+    writeFileSync(scriptPath, JSON.stringify(runs));
+    process.env.CONTROLLER_GH_BIN = STUB_GH;
+    process.env.STUB_GH_SCRIPT = scriptPath;
+  }
+
+  /** A supervisor stub run that completes without touching the spec store. */
+  const implRun: StubRun = {
+    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: {} },
+  };
+  /** A supervisor stub run that writes the retro proposals and a DRAFT plan. */
+  const retroRun: StubRun = {
+    edits: [
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: ['# proposals', '', '## Proposals', '- **P1 — Tidy.** Do it.', '  DECISION NEEDED: no.', ''].join('\n') },
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT\n' },
+    ],
+    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'retro', usage: {} },
+  };
+
+  function mergedRows(fx: Fixture): Record<string, string>[] {
+    return readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').map((l) => JSON.parse(l) as Record<string, string>);
+  }
+
+  it('auto: not-ready once, then merged, then the retro step runs', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun, retroRun]);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: pendingView },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'cafef00d1234' } } },
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    // First pass: implementation runs, the PR is found and parked `merging`.
+    await runOnce(deps(fx), 'run-20261011-000000');
+    let run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('merging');
+    expect(run?.pr).toBe(42);
+
+    // Second pass (the scheduler re-enters): the check is green, so it merges,
+    // writes pr.merged, then runs the retro step and parks at the retro plan.
+    await runOnce(deps(fx), 'run-20261011-000000');
+    run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    expect(run?.phase).toBe('retrospective');
+
+    const merged = mergedRows(fx).find((r) => r.type === 'pr.merged');
+    expect(merged).toMatchObject({ number: '42', sha: 'cafef00d1234', method: 'merge' });
+
+    const retro = (await listWaits()).find((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000');
+    expect(retro).toBeTruthy();
+  }, 30000);
+
+  it('ask: opens a merge wait, an answer of merge proceeds to the retro', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun, retroRun]);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'ab12cd34' } } },
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    await runOnce(deps(fx, { mergeRules: () => ({ method: 'merge', postMerge: null, merge: 'ask' }) }), 'run-20261011-000000');
+    let run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const wait = (await listWaits()).find((w) => w.kind === 'merge' && w.run === 'run-20261011-000000');
+    expect(wait).toBeTruthy();
+
+    await answerWait(wait!.id, { merge: 'merge' }, 'matthew');
+
+    await runOnce(deps(fx, { mergeRules: () => ({ method: 'merge', postMerge: null, merge: 'ask' }) }), 'run-20261011-000000');
+    run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    expect(run?.phase).toBe('retrospective');
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(true);
+    // Only ever one merge wait.
+    expect((await listWaits()).filter((w) => w.kind === 'merge')).toHaveLength(1);
+  }, 30000);
+
+  it('failed: a failing merge writes an error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun]);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'merge'], stderr: 'the base branch has moved\n', exitCode: 1 },
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+    expect(err).toBeTruthy();
+    expect(err!.questions[0].text).toMatch(/the base branch has moved/);
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
 });
