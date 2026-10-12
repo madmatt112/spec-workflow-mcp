@@ -33,6 +33,12 @@ export interface AgentRules {
   gates: 'block' | 'record';
   worktreeSetup: string | null;
   providers: ProviderRow[];
+  /** `merge-method:` — how the controller merges a PR (default `merge`). */
+  mergeMethod: 'merge' | 'squash';
+  /** `post-merge:` — the backticked command run after a merge, else null. */
+  postMerge: string | null;
+  /** `merge:` — merge by rule (`auto`) or ask the operator first (`ask`). */
+  merge: 'auto' | 'ask';
 }
 
 const PROVIDER_ROW = /^- ([^:\s]+): (\S+)(?: (\S+))?$/;
@@ -50,13 +56,19 @@ function readIfExists(path: string): string | undefined {
  * equals `worktree-per-change: required`; `gates` is a `gates: block`/`gates:
  * record` value, else `block`; `worktreeSetup` is the first code span of the
  * `worktree-setup:` line, else null; `providers` are the `## Providers` rows in
- * the grammar of sdd-providers.sh:42 up to the next `## ` heading. A missing file
- * gives `no`, `block`, null and no rows.
+ * the grammar of sdd-providers.sh:42 up to the next `## ` heading. The merge keys
+ * (controller-design.md §10): `mergeMethod` is `merge-method: merge|squash`
+ * (default `merge`); `postMerge` is the first code span of the `post-merge:` line,
+ * else null; `merge` is `merge: auto|ask` (default `auto`). A missing file gives
+ * `no`, `block`, null, no rows, `merge`, null and `auto`.
  */
 export function readAgentRules(workflowRoot: string): AgentRules {
   const text = readIfExists(join(workflowRoot, 'agent-rules.md'));
   if (text === undefined) {
-    return { worktree: 'no', gates: 'block', worktreeSetup: null, providers: [] };
+    return {
+      worktree: 'no', gates: 'block', worktreeSetup: null, providers: [],
+      mergeMethod: 'merge', postMerge: null, merge: 'auto',
+    };
   }
   const lines = text.split(/\r?\n/);
 
@@ -73,6 +85,23 @@ export function readAgentRules(workflowRoot: string): AgentRules {
     const span = setupLine.match(/`([^`]+)`/);
     if (span) worktreeSetup = span[1];
   }
+
+  // Merge keys (controller-design.md §10). `merge:` must not match
+  // `merge-method:`: the `\b`/character after `merge` differs (`:` vs `-`).
+  let mergeMethod: 'merge' | 'squash' = 'merge';
+  const methodMatch = text.match(/^merge-method:\s*(merge|squash)\b/m);
+  if (methodMatch) mergeMethod = methodMatch[1] as 'merge' | 'squash';
+
+  let postMerge: string | null = null;
+  const postMergeLine = lines.find((l) => /^post-merge:/.test(l.trim()));
+  if (postMergeLine) {
+    const span = postMergeLine.match(/`([^`]+)`/);
+    if (span) postMerge = span[1];
+  }
+
+  let merge: 'auto' | 'ask' = 'auto';
+  const mergeMatch = text.match(/^merge:\s*(auto|ask)\b/m);
+  if (mergeMatch) merge = mergeMatch[1] as 'auto' | 'ask';
 
   const providers: ProviderRow[] = [];
   let idx = -1;
@@ -93,7 +122,7 @@ export function readAgentRules(workflowRoot: string): AgentRules {
     }
   }
 
-  return { worktree, gates, worktreeSetup, providers };
+  return { worktree, gates, worktreeSetup, providers, mergeMethod, postMerge, merge };
 }
 
 function readRunFile(workflowRoot: string): HarnessRunFile | null {
