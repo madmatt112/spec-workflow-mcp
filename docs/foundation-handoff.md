@@ -38,6 +38,22 @@ dependencies, a no-op locales block in `scripts/copy-static.cjs`, `docs/` still 
 extension and plugins in places, the `.github/ISSUE_TEMPLATE` and `npm-publish.yml` are
 untouched, the `registry-lock.test.ts:195` timing flake.
 
+## The live fixture run (as of 2026-10-12 23:20Z)
+
+Run `run-20261012-191315` on project `_Dgt_snFrWSyYP-0` (`/home/mcf/repo/sdd-fixture`, repo
+`madmatt112/sdd-fixture`, spec `greeting-endpoint`) is parked at gate B (wait `w-f1e69d0d`,
+open since 20:28Z) with requirements, design and tasks approved at round 1 each. When Matthew
+approves on the Now page, the controller spawns the old supervisor for implementation
+(`continue the sdd process`, headless), then the merge stage (`merge: auto`), then a
+`retro-plan` wait, then close-out, then `done`. To watch: the run record is
+`~/.local/state/sdd/runs/run-20261012-191315/run.json`, the ledger is
+`/home/mcf/repo/sdd-fixture/.spec-workflow/specs/greeting-endpoint/harness-events.jsonl`, the
+waits come from `GET /api/controller/waits` with the bearer secret from
+`~/.local/state/sdd/secret`. Push Matthew once per new wait. Two defects seen so far, to fix
+after the run: `run.json` token totals stay 0; step logs land in `controller-steps/` inside
+the spec dir. The done-when also wants a controller restart mid-phase and a forced window
+threshold; neither has been exercised yet.
+
 ## Next
 
 1. Done 2026-10-11: sessions and dashboard restarted on the new build; stale pointer removed.
