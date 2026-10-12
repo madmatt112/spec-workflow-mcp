@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.{test,spec}.{js,ts}'],
     exclude: ['src/dashboard_frontend/**/*', 'node_modules/**/*'],
     coverage: {

@@ -14,6 +14,7 @@ import { dirname, join } from 'path';
 import { createHash } from 'crypto';
 import { sddHome } from '../dashboard/harness/state-files.js';
 import { withRegistryLock } from '../core/registry-lock.js';
+import { guardTestHome } from '../core/test-home-guard.js';
 
 // ---------------------------------------------------------------------------
 // Records (controller-design.md §3 and §7). Every one carries `v: 1`.
@@ -178,7 +179,9 @@ export interface ControllerLock {
 
 /** The controller's home directory (`$SDD_HOME` or `<state home>/sdd`). */
 export function controllerHome(): string {
-  return sddHome();
+  const resolved = sddHome();
+  guardTestHome(resolved, 'controllerHome');
+  return resolved;
 }
 
 function runsDir(): string {

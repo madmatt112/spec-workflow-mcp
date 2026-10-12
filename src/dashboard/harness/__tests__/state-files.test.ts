@@ -108,6 +108,7 @@ describe('state-files', () => {
     else process.env.XDG_STATE_HOME = originalXdg;
     if (originalSwm === undefined) delete process.env.SPEC_WORKFLOW_HOME;
     else process.env.SPEC_WORKFLOW_HOME = originalSwm;
+    delete process.env.SDD_TEST_ALLOW_REAL_HOME;
     await fsp.rm(tempXdg, { recursive: true, force: true });
     await fsp.rm(tempSwm, { recursive: true, force: true });
   });
@@ -127,6 +128,9 @@ describe('state-files', () => {
     it('defaults to the home directory when the env vars are unset', () => {
       delete process.env.XDG_STATE_HOME;
       delete process.env.SPEC_WORKFLOW_HOME;
+      // This case deliberately resolves to the real home, so opt out of the
+      // test-home guard (src/core/test-home-guard.ts) for its assertions.
+      process.env.SDD_TEST_ALLOW_REAL_HOME = '1';
 
       expect(stateHome()).toBe(join(homedir(), '.local', 'state'));
       expect(pointerPath()).toBe(join(homedir(), '.local', 'state', 'sdd', 'active-run'));

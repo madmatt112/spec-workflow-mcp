@@ -116,7 +116,12 @@ function deps(fx: Fixture, over: Partial<RunDeps> = {}): RunDeps {
 }
 
 let fx: Fixture;
-beforeEach(() => { chmodSync(STUB, 0o755); chmodSync(STUB_GH, 0o755); fx = setup(); });
+beforeEach(() => {
+  chmodSync(STUB, 0o755); chmodSync(STUB_GH, 0o755); fx = setup();
+  // Isolate the controller home so writeRun/writeWait never touch the real
+  // home; tests that spawn a claude stub re-set this in writeScript.
+  process.env.SDD_HOME = fx.home;
+});
 afterEach(() => {
   for (const key of Object.keys(process.env)) if (!(key in savedEnv)) delete process.env[key];
   for (const [key, value] of Object.entries(savedEnv)) process.env[key] = value;

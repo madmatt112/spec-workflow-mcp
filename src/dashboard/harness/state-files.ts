@@ -9,13 +9,16 @@ import { readFileSync, writeFileSync, rmSync, renameSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { getGlobalDir } from '../../core/global-dir.js';
+import { guardTestHome } from '../../core/test-home-guard.js';
 import type { PointerLine } from './types.js';
 
 /** `$XDG_STATE_HOME` when it is a non-empty string, else `~/.local/state`
  *  (the default of harness/hooks/sdd-activity.sh:11). */
 export function stateHome(): string {
   const env = process.env.XDG_STATE_HOME;
-  return env && env.length > 0 ? env : join(homedir(), '.local', 'state');
+  const resolved = env && env.length > 0 ? env : join(homedir(), '.local', 'state');
+  guardTestHome(resolved, 'stateHome');
+  return resolved;
 }
 
 /**

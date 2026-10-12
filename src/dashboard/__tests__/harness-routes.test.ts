@@ -148,6 +148,9 @@ describe('harness hub and websocket wiring (task 9)', () => {
     await fsp.mkdir(stateHomeDir, { recursive: true });
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = stateHomeDir;
+    // The real Controller the server starts writes run/wait records under the
+    // controller home; isolate it so a late async write never hits the real home.
+    process.env.SDD_HOME = join(tempDir, '.sdd-home');
 
     // Project alpha: HANDOFF routes to spec-a; ledger starts with only a
     // run.start row (no open phase yet).
@@ -427,6 +430,9 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     await fsp.mkdir(stateHomeDir, { recursive: true });
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = stateHomeDir;
+    // The real Controller the server starts writes run/wait records under the
+    // controller home; isolate it so a late async write never hits the real home.
+    process.env.SDD_HOME = join(tempDir, '.sdd-home');
 
     // Point the controller's steps at the stub with an empty script, so a run the
     // launch route enqueues fails its first step fast instead of spawning the real
