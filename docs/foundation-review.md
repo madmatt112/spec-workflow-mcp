@@ -370,12 +370,32 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   merge-wiring`), T11 docs (`feat/controller-docs`). T11's retirement of the document
   orchestrator and the document-phase skill moves to step (d): tradr and jobsync still run
   document phases on the old harness until they move to the controller.
+- 2026-10-12 T8 merged (PR #103, `76b91d2`): `src/controller/access.ts`, loopback default,
+  `--host` opt-in, bearer or session cookie, login panel; rebased over T9 (import conflicts).
+- 2026-10-12 T11 docs merged (PR #104, `98fc788`): "The controller" in `docs/SDD-HARNESS.md`,
+  README bullet, glossary terms step, slot, window; task statuses in `controller-tasks.md`.
+- 2026-10-12 merge-stage wiring merged (PR #105, `f661401`): `merging` run status, the merge
+  stage between implementation and retro, re-entry on the ask path.
+- 2026-10-12 T10 merged (PR #106, `fa88788`): `controller-activity` topic, run log tail and
+  rate-limit routes, Launch guards from the controller, Runs queue group with Cancel and
+  Discard, Run page "Live now", Usage window bars, `merging` chip.
+- 2026-10-12 flake fix merged (PR #107, `87b8af0`): `step.ts` resolved before its log stream
+  flushed (a real bug, fixed); `registry-lock.ts` stale-break double-acquisition window
+  narrowed (re-check dev, ino, mtime), not closable with POSIX primitives; the test now asserts
+  one breaker, every critical section once, clean leftovers, instead of strict ordering.
+  **Judgement call for Matthew**: the residual window is a rare lost registry entry; the
+  registry moves to the harness home later, which is where to close it properly.
+- **Step (b) code-complete 2026-10-12.** PRs #94-#107 (T1-T10, T11 docs, the merge wiring,
+  the flake fix); no open PRs; main built at `87b8af0`. Not yet done: the done-when (design
+  §13 (b)), a real fixture run through the controller. Needs Matthew: restart the dashboard
+  on the new build (or install the service), sign in with `~/.local/state/sdd/secret`, and a
+  fixture project with a GitHub remote to launch.
 
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
 - Code map: `docs/foundation-review-codemap.md`; adversarial review: `docs/foundation-review-adversarial.md`
-- ADRs: `docs/adr/0001` to `0005`; terms: `GLOSSARY.md`
+- ADRs: `docs/adr/0001` to `0006`; terms: `GLOSSARY.md`
 - Trigger memo: `docs/overwatch-role-and-headless.md`
 - Dashboard redesign: `docs/dashboard-redesign.md`
 - Efficiency plan and decisions: `docs/harness-efficiency-plan.md`, memory `harness-efficiency-decisions`
