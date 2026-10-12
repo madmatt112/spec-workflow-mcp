@@ -31,11 +31,14 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import { removePointerLine } from '../dashboard/harness/state-files.js';
 import {
-  type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns,
+  type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
   processStartTime, isProcessAlive,
 } from './state.js';
 import { openRunLedger, type RunLedger } from './ledger.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
+import {
+  runMergeStage, findPullRequest, MERGE_POLL_INTERVAL_MS, type MergeRules,
+} from './merge.js';
 import {
   runDocumentPhase, NO_OP_GATES,
   type DocumentPhase, type DocumentGates, type DocumentPhaseContext, type DocumentPhaseOutcome,
@@ -292,6 +295,10 @@ export function writeApprovedRetroPlan(
 export interface RunDeps {
   gates: DocumentGates;
   now(): Date;
+  /** The project's merge rules for the merge stage (design §10, T7). */
+  mergeRules(run: RunRecord): MergeRules;
+  /** The re-check delay while a merge is `not-ready` (ms); default `MERGE_POLL_INTERVAL_MS`. */
+  mergePollMs?: number;
   /** `--mcp-config` for every step: the spec-workflow server for this project. */
   mcpConfigFor(run: RunRecord): string | Record<string, unknown> | undefined;
   /** Resolve (and create) the run's worktree and branch. */
@@ -518,9 +525,103 @@ async function waitAnd(
   await save(deps, run, { status: 'waiting', inFlight: undefined });
 }
 
+// ---------------------------------------------------------------------------
+// The merge stage (design §6 "Between phases", §10; T7 `merge.ts`). After the
+// implementation supervisor step opens the PR the loop merges it by rule before
+// the retrospective starts (the retro reads the merged state). Runs once per
+// run; `runMergeStage` (never a model) does the gh work and writes `pr.merged`.
+// ---------------------------------------------------------------------------
+
+/** What one pass of the merge stage tells `runOnce`. */
+type MergeStepOutcome =
+  | 'stop'    // the run parked (merging re-check, a merge wait, or an error wait)
+  | 'merged'  // the PR is merged; re-route to the retrospective
+  | 'none';   // no open PR yet, or already merged: run the supervisor / re-route
+
+/** Has this run already merged its PR (a `pr.merged` row on the ledger)? */
+function hasMerged(specDir: string, runId: string): boolean {
+  try {
+    const events = parseJsonl<{ type?: string; run?: string }>(readFileSync(ledgerPath(specDir), 'utf-8'));
+    return events.some((e) => e.type === 'pr.merged' && e.run === runId);
+  } catch {
+    return false;
+  }
+}
+
+/** Is there a `merge` wait for this run (the ask-me-first path is in progress)? */
+async function hasMergeWait(runId: string): Promise<boolean> {
+  try {
+    const waits = await listWaits();
+    return waits.some((w) => w.kind === 'merge' && w.run === runId);
+  } catch {
+    return false;
+  }
+}
+
+/** The next merge re-check time while `not-ready` (design §10: don't busy-wait). */
+function nextMergeCheck(deps: RunDeps): string {
+  return new Date(deps.now().getTime() + (deps.mergePollMs ?? MERGE_POLL_INTERVAL_MS)).toISOString();
+}
+
+/**
+ * Run one pass of the merge stage. Finds the run's open PR (recording `run.pr`),
+ * runs the merge rule, and maps its status to a run-status change: `not-ready` ⇒
+ * status `merging` with a re-check time (the scheduler tick re-enters, no slot
+ * busy-wait); `waiting` ⇒ the `merge` wait is open, status `waiting` (an answer
+ * resumes the run); `merged` ⇒ `pr.merged` is already written, continue to the
+ * retrospective; `failed` ⇒ an `error` wait with the reasons. Returns `none`
+ * when the implementation has not reached a PR yet or the PR is already merged.
+ */
+async function runMergeStageStep(
+  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
+): Promise<MergeStepOutcome> {
+  if (hasMerged(specDir, run.id)) return 'none';
+
+  const pr = await findPullRequest({ repoDir: run.codeRoot, branch: run.branch, number: run.pr });
+  if (!pr) return 'none';
+  if (run.pr !== pr.number) run = await save(deps, run, { pr: pr.number });
+
+  const result = await runMergeStage(run, {
+    rules: deps.mergeRules(run),
+    specDir,
+    stepLogDir: stepLogDir(specDir, run.id),
+    ledger,
+    now: deps.now,
+  });
+
+  switch (result.status) {
+    case 'merged':
+      await save(deps, run, { status: 'running', pauseReason: undefined, resumeAt: undefined, inFlight: undefined });
+      return 'merged';
+    case 'not-ready':
+      await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
+      return 'stop';
+    case 'waiting':
+      // `runMergeStage` opened (or reused) the `merge` wait; just park the run.
+      await save(deps, run, { status: 'waiting', inFlight: undefined });
+      return 'stop';
+    case 'failed':
+    default:
+      await waitAnd(deps, run, ledger, 'error', specDir, [{
+        id: 'merge',
+        text: `Merge of PR #${result.number ?? run.pr ?? '?'} failed: ${result.reasons.join('; ')}. Retry or abandon.`,
+        options: ['retry', 'abandon'], recommended: 'retry',
+      }]);
+      return 'stop';
+  }
+}
+
 export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   let run = await readRun(runId);
   if (!run) return;
+
+  // The merge stage may be mid-flight on this re-entry: a `merging` status (an
+  // auto re-check after `not-ready`) or an open `merge` wait (the ask path just
+  // answered). Resume it before routing, so the implementation supervisor step
+  // is not re-run (design §6, §10).
+  const specDirForResume = PathUtils.getSpecPath(run.specStore, run.spec);
+  let resumingMerge = run.status === 'merging'
+    || (!hasMerged(specDirForResume, run.id) && (await hasMergeWait(run.id)));
 
   // Resolve the worktree once (reuse the launcher's `ensureWorktree`).
   if (!run.worktree) {
@@ -548,6 +649,16 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   for (;;) {
     run = (await readRun(runId)) ?? run;
     if (run.status === 'abandoned' || deps.isCancelled(runId)) return;
+
+    // Resume a merge left mid-flight (merging re-check, or an answered merge wait).
+    if (resumingMerge) {
+      resumingMerge = false;
+      const outcome = await runMergeStageStep(deps, run, ledger, specDir);
+      run = (await readRun(runId)) ?? run;
+      if (outcome === 'stop') return;
+      if (outcome === 'merged') { lastSignature = null; continue; }
+      // `none`: the PR is gone or already merged — fall through to routing.
+    }
 
     // The per-run token cap (design §9): at the cap, stop and write an `error` wait.
     const cap = deps.tokenCap(run);
@@ -611,6 +722,18 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
     const stop = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
     run = (await readRun(runId)) ?? run;
     if (stop) return;
+
+    // Implementation ends at the pull request (design §6): merge it by rule
+    // before the retrospective starts (the retro reads the merged state). The
+    // step is a no-op (`none`) until a PR is open and only runs once per run.
+    if (decision.phase === 'implementation') {
+      const merge = await runMergeStageStep(deps, run, ledger, specDir);
+      run = (await readRun(runId)) ?? run;
+      if (merge === 'stop') return;
+      if (merge === 'merged') { lastSignature = null; continue; }
+      // `none`: no open PR yet (implementation not done) or already merged —
+      // fall through to the no-progress guard and re-route.
+    }
 
     // No-progress guard: a supervisor step that exits cleanly but leaves the
     // routable state unchanged would loop forever; escalate instead.

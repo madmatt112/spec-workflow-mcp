@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -11,6 +11,7 @@ import { approvalsHandler } from '../../tools/approvals.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
+const STUB_GH = join(HERE, '..', '..', '..', 'scripts', 'stub-gh.mjs');
 const SPEC = 'ctrl-ctl';
 const savedEnv = { ...process.env };
 
@@ -92,6 +93,9 @@ function setup(): Fixture {
   mkdirSync(home, { recursive: true });
   process.env.SDD_HOME = home;
   process.env.CONTROLLER_CLAUDE_BIN = STUB;
+  // The merge stage shells out to `gh`; the stub with no script reports no open
+  // PR (empty stdout), so the merge step is a no-op unless a test scripts it.
+  process.env.CONTROLLER_GH_BIN = STUB_GH;
   return { base, repo, specDir, home };
 }
 
@@ -135,7 +139,7 @@ async function waitForStatus(id: string, status: RunRecord['status'], ms = 15000
 
 let fx: Fixture;
 let controller: Controller | null;
-beforeEach(() => { chmodSync(STUB, 0o755); fx = setup(); controller = null; });
+beforeEach(() => { chmodSync(STUB, 0o755); chmodSync(STUB_GH, 0o755); fx = setup(); controller = null; });
 afterEach(async () => {
   if (controller) { try { await controller.stop(); } catch { /* ignore */ } controller = null; }
   for (const key of Object.keys(process.env)) if (!(key in savedEnv)) delete process.env[key];
@@ -214,6 +218,68 @@ describe('Controller usage window', () => {
     await controller.pump();
     await waitForStatus(id, 'done');
   });
+});
+
+describe('Controller merge stage', () => {
+  const BRANCH = 'feat/ctl';
+  const readyView = {
+    mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
+    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+    headRefName: BRANCH, body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    author: { login: 'someone' },
+  };
+  const pendingView = { ...readyView, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null }] };
+
+  const implRun: StubRun = {
+    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: USAGE },
+  };
+  const retroRun: StubRun = {
+    edits: [
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS },
+      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT\n' },
+    ],
+    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'retro', usage: USAGE },
+  };
+
+  it('merges a completed implementation by rule (scheduler re-enters the merging run), then runs the retro', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun, retroRun]);
+
+    const ghScript = join(fx.base, 'gh-script.json');
+    writeFileSync(ghScript, JSON.stringify([
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 7, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: pendingView },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'c0ffee123456' } } },
+    ]));
+    process.env.STUB_GH_SCRIPT = ghScript;
+
+    controller = new Controller({
+      resolveProject: () => ({ projectPath: fx.repo, workspacePath: fx.repo }),
+      mcpConfigFor: () => ({ mcpServers: {} }),
+      ensureWorktree: async () => ({ worktree: fx.repo, branch: BRANCH }),
+      claudeBin: () => STUB,
+      tickMs: 25,
+      mergePollMs: 10,
+    });
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.phase).toBe('retrospective');
+    expect(waiting.pr).toBe(7);
+
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').map((l: string) => JSON.parse(l) as Record<string, string>);
+    expect(rows.find((r: Record<string, string>) => r.type === 'pr.merged')).toMatchObject({ number: '7', sha: 'c0ffee123456', method: 'merge' });
+
+    const retro = (await listOpenWaits()).find((w) => w.run === id && w.kind === 'retro-plan');
+    expect(retro).toBeTruthy();
+  }, 20000);
 });
 
 describe('Controller crash recovery', () => {

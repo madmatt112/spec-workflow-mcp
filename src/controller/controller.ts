@@ -21,6 +21,7 @@ import {
   type RunRecord, type RateLimitFile,
 } from './state.js';
 import { waitEvents, type ControllerWaitRecord } from './waits.js';
+import { readMergeRules, type MergeRules } from './merge.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
@@ -51,6 +52,8 @@ export interface ControllerOptions {
   slots?: number;
   windowThreshold?: number;
   tickMs?: number;
+  /** The merge re-check delay while `not-ready` (ms); tests shorten it. */
+  mergePollMs?: number;
   now?(): Date;
   claudeBin?(): string;
   ghBin?(): string;
@@ -278,6 +281,10 @@ export class Controller extends EventEmitter {
       if (run.pauseReason === 'usage-window') return true;
       return !run.resumeAt || Date.parse(run.resumeAt) <= this.now().getTime();
     }
+    // A merge left `not-ready`: re-enter at the re-check time (T7, design §10).
+    if (run.status === 'merging') {
+      return !run.resumeAt || Date.parse(run.resumeAt) <= this.now().getTime();
+    }
     return false;
   }
 
@@ -365,6 +372,8 @@ export class Controller extends EventEmitter {
     return {
       gates: this.opts.gates ?? NO_OP_GATES,
       now: this.now,
+      mergeRules: (run) => this.mergeRules(run),
+      mergePollMs: this.opts.mergePollMs,
       mcpConfigFor: (run) => this.mcpConfigFor(run),
       ensureWorktree: (run) => this.ensureWorktree(run),
       tokenCap: (run) => this.tokenCap(run),
@@ -411,6 +420,10 @@ export class Controller extends EventEmitter {
       }
     }
     return undefined;
+  }
+
+  private mergeRules(run: RunRecord): MergeRules {
+    return readMergeRules(PathUtils.getWorkflowRoot(run.specStore));
   }
 
   private tokenCap(run: RunRecord): number | undefined {
@@ -461,7 +474,8 @@ export class Controller extends EventEmitter {
 
 /** A run that still holds (or is owed) a slot. */
 function isLive(status: RunRecord['status']): boolean {
-  return status === 'queued' || status === 'running' || status === 'paused' || status === 'waiting';
+  return status === 'queued' || status === 'running' || status === 'paused'
+    || status === 'waiting' || status === 'merging';
 }
 
 /**

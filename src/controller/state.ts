@@ -55,6 +55,7 @@ export type RunStatus =
   | 'running'
   | 'paused'
   | 'waiting'
+  | 'merging'
   | 'done'
   | 'abandoned'
   | 'error';
@@ -75,7 +76,10 @@ export interface RunRecord {
   status: RunStatus;
   /** Why the run is paused, when `status` is `paused`. */
   pauseReason?: string;
-  /** ISO time the run may resume (a usage window's `resetsAt`). */
+  /**
+   * ISO time the run may resume: a usage window's `resetsAt` when `paused`, or
+   * the next merge-rule re-check when `merging` (T7's `MERGE_POLL_INTERVAL_MS`).
+   */
   resumeAt?: string;
   phase?: string;
   cursor?: StepCursor;
