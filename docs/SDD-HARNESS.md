@@ -240,6 +240,84 @@ claude -p "continue the sdd process" --model opus --effort high --permission-mod
 The supervisor refuses to start on a model below Opus 5.5 or Fable 5.1 and tells you which
 commands to run.
 
+## Running the controller as a service
+
+The controller is the always-on dashboard process. Run it as a systemd user service so it
+starts at login and restarts if it stops. The service runs
+`node <checkout>/dist/index.js --dashboard --port 5000`.
+
+Build the checkout first (`npm run build`). Then install the service:
+
+```bash
+scripts/sdd-service.sh install
+```
+
+The command writes three user units to `~/.config/systemd/user/`:
+`sdd-controller.service`, `sdd-watchdog.service` and `sdd-watchdog.timer`. It then reloads
+systemd and starts the controller and the watchdog. The controller unit sets `Restart=always`
+and removes `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` from the environment, because no
+controller step uses a key or a token.
+
+To keep the service running after you log out, enable linger once:
+
+```bash
+loginctl enable-linger $USER
+```
+
+Set `SDD_PORT` to change the port, `SDD_CHECKOUT` to point at a different checkout, and
+`SDD_NODE_BIN` to pin an absolute `node` path (necessary with a per-shell version manager
+such as fnm or nvm). `scripts/sdd-service.sh print` writes the units to the screen and
+changes nothing. `scripts/sdd-service.sh uninstall` stops and removes them.
+
+Check the status and the last health:
+
+```bash
+scripts/sdd-service.sh status
+```
+
+Read the logs:
+
+```bash
+journalctl --user -u sdd-controller -f
+```
+
+### Health route
+
+The controller answers `GET /api/health` with no secret. The route reports `ok`, the
+version, the uptime, the process id, the slots in use and in total, the latest usage
+windows and the build time. The watchdog and the staged self-update both read this route.
+
+### The watchdog
+
+`sdd-watchdog.timer` runs `scripts/sdd-watchdog.sh` every minute. The watchdog reads
+`/api/health` and keeps `watchdog.json` in the harness home. It sends one notification
+after ten failed probes in a row, or after three restarts in one hour. It does not send a
+second notification until the controller is healthy again. The notification uses
+`notify-send`; if `notify-send` is absent, the watchdog adds a line to
+`watchdog-alerts.log` in the harness home. The watchdog never runs a model.
+
+### The staged self-update
+
+`scripts/sdd-self-update.sh` updates the controller safely. The harness repository's
+post-merge command runs it. The controller never replaces itself with an untested build.
+The script does these steps in order:
+
+1. It refuses to run while a run step is in flight.
+2. It fast-forwards the checkout to `origin/main`.
+3. It builds the new commit in a staging worktree.
+4. It boots the staged build once with `--smoke` on a scratch port.
+5. On success, it swaps `dist/` in and restarts the controller.
+6. On failure, it keeps the running `dist/` and writes an `error` wait that names the
+   commit and the failing step, so the wait shows on the dashboard.
+
+Run `scripts/sdd-self-update.sh --dry-run` to print every step without changing anything.
+
+### Where the secret lives
+
+The dashboard binds to loopback. Every write route needs a shared secret (see T8 of the
+controller design). The controller makes the secret on first start and keeps it in the
+harness home. `/api/health` is the one route that needs no secret.
+
 ## Dashboard control pane
 
 The dashboard is one shell. A sidebar sits on the left and a page fills the rest. The

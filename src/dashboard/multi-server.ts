@@ -35,6 +35,7 @@ import { answerWait, attachAdvice, listWaitsForWire } from '../controller/waits.
 import { listRunsForWire } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
+import { listRuns, readRateLimit } from '../controller/state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -83,6 +84,8 @@ export class MultiProjectDashboardServer {
   private actualPort: number = 0;
   private clients: Set<WebSocketConnection> = new Set();
   private packageVersion: string = 'unknown';
+  /** Cached `dist/build-info.json` `builtAt`, read once for `/api/health`. */
+  private builtAt?: string | null;
   private heartbeatInterval?: NodeJS.Timeout;
   private readonly HEARTBEAT_INTERVAL_MS = 30000;
   private readonly HEARTBEAT_TIMEOUT_MS = 10000;
@@ -414,6 +417,38 @@ export class MultiProjectDashboardServer {
       return { message: DASHBOARD_TEST_MESSAGE };
     });
 
+    // Controller health (controller-tasks.md T9, design §2/§8/§9). No auth —
+    // T8's auth layer exempts this route, the watchdog and the staged
+    // self-update smoke check both poll it with no credential. Never throws:
+    // every read is best-effort so the route still answers while the home is
+    // empty or a record is unreadable.
+    this.app.get('/api/health', async () => {
+      let slotsInUse = 0;
+      try {
+        slotsInUse = (await listRuns()).filter((r) => r.status === 'running').length;
+      } catch {
+        // No home yet, or an unreadable run record: report zero rather than 500.
+      }
+      const slotsTotal = Number(process.env.SDD_SLOTS) > 0 ? Number(process.env.SDD_SLOTS) : 2;
+
+      let windows: unknown = null;
+      try {
+        windows = (await readRateLimit()) ?? null;
+      } catch {
+        windows = null;
+      }
+
+      return {
+        ok: true,
+        version: this.packageVersion,
+        uptimeSeconds: Math.round(process.uptime()),
+        pid: process.pid,
+        slots: { inUse: slotsInUse, total: slotsTotal },
+        windows,
+        builtAt: await this.readBuiltAt(),
+      };
+    });
+
     // Projects list
     this.app.get('/api/projects/list', async () => {
       return this.projectManager.getProjectsList();
@@ -651,6 +686,23 @@ export class MultiProjectDashboardServer {
       if (!run) return reply.code(404).send({ error: 'run-not-found' });
       return { ok: true };
     });
+  }
+
+  /**
+   * `builtAt` from `dist/build-info.json`, which `copy-static.cjs` writes at
+   * build time (commit sha and ISO time). Read once and cached; `null` when the
+   * file is missing or unreadable (a dev build run straight from `tsx`).
+   */
+  private async readBuiltAt(): Promise<string | null> {
+    if (this.builtAt !== undefined) return this.builtAt;
+    try {
+      const raw = await readFile(join(__dirname, '..', 'build-info.json'), 'utf-8');
+      const parsed = JSON.parse(raw) as { builtAt?: string };
+      this.builtAt = parsed.builtAt ?? null;
+    } catch {
+      this.builtAt = null;
+    }
+    return this.builtAt;
   }
 
   /**
