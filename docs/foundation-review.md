@@ -411,6 +411,10 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   The launcher test had leaked 665 junk launch records into
   `~/.spec-workflow-mcp/harness/launches/`; archived to `launches-junk-2026-10-12.tar.gz`
   beside the directory and removed. Two real records remain.
+- 2026-10-12 20:06Z gate A answered on the Now page (all five picks kept): the wait went to
+  `answered`, `questions.md` was rendered, a `note` row written, and the run resumed straight
+  into round 1 (reviewer step) with no reviser step, as designed. First proof of the
+  wait-and-resume path on a real run.
 
 ## 8. Pointers
 
