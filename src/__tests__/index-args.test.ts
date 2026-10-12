@@ -259,7 +259,7 @@ describe('value flags are kept out of the project-path position by the registry'
   // the separate token carrying its value — would have landed in the project
   // path. Registering one now extends this suite with it automatically.
   it('covers every value flag the parser knows about', () => {
-    expect([...VALUE_FLAGS].sort()).toEqual(['--port', '--spec']);
+    expect([...VALUE_FLAGS].sort()).toEqual(['--host', '--port', '--spec']);
   });
 
   for (const flag of VALUE_FLAGS) {

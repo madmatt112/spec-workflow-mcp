@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '../theme/ThemeProvider';
+import { AuthProvider } from '../auth/AuthProvider';
 import { WebSocketProvider } from '../ws/WebSocketProvider';
 import { ProjectProvider } from '../projects/ProjectProvider';
 import { ShellProvider } from '../shell/ShellProvider';
@@ -34,13 +35,15 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <ProjectProvider>
-        <WebSocketProvider>
-          <ShellProvider>
-            <Shell />
-          </ShellProvider>
-        </WebSocketProvider>
-      </ProjectProvider>
+      <AuthProvider>
+        <ProjectProvider>
+          <WebSocketProvider>
+            <ShellProvider>
+              <Shell />
+            </ShellProvider>
+          </WebSocketProvider>
+        </ProjectProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

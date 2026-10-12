@@ -6,6 +6,7 @@ import net from 'net';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { createWait } from '../../controller/waits.js';
+import { loadOrCreateSecret } from '../../controller/access.js';
 
 // Contract for the controller wait routes (controller-tasks.md "T4 waits";
 // controller-design.md §7). Every test drives a real MultiProjectDashboardServer
@@ -33,6 +34,7 @@ describe('controller wait routes (T4)', () => {
   let specDir: string;
   let server: MultiProjectDashboardServer | null = null;
   let port: number;
+  let secret: string;
   const originalEnv = { ...process.env };
 
   beforeEach(async () => {
@@ -50,6 +52,9 @@ describe('controller wait routes (T4)', () => {
     port = await getFreePort();
     server = new MultiProjectDashboardServer({ autoOpen: false, port });
     await server.start();
+    // Controller routes require the shared secret even for a loopback GET
+    // (access control, controller-design.md §17).
+    secret = await loadOrCreateSecret();
     _resetMultiServerWarningsForTests();
   });
 
@@ -61,6 +66,14 @@ describe('controller wait routes (T4)', () => {
 
   function url(suffix: string): string {
     return `http://127.0.0.1:${port}/api/controller/waits${suffix}`;
+  }
+
+  // Add the shared secret as a bearer header to a request's init.
+  function auth(init: RequestInit = {}): RequestInit {
+    return {
+      ...init,
+      headers: { ...(init.headers as Record<string, string> | undefined), authorization: `Bearer ${secret}` },
+    };
   }
 
   async function seedGateA() {
@@ -82,7 +95,7 @@ describe('controller wait routes (T4)', () => {
     await new Promise((r) => setTimeout(r, 5));
     const newer = await seedGateA();
 
-    const res = await realFetch(url(''));
+    const res = await realFetch(url(''), auth());
     expect(res.status).toBe(200);
     const body: any = await res.json();
 
@@ -97,13 +110,13 @@ describe('controller wait routes (T4)', () => {
 
     const res = await realFetch(url(`/${wait.id}/answer`), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify({ answers: { q1: 'Yes' }, by: 'matthew' }),
     });
     expect(res.status).toBe(200);
     expect(((await res.json()) as any).ok).toBe(true);
 
-    const list: any = await (await realFetch(url(''))).json();
+    const list: any = await (await realFetch(url(''), auth())).json();
     const answered = list.waits.find((w: any) => w.id === wait.id);
     expect(answered.state).toBe('answered');
     expect(answered.answer.q1.value).toBe('Yes');
@@ -118,19 +131,19 @@ describe('controller wait routes (T4)', () => {
     const wait = await seedGateA();
     const res = await realFetch(url(`/${wait.id}/advice`), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify({ advice: 'Looks fine.' }),
     });
     expect(res.status).toBe(200);
 
-    const list: any = await (await realFetch(url(''))).json();
+    const list: any = await (await realFetch(url(''), auth())).json();
     expect(list.waits.find((w: any) => w.id === wait.id).advice).toBe('Looks fine.');
   });
 
   it('POST answer on an unknown id gives 404', async () => {
     const res = await realFetch(url('/w-deadbeef/answer'), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
       body: JSON.stringify({ answers: {}, by: 'operator' }),
     });
     expect(res.status).toBe(404);

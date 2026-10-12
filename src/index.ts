@@ -3,6 +3,7 @@
 import { SpecWorkflowMCPServer } from './server.js';
 import { MultiProjectDashboardServer } from './dashboard/multi-server.js';
 import { DashboardSessionManager } from './core/dashboard-session.js';
+import { isLocalhostAddress } from './core/security-utils.js';
 import { homedir, tmpdir } from 'os';
 import {
   resolveGitWorkspaceRoot,
@@ -35,6 +36,10 @@ OPTIONS:
   --port <number>         Specify dashboard port (1024-65535)
                          Default: 5000
                          Only use if port 5000 is unavailable
+  --host <address>        Bind address for the dashboard
+                         Default: 127.0.0.1 (localhost only)
+                         A non-localhost address opts in to LAN access; the
+                         shared secret is then required on every request
   --no-open               Don't automatically open browser when starting dashboard
                          Useful in restricted environments where browser launch is blocked
   --no-shared-worktree-specs
@@ -143,6 +148,7 @@ const CLI_FLAGS = {
   '--dashboard': 'boolean',
   '--help': 'boolean',
   '-h': 'boolean',
+  '--host': 'value',
   '--no-open': 'boolean',
   '--no-shared-worktree-specs': 'boolean',
   '--no-workspace-inference': 'boolean',
@@ -193,6 +199,7 @@ export function parseArguments(args: string[]): {
   noWorkspaceInference: boolean;
   workspaceSource: WorkspaceSource;
   port?: number;
+  host?: string;
   lang?: string;
   noOpen?: boolean;
 } {
@@ -206,6 +213,7 @@ export function parseArguments(args: string[]): {
   const noSharedWorktreeSpecs = flags['--no-shared-worktree-specs'];
   const noWorkspaceInference = flags['--no-workspace-inference'];
   let customPort: number | undefined;
+  let customHost: string | undefined;
 
   // Check for invalid flags
   for (const arg of args) {
@@ -267,6 +275,14 @@ export function parseArguments(args: string[]): {
       i++;
     } else if (arg === '--spec') {
       throw new Error('--spec parameter requires a value (e.g., --spec my-feature)');
+    } else if (arg.startsWith('--host=')) {
+      customHost = arg.slice('--host='.length);
+      if (!customHost) throw new Error('--host parameter requires a value (e.g., --host 0.0.0.0)');
+    } else if (arg === '--host' && i + 1 < args.length) {
+      customHost = args[i + 1];
+      i++;
+    } else if (arg === '--host') {
+      throw new Error('--host parameter requires a value (e.g., --host 0.0.0.0)');
     }
   }
 
@@ -315,6 +331,7 @@ export function parseArguments(args: string[]): {
     noWorkspaceInference,
     workspaceSource,
     port: customPort,
+    host: customHost,
     lang: undefined,
     noOpen
   };
@@ -384,6 +401,7 @@ async function main() {
     // Apply configuration from CLI args
     const isDashboardMode = cliArgs.isDashboardMode || false;
     const port = cliArgs.port;
+    const host = cliArgs.host;
     const lang = cliArgs.lang;
     const noOpen = cliArgs.noOpen || false;
 
@@ -460,7 +478,17 @@ async function main() {
       if (process.env.SPEC_WORKFLOW_BIND_ADDRESS) {
         bindAddress = process.env.SPEC_WORKFLOW_BIND_ADDRESS;
       }
-      
+
+      // An explicit --host wins over the environment. A non-localhost address is
+      // itself the opt-in to LAN access (design §17: exposure is opt-in); the
+      // environment guardrail still fires for a bind address set without intent.
+      if (host) {
+        bindAddress = host;
+        if (!isLocalhostAddress(host)) {
+          allowExternalAccess = true;
+        }
+      }
+
       // External access opt-in (only override if explicitly set to true or false)
       if (process.env.SPEC_WORKFLOW_ALLOW_EXTERNAL_ACCESS !== undefined) {
         const allowExternal = process.env.SPEC_WORKFLOW_ALLOW_EXTERNAL_ACCESS.toLowerCase();

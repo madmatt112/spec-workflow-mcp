@@ -36,6 +36,7 @@ import { listRunsForWire } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit } from '../controller/state.js';
+import { installAccessControl, loadOrCreateSecret, secretPath } from '../controller/access.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -227,6 +228,14 @@ export class MultiProjectDashboardServer {
     if (this.auditLogger) {
       this.app.addHook('onRequest', this.auditLogger.middleware());
     }
+
+    // Shared-secret access control (controller-design.md §17). The secret is
+    // generated on first start and kept in the harness home. The hook and the
+    // login/logout routes are installed before every other route so the hook
+    // covers the static assets, the WebSocket upgrade and the API.
+    const secret = await loadOrCreateSecret();
+    installAccessControl(this.app, secret);
+    console.error(`🔐 Access: dashboard bound to ${this.bindAddress}; shared secret in ${secretPath()}`);
 
     // Register plugins
     await this.app.register(fastifyStatic, {
