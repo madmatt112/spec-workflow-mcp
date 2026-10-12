@@ -149,6 +149,12 @@ export interface DocumentPhaseContext {
   /** `--mcp-config` for every step (the spec-workflow server for this project). */
   mcpConfig?: string | Record<string, unknown>;
   onActivity?: (a: ActivityEvent) => void;
+  /**
+   * A step's tool activity enriched with the step id and role (T6/T10 forward it
+   * to the controller's `controller-activity` feed). The loop knows the step id
+   * and role; the controller stamps the run id.
+   */
+  onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
   /** Gate A/B hooks; defaults to {@link NO_OP_GATES} (T5b supplies real ones). */
   gates?: DocumentGates;
@@ -341,7 +347,12 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       schema: opts.schema,
       runId: ctx.run.id,
       stepId: opts.stepId,
-      onActivity: ctx.onActivity,
+      onActivity: (a) => {
+        ctx.onActivity?.(a);
+        ctx.onStepActivity?.({
+          stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts,
+        });
+      },
       onRateLimit: ctx.onRateLimit,
     };
     const result = await runStep(spec);

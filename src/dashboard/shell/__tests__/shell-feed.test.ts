@@ -4,6 +4,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { ShellFeed } from '../shell-feed.js';
+import { recordActivity, _resetActivityForTests } from '../../../controller/activity.js';
 import { pointerPath } from '../../harness/state-files.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
@@ -236,7 +237,7 @@ describe('ShellFeed', () => {
     });
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs quartet in order after it', async () => {
+  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity quintet in order after it', async () => {
     const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -244,7 +245,28 @@ describe('ShellFeed', () => {
 
     await feed.start();
     const snap = feed.snapshot();
-    expect(snap.map((m) => m.type)).toEqual(['shell-now', 'shell-specs', 'controller-waits', 'controller-runs']);
+    expect(snap.map((m) => m.type)).toEqual([
+      'shell-now', 'shell-specs', 'controller-waits', 'controller-runs', 'controller-activity',
+    ]);
+  });
+
+  it('carries the latest-per-run controller activity in the controller-activity message', async () => {
+    _resetActivityForTests();
+    recordActivity({ runId: 'run-1', stepId: 'drafter', role: 'sdd-drafter', tool: 'Read', inputSummary: 'requirements.md' });
+    // A newer activity for the same run replaces the older one (latest per run).
+    recordActivity({ runId: 'run-1', stepId: 'reviewer-r1', role: 'sdd-reviewer', tool: 'Grep', inputSummary: 'TODO' });
+    recordActivity({ runId: 'run-2', stepId: 'drafter', role: 'sdd-drafter', tool: 'Edit', inputSummary: 'design.md' });
+
+    const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+
+    const msg = ofType(feed.snapshot(), 'controller-activity')[0];
+    expect(msg).toBeDefined();
+    const byRun = new Map(msg.data.activity.map((a) => [a.runId, a]));
+    expect(byRun.get('run-1')).toMatchObject({ stepId: 'reviewer-r1', role: 'sdd-reviewer', tool: 'Grep' });
+    expect(byRun.get('run-2')).toMatchObject({ stepId: 'drafter', tool: 'Edit' });
+    expect(msg.data.activity).toHaveLength(2);
   });
 
   it('sends nothing for 200 ms once close() is called', async () => {

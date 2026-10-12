@@ -5,7 +5,7 @@ import { useShell } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
-import type { Wait, ControllerWait } from './types';
+import type { Wait, ControllerWait, ControllerRun } from './types';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -15,6 +15,17 @@ const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
   merge: 'Merge', escalation: 'Escalation', error: 'Error', question: 'Question',
 };
+
+/** Controller run statuses that count as queued-or-live on the Now page. */
+const CTRL_LIVE_STATUSES: ControllerRun['status'][] = ['queued', 'running', 'merging', 'paused', 'waiting'];
+
+/** One-line detail of a controller run: status, step and pause reason. */
+function ctrlRunDetail(r: ControllerRun): string {
+  const parts = [r.status];
+  if (r.stepKind) parts.push(r.stepKind);
+  if (r.pauseReason) parts.push(r.pauseReason);
+  return parts.join(' · ');
+}
 
 /**
  * The Now page (design C10 Now; Requirement 3; controller spec 16 T4). The home
@@ -83,7 +94,7 @@ function Age({ value }: { value: string | null }) {
 export function NowPage() {
   const navigate = useNavigate();
   const { enabled, projects } = useProjects();
-  const { now, controllerWaits } = useShell();
+  const { now, controllerWaits, controllerRuns } = useShell();
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tick, setTick] = useState(Date.now());
@@ -106,6 +117,19 @@ export function NowPage() {
 
   const waits = useMemo(() => (now?.waits ?? []).filter((w) => enabled(w.projectId)), [now, enabled]);
   const live = useMemo(() => (now?.live ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
+
+  // The controller's queued and live runs (controller-tasks.md T10 item 5) head
+  // the Live runs group; a ledger-derived live row for the same project drops out
+  // (the controller is authoritative for its own runs).
+  const ctrlLive = useMemo(
+    () => controllerRuns.filter(
+      (r) => enabled(r.project) && CTRL_LIVE_STATUSES.includes(r.status),
+    ),
+    [controllerRuns, enabled],
+  );
+  const ctrlProjects = useMemo(() => new Set(ctrlLive.map((r) => r.project)), [ctrlLive]);
+  const legacyLive = useMemo(() => live.filter((r) => !ctrlProjects.has(r.projectId)), [live, ctrlProjects]);
+
   const idle = useMemo(() => (now?.idle ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
   const closed = useMemo(() => (now?.closed ?? []).filter((r) => enabled(r.projectId)), [now, enabled]);
 
@@ -161,26 +185,44 @@ export function NowPage() {
         )}
       </Group>
 
-      <Group name="now-live" title={'Live runs'} count={live.length}>
-        {live.length === 0 ? (
+      <Group name="now-live" title={'Live runs'} count={ctrlLive.length + legacyLive.length}>
+        {ctrlLive.length + legacyLive.length === 0 ? (
           <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'No live runs.'}</p>
         ) : (
-          live.map((r) => (
-            <Row
-              key={`${r.projectId}:${r.runId}`}
-              testId={`live-row-${r.projectId}`}
-              onClick={() => navigate(`/runs/${r.projectId}`)}
-            >
-              <span className="shrink-0 text-xs text-[var(--text-muted)]">{r.projectName}</span>
-              <span className="shrink-0 font-medium text-[var(--text-primary)]">{r.spec}</span>
-              {r.phase && <PhaseChip phase={r.phase} />}
-              <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{r.detail}</span>
-              <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
-                {r.tokens.toLocaleString()} {'tok'}
-              </span>
-              <Age value={fmtAge(r.startedAt, tick)} />
-            </Row>
-          ))
+          <>
+            {ctrlLive.map((r) => (
+              <Row
+                key={`ctrl:${r.id}`}
+                testId={`live-row-${r.project}`}
+                onClick={() => navigate(`/runs/${r.project}`)}
+              >
+                <span className="shrink-0 text-xs text-[var(--text-muted)]">{projectName(r.project)}</span>
+                <span className="shrink-0 font-medium text-[var(--text-primary)]">{r.spec}</span>
+                {r.phase && <PhaseChip phase={r.phase} />}
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{ctrlRunDetail(r)}</span>
+                <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
+                  {r.tokens.toLocaleString()} {'tok'}
+                </span>
+                <Age value={fmtAge(r.created, tick)} />
+              </Row>
+            ))}
+            {legacyLive.map((r) => (
+              <Row
+                key={`${r.projectId}:${r.runId}`}
+                testId={`live-row-${r.projectId}`}
+                onClick={() => navigate(`/runs/${r.projectId}`)}
+              >
+                <span className="shrink-0 text-xs text-[var(--text-muted)]">{r.projectName}</span>
+                <span className="shrink-0 font-medium text-[var(--text-primary)]">{r.spec}</span>
+                {r.phase && <PhaseChip phase={r.phase} />}
+                <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{r.detail}</span>
+                <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
+                  {r.tokens.toLocaleString()} {'tok'}
+                </span>
+                <Age value={fmtAge(r.startedAt, tick)} />
+              </Row>
+            ))}
+          </>
         )}
       </Group>
 

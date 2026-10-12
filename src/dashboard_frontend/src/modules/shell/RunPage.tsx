@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWs } from '../ws/WebSocketProvider';
-import { Group, Chips, Pager, ROWS_PER_PAGE, type Chip } from './primitives';
+import { useShell } from './ShellProvider';
+import { Group, Chips, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { PageLayout, ScrollBox } from './PageLayout';
 import { callHarness, present, type OpError, OpErrorView } from './harness';
 import { formatDate } from '../../lib/dateUtils';
 import type {
   RunModel, AgentProfile, LaunchRecord, SpawnNode, SetupView,
 } from '../harness/types';
-import type { RunDetail, LedgerEvent, ActivityEvent } from './types';
+import type {
+  RunDetail, LedgerEvent, ActivityEvent, ControllerRun, ControllerActivity, ControllerWait,
+} from './types';
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   done: 'Done', 'in-progress': 'In progress', open: 'Open',
@@ -45,6 +48,7 @@ export function RunPage() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const { subscribe, unsubscribe, watchView } = useWs();
+  const { controllerRuns, controllerActivity, controllerWaits } = useShell();
 
   const [model, setModel] = useState<RunModel | null>(null);
   const [profiles, setProfiles] = useState<Record<string, AgentProfile>>({});
@@ -142,6 +146,41 @@ export function RunPage() {
     if (!res.ok) setOpError({ status: res.status, body: res.data });
   }, [projectId, prefix]);
 
+  // The controller run for this project (T10): its in-flight step's "Live now".
+  const ctrlRun = useMemo<ControllerRun | null>(
+    () => controllerRuns.find((r) => r.project === projectId) ?? null,
+    [controllerRuns, projectId],
+  );
+  const ctrlActivity = useMemo<ControllerActivity | null>(
+    () => (ctrlRun ? controllerActivity.find((a) => a.runId === ctrlRun.id) ?? null : null),
+    [controllerActivity, ctrlRun],
+  );
+  const ctrlWaits = useMemo<ControllerWait[]>(
+    () => (ctrlRun ? controllerWaits.filter((w) => w.run === ctrlRun.id && w.state === 'open') : []),
+    [controllerWaits, ctrlRun],
+  );
+  const [logTail, setLogTail] = useState<string>('');
+
+  // Fetch the in-flight step's log tail on open and every 5 s while running.
+  const ctrlRunId = ctrlRun?.id ?? null;
+  const ctrlRunning = ctrlRun?.status === 'running';
+  useEffect(() => {
+    if (!ctrlRunId) { setLogTail(''); return; }
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/controller/runs/${ctrlRunId}/log?tail=50`);
+        if (!res.ok) return;
+        const text = await res.text();
+        if (alive) setLogTail(text);
+      } catch { /* a missing log just shows nothing */ }
+    };
+    load();
+    if (!ctrlRunning) return () => { alive = false; };
+    const id = setInterval(load, 5000);
+    return () => { alive = false; clearInterval(id); };
+  }, [ctrlRunId, ctrlRunning]);
+
   const hasRun = !!model && (
     !!model.runId || model.phases.length > 0 || model.spawns.length > 0 ||
     model.tasks.length > 0 || model.rounds.length > 0 || (detail?.ledgerRows.length ?? 0) > 0
@@ -159,10 +198,22 @@ export function RunPage() {
         >
           {'← Runs'}
         </button>
-        {spec && <h1 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec}</h1>}
+        {(spec || ctrlRun?.spec) && <h1 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec ?? ctrlRun?.spec}</h1>}
       </div>
 
-      {loaded && !hasRun ? (
+      {ctrlRun && (
+        <LiveNow
+          run={ctrlRun}
+          activity={ctrlActivity}
+          profiles={profiles}
+          waits={ctrlWaits}
+          logTail={logTail}
+          now={tick}
+          onOpenWait={() => navigate('/')}
+        />
+      )}
+
+      {loaded && !hasRun && !ctrlRun ? (
         <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]" data-testid="run-empty">
           {'no run for this project'}
         </div>
@@ -216,6 +267,94 @@ function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
         ))}
       </div>
     </ScrollBox>
+  );
+}
+
+// --- Live now (controller run) ---------------------------------------------
+
+const CTRL_LIVE_STATUSES = ['queued', 'running', 'merging', 'paused', 'waiting'];
+
+const CTRL_WAIT_LABELS: Record<string, string> = {
+  'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
+  merge: 'Merge', escalation: 'Escalation', error: 'Error', question: 'Question',
+};
+
+/**
+ * "Live now" for a controller run (design C10 Runs; controller-tasks.md T10):
+ * the in-flight step's role, model, elapsed and current tool from the
+ * `controller-activity` feed, plus the step log tail. Open gate and wait rows
+ * link to the Now page sheet where they are answered.
+ */
+function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
+  run: ControllerRun;
+  activity: ControllerActivity | null;
+  profiles: Record<string, AgentProfile>;
+  waits: ControllerWait[];
+  logTail: string;
+  now: number;
+  onOpenWait: () => void;
+}) {
+  const live = CTRL_LIVE_STATUSES.includes(run.status);
+  const role = activity?.role ?? null;
+  const profile = role ? profiles[role] : undefined;
+  const elapsed = activity?.ts ? fmtDuration(now - Date.parse(activity.ts)) : null;
+  const logLines = logTail ? logTail.split('\n') : [];
+
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-3" data-testid="live-now">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-[var(--text-primary)]">{'Live now'}</span>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+          live
+            ? 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]'
+            : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
+        }`}>
+          {run.status}
+        </span>
+        {run.phase && <span className="text-xs text-[var(--text-secondary)]">{run.phase}</span>}
+      </div>
+
+      {activity ? (
+        <div className="text-xs text-[var(--text-secondary)] break-words" data-testid="live-now-step">
+          <span className="font-medium text-[var(--text-primary)]">{profile?.role ?? role}</span>
+          {present(role) && <span className="ml-1 text-[var(--text-muted)]">{role}</span>}
+          {present(profile?.model) && <> · {'model'}: {profile!.model}</>}
+          {present(elapsed) && <> · {'elapsed'}: {elapsed}</>}
+          {present(activity.tool) && <> · {'tool'}: {activity.tool}</>}
+          {present(activity.inputSummary) && (
+            <span className="ml-1 text-[var(--text-muted)]">{activity.inputSummary}</span>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-[var(--text-muted)]" data-testid="live-now-idle">
+          {live ? 'Waiting for the next step to report a tool.' : 'This run is not active.'}
+        </p>
+      )}
+
+      {waits.length > 0 && (
+        <div className="mt-2 space-y-1" data-testid="live-now-waits">
+          {waits.map((w) => (
+            <Row key={w.id} testId={`live-now-wait-${w.id}`} onClick={onOpenWait}>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                {CTRL_WAIT_LABELS[w.kind] ?? w.kind}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{'Answer on the Now page'}</span>
+            </Row>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2">
+        <div className="mb-1 text-xs text-[var(--text-muted)]">{'Step log'}</div>
+        {logLines.length === 0 ? (
+          <p className="px-2 py-1 text-xs text-[var(--text-muted)]">{'No log yet.'}</p>
+        ) : (
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]" data-testid="live-now-log">
+            {logLines.slice(-50).join('\n')}
+          </pre>
+        )}
+      </div>
+    </div>
   );
 }
 

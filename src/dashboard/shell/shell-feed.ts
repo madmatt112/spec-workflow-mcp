@@ -15,7 +15,10 @@ import { buildSpecRows } from './spec-rows.js';
 import { FileCache } from './file-cache.js';
 import { listWaitsForWire } from '../../controller/waits.js';
 import { listRunsForWire } from '../../controller/runs.js';
-import type { ShellMessage, SpecListRow, ControllerWait, ControllerRun } from './types.js';
+import { listActivityForWire } from '../../controller/activity.js';
+import type {
+  ShellMessage, SpecListRow, ControllerWait, ControllerRun, ControllerActivity,
+} from './types.js';
 
 export class ShellFeed {
   private readonly throttleMs: number;
@@ -70,10 +73,11 @@ export class ShellFeed {
   /**
    * One recompute: read the pointer once, run the Now builder over every project
    * and the Specs-row builder per project (a project whose rows throw is left out
-   * and logged once), read the controller waits and runs, keep the quartet and
-   * send `shell-now`, `shell-specs`, `controller-waits` then `controller-runs`.
-   * The waits and runs ride the same broadcast path as the other shell topics
-   * (T4/T6; controller-design.md §7).
+   * and logged once), read the controller waits, runs and latest-per-run
+   * activity, keep the quintet and send `shell-now`, `shell-specs`,
+   * `controller-waits`, `controller-runs` then `controller-activity`. The
+   * controller topics ride the same broadcast path as the other shell topics
+   * (T4/T6/T10; controller-design.md §7, §4).
    */
   private flush = async (): Promise<void> => {
     this.timer = undefined;
@@ -108,12 +112,20 @@ export class ShellFeed {
       console.error('ShellFeed: skipping controller runs', err);
     }
 
+    let activity: ControllerActivity[] = [];
+    try {
+      activity = listActivityForWire() as ControllerActivity[];
+    } catch (err) {
+      console.error('ShellFeed: skipping controller activity', err);
+    }
+
     if (this.closed) return;
     const messages: ShellMessage[] = [
       { type: 'shell-now', data: nowModel },
       { type: 'shell-specs', data: { rows } },
       { type: 'controller-waits', data: { waits } },
       { type: 'controller-runs', data: { runs } },
+      { type: 'controller-activity', data: { activity } },
     ];
     this.last = messages;
     for (const m of messages) this.send(m);

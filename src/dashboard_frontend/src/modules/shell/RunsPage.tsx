@@ -7,7 +7,7 @@ import { Group, Row } from './primitives';
 import {
   callHarness, buildLaunchInput, OpErrorView, type OpError,
 } from './harness';
-import type { RunListRow, NowModel } from './types';
+import type { RunListRow, NowModel, ControllerRun } from './types';
 import type { SetupView, SetupInput, Provider } from '../harness/types';
 
 /**
@@ -78,9 +78,10 @@ function RunRows({ rows, now, onOpen, empty }: {
 export function RunsPage() {
   const navigate = useNavigate();
   const { enabled, projects } = useProjects();
-  const { now } = useShell();
+  const { now, controllerRuns } = useShell();
 
   const [launchOpen, setLaunchOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [tick, setTick] = useState(Date.now());
 
   useEffect(() => {
@@ -92,6 +93,22 @@ export function RunsPage() {
   const live = useMemo(() => runs.filter((r) => r.state === 'live'), [runs]);
   const ended = useMemo(() => runs.filter((r) => r.state !== 'live'), [runs]);
   const enabledProjects = useMemo(() => projects.filter((p) => enabled(p.projectId)), [projects, enabled]);
+
+  const ctrlRuns = useMemo(
+    () => controllerRuns.filter((r) => enabled(r.project)),
+    [controllerRuns, enabled],
+  );
+  const projectName = useMemo(() => {
+    const byId = new Map(projects.map((p) => [p.projectId, p.projectName]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [projects]);
+
+  // Re-derive the selected run each push so the panel refreshes and drops a run
+  // that finished or was discarded.
+  const selectedRun = useMemo<ControllerRun | null>(
+    () => ctrlRuns.find((r) => r.id === selectedRunId) ?? null,
+    [ctrlRuns, selectedRunId],
+  );
 
   const open = (projectId: string) => navigate(`/runs/${projectId}`);
 
@@ -124,6 +141,23 @@ export function RunsPage() {
         </div>
       )}
 
+      <Group name="runs-controller" title={'Queue and controller runs'} count={ctrlRuns.length}>
+        {ctrlRuns.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'No controller runs.'}</p>
+        ) : (
+          ctrlRuns.map((r) => (
+            <ControllerRunRow
+              key={r.id}
+              run={r}
+              projectName={projectName(r.project)}
+              now={tick}
+              selected={selectedRunId === r.id}
+              onClick={() => setSelectedRunId(r.id)}
+            />
+          ))
+        )}
+      </Group>
+
       <Group name="runs-live" title={'Live'} count={live.length}>
         <RunRows rows={live} now={tick} onOpen={open} empty={'No live runs.'} />
       </Group>
@@ -134,7 +168,160 @@ export function RunsPage() {
     </div>
   );
 
-  return <PageLayout list={list} />;
+  const panel = selectedRun ? (
+    <ControllerRunPanel
+      key={selectedRun.id}
+      run={selectedRun}
+      projectName={projectName(selectedRun.project)}
+      now={tick}
+      onOpenRun={() => navigate(`/runs/${selectedRun.project}`)}
+      onGone={() => setSelectedRunId(null)}
+    />
+  ) : undefined;
+
+  return <PageLayout list={list} panel={panel} />;
+}
+
+// --- Controller runs -------------------------------------------------------
+
+const CTRL_STATUS_STYLES: Record<string, string> = {
+  running: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
+  merging: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
+  queued: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+  paused: 'bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] text-amber-600 dark:text-amber-400',
+  waiting: 'bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] text-amber-600 dark:text-amber-400',
+  error: 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]',
+  done: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+  abandoned: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+};
+
+function CtrlStatusChip({ status }: { status: ControllerRun['status'] }) {
+  return (
+    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${CTRL_STATUS_STYLES[status] ?? CTRL_STATUS_STYLES.queued}`}>
+      {status}
+    </span>
+  );
+}
+
+/** The step cursor as one line: the step kind, or '—' before a step runs. */
+function cursorLine(run: ControllerRun): string {
+  return run.stepKind ? run.stepKind : '—';
+}
+
+function ControllerRunRow({ run, projectName, now, selected, onClick }: {
+  run: ControllerRun;
+  projectName: string;
+  now: number;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const paused = run.status === 'paused' || run.status === 'waiting';
+  return (
+    <Row testId={`ctrl-run-row-${run.id}`} selected={selected} onClick={onClick}>
+      <span className="shrink-0 text-xs text-[var(--text-muted)]">{projectName}</span>
+      <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{run.spec}</span>
+      <CtrlStatusChip status={run.status} />
+      {run.phase && <span className="shrink-0 text-xs text-[var(--text-secondary)]">{run.phase}</span>}
+      <span className="shrink-0 text-xs text-[var(--text-muted)]">{cursorLine(run)}</span>
+      {paused && run.pauseReason && (
+        <span className="shrink-0 text-xs text-amber-600 dark:text-amber-400">
+          {run.pauseReason}{run.resumeAt ? ` → ${fmtAge(run.resumeAt, now) ?? ''}` : ''}
+        </span>
+      )}
+      <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{run.tokens.toLocaleString()} tok</span>
+      <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{fmtAge(run.created, now) ?? ''}</span>
+    </Row>
+  );
+}
+
+function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
+  run: ControllerRun;
+  projectName: string;
+  now: number;
+  onOpenRun: () => void;
+  onGone: () => void;
+}) {
+  const [busy, setBusy] = useState<null | 'cancel' | 'discard'>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const act = async (kind: 'cancel' | 'discard') => {
+    setBusy(kind);
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/runs/${run.id}/${kind}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`${kind} failed (${res.status})`);
+      onGone();
+    } catch (e: any) {
+      setError(e?.message ?? `${kind} failed`);
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="ctrl-run-panel">
+      <div className="mb-3">
+        <div className="flex items-center gap-2">
+          <CtrlStatusChip status={run.status} />
+          <span className="text-xs text-[var(--text-muted)]">{projectName}</span>
+        </div>
+        <h2 className="mt-1 break-words text-base font-semibold text-[var(--text-primary)]">{run.spec}</h2>
+      </div>
+
+      <div className="space-y-1 border-t border-[var(--border-default)] pt-3">
+        <SummaryLine label={'Run id'} value={<span className="font-mono text-xs">{run.id}</span>} />
+        {run.phase && <SummaryLine label={'Phase'} value={run.phase} />}
+        <SummaryLine label={'Step'} value={cursorLine(run)} />
+        {run.pauseReason && <SummaryLine label={'Paused'} value={run.pauseReason} />}
+        {run.resumeAt && <SummaryLine label={'Resumes'} value={fmtAge(run.resumeAt, now) ?? run.resumeAt} />}
+        <SummaryLine label={'Tokens'} value={`${run.tokens.toLocaleString()} tok`} />
+        <SummaryLine label={'Age'} value={fmtAge(run.created, now) ?? '—'} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onOpenRun}
+          data-testid="ctrl-open-run"
+          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+        >
+          {'Open run page'}
+        </button>
+        <button
+          type="button"
+          onClick={() => act('cancel')}
+          disabled={busy !== null}
+          data-testid="ctrl-cancel"
+          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+        >
+          {busy === 'cancel' ? 'Cancelling…' : 'Cancel'}
+        </button>
+        {confirmDiscard ? (
+          <button
+            type="button"
+            onClick={() => act('discard')}
+            disabled={busy !== null}
+            data-testid="ctrl-discard-confirm"
+            className="rounded-md bg-[var(--status-error)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy === 'discard' ? 'Discarding…' : 'This deletes the worktree and branch and closes the PR'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmDiscard(true)}
+            disabled={busy !== null}
+            data-testid="ctrl-discard"
+            className="rounded-md border border-[var(--status-error)] px-3 py-1.5 text-sm text-[var(--status-error)] hover:bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] disabled:opacity-50"
+          >
+            {'Discard'}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-sm text-[var(--status-error)]">{error}</p>}
+    </div>
+  );
 }
 
 // --- Launch card -----------------------------------------------------------
