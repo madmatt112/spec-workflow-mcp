@@ -399,6 +399,13 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   spec, worktree, gates, supervisorModel, roles). Found and cleaned: route and controller
   tests had written run and wait records into the real home; fix PR in flight
   (`fix/tests-never-touch-real-home`).
+- 2026-10-12 19:17Z fixture run reached gate A (wait `w-d90ffff1`, 5 ranked decisions, 2
+  recorded without asking) after the drafter step (requirements v1, 1,352 words) and a lint-fix
+  reviser step, both committed in the fixture's store; worktree `feat/greeting-endpoint`
+  created. Two defects to fix after the run: `run.json` token totals stay 0 although every
+  `spawn.end` row carries usage; step logs are written to `controller-steps/` inside the spec
+  dir (design §3 puts them in the home; check they are at least gitignored). Waiting on
+  Matthew to answer gate A on the Now page.
 
 ## 8. Pointers
 
