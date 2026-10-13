@@ -136,6 +136,12 @@ live in `references/stops.md`. Read each file only when a step routes to it.
    `brief` kinds, each with `values` carrying its `path`, `codeRoot: <CODE_ROOT>`,
    `mainCheckout: <MAIN_CHECKOUT>`, `specStoreRoot: <SPEC_STORE_ROOT>` and `specDir: <spec
    dir>`.
+4b. **gh precheck (retro P3).** When `git -C <CODE_ROOT> remote` lists a remote, run `gh
+   auth status` once now, at phase start. If it reports unauthenticated, do not wait until
+   the push at step 10 to discover it: record `note "text=gh unauthenticated; authenticate
+   gh to open the PR"` through `book.sh` (`event`) and carry that line into your eventual
+   report and the HANDOFF section, so the operator sees the prerequisite up front. The phase
+   still proceeds — the push and PR step owns the fallback.
 5. Record `phase.start phase=implementation mode=<MODE> budget=<BUDGET> "state=tasks
    <done>/<total>"` through `book.sh` (`event`).
 
