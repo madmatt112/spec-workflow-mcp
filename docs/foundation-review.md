@@ -484,8 +484,11 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   reset; a run the scheduler releases from `usage-window` drops `pauseReason`/`resumeAt`).
   Without it a real 95% block would have re-read the stale file at reset with a zero delay.
   PR #116 merged (fixture retro P2: the gate reads `typecheck: none` from `agent-rules.md`,
-  new R4.6c directive, 18th methodology fixture, spec `tighter-reviews` updated). Both wait
-  for the farewell run's next wait to deploy (self-update refuses while a step is live).
+  new R4.6c directive, 18th methodology fixture, spec `tighter-reviews` updated). Both
+  deployed by self-update at 21:57Z while the run was parked at gate B `w-a6711251`
+  (fourth restart mid-run; the wait survived, the fixture project stayed listed because a
+  background MCP server process keeps it registered). #111 confirmed live: this run's step
+  logs are under `runs/<id>/steps/`, none in the spec dir.
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
