@@ -425,6 +425,15 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   the pointer line, and spawned the old supervisor headless (`claude -p "continue the sdd
   process" --model claude-opus-5-5`); the supervisor reused the same run id (`run.start` plus
   a note that it recreated its scratch scripts). The bridge works.
+- 2026-10-13 01:58-02:17Z implementation: 3 tasks, all gate-pass risk low (two with a TDD red
+  proof), branch `feat/greeting-endpoint` pushed, **PR not opened: `gh` unauthenticated inside
+  the service** (auth on this box is `GH_TOKEN` in Matthew's shell; the unit carries only HOME
+  and PATH). The merge stage then found no PR and **silently proceeded** to the retro (should
+  be an `error` wait). The retro ran: 7 proposals, 3 decisions (P7 is the gh question itself);
+  `retro-plan` wait `w-3c9400ec` open. Also: the controller wrote a second `phase.end
+  implementation complete` row after the supervisor exited (duplicate). PR #1 in the fixture
+  opened and merged by the session by hand so close-out has a merged base. Fix PR spawned:
+  service env file with `GH_TOKEN`, no-PR ⇒ error wait, no duplicate phase.end.
 
 ## 8. Pointers
 
