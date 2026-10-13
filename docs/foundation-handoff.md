@@ -41,8 +41,10 @@ untouched, the `registry-lock.test.ts:195` timing flake.
 ## The live fixture run (as of 2026-10-12 23:20Z)
 
 Run `run-20261012-191315` on project `_Dgt_snFrWSyYP-0` (`/home/mcf/repo/sdd-fixture`, repo
-`madmatt112/sdd-fixture`, spec `greeting-endpoint`) is parked at gate B (wait `w-f1e69d0d`,
-open since 20:28Z) with requirements, design and tasks approved at round 1 each. When Matthew
+`madmatt112/sdd-fixture`, spec `greeting-endpoint`) is parked at the `retro-plan` wait `w-3c9400ec` (open since 2026-10-13 02:17Z): documents
+approved at round 1 each, implementation done by the supervisor (3 tasks), branch pushed, PR #1
+in the fixture opened by hand (gh was unauthenticated in the service; fixed by PR #109 and a
+service reinstall) and awaiting Matthew's merge click; close-out follows the plan approval. When Matthew
 approves on the Now page, the controller spawns the old supervisor for implementation
 (`continue the sdd process`, headless), then the merge stage (`merge: auto`), then a
 `retro-plan` wait, then close-out, then `done`. To watch: the run record is

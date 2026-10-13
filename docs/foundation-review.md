@@ -438,6 +438,12 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
 - 2026-10-13 PR #109 merged (`9cc8714`): `service.env` (0600) with the gh token read by the
   unit, no-PR ⇒ `error` wait with Retry, the supervisor owns its phase rows. Applied with the
   first real `sdd-self-update.sh` while the fixture run was parked at the retro-plan wait.
+  Result: staged build, smoke boot on 5999, dist swapped, service restarted, the parked run
+  survived (still `waiting retrospective`); `service.env` written, `EnvironmentFile` in the
+  unit, `gh auth status` green under the service env. Done-when items now exercised: launch,
+  gate A and B answered in the dashboard, document phases in code, the supervisor bridge, a
+  controller restart mid-run. Not yet: merge by rule (the no-PR path hit first), the
+  retro-plan wait and close-out, a forced window threshold.
 
 ## 8. Pointers
 
