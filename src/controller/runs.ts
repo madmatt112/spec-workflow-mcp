@@ -33,7 +33,7 @@ import { parseJsonl } from '../watch/ledger.js';
 import { removePointerLine } from '../dashboard/harness/state-files.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
-  processStartTime, isProcessAlive,
+  processStartTime, isProcessAlive, runStepsDir,
 } from './state.js';
 import { openRunLedger, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -698,7 +698,7 @@ async function runMergeStageStep(
   const result = await runMergeStage(run, {
     rules: deps.mergeRules(run),
     specDir,
-    stepLogDir: stepLogDir(specDir, run.id),
+    stepLogDir: stepLogDir(run.id),
     ledger,
     now: deps.now,
   });
@@ -822,7 +822,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       run = await save(deps, run, { phase: decision.phase, cursor: { phase: decision.phase, stepKind: 'document', attempt: 1 } });
       const ctx: DocumentPhaseContext = {
         run, phase: decision.phase, specStoreRoot, specDir, codeRoot: run.worktree,
-        ledger, stepLogDir: stepLogDir(specDir, run.id),
+        ledger, stepLogDir: stepLogDir(run.id),
         mcpConfig, gates: deps.gates ?? NO_OP_GATES,
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         now: deps.now,
@@ -897,7 +897,7 @@ async function handleDocumentOutcome(
     await save(deps, run, { cursor: { phase, stepKind: 'document', attempt: attempt + 1 } });
     const retry = await runDocumentPhase({
       run, phase, specStoreRoot: run.specStore, specDir, codeRoot: run.worktree,
-      ledger, stepLogDir: stepLogDir(specDir, run.id),
+      ledger, stepLogDir: stepLogDir(run.id),
       mcpConfig: deps.mcpConfigFor(run), gates: deps.gates ?? NO_OP_GATES,
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
       now: deps.now,
@@ -963,7 +963,7 @@ async function runSupervisorStep(
       specStoreRoot: run.specStore,
       runId: run.id,
       stepId,
-      logPath: join(stepLogDir(specDir, run.id), `${stepId}.jsonl`),
+      logPath: join(stepLogDir(run.id), `${stepId}.jsonl`),
       onRateLimit: deps.onRateLimit,
       onPid: (pid, startTime) => {
         deps.setInFlight(pid, startTime);
@@ -1177,14 +1177,14 @@ export async function listRunsForWire(): Promise<ControllerRunRow[]> {
 }
 
 /** The step-log directory for a run (where supervisor/step streams are written). */
-export function stepLogDir(specDir: string, runId: string): string {
-  return join(dirname(ledgerPath(specDir)), 'controller-steps', runId);
+export function stepLogDir(runId: string): string {
+  return runStepsDir(runId);
 }
 
 // A readdir re-export kept local so the controller can scan step logs if needed.
-export function listStepLogs(specDir: string, runId: string): string[] {
+export function listStepLogs(runId: string): string[] {
   try {
-    return readdirSync(stepLogDir(specDir, runId));
+    return readdirSync(stepLogDir(runId));
   } catch {
     return [];
   }
@@ -1200,8 +1200,7 @@ export function listStepLogs(specDir: string, runId: string): string[] {
 export async function readRunLogTail(runId: string, tail: number): Promise<string | null> {
   const run = await readRun(runId);
   if (!run) return null;
-  const specDir = PathUtils.getSpecPath(run.specStore, run.spec);
-  const dir = stepLogDir(specDir, runId);
+  const dir = stepLogDir(runId);
 
   let file: string | undefined;
   if (run.inFlight?.id) {

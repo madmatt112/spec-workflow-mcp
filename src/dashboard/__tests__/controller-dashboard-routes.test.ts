@@ -9,7 +9,6 @@ import { ProjectRegistry, generateProjectId } from '../../core/project-registry.
 import { loadOrCreateSecret } from '../../controller/access.js';
 import { writeRun, writeRateLimit, type RunRecord } from '../../controller/state.js';
 import { stepLogDir } from '../../controller/runs.js';
-import { PathUtils } from '../../core/path-utils.js';
 
 // Contract for the T10 dashboard routes (controller-tasks.md "T10 dashboard";
 // controller-design.md §9, §4). Same shape as controller-waits-routes.test.ts:
@@ -122,8 +121,7 @@ describe('controller dashboard routes (T10)', () => {
     };
     await writeRun(run);
 
-    const specDir = PathUtils.getSpecPath(specStore, spec);
-    const dir = stepLogDir(specDir, run.id);
+    const dir = stepLogDir(run.id);
     mkdirSync(dir, { recursive: true });
     const lines = Array.from({ length: 120 }, (_, i) => JSON.stringify({ type: 'line', n: i }));
     writeFileSync(join(dir, 'drafter.jsonl'), lines.join('\n') + '\n');
