@@ -459,6 +459,17 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   untracked and gitignored. Open: the controller's final `run.end` row and the removal of
   `harness-run.json` are written after the last commit, so they stay uncommitted in the
   spec store; `harness-run.json` is machine state and should not be tracked in any project.
+- 2026-10-13 second fixture run `run-20261013-203521` (spec `farewell`, added to the
+  fixture's decomposition with a `test` CI workflow so the merge rule has a real check).
+  Two launch gaps found, both worked around by hand: (1) the dashboard lists a project only
+  while an MCP server process for it is alive, so after the restart the fixture was "Project
+  not found" until a background `node dist/index.js <fixture>` re-registered it; the
+  controller needs its own durable project list in the home. (2) A spec named in
+  `decomposition.md` with no `specs/<name>/` dir is invisible to routing, so launch was
+  disabled ("every spec on disk is Complete"); the old supervisor created the dir itself.
+  Workaround: create the dir with a `.gitkeep`. Plan for the threshold test: at gate A, set
+  `CONTROLLER_WINDOW_THRESHOLD=0.01`, restart, answer; the run should park on
+  `usage-window`; restore, restart, it should resume.
 
 ## 8. Pointers
 
