@@ -189,6 +189,62 @@ describe('parseProposals and buildRetroPlanMarkdown', () => {
   });
 });
 
+describe('parseProposals on the real greeting-endpoint fixture', () => {
+  const fixture = readFileSync(join(HERE, 'fixtures', 'retrospective-proposals.md'), 'utf-8');
+  const proposals = parseProposals(fixture);
+  const byId = Object.fromEntries(proposals.map((p) => [p.id, p]));
+
+  it('parses every P<n> proposal block', () => {
+    expect(proposals.map((p) => p.id)).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7']);
+  });
+
+  it('joins a question that wraps across lines and keeps the full text', () => {
+    expect(byId.P1.question).toBe('Should `{ hour: null }` keep throwing, or be normalised to "no hour"?');
+  });
+
+  it('reads the `- Option …` lines as options with the recommended one marked', () => {
+    expect(byId.P1.options).toHaveLength(2);
+    expect(byId.P1.options?.[0]).toMatch(/^keep throwing; document both branches and add tests\./);
+    expect(byId.P1.options?.[1]).toMatch(/^normalise `null`\/`undefined` hour to "no hour"/);
+    expect(byId.P1.recommended).toBe(byId.P1.options?.[0]);
+  });
+
+  it('joins option text that wraps across lines', () => {
+    expect(byId.P1.options?.[0]).toContain('preserves the "explicit invalid hour is an error" invariant.');
+    // P7 Option C wraps and carries an inner colon in a code span.
+    expect(byId.P7.options?.[2]).toContain('pr-on-auth-fail: ship | halt');
+  });
+
+  it('handles a three-option decision', () => {
+    expect(byId.P2.question).toBe('Add real static checking, or declare none?');
+    expect(byId.P2.options).toHaveLength(3);
+    expect(byId.P2.recommended).toMatch(/^declare `typecheck: none`/);
+  });
+
+  it('leaves a DECISION NEEDED: no proposal free of a question and options', () => {
+    expect(byId.P3.question).toBeUndefined();
+    expect(byId.P3.options).toBeUndefined();
+    expect(byId.P6.question).toBeUndefined();
+  });
+
+  it('keeps the bold title as the label and the rest as the body', () => {
+    expect(byId.P1.label).toBe('P1 (F1) — Disambiguate `{ hour: null }` from a missing hour.');
+    expect(byId.P1.body).toMatch(/^Today a missing/);
+    expect(byId.P1.body).not.toContain('**');
+    // A title that itself wraps across two lines joins into one label.
+    expect(byId.P2.label).toBe('P2 (F2) — Declare "no typecheck configured" so the gate stops recording a degraded state.');
+  });
+
+  it('builds wait questions with options and a pre-selected recommendation', () => {
+    const wait = parseProposals(fixture);
+    // Mirror proposalWaitQuestions indirectly via buildRetroPlanMarkdown's inputs:
+    const decisions = wait.filter((p) => p.question);
+    expect(decisions.map((p) => p.id)).toEqual(['P1', 'P2', 'P7']);
+    expect(decisions.every((p) => (p.options?.length ?? 0) >= 2)).toBe(true);
+    expect(decisions.every((p) => p.recommended && p.options?.includes(p.recommended))).toBe(true);
+  });
+});
+
 describe('runOnce usage-limit pause', () => {
   it('pauses the run when a document step hits the usage limit', async () => {
     writeScript(fx, [{
