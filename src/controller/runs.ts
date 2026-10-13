@@ -553,7 +553,7 @@ async function waitAnd(
 type MergeStepOutcome =
   | 'stop'    // the run parked (merging re-check, a merge wait, or an error wait)
   | 'merged'  // the PR is merged; re-route to the retrospective
-  | 'none';   // no open PR yet, or already merged: run the supervisor / re-route
+  | 'none';   // the PR is already merged: re-route to the retrospective
 
 /** Has this run already merged its PR (a `pr.merged` row on the ledger)? */
 function hasMerged(specDir: string, runId: string): boolean {
@@ -586,8 +586,10 @@ function nextMergeCheck(deps: RunDeps): string {
  * status `merging` with a re-check time (the scheduler tick re-enters, no slot
  * busy-wait); `waiting` ⇒ the `merge` wait is open, status `waiting` (an answer
  * resumes the run); `merged` ⇒ `pr.merged` is already written, continue to the
- * retrospective; `failed` ⇒ an `error` wait with the reasons. Returns `none`
- * when the implementation has not reached a PR yet or the PR is already merged.
+ * retrospective; `failed` ⇒ an `error` wait with the reasons. No open PR when
+ * the implementation reported complete ⇒ status `waiting` on an `error` wait and
+ * `stop` (the branch was pushed but no PR was opened). Returns `none` only when
+ * the PR is already merged (re-route to the retrospective).
  */
 async function runMergeStageStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
@@ -595,7 +597,25 @@ async function runMergeStageStep(
   if (hasMerged(specDir, run.id)) return 'none';
 
   const pr = await findPullRequest({ repoDir: run.codeRoot, branch: run.branch, number: run.pr });
-  if (!pr) return 'none';
+  if (!pr) {
+    // The implementation phase reported complete but no open PR exists for the
+    // branch (probable cause: gh unauthenticated in the controller's
+    // environment). Stop with an `error` wait rather than silently proceeding
+    // to the retrospective (design §6, §10). The `merge` cursor makes a "retry"
+    // re-enter the merge stage and find the hand-opened PR, instead of re-running
+    // the implementation supervisor step.
+    run = await save(deps, run, {
+      cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+    });
+    await waitAnd(deps, run, ledger, 'error', specDir, [{
+      id: 'merge',
+      text: `The ${run.branch} branch was pushed but no pull request exists for it. `
+        + "Probable cause: gh is unauthenticated in the controller's environment. "
+        + 'Open the PR by hand then answer "Retry", or fix the service env file and "Retry".',
+      options: ['retry', 'abandon'], recommended: 'retry',
+    }]);
+    return 'stop';
+  }
   if (run.pr !== pr.number) run = await save(deps, run, { pr: pr.number });
 
   const result = await runMergeStage(run, {
@@ -638,7 +658,8 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   // is not re-run (design §6, §10).
   const specDirForResume = PathUtils.getSpecPath(run.specStore, run.spec);
   let resumingMerge = run.status === 'merging'
-    || (!hasMerged(specDirForResume, run.id) && (await hasMergeWait(run.id)));
+    || (!hasMerged(specDirForResume, run.id)
+        && (run.cursor?.stepKind === 'merge' || (await hasMergeWait(run.id))));
 
   // Resolve the worktree once (reuse the launcher's `ensureWorktree`).
   if (!run.worktree) {
@@ -737,20 +758,22 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
 
     // decision.kind === 'supervisor' (implementation or close-out).
     const signature = routeSignature(specStoreRoot, run.spec);
-    const stop = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
+    const outcome = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
     run = (await readRun(runId)) ?? run;
-    if (stop) return;
+    if (outcome === 'stop') return;
+    if (outcome === 'retry') continue; // fresh retry: re-route and re-run the supervisor
 
+    // `outcome === 'complete'`: the supervisor reported the phase done.
     // Implementation ends at the pull request (design §6): merge it by rule
-    // before the retrospective starts (the retro reads the merged state). The
-    // step is a no-op (`none`) until a PR is open and only runs once per run.
+    // before the retrospective starts (the retro reads the merged state). A
+    // completed implementation with no open PR is an `error` wait, not a silent
+    // skip to the retro (`runMergeStageStep` returns `stop`).
     if (decision.phase === 'implementation') {
       const merge = await runMergeStageStep(deps, run, ledger, specDir);
       run = (await readRun(runId)) ?? run;
       if (merge === 'stop') return;
       if (merge === 'merged') { lastSignature = null; continue; }
-      // `none`: no open PR yet (implementation not done) or already merged —
-      // fall through to the no-progress guard and re-route.
+      // `none`: the PR is already merged — fall through and re-route to the retro.
     }
 
     // No-progress guard: a supervisor step that exits cleanly but leaves the
@@ -820,16 +843,26 @@ function fifteenMinutes(deps: RunDeps): string {
   return new Date(deps.now().getTime() + 15 * 60 * 1000).toISOString();
 }
 
+/** What one supervisor step tells `runOnce`. */
+type SupervisorStepOutcome =
+  | 'stop'      // the run parked (paused, cancelled, or an error wait)
+  | 'retry'     // a fresh retry: re-route and re-run the supervisor once
+  | 'complete'; // the phase reported done; re-route (implementation runs merge first)
+
 /**
  * Run one supervisor step (implementation or close-out). Writes the pointer line
  * the hook needs, writes `harness-run.json` with `gates: record` and the saved
- * setup, spawns the supervisor, and removes the pointer line on exit. Returns
- * `true` when the run should stop (paused, retried into an error wait, cancelled).
+ * setup, spawns the supervisor, and removes the pointer line on exit.
+ *
+ * The controller writes no `phase.start`/`phase.end` rows here: the supervisor
+ * owns the phase rows of a phase it runs (the implementation and close-out phase
+ * skills write them), so writing them here would duplicate them. The controller
+ * writes phase rows only for the phases it runs itself (the document loop).
  */
 async function runSupervisorStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
   phase: 'implementation' | 'closeout',
-): Promise<boolean> {
+): Promise<SupervisorStepOutcome> {
   const stepId = `supervisor-${phase}-${randomUUID().slice(0, 8)}`;
   const setup = readOrDefaultRunFile(run);
   writeRunFileWithRecordGates(run, setup);
@@ -842,7 +875,6 @@ async function runSupervisorStep(
   const prior = run.cursor;
   const attempt = prior?.stepKind === 'supervisor' && prior.phase === phase ? prior.attempt : 1;
   run = await save(deps, run, { phase, cursor: { phase, stepKind: 'supervisor', attempt } });
-  ledger.phaseStart(phase, { mode: 'normal' });
 
   let result: SupervisorResult;
   try {
@@ -869,33 +901,29 @@ async function runSupervisorStep(
   await save(deps, run, { inFlight: undefined });
 
   if (deps.isCancelled(run.id) || run.status === 'abandoned') {
-    ledger.phaseEnd(phase, { result: 'cancelled' });
-    return true;
+    return 'stop';
   }
 
   if (result.classification === 'usage-limit') {
-    ledger.phaseEnd(phase, { result: 'usage-limit' });
     const window = deps.windowBlock();
     await pause(deps, run, 'usage-limit', window.resumeAt ?? fifteenMinutes(deps));
-    return true;
+    return 'stop';
   }
 
   if (result.classification === 'error') {
-    ledger.phaseEnd(phase, { result: 'error' });
     const attempt = run.cursor?.attempt ?? 1;
     if (attempt <= RUN_FRESH_RETRY) {
       await save(deps, run, { cursor: { phase, stepKind: 'supervisor', attempt: attempt + 1 } });
-      return false; // re-route re-runs the supervisor fresh once
+      return 'retry';
     }
     await waitAnd(deps, run, ledger, 'error', specDir, [{
       id: 'error', text: `${phase} supervisor exited ${result.exitCode}. Retry or abandon.`,
       options: ['retry', 'abandon'], recommended: 'retry',
     }]);
-    return true;
+    return 'stop';
   }
 
-  ledger.phaseEnd(phase, { result: 'complete' });
-  return false; // re-route
+  return 'complete';
 }
 
 // ---------------------------------------------------------------------------

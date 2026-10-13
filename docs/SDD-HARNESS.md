@@ -385,6 +385,31 @@ systemd and starts the controller and the watchdog. The controller unit sets `Re
 and removes `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` from the environment, because no
 controller step uses a key or a token.
 
+### GitHub credentials
+
+The controller's children need `gh` authenticated: the supervisor step and the merge stage
+both call `gh`. A systemd service does not inherit your shell, so a `GH_TOKEN` exported in
+your shell does not reach it. There are two ways to give the service a credential.
+
+- **Token file.** `install` copies `GH_TOKEN` and `GITHUB_TOKEN` (and `GH_HOST`, when set)
+  from the installing shell into `<controller home>/service.env` (mode `0600`; the home is
+  `$SDD_HOME` or `~/.local/state/sdd`). The controller unit reads it with
+  `EnvironmentFile=-<that path>`. Re-run `install` to refresh the token. The token is never
+  printed or logged.
+- **`gh auth login`.** Logging in persists the credential in `~/.config/gh/hosts.yml`, which
+  the service reads through `HOME`. This needs no env file; it is the simpler choice when you
+  are not using a `GH_TOKEN`.
+
+After `install`, confirm the service can reach GitHub:
+
+```bash
+scripts/sdd-service.sh status
+```
+
+`status` reports whether the env file exists and runs `gh auth status` under the service's
+environment. If `gh` is unauthenticated, the implementation phase pushes the branch but opens
+no PR; the controller then raises an `error` wait rather than skipping to the retrospective.
+
 To keep the service running after you log out, enable linger once:
 
 ```bash

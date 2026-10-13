@@ -45,7 +45,7 @@ const USAGE = {
   cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
 };
 
-interface StubRun { edits?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; }
+interface StubRun { edits?: { path: string; content: string }[]; appends?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; }
 
 interface Fixture { base: string; repo: string; specDir: string; home: string; logs: string; }
 
@@ -378,5 +378,85 @@ describe('runOnce merge stage', () => {
     expect(err).toBeTruthy();
     expect(err!.questions[0].text).toMatch(/the base branch has moved/);
     expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
+  it('no PR after a completed implementation is an error wait, not a skip to the retro', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun]); // the supervisor completes but opens no PR
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [] }, // an empty open-PR list
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    // A `merge` cursor so a "retry" re-enters the merge stage, not the supervisor.
+    expect(run?.cursor?.stepKind).toBe('merge');
+
+    const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+    expect(err).toBeTruthy();
+    expect(err!.questions[0].text).toMatch(/no pull request exists/i);
+
+    // It did not proceed to the retrospective, and nothing was merged.
+    expect((await listWaits()).some((w) => w.kind === 'retro-plan')).toBe(false);
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
+  it('a "retry" on the no-PR error re-enters the merge stage and finds the PR', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    // As if the supervisor had already written the retro files; after the merge
+    // the run routes straight to the retro-plan wait (no supervisor step needed).
+    writeFileSync(join(fx.specDir, 'retrospective-proposals.md'),
+      ['# proposals', '', '## Proposals', '- **P1 — Tidy.** Do it.', '  DECISION NEEDED: no.', ''].join('\n'));
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: DRAFT\n');
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'beefcafe1234' } } },
+    ]);
+    // The run was parked on a no-PR error wait: a `merge` cursor, status running
+    // after the operator answered "retry".
+    await writeRun(seedRun(fx, {
+      branch: BRANCH, status: 'running', cursor: { phase: 'implementation', stepKind: 'merge', attempt: 1 },
+    }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    expect(run?.phase).toBe('retrospective');
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(true);
+  }, 30000);
+
+  it('does not write its own phase.end for a supervisor-run phase (the supervisor owns it)', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    // A stubbed supervisor that writes its own phase.start/phase.end ledger rows,
+    // as the real implementation-phase skill does.
+    const ledgerRel = `.spec-workflow/specs/${SPEC}/harness-events.jsonl`;
+    const row = (type: string, extra: Record<string, string>): string => JSON.stringify({
+      ts: '2026-10-11T00:00:00.000Z', run: 'run-20261011-000000', spec: SPEC, type, phase: 'implementation', ...extra,
+    });
+    const supervisorRun: StubRun = {
+      appends: [{
+        path: ledgerRel,
+        content: `${row('phase.start', { mode: 'normal' })}\n${row('phase.end', { result: 'complete' })}\n`,
+      }],
+      result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: {} },
+    };
+    writeScript(fx, [supervisorRun]);
+    writeGhScript(fx, [{ argvIncludes: ['pr', 'list'], stdout: [] }]); // parks on the no-PR error wait
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    const implEnds = mergedRows(fx).filter((r) => r.type === 'phase.end' && r.phase === 'implementation');
+    expect(implEnds).toHaveLength(1); // only the supervisor's, never a controller duplicate
   }, 30000);
 });

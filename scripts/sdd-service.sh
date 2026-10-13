@@ -16,12 +16,21 @@
 # the baked PATH (from the installing shell) with `/usr/bin/env node`; on a
 # version manager (fnm, nvm) whose node path is per-shell or transient, pass a
 # stable absolute path with SDD_NODE_BIN, e.g. SDD_NODE_BIN="$(readlink -f "$(command -v node)")".
+#
+# gh credentials: `install` copies GH_TOKEN, GITHUB_TOKEN (and GH_HOST, if set)
+# from the installing shell into <controller home>/service.env (mode 0600) and
+# the unit reads it with EnvironmentFile. Without this the controller's children
+# (the supervisor step, gh in the merge stage) run unauthenticated. The token is
+# never printed or logged. The alternative is `gh auth login`, which persists in
+# ~/.config/gh/hosts.yml and needs no env file.
 set -euo pipefail
 
 REPO="${SDD_CHECKOUT:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 PORT="${SDD_PORT:-5000}"
 NODE_BIN="${SDD_NODE_BIN:-/usr/bin/env node}"
 UNIT_DIR="$HOME/.config/systemd/user"
+SDD_HOME_DIR="${SDD_HOME:-$HOME/.local/state/sdd}"
+ENV_FILE="$SDD_HOME_DIR/service.env"
 MODE="${1:-}"
 
 controller_unit() {
@@ -41,6 +50,10 @@ Restart=always
 RestartSec=5
 Environment="HOME=$HOME"
 Environment="PATH=$PATH"
+# The operator's gh credentials (GH_TOKEN/GITHUB_TOKEN/GH_HOST), so gh in the
+# merge stage and the supervisor step are authenticated. The leading dash makes
+# it optional: a missing file is not a startup error (use gh auth login instead).
+EnvironmentFile=-$ENV_FILE
 # A controller step never carries a key or token (ADR 0004, controller-tasks.md T1).
 UnsetEnvironment=ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
 
@@ -77,6 +90,19 @@ WantedBy=timers.target
 EOF
 }
 
+# Write <controller home>/service.env with the operator's gh credentials from the
+# installing shell. Only keys that are set are written. The token is never echoed.
+write_env_file() {
+  mkdir -p "$SDD_HOME_DIR"
+  ( umask 077; : > "$ENV_FILE" )
+  chmod 0600 "$ENV_FILE"
+  {
+    if [ -n "${GH_TOKEN:-}" ]; then printf 'GH_TOKEN=%s\n' "$GH_TOKEN"; fi
+    if [ -n "${GITHUB_TOKEN:-}" ]; then printf 'GITHUB_TOKEN=%s\n' "$GITHUB_TOKEN"; fi
+    if [ -n "${GH_HOST:-}" ]; then printf 'GH_HOST=%s\n' "$GH_HOST"; fi
+  } >> "$ENV_FILE"
+}
+
 linger_hint() {
   local linger
   linger="$(loginctl show-user "$USER" --property=Linger --value 2>/dev/null || echo no)"
@@ -105,10 +131,19 @@ case "$MODE" in
     watchdog_service_unit > "$UNIT_DIR/sdd-watchdog.service"
     watchdog_timer_unit   > "$UNIT_DIR/sdd-watchdog.timer"
     echo "wrote the controller and watchdog units to $UNIT_DIR"
+    write_env_file
+    if [ -s "$ENV_FILE" ]; then
+      echo "wrote $ENV_FILE with the operator's gh credentials (mode 0600)"
+    else
+      echo "note: no GH_TOKEN/GITHUB_TOKEN in this shell; $ENV_FILE is empty." >&2
+      echo "      gh in the service will be unauthenticated. Either re-run install" >&2
+      echo "      with GH_TOKEN set, or run 'gh auth login' (persists in ~/.config/gh)." >&2
+    fi
     systemctl --user daemon-reload
     systemctl --user enable --now sdd-controller.service
     systemctl --user enable --now sdd-watchdog.timer
     echo "enabled and started sdd-controller.service and sdd-watchdog.timer"
+    echo "confirm gh can authenticate under the service with: $(basename "$0") status"
     linger_hint
     ;;
 
@@ -122,6 +157,21 @@ case "$MODE" in
 
   status)
     systemctl --user status sdd-controller.service --no-pager 2>&1 || true
+    echo
+    if [ -f "$ENV_FILE" ]; then
+      echo "gh credentials: $ENV_FILE present (mode $(stat -c '%a' "$ENV_FILE" 2>/dev/null || echo '?'))"
+    else
+      echo "gh credentials: $ENV_FILE absent — gh may be unauthenticated in the service."
+      echo "                Re-run 'install' with GH_TOKEN set, or use 'gh auth login'."
+    fi
+    echo
+    echo "gh auth under the service environment:"
+    if command -v systemd-run >/dev/null 2>&1; then
+      systemd-run --user --wait --pipe -p "EnvironmentFile=-$ENV_FILE" gh auth status 2>&1 \
+        || echo "  gh auth status failed; run 'gh auth status' to check the credentials"
+    else
+      echo "  run 'gh auth status' to confirm the service can reach GitHub"
+    fi
     echo
     echo "last health (http://127.0.0.1:$PORT/api/health):"
     curl -fsS "http://127.0.0.1:$PORT/api/health" 2>/dev/null || echo "  unreachable"
