@@ -432,7 +432,8 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   be an `error` wait). The retro ran: 7 proposals, 3 decisions (P7 is the gh question itself);
   `retro-plan` wait `w-3c9400ec` open. Also: the controller wrote a second `phase.end
   implementation complete` row after the supervisor exited (duplicate). PR #1 in the fixture
-  opened and merged by the session by hand so close-out has a merged base. Fix PR spawned:
+  opened by the session by hand; its merge waits on a review (the permission classifier
+  refused an unreviewed merge, rightly). Fix PR spawned:
   service env file with `GH_TOKEN`, no-PR ⇒ error wait, no duplicate phase.end.
 
 ## 8. Pointers
