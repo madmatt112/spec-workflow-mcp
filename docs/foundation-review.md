@@ -448,6 +448,17 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   lines with their Option A/B choices; the sheet renders radios and collapsed proposal bodies;
   the live wait `w-3c9400ec` repaired in place by a one-off script. Deployed by self-update
   (third restart mid-run, run still parked). Fixture PR #1 merged by Matthew.
+- 2026-10-13 `run-20261012-191315` reached `done` at 20:25Z. Matthew answered the retro-plan
+  wait at 20:06Z; the close-out supervisor landed 7/7 proposals (P1, P2, P6 in the fixture
+  store; P3, P4, P5, P7 as harness PR #113, merged). First run from launch to `done` through
+  the controller. Findings fixed in PRs #111 (step logs move to `runs/<id>/steps/` in the
+  home; they had been committed into the spec dir) and #112 (the supervisor reuses
+  `SDD_RUN_ID`; the close-out supervisor had chosen its own run id, so its tokens never
+  reached `run.json`). The "token totals stay 0" defect was this run-id mismatch, not the sum.
+  #111-#113 deployed by self-update. Fixture tidied: `harness-run.json` and `controller-steps/`
+  untracked and gitignored. Open: the controller's final `run.end` row and the removal of
+  `harness-run.json` are written after the last commit, so they stay uncommitted in the
+  spec store; `harness-run.json` is machine state and should not be tracked in any project.
 
 ## 8. Pointers
 
