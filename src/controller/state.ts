@@ -192,6 +192,11 @@ function runDir(id: string): string {
   return join(runsDir(), id);
 }
 
+/** A run's per-step stream logs (design §3: machine state lives in the home). */
+export function runStepsDir(id: string): string {
+  return join(runDir(id), 'steps');
+}
+
 function runPath(id: string): string {
   return join(runDir(id), 'run.json');
 }
