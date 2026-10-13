@@ -227,8 +227,13 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    govern the behaviour it is attached to — add the governing requirement number to the
    brief and append a `doc-gap` retro-log entry through `book.sh` (`retro`);
    `agent-rules.md` already has the implementer code to the governing requirement, this
-   catches it upstream. Then spawn `sdd-implementer` with `Read and execute the instructions
-   in <the returned path>`.
+   catches it upstream. Check the same `_Prompt`/`_Leverage` lines for `Requirement <N>
+   criterion <M>` references the same way (retro P4), scoped to those structured-cite lines
+   only: confirm `### Requirement <N>` exists in `<spec dir>/requirements.md` and that its
+   acceptance-criteria list has an item `<M>`. A reference whose requirement or criterion
+   does not exist — or a criterion whose text governs a different behaviour than the one it
+   is attached to — is a mis-cite: handle it as the `D<n>` mis-cite above. Then spawn
+   `sdd-implementer` with `Read and execute the instructions in <the returned path>`.
 3. **Read the report.** Route only on the report block's keys (`logged`, `checks-file`
    and the flags below); a report that arrives without its block is a stall: spawn a
    fresh `sdd-implementer` once more from the same brief, and a second report still
