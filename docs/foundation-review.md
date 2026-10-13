@@ -420,6 +420,11 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   process of two to four minutes; the controller re-routes between phases with no supervisor.
 - 2026-10-12 20:28Z tasks converged at round 1; gate B wait `w-f1e69d0d` open (veto list).
   Waiting on Matthew. After it: the first supervisor step (implementation) through the bridge.
+- 2026-10-13 01:56Z gate B approved (after ~5.5 h parked, no harm: a parked run costs nothing).
+  The controller wrote `phase.start implementation`, `harness-run.json` (`gates: record`) and
+  the pointer line, and spawned the old supervisor headless (`claude -p "continue the sdd
+  process" --model claude-opus-5-5`); the supervisor reused the same run id (`run.start` plus
+  a note that it recreated its scratch scripts). The bridge works.
 
 ## 8. Pointers
 
