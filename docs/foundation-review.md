@@ -480,6 +480,15 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   Seen on the way: a resumed run keeps `pauseReason`/`resumeAt`; `windowBlock()` counts a
   window whose `resetsAt` has passed at its stale utilization (the file is refreshed only by
   a running step, and nothing runs while blocked).
+- 2026-10-13 PR #115 merged (`windowBlock()` reads a window whose `resetsAt` has passed as
+  reset; a run the scheduler releases from `usage-window` drops `pauseReason`/`resumeAt`).
+  Without it a real 95% block would have re-read the stale file at reset with a zero delay.
+  PR #116 merged (fixture retro P2: the gate reads `typecheck: none` from `agent-rules.md`,
+  new R4.6c directive, 18th methodology fixture, spec `tighter-reviews` updated). Both wait
+  for the farewell run's next wait to deploy (self-update refuses while a step is live).
+  Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
+  runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
+  state.
 
 ## 8. Pointers
 
