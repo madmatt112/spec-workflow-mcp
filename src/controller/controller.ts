@@ -290,6 +290,9 @@ export class Controller extends EventEmitter {
     for (const run of startable) {
       if (this.active.size >= this.slots) break;
       if (this.active.has(run.id)) continue;
+      if (run.status === 'paused') {
+        await this.save(run, { pauseReason: undefined, resumeAt: undefined });
+      }
       this.startDrive(run.id);
     }
   }
@@ -370,9 +373,15 @@ export class Controller extends EventEmitter {
   private windowBlock(): { blocked: boolean; resumeAt?: string } {
     const file = readRateLimitSync();
     if (!file) return { blocked: false };
+    // Only a running step refreshes the file, and nothing runs while blocked, so a
+    // window whose reset time has passed is read as reset, not at its stale utilization.
+    const now = this.now().getTime();
     const over: string[] = [];
-    if (file.fiveHour.utilization > this.windowThreshold) over.push(file.fiveHour.resetsAt);
-    if (file.sevenDay.utilization > this.windowThreshold) over.push(file.sevenDay.resetsAt);
+    for (const w of [file.fiveHour, file.sevenDay]) {
+      const resetsAt = Date.parse(w.resetsAt);
+      if (Number.isFinite(resetsAt) && resetsAt <= now) continue;
+      if (w.utilization > this.windowThreshold) over.push(w.resetsAt);
+    }
     if (over.length === 0) return { blocked: false };
     const resumeAt = over.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
     return { blocked: true, resumeAt };

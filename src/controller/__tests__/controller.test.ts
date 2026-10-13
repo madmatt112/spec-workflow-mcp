@@ -241,6 +241,29 @@ describe('Controller usage window', () => {
       updated: new Date().toISOString(),
     });
     await controller.pump();
+    const done = await waitForStatus(id, 'done');
+    expect(done.pauseReason).toBeUndefined();
+    expect(done.resumeAt).toBeUndefined();
+  });
+
+  it('reads a window whose reset time has passed as reset, whatever its stale utilization', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
+
+    // Written before the reset; no step ran since, so nothing refreshed it.
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.99, resetsAt: new Date(Date.now() - 60_000).toISOString() },
+      sevenDay: { utilization: 0.1, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      updated: new Date(Date.now() - 120_000).toISOString(),
+    });
+
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
     await waitForStatus(id, 'done');
   });
 });
