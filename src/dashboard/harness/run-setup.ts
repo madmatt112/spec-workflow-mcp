@@ -4,7 +4,7 @@
 // `harness-run.json` (design.md C3, D5; Requirement 1). It reads the task 1
 // read-only index snapshot, the task 2 wire types and the task 3 HANDOFF parser,
 // and never writes any spec-store file but `harness-run.json`.
-import { readFileSync, writeFileSync, renameSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import { IndexGenerator } from '../../core/index-generator.js';
 import { handoffPath } from '../../watch/index.js';
@@ -193,8 +193,13 @@ export async function buildSetupView(
       };
     });
 
-  const launchable = routing.state === 'active' ? routing.spec : null;
-  const disabledReason = routing.state === 'active' ? null : routing.reason;
+  // Routing sees only specs on disk. With none left to do, the next spec is the
+  // first one decomposition.md names that has no directory yet; launch creates it.
+  const unstarted = routing.state === 'all-on-disk-complete' || routing.state === 'no-specs'
+    ? nextUnstartedSpec(workflowRoot)
+    : null;
+  const launchable = routing.state === 'active' ? routing.spec : unstarted;
+  const disabledReason = launchable ? null : routing.reason;
 
   return {
     specs,
@@ -211,6 +216,21 @@ export async function buildSetupView(
     eligibleRoles: [...ELIGIBLE_ROLES],
     saved: readRunFile(workflowRoot),
   };
+}
+
+/**
+ * The first spec decomposition.md names in a `### <n>. \`<name>\`` heading that has
+ * no `specs/<name>/` directory and is not tagged `(deferred)`, else null.
+ */
+export function nextUnstartedSpec(workflowRoot: string): string | null {
+  const decomposition = readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
+  if (!decomposition) return null;
+  for (const line of decomposition.split('\n')) {
+    const m = /^###\s+\d+\.\s+`([\w.-]+)`(.*)$/.exec(line);
+    if (!m || /\(deferred\)/i.test(m[2])) continue;
+    if (!existsSync(join(workflowRoot, 'specs', m[1]))) return m[1];
+  }
+  return null;
 }
 
 function checkAnthropicModel(model: string): string | null {
