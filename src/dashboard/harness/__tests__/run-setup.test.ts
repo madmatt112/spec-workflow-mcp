@@ -505,6 +505,24 @@ describe('run-setup', () => {
       expect(view.disabledReason).toBe('No specs exist yet.');
     });
 
+    it('launches the first decomposition spec with no directory when every spec on disk is done', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, [
+        '# Decomposition', '',
+        '### 1. `first` — done', '',
+        '### 2. `later` — parked (deferred)', '',
+        '### 3. `second` — next (active)', '',
+      ].join('\n'));
+      await createSpec(workflowRoot, 'first', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n',
+      });
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.launchable).toBe('second');
+      expect(view.disabledReason).toBeNull();
+    });
+
     it('gives no role rows when profiles is empty (Req 1.4)', async () => {
       const { projectPath } = await makeWorkflowRoot();
 

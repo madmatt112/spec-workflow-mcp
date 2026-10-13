@@ -4,7 +4,7 @@ import fastifyWebsocket from '@fastify/websocket';
 import fastifyCors from '@fastify/cors';
 import { join, dirname, resolve } from 'path';
 import { readFile } from 'fs/promises';
-import { promises as fs } from 'fs';
+import { promises as fs, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import open from 'open';
 import { WebSocket } from 'ws';
@@ -627,6 +627,8 @@ export class MultiProjectDashboardServer {
       }
 
       const workflowRoot = join(project.projectPath, '.spec-workflow');
+      // A spec decomposition.md names but nobody has started has no directory yet.
+      mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
       writeRunFile(workflowRoot, toRunFile(input, view, () => new Date()));
 
       try {
