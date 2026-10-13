@@ -470,6 +470,16 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   Workaround: create the dir with a `.gitkeep`. Plan for the threshold test: at gate A, set
   `CONTROLLER_WINDOW_THRESHOLD=0.01`, restart, answer; the run should park on
   `usage-window`; restore, restart, it should resume.
+- 2026-10-13 PR #114 merged (`0a2b722`, launch offers the next decomposition spec with no
+  directory and creates it) and deployed with `CONTROLLER_WINDOW_THRESHOLD=0.01` in
+  `service.env`. Forced window threshold proven: gate A `w-c3f53ee1` answered 21:37:38Z,
+  run parked `paused/usage-window` 11 ms later, `resumeAt` the seven-day reset (both
+  windows over the threshold; the later reset wins). Threshold line removed, plain
+  `systemctl --user restart`, run `running requirements` again within 6 s. Done-when
+  scorecard: only merge by rule and the no-PR error wait remain, both on this run.
+  Seen on the way: a resumed run keeps `pauseReason`/`resumeAt`; `windowBlock()` counts a
+  window whose `resetsAt` has passed at its stale utilization (the file is refreshed only by
+  a running step, and nothing runs while blocked).
 
 ## 8. Pointers
 
