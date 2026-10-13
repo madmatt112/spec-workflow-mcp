@@ -122,8 +122,9 @@ With no file (or a mismatch) `ORCH_MODELS`, `WORKER_MODELS`, `SETUP_GATES`, `SET
 and `OVERRIDES` are all unset and every step below keeps today's behaviour (Req 2 AC 11).
 
 **Run ledger.** Once the roots and the active spec are known (after step 2), start the
-run's ledger as `references/formats.md` describes: choose a run id
-(`run-<YYYYMMDD>-<HHMMSS>` UTC), write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
+run's ledger as `references/formats.md` describes: when the environment variable
+`SDD_RUN_ID` is set (the controller sets it), use its value as the run id; otherwise choose
+one (`run-<YYYYMMDD>-<HHMMSS>` UTC). Write `/tmp/scratchpad/sdd/<spec>/event.sh` with the
 Write tool (the script text is in formats.md, with the spec dir, run id and spec filled
 in), append this run's line to the pointer file
 `${XDG_STATE_HOME:-~/.local/state}/sdd/active-run` — one tab-separated line per active run,
@@ -332,8 +333,8 @@ the cause and the last ledger row so the next run has evidence to scope a fix (r
 Then handle the missing report by the dispatch rules below.
 
 When the interruption also wiped `/tmp/scratchpad` (the process exited or restarted),
-recover under the **same run id** (retro G3): read the run id from the existing
-`<spec dir>/harness-events.jsonl`, recreate the run scripts (`event.sh`, and `launch.sh`
+recover under the **same run id** (retro G3): use `SDD_RUN_ID` when it is set, else read the
+run id from the existing `<spec dir>/harness-events.jsonl`, recreate the run scripts (`event.sh`, and `launch.sh`
 when `PROVIDERS` needs it) with the Write tool as step 1 does, re-`cp` `sdd-graph.sh` into
 the scratch dir when `GRAPH` is a path, and re-spawn the phase fresh. Trust the spec store and the code commits as the source of truth: do not re-run
 work already committed — a re-spawned orchestrator reads `tasks.md` and the ledger and
