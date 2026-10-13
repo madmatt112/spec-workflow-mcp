@@ -55,7 +55,17 @@ When no `[ ]` or `[-]` task remains:
     The `## Summary` gets one `Not in this PR: …` bullet, built from the `Cut scope` rows
     of the three document-phase HANDOFF sections (`## <SPEC> — requirements`, `— design`,
     `— tasks`); omit the bullet only when all three are `none`. Never merge. Record the PR
-    URL in HANDOFF. **One PR per code repo per spec.** When the work would need a
+    URL in HANDOFF.
+    **When `gh pr create` fails (retro P7).** If `gh` cannot open the PR — unauthenticated
+    (the Step 0 retro-P3 precheck already surfaced this), or any other `gh` error — do not
+    halt and do not open an `error` wait for the human: the branch is already pushed, so the
+    default is to keep shipping with a blocker note and own the one deferred step. Record
+    `note "text=PR not opened: <gh error>; operator must run gh pr create"` through `book.sh`,
+    and write into the HANDOFF section the exact command the operator must run —
+    `gh pr create --head <branch> --title "<decomposition.title>" --body-file <the body file
+    you wrote>` — so the operator sees the manual step owed to them verbatim. Skip step 10b
+    (no PR to check) and go to step 11, reporting the PR as deferred with that command, not as
+    opened. **One PR per code repo per spec.** When the work would need a
     second PR (a second repository, or a change that must land on its own), do not
     open it: append a retro-log entry through `book.sh` (`retro`, `deviation`: the
     decomposition put two deliverables in one spec), add a `deferrals` record for the second
