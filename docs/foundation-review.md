@@ -444,6 +444,10 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   gate A and B answered in the dashboard, document phases in code, the supervisor bridge, a
   controller restart mid-run. Not yet: merge by rule (the no-PR path hit first), the
   retro-plan wait and close-out, a forced window threshold.
+- 2026-10-13 PR #110 merged (`d132e8f`): retro DECISION NEEDED questions parsed across wrapped
+  lines with their Option A/B choices; the sheet renders radios and collapsed proposal bodies;
+  the live wait `w-3c9400ec` repaired in place by a one-off script. Deployed by self-update
+  (third restart mid-run, run still parked). Fixture PR #1 merged by Matthew.
 
 ## 8. Pointers
 
