@@ -1,4 +1,5 @@
 import path from 'path';
+import { readFileSync } from 'fs';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse, ReviewFinding, PromptSection, ImplementationLogEntry } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
@@ -14,6 +15,7 @@ import { selectRoots } from './root-selection.js';
 import { handleGate } from './review-gate.js';
 import { TaskStateStore, type TaskStateRecord } from '../core/task-state-store.js';
 import { normalizeIdentityPath } from '../core/git-utils.js';
+import { parseAgentRuleKey } from '../core/gate-rules.js';
 
 const reviewWarnedKeys = new Set<string>();
 
@@ -72,8 +74,19 @@ export type TypecheckMethodologyState =
   | { kind: 'success-partial-coverage' }
   | { kind: 'success-with-diagnostics-and-partial-coverage'; truncated: boolean }
   | { kind: 'unavailable-feature-disabled' }
+  | { kind: 'unavailable-declared-none' }
   | { kind: 'unavailable-other'; reason: string }
   | { kind: 'timeout' };
+
+/** True when the project's `agent-rules.md` declares `typecheck: none`. */
+function readTypecheckDeclaredNone(projectPath: string): boolean {
+  try {
+    const text = readFileSync(path.join(projectPath, '.spec-workflow', 'agent-rules.md'), 'utf-8');
+    return parseAgentRuleKey(text, 'typecheck') === 'none';
+  } catch {
+    return false;
+  }
+}
 
 export function computeTypecheckMethodologyState(
   result: TypecheckResult
@@ -82,6 +95,9 @@ export function computeTypecheckMethodologyState(
   if (result.status === 'unavailable') {
     if (result.reason === 'feature-disabled') {
       return { kind: 'unavailable-feature-disabled' };
+    }
+    if (result.reason === 'declared-none') {
+      return { kind: 'unavailable-declared-none' };
     }
     return { kind: 'unavailable-other', reason: result.reason };
   }
@@ -702,6 +718,7 @@ async function handlePrepare(
     const noReviewableFiles = hasNoReviewableFiles(fileResolutionCounts);
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
+    const typecheckDeclaredNone = readTypecheckDeclaredNone(projectPath);
 
     // 6b. Read the per-task record (never throws, never written here) and resolve
     // the diff base and attribution before the concurrent block. The base feeds
@@ -720,6 +737,7 @@ async function handlePrepare(
     const settled = await Promise.allSettled([
       runProjectTypecheck(workspacePath, projectPath, workspaceFiles, {
         enabled: typecheckEnabled,
+        declaredNone: typecheckDeclaredNone,
       }),
       computeHygieneSignals(workspaceFiles, { root: workspacePath, base: ['HEAD'] }),
 
@@ -1097,6 +1115,9 @@ const R4_5_TYPECHECK_PARTIAL_COVERAGE =
 const R4_6A_TYPECHECK_DISABLED =
   "**Typecheck pre-computation is disabled for this project.** `data.typecheckResults[0].reason` is `'feature-disabled'` — the project's `.spec-workflow/adversarial-settings.json` sets `features.typecheck: false`. Proceed with the review as you normally would; do not perform additional manual type-checking unless a finding specifically warrants it. If you observe what looks like a type-system bug while reviewing, flag it as a finding with `category: 'hygiene'` and let the human reviewer decide whether to re-enable typecheck pre-computation.";
 
+const R4_6C_TYPECHECK_DECLARED_NONE =
+  "**This project declares that it has no typecheck.** `data.typecheckResults[0].reason` is `'declared-none'` — `agent-rules.md` says `typecheck: none`. This is not a degraded review surface: no type-error coverage was promised. Proceed with the review as you normally would; do not perform additional manual type-checking unless a finding specifically warrants it.";
+
 const R4_6B_TYPECHECK_UNAVAILABLE =
   "**Typecheck did not run for this review.** `data.typecheckResults[0].reason` says why (e.g. `'project-references'`, `'no-tsconfig'`, `'tsc-not-found'`, `'no-parseable-output'`, `'output-overflow'`, `'rejection'`). **This is a degraded review surface** — the type-error coverage promised by this MCP is unverified. You are operating in pre-spec methodology mode for type-checking; manually scan the modified TypeScript files for type errors and structural problems (missing return types, implicit `any`, mismatched property shapes, unsafe casts). Surface this degradation in your review summary so the human reviewer knows the scope of the gap.";
 
@@ -1115,6 +1136,8 @@ function renderTypecheckDirective(state: TypecheckMethodologyState): string | nu
       return `10. ${R4_4_TYPECHECK_PRESENT}\n\n${R4_5_TYPECHECK_PARTIAL_COVERAGE}`;
     case 'unavailable-feature-disabled':
       return `10. ${R4_6A_TYPECHECK_DISABLED}`;
+    case 'unavailable-declared-none':
+      return `10. ${R4_6C_TYPECHECK_DECLARED_NONE}`;
     case 'unavailable-other':
       return `10. ${R4_6B_TYPECHECK_UNAVAILABLE}`;
     case 'timeout':

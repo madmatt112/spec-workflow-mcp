@@ -97,7 +97,7 @@ Why grouped (`adversarial: { model }`) instead of flat (`models: { adversarial: 
 5. WHEN `status === 'success'` AND `coverage.excluded` is non-empty THEN `buildReviewMethodology` SHALL emit the **typecheck-partial-coverage directive** verbatim (R4.5) IN ADDITION to the typecheck-present directive. The reviewer is told which files were not type-checked and that a "no diagnostics" signal cannot be trusted for those files.
 6. WHEN `status === 'success'` AND `diagnostics.length > 0` THEN `buildReviewMethodology` SHALL emit the **typecheck-present directive** verbatim (R4.4). The directive focuses on `inScope: true` entries, treats `inScope: false` as upstream context, promotes real bugs to findings with `category: 'hygiene'`, and asks for type-system smells tsc cannot catch.
 7. WHEN `status === 'success'` AND `diagnostics.length === 0` AND `coverage.excluded.length === 0` THEN `buildReviewMethodology` SHALL emit no typecheck-specific directive (clean signal, full coverage).
-8. IF the conditions in R2.1 are not met (no root tsconfig, references present, files-empty wrapper, `tsc` not resolvable from `node_modules/.bin`, OR `features.typecheck: false`) THEN `typecheckResults` SHALL contain exactly one entry with `status: 'unavailable'` and the appropriate `reason`. The methodology SHALL emit the **typecheck-unavailable directive** verbatim (R4.6).
+8. IF the conditions in R2.1 are not met (no root tsconfig, references present, files-empty wrapper, `tsc` not resolvable from `node_modules/.bin`, `features.typecheck: false`, OR `typecheck: none` declared in `agent-rules.md`) THEN `typecheckResults` SHALL contain exactly one entry with `status: 'unavailable'` and the appropriate `reason`. The methodology SHALL emit the **typecheck-unavailable directive** verbatim (R4.6).
 9. WHEN `tsc` exits non-zero AND zero diagnostics parse from its output THEN `typecheckResults[0]` SHALL be `{ status: 'unavailable', reason: 'no-parseable-output' }`. WHEN `tsc` exits zero AND `--listFiles` produces zero parseable lines (output buffer empty / corrupted) THEN `typecheckResults[0]` SHALL also be `{ status: 'unavailable', reason: 'no-parseable-output' }`, NOT `{ status: 'success', coverage: { compiled: [], excluded: allFiles } }`. The methodology SHALL emit the **typecheck-unavailable directive** in both cases. This prevents the regression where every in-scope file is reported as excluded due to an output-capture bug.
 10. WHEN `tsc` exits non-zero AND at least one diagnostic parses THEN `typecheckResults[0].status === 'success'` AND the diagnostics are returned (parallel to R2.6).
 11. WHEN the typecheck process exceeds 30 seconds THEN it SHALL be terminated AND `typecheckResults[0]` SHALL be `{ status: 'timeout', tsconfigPath }`. The methodology SHALL emit the **typecheck-timed-out directive** verbatim (R4.7). The process SHALL be killed via SIGTERM, with a 2-second grace period before SIGKILL escalation. **POSIX-primary**: on Windows, `process.kill('SIGTERM')` is `TerminateProcess`-immediate, so the 2-second grace is a no-op there; deeper Windows process-termination handling is deferred to v2 per Out of Scope.
@@ -175,7 +175,7 @@ R4.2 has **two prose variants** depending on whether the empty diff reflects a b
 
 ##### Typecheck-unavailable directive variants (R2.8, R2.9)
 
-R4.6 has **two prose variants** depending on whether typecheck is unavailable because the user explicitly opted out (`reason: 'feature-disabled'`) or because the system couldn't run it (any other unavailable reason). Telling a user who deliberately disabled typecheck to "manually scan TS files" contradicts their explicit preference and erodes trust in the methodology.
+R4.6 has **three prose variants** depending on whether typecheck is unavailable because the user explicitly opted out (`reason: 'feature-disabled'`), because the project declares it has no typecheck (`reason: 'declared-none'`, from `typecheck: none` in `agent-rules.md`), or because the system couldn't run it (any other unavailable reason). Telling a user who deliberately disabled typecheck to "manually scan TS files" contradicts their explicit preference and erodes trust in the methodology.
 
 #### R4.6a — Typecheck-disabled-by-config directive (`reason: 'feature-disabled'`)
 
@@ -184,6 +184,10 @@ R4.6 has **two prose variants** depending on whether typecheck is unavailable be
 #### R4.6b — Typecheck-unavailable directive (any other unavailable reason)
 
 > **Typecheck did not run for this review.** `data.typecheckResults[0].reason` says why (e.g. `'project-references'`, `'no-tsconfig'`, `'tsc-not-found'`, `'no-parseable-output'`, `'output-overflow'`, `'rejection'`). **This is a degraded review surface** — the type-error coverage promised by this MCP is unverified. You are operating in pre-spec methodology mode for type-checking; manually scan the modified TypeScript files for type errors and structural problems (missing return types, implicit `any`, mismatched property shapes, unsafe casts). Surface this degradation in your review summary so the human reviewer knows the scope of the gap.
+
+#### R4.6c — Typecheck-declared-none directive (`reason: 'declared-none'`)
+
+> **This project declares that it has no typecheck.** `data.typecheckResults[0].reason` is `'declared-none'` — `agent-rules.md` says `typecheck: none`. This is not a degraded review surface: no type-error coverage was promised. Proceed with the review as you normally would; do not perform additional manual type-checking unless a finding specifically warrants it.
 
 #### R4.7 — Typecheck-timed-out directive (R2.11)
 
@@ -205,7 +209,7 @@ Between Track A landing and Track B landing, `buildReviewMethodology` emits type
 
 Tests SHALL pin `buildReviewMethodology(...)` full output (not directive substrings). Pinning is **axis-by-axis with selective cross-axis coverage**:
 
-- **Typecheck axis** (typecheck state varies, diff state held fixed at "diff-present, non-stale, untruncated"): one pin per `typecheckResults[0]` shape — success+clean+full-coverage, success+diagnostics, success+partial-coverage, **success+diagnostics+partial-coverage** (pins R4.4 and R4.5 emitting together — added because both reference manual-scan guidance and their composition is not otherwise pinned), unavailable-feature-disabled (R4.6a), unavailable-other (R4.6b), timeout (R4.7). Seven pins on this axis.
+- **Typecheck axis** (typecheck state varies, diff state held fixed at "diff-present, non-stale, untruncated"): one pin per `typecheckResults[0]` shape — success+clean+full-coverage, success+diagnostics, success+partial-coverage, **success+diagnostics+partial-coverage** (pins R4.4 and R4.5 emitting together — added because both reference manual-scan guidance and their composition is not otherwise pinned), unavailable-feature-disabled (R4.6a), unavailable-declared-none (R4.6c), unavailable-other (R4.6b), timeout (R4.7). Eight pins on this axis.
 - **Diff axis** (diff state varies, typecheck state held fixed at "success+clean+full-coverage"): one pin per significant `data.diff` shape — diff-empty (R4.2a), diff-present-untruncated (R4.1), diff-present-truncated (R4.1 with truncation), diff-rejected (R4.2b). Four pins on this axis.
 - **Cross-axis** (selective combinations chosen to surface directive redundancy/contradiction at maximally- and partially-degraded states): six pins.
   1. `success-partial-coverage + diff-empty` — pins that R4.5's "manually scan excluded files" composes against R4.2a's "read every file in `filesToReview`" without contradiction.

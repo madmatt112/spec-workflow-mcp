@@ -38,6 +38,7 @@ export type TypecheckResult =
         | 'no-parseable-output'
         | 'output-overflow'
         | 'feature-disabled'
+        | 'declared-none'
         | 'rejection';
       // What the check observed: what was inspected, at which path, and what was
       // found. Required so the compiler enumerates every construction site
@@ -146,9 +147,20 @@ export async function runProjectTypecheck(
    */
   workflowRoot: string,
   allFiles: string[],
-  opts: { enabled: boolean },
+  opts: { enabled: boolean; declaredNone?: boolean },
 ): Promise<TypecheckResult[]> {
   const tsconfigPath = path.join(workspacePath, 'tsconfig.json');
+
+  // The project says it has no typecheck (`typecheck: none` in agent-rules.md),
+  // so its absence is a declaration, not a degraded surface (fixture retro P2).
+  if (opts.declaredNone) {
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'declared-none',
+      observed: 'agent-rules.md declares `typecheck: none`',
+    }];
+  }
 
   if (!opts.enabled) {
     const settingsPath = path.join(
