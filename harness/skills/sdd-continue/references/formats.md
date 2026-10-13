@@ -187,7 +187,7 @@ the call — the RTK Bash hook filters an empty result, so a silent success read
 which appended duplicate `phase.start`/`phase.end` rows (retro P18); the confirmation stops the
 retry.
 
-Run id: `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
+Run id: the value of `SDD_RUN_ID` when the controller set it; otherwise `run-<YYYYMMDD>-<HHMMSS>` (UTC) chosen by the supervisor at start.
 
 | Type | Written by | Keys |
 | --- | --- | --- |
