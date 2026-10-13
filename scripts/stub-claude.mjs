@@ -15,13 +15,16 @@
 //     "result":   { ... },               // the final result object (type forced)
 //     "exitCode": 0,                      // process exit code (default 0)
 //     "delayMs":  0,                      // optional pause before emitting
-//     "edits":    [ { "path": "rel/or/abs", "content": "..." } ]  // writes in cwd
+//     "edits":    [ { "path": "rel/or/abs", "content": "..." } ],  // writes in cwd
+//     "appends":  [ { "path": "rel/or/abs", "content": "..." } ]   // appends in cwd
 //   }
+// `appends` is how a stubbed supervisor writes its own ledger rows (the real
+// supervisor appends phase.start/phase.end to harness-events.jsonl).
 // If a run has no leading system/init event the stub prepends one; either way the
 // init event is augmented with `env`, `argv` and `cwd` extras so tests can assert
 // env scrubbing, that `--resume` was passed, and the cwd.
 
-import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, appendFileSync } from 'node:fs';
 import { dirname, join, isAbsolute } from 'node:path';
 
 function fail(message) {
@@ -81,6 +84,13 @@ for (const edit of run.edits ?? []) {
   const target = isAbsolute(edit.path) ? edit.path : join(process.cwd(), edit.path);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, edit.content ?? '');
+}
+
+// Append to any files in the cwd (e.g. a stubbed supervisor's ledger rows).
+for (const add of run.appends ?? []) {
+  const target = isAbsolute(add.path) ? add.path : join(process.cwd(), add.path);
+  mkdirSync(dirname(target), { recursive: true });
+  appendFileSync(target, add.content ?? '');
 }
 
 async function main() {

@@ -105,6 +105,29 @@ function writeScript(fx: Fixture, runs: StubRun[]): void {
   process.env.STUB_CLAUDE_SCRIPT = scriptPath;
 }
 
+/**
+ * Script `gh` to present one green, mergeable PR on `branch` so the merge stage
+ * merges it: a completed implementation must reach a merged PR before the retro
+ * (no silent skip when there is no PR).
+ */
+function scriptMergeablePR(fx: Fixture, branch: string, oid: string): void {
+  const view = {
+    mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
+    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+    headRefName: branch, body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    author: { login: 'someone' },
+  };
+  const ghScript = join(fx.base, 'gh-script.json');
+  writeFileSync(ghScript, JSON.stringify([
+    { argvIncludes: ['pr', 'list'], stdout: [{ number: 7, headRefName: branch, baseRefName: 'main', url: 'x' }] },
+    { argvIncludes: ['pr', 'view'], stdout: view },
+    { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+    { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid } } },
+  ]));
+  process.env.STUB_GH_SCRIPT = ghScript;
+}
+
 async function approve(fx: Fixture, doc: 'requirements' | 'design' | 'tasks'): Promise<void> {
   const ctx = { projectPath: fx.repo, workspacePath: fx.repo };
   writeFileSync(join(fx.specDir, `${doc}.md`), cleanDoc(doc));
@@ -167,6 +190,8 @@ describe('Controller full run', () => {
       supervisorImplRun(), supervisorCloseoutRun(),
     ]);
     await approve(fx, 'tasks');
+    // The implementation ends at a PR the merge stage merges before the retro.
+    scriptMergeablePR(fx, 'main', 'c0ffee000001');
 
     controller = makeController(fx);
     expect(await controller.start()).toBe(true);
@@ -295,6 +320,8 @@ describe('Controller crash recovery', () => {
     writeScript(fx, [
       reviewerRun('requirements'), supervisorImplRun(), supervisorCloseoutRun(),
     ]);
+    // The implementation ends at a PR the merge stage merges before the retro.
+    scriptMergeablePR(fx, 'main', 'c0ffee000002');
 
     // A run record left `running` by a crashed controller (no live step).
     const id = 'run-20261011-010101';
