@@ -134,6 +134,15 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     expect(mockedExecFile).not.toHaveBeenCalled();
   });
 
+  it('declared-none short-circuits before any I/O when agent-rules.md says typecheck: none', async () => {
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true, declaredNone: true });
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe('unavailable');
+    if (result[0].status !== 'unavailable') throw new Error('narrowing');
+    expect(result[0].reason).toBe('declared-none');
+    expect(mockedExecFile).not.toHaveBeenCalled();
+  });
+
   it('no-tsconfig when tsconfig.json is absent', async () => {
     const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result[0].status).toBe('unavailable');

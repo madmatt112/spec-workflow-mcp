@@ -686,7 +686,7 @@ describe('handlePrepare with distinct workspace and workflow roots', () => {
     // excerpt and the typecheck-disabling settings file are both read from it.
     const result = await prepareWith([path.join('src', 'code.ts')]);
     expect(result.data.steeringExcerpt).toContain('Tech steering from the shared root');
-    expect(typecheckArgs[3]).toEqual({ enabled: false });
+    expect(typecheckArgs[3]).toEqual({ enabled: false, declaredNone: false });
     expect(result.projectContext?.workflowRoot).toBe(join(workflowRoot, '.spec-workflow'));
   });
 
@@ -1539,7 +1539,7 @@ const HAS_HYGIENE_SIGNALS = true;
 
 // Filename → (diffState, typecheckState). Mirrors each fixture's canonical input docstring.
 const FIXTURE_INPUTS: Record<string, { diffState: DiffMethodologyState; typecheckState: TypecheckMethodologyState }> = {
-  // 7 typecheck-axis (diff held at 'present')
+  // 8 typecheck-axis (diff held at 'present')
   'success-clean-full.txt':
     { diffState: { kind: 'present' }, typecheckState: { kind: 'success-clean-full' } },
   'success-with-diagnostics.txt':
@@ -1550,6 +1550,8 @@ const FIXTURE_INPUTS: Record<string, { diffState: DiffMethodologyState; typechec
     { diffState: { kind: 'present' }, typecheckState: { kind: 'success-with-diagnostics-and-partial-coverage', truncated: false } },
   'unavailable-feature-disabled.txt':
     { diffState: { kind: 'present' }, typecheckState: { kind: 'unavailable-feature-disabled' } },
+  'unavailable-declared-none.txt':
+    { diffState: { kind: 'present' }, typecheckState: { kind: 'unavailable-declared-none' } },
   'unavailable-other.txt':
     { diffState: { kind: 'present' }, typecheckState: { kind: 'unavailable-other', reason: 'project-references' } },
   'timeout.txt':
@@ -1627,9 +1629,9 @@ describe('Track-B composite pins (R4.10)', () => {
     });
   }
 
-  it('fixture count is exactly 17', () => {
+  it('fixture count is exactly 18', () => {
     const files = readdirSync(FIXTURE_DIR).filter(f => f.endsWith('.txt'));
-    expect(files).toHaveLength(17);
+    expect(files).toHaveLength(18);
   });
 });
 
@@ -1695,7 +1697,7 @@ const EXPECTED_R4_BLOCK_NAMES = [
   'R4.4',
   'R4.5',
   'R4.6a',
-  'R4.6b',
+  'R4.6b', 'R4.6c',
   'R4.7',
 ] as const;
 
