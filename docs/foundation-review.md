@@ -435,6 +435,9 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   opened by the session by hand; its merge waits on a review (the permission classifier
   refused an unreviewed merge, rightly). Fix PR spawned:
   service env file with `GH_TOKEN`, no-PR ⇒ error wait, no duplicate phase.end.
+- 2026-10-13 PR #109 merged (`9cc8714`): `service.env` (0600) with the gh token read by the
+  unit, no-PR ⇒ `error` wait with Retry, the supervisor owns its phase rows. Applied with the
+  first real `sdd-self-update.sh` while the fixture run was parked at the retro-plan wait.
 
 ## 8. Pointers
 
