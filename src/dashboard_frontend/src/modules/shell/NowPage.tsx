@@ -312,6 +312,15 @@ function defaultValue(q: ControllerWait['questions'][number]): string {
   return '';
 }
 
+/** Split a raw proposal block into its bold title and the prose that follows. */
+function splitProposal(block: string): { title: string; body: string } {
+  const m = block.match(/\*\*([\s\S]*?)\*\*/);
+  if (!m) return { title: block.replace(/^-\s*/, '').trim(), body: '' };
+  const title = m[1].replace(/\s+/g, ' ').trim();
+  const body = block.slice((m.index ?? 0) + m[0].length).replace(/\s+/g, ' ').trim();
+  return { title, body };
+}
+
 function SheetHeader({ wait, projectName, title }: { wait: ControllerWait; projectName: string; title: string }) {
   return (
     <div className="mb-3">
@@ -375,7 +384,7 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
 
   const questionFields = wait.questions.map((q) => (
     <div key={q.id}>
-      <p className="mb-1 text-sm font-medium text-[var(--text-primary)]">{q.text}</p>
+      <p className="mb-1 whitespace-normal break-words text-sm font-medium text-[var(--text-primary)]">{q.text}</p>
       {!q.free && q.options && q.options.length > 0 ? (
         <div className="space-y-1">
           {q.options.map((opt) => (
@@ -425,19 +434,34 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
         {wait.proposals && wait.proposals.length > 0 && (
           <div>
             <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Proposals</h4>
-            <div className="space-y-1">
-              {wait.proposals.map((p, i) => (
-                <label key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                  <input
-                    type="checkbox"
-                    checked={approved[i]}
-                    onChange={() => setApproved((prev) => prev.map((v, j) => (j === i ? !v : v)))}
-                    data-testid={`proposal-${i}`}
-                    className="mt-1"
-                  />
-                  <span className="min-w-0 break-words">{p}</span>
-                </label>
-              ))}
+            <div className="space-y-2">
+              {wait.proposals.map((p, i) => {
+                const { title, body } = splitProposal(p);
+                return (
+                  <div key={i} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                    <input
+                      type="checkbox"
+                      id={`proposal-${i}`}
+                      checked={approved[i]}
+                      onChange={() => setApproved((prev) => prev.map((v, j) => (j === i ? !v : v)))}
+                      data-testid={`proposal-${i}`}
+                      aria-label={`Approve ${title}`}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <label htmlFor={`proposal-${i}`} className="cursor-pointer whitespace-normal break-words font-medium text-[var(--text-primary)]">
+                        {title}
+                      </label>
+                      {body && (
+                        <details className="mt-0.5">
+                          <summary className="cursor-pointer text-xs text-[var(--text-muted)]">Details</summary>
+                          <p className="mt-1 whitespace-normal break-words text-[var(--text-secondary)]">{body}</p>
+                        </details>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -144,18 +144,104 @@ export interface ParsedProposal {
   id: string;
   /** The verbatim bullet block (written into the plan when approved). */
   block: string;
-  /** The `DECISION NEEDED: yes` question, when present. */
+  /** The bold `**P<n> (F<m>) — …**` title text, wrapped lines joined. */
+  label: string;
+  /** The block after the title: the proposal's prose (the disclosure body). */
+  body: string;
+  /** The `DECISION NEEDED: yes` question, joined across wrapped lines. */
   question?: string;
-  /** The options parsed off the question line, when present. */
+  /** The options read from the `- Option …` lines, when present. */
   options?: string[];
+  /** The option marked `(recommended)`, when present. */
+  recommended?: string;
+}
+
+/** True for a `- Option …` list item under a `DECISION NEEDED` block. */
+function isOptionLine(line: string): boolean {
+  return /^\s*-\s*Option\b/i.test(line);
+}
+
+/** Split a proposal block into its bold title and the prose that follows it. */
+function splitProposalTitle(block: string): { label: string; body: string } {
+  const m = block.match(/\*\*([\s\S]*?)\*\*/);
+  if (!m) return { label: block.replace(/^-\s*/, '').trim(), body: '' };
+  const label = m[1].replace(/\s+/g, ' ').trim();
+  const body = block.slice((m.index ?? 0) + m[0].length).trim();
+  return { label, body };
+}
+
+/**
+ * Read the `DECISION NEEDED: yes` question and its options off a proposal's
+ * lines. The question runs from after `DECISION NEEDED: yes.` to the first `?`,
+ * wrapped lines joined with single spaces. Each following `- Option X
+ * (recommended): …` line becomes an option (the text after the colon, its own
+ * wrapped lines joined); the `(recommended)` marker sets `recommended`. A block
+ * with no `- Option` lines falls back to the legacy inline `Options:` form, and
+ * failing that stays free text.
+ */
+function parseDecision(lines: string[], proposal: ParsedProposal): void {
+  const dn = lines.findIndex((l) => /DECISION NEEDED:\s*yes/i.test(l));
+  if (dn < 0) return;
+
+  let q = lines[dn].replace(/^.*?DECISION NEEDED:\s*yes\.?\s*/i, '');
+  for (let i = dn; q.indexOf('?') < 0 && i + 1 < lines.length; i += 1) {
+    const next = lines[i + 1];
+    if (isOptionLine(next) || next.trim() === '') break;
+    q += ' ' + next.trim();
+  }
+  const end = q.indexOf('?');
+  const question = (end >= 0 ? q.slice(0, end + 1) : q).replace(/\s+/g, ' ').trim();
+  if (question) proposal.question = question;
+
+  const options: string[] = [];
+  let recommended: string | undefined;
+  let text: string | null = null;
+  let isRec = false;
+  const commit = (): void => {
+    if (text === null) return;
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (t) {
+      options.push(t);
+      if (isRec) recommended = t;
+    }
+    text = null;
+    isRec = false;
+  };
+  for (let i = dn; i < lines.length; i += 1) {
+    const m = lines[i].match(/^\s*-\s*Option\b[^:(]*(\(recommended\))?\s*:\s*(.*)$/i);
+    if (m) {
+      commit();
+      isRec = Boolean(m[1]);
+      text = m[2];
+    } else if (text !== null) {
+      if (lines[i].trim() === '') {
+        commit();
+        continue;
+      }
+      text += ' ' + lines[i].trim();
+    }
+  }
+  commit();
+
+  if (options.length > 0) {
+    proposal.options = options;
+    proposal.recommended = recommended;
+    return;
+  }
+  // Legacy inline form: `… Options: a | b. Recommend a.`
+  const inline = lines.slice(dn).join(' ').match(/Options?:\s*(.+?)(?:\.\s*Recommend\w*\b.*)?$/i);
+  if (inline) {
+    const opts = inline[1].split(/\s*\|\s*|\s*,\s*/).map((o) => o.trim()).filter(Boolean);
+    if (opts.length > 0) proposal.options = opts;
+  }
 }
 
 /**
  * Parse `retrospective-proposals.md` into its `- **P<n>`/`- **G<n>` blocks under
  * the `## Proposals` and `## Graduation candidates` headings, keeping each block
- * verbatim and reading its `DECISION NEEDED: yes` question and options (the
- * "DECISION NEEDED questions, then the proposals as a ticked list" sheet described
- * in the dashboard-gates decomposition entry).
+ * verbatim and reading its title, body, and `DECISION NEEDED: yes` question and
+ * options (the "DECISION NEEDED questions, then the proposals as a ticked list"
+ * sheet described in the dashboard-gates decomposition entry).
  */
 export function parseProposals(proposalsMd: string): ParsedProposal[] {
   const lines = proposalsMd.split('\n');
@@ -166,18 +252,9 @@ export function parseProposals(proposalsMd: string): ParsedProposal[] {
   const flush = (): void => {
     if (!current) return;
     const block = current.lines.join('\n').replace(/\s+$/, '');
-    const proposal: ParsedProposal = { id: current.id, block };
-    const dn = block.match(/DECISION NEEDED:\s*yes\.?\s*(.*)/i);
-    if (dn && dn[1].trim()) {
-      const rest = dn[1].trim();
-      const opt = rest.match(/Options?:\s*(.+?)(?:\.\s*(?:Recommend|Recommendation).*)?$/i);
-      if (opt) {
-        proposal.question = rest.slice(0, rest.toLowerCase().indexOf('option')).trim() || rest;
-        proposal.options = opt[1].split(/\s*\|\s*|\s*,\s*/).map((o) => o.trim()).filter(Boolean);
-      } else {
-        proposal.question = rest;
-      }
-    }
+    const { label, body } = splitProposalTitle(block);
+    const proposal: ParsedProposal = { id: current.id, block, label, body };
+    parseDecision(current.lines, proposal);
     out.push(proposal);
     current = null;
   };
@@ -209,7 +286,7 @@ export function parseProposals(proposalsMd: string): ParsedProposal[] {
  * T6 writes the plan from these answers (answers are question ids plus
  * `proposal:<i>` ⇒ approve/drop, controller-tasks.md T4).
  */
-function proposalWaitQuestions(proposals: ParsedProposal[]): ControllerWaitRecord['questions'] {
+export function proposalWaitQuestions(proposals: ParsedProposal[]): ControllerWaitRecord['questions'] {
   const questions: ControllerWaitRecord['questions'] = [];
   proposals.forEach((p) => {
     if (p.question) {
@@ -218,7 +295,7 @@ function proposalWaitQuestions(proposals: ParsedProposal[]): ControllerWaitRecor
         text: p.question,
         options: p.options,
         free: !p.options || p.options.length === 0,
-        recommended: p.options?.[0],
+        recommended: p.recommended ?? p.options?.[0],
       });
     }
   });
