@@ -525,6 +525,18 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   15:13Z; close-out landed 6/6 (P1, P4, P6 as harness PR #120; P3 already at HEAD via
   #116/#117; P5 no change; P2 carried as a human design decision since it reverses D18) and
   the run reached `done` at 15:48:50Z. **Second fixture run complete end to end.**
+- 2026-10-14 incident: the reboot broke the service. The installed unit's `PATH` carried
+  fnm's per-shell `/run/user/1000/fnm_multishells/<pid>_<ts>/bin`; after the reboot it was
+  gone and `sdd-controller.service` crash-looped every 5 s (`/usr/bin/env: 'node': No such
+  file`, counter 7136). What served the close-out was Matthew's hand-started
+  `make dashboard-local` (old build) on port 5000, not the service; the self-update that
+  "deployed" #120 swapped `dist/` under it and restarted a unit that could not start.
+  Fixed by PR #121 (`sdd-service.sh` bakes the resolved node binary and a `PATH` without
+  transient entries), applied live: hand-started dashboard stopped, service restarted,
+  serving the #120 build. Watchdog note: its dry run reads the live `NRestarts`, so
+  `service-scripts.test.ts` fails while the real unit is looping; counter reset by
+  stop/start. The watchdog itself raised nothing during ten hours of looping: it watches
+  the health endpoint, which the hand-started dashboard kept green. A watchdog gap to fix.
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
