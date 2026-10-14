@@ -27,7 +27,9 @@ status); `docs/adr/0001-0006`; `GLOSSARY.md`. Memory: `project_foundation_review
   reset window reads as reset, pause fields cleared; #116 + #117 `typecheck: none` honoured
   by the gate (R4.6c); #118 unreadable PR state ⇒ error wait; #119 the merge rule reads CI
   from GitHub Actions runs and commit statuses (a fine-grained PAT has no Checks permission,
-  so the PR check rollup is unreadable on private repos; ADR 0003 amended). Roadmap: spec 22
+  so the PR check rollup is unreadable on private repos; ADR 0003 amended); #120 farewell
+  retro follow-ups (structural-red no longer forces risk high, `phase.end` before gate B,
+  verifier for wiring tasks); #121 reboot-safe service unit. Roadmap: spec 22
   `dashboard-visual-refresh` added (`ab6ba46`).
 
 ## Standing rules
@@ -47,6 +49,13 @@ status); `docs/adr/0001-0006`; `GLOSSARY.md`. Memory: `project_foundation_review
   phase group: it goes implementation → retrospective without returning to the controller,
   and the merge stage runs when it exits. tradr and jobsync still run whole specs on the old
   harness until they move to the controller.
+- 2026-10-14 the reboot broke `sdd-controller.service`: its baked `PATH` carried fnm's
+  per-shell dir, so `node` was not found and the unit crash-looped for ten hours while the
+  watchdog saw a green health endpoint (Matthew's hand-started `make dashboard-local`).
+  PR #121 makes `sdd-service.sh` bake the resolved node binary; applied live. If the
+  service is ever down: `systemctl --user status sdd-controller` and the journal first,
+  then `SDD_CHECKOUT=<checkout> bash scripts/sdd-service.sh install`. Open: the watchdog
+  should also watch the unit (NRestarts, ActiveState), not only the port.
 - The dashboard lists a project only while an MCP server process for it is alive. After a
   controller restart the fixture vanished until a background `node dist/index.js
   /home/mcf/repo/sdd-fixture` was started; that process belongs to the previous session and
