@@ -330,6 +330,46 @@ describe('Controller merge stage', () => {
   }, 20000);
 });
 
+describe('Controller merge stage: unreadable PR', () => {
+  const BRANCH = 'feat/ctl';
+  const implRun: StubRun = {
+    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: USAGE },
+  };
+
+  it('writes an error wait with the merge cursor when gh cannot read the PR, instead of polling', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [implRun]);
+
+    const ghScript = join(fx.base, 'gh-script.json');
+    writeFileSync(ghScript, JSON.stringify([
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 7, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], exitCode: 1, stderr: 'GraphQL: Resource not accessible by personal access token' },
+    ]));
+    process.env.STUB_GH_SCRIPT = ghScript;
+
+    controller = new Controller({
+      resolveProject: () => ({ projectPath: fx.repo, workspacePath: fx.repo }),
+      mcpConfigFor: () => ({ mcpServers: {} }),
+      ensureWorktree: async () => ({ worktree: fx.repo, branch: BRANCH }),
+      claudeBin: () => STUB,
+      tickMs: 25,
+      mergePollMs: 10,
+    });
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.pr).toBe(7);
+    expect(waiting.cursor?.stepKind).toBe('merge');
+
+    const wait = (await listOpenWaits()).find((w) => w.run === id && w.kind === 'error');
+    expect(wait).toBeTruthy();
+    expect(wait!.questions[0].text).toMatch(/PR #7 could not be read.*Resource not accessible.*Checks: read/s);
+  }, 20000);
+});
+
 describe('Controller crash recovery', () => {
   it('resumes a run left running mid document phase and finishes it', async () => {
     // Requirements v1 committed but not approved (mid review round); design and

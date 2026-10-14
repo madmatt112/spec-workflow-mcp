@@ -256,6 +256,17 @@ describe('runMergeStage', () => {
     expect(recordedArgv(script)).toHaveLength(1);
   });
 
+  it('unreadable when gh pr view fails, without merging (a token that cannot read checks)', async () => {
+    const script = useGhScript([
+      { argvIncludes: ['pr', 'view'], exitCode: 1, stderr: 'GraphQL: Resource not accessible by personal access token (statusCheckRollup)' },
+    ]);
+    const result = await runMergeStage(makeRun(), makeDeps());
+    expect(result.status).toBe('unreadable');
+    expect(result.number).toBe(42);
+    expect(result.reasons.join(' ')).toMatch(/gh pr view #42 failed \(exit 1\).*Resource not accessible/);
+    expect(recordedArgv(script)).toHaveLength(1); // no merge attempted
+  });
+
   it('ask: opens one wait, re-entry reuses it, an answer of merge then merges', async () => {
     useGhScript([
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW }, // re-entry 1 evaluate

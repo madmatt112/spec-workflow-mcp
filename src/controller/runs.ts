@@ -663,7 +663,9 @@ function nextMergeCheck(deps: RunDeps): string {
  * status `merging` with a re-check time (the scheduler tick re-enters, no slot
  * busy-wait); `waiting` ⇒ the `merge` wait is open, status `waiting` (an answer
  * resumes the run); `merged` ⇒ `pr.merged` is already written, continue to the
- * retrospective; `failed` ⇒ an `error` wait with the reasons. No open PR when
+ * retrospective; `unreadable` ⇒ an `error` wait naming why `gh` could not read
+ * the PR (no re-check: nothing changes by itself); `failed` ⇒ an `error` wait
+ * with the reasons. No open PR when
  * the implementation reported complete ⇒ status `waiting` on an `error` wait and
  * `stop` (the branch was pushed but no PR was opened). Returns `none` only when
  * the PR is already merged (re-route to the retrospective).
@@ -713,6 +715,20 @@ async function runMergeStageStep(
     case 'waiting':
       // `runMergeStage` opened (or reused) the `merge` wait; just park the run.
       await save(deps, run, { status: 'waiting', inFlight: undefined });
+      return 'stop';
+    case 'unreadable':
+      // `gh` could not read the PR at all; polling would never change that. The
+      // `merge` cursor makes a "retry" re-enter the merge stage.
+      run = await save(deps, run, {
+        cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+      });
+      await waitAnd(deps, run, ledger, 'error', specDir, [{
+        id: 'merge',
+        text: `The state of PR #${result.number ?? run.pr ?? '?'} could not be read: ${result.reasons.join('; ')}. `
+          + "Probable cause: the controller's gh token cannot read checks (a fine-grained token needs Checks: read). "
+          + 'Fix the token, or merge the PR by hand, then answer "Retry".',
+        options: ['retry', 'abandon'], recommended: 'retry',
+      }]);
       return 'stop';
     case 'failed':
     default:
