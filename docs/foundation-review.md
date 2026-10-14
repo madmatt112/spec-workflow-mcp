@@ -497,6 +497,19 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   agree, ranks the new kind in `gate-rules`, keeps risk rule e silent on it. Deploys at the
   run's next wait. Roadmap: spec 22 `dashboard-visual-refresh` added at Matthew's request
   (`ab6ba46`).
+- 2026-10-14 implementation complete 3/3 (tasks 1-2 risk high, task 3 closed by the gate
+  alone at risk low), fixture PR #2 opened by the supervisor, retro ran in the same
+  supervisor process (retro-ready 03:00Z), supervisor exited 03:01Z. The controller's merge
+  stage then found PR #2 and parked the run `merging` with a 30 s re-check and no visible
+  reason: `gh pr view --json statusCheckRollup` exits 1 with `Resource not accessible by
+  personal access token`. Verified: the one fine-grained PAT (service.env and this shell
+  are the same token) reads checks on spec-workflow-mcp but gets 403 on sdd-fixture, GraphQL
+  and REST, with admin on both repos; PR #2 passes every other rule (MERGEABLE, CLEAN, right
+  branch, no attribution in body or 6 commits). Token settings are Matthew's: owner backlog.
+  PR #117 merged (the `typecheck: none` read moved into `runProjectTypecheck`, fixing the
+  gate path #116 missed). PR #118 merged (an unreadable PR state is an `error` wait with
+  Retry on the merge cursor, not a silent poll). Both deployed by self-update at 03:05Z
+  while the run was parked in `merging` (fifth restart mid-run).
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
