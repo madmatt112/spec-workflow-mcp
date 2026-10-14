@@ -196,7 +196,10 @@ fifteen minutes) is still a wait of kind `error` after the turn cap, never a sil
 Per project, in `agent-rules.md`: the merge method (exists), the post-merge command
 (exists), and `merge: auto | ask` (new, default `auto`). The controller merges when the PR's
 checks are green, it is mergeable, its commits and body carry no model attribution trailer,
-and the branch is the run's. Then it runs the post-merge command and writes `pr.merged`.
+and the branch is the run's. "Checks are green" means every GitHub Actions workflow run for
+the head sha completed with success, skipped or neutral and every commit status is success;
+the PR's check rollup is not used, because a fine-grained token cannot read it on a private
+repository (ADR 0003, 2026-10-14 amendment). Then it runs the post-merge command and writes `pr.merged`.
 With `ask`, it writes a `merge` wait instead. A model never runs this rule.
 
 The harness's own repository defaults to `ask`: a green build there proves the tests pass,

@@ -17,3 +17,10 @@ project can set "ask me first", which turns the merge into a wait instead.
   "ask me first", because a green build there proves the tests pass, not that the controller
   boots, and a bad merge takes down every project's control plane. The 2026-09-24 record was
   a human reviewing each diff, not a blind rule.
+- Amended 2026-10-14 after the second fixture run: "CI green" is read from the GitHub
+  Actions workflow runs and the commit statuses of the PR's head sha, not from the PR's
+  check rollup. A fine-grained personal access token cannot read check runs on a private
+  repository (GitHub offers it no Checks permission), and that is the only token the
+  controller has. A head younger than five minutes with no run yet, in a checkout that has
+  workflow files, counts as pending. A PR whose state the token cannot read at all is an
+  `error` wait, never a silent re-check.

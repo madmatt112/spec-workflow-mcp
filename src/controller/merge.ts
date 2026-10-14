@@ -12,7 +12,7 @@
 // in `run-setup.ts` owns `agent-rules.md`; `readMergeRules` picks the three
 // merge keys from it.
 import { execFile } from 'child_process';
-import { appendFileSync, mkdirSync } from 'fs';
+import { appendFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
@@ -28,9 +28,20 @@ const MERGE_QUESTION_ID = 'merge';
 /** The post-merge command's wall-clock budget (design §10: ten minutes). */
 const POST_MERGE_TIMEOUT_MS = 10 * 60 * 1000;
 
-/** The `gh pr view` fields the readiness rule reads. */
+/**
+ * The `gh pr view` fields the readiness rule reads. CI is not among them: a
+ * fine-grained token cannot read `statusCheckRollup` on a private repository
+ * (the Checks permission is not offered to personal access tokens), so the
+ * rule reads workflow runs and commit statuses for the head sha instead.
+ */
 const PR_VIEW_FIELDS =
-  'mergeable,mergeStateStatus,statusCheckRollup,headRefName,body,commits,author';
+  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author';
+
+/**
+ * A head commit younger than this with no workflow run yet is read as pending,
+ * not as "no CI": a run takes a few seconds to appear after a push.
+ */
+const FRESH_HEAD_MS = 5 * 60 * 1000;
 
 /** The binary name, overridable so tests swap in `scripts/stub-gh.mjs`. */
 function ghBin(): string {
@@ -213,26 +224,45 @@ function hasAttribution(text: string): boolean {
 
 type CheckState = 'success' | 'pending' | 'failed';
 
-/** Classify one `statusCheckRollup` entry (a CheckRun or a StatusContext). */
-function classifyCheck(c: Record<string, unknown>): CheckState {
-  const typename = typeof c.__typename === 'string' ? c.__typename : '';
-  const usesState = typename === 'StatusContext' || (typename !== 'CheckRun' && c.state !== undefined);
-  if (usesState) {
-    const s = String(c.state ?? '').toUpperCase();
-    if (s === 'SUCCESS') return 'success';
-    if (s === 'PENDING' || s === 'EXPECTED') return 'pending';
-    return 'failed'; // ERROR, FAILURE
-  }
-  const status = String(c.status ?? '').toUpperCase();
-  if (status && status !== 'COMPLETED') return 'pending'; // QUEUED, IN_PROGRESS, …
-  const conclusion = String(c.conclusion ?? '').toUpperCase();
-  if (conclusion === 'SUCCESS' || conclusion === 'SKIPPED' || conclusion === 'NEUTRAL') return 'success';
-  if (!conclusion && !status) return 'pending'; // an unexpected shape: do not merge on it
-  return 'failed'; // FAILURE, CANCELLED, TIMED_OUT, ACTION_REQUIRED, STALE, STARTUP_FAILURE
+/** Classify one GitHub Actions workflow run for the head sha. */
+function classifyWorkflowRun(r: Record<string, unknown>): CheckState {
+  const status = String(r.status ?? '').toLowerCase();
+  if (status !== 'completed') return 'pending'; // queued, in_progress, waiting, pending, requested
+  const conclusion = String(r.conclusion ?? '').toLowerCase();
+  if (conclusion === 'success' || conclusion === 'skipped' || conclusion === 'neutral') return 'success';
+  return 'failed'; // failure, cancelled, timed_out, action_required, stale, startup_failure
 }
 
-function checkName(c: Record<string, unknown>): string {
-  return String(c.name ?? c.context ?? 'check');
+/** Classify one commit status context for the head sha. */
+function classifyStatusContext(c: Record<string, unknown>): CheckState {
+  const state = String(c.state ?? '').toLowerCase();
+  if (state === 'success') return 'success';
+  if (state === 'pending') return 'pending';
+  return 'failed'; // error, failure
+}
+
+/** `gh api <path>` parsed as JSON, or the reason it could not be read. */
+async function ghApiJson(
+  repoDir: string, path: string,
+): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; reason: string }> {
+  const res = await runCommand(ghBin(), ['api', path], { cwd: repoDir });
+  if (res.code !== 0) {
+    return { ok: false, reason: `gh api ${path} failed (exit ${res.code}): ${tail(res.stderr || res.stdout, 5)}` };
+  }
+  try {
+    return { ok: true, data: JSON.parse(res.stdout) as Record<string, unknown> };
+  } catch (err) {
+    return { ok: false, reason: `could not parse gh api ${path}: ${(err as Error).message}` };
+  }
+}
+
+/** Does the checkout carry any GitHub Actions workflow file? */
+function hasWorkflowFiles(repoDir: string): boolean {
+  try {
+    return readdirSync(join(repoDir, '.github', 'workflows')).some((f) => /\.ya?ml$/i.test(f));
+  } catch {
+    return false;
+  }
 }
 
 function shortOid(oid: unknown): string {
@@ -240,12 +270,15 @@ function shortOid(oid: unknown): string {
 }
 
 /**
- * The merge rule, read-only (design §10): every check concluded SUCCESS,
- * SKIPPED or NEUTRAL (none pending or failed); `mergeable` MERGEABLE; no Claude
- * attribution trailer in any commit message or the body; the head branch equals
- * the run's branch. A `gh` failure is reported as not-ready, never a throw.
+ * The merge rule, read-only (design §10): every workflow run for the head sha
+ * completed with success, skipped or neutral and every commit status is
+ * success (none pending or failed; a head younger than five minutes with no
+ * run yet, in a checkout that has workflow files, is pending); `mergeable`
+ * MERGEABLE; no Claude attribution trailer in any commit message or the body;
+ * the head branch equals the run's branch. A `gh` failure is reported as
+ * unreadable (and not ready), never a throw.
  */
-export async function evaluate(pr: PullRequest): Promise<MergeEvaluation> {
+export async function evaluate(pr: PullRequest, now: () => Date = () => new Date()): Promise<MergeEvaluation> {
   const res = await runCommand(
     ghBin(),
     ['pr', 'view', String(pr.number), '--json', PR_VIEW_FIELDS],
@@ -263,11 +296,40 @@ export async function evaluate(pr: PullRequest): Promise<MergeEvaluation> {
 
   const reasons: string[] = [];
 
-  const rollup = Array.isArray(data.statusCheckRollup) ? (data.statusCheckRollup as Record<string, unknown>[]) : [];
-  for (const c of rollup) {
-    const state = classifyCheck(c);
-    if (state === 'pending') reasons.push(`check ${checkName(c)} is still running`);
-    else if (state === 'failed') reasons.push(`check ${checkName(c)} did not pass`);
+  const headOid = String(data.headRefOid ?? '');
+  if (!headOid) {
+    return { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} returned no headRefOid`] };
+  }
+  const runsRead = await ghApiJson(pr.repoDir, `repos/{owner}/{repo}/actions/runs?head_sha=${headOid}&per_page=100`);
+  if (!runsRead.ok) {
+    return { ready: false, unreadable: true, reasons: [`could not read the workflow runs of ${shortOid(headOid)}: ${runsRead.reason}`] };
+  }
+  const statusRead = await ghApiJson(pr.repoDir, `repos/{owner}/{repo}/commits/${headOid}/status`);
+  if (!statusRead.ok) {
+    return { ready: false, unreadable: true, reasons: [`could not read the commit statuses of ${shortOid(headOid)}: ${statusRead.reason}`] };
+  }
+
+  const runs = Array.isArray(runsRead.data.workflow_runs) ? (runsRead.data.workflow_runs as Record<string, unknown>[]) : [];
+  for (const r of runs) {
+    const name = String(r.name ?? 'workflow');
+    const state = classifyWorkflowRun(r);
+    if (state === 'pending') reasons.push(`workflow ${name} is still running`);
+    else if (state === 'failed') reasons.push(`workflow ${name} did not pass`);
+  }
+  // The combined `state` reads "pending" with zero statuses, so only the list counts.
+  const statuses = Array.isArray(statusRead.data.statuses) ? (statusRead.data.statuses as Record<string, unknown>[]) : [];
+  for (const c of statuses) {
+    const name = String(c.context ?? 'status');
+    const state = classifyStatusContext(c);
+    if (state === 'pending') reasons.push(`status ${name} is still pending`);
+    else if (state === 'failed') reasons.push(`status ${name} did not pass`);
+  }
+  const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
+  if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(pr.repoDir)) {
+    const committed = Date.parse(String(commits[commits.length - 1]?.committedDate ?? ''));
+    if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) {
+      reasons.push(`no workflow run yet for ${shortOid(headOid)} (head committed less than five minutes ago)`);
+    }
   }
 
   if (String(data.mergeable ?? '').toUpperCase() !== 'MERGEABLE') {
@@ -278,7 +340,6 @@ export async function evaluate(pr: PullRequest): Promise<MergeEvaluation> {
     reasons.push(`head branch is ${String(data.headRefName ?? '(none)')}, expected ${pr.branch}`);
   }
 
-  const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
   for (const commit of commits) {
     const message = `${String(commit.messageHeadline ?? '')}\n${String(commit.messageBody ?? '')}`;
     if (hasAttribution(message)) {
