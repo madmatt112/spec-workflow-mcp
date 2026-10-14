@@ -336,4 +336,22 @@ describe('gate B (tasks)', () => {
     expect(handoff(fx)).toContain(`## ${SPEC} — tasks`);
     expect(await approvedCount(fx)).toBe(1);
   });
+
+  it('records phase.end approved before parking at gate B (retro P4)', async () => {
+    process.env.SDD_HOME = fx.home;
+    const ctx = makeContext(fx, 'tasks', [
+      drafterRun('tasks', tasksDoc(1)),
+      reviewerRun('tasks', 'converged', ''),
+    ]);
+
+    const parked = await runDocumentPhase(ctx);
+    expect(parked.result).toBe('waiting');
+
+    // The tasks document is approved the moment it converges; the phase.end row is
+    // written before gate B parks the run, so the phase-log reconstructs
+    // v1/approved rather than a false interrupted row for an approved phase.
+    const ends = ledgerRows(fx).filter((r) => r.type === 'phase.end' && r.phase === 'tasks');
+    expect(ends).toHaveLength(1);
+    expect(ends[0]).toMatchObject({ result: 'approved', state: 'v1' });
+  });
 });

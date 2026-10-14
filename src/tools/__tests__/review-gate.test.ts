@@ -557,6 +557,28 @@ describe('handleGate', () => {
       expect(result.data.reasons.some((r: string) => r.startsWith('tdd-inconclusive'))).toBe(true);
     }, TDD_MS);
 
+    it('tdd-structural-red is neutral: a net-new seam no longer forces high (retro P1)', async () => {
+      await writeTddRules();
+      await writeTddTask();
+      // The red commit adds only the test; impl.js does not exist at its parent
+      // (C0), so the base run fails with "Cannot find module" — structural-red.
+      // A net-new pure-function seam: structural-red no longer forces high.
+      const redCommit = await commit('src/sum.test.js', SUM_TEST, 'red: module missing');
+      await commit('src/impl.js', IMPL_RIGHT, 'green: add impl');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: redCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('pass');
+      expect(result.data.tdd.base).toBe('structural-red');
+      expect(result.data.risk).toBe('low');
+      expect(result.data.reasons.some((r: string) => r.startsWith('tdd-structural-red'))).toBe(true);
+    }, TDD_MS);
+
     it('matches a ./-prefixed test file to its seam', async () => {
       await writeTddRules();
       await writeTddTask();

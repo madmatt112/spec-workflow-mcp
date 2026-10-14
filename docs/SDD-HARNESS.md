@@ -214,10 +214,14 @@ finding on an over-cap document, and the reviewer treats an overrun as a SHOULD_
 Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs, then
 the `review-task` gate runs first (`action: gate`) for a deterministic pass/fail verdict
 and a low/medium/high risk score. A `gate: fail` starts a fix round; a `pass` at `risk: low`
-records the review and completes the task; a `pass` at `risk: high` spawns `sdd-verifier`
-to review through `review-task` (`prepare` then `record`). A docs-only change that would
-score high is down-ranked to `risk: medium`, which routes like low — the gate records the
-review, CI is the net, and no verifier runs. Up to three fix rounds, then
+takes the low-risk self-review route — the gate stands as the review (reviewer `gate`) and
+no independent verifier runs — and completes the task; a `pass` at `risk: high` spawns
+`sdd-verifier` to review through `review-task` (`prepare` then `record`). A docs-only change
+that would score high is down-ranked to `risk: medium`, which routes like low — the gate
+records the review, CI is the net, and no verifier runs. A task that adds or changes wiring
+(a CLI flag or entrypoint, a program or server entrypoint, a route) always gets a verifier
+regardless of red-type or score, and the self-review default is named in the HANDOFF so the
+human sees which tasks skipped it. Up to three fix rounds, then
 `sdd-adjudicator` once, then mark `[x]`. Completion gate: end-to-end
 verification, `spec-index generate`, HANDOFF with deferral numbers, commit, push, PR.
 Never merge. One PR per code repository per spec: a second one is a decomposition
