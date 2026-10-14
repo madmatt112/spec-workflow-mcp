@@ -110,18 +110,22 @@ function writeScript(fx: Fixture, runs: StubRun[]): void {
  * merges it: a completed implementation must reach a merged PR before the retro
  * (no silent skip when there is no PR).
  */
+/** The two CI reads that follow every `pr view`: one green workflow run, no commit status. */
+const GH_RUNS_OK = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'completed', conclusion: 'success' }] } };
+const GH_STATUS_OK = { argvIncludes: ['api'], stdout: { state: 'pending', total_count: 0, statuses: [] } };
+
 function scriptMergeablePR(fx: Fixture, branch: string, oid: string): void {
   const view = {
     mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
-    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
-    headRefName: branch, body: 'Clean body.',
-    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    headRefName: branch, headRefOid: 'deadbeefcafe', body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '', committedDate: '2026-10-11T11:00:00.000Z' }],
     author: { login: 'someone' },
   };
   const ghScript = join(fx.base, 'gh-script.json');
   writeFileSync(ghScript, JSON.stringify([
     { argvIncludes: ['pr', 'list'], stdout: [{ number: 7, headRefName: branch, baseRefName: 'main', url: 'x' }] },
     { argvIncludes: ['pr', 'view'], stdout: view },
+    GH_RUNS_OK, GH_STATUS_OK,
     { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
     { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid } } },
   ]));
@@ -272,12 +276,11 @@ describe('Controller merge stage', () => {
   const BRANCH = 'feat/ctl';
   const readyView = {
     mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
-    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
-    headRefName: BRANCH, body: 'Clean body.',
-    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    headRefName: BRANCH, headRefOid: 'deadbeefcafe', body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '', committedDate: '2026-10-11T11:00:00.000Z' }],
     author: { login: 'someone' },
   };
-  const pendingView = { ...readyView, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null }] };
+  const runsPending = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'in_progress', conclusion: null }] } };
 
   const implRun: StubRun = {
     result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: USAGE },
@@ -299,8 +302,10 @@ describe('Controller merge stage', () => {
     const ghScript = join(fx.base, 'gh-script.json');
     writeFileSync(ghScript, JSON.stringify([
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 7, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
-      { argvIncludes: ['pr', 'view'], stdout: pendingView },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsPending, GH_STATUS_OK,
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      GH_RUNS_OK, GH_STATUS_OK,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'c0ffee123456' } } },
     ]));

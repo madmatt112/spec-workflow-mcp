@@ -317,12 +317,14 @@ describe('runOnce merge stage', () => {
   /** A `gh pr view` payload that passes the merge rule for branch `feat/x`. */
   const readyView = {
     mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
-    statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
-    headRefName: BRANCH, body: 'Clean body.',
-    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '' }],
+    headRefName: BRANCH, headRefOid: 'deadbeefcafe', body: 'Clean body.',
+    commits: [{ oid: 'deadbeefcafe', messageHeadline: 'feat: do it', messageBody: '', committedDate: '2026-10-11T11:00:00.000Z' }],
     author: { login: 'someone' },
   };
-  const pendingView = { ...readyView, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null }] };
+  /** The two CI reads that follow every `pr view`: workflow runs for the head sha, then commit statuses. */
+  const runsOk = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'completed', conclusion: 'success' }] } };
+  const runsPending = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'in_progress', conclusion: null }] } };
+  const statusOk = { argvIncludes: ['api'], stdout: { state: 'pending', total_count: 0, statuses: [] } };
 
   /** Point stub-gh at a scripted sequence of responses. */
   function writeGhScript(fx: Fixture, runs: unknown[]): void {
@@ -357,8 +359,10 @@ describe('runOnce merge stage', () => {
     writeScript(fx, [implRun, retroRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
-      { argvIncludes: ['pr', 'view'], stdout: pendingView },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsPending, statusOk,
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'cafef00d1234' } } },
     ]);
@@ -392,7 +396,9 @@ describe('runOnce merge stage', () => {
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'ab12cd34' } } },
     ]);
@@ -423,6 +429,7 @@ describe('runOnce merge stage', () => {
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
       { argvIncludes: ['pr', 'merge'], stderr: 'the base branch has moved\n', exitCode: 1 },
     ]);
     await writeRun(seedRun(fx, { branch: BRANCH }));
@@ -473,6 +480,7 @@ describe('runOnce merge stage', () => {
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'beefcafe1234' } } },
     ]);

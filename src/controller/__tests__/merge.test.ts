@@ -58,16 +58,23 @@ function recordedArgv(scriptPath: string): string[][] {
 const READY_VIEW = {
   mergeable: 'MERGEABLE',
   mergeStateStatus: 'CLEAN',
-  statusCheckRollup: [
-    { __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' },
-    { __typename: 'CheckRun', name: 'lint', status: 'COMPLETED', conclusion: 'SKIPPED' },
-    { __typename: 'StatusContext', context: 'ci/legacy', state: 'SUCCESS' },
-  ],
   headRefName: 'feat/thing',
+  headRefOid: 'deadbeefcafe0001',
   body: 'A clean PR body with no trailers.',
-  commits: [{ oid: 'deadbeefcafe0001', messageHeadline: 'feat: do the thing', messageBody: 'Body line.' }],
+  commits: [{ oid: 'deadbeefcafe0001', messageHeadline: 'feat: do the thing', messageBody: 'Body line.', committedDate: '2026-10-11T11:00:00.000Z' }],
   author: { login: 'someone' },
 };
+
+/** The two CI reads that follow every `pr view`: workflow runs for the head sha, then commit statuses. */
+function runsOf(...runs: Record<string, unknown>[]) {
+  return { argvIncludes: ['api'], stdout: { total_count: runs.length, workflow_runs: runs } };
+}
+function statusesOf(...statuses: Record<string, unknown>[]) {
+  // The combined `state` is "pending" whenever the list is empty, as GitHub returns it.
+  return { argvIncludes: ['api'], stdout: { state: statuses.length ? 'success' : 'pending', total_count: statuses.length, statuses } };
+}
+const RUNS_OK = runsOf({ name: 'test', event: 'pull_request', status: 'completed', conclusion: 'success' });
+const STATUS_OK = statusesOf();
 
 function makeRun(overrides: Partial<RunRecord> = {}): RunRecord {
   return {
@@ -151,45 +158,93 @@ describe('evaluate', () => {
   let pr: PullRequest;
   beforeEach(() => { pr = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' }; });
 
-  it('is ready when checks are green (incl. SKIPPED and StatusContext), mergeable, clean and the head matches', async () => {
-    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: READY_VIEW }]);
+  it('is ready when the workflow runs are green (incl. skipped) and statuses success, mergeable, clean and the head matches', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf(
+        { name: 'test', status: 'completed', conclusion: 'success' },
+        { name: 'lint', status: 'completed', conclusion: 'skipped' },
+      ),
+      statusesOf({ context: 'ci/legacy', state: 'success' }),
+    ]);
     const result = await evaluate(pr);
     expect(result).toEqual({ ready: true, reasons: [] });
   });
 
-  it('is not ready while a check is still running', async () => {
-    useGhScript([{ stdout: { ...READY_VIEW, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null }] } }]);
+  it('is not ready while a workflow run is still running', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
-    expect(result.reasons.join(' ')).toMatch(/build is still running/);
+    expect(result.reasons.join(' ')).toMatch(/workflow build is still running/);
   });
 
-  it('is not ready when a check failed', async () => {
-    useGhScript([{ stdout: { ...READY_VIEW, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'COMPLETED', conclusion: 'FAILURE' }] } }]);
+  it('is not ready when a workflow run failed or a status is pending', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'completed', conclusion: 'failure' }),
+      statusesOf({ context: 'ci/legacy', state: 'pending' }),
+    ]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
-    expect(result.reasons.join(' ')).toMatch(/build did not pass/);
+    expect(result.reasons.join(' ')).toMatch(/workflow build did not pass/);
+    expect(result.reasons.join(' ')).toMatch(/status ci\/legacy is still pending/);
+  });
+
+  it('is pending while a fresh head has no workflow run yet in a checkout with workflow files', async () => {
+    mkdirSync(join(pr.repoDir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(pr.repoDir, '.github', 'workflows', 'test.yml'), 'name: test\n');
+    const justNow = new Date(Date.now() - 60_000).toISOString();
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, commits: [{ ...READY_VIEW.commits[0], committedDate: justNow }] } },
+      runsOf(),
+      statusesOf(),
+    ]);
+    const result = await evaluate(pr);
+    expect(result.ready).toBe(false);
+    expect(result.reasons.join(' ')).toMatch(/no workflow run yet for deadbee/);
+  });
+
+  it('is ready with no runs and no statuses when the checkout has no workflow files', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf(), statusesOf()]);
+    const result = await evaluate(pr);
+    expect(result).toEqual({ ready: true, reasons: [] });
+  });
+
+  it('is unreadable when the workflow runs cannot be read', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      { argvIncludes: ['api'], exitCode: 1, stderr: 'HTTP 403: Resource not accessible by personal access token' },
+    ]);
+    const result = await evaluate(pr);
+    expect(result.ready).toBe(false);
+    expect(result.unreadable).toBe(true);
+    expect(result.reasons.join(' ')).toMatch(/could not read the workflow runs of deadbee.*403/);
   });
 
   it('is not ready when a commit message carries an attribution trailer', async () => {
     useGhScript([{ stdout: {
       ...READY_VIEW,
       commits: [{ oid: 'abcdef1234', messageHeadline: 'feat: x', messageBody: 'Co-authored-by: Claude <noreply@anthropic.com>' }],
-    } }]);
+    } }, RUNS_OK, STATUS_OK]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
     expect(result.reasons.join(' ')).toMatch(/commit abcdef1 carries a Claude attribution trailer/);
   });
 
   it('is not ready when the PR body carries an attribution trailer', async () => {
-    useGhScript([{ stdout: { ...READY_VIEW, body: 'Summary.\n\n🤖 Generated with [Claude Code](https://claude.com)' } }]);
+    useGhScript([{ stdout: { ...READY_VIEW, body: 'Summary.\n\n🤖 Generated with [Claude Code](https://claude.com)' } }, RUNS_OK, STATUS_OK]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
     expect(result.reasons.join(' ')).toMatch(/PR body carries a Claude attribution trailer/);
   });
 
   it('is not ready when the head branch is not the run\'s branch', async () => {
-    useGhScript([{ stdout: { ...READY_VIEW, headRefName: 'feat/other' } }]);
+    useGhScript([{ stdout: { ...READY_VIEW, headRefName: 'feat/other' } }, RUNS_OK, STATUS_OK]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
     expect(result.reasons.join(' ')).toMatch(/head branch is feat\/other, expected feat\/thing/);
@@ -213,6 +268,7 @@ describe('runMergeStage', () => {
   it('auto: merges, runs the post-merge command and writes pr.merged', async () => {
     const script = useGhScript([
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'f00dc0ffee1234567890' } } },
     ]);
@@ -247,13 +303,15 @@ describe('runMergeStage', () => {
 
   it('not-ready when a check is still pending, without merging', async () => {
     const script = useGhScript([
-      { stdout: { ...READY_VIEW, statusCheckRollup: [{ __typename: 'CheckRun', name: 'build', status: 'QUEUED', conclusion: null }] } },
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'queued', conclusion: null }),
+      STATUS_OK,
     ]);
     const result = await runMergeStage(makeRun(), makeDeps());
     expect(result.status).toBe('not-ready');
     expect(result.reasons.join(' ')).toMatch(/still running/);
-    // Only the evaluate view ran; no merge.
-    expect(recordedArgv(script)).toHaveLength(1);
+    // Only the evaluate reads ran (view, runs, statuses); no merge.
+    expect(recordedArgv(script)).toHaveLength(3);
   });
 
   it('unreadable when gh pr view fails, without merging (a token that cannot read checks)', async () => {
@@ -270,8 +328,11 @@ describe('runMergeStage', () => {
   it('ask: opens one wait, re-entry reuses it, an answer of merge then merges', async () => {
     useGhScript([
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW }, // re-entry 1 evaluate
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW }, // re-entry 2 evaluate
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW }, // re-entry 3 evaluate
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
       { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'aa11bb22' } } },
     ]);
@@ -301,7 +362,9 @@ describe('runMergeStage', () => {
   it('ask: an answer of hold keeps the stage waiting', async () => {
     useGhScript([
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK, STATUS_OK,
     ]);
     const run = makeRun();
     const deps = makeDeps({ rules: { method: 'merge', postMerge: null, merge: 'ask' } });
@@ -316,6 +379,7 @@ describe('runMergeStage', () => {
   it('failed: a failing gh pr merge returns failed with the output tail', async () => {
     useGhScript([
       { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK, STATUS_OK,
       { argvIncludes: ['pr', 'merge'], stderr: 'failed to merge: the base branch has moved\n', exitCode: 1 },
     ]);
     const result = await runMergeStage(makeRun(), makeDeps());
