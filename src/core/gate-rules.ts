@@ -59,6 +59,7 @@ export const TYPECHECK_STATE_RANK = [
   'success-with-diagnostics',
   'success-partial-coverage',
   'unavailable-feature-disabled',
+  'unavailable-declared-none',
   'success-clean-full',
 ];
 

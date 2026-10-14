@@ -1,4 +1,5 @@
 import { execFile, ExecFileOptions } from 'node:child_process';
+import { parseAgentRuleKey } from './gate-rules.js';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -132,6 +133,16 @@ function workspaceCacheKey(workspacePath: string): string {
     .slice(0, 16);
 }
 
+/** True when `<workflowRoot>/.spec-workflow/agent-rules.md` declares `typecheck: none`. */
+async function typecheckDeclaredNone(workflowRoot: string): Promise<boolean> {
+  try {
+    const text = await fs.readFile(path.join(workflowRoot, '.spec-workflow', 'agent-rules.md'), 'utf-8');
+    return parseAgentRuleKey(text, 'typecheck') === 'none';
+  } catch {
+    return false;
+  }
+}
+
 export async function runProjectTypecheck(
   /**
    * The checkout that is compiled. Governs every root use that determines which
@@ -147,20 +158,9 @@ export async function runProjectTypecheck(
    */
   workflowRoot: string,
   allFiles: string[],
-  opts: { enabled: boolean; declaredNone?: boolean },
+  opts: { enabled: boolean },
 ): Promise<TypecheckResult[]> {
   const tsconfigPath = path.join(workspacePath, 'tsconfig.json');
-
-  // The project says it has no typecheck (`typecheck: none` in agent-rules.md),
-  // so its absence is a declaration, not a degraded surface (fixture retro P2).
-  if (opts.declaredNone) {
-    return [{
-      tsconfigPath,
-      status: 'unavailable',
-      reason: 'declared-none',
-      observed: 'agent-rules.md declares `typecheck: none`',
-    }];
-  }
 
   if (!opts.enabled) {
     const settingsPath = path.join(
@@ -173,6 +173,18 @@ export async function runProjectTypecheck(
       status: 'unavailable',
       reason: 'feature-disabled',
       observed: `typecheck is disabled by \`features.typecheck: false\` in \`${settingsPath}\``,
+    }];
+  }
+
+  // The project says it has no typecheck (`typecheck: none` in agent-rules.md), so
+  // its absence is a declaration, not a degraded surface (fixture retro P2). Read
+  // here so every caller (`prepare` and `gate`) gets the same answer.
+  if (await typecheckDeclaredNone(workflowRoot)) {
+    return [{
+      tsconfigPath,
+      status: 'unavailable',
+      reason: 'declared-none',
+      observed: 'agent-rules.md declares `typecheck: none`',
     }];
   }
 

@@ -134,8 +134,10 @@ describe('runProjectTypecheck (5.1) — failure-mode taxonomy', () => {
     expect(mockedExecFile).not.toHaveBeenCalled();
   });
 
-  it('declared-none short-circuits before any I/O when agent-rules.md says typecheck: none', async () => {
-    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true, declaredNone: true });
+  it('declared-none when agent-rules.md says typecheck: none, before tsc is looked for', async () => {
+    await fs.mkdir(join(tempDir, '.spec-workflow'), { recursive: true });
+    await fs.writeFile(join(tempDir, '.spec-workflow', 'agent-rules.md'), '# Rules\n\ntypecheck: none\nlint: none\n');
+    const result = await runProjectTypecheck(tempDir, tempDir, [], { enabled: true });
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('unavailable');
     if (result[0].status !== 'unavailable') throw new Error('narrowing');

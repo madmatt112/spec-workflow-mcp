@@ -1,5 +1,4 @@
 import path from 'path';
-import { readFileSync } from 'fs';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolContext, ToolResponse, ReviewFinding, PromptSection, ImplementationLogEntry } from '../types.js';
 import { PathUtils } from '../core/path-utils.js';
@@ -15,7 +14,6 @@ import { selectRoots } from './root-selection.js';
 import { handleGate } from './review-gate.js';
 import { TaskStateStore, type TaskStateRecord } from '../core/task-state-store.js';
 import { normalizeIdentityPath } from '../core/git-utils.js';
-import { parseAgentRuleKey } from '../core/gate-rules.js';
 
 const reviewWarnedKeys = new Set<string>();
 
@@ -77,16 +75,6 @@ export type TypecheckMethodologyState =
   | { kind: 'unavailable-declared-none' }
   | { kind: 'unavailable-other'; reason: string }
   | { kind: 'timeout' };
-
-/** True when the project's `agent-rules.md` declares `typecheck: none`. */
-function readTypecheckDeclaredNone(projectPath: string): boolean {
-  try {
-    const text = readFileSync(path.join(projectPath, '.spec-workflow', 'agent-rules.md'), 'utf-8');
-    return parseAgentRuleKey(text, 'typecheck') === 'none';
-  } catch {
-    return false;
-  }
-}
 
 export function computeTypecheckMethodologyState(
   result: TypecheckResult
@@ -718,7 +706,6 @@ async function handlePrepare(
     const noReviewableFiles = hasNoReviewableFiles(fileResolutionCounts);
     const settings = loadSettings(projectPath);
     const typecheckEnabled = isTypecheckEnabled(settings);
-    const typecheckDeclaredNone = readTypecheckDeclaredNone(projectPath);
 
     // 6b. Read the per-task record (never throws, never written here) and resolve
     // the diff base and attribution before the concurrent block. The base feeds
@@ -737,7 +724,6 @@ async function handlePrepare(
     const settled = await Promise.allSettled([
       runProjectTypecheck(workspacePath, projectPath, workspaceFiles, {
         enabled: typecheckEnabled,
-        declaredNone: typecheckDeclaredNone,
       }),
       computeHygieneSignals(workspaceFiles, { root: workspacePath, base: ['HEAD'] }),
 

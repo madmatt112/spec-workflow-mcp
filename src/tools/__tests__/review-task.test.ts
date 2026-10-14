@@ -686,7 +686,7 @@ describe('handlePrepare with distinct workspace and workflow roots', () => {
     // excerpt and the typecheck-disabling settings file are both read from it.
     const result = await prepareWith([path.join('src', 'code.ts')]);
     expect(result.data.steeringExcerpt).toContain('Tech steering from the shared root');
-    expect(typecheckArgs[3]).toEqual({ enabled: false, declaredNone: false });
+    expect(typecheckArgs[3]).toEqual({ enabled: false });
     expect(result.projectContext?.workflowRoot).toBe(join(workflowRoot, '.spec-workflow'));
   });
 

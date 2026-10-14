@@ -240,6 +240,12 @@ describe('worstTypecheckState', () => {
       { kind: 'success-clean-full' },
     ]);
     expect(withReason).toEqual({ kind: 'unavailable-other', reason: 'no-tsconfig' });
+    expect(
+      worstTypecheckState([
+        { kind: 'unavailable-declared-none' },
+        { kind: 'unavailable-other', reason: 'no-tsconfig' },
+      ]).kind
+    ).toBe('unavailable-other');
   });
 });
 
@@ -424,6 +430,11 @@ describe('scoreRisk', () => {
       ...lowRisk,
       typecheck: { kind: 'unavailable-other', reason: 'no-tsconfig' },
     });
+    expect(r).toEqual({ risk: 'low', reasons: [] });
+  });
+
+  it('P2: e stays silent on declared-none (agent-rules.md says typecheck: none)', () => {
+    const r = scoreRisk({ ...lowRisk, typecheck: { kind: 'unavailable-declared-none' } });
     expect(r).toEqual({ risk: 'low', reasons: [] });
   });
 
