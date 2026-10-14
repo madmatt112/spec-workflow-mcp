@@ -489,6 +489,14 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   (fourth restart mid-run; the wait survived, the fixture project stayed listed because a
   background MCP server process keeps it registered). #111 confirmed live: this run's step
   logs are under `runs/<id>/steps/`, none in the spec dir.
+- 2026-10-14 gate B `w-a6711251` answered 02:32Z; implementation supervisor running under
+  the controller's run id (#112 confirmed by the `phase.start` row). Task 1's gate still
+  recorded `typecheck unavailable-other / no-tsconfig`: #116 had changed the `prepare` path
+  only, and the per-task line comes from the `gate` action's own `runProjectTypecheck`
+  call. PR #117 moves the `typecheck: none` read into `runProjectTypecheck` so both paths
+  agree, ranks the new kind in `gate-rules`, keeps risk rule e silent on it. Deploys at the
+  run's next wait. Roadmap: spec 22 `dashboard-visual-refresh` added at Matthew's request
+  (`ab6ba46`).
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
