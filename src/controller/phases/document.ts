@@ -508,6 +508,21 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
     return { approvalId };
   };
 
+  // phase.end=approved, written at most once per phase (P4). The tasks phase is
+  // approved the moment its document is approved; gate B is a separate human veto
+  // surface, not an unfinished phase. The row is recorded as soon as the phase is
+  // approved — before gate B parks the run — so the phase-log reflects the
+  // converged version/approved instead of reconstructing a false `interrupted`
+  // row. The guard keeps a later finalize (or a resume) from writing a second end
+  // row for the same phase.
+  const recordApprovedPhaseEnd = (D: number, note: string): void => {
+    const already = readLedgerRows().some(
+      (r) => r.type === 'phase.end' && (r as { phase?: string }).phase === phase
+        && (r as { result?: string }).result === 'approved',
+    );
+    if (!already) ctx.ledger.phaseEnd(phase, { result: 'approved', state: `v${D}`, note });
+  };
+
   // --- cleanup, HANDOFF, phase.end, phase-log, checkpoint (SKILL.md Step 5/6).
   const finalizeApproved = async (
     D: number, approvalId: string | undefined, trajectory: string, cap?: { verified: string },
@@ -522,7 +537,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       rulings: rulings.length > 0 ? rulings.join('; ') : 'none',
       carried: carriedItems.length > 0 ? carriedItems.join('; ') : 'none',
     });
-    ctx.ledger.phaseEnd(phase, { result: 'approved', state: `v${D}`, note: `${totalRounds} rounds` });
+    recordApprovedPhaseEnd(D, `${totalRounds} rounds`);
     await harnessHandler({ action: 'phase-log', specName }, toolContext);
     await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} approved at v${D}` }, serialize);
     void cap;
@@ -553,6 +568,12 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
         codeRoot: ctx.codeRoot, version: D,
       });
       if (g.kind === 'waiting') {
+        // The tasks document is approved; record phase.end before the gate parks
+        // the run so the phase-log reflects v<D>/approved, not a false interrupted
+        // row (retro P4). `routeRun` does not re-enter this phase once it is
+        // approved, so finalizeApproved never runs here; the guard also prevents a
+        // second end row on any direct re-entry.
+        recordApprovedPhaseEnd(D, `${totalRoundsNow()} rounds`);
         return { result: 'waiting', version: D, rounds: totalRoundsNow(), waitId: g.waitId };
       }
     }
