@@ -428,13 +428,17 @@ export async function handleGate(
     // paths`). There is nothing the per-task verifier could judge, so it is
     // skipped and CI is the net; any other touched path keeps it high. Medium
     // still requires the log — the gate already refuses a task with no log above.
-    // Step 8b: a weak proof forces high, but only a `tdd-structural-red` or
-    // `tdd-amended` reason counts (design step 6, 5.3). `tdd-inconclusive` is
-    // expected on a type-level or pure-function seam — no runnable red-at-base
-    // command — so it is neutral and never forces high on its own (retro P3); it
-    // stays an informational reason while the sensitive-path, line-count and gate
+    // Step 8b: a weak proof no longer forces high on its own; only `tdd-amended`
+    // (the author amended a red test after the fact) still counts as a hard risk
+    // (design step 6, 5.3). `tdd-inconclusive` is expected on a type-level or
+    // pure-function seam — no runnable red-at-base command (retro P3). And
+    // `tdd-structural-red` (a test importing a not-yet-created module) is the
+    // expected, low-information state for a net-new file, not a risk signal, so it
+    // is neutral too (retro P1): decouple red-type from risk. Both stay
+    // informational reasons while the sensitive-path, line-count and gate
     // components decide, so a sensitive, gate or data-loss task still scores high
-    // through those and keeps its verifier. Otherwise the no-product-code down-rank
+    // through those and keeps its verifier; a new wiring module gets a verifier by
+    // the orchestrator's routing rule (retro P6). Otherwise the no-product-code down-rank
     // from high to medium stands (retro P7 docs-only; retro P10 generated-only and
     // spec-store-only): a change is "no product code" when it touched no path under
     // the code root at all (spec-store-only), or every touched path is documentation
@@ -442,8 +446,11 @@ export async function handleGate(
     // (`## Generated paths`). There is nothing the per-task verifier could judge, so
     // it is skipped and CI is the net; any other touched path keeps it high. Medium
     // still requires the log — the gate already refuses a task with no log above.
-    const hardProofRisk = proof.risk.filter((r) => !r.startsWith('tdd-inconclusive'));
-    const softProofRisk = proof.risk.filter((r) => r.startsWith('tdd-inconclusive'));
+    const SOFT_PROOF_PREFIXES = ['tdd-inconclusive', 'tdd-structural-red'];
+    const isSoftProofRisk = (r: string): boolean =>
+      SOFT_PROOF_PREFIXES.some((p) => r.startsWith(p));
+    const hardProofRisk = proof.risk.filter((r) => !isSoftProofRisk(r));
+    const softProofRisk = proof.risk.filter(isSoftProofRisk);
     let risk: { risk: 'low' | 'medium' | 'high'; reasons: string[] };
     if (hardProofRisk.length > 0) {
       risk = { risk: 'high', reasons: [...scored.reasons, ...proof.risk] };
