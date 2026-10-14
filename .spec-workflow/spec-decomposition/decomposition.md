@@ -854,6 +854,50 @@ stacks under the list and nothing scrolls sideways.
 **Depends on** spec 9 for the harness watchers, the launcher, the setup file and the run
 model wiring, and on spec 6 for the pointer file and the hook events.
 
+### 22. `dashboard-visual-refresh` — the same dashboard, restyled (active)
+
+The dashboard's look grew with its pages: colours, spacing, type sizes and component styles
+were chosen page by page, and the breakpoints and content widths differ between them. This
+spec gives the whole dashboard one visual system and applies it everywhere. It changes how
+the dashboard looks, not what it does: the same pages, routes, rows, panels, data and
+server. An operator who used it the day before finds everything where it was.
+
+**Delivers.**
+
+- **One set of design tokens.** Colour (light and dark), type scale, spacing, radii,
+  borders, shadows and motion, defined once and used by every page and component. No
+  hard-coded colour or size is left in a component.
+- **Restyled components.** Sidebar, list rows and groups, detail panel, chips, buttons,
+  inputs, tabs, badges, tables, the log view, toasts and dialogs, each with consistent
+  hover, focus, selected, disabled and loading states, and visible keyboard focus.
+- **Layout rules.** A fixed set of breakpoints, a maximum content width on wide screens, a
+  minimum below which the panel stacks under the list, and the same gutters on every page.
+  Nothing scrolls sideways at any width from a phone to a wide monitor.
+- **Both themes from the same tokens.** Light and dark are two token sets, not two
+  stylesheets; the theme switch stays where it is.
+- **No functional change.** Routes, rows, columns, filters, actions, WebSocket updates and
+  server routes are untouched. Translations are untouched. Tests that assert behaviour keep
+  passing unchanged; only snapshot or class-name assertions move.
+
+**Decided.** The Linear idiom from the dashboard redesign (dense grouped rows, narrow
+sidebar, detail panel on the right) stays; this is a refresh inside it, not a new idiom.
+Tokens live in one file. No new UI library.
+
+- Open for gate A: the palette and accent colour; the type family; row density (keep 36 px
+  or tighten); the breakpoint set and the maximum content width; whether the terminal HUD
+  adopts the same palette.
+
+**End-to-end verification.** (1) Every page renders in light and dark from the tokens, and a
+search of the frontend source finds no hard-coded colour outside the token file. (2) At 360,
+768, 1000, 1440 and 1920 px each page shows no horizontal scroll, and the panel stacks under
+the list below the chosen breakpoint. (3) Tabbing through each page shows a visible focus
+ring on every control. (4) Before-and-after screenshots of the five pages in both themes are
+in the spec directory and the operator accepts them. (5) `npm run build`, `npx tsc --noEmit`
+and `npm test` are green with no behavioural test changed.
+
+**Depends on** spec 15 for the shell it restyles. It should run after the re-plan settles
+which dashboard pages exist, so it styles the final set once.
+
 ## Superseded entries (2026-10-10)
 
 Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard usage), the
@@ -888,7 +932,8 @@ and it uses 9's per-role model override.
 
 15 after 14. 15 (`dashboard-shell`) is CLOSED. The entries that followed it (16 to 21) are
 superseded; see "Superseded entries" above. No order is defined past 15 until the roadmap is
-re-planned.
+re-planned. 22 (`dashboard-visual-refresh`, added 2026-10-14) takes its place in that
+re-plan; it comes after whichever dashboard pages the re-plan keeps, since it restyles them.
 
 ## Boundary notes
 
