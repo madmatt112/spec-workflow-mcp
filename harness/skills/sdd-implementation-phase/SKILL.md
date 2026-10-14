@@ -287,16 +287,25 @@ Loop until no `[ ]` or `[-]` task remains, or the budget trips. When none remain
    `book.sh`, then route on `data.gate` and `data.risk`:
    - `gate: fail` ⇒ **step 5** with a gate-fix brief; spawn no verifier; then run the
      gate again.
-   - `pass` and `risk: low` or `medium` ⇒ **step 6**, with the gate-recorded review as the
-     task's review, `rounds=0` and `task.done ... outcome=gate`. Medium is the docs-only
-     down-rank (`docs/SDD-HARNESS.md`); it routes like low — the deterministic gate only, no
-     verifier.
+   - `pass` and `risk: low` or `medium` ⇒ the **low-risk self-review route** (retro P6): the
+     deterministic gate stands as the task's review (reviewer `gate`) and no independent
+     verifier runs. Go to **step 6** with that gate-recorded review, `rounds=0` and
+     `task.done ... outcome=gate`. Medium is the docs-only down-rank
+     (`docs/SDD-HARNESS.md`); it routes like low — the deterministic gate only, no verifier.
+     **Wiring exception (retro P6):** a task that adds or changes wiring — a CLI flag or
+     entrypoint, a program or server entrypoint, a route — is the integration seam where an
+     independent pass is most valuable, so route it to **step 4b** for a verifier regardless
+     of red-type or the low/medium score. Judge "wiring" from the task's files and title
+     (an entrypoint, CLI, or route file), not from the gate's score. Name the self-review
+     route as the default in the HANDOFF `## <SPEC> — implementation` section so the human
+     sees which tasks skipped the verifier (step 11 states `reviewCoverage` and lists them).
    - `pass` and `risk: high` ⇒ **step 4b**.
    A gate `success: false` after the implementer's `logged: yes` is a tool error, not a
    fix round: write the HANDOFF State row and commit the spec store (`book.sh`), and report
    `PHASE: resume`, `STATE: tasks <done>/<total>`, `NEXT: task <N>` (the resume escape
    `sdd-closeout-phase/SKILL.md:96-98` uses for a stuck batch).
-4b. **Verify** (high risk only).
+4b. **Verify** (high risk, or a low/medium wiring task routed here by step 4's retro-P6
+   exception).
    **Batched verification (retro P7/G1).** After the first N tasks all pass verifier on
    the first round with INFO-only notes, switch remaining non-sensitive tasks to batched
    verification (one spawn per group) — always verifying gate, security, and data-loss
