@@ -520,6 +520,11 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   seconds later the controller merged fixture PR #2 by rule (`pr.merged` 03:39:58Z, sha
   `acc8502`, method merge). **Merge by rule is proven; every item in design §13 (b) has now
   been exercised.** Run parked at the retro-plan wait (P1, P6) for Matthew.
+- 2026-10-14 the machine rebooted (new WSL kernel); the controller came back on its own and
+  the parked run survived (seventh restart mid-run). Matthew answered the retro-plan wait
+  15:13Z; close-out landed 6/6 (P1, P4, P6 as harness PR #120; P3 already at HEAD via
+  #116/#117; P5 no change; P2 carried as a human design decision since it reverses D18) and
+  the run reached `done` at 15:48:50Z. **Second fixture run complete end to end.**
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
