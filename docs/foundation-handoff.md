@@ -13,22 +13,21 @@ status); `docs/adr/0001-0006`; `GLOSSARY.md`. Memory: `project_foundation_review
   Matthew's gh token in `~/.local/state/sdd/service.env`. Health: `curl localhost:5000/api/health`.
 - First fixture run `run-20261012-191315` (spec `greeting-endpoint`) reached `done` on
   2026-10-13: 7/7 close-out proposals landed (harness PR #113 merged).
-- Second fixture run `run-20261013-203521` (spec `farewell`, fixture PR #2) is **waiting on
-  error wait `w-07d75fc5`** at the merge stage: the service PAT gets HTTP 403 reading checks
-  on `madmatt112/sdd-fixture` (GraphQL `statusCheckRollup` and REST `check-runs`), although
-  the same token reads them on spec-workflow-mcp and has admin on both repos. PR #2 passes
-  every other merge-rule check. The fix is in the PAT's settings (Matthew; owner backlog).
-  When he answers Retry, the merge stage re-enters; merge by rule should complete, then the
-  retro-plan wait (2 decisions, P1 and P6), then close-out.
-- Done-when scorecard (design §13 (b)): proven = launch from the dashboard, gates A and B
-  answered there with resume, three document phases in code, the supervisor bridge, five
-  controller restarts mid-run with the run intact, the staged self-update, the retro-plan
-  wait answered, close-out to `done`, the forced window threshold (park and resume), the
-  no-PR and unreadable-PR error waits. Not yet = merge by rule itself (blocked on the token).
+- Second fixture run `run-20261013-203521` (spec `farewell`): fixture PR #2 was **merged by
+  rule** by the controller at 03:39:58Z on 2026-10-14 (`pr.merged`, sha `acc8502`). The run
+  is **waiting on retro-plan wait `w-273502c5`** (decisions P1 and P6) for Matthew; then
+  close-out runs through the old supervisor and the run should end `done`.
+- Done-when scorecard (design §13 (b)): every item exercised: launch from the dashboard,
+  gates A and B answered there with resume, three document phases in code, the supervisor
+  bridge, six controller restarts mid-run with the run intact, the staged self-update, the
+  retro-plan wait answered and close-out to `done` (first run), the forced window threshold
+  (park and resume), the no-PR and unreadable-PR error waits, merge by rule (second run).
 - Fixed this window: #111 step logs in `runs/<id>/steps/`; #112 supervisor reuses
   `SDD_RUN_ID`; #114 launch offers the next decomposition spec with no directory; #115 a
   reset window reads as reset, pause fields cleared; #116 + #117 `typecheck: none` honoured
-  by the gate (R4.6c); #118 unreadable PR state ⇒ error wait. Roadmap: spec 22
+  by the gate (R4.6c); #118 unreadable PR state ⇒ error wait; #119 the merge rule reads CI
+  from GitHub Actions runs and commit statuses (a fine-grained PAT has no Checks permission,
+  so the PR check rollup is unreadable on private repos; ADR 0003 amended). Roadmap: spec 22
   `dashboard-visual-refresh` added (`ab6ba46`).
 
 ## Standing rules
@@ -55,8 +54,8 @@ status); `docs/adr/0001-0006`; `GLOSSARY.md`. Memory: `project_foundation_review
 
 ## Next, in order
 
-1. Clear `w-07d75fc5`: Matthew fixes the token, answers Retry; watch the merge stage merge
-   PR #2 by rule (`pr.merged` row), the retro-plan wait, close-out, `done`. Log it.
+1. Matthew answers retro-plan wait `w-273502c5` (P1, P6); watch close-out to `done`. Log it.
+   The fixture's `main` then has both specs merged; keep the repo as the test bed.
 2. Known gaps to fix in small PRs: the controller needs its own durable project list in the
    home (design §3) instead of the MCP-process registry; `harness-run.json` is machine state
    written into every project's spec store (gitignore it or move it to the home); the first

@@ -510,6 +510,16 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   gate path #116 missed). PR #118 merged (an unreadable PR state is an `error` wait with
   Retry on the merge cursor, not a silent poll). Both deployed by self-update at 03:05Z
   while the run was parked in `merging` (fifth restart mid-run).
+- 2026-10-14 the 403 is not a token setting: fine-grained PATs have no Checks permission
+  (GitHub lists the Checks API as a known gap), and it read on spec-workflow-mcp only
+  because that repo is public. Matthew chose "do what's best": PR #119 merged (`aa52713`),
+  the merge rule reads GitHub Actions runs and commit statuses of the head sha through
+  `gh api`, which the token can read on private repos; a head under five minutes old with
+  no run yet in a checkout with workflow files is pending; ADR 0003 amended. Deployed at
+  03:39Z (sixth restart mid-run), the error wait answered Retry by this session, and six
+  seconds later the controller merged fixture PR #2 by rule (`pr.merged` 03:39:58Z, sha
+  `acc8502`, method merge). **Merge by rule is proven; every item in design §13 (b) has now
+  been exercised.** Run parked at the retro-plan wait (P1, P6) for Matthew.
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
