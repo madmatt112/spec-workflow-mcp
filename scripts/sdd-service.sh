@@ -12,10 +12,13 @@
 #   scripts/sdd-service.sh print       write every unit to stdout; touch nothing
 #
 # The checkout is this script's own repo root, override with SDD_CHECKOUT.
-# The port defaults to 5000, override with SDD_PORT. The unit finds node through
-# the baked PATH (from the installing shell) with `/usr/bin/env node`; on a
-# version manager (fnm, nvm) whose node path is per-shell or transient, pass a
-# stable absolute path with SDD_NODE_BIN, e.g. SDD_NODE_BIN="$(readlink -f "$(command -v node)")".
+# The port defaults to 5000, override with SDD_PORT. ExecStart names the node
+# binary the installing shell resolves (`readlink -f`), never a per-shell path:
+# a version manager's shell dir (fnm's /run/user/<uid>/fnm_multishells/<pid>_<ts>)
+# vanishes on reboot, and a unit that baked it crash-loops with "node: No such
+# file" until someone reinstalls (2026-10-14). The baked PATH drops such entries
+# and leads with the binary's directory, so npm in the post-merge self-update
+# resolves too. SDD_NODE_BIN still overrides the binary.
 #
 # gh credentials: `install` copies GH_TOKEN, GITHUB_TOKEN (and GH_HOST, if set)
 # from the installing shell into <controller home>/service.env (mode 0600) and
@@ -27,7 +30,29 @@ set -euo pipefail
 
 REPO="${SDD_CHECKOUT:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 PORT="${SDD_PORT:-5000}"
-NODE_BIN="${SDD_NODE_BIN:-/usr/bin/env node}"
+resolve_node_bin() {
+  if [ -n "${SDD_NODE_BIN:-}" ]; then printf '%s' "$SDD_NODE_BIN"; return; fi
+  local found
+  found="$(command -v node 2>/dev/null || true)"
+  if [ -n "$found" ]; then readlink -f "$found"; else printf '/usr/bin/env node'; fi
+}
+# The installing shell's PATH without transient version-manager dirs, led by the
+# resolved node binary's directory when that is an absolute path.
+stable_path() {
+  local out="" entry
+  local IFS=:
+  for entry in $PATH; do
+    case "$entry" in */fnm_multishells/*) continue ;; esac
+    out="${out:+$out:}$entry"
+  done
+  case "$NODE_BIN" in
+    /*) local dir; dir="$(dirname "$NODE_BIN")"
+        case ":$out:" in *":$dir:"*) ;; *) out="$dir${out:+:$out}" ;; esac ;;
+  esac
+  printf '%s' "$out"
+}
+NODE_BIN="$(resolve_node_bin)"
+SERVICE_PATH="$(stable_path)"
 UNIT_DIR="$HOME/.config/systemd/user"
 SDD_HOME_DIR="${SDD_HOME:-$HOME/.local/state/sdd}"
 ENV_FILE="$SDD_HOME_DIR/service.env"
@@ -49,7 +74,7 @@ ExecStart=$NODE_BIN $REPO/dist/index.js --dashboard --port $PORT
 Restart=always
 RestartSec=5
 Environment="HOME=$HOME"
-Environment="PATH=$PATH"
+Environment="PATH=$SERVICE_PATH"
 # The operator's gh credentials (GH_TOKEN/GITHUB_TOKEN/GH_HOST), so gh in the
 # merge stage and the supervisor step are authenticated. The leading dash makes
 # it optional: a missing file is not a startup error (use gh auth login instead).
@@ -71,7 +96,7 @@ Description=SDD controller watchdog (one health probe)
 Type=oneshot
 ExecStart=$REPO/scripts/sdd-watchdog.sh
 Environment="SDD_PORT=$PORT"
-Environment="PATH=$PATH"
+Environment="PATH=$SERVICE_PATH"
 EOF
 }
 

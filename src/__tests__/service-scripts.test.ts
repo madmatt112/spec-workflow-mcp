@@ -60,6 +60,31 @@ describe('service scripts (controller T9)', () => {
     expect(out).toContain('OnUnitActiveSec=1min');
   });
 
+  it('sdd-service.sh bakes a reboot-safe node path: no transient fnm dir, ExecStart on the resolved binary', async () => {
+    const transient = '/run/user/1000/fnm_multishells/12345_1700000000000/bin';
+    const out = (await runScript(serviceSh, ['print'], {
+      SDD_CHECKOUT: repoRoot, SDD_PORT: '5050', PATH: `${transient}:${process.env.PATH ?? ''}`,
+    })).stdout;
+    const pathLines = out.split('\n').filter((l) => l.startsWith('Environment="PATH='));
+    expect(pathLines).toHaveLength(2); // the controller and the watchdog units
+    for (const line of pathLines) expect(line).not.toContain('fnm_multishells');
+    const exec = out.split('\n').find((l) => l.startsWith('ExecStart=') && l.includes('--dashboard'));
+    expect(exec).toBeDefined();
+    const bin = exec!.slice('ExecStart='.length).split(' ')[0];
+    expect(bin.startsWith('/')).toBe(true);
+    expect(bin.endsWith('/node')).toBe(true);
+    expect(bin).not.toContain('fnm_multishells');
+    // The binary's directory leads the baked PATH so npm beside it resolves too.
+    const dir = bin.slice(0, bin.lastIndexOf('/'));
+    for (const line of pathLines) expect(line).toContain(`PATH=${dir}:`);
+  });
+
+  it('sdd-service.sh honours SDD_NODE_BIN for ExecStart', async () => {
+    const out = (await runScript(serviceSh, ['print'], { SDD_CHECKOUT: repoRoot, SDD_NODE_BIN: '/opt/node/bin/node' })).stdout;
+    expect(out).toContain('ExecStart=/opt/node/bin/node ');
+    expect(out).toContain('Environment="PATH=/opt/node/bin:');
+  });
+
   describe('sdd-watchdog.sh --dry-run failure rule', () => {
     let server: http.Server;
     let port: number;
