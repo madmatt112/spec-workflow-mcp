@@ -65,9 +65,15 @@ export interface PullRequest {
 export interface MergeEvaluation {
   ready: boolean;
   reasons: string[];
+  /**
+   * The PR's state could not be read at all (`gh pr view` failed or returned
+   * no JSON), as opposed to read and found not ready. A caller must not poll
+   * on this: nothing changes until the operator fixes the token or the PR.
+   */
+  unreadable?: boolean;
 }
 
-export type MergeStageStatus = 'merged' | 'waiting' | 'not-ready' | 'failed';
+export type MergeStageStatus = 'merged' | 'waiting' | 'not-ready' | 'unreadable' | 'failed';
 
 /** What one run of the merge stage tells the caller (T6/T10). */
 export interface MergeStageResult {
@@ -246,13 +252,13 @@ export async function evaluate(pr: PullRequest): Promise<MergeEvaluation> {
     { cwd: pr.repoDir },
   );
   if (res.code !== 0) {
-    return { ready: false, reasons: [`gh pr view #${pr.number} failed (exit ${res.code}): ${tail(res.stderr || res.stdout, 5)}`] };
+    return { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} failed (exit ${res.code}): ${tail(res.stderr || res.stdout, 5)}`] };
   }
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(res.stdout) as Record<string, unknown>;
   } catch (err) {
-    return { ready: false, reasons: [`could not parse gh pr view #${pr.number}: ${(err as Error).message}`] };
+    return { ready: false, unreadable: true, reasons: [`could not parse gh pr view #${pr.number}: ${(err as Error).message}`] };
   }
 
   const reasons: string[] = [];
@@ -339,7 +345,10 @@ async function readMergeSha(pr: PullRequest): Promise<string> {
  * with no branch delete, then the post-merge command via `bash -lc` in the code
  * root (ten-minute timeout, output appended to the step log dir), then writes
  * `pr.merged`. A failed merge or post-merge command returns `failed` with the
- * output tail; the caller turns that into an `error` wait.
+ * output tail; the caller turns that into an `error` wait. A PR whose state
+ * `gh` cannot read returns `unreadable`, which the caller also turns into an
+ * `error` wait rather than polling (the first fixture run with a fine-grained
+ * token lacking Checks: read sat in `merging` with no visible reason).
  */
 export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promise<MergeStageResult> {
   const repoDir = run.codeRoot;
@@ -351,6 +360,9 @@ export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promi
   }
 
   const evaluation = await evaluate(pr);
+  if (evaluation.unreadable) {
+    return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number };
+  }
   if (!evaluation.ready) {
     return { status: 'not-ready', reasons: evaluation.reasons, number: pr.number };
   }
