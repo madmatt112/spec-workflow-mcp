@@ -70,6 +70,23 @@ describe('ProjectManager durable project list', () => {
     expect(second.getProjectsList().map((p) => p.projectId)).toEqual([id]);
   });
 
+  it('does not remember a worktree project (a run\'s transient MCP server)', async () => {
+    const repo = makeRepo(base, 'delta');
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init']);
+    const wt = join(base, 'delta-wt');
+    execFileSync('git', ['-C', repo, 'worktree', 'add', '-q', wt]);
+    const first = await start();
+    const mainId = await first.addProjectByPath(repo);
+    // A worktree registers through the registry as its MCP server would: workspace = the
+    // worktree, workflow root = the main checkout.
+    await new ProjectRegistry().registerProject(wt, process.pid, { workflowRootPath: repo });
+    await (first as unknown as { syncWithRegistry(): Promise<void> }).syncWithRegistry();
+    const ids = (await readProjects()).projects.map((p) => p.id);
+    expect(ids).toEqual([mainId]);
+    expect(first.getProjectsList().length).toBe(2); // still listed while its instance is alive
+  });
+
   it('forgets a project the operator removes', async () => {
     const repo = makeRepo(base, 'beta');
     const first = await start();
