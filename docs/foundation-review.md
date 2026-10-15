@@ -537,6 +537,13 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `service-scripts.test.ts` fails while the real unit is looping; counter reset by
   stop/start. The watchdog itself raised nothing during ten hours of looping: it watches
   the health endpoint, which the hand-started dashboard kept green. A watchdog gap to fix.
+- 2026-10-15 PR #121 merged (`861a991`). Proof: the machine rebooted again at 19:45 MDT on
+  2026-10-14 and the fixed unit started cleanly (`Dashboard started` at 19:45:59) and ran
+  through the night. At 07:31 MDT a hand-started `make dashboard-local` SIGKILLed the
+  service's process and took port 5000, so the unit looped on "Dashboard is already running"
+  until that process exited; the service then recovered on its own (`Restart=always`).
+  Operator rule recorded in the handoff: with the service installed, never start the
+  dashboard by hand.
   Housekeeping seen, not done: `git worktree list` shows ~40 worktrees left by old harness
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
