@@ -165,6 +165,29 @@ export interface RateLimitFile {
   updated: string;
 }
 
+/**
+ * One project the controller knows, kept in `projects.json` in the home
+ * (controller-design.md §3: the controller owns a durable project list; the MCP
+ * process registry only says which servers are alive right now).
+ */
+export interface KnownProject {
+  /** The registry's project id (a hash of the workspace path). */
+  id: string;
+  /** The workspace / main checkout. */
+  workspacePath: string;
+  /** The root that holds `.spec-workflow` (the spec store). */
+  workflowRootPath: string;
+  name: string;
+  /** ISO time the project was last seen (registered, added or listed). */
+  seen: string;
+}
+
+/** `projects.json`: every project the dashboard has seen, until removed. */
+export interface ProjectsFile {
+  v: 1;
+  projects: KnownProject[];
+}
+
 /** `controller.lock`: the single live controller (pid and start time). */
 export interface ControllerLock {
   v: 1;
@@ -219,6 +242,10 @@ function rateLimitPath(): string {
 
 function controllerLockPath(): string {
   return join(controllerHome(), 'controller.lock');
+}
+
+function projectsPath(): string {
+  return join(controllerHome(), 'projects.json');
 }
 
 function storeLockPath(specStoreRoot: string): string {
@@ -328,6 +355,39 @@ export function readRateLimit(): Promise<RateLimitFile | undefined> {
 
 export function writeRateLimit(rateLimit: RateLimitFile): Promise<void> {
   return writeJsonAtomic(rateLimitPath(), rateLimit);
+}
+
+// ---------------------------------------------------------------------------
+// The durable project list (design §3). The dashboard lists a project from the
+// MCP process registry only while a server process for it is alive, so after a
+// controller restart a project with no open session vanished and a launch read
+// "Project not found" (2026-10-13). The controller remembers every project it
+// has seen here and forgets one only when the operator removes it.
+// ---------------------------------------------------------------------------
+
+export async function readProjects(): Promise<ProjectsFile> {
+  return (await readJson<ProjectsFile>(projectsPath())) ?? { v: 1, projects: [] };
+}
+
+export function writeProjects(file: ProjectsFile): Promise<void> {
+  return writeJsonAtomic(projectsPath(), file);
+}
+
+/** Add or refresh one project (matched by id); keeps the file sorted by name. */
+export async function rememberProject(project: Omit<KnownProject, 'seen'>, now: () => Date = () => new Date()): Promise<void> {
+  const file = await readProjects();
+  const next: KnownProject = { ...project, seen: now().toISOString() };
+  const rest = file.projects.filter((p) => p.id !== project.id);
+  rest.push(next);
+  rest.sort((a, b) => a.name.localeCompare(b.name));
+  await writeProjects({ v: 1, projects: rest });
+}
+
+/** Drop one project by id; a missing id is a no-op. */
+export async function forgetProject(id: string): Promise<void> {
+  const file = await readProjects();
+  const rest = file.projects.filter((p) => p.id !== id);
+  if (rest.length !== file.projects.length) await writeProjects({ v: 1, projects: rest });
 }
 
 // ---------------------------------------------------------------------------
