@@ -20,8 +20,8 @@ describe('harness/agent-profiles.json', () => {
   const text = readFileSync(PROFILES_PATH, 'utf8');
   const profiles = JSON.parse(text) as Record<string, { model: string; effort: string; role: string; cacheTtl: string }>;
 
-  it('has one entry per agent frontmatter (13 keys)', () => {
-    expect(Object.keys(profiles)).toHaveLength(13);
+  it('has one entry per agent frontmatter (14 keys)', () => {
+    expect(Object.keys(profiles)).toHaveLength(14);
   });
 
   it('matches each agent frontmatter model (line 4) and effort (line 5)', () => {
