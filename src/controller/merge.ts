@@ -11,9 +11,10 @@
 // `scripts/stub-gh.mjs`. The merge rules come from one parser: `readAgentRules`
 // in `run-setup.ts` owns `agent-rules.md`; `readMergeRules` picks the three
 // merge keys from it.
-import { execFile } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
 import { appendFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import { listWaits, type RunRecord } from './state.js';
@@ -351,6 +352,64 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
   }
 
   return { ready: reasons.length === 0, reasons };
+}
+
+/** One failing check of a head sha, with the workflow run to read its log from. */
+export interface CiFailing {
+  name: string;
+  /** The GitHub Actions run id, when the check is a workflow run. */
+  runId?: number;
+  /** A saved log tail, once the reconcile loop fetched it. */
+  log?: string;
+}
+
+/** The CI state of one head sha, as the implementation phase's checks gate reads it. */
+export interface CiState {
+  state: 'green' | 'pending' | 'red' | 'unreadable';
+  failing: CiFailing[];
+  reason?: string;
+}
+
+/**
+ * The checks of a head sha by the same rule `evaluate` applies (workflow runs
+ * and commit statuses through `gh api`; a head under five minutes old with no
+ * run yet in a checkout with workflow files is pending), shaped for the
+ * implementation phase's PR checks gate: which checks fail and which run holds
+ * each one's log. A `gh` failure is `unreadable`, never a throw.
+ */
+export async function readCiState(repoDir: string, headSha: string, now: () => Date = () => new Date()): Promise<CiState> {
+  if (!headSha) return { state: 'unreadable', failing: [], reason: 'no head sha' };
+  const runsRead = await ghApiJson(repoDir, `repos/{owner}/{repo}/actions/runs?head_sha=${headSha}&per_page=100`);
+  if (!runsRead.ok) return { state: 'unreadable', failing: [], reason: runsRead.reason };
+  const statusRead = await ghApiJson(repoDir, `repos/{owner}/{repo}/commits/${headSha}/status`);
+  if (!statusRead.ok) return { state: 'unreadable', failing: [], reason: statusRead.reason };
+
+  const runs = Array.isArray(runsRead.data.workflow_runs) ? (runsRead.data.workflow_runs as Record<string, unknown>[]) : [];
+  const statuses = Array.isArray(statusRead.data.statuses) ? (statusRead.data.statuses as Record<string, unknown>[]) : [];
+  const failing: CiFailing[] = [];
+  let pending = false;
+  for (const r of runs) {
+    const state = classifyWorkflowRun(r);
+    if (state === 'pending') pending = true;
+    else if (state === 'failed') failing.push({ name: String(r.name ?? 'workflow'), runId: Number(r.id) || undefined });
+  }
+  for (const c of statuses) {
+    const state = classifyStatusContext(c);
+    if (state === 'pending') pending = true;
+    else if (state === 'failed') failing.push({ name: String(c.context ?? 'status') });
+  }
+  if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(repoDir)) {
+    let committed = NaN;
+    try {
+      committed = Date.parse(execFileSync('git', ['-C', repoDir, 'show', '-s', '--format=%cI', headSha], { encoding: 'utf-8', env: scrubbedGitEnv() }).trim());
+    } catch {
+      committed = NaN;
+    }
+    if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) pending = true;
+  }
+  if (failing.length > 0) return { state: 'red', failing };
+  if (pending) return { state: 'pending', failing: [] };
+  return { state: 'green', failing: [] };
 }
 
 // ---------------------------------------------------------------------------

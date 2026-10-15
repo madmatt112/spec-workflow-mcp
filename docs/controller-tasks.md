@@ -218,6 +218,65 @@ stop" when `SDD_HEADLESS=1` is set by the controller (so a stray by-hand run can
 the old loop against a controller-managed spec); `docs/foundation-review.md` progress log
 updated; `GLOSSARY.md` checked.
 
+## T12 `implementation-loop`: the implementation phase in code (step c2)
+
+_Status: done — `src/controller/phases/implementation.ts`, PR #124._
+
+`runImplementationPhase(ctx)` carries `harness/skills/sdd-implementation-phase/SKILL.md`
+and its references into code, the way T5 did for the document phase. The per-task loop:
+pick (`[-]`, `task.pick`, the pre-implement HEAD as a `note`); the test-author step on a
+`- Test:`-marked task (`SEAM-DEFECT` ⇒ design-defect stop, `RED-IMPOSSIBLE` on every
+criterion ⇒ implementer-only); the implementer step (brief through the server's `brief`
+action, so the task block and the read-and-obey line are its job; `logged` verified
+in-process against the implementation log, one re-spawn when it is missing; the
+checks-file read as a flat array, one re-spawn when it is not); the gate in-process
+(`review-task gate` with `root` = the worktree, `baseRef` = the implementer commit's
+parent, the checks and the `tdd` proof); on pass at low or medium the gate stands as the
+review unless the task is wiring (an entrypoint, CLI or route file, or a title naming one),
+on high or wiring a verifier step; fix rounds up to three (gate output or verifier
+findings, the red-tests section prefixed on a marked task), then the adjudicator and one
+narrow verification; `[x]`, `task.done`, the retro entry, the HANDOFF State row and the
+spec-store commit per task. The flags: `DESIGN-DEFECT` and `ESCALATE` revert the task and
+stop the phase (the controller opens an `escalation` wait whose free-text answer reaches
+the next implementer brief as `## Operator rulings`); `AFFECTS-FUTURE-SPECS` is a `note`
+and a HANDOFF gotcha; `RETRO:` is a retro-log entry.
+
+The completion gate: the end-to-end verifier step with the decomposition scenario, up to
+two repair rounds on a fail (then `verify-failed`, an `error` wait); a deferred-verification
+record when the verifier names the command still to run; `spec-index generate`; the
+HANDOFF section (coverage from `spec-status`, deferral counts, verifier-skipped tasks,
+gotchas); the retro summary; the commit; `git push` and `gh pr create` with a body built
+from the task titles, the cut-scope rows and the checks run (a `gh` failure is a note and
+a HANDOFF command, never a halt); the PR checks gate (poll the head sha's runs and
+statuses through `readCiState` in `merge.ts`, up to thirty minutes; on red, save each
+failing run's log tail, a reconcile implementer step, `INFRA:` ⇒ rerun the failed jobs,
+else a CI verifier step and a push, three rounds, then the adjudicator); `phase.end
+result=complete`, `phase-log`, the last commit. The merge stage then runs as before.
+
+Not carried from the skill: the five-task budget (no orchestrator context to protect),
+the batched verifier, the graph refresh (the controller passes no graph values) and the
+decision-id citation check (a judgement). Re-entry is from `tasks.md` and the ledger:
+a `[-]` task with its log present is reconciled (gated from its own commits, never
+re-implemented); a phase that ended on a stop writes a new `phase.start` with
+`mode=repair`; a completed phase returns at once. The loop checks the controller's stop
+seam (cancel, usage window) before every step.
+
+The gate's bookkeeping skip (`isBookkeepingPath`) now covers what the controller writes
+between a pick and a gate in a shared code+spec repo: HANDOFF, the retro log, the gate
+receipt, the recorded reviews, approvals, deferrals and INDEX.
+
+Tests with the stub `claude` (with the new `commands` entry, so a stubbed worker can
+commit) and the stub `gh`: two low-risk tasks to complete; a gate fail and a fix round;
+a wiring task through the verifier; three fix rounds and the adjudicator; a
+DESIGN-DEFECT stop; a stop, a re-entry and the operator ruling; a failed end-to-end
+verification repaired, and one that stays failed; a `[-]` task resumed without
+re-implementing; a stop between tasks; the test author on a marked task; the PR with a
+red check reconciled to green. `routeRun` sends a spec with open tasks to the loop and a
+spec whose ledger carries `phase.end result=complete` to the retrospective supervisor
+step; the implementation orchestrator is no longer spawned (its files go at step (d),
+with the rest of the supervisor, because tradr and jobsync still run whole specs on the
+old harness).
+
 ## Done-when for step (b)
 
 Design §13 (b), run on a fixture project through the real `claude` once the stub tests are

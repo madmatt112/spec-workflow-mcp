@@ -140,7 +140,7 @@ describe('routeRun', () => {
     expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'document', phase: 'tasks' });
 
     await approve(fx, 'tasks');
-    expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'supervisor', phase: 'implementation' });
+    expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'implementation' });
 
     writeFileSync(join(fx.specDir, 'retrospective-proposals.md'), '# proposals\n');
     expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'retro-plan' });
@@ -334,9 +334,15 @@ describe('runOnce merge stage', () => {
     process.env.STUB_GH_SCRIPT = scriptPath;
   }
 
-  /** A supervisor stub run that completes without touching the spec store. */
-  const implRun: StubRun = {
-    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: {} },
+  /**
+   * The in-code implementation phase on a tasks document with no tasks runs one
+   * step: the end-to-end verifier. This stub passes it; no remote ⇒ no PR step.
+   */
+  const e2eRun: StubRun = {
+    result: {
+      subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'VERIFY: pass',
+      structured_output: { verify: 'pass', deferredCommand: '', findings: '', retro: 'none' }, usage: {},
+    },
   };
   /** A supervisor stub run that writes the retro proposals and a DRAFT plan. */
   const retroRun: StubRun = {
@@ -356,7 +362,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun, retroRun]);
+    writeScript(fx, [e2eRun, retroRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
@@ -368,7 +374,7 @@ describe('runOnce merge stage', () => {
     ]);
     await writeRun(seedRun(fx, { branch: BRANCH }));
 
-    // First pass: implementation runs, the PR is found and parked `merging`.
+    // First pass: the implementation phase completes, the PR is found and parked `merging`.
     await runOnce(deps(fx), 'run-20261011-000000');
     let run = await readRun('run-20261011-000000');
     expect(run?.status).toBe('merging');
@@ -392,7 +398,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun, retroRun]);
+    writeScript(fx, [e2eRun, retroRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
@@ -425,7 +431,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun]);
+    writeScript(fx, [e2eRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
@@ -447,7 +453,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun]); // the supervisor completes but opens no PR
+    writeScript(fx, [e2eRun]); // the phase completes; with no remote it opens no PR
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [] }, // an empty open-PR list
     ]);
@@ -497,30 +503,22 @@ describe('runOnce merge stage', () => {
     expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(true);
   }, 30000);
 
-  it('does not write its own phase.end for a supervisor-run phase (the supervisor owns it)', async () => {
+  it('writes the implementation phase rows itself: one phase.start, one phase.end complete', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    // A stubbed supervisor that writes its own phase.start/phase.end ledger rows,
-    // as the real implementation-phase skill does.
-    const ledgerRel = `.spec-workflow/specs/${SPEC}/harness-events.jsonl`;
-    const row = (type: string, extra: Record<string, string>): string => JSON.stringify({
-      ts: '2026-10-11T00:00:00.000Z', run: 'run-20261011-000000', spec: SPEC, type, phase: 'implementation', ...extra,
-    });
-    const supervisorRun: StubRun = {
-      appends: [{
-        path: ledgerRel,
-        content: `${row('phase.start', { mode: 'normal' })}\n${row('phase.end', { result: 'complete' })}\n`,
-      }],
-      result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: {} },
-    };
-    writeScript(fx, [supervisorRun]);
+    writeScript(fx, [e2eRun]);
     writeGhScript(fx, [{ argvIncludes: ['pr', 'list'], stdout: [] }]); // parks on the no-PR error wait
     await writeRun(seedRun(fx, { branch: BRANCH }));
 
     await runOnce(deps(fx), 'run-20261011-000000');
 
-    const implEnds = mergedRows(fx).filter((r) => r.type === 'phase.end' && r.phase === 'implementation');
-    expect(implEnds).toHaveLength(1); // only the supervisor's, never a controller duplicate
+    const rows = mergedRows(fx);
+    expect(rows.filter((r) => r.type === 'phase.start' && r.phase === 'implementation')).toHaveLength(1);
+    const implEnds = rows.filter((r) => r.type === 'phase.end' && r.phase === 'implementation');
+    expect(implEnds).toHaveLength(1);
+    expect(implEnds[0].result).toBe('complete');
+    // The run routes to the retrospective once the PR is merged, never back to implementation.
+    expect(rows.some((r) => r.type === 'spawn.usage' && r.role === 'end-to-end verification')).toBe(true);
   }, 30000);
 });

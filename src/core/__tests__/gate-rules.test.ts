@@ -146,6 +146,18 @@ describe('isBookkeepingPath (P5)', () => {
     expect(isBookkeepingPath('.spec-workflow/specs/s/harness-events.jsonl')).toBe(true);
     expect(isBookkeepingPath('.spec-workflow/specs/s/harness-activity.jsonl')).toBe(true);
     expect(isBookkeepingPath('.spec-workflow/specs/s/Implementation Logs/t-1.md')).toBe(true);
+    // The controller's bookkeeping (step c2): HANDOFF, the retro log, the gate
+    // receipt, the recorded reviews, approvals, deferrals and INDEX.
+    expect(isBookkeepingPath('.spec-workflow/HANDOFF.md')).toBe(true);
+    expect(isBookkeepingPath('HANDOFF.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/retrospective-log.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/questions.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/specs/s/reviews/review-1_v1_2026.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/approvals/s/a.json')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/deferrals/d-1.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/spec-decomposition/INDEX.md')).toBe(true);
+    expect(isBookkeepingPath('.spec-workflow/spec-decomposition/decomposition.md')).toBe(false);
+    expect(isBookkeepingPath('.spec-workflow/agent-rules.md')).toBe(false);
     expect(isBookkeepingPath('.spec-workflow/specs/s/design.md')).toBe(false);
     expect(isBookkeepingPath('src/core/tasks.md')).toBe(false);
     expect(isBookkeepingPath('src/core/gate-rules.ts')).toBe(false);

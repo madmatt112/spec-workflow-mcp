@@ -50,10 +50,14 @@ watchers (ADR 0005).
   with a role, a brief and a report schema. The step exits with a typed result. The
   controller reads the result for the report, the token usage and the usage windows, and
   writes the ledger itself.
-- The **supervisor** is spawned once per phase, as a step, for implementation, the
-  retrospective and close-out. The controller runs the three document phases itself. It
-  takes over implementation at step (c2) and the last two phases at step (c3); until then
-  it spawns today's supervisor for them.
+- The controller runs the three document phases and the implementation phase itself
+  (`src/controller/phases/document.ts` and `implementation.ts`). The implementation phase
+  works the task queue with test-author, implementer, verifier and adjudicator steps,
+  runs the review gate in-process, verifies end to end, opens the pull request and waits
+  for its checks (reconciling a red one), then hands the merged state to the merge rule.
+- The **supervisor** is spawned once per phase, as a step, for the retrospective and
+  close-out only. The controller takes those over at step (c3); until then it spawns
+  today's supervisor for them.
 
 ### The harness home
 
@@ -145,18 +149,21 @@ the PR.
 
 The controller's loops run in tests against two stubs, so no test calls a model or GitHub.
 `scripts/stub-claude.mjs` stands in for `claude`: it reads canned step results from
-`STUB_CLAUDE_SCRIPT` and prints the stream a real step would. `scripts/stub-gh.mjs` stands
-in for `gh` in the merge and discard tests. A test points `CONTROLLER_CLAUDE_BIN` at the
-first stub and `CONTROLLER_GH_BIN` at the second.
+`STUB_CLAUDE_SCRIPT` and prints the stream a real step would; a scripted run can also
+write files and run shell commands in the step's cwd, which is how a stubbed implementer
+commits. `scripts/stub-gh.mjs` stands in for `gh` in the merge, discard and PR-checks
+tests. A test points `CONTROLLER_CLAUDE_BIN` at the first stub and `CONTROLLER_GH_BIN` at
+the second.
 
 ### What the old supervisor still does
 
 The supervisor skill (`sdd-continue`) still runs the phases the controller has not inlined
-yet. The controller spawns it as one headless step per phase for implementation, the
-retrospective and close-out. Its retrospective stops at a DRAFT plan; the controller turns
-that into a `retro-plan` wait and writes the APPROVED plan from the answers. The
-supervisor and its remaining orchestrators are deleted phase by phase, and the last of
-them at step (d).
+yet. The controller spawns it as one headless step per phase for the retrospective and
+close-out. Its retrospective stops at a DRAFT plan; the controller turns that into a
+`retro-plan` wait and writes the APPROVED plan from the answers. The implementation
+orchestrator is retired: the controller never spawns it. Its agent and skill files stay in
+`harness/` until step (d), because projects that still run whole specs on the old harness
+read them. The supervisor and its remaining orchestrators are deleted at step (d).
 
 ## Phase flow
 

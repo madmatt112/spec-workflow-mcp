@@ -99,7 +99,7 @@ steps at once. Nothing in a step talks to another step.
 The rules are the ones in the skills today, moved into code. The loops below name the
 decisions; the caps, budgets and verdict rules stay as documented in `docs/SDD-HARNESS.md`.
 
-**Implementation (c1).** For each open task in order: mark `[-]`; if the task is TDD-marked,
+**Implementation (c1 here; the review's plan and the progress log call it c2).** For each open task in order: mark `[-]`; if the task is TDD-marked,
 run the test-author step and prove red on base; run the implementer step; run the review
 gate in-process (`review-gate.ts`); on fail, run a fix step with the gate output, up to
 three times, then the adjudicator step once; on pass at high risk, run the verifier step and

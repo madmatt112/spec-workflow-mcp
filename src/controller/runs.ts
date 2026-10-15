@@ -3,8 +3,9 @@
 // T6 of the controller (docs/controller-tasks.md "T6 `runs`", design §5
 // "Between phases", §6, §8, §9, §13). The per-run driver: resolve the roots and
 // the worktree, route from the spec store state with `harness orient`'s logic,
-// run a document phase in-process (T5) or spawn today's supervisor for the other
-// phases, turn a DRAFT retro plan into a `retro-plan` wait and its answer into an
+// run a document phase (T5) or the implementation phase (c2) in-process, or
+// spawn today's supervisor for the retrospective and close-out (until c3), turn
+// a DRAFT retro plan into a `retro-plan` wait and its answer into an
 // APPROVED plan, and carry the run to `done`, pausing on a usage window and
 // retrying or escalating a failed step. The scheduler, the queue, crash recovery
 // and the controller lock live in `controller.ts`; this module is the run logic
@@ -45,6 +46,7 @@ import {
   runDocumentPhase, NO_OP_GATES,
   type DocumentPhase, type DocumentGates, type DocumentPhaseContext, type DocumentPhaseOutcome,
 } from './phases/document.js';
+import { runImplementationPhase, type ImplementationPhaseOutcome } from './phases/implementation.js';
 import type { RateLimitWindows } from './step.js';
 
 /**
@@ -62,9 +64,13 @@ export const runEvents = new EventEmitter();
 
 export type RunDecision =
   | { kind: 'document'; phase: DocumentPhase }
-  | { kind: 'supervisor'; phase: 'implementation' | 'closeout' }
+  | { kind: 'implementation' }
+  | { kind: 'supervisor'; phase: 'retrospective' | 'closeout' }
   | { kind: 'retro-plan' }
   | { kind: 'done' };
+
+/** The phases the old supervisor still runs as one headless step each (c3 retires them). */
+export type SupervisorPhase = 'retrospective' | 'closeout';
 
 /** The `Status:` word of `retrospective-plan.md`, or `undefined` when absent. */
 function planStatus(specDir: string): 'DRAFT' | 'APPROVED' | 'CLOSED' | undefined {
@@ -117,7 +123,28 @@ export async function routeRun(specStoreRoot: string, spec: string): Promise<Run
   if (status === 'DRAFT' || existsSync(join(specDir, 'retrospective-proposals.md'))) {
     return { kind: 'retro-plan' };
   }
-  return { kind: 'supervisor', phase: 'implementation' };
+  if (implementationComplete(specDir)) return { kind: 'supervisor', phase: 'retrospective' };
+  return { kind: 'implementation' };
+}
+
+/**
+ * Is the implementation phase complete? No open or in-progress task, and the
+ * ledger's newest implementation phase row is a `phase.end` with result
+ * `complete` (the completion gate passed and nothing reopened the phase). The
+ * same inputs the supervisor's step-3 rule 1 and `spec-status` read.
+ */
+export function implementationComplete(specDir: string): boolean {
+  const tp = taskProgress(specDir);
+  if (tp.open > 0 || tp.inProgress > 0) return false;
+  let events: { type?: string; phase?: string; result?: string }[];
+  try {
+    events = parseJsonl(readFileSync(ledgerPath(specDir), 'utf-8'));
+  } catch {
+    return false;
+  }
+  const rows = events.filter((e) => e.phase === 'implementation' && (e.type === 'phase.start' || e.type === 'phase.end'));
+  const last = rows[rows.length - 1];
+  return !!last && last.type === 'phase.end' && last.result === 'complete';
 }
 
 /** A short fingerprint of a spec's routable state, to detect a no-progress step. */
@@ -849,25 +876,43 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       continue; // approved ⇒ re-route
     }
 
-    // decision.kind === 'supervisor' (implementation or close-out).
+    if (decision.kind === 'implementation') {
+      // The implementation loop in code (step c2, design §5). It resumes from
+      // `tasks.md` and the ledger, so a re-entry after a wait, a pause or a
+      // restart carries on from the last `[x]`.
+      const prior = run.cursor;
+      const attempt = prior?.stepKind === 'implementation' ? prior.attempt : 1;
+      run = await save(deps, run, { phase: 'implementation', cursor: { phase: 'implementation', stepKind: 'implementation', attempt } });
+      const outcome = await runImplementationPhase({
+        run, specStoreRoot, specDir, codeRoot: run.worktree, mainCheckout: run.codeRoot,
+        ledger, stepLogDir: stepLogDir(run.id), mcpConfig,
+        onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        now: deps.now,
+        shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+        operatorRulings: await escalationRulings(runId),
+      });
+      run = (await readRun(runId)) ?? run;
+      const handled = await handleImplementationOutcome(deps, run, ledger, specDir, outcome);
+      if (handled === 'stop') return;
+      if (handled === 'retry') continue;
+      run = (await readRun(runId)) ?? run;
+
+      // Implementation ends at the pull request (design §6): merge it by rule
+      // before the retrospective starts (the retro reads the merged state). A
+      // completed implementation with no open PR is an `error` wait, not a
+      // silent skip to the retro (`runMergeStageStep` returns `stop`).
+      const merge = await runMergeStageStep(deps, run, ledger, specDir);
+      if (merge === 'stop') return;
+      lastSignature = null;
+      continue; // merged, or already merged: re-route (to the retrospective)
+    }
+
+    // decision.kind === 'supervisor' (retrospective or close-out).
     const signature = routeSignature(specStoreRoot, run.spec);
     const outcome = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
     run = (await readRun(runId)) ?? run;
     if (outcome === 'stop') return;
     if (outcome === 'retry') continue; // fresh retry: re-route and re-run the supervisor
-
-    // `outcome === 'complete'`: the supervisor reported the phase done.
-    // Implementation ends at the pull request (design §6): merge it by rule
-    // before the retrospective starts (the retro reads the merged state). A
-    // completed implementation with no open PR is an `error` wait, not a silent
-    // skip to the retro (`runMergeStageStep` returns `stop`).
-    if (decision.phase === 'implementation') {
-      const merge = await runMergeStageStep(deps, run, ledger, specDir);
-      run = (await readRun(runId)) ?? run;
-      if (merge === 'stop') return;
-      if (merge === 'merged') { lastSignature = null; continue; }
-      // `none`: the PR is already merged — fall through and re-route to the retro.
-    }
 
     // No-progress guard: a supervisor step that exits cleanly but leaves the
     // routable state unchanged would loop forever; escalate instead.
@@ -882,6 +927,68 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
     }
     lastSignature = signature;
   }
+}
+
+/** The operator's answers to this run's answered `escalation` waits, oldest first. */
+async function escalationRulings(runId: string): Promise<string[]> {
+  let waits: ControllerWaitRecord[];
+  try {
+    waits = (await listWaits()) as ControllerWaitRecord[];
+  } catch {
+    return [];
+  }
+  return waits
+    .filter((w) => w.kind === 'escalation' && w.run === runId && w.state === 'answered')
+    .sort((a, b) => a.created.localeCompare(b.created))
+    .flatMap((w) => Object.values(w.answer ?? {}).map((a) => a.value));
+}
+
+/**
+ * Map an implementation-phase outcome to a run-status change. `go` means the
+ * phase is complete (the merge stage follows); `retry` re-routes once after a
+ * step error; `stop` parked the run (a wait or a pause) or it was cancelled.
+ */
+async function handleImplementationOutcome(
+  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: ImplementationPhaseOutcome,
+): Promise<'stop' | 'go' | 'retry'> {
+  if (outcome.result === 'complete') {
+    if (outcome.pr && run.pr !== outcome.pr.number) await save(deps, run, { pr: outcome.pr.number });
+    return 'go';
+  }
+  if (outcome.result === 'stopped') {
+    if (outcome.reason === 'usage-window') {
+      await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    }
+    return 'stop'; // cancelled: the cancel path already marked the run
+  }
+  if (outcome.result === 'design-defect' || outcome.result === 'escalate') {
+    // The task is back to `[ ]`; the operator's ruling reaches the next
+    // implementer brief (design §7: a wait is the only way to the operator).
+    await waitAnd(deps, run, ledger, 'escalation', specDir, [{
+      id: 'ruling',
+      text: `${outcome.result === 'design-defect' ? 'Design defect' : 'Escalation'} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): `
+        + `${outcome.reason ?? 'no reason given'}. Rule on it; your answer goes into the next implementer brief.`,
+      free: true,
+    }]);
+    return 'stop';
+  }
+  if (outcome.result === 'error' && outcome.reason === 'usage-limit') {
+    await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
+    return 'stop';
+  }
+  if (outcome.result === 'error') {
+    const attempt = run.cursor?.attempt ?? 1;
+    if (attempt <= RUN_FRESH_RETRY) {
+      await save(deps, run, { cursor: { phase: 'implementation', stepKind: 'implementation', attempt: attempt + 1 } });
+      return 'retry';
+    }
+  }
+  await waitAnd(deps, run, ledger, 'error', specDir, [{
+    id: 'error',
+    text: `Implementation ${outcome.result} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
+    options: ['retry', 'abandon'], recommended: 'retry',
+  }]);
+  return 'stop';
 }
 
 /** Map a document-phase outcome to a run-status change. Returns `stop` or `go`. */
@@ -940,7 +1047,7 @@ function fifteenMinutes(deps: RunDeps): string {
 type SupervisorStepOutcome =
   | 'stop'      // the run parked (paused, cancelled, or an error wait)
   | 'retry'     // a fresh retry: re-route and re-run the supervisor once
-  | 'complete'; // the phase reported done; re-route (implementation runs merge first)
+  | 'complete'; // the phase reported done; re-route
 
 /**
  * Run one supervisor step (implementation or close-out). Writes the pointer line
@@ -954,7 +1061,7 @@ type SupervisorStepOutcome =
  */
 async function runSupervisorStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
-  phase: 'implementation' | 'closeout',
+  phase: SupervisorPhase,
 ): Promise<SupervisorStepOutcome> {
   const stepId = `supervisor-${phase}-${randomUUID().slice(0, 8)}`;
   const setup = readOrDefaultRunFile(run);

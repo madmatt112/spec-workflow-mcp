@@ -16,8 +16,11 @@
 //     "exitCode": 0,                      // process exit code (default 0)
 //     "delayMs":  0,                      // optional pause before emitting
 //     "edits":    [ { "path": "rel/or/abs", "content": "..." } ],  // writes in cwd
-//     "appends":  [ { "path": "rel/or/abs", "content": "..." } ]   // appends in cwd
+//     "appends":  [ { "path": "rel/or/abs", "content": "..." } ],  // appends in cwd
+//     "commands": [ "git add -A && git commit -qm x" ]               // shell, in cwd
 //   }
+// `commands` is how a stubbed implementer or test author commits its work, so a
+// gate that ranges over the commit has something to read.
 // `appends` is how a stubbed supervisor writes its own ledger rows (the real
 // supervisor appends phase.start/phase.end to harness-events.jsonl).
 // If a run has no leading system/init event the stub prepends one; either way the
@@ -26,6 +29,7 @@
 
 import { readFileSync, writeFileSync, renameSync, mkdirSync, appendFileSync } from 'node:fs';
 import { dirname, join, isAbsolute } from 'node:path';
+import { execSync } from 'node:child_process';
 
 function fail(message) {
   process.stderr.write(`stub-claude: ${message}\n`);
@@ -91,6 +95,15 @@ for (const add of run.appends ?? []) {
   const target = isAbsolute(add.path) ? add.path : join(process.cwd(), add.path);
   mkdirSync(dirname(target), { recursive: true });
   appendFileSync(target, add.content ?? '');
+}
+
+// Run shell commands in the cwd, in order; a failing one fails the stub loudly.
+for (const cmd of run.commands ?? []) {
+  try {
+    execSync(cmd, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+  } catch (err) {
+    fail(`command failed: ${cmd}: ${err.stderr?.toString() || err.message}`);
+  }
 }
 
 async function main() {

@@ -65,6 +65,8 @@ export interface RunLedger {
   spawnUsage(fields: { agent: string; role?: string; result?: string; phase?: string; task?: string; round?: string }): void;
   taskPick(fields: { task: string; title: string }): void;
   taskDone(fields: { task: string; rounds?: string | number; outcome?: string }): void;
+  /** The gate's TDD judge answers for a task (implementation skill "Bookkeeping": the `judge` row). */
+  judge(fields: { task: string; site: string } & Record<string, string>): void;
   /** A PR merged by the controller's merge rule (T7): number, merge sha, method. */
   prMerged(fields: { number: string | number; sha: string; method: string }): void;
   note(text: string): void;
@@ -159,6 +161,9 @@ export function openRunLedger(options: OpenRunLedgerOptions): RunLedger {
         rounds: fields.rounds === undefined ? undefined : String(fields.rounds),
         outcome: fields.outcome,
       });
+    },
+    judge(fields) {
+      write('judge', fields);
     },
     prMerged(fields) {
       write('pr.merged', { number: String(fields.number), sha: fields.sha, method: fields.method });
