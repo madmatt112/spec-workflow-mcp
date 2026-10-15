@@ -637,6 +637,18 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `projects.json`; the stale entry was removed through the dashboard's remove route. The
   session ended here on its own usage limit; the run resumes unattended at 18:30Z.
 
+- 2026-10-15 the run resumed at 18:30Z unattended, ran the in-code implementation phase
+  (two tasks authored red first, three implemented, one task review, the end-to-end
+  verification) and opened fixture PR #3 at 18:43Z. It then sat two hours in `merging`:
+  the test author's first commit carried a `Co-Authored-By: Claude Sonnet 5` trailer, the
+  merge rule rejected it, and `not-ready` only re-checked every thirty seconds with no
+  visible reason. Fix (PR this session): a not-ready PR with nothing in flight is
+  `blocked`, an `error` wait with the reasons and a `merge` cursor for "Retry"
+  (`merge.ts`, `runs.ts`, ADR 0003 amended); the test author's prompt forbids the
+  trailer as the implementer's does. The commit itself needs a history rewrite and a
+  force-push of `feat/shout`, which this session could not run (auto-mode classifier);
+  Matthew does it, then the run merges on its next re-check.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

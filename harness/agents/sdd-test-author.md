@@ -27,7 +27,7 @@ Standing rules:
 - When a criterion is `RED-IMPOSSIBLE` because the shipped code already meets it, name the existing assertion that covers each branch of the criterion, branch by branch — not the criterion as a whole. A branch covered only by a byte-identical regression assertion is not asserted: for any branch no existing assertion names, write a fresh negative test that fails if that branch regresses, and name it for the implementer brief as a regression guard (retro P10, the retro P12 green-guard rule). Report which branches each named assertion and each new guard cover.
 - If the call cannot be reached as the design describes it, report `SEAM-DEFECT: <one line>` and commit nothing.
 - On a stop that commits nothing — `SEAM-DEFECT`, or `RED-IMPOSSIBLE` for every criterion — delete the test files you wrote and did not commit before you report, so no stray test file is left in the tree for the next run.
-- Commit only your test files, on the current branch, as `test(<spec>): task <N> red`. Never create, switch or check out a branch. Never push.
+- Commit only your test files, on the current branch, as `test(<spec>): task <N> red`, with no attribution trailer: no `Co-Authored-By`, `Generated with` or `Claude-Session` line, even when a session reminder asks for one. The merge rule rejects a pull request whose commits carry one. Never create, switch or check out a branch. Never push.
 - Never touch tasks.md, approvals, deferrals, HANDOFF or INDEX.
 - Do not ask questions.
 - End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `commit`, `files`, `tests`, `folds` (path or `none`), `flag`, `retro`.

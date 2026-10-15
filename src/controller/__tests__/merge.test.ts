@@ -179,7 +179,24 @@ describe('evaluate', () => {
     ]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
+    expect(result.pending).toBe(true);
     expect(result.reasons.join(' ')).toMatch(/workflow build is still running/);
+  });
+
+  it('is pending, not settled, while GitHub has not computed mergeability', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'UNKNOWN' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluate(pr);
+    expect(result.ready).toBe(false);
+    expect(result.pending).toBe(true);
+    expect(result.reasons.join(' ')).toMatch(/mergeability not yet computed/);
+  });
+
+  it('is settled (not pending) when the PR has a conflict', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'CONFLICTING' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluate(pr);
+    expect(result.ready).toBe(false);
+    expect(result.pending).toBeUndefined();
+    expect(result.reasons.join(' ')).toMatch(/not mergeable \(mergeable=CONFLICTING\)/);
   });
 
   it('is not ready when a workflow run failed or a status is pending', async () => {
@@ -233,6 +250,7 @@ describe('evaluate', () => {
     } }, RUNS_OK, STATUS_OK]);
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
+    expect(result.pending).toBeUndefined(); // settled: nothing in flight will fix it
     expect(result.reasons.join(' ')).toMatch(/commit abcdef1 carries a Claude attribution trailer/);
   });
 
@@ -312,6 +330,21 @@ describe('runMergeStage', () => {
     expect(result.reasons.join(' ')).toMatch(/still running/);
     // Only the evaluate reads ran (view, runs, statuses); no merge.
     expect(recordedArgv(script)).toHaveLength(3);
+  });
+
+  it('blocked when the PR fails the rule and nothing is in flight, without merging', async () => {
+    const script = useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: {
+        ...READY_VIEW,
+        commits: [{ oid: 'abcdef1234', messageHeadline: 'test(s): task 1 red', messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' }],
+      } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await runMergeStage(makeRun(), makeDeps());
+    expect(result.status).toBe('blocked');
+    expect(result.number).toBe(42);
+    expect(result.reasons.join(' ')).toMatch(/commit abcdef1 carries a Claude attribution trailer/);
+    expect(recordedArgv(script)).toHaveLength(3); // no merge attempted
   });
 
   it('unreadable when gh pr view fails, without merging (a token that cannot read checks)', async () => {

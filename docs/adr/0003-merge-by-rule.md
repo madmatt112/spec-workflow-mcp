@@ -24,3 +24,8 @@ project can set "ask me first", which turns the merge into a wait instead.
   controller has. A head younger than five minutes with no run yet, in a checkout that has
   workflow files, counts as pending. A PR whose state the token cannot read at all is an
   `error` wait, never a silent re-check.
+- Amended 2026-10-15 after the third fixture run: a PR that fails the rule while nothing
+  is in flight (a red check, a conflict, a wrong head branch, an attribution trailer) is
+  an `error` wait as well; the controller re-checks only while a run, a status or
+  mergeability is still pending. The run had sat two hours in `merging`, with no visible
+  reason, on a `Co-Authored-By` trailer the test author wrote into one commit.
