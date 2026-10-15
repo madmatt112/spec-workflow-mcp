@@ -27,13 +27,13 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
   the (c3) build) is the first run of the in-code implementation, retrospective and
   close-out. The implementation phase ran clean unattended (18:30Z to 18:45Z: two tasks
   authored red first, three implemented, task 2 verified, end-to-end pass, fixture PR #3).
-  **The PR is blocked**: the test author's first commit `9d856f4` carries a
-  `Co-Authored-By: Claude Sonnet 5` trailer and the merge rule rejects it. Only Matthew
-  can rewrite and force-push `feat/shout` (the auto-mode classifier refuses it to a
-  session); the command is in `~/.local/state/sdd/owner-backlog.md`. With the `50ad2f3`
-  build the run shows an `error` wait with the reasons (PR #131); after the push, answer
-  "Retry" and the merge stage re-enters, waits for CI on the new head and merges, then
-  the retrospective, the retro-plan wait (Matthew's) and close-out follow. Minor: task 3's
+  The PR was then blocked for two hours: the test author's first commit `9d856f4` carried a
+  `Co-Authored-By: Claude Sonnet 5` trailer and the merge rule rejected it, silently until
+  PR #131 made that an `error` wait. Matthew rewrote the commit and force-pushed (a session
+  cannot: the auto-mode classifier refuses history rewrites), the session answered "Retry",
+  and the controller merged PR #3 by rule at 23:11Z (`eb61574`). The retrospective ran in
+  code (14 findings, 9 proposals, 5 minutes) and the run is **parked on the `retro-plan`
+  wait `w-afc7e24c`, Matthew's**; close-out in code follows his answer. Minor: task 3's
   `log-implementation` attribution names the fixture's main checkout, not the worktree
   (`source: override`); the gate diffed the right range (2 files, +26), so it is a retro
   note, not a defect to chase. The fixture's decomposition holds three specs; keep it as the test bed. Register it once per
@@ -77,10 +77,11 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 1. Carried decisions for Matthew: farewell retro P2 (scope gate touched-paths to the task's
    own diff; it reverses design D18) and the stale-worktree pruning (~40 worktrees from old
    harness runs under `.claude/worktrees/`; some may hold uncommitted state). Not blocking.
-2. Known gaps to fix in small PRs: `harness-run.json` is machine state written into every
-   project's spec store (gitignore it or move it to the home; the supervisor steps still
-   read it until (c3)); the first run's `run.end` and the `harness-run.json` deletion land
-   after the last spec-store commit and stay uncommitted.
+2. Known gap, now a step (d) deletion item: `harness-run.json` is written into the spec
+   store only by the dashboard's setup and launch routes (`multi-server.ts`, the
+   `writeRunFile` calls) and deleted by the legacy launcher; the controller never reads it
+   (only `buildSetupView` and the harness-run-detail message do). Drop the write with the
+   legacy launcher and setup form.
 3. Finish the (c2)/(c3) done-when on `run-20261015-153534`: the tasks are gated and
    verified in code and the PR is open; after Matthew's force-push and "Retry" it merges by
    rule, then the retrospective in code, the retro-plan wait (Matthew's), close-out in

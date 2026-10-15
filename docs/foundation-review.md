@@ -649,6 +649,13 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   force-push of `feat/shout`, which this session could not run (auto-mode classifier);
   Matthew does it, then the run merges on its next re-check.
 
+- 2026-10-15 23:10Z Matthew rewrote `9d856f4` and force-pushed `feat/shout`; this session
+  answered "Retry" on the error wait; the merge stage re-entered, read CI green on the new
+  head and merged fixture PR #3 by rule at 23:11Z (`eb61574`). The retrospective then ran
+  in code for the first time: compiler (3 min) and analyst (2 min), 14 findings and 9
+  proposals (7 "no change"), and the `retro-plan` wait `w-afc7e24c` opened for Matthew at
+  23:16Z. Step (c3)'s retro half is exercised; close-out follows his answer.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
