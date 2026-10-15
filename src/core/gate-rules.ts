@@ -193,12 +193,20 @@ export function isDocPath(relPath: string): boolean {
 export function isBookkeepingPath(relPath: string): boolean {
   const segs = normalizePath(relPath).split('/');
   const swIdx = segs.indexOf('.spec-workflow');
-  if (swIdx === -1) return false;
+  if (swIdx === -1) return segs.length === 1 && segs[0] === 'HANDOFF.md'; // HANDOFF beside .spec-workflow
   const rest = segs.slice(swIdx + 1);
   const base = rest[rest.length - 1] ?? '';
   if (base === 'tasks.md' || base === 'task-state.json') return true;
   if (/^harness-.*\.jsonl$/.test(base)) return true;
-  return rest.includes('Implementation Logs');
+  if (rest.includes('Implementation Logs')) return true;
+  // The controller's own bookkeeping between a task's pick and its gate (step
+  // c2): the HANDOFF sections and State row, the retro log, the gate receipt,
+  // the gate's recorded review and the analyses under `reviews/`, the approval
+  // and deferral records, and the regenerated INDEX. A re-entry after a stop
+  // ranges over the stop's commit of these, which are never the implementer's work.
+  if (base === 'HANDOFF.md' || base === 'retrospective-log.md' || base === 'questions.md') return true;
+  if (rest.includes('reviews') || rest[0] === 'approvals' || rest[0] === 'deferrals') return true;
+  return rest[0] === 'spec-decomposition' && base === 'INDEX.md';
 }
 
 // --- Component 4: task-block predicates -------------------------------------

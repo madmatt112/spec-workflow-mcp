@@ -59,6 +59,16 @@ const PROPOSALS = [
   '  DECISION NEEDED: no.', '',
   '## Graduation candidates', 'None found.', '',
 ].join('\n');
+/** The in-code implementation phase on an empty tasks document: one end-to-end verifier step. */
+function e2eRun(): StubRun {
+  return {
+    result: {
+      subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'VERIFY: pass',
+      structured_output: { verify: 'pass', deferredCommand: '', findings: '', retro: 'none' }, usage: USAGE,
+    },
+  };
+}
+/** The retrospective supervisor step: it writes the proposals and a DRAFT plan. */
 function supervisorImplRun(): StubRun {
   return {
     edits: [
@@ -187,11 +197,11 @@ describe('Controller.enqueue validation', () => {
 });
 
 describe('Controller full run', () => {
-  it('drives requirements and design, a supervisor step, a retro-plan wait, close-out, done', async () => {
+  it('drives requirements and design, the implementation phase, a retro supervisor step, a retro-plan wait, close-out, done', async () => {
     writeScript(fx, [
       drafterRun('requirements'), reviewerRun('requirements'),
       drafterRun('design'), reviewerRun('design'),
-      supervisorImplRun(), supervisorCloseoutRun(),
+      e2eRun(), supervisorImplRun(), supervisorCloseoutRun(),
     ]);
     await approve(fx, 'tasks');
     // The implementation ends at a PR the merge stage merges before the retro.
@@ -282,9 +292,6 @@ describe('Controller merge stage', () => {
   };
   const runsPending = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'in_progress', conclusion: null }] } };
 
-  const implRun: StubRun = {
-    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: USAGE },
-  };
   const retroRun: StubRun = {
     edits: [
       { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS },
@@ -297,7 +304,7 @@ describe('Controller merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun, retroRun]);
+    writeScript(fx, [e2eRun(), retroRun]);
 
     const ghScript = join(fx.base, 'gh-script.json');
     writeFileSync(ghScript, JSON.stringify([
@@ -337,15 +344,12 @@ describe('Controller merge stage', () => {
 
 describe('Controller merge stage: unreadable PR', () => {
   const BRANCH = 'feat/ctl';
-  const implRun: StubRun = {
-    result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'impl', usage: USAGE },
-  };
 
   it('writes an error wait with the merge cursor when gh cannot read the PR, instead of polling', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [implRun]);
+    writeScript(fx, [e2eRun()]);
 
     const ghScript = join(fx.base, 'gh-script.json');
     writeFileSync(ghScript, JSON.stringify([
@@ -386,7 +390,7 @@ describe('Controller crash recovery', () => {
     await approve(fx, 'tasks');
 
     writeScript(fx, [
-      reviewerRun('requirements'), supervisorImplRun(), supervisorCloseoutRun(),
+      reviewerRun('requirements'), e2eRun(), supervisorImplRun(), supervisorCloseoutRun(),
     ]);
     // The implementation ends at a PR the merge stage merges before the retro.
     scriptMergeablePR(fx, 'main', 'c0ffee000002');
