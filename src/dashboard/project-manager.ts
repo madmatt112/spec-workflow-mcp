@@ -233,14 +233,19 @@ export class ProjectManager extends EventEmitter {
       console.error(`Project added: ${entry.projectName} (${entry.projectId})`);
 
       // Remember it in the harness home so it survives the MCP process and
-      // the controller restarting (best effort; a failed write is logged).
-      try {
-        await rememberProject({
-          id: entry.projectId, workspacePath: entry.projectPath,
-          workflowRootPath: entry.workflowRootPath, name: entry.projectName,
-        });
-      } catch (error) {
-        console.error(`Could not remember project ${entry.projectId}:`, error);
+      // the controller restarting (best effort; a failed write is logged). A
+      // worktree project (workspace under a different root than its spec store)
+      // is a run's transient MCP server, never a launch target: listed while it
+      // is alive, not remembered.
+      if (entry.projectPath === entry.workflowRootPath) {
+        try {
+          await rememberProject({
+            id: entry.projectId, workspacePath: entry.projectPath,
+            workflowRootPath: entry.workflowRootPath, name: entry.projectName,
+          });
+        } catch (error) {
+          console.error(`Could not remember project ${entry.projectId}:`, error);
+        }
       }
 
       // Emit project added event
