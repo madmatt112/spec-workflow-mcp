@@ -300,6 +300,34 @@ supervisor is spawned for close-out only. Tests with the stub: the happy path, r
 after the compile step, an open task, a missing retro log, a proposals file without the
 graduation section.
 
+## T14 `closeout`: close-out in code (step c3, second half)
+
+_Status: done — `src/controller/phases/closeout.ts`, PR #129._
+
+`runCloseoutPhase(ctx)` carries `harness/skills/sdd-closeout-phase/SKILL.md` and its
+`references/briefs.md` into code. The plan's open items (every `- **P<n>`/`- **G<n>`
+bullet under the two headings with no `## Close-out` line; the parsers are exported from
+`harness.ts`) are classed by their `Target:` line: `none` items close without a step
+(`skipped` with the decision, or `to-do (human)`); then one implementer batch per class in
+the order store, harness, code, home, landed where the class lands (the spec store's
+current branch; a `chore/<spec>-retro` worktree of the harness checkout or the main
+checkout, made from `origin/<default>` and reused, with `npm ci` when `node_modules` is
+missing; in place under `~/.claude`). The five close-out briefs are templates now
+(`closeout-standing`, `-batch`, `-verify`, `-fix`, `-adjudication`); the commit script is
+written to the scratch dir. Each `done` item is gated in item mode (`commit`, `root`, the
+paths its text names; an item naming no path is ok as it stands; a `home` item gets a
+files-only gate); a harness or code item at `pass` and `risk: high` goes to the verifier;
+gate fails and `not done` items enter fix rounds, three per batch, then the adjudicator
+and one narrow verification. One close-out line per item, `task.pick`/`task.done` rows, a
+`cleanup` retro entry per batch and a `deviation` per skipped item, the PR per repository
+(push `chore/<spec>-retro`, `gh pr create` titled `chore(retro): <spec> retrospective
+follow-ups`; no remote ⇒ the branch line), a spec-store commit per batch; then `Status:
+CLOSED`, the HANDOFF `## <spec> — closeout` section, the retro summary, `phase.end
+result=closed`, `phase-log` and `docs(sdd): <spec> closed`. The run record carries the PRs
+opened (`closeoutPrs`); merging them by rule is the next small PR. Not carried: the graph
+refresh. The old supervisor is no longer spawned for anything, so `runs.ts` loses the
+supervisor step, `harness-run.json` writing, the pointer line and the no-progress guard.
+
 ## Done-when for step (b)
 
 Design §13 (b), run on a fixture project through the real `claude` once the stub tests are

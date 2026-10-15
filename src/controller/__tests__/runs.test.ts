@@ -107,7 +107,6 @@ function deps(fx: Fixture, over: Partial<RunDeps> = {}): RunDeps {
     tokenCap: () => undefined,
     windowBlock: () => ({ blocked: false }),
     onRateLimit: () => { /* ignore */ },
-    claudeBin: () => STUB,
     pointerFile: () => join(fx.home, 'active-run'),
     isCancelled: () => false,
     setInFlight: () => { /* noop */ },
@@ -129,7 +128,7 @@ afterEach(() => {
 });
 
 describe('routeRun', () => {
-  it('routes to each document phase in order, then supervisor, then done', async () => {
+  it('routes to each document phase in order, then implementation, retrospective, close-out, done', async () => {
     process.env.SDD_HOME = fx.home;
     expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'document', phase: 'requirements' });
 
@@ -146,7 +145,7 @@ describe('routeRun', () => {
     expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'retro-plan' });
 
     writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: APPROVED\n');
-    expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'supervisor', phase: 'closeout' });
+    expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'closeout' });
 
     writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
     expect(await routeRun(fx.repo, SPEC)).toEqual({ kind: 'done' });

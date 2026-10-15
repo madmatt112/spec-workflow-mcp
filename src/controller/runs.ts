@@ -3,30 +3,26 @@
 // T6 of the controller (docs/controller-tasks.md "T6 `runs`", design §5
 // "Between phases", §6, §8, §9, §13). The per-run driver: resolve the roots and
 // the worktree, route from the spec store state with `harness orient`'s logic,
-// run a document phase (T5), the implementation phase (c2) or the retrospective
-// (c3) in-process, or spawn today's supervisor for close-out (until the second
-// half of c3), turn the proposals into a `retro-plan` wait and its answer into an
+// run every phase in-process (the document loop T5, implementation c2, the
+// retrospective and close-out c3), turn the proposals into a `retro-plan` wait
+// and its answer into an
 // APPROVED plan, and carry the run to `done`, pausing on a usage window and
 // retrying or escalating a failed step. The scheduler, the queue, crash recovery
 // and the controller lock live in `controller.ts`; this module is the run logic
 // those drive, plus the cancel/discard git+gh surface and the `controller-runs`
 // wire shape.
 //
-// No model runs in this code path; the only model is the `claude` a step or the
-// supervisor spawn starts. The routing, the retro-plan parser and the plan
-// writer are deterministic code (the memory rule: mechanics in code, LLM only for
-// judgement and prose).
-import { spawn, execFileSync } from 'child_process';
+// No model runs in this code path; the only model is the `claude` a step
+// starts. The routing, the retro-plan parser and the plan writer are
+// deterministic code (the memory rule: mechanics in code, LLM only for judgement
+// and prose).
+import { execFileSync } from 'child_process';
 import {
-  existsSync, readFileSync, createWriteStream, mkdirSync, readdirSync, writeFileSync, renameSync,
-  statSync,
+  existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync, statSync,
 } from 'fs';
-import { join, dirname } from 'path';
-import { randomUUID } from 'crypto';
+import { join } from 'path';
 import { EventEmitter } from 'events';
-import {
-  SPEC_WORKFLOW_WORKSPACE_ENV, SPEC_WORKFLOW_SHARED_ROOT_ENV, scrubbedGitEnv,
-} from '../core/git-utils.js';
+import { scrubbedGitEnv } from '../core/git-utils.js';
 import { PathUtils } from '../core/path-utils.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
@@ -34,7 +30,7 @@ import { parseJsonl } from '../watch/ledger.js';
 import { removePointerLine } from '../dashboard/harness/state-files.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
-  processStartTime, isProcessAlive, runStepsDir, withStoreLock,
+  isProcessAlive, runStepsDir, withStoreLock,
 } from './state.js';
 import { openRunLedger, commitSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -48,6 +44,7 @@ import {
 } from './phases/document.js';
 import { runImplementationPhase, type ImplementationPhaseOutcome } from './phases/implementation.js';
 import { runRetrospectivePhase, type RetrospectivePhaseOutcome } from './phases/retrospective.js';
+import { runCloseoutPhase, type CloseoutPhaseOutcome } from './phases/closeout.js';
 import type { RateLimitWindows } from './step.js';
 
 /**
@@ -67,12 +64,9 @@ export type RunDecision =
   | { kind: 'document'; phase: DocumentPhase }
   | { kind: 'implementation' }
   | { kind: 'retrospective' }
-  | { kind: 'supervisor'; phase: 'closeout' }
+  | { kind: 'closeout' }
   | { kind: 'retro-plan' }
   | { kind: 'done' };
-
-/** The phase the old supervisor still runs as one headless step (the close-out half of c3 retires it). */
-export type SupervisorPhase = 'closeout';
 
 /** The `Status:` word of `retrospective-plan.md`, or `undefined` when absent. */
 function planStatus(specDir: string): 'DRAFT' | 'APPROVED' | 'CLOSED' | undefined {
@@ -121,7 +115,7 @@ export async function routeRun(specStoreRoot: string, spec: string): Promise<Run
 
   const status = planStatus(specDir);
   if (status === 'CLOSED') return { kind: 'done' };
-  if (status === 'APPROVED') return { kind: 'supervisor', phase: 'closeout' };
+  if (status === 'APPROVED') return { kind: 'closeout' };
   if (status === 'DRAFT' || existsSync(join(specDir, 'retrospective-proposals.md'))) {
     return { kind: 'retro-plan' };
   }
@@ -147,17 +141,6 @@ export function implementationComplete(specDir: string): boolean {
   const rows = events.filter((e) => e.phase === 'implementation' && (e.type === 'phase.start' || e.type === 'phase.end'));
   const last = rows[rows.length - 1];
   return !!last && last.type === 'phase.end' && last.result === 'complete';
-}
-
-/** A short fingerprint of a spec's routable state, to detect a no-progress step. */
-function routeSignature(specStoreRoot: string, spec: string): string {
-  const specDir = PathUtils.getSpecPath(specStoreRoot, spec);
-  const tp = taskProgress(specDir);
-  return [
-    planStatus(specDir) ?? 'none',
-    existsSync(join(specDir, 'retrospective-proposals.md')) ? 'prop' : '-',
-    `${tp.completed}/${tp.inProgress}/${tp.open}`,
-  ].join(':');
 }
 
 // ---------------------------------------------------------------------------
@@ -419,13 +402,11 @@ export interface RunDeps {
   onRateLimit(windows: RateLimitWindows): void;
   /** Forward a step's live tool activity for the Run page's "Live now" line. */
   onActivity?(activity: ControllerActivity): void;
-  /** The `claude` binary (overridable so tests swap in the stub). */
-  claudeBin(): string;
-  /** The active-run pointer file the supervisor's hook still needs. */
+  /** The legacy active-run pointer file a cancel still clears (gone at step d). */
   pointerFile(): string;
   /** Has the operator cancelled this run? Checked between steps. */
   isCancelled(runId: string): boolean;
-  /** Record an in-flight supervisor step so cancel/crash-recovery can find it. */
+  /** Record an in-flight step process so cancel/crash-recovery can find it. */
   setInFlight(pid: number, startTime: number): void;
 }
 
@@ -509,137 +490,6 @@ function runTokens(specDir: string, runId: string): TokenTotals {
 /** Total W (all four token kinds) of a run's totals. */
 function totalW(t: TokenTotals): number {
   return t.input + t.output + t.cacheWrite + t.cacheRead;
-}
-
-// ---------------------------------------------------------------------------
-// The supervisor step (design §6). Implementation and close-out run today's
-// supervisor unchanged: one headless `claude -p "continue the sdd process"` per
-// phase, with `--permission-mode auto` and the launcher's environment (it must be
-// the subscription session the skills expect). `runStep` is not reused: it hard-
-// codes the "Read and execute the instructions in <brief>" prompt and requires a
-// role agent file (`loadRole`), neither of which fits the supervisor (its own
-// skill decides, role body none). `launcher.spawnRun` is private and bound to the
-// launcher's records/pointer/liveness machinery, so a dedicated spawn that reuses
-// the launcher's env conventions is cleaner and keeps step.ts and launcher.ts
-// unedited.
-// ---------------------------------------------------------------------------
-
-export const SUPERVISOR_PROMPT = 'continue the sdd process';
-
-export interface SupervisorResult {
-  exitCode: number | null;
-  signal: NodeJS.Signals | null;
-  /** `ok`, `usage-limit` (a rejecting rate_limit_event or a limit result), or `error`. */
-  classification: 'ok' | 'usage-limit' | 'error';
-}
-
-interface SupervisorSpec {
-  claudeBin: string;
-  model: string;
-  effort: string;
-  worktree: string;
-  specStoreRoot: string;
-  runId: string;
-  stepId: string;
-  logPath: string;
-  onRateLimit(windows: RateLimitWindows): void;
-  onPid(pid: number, startTime: number): void;
-}
-
-/** Spawn the supervisor, parse its stream for the usage window, resolve on exit. */
-function spawnSupervisor(spec: SupervisorSpec): Promise<SupervisorResult> {
-  mkdirSync(dirname(spec.logPath), { recursive: true });
-  const env: NodeJS.ProcessEnv = {
-    ...scrubbedGitEnv(),
-    [SPEC_WORKFLOW_WORKSPACE_ENV]: spec.worktree,
-    [SPEC_WORKFLOW_SHARED_ROOT_ENV]: spec.specStoreRoot,
-    SDD_RUN_ID: spec.runId,
-    SDD_STEP_ID: spec.stepId,
-  };
-  const args = [
-    '-p', SUPERVISOR_PROMPT,
-    '--model', spec.model,
-    '--effort', spec.effort,
-    '--permission-mode', 'auto',
-    '--output-format', 'stream-json', '--verbose',
-  ];
-
-  return new Promise<SupervisorResult>((resolvePromise) => {
-    const log = createWriteStream(spec.logPath, { flags: 'a' });
-    let limited = false;
-    let buffer = '';
-    let settled = false;
-
-    const handleLine = (line: string): void => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-      let event: Record<string, unknown>;
-      try {
-        event = JSON.parse(trimmed) as Record<string, unknown>;
-      } catch {
-        return;
-      }
-      if (event.type === 'rate_limit_event') {
-        const info = (event.rate_limit_info ?? {}) as Record<string, unknown>;
-        const windows = (info.unifiedWindows ?? {}) as Record<string, unknown>;
-        const win = (w: unknown): { utilization: number; resetsAt: number } => {
-          const o = (w ?? {}) as Record<string, unknown>;
-          return {
-            utilization: typeof o.utilization === 'number' ? o.utilization : 0,
-            resetsAt: typeof o.resetsAt === 'number' ? o.resetsAt : 0,
-          };
-        };
-        const status = typeof info.status === 'string' ? info.status : 'unknown';
-        if (status.length > 0 && !status.startsWith('allowed')) limited = true;
-        spec.onRateLimit({
-          status,
-          overageStatus: typeof info.overageStatus === 'string' ? info.overageStatus : undefined,
-          fiveHour: win(windows.five_hour),
-          sevenDay: win(windows.seven_day),
-        });
-      } else if (event.type === 'result') {
-        const subtype = typeof event.subtype === 'string' ? event.subtype : '';
-        if (/usage|limit/i.test(subtype)) limited = true;
-      }
-    };
-
-    const child = spawn(spec.claudeBin, args, {
-      cwd: spec.worktree,
-      detached: true,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const pid = child.pid;
-    if (typeof pid === 'number') spec.onPid(pid, processStartTime(pid) ?? 0);
-
-    child.stdout.on('data', (chunk: Buffer) => {
-      log.write(chunk);
-      buffer += chunk.toString('utf8');
-      let idx: number;
-      while ((idx = buffer.indexOf('\n')) >= 0) {
-        handleLine(buffer.slice(0, idx));
-        buffer = buffer.slice(idx + 1);
-      }
-    });
-    child.stderr.on('data', (chunk: Buffer) => log.write(chunk));
-
-    const finish = (exitCode: number | null, signal: NodeJS.Signals | null): void => {
-      if (settled) return;
-      settled = true;
-      if (buffer.length > 0) handleLine(buffer);
-      log.end();
-      const classification: SupervisorResult['classification'] = limited
-        ? 'usage-limit'
-        : (exitCode === 0 ? 'ok' : 'error');
-      resolvePromise({ exitCode, signal, classification });
-    };
-
-    child.on('error', (err) => {
-      log.write(`supervisor spawn error: ${err.message}\n`);
-      finish(null, null);
-    });
-    child.on('close', (code, signal) => finish(code, signal));
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -830,8 +680,6 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
     });
   }
 
-  let lastSignature: string | null = null;
-
   for (;;) {
     run = (await readRun(runId)) ?? run;
     if (run.status === 'abandoned' || deps.isCancelled(runId)) return;
@@ -842,7 +690,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       const outcome = await runMergeStageStep(deps, run, ledger, specDir);
       run = (await readRun(runId)) ?? run;
       if (outcome === 'stop') return;
-      if (outcome === 'merged') { lastSignature = null; continue; }
+      if (outcome === 'merged') continue;
       // `none`: the PR is gone or already merged — fall through to routing.
     }
 
@@ -943,7 +791,6 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       // silent skip to the retro (`runMergeStageStep` returns `stop`).
       const merge = await runMergeStageStep(deps, run, ledger, specDir);
       if (merge === 'stop') return;
-      lastSignature = null;
       continue; // merged, or already merged: re-route (to the retrospective)
     }
 
@@ -964,30 +811,54 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       run = (await readRun(runId)) ?? run;
       const handled = await handleRetrospectiveOutcome(deps, run, ledger, specDir, outcome);
       if (handled === 'stop') return;
-      lastSignature = null;
       continue; // retro-ready or a retry: re-route
     }
 
-    // decision.kind === 'supervisor' (close-out).
-    const signature = routeSignature(specStoreRoot, run.spec);
-    const outcome = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
+    // decision.kind === 'closeout': the approved plan, landed in code (step c3).
+    const prior = run.cursor;
+    const attempt = prior?.stepKind === 'closeout' ? prior.attempt : 1;
+    run = await save(deps, run, { phase: 'closeout', cursor: { phase: 'closeout', stepKind: 'closeout', attempt } });
+    const outcome = await runCloseoutPhase({
+      run, specStoreRoot, specDir, codeRoot: run.worktree, mainCheckout: run.codeRoot,
+      ledger, stepLogDir: stepLogDir(run.id), mcpConfig,
+      onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+      ...stepLifecycle(deps, run.id),
+      now: deps.now,
+      shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+    });
     run = (await readRun(runId)) ?? run;
-    if (outcome === 'stop') return;
-    if (outcome === 'retry') continue; // fresh retry: re-route and re-run the supervisor
-
-    // No-progress guard: a supervisor step that exits cleanly but leaves the
-    // routable state unchanged would loop forever; escalate instead.
-    const after = routeSignature(specStoreRoot, run.spec);
-    if (after === signature && signature === lastSignature) {
-      await waitAnd(deps, run, ledger, 'error', specDir, [{
-        id: 'no-progress',
-        text: `The ${decision.phase} supervisor step made no progress twice. Retry or abandon.`,
-        options: ['retry', 'abandon'], recommended: 'abandon',
-      }]);
-      return;
-    }
-    lastSignature = signature;
+    const handled = await handleCloseoutOutcome(deps, run, ledger, specDir, outcome);
+    if (handled === 'stop') return;
+    continue; // closed or a retry: re-route (a CLOSED plan is `done`)
   }
+}
+
+/** Map a close-out outcome to a run-status change: `go` re-routes (a CLOSED plan is `done`). */
+async function handleCloseoutOutcome(
+  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: CloseoutPhaseOutcome,
+): Promise<'stop' | 'go'> {
+  if (outcome.result === 'closed') {
+    if (outcome.prs.length > 0) await save(deps, run, { closeoutPrs: outcome.prs });
+    return 'go';
+  }
+  if (outcome.result === 'stopped') {
+    if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    return 'stop';
+  }
+  if (outcome.reason === 'usage-limit') {
+    await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
+    return 'stop';
+  }
+  const attempt = run.cursor?.attempt ?? 1;
+  if (attempt <= RUN_FRESH_RETRY) {
+    await save(deps, run, { cursor: { phase: 'closeout', stepKind: 'closeout', attempt: attempt + 1 } });
+    return 'go'; // one fresh retry: the phase resumes from the plan's close-out lines
+  }
+  await waitAnd(deps, run, ledger, 'error', specDir, [{
+    id: 'error', text: `Close-out failed (${outcome.items.done + outcome.items.todo + outcome.items.skipped}/${outcome.items.total} items closed): ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
+    options: ['retry', 'abandon'], recommended: 'retry',
+  }]);
+  return 'stop';
 }
 
 /** The operator's answers to this run's answered `escalation` waits, oldest first. */
@@ -1130,161 +1001,6 @@ function fifteenMinutes(deps: RunDeps): string {
   return new Date(deps.now().getTime() + 15 * 60 * 1000).toISOString();
 }
 
-/** What one supervisor step tells `runOnce`. */
-type SupervisorStepOutcome =
-  | 'stop'      // the run parked (paused, cancelled, or an error wait)
-  | 'retry'     // a fresh retry: re-route and re-run the supervisor once
-  | 'complete'; // the phase reported done; re-route
-
-/**
- * Run one supervisor step (implementation or close-out). Writes the pointer line
- * the hook needs, writes `harness-run.json` with `gates: record` and the saved
- * setup, spawns the supervisor, and removes the pointer line on exit.
- *
- * The controller writes no `phase.start`/`phase.end` rows here: the supervisor
- * owns the phase rows of a phase it runs (the implementation and close-out phase
- * skills write them), so writing them here would duplicate them. The controller
- * writes phase rows only for the phases it runs itself (the document loop).
- */
-async function runSupervisorStep(
-  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
-  phase: SupervisorPhase,
-): Promise<SupervisorStepOutcome> {
-  const stepId = `supervisor-${phase}-${randomUUID().slice(0, 8)}`;
-  const setup = readOrDefaultRunFile(run);
-  writeRunFileWithRecordGates(run, setup);
-
-  const pointer = deps.pointerFile();
-  appendPointerLine(pointer, run.codeRoot, specDir, run.id);
-
-  // Keep the attempt count only across retries of this same supervisor phase; a
-  // fresh phase (arriving from a document cursor) starts at attempt 1.
-  const prior = run.cursor;
-  const attempt = prior?.stepKind === 'supervisor' && prior.phase === phase ? prior.attempt : 1;
-  run = await save(deps, run, { phase, cursor: { phase, stepKind: 'supervisor', attempt } });
-
-  let result: SupervisorResult;
-  try {
-    result = await spawnSupervisor({
-      claudeBin: deps.claudeBin(),
-      model: setup.supervisorModel,
-      effort: 'high',
-      worktree: run.worktree,
-      specStoreRoot: run.specStore,
-      runId: run.id,
-      stepId,
-      logPath: join(stepLogDir(run.id), `${stepId}.jsonl`),
-      onRateLimit: deps.onRateLimit,
-      onPid: (pid, startTime) => {
-        deps.setInFlight(pid, startTime);
-        void save(deps, run, { inFlight: { id: stepId, pid, startTime } });
-      },
-    });
-  } finally {
-    removePointerLineSafe(pointer, run.id);
-  }
-
-  run = (await readRun(run.id)) ?? run;
-  await save(deps, run, { inFlight: undefined });
-
-  if (deps.isCancelled(run.id) || run.status === 'abandoned') {
-    return 'stop';
-  }
-
-  if (result.classification === 'usage-limit') {
-    const window = deps.windowBlock();
-    await pause(deps, run, 'usage-limit', window.resumeAt ?? fifteenMinutes(deps));
-    return 'stop';
-  }
-
-  if (result.classification === 'error') {
-    const attempt = run.cursor?.attempt ?? 1;
-    if (attempt <= RUN_FRESH_RETRY) {
-      await save(deps, run, { cursor: { phase, stepKind: 'supervisor', attempt: attempt + 1 } });
-      return 'retry';
-    }
-    await waitAnd(deps, run, ledger, 'error', specDir, [{
-      id: 'error', text: `${phase} supervisor exited ${result.exitCode}. Retry or abandon.`,
-      options: ['retry', 'abandon'], recommended: 'retry',
-    }]);
-    return 'stop';
-  }
-
-  return 'complete';
-}
-
-// ---------------------------------------------------------------------------
-// harness-run.json and the pointer line (the supervisor's hook still needs it).
-// ---------------------------------------------------------------------------
-
-interface SavedSetup {
-  spec: string;
-  supervisorModel: string;
-  worktree: 'yes' | 'no';
-  gates: 'block' | 'record';
-  roles: Record<string, { model: string; provider: string }>;
-}
-
-const DEFAULT_SUPERVISOR_MODEL = 'claude-opus-5-5';
-
-function readOrDefaultRunFile(run: RunRecord): SavedSetup {
-  const path = join(PathUtils.getWorkflowRoot(run.specStore), 'harness-run.json');
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as Partial<SavedSetup>;
-    if (parsed && parsed.spec === run.spec) {
-      return {
-        spec: run.spec,
-        supervisorModel: parsed.supervisorModel || DEFAULT_SUPERVISOR_MODEL,
-        worktree: run.worktree === run.codeRoot ? 'no' : 'yes',
-        gates: 'record',
-        roles: parsed.roles ?? {},
-      };
-    }
-  } catch {
-    // No saved file: synthesise a default below.
-  }
-  return {
-    spec: run.spec, supervisorModel: DEFAULT_SUPERVISOR_MODEL,
-    worktree: run.worktree === run.codeRoot ? 'no' : 'yes', gates: 'record', roles: {},
-  };
-}
-
-/** Write `harness-run.json` with `gates: record` and the saved setup (atomic). */
-function writeRunFileWithRecordGates(run: RunRecord, setup: SavedSetup): void {
-  const workflowRoot = PathUtils.getWorkflowRoot(run.specStore);
-  mkdirSync(workflowRoot, { recursive: true });
-  const file = {
-    spec: setup.spec, writtenAt: new Date().toISOString(), supervisorModel: setup.supervisorModel,
-    worktree: setup.worktree, gates: 'record' as const, roles: setup.roles,
-  };
-  const path = join(workflowRoot, 'harness-run.json');
-  const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(file, null, 2) + '\n');
-  renameSync(tmp, path);
-}
-
-/** Append this run's `<main checkout>\t<spec dir>\t<run id>` pointer line. */
-export function appendPointerLine(pointer: string, mainCheckout: string, specDir: string, runId: string): void {
-  mkdirSync(dirname(pointer), { recursive: true });
-  const line = `${mainCheckout}\t${specDir}\t${runId}\n`;
-  let existing = '';
-  try {
-    existing = readFileSync(pointer, 'utf-8');
-  } catch {
-    existing = '';
-  }
-  if (existing.split('\n').some((l) => l.split('\t')[2] === runId)) return; // already present
-  writeFileSync(pointer, existing + (existing && !existing.endsWith('\n') ? '\n' : '') + line);
-}
-
-function removePointerLineSafe(pointer: string, runId: string): void {
-  try {
-    removePointerLine(pointer, runId);
-  } catch {
-    // Best effort: the hook tolerates a stale line (it checks the spec dir exists).
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Cancel and discard (design §13).
 // ---------------------------------------------------------------------------
@@ -1297,10 +1013,9 @@ export interface CancelDeps {
 }
 
 /**
- * Cancel a run: signal the in-flight supervisor step (SIGTERM, then SIGKILL after
- * the grace), remove the pointer line, mark the run `abandoned`, and keep the
- * worktree, branch and PR. A document step runs as the controller's own child and
- * ends with the controller; the loop stops once it returns.
+ * Cancel a run: signal the in-flight step (SIGTERM, then SIGKILL after the
+ * grace), clear any legacy pointer line, mark the run `abandoned`, and keep the
+ * worktree, branch and PR. The phase loop stops at its next step boundary.
  */
 export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
   const run = await readRun(runId);
@@ -1318,7 +1033,7 @@ export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRec
       await new Promise((r) => setTimeout(r, 100));
     }
   }
-  removePointerLineSafe(deps.pointerFile(), runId);
+  try { removePointerLine(deps.pointerFile(), runId); } catch { /* a legacy line, best effort */ }
   const next: RunRecord = { ...run, status: 'abandoned' as RunStatus, inFlight: undefined, updated: deps.now().toISOString() };
   await writeRun(next);
   runEvents.emit('change', next);
