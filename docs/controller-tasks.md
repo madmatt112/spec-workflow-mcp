@@ -277,6 +277,29 @@ step; the implementation orchestrator is no longer spawned (its files go at step
 with the rest of the supervisor, because tradr and jobsync still run whole specs on the
 old harness).
 
+## T13 `retrospective`: the retrospective in code (step c3, first half)
+
+_Status: done — `src/controller/phases/retrospective.ts`, PR #126._
+
+`runRetrospectivePhase(ctx)` carries `harness/skills/sdd-retrospective/SKILL.md` into
+code. Preconditions: no open or in-progress task (a spec with no tasks is allowed, as the
+routing rule allows it) and `retrospective-log.md` present (else the one-section
+`## No harness log` findings file and an `error`). The compile step is a new role,
+`sdd-retro-compiler` (`harness/agents/`, Opus 4.8 high; the compile is judgement and
+prose), briefed by the new `retro-compile` template with the read list, the roots, the
+findings format and the proposal-format block from `references/formats.md`. The analyst
+step is the existing `sdd-retro-analyst`, briefed by the new `retro-analyst` template.
+In code: the check that each file exists, that the proposals end with `## Graduation
+candidates`, the finding/proposal/decision counts (a shortfall is a `note`), the retro-log
+`cleanup` entry, `phase.end result=retro-ready`, `phase-log`, and the commit
+`docs(sdd): <SPEC> retrospective findings and proposals`. The phase writes no DRAFT plan:
+the proposals file is what routing turns into the `retro-plan` wait, and the answered wait
+becomes the APPROVED plan as before. Re-entry skips a step whose file exists; a retro-ready
+phase returns at once. Routing: `implementationComplete` ⇒ `retrospective` (in code); the
+supervisor is spawned for close-out only. Tests with the stub: the happy path, re-entry
+after the compile step, an open task, a missing retro log, a proposals file without the
+graduation section.
+
 ## Done-when for step (b)
 
 Design §13 (b), run on a fixture project through the real `claude` once the stub tests are

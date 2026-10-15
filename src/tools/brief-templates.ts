@@ -1226,7 +1226,149 @@ function renderBody(body: string, values: Record<string, string>): string {
   );
 }
 
+// --- retro-compile, retro-analyst (sdd-retrospective SKILL.md Steps 1-2, formats.md) ---
+
+/** The retrospective.md shape the compiler writes (formats.md), with the proposal-format block the analyst reads. */
+const RETRO_FORMAT_LINES = [
+  '## Format of the output file',
+  '',
+  '```markdown',
+  '# Retrospective — <SPEC>',
+  '',
+  'Compiled <ISO date> by the retro compiler from the retro log, HANDOFF, deferrals,',
+  'implementation logs, task reviews, the git log and earlier retrospectives.',
+  '',
+  '<!-- Proposal format for the analyst: see the end of this file. -->',
+  '',
+  '## Gotchas',
+  '## Product bugs found',
+  '## Tool and MCP errors or deficiencies',
+  '## Harness defects',
+  '## Prompt misunderstandings',
+  '## Inefficiencies',
+  '## Documentation gaps',
+  '## Model behaviour',
+  '## Process deviations and rulings',
+  '## Decisions the harness made for the human',
+  '## Repeat patterns',
+  '## Summary numbers',
+  '```',
+  '',
+  'Finding format (one bullet per finding, under its section; a section present even when empty, as `None found.`):',
+  '',
+  '```',
+  '- **F<n> — <title>.** <what happened, one to three sentences>. Evidence: <reference>.',
+  '  Frequency: <once | <n> times in this spec | seen in <other spec> too>. Cost: <rounds,',
+  '  spawns, minutes, tokens, or "unknown">.',
+  '```',
+  '',
+  '`## Repeat patterns` lists findings that also appear in an earlier spec\'s `retrospective.md`, with both',
+  'references. `## Summary numbers` is a short table: phases, versions per phase, review rounds, fix rounds,',
+  'adjudications, escalations, rulings, deferrals added, spawns, PR.',
+  '',
+  'The file ends with this block, verbatim, so the analyst has the proposal format in hand:',
+  '',
+  '```markdown',
+  '## Proposal format (for the analyst)',
+  '',
+  'One proposal per finding, numbered P<n> and naming the finding it answers:',
+  '',
+  '- **P<n> (F<m>) — <title>.** <the change, one to three sentences>.',
+  '  Target: <harness skills or agents | server code, docs or templates | project steering,',
+  '  templates or decomposition conventions | CLAUDE.md, memory or settings | product code>.',
+  '  Effort: <S | M | L>. Risk: <low | medium | high>: <one line>.',
+  '  Prerequisites: <none | list>.',
+  '  DECISION NEEDED: <yes | no>. <When yes: the question, then two to four options, one',
+  '  line each, with your recommendation marked.>',
+  '',
+  'The file ends with `## Graduation candidates`: patterns seen in two or more specs\' findings,',
+  'each proposed for promotion into a steering document or agent-rules.md, with the rule text as',
+  'it would be written.',
+  '```',
+];
+
+function renderRetroCompile(v: Record<string, string>): string {
+  const lines: string[] = ['# Retrospective compile — ' + v.spec, ''];
+  if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first.', '');
+  lines.push(
+    '## Job',
+    'Compile the findings of the finished spec `' + v.spec + '` into `' + v.outputPath + '`. The spec is complete:',
+    'every task is `[x]`, the pull request is merged, and the retro log exists. You compile; you do not',
+    'propose and you do not implement.',
+    '',
+    '## Roots',
+    '- Spec dir: `' + v.specDir + '`. Spec store: `' + v.specStoreRoot + '` (repository `' + v.specStoreRepo + '`).',
+    '- Code root: `' + v.codeRoot + '`' + (v.mainCheckout && v.mainCheckout !== v.codeRoot ? ', a worktree of `' + v.mainCheckout + '`' : '') + '. Default branch `' + v.defaultBranch + '`.',
+    '- HANDOFF: `' + v.handoff + '`. Today: ' + v.date + '.',
+    '',
+    '## Read, in this order, taking notes rather than copying',
+    '1. `' + v.specDir + '/retrospective-log.md`, every entry.',
+    '2. The HANDOFF sections for the spec: grep `' + v.handoff + '` for the headings `## ' + v.spec + ' — `.',
+    '3. The spec-workflow `deferrals` tool, `action: list`, filtered by `originSpec: ' + v.spec + '` (all statuses).',
+    '4. `' + v.specDir + '/Implementation Logs/` (summaries and file lists; skim).',
+    '5. The task reviews: the spec-workflow `get-task-review` tool for each task that had a fix round (the retro',
+    '   log and the run ledger `' + v.specDir + '/harness-events.jsonl` say which), latest version.',
+    '6. The git log of the spec commits, gathered by a script you write with the Write tool under',
+    '   `/tmp/scratchpad/sdd/' + v.spec + '/git-log.sh`: one `cd` and one `/usr/bin/git log --oneline` per repository, the',
+    '   code repository (`' + v.defaultBranch + '..HEAD` in the code root; when the branch is merged, the commits whose',
+    '   message names the spec) and the spec store (`-- .spec-workflow/specs/' + v.spec + '` in the spec store repository),',
+    '   then run it with `bash`. Never put `git` on a shell line with `&&`, `;` or a glob.',
+    '7. Every earlier `' + v.specStoreRoot + '/specs/*/retrospective.md`, for repeat patterns.',
+    '',
+    '## Rules',
+    '- Every finding carries an evidence reference (a path, an approval id, a commit, a deferral id, an',
+    '  analysis section, a retro-log entry timestamp), a frequency and a cost estimate. A finding without a',
+    '  reference is not written.',
+    '- Cap the file at 2,500 words; count with `wc -w` before you report.',
+    '- Write only the output file. Do not edit the retro log, HANDOFF, the plan, the harness or the project.',
+    '- Do not ask questions.',
+    '',
+    ...RETRO_FORMAT_LINES,
+    '',
+    ...reportBlockLines(['findings', 'categories', 'words', 'path']),
+  );
+  return lines.join('\n') + '\n';
+}
+
+function renderRetroAnalyst(v: Record<string, string>): string {
+  const lines: string[] = ['# Retrospective proposals — ' + v.spec, ''];
+  if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first.', '');
+  lines.push(
+    '## Job',
+    'Write `' + v.outputPath + '` from the findings in `' + v.findingsPath + '`, following the proposal format in that',
+    'file\'s last section (`## Proposal format (for the analyst)`). Spec store root `' + v.specStoreRoot + '`; code root',
+    '`' + v.codeRoot + '`. Today: ' + v.date + '.',
+    '',
+    '## Rules',
+    '- Read the findings file first, then the harness skills and agents, the server docs, the project\'s steering and',
+    '  agent rules, or the code, as each finding requires.',
+    '- One proposal per finding, numbered `P<n>` and naming its finding, with the target surface, effort, risk,',
+    '  prerequisites and `DECISION NEEDED: yes | no`. When a human must choose, write the question and two to four',
+    '  `- Option …` lines with `(recommended)` on one; never choose for them.',
+    '- Prefer the smallest change that removes the finding\'s cause. Say when a finding needs no change.',
+    '- Start the file with `# Retrospective proposals — ' + v.spec + '`, a `Written ' + v.date + ' by the retro analyst` line,',
+    '  the proposals under `## Proposals`, and end with `## Graduation candidates` (patterns seen in two or more',
+    '  specs, each with the rule text as it would be written and its target document; `None found.` when none).',
+    '- Cap the file at 2,500 words. Write only the output file; never edit the findings file, the harness, the',
+    '  project or any deferral.',
+    '- Do not ask questions.',
+    '',
+    ...reportBlockLines(['proposals', 'decisions', 'graduation']),
+  );
+  return lines.join('\n') + '\n';
+}
+
 export const BRIEF_TEMPLATES: Record<string, BriefTemplate> = {
+  'retro-compile': {
+    mode: 'write',
+    required: ['specDir', 'specStoreRoot', 'specStoreRepo', 'codeRoot', 'mainCheckout', 'outputPath', 'handoff', 'date', 'defaultBranch'],
+    render: renderRetroCompile,
+  },
+  'retro-analyst': {
+    mode: 'write',
+    required: ['findingsPath', 'outputPath', 'specStoreRoot', 'codeRoot', 'date'],
+    render: renderRetroAnalyst,
+  },
   drafter: {
     mode: 'write',
     required: ['phase', 'docPath', 'specDir', 'specStoreRoot', 'codeRoot', 'carried'],
