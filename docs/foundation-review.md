@@ -548,6 +548,54 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   runs (`*-retro`, `feat/*`); pruning them is Matthew's call since some may hold uncommitted
   state.
 
+- 2026-10-15 PR #122 merged (`fd9d374`): the watchdog watches the unit, not only the port,
+  and raises an `error` wait. The journal of the 2026-10-14 incident showed the watchdog
+  itself died on every probe (`node: command not found`, the same broken `PATH` as the
+  controller) and so evaluated nothing for ten hours; when it first ran at 15:56Z it did
+  count the 7136 restarts, but only into `watchdog-alerts.log`, because `notify-send` has
+  no display under a user unit. The script is now plain bash (curl and systemctl), keeps
+  `watchdog.state`, alerts on a loaded-but-not-active unit for three probes whatever the
+  port says (naming the pid that serves the port when it is not the unit's), always logs,
+  notifies best effort, and writes an `error` wait through the checkout's `dist/` so the
+  Now page shows it. `SDD_WATCHDOG_UNIT`/`SDD_WATCHDOG_SYSTEMCTL` keep the dry-run test off
+  the live unit. Found on the way: PR #121 had merged on a red CI (the reboot-safe PATH test
+  fails on a runner where `node_modules/.bin` leads `PATH`); `stable_path` now always leads
+  with the node directory, which is what the comment and the test promised.
+- 2026-10-15 PR #123 merged (`5afa402`): the durable project list, `projects.json` in the
+  harness home (design §3). The project manager remembers every project it adds, reloads the
+  list after the registry at start, keeps a project whose last MCP server exited listed with
+  no instances, and forgets one only on the dashboard's remove route. The fixture no longer
+  vanishes after a controller restart.
+- 2026-10-15 PR #124 merged (`11b6736`): **step (c2), the implementation loop in code**
+  (`src/controller/phases/implementation.ts`, task list T12). The controller works the
+  task queue itself: test-author, implementer, verifier and adjudicator as steps; the gate
+  in-process (worktree as `root`, the implementer commit's parent as `baseRef`, the
+  checks-file, the `tdd` proof); low/medium closes on the gate unless the task is wiring;
+  fix rounds capped at three, then the adjudicator and a narrow verification; per task the
+  `[x]`, `task.done`, retro entry, HANDOFF State row and spec-store commit. The completion
+  gate runs the end-to-end verifier (two repairs), `spec-index`, the HANDOFF section with
+  `spec-status` coverage, the push and `gh pr create` (a body from the task titles, the
+  cut-scope rows and the checks run), then the PR checks gate (`readCiState` in `merge.ts`,
+  log tails, a reconcile step, `INFRA:` reruns, a CI verifier, three rounds, then the
+  adjudicator). Routing: open tasks ⇒ the loop; a ledger ending on `phase.end
+  result=complete` ⇒ the retrospective supervisor step. `DESIGN-DEFECT`/`ESCALATE` revert
+  the task and open an `escalation` wait whose answer reaches the next implementer brief.
+  Not carried: the five-task budget, the batched verifier, the graph refresh, the
+  decision-id citation check. The implementation orchestrator is retired (never spawned);
+  its files stay until step (d) for the projects still on the old harness. Two things the
+  tests forced: the gate's `isBookkeepingPath` now covers what the controller writes
+  between a pick and a gate in a shared code+spec repo (HANDOFF, the retro log, the
+  receipt, the recorded reviews, approvals, deferrals, INDEX), and the stub `claude` runs
+  `commands` so a stubbed worker can commit. 203 controller tests, 15 new.
+- 2026-10-15 deployed by self-update at 15:34Z (`11b6736`, smoke boot passed, service
+  restarted; `sdd-service.sh install` rewrote the units so the watchdog carries the
+  checkout, the node binary and the display; one hand probe read a clean `watchdog.state`).
+  The fixture project re-registered through `POST /api/projects/add` and is now
+  remembered. Spec 3 `shout` added to the fixture decomposition (`23e4e55`, a shouted
+  greeting with a `--shout` flag: one TDD-marked module task and one wiring task). Run
+  `run-20261015-153534` launched at 15:35Z: the first run of the in-code implementation
+  phase through the real `claude`.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
