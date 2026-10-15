@@ -34,9 +34,9 @@ import { parseJsonl } from '../watch/ledger.js';
 import { removePointerLine } from '../dashboard/harness/state-files.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
-  processStartTime, isProcessAlive, runStepsDir,
+  processStartTime, isProcessAlive, runStepsDir, withStoreLock,
 } from './state.js';
-import { openRunLedger, type RunLedger } from './ledger.js';
+import { openRunLedger, commitSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import {
@@ -842,6 +842,16 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
 
     if (decision.kind === 'done') {
       ledger.runEnd('done');
+      // The run's last rows (the close-out's and this `run.end`) are history too:
+      // commit them, as the supervisor's deregister step did by hand.
+      try {
+        await commitSpecStore(
+          { specStoreRoot, spec: run.spec, message: `docs(sdd): ${run.spec} harness ledger — controller run end` },
+          (fn) => withStoreLock(specStoreRoot, fn),
+        );
+      } catch (err) {
+        ledger.note(`run-end commit failed: ${(err as Error).message}`);
+      }
       await save(deps, run, { status: 'done', phase: undefined, inFlight: undefined });
       return;
     }

@@ -245,6 +245,26 @@ describe('parseProposals on the real greeting-endpoint fixture', () => {
   });
 });
 
+describe('runOnce done', () => {
+  it('commits the ledger with the run.end row when the spec is closed', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'docs(sdd): closed']);
+    await writeRun(seedRun(fx));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    expect((await readRun('run-20261011-000000'))?.status).toBe('done');
+    expect(git(fx.repo, ['log', '-1', '--format=%s']).trim()).toBe(`docs(sdd): ${SPEC} harness ledger — controller run end`);
+    expect(git(fx.repo, ['status', '--short']).trim()).toBe('');
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8').trim().split('\n');
+    expect(JSON.parse(rows[rows.length - 1]).type).toBe('run.end');
+  });
+});
+
 describe('runOnce usage-limit pause', () => {
   it('pauses the run when a document step hits the usage limit', async () => {
     writeScript(fx, [{

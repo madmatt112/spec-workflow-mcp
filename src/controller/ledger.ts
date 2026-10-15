@@ -15,7 +15,7 @@
  * and `src/dashboard/shell/waits.ts` all build on.
  */
 
-import { appendFileSync } from 'fs';
+import { appendFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { execFileSync } from 'child_process';
 import { scrubbedGitEnv } from '../core/git-utils.js';
@@ -188,8 +188,38 @@ export interface CheckpointOptions {
   specStoreRoot: string;
   /** The commit message, formed by the caller (e.g. `docs(sdd): <SPEC> <PHASE> v<N>`). */
   message: string;
-  /** Paths to stage, relative to the root; defaults to everything (`-A`). */
+  /** Paths to stage, relative to the root; with `spec`, the spec-store paths; else everything (`-A`). */
   paths?: string[];
+  /**
+   * The spec whose store paths to stage when `paths` is absent (the list
+   * `book.sh commit` stages): never the whole tree, so machine state such as
+   * `harness-run.json` or an operator's unrelated edit is not swept into a
+   * controller commit.
+   */
+  spec?: string;
+}
+
+/**
+ * The spec-store paths a controller commit may stage, relative to the root:
+ * the spec's own directory, its approvals, HANDOFF, INDEX and the deferrals.
+ * Only the ones that exist and are not ignored.
+ */
+export function specStorePaths(specStoreRoot: string, spec: string): string[] {
+  const candidates = [
+    `.spec-workflow/specs/${spec}`, `.spec-workflow/approvals/${spec}`, '.spec-workflow/HANDOFF.md',
+    '.spec-workflow/spec-decomposition/INDEX.md', '.spec-workflow/deferrals', 'HANDOFF.md',
+  ];
+  const out: string[] = [];
+  for (const p of candidates) {
+    if (!existsSync(join(specStoreRoot, p))) continue;
+    try {
+      execFileSync('git', ['-C', specStoreRoot, 'check-ignore', '-q', p], { env: scrubbedGitEnv(), stdio: 'ignore' });
+      continue; // ignored
+    } catch {
+      out.push(p);
+    }
+  }
+  return out;
 }
 
 /** Holds a lock around the commit. The default runs it directly. */
@@ -201,12 +231,42 @@ export type Serialize = <T>(fn: () => Promise<T>) => Promise<T>;
  * attribution: the message is used verbatim. Returns the commit's full SHA.
  */
 export function checkpoint(options: CheckpointOptions, serialize: Serialize = (fn) => fn()): Promise<string> {
-  const { specStoreRoot, message, paths } = options;
+  const { specStoreRoot, message, spec } = options;
+  const paths = options.paths && options.paths.length > 0
+    ? options.paths
+    : spec ? specStorePaths(specStoreRoot, spec) : [];
   return serialize(async () => {
     const git = (args: string[]): string =>
       execFileSync('git', ['-C', specStoreRoot, ...args], { encoding: 'utf-8', env: scrubbedGitEnv() });
-    git(['add', ...(paths && paths.length > 0 ? paths : ['-A'])]);
+    git(['add', ...(paths.length > 0 ? ['-A', '--', ...paths] : ['-A'])]);
     git(['commit', '-m', message]);
     return git(['rev-parse', 'HEAD']).trim();
+  });
+}
+
+/**
+ * Commit the spec's store paths with the caller's message, skipping when there
+ * is nothing to stage or nothing staged (a re-entry, or a stop that changed no
+ * file). Returns the commit sha, or `undefined` when it skipped. The commit
+ * form every per-task, stop and run-end commit of the controller uses.
+ */
+export function commitSpecStore(
+  options: { specStoreRoot: string; spec: string; message: string }, serialize: Serialize = (fn) => fn(),
+): Promise<string | undefined> {
+  const { specStoreRoot, spec, message } = options;
+  return serialize(async () => {
+    const git = (args: string[]): string =>
+      execFileSync('git', ['-C', specStoreRoot, ...args], { encoding: 'utf-8', env: scrubbedGitEnv(), stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    const paths = specStorePaths(specStoreRoot, spec);
+    if (paths.length === 0) return undefined;
+    git(['add', '-A', '--', ...paths]);
+    try {
+      git(['diff', '--cached', '--quiet']);
+      return undefined; // nothing staged
+    } catch {
+      // Something is staged: commit it.
+    }
+    git(['commit', '-q', '-m', message]);
+    return git(['rev-parse', 'HEAD']);
   });
 }
