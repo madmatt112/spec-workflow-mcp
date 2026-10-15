@@ -3,7 +3,8 @@
 # controller-design.md §2). The controller is the always-on dashboard process
 # `node <checkout>/dist/index.js --dashboard --port <port>`. This script writes
 # the user units, and the watchdog units (sdd-watchdog.service/.timer), enables
-# and starts them. Nothing here runs a model.
+# and starts them. Nothing here runs a model. The watchdog watches the unit as
+# well as the port (scripts/sdd-watchdog.sh).
 #
 # Usage:
 #   scripts/sdd-service.sh install     write the units, daemon-reload, enable --now
@@ -96,8 +97,25 @@ Description=SDD controller watchdog (one health probe)
 Type=oneshot
 ExecStart=$REPO/scripts/sdd-watchdog.sh
 Environment="SDD_PORT=$PORT"
+Environment="SDD_CHECKOUT=$REPO"
+Environment="SDD_NODE_BIN=$NODE_BIN"
 Environment="PATH=$SERVICE_PATH"
+$(display_env_lines)
 EOF
+}
+
+# `Environment=` lines for DISPLAY and WAYLAND_DISPLAY when the installing shell
+# has them: a user unit carries neither, and notify-send needs one to reach the
+# desktop. The watchdog also carries the checkout and the node binary so its
+# alert can land as an `error` wait on the dashboard's Now page.
+display_env_lines() {
+  local out=""
+  if [ -n "${DISPLAY:-}" ]; then out="Environment=\"DISPLAY=$DISPLAY\""; fi
+  if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    out="${out:+$out
+}Environment=\"WAYLAND_DISPLAY=$WAYLAND_DISPLAY\""
+  fi
+  printf '%s' "$out"
 }
 
 watchdog_timer_unit() {
