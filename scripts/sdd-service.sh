@@ -38,18 +38,18 @@ resolve_node_bin() {
   if [ -n "$found" ]; then readlink -f "$found"; else printf '/usr/bin/env node'; fi
 }
 # The installing shell's PATH without transient version-manager dirs, led by the
-# resolved node binary's directory when that is an absolute path.
+# resolved node binary's directory when that is an absolute path (moved to the
+# front when the shell had it elsewhere, so npm beside it resolves first).
 stable_path() {
-  local out="" entry
+  local out="" entry dir=""
+  case "$NODE_BIN" in /*) dir="$(dirname "$NODE_BIN")" ;; esac
   local IFS=:
   for entry in $PATH; do
     case "$entry" in */fnm_multishells/*) continue ;; esac
+    [ -n "$dir" ] && [ "$entry" = "$dir" ] && continue
     out="${out:+$out:}$entry"
   done
-  case "$NODE_BIN" in
-    /*) local dir; dir="$(dirname "$NODE_BIN")"
-        case ":$out:" in *":$dir:"*) ;; *) out="$dir${out:+:$out}" ;; esac ;;
-  esac
+  if [ -n "$dir" ]; then out="$dir${out:+:$out}"; fi
   printf '%s' "$out"
 }
 NODE_BIN="$(resolve_node_bin)"
