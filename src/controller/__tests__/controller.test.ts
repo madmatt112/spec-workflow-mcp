@@ -68,14 +68,17 @@ function e2eRun(): StubRun {
     },
   };
 }
-/** The retrospective supervisor step: it writes the proposals and a DRAFT plan. */
-function supervisorImplRun(): StubRun {
+/** The retrospective in code: the compile step writes the findings, the analyst the proposals. */
+function compileRun(): StubRun {
   return {
-    edits: [
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS },
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT — decisions needed\n' },
-    ],
-    result: { subtype: 'success', is_error: false, num_turns: 5, session_id: 's', result: 'impl done', usage: USAGE },
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective.md`, content: ['# Retrospective — ' + SPEC, '', '## Gotchas', '- **F1 — x.** y. Evidence: z. Frequency: once. Cost: 1.', '', '## Proposal format (for the analyst)', '', 'One per finding.', ''].join('\n') }],
+    result: { subtype: 'success', is_error: false, num_turns: 3, session_id: 's', result: 'compiled', structured_output: { findings: 1, path: 'retrospective.md' }, usage: USAGE },
+  };
+}
+function analystRun(): StubRun {
+  return {
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS }],
+    result: { subtype: 'success', is_error: false, num_turns: 3, session_id: 's', result: 'proposed', structured_output: { proposals: 1 }, usage: USAGE },
   };
 }
 function supervisorCloseoutRun(): StubRun {
@@ -197,11 +200,11 @@ describe('Controller.enqueue validation', () => {
 });
 
 describe('Controller full run', () => {
-  it('drives requirements and design, the implementation phase, a retro supervisor step, a retro-plan wait, close-out, done', async () => {
+  it('drives requirements and design, the implementation phase, the retrospective, a retro-plan wait, close-out, done', async () => {
     writeScript(fx, [
       drafterRun('requirements'), reviewerRun('requirements'),
       drafterRun('design'), reviewerRun('design'),
-      e2eRun(), supervisorImplRun(), supervisorCloseoutRun(),
+      e2eRun(), compileRun(), analystRun(), supervisorCloseoutRun(),
     ]);
     await approve(fx, 'tasks');
     // The implementation ends at a PR the merge stage merges before the retro.
@@ -292,19 +295,12 @@ describe('Controller merge stage', () => {
   };
   const runsPending = { argvIncludes: ['api'], stdout: { total_count: 1, workflow_runs: [{ name: 'build', status: 'in_progress', conclusion: null }] } };
 
-  const retroRun: StubRun = {
-    edits: [
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: PROPOSALS },
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT\n' },
-    ],
-    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'retro', usage: USAGE },
-  };
 
   it('merges a completed implementation by rule (scheduler re-enters the merging run), then runs the retro', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [e2eRun(), retroRun]);
+    writeScript(fx, [e2eRun(), compileRun(), analystRun()]);
 
     const ghScript = join(fx.base, 'gh-script.json');
     writeFileSync(ghScript, JSON.stringify([
@@ -390,7 +386,7 @@ describe('Controller crash recovery', () => {
     await approve(fx, 'tasks');
 
     writeScript(fx, [
-      reviewerRun('requirements'), e2eRun(), supervisorImplRun(), supervisorCloseoutRun(),
+      reviewerRun('requirements'), e2eRun(), compileRun(), analystRun(), supervisorCloseoutRun(),
     ]);
     // The implementation ends at a PR the merge stage merges before the retro.
     scriptMergeablePR(fx, 'main', 'c0ffee000002');

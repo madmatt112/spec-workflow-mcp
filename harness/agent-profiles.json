@@ -47,6 +47,12 @@
     "role": "retrospective analyst",
     "cacheTtl": "default"
   },
+  "sdd-retro-compiler": {
+    "model": "claude-opus-4-8",
+    "effort": "high",
+    "role": "retrospective compiler",
+    "cacheTtl": "default"
+  },
   "sdd-retro-orchestrator": {
     "model": "claude-opus-4-8",
     "effort": "high",

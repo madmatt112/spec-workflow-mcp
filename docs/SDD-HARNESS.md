@@ -50,14 +50,15 @@ watchers (ADR 0005).
   with a role, a brief and a report schema. The step exits with a typed result. The
   controller reads the result for the report, the token usage and the usage windows, and
   writes the ledger itself.
-- The controller runs the three document phases and the implementation phase itself
-  (`src/controller/phases/document.ts` and `implementation.ts`). The implementation phase
-  works the task queue with test-author, implementer, verifier and adjudicator steps,
-  runs the review gate in-process, verifies end to end, opens the pull request and waits
-  for its checks (reconciling a red one), then hands the merged state to the merge rule.
-- The **supervisor** is spawned once per phase, as a step, for the retrospective and
-  close-out only. The controller takes those over at step (c3); until then it spawns
-  today's supervisor for them.
+- The controller runs the three document phases, the implementation phase and the
+  retrospective itself (`src/controller/phases/document.ts`, `implementation.ts`,
+  `retrospective.ts`). The implementation phase works the task queue with test-author,
+  implementer, verifier and adjudicator steps, runs the review gate in-process, verifies
+  end to end, opens the pull request and waits for its checks (reconciling a red one),
+  then hands the merged state to the merge rule. The retrospective runs a compile step
+  (`sdd-retro-compiler`) and the analyst step, then opens the `retro-plan` wait.
+- The **supervisor** is spawned once, as a step, for close-out only. The controller takes
+  that over in the second half of step (c3); until then it spawns today's supervisor for it.
 
 ### The harness home
 
@@ -157,13 +158,12 @@ the second.
 
 ### What the old supervisor still does
 
-The supervisor skill (`sdd-continue`) still runs the phases the controller has not inlined
-yet. The controller spawns it as one headless step per phase for the retrospective and
-close-out. Its retrospective stops at a DRAFT plan; the controller turns that into a
-`retro-plan` wait and writes the APPROVED plan from the answers. The implementation
-orchestrator is retired: the controller never spawns it. Its agent and skill files stay in
-`harness/` until step (d), because projects that still run whole specs on the old harness
-read them. The supervisor and its remaining orchestrators are deleted at step (d).
+The supervisor skill (`sdd-continue`) still runs the one phase the controller has not
+inlined yet: close-out. The controller spawns it as one headless step for that phase. The
+implementation and retrospective orchestrators are retired: the controller never spawns
+them. Their agent and skill files stay in `harness/` until step (d), because projects that
+still run whole specs on the old harness read them. The supervisor and its remaining
+orchestrators are deleted at step (d).
 
 ## Phase flow
 

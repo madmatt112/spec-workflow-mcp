@@ -364,13 +364,14 @@ describe('runOnce merge stage', () => {
       structured_output: { verify: 'pass', deferredCommand: '', findings: '', retro: 'none' }, usage: {},
     },
   };
-  /** A supervisor stub run that writes the retro proposals and a DRAFT plan. */
-  const retroRun: StubRun = {
-    edits: [
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: ['# proposals', '', '## Proposals', '- **P1 — Tidy.** Do it.', '  DECISION NEEDED: no.', ''].join('\n') },
-      { path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: DRAFT\n' },
-    ],
-    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'retro', usage: {} },
+  /** The retrospective in code: the compile step writes the findings, the analyst the proposals. */
+  const compileRun: StubRun = {
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective.md`, content: ['# Retrospective — ' + SPEC, '', '## Gotchas', '- **F1 — x.** y. Evidence: z. Frequency: once. Cost: 1.', '', '## Proposal format (for the analyst)', '', 'One per finding.', ''].join('\n') }],
+    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'compiled', structured_output: { findings: 1, path: 'retrospective.md' }, usage: {} },
+  };
+  const analystRun: StubRun = {
+    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective-proposals.md`, content: ['# proposals', '', '## Proposals', '- **P1 (F1) — Tidy.** Do it.', '  DECISION NEEDED: no.', '', '## Graduation candidates', 'None found.', ''].join('\n') }],
+    result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'proposed', structured_output: { proposals: 1 }, usage: {} },
   };
 
   function mergedRows(fx: Fixture): Record<string, string>[] {
@@ -382,7 +383,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [e2eRun, retroRun]);
+    writeScript(fx, [e2eRun, compileRun, analystRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },
@@ -401,7 +402,7 @@ describe('runOnce merge stage', () => {
     expect(run?.pr).toBe(42);
 
     // Second pass (the scheduler re-enters): the check is green, so it merges,
-    // writes pr.merged, then runs the retro step and parks at the retro plan.
+    // writes pr.merged, then runs the retrospective and parks at the retro plan.
     await runOnce(deps(fx), 'run-20261011-000000');
     run = await readRun('run-20261011-000000');
     expect(run?.status).toBe('waiting');
@@ -418,7 +419,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
-    writeScript(fx, [e2eRun, retroRun]);
+    writeScript(fx, [e2eRun, compileRun, analystRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
       { argvIncludes: ['pr', 'view'], stdout: readyView },

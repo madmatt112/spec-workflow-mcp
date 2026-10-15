@@ -3,9 +3,9 @@
 // T6 of the controller (docs/controller-tasks.md "T6 `runs`", design §5
 // "Between phases", §6, §8, §9, §13). The per-run driver: resolve the roots and
 // the worktree, route from the spec store state with `harness orient`'s logic,
-// run a document phase (T5) or the implementation phase (c2) in-process, or
-// spawn today's supervisor for the retrospective and close-out (until c3), turn
-// a DRAFT retro plan into a `retro-plan` wait and its answer into an
+// run a document phase (T5), the implementation phase (c2) or the retrospective
+// (c3) in-process, or spawn today's supervisor for close-out (until the second
+// half of c3), turn the proposals into a `retro-plan` wait and its answer into an
 // APPROVED plan, and carry the run to `done`, pausing on a usage window and
 // retrying or escalating a failed step. The scheduler, the queue, crash recovery
 // and the controller lock live in `controller.ts`; this module is the run logic
@@ -47,6 +47,7 @@ import {
   type DocumentPhase, type DocumentGates, type DocumentPhaseContext, type DocumentPhaseOutcome,
 } from './phases/document.js';
 import { runImplementationPhase, type ImplementationPhaseOutcome } from './phases/implementation.js';
+import { runRetrospectivePhase, type RetrospectivePhaseOutcome } from './phases/retrospective.js';
 import type { RateLimitWindows } from './step.js';
 
 /**
@@ -65,12 +66,13 @@ export const runEvents = new EventEmitter();
 export type RunDecision =
   | { kind: 'document'; phase: DocumentPhase }
   | { kind: 'implementation' }
-  | { kind: 'supervisor'; phase: 'retrospective' | 'closeout' }
+  | { kind: 'retrospective' }
+  | { kind: 'supervisor'; phase: 'closeout' }
   | { kind: 'retro-plan' }
   | { kind: 'done' };
 
-/** The phases the old supervisor still runs as one headless step each (c3 retires them). */
-export type SupervisorPhase = 'retrospective' | 'closeout';
+/** The phase the old supervisor still runs as one headless step (the close-out half of c3 retires it). */
+export type SupervisorPhase = 'closeout';
 
 /** The `Status:` word of `retrospective-plan.md`, or `undefined` when absent. */
 function planStatus(specDir: string): 'DRAFT' | 'APPROVED' | 'CLOSED' | undefined {
@@ -123,7 +125,7 @@ export async function routeRun(specStoreRoot: string, spec: string): Promise<Run
   if (status === 'DRAFT' || existsSync(join(specDir, 'retrospective-proposals.md'))) {
     return { kind: 'retro-plan' };
   }
-  if (implementationComplete(specDir)) return { kind: 'supervisor', phase: 'retrospective' };
+  if (implementationComplete(specDir)) return { kind: 'retrospective' };
   return { kind: 'implementation' };
 }
 
@@ -917,7 +919,27 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       continue; // merged, or already merged: re-route (to the retrospective)
     }
 
-    // decision.kind === 'supervisor' (retrospective or close-out).
+    if (decision.kind === 'retrospective') {
+      // The retrospective in code (step c3): the compile and analyst steps, then
+      // the proposals file routes to the `retro-plan` wait on the next pass.
+      const prior = run.cursor;
+      const attempt = prior?.stepKind === 'retrospective' ? prior.attempt : 1;
+      run = await save(deps, run, { phase: 'retrospective', cursor: { phase: 'retrospective', stepKind: 'retrospective', attempt } });
+      const outcome = await runRetrospectivePhase({
+        run, specStoreRoot, specDir, codeRoot: run.worktree, mainCheckout: run.codeRoot,
+        ledger, stepLogDir: stepLogDir(run.id), mcpConfig,
+        onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        now: deps.now,
+        shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+      });
+      run = (await readRun(runId)) ?? run;
+      const handled = await handleRetrospectiveOutcome(deps, run, ledger, specDir, outcome);
+      if (handled === 'stop') return;
+      lastSignature = null;
+      continue; // retro-ready or a retry: re-route
+    }
+
+    // decision.kind === 'supervisor' (close-out).
     const signature = routeSignature(specStoreRoot, run.spec);
     const outcome = await runSupervisorStep(deps, run, ledger, specDir, decision.phase);
     run = (await readRun(runId)) ?? run;
@@ -996,6 +1018,31 @@ async function handleImplementationOutcome(
   await waitAnd(deps, run, ledger, 'error', specDir, [{
     id: 'error',
     text: `Implementation ${outcome.result} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
+    options: ['retry', 'abandon'], recommended: 'retry',
+  }]);
+  return 'stop';
+}
+
+/** Map a retrospective outcome to a run-status change: `go` re-routes (to the retro-plan wait). */
+async function handleRetrospectiveOutcome(
+  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: RetrospectivePhaseOutcome,
+): Promise<'stop' | 'go'> {
+  if (outcome.result === 'retro-ready') return 'go';
+  if (outcome.result === 'stopped') {
+    if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    return 'stop';
+  }
+  if (outcome.reason === 'usage-limit') {
+    await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
+    return 'stop';
+  }
+  const attempt = run.cursor?.attempt ?? 1;
+  if (attempt <= RUN_FRESH_RETRY) {
+    await save(deps, run, { cursor: { phase: 'retrospective', stepKind: 'retrospective', attempt: attempt + 1 } });
+    return 'go'; // one fresh retry: the phase resumes from the files it already wrote
+  }
+  await waitAnd(deps, run, ledger, 'error', specDir, [{
+    id: 'error', text: `Retrospective failed: ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
     options: ['retry', 'abandon'], recommended: 'retry',
   }]);
   return 'stop';
