@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, copyFileSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -60,6 +60,19 @@ describe('service scripts (controller T9)', () => {
     expect(out).toContain('OnUnitActiveSec=1min');
   });
 
+  it('sdd-service.sh gives the watchdog unit the checkout, the node binary and the display', async () => {
+    const out = (await runScript(serviceSh, ['print'], {
+      SDD_CHECKOUT: repoRoot, SDD_NODE_BIN: '/opt/node/bin/node', DISPLAY: ':9', WAYLAND_DISPLAY: 'wayland-9',
+    })).stdout;
+    const watchdog = out.split('# ==== ').find((u) => u.startsWith(`${process.env.HOME}/.config/systemd/user/sdd-watchdog.service`))
+      ?? out.split('sdd-watchdog.service ====')[1];
+    expect(watchdog).toBeDefined();
+    expect(watchdog).toContain(`Environment="SDD_CHECKOUT=${repoRoot}"`);
+    expect(watchdog).toContain('Environment="SDD_NODE_BIN=/opt/node/bin/node"');
+    expect(watchdog).toContain('Environment="DISPLAY=:9"');
+    expect(watchdog).toContain('Environment="WAYLAND_DISPLAY=wayland-9"');
+  });
+
   it('sdd-service.sh bakes a reboot-safe node path: no transient fnm dir, ExecStart on the resolved binary', async () => {
     const transient = '/run/user/1000/fnm_multishells/12345_1700000000000/bin';
     const out = (await runScript(serviceSh, ['print'], {
@@ -93,7 +106,7 @@ describe('service scripts (controller T9)', () => {
 
     beforeAll(async () => {
       server = http.createServer((_req, res) => {
-        if (healthy) { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, version: 'x' })); }
+        if (healthy) { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, version: 'x', pid: process.pid })); }
         else { res.writeHead(503); res.end('down'); }
       });
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
@@ -107,7 +120,13 @@ describe('service scripts (controller T9)', () => {
     });
 
     it('alerts once after three failures and again only after recovery', async () => {
-      const env = { SDD_PORT: String(port), SDD_HOME: home, SDD_WATCHDOG_FAIL_THRESHOLD: '3' };
+      // An absent unit name keeps the live sdd-controller unit (and its restart
+      // counter) out of the test: systemctl reports it not-found, so only the
+      // health rule can fire.
+      const env = {
+        SDD_PORT: String(port), SDD_HOME: home, SDD_WATCHDOG_FAIL_THRESHOLD: '3',
+        SDD_WATCHDOG_UNIT: 'sdd-watchdog-test-absent.service',
+      };
 
       healthy = false;
       for (let i = 0; i < 3; i++) await runScript(watchdogSh, ['--dry-run'], env);
@@ -122,6 +141,74 @@ describe('service scripts (controller T9)', () => {
       healthy = false;
       for (let i = 0; i < 3; i++) await runScript(watchdogSh, ['--dry-run'], env);
       expect(alertLines(home)).toBe(2); // a fresh breach alerts again
+    });
+
+    /** A stand-in `systemctl` whose `show` prints the given unit properties. */
+    function writeSystemctlStub(dir: string, props: Record<string, string | number>): string {
+      const path = join(dir, 'systemctl');
+      const lines = Object.entries(props).map(([k, v]) => `echo "${k}=${v}"`).join('\n');
+      writeFileSync(path, `#!/bin/bash\n# args: --user show <unit> -p ...\n${lines}\n`, { mode: 0o755 });
+      return path;
+    }
+
+    it('alerts on a unit that is loaded but not active while the port stays green, with no node on PATH', async () => {
+      const unitHome = mkdtempSync(join(tmpdir(), 'watchdog-unit-'));
+      try {
+        const looping = writeSystemctlStub(unitHome, {
+          LoadState: 'loaded', ActiveState: 'activating', SubState: 'auto-restart', NRestarts: 0, MainPID: 0,
+        });
+        // PATH holds only the system dirs: curl, bash and sed, no node. The
+        // watchdog must not need node to decide (2026-10-14: it died of the same
+        // missing node as the controller and evaluated nothing for ten hours).
+        const env = {
+          SDD_PORT: String(port), SDD_HOME: unitHome, SDD_WATCHDOG_UNIT_THRESHOLD: '3',
+          SDD_WATCHDOG_UNIT: 'sdd-controller.service', SDD_WATCHDOG_SYSTEMCTL: looping,
+          PATH: '/usr/bin:/bin',
+        };
+        healthy = true;
+        for (let i = 0; i < 2; i++) await runScript(watchdogSh, ['--dry-run'], env);
+        expect(alertLines(unitHome)).toBe(0);
+        const third = await runScript(watchdogSh, ['--dry-run'], env);
+        expect(third.code).toBe(0);
+        expect(alertLines(unitHome)).toBe(1);
+        const log = readFileSync(join(unitHome, 'watchdog-alerts.log'), 'utf-8');
+        expect(log).toContain('activating/auto-restart for 3 probes');
+        expect(log).toContain(`port ${port} is green, served by pid ${process.pid} (not the unit)`);
+
+        await runScript(watchdogSh, ['--dry-run'], env);
+        expect(alertLines(unitHome)).toBe(1); // latched
+
+        // The unit recovers: the latch clears and no new line is written.
+        const active = writeSystemctlStub(unitHome, {
+          LoadState: 'loaded', ActiveState: 'active', SubState: 'running', NRestarts: 0, MainPID: process.pid,
+        });
+        await runScript(watchdogSh, ['--dry-run'], { ...env, SDD_WATCHDOG_SYSTEMCTL: active });
+        expect(alertLines(unitHome)).toBe(1);
+        expect(readFileSync(join(unitHome, 'watchdog.state'), 'utf-8')).toContain('unit_bad=0');
+      } finally {
+        rmSync(unitHome, { recursive: true, force: true });
+      }
+    });
+
+    it('counts automatic restarts from NRestarts and alerts at the threshold', async () => {
+      const unitHome = mkdtempSync(join(tmpdir(), 'watchdog-restarts-'));
+      try {
+        const env = {
+          SDD_PORT: String(port), SDD_HOME: unitHome, SDD_WATCHDOG_RESTART_THRESHOLD: '3',
+          SDD_WATCHDOG_UNIT: 'sdd-controller.service',
+        };
+        healthy = true;
+        const quiet = writeSystemctlStub(unitHome, { LoadState: 'loaded', ActiveState: 'active', SubState: 'running', NRestarts: 1, MainPID: process.pid });
+        await runScript(watchdogSh, ['--dry-run'], { ...env, SDD_WATCHDOG_SYSTEMCTL: quiet });
+        expect(alertLines(unitHome)).toBe(0);
+        // Four more restarts since the last probe: 5 in the hour with the first, over the threshold.
+        const bursting = writeSystemctlStub(unitHome, { LoadState: 'loaded', ActiveState: 'active', SubState: 'running', NRestarts: 5, MainPID: process.pid });
+        await runScript(watchdogSh, ['--dry-run'], { ...env, SDD_WATCHDOG_SYSTEMCTL: bursting });
+        expect(alertLines(unitHome)).toBe(1);
+        expect(readFileSync(join(unitHome, 'watchdog-alerts.log'), 'utf-8')).toContain('restarted 5 times in the last hour');
+      } finally {
+        rmSync(unitHome, { recursive: true, force: true });
+      }
     });
   });
 

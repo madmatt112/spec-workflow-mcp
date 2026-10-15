@@ -446,11 +446,21 @@ windows and the build time. The watchdog and the staged self-update both read th
 ### The watchdog
 
 `sdd-watchdog.timer` runs `scripts/sdd-watchdog.sh` every minute. The watchdog reads
-`/api/health` and keeps `watchdog.json` in the harness home. It sends one notification
-after ten failed probes in a row, or after three restarts in one hour. It does not send a
-second notification until the controller is healthy again. The notification uses
-`notify-send`; if `notify-send` is absent, the watchdog adds a line to
-`watchdog-alerts.log` in the harness home. The watchdog never runs a model.
+`/api/health` and the state of `sdd-controller.service`, and keeps `watchdog.state` in
+the harness home. It raises one alert when one of three conditions holds: ten failed
+health probes in a row; three automatic restarts of the unit in one hour; or the unit
+loaded but not active (failed, or stuck in auto-restart) for three probes in a row, even
+while the port answers. The third condition is the one a port-only probe misses: a
+dashboard started by hand holds the port and keeps the health route green while the real
+unit crash-loops (2026-10-14). The watchdog does not raise a second alert until the
+condition clears.
+
+An alert goes to three places: a line in `watchdog-alerts.log` in the harness home
+(always), a desktop notification with `notify-send` (best effort), and an `error` wait
+in the harness home, so the dashboard's Now page shows it until the operator acknowledges
+it (best effort: it needs the checkout's `dist/` and the node binary the unit carries).
+The watchdog is plain bash and needs only `curl` and `systemctl`, so it cannot die of the
+broken `PATH` that takes the controller down. It never runs a model.
 
 ### The staged self-update
 
