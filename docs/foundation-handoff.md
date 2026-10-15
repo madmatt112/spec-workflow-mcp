@@ -7,8 +7,8 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 
 ## Where things stand
 
-- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#130, no open PRs; the
-  live build is `330c393`, deployed 2026-10-15 16:30Z while the run below was paused). The
+- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#131, no open PRs; the
+  live build is `50ad2f3`, deployed 2026-10-15 20:54Z while the run below sat in `merging`). The
   controller runs as the systemd user service `sdd-controller` on port 5000 from `dist/` of
   this checkout, with the watchdog timer, the shared secret at `~/.local/state/sdd/secret`,
   and Matthew's gh token in `~/.local/state/sdd/service.env`. Health:
@@ -25,10 +25,18 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
   `run-20261013-203521` (`farewell`) are `done` on the supervisor-run implementation.
   `run-20261015-153534` (`shout`, launched 2026-10-15 15:35Z, gate B approved 16:20Z on
   the (c3) build) is the first run of the in-code implementation, retrospective and
-  close-out. It is **paused on the usage window** (five-hour window at 98%, `resumeAt`
-  2026-10-15T18:30:00Z); the controller resumes it by itself at the reset, straight into
-  the implementation phase. Its outcome goes in the Progress log once it lands. The
-  fixture's decomposition holds three specs; keep it as the test bed. Register it once per
+  close-out. The implementation phase ran clean unattended (18:30Z to 18:45Z: two tasks
+  authored red first, three implemented, task 2 verified, end-to-end pass, fixture PR #3).
+  **The PR is blocked**: the test author's first commit `9d856f4` carries a
+  `Co-Authored-By: Claude Sonnet 5` trailer and the merge rule rejects it. Only Matthew
+  can rewrite and force-push `feat/shout` (the auto-mode classifier refuses it to a
+  session); the command is in `~/.local/state/sdd/owner-backlog.md`. With the `50ad2f3`
+  build the run shows an `error` wait with the reasons (PR #131); after the push, answer
+  "Retry" and the merge stage re-enters, waits for CI on the new head and merges, then
+  the retrospective, the retro-plan wait (Matthew's) and close-out follow. Minor: task 3's
+  `log-implementation` attribution names the fixture's main checkout, not the worktree
+  (`source: override`); the gate diffed the right range (2 files, +26), so it is a retro
+  note, not a defect to chase. The fixture's decomposition holds three specs; keep it as the test bed. Register it once per
   controller home with `POST /api/projects/add {"projectPath": "/home/mcf/repo/sdd-fixture"}`
   (Bearer secret); it is then remembered in `projects.json` across restarts.
 - The watchdog (PR #122) watches the unit as well as the port and raises an `error` wait
@@ -56,7 +64,10 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 - If the service is ever down: `systemctl --user status sdd-controller` and the journal
   first, then `SDD_CHECKOUT=<checkout> bash scripts/sdd-service.sh install`.
 - `scripts/sdd-self-update.sh` refuses while a step is live (every step's pid is in
-  `run.json` since #128); deploy at a wait. `gh pr checks --watch` exits 0 on a red check:
+  `run.json` since #128); deploy at a wait or in `merging`.
+- The merge stage re-checks only while something is in flight; a PR that fails the rule
+  with nothing pending (red check, conflict, wrong head, attribution trailer) is an
+  `error` wait with a `merge` cursor, so "Retry" re-enters the merge stage (PR #131). `gh pr checks --watch` exits 0 on a red check:
   read the check state before `gh pr merge`, and run `npm test` before pushing.
 - tradr and jobsync still run whole specs on the old harness until they move to the
   controller.
@@ -70,10 +81,11 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
    project's spec store (gitignore it or move it to the home; the supervisor steps still
    read it until (c3)); the first run's `run.end` and the `harness-run.json` deletion land
    after the last spec-store commit and stay uncommitted.
-3. Finish the (c2)/(c3) done-when on `run-20261015-153534`: tasks gated and verified in
-   code, the PR opened and merged by rule, the retrospective in code, the retro-plan wait
-   (Matthew's), close-out in code, `done`. Fix what the run surfaces in small PRs (the loops
-   are tested against the stub; this run is their first real exercise).
+3. Finish the (c2)/(c3) done-when on `run-20261015-153534`: the tasks are gated and
+   verified in code and the PR is open; after Matthew's force-push and "Retry" it merges by
+   rule, then the retrospective in code, the retro-plan wait (Matthew's), close-out in
+   code, `done`. Fix what the run surfaces in small PRs (the loops are tested against the
+   stub; this run is their first real exercise). Push Matthew once per new wait.
 4. Small PR: merge the close-out PRs by rule (they are recorded in the plan, the HANDOFF
    closeout section and `run.closeoutPrs`; the harness repo is `merge: ask`, so that one is
    a `merge` wait).
