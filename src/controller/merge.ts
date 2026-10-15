@@ -78,6 +78,13 @@ export interface MergeEvaluation {
   ready: boolean;
   reasons: string[];
   /**
+   * Something is still in flight: a workflow run or a commit status pending, a
+   * head too fresh for its run to show, or mergeability not yet computed. A
+   * later poll may read differently. Not ready and not pending means nothing
+   * changes by itself; a caller must not poll on it.
+   */
+  pending?: boolean;
+  /**
    * The PR's state could not be read at all (`gh pr view` failed or returned
    * no JSON), as opposed to read and found not ready. A caller must not poll
    * on this: nothing changes until the operator fixes the token or the PR.
@@ -85,7 +92,7 @@ export interface MergeEvaluation {
   unreadable?: boolean;
 }
 
-export type MergeStageStatus = 'merged' | 'waiting' | 'not-ready' | 'unreadable' | 'failed';
+export type MergeStageStatus = 'merged' | 'waiting' | 'not-ready' | 'blocked' | 'unreadable' | 'failed';
 
 /** What one run of the merge stage tells the caller (T6/T10). */
 export interface MergeStageResult {
@@ -277,7 +284,9 @@ function shortOid(oid: unknown): string {
  * run yet, in a checkout that has workflow files, is pending); `mergeable`
  * MERGEABLE; no Claude attribution trailer in any commit message or the body;
  * the head branch equals the run's branch. A `gh` failure is reported as
- * unreadable (and not ready), never a throw.
+ * unreadable (and not ready), never a throw. `pending` is set when any reason
+ * is one that resolves by itself (a run or status still pending, a fresh head,
+ * mergeability not yet computed); a not-ready result without it is settled.
  */
 export async function evaluate(pr: PullRequest, now: () => Date = () => new Date()): Promise<MergeEvaluation> {
   const res = await runCommand(
@@ -296,6 +305,7 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
   }
 
   const reasons: string[] = [];
+  let pending = false;
 
   const headOid = String(data.headRefOid ?? '');
   if (!headOid) {
@@ -314,7 +324,7 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
   for (const r of runs) {
     const name = String(r.name ?? 'workflow');
     const state = classifyWorkflowRun(r);
-    if (state === 'pending') reasons.push(`workflow ${name} is still running`);
+    if (state === 'pending') { reasons.push(`workflow ${name} is still running`); pending = true; }
     else if (state === 'failed') reasons.push(`workflow ${name} did not pass`);
   }
   // The combined `state` reads "pending" with zero statuses, so only the list counts.
@@ -322,7 +332,7 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
   for (const c of statuses) {
     const name = String(c.context ?? 'status');
     const state = classifyStatusContext(c);
-    if (state === 'pending') reasons.push(`status ${name} is still pending`);
+    if (state === 'pending') { reasons.push(`status ${name} is still pending`); pending = true; }
     else if (state === 'failed') reasons.push(`status ${name} did not pass`);
   }
   const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
@@ -330,10 +340,16 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
     const committed = Date.parse(String(commits[commits.length - 1]?.committedDate ?? ''));
     if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) {
       reasons.push(`no workflow run yet for ${shortOid(headOid)} (head committed less than five minutes ago)`);
+      pending = true;
     }
   }
 
-  if (String(data.mergeable ?? '').toUpperCase() !== 'MERGEABLE') {
+  // GitHub computes mergeability after a push; UNKNOWN is a state in flight.
+  const mergeable = String(data.mergeable ?? '').toUpperCase();
+  if (mergeable === 'UNKNOWN') {
+    reasons.push('mergeability not yet computed (mergeable=UNKNOWN)');
+    pending = true;
+  } else if (mergeable !== 'MERGEABLE') {
     reasons.push(`not mergeable (mergeable=${String(data.mergeable ?? 'unknown')})`);
   }
 
@@ -351,6 +367,7 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
     reasons.push('the PR body carries a Claude attribution trailer');
   }
 
+  if (pending) return { ready: false, reasons, pending: true };
   return { ready: reasons.length === 0, reasons };
 }
 
@@ -459,7 +476,12 @@ async function readMergeSha(pr: PullRequest): Promise<string> {
 
 /**
  * Run the merge stage once for a run. The caller polls while `not-ready`
- * ({@link MERGE_POLL_INTERVAL_MS}). On an `ask` project it opens one `merge`
+ * ({@link MERGE_POLL_INTERVAL_MS}): something is in flight. A PR that fails the
+ * rule with nothing in flight (a red check, a conflict, a wrong head branch, an
+ * attribution trailer) is `blocked`, which the caller turns into an `error`
+ * wait: polling would never change it (the first in-code fixture run sat in
+ * `merging` for two hours on a `Co-Authored-By` trailer in one commit, with no
+ * visible reason). On an `ask` project it opens one `merge`
  * wait per run and reuses it on re-entry; an answer of "merge" proceeds, "hold"
  * stays `waiting`. When ready (and allowed) it runs `gh pr merge --<method>`
  * with no branch delete, then the post-merge command via `bash -lc` in the code
@@ -484,7 +506,7 @@ export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promi
     return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number };
   }
   if (!evaluation.ready) {
-    return { status: 'not-ready', reasons: evaluation.reasons, number: pr.number };
+    return { status: evaluation.pending ? 'not-ready' : 'blocked', reasons: evaluation.reasons, number: pr.number };
   }
 
   if (deps.rules.merge === 'ask') {

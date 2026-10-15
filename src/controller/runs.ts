@@ -566,7 +566,8 @@ function nextMergeCheck(deps: RunDeps): string {
  * Run one pass of the merge stage. Finds the run's open PR (recording `run.pr`),
  * runs the merge rule, and maps its status to a run-status change: `not-ready` ⇒
  * status `merging` with a re-check time (the scheduler tick re-enters, no slot
- * busy-wait); `waiting` ⇒ the `merge` wait is open, status `waiting` (an answer
+ * busy-wait); `blocked` ⇒ an `error` wait with the reasons (the PR fails the
+ * rule and nothing is in flight, so no re-check); `waiting` ⇒ the `merge` wait is open, status `waiting` (an answer
  * resumes the run); `merged` ⇒ `pr.merged` is already written, continue to the
  * retrospective; `unreadable` ⇒ an `error` wait naming why `gh` could not read
  * the PR (no re-check: nothing changes by itself); `failed` ⇒ an `error` wait
@@ -616,6 +617,20 @@ async function runMergeStageStep(
       return 'merged';
     case 'not-ready':
       await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
+      return 'stop';
+    case 'blocked':
+      // The PR fails the rule and nothing is in flight (a red check, a conflict,
+      // an attribution trailer, a wrong head branch); polling would never change
+      // that. The `merge` cursor makes a "retry" re-enter the merge stage.
+      run = await save(deps, run, {
+        cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+      });
+      await waitAnd(deps, run, ledger, 'error', specDir, [{
+        id: 'merge',
+        text: `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}. `
+          + 'Fix the PR (rewrite the commit, resolve the conflict, fix the check), then answer "Retry", or abandon.',
+        options: ['retry', 'abandon'], recommended: 'retry',
+      }]);
       return 'stop';
     case 'waiting':
       // `runMergeStage` opened (or reused) the `merge` wait; just park the run.
