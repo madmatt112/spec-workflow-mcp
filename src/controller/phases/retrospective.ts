@@ -38,6 +38,10 @@ export interface RetrospectivePhaseContext {
   mcpConfig?: string | Record<string, unknown>;
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
+  /** A step process started (the controller records it as the run's in-flight step). */
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => void;
+  /** A step process ended (the controller clears the in-flight step). */
+  onStepEnd?: (id: string) => void;
   serialize?: Serialize;
   now?: () => Date;
   shouldStop?: () => string | null;
@@ -155,8 +159,10 @@ export async function runRetrospectivePhase(ctx: RetrospectivePhaseContext): Pro
       runId: ctx.run.id, stepId: opts.stepId, workspace: ctx.codeRoot, sharedRoot: ctx.specStoreRoot,
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
+      onSpawn: (pid, startTime) => ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }),
     };
     const result = await runStep(spec);
+    ctx.onStepEnd?.(opts.stepId);
     ctx.ledger.spawnEnd({ agent: opts.role, model: profile.model, usage: result.usage });
     ctx.ledger.spawnUsage({ agent: opts.role, role: opts.label, result: result.classification === 'ok' ? 'ok' : result.classification, phase });
     if (result.classification !== 'ok') return { result, error: { result: 'error', reason: result.classification } };

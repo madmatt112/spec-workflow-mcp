@@ -430,6 +430,32 @@ export interface RunDeps {
 }
 
 /**
+ * Read-modify-write one field set of a run: the record on disk may have moved
+ * on (a cancel, a wait) since the caller read it, so never write a stale copy.
+ */
+async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>): Promise<void> {
+  const current = await readRun(runId);
+  if (!current) return;
+  const next: RunRecord = { ...current, ...patch, updated: deps.now().toISOString() };
+  await writeRun(next);
+  runEvents.emit('change', next);
+}
+
+/** The in-flight step record callbacks every in-code phase gets (design §8). */
+function stepLifecycle(deps: RunDeps, runId: string): {
+  onStepSpawn: (s: { id: string; pid: number; startTime: number }) => void;
+  onStepEnd: (id: string) => void;
+} {
+  return {
+    onStepSpawn: (s) => {
+      deps.setInFlight(s.pid, s.startTime);
+      void patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
+    },
+    onStepEnd: () => { void patchRun(deps, runId, { inFlight: undefined }); },
+  };
+}
+
+/**
  * Wrap `deps.onActivity` as the document loop's `onStepActivity`: the loop
  * supplies the step id, role and tool; this stamps the run id and forwards it as
  * one {@link ControllerActivity}. Returns `undefined` when no sink is wired.
@@ -880,6 +906,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         ledger, stepLogDir: stepLogDir(run.id),
         mcpConfig, gates: deps.gates ?? NO_OP_GATES,
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        ...stepLifecycle(deps, run.id),
         now: deps.now,
       };
       const outcome = await runDocumentPhase(ctx);
@@ -899,6 +926,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         run, specStoreRoot, specDir, codeRoot: run.worktree, mainCheckout: run.codeRoot,
         ledger, stepLogDir: stepLogDir(run.id), mcpConfig,
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        ...stepLifecycle(deps, run.id),
         now: deps.now,
         shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
         operatorRulings: await escalationRulings(runId),
@@ -929,6 +957,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         run, specStoreRoot, specDir, codeRoot: run.worktree, mainCheckout: run.codeRoot,
         ledger, stepLogDir: stepLogDir(run.id), mcpConfig,
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+        ...stepLifecycle(deps, run.id),
         now: deps.now,
         shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
       });
@@ -1080,6 +1109,7 @@ async function handleDocumentOutcome(
       ledger, stepLogDir: stepLogDir(run.id),
       mcpConfig: deps.mcpConfigFor(run), gates: deps.gates ?? NO_OP_GATES,
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+      ...stepLifecycle(deps, run.id),
       now: deps.now,
     });
     if (retry.result === 'approved') return 'go';

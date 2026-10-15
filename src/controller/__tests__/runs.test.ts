@@ -11,7 +11,7 @@ import {
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
-import { writeRun, readRun, listWaits, processStartTime, type RunRecord } from '../state.js';
+import { writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord } from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 
@@ -263,6 +263,34 @@ describe('runOnce done', () => {
     const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8').trim().split('\n');
     expect(JSON.parse(rows[rows.length - 1]).type).toBe('run.end');
   });
+});
+
+describe('runOnce in-flight step record', () => {
+  it('records the live step process in run.json while it runs and clears it after', async () => {
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'drafted', structured_output: { wordCount: 1, decisions: [], contextFileWritten: true }, usage: {} },
+      // The stub pauses before it answers, long enough to read run.json meanwhile.
+      ...({ delayMs: 1500 } as object),
+    } as StubRun, {
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 0, session_id: 's', result: 'stop here', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { status: 'queued', worktree: '' }));
+
+    const driving = runOnce(deps(fx), 'run-20261011-000000');
+    let seen: RunRecord | undefined;
+    for (let i = 0; i < 100 && !seen?.inFlight; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      seen = await readRun('run-20261011-000000');
+    }
+    expect(seen?.inFlight?.id).toBe('drafter');
+    expect(seen?.inFlight?.pid).toBeGreaterThan(0);
+    expect(isProcessAlive(seen!.inFlight!.pid, seen!.inFlight!.startTime)).toBe(true);
+
+    await driving;
+    const after = await readRun('run-20261011-000000');
+    expect(after?.inFlight).toBeUndefined();
+  }, 30000);
 });
 
 describe('runOnce usage-limit pause', () => {

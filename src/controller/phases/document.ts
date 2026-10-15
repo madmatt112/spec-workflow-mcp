@@ -156,6 +156,10 @@ export interface DocumentPhaseContext {
    */
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
+  /** A step process started (the controller records it as the run's in-flight step). */
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => void;
+  /** A step process ended (the controller clears the in-flight step). */
+  onStepEnd?: (id: string) => void;
   /** Gate A/B hooks; defaults to {@link NO_OP_GATES} (T5b supplies real ones). */
   gates?: DocumentGates;
   /**
@@ -354,8 +358,10 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
         });
       },
       onRateLimit: ctx.onRateLimit,
+      onSpawn: (pid, startTime) => ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }),
     };
     const result = await runStep(spec);
+    ctx.onStepEnd?.(opts.stepId);
     stepUsageRow('end', opts.role, opts.label, result);
     stepUsageRow('usage', opts.role, opts.label, result, result.subtype ?? 'ok', opts.round);
     if (result.classification !== 'ok') {

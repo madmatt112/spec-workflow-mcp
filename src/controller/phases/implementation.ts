@@ -84,6 +84,10 @@ export interface ImplementationPhaseContext {
   mcpConfig?: string | Record<string, unknown>;
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
+  /** A step process started (the controller records it as the run's in-flight step). */
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => void;
+  /** A step process ended (the controller clears the in-flight step). */
+  onStepEnd?: (id: string) => void;
   /** Serialises spec-store commits; defaults to the T2 per-store lock. */
   serialize?: Serialize;
   now?: () => Date;
@@ -391,8 +395,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       sharedRoot: ctx.specStoreRoot,
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
+      onSpawn: (pid, startTime) => ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }),
     };
     const result = await runStep(spec);
+    ctx.onStepEnd?.(opts.stepId);
     stepUsage('end', opts.role, opts.label, result);
     const line = result.classification === 'ok' ? (opts.resultLine?.(result) ?? 'ok') : result.classification;
     stepUsage('usage', opts.role, opts.label, result, line, opts.task, opts.round);
