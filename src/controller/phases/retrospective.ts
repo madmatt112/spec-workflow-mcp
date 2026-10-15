@@ -38,6 +38,10 @@ export interface RetrospectivePhaseContext {
   mcpConfig?: string | Record<string, unknown>;
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
+  /** A step process started (the controller records it as the run's in-flight step). */
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
+  /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
+  onStepEnd?: (id: string) => Promise<void> | void;
   serialize?: Serialize;
   now?: () => Date;
   shouldStop?: () => string | null;
@@ -148,6 +152,7 @@ export async function runRetrospectivePhase(ctx: RetrospectivePhaseContext): Pro
     Promise<{ result: StepResult; error?: RetrospectivePhaseOutcome }> => {
     const profile = loadRole(opts.role);
     ctx.ledger.spawnStart({ agent: opts.role, role: opts.label, model: profile.model, effort: profile.effort });
+    let spawnWrite: Promise<void> | void = undefined;
     const spec: StepSpec = {
       role: opts.role, briefPath: opts.briefPath, worktree: ctx.codeRoot,
       logPath: join(ctx.stepLogDir, `${opts.stepId}.jsonl`), maxTurns: TURN_CAP[opts.role] ?? 100,
@@ -155,8 +160,13 @@ export async function runRetrospectivePhase(ctx: RetrospectivePhaseContext): Pro
       runId: ctx.run.id, stepId: opts.stepId, workspace: ctx.codeRoot, sharedRoot: ctx.specStoreRoot,
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
+      onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
     };
     const result = await runStep(spec);
+    // Both record writes land before the result is acted on, so a status the
+    // caller writes next is never overwritten by a late in-flight update.
+    await spawnWrite;
+    await ctx.onStepEnd?.(opts.stepId);
     ctx.ledger.spawnEnd({ agent: opts.role, model: profile.model, usage: result.usage });
     ctx.ledger.spawnUsage({ agent: opts.role, role: opts.label, result: result.classification === 'ok' ? 'ok' : result.classification, phase });
     if (result.classification !== 'ok') return { result, error: { result: 'error', reason: result.classification } };

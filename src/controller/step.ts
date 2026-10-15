@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import {
   SPEC_WORKFLOW_WORKSPACE_ENV, SPEC_WORKFLOW_SHARED_ROOT_ENV,
 } from '../core/git-utils.js';
+import { processStartTime } from './state.js';
 
 /** Environment variables the controller never passes to a step (design §4). */
 const SCRUBBED_STEP_ENV_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'];
@@ -124,6 +125,12 @@ export interface StepSpec {
   sharedRoot?: string;
   onActivity?: (activity: ActivityEvent) => void;
   onRateLimit?: (windows: RateLimitWindows) => void;
+  /**
+   * The spawned process's pid and `/proc` start time, right after the spawn
+   * (design §8: `run.json` holds the in-flight step so a restart re-attaches or
+   * resumes, and the self-update refuses while a step is live).
+   */
+  onSpawn?: (pid: number, startTime: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -483,6 +490,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    if (typeof child.pid === 'number') spec.onSpawn?.(child.pid, processStartTime(child.pid) ?? 0);
     child.stdout.on('data', onStdout);
     child.stderr.on('data', (chunk: Buffer) => log.write(chunk));
     child.on('error', (err: NodeJS.ErrnoException) => {
