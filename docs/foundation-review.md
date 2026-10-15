@@ -630,6 +630,13 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   session. From here the run exercises the in-code implementation phase, retrospective and
   close-out on the real `claude` for the first time.
 
+- 2026-10-15 right after gate B the run parked `paused/usage-window` (five-hour window 98%,
+  reset 18:30Z): the document phases plus this session's own work spent the window. PR #130
+  merged and deployed at 16:30Z (`330c393`, while the run was paused): a worktree project
+  (`sdd-fixture · shout`, the run's own MCP server) is no longer remembered in
+  `projects.json`; the stale entry was removed through the dashboard's remove route. The
+  session ended here on its own usage limit; the run resumes unattended at 18:30Z.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

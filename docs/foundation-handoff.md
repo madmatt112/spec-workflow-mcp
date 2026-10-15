@@ -7,7 +7,8 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 
 ## Where things stand
 
-- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#129, no open PRs). The
+- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#130, no open PRs; the
+  live build is `330c393`, deployed 2026-10-15 16:30Z while the run below was paused). The
   controller runs as the systemd user service `sdd-controller` on port 5000 from `dist/` of
   this checkout, with the watchdog timer, the shared secret at `~/.local/state/sdd/secret`,
   and Matthew's gh token in `~/.local/state/sdd/service.env`. Health:
@@ -24,7 +25,9 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
   `run-20261013-203521` (`farewell`) are `done` on the supervisor-run implementation.
   `run-20261015-153534` (`shout`, launched 2026-10-15 15:35Z, gate B approved 16:20Z on
   the (c3) build) is the first run of the in-code implementation, retrospective and
-  close-out; its outcome is in the Progress log once it lands. The
+  close-out. It is **paused on the usage window** (five-hour window at 98%, `resumeAt`
+  2026-10-15T18:30:00Z); the controller resumes it by itself at the reset, straight into
+  the implementation phase. Its outcome goes in the Progress log once it lands. The
   fixture's decomposition holds three specs; keep it as the test bed. Register it once per
   controller home with `POST /api/projects/add {"projectPath": "/home/mcf/repo/sdd-fixture"}`
   (Bearer secret); it is then remembered in `projects.json` across restarts.
