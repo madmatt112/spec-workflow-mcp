@@ -913,7 +913,9 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     await commitSpecStore(`docs(sdd): ${specName} implemented, ${p.total} tasks`);
 
     // 10. Push and PR (one per code repo per spec), then 10b the checks gate.
-    const pr = await pushAndOpenPr(decomposition?.title ?? specName, p);
+    // The decomposition heading's state marker ("(active)", "(done)") is not part of the title.
+    const title = (decomposition?.title ?? specName).replace(/\s*\((active|done|next|parked|superseded)\)\s*$/i, '').trim() || specName;
+    const pr = await pushAndOpenPr(title, p);
     if (pr) {
       const ci = await prChecksGate(pr.number);
       if (ci) return ci;

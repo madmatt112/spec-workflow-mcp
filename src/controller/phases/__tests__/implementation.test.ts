@@ -547,7 +547,7 @@ describe('runImplementationPhase', () => {
     expect(body).toContain('- [x] `true`');
     expect(body).not.toMatch(/Generated with|Co-Authored/);
     const argv = readFileSync(join(fx.base, 'gh-script.json.argv'), 'utf8');
-    expect(argv).toContain('"--title","the fixture spec (active)"');
+    expect(argv).toContain('"--title","the fixture spec"'); // the "(active)" marker is not part of the title
     // Pushed twice: once to open the PR, once after the fix.
     expect(git(origin, ['log', '--format=%s', 'feat/x'])).toContain('fix: the test');
     expect(readFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), 'utf8')).toMatch(/\| PR \| https:\/\/github.com\/x\/y\/pull\/7/);
