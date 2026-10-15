@@ -85,9 +85,9 @@ export interface ImplementationPhaseContext {
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
   /** A step process started (the controller records it as the run's in-flight step). */
-  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => void;
-  /** A step process ended (the controller clears the in-flight step). */
-  onStepEnd?: (id: string) => void;
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
+  /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
+  onStepEnd?: (id: string) => Promise<void> | void;
   /** Serialises spec-store commits; defaults to the T2 per-store lock. */
   serialize?: Serialize;
   now?: () => Date;
@@ -380,6 +380,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     schema?: Record<string, unknown>; task?: string; round?: string; resultLine?: (r: StepResult) => string;
   }): Promise<{ result: StepResult; error?: ImplementationPhaseOutcome }> => {
     stepUsage('start', opts.role, opts.label);
+    let spawnWrite: Promise<void> | void = undefined;
     const spec: StepSpec = {
       role: opts.role,
       briefPath: opts.briefPath,
@@ -395,10 +396,13 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       sharedRoot: ctx.specStoreRoot,
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
-      onSpawn: (pid, startTime) => ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }),
+      onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
     };
     const result = await runStep(spec);
-    ctx.onStepEnd?.(opts.stepId);
+    // Both record writes land before the result is acted on, so a status the
+    // caller writes next is never overwritten by a late in-flight update.
+    await spawnWrite;
+    await ctx.onStepEnd?.(opts.stepId);
     stepUsage('end', opts.role, opts.label, result);
     const line = result.classification === 'ok' ? (opts.resultLine?.(result) ?? 'ok') : result.classification;
     stepUsage('usage', opts.role, opts.label, result, line, opts.task, opts.round);

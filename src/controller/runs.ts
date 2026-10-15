@@ -443,15 +443,15 @@ async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>)
 
 /** The in-flight step record callbacks every in-code phase gets (design §8). */
 function stepLifecycle(deps: RunDeps, runId: string): {
-  onStepSpawn: (s: { id: string; pid: number; startTime: number }) => void;
-  onStepEnd: (id: string) => void;
+  onStepSpawn: (s: { id: string; pid: number; startTime: number }) => Promise<void>;
+  onStepEnd: (id: string) => Promise<void>;
 } {
   return {
     onStepSpawn: (s) => {
       deps.setInFlight(s.pid, s.startTime);
-      void patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
+      return patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
     },
-    onStepEnd: () => { void patchRun(deps, runId, { inFlight: undefined }); },
+    onStepEnd: () => patchRun(deps, runId, { inFlight: undefined }),
   };
 }
 
