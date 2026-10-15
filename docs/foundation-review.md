@@ -596,6 +596,40 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `run-20261015-153534` launched at 15:35Z: the first run of the in-code implementation
   phase through the real `claude`.
 
+- 2026-10-15 PR #125 merged (`24d846e`): controller commits stage only the spec's store
+  paths (`checkpoint` takes `spec`; one `commitSpecStore` helper), and a finished run
+  commits its last ledger rows as `docs(sdd): <spec> harness ledger — controller run end`
+  (handoff item 2: the first run's `run.end` had stayed uncommitted).
+- 2026-10-15 PR #126 merged (`b8b25b1`): **step (c3), first half, the retrospective in
+  code** (`phases/retrospective.ts`, T13): a new `sdd-retro-compiler` role for the compile
+  step (judgement and prose), the analyst as a step, checks on both files, the retro-log
+  entry, `phase.end result=retro-ready`, the commit; the proposals file routes to the
+  `retro-plan` wait as before. Merged on a red CI by mistake: `gh pr checks --watch` exits
+  0 on a failed check, and the two tests that pin the agent-profile count (13 → 14) had
+  not been run locally. PR #127 (`f5d1bcf`) fixed the count on main. Rule from it: run
+  `npm test`, not only the touched suites, and read the check state before `gh pr merge`.
+- 2026-10-15 PR #128 merged (`774eb67`): every in-code step records its pid and start
+  time in `run.json` (design §8). Until then only the supervisor step did, so the
+  self-update's in-flight check and crash recovery were blind to document, implementation
+  and retrospective steps. The record writes are awaited before a step's result is acted
+  on; a first version wrote them unawaited and a late write overwrote a `paused` status
+  (caught by CI, fixed before merge).
+- 2026-10-15 PR #129 merged (`0aac63b`): **step (c3), second half, close-out in code**
+  (`phases/closeout.ts`, T14): items classed by `Target:`, `none` items closed without a
+  step, one implementer batch per class landed in its place (the store's branch, a
+  `chore/<spec>-retro` worktree of the harness or main checkout, `~/.claude`), the gate in
+  item mode, the verifier at high risk for harness/code, three fix rounds then the
+  adjudicator, close-out lines, one PR per repository, `Status: CLOSED`. The five close-out
+  briefs are templates. **No supervisor step remains**: `runs.ts` lost the supervisor spawn,
+  the `harness-run.json` writer, the pointer line and the no-progress guard. The supervisor
+  skill and the four orchestrator agents stay in `harness/` for tradr and jobsync until
+  step (d). Open: merging the close-out PRs by rule (today they are recorded in the plan,
+  HANDOFF and `run.closeoutPrs`).
+- 2026-10-15 deployed by self-update at 16:19Z (`0aac63b`, smoke boot passed) while
+  `run-20261015-153534` was parked at gate B `w-fb21616f`; gate B answered Approve by this
+  session. From here the run exercises the in-code implementation phase, retrospective and
+  close-out on the real `claude` for the first time.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

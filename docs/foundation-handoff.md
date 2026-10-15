@@ -7,22 +7,24 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 
 ## Where things stand
 
-- Steps (0), (a), (b) and (c2) are on main and deployed (PRs #89-#124, no open PRs). The
+- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#129, no open PRs). The
   controller runs as the systemd user service `sdd-controller` on port 5000 from `dist/` of
   this checkout, with the watchdog timer, the shared secret at `~/.local/state/sdd/secret`,
   and Matthew's gh token in `~/.local/state/sdd/service.env`. Health:
   `curl localhost:5000/api/health`. **Never start the dashboard by hand while the service
   is installed**: `make dashboard-local` kills the service's process and takes port 5000,
   and the unit crash-loops ("Dashboard is already running") until that process exits.
-- The controller runs the three document phases and the implementation phase itself
-  (`src/controller/phases/document.ts`, `implementation.ts`). The old supervisor is spawned
-  only for the retrospective and close-out (step c3 inlines them). The implementation
-  orchestrator is never spawned; its agent and skill files stay in `harness/` until step
-  (d), because tradr and jobsync still run whole specs on the old harness.
+- The controller runs every phase itself (`src/controller/phases/document.ts`,
+  `implementation.ts`, `retrospective.ts`, `closeout.ts`, task list T5-T14). No supervisor
+  step remains. The supervisor skill, the four orchestrator agents and their phase skills
+  stay in `harness/` only for tradr and jobsync, which still run whole specs on the old
+  harness by hand; they go at step (d). The retrospective compile step is the new
+  `sdd-retro-compiler` agent.
 - Fixture runs on `madmatt112/sdd-fixture`: `run-20261012-191315` (`greeting-endpoint`) and
   `run-20261013-203521` (`farewell`) are `done` on the supervisor-run implementation.
-  `run-20261015-153534` (`shout`, launched 2026-10-15 15:35Z) is the first run of the
-  in-code implementation phase; its outcome is in the Progress log once it lands. The
+  `run-20261015-153534` (`shout`, launched 2026-10-15 15:35Z, gate B approved 16:20Z on
+  the (c3) build) is the first run of the in-code implementation, retrospective and
+  close-out; its outcome is in the Progress log once it lands. The
   fixture's decomposition holds three specs; keep it as the test bed. Register it once per
   controller home with `POST /api/projects/add {"projectPath": "/home/mcf/repo/sdd-fixture"}`
   (Bearer secret); it is then remembered in `projects.json` across restarts.
@@ -50,8 +52,10 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
   options (they are test runs); the retro-plan wait is Matthew's.
 - If the service is ever down: `systemctl --user status sdd-controller` and the journal
   first, then `SDD_CHECKOUT=<checkout> bash scripts/sdd-service.sh install`.
-- The old supervisor still runs the retrospective and close-out in ONE process per phase
-  group. tradr and jobsync still run whole specs on the old harness until they move to the
+- `scripts/sdd-self-update.sh` refuses while a step is live (every step's pid is in
+  `run.json` since #128); deploy at a wait. `gh pr checks --watch` exits 0 on a red check:
+  read the check state before `gh pr merge`, and run `npm test` before pushing.
+- tradr and jobsync still run whole specs on the old harness until they move to the
   controller.
 
 ## Next, in order
@@ -63,16 +67,19 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
    project's spec store (gitignore it or move it to the home; the supervisor steps still
    read it until (c3)); the first run's `run.end` and the `harness-run.json` deletion land
    after the last spec-store commit and stay uncommitted.
-3. Finish the (c2) done-when on `run-20261015-153534`: tasks gated and verified in code,
-   the PR opened and merged by rule, the retro supervisor step, close-out, `done`. Fix what
-   the run surfaces in small PRs (the per-task loop is tested only against the stub so far).
-4. Step (c3): the retrospective compile and analyst as steps, close-out as the task loop over
-   the plan items (design §5), retiring the retro and close-out orchestrators; then step (d):
-   delete the supervisor skill, hooks, pointer file, the document and implementation
-   orchestrators and their phase skills, and re-plan the roadmap (specs 16-21 parked in
+3. Finish the (c2)/(c3) done-when on `run-20261015-153534`: tasks gated and verified in
+   code, the PR opened and merged by rule, the retrospective in code, the retro-plan wait
+   (Matthew's), close-out in code, `done`. Fix what the run surfaces in small PRs (the loops
+   are tested against the stub; this run is their first real exercise).
+4. Small PR: merge the close-out PRs by rule (they are recorded in the plan, the HANDOFF
+   closeout section and `run.closeoutPrs`; the harness repo is `merge: ask`, so that one is
+   a `merge` wait).
+5. Step (d): delete the supervisor skill, hooks, pointer file, the four orchestrators and
+   their phase skills (tradr and jobsync must move to the controller first, or keep a
+   frozen copy), and re-plan the roadmap (specs 16-21 parked in
    `.spec-workflow/spec-decomposition/superseded-2026-10-10.md`; spec 22 slots in after
    the dashboard pages the re-plan keeps).
-5. The advisor (design §16, ADR 0006): before designing its "state of the world" mechanism,
+6. The advisor (design §16, ADR 0006): before designing its "state of the world" mechanism,
    hold the research and design session Matthew asked for (graph generators, indices). Do not
    design it solo.
-6. Moving tradr to the controller is Matthew's call now that (c2) has landed.
+7. Moving tradr to the controller is Matthew's call now that every phase runs in code.
