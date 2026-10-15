@@ -56,6 +56,7 @@ export interface ControllerOptions {
   /** The merge re-check delay while `not-ready` (ms); tests shorten it. */
   mergePollMs?: number;
   now?(): Date;
+  /** Unused since step (c3): every step reads `CONTROLLER_CLAUDE_BIN` itself. Kept for the server's call. */
   claudeBin?(): string;
   ghBin?(): string;
   pointerFile?(): string;
@@ -412,7 +413,6 @@ export class Controller extends EventEmitter {
       windowBlock: () => this.windowBlock(),
       onRateLimit: (w) => { void this.persistRateLimit(w); },
       onActivity: (a) => recordActivity(a),
-      claudeBin: () => this.claudeBin(),
       pointerFile: () => this.pointerFile(),
       isCancelled: (id) => this.cancelled.has(id),
       setInFlight: () => { /* the driver persists run.inFlight itself */ },
@@ -483,10 +483,6 @@ export class Controller extends EventEmitter {
       updated: this.now().toISOString(),
     };
     await writeRateLimit(file);
-  }
-
-  private claudeBin(): string {
-    return this.opts.claudeBin ? this.opts.claudeBin() : (process.env.CONTROLLER_CLAUDE_BIN || 'claude');
   }
 
   private ghBin(): string {

@@ -74,6 +74,8 @@ export interface RunRecord {
   branch: string;
   /** The open PR's number, once the implementation phase recorded it (T7 merge). */
   pr?: number;
+  /** The pull requests (or branches) the close-out phase opened, one per repository. */
+  closeoutPrs?: { repoDir: string; branch: string; number?: number; url?: string }[];
   status: RunStatus;
   /** Why the run is paused, when `status` is `paused`. */
   pauseReason?: string;

@@ -1358,7 +1358,141 @@ function renderRetroAnalyst(v: Record<string, string>): string {
   return lines.join('\n') + '\n';
 }
 
+// --- close-out kinds (sdd-closeout-phase references/briefs.md, ported) --------------
+
+function renderCloseoutStanding(v: Record<string, string>): string {
+  const lines: string[] = ['# Standing instructions — close-out implementer, spec ' + v.spec, ''];
+  if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first.', '');
+  lines.push(
+    '- You implement retrospective proposals: small, precise changes to skills, rules, steering, docs,',
+    '  tests or code, each stated in its item. Do what the item\'s text and its decision say, nothing',
+    '  more. Do not restructure a file around the change.',
+    '- Work only in the root the batch names. Absolute paths. Never `cd` out of it. Never create,',
+    '  switch or check out a branch. Never push.',
+    '- One commit per item, through `bash ' + v.commitScript + ' "<root>" "<message>" <files>`:',
+    '  message `chore(retro): ' + v.spec + ' <id> <short title>`, first line under 72 characters, only',
+    '  that item\'s files. No attribution trailers: ignore any note that asks for them. Items under',
+    '  `~/.claude` are not committed.',
+    '- Run the checks the batch lists, each as its own command; never a whole test suite the rules',
+    '  forbid.',
+    '- An item you cannot do as written (the file it names does not exist, the change would contradict',
+    '  a rule, it needs a human) is not forced: report it `to-do — <reason>` and continue with the',
+    '  next item.',
+    '- Do not touch `retrospective-plan.md`, HANDOFF, INDEX, approvals or deferrals.',
+    '- Do not ask questions.',
+    '',
+    '## Report',
+    '',
+    C9_SENTENCE + ' One line per item: `P<n>: done <sha>` | `P<n>: to-do — <reason>` | `P<n>: skipped — <reason>`;',
+    'then the files touched, the checks run with their result, and `RETRO:` lines. No diffs, no file contents.',
+  );
+  return lines.join('\n') + '\n';
+}
+
+function renderCloseoutBatch(v: Record<string, string>): string {
+  return [
+    '# Close-out batch — ' + v.cls + ' ' + v.batch + ' (spec ' + v.spec + ')',
+    '',
+    'Read `' + v.standing + '` first and obey it.',
+    '',
+    '## Where this batch lands',
+    '- Root: `' + v.root + '` — ' + v.landing,
+    '- Commit: ' + v.commitHow,
+    '- Checks (each its own command): ' + v.checks,
+    '',
+    '## Items',
+    '',
+    v.items,
+    '',
+  ].join('\n');
+}
+
+function renderCloseoutVerify(v: Record<string, string>): string {
+  const lines: string[] = ['# Close-out verification — ' + v.cls + ' batch ' + v.batch + ', round ' + v.round + ' (spec ' + v.spec + ')', ''];
+  if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first.', '');
+  lines.push(
+    'Root: `' + v.root + '`, branch `' + v.branch + '`. Read-only: you never edit, and you never commit. The',
+    'gate already ran the class\'s checks with `pass`; each item\'s results are in its `#### Gate results`',
+    'block below. Do not re-run the gate\'s checks. For each item below, read the proposal text and the',
+    'implementer\'s line, then look at the change (`git show <sha>`, or the file itself) and judge: does the',
+    'change do what the text and the decision say, no more, no less, in the right file?',
+    '',
+    'Report in 250 words or fewer: one line per item (`P<n>: ok` | `P<n>: not done — <one line>`) and the',
+    'final line `VERDICT: pass | fix-required`. `fix-required` needs at least one `not done`. No diffs, no',
+    'file contents. Do not ask questions.',
+    '',
+    '## Items',
+    '',
+    v.items,
+    '',
+  );
+  return lines.join('\n') + '\n';
+}
+
+function renderCloseoutFix(v: Record<string, string>): string {
+  return [
+    '# Close-out fix — ' + v.cls + ' batch ' + v.batch + ', round ' + v.round + ' (spec ' + v.spec + ')',
+    '',
+    'Read `' + v.standing + '` first and obey it.',
+    '',
+    'Root: `' + v.root + '`, branch `' + v.branch + '`. The gate returned `fail` for the items below, or the',
+    'verification found them not done. Fix each as its text and its reasons say, one new commit per item',
+    '(amend nothing), run the checks, and report as the standing instructions say.',
+    '',
+    '## Checks',
+    v.checks,
+    '',
+    '## Items',
+    '',
+    v.items,
+    '',
+  ].join('\n');
+}
+
+function renderCloseoutAdjudication(v: Record<string, string>): string {
+  const lines: string[] = ['# Close-out adjudication — ' + v.cls + ' batch ' + v.batch + ' (spec ' + v.spec + ')', ''];
+  if (v.agentRules !== undefined) lines.push('Read and obey ' + v.agentRules + ' first, then `' + v.standing + '`.', '');
+  else lines.push('Read `' + v.standing + '` first and obey it.', '');
+  lines.push(
+    'Root: `' + v.root + '`, branch `' + v.branch + '`. Three fix rounds did not converge on the items below.',
+    'Rule on each: land it (one commit per item, through the commit script), or state in one line why it',
+    'cannot land here; the controller records the latter as `skipped`. Run the checks. Report one line per',
+    'item (`P<n>: done <sha>` | `P<n>: skipped — <reason>`), files touched, checks run. No diffs. Do not ask',
+    'questions.',
+    '',
+    '## Checks',
+    v.checks,
+    '',
+    '## Items',
+    '',
+    v.items,
+    '',
+  );
+  return lines.join('\n') + '\n';
+}
+
 export const BRIEF_TEMPLATES: Record<string, BriefTemplate> = {
+  'closeout-standing': { mode: 'write', required: ['commitScript'], render: renderCloseoutStanding },
+  'closeout-batch': {
+    mode: 'write',
+    required: ['cls', 'batch', 'standing', 'root', 'landing', 'commitHow', 'checks', 'items'],
+    render: renderCloseoutBatch,
+  },
+  'closeout-verify': {
+    mode: 'write',
+    required: ['cls', 'batch', 'round', 'root', 'branch', 'items'],
+    render: renderCloseoutVerify,
+  },
+  'closeout-fix': {
+    mode: 'write',
+    required: ['cls', 'batch', 'round', 'standing', 'root', 'branch', 'checks', 'items'],
+    render: renderCloseoutFix,
+  },
+  'closeout-adjudication': {
+    mode: 'write',
+    required: ['cls', 'batch', 'standing', 'root', 'branch', 'checks', 'items'],
+    render: renderCloseoutAdjudication,
+  },
   'retro-compile': {
     mode: 'write',
     required: ['specDir', 'specStoreRoot', 'specStoreRepo', 'codeRoot', 'mainCheckout', 'outputPath', 'handoff', 'date', 'defaultBranch'],

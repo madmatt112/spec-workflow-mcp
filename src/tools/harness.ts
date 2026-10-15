@@ -437,7 +437,7 @@ async function readDecompositionEntry(
   return { title, scenario };
 }
 
-type TargetClass = 'none' | 'store' | 'harness' | 'code' | 'home';
+export type TargetClass = 'none' | 'store' | 'harness' | 'code' | 'home';
 const CLASS_KEYS: TargetClass[] = ['none', 'store', 'harness', 'code', 'home'];
 
 /**
@@ -482,10 +482,10 @@ async function orientCloseout(specDir: string): Promise<ToolResponse> {
   };
 }
 
-interface PlanItem { id: string; block: string; }
+export interface PlanItem { id: string; block: string; }
 
 /** Items — `- **P<n>`/`- **G<n>` bullets under the two proposal sections. */
-function parsePlanItems(content: string): PlanItem[] {
+export function parsePlanItems(content: string): PlanItem[] {
   const lines = content.split('\n');
   const items: PlanItem[] = [];
   let inSection = false;
@@ -517,7 +517,7 @@ function parsePlanItems(content: string): PlanItem[] {
 }
 
 /** Done items — `- P<n>:`/`- G<n>:` lines inside a `## Close-out` section. */
-function parseCloseoutDone(content: string): Set<string> {
+export function parseCloseoutDone(content: string): Set<string> {
   const lines = content.split('\n');
   const done = new Set<string>();
   let inCloseout = false;
@@ -538,7 +538,7 @@ function parseCloseoutDone(content: string): Set<string> {
  * match wins down the Step 0 table (SKILL.md:68-76). The `HARNESS_REPO: none`
  * adjustment is a launch-time value the skill applies, not the server.
  */
-function classifyTarget(block: string): TargetClass {
+export function classifyTarget(block: string): TargetClass {
   const target = (block.match(/Target:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
   const decision = (block.match(/Decision:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
   // `none` reads the whole item — its marker often sits in Decision. The class regexes

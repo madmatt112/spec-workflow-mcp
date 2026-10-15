@@ -34,7 +34,7 @@ const USAGE = {
   input_tokens: 5, output_tokens: 50, cache_read_input_tokens: 10,
   cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
 };
-interface StubRun { edits?: { path: string; content: string }[]; result: Record<string, unknown>; }
+interface StubRun { edits?: { path: string; content: string }[]; commands?: string[]; result: Record<string, unknown>; }
 
 function drafterRun(doc: string): StubRun {
   return {
@@ -81,10 +81,11 @@ function analystRun(): StubRun {
     result: { subtype: 'success', is_error: false, num_turns: 3, session_id: 's', result: 'proposed', structured_output: { proposals: 1 }, usage: USAGE },
   };
 }
-function supervisorCloseoutRun(): StubRun {
+/** Close-out in code: one implementer batch for the plan's harness item, landed in the retro worktree. */
+function closeoutBatchRun(): StubRun {
   return {
-    edits: [{ path: `.spec-workflow/specs/${SPEC}/retrospective-plan.md`, content: 'Status: CLOSED\n\n## Close-out\n- P1: done\n' }],
-    result: { subtype: 'success', is_error: false, num_turns: 4, session_id: 's', result: 'closed', usage: USAGE },
+    commands: [`echo note >> harness-note.md && git add harness-note.md && git commit -qm "chore(retro): ${SPEC} P1 tidy"`],
+    result: { subtype: 'success', is_error: false, num_turns: 4, session_id: 's', result: 'P1: done', structured_output: { items: [{ id: 'P1', status: 'done', commit: 'none', reason: '' }], retro: 'none' }, usage: USAGE },
   };
 }
 
@@ -106,6 +107,8 @@ function setup(): Fixture {
   mkdirSync(home, { recursive: true });
   process.env.SDD_HOME = home;
   process.env.CONTROLLER_CLAUDE_BIN = STUB;
+  // Close-out lands harness items in a retro worktree of this fixture repo, never the real checkout.
+  process.env.CONTROLLER_HARNESS_REPO = repo;
   // The merge stage shells out to `gh`; the stub with no script reports no open
   // PR (empty stdout), so the merge step is a no-op unless a test scripts it.
   process.env.CONTROLLER_GH_BIN = STUB_GH;
@@ -204,7 +207,7 @@ describe('Controller full run', () => {
     writeScript(fx, [
       drafterRun('requirements'), reviewerRun('requirements'),
       drafterRun('design'), reviewerRun('design'),
-      e2eRun(), compileRun(), analystRun(), supervisorCloseoutRun(),
+      e2eRun(), compileRun(), analystRun(), closeoutBatchRun(),
     ]);
     await approve(fx, 'tasks');
     // The implementation ends at a PR the merge stage merges before the retro.
@@ -386,7 +389,7 @@ describe('Controller crash recovery', () => {
     await approve(fx, 'tasks');
 
     writeScript(fx, [
-      reviewerRun('requirements'), e2eRun(), compileRun(), analystRun(), supervisorCloseoutRun(),
+      reviewerRun('requirements'), e2eRun(), compileRun(), analystRun(), closeoutBatchRun(),
     ]);
     // The implementation ends at a PR the merge stage merges before the retro.
     scriptMergeablePR(fx, 'main', 'c0ffee000002');
