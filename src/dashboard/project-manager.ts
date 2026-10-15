@@ -6,6 +6,7 @@ import { ApprovalStorage } from './approval-storage.js';
 import { ProjectRegistry, ProjectRegistryEntry, ProjectInstance } from '../core/project-registry.js';
 import { PathUtils } from '../core/path-utils.js';
 import { resolveGitRoot, resolveGitWorkspaceRoot } from '../core/git-utils.js';
+import { readProjects, rememberProject, forgetProject } from '../controller/state.js';
 
 export interface ProjectContext {
   projectId: string;
@@ -32,7 +33,7 @@ export class ProjectManager extends EventEmitter {
 
   /**
    * Initialize the project manager
-   * Loads projects from registry and starts watching for changes
+   * Loads projects from registry and the durable list, and starts watching for changes
    * Note: MCP servers handle their own lifecycle cleanup via stop()
    */
   async initialize(): Promise<void> {
@@ -41,6 +42,11 @@ export class ProjectManager extends EventEmitter {
 
     // Load all projects from registry
     await this.loadProjectsFromRegistry();
+
+    // Then every project the controller remembers (controller-design.md §3): a
+    // project with no live MCP server stays listed, with no instances, so a
+    // launch after a controller restart still finds it.
+    await this.loadRememberedProjects();
 
     // Watch registry file for changes
     this.startRegistryWatcher();
@@ -60,6 +66,37 @@ export class ProjectManager extends EventEmitter {
       if (!this.projects.has(entry.projectId)) {
         await this.addProject(entry);
       }
+    }
+  }
+
+  /**
+   * Load the projects remembered in the harness home that the registry did not
+   * supply. A remembered project whose directory is gone is skipped (and stays
+   * in the file until the operator removes it), never an error.
+   */
+  private async loadRememberedProjects(): Promise<void> {
+    let remembered;
+    try {
+      remembered = (await readProjects()).projects;
+    } catch (error) {
+      console.error('Could not read the durable project list:', error);
+      return;
+    }
+    for (const p of remembered) {
+      if (this.projects.has(p.id)) continue;
+      await this.addProject({
+        projectId: p.id, projectPath: p.workspacePath, workflowRootPath: p.workflowRootPath,
+        projectName: p.name, instances: [],
+      });
+    }
+  }
+
+  /** Is this project in the durable list? Read fresh so a removal is honoured. */
+  private async isRemembered(projectId: string): Promise<boolean> {
+    try {
+      return (await readProjects()).projects.some((p) => p.id === projectId);
+    } catch {
+      return false;
     }
   }
 
@@ -118,9 +155,15 @@ export class ProjectManager extends EventEmitter {
         }
       }
 
-      // Remove deleted projects
+      // A project that left the registry (its last MCP server exited) stays
+      // listed while the controller remembers it, with no instances; only a
+      // forgotten one is removed.
       for (const projectId of currentIds) {
-        if (!registryIds.has(projectId)) {
+        if (registryIds.has(projectId)) continue;
+        if (await this.isRemembered(projectId)) {
+          const project = this.projects.get(projectId);
+          if (project) project.instances = [];
+        } else {
           await this.removeProject(projectId);
         }
       }
@@ -188,6 +231,17 @@ export class ProjectManager extends EventEmitter {
 
       this.projects.set(entry.projectId, context);
       console.error(`Project added: ${entry.projectName} (${entry.projectId})`);
+
+      // Remember it in the harness home so it survives the MCP process and
+      // the controller restarting (best effort; a failed write is logged).
+      try {
+        await rememberProject({
+          id: entry.projectId, workspacePath: entry.projectPath,
+          workflowRootPath: entry.workflowRootPath, name: entry.projectName,
+        });
+      } catch (error) {
+        console.error(`Could not remember project ${entry.projectId}:`, error);
+      }
 
       // Emit project added event
       this.emit('project-added', entry.projectId);
@@ -289,6 +343,7 @@ export class ProjectManager extends EventEmitter {
   async removeProjectById(projectId: string): Promise<void> {
     await this.removeProject(projectId);
     await this.registry.unregisterProjectById(projectId);
+    await forgetProject(projectId);
   }
 
   /**

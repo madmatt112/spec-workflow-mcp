@@ -66,6 +66,9 @@ atomically.
 - `waits/<wait-id>.json` — one record per wait.
 - `queue.json` — the launched runs waiting for a slot, in order.
 - `rate-limit.json` — the latest usage windows.
+- `projects.json` — every project the dashboard has seen, until the operator removes it.
+  The MCP process registry lists a project only while a server for it is alive; this
+  list is what keeps a project launchable after a controller restart.
 - `secret` — the shared access secret (see "Access").
 - `controller.lock` — the single-controller lock. A second controller that finds the
   lock held exits.
