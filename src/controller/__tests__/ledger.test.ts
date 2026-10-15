@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
-import { openRunLedger, newRunId, checkpoint, StepUsage } from '../ledger.js';
+import { openRunLedger, newRunId, checkpoint, commitSpecStore, specStorePaths, StepUsage } from '../ledger.js';
 import { buildModel, parseJsonl, LedgerEvent } from '../../watch/ledger.js';
 import { render } from '../../watch/render.js';
 import { gateOrRuling } from '../../dashboard/shell/waits.js';
@@ -256,6 +256,49 @@ describe('newRunId', () => {
   it('formats run-<YYYYMMDD>-<HHMMSS> in UTC', () => {
     expect(newRunId(new Date('2026-10-08T21:10:04.000Z'))).toBe('run-20261008-211004');
     expect(newRunId(new Date(Date.UTC(2026, 0, 2, 3, 4, 5)))).toBe('run-20260102-030405');
+  });
+});
+
+describe('checkpoint with a spec and commitSpecStore', () => {
+  function seed(repo: string, spec: string): void {
+    for (const d of [`.spec-workflow/specs/${spec}`, `.spec-workflow/approvals/${spec}`, '.spec-workflow/deferrals', 'src']) {
+      execFileSync('mkdir', ['-p', join(repo, d)]);
+    }
+    writeFileSync(join(repo, '.spec-workflow', 'specs', spec, 'tasks.md'), '# t\n');
+    writeFileSync(join(repo, '.spec-workflow', 'HANDOFF.md'), '# h\n');
+    writeFileSync(join(repo, '.spec-workflow', 'harness-run.json'), '{}\n');
+    writeFileSync(join(repo, 'src', 'app.ts'), 'export {};\n');
+    git(repo, ['add', '-A']);
+    git(repo, ['commit', '-q', '-m', 'init']);
+  }
+
+  it('stages only the spec-store paths: machine state and unrelated edits stay out', async () => {
+    const repo = initRepo();
+    seed(repo, 's');
+    writeFileSync(join(repo, '.spec-workflow', 'specs', 's', 'tasks.md'), '# t2\n');
+    writeFileSync(join(repo, '.spec-workflow', 'HANDOFF.md'), '# h2\n');
+    writeFileSync(join(repo, '.spec-workflow', 'harness-run.json'), '{"spec":"s"}\n'); // machine state
+    writeFileSync(join(repo, 'src', 'app.ts'), 'export const x = 1;\n'); // an operator's edit
+    expect(specStorePaths(repo, 's')).toEqual(['.spec-workflow/specs/s', '.spec-workflow/approvals/s', '.spec-workflow/HANDOFF.md', '.spec-workflow/deferrals']);
+
+    await checkpoint({ specStoreRoot: repo, spec: 's', message: 'docs(sdd): s tasks v2' });
+    const committed = git(repo, ['show', '--name-only', '--format=', 'HEAD']).trim().split('\n').sort();
+    expect(committed).toEqual(['.spec-workflow/HANDOFF.md', '.spec-workflow/specs/s/tasks.md']);
+    const dirty = git(repo, ['status', '--short']).split('\n').filter((l) => l.length > 0).sort();
+    expect(dirty).toEqual([' M .spec-workflow/harness-run.json', ' M src/app.ts']);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('commitSpecStore commits when something changed and skips when clean', async () => {
+    const repo = initRepo();
+    seed(repo, 's');
+    expect(await commitSpecStore({ specStoreRoot: repo, spec: 's', message: 'docs(sdd): s nothing' })).toBeUndefined();
+    writeFileSync(join(repo, '.spec-workflow', 'specs', 's', 'harness-events.jsonl'), '{"type":"run.end"}\n');
+    const sha = await commitSpecStore({ specStoreRoot: repo, spec: 's', message: 'docs(sdd): s harness ledger — controller run end' });
+    expect(sha).toBe(git(repo, ['rev-parse', 'HEAD']).trim());
+    expect(git(repo, ['log', '-1', '--format=%s']).trim()).toBe('docs(sdd): s harness ledger — controller run end');
+    expect(await commitSpecStore({ specStoreRoot: repo, spec: 's', message: 'again' })).toBeUndefined();
+    rmSync(repo, { recursive: true, force: true });
   });
 });
 

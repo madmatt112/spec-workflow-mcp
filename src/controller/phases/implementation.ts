@@ -27,7 +27,7 @@ import {
   runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
 import { type RunRecord, withStoreLock } from '../state.js';
-import type { RunLedger, Serialize } from '../ledger.js';
+import { commitSpecStore as commitStore, type RunLedger, type Serialize } from '../ledger.js';
 import { harnessHandler } from '../../tools/harness.js';
 import { reviewTaskHandler } from '../../tools/review-task.js';
 import { specIndexHandler } from '../../tools/spec-index.js';
@@ -355,23 +355,8 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   const handoffState = (text: string): void => setHandoffRow(hoFile, `## ${specName} — implementation`, 'State', text);
 
   // --- the spec-store commit (book.sh `commit`: only the spec-store paths) ------
-  const commitSpecStore = async (message: string): Promise<string | undefined> => serialize(async () => {
-    const root = ctx.specStoreRoot;
-    const candidates = [
-      `.spec-workflow/specs/${specName}`, `.spec-workflow/approvals/${specName}`, '.spec-workflow/HANDOFF.md',
-      '.spec-workflow/spec-decomposition/INDEX.md', '.spec-workflow/deferrals', 'HANDOFF.md',
-    ].filter((p) => existsSync(join(root, p)));
-    const stage: string[] = [];
-    for (const p of candidates) {
-      if (gitTry(root, ['check-ignore', '-q', p]) !== undefined) continue; // ignored
-      stage.push(p);
-    }
-    if (stage.length === 0) return undefined;
-    git(root, ['add', '-A', '--', ...stage]);
-    if (gitTry(root, ['diff', '--cached', '--quiet']) !== undefined) return undefined; // nothing staged
-    git(root, ['commit', '-q', '-m', message]);
-    return git(root, ['rev-parse', 'HEAD']);
-  });
+  const commitSpecStore = (message: string): Promise<string | undefined> =>
+    commitStore({ specStoreRoot: ctx.specStoreRoot, spec: specName, message }, serialize);
 
   // --- a model step: the spawn boundary rows plus the classified result --------
   const stepUsage = (kind: 'start' | 'end' | 'usage', role: string, label: string,

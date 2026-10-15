@@ -395,7 +395,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       role: 'sdd-reviser', label: `lint v${D}`, briefPath, stepId: `reviser-lint-v${D}`,
     });
     if (step.error) return step.error;
-    await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} v${D} lint` }, serialize);
+    await checkpoint({ specStoreRoot: ctx.specStoreRoot, spec: specName, message: `docs(sdd): ${specName} ${phase} v${D} lint` }, serialize);
     return null;
   };
 
@@ -416,7 +416,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       round: String(reviewRounds),
     });
     if (step.error) return step.error;
-    await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} ${commitMsg}` }, serialize);
+    await checkpoint({ specStoreRoot: ctx.specStoreRoot, spec: specName, message: `docs(sdd): ${specName} ${phase} ${commitMsg}` }, serialize);
     return null;
   };
 
@@ -539,7 +539,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
     });
     recordApprovedPhaseEnd(D, `${totalRounds} rounds`);
     await harnessHandler({ action: 'phase-log', specName }, toolContext);
-    await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} approved at v${D}` }, serialize);
+    await checkpoint({ specStoreRoot: ctx.specStoreRoot, spec: specName, message: `docs(sdd): ${specName} ${phase} approved at v${D}` }, serialize);
     void cap;
     return { result: 'approved', version: D, rounds: totalRounds };
   };
@@ -601,7 +601,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       stepId: `adjudicator-v${D}`, schema: ADJUDICATOR_SCHEMA,
     });
     if (step.error) return { error: step.error };
-    await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} v${D + 1} post-cap corrective pass` }, serialize);
+    await checkpoint({ specStoreRoot: ctx.specStoreRoot, spec: specName, message: `docs(sdd): ${specName} ${phase} v${D + 1} post-cap corrective pass` }, serialize);
     const report = (step.result.structuredOutput ?? {}) as AdjudicatorReport;
     const carried = [
       ...(report.ruledOut ?? []).map((r) => `${r.item} — ${r.reason}`),
@@ -722,7 +722,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
     if (!existsSync(docPath)) {
       return { result: 'error', version: 0, rounds: 0, reason: `drafter wrote no ${phase}.md` };
     }
-    await checkpoint({ specStoreRoot: ctx.specStoreRoot, message: `docs(sdd): ${specName} ${phase} v1` }, serialize);
+    await checkpoint({ specStoreRoot: ctx.specStoreRoot, spec: specName, message: `docs(sdd): ${specName} ${phase} v1` }, serialize);
     D = 1;
 
     const lintErr = await lintStep(D);
