@@ -6,10 +6,10 @@
 // non-resetting `throttleMs` timer, so a steady trigger stream still flushes
 // within one throttle window (design D3, Requirement 2 AC 9). The feed adds no
 // file watcher (Requirement 8 AC 2); it reads only through the task-3 and task-4
-// builders and the shared pointer file.
-import { readPointer, pointerPath } from '../harness/state-files.js';
+// builders and the controller's run records.
 import type { ProjectManager } from '../project-manager.js';
-import type { HarnessLauncher } from '../harness/launcher.js';
+import { listRunsSync } from '../../controller/state.js';
+import { liveRunsByProject } from './live-runs.js';
 import { buildNowModel } from './now-model.js';
 import { buildSpecRows } from './spec-rows.js';
 import { FileCache } from './file-cache.js';
@@ -33,7 +33,6 @@ export class ShellFeed {
 
   constructor(
     private readonly projects: ProjectManager,
-    private readonly launcher: HarnessLauncher,
     private readonly send: (m: ShellMessage) => void,
     opts: { throttleMs?: number; tickMs?: number; now?: () => number } = {},
   ) {
@@ -71,7 +70,7 @@ export class ShellFeed {
   }
 
   /**
-   * One recompute: read the pointer once, run the Now builder over every project
+   * One recompute: read the run records once, run the Now builder over every project
    * and the Specs-row builder per project (a project whose rows throw is left out
    * and logged once), read the controller waits, runs and latest-per-run
    * activity, keep the quintet and send `shell-now`, `shell-specs`,
@@ -83,16 +82,16 @@ export class ShellFeed {
     this.timer = undefined;
     if (this.closed) return;
 
-    const pointers = readPointer(pointerPath());
+    const liveRuns = liveRunsByProject(listRunsSync());
     const now = this.now();
     const projects = this.projects.getAllProjects();
 
-    const nowModel = await buildNowModel(projects, pointers, (id) => this.launcher.get(id), now, this.cache);
+    const nowModel = await buildNowModel(projects, liveRuns, now, this.cache);
 
     const rows: SpecListRow[] = [];
     for (const project of projects) {
       try {
-        rows.push(...(await buildSpecRows(project, pointers, this.cache)));
+        rows.push(...(await buildSpecRows(project, liveRuns.get(project.projectId)?.spec ?? null, this.cache)));
       } catch (err) {
         console.error(`ShellFeed: skipping spec rows for project ${project.projectId}`, err);
       }

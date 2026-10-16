@@ -27,7 +27,6 @@ import { PathUtils } from '../core/path-utils.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
-import { removePointerLine } from '../dashboard/harness/state-files.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
   isProcessAlive, runStepsDir, withStoreLock,
@@ -403,8 +402,6 @@ export interface RunDeps {
   onRateLimit(windows: RateLimitWindows): void;
   /** Forward a step's live tool activity for the Run page's "Live now" line. */
   onActivity?(activity: ControllerActivity): void;
-  /** The legacy active-run pointer file a cancel still clears (gone at step d). */
-  pointerFile(): string;
   /** Has the operator cancelled this run? Checked between steps. */
   isCancelled(runId: string): boolean;
   /** Record an in-flight step process so cancel/crash-recovery can find it. */
@@ -1113,15 +1110,13 @@ function fifteenMinutes(deps: RunDeps): string {
 
 export interface CancelDeps {
   now(): Date;
-  pointerFile(): string;
   ghBin(): string;
   graceMs?: number;
 }
 
 /**
  * Cancel a run: signal the in-flight step (SIGTERM, then SIGKILL after the
- * grace), clear any legacy pointer line, mark the run `abandoned`, and keep the
- * worktree, branch and PR. The phase loop stops at its next step boundary.
+ * grace), mark the run `abandoned`, and keep the worktree, branch and PR. The phase loop stops at its next step boundary.
  */
 export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
   const run = await readRun(runId);
@@ -1139,7 +1134,6 @@ export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRec
       await new Promise((r) => setTimeout(r, 100));
     }
   }
-  try { removePointerLine(deps.pointerFile(), runId); } catch { /* a legacy line, best effort */ }
   const next: RunRecord = { ...run, status: 'abandoned' as RunStatus, inFlight: undefined, updated: deps.now().toISOString() };
   await writeRun(next);
   runEvents.emit('change', next);

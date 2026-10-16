@@ -107,7 +107,6 @@ function deps(fx: Fixture, over: Partial<RunDeps> = {}): RunDeps {
     tokenCap: () => undefined,
     windowBlock: () => ({ blocked: false }),
     onRateLimit: () => { /* ignore */ },
-    pointerFile: () => join(fx.home, 'active-run'),
     isCancelled: () => false,
     setInFlight: () => { /* noop */ },
     ...over,
@@ -315,22 +314,19 @@ describe('runOnce usage-limit pause', () => {
 
 describe('cancelRun and discardRun', () => {
   function cancelDeps(fx: Fixture): CancelDeps {
-    return { now: () => new Date(), pointerFile: () => join(fx.home, 'active-run'), ghBin: () => STUB_GH, graceMs: 2000 };
+    return { now: () => new Date(), ghBin: () => STUB_GH, graceMs: 2000 };
   }
 
-  it('cancel signals the in-flight step, drops the pointer line and abandons the run', async () => {
+  it('cancel signals the in-flight step and abandons the run', async () => {
     const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
     const pid = child.pid as number;
     const startTime = processStartTime(pid) ?? 0;
-    const pointer = join(fx.home, 'active-run');
-    writeFileSync(pointer, `${fx.repo}\t${fx.specDir}\trun-20261011-000000\n`);
     await writeRun(seedRun(fx, { inFlight: { id: 's1', pid, startTime } }));
 
     const run = await cancelRun(cancelDeps(fx), 'run-20261011-000000');
     expect(run?.status).toBe('abandoned');
     // The process group is gone.
     expect(() => process.kill(pid, 0)).toThrow();
-    expect(existsSync(pointer)).toBe(false);
     try { child.kill('SIGKILL'); } catch { /* already gone */ }
   });
 

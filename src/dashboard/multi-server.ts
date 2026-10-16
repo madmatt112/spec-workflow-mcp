@@ -24,9 +24,9 @@ import {
   DEFAULT_SECURITY_CONFIG
 } from '../core/security-utils.js';
 import { SecurityConfig, TddBlock } from '../types.js';
-import { HarnessLauncher } from './harness/launcher.js';
+import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
-import { buildSetupView, validateSetup, toRunFile, writeRunFile, readAgentRules } from './harness/run-setup.js';
+import { buildSetupView, validateSetup, readAgentRules } from './harness/run-setup.js';
 import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
@@ -73,7 +73,6 @@ export class MultiProjectDashboardServer {
   private app: FastifyInstance;
   private projectManager: ProjectManager;
   private sessionManager: DashboardSessionManager;
-  private harnessLauncher: HarnessLauncher;
   private harnessHub: HarnessHub;
   private controller: Controller;
   private options: MultiDashboardOptions;
@@ -99,25 +98,19 @@ export class MultiProjectDashboardServer {
     this.projectManager = new ProjectManager();
     this.sessionManager = new DashboardSessionManager();
 
-    // Harness launcher and hub (design C7). The hub starts a watch only while a
-    // page of its view is open, and pushes reach only that view's subscribers.
-    this.harnessLauncher = new HarnessLauncher({
-      cli: options.harness?.cli,
-      stopGraceMs: options.harness?.stopGraceMs,
-      pollMs: options.harness?.pollMs,
-    });
+    // Harness hub (design C7). The hub starts a watch only while a page of its
+    // view is open, and pushes reach only that view's subscribers.
     this.harnessHub = new HarnessHub(
       this.projectManager,
-      this.harnessLauncher,
       (m: HarnessMessage) => this.sendToHarness((m as { projectId: string }).projectId, m),
       (m: HarnessMessage | ShellMessage) => this.sendToOverview(m),
     );
 
     // The controller (controller-tasks.md T6; controller-design.md §1-3). It owns
     // the queue and drives each run through its phases; the launch route enqueues
-    // to it. Its steps and the supervisor run on the same cli the launcher uses
-    // (tests pass a stub). It resolves a project's roots from the project manager
-    // and reuses the launcher's `ensureWorktree` for worktree isolation.
+    // to it. Its steps run on the cli the options name (tests pass a stub). It
+    // resolves a project's roots from the project manager and takes its
+    // `feat/<spec>` worktree from `ensureWorktree`.
     this.controller = new Controller({
       resolveProject: (projectId) => {
         const project = this.projectManager.getProject(projectId);
@@ -131,9 +124,7 @@ export class MultiProjectDashboardServer {
       ensureWorktree: async ({ projectPath, workspacePath, spec }) => {
         const rules = readAgentRules(join(projectPath, '.spec-workflow'));
         if (rules.worktree !== 'yes') return { worktree: workspacePath, branch: `feat/${spec}` };
-        const dir = await this.harnessLauncher.ensureWorktree(
-          { workspacePath } as ProjectContext, spec, rules.worktreeSetup,
-        );
+        const dir = await ensureWorktree(workspacePath, spec, rules.worktreeSetup);
         return { worktree: dir, branch: `feat/${spec}` };
       },
       claudeBin: () => process.env.CONTROLLER_CLAUDE_BIN ?? options.harness?.cli ?? 'claude',
@@ -340,9 +331,6 @@ export class MultiProjectDashboardServer {
 
     await validateAndCheckPort(this.options.port, this.bindAddress);
     this.actualPort = this.options.port;
-
-    // Reattach any launches on disk before we accept connections (design C7).
-    await this.harnessLauncher.restore();
 
     // Start the controller: acquire its lock, recover in-flight runs, subscribe
     // to wait answers, and start the scheduler (controller-tasks.md T6, §8).
@@ -574,37 +562,9 @@ export class MultiProjectDashboardServer {
       return view;
     });
 
-    // Save the run-setup file.
-    this.app.put('/api/projects/:projectId/harness/setup', async (request, reply) => {
-      const { projectId } = request.params as { projectId: string };
-      const project = this.projectManager.getProject(projectId);
-      if (!project) {
-        return reply.code(404).send({ error: 'Project not found' });
-      }
-
-      const input = request.body as SetupInput;
-      const view = await buildSetupView(project);
-
-      const notLaunchable = this.harnessNotLaunchable(view, input.spec);
-      if (notLaunchable) {
-        return reply.code(409).send({ error: 'not-launchable', reason: notLaunchable });
-      }
-
-      const validationError = validateSetup(input, view);
-      if (validationError) {
-        return reply.code(400).send(validationError);
-      }
-
-      const workflowRoot = join(project.projectPath, '.spec-workflow');
-      const file = toRunFile(input, view, () => new Date());
-      writeRunFile(workflowRoot, file);
-      return { file };
-    });
-
     // Launch = enqueue (controller-tasks.md T6). The launchability/routed-spec
     // check stays here; the controller's `enqueue` applies the run-level guards
-    // (one run per spec store, no live run on the project). The saved setup is
-    // written first so the supervisor step reads the operator's model/roles.
+    // (one run per spec store, no live run on the project).
     this.app.post('/api/projects/:projectId/harness/launch', async (request, reply) => {
       const { projectId } = request.params as { projectId: string };
       const project = this.projectManager.getProject(projectId);
@@ -629,7 +589,6 @@ export class MultiProjectDashboardServer {
       const workflowRoot = join(project.projectPath, '.spec-workflow');
       // A spec decomposition.md names but nobody has started has no directory yet.
       mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
-      writeRunFile(workflowRoot, toRunFile(input, view, () => new Date()));
 
       try {
         const runId = await this.controller.enqueue({ projectId, spec: input.spec });
@@ -637,23 +596,6 @@ export class MultiProjectDashboardServer {
       } catch (error: any) {
         return reply.code(409).send({ error: 'run-live', reason: error?.message || 'could not enqueue' });
       }
-    });
-
-    // Stop the running or stopping run for a project (Req 3 AC 9).
-    this.app.post('/api/projects/:projectId/harness/stop', async (request, reply) => {
-      const { projectId } = request.params as { projectId: string };
-      const project = this.projectManager.getProject(projectId);
-      if (!project) {
-        return reply.code(404).send({ error: 'Project not found' });
-      }
-
-      const record = this.harnessLauncher.get(projectId);
-      if (!record || (record.state !== 'running' && record.state !== 'stopping')) {
-        return reply.code(404).send({ error: 'not-running' });
-      }
-
-      const launch = await this.harnessLauncher.stop(projectId);
-      return { launch };
     });
 
     // ── Controller wait routes (controller-tasks.md T4; controller-design.md §7) ──

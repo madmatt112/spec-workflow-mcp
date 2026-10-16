@@ -6,7 +6,6 @@ import { randomUUID } from 'crypto';
 import { buildSpecRows, buildSpecDetail } from '../spec-rows.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
-import type { PointerLine } from '../../harness/types.js';
 import { DeferralStorage } from '../../../core/deferral-storage.js';
 
 // Contract for src/dashboard/shell/spec-rows.ts (design.md C5; task 4 _Prompt;
@@ -33,7 +32,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   true", first match wins):
 //   Pre-condition: a spec with no pointer, a HANDOFF closeout/closed row, and
 //   a deferred.json marker.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has state 'closed'.
 //   Expected-value source: design D10's precedence (closed before deferred).
 //
@@ -43,7 +42,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   Pre-condition: a spec with no pointer, no closeout row, a
 //   retrospective-plan.md whose first Status: value is CLOSED, and a
 //   deferred.json marker.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has state 'closed'.
 //   Expected-value source: the _Prompt's alternate closed condition.
 //
@@ -53,7 +52,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   harness-events.jsonl"):
 //   Pre-condition: a spec directory with no documents and no ledger, but a
 //   deferred.json marker, no pointer, no closed markers.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has state 'deferred'.
 //   Expected-value source: design D10's precedence (deferred before
 //   not-started).
@@ -62,7 +61,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   same sentence):
 //   Pre-condition: an empty spec directory (no documents, no ledger), no
 //   pointer, no closed or deferred markers.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has state 'not-started'; `updated` is
 //   null (no ledger ts and no phase-log date to compare); `phase` is
 //   'requirements' (the snapshot entry's own currentPhase fallback, since
@@ -75,7 +74,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 // Criterion "in-progress otherwise" (task 4 _Prompt: "else `in-progress`"):
 //   Pre-condition: a spec directory holding only requirements.md, no
 //   pointer, no closed or deferred markers.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has state 'in-progress'.
 //   Expected-value source: the _Prompt's else-branch rule.
 //
@@ -87,7 +86,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   Pre-condition: a HANDOFF phase log with two requirements rows (State
 //   'v1' then, dated later, 'v2'), one design row (State 'in-progress', no
 //   match), and no tasks rows.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has versions.requirements 'v2',
 //   versions.design null, versions.tasks null.
 //   Expected-value source: the fixture's own phase-log State values.
@@ -99,7 +98,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   notes, ascending"):
 //   Pre-condition: a HANDOFF phase log with two rows for the spec whose
 //   notes mention "PR #12", "PR #3" and "PR #12" again.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has prs [3, 12].
 //   Expected-value source: the fixture's own note text, deduplicated and
 //   sorted per the _Prompt sentence.
@@ -113,7 +112,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   Pre-condition: two 'deferred' records with originSpec the target spec,
 //   one record for the same spec later resolved (so its status is no longer
 //   'deferred'), and one 'deferred' record for a different spec.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: the target spec's row has deferrals === 2.
 //   Expected-value source: the fixture's own record count, per the quoted
 //   DeferralStorage.list call.
@@ -125,7 +124,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   null"):
 //   Pre-condition: a retrospective-plan.md whose first Status: line reads
 //   "Status: APPROVED — all decisions made".
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: that spec's row has retro === 'APPROVED'.
 //   Expected-value source: the fixture's own Status: line, per the quoted
 //   first-word rule.
@@ -138,7 +137,7 @@ import { DeferralStorage } from '../../../core/deferral-storage.js';
 //   Pre-condition: spec 'upd-a' has a ledger row timestamped in 2030 and a
 //   phase-log row dated in 2020; spec 'upd-b' has a ledger row timestamped
 //   in 2000 and a phase-log row dated in 2099.
-//   Test: buildSpecRows(project, []).
+//   Test: buildSpecRows(project, null).
 //   Observable result: 'upd-a' row's updated equals the ledger row's own ts
 //   string; 'upd-b' row's updated equals the phase-log row's own date
 //   string.
@@ -242,10 +241,6 @@ function makeSpecDir(specsDir: string, spec: string): string {
   return dir;
 }
 
-function pointerFor(project: ProjectContext, spec: string, runId = 'run-1'): PointerLine {
-  return { mainCheckout: '/main/checkout', specDir: join(project.projectPath, '.spec-workflow', 'specs', spec), runId };
-}
-
 function writeLedger(specDir: string, events: LedgerEvent[]): void {
   writeFileSync(join(specDir, 'harness-events.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
 }
@@ -295,7 +290,7 @@ describe('buildSpecRows', () => {
     ]);
     writeDeferredMarker(specsDir, 'live-spec');
 
-    const rows = await buildSpecRows(project, [pointerFor(project, 'live-spec')]);
+    const rows = await buildSpecRows(project, 'live-spec');
     const row = rows.find((r) => r.spec === 'live-spec');
     expect(row?.state).toBe('live');
   });
@@ -308,7 +303,7 @@ describe('buildSpecRows', () => {
     ]);
     writeDeferredMarker(specsDir, 'closed-row-spec');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'closed-row-spec');
     expect(row?.state).toBe('closed');
   });
@@ -319,7 +314,7 @@ describe('buildSpecRows', () => {
     writeRetroPlan(specsDir, 'closed-plan-spec', 'Status: CLOSED');
     writeDeferredMarker(specsDir, 'closed-plan-spec');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'closed-plan-spec');
     expect(row?.state).toBe('closed');
   });
@@ -329,7 +324,7 @@ describe('buildSpecRows', () => {
     makeSpecDir(specsDir, 'deferred-spec');
     writeDeferredMarker(specsDir, 'deferred-spec');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'deferred-spec');
     expect(row?.state).toBe('deferred');
   });
@@ -338,7 +333,7 @@ describe('buildSpecRows', () => {
     const { project, specsDir } = makeProject(base);
     makeSpecDir(specsDir, 'empty-spec');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'empty-spec');
     expect(row?.state).toBe('not-started');
     expect(row?.phase).toBe('requirements');
@@ -350,7 +345,7 @@ describe('buildSpecRows', () => {
     const dir = makeSpecDir(specsDir, 'wip-spec');
     writeFileSync(join(dir, 'requirements.md'), '# Requirements\n');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'wip-spec');
     expect(row?.state).toBe('in-progress');
   });
@@ -364,7 +359,7 @@ describe('buildSpecRows', () => {
       { date: '2026-01-02', spec: 'ver-spec', phase: 'design', state: 'in-progress', result: 'pending', note: 'wip' },
     ]);
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'ver-spec');
     expect(row?.versions.requirements).toBe('v2');
     expect(row?.versions.design).toBeNull();
@@ -379,7 +374,7 @@ describe('buildSpecRows', () => {
       { date: '2026-01-02', spec: 'pr-spec', phase: 'implementation', state: 'v1', result: 'approved', note: 'see PR #3 and PR #12 again' },
     ]);
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'pr-spec');
     expect(row?.prs).toEqual([3, 12]);
   });
@@ -399,7 +394,7 @@ describe('buildSpecRows', () => {
     await storage.resolve(resolvedId, 'done');
     await storage.create({ title: 'D4', originSpec: 'other-spec', ...common });
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'def-spec');
     expect(row?.deferrals).toBe(2);
   });
@@ -409,7 +404,7 @@ describe('buildSpecRows', () => {
     makeSpecDir(specsDir, 'retro-spec');
     writeRetroPlan(specsDir, 'retro-spec', 'Status: APPROVED — all decisions made');
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'retro-spec');
     expect(row?.retro).toBe('APPROVED');
   });
@@ -425,7 +420,7 @@ describe('buildSpecRows', () => {
       { date: '2099-01-01', spec: 'upd-b', phase: 'requirements', state: 'v1', result: 'approved', note: 'future' },
     ]);
 
-    const rows = await buildSpecRows(project, []);
+    const rows = await buildSpecRows(project, null);
     const rowA = rows.find((r) => r.spec === 'upd-a');
     const rowB = rows.find((r) => r.spec === 'upd-b');
     expect(rowA?.updated).toBe('2030-06-01T00:00:00.000Z');

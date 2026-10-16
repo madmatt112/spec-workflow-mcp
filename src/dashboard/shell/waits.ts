@@ -13,7 +13,6 @@ import type { LedgerEvent, ActivityEvent } from '../../watch/ledger.js';
 import { handoffPath } from '../../watch/index.js';
 import { parseHandoffRouting, parseGateSections } from '../harness/project-watch.js';
 import type { ProjectContext } from '../project-manager.js';
-import type { LaunchRecord, PointerLine } from '../harness/types.js';
 import type { Wait } from './types.js';
 import { FileCache } from './file-cache.js';
 
@@ -32,17 +31,6 @@ function ms(ts: string | undefined): number {
 function isInside(dir: string, target: string): boolean {
   const rel = relative(dir, target);
   return rel.length > 0 && !rel.startsWith('..') && !isAbsolute(rel);
-}
-
-/**
- * The first pointer line whose `specDir` resolves inside the project's
- * `.spec-workflow/specs` directory, or undefined. The rule of
- * src/dashboard/harness/overview-watch.ts:243-246, copied so the shell modules
- * share one matcher (D9, Requirement 8 AC 2).
- */
-export function pointerForProject(project: ProjectContext, pointers: PointerLine[]): PointerLine | undefined {
-  const specsDir = join(project.projectPath, '.spec-workflow', 'specs');
-  return pointers.find((p) => isInside(specsDir, p.specDir));
 }
 
 /**
@@ -113,17 +101,16 @@ function summaryFor(detail: Wait['detail'], spec: string): string {
 }
 
 /**
- * The five wait kinds for one project, from its harness files only (design.md
- * C3, Requirement 2). `gate`, `ruling` and `quiet` read the overview watch's
- * spec — the pointer spec when the pointer resolves inside this project, else
- * the HANDOFF active spec; `quiet` also needs a pointer. `retro` scans every
- * spec directory. `exited` reads the launch record (D7). A missing cache
+ * The wait kinds for one project, from its harness files only (design.md C3,
+ * Requirement 2). `gate`, `ruling` and `quiet` read the watch spec — the
+ * project's live controller run's spec when one is live, else the HANDOFF active
+ * spec; `quiet` also needs a live run. `retro` scans every spec directory. The
+ * `exited` kind went with the supervisor launcher at step (d). A missing cache
  * argument means a fresh cache.
  */
 export function deriveProjectWaits(
   project: ProjectContext,
-  pointer: PointerLine | undefined,
-  launch: LaunchRecord | null,
+  liveSpec: string | null,
   now: number,
   cache: FileCache = new FileCache(),
 ): Wait[] {
@@ -132,10 +119,7 @@ export function deriveProjectWaits(
   const workflowRoot = join(project.projectPath, '.spec-workflow');
   const specsDir = join(workflowRoot, 'specs');
 
-  const validPointer = pointer && isInside(specsDir, pointer.specDir) ? pointer : undefined;
-  const watchSpec = validPointer
-    ? basename(validPointer.specDir)
-    : parseHandoffRouting(cache.text(handoffPath(workflowRoot)))?.spec ?? null;
+  const watchSpec = liveSpec ?? parseHandoffRouting(cache.text(handoffPath(workflowRoot)))?.spec ?? null;
 
   const push = (kind: Wait['kind'], spec: string, since: string, detail: Wait['detail']): void => {
     waits.push({ kind, projectId, projectName, spec, since, summary: summaryFor(detail, spec), detail });
@@ -159,7 +143,7 @@ export function deriveProjectWaits(
       });
     }
 
-    if (validPointer) {
+    if (liveSpec) {
       const model = buildModel({ spec: watchSpec, ledger, activity: [] });
       const openSpawns = model.spawns.filter((s) => !s.endedAt);
       if (openSpawns.length) {
@@ -194,20 +178,6 @@ export function deriveProjectWaits(
     if (mtimeMs === null) continue;
     const lines = decisionLines(proposals);
     push('retro', name, new Date(mtimeMs).toISOString(), { kind: 'retro', count: lines.length, lines });
-  }
-
-  // exited — the launch record exited and its run has no run.end in its spec ledger (D7).
-  if (launch && launch.state === 'exited') {
-    let hasRunEnd = false;
-    if (launch.runId) {
-      const ledger = cache.jsonl<LedgerEvent>(join(specsDir, launch.spec, 'harness-events.jsonl'));
-      hasRunEnd = ledger.some((e) => e.type === 'run.end' && e.run === launch.runId);
-    }
-    if (launch.runId === null || !hasRunEnd) {
-      push('exited', launch.spec, launch.endedAt ?? launch.launchedAt, {
-        kind: 'exited', exitCode: launch.exitCode, signal: launch.signal, endedAt: launch.endedAt, logPath: launch.logPath,
-      });
-    }
   }
 
   return waits;

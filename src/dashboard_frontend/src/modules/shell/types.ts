@@ -4,8 +4,8 @@
 // (the root tsconfig excludes src/dashboard_frontend/**), so it cannot import
 // the server's types. These are copied by hand from src/dashboard/shell/types.ts
 // and, for LedgerEvent and ActivityEvent, from src/watch/ledger.ts. Keep them in
-// step. PhaseRow and LaunchRecord reuse the existing harness hand copy.
-import type { PhaseRow, LaunchRecord } from '../harness/types';
+// step. PhaseRow reuses the existing harness hand copy.
+import type { PhaseRow } from '../harness/types';
 
 // --- Row types copied from src/watch/ledger.ts ---
 
@@ -78,7 +78,7 @@ export interface RunListRow {
   projectName: string;
   spec: string;
   runId: string | null;
-  state: 'live' | 'ended' | 'stopped' | 'exited';
+  state: 'live' | 'ended';
   phase: string | null;
   since: string | null;
 }
@@ -89,7 +89,6 @@ export interface NowModel {
   idle: IdleRow[];
   closed: ClosedRow[];
   runs: RunListRow[];
-  launches: Record<string, { state: LaunchRecord['state']; pid: number; runId: string | null } | null>;
   generatedAt: string;
 }
 

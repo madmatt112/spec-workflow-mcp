@@ -8,7 +8,6 @@
 // harness push reaches only that project's harness subscribers and an overview
 // push reaches only overview subscribers.
 import type { ProjectManager } from '../project-manager.js';
-import type { HarnessLauncher } from './launcher.js';
 import { ProjectHarnessWatch } from './project-watch.js';
 import { OverviewWatch } from './overview-watch.js';
 import { ShellFeed } from '../shell/shell-feed.js';
@@ -39,12 +38,10 @@ export class HarnessHub {
 
   constructor(
     private readonly projects: ProjectManager,
-    private readonly launcher: HarnessLauncher,
     private readonly sendHarness: (m: HarnessMessage) => void,
     private readonly sendOverview: (m: HarnessMessage | ShellMessage) => void,
     private readonly opts: { debounceMs?: number } = {},
   ) {
-    this.launcher.on('launch-update', this.onLaunchUpdate);
     this.projects.on('projects-update', this.onProjectsUpdate);
     this.projects.on('spec-change', this.onSourceChange);
     this.projects.on('deferral-change', this.onSourceChange);
@@ -77,7 +74,7 @@ export class HarnessHub {
     for (const project of this.projects.getAllProjects()) {
       const count = harnessCounts.get(project.projectId) ?? 0;
       if (count > 0 && !this.projectWatches.has(project.projectId)) {
-        const watch = new ProjectHarnessWatch(project, this.launcher, this.sendHarness, this.opts);
+        const watch = new ProjectHarnessWatch(project, this.sendHarness, this.opts);
         this.projectWatches.set(project.projectId, watch);
         await watch.start();
       }
@@ -96,7 +93,7 @@ export class HarnessHub {
     // re-arms the feed on each `overview-rows` it emits. Both fields are set
     // before the `await` so two concurrent reconciles cannot double-start.
     if (overviewCount > 0 && !this.overviewWatch) {
-      const feed = new ShellFeed(this.projects, this.launcher, this.sendOverview);
+      const feed = new ShellFeed(this.projects, this.sendOverview);
       this.shellFeed = feed;
       const watch = new OverviewWatch(this.projects, (m) => {
         this.sendOverview(m);
@@ -136,10 +133,9 @@ export class HarnessHub {
     return this.overviewWatch !== null;
   }
 
-  /** Close every watch and drop the launcher/project-manager listeners. */
+  /** Close every watch and drop the project-manager and controller listeners. */
   close(): void {
     this.closed = true;
-    this.launcher.removeListener('launch-update', this.onLaunchUpdate);
     this.projects.removeListener('projects-update', this.onProjectsUpdate);
     this.projects.removeListener('spec-change', this.onSourceChange);
     this.projects.removeListener('deferral-change', this.onSourceChange);
@@ -153,14 +149,6 @@ export class HarnessHub {
     this.shellFeed?.close();
     this.shellFeed = null;
   }
-
-  // A new launch re-points its project watch's log inside that watch (C5); the hub
-  // refreshes the overview so a run's state change shows there too, and re-arms the
-  // shell feed so its Now model picks up the launch (C7).
-  private onLaunchUpdate = (): void => {
-    this.overviewWatch?.refresh();
-    this.shellFeed?.schedule();
-  };
 
   private onProjectsUpdate = (): void => {
     this.overviewWatch?.refresh();

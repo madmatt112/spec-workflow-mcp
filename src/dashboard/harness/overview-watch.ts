@@ -5,17 +5,20 @@
 // reads a project's HANDOFF and its resolved spec ledger; `OverviewWatch` watches
 // the pointer file and each project's HANDOFF and row ledger, and pushes
 // `overview-rows` on change.
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync } from 'fs';
 import { once } from 'events';
-import { join, basename, dirname, relative, isAbsolute } from 'path';
+import { join, relative, isAbsolute } from 'path';
 import chokidar from 'chokidar';
 import { buildModel, parseJsonl } from '../../watch/ledger.js';
 import type { LedgerEvent } from '../../watch/ledger.js';
 import { handoffPath } from '../../watch/index.js';
 import { parseHandoffRouting } from './project-watch.js';
-import { pointerPath, readPointer } from './state-files.js';
+import { listRunsSync } from '../../controller/state.js';
+import type { RunRecord } from '../../controller/state.js';
+import { runEvents } from '../../controller/runs.js';
+import { liveRunsByProject } from '../shell/live-runs.js';
 import type { ProjectContext, ProjectManager } from '../project-manager.js';
-import type { HarnessMessage, OverviewRow, PointerLine } from './types.js';
+import type { HarnessMessage, OverviewRow } from './types.js';
 
 /** The four-file watch options shared with the TUI watch (src/watch/index.ts:101-104). */
 const WATCH_OPTS = {
@@ -94,15 +97,14 @@ function computeWaiting(sorted: LedgerEvent[]): boolean {
 }
 
 /**
- * One Overview row for a project (design.md C6). A pointer line whose spec dir is
- * inside `projectPath/.spec-workflow/specs/` makes the row `running` with that
- * spec's base name and run id; otherwise it is `idle` with the HANDOFF routing
- * spec and a null run id (Req 5.2). From that spec's `harness-events.jsonl`:
+ * One Overview row for a project (design.md C6). The project's live controller
+ * run makes the row `running` with its spec and run id; otherwise it is `idle`
+ * with the HANDOFF routing spec and a null run id (Req 5.2). From that spec's `harness-events.jsonl`:
  * `lastRow` is the newest phase or gate row, `livePhase` is `buildModel`'s live
  * phase (else the HANDOFF phase), `waiting` applies requirements D7, and
  * `newestTs` is the newest row's timestamp.
  */
-export function buildOverviewRow(project: ProjectContext, pointer: PointerLine | undefined): OverviewRow {
+export function buildOverviewRow(project: ProjectContext, live: Pick<RunRecord, 'spec' | 'id'> | undefined): OverviewRow {
   const workflowRoot = join(project.projectPath, '.spec-workflow');
   const specsDir = join(workflowRoot, 'specs');
   const routing = parseHandoffRouting(readIfExists(handoffPath(workflowRoot)));
@@ -112,11 +114,11 @@ export function buildOverviewRow(project: ProjectContext, pointer: PointerLine |
   let runId: string | null;
   let specDir: string | null;
 
-  if (pointer && isInside(specsDir, pointer.specDir)) {
+  if (live) {
     state = 'running';
-    spec = basename(pointer.specDir);
-    runId = pointer.runId;
-    specDir = pointer.specDir;
+    spec = live.spec;
+    runId = live.id;
+    specDir = join(specsDir, live.spec);
   } else {
     state = 'idle';
     spec = routing?.spec ?? null;
@@ -147,17 +149,16 @@ export function buildOverviewRow(project: ProjectContext, pointer: PointerLine |
 }
 
 /**
- * The Overview watch (design.md C6). One watcher set — the pointer file and each
- * project's HANDOFF and resolved row ledger — feeds every Overview client. A
- * pointer or HANDOFF change recomputes the ledger set and pushes `overview-rows`;
- * a ledger change pushes `overview-rows`. `snapshot()` returns that message;
+ * The Overview watch (design.md C6). One watcher set — the controller's run
+ * records (through `runEvents`) and each project's HANDOFF and resolved row
+ * ledger — feeds every Overview client. A run or HANDOFF change recomputes the
+ * ledger set and pushes `overview-rows`; a ledger change pushes `overview-rows`. `snapshot()` returns that message;
  * `close()` stops the watchers and timers.
  */
 export class OverviewWatch {
   private readonly debounceMs: number;
   private closed = false;
 
-  private stateWatcher?: FSWatcher;       // the sdd state dir (pointer)
   private handoffWatcher?: FSWatcher;     // each project's HANDOFF
   private ledgerWatcher?: FSWatcher;      // each project's resolved row ledger
 
@@ -174,15 +175,11 @@ export class OverviewWatch {
   }
 
   /**
-   * Create the pointer directory (tasks D9: a chokidar 3.6.0 probe showed a
-   * watched file whose parent directory is missing reports no events), arm the
-   * watchers, wait for their initial scan, then push the rows. The state watch is
-   * on the directory so a pointer file created after start() — when the watched
-   * path did not exist yet — is still seen.
+   * Subscribe to the controller's run changes, arm the file watchers, wait for
+   * their initial scan, then push the rows.
    */
   async start(): Promise<void> {
-    mkdirSync(dirname(pointerPath()), { recursive: true });
-    this.armState();
+    runEvents.on('change', this.onRuns);
     this.armHandoffs();
     this.armLedgers();
     await this.whenReady();
@@ -208,30 +205,24 @@ export class OverviewWatch {
   close(): void {
     this.closed = true;
     if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
-    void this.stateWatcher?.close();
+    runEvents.removeListener('change', this.onRuns);
     void this.handoffWatcher?.close();
     void this.ledgerWatcher?.close();
-    this.stateWatcher = undefined;
     this.handoffWatcher = undefined;
     this.ledgerWatcher = undefined;
   }
 
   private async whenReady(): Promise<void> {
     const waits: Promise<unknown>[] = [];
-    for (const w of [this.stateWatcher, this.handoffWatcher, this.ledgerWatcher]) {
+    for (const w of [this.handoffWatcher, this.ledgerWatcher]) {
       if (w) waits.push(once(w, 'ready'));
     }
     await Promise.all(waits);
   }
 
   private buildRows(): OverviewRow[] {
-    const pointers = readPointer(pointerPath());
-    return this.projects.getAllProjects().map((p) => buildOverviewRow(p, this.pointerForProject(p, pointers)));
-  }
-
-  private pointerForProject(project: ProjectContext, pointers: PointerLine[]): PointerLine | undefined {
-    const specsDir = join(project.projectPath, '.spec-workflow', 'specs');
-    return pointers.find((p) => isInside(specsDir, p.specDir));
+    const live = liveRunsByProject(listRunsSync());
+    return this.projects.getAllProjects().map((p) => buildOverviewRow(p, live.get(p.projectId)));
   }
 
   private handoffPaths(): string[] {
@@ -239,27 +230,16 @@ export class OverviewWatch {
   }
 
   private ledgerPaths(): string[] {
-    const pointers = readPointer(pointerPath());
+    const live = liveRunsByProject(listRunsSync());
     const paths: string[] = [];
     for (const project of this.projects.getAllProjects()) {
       const workflowRoot = join(project.projectPath, '.spec-workflow');
       const specsDir = join(workflowRoot, 'specs');
-      const pointer = this.pointerForProject(project, pointers);
-      const spec = pointer
-        ? basename(pointer.specDir)
-        : parseHandoffRouting(readIfExists(handoffPath(workflowRoot)))?.spec ?? null;
+      const spec = live.get(project.projectId)?.spec
+        ?? parseHandoffRouting(readIfExists(handoffPath(workflowRoot)))?.spec ?? null;
       if (spec) paths.push(join(specsDir, spec, 'harness-events.jsonl'));
     }
     return paths;
-  }
-
-  private armState(): void {
-    void this.stateWatcher?.close();
-    // Watch the sdd directory (not the file path) so the pointer is seen even when
-    // it is created after start() — chokidar 3.6.0 does not report the first
-    // creation of a single file path that never existed.
-    this.stateWatcher = chokidar.watch(dirname(pointerPath()), { ...WATCH_OPTS, depth: 0 });
-    this.stateWatcher.on('add', this.onState).on('change', this.onState).on('unlink', this.onState);
   }
 
   private armHandoffs(): void {
@@ -279,14 +259,13 @@ export class OverviewWatch {
     this.ledgerWatcher.on('add', this.onLedger).on('change', this.onLedger).on('unlink', this.onLedger);
   }
 
-  private onState = (changedPath: string): void => {
+  // A controller run record changed (a run started, moved phase or ended): the
+  // row's running/idle state and its ledger path may have changed with it.
+  private onRuns = (): void => {
     if (this.closed) return;
-    const name = basename(changedPath);
-    if (name === basename(pointerPath())) {
-      this.rowsDirty = true;
-      this.reArmLedgers = true;
-      this.schedule();
-    }
+    this.rowsDirty = true;
+    this.reArmLedgers = true;
+    this.schedule();
   };
 
   private onStructure = (): void => {

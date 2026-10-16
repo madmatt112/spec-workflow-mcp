@@ -5,7 +5,6 @@
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
 import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js';
-import type { LaunchRecord } from '../harness/types.js';
 
 export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
 
@@ -54,7 +53,7 @@ export interface RunListRow {
   projectName: string;
   spec: string;
   runId: string | null;
-  state: 'live' | 'ended' | 'stopped' | 'exited';
+  state: 'live' | 'ended';
   phase: string | null;
   since: string | null;
 }
@@ -65,7 +64,6 @@ export interface NowModel {
   idle: IdleRow[];
   closed: ClosedRow[];
   runs: RunListRow[];
-  launches: Record<string, { state: LaunchRecord['state']; pid: number; runId: string | null } | null>;
   generatedAt: string;
 }
 

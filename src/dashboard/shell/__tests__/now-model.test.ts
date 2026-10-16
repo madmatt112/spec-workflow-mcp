@@ -6,12 +6,12 @@ import { randomUUID } from 'crypto';
 import { buildNowModel } from '../now-model.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
-import type { LaunchRecord, PointerLine } from '../../harness/types.js';
+import type { RunRecord } from '../../../controller/state.js';
 
 // Contract for src/dashboard/shell/now-model.ts (design.md C4; task 3 _Prompt;
 // Requirements 2.7, 2.8, 3.2, 3.3, 3.4, 3.5, 4.1, 4.12).
 //
-// Reached only through buildNowModel(projects, pointers, launchOf, now, cache?).
+// Reached only through buildNowModel(projects, liveRuns, now, cache?).
 //
 // === live row detail ===
 //
@@ -75,7 +75,7 @@ import type { LaunchRecord, PointerLine } from '../../harness/types.js';
 //   Pre-condition: project A has one spec directory with no documents and no
 //   decomposition.md (routing picks it as the only not-complete entry);
 //   project B has an empty, existing specs directory (no spec at all).
-//   Test: buildNowModel([projectA, projectB], [], () => null, now).
+//   Test: buildNowModel([projectA, projectB], new Map(), now).
 //   Observable result: project A's idle row has `launchable` equal to that
 //   spec directory's name and `disabledReason` null; project B's idle row
 //   has `launchable` null and `disabledReason` equal to the routing reason
@@ -94,7 +94,7 @@ import type { LaunchRecord, PointerLine } from '../../harness/types.js';
 //   'closed-8', and a HANDOFF.md whose `## Phase log` table has a `closeout`
 //   row with result `closed` for each, dated 6 and 8 days respectively
 //   before a fixed `now`.
-//   Test: buildNowModel([project], [], () => null, now).
+//   Test: buildNowModel([project], new Map(), now).
 //   Observable result: a closed row exists for 'closed-6' with `closedOn`
 //   equal to its own fixture date; no closed row exists for 'closed-8'.
 //   Expected-value source: the fixture's own phase-log dates, computed from
@@ -160,8 +160,18 @@ function makeSpecDir(specsDir: string, spec: string): string {
   return dir;
 }
 
-function pointerFor(project: ProjectContext, spec: string, runId = 'run-1'): PointerLine {
-  return { mainCheckout: '/main/checkout', specDir: join(project.projectPath, '.spec-workflow', 'specs', spec), runId };
+/** A live controller run record for a project (the source the active-run pointer used to be). */
+function liveRun(project: ProjectContext, spec: string, runId = 'run-1', tokens = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }): RunRecord {
+  const iso = '2026-01-01T00:00:00.000Z';
+  return {
+    v: 1, id: runId, project: project.projectId, codeRoot: project.projectPath, specStore: project.projectPath, spec,
+    worktree: project.projectPath, branch: `feat/${spec}`, status: 'running', created: iso, updated: iso, tokens,
+  };
+}
+
+/** The `liveRuns` map `buildNowModel` takes, keyed by project id. */
+function live(...runs: RunRecord[]): Map<string, RunRecord> {
+  return new Map(runs.map((r) => [r.project, r]));
 }
 
 function writeLedger(specDir: string, events: LedgerEvent[]): string {
@@ -175,15 +185,6 @@ function handoffFixture(spec: string): string {
     `> **READ FIRST — SDD routing.** Active spec **\`${spec}\`**.`,
     `> Live phase **implementation**, state **in-progress**, last result **pending**.`,
   ].join('\n');
-}
-
-function baseLaunch(overrides: Partial<LaunchRecord>): LaunchRecord {
-  return {
-    projectId: 'p1', workflowRoot: '/wf', spec: 'spec', pid: 111, pgid: 111, cwd: '/wf', worktree: 'no',
-    logPath: '/tmp/log.log', launchedAt: '2026-01-01T00:00:00.000Z', setupWrittenAt: '2026-01-01T00:00:00.000Z',
-    runId: null, state: 'exited', exitCode: null, signal: null, stopRequestedAt: null, endedAt: null, note: null,
-    ...overrides,
-  };
 }
 
 describe('buildNowModel', () => {
@@ -201,7 +202,7 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:02:00.000Z', type: 'spawn.start', run: 'r1', agent: 'sdd-reviewer', role: 'task review', round: '3' },
     ]);
 
-    const model = await buildNowModel([project], [pointerFor(project, 'live-round')], () => null, Date.now());
+    const model = await buildNowModel([project], live(liveRun(project, 'live-round')), Date.now());
     const row = model.live.find((r) => r.projectId === project.projectId);
     expect(row?.spec).toBe('live-round');
     expect(row?.detail).toContain('sdd-reviewer');
@@ -217,7 +218,7 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:02:00.000Z', type: 'spawn.start', run: 'r1', agent: 'sdd-implementer', role: 'implementation work', task: '5' },
     ]);
 
-    const model = await buildNowModel([project], [pointerFor(project, 'live-task')], () => null, Date.now());
+    const model = await buildNowModel([project], live(liveRun(project, 'live-task')), Date.now());
     const row = model.live.find((r) => r.projectId === project.projectId);
     expect(row?.spec).toBe('live-task');
     expect(row?.detail).toContain('sdd-implementer');
@@ -233,14 +234,14 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:02:00.000Z', type: 'phase.end', run: 'r1', phase: 'document', result: 'gate-a' },
     ]);
 
-    const model = await buildNowModel([project], [pointerFor(project, 'live-gate')], () => null, Date.now());
+    const model = await buildNowModel([project], live(liveRun(project, 'live-gate')), Date.now());
     const row = model.live.find((r) => r.projectId === project.projectId);
     expect(row?.spec).toBe('live-gate');
     expect(row?.detail).toBe('waits on gate A');
     expect(model.waits.some((w) => w.kind === 'gate' && w.projectId === project.projectId && w.spec === 'live-gate')).toBe(true);
   });
 
-  it('gives a live row whose tokens is buildModel\'s tokensTotal', async () => {
+  it('gives a live row whose tokens is the run record\'s total', async () => {
     const { project, specsDir } = makeProject(base);
     const dir = makeSpecDir(specsDir, 'live-tokens');
     writeLedger(dir, [
@@ -252,9 +253,11 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:05:00.000Z', type: 'spawn.end', run: 'r1', agent: 'sdd-checker', result: 'approved', tokens: '500' },
     ]);
 
-    const model = await buildNowModel([project], [pointerFor(project, 'live-tokens')], () => null, Date.now());
+    const model = await buildNowModel([project], live(liveRun(project, 'live-tokens', 'r1', { input: 100, output: 400, cacheWrite: 500, cacheRead: 1000 })), Date.now());
     const row = model.live.find((r) => r.projectId === project.projectId);
     expect(row?.tokens).toBe(2000);
+    expect(row?.runId).toBe('r1');
+    expect(row?.startedAt).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('gives an idle row with a launchable spec, and one with a disabled reason', async () => {
@@ -262,7 +265,7 @@ describe('buildNowModel', () => {
     makeSpecDir(specsDirA, 'idle-spec');
     const { project: projectB } = makeProject(base, 'Project B');
 
-    const model = await buildNowModel([projectA, projectB], [], () => null, Date.now());
+    const model = await buildNowModel([projectA, projectB], new Map(), Date.now());
 
     const idleA = model.idle.find((r) => r.projectId === projectA.projectId);
     expect(idleA?.launchable).toBe('idle-spec');
@@ -293,7 +296,7 @@ describe('buildNowModel', () => {
       '',
     ].join('\n'));
 
-    const model = await buildNowModel([project], [], () => null, now);
+    const model = await buildNowModel([project], new Map(), now);
 
     const c6 = model.closed.find((r) => r.spec === 'closed-6');
     expect(c6).toBeDefined();
@@ -304,11 +307,11 @@ describe('buildNowModel', () => {
     expect(c8).toBeUndefined();
   });
 
-  it('gives a runs row the state live, stopped, exited or ended, with the matching phase', async () => {
+  it('gives a runs row the state live or ended, with the matching phase', async () => {
     const now = Date.now();
 
-    // (1) live: a pointer, open phase.start, no phase.end — live phase 'implementation'.
-    const { project: live, specsDir: liveSpecsDir, workflowRoot: liveRoot } = makeProject(base, 'Live Project');
+    // (1) live: a live controller run, open phase.start, no phase.end — live phase 'implementation'.
+    const { project: liveProject, specsDir: liveSpecsDir, workflowRoot: liveRoot } = makeProject(base, 'Live Project');
     const liveDir = makeSpecDir(liveSpecsDir, 'run-live');
     writeFileSync(join(liveRoot, 'HANDOFF.md'), handoffFixture('run-live'));
     writeLedger(liveDir, [
@@ -316,31 +319,7 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'r1', phase: 'implementation' },
     ]);
 
-    // (2) stopped: no pointer; launchOf gives a 'stopped' record for this spec; closed ledger.
-    const { project: stopped, specsDir: stoppedSpecsDir, workflowRoot: stoppedRoot } = makeProject(base, 'Stopped Project');
-    const stoppedDir = makeSpecDir(stoppedSpecsDir, 'run-stopped');
-    writeFileSync(join(stoppedRoot, 'HANDOFF.md'), handoffFixture('run-stopped'));
-    writeLedger(stoppedDir, [
-      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'r2' },
-      { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'r2', phase: 'design' },
-      { ts: '2026-01-01T00:02:00.000Z', type: 'phase.end', run: 'r2', phase: 'design', result: 'approved' },
-      { ts: '2026-01-01T00:03:00.000Z', type: 'run.end', run: 'r2', status: 'stopped' },
-    ]);
-    const stoppedLaunch = baseLaunch({ projectId: stopped.projectId, spec: 'run-stopped', state: 'stopped' });
-
-    // (3) exited: no pointer; launchOf gives an 'exited' record for this spec; closed ledger.
-    const { project: exited, specsDir: exitedSpecsDir, workflowRoot: exitedRoot } = makeProject(base, 'Exited Project');
-    const exitedDir = makeSpecDir(exitedSpecsDir, 'run-exited');
-    writeFileSync(join(exitedRoot, 'HANDOFF.md'), handoffFixture('run-exited'));
-    writeLedger(exitedDir, [
-      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'r3' },
-      { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'r3', phase: 'tasks' },
-      { ts: '2026-01-01T00:02:00.000Z', type: 'phase.end', run: 'r3', phase: 'tasks', result: 'gate-b' },
-      { ts: '2026-01-01T00:03:00.000Z', type: 'run.end', run: 'r3', status: 'exited' },
-    ]);
-    const exitedLaunch = baseLaunch({ projectId: exited.projectId, spec: 'run-exited', state: 'exited', runId: 'r3' });
-
-    // (4) ended: no pointer, launchOf null, closed ledger.
+    // (2) ended: no live run, closed ledger.
     const { project: ended, specsDir: endedSpecsDir, workflowRoot: endedRoot } = makeProject(base, 'Ended Project');
     const endedDir = makeSpecDir(endedSpecsDir, 'run-ended');
     writeFileSync(join(endedRoot, 'HANDOFF.md'), handoffFixture('run-ended'));
@@ -351,41 +330,23 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:03:00.000Z', type: 'run.end', run: 'r4', status: 'done' },
     ]);
 
-    const launchOf = (projectId: string): LaunchRecord | null => {
-      if (projectId === stopped.projectId) return stoppedLaunch;
-      if (projectId === exited.projectId) return exitedLaunch;
-      return null;
-    };
+    const model = await buildNowModel([liveProject, ended], live(liveRun(liveProject, 'run-live', 'r1')), now);
 
-    const model = await buildNowModel(
-      [live, stopped, exited, ended],
-      [pointerFor(live, 'run-live')],
-      launchOf,
-      now,
-    );
-
-    const liveRow = model.runs.find((r) => r.projectId === live.projectId);
+    const liveRow = model.runs.find((r) => r.projectId === liveProject.projectId);
     expect(liveRow?.state).toBe('live');
     expect(liveRow?.phase).toBe('implementation');
-
-    const stoppedRow = model.runs.find((r) => r.projectId === stopped.projectId);
-    expect(stoppedRow?.state).toBe('stopped');
-    expect(stoppedRow?.phase).toBe('design');
-
-    const exitedRow = model.runs.find((r) => r.projectId === exited.projectId);
-    expect(exitedRow?.state).toBe('exited');
-    expect(exitedRow?.phase).toBe('tasks');
+    expect(liveRow?.runId).toBe('r1');
 
     const endedRow = model.runs.find((r) => r.projectId === ended.projectId);
     expect(endedRow?.state).toBe('ended');
     expect(endedRow?.phase).toBe('retrospective');
   });
 
-  it('labels the live runs row with the pointer\'s spec when HANDOFF names a different spec', async () => {
-    // The pointer and the HANDOFF disagree: resolveSpec names 'spec-handoff'
-    // but the active-run pointer names 'spec-pointer' with runId 'run-ptr'. The
-    // live runs row's runId comes from the pointer, so its spec label must come
-    // from the same source — the pointer's spec, not the HANDOFF spec.
+  it('labels the live runs row with the live run\'s spec when HANDOFF names a different spec', async () => {
+    // The live run and the HANDOFF disagree: resolveSpec names 'spec-handoff'
+    // but the live controller run is on 'spec-pointer' with id 'run-ptr'. The
+    // live runs row's runId comes from the run record, so its spec label must
+    // come from the same source — the run's spec, not the HANDOFF spec.
     const { project, specsDir, workflowRoot } = makeProject(base, 'Mismatch Project');
     const handoffDir = makeSpecDir(specsDir, 'spec-handoff');
     const pointerDir = makeSpecDir(specsDir, 'spec-pointer');
@@ -399,12 +360,7 @@ describe('buildNowModel', () => {
       { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'run-ptr', phase: 'implementation' },
     ]);
 
-    const model = await buildNowModel(
-      [project],
-      [pointerFor(project, 'spec-pointer', 'run-ptr')],
-      () => null,
-      Date.now(),
-    );
+    const model = await buildNowModel([project], live(liveRun(project, 'spec-pointer', 'run-ptr')), Date.now());
 
     const runsRow = model.runs.find((r) => r.projectId === project.projectId);
     expect(runsRow?.state).toBe('live');
@@ -412,33 +368,23 @@ describe('buildNowModel', () => {
     expect(runsRow?.spec).toBe('spec-pointer');
   });
 
-  it('omits a project whose launchOf throws from every group, logging once, while the other project\'s rows remain', async () => {
-    const { project: bad, specsDir: badSpecsDir } = makeProject(base, 'Bad Project');
-    const badDir = makeSpecDir(badSpecsDir, 'bad-spec');
-    writeLedger(badDir, [
-      { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'r1' },
-      { ts: '2026-01-01T00:01:00.000Z', type: 'phase.start', run: 'r1', phase: 'implementation' },
-    ]);
+  it('omits a project whose read throws from every group, logging once, while the other project\'s rows remain', async () => {
+    // A project whose paths are not strings: every join() in collectProject throws.
+    const bad = { projectId: randomUUID(), projectName: 'Bad Project', projectPath: undefined, workspacePath: '/tmp' } as unknown as ProjectContext;
 
     const { project: good, specsDir: goodSpecsDir } = makeProject(base, 'Good Project');
     makeSpecDir(goodSpecsDir, 'good-spec');
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const launchOf = (projectId: string): LaunchRecord | null => {
-      if (projectId === bad.projectId) throw new Error('boom');
-      return null;
-    };
-
     try {
-      const model = await buildNowModel([bad, good], [pointerFor(bad, 'bad-spec')], launchOf, Date.now());
+      const model = await buildNowModel([bad, good], new Map(), Date.now());
 
       expect(model.waits.some((w) => w.projectId === bad.projectId)).toBe(false);
       expect(model.live.some((r) => r.projectId === bad.projectId)).toBe(false);
       expect(model.idle.some((r) => r.projectId === bad.projectId)).toBe(false);
       expect(model.closed.some((r) => r.projectId === bad.projectId)).toBe(false);
       expect(model.runs.some((r) => r.projectId === bad.projectId)).toBe(false);
-      expect(model.launches[bad.projectId]).toBeUndefined();
 
       const goodIdle = model.idle.find((r) => r.projectId === good.projectId);
       expect(goodIdle?.launchable).toBe('good-spec');
