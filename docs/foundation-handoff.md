@@ -8,8 +8,8 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 ## Where things stand
 
 - Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#133; the live build
-  is `92717a7`, deployed 2026-10-16 02:50Z with no run live). One PR is open: #132, the
-  close-out's P9 change, which is Matthew's keep-or-close call (see the owner backlog). The
+  is `92717a7`, deployed 2026-10-16 02:50Z with no run live; no open PRs). PR #132, the
+  close-out's P9 change, was closed unmerged: the proposal rested on a misread timeline. The
   controller runs as the systemd user service `sdd-controller` on port 5000 from `dist/` of
   this checkout, with the watchdog timer, the shared secret at `~/.local/state/sdd/secret`,
   and Matthew's gh token in `~/.local/state/sdd/service.env`. Health:
