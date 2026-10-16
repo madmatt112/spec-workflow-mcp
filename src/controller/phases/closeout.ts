@@ -561,13 +561,62 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       if (v) return v;
     }
 
+    // 5b. Revert the commits of items that did not land, so the branch matches
+    // the plan: an item that committed but ends to-do or skipped (gate failed,
+    // fix reported to-do, adjudicator did not land it, verifier said not done)
+    // would otherwise ship its commit in the close-out PR. `home` makes no
+    // commit. A commit a landed item also carries, or one whose revert
+    // conflicts, is left on the branch and its item's line says so. Newest first,
+    // never rewriting history.
+    const leftOnBranch = new Map<string, string>();
+    if (cls !== 'home') {
+      const range = batchStart ? `${batchStart}..HEAD` : 'HEAD';
+      const order = (git(landing.root, ['log', '--format=%H', range]) ?? '').split('\n').filter(Boolean); // newest first
+      const commitsOf = (id: string, sha?: string): string[] => {
+        const want = new Set<string>();
+        if (sha && /^[0-9a-f]{7,40}$/i.test(sha)) {
+          const full = git(landing.root, ['rev-parse', '-q', '--verify', `${sha}^{commit}`]);
+          if (full) want.add(full);
+        }
+        for (const h of (git(landing.root, ['log', '--format=%H', `--grep=${specName} ${id}\\b`, range]) ?? '').split('\n').filter(Boolean)) want.add(h);
+        return order.filter((h) => want.has(h));
+      };
+      const landed = (id: string): boolean => { const s = state.get(id)!; return s.report.status === 'done' && s.ok; };
+      const keptByDone = new Set<string>();
+      for (const it of items) if (landed(it.id)) for (const h of commitsOf(it.id, state.get(it.id)!.report.commit)) keptByDone.add(h);
+      const toRevert: { id: string; sha: string }[] = [];
+      for (const it of items) {
+        if (landed(it.id)) continue;
+        for (const sha of commitsOf(it.id, state.get(it.id)!.report.commit)) {
+          if (keptByDone.has(sha)) {
+            leftOnBranch.set(it.id, `${leftOnBranch.get(it.id) ?? ''} (commit ${sha.slice(0, 7)} left on the branch: shared with a landed item)`);
+            ctx.ledger.note(`closeout: item ${it.id} not landed, commit ${sha.slice(0, 7)} left on the branch (shared with a landed item)`);
+          } else {
+            toRevert.push({ id: it.id, sha });
+          }
+        }
+      }
+      toRevert.sort((a, b) => order.indexOf(a.sha) - order.indexOf(b.sha)); // newest first
+      for (const { id, sha } of toRevert) {
+        const short = sha.slice(0, 7);
+        const res = await runCommand('git', ['revert', '--no-edit', sha], landing.root);
+        if (res.code === 0) {
+          ctx.ledger.note(`closeout: item ${id} not landed, reverted ${short}`);
+        } else {
+          await runCommand('git', ['revert', '--abort'], landing.root);
+          leftOnBranch.set(id, `${leftOnBranch.get(id) ?? ''} (commit ${short} left on the branch: revert failed)`);
+          ctx.ledger.note(`closeout: item ${id} not landed, revert of ${short} failed, left on the branch`);
+        }
+      }
+    }
+
     // 6. Close-out lines, retro entries.
     let done = 0;
     for (const it of items) {
       const s = state.get(it.id)!;
       if (s.report.status === 'done' && s.ok) { closeoutLine(it.id, `done — ${s.report.commit ?? 'in place'}`); done += 1; }
-      else if (s.report.status === 'to-do') { closeoutLine(it.id, `to-do (human) — ${s.report.reason ?? 'not landed'}`); todos.push(`${it.id}: ${s.report.reason ?? it.title}`); }
-      else { closeoutLine(it.id, `skipped — ${s.report.reason ?? s.findings ?? 'not landed'}`); retro(`${cls} batch ${batchNo}`, 'deviation', `${it.id} skipped: ${s.report.reason ?? s.findings ?? 'not landed'}`, it.id, 'unknown'); }
+      else if (s.report.status === 'to-do') { closeoutLine(it.id, `to-do (human) — ${s.report.reason ?? 'not landed'}${leftOnBranch.get(it.id) ?? ''}`); todos.push(`${it.id}: ${s.report.reason ?? it.title}`); }
+      else { closeoutLine(it.id, `skipped — ${s.report.reason ?? s.findings ?? 'not landed'}${leftOnBranch.get(it.id) ?? ''}`); retro(`${cls} batch ${batchNo}`, 'deviation', `${it.id} skipped: ${s.report.reason ?? s.findings ?? 'not landed'}`, it.id, 'unknown'); }
     }
     retro(`${cls} batch ${batchNo}`, 'cleanup', `${cls} batch ${batchNo}: ${done} done of ${items.length}, ${round} fix round(s)`, `batch ${batchNo}`, `${1 + round} implementer spawn(s)`);
 
