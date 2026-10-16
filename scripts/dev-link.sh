@@ -35,10 +35,11 @@ link_one() { # <target> <link>
 unlink_one() { # <link> <expected target prefix>
   if [ -L "$1" ] && [[ "$(readlink "$1")" == "$2"* ]]; then rm "$1"; echo "removed: $1"; fi
 }
-prune_dangling() { # <dir glob> <expected target prefix>: links into this checkout whose target is gone
-  for l in "$1"; do
+prune_dangling() { # <expected target prefix> <link>...: links into this checkout whose target is gone
+  local prefix="$1"; shift
+  for l in "$@"; do
     [ -L "$l" ] || continue
-    [[ "$(readlink "$l")" == "$2"* ]] || continue
+    [[ "$(readlink "$l")" == "$prefix"* ]] || continue
     [ -e "$l" ] || { rm "$l"; echo "pruned (target gone): $l"; }
   done
 }
@@ -47,8 +48,8 @@ case "$MODE" in
   link|--link)
     for f in "$REPO"/harness/agents/*.md; do link_one "$f" "$CLAUDE_DIR/agents/$(basename "$f")"; done
     for d in "$REPO"/harness/skills/*/; do d="${d%/}"; link_one "$d" "$CLAUDE_DIR/skills/$(basename "$d")"; done
-    prune_dangling "$CLAUDE_DIR/agents/sdd-*.md" "$REPO/harness/agents/"
-    prune_dangling "$CLAUDE_DIR/skills/sdd-*" "$REPO/harness/skills/"
+    prune_dangling "$REPO/harness/agents/" "$CLAUDE_DIR"/agents/sdd-*.md
+    prune_dangling "$REPO/harness/skills/" "$CLAUDE_DIR"/skills/sdd-*
     ;;
   --unlink)
     for f in "$CLAUDE_DIR"/agents/sdd-*.md; do [ -L "$f" ] || continue; unlink_one "$f" "$REPO/harness/agents/"; done
