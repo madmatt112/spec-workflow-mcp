@@ -76,6 +76,21 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 - tradr and jobsync still run whole specs on the old harness until they move to the
   controller.
 
+## State at the 2026-10-16 13:40Z handoff (usage limit)
+
+- Live build `2a85c14` (step (d) complete in production; smoke boot passed without the launcher).
+- `run-20261016-122423` (fixture spec 5 `repeat`) is **paused on the usage window until
+  17:10Z**, then resumes by itself into the end-to-end verification, the PR and the retro.
+  Answer its retro-plan wait yourself (fixture rule), but approve only proposals whose
+  Target is the fixture itself; drop harness-targeted ones. Its close-out is the proof that
+  PR #133 and #137 made close-out land something.
+- Open PRs for review: **#136** (the roadmap re-plan, Matthew's) and **#141** (the harness
+  manual rewritten for the controller by a fork; review before merging; one stale header
+  comment in `RunPage.tsx` noted there).
+- tradr's first controller run: pre-flight done; launch after the seven-day reset
+  (Saturday 2026-10-18 15:00Z) or on Matthew's word. Its gates are his.
+- The HUD (`overwatch-hud.json`) is retired per design §12; `owner-backlog.md` stays current.
+
 ## Next, in order
 
 1. Carried decisions for Matthew: farewell retro P2 (scope gate touched-paths to the task's
