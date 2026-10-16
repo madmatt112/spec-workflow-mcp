@@ -29,7 +29,7 @@ describe('pushSpecStore', () => {
   it('rebases the local store commits onto the remote and pushes; a store with no remote is skipped', () => {
     base = mkdtempSync(join(tmpdir(), 'ctrl-push-'));
     const origin = join(base, 'origin.git');
-    git(base, ['init', '-q', '--bare', origin]);
+    git(base, ['init', '-q', '--bare', '-b', 'main', origin]); // CI's default branch is not main
     const store = join(base, 'store');
     initRepo(store);
     commit(store, 'README.md', 'init');
@@ -37,7 +37,7 @@ describe('pushSpecStore', () => {
     git(store, ['push', '-q', '-u', 'origin', 'main']);
     // The remote moves on (a run's PR merged there) while the store commits locally.
     const other = join(base, 'other');
-    git(base, ['clone', '-q', origin, other]);
+    git(base, ['clone', '-q', '-b', 'main', origin, other]);
     git(other, ['config', 'user.email', 't@test']);
     git(other, ['config', 'user.name', 'Tester']);
     git(other, ['config', 'commit.gpgsign', 'false']);
@@ -60,14 +60,14 @@ describe('pushSpecStore', () => {
   it('reports a rebase that conflicts, leaving the store as it was', () => {
     base = mkdtempSync(join(tmpdir(), 'ctrl-push-'));
     const origin = join(base, 'origin.git');
-    git(base, ['init', '-q', '--bare', origin]);
+    git(base, ['init', '-q', '--bare', '-b', 'main', origin]); // CI's default branch is not main
     const store = join(base, 'store');
     initRepo(store);
     commit(store, 'HANDOFF.md', 'init');
     git(store, ['remote', 'add', 'origin', origin]);
     git(store, ['push', '-q', '-u', 'origin', 'main']);
     const other = join(base, 'other');
-    git(base, ['clone', '-q', origin, other]);
+    git(base, ['clone', '-q', '-b', 'main', origin, other]);
     git(other, ['config', 'user.email', 't@test']);
     git(other, ['config', 'user.name', 'Tester']);
     git(other, ['config', 'commit.gpgsign', 'false']);
