@@ -260,6 +260,8 @@ it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.t
 | `baseline-w-per-spec: <n>` | the controller | the token cap is twice this |
 | `tdd-test-command: <command>` | the review gate | the red-on-base proof |
 | `red-on-base`, `red-on-base-setup` | the review gate | the proof's mode and setup |
+| `lint: <command>` | nobody | informational only; put the command under `## Checks` to have it run |
+| `## Checks` bullets | the implementer | the commands it runs and reports to the gate |
 | `typecheck: none` | the review gate | the project declares no typecheck |
 | `## Sensitive paths` bullets | the review gate | a touched path here raises the risk |
 | `## Generated paths` bullets | the review gate | excluded from the line rule |
