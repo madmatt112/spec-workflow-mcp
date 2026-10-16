@@ -544,14 +544,17 @@ export function classifyTarget(block: string): TargetClass {
   // `none` reads the whole item — its marker often sits in Decision. The class regexes
   // match the Target value alone, so Decision text cannot misfile an item (retro P3).
   if (/\bnone\b|human action|ratified|closed|no change/.test(`${target} ${decision}`)) return 'none';
-  const harness = /harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(target);
+  // Keywords are read with the code spans removed: `agent-rules.md` must not read as
+  // "agents" (whisper close-out filed two fixture items into the harness batch that way).
+  const prose = target.replace(/`[^`]*`/g, ' ');
+  const harness = /harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(prose);
   // A concrete repository path in the Target wins over the keywords around it: a
   // "project steering (`.gitignore`)" item lands in the code repository, not the spec
   // store, whose direct-commit batch may not touch it (shout close-out, P1).
   const repoPath = targetPaths(target).find((p) => !isStorePath(p) && !isHomePath(p));
   if (repoPath) return harness || repoPath.startsWith('harness/') ? 'harness' : 'code';
   if (/agent-rules|steering|\brules?\b|decomposition|spec[ -]?store|\bstore\b/.test(target)) return 'store';
-  if (harness) return 'harness';
+  if (harness || /^harness\//.test(targetPaths(target)[0] ?? '')) return 'harness';
   if (/memory|claude\.md|settings|~\/\.claude/.test(target)) return 'home';
   if (/\bcode\b|checkout|\brepo\b|src\//.test(target)) return 'code';
   return 'none';

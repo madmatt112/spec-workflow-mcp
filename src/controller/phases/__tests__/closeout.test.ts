@@ -140,6 +140,10 @@ describe('classifyTarget', () => {
   it('lets a named repository path win over the steering keyword, keeps store and home paths where they belong', () => {
     expect(classifyTarget('- **P1** x\n  Target: project steering (`.gitignore`).')).toBe('code');
     expect(classifyTarget('- **P1** x\n  Target: steering (`.spec-workflow/agent-rules.md`).')).toBe('store');
+    // `agent-rules.md` beside a repository path must not read as "agents" (whisper P1, P2).
+    expect(classifyTarget('- **P1** x\n  Target: project steering (repo root `.gitignore` / `agent-rules.md`).')).toBe('code');
+    expect(classifyTarget('- **P2** x\n  Target: project steering (`agent-rules.md` checks + `package.json` script).')).toBe('code');
+    expect(classifyTarget('- **P3** x\n  Target: harness skills (`harness/skills/sdd-implementation-phase/SKILL.md`).')).toBe('harness');
     expect(classifyTarget('- **P1** x\n  Target: agent-rules.md.')).toBe('store');
     expect(classifyTarget('- **P1** x\n  Target: server code (`src/controller/merge.ts`).')).toBe('harness');
     expect(classifyTarget('- **P1** x\n  Target: harness skills or agents (overwatch / merge-error handling).')).toBe('harness');
