@@ -5,6 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { runCloseoutPhase, itemPaths, parseItemLines, type CloseoutPhaseContext } from '../closeout.js';
+import { classifyTarget } from '../../../tools/harness.js';
 import { openRunLedger } from '../../ledger.js';
 import type { RunRecord } from '../../state.js';
 
@@ -127,10 +128,24 @@ afterEach(() => {
 describe('itemPaths and parseItemLines', () => {
   it('reads the paths an item names and the report lines', () => {
     expect(itemPaths('Add `typecheck: none` to `.spec-workflow/agent-rules.md` and `src/a.ts:12`; see `https://x.y/z`.')).toEqual(['.spec-workflow/agent-rules.md', 'src/a.ts']);
+    expect(itemPaths('Add `package-lock.json` to `.gitignore`; the branch is `feat/shout`.')).toEqual(['package-lock.json', '.gitignore', 'feat/shout']);
     expect(parseItemLines('P1: done abc1234\n- P2: to-do — needs a human\nP3: skipped — no file\nG1: done deadbeef00')).toEqual([
       { id: 'P1', status: 'done', commit: 'abc1234' }, { id: 'P2', status: 'to-do', reason: 'needs a human' },
       { id: 'P3', status: 'skipped', reason: 'no file' }, { id: 'G1', status: 'done', commit: 'deadbeef00' },
     ]);
+  });
+});
+
+describe('classifyTarget', () => {
+  it('lets a named repository path win over the steering keyword, keeps store and home paths where they belong', () => {
+    expect(classifyTarget('- **P1** x\n  Target: project steering (`.gitignore`).')).toBe('code');
+    expect(classifyTarget('- **P1** x\n  Target: steering (`.spec-workflow/agent-rules.md`).')).toBe('store');
+    expect(classifyTarget('- **P1** x\n  Target: agent-rules.md.')).toBe('store');
+    expect(classifyTarget('- **P1** x\n  Target: server code (`src/controller/merge.ts`).')).toBe('harness');
+    expect(classifyTarget('- **P1** x\n  Target: harness skills or agents (overwatch / merge-error handling).')).toBe('harness');
+    expect(classifyTarget('- **P1** x\n  Target: memory (`~/.claude/CLAUDE.md`).')).toBe('home');
+    expect(classifyTarget('- **P1** x\n  Target: product code (`src/cli.js`).')).toBe('code');
+    expect(classifyTarget('- **P1** x\n  Target: none.\n  Decision: no change.')).toBe('none');
   });
 });
 
@@ -215,6 +230,32 @@ describe('runCloseoutPhase', () => {
     writeFileSync(join(fx.specDir, 'retrospective-plan.md'), planText(fx).replace('Status: CLOSED', 'Status: DRAFT'));
     const draft = await runCloseoutPhase(ctxFor(fx));
     expect(draft).toMatchObject({ result: 'error', reason: 'plan status is DRAFT, not APPROVED' });
+  }, 60000);
+
+  it('skips a no-change item whose body mentions the human, lands a dotfile in the code batch, and gates a vague Target on the commit files', async () => {
+    const pNoChange = ['- **P5 (F5) — No change: the verifier skip is deliberate.** If the human wants verifiers on new modules, that is a rules change.', '  Target: none.', '  Decision: no change.'].join('\n');
+    const pDotfile = ['- **P6 (F6) — Ignore the lockfile.** Add `package-lock.json` to `.gitignore`.', '  Target: project steering (`.gitignore`).', '  Decision: add the line.'].join('\n');
+    const pVague = ['- **P7 (F7) — Halt on a force-push.** The branch `feat/x` was force-pushed; halt the merge.', '  Target: harness skills or agents (merge-error handling).', '  Decision: option A.'].join('\n');
+    fx = setup([pNoChange, pDotfile, pVague]);
+    writeScript(fx, [
+      batchRun(fx, [{ id: 'P7', file: 'harness/notes.md' }]), // harness batch first (CLASS_ORDER)
+      batchRun(fx, [{ id: 'P6', file: '.gitignore' }]),       // then the code batch
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 3, done: 2, todo: 0, skipped: 1 });
+    const text = planText(fx);
+    expect(text).toMatch(/^- P5: skipped — no change$/m);
+    expect(text).toMatch(/^- P6: done — [0-9a-f]{40}$/m);
+    expect(text).toMatch(/^- P7: done — [0-9a-f]{40}$/m);
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement harness batch 1', 'implement code batch 2']);
+    expect(r.some((e) => e.type === 'note' && /^gate: item P7 files taken from the commit/.test(e.text))).toBe(true);
+    expect(r.some((e) => e.type === 'note' && /^gate: item P7 pass/.test(e.text))).toBe(true);
+    expect(r.some((e) => e.type === 'note' && /^gate: item P6 pass/.test(e.text))).toBe(true);
+    expect(readFileSync(join(fx.scratch, 'closeout-brief-harness-1.md'), 'utf8')).toContain('Every file you edit is under that root');
   }, 60000);
 
   it('opens the retro PR for a harness repository with a remote', async () => {
