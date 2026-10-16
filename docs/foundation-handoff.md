@@ -94,11 +94,14 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 4. Small PR: merge the close-out PRs by rule (they are recorded in the plan, the HANDOFF
    closeout section and `run.closeoutPrs`; the harness repo is `merge: ask`, so that one is
    a `merge` wait).
-5. Step (d): delete the supervisor skill, hooks, pointer file, the four orchestrators and
-   their phase skills (tradr and jobsync must move to the controller first, or keep a
-   frozen copy), and re-plan the roadmap (specs 16-21 parked in
-   `.spec-workflow/spec-decomposition/superseded-2026-10-10.md`; spec 22 slots in after
-   the dashboard pages the re-plan keeps).
+5. Step (d): the harness half is done (PR #138: supervisor skill, phase skills,
+   orchestrators, hook; frozen at tag `legacy-harness-final`; after a deploy run
+   `scripts/dev-link.sh` once to prune the dead links and the hook entry). Left: (d2) the
+   server-side legacy paths (`launcher.ts` supervisor spawn and restore, the `active-run`
+   pointer in state-files, controller and runs, `harness-run.json` writes in the setup and
+   launch routes, the Now model's pointer inputs, the setup form's supervisor model), and
+   the roadmap re-plan, proposed in PR #136 for Matthew. jobsync is registered; tradr's
+   first controller run is held for the seven-day window reset (Saturday 15:00Z).
 6. The advisor (design §16, ADR 0006): before designing its "state of the world" mechanism,
    hold the research and design session Matthew asked for (graph generators, indices). Do not
    design it solo.

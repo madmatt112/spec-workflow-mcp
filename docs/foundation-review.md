@@ -703,6 +703,20 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   fixture retro plan can carry harness changes; read the Targets before approving. Deployed
   during the run at gate B: `2fe6e11`.
 
+- 2026-10-16 12:20Z onward: PR #137 (the `agent-rules.md` classifier fix) deployed as
+  `81c2916`; fixture spec 5 `repeat` launched (`run-20261016-122423`) as the next close-out
+  proof; jobsync registered as a controller project (`GX_XQvIbDgC-frOt`; its roadmap is
+  complete, so it idles). **Step (d), first half, PR #138 (`0f4dc2e`)**: the supervisor
+  skill with its reference scripts, the four phase skills, the four orchestrator agents,
+  the activity hook and the tests of those scripts are deleted; the ten worker roles and
+  `sdd-deferrals` stay; `dev-link.sh` prunes dead links and strips the retired hook's
+  settings entries; the last legacy commit is tagged `legacy-harness-final`. Second half
+  (d2), next: the server-side legacy paths (the launcher's supervisor spawn, the
+  `active-run` pointer, `harness-run.json`, the setup form's supervisor model). The tradr
+  launch is held: the seven-day usage window stood at 70% with the reset on Saturday
+  2026-10-18 15:00Z, and a full tradr run could pause itself and lock Matthew's own
+  sessions out until then; it launches after the reset unless he says otherwise.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
