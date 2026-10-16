@@ -76,6 +76,12 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 - tradr and jobsync still run whole specs on the old harness until they move to the
   controller.
 
+## If this session's model runs out
+
+`docs/foundation-coordinator-prompt.md` is a self-contained prompt for a coordinator
+session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
+order, and how to brief subagents. Point a session at it and it carries the course on.
+
 ## State at the 2026-10-16 13:40Z handoff (usage limit)
 
 - Live build `2a85c14` (step (d) complete in production; smoke boot passed without the launcher).
