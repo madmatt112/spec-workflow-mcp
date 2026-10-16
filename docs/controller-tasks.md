@@ -324,7 +324,10 @@ and one narrow verification. One close-out line per item, `task.pick`/`task.done
 follow-ups`; no remote ⇒ the branch line), a spec-store commit per batch; then `Status:
 CLOSED`, the HANDOFF `## <spec> — closeout` section, the retro summary, `phase.end
 result=closed`, `phase-log` and `docs(sdd): <spec> closed`. The run record carries the PRs
-opened (`closeoutPrs`); merging them by rule is the next small PR. Not carried: the graph
+opened (`closeoutPrs`); the run's `done` branch merges them by rule before `run.end` (the
+project's rules for the code repository, the repository's own `agent-rules.md` for any other,
+one `merge` wait per PR), then pushes the spec store (rebase onto origin, push; a failure is
+an `error` wait). Not carried: the graph
 refresh. The old supervisor is no longer spawned for anything, so `runs.ts` loses the
 supervisor step, `harness-run.json` writing, the pointer line and the no-progress guard.
 

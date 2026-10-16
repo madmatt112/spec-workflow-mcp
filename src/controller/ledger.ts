@@ -68,7 +68,7 @@ export interface RunLedger {
   /** The gate's TDD judge answers for a task (implementation skill "Bookkeeping": the `judge` row). */
   judge(fields: { task: string; site: string } & Record<string, string>): void;
   /** A PR merged by the controller's merge rule (T7): number, merge sha, method. */
-  prMerged(fields: { number: string | number; sha: string; method: string }): void;
+  prMerged(fields: { number: string | number; sha: string; method: string; repo?: string }): void;
   note(text: string): void;
 }
 
@@ -166,7 +166,7 @@ export function openRunLedger(options: OpenRunLedgerOptions): RunLedger {
       write('judge', fields);
     },
     prMerged(fields) {
-      write('pr.merged', { number: String(fields.number), sha: fields.sha, method: fields.method });
+      write('pr.merged', { number: String(fields.number), sha: fields.sha, method: fields.method, ...(fields.repo ? { repo: fields.repo } : {}) });
     },
     note(text) {
       write('note', { text });
@@ -269,4 +269,40 @@ export function commitSpecStore(
     git(['commit', '-q', '-m', message]);
     return git(['rev-parse', 'HEAD']);
   });
+}
+
+/**
+ * Push the spec store's current branch to `origin`, after rebasing the local
+ * commits onto the remote's. The controller commits store documents locally
+ * while a run's pull request merges on the remote, so the two sides diverge:
+ * the first fixture runs left ten local-only commits behind an unrelated
+ * origin/main. No remote ⇒ skipped (`ok`). A failed rebase is aborted and
+ * reported; nothing here throws.
+ */
+export function pushSpecStore(specStoreRoot: string): { ok: boolean; note: string } {
+  const git = (args: string[]): string =>
+    execFileSync('git', ['-C', specStoreRoot, ...args], { encoding: 'utf-8', env: scrubbedGitEnv(), stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const fail = (step: string, err: unknown): { ok: false; note: string } => {
+    const e = err as { stderr?: unknown; message?: string };
+    const text = typeof e?.stderr === 'string' && e.stderr.trim() ? e.stderr.trim().split('\n').pop()! : (e?.message ?? String(err));
+    return { ok: false, note: `${step}: ${text}` };
+  };
+  let remotes = '';
+  try { remotes = git(['remote']); } catch (err) { return fail('git remote', err); }
+  if (!remotes) return { ok: true, note: 'no remote' };
+  let branch = '';
+  try { branch = git(['rev-parse', '--abbrev-ref', 'HEAD']); } catch (err) { return fail('rev-parse', err); }
+  if (!branch || branch === 'HEAD') return { ok: false, note: 'the spec store is on a detached HEAD' };
+  let remoteHasBranch = true;
+  try { git(['fetch', '-q', 'origin', branch]); } catch { remoteHasBranch = false; }
+  if (remoteHasBranch) {
+    try {
+      git(['rebase', '-q', '--autostash', `origin/${branch}`]);
+    } catch (err) {
+      try { git(['rebase', '--abort']); } catch { /* nothing to abort */ }
+      return fail(`rebase onto origin/${branch}`, err);
+    }
+  }
+  try { git(['push', '-q', 'origin', branch]); } catch (err) { return fail(`push ${branch}`, err); }
+  return { ok: true, note: `pushed ${branch}` };
 }

@@ -20,7 +20,7 @@ import { execFileSync } from 'child_process';
 import {
   existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync, statSync,
 } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { EventEmitter } from 'events';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { PathUtils } from '../core/path-utils.js';
@@ -32,11 +32,12 @@ import {
   type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
   isProcessAlive, runStepsDir, withStoreLock,
 } from './state.js';
-import { openRunLedger, commitSpecStore, type RunLedger } from './ledger.js';
+import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import {
-  runMergeStage, findPullRequest, MERGE_POLL_INTERVAL_MS, type MergeRules,
+  runMergeStage, findPullRequest, mergeByRule, closeoutMergeTarget, readMergeRules,
+  MERGE_POLL_INTERVAL_MS, type MergeRules, type MergeStageResult,
 } from './merge.js';
 import {
   runDocumentPhase, NO_OP_GATES,
@@ -467,6 +468,26 @@ function runStarted(specDir: string, runId: string): boolean {
   }
 }
 
+/** Has the ledger a `run.end` row for this run (a retried run end must not write a second)? */
+function runEnded(specDir: string, runId: string): boolean {
+  try {
+    const events = parseJsonl<{ type?: string; run?: string }>(readFileSync(ledgerPath(specDir), 'utf-8'));
+    return events.some((e) => e.type === 'run.end' && e.run === runId);
+  } catch {
+    return false;
+  }
+}
+
+/** Has this run merged the close-out PR `number` of `repoDir` (a `pr.merged` row carrying the repo)? */
+function hasMergedPr(specDir: string, runId: string, repoDir: string, number: number): boolean {
+  try {
+    const events = parseJsonl<{ type?: string; run?: string; repo?: string; number?: string }>(readFileSync(ledgerPath(specDir), 'utf-8'));
+    return events.some((e) => e.type === 'pr.merged' && e.run === runId && e.repo === basename(repoDir) && e.number === String(number));
+  } catch {
+    return false;
+  }
+}
+
 /** The run's token totals so far, summed from its `spawn.end` rows. */
 function runTokens(specDir: string, runId: string): TokenTotals {
   const totals: TokenTotals = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
@@ -550,8 +571,10 @@ function hasMerged(specDir: string, runId: string): boolean {
 /** Is there a `merge` wait for this run (the ask-me-first path is in progress)? */
 async function hasMergeWait(runId: string): Promise<boolean> {
   try {
+    // The run's own PR's wait asks `merge`; a close-out PR's wait asks `merge:<repo>#<n>`
+    // and is the done branch's business, not the implementation merge stage's.
     const waits = await listWaits();
-    return waits.some((w) => w.kind === 'merge' && w.run === runId);
+    return waits.some((w) => w.kind === 'merge' && w.run === runId && w.questions.some((q) => q.id === 'merge'));
   } catch {
     return false;
   }
@@ -732,7 +755,15 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
     const decision = await routeRun(specStoreRoot, run.spec);
 
     if (decision.kind === 'done') {
-      ledger.runEnd('done');
+      // The close-out's PRs merge by rule before the run ends (T14); a stuck one
+      // parks the run on a wait and "Retry" comes back here through routing.
+      const pending = (run.closeoutPrs ?? []).filter((p) => typeof p.number === 'number' && !hasMergedPr(specDir, runId, p.repoDir, p.number));
+      if (pending.length > 0) {
+        const out = await runCloseoutMergeStep(deps, run, ledger, specDir, pending);
+        if (out === 'stop') return;
+        run = (await readRun(runId)) ?? run;
+      }
+      if (!runEnded(specDir, run.id)) ledger.runEnd('done');
       // The run's last rows (the close-out's and this `run.end`) are history too:
       // commit them, as the supervisor's deregister step did by hand.
       try {
@@ -742,6 +773,21 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         );
       } catch (err) {
         ledger.note(`run-end commit failed: ${(err as Error).message}`);
+      }
+      // The store's commits are only history once they are on the remote: rebase
+      // onto origin (a run's PR merged there meanwhile) and push. A failure is a
+      // wait, not a silent drift; "Retry" comes back here through routing.
+      const pushed = await withStoreLock(specStoreRoot, async () => pushSpecStore(specStoreRoot));
+      if (!pushed.ok) {
+        ledger.note(`spec store push failed: ${pushed.note}`);
+        run = await save(deps, run, { cursor: { phase: 'closeout', stepKind: 'store-push', attempt: 1 } });
+        await waitAnd(deps, run, ledger, 'error', specDir, [{
+          id: 'push',
+          text: `The run is complete but the spec store at ${specStoreRoot} could not be pushed (${pushed.note}). `
+            + 'Push it by hand or fix the remote, then answer "Retry" to push again; "Abandon" leaves it unpushed.',
+          options: ['retry', 'abandon'], recommended: 'retry',
+        }]);
+        return;
       }
       await save(deps, run, { status: 'done', phase: undefined, inFlight: undefined });
       return;
@@ -846,6 +892,51 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
     if (handled === 'stop') return;
     continue; // closed or a retry: re-route (a CLOSED plan is `done`)
   }
+}
+
+/**
+ * Merge the close-out PRs a CLOSED plan left open, by each repository's rule
+ * (design §10, controller-tasks T14): the project's merge rules for the code
+ * repository, the repository's own `agent-rules.md` for any other (the harness
+ * repository says `ask`). Each PR gets its own `merge` wait. The worst outcome
+ * decides: a failed, unreadable or blocked PR ⇒ an `error` wait with a `merge`
+ * cursor ("Retry" re-enters here through routing); an `ask` ⇒ `waiting`; a
+ * check in flight ⇒ `merging` with a re-check time; all merged ⇒ `go`.
+ */
+async function runCloseoutMergeStep(
+  deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
+  pending: NonNullable<RunRecord['closeoutPrs']>,
+): Promise<'stop' | 'go'> {
+  const results: { label: string; result: MergeStageResult }[] = [];
+  for (const p of pending) {
+    if (typeof p.number !== 'number') continue;
+    const target = closeoutMergeTarget(run, { number: p.number, repoDir: p.repoDir, branch: p.branch, url: p.url });
+    const rules = p.repoDir === run.codeRoot ? deps.mergeRules(run) : readMergeRules(join(p.repoDir, '.spec-workflow'));
+    const result = await mergeByRule(target, { rules, specDir, stepLogDir: stepLogDir(run.id), ledger, now: deps.now });
+    ledger.note(`close-out merge: ${target.label} ${result.status}${result.reasons.length ? ` (${result.reasons.join('; ')})` : ''}`);
+    results.push({ label: target.label, result });
+  }
+  const of = (status: MergeStageResult['status']) => results.filter((r) => r.result.status === status);
+  const stuck = [...of('failed'), ...of('unreadable'), ...of('blocked')];
+  if (stuck.length > 0) {
+    run = await save(deps, run, { cursor: { phase: 'closeout', stepKind: 'merge', attempt: 1 } });
+    await waitAnd(deps, run, ledger, 'error', specDir, [{
+      id: 'merge',
+      text: `${stuck.map((s) => `${s.label}: ${s.result.status} (${s.result.reasons.join('; ')})`).join('. ')}. `
+        + 'Fix or merge the PR by hand, then answer "Retry"; "Abandon" leaves it open.',
+      options: ['retry', 'abandon'], recommended: 'retry',
+    }]);
+    return 'stop';
+  }
+  if (of('waiting').length > 0) {
+    await save(deps, run, { status: 'waiting', inFlight: undefined });
+    return 'stop';
+  }
+  if (of('not-ready').length > 0) {
+    await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
+    return 'stop';
+  }
+  return 'go';
 }
 
 /** Map a close-out outcome to a run-status change: `go` re-routes (a CLOSED plan is `done`). */

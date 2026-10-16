@@ -3,7 +3,7 @@ import {
   mkdtempSync, mkdirSync, writeFileSync, existsSync, chmodSync, rmSync, readFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import {
@@ -405,6 +405,66 @@ describe('runOnce merge stage', () => {
     return readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
       .trim().split('\n').map((l) => JSON.parse(l) as Record<string, string>);
   }
+
+  /** A plan whose close-out is done: `Status: CLOSED` routes the run to `done`. */
+  function closePlan(fx: Fixture): void {
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), ['# Retrospective plan — ' + SPEC, '', 'Status: CLOSED', '', '## Approved proposals', '', '## Close-out', '- P1: skipped — none', ''].join('\n'));
+  }
+  const RETRO_BRANCH = `chore/${SPEC}-retro`;
+
+  it('merges an unmerged close-out PR by rule before the run ends, recording it with its repo', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    closePlan(fx);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'view'], stdout: { ...readyView, headRefName: RETRO_BRANCH } },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'c105e0a7' } } },
+    ]);
+    await writeRun(seedRun(fx, { closeoutPrs: [{ repoDir: fx.repo, branch: RETRO_BRANCH, number: 7 }] }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('done');
+    const rows = mergedRows(fx);
+    expect(rows.find((r) => r.type === 'pr.merged')).toMatchObject({ number: '7', sha: 'c105e0a7', method: 'merge', repo: basename(fx.repo) });
+    expect(rows.filter((r) => r.type === 'run.end')).toHaveLength(1);
+    // The store is committed and clean at the end; no remote, so nothing was pushed.
+    expect(rows[rows.length - 1].type).toBe('run.end');
+    expect(git(fx.repo, ['status', '--short']).trim()).toBe('');
+  }, 30000);
+
+  it('ask: a close-out PR opens its own merge wait, and an answer of merge ends the run done', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    closePlan(fx);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'view'], stdout: { ...readyView, headRefName: RETRO_BRANCH } },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'view'], stdout: { ...readyView, headRefName: RETRO_BRANCH } },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'ab12cd34' } } },
+    ]);
+    await writeRun(seedRun(fx, { closeoutPrs: [{ repoDir: fx.repo, branch: RETRO_BRANCH, number: 7 }] }));
+    const ask = { mergeRules: () => ({ method: 'merge' as const, postMerge: null, merge: 'ask' as const }) };
+
+    await runOnce(deps(fx, ask), 'run-20261011-000000');
+    let run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const wait = (await listWaits()).find((w) => w.kind === 'merge' && w.run === 'run-20261011-000000');
+    expect(wait?.questions[0]).toMatchObject({ id: `merge:${basename(fx.repo)}#7`, text: `Merge close-out PR #7 of ${basename(fx.repo)}?` });
+
+    await answerWait(wait!.id, { [`merge:${basename(fx.repo)}#7`]: 'merge' }, 'matthew');
+    await runOnce(deps(fx, ask), 'run-20261011-000000');
+    run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('done');
+    expect(mergedRows(fx).find((r) => r.type === 'pr.merged')).toMatchObject({ number: '7', repo: basename(fx.repo) });
+  }, 30000);
 
   it('auto: not-ready once, then merged, then the retro step runs', async () => {
     await approve(fx, 'requirements');
