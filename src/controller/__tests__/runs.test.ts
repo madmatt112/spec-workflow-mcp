@@ -475,7 +475,7 @@ describe('runOnce merge stage', () => {
     expect((await listWaits()).filter((w) => w.kind === 'merge')).toHaveLength(1);
   }, 30000);
 
-  it('failed: a failing merge writes an error wait', async () => {
+  it('failed: a failing merge writes an error wait that recommends retry (no human force-push)', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
@@ -485,6 +485,7 @@ describe('runOnce merge stage', () => {
       { argvIncludes: ['pr', 'view'], stdout: readyView },
       runsOk, statusOk,
       { argvIncludes: ['pr', 'merge'], stderr: 'the base branch has moved\n', exitCode: 1 },
+      { argvIncludes: ['api'], stdout: [{ event: 'committed' }] }, // the force-push check: none
     ]);
     await writeRun(seedRun(fx, { branch: BRANCH }));
 
@@ -494,6 +495,33 @@ describe('runOnce merge stage', () => {
     const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
     expect(err).toBeTruthy();
     expect(err!.questions[0].text).toMatch(/the base branch has moved/);
+    expect(err!.questions[0].recommended).toBe('retry');
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
+  it('failed after a human force-push: the error wait halts and asks (no recommendation)', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [e2eRun]);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'merge'], stderr: 'the base branch has moved\n', exitCode: 1 },
+      { argvIncludes: ['api'], stdout: [
+        { event: 'head_ref_force_pushed', actor: { login: 'madmatt112' }, created_at: '2026-10-15T23:11:00Z' },
+      ] },
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+    expect(err).toBeTruthy();
+    expect(err!.questions[0].recommended).toBeUndefined(); // halts for the human
+    expect(err!.questions[0].text).toMatch(/madmatt112 force-pushed the branch after the PR opened/);
     expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
   }, 30000);
 

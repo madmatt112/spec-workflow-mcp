@@ -36,7 +36,8 @@ import { openRunLedger, commitSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import {
-  runMergeStage, findPullRequest, MERGE_POLL_INTERVAL_MS, type MergeRules,
+  runMergeStage, findPullRequest, branchForcePushedByHuman,
+  MERGE_POLL_INTERVAL_MS, type MergeRules,
 } from './merge.js';
 import {
   runDocumentPhase, NO_OP_GATES,
@@ -563,6 +564,31 @@ function nextMergeCheck(deps: RunDeps): string {
 }
 
 /**
+ * The question for a merge-error `error` wait. An ordinary error recommends
+ * "retry" — the auto-clearing default for a transient failure. But when a human
+ * force-pushed the branch since the PR opened (retrospective shout P9/F9), the
+ * human may be mid-change: the wait halts and asks instead — it names who
+ * force-pushed and carries no recommendation, so the operator consults the human
+ * rather than applying a default retry.
+ */
+function mergeErrorQuestion(text: string, forcePushedBy?: string): ControllerWaitRecord['questions'][number] {
+  if (forcePushedBy) {
+    return {
+      id: 'merge',
+      text: `${text} ${forcePushedBy} force-pushed the branch after the PR opened, so the human may be mid-change — ask them before retrying.`,
+      options: ['retry', 'abandon'],
+    };
+  }
+  return { id: 'merge', text, options: ['retry', 'abandon'], recommended: 'retry' };
+}
+
+/** Who force-pushed the run's branch since its PR opened (P9/F9), or undefined. */
+async function mergeForcePusher(run: RunRecord, number: number | undefined): Promise<string | undefined> {
+  if (number === undefined) return undefined;
+  return branchForcePushedByHuman({ repoDir: run.codeRoot, branch: run.branch, number });
+}
+
+/**
  * Run one pass of the merge stage. Finds the run's open PR (recording `run.pr`),
  * runs the merge rule, and maps its status to a run-status change: `not-ready` ⇒
  * status `merging` with a re-check time (the scheduler tick re-enters, no slot
@@ -618,46 +644,43 @@ async function runMergeStageStep(
     case 'not-ready':
       await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
       return 'stop';
-    case 'blocked':
+    case 'blocked': {
       // The PR fails the rule and nothing is in flight (a red check, a conflict,
       // an attribution trailer, a wrong head branch); polling would never change
       // that. The `merge` cursor makes a "retry" re-enter the merge stage.
       run = await save(deps, run, {
         cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
       });
-      await waitAnd(deps, run, ledger, 'error', specDir, [{
-        id: 'merge',
-        text: `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}. `
-          + 'Fix the PR (rewrite the commit, resolve the conflict, fix the check), then answer "Retry", or abandon.',
-        options: ['retry', 'abandon'], recommended: 'retry',
-      }]);
+      const forcePushedBy = await mergeForcePusher(run, result.number ?? run.pr);
+      const text = `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}. `
+        + 'Fix the PR (rewrite the commit, resolve the conflict, fix the check), then answer "Retry", or abandon.';
+      await waitAnd(deps, run, ledger, 'error', specDir, [mergeErrorQuestion(text, forcePushedBy)]);
       return 'stop';
+    }
     case 'waiting':
       // `runMergeStage` opened (or reused) the `merge` wait; just park the run.
       await save(deps, run, { status: 'waiting', inFlight: undefined });
       return 'stop';
-    case 'unreadable':
+    case 'unreadable': {
       // `gh` could not read the PR at all; polling would never change that. The
       // `merge` cursor makes a "retry" re-enter the merge stage.
       run = await save(deps, run, {
         cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
       });
-      await waitAnd(deps, run, ledger, 'error', specDir, [{
-        id: 'merge',
-        text: `The state of PR #${result.number ?? run.pr ?? '?'} could not be read: ${result.reasons.join('; ')}. `
-          + "Probable cause: the controller's gh token cannot read checks (a fine-grained token needs Checks: read). "
-          + 'Fix the token, or merge the PR by hand, then answer "Retry".',
-        options: ['retry', 'abandon'], recommended: 'retry',
-      }]);
+      const forcePushedBy = await mergeForcePusher(run, result.number ?? run.pr);
+      const text = `The state of PR #${result.number ?? run.pr ?? '?'} could not be read: ${result.reasons.join('; ')}. `
+        + "Probable cause: the controller's gh token cannot read checks (a fine-grained token needs Checks: read). "
+        + 'Fix the token, or merge the PR by hand, then answer "Retry".';
+      await waitAnd(deps, run, ledger, 'error', specDir, [mergeErrorQuestion(text, forcePushedBy)]);
       return 'stop';
+    }
     case 'failed':
-    default:
-      await waitAnd(deps, run, ledger, 'error', specDir, [{
-        id: 'merge',
-        text: `Merge of PR #${result.number ?? run.pr ?? '?'} failed: ${result.reasons.join('; ')}. Retry or abandon.`,
-        options: ['retry', 'abandon'], recommended: 'retry',
-      }]);
+    default: {
+      const forcePushedBy = await mergeForcePusher(run, result.number ?? run.pr);
+      const text = `Merge of PR #${result.number ?? run.pr ?? '?'} failed: ${result.reasons.join('; ')}. Retry or abandon.`;
+      await waitAnd(deps, run, ledger, 'error', specDir, [mergeErrorQuestion(text, forcePushedBy)]);
       return 'stop';
+    }
   }
 }
 

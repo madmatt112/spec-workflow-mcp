@@ -429,6 +429,41 @@ export async function readCiState(repoDir: string, headSha: string, now: () => D
   return { state: 'green', failing: [] };
 }
 
+/**
+ * The login of whoever force-pushed the PR's head branch since it opened, or
+ * `undefined` when none did. The automation never force-pushes — implementers
+ * push ordinary commits and the controller only merges — so any
+ * `head_ref_force_pushed` event on the PR's own timeline (which starts at PR
+ * open) is a human's. A human force-push between PR-open and a merge error is a
+ * signal the human may be mid-change, so the merge stage halts and asks instead
+ * of recommending an auto-retry (retrospective shout P9/F9). A `gh` failure
+ * reads as "none", never a throw: the error wait still opens, only without the
+ * human flag. The newest force-pusher wins.
+ */
+export async function branchForcePushedByHuman(pr: PullRequest): Promise<string | undefined> {
+  const res = await runCommand(
+    ghBin(),
+    ['api', `repos/{owner}/{repo}/issues/${pr.number}/timeline?per_page=100`],
+    { cwd: pr.repoDir },
+  );
+  if (res.code !== 0) return undefined;
+  let events: unknown;
+  try {
+    events = JSON.parse(res.stdout);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(events)) return undefined;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i] as { event?: unknown; actor?: { login?: unknown } };
+    if (String(e?.event ?? '') === 'head_ref_force_pushed') {
+      const login = e.actor && typeof e.actor.login === 'string' ? e.actor.login : '';
+      return login || 'a human';
+    }
+  }
+  return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // The merge wait (ask-me-first).
 // ---------------------------------------------------------------------------

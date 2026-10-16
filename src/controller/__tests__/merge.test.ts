@@ -7,7 +7,7 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
-  readMergeRules, findPullRequest, evaluate, runMergeStage,
+  readMergeRules, findPullRequest, evaluate, runMergeStage, branchForcePushedByHuman,
   MERGE_POLL_INTERVAL_MS, type PullRequest, type MergeRules, type MergeStageDeps,
 } from '../merge.js';
 import { openRunLedger } from '../ledger.js';
@@ -266,6 +266,30 @@ describe('evaluate', () => {
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
     expect(result.reasons.join(' ')).toMatch(/head branch is feat\/other, expected feat\/thing/);
+  });
+});
+
+describe('branchForcePushedByHuman', () => {
+  let pr: PullRequest;
+  beforeEach(() => { pr = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' }; });
+
+  it('returns the actor of the newest head_ref_force_pushed event on the timeline', async () => {
+    useGhScript([{ argvIncludes: ['api'], stdout: [
+      { event: 'committed' },
+      { event: 'head_ref_force_pushed', actor: { login: 'madmatt112' }, created_at: '2026-10-15T23:11:00Z' },
+      { event: 'labeled' },
+    ] }]);
+    expect(await branchForcePushedByHuman(pr)).toBe('madmatt112');
+  });
+
+  it('returns undefined when the timeline has no force-push', async () => {
+    useGhScript([{ argvIncludes: ['api'], stdout: [{ event: 'committed' }, { event: 'reviewed' }] }]);
+    expect(await branchForcePushedByHuman(pr)).toBeUndefined();
+  });
+
+  it('reads as none (undefined) when gh fails, never throwing', async () => {
+    useGhScript([{ argvIncludes: ['api'], exitCode: 1, stderr: 'HTTP 404' }]);
+    expect(await branchForcePushedByHuman(pr)).toBeUndefined();
   });
 });
 
