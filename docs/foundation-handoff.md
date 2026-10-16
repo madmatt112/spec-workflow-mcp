@@ -86,11 +86,11 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
    `writeRunFile` calls) and deleted by the legacy launcher; the controller never reads it
    (only `buildSetupView` and the harness-run-detail message do). Drop the write with the
    legacy launcher and setup form.
-3. The (c2)/(c3) done-when is met by `run-20261015-153534` (every phase in code, `done`).
-   Not yet seen live: a close-out that lands an item through the gate and the verifier (the
-   shout close-out landed nothing; PR #133 fixes why). The fixture's three specs are used:
-   add a fourth fixture spec to `sdd-fixture`'s decomposition before the next run, and
-   check its close-out lands something.
+3. The (c2)/(c3) done-when is met twice (`shout`, `whisper`: every phase in code, `done`).
+   Still not seen live: a close-out that lands an item through the gate and the verifier.
+   shout landed nothing (three routing defects, PR #133); whisper landed nothing (one more,
+   `agent-rules.md` read as the harness keyword, PR #137). A fifth fixture spec is the next
+   proof; approve only its proposals whose Target is the fixture itself.
 4. Small PR: merge the close-out PRs by rule (they are recorded in the plan, the HANDOFF
    closeout section and `run.closeoutPrs`; the harness repo is `merge: ask`, so that one is
    a `merge` wait).

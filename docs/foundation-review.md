@@ -675,6 +675,34 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   force-push, which was the fix), so whether to keep it is Matthew's call. The fixture's
   three specs are all used; the next run needs a fourth.
 
+- 2026-10-16 03:00Z Matthew: "Chart a course that will take us through the remaining plan to
+  completion. Then go." The course (handoff "Next, in order"): (1) a fourth fixture spec to
+  prove the repaired close-out, plus the two gaps it exposed; (2) tradr onto the controller;
+  (3) step (d) with jobsync registered; (4) the advisor after the design session. PR #132 was
+  closed unmerged on his "you make the call". PR #134 (merged, then #135 for its CI-only test):
+  a CLOSED plan's close-out PRs merge by rule before `run.end` (one `merge` wait per PR, the
+  harness repo stays `ask`), and the spec store is rebased onto origin and pushed at run end.
+  That second part came from finding the fixture's `main` ten commits ahead of origin: the
+  controller committed store documents locally and never pushed, while each run's PR merged
+  on the remote. Slip: #134 was merged on a red CI run (a chained merge after a state check
+  that did not read the conclusion; the red was the new test assuming `main` as the runner's
+  default branch). PR #136 proposes the re-plan of specs 16 to 22 for Matthew. tradr's
+  pre-flight landed in tradr-hosted (`7bc8dbb`): `ibkr-integration` marked deferred so the
+  controller routes to `import-off-request-thread`, `merge-method: squash`, `worktree-setup`.
+- 2026-10-16 fixture spec 4 `whisper`, `run-20261016-030635`: 03:06Z to 04:03Z, every phase in
+  code, unattended except the three waits this session answered with the recommended options
+  (the retro plan included, a fixture rule extended for this course). Documents converged in
+  one round each; three tasks closed clean; PR #4 merged by rule 12 seconds after its CI run
+  finished; retro in code (10 findings, 6 proposals) in 3 minutes; close-out in 7 minutes; the
+  spec store pushed itself at run end (first live proof of #134). The close-out landed nothing
+  again, for one reason: the harness keyword test matched `agent` inside `agent-rules.md`, so
+  the two fixture items (`.gitignore`, `package.json`) went to the harness batch, where the
+  implementer rightly refused to edit another repository (PR #137). The implementer also
+  refused P3 as a design defect (it reversed the farewell P1 decision), which is the right
+  outcome for a proposal this session should not have approved: "recommended options" for a
+  fixture retro plan can carry harness changes; read the Targets before approving. Deployed
+  during the run at gate B: `2fe6e11`.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
