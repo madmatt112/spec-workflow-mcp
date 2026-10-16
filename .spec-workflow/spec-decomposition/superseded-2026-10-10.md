@@ -5,7 +5,8 @@ supervisor-skill control plane. On 2026-10-09/10 the foundation review decided t
 that control plane with a controller inside the dashboard server (`docs/foundation-review.md`,
 `docs/controller-design.md`, ADRs 0001-0006). What each entry delivered is re-planned on the
 controller at step (d) of that plan. They are kept here as written, for reference. This file
-is not a routing input: the supervisor reads only `decomposition.md`.
+is not a routing input: the supervisor reads only `decomposition.md`. Re-planned on
+2026-10-16: see "Re-planned entries" in `decomposition.md`.
 
 ### 16. `dashboard-gates` — answer gates and the retro from the dashboard (active)
 
