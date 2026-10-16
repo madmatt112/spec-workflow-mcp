@@ -8,7 +8,6 @@ import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
-import type { LaunchRecord } from '../harness/types.js';
 
 // Real fetch, captured before any test below monkeypatches globalThis.fetch to
 // stub the dashboard's npm-version check (as harness-routes.test.ts does).
@@ -317,45 +316,6 @@ describe('shell hub wiring and routes (task 7)', () => {
       const last = messages.filter((m) => m.type === 'shell-now').pop();
       if (!last) return false;
       return !last.data.waits.some((w: any) => w.kind === 'retro' && w.projectId === alphaId);
-    }, 5000);
-  });
-
-  it('shows an exited wait within five seconds of a launch-update for an exited record', async () => {
-    const ws = await connect(port);
-    sockets.push(ws);
-    const messages = collect(ws);
-    send(ws, { type: 'overview-subscribe' });
-    await waitFor(() => messages.some((m) => m.type === 'shell-now'));
-
-    const launcher: any = (server as any).harnessLauncher;
-    const record: LaunchRecord = {
-      projectId: alphaId,
-      workflowRoot: join(alphaWorkflowRoot, '.spec-workflow'),
-      spec: 'spec-a',
-      pid: 424242,
-      pgid: 424242,
-      cwd: alphaWorkflowRoot,
-      worktree: 'no',
-      logPath: join(tempDir, 'fake-launch.log'),
-      launchedAt: '2026-01-01T00:00:00.000Z',
-      setupWrittenAt: '2026-01-01T00:00:00.000Z',
-      runId: null,
-      state: 'exited',
-      exitCode: 7,
-      signal: null,
-      stopRequestedAt: null,
-      endedAt: '2026-01-01T00:10:00.000Z',
-      note: null,
-    };
-    launcher.records.set(alphaId, record);
-    launcher.emit('launch-update', record);
-
-    await waitFor(() => {
-      const last = messages.filter((m) => m.type === 'shell-now').pop();
-      if (!last) return false;
-      return last.data.waits.some((w: any) =>
-        w.kind === 'exited' && w.projectId === alphaId && w.detail.exitCode === 7
-      );
     }, 5000);
   });
 

@@ -7,14 +7,11 @@ import {
   readAgentRules,
   buildSetupView,
   validateSetup,
-  toRunFile,
-  writeRunFile,
-  deleteRunFileIf,
   MODEL_ALIASES,
   DEEPSEEK_MODELS,
   ELIGIBLE_ROLES,
 } from '../run-setup.js';
-import type { SetupInput, SetupView, HarnessRunFile } from '../types.js';
+import type { SetupInput, SetupView } from '../types.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { AgentProfile } from '../../../watch/ledger.js';
 
@@ -251,7 +248,7 @@ afterEach(async () => {
   }
 });
 
-/** A synthetic SetupView for validateSetup/toRunFile: no real fs read. */
+/** A synthetic SetupView for validateSetup: no real fs read. */
 function buildView(): SetupView {
   return {
     specs: [],
@@ -279,7 +276,6 @@ function buildView(): SetupView {
     modelAliases: [...MODEL_ALIASES],
     deepseekModels: [...DEEPSEEK_MODELS],
     eligibleRoles: [...ELIGIBLE_ROLES],
-    saved: null,
   };
 }
 
@@ -586,70 +582,4 @@ describe('run-setup', () => {
     });
   });
 
-  describe('toRunFile', () => {
-    const now = () => new Date('2026-09-29T12:00:00.000Z');
-
-    it('omits every role whose model and provider equal its default (Req 1.12)', () => {
-      const view = buildView();
-      const file = toRunFile(defaultInput(), view, now);
-
-      expect(file.roles).toEqual({});
-    });
-
-    it('keeps a role with both fields when only its provider differs from default (Req 1.12)', () => {
-      const view = buildView();
-      const base = defaultInput();
-      const input: SetupInput = {
-        ...base,
-        roles: { ...base.roles, 'sdd-reviewer': { model: 'claude-opus-4-8', provider: 'deepseek' } },
-      };
-
-      const file = toRunFile(input, view, now);
-
-      expect(file.roles).toEqual({ 'sdd-reviewer': { model: 'claude-opus-4-8', provider: 'deepseek' } });
-    });
-
-    it('carries spec, writtenAt, supervisorModel, worktree and gates from the input (Req 1.11)', () => {
-      const view = buildView();
-      const input: SetupInput = { ...defaultInput(), worktree: 'yes', gates: 'record' };
-
-      const file = toRunFile(input, view, now);
-
-      expect(file.spec).toBe('alpha');
-      expect(file.writtenAt).toBe('2026-09-29T12:00:00.000Z');
-      expect(file.supervisorModel).toBe('claude-opus-5-5');
-      expect(file.worktree).toBe('yes');
-      expect(file.gates).toBe('record');
-    });
-  });
-
-  describe('writeRunFile and deleteRunFileIf', () => {
-    it('writes harness-run.json to the workflow root (Req 1.11)', async () => {
-      const { workflowRoot } = await makeWorkflowRoot();
-      const file: HarnessRunFile = {
-        spec: 'alpha', writtenAt: '2026-09-29T12:00:00.000Z', supervisorModel: 'claude-opus-5-5',
-        worktree: 'no', gates: 'block', roles: {},
-      };
-
-      writeRunFile(workflowRoot, file);
-
-      const written = JSON.parse(readFileSync(join(workflowRoot, 'harness-run.json'), 'utf-8'));
-      expect(written).toEqual(file);
-    });
-
-    it('spares a run file whose writtenAt differs from the argument (design D14)', async () => {
-      const { workflowRoot } = await makeWorkflowRoot();
-      const path = join(workflowRoot, 'harness-run.json');
-      const file: HarnessRunFile = {
-        spec: 'alpha', writtenAt: '2026-01-01T00:00:00.000Z', supervisorModel: 'claude-opus-5-5',
-        worktree: 'no', gates: 'block', roles: {},
-      };
-      writeFileSync(path, JSON.stringify(file));
-
-      deleteRunFileIf(workflowRoot, '2026-02-02T00:00:00.000Z');
-
-      expect(existsSync(path)).toBe(true);
-      expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual(file);
-    });
-  });
 });

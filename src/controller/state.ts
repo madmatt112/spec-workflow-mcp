@@ -9,7 +9,7 @@
 // `controllerHome()`. The home resolution rule (`SDD_HOME` first, then the
 // existing XDG rule) lives in `state-files.ts` so the controller does not
 // duplicate it.
-import { promises as fs, readFileSync } from 'fs';
+import { promises as fs, readFileSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { createHash } from 'crypto';
 import { sddHome } from '../dashboard/harness/state-files.js';
@@ -282,6 +282,30 @@ async function readJson<T>(path: string): Promise<T | undefined> {
 // ---------------------------------------------------------------------------
 // Runs.
 // ---------------------------------------------------------------------------
+
+/**
+ * `listRuns` for synchronous readers (the dashboard's overview rows and shell
+ * feed, which rebuild on a file event). A directory without a readable
+ * `run.json` is skipped; a missing runs directory is `[]`.
+ */
+export function listRunsSync(): RunRecord[] {
+  let names: string[];
+  try {
+    names = readdirSync(runsDir(), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const out: RunRecord[] = [];
+  for (const name of names) {
+    try {
+      out.push(JSON.parse(readFileSync(runPath(name), 'utf-8')) as RunRecord);
+    } catch {
+      // A record mid-write or malformed: skip it this pass.
+    }
+  }
+  return out;
+}
 
 export async function listRuns(): Promise<RunRecord[]> {
   let entries;

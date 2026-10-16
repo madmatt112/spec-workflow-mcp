@@ -13,10 +13,10 @@ import type { LedgerEvent, RunModel } from '../../watch/ledger.js';
 import { handoffPath, resolveSpec } from '../../watch/index.js';
 import { IndexGenerator } from '../../core/index-generator.js';
 import type { ProjectContext } from '../project-manager.js';
-import type { LaunchRecord, PointerLine } from '../harness/types.js';
+import type { RunRecord } from '../../controller/state.js';
 import type { Wait, NowModel, LiveRunRow, IdleRow, ClosedRow, RunListRow } from './types.js';
 import { FileCache } from './file-cache.js';
-import { pointerForProject, deriveProjectWaits, orderWaits } from './waits.js';
+import { deriveProjectWaits, orderWaits } from './waits.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -80,18 +80,17 @@ interface ProjectResult {
   idle: IdleRow | null;
   closed: ClosedRow[];
   runs: RunListRow | null;
-  launch: { state: LaunchRecord['state']; pid: number; runId: string | null } | null;
 }
 
 /**
- * Every group's contribution for one project. May throw (the injected `launchOf`
- * or a reader); the caller catches, logs once and omits the project. The result
- * is assembled whole, so a mid-way throw leaves nothing partially added.
+ * Every group's contribution for one project. May throw (a reader); the caller
+ * catches, logs once and omits the project. The result is assembled whole, so a
+ * mid-way throw leaves nothing partially added. `liveRun` is the project's live
+ * controller run, if any (the source the active-run pointer used to be).
  */
 async function collectProject(
   project: ProjectContext,
-  pointers: PointerLine[],
-  launchOf: (projectId: string) => LaunchRecord | null,
+  liveRun: RunRecord | undefined,
   now: number,
   cache: FileCache,
 ): Promise<ProjectResult> {
@@ -99,31 +98,32 @@ async function collectProject(
   const workflowRoot = join(project.projectPath, '.spec-workflow');
   const specsDir = join(workflowRoot, 'specs');
 
-  const pointer = pointerForProject(project, pointers);
-  const launch = launchOf(projectId);
-  const waits = deriveProjectWaits(project, pointer, launch, now, cache);
+  const waits = deriveProjectWaits(project, liveRun?.spec ?? null, now, cache);
 
-  // live — one row per project with a pointer line under its specs directory.
+  // live — one row per project with a live controller run. The phase and the
+  // tokens come from the run record (the controller writes both as it goes);
+  // the detail line still reads the spec's ledger for the open spawn.
   let live: LiveRunRow | null = null;
-  if (pointer) {
-    const spec = basename(pointer.specDir);
+  if (liveRun) {
+    const spec = liveRun.spec;
     const ledger = cache.jsonl<LedgerEvent>(join(specsDir, spec, 'harness-events.jsonl'));
     const model = buildModel({ spec, ledger, activity: [] });
+    const t = liveRun.tokens;
     live = {
       projectId,
       projectName,
       spec,
-      runId: pointer.runId,
-      phase: model.livePhase?.phase ?? null,
+      runId: liveRun.id,
+      phase: liveRun.phase ?? model.livePhase?.phase ?? null,
       detail: liveDetail(model, waits),
-      tokens: model.tokensTotal,
-      startedAt: model.runStartedAt ?? null,
+      tokens: t.input + t.output + t.cacheWrite + t.cacheRead,
+      startedAt: liveRun.created,
     };
   }
 
-  // idle — projects with no pointer; routing by the rule of run-setup.ts:167-168.
+  // idle — projects with no live run; routing by the rule of run-setup.ts:167-168.
   let idle: IdleRow | null = null;
-  if (!pointer) {
+  if (!liveRun) {
     const { routing } = await new IndexGenerator(project.projectPath).snapshot();
     idle = {
       projectId,
@@ -157,18 +157,14 @@ async function collectProject(
     if (ledgerText !== undefined) {
       const ledger = parseJsonl<LedgerEvent>(ledgerText);
       const model = buildModel({ spec: resolvedSpec, ledger, activity: [] });
-      const state: RunListRow['state'] = pointer
-        ? 'live'
-        : launch && launch.spec === resolvedSpec && (launch.state === 'stopped' || launch.state === 'exited')
-          ? launch.state
-          : 'ended';
+      const state: RunListRow['state'] = liveRun ? 'live' : 'ended';
       runs = {
         projectId,
         projectName,
         // Pair the spec label with the source that produced the runId: the live
-        // run's pointer spec, else the HANDOFF spec resolveSpec named.
-        spec: pointer ? basename(pointer.specDir) : resolvedSpec,
-        runId: pointer?.runId ?? model.runId ?? null,
+        // run's spec, else the HANDOFF spec resolveSpec named.
+        spec: liveRun ? liveRun.spec : resolvedSpec,
+        runId: liveRun?.id ?? model.runId ?? null,
         state,
         phase: model.livePhase?.phase ?? newestPhaseEnd(ledger),
         since: model.runStartedAt ?? null,
@@ -176,23 +172,20 @@ async function collectProject(
     }
   }
 
-  const launchEntry = launch ? { state: launch.state, pid: launch.pid, runId: launch.runId } : null;
-
-  return { waits, live, idle, closed, runs, launch: launchEntry };
+  return { waits, live, idle, closed, runs };
 }
 
 /**
  * The Now model over every registered project (design.md C4). `waits` is
  * `orderWaits` over every project's waits; `live`, `idle`, `closed` and `runs`
- * are the design C4 groups; `launches[projectId]` is each project's launch
- * record state/pid/runId or null. Always uses the passed `now`, never
- * `Date.now()`. A project whose read throws is omitted from every group and
- * logged once with `console.error`.
+ * are the design C4 groups. `liveRuns` maps a project id to its live controller
+ * run (`liveRunsByProject`). Always uses the passed `now`, never `Date.now()`. A
+ * project whose read throws is omitted from every group and logged once with
+ * `console.error`.
  */
 export async function buildNowModel(
   projects: ProjectContext[],
-  pointers: PointerLine[],
-  launchOf: (projectId: string) => LaunchRecord | null,
+  liveRuns: Map<string, RunRecord>,
   now: number,
   cache: FileCache = new FileCache(),
 ): Promise<NowModel> {
@@ -201,17 +194,15 @@ export async function buildNowModel(
   const idle: IdleRow[] = [];
   const closed: ClosedRow[] = [];
   const runs: RunListRow[] = [];
-  const launches: NowModel['launches'] = {};
 
   for (const project of projects) {
     try {
-      const r = await collectProject(project, pointers, launchOf, now, cache);
+      const r = await collectProject(project, liveRuns.get(project.projectId), now, cache);
       waits.push(...r.waits);
       if (r.live) live.push(r.live);
       if (r.idle) idle.push(r.idle);
       closed.push(...r.closed);
       if (r.runs) runs.push(r.runs);
-      launches[project.projectId] = r.launch;
     } catch (err) {
       console.error(`buildNowModel: skipping project ${project.projectId}`, err);
     }
@@ -223,7 +214,6 @@ export async function buildNowModel(
     idle,
     closed,
     runs,
-    launches,
     generatedAt: new Date(now).toISOString(),
   };
 }

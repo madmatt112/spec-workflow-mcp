@@ -8,8 +8,7 @@ import { parseHandoffRouting, parseGateSections, ProjectHarnessWatch } from '../
 import { buildModel, parseJsonl, AGENT_PROFILES } from '../../../watch/ledger.js';
 import { buildRunDetail } from '../../shell/run-detail.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
-import type { HarnessLauncher } from '../launcher.js';
-import type { LaunchRecord, HarnessMessage } from '../types.js';
+import type { HarnessMessage } from '../types.js';
 import type { ProjectContext } from '../../project-manager.js';
 
 // Contract for src/dashboard/harness/project-watch.ts (design.md C5 interfaces;
@@ -318,26 +317,6 @@ function ofType<T extends HarnessMessage['type']>(
   return messages.filter((m): m is Extract<HarnessMessage, { type: T }> => m.type === type);
 }
 
-function makeLaunchRecord(overrides: Partial<LaunchRecord> & { projectId: string; logPath: string; launchedAt: string }): LaunchRecord {
-  return {
-    workflowRoot: '/unused',
-    spec: 'demo-spec',
-    pid: process.pid,
-    pgid: process.pid,
-    cwd: '/unused',
-    worktree: 'no',
-    setupWrittenAt: overrides.launchedAt,
-    runId: null,
-    state: 'running',
-    exitCode: null,
-    signal: null,
-    stopRequestedAt: null,
-    endedAt: null,
-    note: null,
-    ...overrides,
-  };
-}
-
 describe('ProjectHarnessWatch', () => {
   let base: string;
   const watches: { close: () => void }[] = [];
@@ -371,11 +350,6 @@ describe('ProjectHarnessWatch', () => {
     return ledgerPath;
   }
 
-  function stubLauncher(get: (projectId: string) => LaunchRecord | null, noteRunId = vi.fn()): { launcher: HarnessLauncher; noteRunId: ReturnType<typeof vi.fn> } {
-    const emitter = Object.assign(new EventEmitter(), { get, noteRunId });
-    return { launcher: emitter as unknown as HarnessLauncher, noteRunId };
-  }
-
   it('sends a harness-model matching buildModel and a harness-gates matching parseGateSections over the same fixtures', async () => {
     const { project, workflowRoot, specDir } = await makeProject('spec-a');
     const runId = 'run-20260101-000000';
@@ -394,8 +368,7 @@ describe('ProjectHarnessWatch', () => {
     writeFileSync(join(specDir, 'questions.md'), questionsText);
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -412,7 +385,6 @@ describe('ProjectHarnessWatch', () => {
     expect(modelMsg.data.spec).toBe('spec-a');
     expect(modelMsg.data.model).toEqual(expectedModel);
     expect(modelMsg.data.profiles).toEqual(AGENT_PROFILES);
-    expect(modelMsg.data.launch).toBeNull();
 
     const gatesMsg = ofType(messages, 'harness-gates')[0];
     expect(gatesMsg.data).toEqual({ spec: 'spec-a', gateA: 'Some gate A question?', gateB: null });
@@ -425,8 +397,7 @@ describe('ProjectHarnessWatch', () => {
     const ledgerPath = writeMinimalFixture(workflowRoot, specDir, 'spec-b', runId, runStartTs);
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -449,8 +420,7 @@ describe('ProjectHarnessWatch', () => {
     writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffFixture('spec-late'));
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -468,95 +438,6 @@ describe('ProjectHarnessWatch', () => {
     await waitFor(() => ofType(messages, 'harness-model').slice(before).some((m) => m.data.model?.livePhase?.phase === 'document'), 5000);
     const latest = ofType(messages, 'harness-model').slice(-1)[0];
     expect(latest.data.model?.livePhase?.phase).toBe('document');
-  }, 15000);
-
-  it('sends complete log lines in order and holds a partial line until its newline', async () => {
-    const { project, workflowRoot, specDir } = await makeProject('spec-c');
-    writeMinimalFixture(workflowRoot, specDir, 'spec-c', 'run-c', new Date(Date.now() - 60000).toISOString());
-
-    const logPath = join(base, 'run-c.log');
-    writeFileSync(logPath, '');
-    const launchedAt = new Date().toISOString();
-    const record = makeLaunchRecord({ projectId: project.projectId, logPath, launchedAt });
-
-    const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => record);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-
-    await watch.start();
-    await waitFor(() => ofType(messages, 'harness-model').length > 0);
-
-    appendFileSync(logPath, 'line1\n');
-    await waitFor(() => ofType(messages, 'harness-log').length === 1, 5000);
-    expect(ofType(messages, 'harness-log')[0].data).toEqual({ launchedAt, lines: ['line1'], reset: false });
-
-    appendFileSync(logPath, 'partial');
-    await sleep(600);
-    expect(ofType(messages, 'harness-log').length).toBe(1);
-
-    appendFileSync(logPath, '-done\n');
-    await waitFor(() => ofType(messages, 'harness-log').length === 2, 5000);
-    expect(ofType(messages, 'harness-log')[1].data).toEqual({ launchedAt, lines: ['partial-done'], reset: false });
-  }, 15000);
-
-  it('sends no reset when a launch-update names the same log path', async () => {
-    const { project, workflowRoot, specDir } = await makeProject('spec-d');
-    writeMinimalFixture(workflowRoot, specDir, 'spec-d', 'run-d', new Date(Date.now() - 60000).toISOString());
-
-    const logPath = join(base, 'run-d.log');
-    writeFileSync(logPath, '');
-    const launchedAt = new Date().toISOString();
-    const record = makeLaunchRecord({ projectId: project.projectId, logPath, launchedAt });
-
-    const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => record);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-
-    await watch.start();
-    await waitFor(() => ofType(messages, 'harness-model').length > 0);
-
-    appendFileSync(logPath, 'first\n');
-    await waitFor(() => ofType(messages, 'harness-log').length === 1, 5000);
-    expect(ofType(messages, 'harness-log')[0].data).toEqual({ launchedAt, lines: ['first'], reset: false });
-
-    launcher.emit('launch-update', { ...record, state: 'stopping', stopRequestedAt: new Date().toISOString() });
-    await sleep(500);
-    expect(ofType(messages, 'harness-log').some((m) => m.data.reset)).toBe(false);
-
-    appendFileSync(logPath, 'second\n');
-    await waitFor(() => ofType(messages, 'harness-log').length === 2, 5000);
-    expect(ofType(messages, 'harness-log')[1].data).toEqual({ launchedAt, lines: ['second'], reset: false });
-  }, 15000);
-
-  it('sends a reset batch with the new launchedAt and lines from offset 0 when a launch-update names a new log path', async () => {
-    const { project, workflowRoot, specDir } = await makeProject('spec-e');
-    writeMinimalFixture(workflowRoot, specDir, 'spec-e', 'run-e', new Date(Date.now() - 60000).toISOString());
-
-    const logPathA = join(base, 'run-e-a.log');
-    writeFileSync(logPathA, '');
-    const launchedAtA = new Date(Date.now() - 30000).toISOString();
-    let record = makeLaunchRecord({ projectId: project.projectId, logPath: logPathA, launchedAt: launchedAtA });
-
-    const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => record);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
-    watches.push(watch);
-
-    await watch.start();
-    await waitFor(() => ofType(messages, 'harness-model').length > 0);
-
-    const logPathB = join(base, 'run-e-b.log');
-    writeFileSync(logPathB, 'seed\n');
-    const launchedAtB = new Date().toISOString();
-    record = makeLaunchRecord({ projectId: project.projectId, logPath: logPathB, launchedAt: launchedAtB });
-
-    launcher.emit('launch-update', record);
-    await waitFor(() => ofType(messages, 'harness-log').some((m) => m.data.reset === true), 5000);
-
-    const resetMsg = ofType(messages, 'harness-log').find((m) => m.data.reset === true)!;
-    expect(resetMsg.data).toEqual({ launchedAt: launchedAtB, lines: ['seed'], reset: true });
   }, 15000);
 
   it('re-targets its spec watches when HANDOFF names another spec', async () => {
@@ -578,8 +459,7 @@ describe('ProjectHarnessWatch', () => {
     writeFileSync(handoffPath, handoffFixture('spec-f'));
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -600,33 +480,12 @@ describe('ProjectHarnessWatch', () => {
     expect(gMsg.data.model).toEqual(expectedG);
   }, 15000);
 
-  it("calls launcher.noteRunId with the run id once the model's run id differs from the record's", async () => {
-    const { project, workflowRoot, specDir } = await makeProject('spec-h');
-    const runStartTs = new Date().toISOString();
-    writeMinimalFixture(workflowRoot, specDir, 'spec-h', 'run-noted', runStartTs);
-
-    const logPath = join(base, 'run-h.log');
-    writeFileSync(logPath, '');
-    const launchedAt = new Date(Date.parse(runStartTs) - 5000).toISOString();
-    const record = makeLaunchRecord({ projectId: project.projectId, logPath, launchedAt, runId: null });
-
-    const { launcher, noteRunId } = stubLauncher(() => record);
-    const watch = new ProjectHarnessWatch(project, launcher, () => {}, { debounceMs: 50 });
-    watches.push(watch);
-
-    await watch.start();
-    await waitFor(() => noteRunId.mock.calls.length > 0, 5000);
-
-    expect(noteRunId).toHaveBeenCalledWith(project.projectId, 'run-noted');
-  }, 15000);
-
   it('sends nothing after close()', async () => {
     const { project, workflowRoot, specDir } = await makeProject('spec-i');
     const ledgerPath = writeMinimalFixture(workflowRoot, specDir, 'spec-i', 'run-i', new Date(Date.now() - 60000).toISOString());
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
 
     await watch.start();
     await waitFor(() => ofType(messages, 'harness-model').length > 0);
@@ -635,7 +494,6 @@ describe('ProjectHarnessWatch', () => {
     const countAfterClose = messages.length;
 
     appendFileSync(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), type: 'phase.start', run: 'run-i', phase: 'design' }) + '\n');
-    launcher.emit('launch-update', makeLaunchRecord({ projectId: project.projectId, logPath: join(base, 'unused.log'), launchedAt: new Date().toISOString() }));
     await sleep(800);
 
     expect(messages.length).toBe(countAfterClose);
@@ -699,8 +557,7 @@ describe('ProjectHarnessWatch', () => {
     writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffText);
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -726,8 +583,7 @@ describe('ProjectHarnessWatch', () => {
     writeMinimalFixture(workflowRoot, specDir, 'spec-k', 'run-k', new Date(Date.now() - 60000).toISOString());
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();
@@ -746,8 +602,7 @@ describe('ProjectHarnessWatch', () => {
     const ledgerPath = writeMinimalFixture(workflowRoot, specDir, 'spec-l', runId, runStartTs);
 
     const messages: HarnessMessage[] = [];
-    const { launcher } = stubLauncher(() => null);
-    const watch = new ProjectHarnessWatch(project, launcher, (m) => messages.push(m), { debounceMs: 50 });
+    const watch = new ProjectHarnessWatch(project, (m) => messages.push(m), { debounceMs: 50 });
     watches.push(watch);
 
     await watch.start();

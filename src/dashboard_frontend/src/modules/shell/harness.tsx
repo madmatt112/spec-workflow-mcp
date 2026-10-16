@@ -31,26 +31,21 @@ export function present(v: unknown): boolean {
 }
 
 /**
- * The launch setup input for a card (design D8; Requirement 4 AC 9, 10). The GET
- * setup view's defaults overlaid with the saved file's supervisorModel, worktree
- * and roles when one exists; `spec` is always the launchable spec; gates stay the
- * default (the launch route forces `record`). The per-role object is shaped as
- * HarnessPage.tsx:211-226 shapes it: an eligible role carries its provider, every
- * other role carries the model alone.
+ * The launch setup input for a card (design D8; Requirement 4 AC 9, 10): the GET
+ * setup view's defaults (the saved setup file went with step (d) of the
+ * foundation rework); `spec` is always the launchable spec; gates stay the
+ * default (the launch route forces `record`). An eligible role carries its
+ * provider, every other role carries the model alone.
  */
 export function buildLaunchInput(view: SetupView): SetupInput {
-  const saved = view.saved;
   const roles: Record<string, { model: string; provider?: Provider }> = {};
   for (const r of view.roles) {
-    const sv = saved?.roles?.[r.agent];
-    const model = sv?.model ?? r.defaultModel;
-    const provider = sv?.provider ?? r.defaultProvider;
-    roles[r.agent] = r.providerEditable ? { model, provider } : { model };
+    roles[r.agent] = r.providerEditable ? { model: r.defaultModel, provider: r.defaultProvider } : { model: r.defaultModel };
   }
   return {
     spec: view.launchable as string,
-    supervisorModel: saved?.supervisorModel ?? view.supervisor.model,
-    worktree: saved?.worktree ?? view.worktree,
+    supervisorModel: view.supervisor.model,
+    worktree: view.worktree,
     gates: view.gates,
     roles,
   };

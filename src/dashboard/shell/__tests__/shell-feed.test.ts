@@ -5,12 +5,10 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { ShellFeed } from '../shell-feed.js';
 import { recordActivity, _resetActivityForTests } from '../../../controller/activity.js';
-import { pointerPath } from '../../harness/state-files.js';
+import { writeRun, type RunRecord } from '../../../controller/state.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
-import type { HarnessLauncher } from '../../harness/launcher.js';
-import type { LaunchRecord } from '../../harness/types.js';
 import type { ShellMessage } from '../types.js';
 
 // Contract for src/dashboard/shell/shell-feed.ts (design.md C7; task 6
@@ -146,8 +144,14 @@ function stubProjects(projects: ProjectContext[]): ProjectManager {
   return { getAllProjects: () => projects } as unknown as ProjectManager;
 }
 
-function stubLauncher(get: (projectId: string) => LaunchRecord | null = () => null): HarnessLauncher {
-  return { get } as unknown as HarnessLauncher;
+/** A live controller run record for a project, written under the test's SDD home. */
+function runRecord(project: ProjectContext, spec: string, id: string): RunRecord {
+  const iso = '2026-01-01T00:00:00.000Z';
+  return {
+    v: 1, id, project: project.projectId, codeRoot: project.projectPath, specStore: project.projectPath, spec,
+    worktree: project.projectPath, branch: `feat/${spec}`, status: 'running', created: iso, updated: iso,
+    tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+  };
 }
 
 describe('ShellFeed', () => {
@@ -176,7 +180,7 @@ describe('ShellFeed', () => {
   it('arms one non-resetting throttle timer, flushing within 100 ms of a steady 10 ms trigger stream', async () => {
     let firstFlushAt: number | null = null;
     const sends: ShellMessage[] = [];
-    const feed = new ShellFeed(stubProjects([]), stubLauncher(), (m) => {
+    const feed = new ShellFeed(stubProjects([]), (m) => {
       sends.push(m);
       if (firstFlushAt === null) firstFlushAt = Date.now();
     }, { throttleMs: 50, tickMs: 1_000_000 });
@@ -200,7 +204,7 @@ describe('ShellFeed', () => {
     const spec = 'quiet-spec';
     const { project, specDir } = makeProject(base, spec);
     const activityPath = writeOpenSpawnFixture(specDir);
-    writeFileSync(pointerPath(), `/main/checkout\t${specDir}\trun-1\n`);
+    await writeRun(runRecord(project, spec, 'run-1'));
 
     const now0 = Date.now();
     const nowRef = { value: now0 };
@@ -208,7 +212,7 @@ describe('ShellFeed', () => {
     utimesSync(activityPath, fourteenMinAgo, fourteenMinAgo);
 
     const sends: ShellMessage[] = [];
-    const feed = new ShellFeed(stubProjects([project]), stubLauncher(), (m) => sends.push(m), {
+    const feed = new ShellFeed(stubProjects([project]), (m) => sends.push(m), {
       throttleMs: 20, tickMs: 50, now: () => nowRef.value,
     });
     feeds.push(feed);
@@ -238,7 +242,7 @@ describe('ShellFeed', () => {
   });
 
   it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity quintet in order after it', async () => {
-    const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
+    const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
     expect(feed.snapshot()).toEqual([]);
@@ -257,7 +261,7 @@ describe('ShellFeed', () => {
     recordActivity({ runId: 'run-1', stepId: 'reviewer-r1', role: 'sdd-reviewer', tool: 'Grep', inputSummary: 'TODO' });
     recordActivity({ runId: 'run-2', stepId: 'drafter', role: 'sdd-drafter', tool: 'Edit', inputSummary: 'design.md' });
 
-    const feed = new ShellFeed(stubProjects([]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
+    const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
     await feed.start();
 
@@ -271,7 +275,7 @@ describe('ShellFeed', () => {
 
   it('sends nothing for 200 ms once close() is called', async () => {
     const sends: ShellMessage[] = [];
-    const feed = new ShellFeed(stubProjects([]), stubLauncher(), (m) => sends.push(m), { throttleMs: 10, tickMs: 15 });
+    const feed = new ShellFeed(stubProjects([]), (m) => sends.push(m), { throttleMs: 10, tickMs: 15 });
     feeds.push(feed);
 
     await feed.start();
@@ -296,7 +300,7 @@ describe('ShellFeed', () => {
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const feed = new ShellFeed(stubProjects([goodProject, badProject]), stubLauncher(), () => {}, { tickMs: 1_000_000 });
+      const feed = new ShellFeed(stubProjects([goodProject, badProject]), () => {}, { tickMs: 1_000_000 });
       feeds.push(feed);
 
       await feed.start();

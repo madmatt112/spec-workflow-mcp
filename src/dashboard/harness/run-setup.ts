@@ -1,10 +1,11 @@
 // src/dashboard/harness/run-setup.ts
 //
-// One server-side rule set builds the run-setup form, validates it and writes
-// `harness-run.json` (design.md C3, D5; Requirement 1). It reads the task 1
-// read-only index snapshot, the task 2 wire types and the task 3 HANDOFF parser,
-// and never writes any spec-store file but `harness-run.json`.
-import { readFileSync, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs';
+// One server-side rule set builds the run-setup view and validates a launch
+// (design.md C3, D5; Requirement 1). It reads the task 1 read-only index
+// snapshot, the task 2 wire types and the task 3 HANDOFF parser, and writes no
+// spec-store file (the `harness-run.json` setup file went with step (d) of the
+// foundation rework; the controller's run record carries a run's setup).
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { IndexGenerator } from '../../core/index-generator.js';
 import { handoffPath } from '../../watch/index.js';
@@ -14,7 +15,7 @@ import type { SpecIndexEntry } from '../../types.js';
 import type { ProjectContext } from '../project-manager.js';
 import { parseHandoffRouting } from './project-watch.js';
 import type {
-  Provider, SetupInput, SetupView, ValidationError, SpecRow, RoleRow, HarnessRunFile,
+  Provider, SetupInput, SetupView, ValidationError, SpecRow, RoleRow,
 } from './types.js';
 
 /** The model aliases an anthropic role may name (design D4). */
@@ -125,24 +126,12 @@ export function readAgentRules(workflowRoot: string): AgentRules {
   return { worktree, gates, worktreeSetup, providers, mergeMethod, postMerge, merge };
 }
 
-function readRunFile(workflowRoot: string): HarnessRunFile | null {
-  const text = readIfExists(join(workflowRoot, 'harness-run.json'));
-  if (text === undefined) return null;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as HarnessRunFile;
-  } catch {
-    // Unparsable file: no saved notice.
-  }
-  return null;
-}
-
 /**
  * Build the run-setup view for a project: the spec rows from the task 1 snapshot,
  * the HANDOFF routing, one role row per profile in sorted order (a role the
  * provider map routes to deepseek defaults to that provider and model, D3), the
- * fixed supervisor row, the launchable spec (else its disabled reason) and the
- * saved run file. Reads only `project.projectPath`.
+ * fixed supervisor row and the launchable spec (else its disabled reason). Reads
+ * only `project.projectPath`.
  */
 export async function buildSetupView(
   project: ProjectContext,
@@ -214,7 +203,6 @@ export async function buildSetupView(
     modelAliases: [...MODEL_ALIASES],
     deepseekModels: [...DEEPSEEK_MODELS],
     eligibleRoles: [...ELIGIBLE_ROLES],
-    saved: readRunFile(workflowRoot),
   };
 }
 
@@ -285,56 +273,3 @@ export function validateSetup(input: SetupInput, view: SetupView): ValidationErr
   return null;
 }
 
-/**
- * Reduce a validated submission to the run file. A role is kept only when its
- * model or provider differs from its default, and a kept role carries both
- * fields (Requirement 1 AC 12). `writtenAt` is `now().toISOString()`.
- */
-export function toRunFile(input: SetupInput, view: SetupView, now: () => Date): HarnessRunFile {
-  const byAgent = new Map(view.roles.map((r) => [r.agent, r]));
-  const roles: Record<string, { model: string; provider: Provider }> = {};
-  for (const [agent, role] of Object.entries(input.roles)) {
-    const viewRole = byAgent.get(agent);
-    if (!viewRole) continue;
-    const provider: Provider = role.provider ?? viewRole.defaultProvider;
-    const model = role.model;
-    if (model !== viewRole.defaultModel || provider !== viewRole.defaultProvider) {
-      roles[agent] = { model, provider };
-    }
-  }
-  return {
-    spec: input.spec,
-    writtenAt: now().toISOString(),
-    supervisorModel: input.supervisorModel,
-    worktree: input.worktree,
-    gates: input.gates,
-    roles,
-  };
-}
-
-/** Write `harness-run.json` atomically (temp file then rename). */
-export function writeRunFile(workflowRoot: string, file: HarnessRunFile): void {
-  const path = join(workflowRoot, 'harness-run.json');
-  const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(file, null, 2) + '\n');
-  renameSync(tmp, path);
-}
-
-/**
- * Delete `harness-run.json` only when its parsed `writtenAt` equals the
- * argument. A missing or unparsable file is left alone (design D14).
- */
-export function deleteRunFileIf(workflowRoot: string, writtenAt: string): void {
-  const path = join(workflowRoot, 'harness-run.json');
-  const text = readIfExists(path);
-  if (text === undefined) return;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return;
-  }
-  if (parsed && typeof parsed === 'object' && (parsed as { writtenAt?: unknown }).writtenAt === writtenAt) {
-    unlinkSync(path);
-  }
-}

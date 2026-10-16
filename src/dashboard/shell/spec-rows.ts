@@ -14,10 +14,8 @@ import { handoffPath } from '../../watch/index.js';
 import { IndexGenerator } from '../../core/index-generator.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
 import type { ProjectContext } from '../project-manager.js';
-import type { PointerLine } from '../harness/types.js';
 import type { SpecListRow, SpecDetail } from './types.js';
 import { FileCache } from './file-cache.js';
-import { pointerForProject } from './waits.js';
 
 const SPEC_NAME_RE = /^[A-Za-z0-9._-]+$/;
 const VERSION_RE = /^v\d+$/;
@@ -68,15 +66,13 @@ function firstStatusValue(text: string | undefined): string | null {
  */
 export async function buildSpecRows(
   project: ProjectContext,
-  pointers: PointerLine[],
+  liveSpec: string | null,
   cache: FileCache = new FileCache(),
 ): Promise<SpecListRow[]> {
   const { projectId, projectName } = project;
   const workflowRoot = join(project.projectPath, '.spec-workflow');
   const specsDir = join(workflowRoot, 'specs');
   const handoffMd = cache.text(handoffPath(workflowRoot));
-  const pointer = pointerForProject(project, pointers);
-  const livePointerSpec = pointer ? basename(pointer.specDir) : null;
   const deferralStorage = new DeferralStorage(project.projectPath);
 
   const { active, deferred, other } = await new IndexGenerator(project.projectPath).snapshot();
@@ -99,7 +95,7 @@ export async function buildSpecRows(
       (f) => cache.text(join(specDir, f)) !== undefined,
     );
     let state: SpecListRow['state'];
-    if (livePointerSpec === spec) state = 'live';
+    if (liveSpec === spec) state = 'live';
     else if (closedByRow || closedByPlan) state = 'closed';
     else if (entry.deferred) state = 'deferred';
     else if (!hasDocOrLedger) state = 'not-started';

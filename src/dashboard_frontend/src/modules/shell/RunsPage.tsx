@@ -8,16 +8,16 @@ import {
   callHarness, buildLaunchInput, OpErrorView, type OpError,
 } from './harness';
 import type { RunListRow, NowModel, ControllerRun } from './types';
-import type { SetupView, SetupInput, Provider } from '../harness/types';
+import type { SetupView } from '../harness/types';
 
 /**
  * The Runs list and Launch card (design C10 Runs and Launch card, D8;
  * Requirement 4 AC 1, 9 to 12). `/runs` lists `NowModel.runs` of enabled
  * projects in Live and Ended groups; selecting a row opens that project's run
  * page. The Launch chip opens one card per enabled project — the launchable
- * spec, the saved setup in five summary lines, Launch and Edit setup — with no
- * new launch behaviour: Launch posts `buildLaunchInput` to the existing launch
- * route, and Edit setup saves through the existing PUT setup route.
+ * spec, the setup defaults in five summary lines and Launch — with no new launch
+ * behaviour: Launch posts `buildLaunchInput` to the existing launch route. The
+ * setup editor and its PUT route went with step (d) of the foundation rework.
  */
 
 /** Human age of an ISO timestamp relative to `now`, ticking each second. */
@@ -338,7 +338,6 @@ function SummaryLine({ label, value }: { label: string; value: React.ReactNode }
 function LaunchCard({ project, now }: { project: Project; now: NowModel | null }) {
   const [view, setView] = useState<SetupView | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [opError, setOpError] = useState<OpError | null>(null);
 
@@ -359,14 +358,11 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
 
   const launchable = !!view?.launchable;
   const liveRun = (now?.live ?? []).some((r) => r.projectId === project.projectId);
-  const launchState = now?.launches?.[project.projectId]?.state;
-  const launching = launchState === 'running' || launchState === 'stopping';
 
   // The disable reason, in the order of design D8 / Requirement 4 AC 12.
   let disabledReason: string | null = null;
   if (view && !launchable) disabledReason = view.disabledReason ?? 'No launchable spec.';
   else if (liveRun) disabledReason = 'A run is live for this project.';
-  else if (launching) disabledReason = 'A launch is in progress.';
 
   const input = view && launchable ? buildLaunchInput(view) : null;
 
@@ -379,11 +375,6 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
     if (!res.ok) setOpError({ status: res.status, body: res.data });
     await fetchSetup();
   }, [view, prefix, fetchSetup]);
-
-  const onSaved = useCallback(async () => {
-    setEditing(false);
-    await fetchSetup();
-  }, [fetchSetup]);
 
   return (
     <section className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4 min-w-0" data-testid={`launch-card-${project.projectId}`}>
@@ -421,15 +412,6 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
             >
               {busy ? 'Launching…' : 'Launch'}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing((v) => !v)}
-              disabled={!launchable}
-              data-testid={`edit-setup-${project.projectId}`}
-              className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-            >
-              {'Edit setup'}
-            </button>
           </div>
 
           {opError && (
@@ -438,142 +420,8 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
               <OpErrorView error={opError} />
             </div>
           )}
-
-          {editing && launchable && (
-            <EditSetup view={view} prefix={prefix} onSaved={onSaved} />
-          )}
         </>
       )}
     </section>
-  );
-}
-
-// --- Edit setup table ------------------------------------------------------
-
-type RoleValue = { model: string; provider: Provider };
-
-function EditSetup({ view, prefix, onSaved }: {
-  view: SetupView;
-  prefix: string;
-  onSaved: () => Promise<void> | void;
-}) {
-  const saved = view.saved;
-  const [supervisorModel, setSupervisorModel] = useState(saved?.supervisorModel ?? view.supervisor.model);
-  const [worktree, setWorktree] = useState<'yes' | 'no'>(saved?.worktree ?? view.worktree);
-  const [gates, setGates] = useState<'block' | 'record'>(saved?.gates ?? view.gates);
-  const [roleValues, setRoleValues] = useState<Record<string, RoleValue>>(() => {
-    const rv: Record<string, RoleValue> = {};
-    for (const r of view.roles) {
-      const sv = saved?.roles?.[r.agent];
-      rv[r.agent] = { model: sv?.model ?? r.defaultModel, provider: sv?.provider ?? r.defaultProvider };
-    }
-    return rv;
-  });
-  const [busy, setBusy] = useState(false);
-  const [saveError, setSaveError] = useState<OpError | null>(null);
-
-  const setModel = (agent: string, model: string) =>
-    setRoleValues((prev) => ({ ...prev, [agent]: { ...prev[agent], model } }));
-  const setProvider = (agent: string, provider: Provider) =>
-    setRoleValues((prev) => ({ ...prev, [agent]: { ...prev[agent], provider } }));
-
-  const buildInput = (): SetupInput => {
-    const roles: Record<string, { model: string; provider?: Provider }> = {};
-    for (const r of view.roles) {
-      const val = roleValues[r.agent];
-      roles[r.agent] = r.providerEditable ? { model: val.model, provider: val.provider } : { model: val.model };
-    }
-    return { spec: view.launchable as string, supervisorModel, worktree, gates, roles };
-  };
-
-  const save = useCallback(async () => {
-    setBusy(true);
-    setSaveError(null);
-    const res = await callHarness(`${prefix}/harness/setup`, 'PUT', buildInput());
-    setBusy(false);
-    if (!res.ok) { setSaveError({ status: res.status, body: res.data }); return; }
-    await onSaved();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefix, supervisorModel, worktree, gates, roleValues, onSaved]);
-
-  const inputCls = 'w-full rounded border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 text-sm text-[var(--text-primary)]';
-
-  return (
-    <div className="mt-3 border-t border-[var(--border-default)] pt-3" data-testid="edit-setup-table">
-      <table className="w-full border-collapse text-sm">
-        <tbody>
-          <tr className="border-b border-[var(--border-default)]">
-            <td className="py-1 pr-3 align-top text-[var(--text-muted)]">{'Supervisor'}</td>
-            <td className="py-1" colSpan={2}>
-              <input type="text" value={supervisorModel} onChange={(e) => setSupervisorModel(e.target.value)} className={inputCls} />
-            </td>
-          </tr>
-          {view.roles.map((r) => (
-            <tr key={r.agent} className="border-b border-[var(--border-default)]">
-              <td className="py-1 pr-3 align-top text-[var(--text-muted)] break-words">{r.agent}</td>
-              <td className="py-1 pr-2">
-                <input
-                  type="text"
-                  value={roleValues[r.agent]?.model ?? ''}
-                  onChange={(e) => setModel(r.agent, e.target.value)}
-                  aria-label={'Model'}
-                  className={inputCls}
-                />
-              </td>
-              <td className="py-1">
-                {r.providerEditable ? (
-                  <select
-                    value={roleValues[r.agent]?.provider ?? r.defaultProvider}
-                    onChange={(e) => setProvider(r.agent, e.target.value as Provider)}
-                    aria-label={'Provider'}
-                    className={inputCls}
-                  >
-                    <option value="anthropic">{'Anthropic'}</option>
-                    <option value="deepseek">{'DeepSeek'}</option>
-                  </select>
-                ) : null}
-              </td>
-            </tr>
-          ))}
-          <tr className="border-b border-[var(--border-default)]">
-            <td className="py-1 pr-3 text-[var(--text-muted)]">{'Worktree'}</td>
-            <td className="py-1" colSpan={2}>
-              <select value={worktree} onChange={(e) => setWorktree(e.target.value as 'yes' | 'no')} className={inputCls}>
-                <option value="yes">{'yes'}</option>
-                <option value="no">{'no'}</option>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <td className="py-1 pr-3 text-[var(--text-muted)]">{'Gates'}</td>
-            <td className="py-1" colSpan={2}>
-              <select value={gates} onChange={(e) => setGates(e.target.value as 'block' | 'record')} className={inputCls}>
-                <option value="block">{'block'}</option>
-                <option value="record">{'record'}</option>
-              </select>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          data-testid="save-setup"
-          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-        >
-          {busy ? 'Saving…' : 'Save setup'}
-        </button>
-      </div>
-
-      {saveError && (
-        <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-          <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
-          <OpErrorView error={saveError} />
-        </div>
-      )}
-    </div>
   );
 }

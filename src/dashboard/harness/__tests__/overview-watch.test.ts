@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fsp, writeFileSync, appendFileSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { randomUUID } from 'crypto';
 import { buildOverviewRow, OverviewWatch } from '../overview-watch.js';
-import { pointerPath } from '../state-files.js';
+import { writeRun, type RunRecord } from '../../../controller/state.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
-import type { HarnessMessage, PointerLine } from '../types.js';
+import type { HarnessMessage } from '../types.js';
 
 // Contract for src/dashboard/harness/overview-watch.ts (design.md C6; task 8
 // _Prompt; Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.9).
@@ -186,8 +186,19 @@ async function makeProject(base: string, spec: string, name = spec): Promise<{ p
   return { project, workflowRoot, specDir };
 }
 
-function pointerFor(project: ProjectContext, spec: string, runId: string): PointerLine {
-  return { mainCheckout: '/main/checkout', specDir: join(project.projectPath, '.spec-workflow', 'specs', spec), runId };
+/** The live-run shape `buildOverviewRow` reads: the controller run's spec and id. */
+function liveFor(_project: ProjectContext, spec: string, runId: string): { spec: string; id: string } {
+  return { spec, id: runId };
+}
+
+/** A live controller run record for a project, written under the test's SDD home. */
+function runRecord(project: ProjectContext, spec: string, id: string): RunRecord {
+  const iso = '2026-01-01T00:00:00.000Z';
+  return {
+    v: 1, id, project: project.projectId, codeRoot: project.projectPath, specStore: project.projectPath, spec,
+    worktree: project.projectPath, branch: `feat/${spec}`, status: 'running', created: iso, updated: iso,
+    tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+  };
 }
 
 function writeLedger(specDir: string, events: Record<string, string>[]): string {
@@ -209,7 +220,7 @@ describe('buildOverviewRow', () => {
 
   it('marks a project running with the spec dir base name and run id when the pointer specDir is inside its specs directory', async () => {
     const { project } = await makeProject(base, 'my-spec');
-    const pointer = pointerFor(project, 'my-spec', 'run-123');
+    const pointer = liveFor(project, 'my-spec', 'run-123');
 
     const row = buildOverviewRow(project, pointer);
 
@@ -231,7 +242,7 @@ describe('buildOverviewRow', () => {
 
   it('sets lastRow to the newest phase row with text as "<phase> <result>"', async () => {
     const { project, specDir } = await makeProject(base, 'spec-lr1');
-    const pointer = pointerFor(project, 'spec-lr1', 'run-1');
+    const pointer = liveFor(project, 'spec-lr1', 'run-1');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-1', spec: 'spec-lr1' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-1', phase: 'document', mode: 'auto', state: 'v1' },
@@ -245,7 +256,7 @@ describe('buildOverviewRow', () => {
 
   it('sets lastRow to the newest note whose text mentions a gate, case-insensitively, skipping a newer non-gate note', async () => {
     const { project, specDir } = await makeProject(base, 'spec-lr2');
-    const pointer = pointerFor(project, 'spec-lr2', 'run-2');
+    const pointer = liveFor(project, 'spec-lr2', 'run-2');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-2', spec: 'spec-lr2' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.end', run: 'run-2', phase: 'design', result: 'converged', state: 'v1' },
@@ -260,7 +271,7 @@ describe('buildOverviewRow', () => {
 
   it("sets livePhase from buildModel's live phase when the ledger has an open phase", async () => {
     const { project, specDir } = await makeProject(base, 'spec-lp1');
-    const pointer = pointerFor(project, 'spec-lp1', 'run-3');
+    const pointer = liveFor(project, 'spec-lp1', 'run-3');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-3', spec: 'spec-lp1' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-3', phase: 'implementation', mode: 'auto', state: 'v1' },
@@ -273,7 +284,7 @@ describe('buildOverviewRow', () => {
 
   it('falls back to the HANDOFF live phase when the ledger has no open phase', async () => {
     const { project, workflowRoot } = await makeProject(base, 'spec-lp2');
-    const pointer = pointerFor(project, 'spec-lp2', 'run-4');
+    const pointer = liveFor(project, 'spec-lp2', 'run-4');
     writeFileSync(join(workflowRoot, 'HANDOFF.md'), handoffFixture('spec-lp2', 'closeout', 'in-progress', 'pass'));
 
     const row = buildOverviewRow(project, pointer);
@@ -283,7 +294,7 @@ describe('buildOverviewRow', () => {
 
   it('marks waiting true when the newest phase.end result is gate-a and no later phase.start follows', async () => {
     const { project, specDir } = await makeProject(base, 'spec-w1');
-    const pointer = pointerFor(project, 'spec-w1', 'run-5');
+    const pointer = liveFor(project, 'spec-w1', 'run-5');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-5', spec: 'spec-w1' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-5', phase: 'document', mode: 'auto', state: 'v1' },
@@ -297,7 +308,7 @@ describe('buildOverviewRow', () => {
 
   it('clears waiting once a later phase.start follows the gate-a phase.end', async () => {
     const { project, specDir } = await makeProject(base, 'spec-w2');
-    const pointer = pointerFor(project, 'spec-w2', 'run-6');
+    const pointer = liveFor(project, 'spec-w2', 'run-6');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-6', spec: 'spec-w2' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-6', phase: 'document', mode: 'auto', state: 'v1' },
@@ -312,7 +323,7 @@ describe('buildOverviewRow', () => {
 
   it("sets newestTs to the newest row's ts even when that row is not the lastRow", async () => {
     const { project, specDir } = await makeProject(base, 'spec-nt');
-    const pointer = pointerFor(project, 'spec-nt', 'run-7');
+    const pointer = liveFor(project, 'spec-nt', 'run-7');
     writeLedger(specDir, [
       { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-7', spec: 'spec-nt' },
       { ts: '2026-01-01T00:00:05.000Z', type: 'phase.end', run: 'run-7', phase: 'design', result: 'converged', state: 'v1' },
@@ -354,8 +365,7 @@ describe('OverviewWatch', () => {
     const { project: projectB, workflowRoot: rootB } = await makeProject(base, 'spec-idle', 'Project B');
     writeFileSync(join(rootB, 'HANDOFF.md'), handoffFixture('spec-idle', 'design', 'in-progress', 'converged'));
 
-    mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(pointerPath(), `/main/checkout\t${join(rootA, 'specs', 'spec-run')}\trun-live-1\n`);
+    await writeRun(runRecord(projectA, 'spec-run', 'run-live-1'));
 
     const messages: HarnessMessage[] = [];
     const stubManager = { getAllProjects: () => [projectA, projectB] } as unknown as ProjectManager;
@@ -378,8 +388,7 @@ describe('OverviewWatch', () => {
   it('shows a project waiting within five seconds of a gate-a phase.end append, then clears it on a later phase.start', async () => {
     const { project, specDir } = await makeProject(base, 'spec-wait', 'Project W');
     const runId = 'run-wait';
-    mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(pointerPath(), `/main/checkout\t${specDir}\t${runId}\n`);
+    await writeRun(runRecord(project, basename(specDir), runId));
     const ledgerPath = writeLedger(specDir, [
       { ts: new Date(Date.now() - 60000).toISOString(), type: 'run.start', run: runId, spec: 'spec-wait' },
       { ts: new Date(Date.now() - 50000).toISOString(), type: 'phase.start', run: runId, phase: 'document', mode: 'auto', state: 'v1' },
@@ -427,8 +436,7 @@ describe('OverviewWatch', () => {
     const ledgerPath = writeLedger(specDir, [
       { ts: new Date(Date.now() - 60000).toISOString(), type: 'run.start', run: runId, spec: 'spec-close' },
     ]);
-    mkdirSync(join(xdgBase, 'sdd'), { recursive: true });
-    writeFileSync(pointerPath(), `/main/checkout\t${specDir}\t${runId}\n`);
+    await writeRun(runRecord(project, basename(specDir), runId));
 
     const messages: HarnessMessage[] = [];
     const stubManager = { getAllProjects: () => [project] } as unknown as ProjectManager;

@@ -7,7 +7,6 @@ import { gateOrRuling, deriveProjectWaits, orderWaits } from '../waits.js';
 import type { Wait } from '../types.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
-import type { LaunchRecord, PointerLine } from '../../harness/types.js';
 
 // Contract for src/dashboard/shell/waits.ts (design.md C3; task 2 _Prompt;
 // Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.7, 2.8, 2.10, 2.11, 3.6).
@@ -96,7 +95,7 @@ import type { LaunchRecord, PointerLine } from '../../harness/types.js';
 //   one with proposals.md (one 'yes' line) and a DRAFT plan; one with
 //   proposals.md and an APPROVED plan; one with proposals.md and a CLOSED
 //   plan.
-//   Test: one deriveProjectWaits(project, undefined, null, now) call.
+//   Test: one deriveProjectWaits(project, null, now) call.
 //   Observable result: retro Waits exist for the absent-plan and DRAFT-plan
 //   directories only (spec names matching those directories), each with
 //   since the proposals file's actual mtime (ISO) and detail.count/lines
@@ -199,10 +198,6 @@ function makeSpecDir(specsDir: string, spec: string): string {
   return dir;
 }
 
-function pointerFor(project: ProjectContext, spec: string, runId = 'run-1'): PointerLine {
-  return { mainCheckout: '/main/checkout', specDir: join(project.projectPath, '.spec-workflow', 'specs', spec), runId };
-}
-
 function writeLedger(specDir: string, events: LedgerEvent[]): string {
   const path = join(specDir, 'harness-events.jsonl');
   writeFileSync(path, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
@@ -218,15 +213,6 @@ function handoffFixture(spec: string): string {
     `> **READ FIRST — SDD routing.** Active spec **\`${spec}\`**.`,
     `> Live phase **implementation**, state **in-progress**, last result **pending**.`,
   ].join('\n');
-}
-
-function baseLaunch(overrides: Partial<LaunchRecord>): LaunchRecord {
-  return {
-    projectId: 'p1', workflowRoot: '/wf', spec: 'spec', pid: 111, pgid: 111, cwd: '/wf', worktree: 'no',
-    logPath: '/tmp/log.log', launchedAt: '2026-01-01T00:00:00.000Z', setupWrittenAt: '2026-01-01T00:00:00.000Z',
-    runId: null, state: 'exited', exitCode: null, signal: null, stopRequestedAt: null, endedAt: null, note: null,
-    ...overrides,
-  };
 }
 
 describe('gateOrRuling', () => {
@@ -295,7 +281,7 @@ describe('deriveProjectWaits', () => {
     writeFileSync(join(dirA, 'gate-a.json'), JSON.stringify({ items: [{ header: 'H', question: 'Q?', options: ['opt1', 'opt2'] }] }));
     writeFileSync(join(dirA, 'questions.md'), '## Gate A\nSome question text\n');
 
-    const waitsA = deriveProjectWaits(project, pointerFor(project, 'gate-a-spec'), null, Date.now());
+    const waitsA = deriveProjectWaits(project, 'gate-a-spec', Date.now());
     const gateA = waitsA.find((w) => w.kind === 'gate');
     expect(gateA?.spec).toBe('gate-a-spec');
     expect(gateA?.since).toBe(endA);
@@ -312,7 +298,7 @@ describe('deriveProjectWaits', () => {
     writeFileSync(join(dirB, 'gate-b.json'), '{ not valid json');
     writeFileSync(join(dirB, 'questions.md'), '## Gate B\nB text\n');
 
-    const waitsB = deriveProjectWaits(project, pointerFor(project, 'gate-b-spec'), null, Date.now());
+    const waitsB = deriveProjectWaits(project, 'gate-b-spec', Date.now());
     const gateB = waitsB.find((w) => w.kind === 'gate');
     expect(gateB?.spec).toBe('gate-b-spec');
     expect(gateB?.since).toBe(endB);
@@ -329,7 +315,7 @@ describe('deriveProjectWaits', () => {
       { ts: end, type: 'phase.end', run: 'r1', phase: 'implementation', result: 'escalate', state: 'blocked', note: 'needs human ruling' },
     ]);
 
-    const waits = deriveProjectWaits(project, pointerFor(project, 'ruling-spec'), null, Date.now());
+    const waits = deriveProjectWaits(project, 'ruling-spec', Date.now());
     const ruling = waits.find((w) => w.kind === 'ruling');
     expect(ruling?.spec).toBe('ruling-spec');
     expect(ruling?.since).toBe(end);
@@ -361,7 +347,7 @@ describe('deriveProjectWaits', () => {
     writeFileSync(join(closedDir, 'retrospective-proposals.md'), '## Finding 1\nDECISION NEEDED: yes — moot.\n');
     writeFileSync(join(closedDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
 
-    const waits = deriveProjectWaits(project, undefined, null, Date.now());
+    const waits = deriveProjectWaits(project, null, Date.now());
     const retroWaits = waits.filter((w) => w.kind === 'retro');
     expect(retroWaits.map((w) => w.spec).sort()).toEqual(['retro-absent', 'retro-draft']);
 
@@ -378,36 +364,7 @@ describe('deriveProjectWaits', () => {
     expect(draftWait?.detail).toEqual({ kind: 'retro', count: 1, lines: ['DECISION NEEDED: yes — pick one.'] });
   });
 
-  it('derives an exited wait for a null run id and for a run id with no run.end, and none once a run.end exists', () => {
-    const { project, specsDir } = makeProject(base);
-
-    const nullRunLaunch = baseLaunch({ spec: 'exited-spec-1', runId: null, exitCode: 1, signal: null, endedAt: null, launchedAt: '2026-01-01T00:00:00.000Z', logPath: '/tmp/log1.log' });
-    const waits1 = deriveProjectWaits(project, undefined, nullRunLaunch, Date.now());
-    const exited1 = waits1.find((w) => w.kind === 'exited');
-    expect(exited1?.spec).toBe('exited-spec-1');
-    expect(exited1?.since).toBe('2026-01-01T00:00:00.000Z');
-    expect(exited1?.detail).toEqual({ kind: 'exited', exitCode: 1, signal: null, endedAt: null, logPath: '/tmp/log1.log' });
-
-    const dir2 = makeSpecDir(specsDir, 'exited-spec-2');
-    writeLedger(dir2, [{ ts: '2026-01-01T23:00:00.000Z', type: 'run.start', run: 'run-7' }]);
-    const noEndLaunch = baseLaunch({ spec: 'exited-spec-2', runId: 'run-7', exitCode: null, signal: 'SIGTERM', endedAt: '2026-01-02T00:00:00.000Z', launchedAt: '2026-01-01T23:00:00.000Z', logPath: '/tmp/log2.log' });
-    const waits2 = deriveProjectWaits(project, undefined, noEndLaunch, Date.now());
-    const exited2 = waits2.find((w) => w.kind === 'exited');
-    expect(exited2?.spec).toBe('exited-spec-2');
-    expect(exited2?.since).toBe('2026-01-02T00:00:00.000Z');
-    expect(exited2?.detail).toEqual({ kind: 'exited', exitCode: null, signal: 'SIGTERM', endedAt: '2026-01-02T00:00:00.000Z', logPath: '/tmp/log2.log' });
-
-    const dir3 = makeSpecDir(specsDir, 'exited-spec-3');
-    writeLedger(dir3, [
-      { ts: '2026-01-01T23:00:00.000Z', type: 'run.start', run: 'run-9' },
-      { ts: '2026-01-02T00:00:00.000Z', type: 'run.end', run: 'run-9', status: 'done' },
-    ]);
-    const endedLaunch = baseLaunch({ spec: 'exited-spec-3', runId: 'run-9', endedAt: '2026-01-02T00:00:00.000Z', launchedAt: '2026-01-01T23:00:00.000Z', logPath: '/tmp/log3.log' });
-    const waits3 = deriveProjectWaits(project, undefined, endedLaunch, Date.now());
-    expect(waits3.find((w) => w.kind === 'exited')).toBeUndefined();
-  });
-
-  it('derives a quiet wait only past fifteen minutes with an open spawn and a pointer line', () => {
+  it('derives a quiet wait only past fifteen minutes with an open spawn and a live run', () => {
     const now = Date.now();
     const { project, specsDir } = makeProject(base);
 
@@ -432,14 +389,14 @@ describe('deriveProjectWaits', () => {
     const activity14 = quietFixture('quiet-14', true);
     const t14 = new Date(now - 14 * 60 * 1000);
     utimesSync(activity14, t14, t14);
-    const waits14 = deriveProjectWaits(project, pointerFor(project, 'quiet-14'), null, now);
+    const waits14 = deriveProjectWaits(project, 'quiet-14', now);
     expect(waits14.find((w) => w.kind === 'quiet')).toBeUndefined();
 
     // 16 minutes old, open spawn, pointer present: quiet.
     const activity16 = quietFixture('quiet-16', true);
     const t16 = new Date(now - 16 * 60 * 1000);
     utimesSync(activity16, t16, t16);
-    const waits16 = deriveProjectWaits(project, pointerFor(project, 'quiet-16'), null, now);
+    const waits16 = deriveProjectWaits(project, 'quiet-16', now);
     const quiet = waits16.find((w) => w.kind === 'quiet');
     const expectedIso = mtimeIso(activity16);
     expect(quiet?.spec).toBe('quiet-16');
@@ -449,14 +406,14 @@ describe('deriveProjectWaits', () => {
     // 16 minutes old, but the spawn is closed: no quiet wait.
     const activityClosed = quietFixture('quiet-closed', false);
     utimesSync(activityClosed, t16, t16);
-    const waitsClosed = deriveProjectWaits(project, pointerFor(project, 'quiet-closed'), null, now);
+    const waitsClosed = deriveProjectWaits(project, 'quiet-closed', now);
     expect(waitsClosed.find((w) => w.kind === 'quiet')).toBeUndefined();
 
     // 16 minutes old, open spawn, but no pointer (HANDOFF-resolved spec only): no quiet wait.
     const activityNoPointer = quietFixture('quiet-no-pointer', true);
     utimesSync(activityNoPointer, t16, t16);
     writeFileSync(join(project.projectPath, '.spec-workflow', 'HANDOFF.md'), handoffFixture('quiet-no-pointer'));
-    const waitsNoPointer = deriveProjectWaits(project, undefined, null, now);
+    const waitsNoPointer = deriveProjectWaits(project, null, now);
     expect(waitsNoPointer.find((w) => w.kind === 'quiet')).toBeUndefined();
   });
 
@@ -465,15 +422,15 @@ describe('deriveProjectWaits', () => {
 
     // Missing: the spec directory exists but harness-events.jsonl does not.
     makeSpecDir(specsDir, 'missing-ledger');
-    expect(() => deriveProjectWaits(project, pointerFor(project, 'missing-ledger'), null, Date.now())).not.toThrow();
-    const waitsMissing = deriveProjectWaits(project, pointerFor(project, 'missing-ledger'), null, Date.now());
+    expect(() => deriveProjectWaits(project, 'missing-ledger', Date.now())).not.toThrow();
+    const waitsMissing = deriveProjectWaits(project, 'missing-ledger', Date.now());
     expect(waitsMissing.find((w) => w.kind === 'gate' || w.kind === 'ruling' || w.kind === 'quiet')).toBeUndefined();
 
     // Empty: a zero-byte harness-events.jsonl.
     const emptyDir = makeSpecDir(specsDir, 'empty-ledger');
     writeFileSync(join(emptyDir, 'harness-events.jsonl'), '');
-    expect(() => deriveProjectWaits(project, pointerFor(project, 'empty-ledger'), null, Date.now())).not.toThrow();
-    const waitsEmpty = deriveProjectWaits(project, pointerFor(project, 'empty-ledger'), null, Date.now());
+    expect(() => deriveProjectWaits(project, 'empty-ledger', Date.now())).not.toThrow();
+    const waitsEmpty = deriveProjectWaits(project, 'empty-ledger', Date.now());
     expect(waitsEmpty.find((w) => w.kind === 'gate' || w.kind === 'ruling' || w.kind === 'quiet')).toBeUndefined();
 
     // Torn: a well-formed phase.start followed by a truncated, non-JSON tail
@@ -485,8 +442,8 @@ describe('deriveProjectWaits', () => {
       '{"ts":"2026-01-01T00:01:00.000Z","type":"phase.start","run":"r1","phase":"document"}\n' +
       '{"ts":"2026-01-01T00:02:00.000Z","type":"phase.end","run":"r1","phase":"document","result":"gate-a"',
     );
-    expect(() => deriveProjectWaits(project, pointerFor(project, 'torn-ledger'), null, Date.now())).not.toThrow();
-    const waitsTorn = deriveProjectWaits(project, pointerFor(project, 'torn-ledger'), null, Date.now());
+    expect(() => deriveProjectWaits(project, 'torn-ledger', Date.now())).not.toThrow();
+    const waitsTorn = deriveProjectWaits(project, 'torn-ledger', Date.now());
     expect(waitsTorn.find((w) => w.kind === 'gate' || w.kind === 'ruling' || w.kind === 'quiet')).toBeUndefined();
   });
 });

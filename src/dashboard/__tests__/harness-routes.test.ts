@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   promises as fsp, writeFileSync, appendFileSync, mkdirSync,
-  chmodSync, readFileSync, readdirSync,
+  chmodSync, readFileSync, readdirSync, existsSync,
 } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
@@ -11,7 +11,6 @@ import { WebSocket } from 'ws';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
-import { pointerPath, launchesDir } from '../harness/state-files.js';
 import { AGENT_PROFILES } from '../../watch/ledger.js';
 import { loadOrCreateSecret } from '../../controller/access.js';
 
@@ -411,7 +410,7 @@ sleep 30 &
 wait
 `;
 
-describe('harness routes: setup, launch and stop (task 10)', () => {
+describe('harness routes: setup and launch (task 10)', () => {
   let tempDir: string;
   let stateHomeDir: string;
   let server: MultiProjectDashboardServer | null = null;
@@ -523,49 +522,15 @@ describe('harness routes: setup, launch and stop (task 10)', () => {
     expect(body.supervisor).toEqual({ model: 'claude-opus-5-5', effort: 'high' });
   });
 
-  it('PUT setup with a bad model gives 400 naming the field', async () => {
-    const res = await realFetch(routeUrl('setup'), {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
-      body: JSON.stringify(baseInput({ supervisorModel: 'gpt-4' })),
-    });
-    expect(res.status).toBe(400);
-    const body: any = await res.json();
-
-    expect(body.field).toBe('supervisorModel');
-    expect(body.value).toBe('gpt-4');
-    expect(typeof body.error).toBe('string');
-    expect(body.error.length).toBeGreaterThan(0);
-  });
-
-  it('PUT setup for another spec gives 409 naming both specs', async () => {
-    const res = await realFetch(routeUrl('setup'), {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
-      body: JSON.stringify(baseInput({ spec: 'bogus-spec' })),
-    });
-    expect(res.status).toBe(409);
-    const body: any = await res.json();
-
-    expect(body.error).toBe('not-launchable');
-    expect(typeof body.reason).toBe('string');
-    expect(body.reason).toContain('alpha');
-    expect(body.reason).toContain('bogus-spec');
-  });
-
-  // Launch now enqueues to the controller (controller-tasks.md T6): the route
-  // keeps the launchability/routed-spec check and persists the setup with gates
-  // record, then the controller owns the run. The launcher's spawn/stop contract
-  // is tested directly in launcher.test.ts.
-  it('launch enqueues, returns a runId, and writes harness-run.json with gates record', async () => {
+  // Launch enqueues to the controller (controller-tasks.md T6): the route keeps
+  // the launchability/routed-spec check, then the controller owns the run. The
+  // setup file the supervisor launcher read went with step (d).
+  it('launch enqueues, returns a runId, and writes no setup file', async () => {
     const { status, body } = await postJson('launch', baseInput({ gates: 'block' }));
     expect(status).toBe(200);
     expect(typeof body.runId).toBe('string');
     expect(body.runId).toMatch(/^run-/);
-
-    // Launch always records; a headless run cannot answer a gate (Carried R3-minor-2).
-    const runFile = JSON.parse(readFileSync(join(workflowRoot, 'harness-run.json'), 'utf-8'));
-    expect(runFile.gates).toBe('record');
+    expect(existsSync(join(workflowRoot, 'harness-run.json'))).toBe(false);
 
     // The run is recorded and shows on the controller runs route.
     const runs: any = await (await realFetch(`http://127.0.0.1:${port}/api/controller/runs`, {

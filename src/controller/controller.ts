@@ -10,7 +10,7 @@
 import { EventEmitter } from 'events';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { pointerPath, sddHome } from '../dashboard/harness/state-files.js';
+import { sddHome } from '../dashboard/harness/state-files.js';
 import { PathUtils } from '../core/path-utils.js';
 import { newRunId } from './ledger.js';
 import {
@@ -59,7 +59,6 @@ export interface ControllerOptions {
   /** Unused since step (c3): every step reads `CONTROLLER_CLAUDE_BIN` itself. Kept for the server's call. */
   claudeBin?(): string;
   ghBin?(): string;
-  pointerFile?(): string;
   /** Cancel grace before SIGKILL (ms). */
   graceMs?: number;
 }
@@ -413,7 +412,6 @@ export class Controller extends EventEmitter {
       windowBlock: () => this.windowBlock(),
       onRateLimit: (w) => { void this.persistRateLimit(w); },
       onActivity: (a) => recordActivity(a),
-      pointerFile: () => this.pointerFile(),
       isCancelled: (id) => this.cancelled.has(id),
       setInFlight: () => { /* the driver persists run.inFlight itself */ },
     };
@@ -422,7 +420,6 @@ export class Controller extends EventEmitter {
   private cancelDeps(): CancelDeps {
     return {
       now: this.now,
-      pointerFile: () => this.pointerFile(),
       ghBin: () => this.ghBin(),
       graceMs: this.opts.graceMs,
     };
@@ -487,10 +484,6 @@ export class Controller extends EventEmitter {
 
   private ghBin(): string {
     return this.opts.ghBin ? this.opts.ghBin() : (process.env.CONTROLLER_GH_BIN || 'gh');
-  }
-
-  private pointerFile(): string {
-    return this.opts.pointerFile ? this.opts.pointerFile() : pointerPath();
   }
 
   private async save(run: RunRecord, patch: Partial<RunRecord>): Promise<RunRecord> {

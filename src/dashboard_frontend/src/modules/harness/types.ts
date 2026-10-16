@@ -126,15 +126,6 @@ export interface RoutingDecision {
 
 export type Provider = 'anthropic' | 'deepseek';
 
-export interface HarnessRunFile {     // <spec store>/.spec-workflow/harness-run.json
-  spec: string;
-  writtenAt: string;                  // ISO 8601 UTC
-  supervisorModel: string;
-  worktree: 'yes' | 'no';
-  gates: 'block' | 'record';
-  roles: Record<string, { model: string; provider: Provider }>; // differing roles only
-}
-
 export interface SetupInput {
   spec: string; supervisorModel: string; worktree: 'yes' | 'no'; gates: 'block' | 'record';
   roles: Record<string, { model: string; provider?: Provider }>;
@@ -164,26 +155,11 @@ export interface SetupView {
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
   modelAliases: string[]; deepseekModels: string[]; eligibleRoles: string[];
-  saved: HarnessRunFile | null;       // display-only notice
 }
-
-export interface LaunchRecord {       // <global dir>/harness/launches/<projectId>.json
-  projectId: string; workflowRoot: string; spec: string;
-  pid: number; pgid: number; cwd: string; worktree: 'yes' | 'no';
-  logPath: string; launchedAt: string; setupWrittenAt: string;
-  runId: string | null;
-  state: 'running' | 'stopping' | 'stopped' | 'exited';
-  exitCode: number | null; signal: string | null;
-  stopRequestedAt: string | null; endedAt: string | null;
-  note: string | null;                // 'found gone after dashboard restart'
-}
-
-export interface PointerLine { mainCheckout: string; specDir: string; runId: string }
 
 export type HarnessMessage =          // server to client
   | { type: 'harness-model'; projectId: string; data: { spec: string | null; model: RunModel | null;
-      profiles: Record<string, AgentProfile>; launch: LaunchRecord | null } }
-  | { type: 'harness-log'; projectId: string; data: { launchedAt: string; lines: string[]; reset: boolean } }
+      profiles: Record<string, AgentProfile> } }
   | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
   | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null };
 

@@ -4,10 +4,10 @@ import { useWs } from '../ws/WebSocketProvider';
 import { useShell } from './ShellProvider';
 import { Group, Chips, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { PageLayout, ScrollBox } from './PageLayout';
-import { callHarness, present, type OpError, OpErrorView } from './harness';
+import { present } from './harness';
 import { formatDate } from '../../lib/dateUtils';
 import type {
-  RunModel, AgentProfile, LaunchRecord, SpawnNode, SetupView,
+  RunModel, AgentProfile, SpawnNode, SetupView,
 } from '../harness/types';
 import type {
   RunDetail, LedgerEvent, ActivityEvent, ControllerRun, ControllerActivity, ControllerWait,
@@ -52,51 +52,32 @@ export function RunPage() {
 
   const [model, setModel] = useState<RunModel | null>(null);
   const [profiles, setProfiles] = useState<Record<string, AgentProfile>>({});
-  const [launch, setLaunch] = useState<LaunchRecord | null>(null);
   const [detail, setDetail] = useState<RunDetail | null>(null);
-  const [logLines, setLogLines] = useState<string[]>([]);
   const [summary, setSummary] = useState<TaskReviewSummary>({});
   const [view, setView] = useState<SetupView | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(Date.now());
-  const [busy, setBusy] = useState(false);
-  const [opError, setOpError] = useState<OpError | null>(null);
 
-  const launchRef = useRef<LaunchRecord | null>(null);
   const prefix = projectId ? `/api/projects/${encodeURIComponent(projectId)}` : '';
 
   // Hold the harness view for this project alone while mounted (design D11).
   useEffect(() => {
     if (!projectId) return;
-    setModel(null); setDetail(null); setLaunch(null); launchRef.current = null;
-    setLogLines([]); setSummary({}); setLoaded(false);
+    setModel(null); setDetail(null); setSummary({}); setLoaded(false);
     const release = watchView({ kind: 'harness', projectId });
 
-    const onModel = (d: { model: RunModel | null; profiles: Record<string, AgentProfile>; launch: LaunchRecord | null }) => {
+    const onModel = (d: { model: RunModel | null; profiles: Record<string, AgentProfile> }) => {
       setModel(d.model);
       setProfiles(d.profiles || {});
-      setLaunch(d.launch);
-      launchRef.current = d.launch;
       setLoaded(true);
     };
     const onDetail = (d: RunDetail | null) => setDetail(d);
-    const onLog = (d: { launchedAt: string; lines: string[]; reset: boolean }) => {
-      setLogLines((prev) => {
-        const current = launchRef.current?.launchedAt;
-        if (current && d.launchedAt !== current) return prev;
-        const base = d.reset ? [] : prev;
-        const next = base.concat(d.lines || []);
-        return next.length > 500 ? next.slice(next.length - 500) : next;
-      });
-    };
 
     subscribe('harness-model', onModel);
     subscribe('harness-run-detail', onDetail);
-    subscribe('harness-log', onLog);
     return () => {
       unsubscribe('harness-model', onModel);
       unsubscribe('harness-run-detail', onDetail);
-      unsubscribe('harness-log', onLog);
       release();
     };
   }, [projectId, watchView, subscribe, unsubscribe]);
@@ -136,15 +117,6 @@ export function RunPage() {
     const id = setInterval(load, 5000);
     return () => { alive = false; clearInterval(id); };
   }, [projectId, prefix, spec, hasTasks]);
-
-  const stop = useCallback(async () => {
-    if (!projectId) return;
-    setBusy(true);
-    setOpError(null);
-    const res = await callHarness(`${prefix}/harness/stop`, 'POST');
-    setBusy(false);
-    if (!res.ok) setOpError({ status: res.status, body: res.data });
-  }, [projectId, prefix]);
 
   // The controller run for this project (T10): its in-flight step's "Live now".
   const ctrlRun = useMemo<ControllerRun | null>(
@@ -223,21 +195,14 @@ export function RunPage() {
           <OpenSpawns spawns={openSpawns} profiles={profiles} now={tick} />
           {hasTasks && model && <TaskTable model={model} detail={detail} summary={summary} />}
           <CollapsedTables model={model} profiles={profiles} now={tick} />
-          <LogTabs detail={detail} logLines={logLines} />
+          <LogTabs detail={detail} />
         </>
       )}
     </div>
   );
 
   const panel = (
-    <RunPanel
-      model={model}
-      launch={launch}
-      view={view}
-      busy={busy}
-      opError={opError}
-      onStop={stop}
-    />
+    <RunPanel model={model} view={view} />
   );
 
   return <PageLayout list={list} panel={panel} />;
@@ -576,19 +541,17 @@ function activityLine(a: ActivityEvent): string {
   return parts.join(' ');
 }
 
-function LogTabs({ detail, logLines }: { detail: RunDetail | null; logLines: string[] }) {
-  const [tab, setTab] = useState<'ledger' | 'activity' | 'process'>('ledger');
+function LogTabs({ detail }: { detail: RunDetail | null }) {
+  const [tab, setTab] = useState<'ledger' | 'activity'>('ledger');
 
   const lines = useMemo(() => {
     if (tab === 'ledger') return (detail?.ledgerRows ?? []).map(ledgerLine);
-    if (tab === 'activity') return (detail?.activityRows ?? []).map(activityLine);
-    return logLines;
-  }, [tab, detail, logLines]);
+    return (detail?.activityRows ?? []).map(activityLine);
+  }, [tab, detail]);
 
   const tabs: { id: typeof tab; label: string }[] = [
     { id: 'ledger', label: 'Ledger' },
     { id: 'activity', label: 'Activity' },
-    { id: 'process', label: 'Process log' },
   ];
 
   return (
@@ -665,61 +628,31 @@ function PanelField({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
-function RunPanel({
-  model, launch, view, busy, opError, onStop,
-}: {
-  model: RunModel | null;
-  launch: LaunchRecord | null;
-  view: SetupView | null;
-  busy: boolean;
-  opError: OpError | null;
-  onStop: () => void;
-}) {
-  const canStop = launch?.state === 'running' || launch?.state === 'stopping';
-  const saved = view?.saved ?? null;
-
+function RunPanel({ model, view }: { model: RunModel | null; view: SetupView | null }) {
   return (
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="run-panel">
       <div className="space-y-1">
-        <PanelField label={'Run id'} value={model?.runId ?? launch?.runId ?? undefined} />
+        <PanelField label={'Run id'} value={model?.runId ?? undefined} />
         <PanelField label={'Start'} value={model?.runStartedAt ? formatDate(model.runStartedAt) : undefined} />
         <PanelField label={'Code root'} value={model?.codeRoot} />
         <PanelField label={'Worktree'} value={model?.worktree} />
         <PanelField label={'Headless'} value={model?.headless} />
         <PanelField label={'Providers'} value={model?.providers} />
         <PanelField label={'Tokens'} value={typeof model?.tokensTotal === 'number' ? model.tokensTotal.toLocaleString() : undefined} />
-        <PanelField label={'Launch PID'} value={launch?.pid} />
       </div>
-
-      <button
-        type="button"
-        onClick={onStop}
-        disabled={!canStop || busy}
-        data-testid="run-stop"
-        className="mt-3 rounded-md bg-[var(--status-error)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-      >
-        {launch?.state === 'stopping' ? 'Stopping…' : 'Stop'}
-      </button>
-
-      {opError && (
-        <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-          <OpErrorView error={opError} />
-        </div>
-      )}
 
       {view && (
         <div className="mt-4">
-          <Group name="run-setup" title={saved ? 'Saved setup' : 'Defaults'} defaultCollapsed>
+          <Group name="run-setup" title={'Defaults'} defaultCollapsed>
             <table className="w-full border-collapse text-sm" data-testid="run-setup-table">
               <tbody>
                 <tr className="border-b border-[var(--border-default)]">
                   <td className="py-1 pr-3 text-[var(--text-muted)]">{'Supervisor'}</td>
-                  <td className="py-1 break-words text-[var(--text-primary)]">{saved?.supervisorModel ?? view.supervisor.model}</td>
+                  <td className="py-1 break-words text-[var(--text-primary)]">{view.supervisor.model}</td>
                 </tr>
                 {view.roles.map((r) => {
-                  const sv = saved?.roles?.[r.agent];
-                  const modelVal = sv?.model ?? r.defaultModel;
-                  const provider = sv?.provider ?? r.defaultProvider;
+                  const modelVal = r.defaultModel;
+                  const provider = r.defaultProvider;
                   return (
                     <tr key={r.agent} className="border-b border-[var(--border-default)]">
                       <td className="py-1 pr-3 align-top text-[var(--text-muted)] break-words">{r.agent}</td>
@@ -731,11 +664,11 @@ function RunPanel({
                 })}
                 <tr className="border-b border-[var(--border-default)]">
                   <td className="py-1 pr-3 text-[var(--text-muted)]">{'Worktree'}</td>
-                  <td className="py-1 text-[var(--text-primary)]">{saved?.worktree ?? view.worktree}</td>
+                  <td className="py-1 text-[var(--text-primary)]">{view.worktree}</td>
                 </tr>
                 <tr>
                   <td className="py-1 pr-3 text-[var(--text-muted)]">{'Gates'}</td>
-                  <td className="py-1 text-[var(--text-primary)]">{saved?.gates ?? view.gates}</td>
+                  <td className="py-1 text-[var(--text-primary)]">{view.gates}</td>
                 </tr>
               </tbody>
             </table>
