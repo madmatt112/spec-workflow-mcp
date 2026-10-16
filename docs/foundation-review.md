@@ -717,6 +717,18 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   2026-10-18 15:00Z, and a full tradr run could pause itself and lock Matthew's own
   sessions out until then; it launches after the reset unless he says otherwise.
 
+- 2026-10-16 13:30Z **step (d), second half, PR #140 (`37374e2`)**, built by a fork of this
+  session from a decision list: the supervisor launcher (`launcher.ts`) is gone, its
+  `ensureWorktree` kept as `worktree.ts`; the `active-run` pointer, the launch records,
+  `harness-run.json` and the setup PUT and stop routes are gone; "which project has a run
+  live" now comes from the controller's run records (`live-runs.ts`, `listRunsSync`) in the
+  Now model, the overview rows (re-armed by `runEvents`) and the spec rows; the Run page lost
+  its Stop button and launch log, the Runs page its setup editor. 36 files, +601/−3043,
+  1793 tests. The controller never wrote the pointer, so the Now page's live group had been
+  empty for controller runs until now. PR #139 fixed the link pruning in `dev-link.sh` (a
+  quoted glob); the deploy of #138 and the pruning ran at the repeat run's gate B. Deploy of
+  #140 at the run's next wait.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

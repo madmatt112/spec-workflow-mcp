@@ -237,7 +237,7 @@ caught a bad build at least once.
 | `questions.md`, `retrospective-plan.md` status | rendered from wait answers; the plan's body is still a step's prose |
 | `approvals` tool | the controller writes approval records; the tool stays for by-hand runs |
 | `review-task`, `spec-lint`, `log-implementation`, `deferrals`, `adversarial-response` | unchanged; called in-process by the controller or mid-step by a role |
-| dashboard launcher (`launcher.ts`) | becomes the step runner |
+| dashboard launcher (`launcher.ts`) | deleted at step (d) (PR #140); `step.ts` is the step runner and `worktree.ts` keeps `ensureWorktree` |
 | spec 16 (gates) | the waits of section 7 and their answer sheets |
 | spec 17 (merge, deferrals) | section 10 and the Deferrals page |
 | spec 18 (usage) | from step results; the page as designed |
