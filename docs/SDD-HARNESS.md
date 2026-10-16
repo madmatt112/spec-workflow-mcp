@@ -1,46 +1,44 @@
 # SDD Harness
 
-The SDD harness is a Claude Code plugin that runs the spec-driven development
-workflow of this server without a human at the dashboard. One command takes the active
-spec from wherever it stands through its retrospective and the close-out of the approved
-retrospective plan, then stops. The next run starts the next spec.
+The SDD harness runs the spec-driven development workflow of this server with no human at
+the keyboard. The operator launches a spec from the dashboard. The harness takes the spec
+from its first document through implementation, the merge, the retrospective and the
+close-out of the approved retrospective plan, then stops. The operator answers only when
+the run opens a wait.
 
-It ships in this repository as the `harness/` directory at the repository root, a
-plugin-shaped directory loadable with `--plugin-dir`.
+The harness is the **controller**, a module of the dashboard server (`src/controller/`,
+`src/dashboard/`). It is code. No model runs in the control loop (ADR 0004). Each model
+step is one fresh `claude -p` process with a role file from `harness/agents/` and a report
+schema (`src/controller/step.ts`). The controller reads the step's result and writes the
+run's history itself.
 
 ## What it is
 
-- A **supervisor** skill, `sdd-continue`, that runs in the main session. It resolves
-  the roots, finds the active spec and its live phase, spawns one orchestrator agent at
-  a time, and holds the retrospective conversation with you.
-- Four **orchestrator** agents, one per phase kind: `sdd-document-orchestrator`
-  (requirements, design, tasks), `sdd-implementation-orchestrator`,
-  `sdd-retro-orchestrator` and `sdd-closeout-orchestrator`. Each is spawned fresh,
-  carries its phase skill, and reports in a fixed contract. The document and
-  implementation phase skills are split: a core `SKILL.md` holds the standing rules and
-  the main loop, and step-scoped `references/*.md` files (gates, convergence and revision
-  for the document phase; completion and stops for the implementation phase) are read only
-  when a step routes to them. Each orchestrator pulls its worker briefs, prompt blocks and
-  the bookkeeping script `book.sh` from the `harness` tool's `brief` action rather than
-  from reference text in the skill.
-- Nine **worker** agents with pinned models and per-role tool allowlists:
-  `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-adjudicator`, `sdd-checker`,
-  `sdd-test-author`, `sdd-implementer`, `sdd-verifier`, `sdd-retro-analyst`.
-- A fifth skill, `sdd-deferrals`, that works the deferred-decision queue. It is invoked
-  by name only and is never part of "continue the sdd process".
+- **The controller.** The queue, the runs, the waits, the capacity rules and the merge
+  rule. It runs every phase: documents (`phases/document.ts`), implementation
+  (`phases/implementation.ts`), the merge rule (`merge.ts`), retrospective
+  (`phases/retrospective.ts`) and close-out (`phases/closeout.ts`). `runs.ts` routes a run
+  from phase to phase, merges the close-out's pull requests and pushes the spec store at
+  the end.
+- **Ten worker roles** in `harness/agents/`, one file each, with a pinned model, an effort
+  and a tool list: `sdd-drafter`, `sdd-reviewer`, `sdd-reviser`, `sdd-checker`,
+  `sdd-adjudicator`, `sdd-test-author`, `sdd-implementer`, `sdd-verifier`,
+  `sdd-retro-compiler`, `sdd-retro-analyst`. The controller gives each step one of these
+  files as its system prompt.
+- **One skill**, `sdd-deferrals`, in `harness/skills/`. It works the deferred-decision
+  queue by hand. It is invoked by name only. No run uses it.
+- **The dashboard**, the operator's only console: the Now, Runs, Run, Specs, Deferrals
+  and Usage pages.
 
-The harness approves its own documents. It uses the `approvals` tool's `approve`,
-`reject`, `list` and `prune` actions and the per-document approval state that
-`spec-status` reports (server 5.2.0 or later). There is no human gate before
-implementation: the retrospective conversation is the one checkpoint per spec.
+The harness approves its own documents through the `approvals` tool. The operator's
+checkpoints are the waits: gate A after the first requirements draft, gate B before
+implementation, the retrospective plan, and a merge wait where a project asks for one.
 
 ## The controller
 
 The controller is the always-on part of the harness. It holds the queue, starts and
 resumes runs, watches capacity, answers the operator through waits, and merges by rule.
-It is code, not a model. No model runs in the control loop (ADR 0004). The controller is
-a module of the dashboard server process, built in place beside the launcher and the
-watchers (ADR 0005).
+It is a module of the dashboard server process (ADR 0005).
 
 ### What runs where
 
@@ -49,18 +47,11 @@ watchers (ADR 0005).
 - Each model **step** is one fresh headless `claude -p` process. The controller spawns it
   with a role, a brief and a report schema. The step exits with a typed result. The
   controller reads the result for the report, the token usage and the usage windows, and
-  writes the ledger itself.
-- The controller runs every phase itself (`src/controller/phases/document.ts`,
-  `implementation.ts`, `retrospective.ts`, `closeout.ts`). The implementation phase works
-  the task queue with test-author, implementer, verifier and adjudicator steps, runs the
-  review gate in-process, verifies end to end, opens the pull request and waits for its
-  checks (reconciling a red one), then hands the merged state to the merge rule. The
-  retrospective runs a compile step (`sdd-retro-compiler`) and the analyst step, then opens
-  the `retro-plan` wait. Close-out lands the approved plan's items batch by batch (one
-  implementer step per class, gated and verified like tasks), opens one PR per repository
-  touched, and marks the plan CLOSED.
-- No **supervisor** is spawned any more. The supervisor skill, its orchestrators and the
-  hooks are deleted at step (d).
+  writes the ledger itself. Every step's process id is in the run record while it runs.
+- A run works in a worktree of the code repository, `.claude/worktrees/<spec>` on the
+  branch `feat/<spec>`, when `agent-rules.md` says `worktree-per-change: required`
+  (`src/dashboard/harness/worktree.ts`). The `worktree-setup` command runs once in a new
+  worktree.
 
 ### The harness home
 
@@ -69,27 +60,45 @@ The controller keeps all machine state in the harness home (`~/.local/state/sdd`
 atomically.
 
 - `runs/<run-id>/run.json` — one record per run: the project, the spec, the status, the
-  phase, the step cursor, the worktree, and the in-flight step's process id.
+  phase, the step cursor, the worktree, the pull request, the in-flight step's process id
+  and the token totals. `runs/<run-id>/steps/` holds each step's stream log and system
+  prompt.
 - `waits/<wait-id>.json` — one record per wait.
 - `queue.json` — the launched runs waiting for a slot, in order.
 - `rate-limit.json` — the latest usage windows.
-- `projects.json` — every project the dashboard has seen, until the operator removes it.
-  The MCP process registry lists a project only while a server for it is alive; this
-  list is what keeps a project launchable after a controller restart.
+- `projects.json` — every project the operator registered, until the operator removes it.
+  This list is what keeps a project launchable after a controller restart.
 - `secret` — the shared access secret (see "Access").
+- `service.env` — the GitHub token for the service (see "GitHub credentials").
 - `controller.lock` — the single-controller lock. A second controller that finds the
   lock held exits.
+- `watchdog.state` and `watchdog-alerts.log` — the watchdog's memory and its alerts.
 
-The spec store keeps everything the operator reads later, in git, in the formats the
-harness already writes: the documents, the analyses, the gate receipt (`questions.md`),
-the retro files, the deferrals and `harness-events.jsonl`. The controller commits these
-as the skills do.
+There is no pointer file and no `harness-run.json` any more; both went with the
+supervisor at step (d) of the foundation rework.
+
+The spec store keeps everything the operator reads later, in git: the documents, the
+analyses, the gate receipt (`questions.md`), the retro files, the deferrals and
+`harness-events.jsonl`. The controller commits these as it goes and pushes the store at
+the end of the run (see "Run end").
 
 ### Launch and capacity
 
 Launch means enqueue. The operator launches a spec; the controller writes a `queued` run
 and starts it when it has a slot (ADR 0004). It allows one run per spec store.
 
+- **Register a project once.** `POST /api/projects/add {"projectPath": "<repo>"}` with the
+  secret. The project is remembered in `projects.json`. `DELETE /api/projects/:id`
+  removes it.
+- **The launchable spec.** The first entry of `spec-decomposition/decomposition.md` whose
+  heading is `### N. \`<name>\`` and which has no `.spec-workflow/specs/<name>/`
+  directory yet. An entry marked `(deferred)` is skipped. `GET
+  /api/projects/:id/harness/setup` shows the spec, or the reason nothing is launchable.
+- **Launch.** The Launch card on the Runs page, or `POST /api/projects/:id/harness/launch`
+  with `{"spec", "supervisorModel", "worktree", "gates", "roles"}` (the Runs page builds
+  this from the setup view). The route makes the spec directory, forces `gates: record`
+  and enqueues. It answers `409` when the spec is not the launchable one, when another
+  run is live on the same spec store, or when a usage window blocks launches.
 - **Slots.** The controller carries up to two runs at once. Set `CONTROLLER_SLOTS` to
   change the count. Launched runs over the slot count wait in the queue, first come first
   served.
@@ -98,34 +107,45 @@ and starts it when it has a slot (ADR 0004). It allows one run per spec store.
   Before it starts a step, it checks both windows. It holds every run back while either
   window is over the threshold, and starts them again at the window's reset. Set
   `CONTROLLER_WINDOW_THRESHOLD` to change the threshold (default `0.95`).
-- **Token cap.** A per-run cap stops a runaway run. The default is twice the project's
-  measured baseline W per spec, from `baseline-w-per-spec` in `agent-rules.md`. At the cap
-  the controller writes an `error` wait; the operator raises the cap or abandons the run.
+- **Token cap.** A per-run cap stops a runaway run. The default is twice
+  `baseline-w-per-spec` from `agent-rules.md`; with no key there is no cap. At the cap the
+  controller writes an `error` wait; the operator raises the cap or abandons the run.
 
 ### Waits
 
 A wait is the only way a run speaks to the operator. The controller writes a wait, parks
 the run, and carries on with other work. The operator answers the wait on the dashboard
-Now page. The answer resumes the run.
+Now page, or with `POST /api/controller/waits/:id/answer {"answers": {"<question id>":
+"<value>"}, "by": "<name>"}`. The answer resumes the run.
 
 A wait is one of these kinds: `gate-a`, `gate-b`, `retro-plan`, `merge`, `escalation`,
 `error`, `question`. When the operator answers a gate wait, the controller renders the
 gate receipt into `questions.md` in the spec store and appends a `note` row to the ledger.
-The dashboard shows one answer sheet per kind.
+An `error` or `escalation` wait answered "abandon" ends the run; any other answer resumes
+it. A second opinion can be attached to a wait (`POST /api/controller/waits/:id/advice`);
+the operator still answers.
 
 ### The merge rule
 
 After the implementation phase reports complete, the controller reads the pull request and
-decides by a fixed rule (ADR 0003, design §10). It merges when the checks are green, the
-PR is mergeable, no commit or body carries a Claude attribution trailer, and the head
-branch is the run's. It then runs the post-merge command. A model never runs this rule.
-Three keys in `agent-rules.md` set the behaviour per project:
+decides by a fixed rule (ADR 0003, design §10). It merges when every GitHub Actions run and
+commit status of the head commit passed, the PR is mergeable, no commit or body carries a
+Claude attribution trailer, and the head branch is the run's. It reads CI from the
+workflow runs and commit statuses, not from the check rollup, because a fine-grained token
+cannot read check runs. A model never runs this rule. Three keys in `agent-rules.md` set
+the behaviour per project:
 
 - `merge-method` — `merge` or `squash`.
-- `post-merge` — the command to run after a successful merge.
+- `post-merge` — the command to run after a successful merge, in a code span.
 - `merge` — `auto` (merge by rule) or `ask` (write a `merge` wait instead). The default is
   `auto`. The harness's own repository is set to `ask`, because a bad merge there takes
   down the control plane of every project.
+
+While a check is still running, the controller re-checks every thirty seconds. When the PR
+fails the rule and nothing is in flight (a red check, a conflict, a wrong head branch, an
+attribution trailer), it writes an `error` wait with the reasons; "Retry" re-enters the
+rule after the operator fixes the PR. A PR whose state `gh` cannot read is an `error` wait
+too.
 
 ### Access
 
@@ -134,252 +154,177 @@ route and every `/api/controller/*` route needs the shared secret or the session
 The controller makes the secret on first start and keeps it in the harness home. The
 browser sends it from a login once per device. Read routes are open on loopback and need
 the secret on the LAN. `/api/health` is the one route that needs no secret. There is no
-second user and no roles. (Design §17; access control lands in PR #103.)
-
-### The service, the watchdog and the self-update
-
-Run the controller as a systemd user service, with a watchdog and a staged self-update.
-See "Running the controller as a service" below.
+second user and no roles (design §17).
 
 ### Cancel and discard
 
-The operator can stop a run from the dashboard. **Cancel** signals the in-flight step,
+The operator can stop a run from the dashboard, or with `POST
+/api/controller/runs/:id/cancel` and `.../discard`. **Cancel** signals the in-flight step,
 marks the run abandoned, and leaves the worktree, the branch and any open PR in place.
 **Discard** cancels the run and then removes the worktree, deletes the branch and closes
 the PR.
 
-### Running the loop tests without tokens
-
-The controller's loops run in tests against two stubs, so no test calls a model or GitHub.
-`scripts/stub-claude.mjs` stands in for `claude`: it reads canned step results from
-`STUB_CLAUDE_SCRIPT` and prints the stream a real step would; a scripted run can also
-write files and run shell commands in the step's cwd, which is how a stubbed implementer
-commits. `scripts/stub-gh.mjs` stands in for `gh` in the merge, discard and PR-checks
-tests. A test points `CONTROLLER_CLAUDE_BIN` at the first stub and `CONTROLLER_GH_BIN` at
-the second.
-
-### What the old supervisor still does
-
-Nothing, on the controller: every phase runs in code. The supervisor skill
-(`sdd-continue`) and its four orchestrators stay in `harness/` only for the projects that
-still run whole specs on the old harness by hand (tradr, jobsync); they are deleted at
-step (d).
-
 ## Phase flow
 
 ```
-launch (enqueue) ─ the controller starts the run when it has a slot
-  │
-  ├─ route: spec store state (approval records, tasks.md, retro plan status)
-  │
-  ├─ requirements ─┐                       each role runs as one headless step
-  ├─ design        ├─ the controller ─ drafter → lint → (reviewer → reviser)* → approve → prune → clean
-  ├─ tasks        ─┘                       gate A (after requirements v1), gate B (after tasks) are waits
-  │
-  ├─ implementation ─ supervisor step ─ (implementer → verifier → fix*)* → gate → INDEX → PR → CI gate → merge by rule
-  ├─ retrospective  ─ supervisor step ─ findings → analyst proposals → retro-plan wait → plan APPROVED
-  └─ closeout       ─ supervisor step ─ per target repo: (implementer → verifier → fix*)* → PR → plan CLOSED
+launch → queued → running
+  ├─ requirements ─ drafter → lint → (reviewer → reviser)* → approve ─ gate A wait after v1
+  ├─ design       ─ drafter → lint → (reviewer → reviser)* → approve
+  ├─ tasks        ─ drafter → lint → (reviewer → reviser)* → approve ─ gate B wait
+  ├─ implementation ─ per task: [test author] → implementer → gate → [verifier → fix*]
+  │                   → end-to-end verifier → push → PR → checks loop
+  ├─ merge        ─ the merge rule (or a merge wait)
+  ├─ retrospective ─ compiler → analyst ─ retro-plan wait
+  ├─ closeout     ─ per class: implementer → gate → [verifier → fix*] → one PR per repository
+  └─ run end      ─ close-out PRs merged by rule → store committed and pushed → done
 ```
 
-The controller drives the three document phases itself, in code. Each role — drafter,
-reviewer, reviser, checker and adjudicator — runs as one headless step. Gate A (after
-requirements v1) and gate B (after tasks approval) are waits the operator answers in the
-dashboard. For implementation, the retrospective and close-out, the controller spawns
-today's supervisor as one headless step per phase; the supervisor runs those phases
-unchanged (see "The controller"). The per-version loop below is the document loop the
-controller now runs.
+The controller routes a run from the state on disk (`routeRun` in `runs.ts`): the
+approval state of the three documents, the task list, the plan status. A restart re-enters
+the run at the same place.
 
-Document phase, per version:
+### Documents
 
-1. v1 by `sdd-drafter`, which also writes or extends `codebase-context.md` (the map
-   of the files the spec touches, one line each with a citation; every later worker
-   reads it first). Checkpoint commit, then the Lint step — a `spec-lint` pass whose
-   findings a reviser fixes in place, committed `docs(sdd): <SPEC> <PHASE> v<N> lint`
-   (it consumes no version cap).
-2. Round: `adversarial-review` (with `verdictBlock: true`), the controller tailors
-   the prompt, `sdd-reviewer` writes the analysis and the verdict block. The tailored
-   prompt carries a Machine-verified bullet naming the `spec-lint` checks that ran and a
-   `## Changes since <version>` diff of what changed since the last reviewed version.
-3. `converged` (or MINOR only) ⇒ approve. `iterate` ⇒ `sdd-reviser` writes v(N+1)
-   in place, checkpoint commit, the Lint step, next round. When a round on the second or later reviewed
-   version returns no MUST_FIX but some SHOULD_FIX, the reviser writes a SHOULD_FIX-only
-   corrective version, `sdd-checker` verifies the listed items, and approval follows — no
-   further review round.
-4. A standoff (a Recurring MUST_FIX rejected twice running) is ruled on by the
-   controller and recorded.
-5. Cap at v4: when the fourth reviewed version still iterates, `sdd-adjudicator`
-   fixes or rules out every open item as v5; one narrow check by `sdd-checker`
-   verifies the list; approval always follows. A SHOULD_FIX the adjudicator rules
-   out is carried into the next phase's drafter brief through the HANDOFF section.
-6. One `approvals request` for the final version, then approve it, `prune` any
-   superseded records and their snapshots, delete the per-round prompts and briefs,
-   keep the analyses, the rolling memory file and `codebase-context.md`, write
-   HANDOFF, commit.
+For requirements, design and tasks in turn: the drafter writes v1; the lint step runs the
+spec checks and a reviser fixes the lint findings; then rounds of adversarial review and
+revision until the reviewer converges, or until the v4 cap, when the adjudicator writes a
+corrective version and the checker verifies it. The controller approves the final version
+with the `approvals` tool and prunes the superseded records. After the first requirements
+draft the run opens the `gate-a` wait (the drafter's clarifying questions and the posture
+question); after the approved tasks document it opens the `gate-b` wait (approve the task
+plan, or annotate it for one revision).
 
-Documents are written for agents first and capped: requirements about 3,500 words,
-design about 4,000, each task block 150 words plus its prompt. The default templates
-carry the caps; the drafter reports its word count, `spec-lint` raises a `doc-words`
-finding on an over-cap document, and the reviewer treats an overrun as a SHOULD_FIX.
+### Implementation
 
-Implementation phase, per task: mark `[-]`, `sdd-implementer` implements and logs, then
-the `review-task` gate runs first (`action: gate`) for a deterministic pass/fail verdict
-and a low/medium/high risk score. A `gate: fail` starts a fix round; a `pass` at `risk: low`
-takes the low-risk self-review route — the gate stands as the review (reviewer `gate`) and
-no independent verifier runs — and completes the task; a `pass` at `risk: high` spawns
-`sdd-verifier` to review through `review-task` (`prepare` then `record`). A docs-only change
-that would score high is down-ranked to `risk: medium`, which routes like low — the gate
-records the review, CI is the net, and no verifier runs. A task that adds or changes wiring
-(a CLI flag or entrypoint, a program or server entrypoint, a route) always gets a verifier
-regardless of red-type or score, and the self-review default is named in the HANDOFF so the
-human sees which tasks skipped it. Up to three fix rounds, then
-`sdd-adjudicator` once, then mark `[x]`. Completion gate: end-to-end
-verification, `spec-index generate`, HANDOFF with deferral numbers, commit, push, PR.
-Never merge. One PR per code repository per spec: a second one is a decomposition
-finding (a retro-log `deviation` and a deferral), never a second PR.
+The controller works the task list in order. For a task marked for TDD, the test author
+writes the failing tests first and commits them (`test(<spec>): task <N> red`); the
+red-on-base proof uses `tdd-test-command`, `red-on-base` and `red-on-base-setup` from
+`agent-rules.md`. The implementer implements the task and commits. The review gate runs
+in-process (`review-task`): the touched paths against the sensitive, generated and prose
+path lists, the checks the implementer reported, the typecheck, the hygiene signals and a
+risk score. A low-risk task closes on the gate. A high-risk task, or a task in a sensitive
+path, goes to the verifier; a `not done` verdict starts a fix round (implementer again,
+then the verifier), three rounds at most, then the adjudicator rules. When every task is
+closed, the end-to-end verifier runs the spec's verification scenario. The controller then
+pushes the branch, opens the pull request and waits for its checks (twenty-second polls,
+up to thirty minutes); a red check starts a reconcile round (an implementer fixes, the
+controller pushes), three at most.
 
-PR checks gate: the orchestrator then waits for the PR's checks (`gh pr checks --watch`
-in a script, at most ten minutes per call and thirty in all). All green ⇒ `complete`.
-A red check starts a reconcile round: the failing job's log tail goes to
-`sdd-implementer` with the instruction to reproduce locally first, `sdd-verifier`
-re-runs that check locally, the orchestrator pushes to the same branch and watches
-again. Cap three rounds, then `sdd-adjudicator` once, then `verify-failed` with
-`REASON: ci: <check>`, which the supervisor's repair path picks up. Each round is a
-retro-log entry (`bug`, or `tool-error` for CI infrastructure).
+### Merge
 
-Retrospective: the orchestrator compiles `retrospective.md` (every finding with an
-evidence reference), `sdd-retro-analyst` writes `retrospective-proposals.md`, the
-supervisor asks you the `DECISION NEEDED` questions and which proposals to approve, and
-writes `retrospective-plan.md` as `APPROVED`. The conversation implements nothing; the
-close-out phase does. Headless runs write the plan as `DRAFT — decisions needed` and
-stop; the next interactive run holds the conversation.
+The merge rule above. A merged PR writes a `pr.merged` row to the ledger.
 
-Close-out: `sdd-closeout-orchestrator` reads the `APPROVED` plan and works one item per
-approved proposal, grouped by target: the spec store (steering, rules, templates,
-decomposition conventions), the harness's own repository (skills, agents, server code,
-docs), the product code, and `~/.claude` (memory). Each group lands by its repository's
-rules: direct commits on the spec store's branch; a worktree on branch
-`chore/<spec>-retro` and one PR per code repository, never merged; in-place edits under
-`~/.claude`, never `settings.json` (those become to-dos). `sdd-implementer` works a
-batch of up to eight items; the `review-task` gate then runs on every `done` item for a
-pass/fail verdict and a low/medium/high risk; `sdd-verifier` reviews only the `harness`/`code`
-items that pass at `risk: high` (a docs-only item is down-ranked to medium and, like low,
-skips the verifier), while a `store` or `home` item is `ok` on a gate pass;
-fix rounds cap at three, then `sdd-adjudicator` once.
-Every proposal gets one line under `## Close-out` in `retrospective-plan.md`
-(`done — <commit>`, `to-do (human) — <reason>`, `skipped — <reason>`, plus one line per
-PR); when every proposal has one, the plan's status becomes `CLOSED` and the spec is
-finished. A proposal the agent cannot land is an explicit to-do; it never blocks the
-close. The harness's own repository is the checkout it runs from.
+### Retrospective
 
-Budgets: a document orchestrator runs at most four review rounds per spawn and an
-implementation orchestrator at most five tasks; then it reports `resume` and the
-supervisor spawns a fresh one. A close-out orchestrator works every open item of every
-class in one spawn, one implementer batch per class. For the implementation phase the
-runaway guard allows the larger of twelve spawns and ceil(task total / budget) + 4, the
-task total read once before the first implementation spawn so the allowance never shrinks;
-every other phase stops at twelve spawns.
+The compiler step reads the retro log, the HANDOFF sections, the deferrals, the
+implementation logs, the task reviews, the git log and the earlier retrospectives, and
+writes `retrospective.md`. The analyst step writes `retrospective-proposals.md`: one
+proposal per finding with its target, effort, risk and, where needed, a decision. The run
+then opens the `retro-plan` wait: the decision questions and one approve-or-drop toggle per
+proposal. The answer writes `retrospective-plan.md` with `Status: APPROVED`.
 
-## Report contract
+### Close-out
 
-Every orchestrator ends its final message with:
+The controller reads the approved plan and classes each proposal by its `Target:` line
+(and a concrete path when the Target names one): `store` (the spec store, direct commits),
+`harness` (this repository), `code` (the project's repository), `home` (`~/.claude`), or
+`none` (nothing to land: a "no change" decision, or a human action, which becomes a
+to-do). It works one batch per class: an implementer lands the items in a retro worktree
+on `chore/<spec>-retro`; the gate checks each landed item against the paths it names (or
+the commit's own files); a high-risk item goes to the verifier; three fix rounds, then the
+adjudicator. Each item gets one close-out line in the plan; each repository with commits
+gets one pull request. The plan ends `Status: CLOSED`.
 
-```
-PHASE: approved | complete | closed | resume | escalate | design-defect | verify-failed | error | retro-ready
-SPEC: <slug>
-STAGE: requirements | design | tasks | implementation | retrospective | closeout
-STATE: v<N> | tasks <done>/<total> | items <done>/<total> | n/a
-NEXT: <one line>
-REASON: <one line, required for escalate, design-defect, verify-failed, error>
-```
+### Run end
 
-The supervisor acts on `PHASE` only. `escalate` stops the run; it is used for an
-`ESCALATE:` line from a reviewer that names security, secrets, auth bypass, data loss,
-destructive migrations, money, billing, pricing, legal or compliance. Anything else a
-reviewer escalates is treated as a finding.
+The close-out's pull requests merge by the merge rule, each with its repository's rules
+(the project's for the code repository, the repository's own `agent-rules.md` for the
+harness; the harness is `ask`, so that one is a `merge` wait). The controller writes
+`run.end`, commits the spec store, rebases it onto its remote and pushes it. A push that
+fails is an `error` wait, never a silent drift. The run is `done`.
 
-Every stop prints `<project>:<spec> <phase> <state> — <one line>`. The full set of
-formats (verdict block, HANDOFF rows, retro-log entries, worker reports) is in
-`harness/skills/sdd-continue/references/formats.md`.
+## Agent rules
 
-## Artifacts the harness writes
+`agent-rules.md` at the spec store root is the project's rule file. The roles read all of
+it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.ts`,
+`src/core/gate-rules.ts`, `src/controller/controller.ts`):
 
-Under `.spec-workflow/specs/<spec>/`:
-
-| File | Written by | Kept |
+| Key or section | Read by | Meaning |
 | --- | --- | --- |
-| `retrospective-log.md` | every orchestrator, append-only | yes |
-| `codebase-context.md` | the drafter of each document phase (created at requirements, extended later) | yes |
-| `reviews/adversarial-memory-<phase>.md` | the reviewer, per round | yes |
-| `reviews/adversarial-analysis-<phase>[-rN].md` | the reviewer | only the last one per phase |
-| `reviews/adversarial-prompt-<phase>[-rN].md` | the orchestrator | deleted at phase end |
-| `reviews/*-brief-<phase>*.md` | the orchestrator | deleted at phase end |
-| `retrospective.md`, `retrospective-proposals.md` | retro orchestrator, analyst | yes |
-| `retrospective-plan.md` (`Status: DRAFT` → `APPROVED` → `CLOSED`, with a `## Close-out` line per proposal) | supervisor, then the close-out orchestrator | yes |
-| `harness-events.jsonl`, `harness-activity.jsonl` | the run's event script; the plugin hooks | yes |
+| `worktree-per-change: required` | the controller | run in a worktree on `feat/<spec>` |
+| `worktree-setup: \`<command>\`` | the controller | run once in a new worktree |
+| `gates: block\|record` | the setup view | a launch always records |
+| `merge-method: merge\|squash` | the merge rule | how the PR is merged |
+| `post-merge: \`<command>\`` | the merge rule | run after a merge, ten-minute budget |
+| `merge: auto\|ask` | the merge rule | merge by rule, or open a `merge` wait |
+| `baseline-w-per-spec: <n>` | the controller | the token cap is twice this |
+| `tdd-test-command: <command>` | the review gate | the red-on-base proof |
+| `red-on-base`, `red-on-base-setup` | the review gate | the proof's mode and setup |
+| `typecheck: none` | the review gate | the project declares no typecheck |
+| `## Sensitive paths` bullets | the review gate | a touched path here raises the risk |
+| `## Generated paths` bullets | the review gate | excluded from the line rule |
+| `## Prose paths` bullets | the review gate | `*.md` under these excluded from the line rule |
+| `## Providers` rows (`- <agent>: <provider> [<model>]`) | the setup view | a role on another provider |
 
-`HANDOFF.md` (at `.spec-workflow/HANDOFF.md` if it exists, else at the spec store
-repo root): the supervisor owns the routing header and the `## Phase log` table;
-orchestrators own one `## <spec> — <stage>` section each. `INDEX.md` is never edited
-by hand; the harness regenerates it with `spec-index`.
+## Roles and models
 
-Approval records: one `request` per document phase, filed for the version being
-approved. Earlier versions live in the checkpoint commits, not in approval records, so
-the dashboard shows one record per document rather than a per-version history (a
-deliberate trade for one fewer tool round-trip per round). At phase end `prune` still
-runs, so records left by older per-version runs are rejected (if still pending) and
-deleted, with their snapshots.
+`harness/agent-profiles.json` mirrors the frontmatter of the ten role files. A test pins
+them to each other. The controller is code and has no model.
 
-## Installing
+| Role | Model | Effort |
+| --- | --- | --- |
+| `sdd-drafter`, `sdd-adjudicator` | `claude-opus-5-5` | high |
+| `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | `claude-opus-4-8` | xhigh |
+| `sdd-reviser`, `sdd-retro-compiler`, `sdd-retro-analyst` | `claude-opus-4-8` | high |
+| `sdd-checker`, `sdd-test-author` | `claude-sonnet-5` | high |
 
-The harness runs from this checkout. `scripts/dev-link.sh` symlinks every
-`harness/agents/*.md` into `~/.claude/agents/`, every `harness/skills/*` into
-`~/.claude/skills/`, and adds the `PreToolUse`, `SubagentStart` and `SubagentStop` hook
-entries for `harness/hooks/sdd-activity.sh` to `~/.claude/settings.json`. Nothing is
-copied, so a merged change is live after a rebuild and a session restart.
+A `## Providers` row in `agent-rules.md` moves an eligible role (`sdd-reviewer`,
+`sdd-checker`, `sdd-reviser`) to DeepSeek for one project.
 
-`harness/` is also a plugin-shaped directory — it carries `.claude-plugin/plugin.json`
-and `hooks/hooks.json` — so you can load it directly with `claude --plugin-dir harness`
-instead of the symlinks.
+## Artifacts
 
-### From a checkout
+In the spec store (`.spec-workflow/`), committed by the controller as the run goes:
 
-When you develop the harness or the server, run both from your working copy instead.
-Nothing is copied, so a merged change is live after a rebuild and a session restart,
-and the server and the harness always come from the same commit.
+| File | Writer | Kept |
+| --- | --- | --- |
+| `specs/<spec>/requirements.md`, `design.md`, `tasks.md` | the drafter and revisers | yes |
+| `specs/<spec>/codebase-context.md` | the drafter | yes |
+| `specs/<spec>/reviews/` (analyses, briefs, task reviews, `.tdd-<n>.json`) | the roles and the gate | analyses and reviews yes; briefs deleted at phase end |
+| `specs/<spec>/questions.md`, `gate-a.json` | the controller (gate receipts) | yes |
+| `specs/<spec>/harness-events.jsonl` | the controller (the ledger) | yes |
+| `specs/<spec>/retrospective-log.md` | the controller, append-only | yes |
+| `specs/<spec>/retrospective.md`, `retrospective-proposals.md`, `retrospective-plan.md` | compiler, analyst, the controller | yes |
+| `specs/<spec>/Implementation Logs/` | the implementer (`log-implementation`) | yes |
+| `approvals/` | the controller | pruned to the final version |
+| `deferrals/` | the roles (`deferrals`) | yes |
+| `HANDOFF.md` | the controller: the routing header, the phase log, one section per stage | yes |
+| `INDEX.md` | regenerated | yes |
 
-1. Build once: `npm install && npm run build`.
-2. In each project's `.mcp.json`, replace the `npx` command with
-   `"command": "node", "args": ["<checkout>/dist/index.js", ...]`, keeping any path
-   argument or `SPEC_WORKFLOW_SHARED_ROOT` env you already pass. Keep the server name
-   `spec-workflow` so the tool names stay `mcp__spec-workflow__*`.
-3. Run `scripts/dev-link.sh`. It symlinks every `harness/agents/*.md` into
-   `~/.claude/agents/`, every `harness/skills/*` into `~/.claude/skills/`, and adds the
-   `PreToolUse`, `SubagentStart` and `SubagentStop` hook entries for
-   `harness/hooks/sdd-activity.sh` to `~/.claude/settings.json` (absolute path; the
-   plugin's `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}`, which does not exist here). Do
-   not also load `harness/` with `--plugin-dir`, or you get the agents twice, once
-   prefixed and once bare.
-4. Restart your sessions. Agents and skills are read at session start.
+The ledger rows are: `run.start`, `run.end`, `phase.start`, `phase.end`, `spawn.start`,
+`spawn.end`, `spawn.usage`, `round`, `judge`, `task.pick`, `task.done`, `pr.merged`,
+`note`. Every row carries the run id.
 
-Under this layout the agents are unprefixed (`sdd-reviewer`), the skill is
-`/sdd-continue`, and the supervisor's preflight reports the prefix as `none` and the
-checkout as `HARNESS_REPO`. After a change under `src/`: `npm run build`, then restart.
-After a change under `harness/`: restart only.
+In the harness home: see "The harness home".
 
-Then, in a session opened in the project (or in a worktree of it):
+## Installing from a checkout
 
-```
-continue the sdd process
-```
+This machine runs the harness from the checkout. There is no plugin to install.
 
-or `/spec-workflow-harness:sdd-continue`. Headless:
+1. `npm ci && npm run build` once, before the service exists.
+2. `scripts/sdd-service.sh install` (see "Running the controller as a service").
+3. `scripts/dev-link.sh`: links `harness/agents/*.md` into `~/.claude/agents/` and
+   `harness/skills/*` into `~/.claude/skills/`, prunes links whose target is gone, and
+   removes the retired activity hook's entries from `~/.claude/settings.json`. The
+   controller reads the role files from the checkout; the links serve interactive
+   sessions. Uninstall any harness plugin first, or the agents appear twice.
+4. In each project, `.mcp.json` runs `node <checkout>/dist/index.js` (the spec store path
+   as the argument, or `SPEC_WORKFLOW_SHARED_ROOT` in `env`, when the store is a separate
+   repository).
+5. Register the project with `POST /api/projects/add`.
 
-```bash
-claude -p "continue the sdd process" --model opus --effort high --permission-mode auto
-```
-
-The supervisor refuses to start on a model below Opus 5.5 or Fable 5.1 and tells you which
-commands to run.
+To deploy a change: merge it, then `scripts/sdd-self-update.sh`. Never `npm run build` in
+the live checkout while the service is installed, and never start the dashboard by hand on
+the service's port: the unit then crash-loops behind the hand-started process.
 
 ## Running the controller as a service
 
@@ -387,7 +332,8 @@ The controller is the always-on dashboard process. Run it as a systemd user serv
 starts at login and restarts if it stops. The service runs
 `node <checkout>/dist/index.js --dashboard --port 5000`.
 
-Build the checkout first (`npm run build`). Then install the service:
+Build the checkout first (`npm ci && npm run build`, before the service exists). Then install
+the service:
 
 ```bash
 scripts/sdd-service.sh install
@@ -401,8 +347,8 @@ controller step uses a key or a token.
 
 ### GitHub credentials
 
-The controller's children need `gh` authenticated: the supervisor step and the merge stage
-both call `gh`. A systemd service does not inherit your shell, so a `GH_TOKEN` exported in
+The controller's children need `gh` authenticated: the implementation phase (push and
+`gh pr create`), the merge rule and the close-out phase call `gh`. A systemd service does not inherit your shell, so a `GH_TOKEN` exported in
 your shell does not reach it. There are two ways to give the service a credential.
 
 - **Token file.** `install` copies `GH_TOKEN` and `GITHUB_TOKEN` (and `GH_HOST`, when set)
@@ -494,305 +440,42 @@ The dashboard binds to loopback. Every write route needs a shared secret (see T8
 controller design). The controller makes the secret on first start and keeps it in the
 harness home. `/api/health` is the one route that needs no secret.
 
-## Dashboard control pane
+## Dashboard pages
 
-The dashboard is one shell. A sidebar sits on the left and a page fills the rest. The
-sidebar has five pages — **Now**, **Runs**, **Specs**, **Deferrals** and **Usage** — a
-switch for each registered project, and a gear at the foot. A project switch that is off
-hides that project's rows on every page. The gear holds the theme, the language, the list
-density and the sound setting, and shows the version with a link to the changelog. When
-the socket closes, the sidebar shows a disconnected marker.
+- **Now.** The waits that need the operator, with an answer sheet per kind; the live runs,
+  the idle projects with their launchable spec, and the specs closed in the last seven
+  days.
+- **Runs.** Every run of the enabled projects in Live and Ended groups, and the Launch
+  card: one card per project with the launchable spec, the setup defaults and the Launch
+  button, disabled with its reason when the project cannot launch.
+- **Run.** One project's run: the phase strip, each open step, the task table with the
+  gate verdicts, rounds and spawns, and the Ledger, Activity and Process logs with a filter
+  and a follow toggle.
+- **Specs.** Every spec of every project with state chips, search and a pager; a row shows
+  the decomposition order, the runs, the phase table, the deferrals and the files.
+- **Deferrals.** Every deferral record grouped by project, with status chips and search.
+- **Usage.** The five-hour and seven-day windows as bars with their reset times. The
+  per-spec and trend views are a later release (spec 23 in the re-plan).
 
-### Now
+## Testing without tokens
 
-Now shows four groups, always in this order:
+The controller's loops run in tests against two stubs, so no test calls a model or GitHub.
+`scripts/stub-claude.mjs` stands in for `claude`: it reads canned step results from
+`STUB_CLAUDE_SCRIPT` and prints the stream a real step would; a scripted run can also
+write files and run shell commands in the step's cwd, which is how a stubbed implementer
+commits. `scripts/stub-gh.mjs` stands in for `gh` in the merge, discard and PR-checks
+tests. A test points `CONTROLLER_CLAUDE_BIN` at the first stub and `CONTROLLER_GH_BIN` at
+the second. `npm test` runs them all.
 
-- **Waiting on you** — one row for each wait across all projects (see below).
-- **Live runs** — one row for each project with a live run. It shows the spec, the phase,
-  a one-line detail, the token count and the age since the run started. Select a row to
-  open its run page.
-- **Idle projects** — one row for each project with no live run. It shows the launchable
-  spec, or the reason the project cannot launch.
-- **Recently closed** — one row for each spec closed in the last seven days. This group
-  is collapsed by default.
+The live test bed is the fixture repository `madmatt112/sdd-fixture`: a small Node CLI
+whose decomposition holds five specs (`greeting-endpoint`, `farewell`, `shout`, `whisper`,
+`repeat`). A fixture run's gates and retro plan are answered by the operating session with
+the recommended options.
 
-A wait is one of five kinds. The dashboard derives each kind from the harness files;
-there is no hand-written to-do list.
+## The legacy harness
 
-- **gate** — a run is at gate A or gate B. The dashboard reads the newest `phase.end` row
-  of the spec's `harness-events.jsonl` ledger. The panel shows the gate items from
-  `gate-a.json` or `gate-b.json`, else the `questions.md` section, else "no gate payload".
-- **ruling** — a phase ended with `escalate` and needs your ruling. The dashboard reads
-  the same ledger. The panel shows the phase, the state and the note.
-- **retro** — a spec has a `retrospective-proposals.md` file and no `retrospective-plan.md`
-  file, or a DRAFT plan. The panel lists the decisions to make.
-- **exited** — a launched run exited. The dashboard reads the launch record. The panel
-  shows the exit code, the signal, the end time and the log path.
-- **quiet** — a run had no activity for more than fifteen minutes and still has an open
-  spawn. The dashboard reads the modification time of `harness-activity.jsonl`. The panel
-  shows the agent, the last tool and the last activity time.
-
-The spec of a gate, ruling or quiet wait comes from the active-run pointer, or the
-HANDOFF active spec when no pointer resolves inside the project.
-
-### Runs
-
-Runs lists every project's current or last run, in a **Live** group and an **Ended**
-group. Each row shows the project, the spec, the run id, the state, the phase and the
-age. A stopped or exited run groups under Ended. Select a row to open the run page.
-
-The run page shows one project's run. It shows the six-phase strip with each phase's
-version, round count and approval date; each open spawn with its role, declared and actual
-model, elapsed time and last tool; the task table with each task's status, review verdict,
-risk and fix rounds; the round and spawn tables; and tabs for the ledger, the activity and
-the process log. The panel shows the run id, the start time, the code root, the worktree,
-the tokens and the launch pid. A run page for a project with no ledger shows "no run for
-this project".
-
-**Stop** sends SIGTERM to the child's process group. When the group still exists ten
-seconds later, the dashboard sends SIGKILL. After the child exits, the dashboard appends
-a `run.end` row with status `stopped from the dashboard` (when the run has a `run.start`
-and no `run.end`), removes only this run's line from the active-run pointer file, and
-deletes `harness-run.json`. Each step runs again with no harm. When the child exits on its
-own, the dashboard writes no `run.end`, does not touch the pointer file, and shows the
-exit code.
-
-### Launch card
-
-A Launch card on the Runs page starts a run for one project. The card names the launchable
-spec and shows the saved setup. **Launch** first saves the setup with the gates choice set
-to `record`, so a launch always records gates. It then spawns the headless supervisor
-command with the supervisor model from the setup. The dashboard spawns the child detached,
-in its own process group, with a scrubbed git environment.
-
-When the worktree choice is `yes`, the dashboard first creates a git worktree of the
-checkout on branch `feat/<spec>`, or reuses that worktree. It runs the `worktree-setup`
-command once in a new worktree, and starts the child in the worktree.
-
-The dashboard allows one run per spec store. It refuses a launch with HTTP 409 when a run
-of this spec store is already live, and it names the live run id.
-
-**Edit setup** on the card opens the setup form. The form shows one row for the supervisor
-and one row for each agent. Each row shows the declared model and effort. You set the model
-for each role. You set the provider for the three roles that accept DeepSeek (reviewer,
-checker and reviser). You also set the worktree choice (`yes` or `no`) and the gates choice
-(`block` or `record`). **Save** writes `.spec-workflow/harness-run.json` in the spec store.
-
-### The setup file
-
-`.spec-workflow/harness-run.json` holds the spec, the time it was written, the supervisor
-model, the model and provider of each changed role, the worktree choice and the gates
-choice. A role that keeps its declared defaults is not written. The supervisor reads this
-file when a run starts:
-
-- When the file names the active spec, the supervisor applies it and prints one line that
-  names the file and the time it was written.
-- When the file names a different spec, the supervisor prints one warning line and runs as
-  if the file did not exist.
-- When the run ends, the supervisor deletes the file.
-
-The supervisor deletes an applied file, so a terminal run and a dashboard run use the same
-setup.
-
-### Logs and records
-
-The dashboard writes the child's stdout and stderr to a log file. It writes a launch
-record with the pid, process group, project, spec, log path and launch time. Both live
-under `~/.spec-workflow-mcp/harness/` (or under `$SPEC_WORKFLOW_HOME/harness/` when that
-variable is set): the logs in `logs/`, the records in `launches/`. These paths are
-outside the repository, so a launched run keeps running when the dashboard restarts.
-After a restart the dashboard reads each record back and re-checks its pid. New log lines
-stream to the open run page of that project without a reload.
-
-### Specs
-
-Specs lists every spec of every enabled project, grouped by project. Each row shows the
-spec state, the phase, the document versions, the task count, the PR numbers, the deferral
-count, the retro word and the update time. A spec has one state: **live** (a run points at
-it), **closed** (a close-out row or a CLOSED plan), **deferred**, **not-started** (no
-document and no ledger), else **in-progress**. State chips, a search box and a pager filter
-the list.
-
-Select a row to open its panel. The panel shows the spec order, the specs it depends on, a
-runs table, the phase table, the deferral records and the spec files. Each file row has a
-**Copy path** action. It copies the file's absolute path. When the clipboard is not
-available, the path shows in a selected read-only field, so you can copy it by hand. The
-panel shows no document content.
-
-### Deferrals
-
-Deferrals lists the deferral records of every enabled project, grouped by project. Status
-chips (deferred, resolved, superseded), a search box over the title, the id and the origin
-spec, and a pager filter the list. Select a row to see the whole record: the status, the
-id, the project, the origin spec and phase, the created, updated and resolved dates, the
-tags, the revisit trigger, the resolution, and the context, decision and revisit-criteria
-text. The page is read-only. It has no resolve, supersede or edit control.
-
-### Usage
-
-Usage is a placeholder. A later spec fills it with token and spend reporting.
-
-## Workspace contract
-
-- The **spec store root** is what the server reports as `projectContext.workflowRoot`
-  (the directory ending in `.spec-workflow`). Every `.spec-workflow/...` path resolves
-  against it. Configure the server with `SPEC_WORKFLOW_SHARED_ROOT` when the store lives
-  in another repository than the code.
-- The **code root** is the working directory the session started in, a worktree when
-  you are in one. Workers do their source work there.
-- No skill ever passes `projectPath` to an MCP tool.
-- If `agent-rules.md` contains `worktree-per-change: required` and the session is not
-  in a worktree, the supervisor enters one named after the spec before the first
-  implementation spawn.
-
-## Code graph
-
-The supervisor resolves the code graph after the roots step. It puts three lines into
-every orchestrator launch prompt:
-
-- `GRAPH` — the path to the code graph of the code root, or `none`.
-- `GRAPH_BEHIND` — the number of commits the graph is behind `HEAD`, or `unknown`, or `n/a`.
-- `GRAPH_BUILT_AT` — the commit the graph was built at, or `unknown`, or `n/a`.
-
-When `GRAPH` is a path, each orchestrator passes `graph`, `graphBuiltAt` and `graphBehind`
-to every `harness` `brief` call, so each worker brief gets the `## Code graph` section.
-When `GRAPH` is `none`, the launch prompt and the briefs keep the pre-spec shape.
-
-A refresh runs `graphify update` on the code root. It runs at run start when the graph is
-behind `HEAD`, and again after each implementer report. It runs against the main checkout
-only, never a worktree. Its timeout is 100 seconds. A failed or timed-out refresh keeps
-the previous values and writes a ledger note; it never stops a run or a phase.
-
-`graphify-out/` stays untracked. It is large and machine-generated, so it is not committed.
-
-## Writing `agent-rules.md`
-
-`<spec store root>/agent-rules.md` is optional. When it exists, every worker brief
-starts with `Read and obey <path> first.` Put in it the rules a fresh agent working in
-your repository must know and cannot derive from the code: which git binary and
-commit flags to use, what never to run, where scratch files go, which tools to prefer
-for orientation, what a PR body may and may not say, which test commands are safe.
-
-Five lines are machine-read:
-
-- `worktree-per-change: required` — the supervisor enters a worktree before
-  implementation.
-- A `## PR body` section whose bullet list of forbidden terms the implementation
-  orchestrator greps the PR body for before `gh pr create`.
-- A `## Sensitive paths` section whose bullet list of repository paths the `review-task`
-  gate reads; a change that touches any listed path scores `risk: high`.
-- A `## Word caps` section whose bullets `requirements`, `design` and `task` override the
-  `spec-lint` word caps.
-- A `## Providers` section whose bullets `- <agent>: <provider> [<model>]` name a provider
-  per role — `anthropic` (the default) or `deepseek` with `deepseek-v4-pro` or
-  `deepseek-flash` — for `sdd-reviewer`, `sdd-checker` and `sdd-reviser`; a row for any
-  other agent refuses the run before any ledger row is written.
-
-Keep it short and imperative. Every worker reads it on every spawn.
-
-## Model policy
-
-| Role | Model | Effort |
-| --- | --- | --- |
-| Supervisor (main session, no agent file, outside the generated profiles) | the session's model, at least Opus 5.5 (`claude-opus-5-5`) or Fable 5.1 (`claude-fable-5-1`) | the session's effort |
-| Orchestrators (four), `sdd-retro-analyst` | Opus 4.8 (`claude-opus-4-8`) | high |
-| `sdd-drafter`, `sdd-adjudicator` | Opus 5.5 (`claude-opus-5-5`) | high |
-| `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | Opus 4.8 (`claude-opus-4-8`) | xhigh |
-| `sdd-reviser` | Opus 4.8 (`claude-opus-4-8`) | high |
-| `sdd-checker` | Sonnet 5 (`claude-sonnet-5`) | high |
-| `sdd-test-author` | Sonnet 5 (`claude-sonnet-5`) | high |
-
-The checker verifies a list of items. That is a narrow, well-specified job, so a
-Sonnet-class model at high effort does it. The reviser runs on Opus 4.8: on Sonnet it
-used 2 to 4 times more tokens per revision. The open-ended roles (review, implement,
-verify) stay on Opus.
-
-Models are pinned in each agent's frontmatter with full model ids. `harness/agent-profiles.json`
-mirrors that frontmatter and is the source the watch view reads for the orchestrators, the
-analyst and the workers. Skills never pass a `model` parameter to the Agent tool and never use
-`subagent_type: fork` (a fork runs on the parent's model). The `opus` alias is never used:
-it resolves to the newest Opus.
-
-A role assigned `deepseek` in `## Providers` does not run as an Agent-tool subagent. It runs
-as a `claude -p` child with its own environment, launched through the supervisor's per-run
-`launch.sh`; the session itself never changes provider. The child is given only the agent's
-frontmatter tools and no MCP server — except `sdd-reviser`, whose frontmatter carries the
-`adversarial-response` tool, so the launcher passes it `--mcp-config` because that tool needs
-the server — and its declared effort is not applied because the DeepSeek endpoint ignores it.
-
-## Test-first tasks
-
-A task can carry a `- Test:` line. Each `- Test:` bullet names one test file and the
-seam that the file drives through. When the orchestrator picks such a task, it spawns
-`sdd-test-author` before the implementer. The author is a narrow, Sonnet-tier worker. It
-writes one failing test for each success criterion, runs the tests, and sees each test
-fail. It then commits only the test files as `test(<spec>): task <N> red`. The
-implementer makes the tests pass.
-
-The gate proves this red-then-green step. It runs the tests on the base commit (the
-parent of the red commit) and on HEAD. The tests must fail on the base and pass on HEAD.
-The gate reads three keys from the agent rules:
-
-- `tdd-test-command` — the command that runs the tests. The gate replaces `{files}` with
-  the test files. Without this key the base outcome is `inconclusive`.
-- `red-on-base-setup` — an optional command that prepares the base worktree. Without it
-  the gate links each `node_modules` directory of the code root into the base worktree.
-- `red-on-base` — set the value to `off` to skip the base run. The base outcome is then
-  `inconclusive`.
-
-The proof reports one base outcome and one head outcome, and each outcome has a gate
-effect:
-
-| Fact | Base | Head | Gate | Reason |
-| --- | --- | --- | --- | --- |
-| Base run fails on an assertion | `assertion-red` | — | — | — |
-| Base run fails for another reason | `structural-red` | — | — | risk `tdd-structural-red` |
-| Base run passes twice | `vacuous` | — | fail | `tdd: tests pass on base` |
-| Base run passes, then fails | `inconclusive` | — | — | risk `tdd-inconclusive: flaky base run` |
-| A git, setup, timeout, key or `off` cause | `inconclusive` | — | — | risk `tdd-inconclusive: <cause>` |
-| HEAD run fails or times out | — | `fail` | fail | `tdd: tests fail on HEAD` |
-| The red commit changes a source file | — | — | fail | `tdd: author changed source: <path>` |
-| The author tests changed after the red commit | — | — | — | risk `tdd-amended: <files>` |
-
-A task with no `- Test:` line runs as before.
-
-## Watching a run
-
-`spec-workflow-mcp --watch <spec store repo>` draws the run in progress for the active spec
-in the terminal and redraws on every change: the phases with their verdicts and approvals,
-the live phase expanded to the current orchestrator spawn, the worker under it with its model,
-effort, role, elapsed time, an age badge (minutes since its last tool call: amber at 5, red at
-15) and the tool call it is making now, the next queued tasks, tokens spent so far, and a
-four-line ticker of the latest events. `q` quits. Watch only: it changes nothing.
-
-```bash
-npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted
-npx -y @madmatt112org/spec-workflow-mcp@latest --watch /home/mcf/repo/tradr-hosted --spec tags-and-setups --once
-node <checkout>/dist/index.js --watch /home/mcf/repo/tradr-hosted     # from a checkout
-```
-
-Two append-only files under the spec directory feed it, both committed with the spec store:
-
-- `harness-events.jsonl`: run, phase, spawn, round and task events the supervisor and the
-  orchestrators write through the run's event script (schema in
-  `harness/skills/sdd-continue/references/formats.md`). This is the run's history too.
-- `harness-activity.jsonl`: exact agent start and stop and one line per tool call of
-  every `sdd-*` agent, written by the plugin's `PreToolUse`, `SubagentStart` and
-  `SubagentStop` hooks (`hooks/sdd-activity.sh`). The hook exits at once for any other agent
-  and for sessions without an active run, so it costs nothing outside the harness.
-
-Phases that finished before a ledger existed come from `HANDOFF.md`'s `## Phase log`, so a
-spec built before 5.3.0 still shows its history. The `SubagentStop` hook measures each
-Anthropic spawn's tokens from the transcript and writes them on its `spawn.end` row; a
-DeepSeek spawn's hooks stay silent, so the launcher writes that spawn's `spawn.start` and
-`spawn.end` rows itself. The watch header's `tokens` figure is the Anthropic total — the Max
-plan number — with `deepseek` printed beside it when a DeepSeek spawn ran; `harness usage`
-splits the totals by kind and by provider; there is no dollar estimate.
-
-## Developing the harness
-
-Edit `harness/` only. It runs from the checkout, so an edit is live at the next session
-start. Cut a release when you want to publish a change, not to use it.
-
-An orchestrator (or any agent) that calls the `harness` tool must allowlist it in its
-frontmatter `tools:` list as `mcp__spec-workflow__harness`.
+Until 2026-10-16 the harness was a supervisor skill (`sdd-continue`) with four
+orchestrator agents, their phase skills and an activity hook, run from a terminal session.
+Steps (a) to (d) of the foundation rework (`docs/foundation-review.md`, ADRs 0001 to 0006)
+replaced it with the controller. The last commit with the legacy harness is tagged
+`legacy-harness-final`. Every project (tradr, jobsync, the fixture) runs on the controller.
