@@ -656,6 +656,25 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   proposals (7 "no change"), and the `retro-plan` wait `w-afc7e24c` opened for Matthew at
   23:16Z. Step (c3)'s retro half is exercised; close-out follows his answer.
 
+- 2026-10-16 Matthew approved the plan at 02:08Z (all nine; P1 gitignore, P9 option A) and
+  the close-out ran in code: three implementer steps, 23 minutes, `Status: CLOSED`,
+  `run.end done` at 02:31Z. **The run is the first through every in-code phase.** But the
+  close-out landed nothing: 0 done, 3 to-do, 6 skipped. Three routing defects, all fixed in
+  PR #133 (deployed `92717a7`): the classifier filed `Target: project steering
+  (\`.gitignore\`)` as `store`, whose direct-commit batch may not touch a repo-root file (a
+  named repository path now wins over the keywords); a "no change" item whose body said "if
+  the human wants" became a human to-do (the test now reads the Target and Decision lines);
+  and a Target naming a functional area left the gate with the one token that looked like a
+  path (`feat/shout`), so the correct P9 commit failed "file outside the list" and burned a
+  fix round before the implementer gave up (the gate now keeps named paths that exist and
+  otherwise takes the commit's own files). Also: dotfiles count as paths, a PR with commits
+  but no closed item lists them in its body, and the batch brief pins edits under the
+  landing root (the implementer had edited the main checkout through absolute paths and
+  transplanted the diff; the checkout was left clean). The close-out opened PR #132 with the
+  P9 change; the analyst had read the merge timeline backwards (the error wait preceded the
+  force-push, which was the fix), so whether to keep it is Matthew's call. The fixture's
+  three specs are all used; the next run needs a fourth.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

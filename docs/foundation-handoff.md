@@ -7,8 +7,9 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 
 ## Where things stand
 
-- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#131, no open PRs; the
-  live build is `50ad2f3`, deployed 2026-10-15 20:54Z while the run below sat in `merging`). The
+- Steps (0), (a), (b), (c2) and (c3) are on main and deployed (PRs #89-#133; the live build
+  is `92717a7`, deployed 2026-10-16 02:50Z with no run live). One PR is open: #132, the
+  close-out's P9 change, which is Matthew's keep-or-close call (see the owner backlog). The
   controller runs as the systemd user service `sdd-controller` on port 5000 from `dist/` of
   this checkout, with the watchdog timer, the shared secret at `~/.local/state/sdd/secret`,
   and Matthew's gh token in `~/.local/state/sdd/service.env`. Health:
@@ -32,8 +33,11 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
   PR #131 made that an `error` wait. Matthew rewrote the commit and force-pushed (a session
   cannot: the auto-mode classifier refuses history rewrites), the session answered "Retry",
   and the controller merged PR #3 by rule at 23:11Z (`eb61574`). The retrospective ran in
-  code (14 findings, 9 proposals, 5 minutes) and the run is **parked on the `retro-plan`
-  wait `w-afc7e24c`, Matthew's**; close-out in code follows his answer. Minor: task 3's
+  code (14 findings, 9 proposals, 5 minutes); Matthew approved the plan at 02:08Z and the
+  close-out ran in code to `done` at 02:31Z. **The run is the first through every in-code
+  phase.** Its close-out landed nothing (0 done, 3 to-do, 6 skipped) because of three
+  routing defects, fixed in PR #133 (Progress log 2026-10-16); the fixture's `.gitignore`
+  item (P1) stays a to-do in the plan. Minor: task 3's
   `log-implementation` attribution names the fixture's main checkout, not the worktree
   (`source: override`); the gate diffed the right range (2 files, +26), so it is a retro
   note, not a defect to chase. The fixture's decomposition holds three specs; keep it as the test bed. Register it once per
@@ -82,11 +86,11 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
    `writeRunFile` calls) and deleted by the legacy launcher; the controller never reads it
    (only `buildSetupView` and the harness-run-detail message do). Drop the write with the
    legacy launcher and setup form.
-3. Finish the (c2)/(c3) done-when on `run-20261015-153534`: the tasks are gated and
-   verified in code and the PR is open; after Matthew's force-push and "Retry" it merges by
-   rule, then the retrospective in code, the retro-plan wait (Matthew's), close-out in
-   code, `done`. Fix what the run surfaces in small PRs (the loops are tested against the
-   stub; this run is their first real exercise). Push Matthew once per new wait.
+3. The (c2)/(c3) done-when is met by `run-20261015-153534` (every phase in code, `done`).
+   Not yet seen live: a close-out that lands an item through the gate and the verifier (the
+   shout close-out landed nothing; PR #133 fixes why). The fixture's three specs are used:
+   add a fourth fixture spec to `sdd-fixture`'s decomposition before the next run, and
+   check its close-out lands something.
 4. Small PR: merge the close-out PRs by rule (they are recorded in the plan, the HANDOFF
    closeout section and `run.closeoutPrs`; the harness repo is `merge: ask`, so that one is
    a `merge` wait).
