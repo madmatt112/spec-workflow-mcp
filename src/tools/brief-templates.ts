@@ -1397,6 +1397,7 @@ function renderCloseoutBatch(v: Record<string, string>): string {
     '',
     '## Where this batch lands',
     '- Root: `' + v.root + '` — ' + v.landing,
+    '- Every file you edit is under that root, by a path that starts with it; the main checkout and every other worktree are read-only for this batch.',
     '- Commit: ' + v.commitHow,
     '- Checks (each its own command): ' + v.checks,
     '',

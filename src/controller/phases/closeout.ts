@@ -138,15 +138,16 @@ export function itemTitle(block: string): string {
 
 /**
  * The paths an item names, relative to its landing root: backticked tokens
- * that look like a file path (a slash or an extension, no URL scheme), with a
- * leading `./` dropped. The gate's `files` list; an item naming none gets no gate.
+ * that look like a file path (a slash, an extension or a dotfile, no URL
+ * scheme), with a leading `./` dropped. The gate's `files` list, once filtered
+ * to the paths that exist in the landing root; an item naming none gets no gate.
  */
 export function itemPaths(block: string): string[] {
   const out = new Set<string>();
   for (const m of block.matchAll(/`([^`\n]+)`/g)) {
     const t = m[1].trim();
     if (/^[a-z]+:\/\//i.test(t) || /\s/.test(t) || t.startsWith('-') || t.length > 200) continue;
-    if (!(t.includes('/') || /\.[A-Za-z0-9]{1,8}$/.test(t))) continue;
+    if (!(t.includes('/') || /\.[A-Za-z0-9]{1,8}$/.test(t) || /^\.[A-Za-z0-9_.-]+$/.test(t))) continue;
     if (/[*?{}|&;<>()$]/.test(t)) continue;
     out.add(t.replace(/^\.\//, '').replace(/:\d+(-\d+)?$/, ''));
   }
@@ -353,8 +354,12 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
   // =========================================================================
   for (const it of openItems().filter((i) => i.cls === 'none')) {
     ctx.ledger.taskPick({ task: it.id, title: it.title });
-    const human = /human|operator|matthew|settings/i.test(it.block);
     const decision = it.block.match(/Decision:\s*([^\n]*)/i)?.[1]?.trim().replace(/\.$/, '');
+    // A human action is one the Target or Decision line names, not one the body
+    // mentions: a "no change" item that argues about what the human might want is
+    // skipped, not handed back as a to-do (shout close-out, P8).
+    const target = it.block.match(/Target:\s*([^\n]*)/i)?.[1] ?? '';
+    const human = /\bhuman\b|\boperator\b|matthew/i.test(`${target} ${decision ?? ''}`);
     const line = human
       ? `to-do (human) — ${decision ?? 'a human action'}`
       : `skipped — ${decision ?? 'no change chosen'}`;
@@ -420,8 +425,9 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
     const gateItem = async (id: string, round: number): Promise<void> => {
       const s = state.get(id)!;
       const it = items.find((i) => i.id === id)!;
-      const files = itemPaths(it.block);
+      const named = itemPaths(it.block);
       if (cls === 'home') {
+        const files = named;
         // In place, no commit: a files-only gate when paths are named, else ok as it stands.
         if (files.length === 0) { s.ok = true; return; }
         const res = await reviewTaskHandler({ action: 'gate', specName, taskId: id, root: landing.root, files, checks: [] }, toolContext);
@@ -439,6 +445,16 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
         return;
       }
       s.report.commit = commit;
+      // The gate's file list is the paths the item names that exist in the landing
+      // root. A Target that names a functional area, or a token that only looks like
+      // a path (`feat/shout`), yields none: then the commit's own files are the list,
+      // so the checks still run and the touched-paths rule cannot misfire on a
+      // correct change (shout close-out, P9).
+      let files = named.filter((p) => existsSync(join(landing.root, p)));
+      if (files.length === 0) {
+        files = (git(landing.root, ['show', '--name-only', '--format=', commit]) ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+        if (files.length > 0) ctx.ledger.note(`gate: item ${id} files taken from the commit (no named path exists in the root)`);
+      }
       if (files.length === 0) { s.ok = true; ctx.ledger.note(`gate: item ${id} ok (no path named)`); return; }
       const res = await reviewTaskHandler({ action: 'gate', specName, taskId: id, root: landing.root, commit, files, checks: landing.checks }, toolContext);
       if (!res.success) { s.ok = false; s.findings = `gate error: ${res.message}`; ctx.ledger.note(`gate: item ${id} error`); return; }
@@ -658,7 +674,12 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
     const existing = await findPullRequest({ repoDir: landing.root, branch: landing.branch });
     if (existing) return { repoDir: repo, branch: landing.branch, number: existing.number, url: existing.url };
     const bodyPath = join(scratch, `pr-body-${basename(repo)}.md`);
-    writeFileSync(bodyPath, ['## Summary', ...landed.map((l) => `- ${l}`), '', '## Test plan', `- [x] The review gate per item${landing.checks.length ? ` and ${landing.checks.map((c) => `\`${c}\``).join(', ')}` : ''}`, ''].join('\n'), 'utf-8');
+    // A branch can carry commits while no item closed as done (the gate or the
+    // verifier turned them back): the body then lists the commits, not nothing.
+    const summary = landed.length > 0
+      ? landed.map((l) => `- ${l}`)
+      : ['No item closed as done; the branch carries these commits:', ...(git(landing.root, ['log', '--format=%s', `${base}..HEAD`]) ?? '').split('\n').filter(Boolean).map((s) => `- ${s}`)];
+    writeFileSync(bodyPath, ['## Summary', ...summary, '', '## Test plan', `- [x] The review gate per item${landing.checks.length ? ` and ${landing.checks.map((c) => `\`${c}\``).join(', ')}` : ''}`, ''].join('\n'), 'utf-8');
     const created = await runCommand(ghBin(), ['pr', 'create', '--head', landing.branch, '--title', `chore(retro): ${specName} retrospective follow-ups`, '--body-file', bodyPath], landing.root);
     if (created.code !== 0) {
       gotchas.push(`PR not opened for ${basename(repo)}: ${tail(created.stderr || created.stdout, 1)}; run: gh pr create --head ${landing.branch} --body-file ${bodyPath}`);

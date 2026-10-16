@@ -544,11 +544,36 @@ export function classifyTarget(block: string): TargetClass {
   // `none` reads the whole item — its marker often sits in Decision. The class regexes
   // match the Target value alone, so Decision text cannot misfile an item (retro P3).
   if (/\bnone\b|human action|ratified|closed|no change/.test(`${target} ${decision}`)) return 'none';
+  const harness = /harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(target);
+  // A concrete repository path in the Target wins over the keywords around it: a
+  // "project steering (`.gitignore`)" item lands in the code repository, not the spec
+  // store, whose direct-commit batch may not touch it (shout close-out, P1).
+  const repoPath = targetPaths(target).find((p) => !isStorePath(p) && !isHomePath(p));
+  if (repoPath) return harness || repoPath.startsWith('harness/') ? 'harness' : 'code';
   if (/agent-rules|steering|\brules?\b|decomposition|spec[ -]?store|\bstore\b/.test(target)) return 'store';
-  if (/harness|skill|\bagents?\b|hook|server|\bdocs?\b|template/.test(target)) return 'harness';
+  if (harness) return 'harness';
   if (/memory|claude\.md|settings|~\/\.claude/.test(target)) return 'home';
   if (/\bcode\b|checkout|\brepo\b|src\//.test(target)) return 'code';
   return 'none';
+}
+
+/** Backticked tokens of a Target line that look like a file path (a slash, an extension or a dotfile). */
+function targetPaths(target: string): string[] {
+  const out: string[] = [];
+  for (const m of target.matchAll(/`([^`\n]+)`/g)) {
+    const t = m[1].trim();
+    if (/^[a-z]+:\/\//.test(t) || /\s/.test(t) || t.length > 200) continue;
+    if (t.includes('/') || /\.[a-z0-9]{1,8}$/.test(t) || /^\.[a-z0-9_.-]+$/.test(t)) out.push(t.replace(/^\.\//, ''));
+  }
+  return out;
+}
+
+function isStorePath(p: string): boolean {
+  return p.startsWith('.spec-workflow/') || /(^|\/)agent-rules\.md$/.test(p) || /decomposition/.test(p);
+}
+
+function isHomePath(p: string): boolean {
+  return /^~\/|^\/home\/[^/]+\/\.claude\/|(^|\/)claude\.md$|(^|\/)settings(\.local)?\.json$/.test(p);
 }
 
 // --- brief -------------------------------------------------------------------
