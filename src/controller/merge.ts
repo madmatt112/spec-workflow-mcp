@@ -13,7 +13,7 @@
 // merge keys from it.
 import { execFile, execFileSync } from 'child_process';
 import { appendFileSync, mkdirSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
@@ -23,7 +23,7 @@ import type { RunLedger } from './ledger.js';
 /** The suggested interval between `runMergeStage` polls while `not-ready`. */
 export const MERGE_POLL_INTERVAL_MS = 30_000;
 
-/** The single question id of a `merge` wait. */
+/** The question id of the run's own PR's `merge` wait; a close-out PR's is `merge:<repo>#<n>`. */
 const MERGE_QUESTION_ID = 'merge';
 
 /** The post-merge command's wall-clock budget (design §10: ten minutes). */
@@ -433,12 +433,30 @@ export async function readCiState(repoDir: string, headSha: string, now: () => D
 // The merge wait (ask-me-first).
 // ---------------------------------------------------------------------------
 
-/** The newest `merge` wait for a run, open or answered, else undefined. */
-async function findMergeWait(runId: string): Promise<ControllerWaitRecord | undefined> {
+/** The newest `merge` wait for a run that asks `questionId`, open or answered, else undefined. */
+async function findMergeWait(runId: string, questionId: string): Promise<ControllerWaitRecord | undefined> {
   const all = (await listWaits()) as ControllerWaitRecord[];
   return all
-    .filter((w) => w.kind === 'merge' && w.run === runId)
+    .filter((w) => w.kind === 'merge' && w.run === runId && w.questions.some((q) => q.id === questionId))
     .sort((a, b) => b.created.localeCompare(a.created))[0];
+}
+
+/** One pull request to merge by rule, with the identity its `merge` wait carries. */
+export interface MergeTarget {
+  pr: PullRequest;
+  runId: string;
+  projectId: string;
+  spec: string;
+  /** The merge wait's question id: `merge` for the run's own PR, `merge:<repo>#<n>` for a close-out PR. */
+  questionId: string;
+  /** How the wait names the PR: `PR #3`, or `close-out PR #134 of spec-workflow-mcp`. */
+  label: string;
+}
+
+/** The question id and label of a close-out PR's merge wait. */
+export function closeoutMergeTarget(run: Pick<RunRecord, 'id' | 'project' | 'spec'>, pr: PullRequest): MergeTarget {
+  const repo = basename(pr.repoDir);
+  return { pr, runId: run.id, projectId: run.project, spec: run.spec, questionId: `merge:${repo}#${pr.number}`, label: `close-out PR #${pr.number} of ${repo}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -493,13 +511,22 @@ async function readMergeSha(pr: PullRequest): Promise<string> {
  * token lacking Checks: read sat in `merging` with no visible reason).
  */
 export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promise<MergeStageResult> {
-  const repoDir = run.codeRoot;
-  const now = deps.now ?? ((): Date => new Date());
-
-  const pr = await findPullRequest({ repoDir, branch: run.branch, number: run.pr });
+  const pr = await findPullRequest({ repoDir: run.codeRoot, branch: run.branch, number: run.pr });
   if (!pr) {
     return { status: 'not-ready', reasons: [`no open pull request for branch ${run.branch}`] };
   }
+  return mergeByRule({ pr, runId: run.id, projectId: run.project, spec: run.spec, questionId: MERGE_QUESTION_ID, label: `PR #${pr.number}` }, deps);
+}
+
+/**
+ * The merge rule applied to one pull request (the run's own, or a close-out
+ * PR of any repository): the body of {@link runMergeStage}, with the wait
+ * identity taken from `target` so each PR has its own `merge` wait.
+ */
+export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Promise<MergeStageResult> {
+  const { pr } = target;
+  const repoDir = pr.repoDir;
+  const now = deps.now ?? ((): Date => new Date());
 
   const evaluation = await evaluate(pr);
   if (evaluation.unreadable) {
@@ -510,24 +537,24 @@ export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promi
   }
 
   if (deps.rules.merge === 'ask') {
-    const existing = await findMergeWait(run.id);
+    const existing = await findMergeWait(target.runId, target.questionId);
     if (!existing) {
       const wait = await createWait({
         kind: 'merge',
-        runId: run.id,
-        projectId: run.project,
-        spec: run.spec,
+        runId: target.runId,
+        projectId: target.projectId,
+        spec: target.spec,
         specDir: deps.specDir,
-        questions: [{ id: MERGE_QUESTION_ID, text: `Merge PR #${pr.number}?`, options: ['merge', 'hold'], recommended: 'merge' }],
+        questions: [{ id: target.questionId, text: `Merge ${target.label}?`, options: ['merge', 'hold'], recommended: 'merge' }],
       });
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging PR #${pr.number}`], number: pr.number, waitId: wait.id };
+      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: wait.id };
     }
-    const decision = existing.state === 'answered' ? existing.answer?.[MERGE_QUESTION_ID]?.value : undefined;
+    const decision = existing.state === 'answered' ? existing.answer?.[target.questionId]?.value : undefined;
     if (!decision) {
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging PR #${pr.number}`], number: pr.number, waitId: existing.id };
+      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: existing.id };
     }
     if (decision !== 'merge') {
-      return { status: 'waiting', reasons: [`the operator held PR #${pr.number}`], number: pr.number, waitId: existing.id };
+      return { status: 'waiting', reasons: [`the operator held ${target.label}`], number: pr.number, waitId: existing.id };
     }
     // decision === 'merge': fall through and merge.
   }
@@ -554,6 +581,6 @@ export async function runMergeStage(run: RunRecord, deps: MergeStageDeps): Promi
     }
   }
 
-  deps.ledger.prMerged({ number: pr.number, sha, method });
-  return { status: 'merged', reasons: [`merged PR #${pr.number} via ${method}`], number: pr.number, sha };
+  deps.ledger.prMerged({ number: pr.number, sha, method, repo: basename(repoDir) });
+  return { status: 'merged', reasons: [`merged ${target.label} via ${method}`], number: pr.number, sha };
 }
