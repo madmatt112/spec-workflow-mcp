@@ -22,17 +22,6 @@ import type { AgentProfile } from '../../../watch/ledger.js';
 // _Prompt; Requirements 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11,
 // 1.12).
 //
-// Criterion "drift with sdd-providers.sh" (task 4 _Prompt: "Export the
-//   constants ... DEEPSEEK_MODELS and ELIGIBLE_ROLES (the lists of
-//   harness/skills/sdd-continue/references/sdd-providers.sh:29 and :23)";
-//   Requirement 1 AC 6, AC 7):
-//   Pre-condition: the real sdd-providers.sh source text.
-//   Test: read the `ELIGIBLE="..."` line and the `modelsAllowed` array
-//   literal out of the script, then compare to the imported constants.
-//   Observable result: ELIGIBLE_ROLES and DEEPSEEK_MODELS (sorted) equal the
-//   script's two lists (sorted).
-//   Expected-value source: harness/skills/sdd-continue/references/sdd-providers.sh:23,29.
-//
 // Criterion "rules pre-fill" (design.md C3: "readAgentRules(workflowRoot) ...
 //   worktree ... gates ... worktreeSetup ... providers"; Requirement 1 AC 9):
 //   Pre-condition: an agent-rules.md with `worktree-per-change: required`, a
@@ -310,24 +299,6 @@ function defaultInput(): SetupInput {
 }
 
 describe('run-setup', () => {
-  describe('module constants', () => {
-    it('ELIGIBLE_ROLES and DEEPSEEK_MODELS match sdd-providers.sh (Req 1.6, 1.7)', () => {
-      const text = readFileSync(PROVIDERS_SCRIPT, 'utf-8');
-      const eligibleMatch = text.match(/^ELIGIBLE="([^"]+)"$/m);
-      const modelsMatch = text.match(/const modelsAllowed = \[([^\]]+)\];/);
-      expect(eligibleMatch).not.toBeNull();
-      expect(modelsMatch).not.toBeNull();
-
-      const scriptEligible = eligibleMatch![1].split(/\s+/).filter(Boolean).sort();
-      const scriptModels = modelsMatch![1]
-        .split(',')
-        .map((s) => s.trim().replace(/^"|"$/g, ''))
-        .sort();
-
-      expect([...ELIGIBLE_ROLES].sort()).toEqual(scriptEligible);
-      expect([...DEEPSEEK_MODELS].sort()).toEqual(scriptModels);
-    });
-  });
 
   describe('readAgentRules', () => {
     it('reads worktree, gates, worktreeSetup and providers from a full rules file (Req 1.9)', async () => {

@@ -11,29 +11,11 @@
     "role": "checker",
     "cacheTtl": "default"
   },
-  "sdd-closeout-orchestrator": {
-    "model": "claude-opus-4-8",
-    "effort": "high",
-    "role": "close-out orchestrator",
-    "cacheTtl": "1h"
-  },
-  "sdd-document-orchestrator": {
-    "model": "claude-opus-4-8",
-    "effort": "high",
-    "role": "document-phase orchestrator",
-    "cacheTtl": "1h"
-  },
   "sdd-drafter": {
     "model": "claude-opus-5-5",
     "effort": "high",
     "role": "drafter",
     "cacheTtl": "default"
-  },
-  "sdd-implementation-orchestrator": {
-    "model": "claude-opus-4-8",
-    "effort": "high",
-    "role": "implementation-phase orchestrator",
-    "cacheTtl": "1h"
   },
   "sdd-implementer": {
     "model": "claude-opus-4-8",
@@ -51,12 +33,6 @@
     "model": "claude-opus-4-8",
     "effort": "high",
     "role": "retrospective compiler",
-    "cacheTtl": "default"
-  },
-  "sdd-retro-orchestrator": {
-    "model": "claude-opus-4-8",
-    "effort": "high",
-    "role": "retrospective orchestrator",
     "cacheTtl": "default"
   },
   "sdd-reviewer": {
