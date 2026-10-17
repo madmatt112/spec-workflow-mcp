@@ -24,8 +24,8 @@ const TASK_STATUS_LABELS: Record<string, string> = {
  * task table (verdict and tdd from the task-review summary route polled every 5 s);
  * rounds and spawns as two collapsed tables; and tabbed Ledger, Activity and
  * Process logs, each with a filter and a follow toggle. The panel shows the run's
- * properties, a Stop button on the existing stop route, and the saved setup as a
- * collapsed table. A project with no ledger shows "no run for this project".
+ * read-only properties and the setup defaults (supervisor, role models, worktree,
+ * gates) as a collapsed table. A project with no ledger shows "no run for this project".
  */
 
 const STALE_MS = 15 * 60 * 1000;
