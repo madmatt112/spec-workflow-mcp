@@ -729,6 +729,23 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   quoted glob); the deploy of #138 and the pruning ran at the repeat run's gate B. Deploy of
   #140 at the run's next wait.
 
+- 2026-10-16 the coordinator session (Opus 5.5, `docs/foundation-coordinator-prompt.md`).
+  **The close-out loop is proven**: `repeat` (`run-20261016-122423`) closed with P1 and P5
+  `done` through the gate (`d246289`, `765de26`), fixture PR #6 merged. One defect: the gate
+  failed P2 (sensitive `package.json`, a 1000-line `package-lock.json` over the line rule),
+  the fix round reported `to-do (human)`, but the commit `333f63a` stayed on
+  `chore/repeat-retro` and merged with PR #6. PR #143 (`6a738f3`): after the fix and
+  adjudication loop, close-out reverts (`git revert`, newest first, no history rewrite) the
+  commits of every item that did not land; a commit shared with a landed item, or one whose
+  revert conflicts, stays and the item's line says so. Deployed `6a738f3` at 00:54Z with no
+  run live. PR #142 (`a43889b`): the `RunPage.tsx` header comment, and the `lint:` and
+  `## Checks` rows in `docs/SDD-HARNESS.md` (no code reads `lint:`; the implementer runs the
+  `## Checks` commands). On Matthew's word: the 53 worktrees under `.claude/worktrees/` and
+  tradr-hosted's one (all clean, branches kept) are removed; the fixture's stale
+  `harness-run.json` is deleted. Open for Matthew: PR #136; whether the fixture lists
+  `package-lock.json` under `## Generated paths`. The tradr launch waits for the seven-day
+  window reset (84% at 23:48Z).
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

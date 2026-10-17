@@ -82,6 +82,16 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at the 2026-10-17 01:00Z handoff (coordinator session)
+
+- Live build `6a738f3` (PR #143, close-out reverts the commits of items that did not land).
+  No run is live; all five fixture runs are `done`. The close-out loop is proven (`repeat`:
+  P1, P5 landed, fixture PR #6).
+- Stale worktrees are pruned. The coordinator may merge PRs (Matthew, 2026-10-16).
+- Open for Matthew: PR #136 (the re-plan; spec 23 starts after he merges or amends it).
+- tradr's first controller run: launch after the seven-day reset (Saturday 2026-10-18
+  15:00Z) or on Matthew's word. Its waits are his.
+
 ## State at the 2026-10-16 13:40Z handoff (usage limit)
 
 - Live build `2a85c14` (step (d) complete in production; smoke boot passed without the launcher).
