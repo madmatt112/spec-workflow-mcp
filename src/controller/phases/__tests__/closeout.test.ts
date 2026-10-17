@@ -286,4 +286,66 @@ describe('runCloseoutPhase', () => {
     expect(argv).toContain(`"--title","chore(retro): ${fx.spec} retrospective follow-ups"`);
     expect(readFileSync(join(fx.scratch, 'pr-body-repo.md'), 'utf8')).toContain('- P4 P4 (F4) — Tidy the skill.');
   }, 60000);
+
+  it('reverts the commit of a batch item that did not land and keeps a done item\'s commit', async () => {
+    const pFail = ['- **P2 (F2) — Pin the dependency.** Edit `package.json`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    const pDone = ['- **P3 (F3) — Add a README line.** Append one line to `README.md`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([pFail, pDone]);
+    writeScript(fx, [
+      {
+        // One code batch. P2 commits the named `package.json` AND the unnamed
+        // `package-lock.json`, so the gate fails on file-outside-list — the live
+        // P2 case. P3 commits `README.md` and lands.
+        commands: [
+          `echo P2 >> package.json && echo P2 >> package-lock.json && git add package.json package-lock.json && git commit -qm "chore(retro): ${fx.spec} P2 landed"`,
+          `echo P3 >> README.md && git add README.md && git commit -qm "chore(retro): ${fx.spec} P3 landed"`,
+        ],
+        result: result({ items: [{ id: 'P2', status: 'done', commit: 'none' }, { id: 'P3', status: 'done', commit: 'none' }], retro: 'none' }),
+      },
+      // Fix round 1 hands P2 back: it cannot land without the lockfile.
+      { result: result({ items: [{ id: 'P2', status: 'to-do', reason: 'needs the operator' }], retro: 'none' }) },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 2, done: 1, todo: 1, skipped: 0 });
+    expect(planText(fx)).toMatch(/^- P2: to-do \(human\) — needs the operator$/m);
+    expect(planText(fx)).toMatch(/^- P3: done — [0-9a-f]{40}$/m);
+    const wt = join(fx.repo, '.claude', 'worktrees', `${fx.spec}-retro`);
+    // P2's commit is reverted: its files are gone, back to the pre-batch content.
+    expect(existsSync(join(wt, 'package.json'))).toBe(false);
+    expect(existsSync(join(wt, 'package-lock.json'))).toBe(false);
+    expect(git(wt, ['log', '-1', '--format=%s'])).toMatch(new RegExp(`^Revert "chore\\(retro\\): ${fx.spec} P2 landed"$`));
+    // P3's commit stays on the branch.
+    expect(readFileSync(join(wt, 'README.md'), 'utf8')).toContain('P3');
+    expect(git(wt, ['log', '--format=%s'])).toContain(`chore(retro): ${fx.spec} P3 landed`);
+    expect(rows(fx).some((e) => e.type === 'note' && /^closeout: item P2 not landed, reverted [0-9a-f]{7}$/.test(e.text))).toBe(true);
+  }, 60000);
+
+  it('leaves a commit a landed item shares and notes it on the not-landed item\'s line', async () => {
+    const pShare = ['- **P2 (F2) — Fold into P3.** Part of the `README.md` change.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    const pDone = ['- **P3 (F3) — Add a README line.** Append one line to `README.md`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([pShare, pDone]);
+    writeScript(fx, [
+      {
+        // One commit carries both items (its message names each id). P3 lands;
+        // P2 is handed back but shares P3's commit.
+        commands: [`echo shared >> README.md && git add README.md && git commit -qm "chore(retro): ${fx.spec} P2 landed; ${fx.spec} P3 landed"`],
+        result: result({ items: [{ id: 'P2', status: 'to-do', reason: 'rolled into P3' }, { id: 'P3', status: 'done', commit: 'none' }], retro: 'none' }),
+      },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    const wt = join(fx.repo, '.claude', 'worktrees', `${fx.spec}-retro`);
+    // The shared commit is left on the branch, not reverted.
+    expect(git(wt, ['log', '-1', '--format=%s'])).toBe(`chore(retro): ${fx.spec} P2 landed; ${fx.spec} P3 landed`);
+    expect(git(wt, ['log', '--format=%s'])).not.toContain('Revert');
+    // P2's line records the commit left on the branch; P3 landed done.
+    expect(planText(fx)).toMatch(/^- P2: to-do \(human\) — rolled into P3 \(commit [0-9a-f]{7} left on the branch: shared with a landed item\)$/m);
+    expect(planText(fx)).toMatch(/^- P3: done — [0-9a-f]{40}$/m);
+    expect(rows(fx).some((e) => e.type === 'note' && /left on the branch \(shared with a landed item\)$/.test(e.text))).toBe(true);
+  }, 60000);
 });
