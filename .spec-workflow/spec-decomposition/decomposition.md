@@ -904,8 +904,65 @@ Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard us
 reserved 19 (overwatch role), 20 (harness home) and 21 (repo bootstrap) are superseded by the
 controller design of the foundation review (`docs/foundation-review.md`,
 `docs/controller-design.md`). Their text is parked in `superseded-2026-10-10.md` in this
-directory. Nothing in this roadmap is active until step (d) of that plan re-plans it. Do not
-start a spec from this file until then.
+directory. Step (d) re-plans them below ("Re-planned entries"); until Matthew approves that
+section nothing past 15 is active, and no spec may be started from this file.
+
+## Re-planned entries (2026-10-16, proposed)
+
+What each superseded entry asked for, read against the controller as deployed (PRs #89 to
+#135, `docs/foundation-review.md` Progress log). Most of it exists; what is left is small.
+
+- **16 `dashboard-gates`: delivered.** Gate A, gate B, the retro plan, merge, escalation and
+  error are waits answered on the Now page; a headless run pauses on the usage window and
+  resumes by itself; liveness comes from the controller's own step records and the watchdog;
+  the shell raises a browser notification (`ShellProvider`). Nothing to carry.
+- **17 `dashboard-merge-and-deferrals`: mostly delivered.** Merge by rule with `merge-method`
+  and `merge: ask` (ADR 0003), the Deferrals page (spec 15). Carried: a PR state panel on the
+  Run page (number, checks, mergeable, the rule's verdict and reasons), and `owner` on a
+  deferral record with its chip.
+- **18 `dashboard-usage`: partly delivered.** The Usage page exists (spec 15) and every run
+  carries its token totals and the two windows. Carried: W per task per spec against the
+  repository's baseline, and the trend over closed specs.
+- **19 (overwatch role): retired** by ADR 0004; its second-opinion half is the advisor.
+- **20 `harness-home`: delivered.** `~/.local/state/sdd` holds runs, waits, `projects.json`,
+  `rate-limit.json`, the secret and the watchdog state, every record with a `v` field. The
+  `active-run` pointer file goes with the supervisor at step (d).
+- **21 `repo-bootstrap`: partly delivered.** A project is registered once through
+  `POST /api/projects/add` and remembered. Carried: a deterministic `init` that writes
+  `.mcp.json`, an `agent-rules.md` from the template and registers the project, and a
+  `doctor` that checks what `init` wrote. One operator and three repositories (ADR 0001) make
+  this small; the `/sdd-init` judgement half and `uninstall` are dropped.
+
+The carried items become three specs, in this order after step (d)'s deletion lands:
+
+### 23. `dashboard-loop-views` — the PR, the deferral owner and the usage trend (proposed)
+
+**Delivers.** On the Run page, a PR panel: number and link, the CI state the merge rule
+read (green, pending, red, unreadable), mergeable, and the rule's verdict with its reasons,
+live while the run is `merging`. On a deferral record, `owner` (`matthew` or `harness`) with
+a chip and a filter on the Deferrals page. On the Usage page, W per task for each closed
+spec against its repository's baseline, and the trend over closed specs, one line per
+repository. All three read the ledgers and the run records; no new writer.
+
+### 24. `project-bootstrap` — put a repository on the controller (proposed)
+
+**Delivers.** `npx spec-workflow-mcp init <repo> [--store <path>]`: writes `.mcp.json`
+pointing at this checkout's `dist/index.js`, copies the `agent-rules.md` template with the
+repository's facts filled in (test command, worktree setup, merge method), registers the
+project with the running controller, and prints what it wrote. `doctor <repo>` checks each
+of those and the GitHub remote and token, and names the first thing wrong. Both are
+deterministic scripts; no model runs.
+
+### 25. `advisor` — the second opinion and the state of the world (proposed, gated)
+
+**Delivers.** The `sdd-advisor` of ADR 0006 and design §16: a Claude Code session with the
+harness's cross-project context, a sources registry, a durable notebook, and actions staged
+through the controller's API and confirmed in the dashboard; never in a run's path. Its
+"state of the world" mechanism (how the context stays current, indexed and searchable) is
+designed with Matthew first, in the research session he asked for; this entry is not
+written past this paragraph until then.
+
+22 (`dashboard-visual-refresh`) follows 23, since it restyles the pages 23 completes.
 
 ## Build order
 
@@ -931,9 +988,9 @@ its own release, and the spec after 11 is the first to run with `Test:` lines.
 and it uses 9's per-role model override.
 
 15 after 14. 15 (`dashboard-shell`) is CLOSED. The entries that followed it (16 to 21) are
-superseded; see "Superseded entries" above. No order is defined past 15 until the roadmap is
-re-planned. 22 (`dashboard-visual-refresh`, added 2026-10-14) takes its place in that
-re-plan; it comes after whichever dashboard pages the re-plan keeps, since it restyles them.
+superseded; see "Superseded entries" and "Re-planned entries" above. Proposed order past 15,
+once Matthew approves the re-plan: step (d)'s deletion (not a spec) → 23 → 24 → 25 (after the
+advisor design session) → 22, which restyles the pages 23 completes.
 
 ## Boundary notes
 
