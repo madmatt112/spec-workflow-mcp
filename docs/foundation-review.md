@@ -746,6 +746,16 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `package-lock.json` under `## Generated paths`. The tradr launch waits for the seven-day
   window reset (84% at 23:48Z).
 
+- 2026-10-17 Matthew approved the re-plan: PR #136 merged; `/sdd-init` and `uninstall` stay
+  dropped (all three repositories already have steering documents and a decomposition; add
+  `/sdd-init` to spec 24 if a fourth repository comes). PR #144: `nextUnstartedSpec` takes
+  the first heading with no spec directory and no `(deferred)` tag, so 22 (higher in the
+  file) would have routed before 23; 22 and 25 now carry `(deferred)`. Remove it from 22
+  when 24 closes, from 25 after the advisor design session. PR #145 (`ab0d68e`, deployed
+  02:04Z, no run live), on Matthew's request: the dashboard never opens a browser on start;
+  `--no-open` is accepted and ignored; the `open` dependency is gone. The tradr run and spec
+  23 launch after the seven-day reset (Sunday 2026-10-18 15:00Z).
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

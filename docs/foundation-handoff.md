@@ -88,9 +88,11 @@ order, and how to brief subagents. Point a session at it and it carries the cour
   No run is live; all five fixture runs are `done`. The close-out loop is proven (`repeat`:
   P1, P5 landed, fixture PR #6).
 - Stale worktrees are pruned. The coordinator may merge PRs (Matthew, 2026-10-16).
-- Open for Matthew: PR #136 (the re-plan; spec 23 starts after he merges or amends it).
-- tradr's first controller run: launch after the seven-day reset (Saturday 2026-10-18
-  15:00Z) or on Matthew's word. Its waits are his.
+- Live build `ab0d68e` (PR #145: no browser opens on start). The re-plan is approved
+  (PRs #136, #144); the controller routes this repository to spec 23 `dashboard-loop-views`.
+- Next: after the seven-day reset (Sunday 2026-10-18 15:00Z) launch tradr's
+  `import-off-request-thread` and spec 23 on this repository. Every wait of both is
+  Matthew's.
 
 ## State at the 2026-10-16 13:40Z handoff (usage limit)
 
