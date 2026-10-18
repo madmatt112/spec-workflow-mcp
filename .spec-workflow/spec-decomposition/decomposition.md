@@ -854,7 +854,7 @@ stacks under the list and nothing scrolls sideways.
 **Depends on** spec 9 for the harness watchers, the launcher, the setup file and the run
 model wiring, and on spec 6 for the pointer file and the hook events.
 
-### 22. `dashboard-visual-refresh` — the same dashboard, restyled (active)
+### 22. `dashboard-visual-refresh` — the same dashboard, restyled (deferred) — until 24 closes
 
 The dashboard's look grew with its pages: colours, spacing, type sizes and component styles
 were chosen page by page, and the breakpoints and content widths differ between them. This
@@ -905,9 +905,11 @@ reserved 19 (overwatch role), 20 (harness home) and 21 (repo bootstrap) are supe
 controller design of the foundation review (`docs/foundation-review.md`,
 `docs/controller-design.md`). Their text is parked in `superseded-2026-10-10.md` in this
 directory. Step (d) re-plans them below ("Re-planned entries"); until Matthew approves that
-section nothing past 15 is active, and no spec may be started from this file.
+section nothing past 15 is active. Approved 2026-10-17: 22 and 25 carry `(deferred)` so
+the controller routes 23, then 24; remove the tag from 22 when 24 closes, and from 25 after
+the advisor design session.
 
-## Re-planned entries (2026-10-16, proposed)
+## Re-planned entries (2026-10-16, approved 2026-10-17)
 
 What each superseded entry asked for, read against the controller as deployed (PRs #89 to
 #135, `docs/foundation-review.md` Progress log). Most of it exists; what is left is small.
@@ -935,7 +937,7 @@ What each superseded entry asked for, read against the controller as deployed (P
 
 The carried items become three specs, in this order after step (d)'s deletion lands:
 
-### 23. `dashboard-loop-views` — the PR, the deferral owner and the usage trend (proposed)
+### 23. `dashboard-loop-views` — the PR, the deferral owner and the usage trend
 
 **Delivers.** On the Run page, a PR panel: number and link, the CI state the merge rule
 read (green, pending, red, unreadable), mergeable, and the rule's verdict with its reasons,
@@ -944,7 +946,7 @@ a chip and a filter on the Deferrals page. On the Usage page, W per task for eac
 spec against its repository's baseline, and the trend over closed specs, one line per
 repository. All three read the ledgers and the run records; no new writer.
 
-### 24. `project-bootstrap` — put a repository on the controller (proposed)
+### 24. `project-bootstrap` — put a repository on the controller
 
 **Delivers.** `npx spec-workflow-mcp init <repo> [--store <path>]`: writes `.mcp.json`
 pointing at this checkout's `dist/index.js`, copies the `agent-rules.md` template with the
@@ -953,7 +955,7 @@ project with the running controller, and prints what it wrote. `doctor <repo>` c
 of those and the GitHub remote and token, and names the first thing wrong. Both are
 deterministic scripts; no model runs.
 
-### 25. `advisor` — the second opinion and the state of the world (proposed, gated)
+### 25. `advisor` — the second opinion and the state of the world (deferred) — until the design session
 
 **Delivers.** The `sdd-advisor` of ADR 0006 and design §16: a Claude Code session with the
 harness's cross-project context, a sources registry, a durable notebook, and actions staged
@@ -988,8 +990,8 @@ its own release, and the spec after 11 is the first to run with `Test:` lines.
 and it uses 9's per-role model override.
 
 15 after 14. 15 (`dashboard-shell`) is CLOSED. The entries that followed it (16 to 21) are
-superseded; see "Superseded entries" and "Re-planned entries" above. Proposed order past 15,
-once Matthew approves the re-plan: step (d)'s deletion (not a spec) → 23 → 24 → 25 (after the
+superseded; see "Superseded entries" and "Re-planned entries" above. Order past 15 (re-plan approved
+2026-10-17): step (d)'s deletion (not a spec) → 23 → 24 → 25 (after the
 advisor design session) → 22, which restyles the pages 23 completes.
 
 ## Boundary notes
