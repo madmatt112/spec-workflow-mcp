@@ -246,7 +246,7 @@ describe('shell hub wiring and routes (task 7)', () => {
     (globalThis as any).fetch = async () => ({ ok: false, json: async () => ({}) });
 
     port = await getFreePort();
-    server = new MultiProjectDashboardServer({ autoOpen: false, port });
+    server = new MultiProjectDashboardServer({ port });
     await server.start();
     _resetMultiServerWarningsForTests();
   });

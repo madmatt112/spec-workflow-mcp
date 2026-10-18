@@ -50,7 +50,7 @@ describe('controller wait routes (T4)', () => {
     (globalThis as any).fetch = async () => ({ ok: false, json: async () => ({}) });
 
     port = await getFreePort();
-    server = new MultiProjectDashboardServer({ autoOpen: false, port });
+    server = new MultiProjectDashboardServer({ port });
     await server.start();
     // Controller routes require the shared secret even for a loopback GET
     // (access control, controller-design.md §17).

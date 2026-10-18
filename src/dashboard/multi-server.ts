@@ -6,7 +6,6 @@ import { join, dirname, resolve } from 'path';
 import { readFile } from 'fs/promises';
 import { promises as fs, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
-import open from 'open';
 import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
 import { ProjectManager } from './project-manager.js';
@@ -61,7 +60,6 @@ interface WebSocketConnection {
 }
 
 export interface MultiDashboardOptions {
-  autoOpen?: boolean;
   port?: number;
   bindAddress?: string; // Network binding address
   allowExternalAccess?: boolean; // Explicit opt-in for non-localhost binding
@@ -352,11 +350,6 @@ export class MultiProjectDashboardServer {
     // Register dashboard in the session manager
     const dashboardUrl = `http://localhost:${this.actualPort}`;
     await this.sessionManager.registerDashboard(dashboardUrl, this.actualPort, process.pid);
-
-    // Open browser if requested
-    if (this.options.autoOpen) {
-      await open(dashboardUrl);
-    }
 
     return dashboardUrl;
   }

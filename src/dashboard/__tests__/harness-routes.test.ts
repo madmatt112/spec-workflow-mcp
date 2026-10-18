@@ -178,7 +178,7 @@ describe('harness hub and websocket wiring (task 9)', () => {
     (globalThis as any).fetch = async () => ({ ok: false, json: async () => ({}) });
 
     port = await getFreePort();
-    server = new MultiProjectDashboardServer({ autoOpen: false, port });
+    server = new MultiProjectDashboardServer({ port });
     await server.start();
     _resetMultiServerWarningsForTests();
   });
@@ -466,7 +466,6 @@ describe('harness routes: setup and launch (task 10)', () => {
 
     port = await getFreePort();
     server = new MultiProjectDashboardServer({
-      autoOpen: false,
       port,
       harness: { cli: fakeCli, stopGraceMs: 300, pollMs: 50 },
     });
