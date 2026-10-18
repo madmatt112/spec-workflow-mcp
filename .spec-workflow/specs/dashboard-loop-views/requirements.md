@@ -17,7 +17,7 @@ The steering `product.md` is absent from this store (`.spec-workflow/steering/` 
 #### Acceptance Criteria
 
 1. WHEN the merge rule evaluates a pull request for a run (`runMergeStage` at `src/controller/merge.ts:513-519`, or `mergeByRule` for a close-out PR at `src/controller/runs.ts:908-915`) THEN the controller SHALL save on that run's record, through the existing write path `save` (`src/controller/runs.ts:521-526`), one PR read per pull request: the PR number, the repository name, the PR web URL when known, the CI state, the raw `mergeable` value, the verdict, every reason, the merge commit sha when merged, and the ISO time of the read.
-2. The verdict SHALL be the `MergeStageStatus` value that the same pass returned (`merged`, `waiting`, `not-ready`, `blocked`, `unreadable` or `failed`; `src/controller/merge.ts:95`), and the reasons SHALL be that pass's `reasons` array unchanged.
+2. The verdict SHALL be the `MergeStageStatus` value that the same pass returned (`merged`, `waiting`, `not-ready`, `blocked`, `unreadable` or `failed`; `src/controller/merge.ts:95-107`), and the reasons SHALL be that pass's `reasons` array unchanged.
 3. The CI state SHALL be one of `green`, `pending`, `red` or `unreadable`, classified from the workflow runs and commit statuses that the same evaluation read, by the classification `readCiState` applies (`src/controller/merge.ts:390-430`): any failed check gives `red`; else any pending check or a fresh head with no run gives `pending`; else `green`. IF the evaluation could not read the PR, its workflow runs or its commit statuses (`src/controller/merge.ts:297-321`) THEN the CI state SHALL be `unreadable`.
 4. IF the evaluation could not read the PR at all THEN the `mergeable` value SHALL be recorded as absent, never as a stale value from an earlier read.
 5. A later read of the same pull request SHALL replace the earlier read of that pull request; reads of different pull requests of the same run SHALL be kept side by side, the run's own PR first.
@@ -27,7 +27,7 @@ The steering `product.md` is absent from this store (`.spec-workflow/steering/` 
 9. WHILE the run status is `merging`, WHEN the merge rule re-checks (every `MERGE_POLL_INTERVAL_MS`, `src/controller/merge.ts:24`) THEN the open Run page SHALL show the new read within 5 seconds of the run-record write, with no page reload, through the existing `controller-runs` push (`src/controller/runs.ts:50-55`).
 10. WHEN the merge rule merges a PR THEN its row SHALL show the verdict `merged` and the first 7 characters of the merge sha.
 11. The dashboard server and frontend SHALL NOT call `gh` or GitHub for the panel; the panel shows only what the merge rule read.
-12. The merge rule's decision SHALL NOT change: for the same `gh` responses, `evaluate` returns the same `ready`, `pending`, `unreadable` and `reasons` as at base, and `runMergeStageStep` maps each status to the same run status and wait (`src/controller/runs.ts:634-681`). Invariant (verified, not red-first): the existing merge and runs suites pass with no asserted value changed.
+12. The merge rule's decision SHALL NOT change: for the same `gh` responses, `evaluate` (`src/controller/merge.ts:291-372`) returns the same `ready`, `pending`, `unreadable` and `reasons` as at base, and `runMergeStageStep` maps each status to the same run status and wait (`src/controller/runs.ts:585-682`). Invariant (verified, not red-first): the existing merge and runs suites pass with no asserted value changed.
 13. A run record written before this feature (with no PR read) SHALL still load, list and render. Invariant (verified, not red-first).
 
 ### Requirement 2 — Owner on a deferral record
@@ -74,7 +74,7 @@ The steering `product.md` is absent from this store (`.spec-workflow/steering/` 
 ## Non-Functional Requirements
 
 ### Performance
-- The usage route SHALL read ledgers, HANDOFF and `agent-rules.md` through a `FileCache` (`src/dashboard/shell/file-cache.ts:1-6`), so a repeat request rereads no unchanged file.
+- The usage route SHALL read ledgers, HANDOFF and `agent-rules.md` through a `FileCache` (`src/dashboard/shell/file-cache.ts:1-16`), so a repeat request rereads no unchanged file.
 - The trend chart SHALL be plain SVG in the existing frontend; no charting package is added (`package.json` has none).
 
 ### Security
@@ -109,3 +109,4 @@ The steering `product.md` is absent from this store (`.spec-workflow/steering/` 
 ## Revision History
 
 - **v1** (2026-10-18) — Initial draft.
+  - **Lint pass.** 5 fixed (L-2 widened merge.ts:95→95-107 to include `reasons`; L-5/L-6 added `evaluate` citation merge.ts:291-372 covering `pending`; L-7 widened runs.ts:634-681→585-682 to include the declaration; L-23 widened file-cache.ts:1-6→1-16 to include `class FileCache`); rejected: L-1 `mergeable` is the stored GitHub-field value, the citations govern `save`; L-3 the AC requires `repoDir` absent from those ranges, its absence is the point; L-4 `merging` is a RunStatus value, the citations govern the poll interval and push; L-8/L-9/L-10 `owner`/`matthew`/`harness` are the new field and values added to the cited Deferral interface; L-11/L-12/L-13/L-15 `owner` is the new field added to the cited storage/schema/reindex/summary code; L-14/L-16 `get`/`list` are action names, the citation governs the summary rows; L-17/L-18/L-19/L-20 `matthew`/`harness` are chip labels, the citations locate the reused panel and Chips; L-21 `jsonl` is part of the `harness-events.jsonl` filename; L-22 `usage` is the harness action name, the citations govern the fold.
