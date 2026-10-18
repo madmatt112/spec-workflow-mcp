@@ -70,7 +70,7 @@ describe('controller dashboard routes (T10)', () => {
 
   async function startServer(): Promise<string> {
     port = await getFreePort();
-    server = new MultiProjectDashboardServer({ autoOpen: false, port });
+    server = new MultiProjectDashboardServer({ port });
     await server.start();
     // Controller routes require the shared secret even for a loopback GET
     // (access control, controller-design.md §17).

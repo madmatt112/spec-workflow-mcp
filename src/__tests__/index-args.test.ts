@@ -149,7 +149,6 @@ describe('--no-workspace-inference registration (requirements 1.15, 1.16)', () =
 
     expect(parsed.noWorkspaceInference).toBe(true);
     expect(parsed.noSharedWorktreeSpecs).toBe(true);
-    expect(parsed.noOpen).toBe(true);
   });
 });
 
@@ -222,7 +221,6 @@ describe('boolean flags in --flag=value form (requirement 1.17)', () => {
     ]);
 
     expect(parsed.isDashboardMode).toBe(true);
-    expect(parsed.noOpen).toBe(true);
     expect(parsed.noSharedWorktreeSpecs).toBe(true);
     expect(parsed.noWorkspaceInference).toBe(true);
     // No flag reached the project-path position.
@@ -395,6 +393,6 @@ describe('--help output', () => {
     const output = errorSpy.mock.calls.map((call: unknown[]) => String(call[0])).join('\n');
     expect(output).toContain('--no-workspace-inference');
     expect(output).toContain('--no-shared-worktree-specs');
-    expect(output).toContain('--no-open');
+    expect(output).not.toContain('--no-open');
   });
 });

@@ -40,8 +40,6 @@ OPTIONS:
                          Default: 127.0.0.1 (localhost only)
                          A non-localhost address opts in to LAN access; the
                          shared secret is then required on every request
-  --no-open               Don't automatically open browser when starting dashboard
-                         Useful in restricted environments where browser launch is blocked
   --no-shared-worktree-specs
                          Disable shared .spec-workflow in git worktrees
                          Use workspace-local .spec-workflow instead of main repo
@@ -82,12 +80,10 @@ MODES OF OPERATION:
 2. Dashboard Only Mode:
    spec-workflow-mcp --dashboard
    spec-workflow-mcp --dashboard --port 8080
-   spec-workflow-mcp --dashboard --no-open
 
    Runs only the web dashboard without MCP server (default port: 5000).
    Projects will automatically appear in the dashboard as MCP servers register.
    Only one dashboard instance is needed for all your projects.
-   Use --no-open to prevent automatic browser launch (useful in restricted environments).
 
 EXAMPLES:
   # Start MCP server in current directory (no dashboard)
@@ -201,7 +197,6 @@ export function parseArguments(args: string[]): {
   port?: number;
   host?: string;
   lang?: string;
-  noOpen?: boolean;
 } {
   const flags = readBooleanFlags(args);
   const isDashboardMode = flags['--dashboard'];
@@ -209,7 +204,6 @@ export function parseArguments(args: string[]): {
   const isWatchMode = flags['--watch'];
   const watchOnce = flags['--once'];
   let specName: string | undefined;
-  const noOpen = flags['--no-open'];
   const noSharedWorktreeSpecs = flags['--no-shared-worktree-specs'];
   const noWorkspaceInference = flags['--no-workspace-inference'];
   let customPort: number | undefined;
@@ -332,8 +326,7 @@ export function parseArguments(args: string[]): {
     workspaceSource,
     port: customPort,
     host: customHost,
-    lang: undefined,
-    noOpen
+    lang: undefined
   };
 }
 
@@ -403,7 +396,6 @@ async function main() {
     const port = cliArgs.port;
     const host = cliArgs.host;
     const lang = cliArgs.lang;
-    const noOpen = cliArgs.noOpen || false;
 
     if (cliArgs.isWatchMode) {
       const { runWatch } = await import('./watch/index.js');
@@ -465,9 +457,6 @@ async function main() {
       } else {
         console.error(`Using default port: ${DEFAULT_DASHBOARD_PORT}`);
       }
-      if (noOpen) {
-        console.error(`Browser auto-open disabled (--no-open)`);
-      }
 
       // Load configuration from environment variables
       let bindAddress: string | undefined;
@@ -528,7 +517,6 @@ async function main() {
       let dashboardServer: MultiProjectDashboardServer;
       try {
         dashboardServer = new MultiProjectDashboardServer({
-          autoOpen: !noOpen && !isSmokeMode,
           port: dashboardPort,
           bindAddress,
           allowExternalAccess,
