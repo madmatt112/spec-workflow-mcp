@@ -164,6 +164,20 @@ export interface ControllerWait {
 export type ControllerRunStatus =
   | 'queued' | 'running' | 'merging' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
 
+// Hand copy of PrRead in src/controller/state.ts; keep in step. Holds no path.
+export interface ControllerPrRead {
+  kind: 'run' | 'closeout';
+  repo: string;
+  number: number;
+  url?: string;
+  ci: 'green' | 'pending' | 'red' | 'unreadable';
+  mergeable?: string;
+  verdict: 'merged' | 'waiting' | 'not-ready' | 'blocked' | 'unreadable' | 'failed';
+  reasons: string[];
+  sha?: string;
+  at: string;
+}
+
 export interface ControllerRun {
   id: string;
   project: string;
@@ -176,6 +190,8 @@ export interface ControllerRun {
   tokens: number;
   created: string;
   updated: string;
+  /** One read per PR for the dashboard (design D5); undefined when the record has none. */
+  prReads?: ControllerPrRead[];
 }
 
 export interface ControllerActivity {

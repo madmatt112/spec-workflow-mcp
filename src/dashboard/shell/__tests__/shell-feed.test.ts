@@ -5,7 +5,7 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { ShellFeed } from '../shell-feed.js';
 import { recordActivity, _resetActivityForTests } from '../../../controller/activity.js';
-import { writeRun, type RunRecord } from '../../../controller/state.js';
+import { writeRun, type RunRecord, type PrRead } from '../../../controller/state.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
@@ -239,6 +239,37 @@ describe('ShellFeed', () => {
       const latest = ofType(sends, 'shell-now').slice(-1)[0];
       return !latest.data.waits.some((w) => w.kind === 'quiet' && w.spec === spec);
     });
+  });
+
+  it('carries a run record prReads on its controller-runs wire row within the throttle', async () => {
+    const base = tmpBase();
+    bases.push(base);
+    const spec = 'pr-spec';
+    const { project } = makeProject(base, spec);
+    const reads: PrRead[] = [{
+      kind: 'run', repo: 'spec-workflow-mcp', number: 42,
+      url: 'https://example.test/pr/42', ci: 'green', mergeable: 'MERGEABLE',
+      verdict: 'merged', reasons: ['all checks green'], sha: 'abc123',
+      at: '2026-01-01T00:05:00.000Z',
+    }];
+    await writeRun({ ...runRecord(project, spec, 'run-pr'), prReads: reads });
+
+    const sends: ShellMessage[] = [];
+    const feed = new ShellFeed(stubProjects([project]), (m) => sends.push(m), {
+      throttleMs: 20, tickMs: 1_000_000,
+    });
+    feeds.push(feed);
+
+    await feed.start();
+
+    await waitFor(() => {
+      const latest = ofType(sends, 'controller-runs').slice(-1)[0];
+      return !!latest?.data.runs.find((r) => r.id === 'run-pr')?.prReads?.length;
+    });
+
+    const latest = ofType(sends, 'controller-runs').slice(-1)[0];
+    const row = latest.data.runs.find((r) => r.id === 'run-pr');
+    expect(row?.prReads).toEqual(reads);
   });
 
   it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity quintet in order after it', async () => {

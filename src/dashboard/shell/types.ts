@@ -134,6 +134,24 @@ export interface ControllerWait {
   proposals?: string[];
 }
 
+/**
+ * One read of a pull request by the merge pass, path-free for the wire (design
+ * C1/C3). Hand copy of `PrRead` in src/controller/state.ts; keep in step. Holds
+ * no path — `repo` is a basename.
+ */
+export interface ControllerPrRead {
+  kind: 'run' | 'closeout';
+  repo: string;
+  number: number;
+  url?: string;
+  ci: 'green' | 'pending' | 'red' | 'unreadable';
+  mergeable?: string;
+  verdict: 'merged' | 'waiting' | 'not-ready' | 'blocked' | 'unreadable' | 'failed';
+  reasons: string[];
+  sha?: string;
+  at: string;
+}
+
 /** One controller run, path-free for the wire (controller-tasks.md T6; §17). */
 export interface ControllerRun {
   id: string;
@@ -147,6 +165,8 @@ export interface ControllerRun {
   tokens: number;
   created: string;
   updated: string;
+  /** One read per PR for the dashboard (design D5); undefined when the record has none. */
+  prReads?: ControllerPrRead[];
 }
 
 /**
