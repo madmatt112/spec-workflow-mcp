@@ -84,3 +84,53 @@
 - src/dashboard/harness/hub.ts:46-50 — the hub listens to spec, deferral, wait, run and activity changes.
 - src/dashboard/harness/hub.ts:161-163 — `onSourceChange` schedules a shell-feed flush.
 - src/dashboard/project-manager.ts:294 — `getAllProjects`, every project the dashboard knows.
+
+## Merge evaluation internals (design phase)
+- src/controller/merge.ts:38-39 — `PR_VIEW_FIELDS`, the `gh pr view --json` field list.
+- src/controller/merge.ts:233-250 — `CheckState`, `classifyWorkflowRun`, `classifyStatusContext`.
+- src/controller/merge.ts:297-321 — `evaluate`'s four unreadable early returns.
+- src/controller/merge.ts:323-345 — the CI loop over runs and statuses, and the fresh-head pending rule.
+- src/controller/merge.ts:347-354 — the `mergeable` read; `UNKNOWN` sets `pending`.
+- src/controller/merge.ts:456-460 — `closeoutMergeTarget`, `basename(repoDir)` as the repo name.
+- src/controller/merge.ts:483-493 — `readMergeSha`.
+- scripts/stub-gh.mjs:1-86 — the `gh` stub the merge and runs suites script.
+
+## Run loop re-reads (design phase)
+- src/controller/runs.ts:626-632 — the `runMergeStage` call inside `runMergeStageStep`.
+- src/controller/runs.ts:718-730 — loop top re-reads the run, resumes a mid-flight merge.
+- src/controller/runs.ts:754-762 — the done route: close-out merges, then a re-read.
+- src/controller/runs.ts:846-852 — implementation complete, then `runMergeStageStep`.
+- src/controller/state.ts:212-227 — `runsDir`, `runDir`, `runPath`: `runs/<id>/run.json` under the controller home.
+- src/controller/state.ts:327-333 — `readRun` and `writeRun`.
+
+## Shell feed timing
+- src/dashboard/shell/shell-feed.ts:39 — `throttleMs` default 1000.
+- src/dashboard/harness/hub.ts:49 — `runEvents` `change` re-arms the feed.
+
+## Spec rows and usage inputs
+- src/dashboard/shell/spec-rows.ts:52-60 — `firstStatusValue`, the plan `Status:` value.
+- src/dashboard/shell/spec-rows.ts:72-86 — snapshot walk, HANDOFF phase rows and ledger per spec.
+- src/dashboard/shell/spec-rows.ts:91-102 — closed rule lines 92-93.
+- src/watch/ledger.ts:201-218 — `parseHandoffPhaseRows`, unwindowed.
+- src/watch/usage.ts:162-255 — `buildUsageReport`; `total` summed at 240-254.
+- src/dashboard/multi-server.ts:526-535 — the `/api/shell/projects/:projectId/specs/:specName` route.
+- src/dashboard/project-manager.ts:294-296 — `getAllProjects`.
+
+## Frontend extras
+- src/dashboard_frontend/src/lib/dateUtils.ts:13-41 — `formatDate`, optional seconds.
+- src/dashboard_frontend/src/modules/theme/theme.css:97-108 — status colour tokens, light.
+- src/dashboard_frontend/src/modules/theme/theme.css:172-183 — status colour tokens, dark.
+- src/dashboard_frontend/src/modules/shell/RunPage.tsx:176-186 — `LiveNow` mount in the list column.
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:23-33 — `FullDeferral`.
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:196-204 — `Field`, hides an empty value.
+
+## Tests and checks touched
+- src/controller/__tests__/merge.test.ts:157-172 — `evaluate` ready case; exact `toEqual` at 171 and 232.
+- src/controller/__tests__/runs.test.ts:357-499 — merge stage suite: close-out, ask, auto not-ready then merged.
+- src/dashboard/harness/__tests__/run-setup.test.ts:366-375 — missing-file whole-struct `toEqual` of `AgentRules`.
+- e2e/worktree-shell.spec.ts:205-224 — no-sideways-scroll test; `/usage` marker `usage-placeholder` at 206.
+- vitest.config.ts:1-21 — node env; excludes `src/dashboard_frontend/**`.
+
+## Docs (design phase)
+- docs/SDD-HARNESS.md:252-269 — the full `agent-rules.md` key table.
+- docs/TOOLS-REFERENCE.md:370-376 — the `deferrals` action table through `update`.
