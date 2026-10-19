@@ -94,6 +94,8 @@ export interface RunRecord {
   /** ISO. */
   updated: string;
   tokens: TokenTotals;
+  /** One read per pull request the merge pass has evaluated (design C2, D4). */
+  prReads?: PrRead[];
 }
 
 /** A pull request head's CI state, as the merge pass read it (design C1/C2). */
