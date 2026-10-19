@@ -230,6 +230,35 @@ describe('security-utils', () => {
         expect(disabledLimiter.checkLimit('client1').allowed).toBe(true);
       }
     });
+
+    describe('middleware', () => {
+      const run = async (ip: string) => {
+        const reply: any = {
+          code: vi.fn().mockReturnThis(),
+          header: vi.fn().mockReturnThis(),
+          send: vi.fn().mockReturnThis()
+        };
+        await rateLimiter.middleware()({ ip } as any, reply);
+        return reply;
+      };
+
+      it('should never limit loopback addresses', async () => {
+        for (const ip of ['127.0.0.1', '::1', '::ffff:127.0.0.1']) {
+          for (let i = 0; i < 10; i++) {
+            const reply = await run(ip);
+            expect(reply.code).not.toHaveBeenCalled();
+          }
+        }
+      });
+
+      it('should still limit non-loopback addresses', async () => {
+        for (let i = 0; i < 3; i++) {
+          expect((await run('192.168.1.50')).code).not.toHaveBeenCalled();
+        }
+        const reply = await run('192.168.1.50');
+        expect(reply.code).toHaveBeenCalledWith(429);
+      });
+    });
   });
 
   describe('getCorsConfig', () => {
