@@ -29,6 +29,8 @@ import { buildSetupView, validateSetup, readAgentRules } from './harness/run-set
 import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
+import { buildUsageRows } from './shell/usage-rows.js';
+import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire } from '../controller/waits.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
@@ -90,6 +92,9 @@ export class MultiProjectDashboardServer {
   // Debounce spec broadcasts to coalesce rapid updates
   private pendingSpecBroadcasts: Map<string, NodeJS.Timeout> = new Map();
   private readonly SPEC_BROADCAST_DEBOUNCE_MS = 300;
+  // One server-lifetime cache shared by every usage-route request (design C10):
+  // reused while each file's mtime/size is unchanged, never written by the route.
+  private usageCache = new FileCache();
 
   constructor(options: MultiDashboardOptions = {}) {
     this.options = options;
@@ -532,6 +537,31 @@ export class MultiProjectDashboardServer {
       const detail = await buildSpecDetail(project, specName);
       if (!detail) return reply.code(404).send({ error: 'Spec not found' });
       return detail;
+    });
+
+    // Shell usage panel (design C10; Requirement 3 AC1, AC10). Read-only, no
+    // parameters: one closed-spec row per closed spec of every known project
+    // (not only toggled-on ones), sorted by projectName then closeDate newest
+    // first with null last. A project whose rows cannot be built is skipped
+    // (logged once for the request), never an error status (NFR Reliability).
+    this.app.get('/api/shell/usage/closed-specs', async () => {
+      const rows = [];
+      for (const project of this.projectManager.getAllProjects()) {
+        try {
+          rows.push(...await buildUsageRows(project, this.usageCache));
+        } catch {
+          console.warn(`ShellUsage: skipping project ${project.projectId}`);
+        }
+      }
+      rows.sort((a, b) => {
+        const byName = a.projectName.localeCompare(b.projectName);
+        if (byName !== 0) return byName;
+        if (a.closeDate === b.closeDate) return 0;
+        if (a.closeDate === null) return 1;
+        if (b.closeDate === null) return -1;
+        return a.closeDate < b.closeDate ? 1 : -1; // newest first
+      });
+      return { rows };
     });
 
     // ── Harness control-pane routes (design C7; Requirement 3) ──
