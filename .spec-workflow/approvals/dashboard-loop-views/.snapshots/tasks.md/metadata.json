@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-loop-views/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-19T18:34:53.526Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792434893499_mvlxot42i",
+      "approvalTitle": "dashboard-loop-views tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-19T18:34:53.587Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792434893499_mvlxot42i",
+      "approvalTitle": "dashboard-loop-views tasks v1"
+    }
+  ]
+}

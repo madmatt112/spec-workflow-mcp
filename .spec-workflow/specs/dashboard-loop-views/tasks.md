@@ -4,7 +4,7 @@ Document version: v1
 
 Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tasks 6 to 8) and the usage view (tasks 9 to 13); task 14 runs the browser scenarios over all three. Inside each slice the order is fixed: 1, 2, 3, 4, 5; 6, 7, 8; 9, 10, 11, 12, 13. Each task leaves the server compiling (`npx tsc --noEmit`), the dashboard building (`npm run build:dashboard`) and every existing suite green. No task uses an artefact that a later task creates, so no task needs a bridge. Task 11 adds a new module and routes to a verifier by default; no task touches a sensitive path in `agent-rules.md`.
 
-- [ ] 1. Return what the merge pass read
+- [x] 1. Return what the merge pass read
   - File: src/controller/merge.ts
   - Test: src/controller/__tests__/merge.test.ts — evaluatePullRequest(pr, now)
   - Add `url` to `PR_VIEW_FIELDS`; move the body of `evaluate` into a new exported `evaluatePullRequest` that also returns the CI state, the raw `mergeable` and the URL; `evaluate` returns only its evaluation.

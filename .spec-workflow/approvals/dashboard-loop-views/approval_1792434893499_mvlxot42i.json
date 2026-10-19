@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792434893499_mvlxot42i",
+  "title": "dashboard-loop-views tasks v1",
+  "filePath": ".spec-workflow/specs/dashboard-loop-views/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-19T18:34:53.499Z",
+  "category": "spec",
+  "categoryName": "dashboard-loop-views",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-19T18:34:53.613Z"
+}

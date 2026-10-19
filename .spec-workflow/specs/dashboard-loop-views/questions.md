@@ -19,3 +19,9 @@
 5. What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?
    Options: n/a — the spec touches no money, personal data, or legal surface | A posture review
    Answer: n/a — the spec touches no money, personal data, or legal surface
+
+## Gate B
+
+1. Approve the task plan, or annotate it? Reply "Approve" to proceed, or type an annotation to revise the tasks once before implementation.
+   Options: Approve | Annotate
+   Answer: Approve
