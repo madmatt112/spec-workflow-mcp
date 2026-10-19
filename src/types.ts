@@ -307,6 +307,8 @@ export interface TaskReview {
   tdd?: TddBlock;
 }
 
+export type DeferralOwner = 'matthew' | 'harness';
+
 export interface Deferral {
   id: string;
   status: 'deferred' | 'resolved' | 'superseded';
@@ -322,6 +324,7 @@ export interface Deferral {
   resolvedInSpec: string | null;
   supersededBy: string | null;
   supersedes: string | null;
+  owner?: DeferralOwner | null;
   body: {
     context: string;
     decision: string;

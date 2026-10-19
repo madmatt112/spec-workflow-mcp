@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { Deferral } from '../types.js';
+import { Deferral, DeferralOwner } from '../types.js';
 import { PathUtils } from './path-utils.js';
 
 /**
@@ -42,7 +42,7 @@ export class DeferralStorage {
   private serializeFrontmatter(deferral: Deferral): string {
     const str = (v: string) => `"${v.replace(/"/g, '\\"')}"`;
     const opt = (v: string | null) => (v ? str(v) : 'null');
-    return [
+    const lines = [
       '---',
       `id: ${str(deferral.id)}`,
       `status: ${str(deferral.status)}`,
@@ -58,8 +58,14 @@ export class DeferralStorage {
       `resolvedInSpec: ${opt(deferral.resolvedInSpec)}`,
       `supersededBy: ${opt(deferral.supersededBy)}`,
       `supersedes: ${opt(deferral.supersedes)}`,
-      '---',
-    ].join('\n');
+    ];
+    // Only a known owner writes a line; an absent/unknown owner leaves the
+    // record byte-identical to a legacy one so reindex rewrites no old file.
+    if (deferral.owner === 'matthew' || deferral.owner === 'harness') {
+      lines.push(`owner: ${str(deferral.owner)}`);
+    }
+    lines.push('---');
+    return lines.join('\n');
   }
 
   private toMarkdown(deferral: Deferral): string {
@@ -141,6 +147,10 @@ ${deferral.body.revisitCriteria}
     const title = DeferralStorage.scalar(fields.get('title'));
     if (!id || !status || !title) return null;
 
+    const ownerRaw = DeferralStorage.scalar(fields.get('owner'));
+    const owner: DeferralOwner | null =
+      ownerRaw === 'matthew' || ownerRaw === 'harness' ? ownerRaw : null;
+
     return {
       id,
       status,
@@ -156,6 +166,7 @@ ${deferral.body.revisitCriteria}
       resolvedInSpec: DeferralStorage.scalar(fields.get('resolvedInSpec')),
       supersededBy: DeferralStorage.scalar(fields.get('supersededBy')),
       supersedes: DeferralStorage.scalar(fields.get('supersedes')),
+      owner,
       body: {
         context: getSection('Context'),
         decision: getSection('Decision Deferred'),
@@ -314,6 +325,7 @@ ${deferral.body.revisitCriteria}
     context?: string;
     decision?: string;
     revisitCriteria?: string;
+    owner?: DeferralOwner;
   }): Promise<void> {
     const deferral = await this.loadForWrite(id);
 
@@ -323,6 +335,7 @@ ${deferral.body.revisitCriteria}
     if (updates.context !== undefined) deferral.body.context = updates.context;
     if (updates.decision !== undefined) deferral.body.decision = updates.decision;
     if (updates.revisitCriteria !== undefined) deferral.body.revisitCriteria = updates.revisitCriteria;
+    if (updates.owner !== undefined) deferral.owner = updates.owner;
     deferral.updatedAt = new Date().toISOString();
 
     await fs.writeFile(this.filePath(id), this.toMarkdown(deferral), 'utf-8');
