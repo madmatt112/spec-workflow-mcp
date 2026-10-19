@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -37,6 +37,35 @@ function alertLines(home: string): number {
   const log = join(home, 'watchdog-alerts.log');
   if (!existsSync(log)) return 0;
   return readFileSync(log, 'utf-8').split('\n').filter((l) => l.trim().length > 0).length;
+}
+
+function git(cwd: string, ...args: string[]): void {
+  execFileSync('git', args, { cwd, stdio: 'ignore' });
+}
+
+// A toy checkout whose `origin` has advanced by one commit, mirroring the live
+// defect: the controller commits store documents onto the checkout's local main
+// while a merged PR moves origin/main on. The caller adds the local-only commit.
+function makeDivergedCheckout(): { checkout: string; origin: string; home: string } {
+  const origin = mkdtempSync(join(tmpdir(), 'self-update-origin-'));
+  const checkout = mkdtempSync(join(tmpdir(), 'self-update-co-'));
+  const home = mkdtempSync(join(tmpdir(), 'self-update-home-'));
+  git(origin, 'init', '-q', '-b', 'main');
+  git(origin, 'config', 'user.email', 't@example.com');
+  git(origin, 'config', 'user.name', 'Test');
+  mkdirSync(join(origin, 'src'), { recursive: true });
+  writeFileSync(join(origin, 'package.json'), '{"name":"toy","version":"0.0.0"}\n');
+  writeFileSync(join(origin, 'src', 'index.ts'), 'export const x = 1;\n');
+  git(origin, 'add', '-A');
+  git(origin, 'commit', '-qm', 'init');
+  execFileSync('git', ['clone', '--quiet', origin, checkout]);
+  git(checkout, 'config', 'user.email', 't@example.com');
+  git(checkout, 'config', 'user.name', 'Test');
+  // origin advances with a merged PR.
+  writeFileSync(join(origin, 'src', 'index.ts'), 'export const x = 1;\n// merged PR\n');
+  git(origin, 'add', '-A');
+  git(origin, 'commit', '-qm', 'merged PR');
+  return { checkout, origin, home };
 }
 
 describe('service scripts (controller T9)', () => {
@@ -231,6 +260,57 @@ describe('service scripts (controller T9)', () => {
       expect(existsSync(join(clone, '.claude', 'worktrees', 'self-update'))).toBe(false);
     } finally {
       rmSync(clone, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh rebases store-only local commits when origin has advanced', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      // The controller's store commit on local main: spec store + HANDOFF only.
+      mkdirSync(join(checkout, '.spec-workflow', 'specs', 'foo'), { recursive: true });
+      writeFileSync(join(checkout, '.spec-workflow', 'specs', 'foo', 'tasks.md'), '# tasks\n');
+      writeFileSync(join(checkout, 'HANDOFF.md'), '# handoff\n');
+      git(checkout, 'add', '-A');
+      git(checkout, 'commit', '-qm', 'docs(sdd): store');
+
+      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+
+      // The local store commit was rebased onto origin/main, so origin/main is
+      // now an ancestor of HEAD and the store file survives on top. The run then
+      // moves past step (b) into the staging build (which fails in this toy repo).
+      expect(res.stdout).toContain('rebasing');
+      expect(res.stdout).toContain('building in staging');
+      expect(res.stdout).not.toContain('refusing');
+      expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).not.toThrow();
+      expect(existsSync(join(checkout, '.spec-workflow', 'specs', 'foo', 'tasks.md'))).toBe(true);
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh refuses when a local-only commit touches a path outside the store', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      // A stray local commit touching src/ must never be replayed by a self-update.
+      writeFileSync(join(checkout, 'src', 'index.ts'), 'export const x = 1;\n// local hack\n');
+      git(checkout, 'add', '-A');
+      git(checkout, 'commit', '-qm', 'local src change');
+
+      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+
+      expect(res.code).toBe(1);
+      expect(res.stdout).toContain('refusing');
+      expect(res.stdout).toContain('src/index.ts');
+      expect(res.stdout).not.toContain('building in staging');
+      // Local main was left unmoved: not rebased, no staging worktree created.
+      expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).toThrow();
+      expect(existsSync(join(checkout, '.claude', 'worktrees', 'self-update'))).toBe(false);
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
       rmSync(home, { recursive: true, force: true });
     }
   }, 30000);

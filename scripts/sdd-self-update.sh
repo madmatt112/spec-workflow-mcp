@@ -84,17 +84,53 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# (b) Fetch and fast-forward the live checkout.
+# (b) Fetch, then move the live checkout to origin/main.
+#     Usually a fast-forward. But while a controller run works a spec whose
+#     store lives in this repo, it commits store documents (docs(sdd): ...)
+#     onto the live checkout's local main and pushes only at run end. Once
+#     origin/main gains a merged PR, local main is both ahead (the store
+#     commits) and behind (the merge), so a plain --ff-only fails. In that one
+#     case, if every file the local-only commits changed is under
+#     .spec-workflow/ or is HANDOFF.md, rebase them onto origin/main; refuse if
+#     any local-only commit touches another path, or if the rebase conflicts.
+#     No force-push and no push: the controller pushes the store at run end.
 # ---------------------------------------------------------------------------
 if [ "$DRY_RUN" = 1 ]; then
   would "git -C $REPO fetch origin"
-  would "git -C $REPO pull --ff-only origin main"
+  would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
 else
   log "fetching origin"
   git -C "$REPO" fetch origin
   TARGET_COMMIT="$(git -C "$REPO" rev-parse origin/main)"
-  log "fast-forwarding to $TARGET_COMMIT"
-  git -C "$REPO" pull --ff-only origin main
+  ahead="$(git -C "$REPO" rev-list --count origin/main..HEAD)"
+  behind="$(git -C "$REPO" rev-list --count HEAD..origin/main)"
+  if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
+    log "local main has diverged ($ahead ahead, $behind behind); inspecting the local-only commits"
+    changed="$(git -C "$REPO" diff --name-only origin/main...HEAD)"
+    outside=""
+    while IFS= read -r f; do
+      [ -z "$f" ] && continue
+      case "$f" in
+        .spec-workflow/*|HANDOFF.md) ;;
+        *) outside="${outside:+$outside }$f" ;;
+      esac
+    done <<EOF
+$changed
+EOF
+    if [ -n "$outside" ]; then
+      log "refusing: local-only commits touch paths outside the spec store: $outside"
+      exit 1
+    fi
+    log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
+    if ! git -C "$REPO" rebase origin/main; then
+      git -C "$REPO" rebase --abort 2>/dev/null || true
+      log "refusing: rebasing the local store commits onto origin/main conflicts; left local main unmoved"
+      exit 1
+    fi
+  else
+    log "fast-forwarding to $TARGET_COMMIT"
+    git -C "$REPO" pull --ff-only origin main
+  fi
 fi
 
 # ---------------------------------------------------------------------------
