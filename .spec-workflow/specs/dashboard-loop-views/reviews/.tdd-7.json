@@ -1,0 +1,1 @@
+{"testFiles":["src/tools/__tests__/deferrals.test.ts"],"seams":{"src/tools/__tests__/deferrals.test.ts":"deferralsHandler(args, context)"},"redCommit":"4352d0f23e3b65170cac8f4e21e657d22b5ca033","baseSha":"e92d004dbb3d911e4fee591a8b49a137b2c34797","base":"assertion-red","head":"pass","amended":false,"judged":null}
