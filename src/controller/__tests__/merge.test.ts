@@ -4,11 +4,12 @@ import {
 } from 'fs';
 import { promises as fsp } from 'fs';
 import { tmpdir } from 'os';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import {
   readMergeRules, findPullRequest, evaluate, evaluatePullRequest, runMergeStage,
-  MERGE_POLL_INTERVAL_MS, type PullRequest, type MergeRules, type MergeStageDeps,
+  mergeByRule, closeoutMergeTarget,
+  MERGE_POLL_INTERVAL_MS, type PullRequest, type MergeRules, type MergeStageDeps, type MergeTarget,
 } from '../merge.js';
 import { openRunLedger } from '../ledger.js';
 import { answerWait } from '../waits.js';
@@ -535,5 +536,136 @@ describe('runMergeStage', () => {
     expect(result.status).toBe('failed');
     expect(result.reasons.join('\n')).toMatch(/the base branch has moved/);
     expect(result.number).toBe(42);
+  });
+});
+
+describe('PR read on every merge-stage result', () => {
+  // Contract per test: pre-condition (gh stub script / target) -> call runMergeStage(run,
+  // deps) or mergeByRule(target, deps) -> observable `.read` on the returned
+  // MergeStageResult -> expected value source (requirement 1 AC1, AC2; design C1
+  // post-conditions, src/controller/merge.ts:526-586 mergeByRule, :457-460 closeoutMergeTarget).
+  beforeEach(async () => {
+    process.env.SDD_HOME = await fsp.mkdtemp(join(tmpdir(), 'ctrl-merge-read-home-'));
+  });
+
+  it('merged: read.verdict equals status, reasons is the same array, kind is run, repo is the basename, and sha/at are set (AC1, AC2)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK, STATUS_OK,
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'f00dc0ffee1234567890' } } },
+    ]);
+    const run = makeRun();
+    const now = () => new Date('2026-10-19T08:00:00.000Z');
+    const result = await runMergeStage(run, makeDeps({ now }));
+
+    expect(result.status).toBe('merged');
+    expect(result.read).toBeDefined();
+    expect(result.read!.verdict).toBe(result.status);
+    expect(result.read!.reasons).toBe(result.reasons);
+    expect(result.read!.kind).toBe('run');
+    expect(result.read!.repo).toBe(basename(run.codeRoot));
+    expect(result.read!.sha).toBe(result.sha);
+    expect(result.read!.at).toBe(now().toISOString());
+  });
+
+  it('not-ready: read.verdict equals status, reasons is the same array, kind is run, repo is the basename (AC1, AC2)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'queued', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const run = makeRun();
+    const result = await runMergeStage(run, makeDeps());
+
+    expect(result.status).toBe('not-ready');
+    expect(result.read!.verdict).toBe(result.status);
+    expect(result.read!.reasons).toBe(result.reasons);
+    expect(result.read!.kind).toBe('run');
+    expect(result.read!.repo).toBe(basename(run.codeRoot));
+  });
+
+  it('blocked: read.verdict equals status, reasons is the same array, kind is run, repo is the basename (AC1, AC2)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: {
+        ...READY_VIEW,
+        commits: [{ oid: 'abcdef1234', messageHeadline: 'test(s): task 1 red', messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' }],
+      } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const run = makeRun();
+    const result = await runMergeStage(run, makeDeps());
+
+    expect(result.status).toBe('blocked');
+    expect(result.read!.verdict).toBe(result.status);
+    expect(result.read!.reasons).toBe(result.reasons);
+    expect(result.read!.kind).toBe('run');
+    expect(result.read!.repo).toBe(basename(run.codeRoot));
+  });
+
+  it('unreadable: read.verdict equals status, reasons is the same array, ci is unreadable and mergeable absent (AC1, AC2, carrying AC3/AC4)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], exitCode: 1, stderr: 'GraphQL: Resource not accessible by personal access token (statusCheckRollup)' },
+    ]);
+    const run = makeRun();
+    const result = await runMergeStage(run, makeDeps());
+
+    expect(result.status).toBe('unreadable');
+    expect(result.read!.verdict).toBe(result.status);
+    expect(result.read!.reasons).toBe(result.reasons);
+    expect(result.read!.kind).toBe('run');
+    expect(result.read!.ci).toBe('unreadable');
+    expect(result.read!.mergeable).toBeUndefined();
+  });
+
+  it('drops a non-https view url from the read (NFR Security)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, url: 'http://insecure.example/pull/42' } },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const pr: PullRequest = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' };
+    const target: MergeTarget = { pr, runId: 'run-x', projectId: 'proj-1', spec: 's', questionId: 'merge', label: 'PR #42' };
+    const result = await mergeByRule(target, makeDeps());
+
+    expect(result.read!.url).toBeUndefined();
+  });
+
+  it('keeps an https view url in the read (NFR Security)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, url: 'https://github.com/x/pull/42' } },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const pr: PullRequest = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' };
+    const target: MergeTarget = { pr, runId: 'run-x', projectId: 'proj-1', spec: 's', questionId: 'merge', label: 'PR #42' };
+    const result = await mergeByRule(target, makeDeps());
+
+    expect(result.read!.url).toBe('https://github.com/x/pull/42');
+  });
+
+  it('mergeByRule with a closeoutMergeTarget target gives kind closeout, repo the basename (design D-closeout, AC1/AC2 carried)', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const repoDir = tmp('ctrl-merge-repo-');
+    const pr: PullRequest = { number: 7, repoDir, branch: 'feat/thing' };
+    const run = makeRun();
+    const target = closeoutMergeTarget(run, pr);
+    const result = await mergeByRule(target, makeDeps());
+
+    expect(result.read!.kind).toBe('closeout');
+    expect(result.read!.repo).toBe(basename(repoDir));
+  });
+
+  it('runMergeStage with no open PR has no read (regression guard; holds at base)', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'list'], stdout: [] }]);
+    const run = makeRun({ pr: undefined, branch: 'feat/none' });
+    const result = await runMergeStage(run, makeDeps());
+
+    expect(result.status).toBe('not-ready');
+    expect(result.read).toBeUndefined();
   });
 });
