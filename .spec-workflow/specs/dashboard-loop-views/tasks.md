@@ -117,7 +117,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 3.1, 3.10_
   - _Prompt: Task: Implement design C10 (requirement 3 AC1; design D11, D12). Add `GET /api/shell/usage/closed-specs` beside the shell spec-detail route (lines 526-535), returning `{ rows }`. Loop over `this.projectManager.getAllProjects()`, every known project, not only toggled-on ones; run the builder task 11 exports per project in a `try`; on a throw log `ShellUsage: skipping project {id}` once for that request and leave the project out. Use one server-lifetime `FileCache` field. Sort by `projectName`, then `closeDate` newest first with null last. | Restrictions: No parameters; never return an error status for a bad file; add no watcher, timer or writer (NFR Reliability). No existing assertion in `shell-routes.test.ts` changes value; extend its two-project fixture (lines 208-252) with closed specs. Check with `npx tsc --noEmit` and `npx vitest run src/dashboard/__tests__/shell-routes.test.ts`. | Success: The route returns 200 with the rows of two projects in the stated order; a project whose `agent-rules.md` path is a directory still yields rows with `baseline: null`_
 
-- [ ] 13. Usage page table and trend
+- [x] 13. Usage page table and trend
   - File: src/dashboard_frontend/src/modules/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/UsagePage.tsx
   - File: src/dashboard_frontend/src/modules/shell/UsageTrend.tsx
