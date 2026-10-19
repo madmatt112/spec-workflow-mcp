@@ -14,3 +14,8 @@ Cost: 1 implementer spawn(s)
 task 3 closed: 0 fix round(s), outcome gate
 Evidence: task 3 · mark run-20261018-150806 c0858d7a
 Cost: 1 implementer spawn(s)
+
+## 2026-10-19T19:28:14Z · implementation · task 4 · deviation
+task 4 `- Test (integration):` label is unparsed, so its required test file is outside the gate's file list; fix in tasks.md (detail: /tmp/scratchpad/sdd/dashboard-loop-views/task-4-fix-1-report.md)
+Evidence: task 4 · mark run-20261018-150806 c7ab442e
+Cost: unknown

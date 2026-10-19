@@ -102,6 +102,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-08 | dashboard-shell | closeout | items 15/15 | closed | 13 landed, 2 to-do, PR #88 |
 | 2026-10-19 | dashboard-loop-views | requirements | v3 | approved | 3 rounds |
 | 2026-10-19 | dashboard-loop-views | design | v2 | approved | 2 rounds |
+| 2026-10-19 | dashboard-loop-views | tasks | v1 | approved | 1 rounds |
+| 2026-10-19 | dashboard-loop-views | implementation | tasks 3/14 | design-defect | task 4 `- Test (integration):` label is unparsed, so its required test file is outside the gate's file list; fix in tasks.md (detail: /tmp/scratchpad/sdd/dashboard-loop-views/task-4-fix-1-report.md) |
 
 ## Current state — 2026-08-04
 
@@ -875,4 +877,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 3/14, last commit 10458ae, next task 4 |
+| State | tasks 3/14, stopped: design-defect — task 4 `- Test (integration):` label is unparsed, so its required test file is outside the gate's file list; fix in tasks.md (detail: /tmp/scratchpad/sdd/dashboard-loop-views/task-4-fix-1-report.md) |
