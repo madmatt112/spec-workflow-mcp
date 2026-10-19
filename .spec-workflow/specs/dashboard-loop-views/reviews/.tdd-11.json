@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/usage-rows.test.ts"],"seams":{"src/dashboard/shell/__tests__/usage-rows.test.ts":"buildUsageRows(project, cache)"},"redCommit":"f31b7c03e7eb311823f348d38d5290c5ba3455e5","baseSha":"629502348826efb94ae9a6449aac39754da30afa","base":"structural-red","head":"pass","amended":true,"judged":null}

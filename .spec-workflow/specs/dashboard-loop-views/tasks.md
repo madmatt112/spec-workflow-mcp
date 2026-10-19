@@ -98,7 +98,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 3.2_
   - _Prompt: Task: Implement the `isSpecClosed` part of design C9 (requirement 3 AC2; design D15). Export `isSpecClosed(phaseRows, planText)` that returns true when a row has phase `closeout` and result `closed`, or when the first word of `firstStatusValue(planText)` is `CLOSED` — the rule at lines 92-93. `buildSpecRows` calls it in place of those two lines. | Restrictions: No behaviour change in `buildSpecRows`; no asserted value in `spec-rows.test.ts` changes. `PhaseRow` is the type `src/watch/ledger.ts` exports. Check with `npx tsc --noEmit` and `npx vitest run src/dashboard/shell/__tests__/spec-rows.test.ts`. | Success: `isSpecClosed` is true for a `closeout`/`closed` row, true for a plan whose `Status:` value starts with `CLOSED`, and false for neither; the existing spec-rows suite passes unchanged_
 
-- [ ] 11. Usage rows builder
+- [x] 11. Usage rows builder
   - File: src/dashboard/shell/usage-rows.ts
   - File: src/dashboard/shell/types.ts
   - Test: src/dashboard/shell/__tests__/usage-rows.test.ts — buildUsageRows(project, cache)
