@@ -161,3 +161,13 @@
 {"ts":"2026-10-19T22:34:26.073Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","result":"yes/8","phase":"implementation","task":"8"}
 {"ts":"2026-10-19T22:34:29.736Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 8 pass risk low"}
 {"ts":"2026-10-19T22:34:29.737Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-19T22:34:29.919Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"9","title":"Baseline key in the agent-rules parser"}
+{"ts":"2026-10-19T22:34:29.925Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"task 9 pick head 04b93e13457b72292acda605ff85233d37f49012"}
+{"ts":"2026-10-19T22:34:29.967Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-test-author","role":"author task 9","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-19T22:36:14.166Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-test-author","input":"24","output":"7330","cacheWrite":"55171","cacheRead":"797001","tokens":"859526","cacheWrite5m":"0","cacheWrite1h":"55171","model":"claude-sonnet-5"}
+{"ts":"2026-10-19T22:36:14.166Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-test-author","role":"author task 9","result":"none","phase":"implementation","task":"9"}
+{"ts":"2026-10-19T22:36:14.182Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-implementer","role":"implement task 9","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-19T22:40:28.447Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-implementer","input":"70","output":"18299","cacheWrite":"61520","cacheRead":"1998582","tokens":"2078471","cacheWrite5m":"0","cacheWrite1h":"61520","model":"claude-opus-4-8"}
+{"ts":"2026-10-19T22:40:28.447Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 9","result":"yes/9","phase":"implementation","task":"9"}
+{"ts":"2026-10-19T22:40:41.941Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 9 pass risk low tdd assertion-red"}
+{"ts":"2026-10-19T22:40:41.942Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"9","rounds":"0","outcome":"gate"}

@@ -79,7 +79,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 2.9, 2.10, 2.11, 2.12_
   - _Prompt: Task: Implement design C7 (requirement 2 AC9 to AC12). `FullDeferral` gains `owner?: 'matthew' | 'harness' | null`. Add `activeOwners` state and a second `Chips` row (design D8, requirement 2 AC10) with values `matthew`, `harness`, `none`, labelled `matthew`, `harness`, `no owner`; each count spans every enabled project's records, computed like `statusCounts`. The `items` filter keeps a record only if `activeOwners` is empty or includes `d.owner ?? 'none'`; add `activeOwners` to that `useMemo` deps array (line 103) and to the reset effect (line 106). A row with an owner shows a badge `data-testid="deferral-owner-{projectId}-{id}"` after `StatusBadge`; `DeferralPanel` adds `Field label="Owner"`. | Restrictions: The page stays read-only: add no control that writes (requirement 2 AC12). Refresh comes from `deferralsByProject` as at base. Task 14 covers the browser behaviour. Check with `npm run build:dashboard`. | Success: The dashboard builds; owner chips show with counts; owner chips combine by OR with each other and by AND with status chips and search; a filter change resets the pager; an owned row shows the badge and the panel shows Owner; an unowned record shows neither_
 
-- [ ] 9. Baseline key in the agent-rules parser
+- [x] 9. Baseline key in the agent-rules parser
   - File: src/dashboard/harness/run-setup.ts
   - File: docs/SDD-HARNESS.md
   - Test: src/dashboard/harness/__tests__/run-setup.test.ts — readAgentRules(workflowRoot)

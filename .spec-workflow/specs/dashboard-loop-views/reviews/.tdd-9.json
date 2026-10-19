@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/run-setup.test.ts"],"seams":{"src/dashboard/harness/__tests__/run-setup.test.ts":"readAgentRules(workflowRoot)"},"redCommit":"f3efe9875374f8bb780fa2df6cf4afc74854a5d1","baseSha":"04b93e13457b72292acda605ff85233d37f49012","base":"assertion-red","head":"pass","amended":false,"judged":null}
