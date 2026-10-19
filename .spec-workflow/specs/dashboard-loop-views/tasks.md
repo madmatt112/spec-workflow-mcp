@@ -51,7 +51,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 1.7, 1.8, 1.10, 1.11_
   - _Prompt: Task: Implement design C4 (requirement 1 AC7, AC8, AC10, AC11). Add `PrPanel({ reads })` typed with the `ControllerPrRead` task 4 exports; mount it right after the `LiveNow` block (lines 176-186) when `ctrlRun?.prReads?.length` is above 0, else render nothing. The panel has `data-testid="pr-panel"`; each row `data-testid="pr-row-{repo}-{number}"` shows, in order: the repo name; `#number` as an anchor to `url` when it starts with `https://`, else plain text; a CI chip `data-testid="pr-ci-{repo}-{number}"` coloured `--status-success`, `--status-warning`, `--status-error` or `--status-pending` for `green`, `pending`, `red`, `unreadable`; `mergeable`, or an em dash when absent; the verdict, then `sha.slice(0, 7)` when the verdict is `merged`; each reason on its own line; `formatDate(at, { includeSeconds: true })`. | Restrictions: The panel makes no fetch and calls no GitHub route (requirement 1 AC11). Use the existing theme tokens; add no package. The frontend has no unit suite (vitest excludes it); task 14 covers the browser behaviour. Check with `npm run build:dashboard`. | Success: The dashboard builds; with no PR read no `pr-panel` element renders; with reads the panel shows one row per read with every field above in order, the CI chip test id and colour per state, and the 7-character sha on a merged row_
 
-- [ ] 6. Owner on the deferral record and its storage
+- [x] 6. Owner on the deferral record and its storage
   - File: src/types.ts
   - File: src/core/deferral-storage.ts
   - Test: src/core/__tests__/deferral-storage.test.ts — DeferralStorage.create/get/list/update/resolve/merge/reindex

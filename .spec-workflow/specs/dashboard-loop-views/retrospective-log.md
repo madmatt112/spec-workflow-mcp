@@ -34,3 +34,13 @@ Cost: 1 implementer spawn(s)
 task 5 closed: 0 fix round(s), outcome pass
 Evidence: task 5 · mark run-20261018-150806 3dae369f
 Cost: 1 implementer spawn(s)
+
+## 2026-10-19T22:22:46Z · implementation · task 6 · doc-gap
+red-impossible: get/list (deferral-storage.ts:261-294) call only fs.readFile/readdir, no write, at base — no existing assertion named this branch, so added fresh guard \"reading a record with no owner key does not rewrite its file\" (passes at base by design, not counted as red); name it for the implementer brief. The \"unowned record's file has no owner line\" success clause (AC2.1/D6) is folded into the combined test \"writes an owner line only when owner is matthew or harness\", which also asserts the owned-line case (that half fails at base).","retro":"none"}
+Evidence: task 6 · mark run-20261018-150806 322f5927
+Cost: 1 spawn
+
+## 2026-10-19T22:26:29Z · implementation · task 6 · gotcha
+task 6 closed: 0 fix round(s), outcome gate
+Evidence: task 6 · mark run-20261018-150806 b95e6256
+Cost: 1 implementer spawn(s)

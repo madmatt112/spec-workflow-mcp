@@ -1,0 +1,1 @@
+{"testFiles":["src/core/__tests__/deferral-storage.test.ts"],"seams":{"src/core/__tests__/deferral-storage.test.ts":"DeferralStorage.create/get/list/update/resolve/merge/reindex"},"redCommit":"06e40d085c6c78ee6cce06f6f9c9bde88e800c7f","baseSha":"8b3537086d7f5260b420fe77f417bfe721cfb910","base":"assertion-red","head":"pass","amended":false,"judged":null}
