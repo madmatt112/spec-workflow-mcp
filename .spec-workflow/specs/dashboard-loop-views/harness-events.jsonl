@@ -45,3 +45,6 @@
 {"ts":"2026-10-19T17:11:03.262Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-reviser","role":"revise v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-10-19T17:23:02.014Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-reviser","input":"114","output":"48768","cacheWrite":"113983","cacheRead":"5768846","tokens":"5931711","cacheWrite5m":"0","cacheWrite1h":"113983","model":"claude-opus-4-8"}
 {"ts":"2026-10-19T17:23:02.014Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","result":"success","phase":"design","round":"1"}
+{"ts":"2026-10-19T17:23:02.465Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-19T17:26:46.026Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-reviser","input":"28","output":"15612","cacheWrite":"69060","cacheRead":"907590","tokens":"992290","cacheWrite5m":"0","cacheWrite1h":"69060","model":"claude-opus-4-8"}
+{"ts":"2026-10-19T17:26:46.026Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"design"}
