@@ -877,4 +877,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 3/14, stopped: design-defect — task 4 `- Test (integration):` label is unparsed, so its required test file is outside the gate's file list; fix in tasks.md (detail: /tmp/scratchpad/sdd/dashboard-loop-views/task-4-fix-1-report.md) |
+| State | tasks 3/14, stopped: design-defect — task 4 declares its test as `- Test (integration):`; the tasks parser drops it from files+tests (TEST_BULLET_RE matches `- Test:` only), so the gate's allowed-file list omits the mandated test and flags file-outside-list — unfixable without a tasks.md fix (`- Test:`). |
