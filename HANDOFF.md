@@ -100,6 +100,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-07 | dashboard-shell | implementation | tasks 16/16 | complete |  |
 | 2026-10-08 | dashboard-shell | retrospective |  | retro-ready |  |
 | 2026-10-08 | dashboard-shell | closeout | items 15/15 | closed | 13 landed, 2 to-do, PR #88 |
+| 2026-10-19 | dashboard-loop-views | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -842,3 +843,16 @@ To-do for the human:
 Gotchas:
 - The PR was opened from origin/main (1a26f4c); the spec-store commits (agent-rules.md G1/G2/G3) live on local main, not in the PR, because agent-rules.md is under `.spec-workflow` (store class, direct commit).
 - P2/P6 are retro proposals whose asserted mechanisms do not exist; their real causes (frontend has no TS config; a client-mangled tool call) each want a scoped spec.
+
+## dashboard-loop-views — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-19 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1792428361514_90u6j7wlp` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
+

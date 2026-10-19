@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792428361514_90u6j7wlp",
+  "title": "dashboard-loop-views requirements v3",
+  "filePath": ".spec-workflow/specs/dashboard-loop-views/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-19T16:46:01.514Z",
+  "category": "spec",
+  "categoryName": "dashboard-loop-views",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-19T16:46:01.698Z"
+}
