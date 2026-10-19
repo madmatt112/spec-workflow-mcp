@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This spec completes three dashboard views that the controller loop needs: a PR panel on the Run page, an `owner` on each deferral record with a chip and a filter on the Deferrals page, and W per task for closed specs with a trend on the Usage page. It is for the one operator (ADR 0001) who watches runs and the efficiency plan from the dashboard instead of from the terminal and hand-computed ledger sums. It changes the run record, the deferral record, the `deferrals` tool, and three dashboard pages; it adds no new file, ledger row type, watcher, or process.
+This spec completes three dashboard views that the controller loop needs: a PR panel on the Run page, an `owner` on each deferral record with a chip and a filter on the Deferrals page, and W per task for closed specs with a trend on the Usage page. It is for the one operator (ADR 0001) who watches runs and the efficiency plan from the dashboard instead of from the terminal and hand-computed ledger sums. It changes the run record, the deferral record, the `deferrals` tool, and three dashboard pages.
 
 ## Alignment with Product Vision
 
@@ -112,6 +112,7 @@ The steering `product.md` is absent from this store (`.spec-workflow/steering/` 
   - **R2-1 — Accepted (SHOULD_FIX).** R1 AC1 now saves a repository display name — the last segment of repoDir resolved server-side as closeoutMergeTarget already does, never the path — so no second GitHub read and no path on the wire (AC1); R1 AC7 renders that name so the operator tells the run's own PR from the different-repository close-out PRs D2 lists side by side (AC7). Save-set and render-set reconciled.
   - **M1 — Accepted (MINOR).** R3 AC3 now dates a spec from the newest HANDOFF closeout/closed row, the tie-break the singular wording left open (AC3); R3 AC10 sorts null-close-date rows last, the position AC12 left undefined (AC10).
   - **M2 — Rejected (MINOR).** The plan-closed fallback to the newest ledger timestamp is already stated in AC3 and acknowledged in D9 as a chosen approximation for older specs; the analysis calls it a design note, not a requirements block.
+  - **Lint pass.** 0 fixed; rejected L-1–L-17 — v2's citation-identifier false positives on unchanged tokens; suppressed under rule 11.
 - **v2** (2026-10-19) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 2/2/1).
   - **R1-1 — Accepted (MUST_FIX).** R3 AC3 no longer cites the Now-page close date, which only emits a date for rows closed within 7 days; the close date now reads the HANDOFF closeout/closed row unwindowed by parseHandoffPhaseRows as the Specs page's closed rule reads it (AC3, Requirement 3). Sibling D9 rationale rewritten to cite the Specs page's unwindowed derivation, not the Now page.
   - **R1-2 — Accepted (MUST_FIX).** NFR Performance no longer claims agent-rules.md is read through the FileCache; it routes ledgers and HANDOFF through the FileCache and reads agent-rules.md through readAgentRules as one small uncached read per project per request, matching AC9.
