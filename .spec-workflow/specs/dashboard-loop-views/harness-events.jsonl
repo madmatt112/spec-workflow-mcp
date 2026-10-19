@@ -154,3 +154,10 @@
 {"ts":"2026-10-19T22:31:27.558Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 7","result":"yes/7","phase":"implementation","task":"7"}
 {"ts":"2026-10-19T22:31:33.247Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 7 pass risk low tdd assertion-red"}
 {"ts":"2026-10-19T22:31:33.248Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"7","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-19T22:31:33.561Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"8","title":"Owner chip, field and filter on the Deferrals page"}
+{"ts":"2026-10-19T22:31:33.567Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"task 8 pick head cee50960e47c9c76214f52bba73d2b93f37f92c2"}
+{"ts":"2026-10-19T22:31:33.634Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-implementer","role":"implement task 8","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-19T22:34:26.073Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-implementer","input":"58","output":"13667","cacheWrite":"63539","cacheRead":"1736493","tokens":"1813757","cacheWrite5m":"0","cacheWrite1h":"63539","model":"claude-opus-4-8"}
+{"ts":"2026-10-19T22:34:26.073Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","result":"yes/8","phase":"implementation","task":"8"}
+{"ts":"2026-10-19T22:34:29.736Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 8 pass risk low"}
+{"ts":"2026-10-19T22:34:29.737Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"8","rounds":"0","outcome":"gate"}
