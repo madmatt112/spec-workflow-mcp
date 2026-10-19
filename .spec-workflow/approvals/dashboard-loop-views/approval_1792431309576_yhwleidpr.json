@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792431309576_yhwleidpr",
+  "title": "dashboard-loop-views design v2",
+  "filePath": ".spec-workflow/specs/dashboard-loop-views/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-19T17:35:09.576Z",
+  "category": "spec",
+  "categoryName": "dashboard-loop-views",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-19T17:35:09.693Z"
+}

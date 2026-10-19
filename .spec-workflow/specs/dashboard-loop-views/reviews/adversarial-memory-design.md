@@ -1,45 +1,43 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-10-19 (round 1, v1)
+Last updated: 2026-10-19 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (MUST_FIX, v1)** — C1 miscounted the `evaluate` unreadable early returns as four; there
+  are five (298, 304, 312 no-headRefOid, 316, 320). v2 fixed: C1 says "five", names the 312
+  branch, reads `mergeable` at parse so it is present on 312/316/320, Error Handling case 2 pins
+  all three. Verified against merge.ts:297-321 in r2. RESOLVED.
+- **R1-3 (MINOR, v1)** — owner filter state not in the `items` useMemo deps. v2 added
+  `activeOwners` to the deps array (DeferralsPage.tsx:103) and the reset effect (:106). RESOLVED.
 
 ### Partially Accepted
-- (none)
+- **R1-2 (SHOULD_FIX, v1)** — D9/C8 nulled a `0` baseline (regex `[1-9]\d*`), diverging from
+  R3 AC9 which keeps the integer value (0 is an integer). Reviser could not amend requirements
+  or file a deferral (out of scope), so conformed the design instead: regex `\d+` keeps `0`,
+  only the percentage is nulled when baseline not positive. Baseline value now conforms
+  (requirements.md:66). RESOLVED for the value; residual R2-1 (MINOR) on display/trend.
 
 ### Rejected
 - (none)
 
 ### Unresolved
-- **R1-1 (MUST_FIX)** — C1 says "four early returns" at `merge.ts:297-321`; there are five
-  `unreadable` returns (298, 304, **312 no headRefOid**, 316, 320). The no-`headRefOid` return is
-  unaddressed in C1's count and in Error Handling cases 1–2. Failure: a view that parses with no
-  `headRefOid` returns at 312 before the CI flags are set; an implementer who misses it lets `ci`
-  fall through to `green` for an unreadable PR. Fix: say "five"/"every", pin the 312 branch
-  (`ci: unreadable`, `mergeable` present via a parse-time read of `data.mergeable`).
-- **R1-2 (SHOULD_FIX)** — D9/C8 null a `0` baseline (regex `[1-9]\d*`), but R3 AC9 (v3) mandates
-  keeping the integer value and only nulls when "not an integer"; `0` is an integer. D9 flags the
-  re-decision but requirements are not amended ⇒ unreconciled design/requirements contradiction.
-  Fix: reviser records a deferral or amends AC9.
-- **R1-3 (MINOR)** — C7 adds `activeOwners` to the page-reset effect (`DeferralsPage.tsx:106`) but
-  not to the `items` `useMemo` deps (`:103`); the owner filter must be in those deps too or
-  owner-chip clicks won't recompute. `eslint-disable` at :102 hides it. e2e R2 covers it.
+- **R2-1 (MINOR, v2, Compounding→R1-2)** — a `0` baseline shows `no baseline` in the table %
+  column but the trend may still draw a `trend-baseline` line at y=0 ("project that has a
+  baseline"). Harmless, degenerate input, not a contradiction. Not raised to reviser as blocking.
 
 ## Patterns & Themes
-- The design is unusually well-grounded: every delta citation (lint pass) verified accurate, and
-  the byte-identity (D6), the branch-save persistence (C2), the `evaluate`/`evaluatePullRequest`
-  split preserving the two exact-equality tests (D1), and the usage fold shape (C9) all hold.
-- Both real findings sit at the merge-read edge cases: incomplete enumeration of `evaluate`'s
-  unreadable early returns, and a numeric edge (`0`) where design chose correctness over the
-  literal AC without reconciling it.
+- The design is exceptionally well-grounded: every delta citation re-verified accurate at both
+  ends across two rounds; all library-capability claims probed (gh 2.95.0 exact; FileCache
+  methods; buildUsageReport/parseHandoffPhaseRows/spec-rows walk).
+- Both real defects sat at numeric/enumeration edges of the merge read and the baseline, not in
+  architecture. Both are now closed. The remaining r2 item is a degenerate-input display nit.
 
 ## Guidance for Next Review
-- Re-check only R1-1's fix (did C1 move to five/every returns, and is the no-`headRefOid` branch's
-  `ci`/`mergeable` pinned?) and R1-2's reconciliation (deferral or amended AC9) as fix-induced
-  re-checks against the exact diff, not a whole re-review.
-- Do not re-open: the lint-pass citations (all verified), D1 (verified sound), D6 byte-identity
-  (verified), C2 branch-save persistence (verified), `done`-runs-on-wire feasibility (verified).
-- Closed by ruling: none.
+- If a v3 appears, re-check only R2-1's disposition (did the trend wording gain a non-positive
+  guard?) as a fix-induced re-check. Nothing else is open.
+- Do not re-open (all verified sound across r1/r2): the lint-pass citations; D1 evaluate split
+  and the two exact toEqual; D6 frontmatter byte-identity; C2 branch-save persistence; done-runs
+  on the wire; FileCache/spec-rows reuse in C9; the e2e marker change (Row clips overflow).
+- Closed by ruling: none. R1-1, R1-2, R1-3 are resolved in v2 and recorded in the Revision
+  History — do not re-raise without new evidence (Recurring only).
