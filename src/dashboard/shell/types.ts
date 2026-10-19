@@ -90,6 +90,25 @@ export interface SpecDetail {
   files: { name: string; path: string; size: number; modified: string }[];
 }
 
+/**
+ * One Usage-page row per closed spec (design.md C9, Requirement 3). `w` and
+ * `wUnknown` come from `buildUsageReport`; `wPerTask` and `pctOfBaseline` are null
+ * when they cannot be computed (no usage, no tasks, no or zero baseline). The
+ * frontend keeps a hand copy in src/dashboard_frontend/src/modules/shell/types.ts.
+ */
+export interface UsageSpecRow {
+  projectId: string;
+  projectName: string;
+  spec: string;
+  closeDate: string | null;
+  w: number | null;
+  wUnknown: number;
+  tasks: number;
+  wPerTask: number | null;
+  baseline: number | null;
+  pctOfBaseline: number | null;
+}
+
 export interface RunDetail {
   spec: string;
   phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];

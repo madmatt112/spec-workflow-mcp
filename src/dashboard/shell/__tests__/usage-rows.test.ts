@@ -81,7 +81,9 @@ function writeAgentRules(workflowRoot: string, baselineLine: string | null): voi
 function knownSpawn(agent: string, phase: string, fields: Record<string, string>): LedgerEvent[] {
   return [
     { ts: '2026-01-01T00:00:00.000Z', type: 'spawn.start', agent, phase },
-    { ts: '2026-01-01T00:00:01.000Z', type: 'spawn.end', agent, ...fields },
+    // reduceSpawn (src/watch/usage.ts) only computes W from a spawn.end that carries a
+    // digit `tokens`, as every real hook-written row does; omit it and W reads as unknown.
+    { ts: '2026-01-01T00:00:01.000Z', type: 'spawn.end', agent, tokens: '142', ...fields },
   ];
 }
 
