@@ -115,6 +115,22 @@ export interface SpecDetail {
   files: { name: string; path: string; size: number; modified: string }[];
 }
 
+// Hand copy of src/dashboard/shell/types.ts UsageSpecRow (task 11); keep in step.
+// `w`/`wUnknown` come from buildUsageReport; `wPerTask` and `pctOfBaseline` are
+// null when they cannot be computed (no usage, no tasks, no or zero baseline).
+export interface UsageSpecRow {
+  projectId: string;
+  projectName: string;
+  spec: string;
+  closeDate: string | null;
+  w: number | null;
+  wUnknown: number;
+  tasks: number;
+  wPerTask: number | null;
+  baseline: number | null;
+  pctOfBaseline: number | null;
+}
+
 export interface RunDetail {
   spec: string;
   phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];
