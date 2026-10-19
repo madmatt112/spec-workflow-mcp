@@ -15,7 +15,7 @@ Actions:
 - 'list': List deferrals with optional filters (status, originSpec, tag)
 - 'get': Get full details of a specific deferral
 - 'resolve': Mark a deferral as resolved
-- 'update': Update mutable fields (title, revisitTrigger, tags, context, decision, revisitCriteria)
+- 'update': Update mutable fields (title, revisitTrigger, tags, context, decision, revisitCriteria, owner)
 - 'merge': Fold a duplicate deferral into a canonical one (marks the duplicate superseded; preserves its context)
 - 'delete': Remove a deferral (fails if referenced by another deferral)
 - 'reindex': Normalize all on-disk deferral files to canonical frontmatter (repairs legacy/quoting drift)`,
@@ -69,6 +69,11 @@ Actions:
       supersedes: {
         type: 'string',
         description: 'ID of deferral this one replaces — automatically marks old one as superseded (optional for add)'
+      },
+      owner: {
+        type: 'string',
+        enum: ['matthew', 'harness'],
+        description: 'Who owns this deferral (optional for add/update)'
       },
       // get/resolve/update/delete/merge params
       id: {
@@ -147,7 +152,18 @@ export async function deferralsHandler(
   }
 }
 
+/** Reject an owner that is present but not one of the two allowed values. */
+function ownerError(args: Record<string, any>): ToolResponse | null {
+  if (args.owner !== undefined && args.owner !== 'matthew' && args.owner !== 'harness') {
+    return { success: false, message: "owner must be 'matthew' or 'harness'" };
+  }
+  return null;
+}
+
 async function handleAdd(args: Record<string, any>, storage: DeferralStorage): Promise<ToolResponse> {
+  const badOwner = ownerError(args);
+  if (badOwner) return badOwner;
+
   if (!args.title || !args.context || !args.decision || !args.revisitTrigger) {
     return { success: false, message: 'Missing required fields for add. Required: title, context, decision, revisitTrigger' };
   }
@@ -164,6 +180,7 @@ async function handleAdd(args: Record<string, any>, storage: DeferralStorage): P
     revisitTrigger: args.revisitTrigger,
     tags: args.tags || [],
     supersedes: args.supersedes || null,
+    owner: args.owner ?? null,
     body: {
       context: args.context,
       decision: args.decision,
@@ -204,6 +221,7 @@ async function handleList(args: Record<string, any>, storage: DeferralStorage): 
     tags: d.tags,
     revisitTrigger: d.revisitTrigger,
     createdAt: d.createdAt,
+    owner: d.owner ?? null,
   }));
 
   return {
@@ -252,17 +270,20 @@ async function handleResolve(args: Record<string, any>, storage: DeferralStorage
 }
 
 async function handleUpdate(args: Record<string, any>, storage: DeferralStorage): Promise<ToolResponse> {
+  const badOwner = ownerError(args);
+  if (badOwner) return badOwner;
+
   if (!args.id) {
     return { success: false, message: 'Missing required field: id' };
   }
 
   const updates: Record<string, any> = {};
-  for (const key of ['title', 'revisitTrigger', 'tags', 'context', 'decision', 'revisitCriteria']) {
+  for (const key of ['title', 'revisitTrigger', 'tags', 'context', 'decision', 'revisitCriteria', 'owner']) {
     if (args[key] !== undefined) updates[key] = args[key];
   }
 
   if (Object.keys(updates).length === 0) {
-    return { success: false, message: 'No fields to update. Updatable: title, revisitTrigger, tags, context, decision, revisitCriteria' };
+    return { success: false, message: 'No fields to update. Updatable: title, revisitTrigger, tags, context, decision, revisitCriteria, owner' };
   }
 
   await storage.update(args.id, updates);

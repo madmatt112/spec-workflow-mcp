@@ -369,11 +369,11 @@ surfacing "this affects a future spec" discoveries.
 
 | Action | Required | Notable optional |
 |--------|----------|-------------------|
-| `add` | `title`, `context`, `decision`, `revisitTrigger` | `originSpec`, `originPhase` (`requirements`/`design`/`tasks`/`implementation`), `tags`, `supersedes`, `revisitCriteria` |
+| `add` | `title`, `context`, `decision`, `revisitTrigger` | `originSpec`, `originPhase` (`requirements`/`design`/`tasks`/`implementation`), `tags`, `supersedes`, `revisitCriteria`, `owner` (`matthew`/`harness`) |
 | `list` | — | `status` (`deferred`/`resolved`/`superseded`), `originSpec`, `tag` |
 | `get` | `id` | — |
 | `resolve` | `id`, `resolution` | `resolvedInSpec` |
-| `update` | `id` | `title`, `revisitTrigger`, `tags`, `context`, `decision`, `revisitCriteria` |
+| `update` | `id` | `title`, `revisitTrigger`, `tags`, `context`, `decision`, `revisitCriteria`, `owner` (`matthew`/`harness`) |
 | `delete` | `id` | (fails if another deferral references it) |
 
 `supersedes` auto-marks the older deferral as `superseded`. The workflow guide
