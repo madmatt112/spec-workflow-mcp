@@ -24,3 +24,8 @@ Cost: unknown
 task 4 declares its test as `- Test (integration):`; the tasks parser drops it from files+tests (TEST_BULLET_RE matches `- Test:` only), so the gate's allowed-file list omits the mandated test and flags file-outside-list — unfixable without a tasks.md fix (`- Test:`).
 Evidence: task 4 · mark run-20261018-150806 3b4ab236
 Cost: unknown
+
+## 2026-10-19T22:11:57Z · implementation · task 4 · gotcha
+task 4 closed: 0 fix round(s), outcome gate
+Evidence: task 4 · mark run-20261018-150806 3a6fcf39
+Cost: 1 implementer spawn(s)
