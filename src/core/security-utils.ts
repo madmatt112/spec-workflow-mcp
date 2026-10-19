@@ -78,6 +78,8 @@ export function getSecurityConfig(userConfig?: Partial<SecurityConfig>, port?: n
 /**
  * Rate limiting implementation
  */
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
 export class RateLimiter {
   private requests: Map<string, number[]> = new Map();
   private config: SecurityConfig;
@@ -128,6 +130,11 @@ export class RateLimiter {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       // Use IP address as client identifier
       const clientId = request.ip || 'unknown';
+
+      // Local clients share one bucket (127.0.0.1), so never limit them
+      if (LOOPBACK_ADDRESSES.has(clientId)) {
+        return;
+      }
 
       const result = this.checkLimit(clientId);
 
