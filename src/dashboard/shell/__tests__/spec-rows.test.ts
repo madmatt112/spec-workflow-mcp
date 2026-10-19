@@ -3,8 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { buildSpecRows, buildSpecDetail } from '../spec-rows.js';
-import type { LedgerEvent } from '../../../watch/ledger.js';
+import { buildSpecRows, buildSpecDetail, isSpecClosed } from '../spec-rows.js';
+import type { LedgerEvent, PhaseRow } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import { DeferralStorage } from '../../../core/deferral-storage.js';
 
@@ -530,5 +530,63 @@ describe('buildSpecDetail', () => {
     }
 
     expect(JSON.stringify(detail)).not.toContain(marker);
+  });
+});
+
+// Contract for isSpecClosed (design.md C9/D15; task 10 _Prompt; Requirement 3
+// AC2).
+//
+// Reached only through isSpecClosed(phaseRows, planText).
+//
+// Criterion "true for a closeout/closed row" (task 10 _Prompt: "returns true
+//   when a row has phase `closeout` and result `closed`"):
+//   Pre-condition: a phaseRows array holding one row with phase 'closeout'
+//   and result 'closed', and planText undefined.
+//   Test: isSpecClosed(phaseRows, planText).
+//   Observable result: true.
+//   Expected-value source: the _Prompt's first disjunct, quoted above.
+//
+// Criterion "true for a plan whose Status: value starts with CLOSED" (task
+//   10 _Prompt: "or when the first word of `firstStatusValue(planText)` is
+//   `CLOSED`"):
+//   Pre-condition: an empty phaseRows array, and planText whose first
+//   `Status:` line reads "Status: CLOSED — retro done".
+//   Test: isSpecClosed(phaseRows, planText).
+//   Observable result: true.
+//   Expected-value source: the _Prompt's second disjunct, quoted above.
+//
+// Criterion "false for neither" (task 10 _Prompt, the rule being a
+//   disjunction of exactly those two conditions):
+//   Pre-condition: a phaseRows array holding one row with phase 'closeout'
+//   but result 'pending' (not 'closed'), and planText whose first `Status:`
+//   line reads "Status: APPROVED — all decisions made".
+//   Test: isSpecClosed(phaseRows, planText).
+//   Observable result: false.
+//   Expected-value source: the _Prompt's rule, quoted above; neither
+//   disjunct is met by this fixture.
+
+describe('isSpecClosed', () => {
+  it('is true for a closeout row with result closed', () => {
+    const phaseRows: PhaseRow[] = [
+      { phase: 'closeout', state: 'complete', result: 'closed', note: 'closed', date: '2026-01-01' },
+    ];
+
+    expect(isSpecClosed(phaseRows, undefined)).toBe(true);
+  });
+
+  it('is true for a plan whose Status value starts with CLOSED', () => {
+    const phaseRows: PhaseRow[] = [];
+    const planText = '# Retrospective plan\nStatus: CLOSED — retro done\n';
+
+    expect(isSpecClosed(phaseRows, planText)).toBe(true);
+  });
+
+  it('is false when neither the closeout row nor the plan status is met', () => {
+    const phaseRows: PhaseRow[] = [
+      { phase: 'closeout', state: 'complete', result: 'pending', note: 'not yet', date: '2026-01-01' },
+    ];
+    const planText = '# Retrospective plan\nStatus: APPROVED — all decisions made\n';
+
+    expect(isSpecClosed(phaseRows, planText)).toBe(false);
   });
 });
