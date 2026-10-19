@@ -26,6 +26,29 @@ describe('checkTasksFormat', () => {
     ]);
   });
 
+  it('reports a non-canonical `Test (integration):` label as a tasks-format error', () => {
+    const content = [
+      '- [ ] 1. Build the feed',
+      '  - File: src/feed.ts',
+      '  - Test (integration): src/feed.test.ts — render()',
+    ].join('\n');
+    const findings = checkTasksFormat(content);
+    const finding = findings.find(f => f.rule === 'tasks-format' && f.severity === 'error');
+    expect(finding).toBeDefined();
+    expect(finding!.line).toBe(3);
+    expect(finding!.message).toContain('- Test: <path> — <call>');
+  });
+
+  it('does not flag canonical `- Test:` and `- File:` bullets', () => {
+    const content = [
+      '- [ ] 1. Build the feed',
+      '  - File: src/feed.ts',
+      '  - Test: src/feed.test.ts — render()',
+      '  - _Prompt: Task: build it | Restrictions: none | Success: done_',
+    ].join('\n');
+    expect(checkTasksFormat(content)).toEqual([]);
+  });
+
   it('maps a validator warning to a tasks-format warning', () => {
     const content = [
       '- [ ] 1. Build the thing',
