@@ -17,7 +17,7 @@ import { basename, join } from 'path';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
-import { listWaits, type RunRecord } from './state.js';
+import { listWaits, type RunRecord, type PrRead } from './state.js';
 import type { RunLedger } from './ledger.js';
 
 /** The suggested interval between `runMergeStage` polls while `not-ready`. */
@@ -104,6 +104,8 @@ export interface MergeStageResult {
   sha?: string;
   /** The open `merge` wait's id, when `waiting` for an `ask`. */
   waitId?: string;
+  /** What this pass read (design C1); absent on the no-PR return. */
+  read?: PrRead;
 }
 
 /** Everything `runMergeStage` needs besides the run record. */
@@ -562,12 +564,24 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repoDir = pr.repoDir;
   const now = deps.now ?? ((): Date => new Date());
 
-  const evaluation = await evaluate(pr);
+  const { evaluation, ci, mergeable, url } = await evaluatePullRequest(pr);
+  // One read per pass, shaped for the callers (design C1): `repo` is a basename
+  // (never a path), `kind` is `run` for the run's own PR and `closeout`
+  // otherwise, the url is kept only when https, and `reasons`/`sha` are the same
+  // values the result carries.
+  const repo = basename(repoDir);
+  const kind: PrRead['kind'] = target.questionId === MERGE_QUESTION_ID ? 'run' : 'closeout';
+  const viewUrl = typeof url === 'string' && url.startsWith('https://') ? url : undefined;
+  const makeRead = (status: MergeStageStatus, reasons: string[], sha?: string): PrRead => ({
+    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha, at: now().toISOString(),
+  });
+
   if (evaluation.unreadable) {
-    return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number };
+    return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number, read: makeRead('unreadable', evaluation.reasons) };
   }
   if (!evaluation.ready) {
-    return { status: evaluation.pending ? 'not-ready' : 'blocked', reasons: evaluation.reasons, number: pr.number };
+    const status: MergeStageStatus = evaluation.pending ? 'not-ready' : 'blocked';
+    return { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
   }
 
   if (deps.rules.merge === 'ask') {
@@ -581,14 +595,17 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
         specDir: deps.specDir,
         questions: [{ id: target.questionId, text: `Merge ${target.label}?`, options: ['merge', 'hold'], recommended: 'merge' }],
       });
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: wait.id };
+      const reasons = [`waiting for the operator to approve merging ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: wait.id, read: makeRead('waiting', reasons) };
     }
     const decision = existing.state === 'answered' ? existing.answer?.[target.questionId]?.value : undefined;
     if (!decision) {
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: existing.id };
+      const reasons = [`waiting for the operator to approve merging ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: existing.id, read: makeRead('waiting', reasons) };
     }
     if (decision !== 'merge') {
-      return { status: 'waiting', reasons: [`the operator held ${target.label}`], number: pr.number, waitId: existing.id };
+      const reasons = [`the operator held ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: existing.id, read: makeRead('waiting', reasons) };
     }
     // decision === 'merge': fall through and merge.
   }
@@ -596,11 +613,8 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const method = deps.rules.method;
   const mergeRes = await runCommand(ghBin(), ['pr', 'merge', String(pr.number), `--${method}`], { cwd: repoDir });
   if (mergeRes.code !== 0) {
-    return {
-      status: 'failed',
-      reasons: [`gh pr merge #${pr.number} failed (exit ${mergeRes.code})`, tail(mergeRes.stderr || mergeRes.stdout, 20)],
-      number: pr.number,
-    };
+    const reasons = [`gh pr merge #${pr.number} failed (exit ${mergeRes.code})`, tail(mergeRes.stderr || mergeRes.stdout, 20)];
+    return { status: 'failed', reasons, number: pr.number, read: makeRead('failed', reasons) };
   }
 
   const sha = await readMergeSha(pr);
@@ -611,10 +625,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
     appendPostMergeLog(deps.stepLogDir, deps.rules.postMerge, output, postRes, now());
     if (postRes.code !== 0 || postRes.timedOut) {
       const why = postRes.timedOut ? 'timed out' : `exit ${postRes.code}`;
-      return { status: 'failed', reasons: [`post-merge command ${why}`, tail(output, 20)], number: pr.number, sha };
+      const reasons = [`post-merge command ${why}`, tail(output, 20)];
+      return { status: 'failed', reasons, number: pr.number, sha, read: makeRead('failed', reasons, sha) };
     }
   }
 
-  deps.ledger.prMerged({ number: pr.number, sha, method, repo: basename(repoDir) });
-  return { status: 'merged', reasons: [`merged ${target.label} via ${method}`], number: pr.number, sha };
+  deps.ledger.prMerged({ number: pr.number, sha, method, repo });
+  const reasons = [`merged ${target.label} via ${method}`];
+  return { status: 'merged', reasons, number: pr.number, sha, read: makeRead('merged', reasons, sha) };
 }

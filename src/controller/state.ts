@@ -15,6 +15,8 @@ import { createHash } from 'crypto';
 import { sddHome } from '../dashboard/harness/state-files.js';
 import { withRegistryLock } from '../core/registry-lock.js';
 import { guardTestHome } from '../core/test-home-guard.js';
+// Type-only so no runtime cycle forms: `merge.ts` imports `state.ts` at runtime.
+import type { MergeStageStatus } from './merge.js';
 
 // ---------------------------------------------------------------------------
 // Records (controller-design.md §3 and §7). Every one carries `v: 1`.
@@ -92,6 +94,33 @@ export interface RunRecord {
   /** ISO. */
   updated: string;
   tokens: TokenTotals;
+}
+
+/** A pull request head's CI state, as the merge pass read it (design C1/C2). */
+export type PrCiState = 'green' | 'pending' | 'red' | 'unreadable';
+
+/**
+ * One read of a pull request by the merge pass (design C1/C2 "PrRead"): the
+ * verdict and what it rested on, carried from the merge pass to its callers.
+ * Holds no path — `repo` is a basename.
+ */
+export interface PrRead {
+  /** `run` for the run's own PR, `closeout` for a close-out PR. */
+  kind: 'run' | 'closeout';
+  /** The repo's basename; never the path. */
+  repo: string;
+  number: number;
+  /** The PR's web URL; kept only when https. */
+  url?: string;
+  ci: PrCiState;
+  /** The raw `gh` mergeable value; absent when the view was unreadable. */
+  mergeable?: string;
+  verdict: MergeStageStatus;
+  reasons: string[];
+  /** The merge commit sha, when `verdict` is `merged`. */
+  sha?: string;
+  /** ISO time of the read. */
+  at: string;
 }
 
 export type WaitKind =
