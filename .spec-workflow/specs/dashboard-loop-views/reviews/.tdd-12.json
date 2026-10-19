@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/shell-routes.test.ts"],"seams":{"src/dashboard/__tests__/shell-routes.test.ts":"GET /api/shell/usage/closed-specs"},"redCommit":"28bff14f322b0dbf0ae076714355207b24374633","baseSha":"6e5950be534c5123d1b26c5044beb2b7923ff57c","base":"assertion-red","head":"pass","amended":false,"judged":null}
