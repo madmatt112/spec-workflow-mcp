@@ -13,7 +13,7 @@ This design adds three dashboard views: a PR panel on the Run page fed by the me
 No structure.md exists; the one new server module goes beside its siblings in `src/dashboard/shell/`, and the one new frontend component beside `UsagePage.tsx`.
 
 ### Design System (design-system.md) — if applicable
-N/A: the project has no design-system.md. The new UI uses the existing theme tokens (`src/dashboard_frontend/src/modules/theme/theme.css:97-108` light, `:172-183` dark) and the shell primitives `Group`, `Chips`, `Row` (`src/dashboard_frontend/src/modules/shell/primitives.tsx:12-102`).
+N/A: the project has no design-system.md. The new UI uses the existing theme tokens (`src/dashboard_frontend/src/modules/theme/theme.css:97-108` light, `src/dashboard_frontend/src/modules/theme/theme.css:172-183` dark) and the shell primitives `Group`, `Chips`, `Row` (`src/dashboard_frontend/src/modules/shell/primitives.tsx:12-203`).
 
 ## Architecture
 
@@ -81,7 +81,7 @@ graph LR
   - `serializeFrontmatter` (`src/core/deferral-storage.ts:42-62`) writes `owner: "matthew"` or `owner: "harness"` after the `supersedes` line only when `owner` is one of the two. It writes no `owner` line otherwise.
   - `parseMarkdown` (`src/core/deferral-storage.ts:125-165`) sets `owner` to the scalar when it is `matthew` or `harness`, else `null`.
   - `update`'s `updates` (`src/core/deferral-storage.ts:310-329`) gains `owner?: DeferralOwner`.
-- **Post-conditions:** A record with no `owner` key serializes byte-identical to base, so `reindex` (`src/core/deferral-storage.ts:428-470`) rewrites no legacy file. `resolve`, `merge` (`src/core/deferral-storage.ts:352-372`) and `update` load and re-serialize the whole record, so `owner` survives. No read path writes.
+- **Post-conditions:** A record with no `owner` key serializes byte-identical to base, so `reindex` (`src/core/deferral-storage.ts:428-470`) rewrites no legacy file. `resolve` (`src/core/deferral-storage.ts:296-308`), `merge` (`src/core/deferral-storage.ts:352-372`) and `update` load and re-serialize the whole record, so `owner` survives. No read path writes.
 
 ### C6 — `deferrals` tool owner (`src/tools/deferrals.ts`, `docs/TOOLS-REFERENCE.md`)
 - **Purpose:** Set and return `owner` (R2 AC3, AC4, AC7).
@@ -199,10 +199,10 @@ export interface UsageSpecRow {
     - `mergeable=UNKNOWN` gives `ci: 'green'` with the evaluation pending;
     - `mergeable` is absent when the view fails and present when the runs read fails;
     - `url` comes from the view and is dropped when not https.
-  - `merge.test.ts` also asserts that `runMergeStage` results carry `read` with the verdict, reasons, sha, `kind: 'run'` and `repo`. The two exact `evaluate` assertions (`:171`, `:232`) stay unchanged; no asserted value in the file changes.
+  - `merge.test.ts` also asserts that `runMergeStage` results carry `read` with the verdict, reasons, sha, `kind: 'run'` and `repo`. The two exact `evaluate` assertions (`src/controller/__tests__/merge.test.ts:171`, `src/controller/__tests__/merge.test.ts:232`) stay unchanged; no asserted value in the file changes.
   - `src/controller/__tests__/runs.test.ts` covers `withPrRead`: it replaces the entry with the same repo and number, keeps the others, and puts `run` first.
   - In the "auto: not-ready once, then merged" test (`src/controller/__tests__/runs.test.ts:465-499`), new assertions check that `prReads` holds one read after the first pass (`not-ready`, `pending`) and one read after the second (`merged`, sha `cafef00d1234`).
-  - The close-out test (`:411-434`) gains a `kind: 'closeout'` read.
+  - The close-out test (`src/controller/__tests__/runs.test.ts:411-434`) gains a `kind: 'closeout'` read.
   - `listRunsForWire` gives a row with `prReads` and no `repoDir` key. A record written without `prReads` lists with the field undefined (R1 AC13, invariant).
   - No existing assertion in `runs.test.ts` changes.
   - `src/core/__tests__/deferral-storage.test.ts` checks:
@@ -211,7 +211,7 @@ export interface UsageSpecRow {
     - `reindex` on a legacy file reports `rewritten: 0`, and on an owned file keeps the owner;
     - `resolve`, `merge` and `update` keep the owner, and `update` sets a new one.
   - `src/tools/__tests__/deferrals.test.ts` checks add and update with an owner, a bad owner giving `success: false` with no file created, and `owner` in the list and get output.
-  - `src/dashboard/harness/__tests__/run-setup.test.ts` checks that `1200` gives 1200, and that `12.5`, `abc`, `0` and an absent key give no key. The missing-file equality (`:366-375`) stays unchanged.
+  - `src/dashboard/harness/__tests__/run-setup.test.ts` checks that `1200` gives 1200, and that `12.5`, `abc`, `0` and an absent key give no key. The missing-file equality (`src/dashboard/harness/__tests__/run-setup.test.ts:366-375`) stays unchanged.
   - New `src/dashboard/shell/__tests__/usage-rows.test.ts` uses a temp project with these specs:
     - a spec closed by a HANDOFF row, with two `closeout`/`closed` rows, so the newer date wins;
     - a spec closed by a plan, falling back to the ledger `ts`;
@@ -262,3 +262,4 @@ export interface UsageSpecRow {
 ## Revision History
 
 - **v1** (2026-10-19) — Initial draft.
+  - **Lint pass.** 5 fixed: L-1 (`Row` defined at primitives.tsx:178-203, so the cite is now `:12-203`), L-27 (`resolve` is at deferral-storage.ts:296-308, not `:352-372`; cited separately), L-50/L-51/L-54 (bare `:171`, `:232`, `:411-434` given their full directory-prefixed paths; sibling bare ranges `:172-183` and `:366-375` fixed in the same pass, rule 9). rejected: L-2–L-26, L-28–L-49, L-52, L-53, L-55 — citation-identifier false positives: each flags a new export/field/local/value/keyword this design introduces, or a token the adjacent citation does not anchor, while the citation correctly anchors its existing symbol or region.
