@@ -77,3 +77,13 @@
 {"ts":"2026-10-19T18:57:30.486Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
 {"ts":"2026-10-19T18:57:49.164Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
 {"ts":"2026-10-19T18:57:49.165Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-19T18:57:49.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"2","title":"Put a PR read on every merge-stage result"}
+{"ts":"2026-10-19T18:57:49.307Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"task 2 pick head 6e9f0aff882f54eeb66604477b1f10560eaac519"}
+{"ts":"2026-10-19T18:57:49.361Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-test-author","role":"author task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-19T19:01:55.336Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-test-author","input":"44","output":"19349","cacheWrite":"108528","cacheRead":"1869987","tokens":"1997908","cacheWrite5m":"0","cacheWrite1h":"108528","model":"claude-sonnet-5"}
+{"ts":"2026-10-19T19:01:55.336Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-test-author","role":"author task 2","result":"none","phase":"implementation","task":"2"}
+{"ts":"2026-10-19T19:01:55.351Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-implementer","role":"implement task 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-19T19:10:20.376Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-implementer","input":"102","output":"36631","cacheWrite":"117420","cacheRead":"5073298","tokens":"5227451","cacheWrite5m":"0","cacheWrite1h":"117420","model":"claude-opus-4-8"}
+{"ts":"2026-10-19T19:10:20.377Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
+{"ts":"2026-10-19T19:10:45.439Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 2 pass risk low tdd assertion-red"}
+{"ts":"2026-10-19T19:10:45.440Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
