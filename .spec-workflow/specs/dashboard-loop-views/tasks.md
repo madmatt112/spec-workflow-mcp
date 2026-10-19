@@ -36,7 +36,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
 - [ ] 4. Hand copies of the PR read on the wire
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/types.ts
-  - Test (integration): src/dashboard/shell/__tests__/shell-feed.test.ts — new ShellFeed(projects, send, { throttleMs }).start()
+  - File: src/dashboard/shell/__tests__/shell-feed.test.ts
   - Add `ControllerPrRead` and an optional `prReads` to both `ControllerRun` hand copies.
   - Purpose: Keep the three row shapes in step and prove the live push
   - _Leverage: src/dashboard/shell/types.ts (`ControllerRun` 138-150), src/dashboard_frontend/src/modules/shell/types.ts (`ControllerRun` 167-179)_
@@ -129,7 +129,6 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
 
 - [ ] 14. End-to-end scenarios for the three views
   - File: e2e/worktree-shell.spec.ts
-  - Test (integration): e2e/worktree-shell.spec.ts — npm run test:e2e:worktree
   - Seed a run record with PR reads, three deferrals and one closed spec per project; add one browser test per requirement; change the `/usage` marker.
   - Purpose: Prove the three views render from real files in the browser
   - _Leverage: e2e/worktree-shell.spec.ts (seeding 68-91, no-sideways-scroll test 205-224), src/dashboard/harness/state-files.ts (`sddHome` 26-29)_
