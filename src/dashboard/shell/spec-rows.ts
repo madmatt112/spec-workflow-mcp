@@ -9,7 +9,7 @@
 import { readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { buildModel, parseHandoffPhaseRows } from '../../watch/ledger.js';
-import type { LedgerEvent } from '../../watch/ledger.js';
+import type { LedgerEvent, PhaseRow } from '../../watch/ledger.js';
 import { handoffPath } from '../../watch/index.js';
 import { IndexGenerator } from '../../core/index-generator.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
@@ -60,6 +60,17 @@ function firstStatusValue(text: string | undefined): string | null {
 }
 
 /**
+ * The one closed-spec rule for the Specs page and the usage rows (design D15):
+ * true when a phase-log row has phase `closeout` and result `closed`, or when
+ * the first word of the plan's first `Status:` value is `CLOSED`.
+ */
+export function isSpecClosed(phaseRows: PhaseRow[], planText: string | undefined): boolean {
+  const closedByRow = phaseRows.some((r) => r.phase === 'closeout' && r.result === 'closed');
+  const closedByPlan = (firstStatusValue(planText) ?? '').split(/\s+/)[0] === 'CLOSED';
+  return closedByRow || closedByPlan;
+}
+
+/**
  * One row per snapshot spec (every spec directory) with its harness state
  * (design.md C5). State precedence is first-match (D10): `live`, `closed`,
  * `deferred`, `not-started`, else `in-progress`.
@@ -89,14 +100,12 @@ export async function buildSpecRows(
     const statusValue = firstStatusValue(retroText);
 
     // state — first match wins (D10).
-    const closedByRow = phaseRows.some((r) => r.phase === 'closeout' && r.result === 'closed');
-    const closedByPlan = (statusValue ?? '').split(/\s+/)[0] === 'CLOSED';
     const hasDocOrLedger = ['requirements.md', 'design.md', 'tasks.md', 'harness-events.jsonl'].some(
       (f) => cache.text(join(specDir, f)) !== undefined,
     );
     let state: SpecListRow['state'];
     if (liveSpec === spec) state = 'live';
-    else if (closedByRow || closedByPlan) state = 'closed';
+    else if (isSpecClosed(phaseRows, retroText)) state = 'closed';
     else if (entry.deferred) state = 'deferred';
     else if (!hasDocOrLedger) state = 'not-started';
     else state = 'in-progress';
