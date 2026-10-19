@@ -291,6 +291,54 @@ describe('service scripts (controller T9)', () => {
     }
   }, 30000);
 
+  it('sdd-self-update.sh autostashes a dirty tracked store file while rebasing', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      const ledger = join(checkout, '.spec-workflow', 'specs', 'foo', 'harness-events.jsonl');
+      mkdirSync(join(checkout, '.spec-workflow', 'specs', 'foo'), { recursive: true });
+      writeFileSync(ledger, '{"n":1}\n');
+      git(checkout, 'add', '-A');
+      git(checkout, 'commit', '-qm', 'docs(sdd): store');
+      // A live run appends to the ledger without committing.
+      writeFileSync(ledger, '{"n":1}\n{"n":2}\n');
+
+      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+
+      expect(res.stdout).toContain('rebasing');
+      expect(res.stdout).toContain('building in staging');
+      expect(res.stdout).not.toContain('refusing');
+      expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).not.toThrow();
+      expect(readFileSync(ledger, 'utf-8')).toBe('{"n":1}\n{"n":2}\n');
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh refuses when a tracked file outside the store is dirty', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      mkdirSync(join(checkout, '.spec-workflow', 'specs', 'foo'), { recursive: true });
+      writeFileSync(join(checkout, '.spec-workflow', 'specs', 'foo', 'tasks.md'), '# tasks\n');
+      git(checkout, 'add', '-A');
+      git(checkout, 'commit', '-qm', 'docs(sdd): store');
+      writeFileSync(join(checkout, 'src', 'index.ts'), 'export const x = 1;\n// dirty\n');
+
+      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+
+      expect(res.code).toBe(1);
+      expect(res.stdout).toContain('refusing');
+      expect(res.stdout).toContain('src/index.ts');
+      expect(res.stdout).not.toContain('building in staging');
+      expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).toThrow();
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
   it('sdd-self-update.sh refuses when a local-only commit touches a path outside the store', async () => {
     const { checkout, origin, home } = makeDivergedCheckout();
     try {

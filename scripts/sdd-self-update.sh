@@ -121,10 +121,32 @@ EOF
       log "refusing: local-only commits touch paths outside the spec store: $outside"
       exit 1
     fi
+    # A live controller run leaves ledger and other store files modified but
+    # uncommitted. Those are fine (autostash); a dirty path elsewhere is not.
+    dirty="$(git -C "$REPO" status --porcelain --untracked-files=no | cut -c4-)"
+    dirty_outside=""
+    while IFS= read -r f; do
+      [ -z "$f" ] && continue
+      case "$f" in
+        .spec-workflow/*|HANDOFF.md) ;;
+        *) dirty_outside="${dirty_outside:+$dirty_outside }$f" ;;
+      esac
+    done <<EOF
+$dirty
+EOF
+    if [ -n "$dirty_outside" ]; then
+      log "refusing: uncommitted changes outside the spec store: $dirty_outside"
+      exit 1
+    fi
     log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
-    if ! git -C "$REPO" rebase origin/main; then
+    stash_before="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+    if ! git -C "$REPO" rebase --autostash origin/main; then
       git -C "$REPO" rebase --abort 2>/dev/null || true
-      log "refusing: rebasing the local store commits onto origin/main conflicts; left local main unmoved"
+      stash_after="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+      if [ "$stash_after" != "$stash_before" ]; then
+        log "note: autostash entry left in place as $stash_after (stash@{0}); not dropped"
+      fi
+      log "refusing: rebasing the local store commits onto origin/main failed; left local main unmoved"
       exit 1
     fi
   else
