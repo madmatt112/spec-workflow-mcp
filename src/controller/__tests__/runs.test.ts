@@ -8,10 +8,13 @@ import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import {
   routeRun, parseProposals, buildRetroPlanMarkdown, runOnce, cancelRun, discardRun,
+  withPrRead, listRunsForWire,
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
-import { writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord } from '../state.js';
+import {
+  writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord, type PrRead,
+} from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 
@@ -354,6 +357,50 @@ describe('cancelRun and discardRun', () => {
   });
 });
 
+describe('withPrRead', () => {
+  const read = (patch: Partial<PrRead>): PrRead => ({
+    kind: 'closeout', repo: 'repo-a', number: 1, ci: 'green', verdict: 'merged', reasons: [],
+    at: '2026-10-11T00:00:00.000Z', ...patch,
+  });
+
+  it('replaces the entry with the same repo and number, keeps the others, and puts run first', () => {
+    const other = read({ repo: 'repo-b', number: 2, kind: 'closeout', verdict: 'waiting' });
+    const stale = read({ repo: 'repo-a', number: 1, kind: 'closeout', verdict: 'not-ready' });
+    const fresh = read({ repo: 'repo-a', number: 1, kind: 'run', verdict: 'merged', sha: 'cafef00d' });
+
+    const result = withPrRead([other, stale], fresh);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ repo: 'repo-a', number: 1, kind: 'run', verdict: 'merged', sha: 'cafef00d' });
+    expect(result[1]).toMatchObject({ repo: 'repo-b', number: 2, kind: 'closeout', verdict: 'waiting' });
+  });
+});
+
+describe('listRunsForWire', () => {
+  it('carries prReads on the row, with no repoDir key', async () => {
+    const pr: PrRead = {
+      kind: 'run', repo: 'repo-a', number: 1, ci: 'green', verdict: 'merged', reasons: [],
+      sha: 'abc1234', at: '2026-10-11T00:00:00.000Z',
+    };
+    await writeRun(seedRun(fx, { prReads: [pr] } as Partial<RunRecord>));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.prReads).toEqual([pr]);
+    expect(row).not.toHaveProperty('repoDir');
+  });
+
+  it('lists a record written without prReads with the field undefined', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.prReads).toBeUndefined();
+  });
+});
+
 describe('runOnce merge stage', () => {
   const BRANCH = 'feat/x';
 
@@ -428,6 +475,8 @@ describe('runOnce merge stage', () => {
     const rows = mergedRows(fx);
     expect(rows.find((r) => r.type === 'pr.merged')).toMatchObject({ number: '7', sha: 'c105e0a7', method: 'merge', repo: basename(fx.repo) });
     expect(rows.filter((r) => r.type === 'run.end')).toHaveLength(1);
+    expect(run?.prReads).toHaveLength(1);
+    expect(run?.prReads?.[0]).toMatchObject({ kind: 'closeout', verdict: 'merged', repo: basename(fx.repo), sha: 'c105e0a7' });
     // The store is committed and clean at the end; no remote, so nothing was pushed.
     expect(rows[rows.length - 1].type).toBe('run.end');
     expect(git(fx.repo, ['status', '--short']).trim()).toBe('');
@@ -483,6 +532,8 @@ describe('runOnce merge stage', () => {
     let run = await readRun('run-20261011-000000');
     expect(run?.status).toBe('merging');
     expect(run?.pr).toBe(42);
+    expect(run?.prReads).toHaveLength(1);
+    expect(run?.prReads?.[0]).toMatchObject({ verdict: 'not-ready', ci: 'pending' });
 
     // Second pass (the scheduler re-enters): the check is green, so it merges,
     // writes pr.merged, then runs the retrospective and parks at the retro plan.
@@ -490,6 +541,8 @@ describe('runOnce merge stage', () => {
     run = await readRun('run-20261011-000000');
     expect(run?.status).toBe('waiting');
     expect(run?.phase).toBe('retrospective');
+    expect(run?.prReads).toHaveLength(1);
+    expect(run?.prReads?.[0]).toMatchObject({ verdict: 'merged', sha: 'cafef00d1234' });
 
     const merged = mergedRows(fx).find((r) => r.type === 'pr.merged');
     expect(merged).toMatchObject({ number: '42', sha: 'cafef00d1234', method: 'merge' });
