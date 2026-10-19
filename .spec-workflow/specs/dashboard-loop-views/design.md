@@ -2,22 +2,22 @@
 
 ## Overview
 
-This design adds three dashboard views: a PR panel on the Run page fed by the merge rule's own reads, an `owner` on each deferral record with a chip and a filter, and a closed-spec W-per-task table and trend on the Usage page. The PR reads ride the run record and the existing `controller-runs` push; the owner rides the deferral frontmatter and the existing `deferrals-update` push; the usage rows come from one new read-only route. It reuses the merge evaluation pass, the run-record `save`, the deferral storage, the `harness usage` fold, the Specs-page closed rule, `readAgentRules`, `FileCache` and the shell primitives.
+This design adds three dashboard views: a PR panel on the Run page fed by the merge rule's own reads, an `owner` on each deferral record with a chip and a filter, and a closed-spec W-per-task table and trend on the Usage page. The PR reads ride the run record and the existing `controller-runs` push; the owner rides the deferral frontmatter and the existing `deferrals-update` push; the usage rows come from one new read-only route. Each slice reuses existing code, not a new subsystem.
 
 ## Steering Document Alignment
 
 ### Technical Standards (tech.md)
-`.spec-workflow/steering/` is empty, so the design follows `agent-rules.md`: tests sit in `__tests__/` next to each module and run with `npx vitest run`, and no test asserts `child_process`, `fs` or stream fields beyond what the existing suites already assert.
+`.spec-workflow/steering/` is empty, so the design follows `agent-rules.md`: tests sit in `__tests__/` next to each module and run with `npx vitest run`, and no test asserts `child_process`, `fs` or stream fields beyond the existing suites.
 
 ### Project Structure (structure.md)
 No structure.md exists; the one new server module goes beside its siblings in `src/dashboard/shell/`, and the one new frontend component beside `UsagePage.tsx`.
 
 ### Design System (design-system.md) — if applicable
-N/A: the project has no design-system.md. The new UI uses the existing theme tokens (`src/dashboard_frontend/src/modules/theme/theme.css:97-108` light, `src/dashboard_frontend/src/modules/theme/theme.css:172-183` dark) and the shell primitives `Group`, `Chips`, `Row` (`src/dashboard_frontend/src/modules/shell/primitives.tsx:12-203`).
+N/A: no design-system.md. The new UI uses the existing theme tokens (`src/dashboard_frontend/src/modules/theme/theme.css:97-108` light, `src/dashboard_frontend/src/modules/theme/theme.css:172-183` dark) and the shell primitives `Group`, `Chips`, `Row` (`src/dashboard_frontend/src/modules/shell/primitives.tsx:12-203`).
 
 ## Architecture
 
-Three independent slices share no new code. Slice 1 extends the merge evaluation pass to return the CI state, the raw `mergeable` and the PR URL it already read, puts a `PrRead` on every `MergeStageResult` that has a PR number, and saves it on the run record at the two merge call sites; `toRow` carries it to the wire and the Run page renders it. Slice 2 adds `owner` to the deferral record, its storage, the `deferrals` tool and the Deferrals page. Slice 3 adds a positive-integer `baseline-w-per-task` key to `readAgentRules`, a `buildUsageRows` builder over `FileCache`, one route, and a table plus a plain-SVG trend on the Usage page.
+Three independent slices share no new code. Slice 1 extends the merge evaluation pass to return the CI state, the raw `mergeable` and the PR URL it already read, puts a `PrRead` on every `MergeStageResult` that has a PR number, and saves it on the run record at the two merge call sites; `toRow` carries it to the wire and the Run page renders it. Slice 2 adds `owner` to the deferral record, its storage, the `deferrals` tool and the Deferrals page. Slice 3 adds a non-negative-integer `baseline-w-per-task` key to `readAgentRules`, a `buildUsageRows` builder over `FileCache`, one route, and a table plus a plain-SVG trend on the Usage page.
 
 ```mermaid
 graph LR
@@ -40,8 +40,8 @@ graph LR
   - `MergeStageResult` (`src/controller/merge.ts:98-107`) gains optional `read?: PrRead` (C2).
   - `mergeByRule` (`src/controller/merge.ts:526-586`) calls `evaluatePullRequest` in place of `evaluate` and sets `read` on every return; `runMergeStage`'s no-PR return (`src/controller/merge.ts:515-517`) has no `read`.
 - **Post-conditions:**
-  - `ci` is `unreadable` on each of the four early returns (`src/controller/merge.ts:297-321`). Else it uses two flags of its own: `ciFailed` is set by a `failed` workflow run or status; `ciPending` is set by a `pending` run or status or the fresh-head rule (`src/controller/merge.ts:323-345`). `ci` is `red` if `ciFailed`, else `pending` if `ciPending`, else `green`. `mergeable=UNKNOWN` (`src/controller/merge.ts:347-351`) sets the evaluation's `pending` but not `ciPending`.
-  - `mergeable` is the raw `data.mergeable` string whenever the `gh pr view` output parsed. It is absent when the view failed or did not parse (`src/controller/merge.ts:297-305`), never copied from an earlier read.
+  - `ci` is `unreadable` on each of the five early returns (`src/controller/merge.ts:297-321`): view exit, parse fail, no `headRefOid` (`src/controller/merge.ts:312`), runs-read fail, status-read fail. Else it uses two flags of its own: `ciFailed` is set by a `failed` workflow run or status; `ciPending` is set by a `pending` run or status or the fresh-head rule (`src/controller/merge.ts:323-345`). `ci` is `red` if `ciFailed`, else `pending` if `ciPending`, else `green`. `mergeable=UNKNOWN` (`src/controller/merge.ts:347-351`) sets the evaluation's `pending` but not `ciPending`.
+  - `mergeable` is the raw `data.mergeable` string, read right after the JSON parses (`src/controller/merge.ts:300-305`), so it is present on every return where the view parsed, including the no-`headRefOid` return at `src/controller/merge.ts:312`. It is absent only when the view failed or did not parse (`src/controller/merge.ts:297-305`), never copied from an earlier read.
   - `url` is `pr.url` when set, else `data.url` when it is a string. The `read` keeps it only when it starts with `https://`.
   - `read.verdict` equals the returned `status`, `read.reasons` is the same array as the returned `reasons`, `read.sha` equals the returned `sha`, `read.at` is `deps.now()` ISO, `read.repo` is `basename(pr.repoDir)` as `closeoutMergeTarget` does (`src/controller/merge.ts:457-460`), and `read.kind` is `run` when `target.questionId` is `merge` and `closeout` otherwise.
 
@@ -97,13 +97,13 @@ graph LR
 - **Interfaces:**
   - `FullDeferral` (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:23-33`) gains `owner?: 'matthew' | 'harness' | null`.
   - A new `activeOwners: string[]` state and a second `Chips` row hold the values `matthew`, `harness` and `none`, labelled `matthew`, `harness` and `no owner`. Each count spans every enabled project's records, computed like `statusCounts` (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:75-84`).
-  - The `items` filter (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:87-103`) adds this rule: when `activeOwners` is non-empty, keep a record only if `activeOwners` includes `d.owner ?? 'none'`. The page reset effect (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:106`) adds `activeOwners`.
+  - The `items` filter (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:87-103`) adds this rule: when `activeOwners` is non-empty, keep a record only if `activeOwners` includes `d.owner ?? 'none'`, and `activeOwners` joins the `useMemo` deps array (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:103`) so an owner-chip click recomputes the list. The page reset effect (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:106`) adds `activeOwners`.
   - A row with an owner shows a badge `data-testid="deferral-owner-{projectId}-{id}"` after `StatusBadge`. `DeferralPanel` adds `Field label="Owner"`; `Field` already hides an empty value (`src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:196-204`).
 - **Post-conditions:** The page adds no control that writes. The `deferrals-update` push refreshes counts, rows and panel through `deferralsByProject`, as it does at base.
 
 ### C8 — Baseline key (`src/dashboard/harness/run-setup.ts`, `docs/SDD-HARNESS.md`)
 - **Purpose:** Read the repository baseline (R3 AC9).
-- **Interfaces:** `AgentRules` (`src/dashboard/harness/run-setup.ts:32-43`) gains optional `baselineWPerTask?: number`. `readAgentRules` (`src/dashboard/harness/run-setup.ts:66-127`) sets it from `/^baseline-w-per-task:\s*([1-9]\d*)\s*$/m`; otherwise the key is omitted, including for a missing file. The key table (`docs/SDD-HARNESS.md:252-269`) gains a row: `baseline-w-per-task: <n>`, read by the Usage page, meaning the repository's W per task baseline.
+- **Interfaces:** `AgentRules` (`src/dashboard/harness/run-setup.ts:32-43`) gains optional `baselineWPerTask?: number`. `readAgentRules` (`src/dashboard/harness/run-setup.ts:66-127`) sets it to the non-negative integer from `/^baseline-w-per-task:\s*(\d+)\s*$/m`, so `0` reads as `0` (R3 AC9 keeps the integer value); otherwise the key is omitted, including for a non-integer value and a missing file. The key table (`docs/SDD-HARNESS.md:252-269`) gains a row: `baseline-w-per-task: <n>`, read by the Usage page, meaning the repository's W per task baseline.
 
 ### C9 — Usage rows (`src/dashboard/shell/usage-rows.ts`, new; `src/dashboard/shell/spec-rows.ts`)
 - **Purpose:** One row per closed spec of one project (R3 AC1-AC9).
@@ -114,7 +114,7 @@ graph LR
   - `closeDate`: the `date` of the newest row with phase `closeout` and result `closed` from `parseHandoffPhaseRows(cache.text(handoffPath(workflowRoot)), spec)` (`src/watch/ledger.ts:201-218`), with no window. If there is no such row, the newest ledger `ts`. If there is neither, `null`.
   - `report = buildUsageReport(cache.jsonl(ledgerPath), spec)` (`src/watch/usage.ts:162-255`). `w` is `report.total.w` when `report.total.spawns - report.total.wUnknown` is above 0, else `null`. `wUnknown` is `report.total.wUnknown`.
   - `tasks` is `entry.taskProgress.total`. `wPerTask` is `w / tasks` when `w` is not null and `tasks` is above 0, else `null`.
-  - `baseline` is `readAgentRules(workflowRoot).baselineWPerTask ?? null`. `pctOfBaseline` is `wPerTask / baseline * 100` when both are set, else `null`.
+  - `baseline` is `readAgentRules(workflowRoot).baselineWPerTask ?? null`. `pctOfBaseline` is `wPerTask / baseline * 100` when both are set and `baseline` is above 0, else `null` (a 0 baseline keeps the value but has no percentage, so no divide-by-zero).
   - `projectId` and `projectName` come from the project.
 
 ### C10 — Usage route (`src/dashboard/multi-server.ts`)
@@ -128,7 +128,7 @@ graph LR
   - `UsagePage` (`src/dashboard_frontend/src/modules/shell/UsagePage.tsx:61-102`) fetches `/api/shell/usage/closed-specs` in a second effect keyed on `controllerRuns`, the pattern at `:67-75`. It removes the placeholder (`:97-99`) and the header comment's placeholder sentence (`:8-9`), and keeps both window bars.
   - When `rows` is empty after load, the page shows `data-testid="usage-no-closed"` with the text `No closed specs yet.` and nothing else of this view. Otherwise it renders `data-testid="usage-closed-specs"`, which holds the trend and then a table.
   - The table has one `Group` per project (`name="usage-{projectId}"`) and rows `data-testid="usage-row-{projectId}-{spec}"`. The columns are spec, close date (first 10 characters), W, tasks, W per task, and % of baseline.
-  - Cell text: W is `Math.round(w).toLocaleString('en-US')`, prefixed `≥ ` and followed by `({n} unknown)` when `wUnknown` is above 0. W per task has the same `≥ ` prefix. `no usage recorded` shows when `w` is null; `no tasks` when `tasks` is 0; `no baseline` when `baseline` is null.
+  - Cell text: W is `Math.round(w).toLocaleString('en-US')`, prefixed `≥ ` and followed by `({n} unknown)` when `wUnknown` is above 0. W per task has the same `≥ ` prefix. `no usage recorded` shows when `w` is null; `no tasks` when `tasks` is 0; `no baseline` when `baseline` is null or 0.
   - `UsageTrend({ rows }: { rows: UsageSpecRow[] })` is an inline `svg` with a `viewBox` and `className="w-full h-auto"`. It plots only rows where `wPerTask` and `closeDate` are both non-null.
     - One `polyline` per project, `data-testid="trend-line-{projectId}"`, through that project's points in ascending close date.
     - One `circle` per point holding a `title` child with the text `{spec}: {W per task}`, the hover value.
@@ -183,7 +183,7 @@ export interface UsageSpecRow {
 ## Error Handling
 
 1. **`gh pr view` fails or returns no JSON:** the verdict is `unreadable`, `ci` is `unreadable`, and `mergeable` is absent. The run status and wait are as at base.
-2. **The workflow-run or status read fails after the view parsed:** `ci` is `unreadable` and `mergeable` keeps the value just read.
+2. **The view parses but the read stops early** — no `headRefOid` (`src/controller/merge.ts:312`), or a workflow-run or status read fails (`src/controller/merge.ts:316`, `src/controller/merge.ts:320`): `ci` is `unreadable` and `mergeable` holds the value read at parse.
 3. **The PR URL is not https:** `url` is dropped at the read, and the panel shows the number as plain text.
 4. **A legacy run record has no `prReads`:** `toRow` leaves the field undefined and the Run page renders no panel.
 5. **A deferral `owner` value is outside the two:** the tool returns `success: false` and writes no file. A frontmatter value outside the two reads as `null`, and the record still lists.
@@ -199,19 +199,17 @@ export interface UsageSpecRow {
     - `mergeable=UNKNOWN` gives `ci: 'green'` with the evaluation pending;
     - `mergeable` is absent when the view fails and present when the runs read fails;
     - `url` comes from the view and is dropped when not https.
-  - `merge.test.ts` also asserts that `runMergeStage` results carry `read` with the verdict, reasons, sha, `kind: 'run'` and `repo`. The two exact `evaluate` assertions (`src/controller/__tests__/merge.test.ts:171`, `src/controller/__tests__/merge.test.ts:232`) stay unchanged; no asserted value in the file changes.
+  - `merge.test.ts` also asserts `runMergeStage` results carry `read` with the verdict, reasons, sha, `kind: 'run'` and `repo`. The two exact `evaluate` assertions (`src/controller/__tests__/merge.test.ts:171`, `src/controller/__tests__/merge.test.ts:232`) stay unchanged.
   - `src/controller/__tests__/runs.test.ts` covers `withPrRead`: it replaces the entry with the same repo and number, keeps the others, and puts `run` first.
-  - In the "auto: not-ready once, then merged" test (`src/controller/__tests__/runs.test.ts:465-499`), new assertions check that `prReads` holds one read after the first pass (`not-ready`, `pending`) and one read after the second (`merged`, sha `cafef00d1234`).
-  - The close-out test (`src/controller/__tests__/runs.test.ts:411-434`) gains a `kind: 'closeout'` read.
-  - `listRunsForWire` gives a row with `prReads` and no `repoDir` key. A record written without `prReads` lists with the field undefined (R1 AC13, invariant).
-  - No existing assertion in `runs.test.ts` changes.
+  - In the "auto: not-ready once, then merged" test (`src/controller/__tests__/runs.test.ts:465-499`), new assertions check `prReads` holds one read after the first pass (`not-ready`, `pending`) and one after the second (`merged`, sha `cafef00d1234`). The close-out test (`src/controller/__tests__/runs.test.ts:411-434`) gains a `kind: 'closeout'` read. No existing `runs.test.ts` assertion changes.
+  - `listRunsForWire` gives a row with `prReads` and no `repoDir` key; a record written without `prReads` lists with the field undefined (R1 AC13, invariant).
   - `src/core/__tests__/deferral-storage.test.ts` checks:
     - owner round-trips through create, get and list;
     - an absent or bad owner reads `null`;
     - `reindex` on a legacy file reports `rewritten: 0`, and on an owned file keeps the owner;
     - `resolve`, `merge` and `update` keep the owner, and `update` sets a new one.
   - `src/tools/__tests__/deferrals.test.ts` checks add and update with an owner, a bad owner giving `success: false` with no file created, and `owner` in the list and get output.
-  - `src/dashboard/harness/__tests__/run-setup.test.ts` checks that `1200` gives 1200, and that `12.5`, `abc`, `0` and an absent key give no key. The missing-file equality (`src/dashboard/harness/__tests__/run-setup.test.ts:366-375`) stays unchanged.
+  - `src/dashboard/harness/__tests__/run-setup.test.ts` checks that `1200` gives 1200 and `0` gives 0, and that `12.5`, `abc` and an absent key give no key. The missing-file equality (`src/dashboard/harness/__tests__/run-setup.test.ts:366-375`) stays unchanged.
   - New `src/dashboard/shell/__tests__/usage-rows.test.ts` uses a temp project with these specs:
     - a spec closed by a HANDOFF row, with two `closeout`/`closed` rows, so the newer date wins;
     - a spec closed by a plan, falling back to the ledger `ts`;
@@ -220,46 +218,43 @@ export interface UsageSpecRow {
     For one ledger, the test asserts `w` equals `buildUsageReport(events, spec).total.w` exactly. It also covers the floor count, `no tasks`, a ledger with no known W, the baseline percentage and no baseline. `spec-rows.test.ts` stays green after the `isSpecClosed` extraction.
 - **Integration:**
   - In `src/dashboard/__tests__/shell-routes.test.ts`, `GET /api/shell/usage/closed-specs` returns the sorted rows of two projects, and a project whose `agent-rules.md` path is a directory still yields rows with `baseline: null`.
-  - In `src/dashboard/shell/__tests__/shell-feed.test.ts`, a `ShellFeed` with a short `throttleMs` is scheduled after `writeRun` of a record with `prReads`. The `controller-runs` message carries the reads within the throttle. This proves the R1 AC9 path, whose production throttle is 1000 ms.
-- **End-to-end:** `e2e/worktree-shell.spec.ts` (`npm run test:e2e:worktree`). Before the servers start, it seeds these items:
-  - a `done` run record for project A with two reads (one `merged` with a sha, one close-out `blocked` with two reasons) under the isolated controller home `runs/{id}/run.json`;
-  - three deferral files in project A (owner `matthew`, owner `harness`, no owner);
-  - a closed spec in each project, with a HANDOFF closeout row, a ledger with `spawn.end` rows, a `tasks.md`, and `baseline-w-per-task` in project A only.
-
-  It then runs these scenarios:
+  - In `src/dashboard/shell/__tests__/shell-feed.test.ts`, a `ShellFeed` with a short `throttleMs`, scheduled after `writeRun` of a record with `prReads`, carries the reads on `controller-runs` within the throttle, proving the R1 AC9 path (production throttle 1000 ms).
+- **End-to-end:** `e2e/worktree-shell.spec.ts` (`npm run test:e2e:worktree`). Before the servers start it seeds: a `done` run record for project A with two reads (one `merged` with a sha, one close-out `blocked` with two reasons) under `runs/{id}/run.json`; three deferral files in project A (owner `matthew`, owner `harness`, no owner); and a closed spec in each project with a HANDOFF closeout row, a ledger with `spawn.end` rows, a `tasks.md`, and `baseline-w-per-task` in project A only. It then runs:
   - (R1) The Run page shows `pr-panel` with both rows, the 7-character sha, each reason and the CI chips.
   - (R2) The `chip-matthew` count is 1. Selecting it leaves one row. Adding a status chip narrows the list by AND. The panel shows Owner.
   - (R3) Both projects' rows show, the placeholder is gone, two `trend-line-*` elements are present, and one `trend-baseline-*` is present.
 
-  The sideways-scroll marker update (C12) keeps the existing test valid.
-
 ## Decisions taken in this document
 
-- D1 — How the merge pass returns what it read: options were a new inner function that the read-only evaluation wraps, or extra fields on the evaluation result itself; chosen because two existing tests assert the evaluation result by exact equality and requirement 1 criterion 12 forbids changing an asserted value.
-- D2 — PR URL source: options were adding the url field to the existing PR view read with the located PR's url first, or leaving the url unknown whenever the run's PR number is trusted; chosen because the view call already happens, so the link costs no extra call.
-- D3 — Where reads are saved: options were one extra run-record save right after each merge pass, or folding the read into each status branch's save; chosen because one site per caller covers all six verdicts and leaves the branch code untouched.
-- D4 — Read identity: options were repository name plus PR number, or PR number alone; chosen because close-out PRs of different repositories can share a number.
-- D5 — Wire field when a run has no read: options were leaving it absent, or an empty list; chosen because a legacy row then stays identical to base (requirement 1 criterion 13).
-- D6 — Owner frontmatter line: options were writing it only when set, or always writing a null owner; chosen because always writing it would make reindex rewrite every legacy record.
-- D7 — Clearing an owner: options were no clearing through the tool, or accepting null on update; chosen because requirement 2 criterion 4 rejects any value other than the two.
-- D8 — Owner filter shape: options were a second chip row with its own state, or merging owner values into the status chips; chosen because owner chips combine with status chips by AND and with each other by OR.
-- D9 — Zero baseline: options were treating zero as no baseline, or keeping zero and nulling only the percentage; chosen because a zero baseline has no meaning and divides by zero. Flagged as re-decided against requirement 3 criterion 9.
-- D10 — Baseline field shape: options were an optional key omitted when absent, or a required field holding null; chosen because the whole-struct equality test for a missing rules file stays unchanged.
-- D11 — Usage route: options were a shell-prefixed route with server-side sorting, or a per-project route with sorting in the browser; chosen because the shell prefix exists and the frontend has no unit suite, so the sort is tested in vitest.
-- D12 — Project toggle on the usage view: options were showing every project the dashboard knows, or only toggled-on projects; chosen because requirement 3 criterion 1 names every known project and the trend compares repositories.
-- D13 — Series colours: options were a fixed six-colour list in the component cycled by project-name order, or new theme tokens; chosen because the theme has no categorical palette and adding one is outside this spec.
-- D14 — Hover value: options were a native SVG title per point, or a custom tooltip with state; chosen because it is plain SVG with no extra state.
-- D15 — Closed rule reuse: options were one exported helper used by both builders, or a copy in the new builder; chosen because requirement 3 criterion 2 demands the same rule and two copies could drift.
-- D16 — Live-update proof: options were a vitest feed test plus an e2e render from a seeded record, or a Playwright run of a real merging run; chosen because a live merging run needs a running controller and GitHub.
+- D1 — How the merge pass returns what it read: a new inner function wrapped by the read-only evaluation (not extra fields on the result), because two tests assert the result by exact equality and requirement 1 criterion 12 forbids changing an asserted value.
+- D2 — PR URL source: the existing PR view read gains the url field, because that call already happens, so the link costs no extra call.
+- D3 — Where reads are saved: one extra run-record save per caller after each merge pass (not folded into each branch), because one site covers all six verdicts and leaves the branch code untouched.
+- D4 — Read identity: repository name plus PR number, not number alone, because close-out PRs of different repositories can share a number.
+- D5 — Wire field when a run has no read: absent, not an empty list, because a legacy row then stays identical to base (requirement 1 criterion 13).
+- D6 — Owner frontmatter line: written only when set, not always, because always writing it would make reindex rewrite every legacy record.
+- D7 — Clearing an owner: not offered through the tool, because requirement 2 criterion 4 rejects any value other than the two.
+- D8 — Owner filter shape: a second chip row with its own state, not merged into the status chips, because owner chips combine with status chips by AND and with each other by OR.
+- D9 — Zero baseline: keep the integer value per requirement 3 criterion 9 and null only the percentage, because criterion 9 makes the baseline the integer value (0 is an integer) and nulling only the percentage when the baseline is not positive avoids the divide-by-zero without overriding the criterion.
+- D10 — Baseline field shape: an optional key omitted when absent, not a required null field, because the whole-struct equality test for a missing rules file stays unchanged.
+- D11 — Usage route: a shell-prefixed route with server-side sorting, not a per-project route sorted in the browser, because the shell prefix exists and the frontend has no unit suite, so the sort is tested in vitest.
+- D12 — Project toggle on the usage view: every project the dashboard knows, not only toggled-on ones, because requirement 3 criterion 1 names every known project and the trend compares repositories.
+- D13 — Series colours: a fixed six-colour list cycled by project-name order, not new theme tokens, because the theme has no categorical palette and adding one is outside this spec.
+- D14 — Hover value: a native SVG title per point, not a custom tooltip, because it needs no extra state.
+- D15 — Closed rule reuse: one exported helper used by both builders, not a copy, because requirement 3 criterion 2 demands the same rule and two copies could drift.
+- D16 — Live-update proof: a vitest feed test plus an e2e render from a seeded record, not a Playwright run of a real merging run, because a live run needs a running controller and GitHub.
 
 ## Scope notes
 
 - Carried from requirements: none.
 - Cut, as the requirements record: the operator-owned-deferral Now-page wait, a blocks field, the deferral-skill owner triage, and the deferral write actions (superseded entry 17), plus the live usage view and the per-spec chooser (superseded entry 18).
 - Deferred to the operator: writing a `baseline-w-per-task` value into each repository's `agent-rules.md`.
-- The decomposition entry names no verification scenario; the end-to-end section above defines one per requirement.
+- The decomposition entry names no verification scenario; the end-to-end section defines one per requirement.
 
 ## Revision History
 
+- **v2** (2026-10-19) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 1/1/1).
+  - **R1-1 — Accepted (MUST_FIX).** C1 now states five early unreadable returns and names the no-headRefOid return; mergeable is read right after the JSON parses, so it is present on every parsed return; Error Handling case 2 pins the no-headRefOid, runs-fail and status-fail returns together, closing the green-chip-for-unreadable hole.
+  - **R1-2 — Partially accepted (SHOULD_FIX).** Amending requirements and filing a deferral are both outside reviser scope, so the design now conforms to criterion 9 rather than flagging a re-decision: the baseline regex keeps any non-negative integer including 0, and only the percentage is nulled when the baseline is not positive, removing the divide-by-zero and the contradiction; D9 rewritten to the conforming choice.
+  - **R1-3 — Accepted (MINOR).** C7 now states that activeOwners joins the items useMemo deps array, so an owner-chip click recomputes the list.
 - **v1** (2026-10-19) — Initial draft.
   - **Lint pass.** 5 fixed: L-1 (`Row` defined at primitives.tsx:178-203, so the cite is now `:12-203`), L-27 (`resolve` is at deferral-storage.ts:296-308, not `:352-372`; cited separately), L-50/L-51/L-54 (bare `:171`, `:232`, `:411-434` given their full directory-prefixed paths; sibling bare ranges `:172-183` and `:366-375` fixed in the same pass, rule 9). rejected: L-2–L-26, L-28–L-49, L-52, L-53, L-55 — citation-identifier false positives: each flags a new export/field/local/value/keyword this design introduces, or a token the adjacent citation does not anchor, while the citation correctly anchors its existing symbol or region.
