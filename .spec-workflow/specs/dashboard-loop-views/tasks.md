@@ -43,7 +43,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 1.6, 1.9_
   - _Prompt: Task: Implement design C3 for the PR read (requirement 1 AC6, AC9). Both `ControllerRun` types gain `prReads?: ControllerPrRead[]`, where `ControllerPrRead` is a hand copy of the `PrRead` task 2 exports. Run `grep -rn "interface ControllerRun\b\|interface ControllerRunRow" src` to find the three shapes and keep their fields in step. Add a test to `shell-feed.test.ts` in the pattern of its quiet-wait test (lines 201-243): `writeRun` a record with `prReads`, start a `ShellFeed` with a short `throttleMs`, and assert the `controller-runs` message carries the reads within the throttle. | Restrictions: No runtime change; the feed already forwards the rows `listRunsForWire` returns (`src/dashboard/shell/shell-feed.ts:109`). No existing assertion in `shell-feed.test.ts` changes value; the message-type order at line 252 stays. Check with `npx tsc --noEmit`, `npx vitest run src/dashboard/shell/__tests__/shell-feed.test.ts` and `npm run build:dashboard`. | Success: Both hand copies compile with `prReads`; the new feed test shows a `controller-runs` message whose run row carries the written reads within the throttle; the existing feed suite passes unchanged_
 
-- [ ] 5. PR panel on the Run page
+- [x] 5. PR panel on the Run page
   - File: src/dashboard_frontend/src/modules/shell/RunPage.tsx
   - Add a `PrPanel` after `LiveNow` that renders one row per PR read of the page's controller run.
   - Purpose: Show the operator why a run in `merging` has not merged
