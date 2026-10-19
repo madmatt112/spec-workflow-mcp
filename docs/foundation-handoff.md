@@ -82,6 +82,19 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at the 2026-10-19 22:30Z stop (usage limit)
+
+- Live build `88b811e`. Merged, NOT deployed: PR #149 (operator rulings reach the test
+  author). The self-update refused twice: steps were in flight, then "cannot rebase: You have
+  unstaged changes" (the live run's `harness-events.jsonl` is dirty in the checkout between
+  steps). Next fix: #148's rebase should use `--autostash` or refuse early with a clear
+  message. Deploy #149 at a moment with no step live.
+- Runs: tradr `import-off-request-thread` (requirements, running), spec 23
+  `dashboard-loop-views` (implementation; tasks 4/14 label fix `c80d2e8` on local main),
+  jobscout `multi-lane-sources` (queued after the ruling; hook fix `ab9f88f` in jobscout).
+  Every wait is Matthew's. The live checkout's main holds unpushed spec 23 store commits;
+  the controller pushes them at run end.
+
 ## State at the 2026-10-17 01:00Z handoff (coordinator session)
 
 - Live build `6a738f3` (PR #143, close-out reverts the commits of items that did not land).
