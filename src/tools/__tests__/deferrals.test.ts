@@ -5,6 +5,21 @@ import { tmpdir } from 'os';
 import { deferralsHandler } from '../deferrals.js';
 import { ToolContext } from '../../types.js';
 
+// Contract — task 7 owner criteria (AC3, AC4, AC7; design C6):
+// 1. Pre: a fresh store. Call: add with owner: 'matthew'. Result: get returns owner
+//    'matthew'. Expected value source: AC3 ("store it through the tool handlers").
+// 2. Pre: an existing deferral with no owner. Call: update with owner: 'harness'.
+//    Result: get returns owner 'harness'. Expected value source: AC3 (update stores it).
+// 3. Pre: a fresh store. Call: add with owner: 'bob'. Result: success: false, message
+//    names both 'matthew' and 'harness', and the deferrals dir holds no file. Expected
+//    value source: AC4 ("names the two allowed values ... SHALL write no file").
+// 4. Pre: an existing deferral with no owner. Call: update with owner: 'bob'. Result:
+//    success: false, message names both 'matthew' and 'harness', and get still shows
+//    the original title and owner: null. Expected value source: AC4 ("names the two
+//    allowed values ... SHALL write no file") and design C6's shared check.
+// 5. Pre: one deferral added with owner: 'matthew', one added with no owner. Call:
+//    list. Result: summary rows carry owner 'matthew' and owner null respectively.
+//    Expected value source: AC7 ("list action's summary rows ... SHALL include owner").
 describe('deferrals tool handler', () => {
   let tempDir: string;
   let context: ToolContext;
@@ -39,6 +54,22 @@ describe('deferrals tool handler', () => {
       expect(result.success).toBe(false);
       expect(result.message).toContain('Missing required fields');
     });
+
+    it('stores an owner and returns it through get', async () => {
+      const addResult = await deferralsHandler({ ...addArgs, owner: 'matthew' }, context);
+      expect(addResult.success).toBe(true);
+      const getResult = await deferralsHandler({ action: 'get', id: addResult.data.id }, context);
+      expect(getResult.data.owner).toBe('matthew');
+    });
+
+    it('rejects a bad owner and creates no file', async () => {
+      const result = await deferralsHandler({ ...addArgs, owner: 'bob' }, context);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('matthew');
+      expect(result.message).toContain('harness');
+      const files = await fs.readdir(join(tempDir, '.spec-workflow', 'deferrals'));
+      expect(files.length).toBe(0);
+    });
   });
 
   describe('list action', () => {
@@ -49,6 +80,16 @@ describe('deferrals tool handler', () => {
       const result = await deferralsHandler({ action: 'list' }, context);
       expect(result.success).toBe(true);
       expect(result.data.total).toBe(2);
+    });
+
+    it('includes owner in summary rows, null when unset', async () => {
+      await deferralsHandler({ ...addArgs, owner: 'matthew' }, context);
+      await deferralsHandler({ ...addArgs, title: 'Second' }, context);
+
+      const result = await deferralsHandler({ action: 'list' }, context);
+      const owners = result.data.deferrals.map((d: any) => d.owner);
+      expect(owners).toContain('matthew');
+      expect(owners).toContain(null);
     });
 
     it('should filter by status', async () => {
@@ -123,6 +164,35 @@ describe('deferrals tool handler', () => {
       }, context);
       expect(result.success).toBe(false);
       expect(result.message).toContain('No fields to update');
+    });
+
+    it('sets owner on update', async () => {
+      const addResult = await deferralsHandler(addArgs, context);
+      const result = await deferralsHandler({
+        action: 'update',
+        id: addResult.data.id,
+        owner: 'harness',
+      }, context);
+      expect(result.success).toBe(true);
+
+      const getResult = await deferralsHandler({ action: 'get', id: addResult.data.id }, context);
+      expect(getResult.data.owner).toBe('harness');
+    });
+
+    it('rejects a bad owner on update and leaves the file unchanged', async () => {
+      const addResult = await deferralsHandler(addArgs, context);
+      const result = await deferralsHandler({
+        action: 'update',
+        id: addResult.data.id,
+        owner: 'bob',
+      }, context);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('matthew');
+      expect(result.message).toContain('harness');
+
+      const getResult = await deferralsHandler({ action: 'get', id: addResult.data.id }, context);
+      expect(getResult.data.title).toBe('Test deferral');
+      expect(getResult.data.owner).toBe(null);
     });
   });
 
