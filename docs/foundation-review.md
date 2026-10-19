@@ -756,6 +756,24 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `--no-open` is accepted and ignored; the `open` dependency is gone. The tradr run and spec
   23 launch after the seven-day reset (Sunday 2026-10-18 15:00Z).
 
+- 2026-10-18/19 three controller runs at once: tradr `import-off-request-thread`
+  (`run-20261018-150759`, the first tradr run on the controller, parked at gate A),
+  spec 23 `dashboard-loop-views` on this repository (`run-20261018-150806`) and jobscout
+  `multi-lane-sources` (`run-20261019-163700`, launched by Matthew from the Runs page; a
+  session's launch POST is denied by the auto-mode classifier as "Blind Apply"). Findings
+  and fixes: the dashboard went empty because the rate limiter keys on the client IP and
+  every local client is 127.0.0.1 (the project list polls every 2.5 s): PR #146
+  (`f845bf7`) exempts loopback, so the limit now covers only LAN clients. The self-update
+  could not fast-forward while spec 23 committed its store onto the live checkout's main:
+  PR #148 rebases store-only local commits (`.spec-workflow/`, `HANDOFF.md`) onto origin
+  and refuses otherwise. Spec 23 escalated at task 4: `- Test (integration):` is not a
+  parsed label, so the test file was outside the gate's list; PR #147 makes the tasks lint
+  flag non-canonical `Test`/`File` labels. jobscout escalated at task 2: its pre-commit
+  hook runs the full suite and blocks the test author's red commit (no rule yet; the
+  ruling is Matthew's; the lasting fix is a hook that skips test-only commits). The gate-B
+  `delete/drop` keyword flags fired on "dropped row" and "url is dropped" (false
+  positives; tuning is a retro item). Deployed `88b811e` at 19:41Z with every run parked.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
