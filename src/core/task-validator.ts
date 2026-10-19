@@ -2,6 +2,17 @@
  * Task Validator Module
  * Validates tasks.md format compliance before approval
  */
+import { TEST_BULLET_RE } from './task-parser.js';
+
+/**
+ * A task bullet whose label looks like a `Test` or `File` seam: `Test`/`File`
+ * (optionally plural) as the first word, then any non-colon text, then a colon.
+ * Catches near-misses such as `Test (integration):`, `Tests:` and `File (new):`.
+ */
+const SEAM_LABEL_RE = /^[-*]\s+(Test|File)s?\b[^:]*:/;
+
+/** The canonical `- File:` / `- Files:` bullet the parser accepts (`src/core/task-parser.ts:332`). */
+const FILE_BULLET_RE = /^[-*]\s+Files?:/;
 
 export interface ValidationError {
   line: number;
@@ -127,6 +138,30 @@ export function validateTasksMarkdown(content: string): ValidationResult {
       const trimmedLine = contentLine.trim();
 
       if (!trimmedLine) continue;
+
+      // A bullet whose label looks like a Test or File seam but is not the
+      // canonical `- Test:` / `- File:` form (e.g. `Test (integration):`,
+      // `Tests:`, `File (new):`). The parser recognises only the canonical
+      // forms, so a near-miss silently becomes a plain bullet: the test never
+      // joins the task's files and the gate rejects it at implementation time.
+      if (
+        SEAM_LABEL_RE.test(trimmedLine) &&
+        !TEST_BULLET_RE.test(trimmedLine) &&
+        !FILE_BULLET_RE.test(trimmedLine)
+      ) {
+        const isTest = /^[-*]\s+Tests?\b/.test(trimmedLine);
+        const label = trimmedLine.replace(/^[-*]\s+/, '').replace(/:.*$/, ':');
+        const canonical = isTest ? '- Test: <path> — <call>' : '- File: <path>';
+        errors.push({
+          line: lineIdx + 1,
+          taskId,
+          field: isTest ? 'test' : 'file',
+          message: `task ${taskId ?? '?'} line ${lineIdx + 1}: label "${label}" is not canonical; use "${canonical}"`,
+          suggestion: `Use the canonical form "${canonical}"`,
+          severity: 'error',
+        });
+        taskValid = false;
+      }
 
       // Check for _Requirements:_ format
       if (trimmedLine.includes('Requirements:')) {

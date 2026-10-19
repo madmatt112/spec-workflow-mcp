@@ -120,6 +120,52 @@ describe('task-validator', () => {
       });
     });
 
+    describe('non-canonical Test/File labels', () => {
+      it('errors on a `Test (integration):` label and names the canonical form', () => {
+        const content = `- [ ] 1. Build the feed
+  - File: src/dashboard/shell/shell-feed.ts
+  - Test (integration): src/dashboard/shell/__tests__/shell-feed.test.ts — renderFeed()
+  - _Requirements: 1.1_
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(false);
+        const error = result.errors.find(e => e.field === 'test');
+        expect(error).toBeDefined();
+        expect(error!.message).toContain('- Test: <path> — <call>');
+        expect(error!.message).toContain('task 1');
+      });
+
+      it('errors on a `Tests:` label', () => {
+        const content = `- [ ] 1. Build the feed
+  - File: src/feed.ts
+  - Tests: src/feed.test.ts — render()
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(false);
+        expect(result.errors.some(e => e.field === 'test')).toBe(true);
+      });
+
+      it('errors on a `File (new):` label', () => {
+        const content = `- [ ] 1. Build the feed
+  - File (new): src/feed.ts
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(false);
+        expect(result.errors.some(e => e.field === 'file')).toBe(true);
+      });
+
+      it('does not flag canonical `- Test:` and `- File:` bullets', () => {
+        const content = `- [ ] 1. Build the feed
+  - File: src/feed.ts
+  - Test: src/feed.test.ts — render()
+  - _Requirements: 1.1_
+`;
+        const result = validateTasksMarkdown(content);
+        expect(result.valid).toBe(true);
+        expect(result.errors).toHaveLength(0);
+      });
+    });
+
     describe('metadata format warnings', () => {
       it('should warn on Requirements without underscore delimiters', () => {
         const content = `- [ ] 1. Task with bad requirements format
