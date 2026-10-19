@@ -89,7 +89,7 @@ Three slices share no code: the PR panel (tasks 1 to 5), the deferral owner (tas
   - _Requirements: 3.9_
   - _Prompt: Task: Implement design C8 (requirement 3 AC9). `AgentRules` gains `baselineWPerTask?: number`. `readAgentRules` sets it from `/^baseline-w-per-task:\s*(\d+)\s*$/m`, so `0` reads as `0` (design D9, requirement 3 AC9); otherwise the key is omitted, including for a non-integer and a missing file. Add a key-table row after `baseline-w-per-spec` (line 260): `baseline-w-per-task: <n>`, read by the Usage page, meaning the repository's W per task baseline. | Restrictions: The missing-file return (lines 69-72) gains no key, so the whole-struct `toEqual` at `run-setup.test.ts:371-374` stays unchanged (design D10). Run `grep -rn "postMerge: null, merge: 'auto'" src` to find every whole-struct equality and keep each green. Run `grep -n "keys" docs/SDD-HARNESS.md`: the "Three keys" sentence (line 135) counts the merge keys only and stays. Check with `npx tsc --noEmit` and `npx vitest run src/dashboard/harness/__tests__/run-setup.test.ts`. | Success: `1200` reads as 1200; `0` reads as 0; `12.5`, `abc` and an absent key give no `baselineWPerTask` key; the missing-file equality passes unchanged; the key table lists the new key_
 
-- [ ] 10. Export the closed-spec rule
+- [x] 10. Export the closed-spec rule
   - File: src/dashboard/shell/spec-rows.ts
   - Test: src/dashboard/shell/__tests__/spec-rows.test.ts — isSpecClosed(phaseRows, planText)
   - Move the closed rule out of `buildSpecRows` into an exported `isSpecClosed`; `buildSpecRows` calls it.

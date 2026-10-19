@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/spec-rows.test.ts"],"seams":{"src/dashboard/shell/__tests__/spec-rows.test.ts":"isSpecClosed(phaseRows, planText)"},"redCommit":"f3101e9a65b00a6b93c04d7e45e16a52cf1b577d","baseSha":"929aba8a0e53b5a8a92986fbf850c95507aaec29","base":"structural-red","head":"pass","amended":false,"judged":null}
