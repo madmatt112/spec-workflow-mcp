@@ -495,6 +495,20 @@ describe('runImplementationPhase', () => {
     expect(r.some((e) => e.type === 'note' && /^gate: task 1 pass .* tdd inconclusive/.test(e.text))).toBe(true);
   }, 60000);
 
+  it('hands the operator rulings to the test author', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
+    const authorRun: StubRun = {
+      commands: [`mkdir -p test && echo "red" > test/a.test.js && git add test/a.test.js && git commit -qm "test(${fx.spec}): task 1 red"`],
+      result: result({ commit: 'see git', files: ['test/a.test.js'], tests: 1, folds: 'none', flag: 'none', redImpossible: 'none', retro: 'none' }, 'commit: x\nfiles: test/a.test.js'),
+    };
+    writeScript(fx, [authorRun, await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    await runImplementationPhase(ctxFor(fx, { operatorRulings: ['use --no-verify for the red commit'] }));
+
+    expect(readFileSync(join(fx.scratch, 'author-brief-task-1.md'), 'utf8'))
+      .toContain('## Operator rulings\n- use --no-verify for the red commit');
+  }, 60000);
+
   it('opens the PR, reconciles a red check, and completes green', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     // A bare origin and a feature branch, so the push has somewhere to go.

@@ -557,6 +557,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
             job: `Spec dir: ${ctx.specDir}. Code root: ${ctx.codeRoot}. Spec store: ${workflowRoot}. `
               + 'Read the files your standing rules name from these roots; commit in the code root.',
           }, id);
+          appendRulings(briefPath);
         } catch (err) {
           return { result: 'error', reason: (err as Error).message, tasks: progress() };
         }
