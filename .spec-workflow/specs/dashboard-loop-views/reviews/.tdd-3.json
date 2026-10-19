@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/runs.test.ts"],"seams":{"src/controller/__tests__/runs.test.ts":"withPrRead(reads, read); runOnce(deps, runId); listRunsForWire()"},"redCommit":"757e07626e739ace00bd2bae4f5a3ff2e0616421","baseSha":"10bef06b6f2104ad60d6e16d11e3b29dffaf4f1e","base":"structural-red","head":"pass","amended":false,"judged":null}
