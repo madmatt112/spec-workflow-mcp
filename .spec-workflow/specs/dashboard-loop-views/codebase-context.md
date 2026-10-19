@@ -134,3 +134,25 @@
 ## Docs (design phase)
 - docs/SDD-HARNESS.md:252-269 — the full `agent-rules.md` key table.
 - docs/TOOLS-REFERENCE.md:370-376 — the `deferrals` action table through `update`.
+
+## Tasks phase additions
+- src/controller/merge.ts:20 — `merge.ts` imports `RunRecord` from `state.ts`; `state.ts` imports nothing from `merge.ts`.
+- src/controller/merge.ts:531 — `mergeByRule` calls `evaluate(pr)`.
+- src/controller/runs.ts:840-852 — implementation complete: re-read, `runMergeStageStep`, then `continue` re-reads at loop top.
+- src/dashboard/shell/shell-feed.ts:109 — `listRunsForWire` rows become the `controller-runs` payload.
+- src/watch/usage.ts:345-368 — `reduceSpawns`: a `spawn.end` attaches only to an open `spawn.start` of the same agent.
+- src/dashboard/harness/state-files.ts:26-29 — `sddHome`: `$SDD_HOME`, else the state home plus `sdd`.
+- src/dashboard_frontend/src/modules/shell/primitives.tsx:87 — chip test id `chip-{value}`.
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:87-106 — `items` filter, its deps at 103, the pager reset effect at 106.
+- tsconfig.json:20 — `tsc` excludes `src/dashboard_frontend/**`; the frontend check is `npm run build:dashboard` (package.json:31).
+- docs/SDD-HARNESS.md:135 — "Three keys" counts the merge keys only.
+- docs/TOOLS-REFERENCE.md:370-377 — the `deferrals` action table, `add` at 372, `update` at 376.
+
+## Tests touched (tasks phase)
+- src/controller/__tests__/runs.test.ts:411-434 — close-out PR merged by rule.
+- src/controller/__tests__/runs.test.ts:465-499 — auto: not-ready once, then merged (sha `cafef00d1234`).
+- src/tools/__tests__/deferrals.test.ts:118-126 — no-fields update; `toContain('No fields to update')`.
+- src/core/__tests__/deferral-resilience.test.ts:173-178 — second `reindex` rewrites 0.
+- src/dashboard/__tests__/shell-routes.test.ts:208-252 — two-project fixture (alpha with spec-a, beta idle).
+- src/dashboard/shell/__tests__/shell-feed.test.ts:201-243 — `writeRun` then a short-throttle `ShellFeed`.
+- e2e/worktree-shell.spec.ts:68-91 — seeding before the servers start.
