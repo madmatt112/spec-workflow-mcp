@@ -258,6 +258,7 @@ it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.t
 | `post-merge: \`<command>\`` | the merge rule | run after a merge, ten-minute budget |
 | `merge: auto\|ask` | the merge rule | merge by rule, or open a `merge` wait |
 | `baseline-w-per-spec: <n>` | the controller | the token cap is twice this |
+| `baseline-w-per-task: <n>` | the Usage page | the repository's W per task baseline |
 | `tdd-test-command: <command>` | the review gate | the red-on-base proof |
 | `red-on-base`, `red-on-base-setup` | the review gate | the proof's mode and setup |
 | `lint: <command>` | nobody | informational only; put the command under `## Checks` to have it run |
