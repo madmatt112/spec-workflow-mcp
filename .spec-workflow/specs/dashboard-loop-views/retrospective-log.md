@@ -84,3 +84,8 @@ Cost: 1 implementer spawn(s)
 log-implementation MCP tool broken (linesAdded undefined) + 5 pre-existing vitest fails at HEAD + e2e full-suite infra-flaky; /tmp/scratchpad/sdd/dashboard-loop-views/task-14-report.md
 Evidence: task 14 · mark run-20261018-150806 42a4db39
 Cost: unknown
+
+## 2026-10-20T04:27:41Z · implementation · task 14 · gotcha
+task 14 closed: 0 fix round(s), outcome gate
+Evidence: task 14 · mark run-20261018-150806 60342b61
+Cost: 1 implementer spawn(s)
