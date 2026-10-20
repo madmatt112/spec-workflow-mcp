@@ -46,3 +46,52 @@
 - scripts/sdd-service.sh:57-59 — `UNIT_DIR`, `SDD_HOME_DIR`, `ENV_FILE` (`service.env` in the home)
 - scripts/sdd-service.sh:201-220 — `status`: unit status, `gh auth status` under the service env, `/api/health`
 - scripts/stub-gh.mjs — the `gh` stub tests swap in
+- scripts/sdd-service.sh:136-147 — `write_env_file`, the `KEY=value` lines of `service.env`
+- src/controller/merge.ts:150-172 — `runCommand`, the `execFile` wrapper with timeout
+
+## CLI entry (design additions)
+- src/index.ts:120-125 — `expandTildePath`, private `~` expansion
+- src/index.ts:378-384 — the help check in `main`, before `parseArguments`
+- src/index.ts:400-406 — watch mode, the dynamic-import branch pattern
+- src/__tests__/index-args.test.ts:9-17 — partial `vi.mock` of `git-utils.js`
+- src/__tests__/index-args.test.ts:391-396 — `showHelp` assertions (`toContain`)
+- src/__tests__/workspace-roots.test.ts:514-517 — tsx loader resolution for child-process tests
+
+## Project registry and durable list
+- src/core/project-registry.ts:118-123 — `generateProjectId`, hash of the realpath workspace
+- src/core/project-registry.ts:317-337 — `registerProject`, under the registry lock
+- src/core/project-registry.ts:354-393 — `registerProjectLocked`, updates an existing entry in place by id
+- src/core/project-registry.ts:454-459 — `getProject`, by workspace path
+- src/dashboard/project-manager.ts:77-92 — `loadRememberedProjects`, lists `projects.json` entries at start
+- src/dashboard/project-manager.ts:161-169 — `syncWithRegistry` keeps remembered projects with no instances
+- src/controller/state.ts:425-427 — `readProjects`
+- src/controller/state.ts:434-441 — `rememberProject`, replaces by id, sorts by name
+- src/dashboard/__tests__/project-manager-durable.test.ts:24-41 — per-test `SDD_HOME`/`SPEC_WORKFLOW_HOME`
+- src/dashboard/__tests__/project-manager-durable.test.ts:51-71 — restart-survival test pattern
+
+## Controller server and session
+- src/dashboard/multi-server.ts:230-231 — `loadOrCreateSecret` and `installAccessControl` in `start`
+- src/dashboard/multi-server.ts:356-357 — session URL written as `http://localhost:` and the port
+- src/controller/access.ts:36-67 — `loadOrCreateSecret`, creates the secret when absent
+- src/core/dashboard-session.ts:21-24 — constructor, the session path
+- src/core/dashboard-session.ts:50-51 — `readSession` creates the session directory
+- src/core/dashboard-session.ts:122-138 — `getDashboardSession` deletes the file for a dead pid
+- src/dashboard/utils.ts:71-73 — `fetch` with `AbortSignal.timeout`
+- src/dashboard/__tests__/health-route.test.ts:49-71 — real server on a free port, temp homes
+
+## Git helpers
+- src/core/git-utils.ts:45-51 — `scrubbedGitEnv`
+- src/core/git-utils.ts:101-112 — `normalizeIdentityPath`, realpath with fallback
+- src/core/git-utils.ts:152-158 — `gitTopLevel`, realpath top level or null
+
+## Agent-rules readers (design additions)
+- src/dashboard/harness/run-setup.ts:68-79 — `readAgentRules` start, `worktree-per-change: required` match
+- src/dashboard/harness/run-setup.ts:94-96 — `merge-method` regex, silent `merge` default
+- src/dashboard/harness/run-setup.ts:95-106 — `^`-anchored key regexes
+- src/core/gate-rules.ts:125-139 — `parseAgentRuleKey`
+
+## Templates and build
+- src/core/workspace-initializer.ts:52-57 — fixed list of copied template names
+- src/core/workspace-initializer.ts:69 — template source path from the module directory
+- scripts/copy-static.cjs:46-53 — copies `src/markdown` to `dist/markdown`
+- scripts/sync-store-templates.cjs:34-37 — syncs only names the store already has
