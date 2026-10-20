@@ -292,7 +292,7 @@ describe('gate A (requirements)', () => {
     const parked = await runDocumentPhase(ctx);
     expect(parked.result).toBe('waiting');
 
-    await answerWait(parked.waitId!, { defer: 'not needed this cycle' }, 'tester');
+    await answerWait(parked.waitId!, { defer: 'Do nothing — defer this spec: not needed this cycle' }, 'tester');
 
     const done = await runDocumentPhase(ctx);
     expect(done.result).toBe('deferred');
