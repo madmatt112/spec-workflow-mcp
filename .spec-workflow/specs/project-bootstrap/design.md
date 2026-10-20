@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds `init` and `doctor` as first-argument subcommands of the server binary, in a new `src/bootstrap/` module that the entrypoint loads only for those two names. `init` writes `.mcp.json` and the store's `agent-rules.md` from a new shipped template, then registers the project through `POST /api/projects/add`, which gains an optional `workflowRootPath` field so that a separate-store project is stored and remembered correctly. `doctor` runs seven read-only checks and reuses the agent-rules parsers, the controller home resolvers, the health route and the `gh` override rule.
+This design adds `init` and `doctor` as first-argument subcommands of the server binary, in a new `src/bootstrap/` module that the entrypoint loads only for those two names. `init` writes `.mcp.json` and the store's `agent-rules.md` from a new shipped template, then registers the project through `POST /api/projects/add`, which gains an optional `workflowRootPath` field so that a separate-store project is stored and remembered correctly. `doctor` runs seven read-only checks, reusing the agent-rules parsers, home resolvers, health route and `gh` override rule.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ N/A: no visual surface.
 
 ## Architecture
 
-`main` in `src/index.ts` gets one branch before its help check (`src/index.ts:374-387`). When `bootstrapCommand(args)` returns a name, `main` dynamically imports `src/bootstrap/cli.ts`, awaits `runBootstrapCommand(args)` and exits with the returned code (D1). The help check and `parseArguments` do not run for these commands, so `CLI_FLAGS` (`src/index.ts:143-156`) is unchanged. On the controller side, only the add route and `ProjectManager.addProjectByPath` change: both accept an explicit store root and remember the project when it is given.
+`main` in `src/index.ts` gets one branch before its help check (`src/index.ts:374-387`). When `bootstrapCommand(args)` returns a name, `main` dynamically imports `src/bootstrap/cli.ts`, awaits `runBootstrapCommand(args)` and exits with the returned code (D1). The help check and `parseArguments` do not run for these commands, so `CLI_FLAGS` (`src/index.ts:143-156`) is unchanged. On the controller side, only the add route and `ProjectManager.addProjectByPath` change, to accept an explicit store root and remember the project.
 
 ```mermaid
 graph LR
@@ -78,7 +78,7 @@ All code samples are illustrative — verify against the test fake. The post-con
 - **Phase 2, write — each write is a same-directory temp file and a rename (Reliability NFR):**
   1. Create `store/.spec-workflow/` when absent, and no other directory (Req 2 AC 4).
   2. `.mcp.json`: set `mcpServers['spec-workflow']` to `{ type: 'stdio', command: 'node', args: [entryPath], env }`, where `env` is `{ SPEC_WORKFLOW_SHARED_ROOT: storeRoot }` with `--store`, else `{}` (Req 3 AC 1-2). Assignment keeps an existing key's position; a missing `mcpServers` is added (Req 3 AC 3). Serialise with `JSON.stringify(obj, null, 2) + '\n'` (Req 3 AC 6). Print `wrote <path>` for a new file, `kept <path>` without writing when the text equals the existing bytes, else `updated <path>`. When the previous entry differs (deep compare), append ` (was: <command> <args joined by spaces>)` and never its `env` (Req 3 AC 4, Security NFR).
-  3. `agent-rules.md`: when the store has one, print `kept <path>` and do not write (Req 4 AC 8). Else render (C5), write, print `wrote <path>`, and per left-out fact print `note: <key> not detected; set it with <option>` (Req 4 AC 6).
+  3. `agent-rules.md` (at `storeRoot/.spec-workflow/agent-rules.md`, Req 4 AC 2): when it exists, print `kept <path>` and do not write (Req 4 AC 8). Else render (C5), write it there, print `wrote <path>`, and per left-out fact print `note: <key> not detected; set it with <option>` (Req 4 AC 6).
 - **Phase 3, register (C6):** send `{ projectPath: top, workflowRootPath: storeRoot }`, both fields always (D2). Success prints `registered <projectId>`. Failure prints `registration failed: <reason>; start the controller with scripts/sdd-service.sh install, then re-run init`, keeps the files and returns 2 (Req 5 AC 7).
 - **Last line on exit 0 and 2:** `files are not committed; review and commit them, then run doctor <top>` (Req 6 AC 5, D8).
 - **Idempotence:** a re-run with the same arguments produces the same `.mcp.json` text and keeps `agent-rules.md`, so no byte changes and both lines read `kept` (Req 6 AC 3); the route returns the same id (C7).
@@ -99,16 +99,16 @@ All code samples are illustrative — verify against the test fake. The post-con
   export function serviceEnv(): NodeJS.ProcessEnv
   // process.env overlaid with service.env in the controller home
   ```
-  The path is validated as in C3 phase 1 step 1; an invalid path gives one line and exit 1, with no check run.
+  `timeoutMs` defaults to 10000 (Performance NFR, 10 s). The path is validated as in C3 phase 1 step 1; an invalid path gives one line and exit 1, with no check run.
 - **Output:** one line per check in Req 7 AC 1 order, `<status> <name>`, plus `: <reason> — fix: <fix>` on `fail`. With a failure, the last line is `first failure: <name> — <fix>` and the exit is 1; else 0 (Req 7 AC 3).
 - **Checks** (a check whose Req 7 AC 2 dependency did not pass prints `skip`):
   1. `mcp`: `top/.mcp.json` parses; `mcpServers['spec-workflow'].args[0]` ends in `dist/index.js` and is an existing file; `env.SPEC_WORKFLOW_SHARED_ROOT`, when set, is an existing directory. Fix: `run init <top>`.
   2. `store`: the store root is the canonicalised `SPEC_WORKFLOW_SHARED_ROOT` when set, else `top`, and holds a `.spec-workflow` directory.
-  3. `agent-rules`: the store's `agent-rules.md` exists; `readAgentRules(storeDir).worktree === 'yes'` (`src/dashboard/harness/run-setup.ts:68-79`); `parseAgentRuleKey(text, 'merge-method')` (`src/core/gate-rules.ts:125-139`) is null, `merge` or `squash`. The key read is needed because `readAgentRules` defaults an invalid value to `merge` silently (`src/dashboard/harness/run-setup.ts:94-96`).
+  3. `agent-rules`: `storeRoot/.spec-workflow/agent-rules.md` exists; `readAgentRules(join(storeRoot, '.spec-workflow')).worktree === 'yes'`, the argument being the `.spec-workflow` directory it reads `agent-rules.md` under (`src/dashboard/harness/run-setup.ts:68-79`); `parseAgentRuleKey(text, 'merge-method')` (`src/core/gate-rules.ts:125-139`) is null, `merge` or `squash`. The key read is needed because `readAgentRules` defaults an invalid value to `merge` silently (`src/dashboard/harness/run-setup.ts:94-96`).
   4. `controller`: `checkHealth(url)` (C6) is ok. Fix: `start the controller with scripts/sdd-service.sh install`.
   5. `registered`: `readProjects()` (`src/controller/state.ts:425-427`) has an entry with `workspacePath === top` and `workflowRootPath === storeRoot`, both realpath spellings (D9). Fix: `run init <top>`.
   6. `remote`: `git remote get-url origin` in `top`, with `scrubbedGitEnv()` (`src/core/git-utils.ts:45-51`), matches `github.com`, then `:` or `/`, then `owner/repo` with an optional `.git`. This covers https, `git@` and `ssh://`. Fix: `add a github.com origin remote`.
-  7. `token`: `execFile(ghBin(), ['api', 'repos/<owner>/<repo>'], { env: serviceEnv(), timeout: timeoutMs })` (Req 7 AC 4-5). `serviceEnv` reads `KEY=value` lines and skips blank and `#` lines, the form the installer writes (`scripts/sdd-service.sh:136-147`). Pass: stdout is JSON with `permissions.push === true`. The reason is `gh exited <code>`, `gh timed out`, `unreadable gh output` or `no push permission`, never gh's stderr or an env value (D10). Fix: `re-run scripts/sdd-service.sh install with GH_TOKEN set, or gh auth login`.
+  7. `token`: `execFile(ghBin(), ['api', 'repos/<owner>/<repo>'], { env: serviceEnv(), timeout: timeoutMs })` (Req 7 AC 4-5). `serviceEnv` reads `KEY=value` lines and skips blank and `#` lines, the form the installer writes (`scripts/sdd-service.sh:136-147`). Pass: stdout is JSON with `permissions.push === true`. It reads the callback error directly, not `runCommand` (`src/controller/merge.ts:150-172`), whose number filter would drop a spawn error's string code. From node-20 fields: `error.killed === true` gives `gh timed out`; else `gh exited <error.code>`, the numeric exit code or string `ENOENT` for a missing binary; exit 0 with non-JSON stdout gives `unreadable gh output`; JSON without `permissions.push === true` gives `no push permission`. The reason never carries gh's stderr or an env value (D10). Fix: `re-run scripts/sdd-service.sh install with GH_TOKEN set, or gh auth login`.
 - **Post-conditions:** `doctor` creates, writes, renames or deletes no file or directory (Req 7 AC 6); it reads the session file only through C9. Two network calls of at most `timeoutMs` each plus local reads keep it inside 30 seconds (Performance NFR).
 
 ### C5 — Template and facts (`src/markdown/templates/agent-rules-template.md`, `src/bootstrap/agent-rules.ts`)
@@ -153,6 +153,7 @@ All code samples are illustrative — verify against the test fake. The post-con
 request:  { projectPath: string; workflowRootPath?: string }   (field new; absolute, existing dir)
 200:      { projectId: string, success: true }                  (unchanged)
 400:      { error: string }                                     (new case: bad workflowRootPath)
+500:      { error: string }                                     (new trigger: failed durable write)
 ```
 
 The `.mcp.json` entry is pinned in C3 phase 2. `projects.json` is unchanged: `KnownProject` (`src/controller/state.ts:206-216`).
@@ -161,8 +162,8 @@ The `.mcp.json` entry is pinned in C3 phase 2. `projects.json` is unchanged: `Kn
 
 1. **Bad path, option or `--store`; malformed `.mcp.json`:** one stderr line naming the input; exit 1; nothing written, because phase 1 precedes every write (C2, C3).
 2. **A write fails in phase 2:** C2 prints `error: ` and the message and returns 1; files already renamed stay, and a re-run is idempotent.
-3. **No secret, controller down or slow, non-2xx (including the new 400):** one line with the reason and the start command; exit 2; files stay (C3, C6).
-4. **A `doctor` check fails:** `fail` with reason and fix, dependants `skip`, last line names the first failure; exit 1. A missing `gh` binary is reported as `gh exited ENOENT`, not a crash.
+3. **No secret, controller down or slow, non-2xx (including the new 400 and the 500 of a failed durable write):** one line with the reason and the start command; exit 2; files stay (C3, C6).
+4. **A `doctor` check fails:** `fail` with reason and fix, dependants `skip`, last line names the first failure; exit 1. A missing `gh` binary is a `fail token` line (C4 check 7), not a crash.
 
 ## Testing Strategy
 
@@ -198,12 +199,17 @@ Tests run under the per-worker homes of `vitest.setup.ts` and set per-test `SDD_
 ## Scope notes
 
 - Carried items from requirements: none.
-- The entry's `npx spec-workflow-mcp init` spelling is documented as the checkout's `node <checkout>/dist/index.js`, per requirements D9; npx is not tested.
-- `doctor` does not query systemd; the `controller` health check meets "checks the service", per the requirements scope notes.
-- Not designed, as the requirements cut them: `uninstall`, `.gitignore` edits, store placements beyond in-repo and separate, the `/sdd-init` judgement half, an init manifest.
-- Three changes outside `src/bootstrap/` that the requirements do not name: C7's optional route field (the "design SHALL close both gaps" of Req 5 AC 4), C8's export and C9's peek.
+- The `npx spec-workflow-mcp init` spelling is documented as `node <checkout>/dist/index.js` (requirements D9); npx is not tested.
+- `doctor` does not query systemd; the `controller` health check meets "checks the service" (requirements scope notes).
+- Not designed (requirements cut them): `uninstall`, `.gitignore` edits, store placements beyond in-repo and separate, the `/sdd-init` judgement half, an init manifest.
+- Three changes outside `src/bootstrap/` the requirements do not name: C7's route field (Req 5 AC 4's "close both gaps"), C8's export, C9's peek.
 
 ## Revision History
 
+- **v2** (2026-10-20) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/2/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** The doctor token check now pins its classification to node-20 callback-error fields read directly, not the controller's number-filtering wrapper, naming the timeout, exit-code and missing-binary reasons; Error Handling restated to match.
+  - **R1-2 — Accepted (SHOULD_FIX).** Data Models gains the 500 response of a failed durable write, and the Error Handling exit-2 mapping names it.
+  - **R1-3 — Accepted (MINOR).** The doctor interface states its default timeout of ten seconds.
+  - **R1-4 — Accepted (MINOR).** The init write step and the agent-rules check name the store root's spec-workflow sub-directory as the file's home and the reader's argument.
 - **v1** (2026-10-20) — Initial draft.
   - **Lint pass.** 2 fixed; rejected: L-2/L-3 bootstrapCommand/runBootstrapCommand new fns (absent from base by construction), L-5 addProjectByPath forward-ref cited in C7, L-6/L-9 top design-local var, L-7/L-8 registered/remote CheckName literals, L-10 serviceEnv new fn, L-11/L-12 readAgentRules/parseAgentRuleKey descriptive (cited C4), L-13 WorkspaceInitializer class name (citation anchors "fixed list" behaviour), L-14 projectId response field, L-15/L-29 workflowRootPath new field, L-16 resolveGitRoot "not" mention, L-17 syncWithRegistry decl at :134 (citation anchors behaviour :161-169), L-18 export keyword being added, L-19/L-20 mkdir/url descriptive, L-21/L-22/L-23/L-25/L-26 init/doctor new subcommands, L-24 bootstrapCommand test name, L-27 showHelp (cited C1), L-28 Starting banner string. L-1/L-4 fixed by widening the line-20 citation to src/index.ts:374-387 so main (:374) and parseArguments (:387) resolve.
