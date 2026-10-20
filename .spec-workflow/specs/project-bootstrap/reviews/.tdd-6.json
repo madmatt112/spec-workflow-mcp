@@ -1,0 +1,1 @@
+{"testFiles":["src/bootstrap/__tests__/cli.test.ts"],"seams":{"src/bootstrap/__tests__/cli.test.ts":"parseInitArgs(rest)"},"redCommit":"b76d7e288aaeaeb9f4b67bce1b4ee132be9ed04c","baseSha":"395ea40e0ce03314b29a1389bd72b886df7f5676","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -57,7 +57,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 4.1, 4.3, 4.4, 4.5, 4.6, 4.7, 4.9_
   - _Prompt: Task: Write the template exactly as design C5 lists it (key lines at column 0, double-brace placeholders, one comment line per heading, design D6) and implement detectFacts, renderAgentRules and templatePath per Req 4 AC 3-5 (requirements D8). Type the second parameter of detectFacts as a local structural type with the optional testCommand, worktreeSetup and mergeMethod fields of design C3's InitArgs; this is the bridge task 7 removes | Restrictions: Do not add the template to WorkspaceInitializer's list (src/core/workspace-initializer.ts:52-57); an unreadable package.json means no runner, not an error | Success: the template holds the five key lines and four headings of Req 4 AC 1; detectFacts follows the override, then package-lock, pnpm-lock, yarn.lock order, and the override, then vitest, then jest order, and defaults mergeMethod to merge; a null fact drops its line; rendered output matches no double-brace placeholder; on a rendered file readAgentRules (src/dashboard/harness/run-setup.ts:68-137) returns worktree yes, merge auto, the mergeMethod and the worktreeSetup, and parseAgentRuleKey (src/core/gate-rules.ts:125-139) returns the test command or null_
 
-- [ ] 6. Parse the `init` and `doctor` arguments
+- [x] 6. Parse the `init` and `doctor` arguments
   - File: src/bootstrap/cli.ts
   - File: src/bootstrap/__tests__/cli.test.ts
   - Test: src/bootstrap/__tests__/cli.test.ts — parseInitArgs(rest)
