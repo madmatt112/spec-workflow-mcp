@@ -361,6 +361,62 @@ describe('runImplementationPhase', () => {
     expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('· ruling');
   }, 60000);
 
+  it('escalates an unfixable file-outside-list verdict as a design defect after one fix round', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-outside.json');
+    // The implementer commits the listed file plus a test file the task never listed.
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "t" > test/a.test.js && git add src/a.js test/a.test.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    // The fix round makes no new commit, so the file-list verdict cannot move.
+    const fixNoCommit: StubRun = {
+      result: result({ logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
+    };
+    writeScript(fx, [firstImpl, fixNoCommit]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toMatch(/test\/a\.test\.js/);
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    expect(taskStatus(fx, '1')).toBe('pending');
+    const r = rows(fx);
+    // Exactly one fix implementer spawned; no second fix round.
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement task 1', 'fix task 1 round 1']);
+    expect(r.find((e) => e.type === 'phase.end')).toMatchObject({ phase: 'implementation', result: 'design-defect' });
+    expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('· deviation');
+  }, 60000);
+
+  it('a fix round that changes the commit clears the file-outside-list verdict and completes', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-outside2.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "t" > test/a.test.js && git add src/a.js test/a.test.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    // The fix round drops the stray file in a new commit, so the verdict clears.
+    const fixDrop: StubRun = {
+      commands: ['git rm -q test/a.test.js && git commit -qm "fix: drop the unlisted test"'],
+      result: result({ logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
+    };
+    writeScript(fx, [firstImpl, fixDrop, e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement task 1', 'fix task 1 round 1', 'end-to-end verification']);
+    const notes = r.filter((e) => e.type === 'note' && e.text.startsWith('gate: task 1')).map((e) => e.text);
+    expect(notes[0]).toMatch(/^gate: task 1 fail/);
+    expect(notes[1]).toMatch(/^gate: task 1 pass .* round 1/);
+    expect(taskStatus(fx, '1')).toBe('completed');
+  }, 60000);
+
   it('a DESIGN-DEFECT flag reverts the task and stops the phase', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     writeScript(fx, [await implRun(fx, '1', 'src/a.js', { flag: 'DESIGN-DEFECT: the design names a seam that does not exist' })]);
