@@ -955,6 +955,19 @@ project with the running controller, and prints what it wrote. `doctor <repo>` c
 of those and the GitHub remote and token, and names the first thing wrong. Both are
 deterministic scripts; no model runs.
 
+### 26. `verification-loop` — the run fixes its own red PR and checks risky specs harder (deferred) — until 24 closes
+
+**Delivers.** From the 2026-10-20 grill (`docs/ai-resources-catalogue.md` §3). (1) A red
+CI check or a merge conflict with main on the run's own PR gets up to two implementer fix
+rounds on the PR branch before the `error` wait; close-out PRs are out of scope. (2) A
+task's implementer runs on Sonnet unless gate B flagged the task for a sensitive path; a
+flagged task runs on the Opus tier. Keyword flags do not route. Chosen once per step. (3)
+For a spec with sensitive-path flags, the end-to-end verification adds a security pass that
+reports only findings it reproduced; a reproduced finding goes through capped fix rounds and
+the adjudicator, then a wait; an unreproduced suspicion becomes a deferral owned by Matthew.
+(4) A PR that adds a new dependency is flagged on the Run page's PR panel and in the ledger;
+it opens no wait.
+
 ### 25. `advisor` — the second opinion and the state of the world (deferred) — until the design session
 
 **Delivers.** The `sdd-advisor` of ADR 0006 and design §16: a Claude Code session with the
@@ -991,8 +1004,9 @@ and it uses 9's per-role model override.
 
 15 after 14. 15 (`dashboard-shell`) is CLOSED. The entries that followed it (16 to 21) are
 superseded; see "Superseded entries" and "Re-planned entries" above. Order past 15 (re-plan approved
-2026-10-17): step (d)'s deletion (not a spec) → 23 → 24 → 25 (after the
-advisor design session) → 22, which restyles the pages 23 completes.
+2026-10-17): step (d)'s deletion (not a spec) → 23 → 24 → 26 (added
+2026-10-20) → 25 (after the advisor design session) → 22, which restyles the pages 23
+completes. Remove the `(deferred)` tag from 26 when 24 closes.
 
 ## Boundary notes
 

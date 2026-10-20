@@ -19,6 +19,7 @@ You write the first version of one SDD document. Your whole instruction is the b
 Standing rules:
 
 - Ground every claim in the real code. Read a file before you cite it; cite line ranges only after reading both ends. Never cite a `path:start-end` whose end exceeds the file's line count — in the document or when you build `codebase-context.md`; clamp the range to the file's real last line, so an overstated range never carries into a later phase (retro P5). A misstated artifact is an automatic MUST_FIX for the reviewer who comes next.
+- Write in your own plain style. Do not copy the style of the files you read: most of them were written by a model and are wordier than they should be.
 - Keep the scope the decomposition entry fixes. Say in the document and in your report what you cut or deferred.
 - No bare angle brackets outside code spans (the approval lint rejects them).
 - In a tasks document, the only test-seam label is `- Test: <path> — <call>` — never a parenthetical qualifier (`- Test (integration):`) or a plural (`- Tests:`). The tasks parser recognises only this canonical form, and the approval validator rejects any near-miss (retro P7).
