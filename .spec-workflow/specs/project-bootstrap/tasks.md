@@ -45,7 +45,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 5.1, 5.2, 5.7, 7.1, 7.4_
   - _Prompt: Task: Implement design C6 per Req 5 AC 1, 2 and 7 and the Security and Performance NFRs. controllerUrl uses the url of the peek method task 1 adds when it returns an entry, else http://127.0.0.1: and SDD_PORT when that is a valid port, else 5000. readSecret reads and trims secretPath() (src/controller/access.ts:25-28); missing or empty gives null. Both network calls use the global fetch with AbortSignal.timeout(timeoutMs), default 10000, the pattern of src/dashboard/utils.ts:71-73. Test against a small local HTTP server on a free port | Restrictions: Never call loadOrCreateSecret (src/controller/access.ts:40); no reason string contains the secret or a response body; add no host check (Req 5 AC 2 makes the host loopback by construction) | Success: controllerUrl picks the live session url, then SDD_PORT, then 5000, and ignores a non-numeric SDD_PORT; readSecret returns null for a missing or empty file and never creates one; registration sends the Bearer header and the JSON body, succeeds on 2xx with a string projectId, and reports no shared secret, not answering, timed out and the non-2xx status as distinct reasons; checkHealth passes only on 200 with ok true; a 200 ms timeout against a silent server fails within 1 second_
 
-- [ ] 5. Ship the agent-rules template and the facts module
+- [x] 5. Ship the agent-rules template and the facts module
   - File: src/markdown/templates/agent-rules-template.md
   - File: src/bootstrap/agent-rules.ts
   - File: src/bootstrap/__tests__/agent-rules.test.ts

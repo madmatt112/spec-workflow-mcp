@@ -1,0 +1,1 @@
+{"testFiles":["src/bootstrap/__tests__/agent-rules.test.ts"],"seams":{"src/bootstrap/__tests__/agent-rules.test.ts":"renderAgentRules(template, facts)"},"redCommit":"4816483c9ba2d9b4bd08eee939e8d22cd00b9eac","baseSha":"98e489d6570683bf8bb1ece5139e50dabd096eb4","base":"structural-red","head":"pass","amended":false,"judged":null}
