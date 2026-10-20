@@ -290,6 +290,11 @@ function prNumberFromUrl(text: string): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
+/** Two gate-reason lists, equal when they hold the same entries in the same order. */
+function sameReasons(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((r, i) => r === b[i]);
+}
+
 // ---------------------------------------------------------------------------
 // The loop.
 // ---------------------------------------------------------------------------
@@ -673,6 +678,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     const tdd = !tddOff && redCommit && authorFiles.length > 0 ? { testFiles: authorFiles, redCommit } : undefined;
     let rounds = 0;
     let adjudicated = false;
+    // P8 (dashboard-loop-views retro): the task HEAD and the gate reasons at the
+    // previous gate, to spot a fix round that could not move the verdict.
+    let prevGateHead: string | undefined;
+    let prevReasons: string[] | undefined;
     for (;;) {
       const halt = ctx.shouldStop?.();
       if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
@@ -697,6 +706,26 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
           tokens: String((j as { inputTokens?: number }).inputTokens ?? ''), ms: String((j as { ms?: number }).ms ?? ''),
         });
       }
+
+      // P8: a `file-outside-list` verdict no implementer edit can move. When the
+      // last fix round produced no new commit (HEAD unchanged since the previous
+      // gate) and the gate returned the identical reasons including a
+      // file-outside-list reason, escalate as a design defect — the fix is in
+      // tasks.md, not the code — rather than spend another implementer on the
+      // same unchanged commit for the same verdict.
+      const gateHead = gitTry(ctx.codeRoot, ['rev-parse', 'HEAD']);
+      const outsideList = gate.reasons.filter((r) => r.startsWith('file-outside-list:'));
+      if (outsideList.length > 0 && prevReasons && gateHead && gateHead === prevGateHead
+        && sameReasons(gate.reasons, prevReasons)) {
+        const files = outsideList.map((r) => r.slice('file-outside-list:'.length).trim()).join(', ');
+        return stop('design-defect',
+          `task ${id}: a fix round left the commit unchanged and the gate returned the same `
+          + `file-outside-list verdict for ${files}; no implementer edit can move a file-list `
+          + 'verdict — the fix is to list the file(s) in the task\'s File entries in tasks.md',
+          { task, category: 'deviation' });
+      }
+      prevGateHead = gateHead;
+      prevReasons = gate.reasons;
 
       let findings: string | undefined;
       let variant: 'gate' | 'verifier' = 'gate';
