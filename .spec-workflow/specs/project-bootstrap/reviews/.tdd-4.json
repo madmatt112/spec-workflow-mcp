@@ -1,0 +1,1 @@
+{"testFiles":["src/bootstrap/__tests__/controller-client.test.ts"],"seams":{"src/bootstrap/__tests__/controller-client.test.ts":"registerWithController(url, secret, body, timeoutMs)"},"redCommit":"4f60ec14cf6a3cb40df10cb6a948778f80a0f07d","baseSha":"c486781f5e834807ca45d66ee0002b9c42f00071","base":"structural-red","head":"pass","amended":false,"judged":null}

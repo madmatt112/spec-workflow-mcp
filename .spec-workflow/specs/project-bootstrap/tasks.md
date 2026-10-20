@@ -34,7 +34,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 5.1, 5.4, 5.6_
   - _Prompt: Task: Change the add route per design C7: the body is `{ projectPath, workflowRootPath? }`; a present workflowRootPath that is not a string, not absolute, or not an existing directory gets 400 with an error naming the field; otherwise call the addProjectByPath change task 2 ships with both values. Write the new route test with a real MultiProjectDashboardServer on a free port and temp homes, as src/dashboard/__tests__/health-route.test.ts:49-71 does, posting with Authorization Bearer and the secret read from the temp home | Restrictions: A body without workflowRootPath must produce the base call and response (Req 5 AC 6, an invariant: verified, not red-first); keep the 500 path for a thrown error; no change to makeRequireAccess | Success: a non-string, a relative and a missing-directory workflowRootPath each get 400 naming the field; a valid one gets 200 with projectId and projects.json holds both paths; `{ projectPath }` alone gets 200 with `{ projectId, success: true }`; a request without the secret gets 401_
 
-- [ ] 4. Create the controller client
+- [x] 4. Create the controller client
   - File: src/bootstrap/controller-client.ts
   - File: src/bootstrap/__tests__/controller-client.test.ts
   - Test: src/bootstrap/__tests__/controller-client.test.ts — registerWithController(url, secret, body, timeoutMs)
