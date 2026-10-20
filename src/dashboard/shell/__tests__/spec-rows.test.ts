@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -397,6 +397,34 @@ describe('buildSpecRows', () => {
     const rows = await buildSpecRows(project, null);
     const row = rows.find((r) => r.spec === 'def-spec');
     expect(row?.deferrals).toBe(2);
+  });
+
+  it('scans the deferrals store once per project, not once per spec', async () => {
+    const { project, specsDir } = makeProject(base);
+    makeSpecDir(specsDir, 'spec-a');
+    makeSpecDir(specsDir, 'spec-b');
+    makeSpecDir(specsDir, 'spec-c');
+    const storage = new DeferralStorage(project.projectPath);
+    const body = { context: 'c', decision: 'd', revisitCriteria: 'r' };
+    const common: { originPhase: null; revisitTrigger: string; tags: string[]; body: typeof body; supersedes: null } =
+      { originPhase: null, revisitTrigger: 't', tags: [], body, supersedes: null };
+    await storage.create({ title: 'A1', originSpec: 'spec-a', ...common });
+    await storage.create({ title: 'A2', originSpec: 'spec-a', ...common });
+    await storage.create({ title: 'B1', originSpec: 'spec-b', ...common });
+
+    const listSpy = vi.spyOn(DeferralStorage.prototype, 'list');
+    try {
+      const rows = await buildSpecRows(project, null);
+      // One scan of the whole store, regardless of spec count (the per-spec
+      // `list` call read and parsed every deferral file once for each spec).
+      expect(listSpy).toHaveBeenCalledTimes(1);
+      const count = (spec: string) => rows.find((r) => r.spec === spec)?.deferrals;
+      expect(count('spec-a')).toBe(2);
+      expect(count('spec-b')).toBe(1);
+      expect(count('spec-c')).toBe(0);
+    } finally {
+      listSpy.mockRestore();
+    }
   });
 
   it('gives retro the first word of the plan\'s Status value', async () => {
