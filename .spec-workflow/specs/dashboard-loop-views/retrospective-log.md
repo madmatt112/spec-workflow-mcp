@@ -99,3 +99,13 @@ Cost: see the ledger
 retrospective compiled: 16 findings, 12 proposals, 2 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261018-150806 0203143a
 Cost: 2 spawns
+
+## 2026-10-20T16:59:42Z · closeout · store batch 1 · deviation
+P2 skipped: Option A chosen (keep full npm test at end-to-end gate only); no change needed
+Evidence: P2 · mark run-20261018-150806 370f1af4
+Cost: unknown
+
+## 2026-10-20T16:59:42Z · closeout · store batch 1 · cleanup
+store batch 1: 0 done of 1, 0 fix round(s)
+Evidence: batch 1 · mark run-20261018-150806 51015b0f
+Cost: 1 implementer spawn(s)
