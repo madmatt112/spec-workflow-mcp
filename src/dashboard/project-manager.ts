@@ -5,7 +5,7 @@ import { SpecWatcher } from './watcher.js';
 import { ApprovalStorage } from './approval-storage.js';
 import { ProjectRegistry, ProjectRegistryEntry, ProjectInstance } from '../core/project-registry.js';
 import { PathUtils } from '../core/path-utils.js';
-import { resolveGitRoot, resolveGitWorkspaceRoot } from '../core/git-utils.js';
+import { resolveGitRoot, resolveGitWorkspaceRoot, normalizeIdentityPath } from '../core/git-utils.js';
 import { readProjects, rememberProject, forgetProject } from '../controller/state.js';
 
 export interface ProjectContext {
@@ -313,33 +313,74 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
-   * Manually add a project by path
+   * Manually add a project by path.
+   *
+   * With an explicit `workflowRootPath` (design C7), the store root is that value
+   * rather than `resolveGitRoot`, and the project is remembered even though its
+   * two paths differ: an explicit root marks an operator registration, not a
+   * run's transient worktree server (D3). A failed durable write rejects.
    */
-  async addProjectByPath(projectPath: string): Promise<string> {
+  async addProjectByPath(projectPath: string, workflowRootPath?: string): Promise<string> {
     const workspacePath = resolveGitWorkspaceRoot(projectPath);
-    const workflowRootPath = resolveGitRoot(workspacePath);
 
-    const entry = await this.registry.getProject(workspacePath);
-    if (entry) {
-      // Already registered
-      if (!this.projects.has(entry.projectId)) {
-        await this.addProject(entry);
+    if (workflowRootPath === undefined) {
+      const storeRoot = resolveGitRoot(workspacePath);
+
+      const entry = await this.registry.getProject(workspacePath);
+      if (entry) {
+        // Already registered
+        if (!this.projects.has(entry.projectId)) {
+          await this.addProject(entry);
+        }
+        return entry.projectId;
       }
-      return entry.projectId;
+
+      // Register new project (with dummy PID since it's manual)
+      const projectId = await this.registry.registerProject(workspacePath, process.pid, {
+        workflowRootPath: storeRoot
+      });
+
+      // Get the entry and add it
+      const newEntry = await this.registry.getProjectById(projectId);
+      if (newEntry) {
+        await this.addProject(newEntry);
+      }
+
+      return projectId;
     }
 
-    // Register new project (with dummy PID since it's manual)
-    const projectId = await this.registry.registerProject(workspacePath, process.pid, {
-      workflowRootPath
+    // Explicit store root: canonicalise it the way the registry stores paths
+    // (D9), reuse an entry that already points at it, else register — which
+    // updates an existing entry in place under the same id.
+    const storeRoot = normalizeIdentityPath(workflowRootPath);
+    const existing = await this.registry.getProject(workspacePath);
+    const projectId = existing && existing.workflowRootPath === storeRoot
+      ? existing.projectId
+      : await this.registry.registerProject(workspacePath, process.pid, { workflowRootPath: storeRoot });
+
+    const entry = await this.registry.getProjectById(projectId);
+    if (!entry) return projectId;
+
+    // An in-memory context with a different store root is removed and added
+    // again so its watchers point at the new root (D12).
+    const context = this.projects.get(projectId);
+    if (!context) {
+      await this.addProject(entry);
+    } else if (context.workflowRootPath !== entry.workflowRootPath) {
+      await this.removeProject(projectId);
+      await this.addProject(entry);
+    }
+
+    // Remember it even though the two paths differ; a failed write rejects so
+    // the route answers 500 (gap 1, D3).
+    await rememberProject({
+      id: entry.projectId,
+      workspacePath: entry.projectPath,
+      workflowRootPath: entry.workflowRootPath,
+      name: entry.projectName,
     });
 
-    // Get the entry and add it
-    const newEntry = await this.registry.getProjectById(projectId);
-    if (newEntry) {
-      await this.addProject(newEntry);
-    }
-
-    return projectId;
+    return entry.projectId;
   }
 
   /**
