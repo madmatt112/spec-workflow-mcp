@@ -380,9 +380,8 @@ export async function logImplementationHandler(
     // never record zero files changed when lines were added or removed: the task-6
     // log read "Files Changed: 0" despite +78 lines after a mangled tool call
     // dropped its file list into the summary and left the arrays empty.
-    // A missing or partial statistics payload records zeroes rather than
-    // throwing on `.linesAdded` off undefined (retro P4).
-    const { linesAdded = 0, linesRemoved = 0 } = statistics || {};
+    const linesAdded = statistics.linesAdded || 0;
+    const linesRemoved = statistics.linesRemoved || 0;
     const distinctFiles = new Set([...(filesModified || []), ...(filesCreated || [])]).size;
     const filesChanged =
       distinctFiles > 0 ? distinctFiles : (linesAdded + linesRemoved > 0 ? 1 : 0);
