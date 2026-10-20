@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/project-manager-durable.test.ts"],"seams":{"src/dashboard/__tests__/project-manager-durable.test.ts":"ProjectManager.addProjectByPath(repo, storeRoot)"},"redCommit":"503b605ef88f058b6d8afc9767441292d5ccad41","baseSha":"d53ddc80696fe14158b9a943f2e98697a922e875","base":"assertion-red","head":"pass","amended":false,"judged":null}

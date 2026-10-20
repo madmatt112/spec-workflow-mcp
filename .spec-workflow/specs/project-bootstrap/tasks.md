@@ -14,7 +14,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 7.6, 5.2_
   - _Prompt: Task: Add the public async method peekDashboardSession to DashboardSessionManager per design C9 and design D4 (Req 7 AC 6, Req 5 AC 2). It reads the session file at the constructor's path (src/core/dashboard-session.ts:21-24) without calling ensureSessionDir (src/core/dashboard-session.ts:29-45), and returns null for an absent or unparseable file, an entry with no string url, or a pid for which process.kill(pid, 0) throws; otherwise the parsed entry. Write src/core/__tests__/dashboard-session-peek.test.ts with a per-test SPEC_WORKFLOW_HOME temp directory | Restrictions: Do not change getDashboardSession, readSession or any other method; never write, rename or unlink; no existing test file changes | Success: a live-pid session file returns the entry; a dead-pid file returns null and the file still exists afterwards; an absent home directory returns null and no directory is created; an unparseable file and an entry without a string url return null_
 
-- [ ] 2. Let `addProjectByPath` take an explicit store root and remember it
+- [x] 2. Let `addProjectByPath` take an explicit store root and remember it
   - File: src/dashboard/project-manager.ts
   - File: src/dashboard/__tests__/project-manager-durable.test.ts
   - Test: src/dashboard/__tests__/project-manager-durable.test.ts — ProjectManager.addProjectByPath(repo, storeRoot)
