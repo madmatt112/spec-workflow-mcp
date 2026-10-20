@@ -142,14 +142,14 @@ export function createDocumentGates(deps: GateDeps = defaultDeps): DocumentGates
     }));
     // Gate A always offers "do nothing / defer this spec" as the final question,
     // even when there are no direction-setting decisions to ask (so the wait is
-    // always opened). Picking the defer option, or typing a reason, ends the run
+    // always opened). Picking the defer option (optionally followed by a reason) ends the run
     // and tags the decomposition heading `(deferred)`; "Proceed" is recommended,
     // so the defer is never the default pick.
     questions.push({
       id: DEFER_QUESTION_ID,
       text:
         'Proceed with this spec, or do nothing and defer it? Reply "Proceed" to ' +
-        `continue, or pick "${DEFER_OPTION}" (optionally typing a reason) to end ` +
+        `continue, or pick "${DEFER_OPTION}" (optionally followed by a reason) to end ` +
         'the run now — the drafted requirements are kept and no design, tasks or ' +
         'implementation run.',
       options: ['Proceed', DEFER_OPTION],
@@ -189,11 +189,12 @@ export function createDocumentGates(deps: GateDeps = defaultDeps): DocumentGates
     const wait = await findWait(input.run, 'gate-a');
     if (!wait) return { kind: 'proceed' }; // nothing to resume
 
-    // "Do nothing": any answer to the defer question other than empty or "Proceed"
-    // defers the spec. The bare option carries no reason; free text is the reason.
+    // Only an answer that starts with the option's words defers, so a stray comment
+    // typed into the field never ends a run; the rest of the answer is the reason.
     const deferAnswer = (input.answers[DEFER_QUESTION_ID] ?? '').trim();
-    if (deferAnswer.length > 0 && !/^proceed$/i.test(deferAnswer)) {
-      return { kind: 'defer', reason: deferAnswer === DEFER_OPTION ? '' : deferAnswer };
+    const deferMatch = /^(do nothing|defer)\b(?:\s*[—-]\s*defer this spec)?[\s:,.—-]*/i.exec(deferAnswer);
+    if (deferMatch) {
+      return { kind: 'defer', reason: deferAnswer.slice(deferMatch[0].length).trim() };
     }
 
     const comments: string[] = [];
