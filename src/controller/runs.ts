@@ -609,7 +609,8 @@ async function runMergeStageStep(
   // in the worktree the work ran in (equal to `codeRoot` without a worktree),
   // the same directory `pushAndOpenPr` checks. The spec-store push at run end
   // already pushes the branch; nothing to push here.
-  const onDefault = defaultBranchIfOnIt(run.worktree);
+  // An unset worktree would read the controller's own cwd: never skip then.
+  const onDefault = run.worktree ? defaultBranchIfOnIt(run.worktree) : undefined;
   if (onDefault) {
     ledger.note(`merge: run on the default branch ${onDefault}; no PR, skipping the merge stage`);
     return 'none';
