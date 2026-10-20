@@ -47,9 +47,9 @@ The steering directory has no `product.md`; this spec aligns with the re-planned
 
 1. WHEN `init` runs THEN it SHALL write `.mcp.json` at the repository's git top level with a `mcpServers.spec-workflow` entry whose `type` is `stdio`, whose `command` is `node`, and whose `args` are exactly one element: the absolute path of this checkout's `dist/index.js`, resolved from the running binary's own location.
 2. WHEN `--store` is given THEN the entry's `env` SHALL be `{ "SPEC_WORKFLOW_SHARED_ROOT": "<store root>" }`; WHEN it is not given THEN the entry's `env` SHALL be `{}`.
-3. IF `.mcp.json` exists THEN `init` SHALL replace only the `mcpServers.spec-workflow` entry and SHALL keep every other key and every other server entry with its value unchanged.
+3. IF `.mcp.json` exists THEN `init` SHALL replace only the `mcpServers.spec-workflow` entry and SHALL keep every other key and every other server entry with its value unchanged. WHEN the file has no `mcpServers` key THEN `init` SHALL add one holding only the spec-workflow entry.
 4. IF the existing `mcpServers.spec-workflow` entry differs from the one `init` writes THEN `init` SHALL print the previous entry's `command` and `args` on the line that reports the file; it SHALL NOT print the previous `env` values.
-5. IF `.mcp.json` exists and is not valid JSON, or its `mcpServers` is not an object THEN `init` SHALL print one line naming the file and SHALL exit 1 without writing any file.
+5. IF `.mcp.json` exists and is not valid JSON, or has a `mcpServers` key that is present and is not an object THEN `init` SHALL print one line naming the file and SHALL exit 1 without writing any file. An absent `mcpServers` key is not an error (AC 3 creates it).
 6. The written file SHALL be valid JSON, indented with two spaces, ending in one newline.
 
 ### Requirement 4 — `agent-rules.md` from a shipped template
@@ -75,7 +75,7 @@ The steering directory has no `product.md`; this spec aligns with the re-planned
 #### Acceptance Criteria
 
 1. WHEN `init` has written its files THEN it SHALL register the project through the controller's HTTP API, authenticated with `Authorization: Bearer` and the shared secret read from the controller home (`secretPath`, `src/controller/access.ts:25-28`). `init` SHALL NOT write `projects.json` or the MCP process registry itself.
-2. `init` SHALL find the controller at the URL of the live dashboard session file (`src/core/dashboard-session.ts:122-141`), else at `http://127.0.0.1:` followed by `SDD_PORT`, else port 5000 (the service's default, `scripts/sdd-service.sh:33`).
+2. `init` SHALL find the controller at the URL of the live dashboard session file (`src/core/dashboard-session.ts:122-141`), else at `http://127.0.0.1:` followed by `SDD_PORT`, else port 5000 (the service's default, `scripts/sdd-service.sh:33`). IF the resolved URL's host is not a loopback address (the dashboard was bound with a non-localhost `--host`, `src/index.ts:39-42`) THEN `init` SHALL NOT send the secret to it and SHALL use `http://127.0.0.1:` followed by that URL's port, so the secret stays on loopback (Security NFR).
 3. WHEN registration succeeds THEN `projects.json` in the controller home SHALL hold one entry whose `workspacePath` is the repository's git top level and whose `workflowRootPath` is the store root of Requirement 2, with or without `--store`.
 4. WHEN registration succeeds with `--store` THEN the entry of AC 3 SHALL still be in `projects.json` after the controller restarts. At base a project whose workspace and store root differ is not remembered (`src/dashboard/project-manager.ts:240-249`), and `addProjectByPath` derives the store root in the controller's own environment (`src/dashboard/project-manager.ts:318-343`); the design SHALL close both gaps.
 5. IF the project is already registered with the same two paths THEN `init` SHALL leave one entry, not two, and SHALL report the existing project id.
@@ -90,7 +90,7 @@ The steering directory has no `product.md`; this spec aligns with the re-planned
 
 1. `init` SHALL print one line per file it touched, of the form `wrote`, `updated` or `kept`, followed by the absolute path, and one line `registered` followed by the project id.
 2. `init` SHALL validate every input (Requirement 1 AC 7 and 9, Requirement 2 AC 3, Requirement 3 AC 5) before it writes any file.
-3. WHEN `init` is run a second time with the same arguments on a repository it has already set up THEN it SHALL change no file byte, SHALL print `kept` for every file, and SHALL exit 0.
+3. WHEN `init` is run a second time with the same arguments on a repository it has already set up THEN it SHALL change no file byte and SHALL print `kept` for every file; WHEN the controller is also reachable and registration succeeds THEN it SHALL exit 0; a registration failure on that re-run still exits 2 (Requirement 5 AC 7).
 4. `init` SHALL exit 0 when every file is written and the project is registered, 1 on an input error, and 2 on a registration failure.
 5. WHEN `init` has finished THEN its last line SHALL say that the written files are not committed and SHALL name `doctor` as the next command.
 
@@ -161,5 +161,10 @@ The steering directory has no `product.md`; this spec aligns with the re-planned
 
 ## Revision History
 
+- **v2** (2026-10-20) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/1).
+  - **R1-1 — Accepted (SHOULD_FIX).** Req 3 AC 5 now errors only when a `mcpServers` key is present and not an object, and states an absent key is not an error; Req 3 AC 3 now adds a `mcpServers` key holding only the spec-workflow entry when the existing file has none.
+  - **R1-2 — Accepted (SHOULD_FIX).** Req 5 AC 2 now requires that when the resolved controller URL's host is not loopback, `init` falls back to the loopback host on that port before sending the secret, keeping the Security NFR true.
+  - **R1-3 — Accepted (SHOULD_FIX).** Req 6 AC 3 now qualifies exit 0 to a reachable controller and successful registration, and points a registration failure on the re-run to the exit-2 rule, removing the contradiction with Req 5 AC 7.
+  - **R1-M1 — Rejected (MINOR).** The detection flags extending the decomposition command line are already justified by D8 and the Scope notes; the reviewer marked them acceptable, so no change.
 - **v1** (2026-10-20) — Initial draft.
   - **Lint pass.** 0 fixed; rejected: L-1..L-9, L-13 (`init`/`doctor` are the spec's own new subcommands, absent from base code by definition; each cited range correctly supports the adjacent existing-code claim and verifies against the tree); L-10..L-12 (`controller`/`token` are doctor check names in the prose, not code identifiers; the citations anchor the existing route/helper they reference — `GET /api/health`, `service.env`, `ghBin`/`CONTROLLER_GH_BIN` — all verified).
