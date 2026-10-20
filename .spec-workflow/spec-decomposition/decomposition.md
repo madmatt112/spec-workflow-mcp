@@ -968,6 +968,20 @@ the adjudicator, then a wait; an unreproduced suspicion becomes a deferral owned
 (4) A PR that adds a new dependency is flagged on the Run page's PR panel and in the ledger;
 it opens no wait.
 
+### 27. `harness-evals` — every role failure becomes a case the next deploy must pass (deferred) — until 26 closes
+
+**Delivers.** From the 2026-10-20 grill (`docs/ai-resources-catalogue.md`, decisions
+18-25). An eval case is one role run on a frozen brief and a small fixture repository
+state, run by the controller's own step runner, graded by code on the role's report and the
+repository, 3 runs, all must pass. The self-update runs the cases of every changed role file
+or brief template and refuses the deploy on a failure, unless an explicit override names the
+case (logged in the Progress log, plus a deferral). Seeded with the role failures since
+2026-10-12: the drafter's non-standard `Test (integration):` label, the test author and a
+test-running pre-commit hook, the test author's attribution trailer, the close-out
+implementer editing the main checkout through absolute paths, the implementer accepting a
+proposal that reversed an earlier decision. Afterwards a retro finding that is a role or
+brief defect proposes a case and the close-out lands it.
+
 ### 25. `advisor` — the second opinion and the state of the world (deferred) — until the design session
 
 **Delivers.** The `sdd-advisor` of ADR 0006 and design §16: a Claude Code session with the
@@ -1005,8 +1019,8 @@ and it uses 9's per-role model override.
 15 after 14. 15 (`dashboard-shell`) is CLOSED. The entries that followed it (16 to 21) are
 superseded; see "Superseded entries" and "Re-planned entries" above. Order past 15 (re-plan approved
 2026-10-17): step (d)'s deletion (not a spec) → 23 → 24 → 26 (added
-2026-10-20) → 25 (after the advisor design session) → 22, which restyles the pages 23
-completes. Remove the `(deferred)` tag from 26 when 24 closes.
+2026-10-20) → 27 → 25 (after the advisor design session) → 22, which restyles the pages 23
+completes. Remove the `(deferred)` tag from 26 when 24 closes, and from 27 when 26 closes.
 
 ## Boundary notes
 
