@@ -78,6 +78,15 @@ export async function buildSpecRows(
   const { active, deferred, other } = await new IndexGenerator(project.projectPath).snapshot();
   const entries = [...active, ...deferred, ...other];
 
+  // Count the project's deferred records per origin spec with one scan of the
+  // deferrals store. A per-spec `list({ originSpec })` in the loop below re-reads
+  // and re-parses every deferral file once for each spec, which dominates the
+  // shell-feed flush on a project with many specs.
+  const deferredByOriginSpec = new Map<string, number>();
+  for (const d of await deferralStorage.list({ status: 'deferred' })) {
+    if (d.originSpec) deferredByOriginSpec.set(d.originSpec, (deferredByOriginSpec.get(d.originSpec) ?? 0) + 1);
+  }
+
   const rows: SpecListRow[] = [];
   for (const entry of entries) {
     const spec = entry.name;
@@ -132,7 +141,7 @@ export async function buildSpecRows(
     }
     const updated = pickNewer(newestLedgerTs, newestBy(phaseRows, (r) => r.date)?.date);
 
-    const deferrals = (await deferralStorage.list({ status: 'deferred', originSpec: spec })).length;
+    const deferrals = deferredByOriginSpec.get(spec) ?? 0;
 
     rows.push({
       projectId,
