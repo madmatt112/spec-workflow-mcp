@@ -787,6 +787,20 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   (jobscout task 5 test author, `schema-invalid`, retried); deploy only with every run
   parked at a wait until the step pid is recorded before the step spawns.
 
+- 2026-10-20 **spec 23 `dashboard-loop-views` and jobscout `multi-lane-sources` are `done`**
+  on the controller (PRs #152 and #155 here; jobscout on main). Fixes from those runs: PR #153
+  (a run on the default branch has no PR by design; the merge stage skips to the retro), #154
+  (test author stops on a test-running pre-commit hook), #156 (re-lands the
+  `log-implementation` undefined-stats fix that close-out reverted, and the close-out Check
+  accepts a named file's test files), #157 (the repair loop escalates an unfixable
+  `file-outside-list` verdict instead of looping). Matthew launched spec 24
+  `project-bootstrap` from the Runs page. Two grills on his saved LinkedIn posts and
+  dotclub.club (`docs/ai-resources-catalogue.md`): verification leads; spec 26
+  `verification-loop` (CI and conflict fixer, model by risk, security pass on flagged specs,
+  dependency flag) and spec 27 `harness-evals` (eval cases from past role failures, run by the
+  self-update) are added (#158, #160); **Check** and **Eval case** join the glossary; C7 (no
+  style carry-over) and C8 (gate A "do nothing", #159) landed. Deployed `4792e48`.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`

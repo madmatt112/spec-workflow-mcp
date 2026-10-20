@@ -82,6 +82,15 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at 2026-10-20 20:10Z
+
+- Live build `4792e48`. Done on the controller: spec 23 (this repo), jobscout
+  `multi-lane-sources`. Live: tradr `import-off-request-thread` (gate B, Matthew's), spec 24
+  `project-bootstrap` (gate B, Matthew's). Order after 24: 26 → 27 → 25 (design session
+  first) → 22; untag 26 when 24 closes, 27 when 26 closes, 22 after 24 per the decomposition.
+- Launches are Matthew's (the auto-mode classifier denies a session's launch POST).
+- Deploy only when every run is parked at a wait (a restart can race a step's start).
+
 ## State at the 2026-10-19 22:30Z stop (usage limit)
 
 - Live build `88b811e`. Merged, NOT deployed: PR #149 (operator rulings reach the test
