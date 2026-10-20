@@ -162,3 +162,4 @@ The steering directory has no `product.md`; this spec aligns with the re-planned
 ## Revision History
 
 - **v1** (2026-10-20) — Initial draft.
+  - **Lint pass.** 0 fixed; rejected: L-1..L-9, L-13 (`init`/`doctor` are the spec's own new subcommands, absent from base code by definition; each cited range correctly supports the adjacent existing-code claim and verifies against the tree); L-10..L-12 (`controller`/`token` are doctor check names in the prose, not code identifiers; the citations anchor the existing route/helper they reference — `GET /api/health`, `service.env`, `ghBin`/`CONTROLLER_GH_BIN` — all verified).
