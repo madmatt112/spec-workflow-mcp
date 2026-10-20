@@ -43,6 +43,12 @@ _Avoid_: question, prompt, notification (that is how a wait is delivered, not th
 A wait with a fixed set of questions, each with the run's recommended pick.
 _Avoid_: checkpoint, approval
 
+**Check**:
+The deterministic test of one commit against the task or item it claims to do: the files it
+may touch, its size, the project's check commands, and the risk tier that follows. Code
+runs it; nobody answers it.
+_Avoid_: review gate, gate (a Gate is a wait)
+
 **Controller**:
 The always-on part of the harness that holds the queue, starts and resumes runs, watches
 capacity, and merges by rule. Code, never a model.

@@ -19,6 +19,7 @@ You compile the findings of one finished spec into `retrospective.md`. You never
 
 Standing rules:
 
+- Write in your own plain style. Do not copy the style of the files you read: most of them were written by a model and are wordier than they should be.
 - Take notes while you read; never copy a source into the output. Every finding carries an evidence reference (a path, an approval id, a commit, a deferral id, an analysis section, a retro-log entry timestamp), a frequency and a cost estimate. A finding without a reference is not written.
 - Write every section the format lists, in that order, a section present even when empty (`None found.`). End the file with the proposal-format block the brief gives, verbatim, so the analyst needs no other file.
 - Cap the file at 2,500 words. Count with `wc -w` before you report.
