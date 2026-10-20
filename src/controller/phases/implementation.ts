@@ -41,7 +41,7 @@ import { ImplementationLogManager } from '../../dashboard/implementation-log-man
 import { DeferralStorage } from '../../core/deferral-storage.js';
 import { PathUtils } from '../../core/path-utils.js';
 import { handoffPath } from '../../watch/index.js';
-import { scrubbedGitEnv } from '../../core/git-utils.js';
+import { scrubbedGitEnv, defaultBranchIfOnIt } from '../../core/git-utils.js';
 import { findPullRequest, readCiState, type CiState } from '../merge.js';
 import type { ToolContext } from '../../types.js';
 
@@ -977,13 +977,12 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   async function pushAndOpenPr(title: string, p: { done: number; total: number }): Promise<{ number: number; url?: string } | undefined> {
     const remotes = gitTry(ctx.codeRoot, ['remote']) ?? '';
     if (!remotes.trim()) return undefined;
-    const branch = gitTry(ctx.codeRoot, ['rev-parse', '--abbrev-ref', 'HEAD']) ?? ctx.run.branch;
-    const defaultRef = gitTry(ctx.codeRoot, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
-    const defaultBranch = defaultRef ? defaultRef.replace(/^origin\//, '') : undefined;
-    if (branch === defaultBranch || (!defaultBranch && (branch === 'main' || branch === 'master'))) {
-      ctx.ledger.note(`on the default branch ${branch}: nothing pushed, no PR`);
+    const onDefault = defaultBranchIfOnIt(ctx.codeRoot);
+    if (onDefault) {
+      ctx.ledger.note(`on the default branch ${onDefault}: nothing pushed, no PR`);
       return undefined;
     }
+    const branch = gitTry(ctx.codeRoot, ['rev-parse', '--abbrev-ref', 'HEAD']) ?? ctx.run.branch;
     const push = await runCommand('git', ['push', '-u', 'origin', 'HEAD'], ctx.codeRoot);
     if (push.code !== 0) {
       ctx.ledger.note(`push failed: ${tail(push.stderr || push.stdout, 3)}`);

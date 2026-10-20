@@ -22,7 +22,7 @@ import {
 } from 'fs';
 import { basename, join } from 'path';
 import { EventEmitter } from 'events';
-import { scrubbedGitEnv } from '../core/git-utils.js';
+import { scrubbedGitEnv, defaultBranchIfOnIt } from '../core/git-utils.js';
 import { PathUtils } from '../core/path-utils.js';
 import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
@@ -612,6 +612,21 @@ async function runMergeStageStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
 ): Promise<MergeStepOutcome> {
   if (hasMerged(specDir, run.id)) return 'none';
+
+  // A run on the repository's default branch (a project without
+  // `worktree-per-change: required`, so the work and the PR branch are the
+  // default branch itself) has no PR by design: `pushAndOpenPr` already noted
+  // "nothing pushed, no PR" and opened none. Skip the merge stage and route to
+  // the retrospective, as when the PR is already merged. The branch is checked
+  // in the worktree the work ran in (equal to `codeRoot` without a worktree),
+  // the same directory `pushAndOpenPr` checks. The spec-store push at run end
+  // already pushes the branch; nothing to push here.
+  // An unset worktree would read the controller's own cwd: never skip then.
+  const onDefault = run.worktree ? defaultBranchIfOnIt(run.worktree) : undefined;
+  if (onDefault) {
+    ledger.note(`merge: run on the default branch ${onDefault}; no PR, skipping the merge stage`);
+    return 'none';
+  }
 
   const pr = await findPullRequest({ repoDir: run.codeRoot, branch: run.branch, number: run.pr });
   if (!pr) {

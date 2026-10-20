@@ -57,7 +57,7 @@ function setup(): Fixture {
   const repo = join(base, 'repo');
   const specDir = join(repo, '.spec-workflow', 'specs', SPEC);
   mkdirSync(specDir, { recursive: true });
-  git(repo, ['init', '-q']);
+  git(repo, ['init', '-q', '-b', 'main']);
   git(repo, ['config', 'user.email', 't@test']);
   git(repo, ['config', 'user.name', 'Tester']);
   git(repo, ['config', 'commit.gpgsign', 'false']);
@@ -404,6 +404,15 @@ describe('listRunsForWire', () => {
 describe('runOnce merge stage', () => {
   const BRANCH = 'feat/x';
 
+  /**
+   * Check the fixture repo out onto the run's feature branch, the real state of
+   * a `worktree-per-change` run: the merge stage reads the worktree's branch and
+   * must see a feature branch, not the default branch, to look for the PR.
+   */
+  function onFeatureBranch(fx: Fixture): void {
+    git(fx.repo, ['checkout', '-q', '-b', BRANCH]);
+  }
+
   /** A `gh pr view` payload that passes the merge rule for branch `feat/x`. */
   const readyView = {
     mergeable: 'MERGEABLE', mergeStateStatus: 'CLEAN',
@@ -515,6 +524,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx);
     writeScript(fx, [e2eRun, compileRun, analystRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
@@ -555,6 +565,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx);
     writeScript(fx, [e2eRun, compileRun, analystRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
@@ -588,6 +599,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx);
     writeScript(fx, [e2eRun]);
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
@@ -610,6 +622,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx); // a feature-branch run: a missing PR is an error, not a skip
     writeScript(fx, [e2eRun]); // the phase completes; with no remote it opens no PR
     writeGhScript(fx, [
       { argvIncludes: ['pr', 'list'], stdout: [] }, // an empty open-PR list
@@ -631,10 +644,36 @@ describe('runOnce merge stage', () => {
     expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
   }, 30000);
 
+  it('a run on the default branch has no PR by design: it skips the merge stage to the retro with a note, no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    // The fixture repo stays on `main`, its default branch (a project without
+    // `worktree-per-change: required`): the implementation opens no PR and the
+    // merge stage must route to the retrospective, not raise a no-PR error.
+    writeScript(fx, [e2eRun, compileRun, analystRun]);
+    await writeRun(seedRun(fx, { branch: 'main' }));
+
+    await runOnce(deps(fx), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('waiting');
+    expect(run?.phase).toBe('retrospective');
+    // Routed to the retro-plan wait, with no error wait from the missing PR.
+    expect((await listWaits()).some((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000')).toBe(true);
+    expect((await listWaits()).some((w) => w.kind === 'error' && w.run === 'run-20261011-000000')).toBe(false);
+    // The merge stage wrote its skip note and merged nothing.
+    const rows = mergedRows(fx);
+    expect(rows.some((r) => r.type === 'note'
+      && /run on the default branch main; no PR, skipping the merge stage/.test(r.text ?? ''))).toBe(true);
+    expect(rows.some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
   it('a "retry" on the no-PR error re-enters the merge stage and finds the PR', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx);
     // As if the supervisor had already written the retro files; after the merge
     // the run routes straight to the retro-plan wait (no supervisor step needed).
     writeFileSync(join(fx.specDir, 'retrospective-proposals.md'),
@@ -664,6 +703,7 @@ describe('runOnce merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    onFeatureBranch(fx);
     writeScript(fx, [e2eRun]);
     writeGhScript(fx, [{ argvIncludes: ['pr', 'list'], stdout: [] }]); // parks on the no-PR error wait
     await writeRun(seedRun(fx, { branch: BRANCH }));
