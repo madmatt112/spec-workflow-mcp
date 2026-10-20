@@ -293,3 +293,4 @@
 {"ts":"2026-10-20T17:25:02.455Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"fix code batch 3 round 2","result":"ok","phase":"closeout","round":"2"}
 {"ts":"2026-10-20T17:25:02.484Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"closeout: item P4 not landed, reverted f29a4e3"}
 {"ts":"2026-10-20T17:25:02.485Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P4","outcome":"to-do"}
+{"ts":"2026-10-20T17:25:04.790Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"phase.end","phase":"closeout","result":"closed","state":"items 12/12","note":"3 done, 2 to-do, 7 skipped"}

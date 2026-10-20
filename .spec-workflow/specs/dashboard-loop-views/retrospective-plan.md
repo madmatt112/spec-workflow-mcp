@@ -1,6 +1,6 @@
 # Retrospective plan — dashboard-loop-views
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-20
 
 ## Approved proposals
