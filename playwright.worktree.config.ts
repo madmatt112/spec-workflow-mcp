@@ -27,7 +27,9 @@ export default defineConfig({
   testMatch: WORKTREE_SPEC_PATTERN,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // No retries. A controller worktree run sets CI, and --retries=2 masked a real
+  // flake behind three attempts under a CPU hotspot; fail fast instead (retro P6).
+  retries: 0,
   workers: 1,
   reporter: 'html',
   use: {
