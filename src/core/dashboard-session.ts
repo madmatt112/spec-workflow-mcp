@@ -141,6 +141,42 @@ export class DashboardSessionManager {
   }
 
   /**
+   * Read the current dashboard session without any side effects.
+   *
+   * Unlike getDashboardSession, this never creates the session directory and
+   * never deletes a stale file, so init and doctor can read the controller URL
+   * without the writes Req 7 AC 6 forbids (design C9).
+   *
+   * Returns null for an absent or unparseable file, an entry with no string
+   * url, or a pid for which process.kill(pid, 0) throws.
+   */
+  async peekDashboardSession(): Promise<DashboardSessionEntry | null> {
+    let content: string;
+    try {
+      content = await fs.readFile(this.sessionPath, 'utf-8');
+    } catch {
+      return null;
+    }
+
+    let session: DashboardSessionEntry;
+    try {
+      session = JSON.parse(content) as DashboardSessionEntry;
+    } catch {
+      return null;
+    }
+
+    if (typeof session?.url !== 'string') {
+      return null;
+    }
+
+    if (!this.isProcessAlive(session.pid)) {
+      return null;
+    }
+
+    return session;
+  }
+
+  /**
    * Check if a dashboard is currently running
    */
   async isDashboardRunning(): Promise<boolean> {
