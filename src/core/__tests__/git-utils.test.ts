@@ -12,6 +12,7 @@ import {
   sameRepository,
   normalizeIdentityPath,
   resolveWorkspaceRoots,
+  defaultBranchIfOnIt,
   scrubbedGitEnv,
   SPEC_WORKFLOW_SHARED_ROOT_ENV
 } from '../git-utils.js';
@@ -325,6 +326,7 @@ describe('git environment scrubbing (requirement 1.9)', () => {
     ['isGitWorktree', () => isGitWorktree('/test/path')],
     ['gitCommonDirAbsolute', () => gitCommonDirAbsolute('/test/path')],
     ['gitTopLevel', () => gitTopLevel('/test/path')],
+    ['defaultBranchIfOnIt', () => defaultBranchIfOnIt('/test/path')],
     ['sameRepository', () => sameRepository('/test/a', '/test/b')],
     ['resolveWorkspaceRoots', () => resolveWorkspaceRoots({
       configuredPath: '/test/path',

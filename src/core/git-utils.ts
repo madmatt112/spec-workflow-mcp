@@ -269,6 +269,26 @@ export function isGitWorktree(projectPath: string): boolean {
   }
 }
 
+/**
+ * The current branch of `repoDir` when it is the repository's default branch,
+ * otherwise undefined.
+ *
+ * The default branch is `origin/HEAD`'s short name when that symbolic ref is
+ * set, else `main` or `master` (the same detection the implementation phase's
+ * `pushAndOpenPr` uses). Never throws: an unreadable branch returns undefined,
+ * so the caller treats it as "not on the default branch".
+ */
+export function defaultBranchIfOnIt(repoDir: string): string | undefined {
+  const branch = gitCapture('git rev-parse --abbrev-ref HEAD', repoDir);
+  if (!branch) {
+    return undefined;
+  }
+  const defaultRef = gitCapture('git symbolic-ref --short refs/remotes/origin/HEAD', repoDir);
+  const defaultBranch = defaultRef ? defaultRef.replace(/^origin\//, '') : undefined;
+  const onDefault = branch === defaultBranch || (!defaultBranch && (branch === 'main' || branch === 'master'));
+  return onDefault ? branch : undefined;
+}
+
 /** How the workspace path was chosen, in precedence order (requirement 2.3). */
 export type WorkspaceSource = 'env' | 'flag' | 'inference' | 'argument';
 

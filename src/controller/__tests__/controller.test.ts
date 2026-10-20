@@ -303,6 +303,9 @@ describe('Controller merge stage', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    // The run works on its feature branch (the worktree's real state), so the
+    // merge stage looks for the PR rather than skipping as a default-branch run.
+    git(fx.repo, ['checkout', '-q', '-b', BRANCH]);
     writeScript(fx, [e2eRun(), compileRun(), analystRun()]);
 
     const ghScript = join(fx.base, 'gh-script.json');
@@ -348,6 +351,8 @@ describe('Controller merge stage: unreadable PR', () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
     await approve(fx, 'tasks');
+    // A feature-branch run: an unreadable PR is an error, not a default-branch skip.
+    git(fx.repo, ['checkout', '-q', '-b', BRANCH]);
     writeScript(fx, [e2eRun()]);
 
     const ghScript = join(fx.base, 'gh-script.json');
