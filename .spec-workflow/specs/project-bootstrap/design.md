@@ -17,7 +17,7 @@ N/A: no visual surface.
 
 ## Architecture
 
-`main` in `src/index.ts` gets one branch before its help check (`src/index.ts:378-384`). When `bootstrapCommand(args)` returns a name, `main` dynamically imports `src/bootstrap/cli.ts`, awaits `runBootstrapCommand(args)` and exits with the returned code (D1). The help check and `parseArguments` do not run for these commands, so `CLI_FLAGS` (`src/index.ts:143-156`) is unchanged. On the controller side, only the add route and `ProjectManager.addProjectByPath` change: both accept an explicit store root and remember the project when it is given.
+`main` in `src/index.ts` gets one branch before its help check (`src/index.ts:374-387`). When `bootstrapCommand(args)` returns a name, `main` dynamically imports `src/bootstrap/cli.ts`, awaits `runBootstrapCommand(args)` and exits with the returned code (D1). The help check and `parseArguments` do not run for these commands, so `CLI_FLAGS` (`src/index.ts:143-156`) is unchanged. On the controller side, only the add route and `ProjectManager.addProjectByPath` change: both accept an explicit store root and remember the project when it is given.
 
 ```mermaid
 graph LR
@@ -206,3 +206,4 @@ Tests run under the per-worker homes of `vitest.setup.ts` and set per-test `SDD_
 ## Revision History
 
 - **v1** (2026-10-20) — Initial draft.
+  - **Lint pass.** 2 fixed; rejected: L-2/L-3 bootstrapCommand/runBootstrapCommand new fns (absent from base by construction), L-5 addProjectByPath forward-ref cited in C7, L-6/L-9 top design-local var, L-7/L-8 registered/remote CheckName literals, L-10 serviceEnv new fn, L-11/L-12 readAgentRules/parseAgentRuleKey descriptive (cited C4), L-13 WorkspaceInitializer class name (citation anchors "fixed list" behaviour), L-14 projectId response field, L-15/L-29 workflowRootPath new field, L-16 resolveGitRoot "not" mention, L-17 syncWithRegistry decl at :134 (citation anchors behaviour :161-169), L-18 export keyword being added, L-19/L-20 mkdir/url descriptive, L-21/L-22/L-23/L-25/L-26 init/doctor new subcommands, L-24 bootstrapCommand test name, L-27 showHelp (cited C1), L-28 Starting banner string. L-1/L-4 fixed by widening the line-20 citation to src/index.ts:374-387 so main (:374) and parseArguments (:387) resolve.
