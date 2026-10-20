@@ -774,6 +774,19 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   `delete/drop` keyword flags fired on "dropped row" and "url is dropped" (false
   positives; tuning is a retro item). Deployed `88b811e` at 19:41Z with every run parked.
 
+- 2026-10-19/20 more fixes from the three live runs. PR #149: operator rulings reach the
+  test author's brief (they reached only implementer, fix and repair briefs, so a jobscout
+  escalation could never be resolved by a ruling). jobscout's pre-commit hook now skips the
+  suite for a tests-only commit (jobscout `ab9f88f`), so the red commit needs no
+  `--no-verify`. PR #150: the self-update rebase uses `--autostash` for a live run's dirty
+  store files (the #148 rebase refused on the ledger). PR #151: the controller sat at
+  55-120% CPU for hours; the shell feed re-read every deferral file once per spec on every
+  flush (tradr, 51 specs, 91% of a 2.7 s flush); one scan per project now (flush
+  6.1 s -> 1.3 s; 0% CPU idle after deploy `2ffad25`). Spec 23's tasks.md labels fixed by
+  hand on Matthew's ruling (`c80d2e8`). Open finding: a deploy restart raced a step's start
+  (jobscout task 5 test author, `schema-invalid`, retried); deploy only with every run
+  parked at a wait until the step pid is recorded before the step spawns.
+
 ## 8. Pointers
 
 - Controller design: `docs/controller-design.md`
