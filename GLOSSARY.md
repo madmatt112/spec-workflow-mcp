@@ -49,6 +49,11 @@ may touch, its size, the project's check commands, and the risk tier that follow
 runs it; nobody answers it.
 _Avoid_: review gate, gate (a Gate is a wait)
 
+**Eval case**:
+One harness role given a frozen brief and a fixed repository state, with code that decides
+whether the role behaved as required. Each case comes from a failure the harness had.
+_Avoid_: test (a test belongs to a project), scenario, benchmark
+
 **Controller**:
 The always-on part of the harness that holds the queue, starts and resumes runs, watches
 capacity, and merges by rule. Code, never a model.

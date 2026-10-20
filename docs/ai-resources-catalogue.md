@@ -161,3 +161,25 @@ Rounds 2 and 3:
     `(deferred)` with the reason, and keeps the drafted requirements in the spec store.
 
 No ADR: each decision is cheap to reverse.
+
+### Harness eval suite (from evaluation.club, grill 2026-10-20)
+
+Source: dotclub.club (Dan McKinley). evaluation.club argues that reliable agents come from
+repeatable eval suites fed by real failures, not from prompt tuning.
+
+18. **Do it** as its own spec 27 `harness-evals`, after 26 and before 25.
+19. **A case** is one role run on a frozen brief and a small fixture repository state.
+20. **Runner.** The controller's own step runner, on the subscription. `claude plugin eval`
+    was not chosen: its sandbox has a fresh HOME, it cannot target one role directly
+    (unconfirmed) and its billing is unconfirmed.
+21. **Grading.** Code graders on the role's structured report and the repository; 3 runs per
+    case, all must pass.
+22. **When.** The self-update runs the cases of every role file or brief template that
+    changed since the live build, and refuses the deploy on a failure.
+23. **Override.** Only an explicit flag naming the failing case; the deploy then writes the
+    override to the Progress log and opens a deferral to fix the case.
+24. **Seed set.** Every role failure since 2026-10-12 (about six). Pure code bugs stay unit
+    tests.
+25. **New cases.** A retro finding that is a role or brief defect proposes a case; the
+    close-out lands it with the fix, on the operator's approval of the retro plan.
+
