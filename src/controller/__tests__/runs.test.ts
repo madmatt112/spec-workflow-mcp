@@ -54,7 +54,7 @@ function setup(): Fixture {
   const repo = join(base, 'repo');
   const specDir = join(repo, '.spec-workflow', 'specs', SPEC);
   mkdirSync(specDir, { recursive: true });
-  git(repo, ['init', '-q']);
+  git(repo, ['init', '-q', '-b', 'main']);
   git(repo, ['config', 'user.email', 't@test']);
   git(repo, ['config', 'user.name', 'Tester']);
   git(repo, ['config', 'commit.gpgsign', 'false']);
