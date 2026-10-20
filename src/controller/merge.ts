@@ -17,7 +17,7 @@ import { basename, join } from 'path';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
-import { listWaits, type RunRecord } from './state.js';
+import { listWaits, type RunRecord, type PrRead } from './state.js';
 import type { RunLedger } from './ledger.js';
 
 /** The suggested interval between `runMergeStage` polls while `not-ready`. */
@@ -36,7 +36,7 @@ const POST_MERGE_TIMEOUT_MS = 10 * 60 * 1000;
  * rule reads workflow runs and commit statuses for the head sha instead.
  */
 const PR_VIEW_FIELDS =
-  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author';
+  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author,url';
 
 /**
  * A head commit younger than this with no workflow run yet is read as pending,
@@ -104,6 +104,8 @@ export interface MergeStageResult {
   sha?: string;
   /** The open `merge` wait's id, when `waiting` for an `ask`. */
   waitId?: string;
+  /** What this pass read (design C1); absent on the no-PR return. */
+  read?: PrRead;
 }
 
 /** Everything `runMergeStage` needs besides the run record. */
@@ -289,51 +291,81 @@ function shortOid(oid: unknown): string {
  * mergeability not yet computed); a not-ready result without it is settled.
  */
 export async function evaluate(pr: PullRequest, now: () => Date = () => new Date()): Promise<MergeEvaluation> {
+  return (await evaluatePullRequest(pr, now)).evaluation;
+}
+
+/** What one merge pass read: the evaluation plus the CI state, raw `mergeable` and URL the PR panel needs with no second GitHub read. */
+export interface PullRequestEvaluation {
+  evaluation: MergeEvaluation;
+  /** The head sha's CI state by the same rule the evaluation applies; `unreadable` on any read failure. */
+  ci: CiState['state'];
+  /** The raw `data.mergeable` string, present on every return after the view JSON parses; absent when the view failed or did not parse. */
+  mergeable?: string;
+  /** The PR's web URL: `pr.url` when set, else the view's `url` string. */
+  url?: string;
+}
+
+/**
+ * The merge rule (see {@link evaluate}) plus what the PR panel needs with no
+ * second GitHub call: the CI state, the raw `mergeable` value and the URL. The
+ * body is {@link evaluate}'s former body unchanged; `ci` is derived from the
+ * same reads. `ci` is `unreadable` on each of the five early returns; otherwise
+ * `red` if any run or status failed, else `pending` if any run or status is
+ * pending or the fresh-head rule fires, else `green`. `mergeable=UNKNOWN` sets
+ * the evaluation's `pending` but not the CI pending flag.
+ */
+export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () => new Date()): Promise<PullRequestEvaluation> {
   const res = await runCommand(
     ghBin(),
     ['pr', 'view', String(pr.number), '--json', PR_VIEW_FIELDS],
     { cwd: pr.repoDir },
   );
   if (res.code !== 0) {
-    return { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} failed (exit ${res.code}): ${tail(res.stderr || res.stdout, 5)}`] };
+    return { evaluation: { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} failed (exit ${res.code}): ${tail(res.stderr || res.stdout, 5)}`] }, ci: 'unreadable' };
   }
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(res.stdout) as Record<string, unknown>;
   } catch (err) {
-    return { ready: false, unreadable: true, reasons: [`could not parse gh pr view #${pr.number}: ${(err as Error).message}`] };
+    return { evaluation: { ready: false, unreadable: true, reasons: [`could not parse gh pr view #${pr.number}: ${(err as Error).message}`] }, ci: 'unreadable' };
   }
+
+  // Read right after the parse, so both are present on every return below.
+  const rawMergeable = String(data.mergeable ?? '');
+  const url = pr.url ?? (typeof data.url === 'string' ? data.url : undefined);
 
   const reasons: string[] = [];
   let pending = false;
+  let ciFailed = false;
+  let ciPending = false;
 
   const headOid = String(data.headRefOid ?? '');
   if (!headOid) {
-    return { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} returned no headRefOid`] };
+    return { evaluation: { ready: false, unreadable: true, reasons: [`gh pr view #${pr.number} returned no headRefOid`] }, ci: 'unreadable', mergeable: rawMergeable, url };
   }
   const runsRead = await ghApiJson(pr.repoDir, `repos/{owner}/{repo}/actions/runs?head_sha=${headOid}&per_page=100`);
   if (!runsRead.ok) {
-    return { ready: false, unreadable: true, reasons: [`could not read the workflow runs of ${shortOid(headOid)}: ${runsRead.reason}`] };
+    return { evaluation: { ready: false, unreadable: true, reasons: [`could not read the workflow runs of ${shortOid(headOid)}: ${runsRead.reason}`] }, ci: 'unreadable', mergeable: rawMergeable, url };
   }
   const statusRead = await ghApiJson(pr.repoDir, `repos/{owner}/{repo}/commits/${headOid}/status`);
   if (!statusRead.ok) {
-    return { ready: false, unreadable: true, reasons: [`could not read the commit statuses of ${shortOid(headOid)}: ${statusRead.reason}`] };
+    return { evaluation: { ready: false, unreadable: true, reasons: [`could not read the commit statuses of ${shortOid(headOid)}: ${statusRead.reason}`] }, ci: 'unreadable', mergeable: rawMergeable, url };
   }
 
   const runs = Array.isArray(runsRead.data.workflow_runs) ? (runsRead.data.workflow_runs as Record<string, unknown>[]) : [];
   for (const r of runs) {
     const name = String(r.name ?? 'workflow');
     const state = classifyWorkflowRun(r);
-    if (state === 'pending') { reasons.push(`workflow ${name} is still running`); pending = true; }
-    else if (state === 'failed') reasons.push(`workflow ${name} did not pass`);
+    if (state === 'pending') { reasons.push(`workflow ${name} is still running`); pending = true; ciPending = true; }
+    else if (state === 'failed') { reasons.push(`workflow ${name} did not pass`); ciFailed = true; }
   }
   // The combined `state` reads "pending" with zero statuses, so only the list counts.
   const statuses = Array.isArray(statusRead.data.statuses) ? (statusRead.data.statuses as Record<string, unknown>[]) : [];
   for (const c of statuses) {
     const name = String(c.context ?? 'status');
     const state = classifyStatusContext(c);
-    if (state === 'pending') { reasons.push(`status ${name} is still pending`); pending = true; }
-    else if (state === 'failed') reasons.push(`status ${name} did not pass`);
+    if (state === 'pending') { reasons.push(`status ${name} is still pending`); pending = true; ciPending = true; }
+    else if (state === 'failed') { reasons.push(`status ${name} did not pass`); ciFailed = true; }
   }
   const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
   if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(pr.repoDir)) {
@@ -341,6 +373,7 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
     if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) {
       reasons.push(`no workflow run yet for ${shortOid(headOid)} (head committed less than five minutes ago)`);
       pending = true;
+      ciPending = true;
     }
   }
 
@@ -367,8 +400,11 @@ export async function evaluate(pr: PullRequest, now: () => Date = () => new Date
     reasons.push('the PR body carries a Claude attribution trailer');
   }
 
-  if (pending) return { ready: false, reasons, pending: true };
-  return { ready: reasons.length === 0, reasons };
+  const ci: CiState['state'] = ciFailed ? 'red' : ciPending ? 'pending' : 'green';
+  const evaluation: MergeEvaluation = pending
+    ? { ready: false, reasons, pending: true }
+    : { ready: reasons.length === 0, reasons };
+  return { evaluation, ci, mergeable: rawMergeable, url };
 }
 
 /** One failing check of a head sha, with the workflow run to read its log from. */
@@ -528,12 +564,24 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repoDir = pr.repoDir;
   const now = deps.now ?? ((): Date => new Date());
 
-  const evaluation = await evaluate(pr);
+  const { evaluation, ci, mergeable, url } = await evaluatePullRequest(pr);
+  // One read per pass, shaped for the callers (design C1): `repo` is a basename
+  // (never a path), `kind` is `run` for the run's own PR and `closeout`
+  // otherwise, the url is kept only when https, and `reasons`/`sha` are the same
+  // values the result carries.
+  const repo = basename(repoDir);
+  const kind: PrRead['kind'] = target.questionId === MERGE_QUESTION_ID ? 'run' : 'closeout';
+  const viewUrl = typeof url === 'string' && url.startsWith('https://') ? url : undefined;
+  const makeRead = (status: MergeStageStatus, reasons: string[], sha?: string): PrRead => ({
+    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha, at: now().toISOString(),
+  });
+
   if (evaluation.unreadable) {
-    return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number };
+    return { status: 'unreadable', reasons: evaluation.reasons, number: pr.number, read: makeRead('unreadable', evaluation.reasons) };
   }
   if (!evaluation.ready) {
-    return { status: evaluation.pending ? 'not-ready' : 'blocked', reasons: evaluation.reasons, number: pr.number };
+    const status: MergeStageStatus = evaluation.pending ? 'not-ready' : 'blocked';
+    return { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
   }
 
   if (deps.rules.merge === 'ask') {
@@ -547,14 +595,17 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
         specDir: deps.specDir,
         questions: [{ id: target.questionId, text: `Merge ${target.label}?`, options: ['merge', 'hold'], recommended: 'merge' }],
       });
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: wait.id };
+      const reasons = [`waiting for the operator to approve merging ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: wait.id, read: makeRead('waiting', reasons) };
     }
     const decision = existing.state === 'answered' ? existing.answer?.[target.questionId]?.value : undefined;
     if (!decision) {
-      return { status: 'waiting', reasons: [`waiting for the operator to approve merging ${target.label}`], number: pr.number, waitId: existing.id };
+      const reasons = [`waiting for the operator to approve merging ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: existing.id, read: makeRead('waiting', reasons) };
     }
     if (decision !== 'merge') {
-      return { status: 'waiting', reasons: [`the operator held ${target.label}`], number: pr.number, waitId: existing.id };
+      const reasons = [`the operator held ${target.label}`];
+      return { status: 'waiting', reasons, number: pr.number, waitId: existing.id, read: makeRead('waiting', reasons) };
     }
     // decision === 'merge': fall through and merge.
   }
@@ -562,11 +613,8 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const method = deps.rules.method;
   const mergeRes = await runCommand(ghBin(), ['pr', 'merge', String(pr.number), `--${method}`], { cwd: repoDir });
   if (mergeRes.code !== 0) {
-    return {
-      status: 'failed',
-      reasons: [`gh pr merge #${pr.number} failed (exit ${mergeRes.code})`, tail(mergeRes.stderr || mergeRes.stdout, 20)],
-      number: pr.number,
-    };
+    const reasons = [`gh pr merge #${pr.number} failed (exit ${mergeRes.code})`, tail(mergeRes.stderr || mergeRes.stdout, 20)];
+    return { status: 'failed', reasons, number: pr.number, read: makeRead('failed', reasons) };
   }
 
   const sha = await readMergeSha(pr);
@@ -577,10 +625,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
     appendPostMergeLog(deps.stepLogDir, deps.rules.postMerge, output, postRes, now());
     if (postRes.code !== 0 || postRes.timedOut) {
       const why = postRes.timedOut ? 'timed out' : `exit ${postRes.code}`;
-      return { status: 'failed', reasons: [`post-merge command ${why}`, tail(output, 20)], number: pr.number, sha };
+      const reasons = [`post-merge command ${why}`, tail(output, 20)];
+      return { status: 'failed', reasons, number: pr.number, sha, read: makeRead('failed', reasons, sha) };
     }
   }
 
-  deps.ledger.prMerged({ number: pr.number, sha, method, repo: basename(repoDir) });
-  return { status: 'merged', reasons: [`merged ${target.label} via ${method}`], number: pr.number, sha };
+  deps.ledger.prMerged({ number: pr.number, sha, method, repo });
+  const reasons = [`merged ${target.label} via ${method}`];
+  return { status: 'merged', reasons, number: pr.number, sha, read: makeRead('merged', reasons, sha) };
 }

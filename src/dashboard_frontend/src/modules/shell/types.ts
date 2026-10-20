@@ -115,6 +115,22 @@ export interface SpecDetail {
   files: { name: string; path: string; size: number; modified: string }[];
 }
 
+// Hand copy of src/dashboard/shell/types.ts UsageSpecRow (task 11); keep in step.
+// `w`/`wUnknown` come from buildUsageReport; `wPerTask` and `pctOfBaseline` are
+// null when they cannot be computed (no usage, no tasks, no or zero baseline).
+export interface UsageSpecRow {
+  projectId: string;
+  projectName: string;
+  spec: string;
+  closeDate: string | null;
+  w: number | null;
+  wUnknown: number;
+  tasks: number;
+  wPerTask: number | null;
+  baseline: number | null;
+  pctOfBaseline: number | null;
+}
+
 export interface RunDetail {
   spec: string;
   phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];
@@ -164,6 +180,20 @@ export interface ControllerWait {
 export type ControllerRunStatus =
   | 'queued' | 'running' | 'merging' | 'paused' | 'waiting' | 'done' | 'abandoned' | 'error';
 
+// Hand copy of PrRead in src/controller/state.ts; keep in step. Holds no path.
+export interface ControllerPrRead {
+  kind: 'run' | 'closeout';
+  repo: string;
+  number: number;
+  url?: string;
+  ci: 'green' | 'pending' | 'red' | 'unreadable';
+  mergeable?: string;
+  verdict: 'merged' | 'waiting' | 'not-ready' | 'blocked' | 'unreadable' | 'failed';
+  reasons: string[];
+  sha?: string;
+  at: string;
+}
+
 export interface ControllerRun {
   id: string;
   project: string;
@@ -176,6 +206,8 @@ export interface ControllerRun {
   tokens: number;
   created: string;
   updated: string;
+  /** One read per PR for the dashboard (design D5); undefined when the record has none. */
+  prReads?: ControllerPrRead[];
 }
 
 export interface ControllerActivity {

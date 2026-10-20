@@ -202,6 +202,7 @@ describe('shell hub wiring and routes (task 7)', () => {
   let alphaSpecDir: string;
   let alphaHandoffPath: string;
   let alphaLedgerPath: string;
+  let betaWorkflowRoot: string;
   const sockets: WebSocket[] = [];
   const originalEnv = { ...process.env };
 
@@ -225,17 +226,50 @@ describe('shell hub wiring and routes (task 7)', () => {
     // manager's `deferral-change` event never fires.
     await fsp.mkdir(join(alphaWorkflowRoot, '.spec-workflow', 'deferrals'), { recursive: true });
     alphaHandoffPath = join(alphaWorkflowRoot, '.spec-workflow', 'HANDOFF.md');
-    writeFileSync(alphaHandoffPath, handoffFixture('spec-a'));
+    // Two extra closed specs for the usage route (task 12): one with a
+    // closeout/closed row (a close date), one closed only via the retro plan
+    // (no closeout row, no ledger — a null close date). spec-a itself stays
+    // open (run.start only), unaffected by these extra phase-log rows, which
+    // are keyed to different spec names.
+    await fsp.mkdir(join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-alpha-recent'), { recursive: true });
+    await fsp.mkdir(join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-alpha-none'), { recursive: true });
+    writeFileSync(
+      join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-alpha-none', 'retrospective-plan.md'),
+      'Status: CLOSED — all decisions made\n',
+    );
+    writeFileSync(alphaHandoffPath, [
+      handoffFixture('spec-a'),
+      '',
+      '## Phase log',
+      '',
+      '| Date | Spec | Stage | State | Result | Note |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 2026-03-15 | spec-alpha-recent | closeout | complete | closed | done |',
+      '',
+    ].join('\n'));
+    // alpha's agent-rules.md is a directory, not a file (task 12 success
+    // clause): readAgentRules must still give no baseline, never throw.
+    await fsp.mkdir(join(alphaWorkflowRoot, '.spec-workflow', 'agent-rules.md'), { recursive: true });
     alphaLedgerPath = join(alphaSpecDir, 'harness-events.jsonl');
     writeFileSync(alphaLedgerPath, JSON.stringify({
       ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'run-alpha-1', spec: 'spec-a',
     }) + '\n');
 
-    // Project beta: HANDOFF routes to spec-b; no ledger, no specs dir at all (idle).
+    // Project beta: HANDOFF routes to spec-b; no ledger for spec-b (idle). One
+    // closed spec (spec-beta-mid) for the usage route.
     const betaWorkspace = join(tempDir, 'beta-workspace');
-    const betaWorkflowRoot = join(tempDir, 'beta-project');
-    await fsp.mkdir(join(betaWorkflowRoot, '.spec-workflow'), { recursive: true });
-    writeFileSync(join(betaWorkflowRoot, '.spec-workflow', 'HANDOFF.md'), handoffFixture('spec-b'));
+    betaWorkflowRoot = join(tempDir, 'beta-project');
+    await fsp.mkdir(join(betaWorkflowRoot, '.spec-workflow', 'specs', 'spec-beta-mid'), { recursive: true });
+    writeFileSync(join(betaWorkflowRoot, '.spec-workflow', 'HANDOFF.md'), [
+      handoffFixture('spec-b'),
+      '',
+      '## Phase log',
+      '',
+      '| Date | Spec | Stage | State | Result | Note |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 2026-02-10 | spec-beta-mid | closeout | complete | closed | done |',
+      '',
+    ].join('\n'));
 
     const registry = new ProjectRegistry();
     await registry.registerProject(alphaWorkspace, process.pid, { workflowRootPath: alphaWorkflowRoot });
@@ -431,5 +465,68 @@ describe('shell hub wiring and routes (task 7)', () => {
     expect(res.status).toBe(404);
     const body: any = await res.json();
     expect(body).toEqual({ error: 'Project not found' });
+  });
+
+  // Contract for task 12 (design.md C10; Requirement 3 AC1, AC10).
+  //
+  // Criterion "the route returns 200 with the rows of two projects in the
+  // stated order" (task 12 _Prompt Success clause; design C10 post-condition
+  // "sorted by projectName, then by closeDate newest first with null last"):
+  //   Pre-condition: the fixture's three closed specs — alpha's
+  //   spec-alpha-recent (closeout/closed 2026-03-15), alpha's spec-alpha-none
+  //   (closed via the retro plan, no closeout row, no ledger — a null close
+  //   date) and beta's spec-beta-mid (closeout/closed 2026-02-10); alpha's
+  //   projectName sorts before beta's (both are "<repo> . <workspace>", and
+  //   "alpha-project" < "beta-project"); spec-a (alpha, open) and spec-b
+  //   (beta, never created) are not closed and carry no row.
+  //   Test: `GET /api/shell/usage/closed-specs`.
+  //   Observable result: status 200; `body.rows` has exactly three entries, in
+  //   the order spec-alpha-recent (closeDate '2026-03-15'), spec-alpha-none
+  //   (closeDate null), spec-beta-mid (closeDate '2026-02-10') — alpha's rows
+  //   first (projectName), newest close date first within alpha with the null
+  //   row last, then beta's row.
+  //   Expected-value source: the literal dates and spec names written into
+  //   each project's HANDOFF phase log and retro plan in `beforeEach`, folded
+  //   by the route's stated sort (design C10).
+  it('returns the closed-spec rows of two projects sorted by project then close date, null last', async () => {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage/closed-specs`);
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+
+    expect(body.rows.map((r: any) => r.spec)).toEqual([
+      'spec-alpha-recent',
+      'spec-alpha-none',
+      'spec-beta-mid',
+    ]);
+    expect(body.rows.map((r: any) => r.closeDate)).toEqual([
+      '2026-03-15',
+      null,
+      '2026-02-10',
+    ]);
+    expect(body.rows.every((r: any) => r.projectId === alphaId || r.projectId === betaId)).toBe(true);
+  });
+
+  // Criterion "a project whose agent-rules.md path is a directory still
+  // yields rows with baseline: null" (task 12 _Prompt Success clause):
+  //   Pre-condition: alpha's `.spec-workflow/agent-rules.md` is a directory,
+  //   not a file (`beforeEach`), and alpha has a closed spec
+  //   (spec-alpha-recent).
+  //   Test: `GET /api/shell/usage/closed-specs`.
+  //   Observable result: status 200 (not an error response), and the row for
+  //   spec-alpha-recent has `baseline: null`.
+  //   Expected-value source: `readAgentRules`'s directory-read catch
+  //   (`src/dashboard/harness/run-setup.ts:49-55`, EISDIR giving `undefined`)
+  //   gives no `baseline-w-per-task` key, which `buildUsageRows`
+  //   (`src/dashboard/shell/usage-rows.ts:41`) reads as `baseline: null`; the
+  //   route must reach this through the full request without an error status
+  //   (NFR Reliability, task 12 Restrictions).
+  it('still returns 200 with baseline null for a project whose agent-rules.md path is a directory', async () => {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/shell/usage/closed-specs`);
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+
+    const row = body.rows.find((r: any) => r.spec === 'spec-alpha-recent');
+    expect(row).toBeDefined();
+    expect(row.baseline).toBeNull();
   });
 });

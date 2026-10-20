@@ -10,7 +10,7 @@ import type {
   RunModel, AgentProfile, SpawnNode, SetupView,
 } from '../harness/types';
 import type {
-  RunDetail, LedgerEvent, ActivityEvent, ControllerRun, ControllerActivity, ControllerWait,
+  RunDetail, LedgerEvent, ActivityEvent, ControllerRun, ControllerActivity, ControllerWait, ControllerPrRead,
 } from './types';
 
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -185,6 +185,8 @@ export function RunPage() {
         />
       )}
 
+      {ctrlRun?.prReads?.length ? <PrPanel reads={ctrlRun.prReads} /> : null}
+
       {loaded && !hasRun && !ctrlRun ? (
         <div className="rounded-lg border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]" data-testid="run-empty">
           {'no run for this project'}
@@ -318,6 +320,74 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
             {logLines.slice(-50).join('\n')}
           </pre>
         )}
+      </div>
+    </div>
+  );
+}
+
+// --- PR panel (controller run) ---------------------------------------------
+
+// green/pending/red/unreadable -> the four status tokens (design C4). The full
+// class strings are literal so the Tailwind build keeps them.
+const CI_CHIP_STYLES: Record<ControllerPrRead['ci'], string> = {
+  green: 'bg-[color-mix(in_srgb,var(--status-success)_15%,transparent)] text-[var(--status-success)]',
+  pending: 'bg-[color-mix(in_srgb,var(--status-warning)_15%,transparent)] text-[var(--status-warning)]',
+  red: 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]',
+  unreadable: 'bg-[color-mix(in_srgb,var(--status-pending)_15%,transparent)] text-[var(--status-pending)]',
+};
+
+/**
+ * PR panel for a controller run (design C4; R1 AC7, AC8, AC10, AC11): one row per
+ * PR read the merge rule saved on the run record, so the operator sees why a run in
+ * `merging` has not merged. It makes no fetch and calls no GitHub route — it shows
+ * only what the rule read.
+ */
+function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
+  const dash = '—';
+  return (
+    <div className="min-w-0 rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-3" data-testid="pr-panel">
+      <div className="mb-2 text-sm font-medium text-[var(--text-primary)]">{'Pull requests'}</div>
+      <div className="space-y-2">
+        {reads.map((read) => {
+          const isLink = typeof read.url === 'string' && read.url.startsWith('https://');
+          return (
+            <div
+              key={`${read.repo}-${read.number}`}
+              className="rounded border border-[var(--border-default)] p-2 text-sm min-w-0"
+              data-testid={`pr-row-${read.repo}-${read.number}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-[var(--text-primary)] break-words">{read.repo}</span>
+                {isLink ? (
+                  <a href={read.url} target="_blank" rel="noreferrer" className="text-[var(--interactive-primary)] hover:underline">
+                    {`#${read.number}`}
+                  </a>
+                ) : (
+                  <span className="text-[var(--text-secondary)]">{`#${read.number}`}</span>
+                )}
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CI_CHIP_STYLES[read.ci]}`}
+                  data-testid={`pr-ci-${read.repo}-${read.number}`}
+                >
+                  {read.ci}
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">{read.mergeable ?? dash}</span>
+              </div>
+              <div className="mt-0.5 text-xs text-[var(--text-secondary)] break-words">
+                {read.verdict}
+                {read.verdict === 'merged' && present(read.sha) && <> {read.sha!.slice(0, 7)}</>}
+              </div>
+              {read.reasons.length > 0 && (
+                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                  {read.reasons.map((reason, i) => (
+                    <div key={i} className="break-words">{reason}</div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-0.5 text-xs text-[var(--text-muted)]">{formatDate(read.at, { includeSeconds: true })}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -20,7 +20,14 @@ const STATUS_LABELS: Record<string, string> = {
   deferred: 'Deferred', resolved: 'Resolved', superseded: 'Superseded',
 };
 
+const OWNERS = ['matthew', 'harness', 'none'] as const;
+
+const OWNER_LABELS: Record<string, string> = {
+  matthew: 'matthew', harness: 'harness', none: 'no owner',
+};
+
 interface FullDeferral extends DeferralRecord {
+  owner?: 'matthew' | 'harness' | null;
   createdAt?: string;
   updatedAt?: string;
   resolvedAt?: string | null;
@@ -52,6 +59,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function OwnerBadge({ owner, testId }: { owner: string; testId: string }) {
+  return (
+    <span
+      data-testid={testId}
+      className="inline-flex shrink-0 items-center rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)]"
+    >
+      {owner}
+    </span>
+  );
+}
+
 function key(projectId: string, id: string): string {
   return `${projectId}::${id}`;
 }
@@ -61,6 +79,7 @@ export function DeferralsPage() {
   const { deferralsByProject } = useShell();
 
   const [active, setActive] = useState<string[]>([]);
+  const [activeOwners, setActiveOwners] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -83,6 +102,19 @@ export function DeferralsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledKey, deferralsByProject]);
 
+  // Owner counts across every enabled project's records (unowned counts as 'none').
+  const ownerCounts = useMemo(() => {
+    const counts: Record<string, number> = { matthew: 0, harness: 0, none: 0 };
+    for (const p of enabledProjects) {
+      for (const d of ((deferralsByProject[p.projectId]?.deferrals ?? []) as FullDeferral[])) {
+        const o = d.owner ?? 'none';
+        if (counts[o] !== undefined) counts[o] += 1;
+      }
+    }
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabledKey, deferralsByProject]);
+
   // Flatten the filtered records of every enabled project, in project order.
   const items = useMemo<Item[]>(() => {
     const q = query.trim().toLowerCase();
@@ -91,6 +123,7 @@ export function DeferralsPage() {
       const recs = (deferralsByProject[p.projectId]?.deferrals ?? []) as FullDeferral[];
       for (const d of recs) {
         if (active.length && !active.includes(d.status)) continue;
+        if (activeOwners.length && !activeOwners.includes(d.owner ?? 'none')) continue;
         if (q) {
           const hay = `${d.title ?? ''} ${d.id ?? ''} ${d.originSpec ?? ''}`.toLowerCase();
           if (!hay.includes(q)) continue;
@@ -100,10 +133,10 @@ export function DeferralsPage() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledKey, deferralsByProject, active, query]);
+  }, [enabledKey, deferralsByProject, active, activeOwners, query]);
 
   // Reset to the first page whenever the filter set changes.
-  useEffect(() => { setPage(0); }, [active, query, enabledKey]);
+  useEffect(() => { setPage(0); }, [active, activeOwners, query, enabledKey]);
 
   const totalByProject = useMemo(() => {
     const m: Record<string, number> = {};
@@ -136,14 +169,24 @@ export function DeferralsPage() {
     count: statusCounts[s],
   }));
 
+  const ownerChips: Chip[] = OWNERS.map((o) => ({
+    value: o,
+    label: OWNER_LABELS[o] ?? o,
+    count: ownerCounts[o],
+  }));
+
   const toggle = (value: string) =>
     setActive((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+
+  const toggleOwner = (value: string) =>
+    setActiveOwners((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
 
   const list = (
     <div>
       <div className="mb-3 flex flex-col gap-2">
         <SearchBox onChange={setQuery} placeholder={'Search title, id or origin spec'} />
         <Chips chips={chips} active={active} onToggle={toggle} />
+        <Chips chips={ownerChips} active={activeOwners} onToggle={toggleOwner} />
       </div>
 
       {items.length === 0 ? (
@@ -162,6 +205,7 @@ export function DeferralsPage() {
                   onClick={() => setSelectedKey(key(p.projectId, d.id))}
                 >
                   <StatusBadge status={d.status} />
+                  {d.owner && <OwnerBadge owner={d.owner} testId={`deferral-owner-${p.projectId}-${d.id}`} />}
                   <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
                   <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
                   <span className="hidden shrink-0 text-xs text-[var(--text-secondary)] sm:inline">
@@ -215,6 +259,7 @@ function DeferralPanel({ item }: { item: Item }) {
       <div className="space-y-1.5">
         <Field label={'ID'} value={<span className="font-mono text-xs">{d.id}</span>} />
         <Field label={'Project'} value={projectName} />
+        <Field label={'Owner'} value={d.owner || undefined} />
         <Field label={'Origin spec'} value={d.originSpec || 'Project-level'} />
         <Field label={'Phase'} value={d.originPhase || undefined} />
         <Field label={'Created'} value={formatDate(d.createdAt)} />

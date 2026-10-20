@@ -28,7 +28,8 @@ import { parseTasksFromMarkdown } from '../core/task-parser.js';
 import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import {
-  type RunRecord, type RunStatus, type TokenTotals, writeRun, readRun, listRuns, listWaits,
+  type RunRecord, type RunStatus, type TokenTotals, type PrRead,
+  writeRun, readRun, listRuns, listWaits,
   isProcessAlive, runStepsDir, withStoreLock,
 } from './state.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
@@ -583,6 +584,17 @@ function nextMergeCheck(deps: RunDeps): string {
 }
 
 /**
+ * Fold one PR read into a run's reads (design D4): replace the entry with the
+ * same `repo` and `number`, else append, then stable-sort the run's own PR
+ * (`kind: 'run'`) first. `Array.prototype.sort` is stable, so reads of the
+ * same kind keep their order.
+ */
+export function withPrRead(reads: PrRead[] | undefined, read: PrRead): PrRead[] {
+  const kept = (reads ?? []).filter((r) => !(r.repo === read.repo && r.number === read.number));
+  return [...kept, read].sort((a, b) => (a.kind === 'run' ? 0 : 1) - (b.kind === 'run' ? 0 : 1));
+}
+
+/**
  * Run one pass of the merge stage. Finds the run's open PR (recording `run.pr`),
  * runs the merge rule, and maps its status to a run-status change: `not-ready` ⇒
  * status `merging` with a re-check time (the scheduler tick re-enters, no slot
@@ -630,6 +642,7 @@ async function runMergeStageStep(
     ledger,
     now: deps.now,
   });
+  if (result.read) run = await save(deps, run, { prReads: withPrRead(run.prReads, result.read) });
 
   switch (result.status) {
     case 'merged':
@@ -910,6 +923,7 @@ async function runCloseoutMergeStep(
     const target = closeoutMergeTarget(run, { number: p.number, repoDir: p.repoDir, branch: p.branch, url: p.url });
     const rules = p.repoDir === run.codeRoot ? deps.mergeRules(run) : readMergeRules(join(p.repoDir, '.spec-workflow'));
     const result = await mergeByRule(target, { rules, specDir, stepLogDir: stepLogDir(run.id), ledger, now: deps.now });
+    if (result.read) run = await save(deps, run, { prReads: withPrRead(run.prReads, result.read) });
     ledger.note(`close-out merge: ${target.label} ${result.status}${result.reasons.length ? ` (${result.reasons.join('; ')})` : ''}`);
     results.push({ label: target.label, result });
   }
@@ -1184,6 +1198,8 @@ export interface ControllerRunRow {
   tokens: number;
   created: string;
   updated: string;
+  /** One read per PR for the dashboard (design D5); undefined when the record has none. */
+  prReads?: PrRead[];
 }
 
 function toRow(run: RunRecord): ControllerRunRow {
@@ -1192,6 +1208,7 @@ function toRow(run: RunRecord): ControllerRunRow {
     phase: run.phase, stepKind: run.cursor?.stepKind,
     pauseReason: run.pauseReason, resumeAt: run.resumeAt,
     tokens: run.tokens ? totalW(run.tokens) : 0, created: run.created, updated: run.updated,
+    prReads: run.prReads,
   };
 }
 

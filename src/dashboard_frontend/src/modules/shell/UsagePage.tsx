@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useShell } from './ShellProvider';
+import { Group, Row } from './primitives';
+import { UsageTrend } from './UsageTrend';
+import type { UsageSpecRow } from './types';
 
 /**
  * Usage (controller-tasks.md T10; controller-design.md §9). The two subscription
  * windows — five-hour and seven-day — as utilisation bars with their reset time,
  * read from `/api/controller/rate-limit` and refreshed on every `controller-runs`
- * push (a run's token write is a cue the windows moved). The rest of the page is
- * still the placeholder for the live/per-spec/trend views of a later release.
+ * push (a run's token write is a cue the windows moved). Below them, W per task
+ * per closed spec as a grouped table and a plain-SVG trend (design C11), read
+ * from `/api/shell/usage/closed-specs` on the same refetch cue.
  */
 
 interface RateWindow {
@@ -58,11 +62,33 @@ function UsageBar({ title, window, now }: { title: string; window: RateWindow; n
   );
 }
 
+/** Table cell text per design C11. */
+function wText(r: UsageSpecRow): string {
+  if (r.w === null) return 'no usage recorded';
+  const prefix = r.wUnknown > 0 ? '≥ ' : '';
+  const suffix = r.wUnknown > 0 ? ` (${r.wUnknown} unknown)` : '';
+  return `${prefix}${Math.round(r.w).toLocaleString('en-US')}${suffix}`;
+}
+
+function wPerTaskText(r: UsageSpecRow): string {
+  if (r.wPerTask === null) return r.w === null ? 'no usage recorded' : 'no tasks';
+  const prefix = r.wUnknown > 0 ? '≥ ' : '';
+  return `${prefix}${Math.round(r.wPerTask).toLocaleString('en-US')}`;
+}
+
+function pctText(r: UsageSpecRow): string {
+  if (r.baseline === null || r.baseline === 0) return 'no baseline';
+  if (r.pctOfBaseline === null) return '—';
+  return `${Math.round(r.pctOfBaseline).toLocaleString('en-US')}%`;
+}
+
 export function UsagePage() {
   const { controllerRuns } = useShell();
   const [rate, setRate] = useState<RateLimitFile | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [tick, setTick] = useState(Date.now());
+  const [rows, setRows] = useState<UsageSpecRow[]>([]);
+  const [rowsLoaded, setRowsLoaded] = useState(false);
 
   // Refetch on mount and whenever a `controller-runs` push changes the list.
   useEffect(() => {
@@ -71,6 +97,19 @@ export function UsagePage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (alive) { setRate(data); setLoaded(true); } })
       .catch(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [controllerRuns]);
+
+  // Closed-spec rows on the same cue; a failed fetch keeps the last rows.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/shell/usage/closed-specs')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data && Array.isArray(data.rows)) { setRows(data.rows); setRowsLoaded(true); }
+        else if (alive) setRowsLoaded(true);
+      })
+      .catch(() => { if (alive) setRowsLoaded(true); });
     return () => { alive = false; };
   }, [controllerRuns]);
 
@@ -94,9 +133,52 @@ export function UsagePage() {
         </div>
       ) : null}
 
-      <p data-testid="usage-placeholder" className="text-sm text-[var(--text-secondary)]">
-        {'The live, per-spec and trend usage views arrive in a later release.'}
-      </p>
+      {rowsLoaded && rows.length === 0 ? (
+        <p data-testid="usage-no-closed" className="text-sm text-[var(--text-muted)]">
+          {'No closed specs yet.'}
+        </p>
+      ) : rows.length > 0 ? (
+        <div className="space-y-4" data-testid="usage-closed-specs">
+          <UsageTrend rows={rows} />
+          {groupByProject(rows).map(({ projectId, projectName, rows: projectRows }) => (
+            <Group key={projectId} name={`usage-${projectId}`} title={projectName} count={projectRows.length}>
+              <Row>
+                <span className="min-w-0 flex-1 text-xs font-medium text-[var(--text-muted)]">{'Spec'}</span>
+                <span className="hidden w-24 shrink-0 text-xs text-[var(--text-muted)] sm:inline">{'Closed'}</span>
+                <span className="w-28 shrink-0 text-right text-xs text-[var(--text-muted)]">{'W'}</span>
+                <span className="hidden w-14 shrink-0 text-right text-xs text-[var(--text-muted)] sm:inline">{'Tasks'}</span>
+                <span className="w-24 shrink-0 text-right text-xs text-[var(--text-muted)]">{'W/task'}</span>
+                <span className="hidden w-24 shrink-0 text-right text-xs text-[var(--text-muted)] md:inline">{'% baseline'}</span>
+              </Row>
+              {projectRows.map((r) => (
+                <Row key={r.spec} testId={`usage-row-${projectId}-${r.spec}`}>
+                  <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{r.spec}</span>
+                  <span className="hidden w-24 shrink-0 text-xs text-[var(--text-secondary)] sm:inline">
+                    {r.closeDate ? r.closeDate.slice(0, 10) : '—'}
+                  </span>
+                  <span className="w-28 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">{wText(r)}</span>
+                  <span className="hidden w-14 shrink-0 text-right tabular-nums text-[var(--text-secondary)] sm:inline">
+                    {r.tasks === 0 ? 'no tasks' : r.tasks}
+                  </span>
+                  <span className="w-24 shrink-0 text-right tabular-nums text-[var(--text-secondary)]">{wPerTaskText(r)}</span>
+                  <span className="hidden w-24 shrink-0 text-right tabular-nums text-[var(--text-secondary)] md:inline">{pctText(r)}</span>
+                </Row>
+              ))}
+            </Group>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
+}
+
+/** Group rows by project, preserving the server's project and close-date order. */
+function groupByProject(rows: UsageSpecRow[]): { projectId: string; projectName: string; rows: UsageSpecRow[] }[] {
+  const out: { projectId: string; projectName: string; rows: UsageSpecRow[] }[] = [];
+  for (const r of rows) {
+    const last = out[out.length - 1];
+    if (last && last.projectId === r.projectId) last.rows.push(r);
+    else out.push({ projectId: r.projectId, projectName: r.projectName, rows: [r] });
+  }
+  return out;
 }

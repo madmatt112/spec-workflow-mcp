@@ -40,6 +40,8 @@ export interface AgentRules {
   postMerge: string | null;
   /** `merge:` — merge by rule (`auto`) or ask the operator first (`ask`). */
   merge: 'auto' | 'ask';
+  /** `baseline-w-per-task:` — the repository's W per task baseline, else omitted. */
+  baselineWPerTask?: number;
 }
 
 const PROVIDER_ROW = /^- ([^:\s]+): (\S+)(?: (\S+))?$/;
@@ -104,6 +106,12 @@ export function readAgentRules(workflowRoot: string): AgentRules {
   const mergeMatch = text.match(/^merge:\s*(auto|ask)\b/m);
   if (mergeMatch) merge = mergeMatch[1] as 'auto' | 'ask';
 
+  // `baseline-w-per-task:` reads an integer, so `0` reads as `0` (design D9).
+  // A non-integer, a non-numeric value or an absent key omits the field.
+  let baselineWPerTask: number | undefined;
+  const baselineMatch = text.match(/^baseline-w-per-task:\s*(\d+)\s*$/m);
+  if (baselineMatch) baselineWPerTask = Number(baselineMatch[1]);
+
   const providers: ProviderRow[] = [];
   let idx = -1;
   for (let i = 0; i < lines.length; i++) {
@@ -123,7 +131,9 @@ export function readAgentRules(workflowRoot: string): AgentRules {
     }
   }
 
-  return { worktree, gates, worktreeSetup, providers, mergeMethod, postMerge, merge };
+  const rules: AgentRules = { worktree, gates, worktreeSetup, providers, mergeMethod, postMerge, merge };
+  if (baselineWPerTask !== undefined) rules.baselineWPerTask = baselineWPerTask;
+  return rules;
 }
 
 /**

@@ -373,6 +373,44 @@ describe('run-setup', () => {
         mergeMethod: 'merge', postMerge: null, merge: 'auto',
       });
     });
+
+    it('reads baseline-w-per-task as an integer (Req 3.9)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await fsp.writeFile(
+        join(workflowRoot, 'agent-rules.md'),
+        ['baseline-w-per-task: 1200', ''].join('\n'),
+      );
+
+      const rules = readAgentRules(workflowRoot);
+
+      expect(rules.baselineWPerTask).toBe(1200);
+    });
+
+    it('reads a baseline-w-per-task of 0 as 0, not omitted (Req 3.9, design D9)', async () => {
+      const { workflowRoot } = await makeWorkflowRoot();
+      await fsp.writeFile(
+        join(workflowRoot, 'agent-rules.md'),
+        ['baseline-w-per-task: 0', ''].join('\n'),
+      );
+
+      const rules = readAgentRules(workflowRoot);
+
+      expect(rules.baselineWPerTask).toBe(0);
+    });
+
+    it('omits baselineWPerTask for a non-integer value, a non-numeric value and an absent key (Req 3.9)', async () => {
+      const { workflowRoot: nonInteger } = await makeWorkflowRoot();
+      await fsp.writeFile(join(nonInteger, 'agent-rules.md'), ['baseline-w-per-task: 12.5', ''].join('\n'));
+      expect(readAgentRules(nonInteger).baselineWPerTask).toBeUndefined();
+
+      const { workflowRoot: nonNumeric } = await makeWorkflowRoot();
+      await fsp.writeFile(join(nonNumeric, 'agent-rules.md'), ['baseline-w-per-task: abc', ''].join('\n'));
+      expect(readAgentRules(nonNumeric).baselineWPerTask).toBeUndefined();
+
+      const { workflowRoot: absent } = await makeWorkflowRoot();
+      await fsp.writeFile(join(absent, 'agent-rules.md'), ['worktree-per-change: required', ''].join('\n'));
+      expect(readAgentRules(absent).baselineWPerTask).toBeUndefined();
+    });
   });
 
   describe('buildSetupView', () => {
