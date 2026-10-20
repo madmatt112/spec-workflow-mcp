@@ -95,3 +95,24 @@
 - src/core/workspace-initializer.ts:69 — template source path from the module directory
 - scripts/copy-static.cjs:46-53 — copies `src/markdown` to `dist/markdown`
 - scripts/sync-store-templates.cjs:34-37 — syncs only names the store already has
+
+## Tasks format (tasks additions)
+- src/core/task-parser.ts:14 — `TEST_BULLET_RE`, the only accepted `- Test:` label
+- src/core/task-parser.ts:34-44 — `parseTestLine`, path and call split on a spaced em dash
+- src/core/task-validator.ts:12 — `SEAM_LABEL_RE`, matches near-miss seam labels
+- src/core/task-validator.ts:147-164 — rejects a non-canonical `Test`/`File` label as an error
+
+## Test scaffolding (tasks additions)
+- vitest.config.ts:7-8 — setup file and the `src/**/*.test.ts` include pattern
+- vitest.setup.ts:23-24 — per-worker `SDD_HOME` and `SPEC_WORKFLOW_HOME`
+- src/controller/access.ts:191-192 — `installAccessControl`, adds the access hook to an app
+- src/dashboard/__tests__/health-route.test.ts:21-32 — `getFreePort`
+- src/dashboard/__tests__/access-routes.test.ts:21 — its own stub `POST /api/projects/add`
+- src/dashboard/__tests__/project-manager-durable.test.ts:73-88 — worktree project not remembered
+- scripts/stub-gh.mjs:49-51 — the per-invocation `.argv` sidecar
+- src/core/dashboard-session.ts:29-45 — `ensureSessionDir`, the `mkdir` the peek must skip
+- src/controller/merge.ts:150-172 — `runCommand` drops a non-numeric error code
+
+## Docs (tasks additions)
+- docs/SDD-HARNESS.md:90-92 — the register-once bullet (`POST /api/projects/add`)
+- docs/SDD-HARNESS.md:312-331 — `## Installing from a checkout`, steps 4-5 at 323-326
