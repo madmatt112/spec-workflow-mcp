@@ -24,7 +24,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 5.3, 5.4, 5.5, 5.6_
   - _Prompt: Task: Implement design C7's addProjectByPath change per Req 5 AC 3-5. Absent parameter: behaviour unchanged. Present: workspace from resolveGitWorkspaceRoot, store root the given value canonicalised with normalizeIdentityPath (src/core/git-utils.ts:101-112, design D9); reuse a registry entry whose workflowRootPath already equals it, else call registry.registerProject(workspace, process.pid, `{ workflowRootPath }`), which updates in place by id (src/core/project-registry.ts:362-378); when an in-memory context has a different store root, remove and re-add it (design D12); then await rememberProject (src/controller/state.ts:434-441) with the entry's id, both paths and name, letting a failed write reject (design D3). Extend the durable test file following the restart pattern at lines 51-71 | Restrictions: Leave the equality rule in addProject (src/dashboard/project-manager.ts:240-249) unchanged, so a worktree server is still not remembered; do not edit the four existing tests | Success: a separate-store add is in projects.json with both realpath paths; it survives a restart after unregisterProjectById; a second identical call leaves one entry and returns the same id; a re-add with a different store root updates the entry and the context in place; the four existing tests pass unchanged_
 
-- [ ] 3. Accept `workflowRootPath` on `POST /api/projects/add`
+- [x] 3. Accept `workflowRootPath` on `POST /api/projects/add`
   - File: src/dashboard/multi-server.ts
   - File: src/dashboard/__tests__/projects-add-route.test.ts
   - Test: src/dashboard/__tests__/projects-add-route.test.ts — POST /api/projects/add
