@@ -146,3 +146,8 @@ One line per proposal, written by the close-out phase.
 - P11: skipped — no change chosen
 - P12: skipped — no change chosen
 - P2: skipped — Option A chosen (keep full npm test at end-to-end gate only); no change needed
+- P3: done — aecce51bf2d1e1642a122748349cb32220d67f0b
+- P6: done — 1b178c6e373bd5c9e116f6871adce9c45d096bbd
+- P7: done — 120bdc8be574d20b377a7a6654b79709de808b77
+- P8: to-do (human) — Repair loop is now controller code (src/controller/phases/implementation.ts fix-rounds); needs tsc+vitest, outside this checks:none prose batch. Route as its own controller code task.
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/155

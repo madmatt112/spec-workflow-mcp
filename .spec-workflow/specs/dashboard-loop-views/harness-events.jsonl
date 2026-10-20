@@ -263,3 +263,19 @@
 {"ts":"2026-10-20T16:59:42.167Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-implementer","input":"12","output":"2226","cacheWrite":"34737","cacheRead":"212290","tokens":"249265","cacheWrite5m":"0","cacheWrite1h":"34737","model":"claude-opus-4-8"}
 {"ts":"2026-10-20T16:59:42.167Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
 {"ts":"2026-10-20T16:59:42.180Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P2","outcome":"skipped"}
+{"ts":"2026-10-20T16:59:58.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"P3","title":"P3 (F3) — Five pre-existing vitest failures block the full-suite gate."}
+{"ts":"2026-10-20T16:59:58.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"P6","title":"P6 (F6) — The full e2e suite flaked under a controller CPU hotspot."}
+{"ts":"2026-10-20T16:59:58.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"P7","title":"P7 (F7) — The tasks drafter invented a label outside the template vocabulary."}
+{"ts":"2026-10-20T16:59:58.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.pick","task":"P8","title":"P8 (F8) — Task 4 ran two repair re-entries against an unfixable gate before the fix."}
+{"ts":"2026-10-20T16:59:58.316Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-20T17:10:01.319Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-implementer","input":"74","output":"40323","cacheWrite":"143314","cacheRead":"3210489","tokens":"3394200","cacheWrite5m":"0","cacheWrite1h":"143314","model":"claude-opus-4-8"}
+{"ts":"2026-10-20T17:10:01.319Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-20T17:10:01.346Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: item P3 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-20T17:10:08.799Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-10-20T17:10:08.818Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: item P6 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-20T17:10:10.770Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: item P6 pass risk low"}
+{"ts":"2026-10-20T17:10:12.869Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-10-20T17:10:12.928Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-10-20T17:10:12.930Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-10-20T17:10:12.930Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-10-20T17:10:12.931Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P8","outcome":"to-do"}

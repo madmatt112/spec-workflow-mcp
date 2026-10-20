@@ -109,3 +109,13 @@ Cost: unknown
 store batch 1: 0 done of 1, 0 fix round(s)
 Evidence: batch 1 · mark run-20261018-150806 51015b0f
 Cost: 1 implementer spawn(s)
+
+## 2026-10-20T17:10:01Z · closeout · harness batch 2 · gotcha
+doc-gap — retro proposals named "harness skills" as the target, but post-foundation-review the implementation orchestrator and e2e gate are controller code; P3 had a prose home in the verifier agent, P8 did not and needs a code task.
+Evidence: batch 2 · mark run-20261018-150806 4623bfd2
+Cost: implementer
+
+## 2026-10-20T17:10:12Z · closeout · harness batch 2 · cleanup
+harness batch 2: 3 done of 4, 0 fix round(s)
+Evidence: batch 2 · mark run-20261018-150806 af61b434
+Cost: 1 implementer spawn(s)
