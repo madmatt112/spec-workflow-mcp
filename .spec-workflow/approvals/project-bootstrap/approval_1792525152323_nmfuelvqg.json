@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792525152323_nmfuelvqg",
+  "title": "project-bootstrap design v2",
+  "filePath": ".spec-workflow/specs/project-bootstrap/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-20T19:39:12.323Z",
+  "category": "spec",
+  "categoryName": "project-bootstrap",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-20T19:39:12.473Z"
+}

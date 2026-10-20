@@ -1,11 +1,17 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-10-20 (Round 1)
+Last updated: 2026-10-20 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (SHOULD_FIX)** — token-check `child_process` classification was unspecified. v2 pins
+  it to node-20 callback fields read directly (`error.killed` → timed out; `error.code`
+  numeric/`ENOENT`), not `runCommand`'s number filter. Verified against merge.ts:150-172.
+- **R1-2 (SHOULD_FIX)** — Data Models omitted the 500 branch. v2 adds `500: { error: string }`
+  and the §3 exit-2 mapping names it. Verified against multi-server.ts:461-463 + state.ts:434-441.
+- **R1-3 (MINOR)** — doctor default `timeoutMs` unstated. v2 states 10000.
+- **R1-4 (MINOR)** — agent-rules read/write path ambiguous. v2 names
+  `storeRoot/.spec-workflow/agent-rules.md`; verified against run-setup.ts:69.
 
 ### Partially Accepted
 - (none)
@@ -14,37 +20,23 @@ Last updated: 2026-10-20 (Round 1)
 - (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — C4 token check: error classification unspecified. Reason strings
-  (`gh exited <code>` / `gh timed out` / `unreadable gh output` / ENOENT) never name the
-  `child_process` fields that distinguish them. The in-tree `runCommand`
-  (`src/controller/merge.ts:150-172`) filters `typeof e.code === 'number'`, which discards the
-  string `'ENOENT'` → contradicts Error Handling §4's "gh exited ENOENT". agent-rules.md
-  requires node-20 field claims to be stated. Fix: cite/reuse `runCommand`; pin `error.killed`,
-  direct `error.code`, numeric exit.
-- **R1-2 (SHOULD_FIX)** — Data Models for `POST /api/projects/add` pins 200/400 only; C7/D3
-  newly route a failed `rememberProject` write to 500, which is unpinned in Data Models.
-  Fix: add `500: { error: string }` (failed durable write).
-- **R1-3 (MINOR)** — `runDoctor`/`runChecks` default `timeoutMs` unstated vs the 10 s/30 s
-  Performance NFR. Fix: state default = 10000.
-- **R1-4 (MINOR)** — C3/C4 use "store root" and "storeDir" interchangeably for the
-  `readAgentRules` argument, which must be `<storeRoot>/.spec-workflow` not `<storeRoot>`.
-  Fix: name the `.spec-workflow` directory explicitly.
-- (noted, uncounted) `(was: undefined undefined)` possible when a prior spec-workflow entry is
-  an object lacking command/args, or a non-object; cosmetic.
+- **R2-1 (MINOR, Compounding R1-1)** — signal-kill-not-timeout yields `gh exited null`. Rare,
+  non-crashing. Implementer's call.
+- **R2-2 (MINOR, Novel)** — no named test for the `gh`-timeout / missing-binary token reasons.
+  Behaviour is pinned; a task-phase test note would lock it.
 
 ## Patterns & Themes
-- Citations are uniformly accurate (all ~40 ranges verified both ends). The weakness is not
-  false claims about existing code but under-specified *new* behaviour: `child_process` error
-  classification and the 500 response shape.
-- The document leans on "code samples illustrative, post-conditions binding." That is fine
-  until a binding post-condition (the token reasons) depends on an unstated field read.
-- Store-root / realpath / id coherence (D2+C7+D9+generateProjectId) is sound and well
-  reasoned; D12 migration and C9 peek are correctly motivated. Do not re-litigate these.
+- v1→v2 deltas were all four R1 fixes; each verifies against the cited code. The reviser pinned
+  the fields (did not merely reword §4) and wired the 500 end to end.
+- Citations remain uniformly accurate across both rounds (~40 ranges). No citation MUST_FIX in
+  either round.
+- One "consistency" candidate (start-controller suffix on a 500) was dismissed: Req 5 AC 7
+  *requires* that line on any non-2xx. Check requirements before calling a message wrong.
 
 ## Guidance for Next Review
-- Verify the reviser pinned the token-check fields and did not merely reword §4.
-- Confirm the 500 row landed in Data Models and that the init exit-2 mapping references it.
-- Fresh lens not yet used: a concurrency/ordering lens on the init→controller round trip
-  (secret race, concurrent re-run) — low value for one operator but unused.
+- Design is converged (0/0). Residual items are MINOR and task-phase.
 - Do not re-open: citation accuracy, scope, D2/C7/D9 coherence, D12 remove-and-re-add safety,
-  C9 peek motivation, D1 partial-mock rationale, `showHelp` toContain invariant.
+  C9 peek motivation, D1 partial-mock rationale, `showHelp` toContain invariant, the token-field
+  classification (R1-1, verified), the 500 shape/trigger (R1-2, verified), the agent-rules path
+  (R1-4, verified), and the start-controller suffix (required by Req 5 AC 7).
+- If a v3 exists, attack only its new deltas; the body is well-covered.

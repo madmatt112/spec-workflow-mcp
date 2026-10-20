@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/project-bootstrap/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-20T19:39:12.367Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792525152323_nmfuelvqg",
+      "approvalTitle": "project-bootstrap design v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-20T19:39:12.470Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792525152323_nmfuelvqg",
+      "approvalTitle": "project-bootstrap design v2"
+    }
+  ]
+}

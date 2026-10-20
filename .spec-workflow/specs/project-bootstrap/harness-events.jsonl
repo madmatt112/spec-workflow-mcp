@@ -49,3 +49,8 @@
 {"ts":"2026-10-20T19:31:31.036Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-10-20T19:33:54.977Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-reviser","input":"22","output":"10546","cacheWrite":"54275","cacheRead":"607239","tokens":"672082","cacheWrite5m":"0","cacheWrite1h":"54275","model":"claude-opus-4-8"}
 {"ts":"2026-10-20T19:33:54.977Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"design"}
+{"ts":"2026-10-20T19:33:55.062Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-reviewer","role":"review v2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-20T19:39:12.264Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-reviewer","input":"24","output":"21461","cacheWrite":"81338","cacheRead":"851952","tokens":"954775","cacheWrite5m":"0","cacheWrite1h":"81338","model":"claude-opus-4-8"}
+{"ts":"2026-10-20T19:39:12.264Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-reviewer","role":"review v2","result":"success","phase":"design","round":"2"}
+{"ts":"2026-10-20T19:39:12.264Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"round","phase":"design","round":"2","verdict":"converged 0/0/0","version":"v2"}
+{"ts":"2026-10-20T19:39:12.586Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.end","phase":"design","result":"approved","state":"v2","note":"2 rounds"}
