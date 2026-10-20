@@ -39,8 +39,7 @@ const TURN_CAP: Record<string, number> = { 'sdd-implementer': 150, 'sdd-verifier
 const CLASS_ORDER: TargetClass[] = ['store', 'harness', 'code', 'home'];
 /** A test file: under a test directory, or a `*.test.*`/`*.spec.*` file. */
 const isTestPath = (p: string): boolean =>
-  p.includes('/__tests__/') || p.includes('/test/') || p.includes('/tests/') ||
-  /\.(test|spec)\./.test(basename(p));
+  /(^|\/)(__tests__|tests?)\//.test(p) || /\.(test|spec)\./.test(basename(p));
 
 export interface CloseoutPr { repoDir: string; branch: string; number?: number; url?: string }
 
