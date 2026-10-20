@@ -153,6 +153,30 @@ describe('log-implementation attribution', () => {
     expect(entries[0].summary).not.toContain('\n');
   });
 
+  it('records zeroes for an undefined statistics payload instead of throwing (retro P4)', async () => {
+    _resetRootSelection();
+    const repo = await fixture.createRepo('p4-workspace');
+    const specDir = await seedSpec(repo.path, 'p4-spec');
+    const context: ToolContext = {
+      projectPath: repo.path,
+      workspacePath: repo.path,
+      dashboardUrl: 'http://localhost:5000',
+    };
+
+    const result = await logImplementationHandler(
+      baseArgs('p4-spec', { statistics: undefined }),
+      context
+    );
+    expect(result.success).toBe(true);
+
+    const entries = (await new ImplementationLogManager(specDir).loadLog()).entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].statistics).toMatchObject({
+      linesAdded: 0,
+      linesRemoved: 0,
+    });
+  });
+
   it('records a null commit for a non-repository workspace and still writes the log entry', async () => {
     _resetRootSelection();
     const dir = await fixture.createNonGitDirectory('no-repo-workspace');

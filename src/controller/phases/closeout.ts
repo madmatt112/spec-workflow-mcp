@@ -37,6 +37,9 @@ const FIX_ROUNDS_CAP = 3;
 const TURN_CAP: Record<string, number> = { 'sdd-implementer': 150, 'sdd-verifier': 100, 'sdd-adjudicator': 120 };
 /** The order the classes are worked in (SKILL.md Step 0 item 2). */
 const CLASS_ORDER: TargetClass[] = ['store', 'harness', 'code', 'home'];
+/** A test file: under a test directory, or a `*.test.*`/`*.spec.*` file. */
+const isTestPath = (p: string): boolean =>
+  /(^|\/)(__tests__|tests?)\//.test(p) || /\.(test|spec)\./.test(basename(p));
 
 export interface CloseoutPr { repoDir: string; branch: string; number?: number; url?: string }
 
@@ -451,9 +454,16 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       // so the checks still run and the touched-paths rule cannot misfire on a
       // correct change (shout close-out, P9).
       let files = named.filter((p) => existsSync(join(landing.root, p)));
+      const commitFiles = (git(landing.root, ['show', '--name-only', '--format=', commit]) ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
       if (files.length === 0) {
-        files = (git(landing.root, ['show', '--name-only', '--format=', commit]) ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+        files = commitFiles;
         if (files.length > 0) ctx.ledger.note(`gate: item ${id} files taken from the commit (no named path exists in the root)`);
+      } else {
+        // A named path sets the list, but the commit's own test files ride along:
+        // an item that names a source file whose fix also adds its test must not
+        // fail `file-outside-list` on that test (log-implementation P4 re-land).
+        const tests = commitFiles.filter((p) => isTestPath(p) && !files.includes(p));
+        if (tests.length > 0) { files = [...files, ...tests]; ctx.ledger.note(`gate: item ${id} test files from the commit added to the list`); }
       }
       if (files.length === 0) { s.ok = true; ctx.ledger.note(`gate: item ${id} ok (no path named)`); return; }
       const res = await reviewTaskHandler({ action: 'gate', specName, taskId: id, root: landing.root, commit, files, checks: landing.checks }, toolContext);

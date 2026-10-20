@@ -348,4 +348,38 @@ describe('runCloseoutPhase', () => {
     expect(planText(fx)).toMatch(/^- P3: done — [0-9a-f]{40}$/m);
     expect(rows(fx).some((e) => e.type === 'note' && /left on the branch \(shared with a landed item\)$/.test(e.text))).toBe(true);
   }, 60000);
+
+  it('lands a named item whose commit adds its matching test, but still fails one that adds an unrelated non-test file', async () => {
+    const pWithTest = ['- **P2 (F2) — Guard the stats.** Edit `src/tool.ts`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    const pUnrelated = ['- **P3 (F3) — Fix the gadget.** Edit `src/gadget.ts`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([pWithTest, pUnrelated]);
+    writeScript(fx, [
+      {
+        // One code batch. P2 commits its named `src/tool.ts` AND the matching
+        // test `src/__tests__/tool.test.ts`: the commit's test file rides along
+        // the gate list, so P2 passes. P3 commits its named `src/gadget.ts` AND
+        // an unrelated non-test `src/other.ts`, so it fails on file-outside-list.
+        commands: [
+          `mkdir -p src/__tests__ && echo P2 >> src/tool.ts && echo P2 >> src/__tests__/tool.test.ts && git add src/tool.ts src/__tests__/tool.test.ts && git commit -qm "chore(retro): ${fx.spec} P2 landed"`,
+          `echo P3 >> src/gadget.ts && echo P3 >> src/other.ts && git add src/gadget.ts src/other.ts && git commit -qm "chore(retro): ${fx.spec} P3 landed"`,
+        ],
+        result: result({ items: [{ id: 'P2', status: 'done', commit: 'none' }, { id: 'P3', status: 'done', commit: 'none' }], retro: 'none' }),
+      },
+      // Fix round 1 hands P3 back: the unrelated non-test file keeps it from landing.
+      { result: result({ items: [{ id: 'P3', status: 'to-do', reason: 'needs the operator' }], retro: 'none' }) },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 2, done: 1, todo: 1, skipped: 0 });
+    // P2 lands done: its commit's test file counts as listed, so the gate passes.
+    expect(planText(fx)).toMatch(/^- P2: done — [0-9a-f]{40}$/m);
+    expect(planText(fx)).toMatch(/^- P3: to-do \(human\) — needs the operator$/m);
+    const r = rows(fx);
+    expect(r.some((e) => e.type === 'note' && /^gate: item P2 test files from the commit added to the list$/.test(e.text))).toBe(true);
+    expect(r.some((e) => e.type === 'note' && /^gate: item P2 pass/.test(e.text))).toBe(true);
+    // The unrelated non-test file still fails: P2's rule never rescues P3.
+    expect(r.some((e) => e.type === 'note' && /^gate: item P3 pass/.test(e.text))).toBe(false);
+  }, 60000);
 });
