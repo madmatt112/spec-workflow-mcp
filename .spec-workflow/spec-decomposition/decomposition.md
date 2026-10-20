@@ -854,7 +854,7 @@ stacks under the list and nothing scrolls sideways.
 **Depends on** spec 9 for the harness watchers, the launcher, the setup file and the run
 model wiring, and on spec 6 for the pointer file and the hook events.
 
-### 22. `dashboard-visual-refresh` — the same dashboard, restyled (deferred) — until 24 closes
+### 22. `dashboard-visual-refresh` — the same dashboard, restyled (deferred) — until 25 closes
 
 The dashboard's look grew with its pages: colours, spacing, type sizes and component styles
 were chosen page by page, and the breakpoints and content widths differ between them. This
@@ -906,7 +906,7 @@ controller design of the foundation review (`docs/foundation-review.md`,
 `docs/controller-design.md`). Their text is parked in `superseded-2026-10-10.md` in this
 directory. Step (d) re-plans them below ("Re-planned entries"); until Matthew approves that
 section nothing past 15 is active. Approved 2026-10-17: 22 and 25 carry `(deferred)` so
-the controller routes 23, then 24; remove the tag from 22 when 24 closes, and from 25 after
+the controller routes 23, then 24; remove the tag from 22 when 25 closes, and from 25 after
 the advisor design session.
 
 ## Re-planned entries (2026-10-16, approved 2026-10-17)

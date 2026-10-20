@@ -87,7 +87,7 @@ order, and how to brief subagents. Point a session at it and it carries the cour
 - Live build `4792e48`. Done on the controller: spec 23 (this repo), jobscout
   `multi-lane-sources`. Live: tradr `import-off-request-thread` (gate B, Matthew's), spec 24
   `project-bootstrap` (gate B, Matthew's). Order after 24: 26 → 27 → 25 (design session
-  first) → 22; untag 26 when 24 closes, 27 when 26 closes, 22 after 24 per the decomposition.
+  first) → 22; untag 26 when 24 closes, 27 when 26 closes, 22 when 25 closes.
 - Launches are Matthew's (the auto-mode classifier denies a session's launch POST).
 - Deploy only when every run is parked at a wait (a restart can race a step's start).
 
