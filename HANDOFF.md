@@ -106,6 +106,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-19 | dashboard-loop-views | implementation | tasks 3/14 | design-defect | task 4 `- Test (integration):` label is unparsed, so its required test file is outside the gate's file list; fix in tasks.md (detail: /tmp/scratchpad/sdd/dashboard-loop-views/task-4-fix-1-report.md) |
 | 2026-10-20 | dashboard-loop-views | implementation | tasks 13/14 | escalate | log-implementation MCP tool broken (linesAdded undefined) + 5 pre-existing vitest fails at HEAD + e2e full-suite infra-flaky; /tmp/scratchpad/sdd/dashboard-loop-views/task-14-report.md |
 | 2026-10-20 | dashboard-loop-views | implementation | tasks 14/14 | complete | PR #152 |
+| 2026-10-20 | dashboard-loop-views | retrospective |  | retro-ready | 16 findings, 12 proposals |
 
 ## Current state — 2026-08-04
 
