@@ -1091,6 +1091,13 @@ async function handleDocumentOutcome(
     await save(deps, run, { status: 'waiting', inFlight: undefined });
     return 'stop';
   }
+  if (outcome.result === 'deferred') {
+    // Gate A "do nothing": the document phase wrote the ledger note and tagged the
+    // decomposition heading `(deferred)`. The run finishes with no implementation.
+    if (!runEnded(specDir, run.id)) ledger.runEnd('done');
+    await save(deps, run, { status: 'done', phase: undefined, inFlight: undefined });
+    return 'stop';
+  }
   if (outcome.result === 'escalate') {
     await waitAnd(deps, run, ledger, 'escalation', specDir, [{
       id: 'escalation', text: outcome.reason ?? `${phase} escalated`, free: true,

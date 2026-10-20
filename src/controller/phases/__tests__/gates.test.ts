@@ -220,7 +220,10 @@ describe('gate A (requirements)', () => {
 
     const wait = await waitById(parked.waitId!);
     expect(wait?.kind).toBe('gate-a');
-    expect(wait?.questions).toHaveLength(5);
+    // Five asked decisions plus the always-offered "do nothing / defer" question.
+    expect(wait?.questions).toHaveLength(6);
+    expect(wait?.questions.at(-1)?.id).toBe('defer');
+    expect(wait?.questions.at(-1)?.recommended).toBe('Proceed');
     expect(wait?.proposals).toHaveLength(2); // the two decisions recorded without asking
     expect(reviserStarts(fx)).toBe(0);
 
@@ -268,6 +271,47 @@ describe('gate A (requirements)', () => {
     await answerWait(parked.waitId!, { D1: 'A', D2: 'A', D3: 'A', D4: 'A', D5: 'A' }, 'tester');
     const done = await runDocumentPhase(ctx);
     expect(done).toMatchObject({ result: 'approved', version: 1 });
+  });
+
+  it('answering "do nothing" defers the spec and ends the run without a design step', async () => {
+    const decompDir = join(fx.repo, '.spec-workflow', 'spec-decomposition');
+    mkdirSync(decompDir, { recursive: true });
+    const decompPath = join(decompDir, 'decomposition.md');
+    writeFileSync(
+      decompPath,
+      ['# Decomposition', '', `### 1. \`${SPEC}\` — the controller doc spec`, '', 'Body.', ''].join('\n'),
+    );
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'add decomposition']);
+
+    // Only the drafter runs; after "do nothing" no reviewer/reviser/design step follows.
+    const ctx = makeContext(fx, 'requirements', [
+      drafterRun('requirements', reqDoc(1), decisions(2)),
+    ]);
+
+    const parked = await runDocumentPhase(ctx);
+    expect(parked.result).toBe('waiting');
+
+    await answerWait(parked.waitId!, { defer: 'Do nothing — defer this spec: not needed this cycle' }, 'tester');
+
+    const done = await runDocumentPhase(ctx);
+    expect(done.result).toBe('deferred');
+
+    // No reviewer or reviser step spawned (no design/tasks/impl).
+    expect(reviserStarts(fx)).toBe(0);
+    expect(ledgerRows(fx).filter((r) => r.type === 'spawn.start' && r.agent === 'sdd-reviewer')).toHaveLength(0);
+
+    // The drafted requirements stay in the spec store.
+    expect(existsSync(join(fx.specDir, 'requirements.md'))).toBe(true);
+
+    // The decomposition heading carries `(deferred)` and the operator's reason.
+    const decomp = readFileSync(decompPath, 'utf8');
+    expect(decomp).toContain(`### 1. \`${SPEC}\` — the controller doc spec (deferred)`);
+    expect(decomp).toContain('_Deferred: not needed this cycle_');
+
+    // The ledger carries the "gate A: do nothing" note and the commit landed.
+    expect(ledgerRows(fx).some((r) => r.type === 'note' && /gate A: do nothing — not needed this cycle/.test(r.text ?? ''))).toBe(true);
+    expect(commitSubjects(fx)).toContain(`docs(sdd): ${SPEC} deferred at gate A`);
   });
 });
 

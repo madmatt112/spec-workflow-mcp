@@ -95,7 +95,9 @@ export interface GateBResumeInput {
 export type GateDirective =
   | { kind: 'waiting'; waitId: string }
   | { kind: 'proceed' }
-  | { kind: 'revise'; findings: string };
+  | { kind: 'revise'; findings: string }
+  /** Gate A "do nothing": end the run and defer the spec; `reason` may be empty. */
+  | { kind: 'defer'; reason: string };
 
 /** An open or answered gate wait found on re-entry (drives resume routing). */
 export interface PendingGate {
@@ -175,8 +177,11 @@ export interface DocumentPhaseContext {
 }
 
 export interface DocumentPhaseOutcome {
-  /** `waiting` means a gate wait is open; T6 watches {@link waitId}. */
-  result: 'approved' | 'escalate' | 'error' | 'waiting';
+  /**
+   * `waiting` means a gate wait is open; T6 watches {@link waitId}. `deferred`
+   * means gate A chose "do nothing": the run ends without design/tasks/impl.
+   */
+  result: 'approved' | 'escalate' | 'error' | 'waiting' | 'deferred';
   /** The final document version D. */
   version: number;
   /** Review rounds run (reviewer spawns plus the narrow check when it ran). */
@@ -639,6 +644,23 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
     return approve(correctiveD, 'adjudicated', { verified });
   };
 
+  // --- gate A "do nothing" (gates.md "Gate A"): end the run, tag the spec's
+  // decomposition heading `(deferred)` and commit it, keep the drafted
+  // requirements. No design, tasks or implementation step runs.
+  const deferSpec = async (reason: string): Promise<DocumentPhaseOutcome> => {
+    const r = reason.trim();
+    ctx.ledger.note(`gate A: do nothing${r ? ` — ${r}` : ''}`);
+    const decompPath = join(workflowRoot, 'spec-decomposition', 'decomposition.md');
+    if (deferInDecomposition(decompPath, specName, r)) {
+      await checkpoint({
+        specStoreRoot: ctx.specStoreRoot,
+        paths: [relative(ctx.specStoreRoot, decompPath)],
+        message: `docs(sdd): ${specName} deferred at gate A`,
+      }, serialize);
+    }
+    return { result: 'deferred', version: D, rounds: 0, reason: r || undefined };
+  };
+
   // =========================================================================
   // Step 0 — orient and phase.start (idempotent on re-entry, design §5).
   // =========================================================================
@@ -703,6 +725,8 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       const answers = ctx.gateAnswers ?? pg.answers;
       if (!answers) return { result: 'waiting', version: D, rounds: 0, waitId: pg.waitId };
       const dir = await gates.resumeAfterGateA({ run: ctx.run, specDir: ctx.specDir, version: D, answers });
+      // "Do nothing": end the run here, before any further document step.
+      if (dir.kind === 'defer') return deferSpec(dir.reason);
       // A changed answer is a reviser revision at v(D+1) (revision.md), run once:
       // only when it has not already landed (D still at the gate version).
       if (dir.kind === 'revise' && D === pg.version) {
@@ -1035,6 +1059,40 @@ function isCircling(rounds: RoundFinding[]): boolean {
   const a = subst(rounds[rounds.length - 1]);
   const b = subst(rounds[rounds.length - 2]);
   return a.length === 1 && b.length === 1 && a[0] === b[0];
+}
+
+/**
+ * Mark the spec's decomposition heading deferred (gate A "do nothing"): on the
+ * `### N. \`<spec>\` — title` line append ` (deferred)` (what `nextUnstartedSpec`
+ * skips on), and, when a reason is given, insert it as an italic line under the
+ * heading. Both are idempotent. Returns true when the file was changed; a missing
+ * file, missing heading or already-deferred-and-noted heading returns false.
+ */
+function deferInDecomposition(decompPath: string, spec: string, reason: string): boolean {
+  let text: string;
+  try {
+    text = readFileSync(decompPath, 'utf-8');
+  } catch {
+    return false;
+  }
+  const lines = text.split('\n');
+  const note = reason.length > 0 ? `_Deferred: ${reason}_` : '';
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^###\s+\d+\.\s+`([\w.-]+)`(.*)$/.exec(lines[i]);
+    if (!m || m[1] !== spec) continue;
+    let changed = false;
+    if (!/\(deferred\)/i.test(lines[i])) {
+      lines[i] = lines[i].replace(/\s*$/, '') + ' (deferred)';
+      changed = true;
+    }
+    if (note && lines[i + 1]?.trim() !== note) {
+      lines.splice(i + 1, 0, note);
+      changed = true;
+    }
+    if (changed) writeFileSync(decompPath, lines.join('\n'), 'utf-8');
+    return changed;
+  }
+  return false;
 }
 
 /**
