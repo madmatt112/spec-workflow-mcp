@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Init inputs",
+      "question": "How does init get the repository's facts and choices?",
+      "options": [
+        "Options only, no prompts",
+        "Interactive questions with detected defaults",
+        "Questions plus a yes-to-all mode"
+      ]
+    },
+    {
+      "header": "Existing .mcp.json",
+      "question": "What does init do when the repository already has an .mcp.json?",
+      "options": [
+        "Replace only the spec-workflow entry, keep every other key",
+        "Refuse when a spec-workflow entry exists",
+        "Overwrite the whole file"
+      ]
+    },
+    {
+      "header": "Existing agent-rules",
+      "question": "What does init do when the store already has an agent-rules.md?",
+      "options": [
+        "Keep it, never overwrite",
+        "Overwrite it",
+        "Overwrite only with a force flag"
+      ]
+    },
+    {
+      "header": "Controller down",
+      "question": "What does init do when it cannot register the project with the controller?",
+      "options": [
+        "Keep the written files, print the failure, exit 2",
+        "Check the controller before writing anything",
+        "Keep the files, warn, exit 0"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture of this spec?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}
