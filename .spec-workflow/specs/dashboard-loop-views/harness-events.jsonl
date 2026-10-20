@@ -294,3 +294,8 @@
 {"ts":"2026-10-20T17:25:02.484Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"closeout: item P4 not landed, reverted f29a4e3"}
 {"ts":"2026-10-20T17:25:02.485Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"P4","outcome":"to-do"}
 {"ts":"2026-10-20T17:25:04.790Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"phase.end","phase":"closeout","result":"closed","state":"items 12/12","note":"3 done, 2 to-do, 7 skipped"}
+{"ts":"2026-10-20T17:25:06.635Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"close-out merge: close-out PR #155 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #155 of spec-workflow-mcp)"}
+{"ts":"2026-10-20T17:26:35.598Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"merge answered by operator: merge"}
+{"ts":"2026-10-20T17:26:41.297Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"pr.merged","number":"155","sha":"7ecd67886bc0fdafb4a0234e3eb25b6586a629f8","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-20T17:26:41.301Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"close-out merge: close-out PR #155 of spec-workflow-mcp merged (merged close-out PR #155 of spec-workflow-mcp via merge)"}
+{"ts":"2026-10-20T17:26:41.306Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"run.end","status":"done"}
