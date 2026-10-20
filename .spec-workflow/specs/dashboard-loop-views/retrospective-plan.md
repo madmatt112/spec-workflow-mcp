@@ -151,3 +151,4 @@ One line per proposal, written by the close-out phase.
 - P7: done — 120bdc8be574d20b377a7a6654b79709de808b77
 - P8: to-do (human) — Repair loop is now controller code (src/controller/phases/implementation.ts fix-rounds); needs tsc+vitest, outside this checks:none prose batch. Route as its own controller code task.
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/155
+- P4: to-do (human) — Already complete and green at f29a4e3 (defensive destructure at src/tools/log-implementation.ts:385 plus the undefined-stats test). amend-nothing leaves no code change to make this round, so no new commit. Sole blocker is the gate's file-outside-list flag on the test file, which this round's header now scopes in — resolution is the supervisor accepting f29a4e3, not an implementer change. r2 is a verbatim re-send of r1. Detail: /tmp/scratchpad/sdd/dashboard-loop-views/closeout-fix-code-3-r2-note.md

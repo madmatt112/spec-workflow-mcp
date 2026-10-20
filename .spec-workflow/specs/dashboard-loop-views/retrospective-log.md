@@ -119,3 +119,13 @@ Cost: implementer
 harness batch 2: 3 done of 4, 0 fix round(s)
 Evidence: batch 2 · mark run-20261018-150806 af61b434
 Cost: 1 implementer spawn(s)
+
+## 2026-10-20T17:13:35Z · closeout · code batch 3 · gotcha
+test-health — the log-implementation "override" test is red at base (HEAD), independent of the P4 null-guard change
+Evidence: batch 3 · mark run-20261018-150806 c865753a
+Cost: implementer
+
+## 2026-10-20T17:25:02Z · closeout · code batch 3 · cleanup
+code batch 3: 0 done of 1, 2 fix round(s)
+Evidence: batch 3 · mark run-20261018-150806 6f47eff8
+Cost: 3 implementer spawn(s)
