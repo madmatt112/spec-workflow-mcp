@@ -230,3 +230,6 @@
 {"ts":"2026-10-20T04:27:20.313Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 14","result":"yes/14","phase":"implementation","task":"14"}
 {"ts":"2026-10-20T04:27:41.119Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"note","text":"gate: task 14 pass risk low"}
 {"ts":"2026-10-20T04:27:41.120Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"task.done","task":"14","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-20T04:27:41.279Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-20T04:44:58.995Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.end","agent":"sdd-verifier","input":"104","output":"41865","cacheWrite":"139152","cacheRead":"4583652","tokens":"4764773","cacheWrite5m":"0","cacheWrite1h":"139152","model":"claude-opus-4-8"}
+{"ts":"2026-10-20T04:44:58.995Z","run":"run-20261018-150806","spec":"dashboard-loop-views","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}

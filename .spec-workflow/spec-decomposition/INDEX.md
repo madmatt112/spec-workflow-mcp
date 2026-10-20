@@ -27,7 +27,8 @@
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
-| 15 | tighter-reviews | Complete | 29/29 |
+| 15 | dashboard-loop-views | Complete | 14/14 |
+| 16 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
