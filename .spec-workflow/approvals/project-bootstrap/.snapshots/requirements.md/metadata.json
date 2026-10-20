@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/project-bootstrap/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-20T18:57:51.755Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792522671667_dh4y9iled",
+      "approvalTitle": "project-bootstrap requirements v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-20T18:57:51.882Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792522671667_dh4y9iled",
+      "approvalTitle": "project-bootstrap requirements v3"
+    }
+  ]
+}

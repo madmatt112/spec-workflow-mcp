@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792522671667_dh4y9iled",
+  "title": "project-bootstrap requirements v3",
+  "filePath": ".spec-workflow/specs/project-bootstrap/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-20T18:57:51.667Z",
+  "category": "spec",
+  "categoryName": "project-bootstrap",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-20T18:57:51.886Z"
+}

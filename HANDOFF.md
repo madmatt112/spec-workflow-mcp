@@ -108,6 +108,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-20 | dashboard-loop-views | implementation | tasks 14/14 | complete | PR #152 |
 | 2026-10-20 | dashboard-loop-views | retrospective |  | retro-ready | 16 findings, 12 proposals |
 | 2026-10-20 | dashboard-loop-views | closeout | items 12/12 | closed | 3 done, 2 to-do, 7 skipped |
+| 2026-10-20 | project-bootstrap | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -898,4 +899,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/155 |
 | To-dos | P8: Repair loop is now controller code (src/controller/phases/implementation.ts fix-rounds); needs tsc+vitest, outside this checks:none prose batch. Route as its own controller code task.; P4: Already complete and green at f29a4e3 (defensive destructure at src/tools/log-implementation.ts:385 plus the undefined-stats test). amend-nothing leaves no code change to make this round, so no new commit. Sole blocker is the gate's file-outside-list flag on the test file, which this round's header now scopes in — resolution is the supervisor accepting f29a4e3, not an implementer change. r2 is a verbatim re-send of r1. Detail: /tmp/scratchpad/sdd/dashboard-loop-views/closeout-fix-code-3-r2-note.md |
 | Gotchas | none |
+
+
+## project-bootstrap — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-20 |
+| Rounds | 3; verdicts converged |
+| Approval | `approval_1792522671667_dh4y9iled` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 
