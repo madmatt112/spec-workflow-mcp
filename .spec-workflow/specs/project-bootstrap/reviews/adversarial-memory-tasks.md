@@ -1,41 +1,44 @@
 # Adversarial Review Memory — tasks
-
-Last updated: 2026-10-20 (round 1, v1)
+Last updated: 2026-10-20 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet; round 1 just raised)
+- **R1-1 (SHOULD_FIX, v1)** — Task 7 `Success:` omitted Req 6 AC 5 (not-committed /
+  "run doctor" last line). Fixed in v2 (tasks.md:81); re-checked resolved in r2.
+- **R1-2 (SHOULD_FIX, v1)** — Task 8 reporter/exit contract (Req 7 AC 3) not
+  assertable through `runChecks`/`serviceEnv`. Fixed in v2 by a `runDoctor` seam
+  (tasks.md:87); re-checked resolved in r2.
 
 ### Partially Accepted
 - (none)
 
 ### Rejected
-- (none)
+- **R1-M1 (MINOR, v1)** — Task 7 breadth (21 req IDs, 3 phases). Ruled acceptable
+  in v2 Revision History: one cohesive command/module with a declared up-front
+  verifier; splitting invents shared-state seams. Closed — do not re-open.
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — Task 7 `Success:` omits Req 6 AC 5 (the not-committed /
-  "run doctor" last line named in the `Task:` body); retro-P7 silent drop.
-- **R1-2 (SHOULD_FIX)** — Task 8 success criterion "last line names first failure, exit
-  1 else 0" (Req 7 AC 3) is not assertable through its seams (`runChecks`, `serviceEnv`);
-  `runDoctor` has no `- Test:` line and task 10 covers only exit 0.
-- **R1-M1 (MINOR)** — Task 7 breadth (21 req IDs, 3 phases); acceptable, noted only.
+- (none)
 
 ## Patterns & Themes
-
-- Both SHOULD_FIX findings are the same class: a user-visible output/exit behaviour named
-  in requirements and in the prompt body, but not pinned to the `Success:` clause / a
-  `- Test:` seam, so red-first testing drops it. Watch terminal-line and exit-code
-  contracts specifically.
-- All citations in v1 are accurate; the lint pass only added `src/` prefixes and code
-  spans. No misstated-artifact risk this round.
-- Coverage (AC→task, component→task) and dependency ordering are complete and sound.
+- Both v1 SHOULD_FIX were the same class: a user-visible output/exit behaviour
+  named in the `Task:` body but not pinned to the `Success:` clause / a `- Test:`
+  seam (retro-P7 silent drop). Both now closed.
+- r2 re-swept retro-P7 across all tasks: three more Task-body phrases sit outside
+  their `Success:` clause (task 7 "always send both paths" D2, task 7 "realpath
+  both roots" D9, task 2 "failed write rejects" D3) but each is either
+  functionally redundant with an asserted path or not AC-mandated — examined and
+  cleared, not raised.
+- All citations accurate across v1 and v2; lint only added `src/` prefixes and one
+  code span. No misstated-artifact risk.
+- Coverage (AC→task, component→task) and dependency ordering complete and sound.
 
 ## Guidance for Next Review
-
-- Re-check R1-1/R1-2 against the fix diff only (fix-induced re-check), not a full
-  re-review: confirm task 7's `Success:` gains the terminal-line assertion and task 8
-  gains a `runDoctor` seam (or a narrowed `Success:`).
-- Fresh lens not yet used: the `.mcp.json` key/order-preservation and `was:`-clause
-  edge cases (deep-compare, env suppression) — a round-2 lens if deltas warrant.
-- Do not re-raise: task 7 atomicity (ruled acceptable), citation prefixes (lint-closed).
+- Clean round at v2: VERDICT converged, 0/0/0, DESIGN_READY yes. No further
+  adversarial round is needed unless a new delta lands.
+- If a delta does land, attack it first. The `.mcp.json` key/order-preservation
+  and `was:`-clause edge cases remain the one un-stressed lens (deep-compare, env
+  suppression) — use only if a future delta touches task 7's write phase.
+- Do not re-raise: task 7 atomicity (R1-M1, closed), citation prefixes
+  (lint-closed), R1-1/R1-2 (resolved).

@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792526638104_5bf74q048",
+  "title": "project-bootstrap tasks v2",
+  "filePath": ".spec-workflow/specs/project-bootstrap/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-20T20:03:58.104Z",
+  "category": "spec",
+  "categoryName": "project-bootstrap",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-20T20:03:58.253Z"
+}

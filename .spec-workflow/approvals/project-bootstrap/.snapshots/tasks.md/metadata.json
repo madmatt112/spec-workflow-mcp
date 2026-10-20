@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/project-bootstrap/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-20T20:03:58.147Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792526638104_5bf74q048",
+      "approvalTitle": "project-bootstrap tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-20T20:03:58.249Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792526638104_5bf74q048",
+      "approvalTitle": "project-bootstrap tasks v2"
+    }
+  ]
+}

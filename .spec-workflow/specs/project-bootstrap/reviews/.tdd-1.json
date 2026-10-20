@@ -1,0 +1,1 @@
+{"testFiles":["src/core/__tests__/dashboard-session-peek.test.ts"],"seams":{"src/core/__tests__/dashboard-session-peek.test.ts":"DashboardSessionManager.peekDashboardSession()"},"redCommit":"685270da67e0002914938f78fca8b2c447c6da06","baseSha":"26e0aea7f433bf70f8d802485af8d782007cd2e0","base":"structural-red","head":"pass","amended":false,"judged":null}

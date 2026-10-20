@@ -71,3 +71,20 @@
 {"ts":"2026-10-20T19:58:34.877Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-10-20T19:59:28.786Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-reviser","input":"14","output":"4057","cacheWrite":"44640","cacheRead":"317196","tokens":"365907","cacheWrite5m":"0","cacheWrite1h":"44640","model":"claude-opus-4-8"}
 {"ts":"2026-10-20T19:59:28.786Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"tasks"}
+{"ts":"2026-10-20T19:59:28.871Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-reviewer","role":"review v2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-20T20:03:58.060Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-reviewer","input":"16","output":"20145","cacheWrite":"92741","cacheRead":"549932","tokens":"662834","cacheWrite5m":"0","cacheWrite1h":"92741","model":"claude-opus-4-8"}
+{"ts":"2026-10-20T20:03:58.060Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-reviewer","role":"review v2","result":"success","phase":"tasks","round":"2"}
+{"ts":"2026-10-20T20:03:58.060Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"round","phase":"tasks","round":"2","verdict":"converged 0/0/0","version":"v2"}
+{"ts":"2026-10-20T20:03:58.385Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.end","phase":"tasks","result":"approved","state":"v2","note":"2 rounds"}
+{"ts":"2026-10-20T22:57:57.886Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate-b answered by operator: Approve"}
+{"ts":"2026-10-20T22:57:57.942Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.start","phase":"implementation","mode":"normal","state":"tasks 0/11"}
+{"ts":"2026-10-20T22:57:58.549Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"1","title":"Add a read-only session peek to `DashboardSessionManager`"}
+{"ts":"2026-10-20T22:57:58.555Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"task 1 pick head 26e0aea7f433bf70f8d802485af8d782007cd2e0"}
+{"ts":"2026-10-20T22:57:58.654Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-test-author","role":"author task 1","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-20T22:59:48.725Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-test-author","input":"36","output":"9257","cacheWrite":"82546","cacheRead":"1123929","tokens":"1215768","cacheWrite5m":"0","cacheWrite1h":"82546","model":"claude-sonnet-5"}
+{"ts":"2026-10-20T22:59:48.726Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-test-author","role":"author task 1","result":"none","phase":"implementation","task":"1"}
+{"ts":"2026-10-20T22:59:48.759Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-implementer","role":"implement task 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-20T23:12:33.559Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"4","output":"320","cacheWrite":"840","cacheRead":"131352","tokens":"132516","cacheWrite5m":"0","cacheWrite1h":"840","model":"claude-opus-4-8"}
+{"ts":"2026-10-20T23:12:33.559Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
+{"ts":"2026-10-20T23:12:48.451Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
+{"ts":"2026-10-20T23:12:48.457Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"1","rounds":"0","outcome":"gate"}

@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: tasks 1 to 3 change existing controller code (the session peek, then `addProjectByPath`, then the add route that calls it); tasks 4 to 8 build the new `src/bootstrap/` modules leaf first (controller client, agent-rules facts, argument parsing, `init`, `doctor`); task 9 wires the entrypoint to them; task 10 is the end-to-end test of shipped behaviour; task 11 is the documentation. Each task leaves `npx tsc --noEmit` clean and every existing suite green, because no existing caller changes until task 9 and task 9 adds only a branch for two new first arguments. Expected verifier count: five, for the brand-new modules of tasks 4 to 8 (structural red, high risk); the other tasks route by the normal risk rules, and no task touches a sensitive path.
 
-- [ ] 1. Add a read-only session peek to `DashboardSessionManager`
+- [x] 1. Add a read-only session peek to `DashboardSessionManager`
   - File: src/core/dashboard-session.ts
   - File: src/core/__tests__/dashboard-session-peek.test.ts
   - Test: src/core/__tests__/dashboard-session-peek.test.ts — DashboardSessionManager.peekDashboardSession()
