@@ -1,0 +1,1 @@
+{"testFiles":["src/bootstrap/__tests__/init.test.ts"],"seams":{"src/bootstrap/__tests__/init.test.ts":"runInit(args, io, entryPath, timeoutMs)"},"redCommit":"d00ad46f24decd7f61f009144e5b72783009ebbd","baseSha":"3f13dd8fad5acd1fcb5037678e94e4be7fad32a7","base":"structural-red","head":"pass","amended":true,"judged":null}

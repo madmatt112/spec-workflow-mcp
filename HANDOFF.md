@@ -932,4 +932,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 6/11, last commit 3f13dd8, next task 7 |
+| State | tasks 7/11, last commit bca3a7f, next task 8 |

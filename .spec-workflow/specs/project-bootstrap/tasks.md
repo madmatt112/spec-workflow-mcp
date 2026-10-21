@@ -68,7 +68,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 1.5, 1.6, 1.9_
   - _Prompt: Task: Implement the design C2 grammar per Req 1 AC 5, 6 and 9: one positional; init options --store, --test-command, --worktree-setup and --merge-method as a separate token or after = (design D13); doctor takes none. Each error case of design C2 returns `{ error }` naming the option or positional; a --test-command or --worktree-setup value with a backtick or a newline is an error (design D7). Expand ~ with the rule of expandTildePath (src/index.ts:120-125), copied, not exported. Declare a local InitArgs with the design C3 fields; this is the bridge task 7 removes | Restrictions: Parsing writes no file and does not resolve or stat the path; do not export anything from src/index.ts in this task | Success: both option forms parse; an unknown option, a value option that is last, empty after =, or followed by a double-dash token, a merge-method other than merge or squash, no positional, a second positional, and a command value with a backtick or newline each return an error naming it; a doctor option other than --help is an error; ~ expands to the home directory_
 
-- [ ] 7. Implement `init`
+- [x] 7. Implement `init`
   - File: src/bootstrap/init.ts
   - File: src/bootstrap/cli.ts
   - File: src/bootstrap/agent-rules.ts
