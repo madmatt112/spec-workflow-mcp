@@ -64,3 +64,13 @@ Cost: see the ledger
 retrospective compiled: 9 findings, 7 proposals, 1 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261020-173338 99d0125f
 Cost: 2 spawns
+
+## 2026-10-21T18:36:49Z · closeout · store batch 1 · deviation
+P5 skipped: Option A (no change) chosen in plan Decisions; rule already requires up-front verifier count, one-time decomposition miss
+Evidence: P5 · mark run-20261020-173338 918b59bb
+Cost: unknown
+
+## 2026-10-21T18:36:49Z · closeout · store batch 1 · cleanup
+store batch 1: 0 done of 1, 0 fix round(s)
+Evidence: batch 1 · mark run-20261020-173338 51015b0f
+Cost: 1 implementer spawn(s)

@@ -209,3 +209,19 @@
 {"ts":"2026-10-21T01:30:07.217Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-10-21T01:30:07.218Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"retro: 7 proposals for 9 findings"}
 {"ts":"2026-10-21T01:30:07.218Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"9 findings, 7 proposals"}
+{"ts":"2026-10-21T18:35:43.768Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/7"}
+{"ts":"2026-10-21T18:35:43.772Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P1","title":"P1 (F1) — doctor's gh check reads node-20 callback fields directly."}
+{"ts":"2026-10-21T18:35:43.773Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-10-21T18:35:43.773Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P2","title":"P2 (F2) — expandTilde copied into the cli module to keep the parser pure."}
+{"ts":"2026-10-21T18:35:43.773Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P2","outcome":"skipped"}
+{"ts":"2026-10-21T18:35:43.773Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P3","title":"P3 (F3) — spawn.start outnumbers spawn.end/spawn.usage by one (47 vs 46)."}
+{"ts":"2026-10-21T18:35:43.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P3","outcome":"skipped"}
+{"ts":"2026-10-21T18:35:43.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P4","title":"P4 (F4) — requirements v2 carried an unreachable IF-clause tying `--host` to the resolved URL host."}
+{"ts":"2026-10-21T18:35:43.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P4","outcome":"skipped"}
+{"ts":"2026-10-21T18:35:43.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P7","title":"P7 (F7) — the adversarial reviewer reversed its own prior finding against ground truth."}
+{"ts":"2026-10-21T18:35:43.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-10-21T18:35:43.780Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P5","title":"P5 (F5) — tasks 6 and 9 drew a verifier review though the gate labelled them risk low."}
+{"ts":"2026-10-21T18:35:43.827Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-21T18:36:49.202Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"14","output":"3937","cacheWrite":"48619","cacheRead":"245552","tokens":"298122","cacheWrite5m":"0","cacheWrite1h":"48619","model":"claude-opus-4-8"}
+{"ts":"2026-10-21T18:36:49.202Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-10-21T18:36:49.218Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P5","outcome":"skipped"}
