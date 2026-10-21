@@ -233,3 +233,13 @@
 {"ts":"2026-10-21T18:39:06.222Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: item P6 pass risk low"}
 {"ts":"2026-10-21T18:39:06.236Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P6","outcome":"done"}
 {"ts":"2026-10-21T18:39:10.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.end","phase":"closeout","result":"closed","state":"items 7/7","note":"1 done, 0 to-do, 6 skipped"}
+{"ts":"2026-10-21T18:39:12.952Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp not-ready (no workflow run yet for ea7c97f (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-10-21T18:39:45.446Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-21T18:40:17.232Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-21T18:40:49.248Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #163 of spec-workflow-mcp)"}
+{"ts":"2026-10-21T18:41:07.978Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"merge answered by coordinator: no answer"}
+{"ts":"2026-10-21T18:41:09.711Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #163 of spec-workflow-mcp)"}
+{"ts":"2026-10-21T18:41:20.764Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-10-21T18:41:27.351Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"pr.merged","number":"163","sha":"5214f999ce3c64d753e970938826eb1d1a649cce","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-21T18:41:27.354Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"close-out merge: close-out PR #163 of spec-workflow-mcp merged (merged close-out PR #163 of spec-workflow-mcp via merge)"}
+{"ts":"2026-10-21T18:41:27.357Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"run.end","status":"done"}
