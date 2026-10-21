@@ -32,11 +32,11 @@ import { buildSpecDetail } from './shell/spec-rows.js';
 import { buildUsageRows } from './shell/usage-rows.js';
 import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
-import { answerWait, attachAdvice, listWaitsForWire } from '../controller/waits.js';
+import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
-import { listRuns, readRateLimit } from '../controller/state.js';
+import { listRuns, readRateLimit, readWait } from '../controller/state.js';
 import { installAccessControl, loadOrCreateSecret, secretPath } from '../controller/access.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -646,6 +646,15 @@ export class MultiProjectDashboardServer {
     this.app.post('/api/controller/waits/:id/answer', async (request, reply) => {
       const { id } = request.params as { id: string };
       const body = (request.body ?? {}) as { answers?: Record<string, string>; by?: string };
+      // An answer under a key the wait never asked is stored but never read, so
+      // the run stays parked: refuse it (a merge wait asks `merge:<repo>#<n>`).
+      const existing = (await readWait(id)) as ControllerWaitRecord | undefined;
+      const asked = new Set((existing?.questions ?? []).map((q) => q.id));
+      (existing?.proposals ?? []).forEach((_, i) => asked.add(`proposal:${i}`));
+      const unknown = asked.size > 0 ? Object.keys(body.answers ?? {}).filter((k) => !asked.has(k)) : [];
+      if (unknown.length > 0) {
+        return reply.code(400).send({ error: 'unknown-question', unknown, expected: [...asked] });
+      }
       const record = await answerWait(id, body.answers ?? {}, body.by ?? 'operator');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
       return { ok: true };

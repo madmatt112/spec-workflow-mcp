@@ -127,6 +127,23 @@ describe('controller wait routes (T4)', () => {
     expect(receipt).toContain('Answer: Yes');
   });
 
+  it('POST answer under a question id the wait never asked gives 400 and leaves it open', async () => {
+    const wait = await seedGateA();
+
+    const res = await realFetch(url(`/${wait.id}/answer`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ answers: { merge: 'merge' }, by: 'operator' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error).toBe('unknown-question');
+    expect(body.unknown).toEqual(['merge']);
+
+    const list: any = await (await realFetch(url(''), auth())).json();
+    expect(list.waits.find((w: any) => w.id === wait.id).state).toBe('open');
+  });
+
   it('POST advice attaches advice and 200s', async () => {
     const wait = await seedGateA();
     const res = await realFetch(url(`/${wait.id}/advice`), {
