@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792626541407_m6vjqs2j4",
+  "title": "verification-loop requirements v3",
+  "filePath": ".spec-workflow/specs/verification-loop/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-21T23:49:01.407Z",
+  "category": "spec",
+  "categoryName": "verification-loop",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-21T23:49:01.627Z"
+}

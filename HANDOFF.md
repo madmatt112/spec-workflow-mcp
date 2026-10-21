@@ -114,6 +114,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-21 | project-bootstrap | implementation | tasks 11/11 | complete | PR #161 |
 | 2026-10-21 | project-bootstrap | retrospective |  | retro-ready | 9 findings, 7 proposals |
 | 2026-10-21 | project-bootstrap | closeout | items 7/7 | closed | 1 done, 0 to-do, 6 skipped |
+| 2026-10-21 | verification-loop | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -953,4 +954,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/163 |
 | To-dos | none |
 | Gotchas | none |
+
+
+## verification-loop — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-21 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1792626541407_m6vjqs2j4` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 
