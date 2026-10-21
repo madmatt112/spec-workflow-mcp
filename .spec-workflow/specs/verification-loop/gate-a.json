@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "D1 fix-round placement",
+      "question": "Where do the fix rounds for a red or conflicted run PR land?",
+      "options": [
+        "The merge stage only; the implementation phase's reconcile loop stays as is",
+        "Replace the implementation phase's three reconcile rounds with two",
+        "One shared cap across the reconcile loop and the merge stage"
+      ]
+    },
+    {
+      "header": "D10 security pass shape",
+      "question": "How does the security pass for a sensitive spec run?",
+      "options": [
+        "A separate verifier step after the end-to-end verification passes, on gate B sensitive-path flags only",
+        "A section inside the end-to-end verification brief",
+        "A separate step that also fires on sensitive files found in the diff"
+      ]
+    },
+    {
+      "header": "D8 non-task implementer model",
+      "question": "Which model do implementer steps outside a task (repair, reconcile, merge fix) use?",
+      "options": [
+        "The implementer role profile (Opus tier)",
+        "The Sonnet route",
+        "The Opus tier only when the spec has any sensitive-path flag"
+      ]
+    },
+    {
+      "header": "D6 routing flag source",
+      "question": "What decides that a task's implementer runs on the Opus tier?",
+      "options": [
+        "Recompute gate B class (a) sensitive-path items from the current tasks document at each step",
+        "Read the gate-b wait's proposals",
+        "The Check's per-commit risk tier"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}
