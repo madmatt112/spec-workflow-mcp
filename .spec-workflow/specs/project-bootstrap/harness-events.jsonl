@@ -180,3 +180,10 @@
 {"ts":"2026-10-21T01:05:36.057Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-verifier","input":"48","output":"10987","cacheWrite":"91683","cacheRead":"1770399","tokens":"1873117","cacheWrite5m":"0","cacheWrite1h":"91683","model":"claude-opus-4-8"}
 {"ts":"2026-10-21T01:05:36.058Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 9","result":"VERDICT: pass","phase":"implementation","task":"9"}
 {"ts":"2026-10-21T01:05:36.058Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"9","rounds":"0","outcome":"pass"}
+{"ts":"2026-10-21T01:05:36.156Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"10","title":"End-to-end test: `init` then `doctor`"}
+{"ts":"2026-10-21T01:05:36.161Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"task 10 pick head 65a2dd5cd9efd29a49f3ddba6967242f6fc0c39e"}
+{"ts":"2026-10-21T01:05:36.172Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-implementer","role":"implement task 10","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-21T01:11:54.864Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"68","output":"28850","cacheWrite":"116899","cacheRead":"3045828","tokens":"3191645","cacheWrite5m":"0","cacheWrite1h":"116899","model":"claude-opus-4-8"}
+{"ts":"2026-10-21T01:11:54.864Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 10","result":"yes/10","phase":"implementation","task":"10"}
+{"ts":"2026-10-21T01:11:59.668Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: task 10 pass risk low"}
+{"ts":"2026-10-21T01:11:59.673Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"10","rounds":"0","outcome":"gate"}
