@@ -225,3 +225,10 @@
 {"ts":"2026-10-21T18:36:49.202Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"14","output":"3937","cacheWrite":"48619","cacheRead":"245552","tokens":"298122","cacheWrite5m":"0","cacheWrite1h":"48619","model":"claude-opus-4-8"}
 {"ts":"2026-10-21T18:36:49.202Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
 {"ts":"2026-10-21T18:36:49.218Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P5","outcome":"skipped"}
+{"ts":"2026-10-21T18:37:05.263Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"P6","title":"P6 (F6) — the exit-2 remedy line is imprecise for a LAN-only dashboard bind."}
+{"ts":"2026-10-21T18:37:05.271Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-implementer","role":"implement code batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-21T18:38:58.781Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"26","output":"7033","cacheWrite":"39307","cacheRead":"559438","tokens":"605804","cacheWrite5m":"0","cacheWrite1h":"39307","model":"claude-opus-4-8"}
+{"ts":"2026-10-21T18:38:58.782Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-21T18:38:58.796Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: item P6 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-21T18:39:06.222Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: item P6 pass risk low"}
+{"ts":"2026-10-21T18:39:06.236Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P6","outcome":"done"}

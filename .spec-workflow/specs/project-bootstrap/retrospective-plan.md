@@ -113,3 +113,5 @@ One line per proposal, written by the close-out phase.
 - P4: skipped — no change chosen
 - P7: skipped — no change chosen
 - P5: skipped — Option A (no change) chosen in plan Decisions; rule already requires up-front verifier count, one-time decomposition miss
+- P6: done — ea7c97fd1e66bf0444a5aea43d8e143ccf563836
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/163
