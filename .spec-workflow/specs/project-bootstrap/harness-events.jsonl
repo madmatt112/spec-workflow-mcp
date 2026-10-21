@@ -232,3 +232,4 @@
 {"ts":"2026-10-21T18:38:58.796Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: item P6 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-10-21T18:39:06.222Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: item P6 pass risk low"}
 {"ts":"2026-10-21T18:39:06.236Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-10-21T18:39:10.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"phase.end","phase":"closeout","result":"closed","state":"items 7/7","note":"1 done, 0 to-do, 6 skipped"}

@@ -1,6 +1,6 @@
 # Retrospective plan — project-bootstrap
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-21
 
 ## Approved proposals
