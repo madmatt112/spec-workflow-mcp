@@ -208,7 +208,7 @@ export async function runInit(
     io.out(notCommitted);
     return 0;
   }
-  io.out(`registration failed: ${result.reason}; start the controller with scripts/sdd-service.sh install, then re-run init`);
+  io.out(`registration failed: ${result.reason}; if the controller is not running, start it with scripts/sdd-service.sh install, then re-run init; if it is already running bound to a specific non-loopback --host, re-run init on that host`);
   io.out(notCommitted);
   return 2;
 }
