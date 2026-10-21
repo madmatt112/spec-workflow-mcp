@@ -45,7 +45,7 @@ const PR_VIEW_FIELDS =
 const FRESH_HEAD_MS = 5 * 60 * 1000;
 
 /** The binary name, overridable so tests swap in `scripts/stub-gh.mjs`. */
-function ghBin(): string {
+export function ghBin(): string {
   return process.env.CONTROLLER_GH_BIN || 'gh';
 }
 

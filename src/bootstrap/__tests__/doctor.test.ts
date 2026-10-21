@@ -298,7 +298,10 @@ async function makeValidFixture(name: string, options: { controller?: boolean } 
   await writeAgentRules(specWorkflowDir);
   await writeProjects(top, top);
   addOrigin(top, 'https://github.com/acme/widget.git');
-  useGhScript([{ argvIncludes: ['api', 'repos/acme/widget'], stdout: { permissions: { push: true } } }]);
+  // Two identical responses: the happy-path test runs the token check twice on
+  // this one fixture (an explicit runChecks, then runDoctor runs them again).
+  const okRun = { argvIncludes: ['api', 'repos/acme/widget'], stdout: { permissions: { push: true } } };
+  useGhScript([okRun, okRun]);
   if (options.controller !== false) {
     const health = await startHealthServer(true);
     servers.push(health);
