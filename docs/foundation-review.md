@@ -800,6 +800,13 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   dependency flag) and spec 27 `harness-evals` (eval cases from past role failures, run by the
   self-update) are added (#158, #160); **Check** and **Eval case** join the glossary; C7 (no
   style carry-over) and C8 (gate A "do nothing", #159) landed. Deployed `4792e48`.
+- 2026-10-21 **spec 24 `project-bootstrap` is `done`** (PR #161, close-out PR #163: P6's
+  exit-2 reword). Clean run: 11 tasks, 0 fix rounds, 0 adjudications, 0 deferrals. Fixes:
+  #162 (the PR checks gate and the merge rule read a just-pushed old head with no workflow
+  run as green; they now count the push and the PR creation time), #164 (the wait answer
+  route refuses a question id the wait never asked; an answer keyed `merge` on a
+  `merge:<repo>#<n>` wait was stored and the run stayed parked). Spec 26 untagged
+  (`a24bec4`). Matthew launched jobscout `europe-lane-relevance`. Deployed `a24bec4`.
 
 ## 8. Pointers
 

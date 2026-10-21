@@ -82,6 +82,15 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at 2026-10-21 18:55Z
+
+- Live build `a24bec4`. Done: spec 24 `project-bootstrap`. Spec 26 `verification-loop` is
+  untagged and launchable (Matthew launches). Live: tradr `import-off-request-thread`
+  (gate B, Matthew's), jobscout `europe-lane-relevance` (gate A, Matthew's). Untag 27 when
+  26 closes, 22 when 25 closes.
+- Answer a wait with its question ids (`jq .questions[].id`); a merge wait asks
+  `merge:<repo>#<n>`. The route now refuses an unknown id with 400.
+
 ## State at 2026-10-20 20:10Z
 
 - Live build `4792e48`. Done on the controller: spec 23 (this repo), jobscout
