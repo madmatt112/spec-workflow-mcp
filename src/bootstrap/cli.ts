@@ -9,21 +9,12 @@
 // The `~` rule is a two-line copy of the private expandTildePath
 // (src/index.ts:120-125), not an import of the entrypoint (design C2 "Reuses").
 import { homedir } from 'os';
+import type { InitArgs } from './init.js';
 
 /** Collaborator for the command output; default wiring is the runner's (C2). */
 export interface BootstrapIo {
   out(line: string): void;
   err(line: string): void;
-}
-
-// Bridge: the design C3 InitArgs shape, declared locally so cli.ts carries no
-// dependency on init.ts yet. Task 7 removes this and imports it from init.ts.
-interface InitArgs {
-  repoPath: string;
-  store?: string;
-  testCommand?: string;
-  worktreeSetup?: string;
-  mergeMethod?: 'merge' | 'squash';
 }
 
 /** The `~` rule of expandTildePath (src/index.ts:120-125), copied. */

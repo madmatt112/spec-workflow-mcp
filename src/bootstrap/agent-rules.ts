@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import type { InitArgs } from './init.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,15 +22,8 @@ export interface AgentRuleFacts {
   mergeMethod: 'merge' | 'squash';
 }
 
-/**
- * The overriding options, a structural subset of design C3's `InitArgs`. Task 7
- * passes the real `InitArgs` and removes this bridge type.
- */
-interface DetectArgs {
-  testCommand?: string;
-  worktreeSetup?: string;
-  mergeMethod?: 'merge' | 'squash';
-}
+/** The overriding options for fact detection, the relevant subset of `InitArgs` (design C3). */
+type DetectArgs = Pick<InitArgs, 'testCommand' | 'worktreeSetup' | 'mergeMethod'>;
 
 /** Placeholder key in the template -> field in `AgentRuleFacts`. */
 const PLACEHOLDER_TO_FACT: Record<string, keyof AgentRuleFacts> = {

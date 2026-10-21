@@ -367,6 +367,17 @@ describe('runInit', () => {
     await fs.rm(base, { recursive: true, force: true });
   });
 
+  // A reachable controller with a matching secret, so a run whose focus is file
+  // output still reaches exit 0 (registration succeeds). Registration is always
+  // attempted (design C3 phase 3), so a test that asserts exit 0 must provide one.
+  async function startDefaultController(): Promise<void> {
+    const secret = 'the-secret';
+    await writeSecret(sddHome, secret);
+    const controller = await startFakeController(secret);
+    servers.push(controller);
+    process.env.SDD_PORT = String(controller.port);
+  }
+
   // --- Phase 1: validate, nothing written -----------------------------------
 
   it('a missing repository path exits 1 with no file written', async () => {
@@ -428,6 +439,7 @@ describe('runInit', () => {
     const repo = await makeRepo(base, 'repo-nested');
     const nested = join(repo, 'a', 'b', 'c');
     await fs.mkdir(nested, { recursive: true });
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(nested), io, ENTRY_PATH);
@@ -442,6 +454,7 @@ describe('runInit', () => {
   it('with no --store, the store root is the repository top level, env is {}, and only .spec-workflow is created', async () => {
     const repo = await makeRepo(base, 'repo-no-store');
     const before = (await fs.readdir(repo)).sort();
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo), io, ENTRY_PATH);
@@ -462,6 +475,7 @@ describe('runInit', () => {
     await fs.mkdir(store, { recursive: true });
     const expectedStoreRoot = realpathSync(store);
     const repoBefore = (await fs.readdir(repo)).sort();
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo, { store }), io, ENTRY_PATH);
@@ -482,6 +496,7 @@ describe('runInit', () => {
 
   it('writes a fresh .mcp.json with the exact entry shape, two-space indent and one trailing newline', async () => {
     const repo = await makeRepo(base, 'repo-fresh-mcp');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo), io, ENTRY_PATH);
@@ -507,6 +522,7 @@ describe('runInit', () => {
       },
     };
     await fs.writeFile(join(repo, '.mcp.json'), JSON.stringify(original, null, 2) + '\n', 'utf-8');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo), io, ENTRY_PATH);
@@ -524,6 +540,7 @@ describe('runInit', () => {
   it('adds a missing mcpServers key holding only the spec-workflow entry, keeping other keys', async () => {
     const repo = await makeRepo(base, 'repo-no-mcpservers');
     await fs.writeFile(join(repo, '.mcp.json'), JSON.stringify({ customTopLevelKey: 'keep-me' }, null, 2) + '\n', 'utf-8');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo), io, ENTRY_PATH);
@@ -569,6 +586,7 @@ describe('runInit', () => {
 
   it('writes a fresh agent-rules.md with the three facts filled in', async () => {
     const repo = await makeRepo(base, 'repo-fresh-rules');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(
@@ -588,6 +606,7 @@ describe('runInit', () => {
 
   it('prints a note naming the key and option for every fact that cannot be detected', async () => {
     const repo = await makeRepo(base, 'repo-no-facts');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit({ repoPath: repo, mergeMethod: 'merge' }, io, ENTRY_PATH);
@@ -603,6 +622,7 @@ describe('runInit', () => {
     const handWritten = '# Hand-written rules\nworktree-per-change: required\ncustom: yes\n';
     const agentRulesPath = join(repo, '.spec-workflow', 'agent-rules.md');
     await fs.writeFile(agentRulesPath, handWritten, 'utf-8');
+    await startDefaultController();
     const io = makeIo();
 
     const code = await runInit(baseArgs(repo), io, ENTRY_PATH);
