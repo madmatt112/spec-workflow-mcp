@@ -6,7 +6,7 @@ This spec makes a controller run fix its own red or conflicted pull request, run
 
 ## Alignment with Product Vision
 
-The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where they are nearly free; R1 and R3 add verification, R4 adds verification visibility (the new-dependency flag, which opens no wait), and R2 is the nearly free token item. ADR 0003 stays true: the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
+The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where they are nearly free; R1 and R3 add verification, R4 adds verification visibility, and R2 is the nearly free token item. ADR 0003 stays true: the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
 
 ## Requirements
 
@@ -133,7 +133,6 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 - Deferred to design: the brief template text for the merge fix and security variants, the ledger row shapes, and the field names in the run record and the profile file.
 - Out of scope by the entry: fix rounds on close-out PRs (R1 AC 12), keyword routing (R2 AC 3).
 - Not in this spec: grill items C2 (parked), C6 and C9 (rejected), C7 and C8 (landed as separate PRs).
-- The steering `product.md` does not exist; the alignment section cites the grill instead.
 
 ## Revision History
 
@@ -146,5 +145,6 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
   - **R1-6 — Accepted (MINOR).** R3 AC 9 (line 69) states that abandon leaves the run stopped at the wait with findings unresolved and does not continue to the HANDOFF write or the push.
   - **R1-7 — Accepted (MINOR).** R4 AC 1 (line 81) now states the merge-base basis, matching R3 AC 3.
   - **R1-8 — Accepted (MINOR).** The Alignment section (line 9) now maps R4 to grill decision 1 as verification visibility.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-7 (AC-named or newly-introduced terms, none a symbol in the anchored range), L-8–L-11 (package.json keys, suppressed per rule 11, unchanged since v1).
 - **v1** (2026-10-21) — Initial draft.
   - **Lint pass.** 5 fixed; rejected: L-6/L-7/L-8/L-9 (package.json section keys named by the AC, not merge.ts symbols; the citation anchors "the merge pass reads a PR").
