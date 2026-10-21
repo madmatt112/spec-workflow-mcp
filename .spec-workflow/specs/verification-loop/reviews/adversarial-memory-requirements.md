@@ -1,53 +1,53 @@
 # Adversarial Review Memory — requirements
-
-Last updated: 2026-10-21 (round 1, v1)
+Last updated: 2026-10-21 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1 just written)
+- R1-1 (SHOULD_FIX, v1) — R2 AC7 named no Sonnet source key. Fixed in v2: reads the
+  `sdd-test-author` profile entry (`agent-profiles.json:50-55`), no new key, pins stay
+  green, coupling stated. Verified closed in v2 review.
+- R1-2 (SHOULD_FIX, v1) — R1 AC1/AC8 classified blocking reasons with no structured
+  source. Fixed in v2: AC1 requires the merge evaluation to tag each reason with a kind
+  (check/conflict/trailer/head/other) from signals `merge.ts:361-405` already computes
+  positionally; AC8 keyed to kind. Verified closed and implementable in v2 review.
+- R1-3 (SHOULD_FIX, v1) — R2 AC10 omitted R3's security fix round. Fixed in v2.
+- R1-4 (SHOULD_FIX, v1) — R1 AC5 no state after INFRA round. Fixed: merging + re-check.
+- R1-6 (MINOR, v1) — R3 AC9 abandon branch. Fixed in v2.
+- R1-7 (MINOR, v1) — R4 AC1 merge-base basis. Fixed in v2.
+- R1-8 (MINOR, v1) — Alignment omitted R4. Fixed in v2.
 
 ### Partially Accepted
-- (none)
+- R1-5 (SHOULD_FIX, v1) — R2 AC8 required effort on `spawn.end`, which has none.
+  Resolved in v2 by scoping effort to `spawn.start`, model to both rows; no field
+  added to `spawnEnd`. Verified against `ledger.ts:130-143`.
 
 ### Rejected
-- Lint pass L-6/L-7/L-8/L-9 (pre-review): package.json section keys are named by the
-  AC, not by merge.ts symbols; the R4 AC1 citation anchors "the merge pass reads a PR".
-  Recorded in Revision History; do not re-open without new evidence.
+- Lint pass L-6/L-7/L-8/L-9 (pre-review, v1): package.json section keys are named by
+  the AC, not merge.ts symbols. Recorded in Revision History; do not re-open.
+- Lint pass L-1..L-11 (v2): AC-named/new terms or package.json keys; not symbols in the
+  anchored range. Recorded in Revision History.
 
-### Unresolved (round 1 findings, awaiting reviser disposition)
-- R1-1 (SHOULD_FIX) — R2 AC7: "Sonnet route" names no source key; the ten-key /
-  frontmatter / byte-for-byte pins of `agent-profiles.test.ts:23-47` forbid a dedicated
-  key, forcing an unstated coupling to `sdd-test-author`/`sdd-checker`.
-- R1-2 (SHOULD_FIX) — R1 AC1/AC8: classifying blocking reasons by kind (fixable
-  check/conflict vs unfixable trailer/wrong-head) has no structured source; `blocked`
-  emits only free-text `reasons[]` + `ci` + `mergeable`, so detection needs brittle
-  string-matching of merge.ts wording.
-- R1-3 (SHOULD_FIX) — R2 AC10 omits R3's security fix round from its non-task
-  implementer enumeration; its tier (Sonnet vs Opus) is ambiguous.
-- R1-4 (SHOULD_FIX) — R1 AC5: no run-state transition specified after an `INFRA:`
-  merge fix round (AC4 = commit case, AC6 excludes INFRA); should be `merging` + re-check.
-- R1-5 (SHOULD_FIX, borderline MINOR) — R2 AC8 requires `spawn.end` to carry effort,
-  but `spawnEnd` (ledger.ts:130-143) has no effort field (model only).
-- R1-6 (MINOR) — R3 AC8 lists `abandon` but AC9 specifies only accept/retry.
-- R1-7 (MINOR) — R4 AC1 "between base and head" vs R3 AC3 "merge base": basis unstated.
-- R1-8 (MINOR) — Alignment section omits R4 from its grill-decision-1 mapping.
+### Unresolved (round-2 finding, awaiting reviser disposition)
+- R2-1 (SHOULD_FIX, Novel, carried) — R3 completion-gate re-entry: AC13 guards only the
+  security pass, not the e2e verification (`implementation.ts:884-911`, unconditional;
+  phase does `return completionGate()` at `:517`) that AC1 gates it behind. On
+  `accept`/`retry`/restart the gate re-runs e2e against post-security-fix code (AC6
+  commits), which can flip to fail and strand the operator's answer; AC9 "from round 1"
+  is under-determined against AC13's ledger-read (what resets the AC12 round rows).
 
 ## Patterns & Themes
-- Routing/model wiring (R2) repeatedly asserts behavior against existing pinned
-  artifacts (profile test, ledger rows) without closing the gap those pins create.
-- The merge stage's free-text `reasons[]` is the recurring weak contract: R1 needs
-  structured reason kinds the code does not expose.
-- Cross-requirement enumerations (AC10's step list) go stale when a sibling
-  requirement (R3) adds a new step.
+- The two round-1 structural risks (profile-pin coupling, free-text reason kinds) are
+  now closed cleanly — the reviser named concrete sources, not deferrals.
+- New theme: R3 inserts the FIRST wait in the middle of the completion gate (before
+  HANDOFF, after code-changing fix rounds). The gate has no mid-gate resume machinery;
+  it restarts at e2e every entry. Any wait inserted there inherits an unguarded,
+  possibly-flipping e2e re-run.
 
 ## Guidance for Next Review
-- Delta citations and all doc citations verified accurate in round 1 — do not re-walk
-  them unless the reviser changed them.
-- R4's wire contract (PrRead → ControllerRunRow → shell passthrough → two hand copies
-  → PrPanel) was verified sound; re-check only if the reviser alters the field's optionality.
-- Fresh lens used this round: wire contracts. Next round pick a different lens
-  (e.g. failure/idempotency on re-entry: R3 AC13 and the security-wait accept/retry
-  cycle re-running the full e2e verification each time).
-- Confirm the reviser names a concrete Sonnet profile key (R1-1) and a reason-kind
-  mechanism (R1-2); these are the two most likely to be deferred incorrectly.
+- Delta citations and all v1 citations verified accurate through v2 — do not re-walk
+  unless the reviser changes them.
+- Lenses used: wire contracts (r1), idempotency/re-entry (r2). If a round 3 is needed,
+  it should verify only the reviser's R2-1 fix (the gate resume contract) against the
+  e2e loop — scope to that diff, not a re-review.
+- Do NOT re-raise R1-1/R1-2 or the conflict-kind conservatism; all confirmed sound.

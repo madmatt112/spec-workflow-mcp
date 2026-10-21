@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec makes a controller run fix its own red or conflicted pull request, run task implementers on Sonnet unless gate B flagged the task for a sensitive path, check sensitive specs with a security pass that reports only reproduced findings, and flag a PR that adds a new dependency. It is for the operator, who today answers an `error` wait for every red merge-stage PR and pays the Opus tier for every task. It changes the merge stage, the implementation phase's step model choice and completion gate, the PR read the Run page shows, and the run ledger.
+This spec makes a controller run fix its own red or conflicted pull request, run task implementers on Sonnet unless gate B flagged the task for a sensitive path, check sensitive specs with a security pass that reports only reproduced findings, and flag a PR that adds a new dependency. It is for the operator, who today answers an `error` wait for every red merge-stage PR and pays the Opus tier for every task. It changes the merge stage, the implementation phase's model choice and completion gate, the Run page's PR read, and the run ledger.
 
 ## Alignment with Product Vision
 
-The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where they are nearly free; R1 and R3 add verification, R4 adds verification visibility, and R2 is the nearly free token item. ADR 0003 stays true: the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
+The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where nearly free: R1 and R3 add verification, R4 verification visibility, R2 the nearly free token item. ADR 0003 stays true — the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
 
 ## Requirements
 
@@ -66,11 +66,11 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 6. WHEN the pass reports one or more findings THEN the controller SHALL run a security fix round on the `sdd-implementer` role whose brief lists the findings, then a narrowed security pass that re-runs only those findings' reproductions; at most 2 such rounds SHALL run.
 7. WHEN findings still reproduce after 2 security fix rounds THEN the controller SHALL run the `sdd-adjudicator` on the open findings, then one narrowed re-check.
 8. WHEN a finding still reproduces after the adjudicator's re-check THEN the controller SHALL open an `escalation` wait that lists each open finding with its reproduce command, with the options `accept`, `retry` and `abandon`.
-9. WHEN the operator answers `accept` THEN the completion gate SHALL continue to the HANDOFF write and the push without running the pass again, and each accepted finding SHALL appear in the HANDOFF Gotchas row, as an unchecked line in the PR body's Test plan, and as a retro-log entry. WHEN the operator answers `retry` THEN the pass and its rounds SHALL run again from round 1. WHEN the operator answers `abandon` THEN the controller SHALL leave the run stopped at the wait with the open findings unresolved and SHALL NOT continue to the HANDOFF write or the push.
+9. WHEN the operator answers `accept` THEN the completion gate SHALL continue to the HANDOFF write and the push without running the pass again, and each accepted finding SHALL appear in the HANDOFF Gotchas row, as an unchecked line in the PR body's Test plan, and as a retro-log entry. WHEN the operator answers `retry` THEN the controller SHALL write a `note` row that opens a new security-pass epoch and run the pass from round 1; the round count and findings SHALL be read only from rows after that marker, and the e2e verification SHALL NOT be re-run. WHEN the operator answers `abandon` THEN the controller SHALL leave the run stopped at the wait with the open findings unresolved and SHALL NOT continue to the HANDOFF write or the push.
 10. WHEN the pass reports a suspicion THEN the controller SHALL create one deferral per suspicion with owner `matthew`, tag `security`, origin spec and phase `implementation`, and a body that holds the suspicion's file and why; a re-entry SHALL NOT create the same deferral twice.
 11. A suspicion SHALL NOT start a fix round, open a wait, or stop the run.
 12. WHEN the pass, a fix round, the adjudicator or the re-check runs THEN the ledger SHALL get its spawn rows and one `note` row with the counts of findings and suspicions.
-13. A re-entry of the implementation phase after a completed security pass, or after an `accept` answer, SHALL NOT run the pass again; the state SHALL be read from this run's ledger.
+13. WHEN end-to-end verification passes THEN the controller SHALL record it as a `note` row in this run's ledger (`src/controller/ledger.ts:171-173`). A re-entry of the completion gate after that pass and before the HANDOFF write — a restart, or a resume of the security `escalation` wait on `accept`, `retry` or restart — WHEN the row is present SHALL read the pass from the ledger and SHALL NOT re-spawn the e2e verifier (`src/controller/phases/implementation.ts:884-911`, today unconditional), so a security fix round's commit never triggers a fresh e2e run; the gate resumes at the security pass. Such a re-entry SHALL NOT run a completed security pass again. This state SHALL be read from this run's ledger; a re-entry after the HANDOFF write behaves as today.
 
 ### Requirement 4 — a PR that adds a new dependency is flagged (C5)
 
@@ -110,21 +110,22 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 
 ## Decisions taken in this document
 
-- D1 — Where the C1 fix rounds land: options were the merge stage only, replacing the implementation phase's three reconcile rounds with two, or one shared cap across both; chosen the merge stage only because the grill placed C1 there and the existing reconcile loop already handles a red PR at completion, so the new rounds catch what turns red or conflicts after it.
-- D2 — Which blocked reasons start a fix round: options were only failed checks and conflicts with nothing else blocking, any blocked reason, or checks and conflicts even when an unfixable reason is also present; chosen only checks and conflicts because a fix round cannot clear a trailer or a wrong head branch.
-- D3 — The fix round cap counts per run: options were per run, per blocked episode, or reset by an operator retry; chosen per run because the grill said up to two rounds and a retry means the operator fixed the PR.
-- D4 — No verifier inside a merge fix round: options were a verifier per round as the reconcile loop does, or none; chosen none because the re-run CI is the judge and the spawn is saved.
-- D5 — A conflict is resolved by merging the default branch into the PR branch: options were a merge commit, or a rebase with a force push; chosen the merge because it never rewrites pushed history.
-- D6 — The source of the sensitive-path flag for model routing: options were recomputing gate B class (a) from the current tasks document, reading the gate-b wait's proposals, or the Check's per-commit risk tier; chosen recomputing because it is deterministic, survives an annotation revision, and works when no gate-b wait exists.
-- D7 — No sensitive-path list means no flag: options were the Sonnet route for all tasks or the Opus tier for all tasks; chosen Sonnet because gate B flags nothing without a list and the Check still raises such commits to high risk.
-- D8 — Implementer steps outside a task keep the Opus tier: options were the role profile, the Sonnet route, or the Opus tier only when the spec has any flag; chosen the profile because repair, reconcile and merge fixes chase integration failures across tasks.
-- D9 — The Sonnet route reads the test author's profile entry, with first values Sonnet 5 at high: options were a dedicated profile key, hard-coded values, or reusing an existing entry; chosen the test author's entry because a new key would break the profile file's ten-key pinning test, that entry already runs the Sonnet 5/high pair, and reusing it keeps the profile file the single model source. Re-tiering the test author deliberately re-tiers these implementers.
-- D10 — The security pass is its own verifier step after the end-to-end verification passes: options were a separate step, a section inside the end-to-end brief, or a step that also fires on sensitive files in the diff; chosen a separate step on gate B flags only because it has its own report shape and the entry scopes it to flagged specs.
-- D11 — Security findings get 2 fix rounds, then the adjudicator, then an escalation wait with accept, retry and abandon: options for the cap were 2 or 3 rounds; chosen 2 to match the completion gate's repair cap.
-- D12 — One deferral per unreproduced suspicion: options were one per suspicion or one per pass; chosen one per suspicion because the deferral loop triages and resolves records one at a time.
-- D13 — A new dependency is a name added to one of the four dependency sections of a package manifest: options were manifests only, manifests plus lockfiles, or other ecosystems too; chosen manifests only because all three registered repositories are Node projects and a lockfile change is transitive.
-- D14 — The dependency flag covers every PR the merge pass reads: options were the run's own PR only, or every PR read; chosen every PR because the read is shared code and the flag opens no wait.
-- D15 — A dependency ledger row is written once per new list, not per poll: options were once per list or every poll; chosen once because the merge stage polls every 30 seconds.
+- D1 — The C1 fix rounds land in the merge stage only: the grill placed C1 there, and the reconcile loop already handles a red PR at completion, so the new rounds catch what turns red or conflicts after it.
+- D2 — Only failed checks and conflicts start a fix round, never when an unfixable reason is also present: a fix round cannot clear a trailer or a wrong head branch.
+- D3 — The cap counts per run, not per episode and not reset by retry: the grill said up to two rounds, and a retry means the operator fixed the PR.
+- D4 — No verifier inside a merge fix round: the re-run CI is the judge and the spawn is saved.
+- D5 — A conflict is resolved by merging the default branch into the PR branch, not a rebase: the merge never rewrites pushed history.
+- D6 — The sensitive-path flag is recomputed from gate B class (a) on the current tasks document, not the gate-b proposals or the Check's risk tier: recomputing is deterministic, survives an annotation revision, and works when no gate-b wait exists.
+- D7 — No sensitive-path list means no flag, so every task takes the Sonnet route: gate B flags nothing without a list and the Check still raises such commits to high risk.
+- D8 — Implementer steps outside a task keep the Opus tier (the role profile): repair, reconcile and merge fixes chase integration failures across tasks.
+- D9 — The Sonnet route reads the test author's profile entry (first values Sonnet 5 at high), not a dedicated key or hard-coded values: a new key would break the ten-key pinning test, that entry already runs the Sonnet 5/high pair, and it keeps the profile file the single model source. Re-tiering the test author deliberately re-tiers these implementers.
+- D10 — The security pass is its own verifier step after e2e passes, not a section of the e2e brief and not fired on diff files: it has its own report shape and is scoped to gate-B-flagged specs.
+- D11 — Security findings get 2 fix rounds, then the adjudicator, then an escalation wait; 2 rather than 3 to match the completion gate's repair cap.
+- D12 — One deferral per unreproduced suspicion, not one per pass: the deferral loop resolves records one at a time.
+- D13 — A new dependency is a name added to one of the four dependency sections of a package manifest, not a lockfile or another ecosystem: all three repositories are Node projects and a lockfile change is transitive.
+- D14 — The dependency flag covers every PR the merge pass reads, not the run's own only: the read is shared code and the flag opens no wait.
+- D15 — A dependency ledger row is written once per new list, not per poll: the merge stage polls every 30 seconds.
+- D16 — The e2e pass is recorded in the ledger and read back on a completion-gate re-entry, not re-run, because a security fix round commits after it passed and a fresh run could flip to fail and strand an `accept`; retry opens a new epoch marker, not a fresh e2e run.
 
 ## Scope notes
 
@@ -136,15 +137,17 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 
 ## Revision History
 
+- **v3** (2026-10-21) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** The completion gate re-ran e2e verification on every entry, so resuming the security escalation wait re-ran it against post-fix code and could strand an accept. R3 AC 13 now records the e2e pass as a ledger note and reads it back on any re-entry, so the e2e verifier is not re-spawned and the gate resumes at the security pass. R3 AC 9's retry branch opens a new epoch marker, reads round count and findings only after it, and does not re-run e2e.
 - **v2** (2026-10-21) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/5/3).
-  - **R1-1 — Accepted (SHOULD_FIX).** R2 AC 7 (line 49) now names the test author profile entry as the Sonnet route's source, states no new key is added so the pinning test stays green, and records the intended re-tier coupling; decision D9 updated to match.
-  - **R1-2 — Accepted (SHOULD_FIX).** R1 AC 1 (line 21) now requires the merge evaluation to tag each blocking reason with a structured kind from the signals it already computes, and AC 1 / AC 8 classify from that kind, not the reason text; AC 8 (line 28) widened to kinds trailer, head and other.
-  - **R1-3 — Accepted (SHOULD_FIX).** R2 AC 10 (line 52) adds R3's security fix rounds to the non-task implementer steps that keep the Opus profile.
-  - **R1-4 — Accepted (SHOULD_FIX).** R1 AC 5 (line 25) now sets the run to merging with a re-check time after an INFRA round, so the re-run CI state is read.
-  - **R1-5 — Partially accepted (SHOULD_FIX).** R2 AC 8 (line 50) scopes effort to the spawn.start row and model to both rows rather than add an effort field to the end row, which has none.
-  - **R1-6 — Accepted (MINOR).** R3 AC 9 (line 69) states that abandon leaves the run stopped at the wait with findings unresolved and does not continue to the HANDOFF write or the push.
-  - **R1-7 — Accepted (MINOR).** R4 AC 1 (line 81) now states the merge-base basis, matching R3 AC 3.
-  - **R1-8 — Accepted (MINOR).** The Alignment section (line 9) now maps R4 to grill decision 1 as verification visibility.
-  - **Lint pass.** 0 fixed; rejected: L-1–L-7 (AC-named or newly-introduced terms, none a symbol in the anchored range), L-8–L-11 (package.json keys, suppressed per rule 11, unchanged since v1).
+  - **R1-1 — Accepted (SHOULD_FIX).** R2 AC 7 now names the test author profile entry as the Sonnet route's source, states no new key is added so the pinning test stays green, and records the intended re-tier coupling; decision D9 updated to match.
+  - **R1-2 — Accepted (SHOULD_FIX).** R1 AC 1 now requires the merge evaluation to tag each blocking reason with a structured kind from the signals it already computes, and AC 1 / AC 8 classify from that kind, not the reason text; AC 8 widened to kinds trailer, head and other.
+  - **R1-3 — Accepted (SHOULD_FIX).** R2 AC 10 adds R3's security fix rounds to the non-task implementer steps that keep the Opus profile.
+  - **R1-4 — Accepted (SHOULD_FIX).** R1 AC 5 now sets the run to merging with a re-check time after an INFRA round, so the re-run CI state is read.
+  - **R1-5 — Partially accepted (SHOULD_FIX).** R2 AC 8 scopes effort to the spawn.start row and model to both rows rather than add an effort field to the end row, which has none.
+  - **R1-6 — Accepted (MINOR).** R3 AC 9 states that abandon leaves the run stopped at the wait with findings unresolved and does not continue to the HANDOFF write or the push.
+  - **R1-7 — Accepted (MINOR).** R4 AC 1 now states the merge-base basis, matching R3 AC 3.
+  - **R1-8 — Accepted (MINOR).** The Alignment section now maps R4 to grill decision 1 as verification visibility.
+  - **Lint pass.** 0 fixed; L-1–L-11 rejected (AC-named or new terms, or package.json keys suppressed per rule 11).
 - **v1** (2026-10-21) — Initial draft.
-  - **Lint pass.** 5 fixed; rejected: L-6/L-7/L-8/L-9 (package.json section keys named by the AC, not merge.ts symbols; the citation anchors "the merge pass reads a PR").
+  - **Lint pass.** 5 fixed; L-6–L-9 rejected (package.json section keys named by the AC, not merge.ts symbols).
