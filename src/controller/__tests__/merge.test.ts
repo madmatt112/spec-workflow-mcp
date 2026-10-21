@@ -8,7 +8,7 @@ import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import {
   readMergeRules, findPullRequest, evaluate, evaluatePullRequest, runMergeStage,
-  mergeByRule, closeoutMergeTarget,
+  mergeByRule, closeoutMergeTarget, readCiState,
   MERGE_POLL_INTERVAL_MS, type PullRequest, type MergeRules, type MergeStageDeps, type MergeTarget,
 } from '../merge.js';
 import { openRunLedger } from '../ledger.js';
@@ -224,6 +224,28 @@ describe('evaluate', () => {
     const result = await evaluate(pr);
     expect(result.ready).toBe(false);
     expect(result.reasons.join(' ')).toMatch(/no workflow run yet for deadbee/);
+  });
+
+  it('is pending while a fresh PR on an old head has no workflow run yet', async () => {
+    mkdirSync(join(pr.repoDir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(pr.repoDir, '.github', 'workflows', 'test.yml'), 'name: test\n');
+    const justNow = new Date(Date.now() - 60_000).toISOString();
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, createdAt: justNow } },
+      runsOf(),
+      statusesOf(),
+    ]);
+    const result = await evaluate(pr);
+    expect(result.ready).toBe(false);
+    expect(result.reasons.join(' ')).toMatch(/no workflow run yet for deadbee/);
+  });
+
+  it('reads a just-pushed old head with no workflow run as pending, not green', async () => {
+    mkdirSync(join(pr.repoDir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(pr.repoDir, '.github', 'workflows', 'test.yml'), 'name: test\n');
+    useGhScript([runsOf(), statusesOf(), runsOf(), statusesOf()]);
+    expect((await readCiState(pr.repoDir, 'deadbeefcafe0001', undefined, Date.now() - 60_000)).state).toBe('pending');
+    expect((await readCiState(pr.repoDir, 'deadbeefcafe0001')).state).toBe('green');
   });
 
   it('is ready with no runs and no statuses when the checkout has no workflow files', async () => {

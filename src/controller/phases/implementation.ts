@@ -1076,7 +1076,8 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         const halt = ctx.shouldStop?.();
         if (halt) return { state: 'pending', failing: [], reason: halt };
         const head = gitTry(ctx.codeRoot, ['rev-parse', 'HEAD']) ?? '';
-        const ci = await readCiState(ctx.codeRoot, head, now);
+        // Each poll starts right after a push (the PR, or a reconcile fix).
+        const ci = await readCiState(ctx.codeRoot, head, now, started);
         if (ci.state !== 'pending') return ci;
         if (now().getTime() - started >= maxWaitMs) {
           return { state: 'red', failing: [{ name: 'pending', runId: undefined }], reason: 'checks still pending after the wait' };

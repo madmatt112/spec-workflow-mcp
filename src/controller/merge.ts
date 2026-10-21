@@ -36,11 +36,13 @@ const POST_MERGE_TIMEOUT_MS = 10 * 60 * 1000;
  * rule reads workflow runs and commit statuses for the head sha instead.
  */
 const PR_VIEW_FIELDS =
-  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author,url';
+  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author,url,createdAt';
 
 /**
  * A head commit younger than this with no workflow run yet is read as pending,
- * not as "no CI": a run takes a few seconds to appear after a push.
+ * not as "no CI": a run takes a few seconds to appear after a push. A push or a
+ * PR younger than this counts too, since the head commit can be much older
+ * than the push that triggers the run.
  */
 const FRESH_HEAD_MS = 5 * 60 * 1000;
 
@@ -370,8 +372,10 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
   const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
   if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(pr.repoDir)) {
     const committed = Date.parse(String(commits[commits.length - 1]?.committedDate ?? ''));
-    if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) {
-      reasons.push(`no workflow run yet for ${shortOid(headOid)} (head committed less than five minutes ago)`);
+    const created = Date.parse(String(data.createdAt ?? ''));
+    const latest = Math.max(Number.isFinite(committed) ? committed : -Infinity, Number.isFinite(created) ? created : -Infinity);
+    if (Number.isFinite(latest) && now().getTime() - latest < FRESH_HEAD_MS) {
+      reasons.push(`no workflow run yet for ${shortOid(headOid)} (head or PR less than five minutes old)`);
       pending = true;
       ciPending = true;
     }
@@ -425,12 +429,13 @@ export interface CiState {
 
 /**
  * The checks of a head sha by the same rule `evaluate` applies (workflow runs
- * and commit statuses through `gh api`; a head under five minutes old with no
- * run yet in a checkout with workflow files is pending), shaped for the
+ * and commit statuses through `gh api`; a head, or a push at `pushedAt`, under
+ * five minutes old with no run yet in a checkout with workflow files is
+ * pending), shaped for the
  * implementation phase's PR checks gate: which checks fail and which run holds
  * each one's log. A `gh` failure is `unreadable`, never a throw.
  */
-export async function readCiState(repoDir: string, headSha: string, now: () => Date = () => new Date()): Promise<CiState> {
+export async function readCiState(repoDir: string, headSha: string, now: () => Date = () => new Date(), pushedAt?: number): Promise<CiState> {
   if (!headSha) return { state: 'unreadable', failing: [], reason: 'no head sha' };
   const runsRead = await ghApiJson(repoDir, `repos/{owner}/{repo}/actions/runs?head_sha=${headSha}&per_page=100`);
   if (!runsRead.ok) return { state: 'unreadable', failing: [], reason: runsRead.reason };
@@ -458,7 +463,8 @@ export async function readCiState(repoDir: string, headSha: string, now: () => D
     } catch {
       committed = NaN;
     }
-    if (Number.isFinite(committed) && now().getTime() - committed < FRESH_HEAD_MS) pending = true;
+    const latest = Math.max(Number.isFinite(committed) ? committed : -Infinity, pushedAt ?? -Infinity);
+    if (Number.isFinite(latest) && now().getTime() - latest < FRESH_HEAD_MS) pending = true;
   }
   if (failing.length > 0) return { state: 'red', failing };
   if (pending) return { state: 'pending', failing: [] };
