@@ -955,7 +955,7 @@ project with the running controller, and prints what it wrote. `doctor <repo>` c
 of those and the GitHub remote and token, and names the first thing wrong. Both are
 deterministic scripts; no model runs.
 
-### 26. `verification-loop` — the run fixes its own red PR and checks risky specs harder (deferred) — until 24 closes
+### 26. `verification-loop` — the run fixes its own red PR and checks risky specs harder
 
 **Delivers.** From the 2026-10-20 grill (`docs/ai-resources-catalogue.md` §3). (1) A red
 CI check or a merge conflict with main on the run's own PR gets up to two implementer fix
