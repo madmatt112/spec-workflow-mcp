@@ -2,7 +2,7 @@ import fastify, { FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyCors from '@fastify/cors';
-import { join, dirname, resolve } from 'path';
+import { join, dirname, resolve, isAbsolute } from 'path';
 import { readFile } from 'fs/promises';
 import { promises as fs, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -451,12 +451,25 @@ export class MultiProjectDashboardServer {
 
     // Add project manually
     this.app.post('/api/projects/add', async (request, reply) => {
-      const { projectPath } = request.body as { projectPath: string };
+      const { projectPath, workflowRootPath } = request.body as { projectPath: string; workflowRootPath?: unknown };
       if (!projectPath) {
         return reply.code(400).send({ error: 'projectPath is required' });
       }
+      if (workflowRootPath !== undefined) {
+        let isDir = false;
+        if (typeof workflowRootPath === 'string' && isAbsolute(workflowRootPath)) {
+          try {
+            isDir = (await fs.stat(workflowRootPath)).isDirectory();
+          } catch {
+            isDir = false;
+          }
+        }
+        if (!isDir) {
+          return reply.code(400).send({ error: 'workflowRootPath must be an absolute path to an existing directory' });
+        }
+      }
       try {
-        const projectId = await this.projectManager.addProjectByPath(projectPath);
+        const projectId = await this.projectManager.addProjectByPath(projectPath, workflowRootPath as string | undefined);
         return { projectId, success: true };
       } catch (error: any) {
         return reply.code(500).send({ error: error.message });

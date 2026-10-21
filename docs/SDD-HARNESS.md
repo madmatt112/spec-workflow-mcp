@@ -269,6 +269,9 @@ it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.t
 | `## Prose paths` bullets | the review gate | `*.md` under these excluded from the line rule |
 | `## Providers` rows (`- <agent>: <provider> [<model>]`) | the setup view | a role on another provider |
 
+`init` writes five of these keys into a new `agent-rules.md`: `worktree-per-change`,
+`worktree-setup`, `tdd-test-command`, `merge-method` and `merge`.
+
 ## Roles and models
 
 `harness/agent-profiles.json` mirrors the frontmatter of the ten role files. A test pins
@@ -320,14 +323,46 @@ This machine runs the harness from the checkout. There is no plugin to install.
    removes the retired activity hook's entries from `~/.claude/settings.json`. The
    controller reads the role files from the checkout; the links serve interactive
    sessions. Uninstall any harness plugin first, or the agents appear twice.
-4. In each project, `.mcp.json` runs `node <checkout>/dist/index.js` (the spec store path
-   as the argument, or `SPEC_WORKFLOW_SHARED_ROOT` in `env`, when the store is a separate
-   repository).
-5. Register the project with `POST /api/projects/add`.
+4. In each project, run `init` and then `doctor` (see "Bootstrapping a project"). `init`
+   writes `.mcp.json` and registers the project; `doctor` checks the result.
 
 To deploy a change: merge it, then `scripts/sdd-self-update.sh`. Never `npm run build` in
 the live checkout while the service is installed, and never start the dashboard by hand on
 the service's port: the unit then crash-loops behind the hand-started process.
+
+### Bootstrapping a project
+
+`init` configures a repository for a run. `doctor` checks a configured repository before a
+run uses it. Run both from the checkout:
+
+```bash
+node <checkout>/dist/index.js init <repo>
+node <checkout>/dist/index.js doctor <repo>
+```
+
+`init` takes the repository path and four options:
+
+- `--store <path>` — the store root, when the spec store is a separate repository.
+- `--test-command <command>` — the `tdd-test-command`.
+- `--worktree-setup <command>` — the `worktree-setup` command.
+- `--merge-method merge|squash` — the merge method. The default is `merge`.
+
+`init` writes `.mcp.json`, and `agent-rules.md` when the store has none. It then registers
+the project with the controller. It commits nothing. `init` exits 0 when it wrote the files
+and registered the project, 1 on an input error, and 2 when registration fails.
+
+`doctor` runs seven checks in order and prints one line for each check:
+
+1. `mcp` — `.mcp.json` names an existing `dist/index.js`.
+2. `store` — the store root holds a `.spec-workflow/` directory.
+3. `agent-rules` — the store has `agent-rules.md` with the `worktree-per-change` and
+   `merge-method` lines.
+4. `controller` — the controller answers its health check.
+5. `registered` — the controller has the repository and its store root registered.
+6. `remote` — the `origin` remote is a `github.com` repository.
+7. `token` — `gh` can push to that repository.
+
+`doctor` exits 0 when every check passes, and 1 when a check fails. It writes nothing.
 
 ## Running the controller as a service
 

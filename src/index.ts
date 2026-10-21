@@ -30,6 +30,10 @@ ARGUMENTS:
   path                    Project path (defaults to current directory)
                          Supports ~ for home directory
 
+SUBCOMMANDS:
+  init <repo>             Register a repository with the spec-workflow controller
+  doctor <repo>           Report the first thing wrong with a configured repo
+
 OPTIONS:
   --help                  Show this help message
   --dashboard             Run dashboard-only mode (no MCP server)
@@ -115,6 +119,15 @@ PARAMETER FORMATS:
 
 For more information, visit: https://github.com/madmatt112/spec-workflow-mcp
 `);
+}
+
+/**
+ * The bootstrap subcommand, when `args[0]` is exactly `init` or `doctor`, else
+ * null (design C1, Req 1 AC 1-3). A name in a later position is not a command:
+ * it falls through to `parseArguments` as the project path.
+ */
+export function bootstrapCommand(args: string[]): 'init' | 'doctor' | null {
+  return args[0] === 'init' || args[0] === 'doctor' ? args[0] : null;
 }
 
 function expandTildePath(path: string): string {
@@ -374,6 +387,15 @@ export function logWorkspaceResolution(resolution: {
 async function main() {
   try {
     const args = process.argv.slice(2);
+
+    // Route `init` and `doctor` before any other argument handling (design C1,
+    // Req 1 AC 1-2). Dynamically imported like watch mode so the bootstrap code
+    // never loads for a normal server start, and no server is constructed.
+    const command = bootstrapCommand(args);
+    if (command) {
+      const { runBootstrapCommand } = await import('./bootstrap/cli.js');
+      process.exit(await runBootstrapCommand(args));
+    }
 
     // Check for help flag. Read through the registry like every other boolean,
     // so `--help`/`-h` cannot drift out of the rejection set or the path filter.
