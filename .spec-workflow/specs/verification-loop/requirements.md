@@ -6,7 +6,7 @@ This spec makes a controller run fix its own red or conflicted pull request, run
 
 ## Alignment with Product Vision
 
-The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where they are nearly free; R1 and R3 add verification, R2 is the nearly free token item. ADR 0003 stays true: the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
+The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:125-163`). Grill decision 1 puts verification first and allows token items only where they are nearly free; R1 and R3 add verification, R4 adds verification visibility (the new-dependency flag, which opens no wait), and R2 is the nearly free token item. ADR 0003 stays true: the merge rule is code and a model never merges (`docs/adr/0003-merge-by-rule.md:12-14`).
 
 ## Requirements
 
@@ -18,14 +18,14 @@ Today a PR that fails the rule with nothing in flight is `blocked` (`src/control
 
 #### Acceptance Criteria
 
-1. WHEN the merge stage of the run's own PR returns `blocked` AND every blocking reason is a failed workflow run, a failed commit status, or a merge conflict (`mergeable` is `CONFLICTING`) AND the run has used fewer than 2 merge fix rounds THEN the controller SHALL run one `sdd-implementer` fix round instead of opening the `error` wait.
+1. WHEN the merge stage of the run's own PR returns `blocked` AND the run has used fewer than 2 merge fix rounds AND every blocking reason is a failed workflow run, a failed commit status, or a merge conflict (`mergeable` is `CONFLICTING`) THEN the controller SHALL run one `sdd-implementer` fix round instead of opening the `error` wait. The merge evaluation SHALL tag each blocking reason with a structured kind (`check`, `conflict`, `trailer`, `head` or `other`) from the signals it already computes (`src/controller/merge.ts:361-405`); criteria 1 and 8 classify from that kind, not by matching the reason's text.
 2. WHEN a merge fix round runs THEN it SHALL run in the run's worktree on the PR branch, and its brief SHALL name each failing check with the saved log tail of its workflow run (as `prChecksGate` saves them, `src/controller/phases/implementation.ts:1069-1126`) and, for a conflict, say that the branch conflicts with the default branch.
 3. WHEN a merge fix round resolves a conflict THEN the implementer SHALL merge the default branch into the PR branch; the controller SHALL NOT rewrite pushed history and SHALL NOT force-push.
 4. WHEN a merge fix round ends with a new commit on the PR branch THEN the controller SHALL push the branch and set the run to `merging` with a re-check time, so the next merge pass reads the new CI state (`src/controller/runs.ts:666-668`).
-5. WHEN the implementer of a merge fix round reports `INFRA:` THEN the controller SHALL re-run the failed workflow runs (as `src/controller/phases/implementation.ts:1143-1148` does) and the round SHALL count toward the cap.
+5. WHEN the implementer of a merge fix round reports `INFRA:` THEN the controller SHALL re-run the failed workflow runs (as `src/controller/phases/implementation.ts:1143-1148` does) and set the run to `merging` with a re-check time so the next merge pass reads the re-run CI state; the round SHALL count toward the cap.
 6. WHEN the implementer of a merge fix round reports `DESIGN-DEFECT:` or `ESCALATE:`, or ends with no new commit and no `INFRA:` THEN the round SHALL count toward the cap and the next merge pass SHALL apply criteria 1 and 7 again.
 7. WHEN the merge stage of the run's own PR returns `blocked` AND the run has used 2 merge fix rounds THEN the controller SHALL open the `error` wait as today, and its text SHALL add that 2 fix rounds ran and the reason each ended.
-8. WHEN the merge stage returns `blocked` AND any blocking reason is an attribution trailer or a wrong head branch THEN the controller SHALL open the `error` wait as today with no fix round.
+8. WHEN the merge stage returns `blocked` AND any blocking reason's kind (AC 1) is `trailer`, `head` or `other` THEN the controller SHALL open the `error` wait as today with no fix round.
 9. The merge fix round count SHALL be read from this run's ledger, so a controller restart, a re-entry or an operator "retry" on the `error` wait does not reset it. A "retry" re-runs the merge pass only.
 10. WHEN a merge fix round starts THEN the ledger SHALL get the spawn rows of the step and one `note` row that names the round number and the blocking reasons.
 11. The merge rule itself SHALL stay model-free: `evaluate` and `mergeByRule` (`src/controller/merge.ts:295-297`, `:568-642`) SHALL run no model step; the fix round is a separate step the run loop starts.
@@ -46,10 +46,10 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 4. The flag SHALL be computed by code with the same rule as `harness gate class-a` (`src/tools/harness.ts:1162-1220`) on the `tasks.md` and `## Sensitive paths` list current when the step starts; no model judges it.
 5. IF the project's `agent-rules.md` has no `## Sensitive paths` list THEN no task SHALL be flagged and every task step SHALL take the Sonnet route.
 6. The model SHALL be chosen once per step, at the spawn; a step SHALL NOT change model while it runs, and a resumed step SHALL keep the model it started on.
-7. The Sonnet route's model and effort SHALL be read from `harness/agent-profiles.json`, not written in code; their first values SHALL be `claude-sonnet-5` and `high`. The ten-key, frontmatter-equality and byte-for-byte assertions of `src/__tests__/agent-profiles.test.ts:23-47` SHALL stay green.
-8. WHEN a routed step starts and ends THEN its `spawn.start` and `spawn.end` rows SHALL carry the model and effort the step ran on, not the profile's (`src/controller/phases/implementation.ts:371-381` reads the profile today).
+7. The Sonnet route SHALL read its model and effort from the `sdd-test-author` profile entry of `harness/agent-profiles.json` (`harness/agent-profiles.json:50-55`), not a new key and not values written in code; their first values are therefore `claude-sonnet-5` and `high`. No new key is added, so the ten-key, frontmatter-equality and byte-for-byte assertions of `src/__tests__/agent-profiles.test.ts:23-47` SHALL stay green. A later spec that re-tiers `sdd-test-author` re-routes every non-sensitive implementer step; this coupling is intended.
+8. WHEN a routed step starts THEN its `spawn.start` row SHALL carry the model and effort the step ran on, and its `spawn.end` row SHALL carry that model; neither SHALL carry the profile's (`src/controller/phases/implementation.ts:371-381` reads the profile today). `spawnEnd` has no effort field and SHALL NOT gain one for this (`src/controller/ledger.ts:130-143`).
 9. WHEN a task is picked THEN the ledger SHALL get one `note` row naming the task's route and its reason (the matching sensitive path, or "no sensitive-path flag").
-10. Implementer steps that belong to no task (repair rounds, PR checks reconcile rounds, merge fix rounds of R1) SHALL run on the `sdd-implementer` profile's model and effort.
+10. Implementer steps that belong to no task (repair rounds, PR checks reconcile rounds, merge fix rounds of R1, and R3's security fix rounds) SHALL run on the `sdd-implementer` profile's model and effort.
 11. Invariant (verified, not red-first): the `sdd-test-author`, `sdd-verifier` and `sdd-adjudicator` steps SHALL keep their profile models.
 
 ### Requirement 3 — security pass for sensitive specs (C4)
@@ -66,7 +66,7 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 6. WHEN the pass reports one or more findings THEN the controller SHALL run a security fix round on the `sdd-implementer` role whose brief lists the findings, then a narrowed security pass that re-runs only those findings' reproductions; at most 2 such rounds SHALL run.
 7. WHEN findings still reproduce after 2 security fix rounds THEN the controller SHALL run the `sdd-adjudicator` on the open findings, then one narrowed re-check.
 8. WHEN a finding still reproduces after the adjudicator's re-check THEN the controller SHALL open an `escalation` wait that lists each open finding with its reproduce command, with the options `accept`, `retry` and `abandon`.
-9. WHEN the operator answers `accept` THEN the completion gate SHALL continue to the HANDOFF write and the push without running the pass again, and each accepted finding SHALL appear in the HANDOFF Gotchas row, as an unchecked line in the PR body's Test plan, and as a retro-log entry. WHEN the operator answers `retry` THEN the pass and its rounds SHALL run again from round 1.
+9. WHEN the operator answers `accept` THEN the completion gate SHALL continue to the HANDOFF write and the push without running the pass again, and each accepted finding SHALL appear in the HANDOFF Gotchas row, as an unchecked line in the PR body's Test plan, and as a retro-log entry. WHEN the operator answers `retry` THEN the pass and its rounds SHALL run again from round 1. WHEN the operator answers `abandon` THEN the controller SHALL leave the run stopped at the wait with the open findings unresolved and SHALL NOT continue to the HANDOFF write or the push.
 10. WHEN the pass reports a suspicion THEN the controller SHALL create one deferral per suspicion with owner `matthew`, tag `security`, origin spec and phase `implementation`, and a body that holds the suspicion's file and why; a re-entry SHALL NOT create the same deferral twice.
 11. A suspicion SHALL NOT start a fix round, open a wait, or stop the run.
 12. WHEN the pass, a fix round, the adjudicator or the re-check runs THEN the ledger SHALL get its spawn rows and one `note` row with the counts of findings and suspicions.
@@ -78,7 +78,7 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 
 #### Acceptance Criteria
 
-1. WHEN the merge pass reads a PR (the run's own or a close-out PR, `src/controller/merge.ts:568-583`) THEN code SHALL list the package names added between the PR's base and head under `dependencies`, `devDependencies`, `peerDependencies` or `optionalDependencies` of any `package.json` in the diff.
+1. WHEN the merge pass reads a PR (the run's own or a close-out PR, `src/controller/merge.ts:568-583`) THEN code SHALL list the package names the head adds, against the merge base of the head and the PR's base branch (the merge-base basis of R3 AC 3), under `dependencies`, `devDependencies`, `peerDependencies` or `optionalDependencies` of any `package.json` in the diff.
 2. A name that is only moved between those four sections, a version change of an existing name, and a lockfile-only change SHALL NOT count as new.
 3. WHEN the list is not empty THEN the `PrRead` the pass saves (`src/controller/state.ts:109-126`) SHALL carry it, and both hand copies (`src/dashboard/shell/types.ts:161-172`, `src/dashboard_frontend/src/modules/shell/types.ts:184-195`) SHALL carry the same field.
 4. WHEN a PR read carries new dependencies THEN its row in the Run page's PR panel (`src/dashboard_frontend/src/modules/shell/RunPage.tsx:345-394`) SHALL show a "new dependency" chip and the package names.
@@ -118,7 +118,7 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 - D6 — The source of the sensitive-path flag for model routing: options were recomputing gate B class (a) from the current tasks document, reading the gate-b wait's proposals, or the Check's per-commit risk tier; chosen recomputing because it is deterministic, survives an annotation revision, and works when no gate-b wait exists.
 - D7 — No sensitive-path list means no flag: options were the Sonnet route for all tasks or the Opus tier for all tasks; chosen Sonnet because gate B flags nothing without a list and the Check still raises such commits to high risk.
 - D8 — Implementer steps outside a task keep the Opus tier: options were the role profile, the Sonnet route, or the Opus tier only when the spec has any flag; chosen the profile because repair, reconcile and merge fixes chase integration failures across tasks.
-- D9 — The Sonnet route's model and effort live in the agent profile file with first values Sonnet 5 at high: options were the profile file, hard-coded values, or an agent-rules key; chosen the profile file because it is the designated model source and that pair already runs the test author.
+- D9 — The Sonnet route reads the test author's profile entry, with first values Sonnet 5 at high: options were a dedicated profile key, hard-coded values, or reusing an existing entry; chosen the test author's entry because a new key would break the profile file's ten-key pinning test, that entry already runs the Sonnet 5/high pair, and reusing it keeps the profile file the single model source. Re-tiering the test author deliberately re-tiers these implementers.
 - D10 — The security pass is its own verifier step after the end-to-end verification passes: options were a separate step, a section inside the end-to-end brief, or a step that also fires on sensitive files in the diff; chosen a separate step on gate B flags only because it has its own report shape and the entry scopes it to flagged specs.
 - D11 — Security findings get 2 fix rounds, then the adjudicator, then an escalation wait with accept, retry and abandon: options for the cap were 2 or 3 rounds; chosen 2 to match the completion gate's repair cap.
 - D12 — One deferral per unreproduced suspicion: options were one per suspicion or one per pass; chosen one per suspicion because the deferral loop triages and resolves records one at a time.
@@ -137,5 +137,14 @@ Today every `sdd-implementer` step runs on the profile model, `claude-opus-4-8` 
 
 ## Revision History
 
+- **v2** (2026-10-21) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/5/3).
+  - **R1-1 — Accepted (SHOULD_FIX).** R2 AC 7 (line 49) now names the test author profile entry as the Sonnet route's source, states no new key is added so the pinning test stays green, and records the intended re-tier coupling; decision D9 updated to match.
+  - **R1-2 — Accepted (SHOULD_FIX).** R1 AC 1 (line 21) now requires the merge evaluation to tag each blocking reason with a structured kind from the signals it already computes, and AC 1 / AC 8 classify from that kind, not the reason text; AC 8 (line 28) widened to kinds trailer, head and other.
+  - **R1-3 — Accepted (SHOULD_FIX).** R2 AC 10 (line 52) adds R3's security fix rounds to the non-task implementer steps that keep the Opus profile.
+  - **R1-4 — Accepted (SHOULD_FIX).** R1 AC 5 (line 25) now sets the run to merging with a re-check time after an INFRA round, so the re-run CI state is read.
+  - **R1-5 — Partially accepted (SHOULD_FIX).** R2 AC 8 (line 50) scopes effort to the spawn.start row and model to both rows rather than add an effort field to the end row, which has none.
+  - **R1-6 — Accepted (MINOR).** R3 AC 9 (line 69) states that abandon leaves the run stopped at the wait with findings unresolved and does not continue to the HANDOFF write or the push.
+  - **R1-7 — Accepted (MINOR).** R4 AC 1 (line 81) now states the merge-base basis, matching R3 AC 3.
+  - **R1-8 — Accepted (MINOR).** The Alignment section (line 9) now maps R4 to grill decision 1 as verification visibility.
 - **v1** (2026-10-21) — Initial draft.
   - **Lint pass.** 5 fixed; rejected: L-6/L-7/L-8/L-9 (package.json section keys named by the AC, not merge.ts symbols; the citation anchors "the merge pass reads a PR").
