@@ -1,0 +1,1 @@
+{"testFiles":["src/bootstrap/__tests__/doctor.test.ts"],"seams":{"src/bootstrap/__tests__/doctor.test.ts":"runDoctor(repoPath, io, timeoutMs)"},"redCommit":"ea4591e0b7457ea34fb802e0f00fc6587b81a6c8","baseSha":"bca3a7f07ebcb4ccb646570eb3846b28babfd82b","base":"structural-red","head":"pass","amended":true,"judged":null}
