@@ -187,3 +187,10 @@
 {"ts":"2026-10-21T01:11:54.864Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 10","result":"yes/10","phase":"implementation","task":"10"}
 {"ts":"2026-10-21T01:11:59.668Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: task 10 pass risk low"}
 {"ts":"2026-10-21T01:11:59.673Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"10","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-21T01:11:59.774Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.pick","task":"11","title":"Document `init` and `doctor`"}
+{"ts":"2026-10-21T01:11:59.779Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"task 11 pick head 77dc3e1ac8fec1cd0e4f3da31adad0e6b177d61f"}
+{"ts":"2026-10-21T01:11:59.791Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.start","agent":"sdd-implementer","role":"implement task 11","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-21T01:17:01.161Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.end","agent":"sdd-implementer","input":"54","output":"23835","cacheWrite":"76711","cacheRead":"1755365","tokens":"1855965","cacheWrite5m":"0","cacheWrite1h":"76711","model":"claude-opus-4-8"}
+{"ts":"2026-10-21T01:17:01.161Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 11","result":"yes/11","phase":"implementation","task":"11"}
+{"ts":"2026-10-21T01:17:03.099Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"note","text":"gate: task 11 pass risk low"}
+{"ts":"2026-10-21T01:17:03.105Z","run":"run-20261020-173338","spec":"project-bootstrap","type":"task.done","task":"11","rounds":"0","outcome":"gate"}

@@ -113,7 +113,7 @@ Dependency order: tasks 1 to 3 change existing controller code (the session peek
   - _Requirements: 7.7, 5.3, 5.4_
   - _Prompt: Task: Per Req 7 AC 7, start a real MultiProjectDashboardServer on a free port with temp SDD_HOME and SPEC_WORKFLOW_HOME (its session file names the URL); build a temp repository with origin https://github.com/acme/widget.git, a package-lock.json and vitest in devDependencies; point CONTROLLER_GH_BIN at scripts/stub-gh.mjs answering permissions.push true; pass an existing temp dist/index.js as entryPath. Run runInit, then runDoctor, once with --store on a sibling directory and once without | Restrictions: Change no source file; if the test fails, report the failing behaviour rather than weakening an assertion | Success: in both runs runInit exits 0 and runDoctor prints seven ok lines and exits 0; projects.json holds the repository top level and the store root as its two paths_
 
-- [ ] 11. Document `init` and `doctor`
+- [x] 11. Document `init` and `doctor`
   - File: docs/SDD-HARNESS.md
   - Add design C10's `### Bootstrapping a project` subsection under `## Installing from a checkout` (`docs/SDD-HARNESS.md:312-331`), merge steps 4 and 5 into one step, and add the `init` note to the key table (`docs/SDD-HARNESS.md:252-270`). The step list shrinks from five to four: `grep -n "^[0-9]\. " docs/SDD-HARNESS.md` finds every numbered step; renumber the list and update any count word that names it.
   - Purpose: A fourth repository does not depend on memory.
