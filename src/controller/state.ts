@@ -121,6 +121,8 @@ export interface PrRead {
   reasons: string[];
   /** The merge commit sha, when `verdict` is `merged`. */
   sha?: string;
+  /** The package names this PR head adds over its base (design C2, R4); absent when empty or unread. */
+  newDependencies?: string[];
   /** ISO time of the read. */
   at: string;
 }

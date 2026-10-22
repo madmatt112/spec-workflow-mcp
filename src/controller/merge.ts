@@ -12,10 +12,11 @@
 // in `run-setup.ts` owns `agent-rules.md`; `readMergeRules` picks the three
 // merge keys from it.
 import { execFile, execFileSync } from 'child_process';
-import { appendFileSync, mkdirSync, readdirSync } from 'fs';
+import { appendFileSync, mkdirSync, readdirSync, readFileSync } from 'fs';
 import { basename, join } from 'path';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
+import { readNewDependencies } from './new-deps.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import { listWaits, type RunRecord, type PrRead } from './state.js';
 import type { RunLedger } from './ledger.js';
@@ -139,8 +140,11 @@ export interface MergeStageDeps {
   specDir: string;
   /** The run's step log dir; the post-merge command's output is appended here. */
   stepLogDir: string;
-  /** The run ledger; `pr.merged` is written through it. */
-  ledger: Pick<RunLedger, 'prMerged'>;
+  /**
+   * The run ledger; `pr.merged` and the new-dependency `note` are written
+   * through it, and `path` is read back to dedupe that note (design C2).
+   */
+  ledger: Pick<RunLedger, 'prMerged' | 'note' | 'path'>;
   /** Clock seam for tests; defaults to the wall clock. */
   now?: () => Date;
 }
@@ -585,6 +589,73 @@ async function readMergeSha(pr: PullRequest): Promise<string> {
   }
 }
 
+/** The newest `note` row's `text` in the ledger file that starts with `prefix`, or undefined. */
+function newestNote(ledgerPath: string, prefix: string): string | undefined {
+  let text: string;
+  try {
+    text = readFileSync(ledgerPath, 'utf8');
+  } catch {
+    return undefined;
+  }
+  let newest: string | undefined;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    let row: { type?: unknown; text?: unknown };
+    try {
+      row = JSON.parse(line) as { type?: unknown; text?: unknown };
+    } catch {
+      continue;
+    }
+    if (row.type === 'note' && typeof row.text === 'string' && row.text.startsWith(prefix)) {
+      newest = row.text;
+    }
+  }
+  return newest;
+}
+
+/**
+ * The new-dependency side output of one merge pass (design C2): when the
+ * evaluation is readable and the view carried `head` and `base`, read the
+ * package names the PR head adds over its base from local git (no `gh` call),
+ * log them once per change as a ledger `note` (Data Models' `new dependencies:
+ * <repo>#<n>: <a, b> | none | unreadable (<why>)` line), and return a non-empty
+ * list for the `PrRead`. A view without a `baseRefName` skips the read and
+ * writes nothing (design D14); an empty list writes `none` only after a logged
+ * non-empty list. It never changes the verdict, reasons, blocking, status or a
+ * wait (R4 AC 7) and never throws.
+ */
+function flagNewDependencies(opts: {
+  evaluation: MergeEvaluation;
+  repoDir: string;
+  base?: string;
+  head?: string;
+  repo: string;
+  number: number;
+  ledger: Pick<RunLedger, 'note' | 'path'>;
+}): string[] | undefined {
+  const { evaluation, repoDir, base, head, repo, number, ledger } = opts;
+  if (evaluation.unreadable || !base || !head) return undefined;
+
+  const result = readNewDependencies(repoDir, base, head);
+  const prefix = `new dependencies: ${repo}#${number}: `;
+  const prior = newestNote(ledger.path, prefix);
+
+  let names: string[] | undefined;
+  let text: string;
+  if (!result.ok) {
+    text = `${prefix}unreadable (${result.reason})`;
+  } else if (result.names.length > 0) {
+    names = result.names;
+    text = `${prefix}${result.names.join(', ')}`;
+  } else {
+    // An empty list writes `none` only after a logged non-empty list.
+    if (prior === undefined) return undefined;
+    text = `${prefix}none`;
+  }
+  if (text !== prior) ledger.note(text);
+  return names;
+}
+
 /**
  * Run the merge stage once for a run. The caller polls while `not-ready`
  * ({@link MERGE_POLL_INTERVAL_MS}): something is in flight. A PR that fails the
@@ -621,7 +692,7 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repoDir = pr.repoDir;
   const now = deps.now ?? ((): Date => new Date());
 
-  const { evaluation, ci, mergeable, url, base } = await evaluatePullRequest(pr);
+  const { evaluation, ci, mergeable, url, base, head } = await evaluatePullRequest(pr);
   // One read per pass, shaped for the callers (design C1): `repo` is a basename
   // (never a path), `kind` is `run` for the run's own PR and `closeout`
   // otherwise, the url is kept only when https, and `reasons`/`sha` are the same
@@ -629,8 +700,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repo = basename(repoDir);
   const kind: PrRead['kind'] = target.questionId === MERGE_QUESTION_ID ? 'run' : 'closeout';
   const viewUrl = typeof url === 'string' && url.startsWith('https://') ? url : undefined;
+  // The read-only new-dependency flag (design C2): a side output that logs its
+  // own note; it never touches the verdict, reasons or status (R4 AC 7).
+  const newDependencies = flagNewDependencies({ evaluation, repoDir, base, head, repo, number: pr.number, ledger: deps.ledger });
   const makeRead = (status: MergeStageStatus, reasons: string[], sha?: string): PrRead => ({
-    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha, at: now().toISOString(),
+    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha,
+    ...(newDependencies ? { newDependencies } : {}), at: now().toISOString(),
   });
 
   if (evaluation.unreadable) {
