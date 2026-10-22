@@ -3,6 +3,7 @@ import {
   mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync,
 } from 'fs';
 import { promises as fsp } from 'fs';
+import { execFileSync } from 'child_process';
 import { tmpdir } from 'os';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
@@ -408,6 +409,97 @@ describe('evaluatePullRequest', () => {
   });
 });
 
+describe('evaluatePullRequest blocking kinds (design C1, R1 AC 1, AC 11)', () => {
+  // Contract per test: pre-condition (gh stub view/runs/statuses) -> call
+  // evaluatePullRequest(pr) -> observable result (evaluation.blocking,
+  // .head, .base) -> expected value source (design C1 post-conditions:
+  // "a failed workflow run gives check with name and runId ... a head
+  // branch mismatch gives head; an attribution trailer gives trailer").
+  let pr: PullRequest;
+  beforeEach(() => { pr = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' }; });
+
+  it('tags a failed workflow run as check with its name and numeric runId', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'completed', conclusion: 'failure', id: 555 }),
+      STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'check', text: 'workflow build did not pass', check: { name: 'build', runId: 555 } },
+    ]);
+  });
+
+  it('tags a failed commit status as check with its name and no runId', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK,
+      statusesOf({ context: 'ci/legacy', state: 'failure' }),
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'check', text: 'status ci/legacy did not pass', check: { name: 'ci/legacy' } },
+    ]);
+    expect(result.evaluation.blocking![0].check!.runId).toBeUndefined();
+  });
+
+  it('tags a merge conflict as conflict', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'CONFLICTING' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'conflict', text: 'not mergeable (mergeable=CONFLICTING)' },
+    ]);
+  });
+
+  it('tags any other non-MERGEABLE, non-UNKNOWN mergeable value as other', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'DIRTY' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'other', text: 'not mergeable (mergeable=DIRTY)' },
+    ]);
+  });
+
+  it('tags a head branch mismatch as head', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, headRefName: 'feat/other' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'head', text: 'head branch is feat/other, expected feat/thing' },
+    ]);
+  });
+
+  it('tags a PR body attribution trailer as trailer', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, body: 'Summary.\n\n🤖 Generated with [Claude Code](https://claude.com)' } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'trailer', text: 'the PR body carries a Claude attribution trailer' },
+    ]);
+  });
+
+  it('gives a pending-only result no blocking entries', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.pending).toBe(true);
+    expect(result.evaluation.blocking).toBeUndefined();
+  });
+
+  it('reads head and base from the view\'s headRefOid and baseRefName', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, baseRefName: 'main' } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.head).toBe('deadbeefcafe0001');
+    expect(result.base).toBe('main');
+  });
+});
+
 describe('runMergeStage', () => {
   let home: string;
   beforeEach(async () => {
@@ -484,6 +576,24 @@ describe('runMergeStage', () => {
     expect(result.number).toBe(42);
     expect(result.reasons.join(' ')).toMatch(/commit abcdef1 carries a Claude attribution trailer/);
     expect(recordedArgv(script)).toHaveLength(3); // no merge attempted
+  });
+
+  it('blocked result carries the structured blocking reason and the base branch (design C1)', async () => {
+    // Pre: an attribution trailer (kind trailer) and a baseRefName on the view.
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: {
+        ...READY_VIEW,
+        baseRefName: 'main',
+        commits: [{ oid: 'abcdef1234', messageHeadline: 'test(s): task 1 red', messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' }],
+      } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await runMergeStage(makeRun(), makeDeps());
+    expect(result.status).toBe('blocked');
+    expect(result.blocking).toEqual([
+      { kind: 'trailer', text: 'commit abcdef1 carries a Claude attribution trailer' },
+    ]);
+    expect(result.base).toBe('main');
   });
 
   it('unreadable when gh pr view fails, without merging (a token that cannot read checks)', async () => {
@@ -689,5 +799,190 @@ describe('PR read on every merge-stage result', () => {
 
     expect(result.status).toBe('not-ready');
     expect(result.read).toBeUndefined();
+  });
+});
+
+describe('new-dependency flag on the merge pass (design C2, R4)', () => {
+  // Contract per test: pre-condition (a gh view carrying baseRefName plus a
+  // temp git repo's real head sha, or a view/dir that cannot be resolved) ->
+  // call runMergeStage(run, deps), once or across several passes on the same
+  // deps -> observable MergeStageResult.read.newDependencies and the `new
+  // dependencies:`/`unreadable` note rows appended to deps.specDir's ledger
+  // file -> expected value source (R4 AC 1, 3, 5, 6, 7; design C2 "Wiring"
+  // and "Ledger"; Data Models' `new dependencies: <repo>#<n>: <a, b> | none
+  // | unreadable (<why>)` line shape).
+
+  function git(dir: string, args: string[]): void {
+    execFileSync('git', args, { cwd: dir, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  }
+  function gitOut(dir: string, args: string[]): string {
+    return execFileSync('git', args, { cwd: dir, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }).toString().trim();
+  }
+  /** `main` holds one commit with `{ dependencies: { a } }`; a sibling
+   * `feature` branch is checked out so later commits never move `main`. */
+  function initDepRepo(): string {
+    const dir = tmp('ctrl-merge-deps-');
+    git(dir, ['init', '-q', '-b', 'main']);
+    git(dir, ['config', 'user.email', 'test@example.com']);
+    git(dir, ['config', 'user.name', 'Test']);
+    git(dir, ['config', 'commit.gpgsign', 'false']);
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'x', dependencies: { a: '1.0.0' } }));
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', 'init']);
+    git(dir, ['checkout', '-qb', 'feature']);
+    return dir;
+  }
+  function commitManifest(dir: string, manifest: unknown, message: string): string {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest));
+    git(dir, ['add', '-A']);
+    git(dir, ['commit', '-qm', message]);
+    return gitOut(dir, ['rev-parse', 'HEAD']);
+  }
+  /** Every `note` row's text, in ledger order, for one `makeDeps()` result.
+   * No row written yet (nothing else in the pass wrote to the ledger
+   * either) leaves the file absent, same as `src/controller/phases/
+   * closeout.ts:252` reads it. */
+  function notesOf(deps: MergeStageDeps): string[] {
+    let text: string;
+    try {
+      text = readFileSync(join(deps.specDir, 'harness-events.jsonl'), 'utf8');
+    } catch {
+      return [];
+    }
+    const rows = text.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as { type: string; text?: string });
+    return rows.filter((r) => r.type === 'note').map((r) => r.text ?? '');
+  }
+  /** A view ready to merge but for one still-running check, so the pass is
+   * `not-ready` and never attempts a merge, wait or extra `gh` call. */
+  function pendingScript(view: Record<string, unknown>): unknown[] {
+    return [
+      { argvIncludes: ['pr', 'view'], stdout: view },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ];
+  }
+
+  it('a PR adding a dependency carries newDependencies on its read (AC1, AC3)', async () => {
+    // Pre: a temp git repo whose `feature` head adds `b` over `main`.
+    const dir = initDepRepo();
+    const headSha = commitManifest(dir, { name: 'x', dependencies: { a: '1.0.0', b: '2.0.0' } }, 'add b');
+    const script = useGhScript(pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha }));
+    const run = makeRun({ codeRoot: dir });
+
+    // Call: runMergeStage.
+    const result = await runMergeStage(run, makeDeps());
+
+    // Result: the read carries the added name; the verdict is untouched
+    // (regression guard, R4 AC7, already true at base) and no extra `gh`
+    // call was made (NFR, design C2 "no new gh call").
+    expect(result.status).toBe('not-ready');
+    expect(result.read!.newDependencies).toEqual(['b']);
+    expect(recordedArgv(script)).toHaveLength(3);
+  });
+
+  it('writes one note over two unchanged passes, then one more when the list changes (AC5)', async () => {
+    // Pre: a `feature` head adding `b`, then a later commit also adding `c`.
+    const dir = initDepRepo();
+    const headSha1 = commitManifest(dir, { name: 'x', dependencies: { a: '1.0.0', b: '2.0.0' } }, 'add b');
+    const headSha2 = commitManifest(dir, { name: 'x', dependencies: { a: '1.0.0', b: '2.0.0', c: '3.0.0' } }, 'add c');
+    useGhScript([
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha1 }),
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha1 }),
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha2 }),
+    ]);
+    const run = makeRun({ codeRoot: dir });
+    const deps = makeDeps();
+
+    // Call: three merge passes on the same run/deps (ledger).
+    await runMergeStage(run, deps);
+    // Result (pass 1): the first non-empty list writes one note.
+    let depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(1);
+    expect(depNotes[0]).toMatch(/new dependencies: .*#42: b/);
+
+    await runMergeStage(run, deps);
+    // Result (pass 2, same list): no second note (R4 AC5 "unchanged ... no row").
+    depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(1);
+
+    await runMergeStage(run, deps);
+    // Result (pass 3, changed list): one more note naming the new list.
+    depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(2);
+    expect(depNotes[1]).toMatch(/new dependencies: .*#42: b, c/);
+  });
+
+  it('writes a "none" note once a logged list becomes empty (AC5)', async () => {
+    // Pre: a `feature` head adding `b`, then a later commit that drops it
+    // back to the same names `main` already has.
+    const dir = initDepRepo();
+    const headSha1 = commitManifest(dir, { name: 'x', dependencies: { a: '1.0.0', b: '2.0.0' } }, 'add b');
+    const headSha2 = commitManifest(dir, { name: 'x', dependencies: { a: '1.0.0' } }, 'revert b');
+    useGhScript([
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha1 }),
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha2 }),
+    ]);
+    const run = makeRun({ codeRoot: dir });
+    const deps = makeDeps();
+
+    // Call: two merge passes.
+    await runMergeStage(run, deps);
+    expect(notesOf(deps).filter((t) => t.startsWith('new dependencies:'))).toHaveLength(1);
+
+    await runMergeStage(run, deps);
+    // Result: the empty list differs from the logged one, so one more note
+    // is written, reading `none` (Data Models: "`none` follows only a
+    // logged non-empty list").
+    const depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(2);
+    expect(depNotes[1]).toMatch(/new dependencies: .*#42: none/);
+  });
+
+  it('writes one "unreadable" note when the dependency read fails, without touching the verdict or reasons (AC6, AC7)', async () => {
+    // Pre: baseRefName is set but repoDir is not a git repo at all, so the
+    // local base/head resolution fails.
+    const repoDir = tmp('ctrl-merge-repo-');
+    useGhScript([
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main' }),
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main' }),
+    ]);
+    const run = makeRun({ codeRoot: repoDir });
+    const deps = makeDeps();
+
+    // Call: two merge passes on the same unreadable repo.
+    const first = await runMergeStage(run, deps);
+    // Result: the verdict and reasons are exactly what the evaluation gives
+    // with no dependency flag at all (regression guard, R4 AC7, already
+    // true at base) and no list is recorded.
+    expect(first.status).toBe('not-ready');
+    expect(first.reasons.join(' ')).toMatch(/workflow build is still running/);
+    expect(first.read!.newDependencies).toBeUndefined();
+
+    const second = await runMergeStage(run, deps);
+    expect(second.status).toBe('not-ready');
+    expect(second.reasons).toEqual(first.reasons);
+
+    // Result: exactly one `unreadable` note across both passes (R4 AC6
+    // "write a note row once").
+    const depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(1);
+    expect(depNotes[0]).toMatch(/new dependencies: .*#42: unreadable \(.+\)/);
+  });
+
+  it('skips the dependency read and writes no note when the view has no baseRefName (design D14, regression guard)', async () => {
+    // Pre: READY_VIEW, unmodified, carries no baseRefName.
+    const script = useGhScript(pendingScript(READY_VIEW));
+    const run = makeRun();
+    const deps = makeDeps();
+
+    // Call: one merge pass.
+    const result = await runMergeStage(run, deps);
+
+    // Result: no list, no note, and no `gh` call beyond the evaluation's
+    // own three reads.
+    expect(result.status).toBe('not-ready');
+    expect(result.read!.newDependencies).toBeUndefined();
+    expect(notesOf(deps).filter((t) => t.startsWith('new dependencies:'))).toHaveLength(0);
+    expect(recordedArgv(script)).toHaveLength(3);
   });
 });

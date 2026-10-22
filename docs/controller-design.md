@@ -207,6 +207,13 @@ not that the controller boots on it, and a bad merge takes down the control plan
 project. The operator can switch it to `auto` once the staged self-restart (section 2) has
 caught a bad build at least once.
 
+A `blocked` PR whose every blocking reason is a red check or a conflict gets up to two
+`sdd-implementer` fix rounds before the `error` wait. The ledger holds the round count, so
+a restart does not repeat a round. Each merge pass also flags the package names the head
+adds over its base, as a ledger note and on the run record. Neither the fix rounds nor the
+new-dependency flag changes the merge verdict: the rule still merges only a green,
+mergeable, attribution-free PR on the run's branch, and a model never runs it.
+
 ## 11. Cross-run coordination
 
 - Every run works in its own worktree (the launcher does this today). The main checkout of

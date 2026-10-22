@@ -151,6 +151,7 @@ test.describe.serial('Dashboard shell end to end', () => {
         url: 'https://example.test/alpha/pull/42',
         ci: 'green', mergeable: 'MERGEABLE', verdict: 'merged',
         reasons: ['all required checks passed'],
+        newDependencies: ['left-pad', 'ms'],
         sha: 'cafef00d1234567', at: '2026-10-06T10:05:00.000Z',
       },
       {
@@ -334,6 +335,12 @@ test.describe.serial('Dashboard shell end to end', () => {
     // Each reason of the blocked close-out read is its own line.
     await expect(closeoutRow).toContainText('conflicts with the base branch');
     await expect(closeoutRow).toContainText('a required check is failing');
+
+    // (R4) the read that adds a dependency shows the chip and the names joined
+    // by ", "; the read without the field shows no chip.
+    await expect(page.getByTestId('pr-deps-alpha-service-42')).toHaveText('new dependency');
+    await expect(runRow).toContainText('left-pad, ms');
+    await expect(page.getByTestId('pr-deps-beta-service-7')).toHaveCount(0);
   });
 
   test('(R2) the Deferrals page owner chip counts, filters by AND and shows the owner', async ({ page }) => {

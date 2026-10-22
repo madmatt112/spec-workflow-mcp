@@ -1472,6 +1472,109 @@ describe('harnessHandler', () => {
     expect(written).toContain('3, 4, 5');
   });
 
+  // --- fix (variant: merge) — design C4 (Requirements 1.2, 1.3) --------------
+
+  it('brief fix (variant: merge) names the failing check and its log path, gives the conflict merge instruction, says never rebase, and keeps the INFRA paragraph', async () => {
+    const outPath = join(tempDir, 'fix-merge.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: {
+          path: outPath, taskId: 'merge', round: '1', variant: 'merge', findings: '', commit: 'none',
+          pr: '42', base: 'main', checkNames: 'build (20)', logPaths: 'merge-ci-build-r1.log',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    // Design C4: heading, the checks, the conflict instruction, the never-rebase
+    // line and the INFRA paragraph.
+    expect(written).toContain(`# PR #42 — merge fix round 1 (spec ${SPEC})`);
+    expect(written).toContain('build (20)');
+    expect(written).toContain('merge-ci-build-r1.log');
+    expect(written).toContain('the branch conflicts with `main`');
+    expect(written).toContain('git merge origin/main');
+    expect(written).toContain('never rebase');
+    expect(written).toContain('If the failure is CI infrastructure and not the code');
+    expect(written).toContain('INFRA:');
+  });
+
+  // --- fix (variant: security) — design C4 (Requirement 3.6) -----------------
+
+  it('brief fix (variant: security) lists the findings and tells the implementer not to push', async () => {
+    const outPath = join(tempDir, 'fix-security.md');
+    const findings = 'F-1: command injection in merge-fix.ts reading `pr` unsanitized into a shell string.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: 'security', round: '1', variant: 'security', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain(findings);
+    expect(written).toContain('do not push');
+  });
+
+  // --- verifier (variants: security, security-narrow) — design C4 (Requirements
+  // 3.3, 3.4, 3.6) --------------------------------------------------------------
+
+  it('brief verifier (variant: security) scopes the diff to the merge base, lists sensitive files first, names the security scratch directory, and states the finding/suspicion rules', async () => {
+    const outPath = join(tempDir, 'verify-security.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: '', variant: 'security', taskIds: '', files: '', round: '',
+          gateResults: '', scenario: '',
+          base: 'main', sensitiveFiles: 'src/core/path-utils.ts', otherFiles: 'src/tools/harness.ts',
+          scratch: '/tmp/scratchpad/sdd/my-spec',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain('git diff main...HEAD');
+    const sensitiveAt = written.indexOf('src/core/path-utils.ts');
+    const otherAt = written.indexOf('src/tools/harness.ts');
+    expect(sensitiveAt).toBeGreaterThan(-1);
+    expect(otherAt).toBeGreaterThan(sensitiveAt);
+    expect(written).toContain('/tmp/scratchpad/sdd/my-spec/security/');
+    expect(written).toContain('suspicion');
+  });
+
+  it('brief verifier (variant: security-narrow) re-runs only the listed findings', async () => {
+    const outPath = join(tempDir, 'verify-security-narrow.md');
+    const findings = 'F-1: command injection in merge-fix.ts.';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'verifier',
+        values: {
+          path: outPath, title: '', variant: 'security-narrow', taskIds: '', files: '', round: '2',
+          gateResults: '', scenario: '',
+          base: 'main', sensitiveFiles: 'src/core/path-utils.ts', otherFiles: '',
+          scratch: '/tmp/scratchpad/sdd/my-spec', findings,
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain(findings);
+    expect(written).toContain('re-run only');
+  });
+
   // --- adjudicator, taskId form (design C6 table: `docPath` or `taskId`) ------
 
   it('brief adjudicator (taskId form) renders the task adjudication job and the commit-keyed C9 report block', async () => {

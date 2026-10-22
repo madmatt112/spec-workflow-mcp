@@ -26,6 +26,7 @@ import { execFile, execFileSync } from 'child_process';
 import {
   runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
+import { routeForTask } from '../implementer-route.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore as commitStore, type RunLedger, type Serialize } from '../ledger.js';
 import { harnessHandler } from '../../tools/harness.js';
@@ -43,6 +44,11 @@ import { PathUtils } from '../../core/path-utils.js';
 import { handoffPath } from '../../watch/index.js';
 import { scrubbedGitEnv, defaultBranchIfOnIt } from '../../core/git-utils.js';
 import { findPullRequest, readCiState, type CiState } from '../merge.js';
+import {
+  e2ePassStands, readSecurityState, classifySecurityReport, suspicionKey,
+  SECURITY_SCHEMA, type SecurityFinding, type SecuritySuspicion, type SecurityState,
+} from './security-pass.js';
+import { parseSensitivePaths, isSensitivePath } from '../../core/gate-rules.js';
 import type { ToolContext } from '../../types.js';
 
 /** Fix rounds per task before the adjudicator rules (SKILL.md step 5). */
@@ -106,6 +112,8 @@ export interface ImplementationPhaseContext {
   operatorRulings?: string[];
   /** PR checks polling; tests shorten both. */
   ci?: { pollMs?: number; maxWaitMs?: number };
+  /** The operator's answers to this run's security escalation waits (C6), oldest first. */
+  securityAnswers?: { waitId: string; value: string }[];
 }
 
 export interface ImplementationPhaseOutcome {
@@ -113,14 +121,18 @@ export interface ImplementationPhaseOutcome {
    * `complete`: every task done, verified end to end, pushed, the PR open with
    * green checks (or no remote). `design-defect` / `escalate`: a worker flag;
    * the task is back to `[ ]`. `verify-failed`: the end-to-end verification or
-   * the PR checks stayed red after the caps. `error`: a step or tool failure the
-   * loop cannot route around (`reason` names it; `usage-limit` is one).
-   * `stopped`: the caller asked the loop to stop between steps.
+   * the PR checks stayed red after the caps. `security-open`: a sensitive spec's
+   * security pass still has open findings after the adjudicator (C6); `findings`
+   * carries them and the controller opens an escalation wait. `error`: a step or
+   * tool failure the loop cannot route around (`reason` names it; `usage-limit`
+   * is one). `stopped`: the caller asked the loop to stop between steps.
    */
-  result: 'complete' | 'design-defect' | 'escalate' | 'verify-failed' | 'error' | 'stopped';
+  result: 'complete' | 'design-defect' | 'escalate' | 'verify-failed' | 'security-open' | 'error' | 'stopped';
   reason?: string;
   tasks: { done: number; total: number };
   pr?: { number: number; url?: string };
+  /** The open security findings when `result` is `security-open` (C6). */
+  findings?: SecurityFinding[];
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +156,7 @@ const AUTHOR_SCHEMA = {
   },
 } as const;
 
-const IMPLEMENTER_SCHEMA = {
+export const IMPLEMENTER_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['logged', 'commit', 'checksFile', 'flag'],
@@ -313,6 +325,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   const logManager = new ImplementationLogManager(ctx.specDir);
   const gotchas: string[] = [];
   const verifierSkipped: string[] = [];
+  const securityAccepted: SecurityFinding[] = [];
   const checksRun = new Set<string>();
 
   // --- git in the code root and the spec store --------------------------------
@@ -367,10 +380,49 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   const commitSpecStore = (message: string): Promise<string | undefined> =>
     commitStore({ specStoreRoot: ctx.specStoreRoot, spec: specName, message }, serialize);
 
+  // --- security pass: the `## Sensitive paths` list and the diff base (C6) ------
+  const sensitivePathEntries = (): string[] => {
+    try { return parseSensitivePaths(readFileSync(join(workflowRoot, 'agent-rules.md'), 'utf-8')) ?? []; } catch { return []; }
+  };
+  // The run branch's merge base with the default branch (origin/HEAD's target,
+  // else main, else master); with none, the first `task <id> pick head` note.
+  const securityBase = (): string => {
+    const sym = gitTry(ctx.codeRoot, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']);
+    let def: string | undefined;
+    if (sym) def = sym.replace(/^refs\/remotes\//, '');
+    else if (gitTry(ctx.codeRoot, ['rev-parse', '--verify', '--quiet', 'refs/heads/main'])) def = 'main';
+    else if (gitTry(ctx.codeRoot, ['rev-parse', '--verify', '--quiet', 'refs/heads/master'])) def = 'master';
+    if (def) {
+      const mb = gitTry(ctx.codeRoot, ['merge-base', 'HEAD', def]);
+      if (mb) return mb;
+    }
+    const pick = ledgerRows().find((r) => r.type === 'note' && / pick head /.test(r.text ?? ''));
+    const m = pick ? /pick head (\S+)/.exec(pick.text ?? '') : null;
+    return m ? m[1] : 'HEAD';
+  };
+  // One deferral per unseen suspicion (owner matthew, tag security), deduped by key.
+  const createSuspicionDeferrals = async (suspicions: SecuritySuspicion[]): Promise<void> => {
+    if (suspicions.length === 0) return;
+    const storage = new DeferralStorage(ctx.specStoreRoot);
+    for (const s of suspicions) {
+      const key = suspicionKey(s);
+      if (ledgerRows().some((r) => r.type === 'note' && (r.text ?? '').startsWith(`security: suspicion ${key} deferral `))) continue;
+      const did = await storage.create({
+        title: `Security suspicion: ${s.title}`, originSpec: specName, originPhase: 'implementation',
+        revisitTrigger: 'the next security review of this spec', tags: ['security'], owner: 'matthew', supersedes: null,
+        body: { context: `${s.file}: ${s.why}`, decision: 'reported as a suspicion by the security pass; not reproduced', revisitCriteria: `re-check ${s.file}` },
+      });
+      ctx.ledger.note(`security: suspicion ${key} deferral ${did}`);
+    }
+  };
+
   // --- a model step: the spawn boundary rows plus the classified result --------
+  // `override` (the implementer route, C5) replaces the role profile's model and
+  // effort in the boundary rows, so they match the `--model`/`--effort` argv.
   const stepUsage = (kind: 'start' | 'end' | 'usage', role: string, label: string,
-    result?: StepResult, resultText?: string, task?: string, round?: string): void => {
-    const profile = loadRole(role);
+    result?: StepResult, resultText?: string, task?: string, round?: string,
+    override?: { model: string; effort: string }): void => {
+    const profile = override ?? loadRole(role);
     if (kind === 'start') {
       ctx.ledger.spawnStart({ agent: role, role: label, model: profile.model, effort: profile.effort });
     } else if (kind === 'end' && result) {
@@ -383,8 +435,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   const runModelStep = async (opts: {
     role: string; label: string; briefPath: string; stepId: string;
     schema?: Record<string, unknown>; task?: string; round?: string; resultLine?: (r: StepResult) => string;
+    /** The implementer route (C5): overrides the role profile's model and effort for this step. */
+    model?: { model: string; effort: string };
   }): Promise<{ result: StepResult; error?: ImplementationPhaseOutcome }> => {
-    stepUsage('start', opts.role, opts.label);
+    stepUsage('start', opts.role, opts.label, undefined, undefined, undefined, undefined, opts.model);
     let spawnWrite: Promise<void> | void = undefined;
     const spec: StepSpec = {
       role: opts.role,
@@ -393,6 +447,8 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       logPath: join(ctx.stepLogDir, `${opts.stepId}.jsonl`),
       maxTurns: TURN_CAP[opts.role] ?? 100,
       sessionId: randomUUID(),
+      model: opts.model?.model,
+      effort: opts.model?.effort,
       mcpConfig: ctx.mcpConfig,
       schema: opts.schema,
       runId: ctx.run.id,
@@ -408,13 +464,37 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     // caller writes next is never overwritten by a late in-flight update.
     await spawnWrite;
     await ctx.onStepEnd?.(opts.stepId);
-    stepUsage('end', opts.role, opts.label, result);
+    stepUsage('end', opts.role, opts.label, result, undefined, undefined, undefined, opts.model);
     const line = result.classification === 'ok' ? (opts.resultLine?.(result) ?? 'ok') : result.classification;
     stepUsage('usage', opts.role, opts.label, result, line, opts.task, opts.round);
     if (result.classification !== 'ok') {
       return { result, error: { result: 'error', reason: result.classification, tasks: progress() } };
     }
     return { result };
+  };
+
+  // --- the implementer model route (design C5, R2) ---------------------------
+  // The gate-B class (a) veto items for this run, re-read at every task step
+  // start so the route sees the current `tasks.md` and `## Sensitive paths`
+  // (R2 AC 4). `null` is the strict path (the call failed), which `routeForTask`
+  // routes to the Opus profile (design D7).
+  const classAItems = async (): Promise<{ taskId: string; kind: string; reason: string }[] | null> => {
+    const res = await harnessHandler({ action: 'gate', op: 'class-a', specName }, toolContext);
+    if (!res.success) return null;
+    return (res.data as { items?: { taskId: string; kind: string; reason: string }[] } | undefined)?.items ?? [];
+  };
+
+  /**
+   * The route for a task's implementer step (model + effort), writing the route
+   * note at the task's first step and again only when the route changes from the
+   * newest route note for the task (R2 AC 9).
+   */
+  const routeForStep = async (taskId: string): Promise<{ model: string; effort: string }> => {
+    const route = routeForTask(await classAItems(), taskId);
+    const noteText = `task ${taskId} route ${route.model} ${route.effort}: ${route.reason}`;
+    const prev = ledgerRows().filter((r) => r.type === 'note' && (r.text ?? '').startsWith(`task ${taskId} route `)).pop();
+    if (!prev || prev.text !== noteText) ctx.ledger.note(noteText);
+    return { model: route.model, effort: route.effort };
   };
 
   /** Write a brief through the server's `brief` action (the task block and read-and-obey line are its job). */
@@ -627,10 +707,11 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       let report: ImplementerReport = {};
       let text: string | null = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
+        const route = await routeForStep(id);
         const step = await runModelStep({
           role: 'sdd-implementer', label: attempt === 1 ? `implement task ${id}` : `implement task ${id} retry`,
           briefPath, stepId: `implementer-task-${id}${attempt > 1 ? `-retry` : ''}`, schema: IMPLEMENTER_SCHEMA, task: id,
-          resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
+          model: route, resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
         });
         if (step.error) return step.error;
         report = (step.result.structuredOutput ?? {}) as ImplementerReport;
@@ -657,7 +738,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         appendFileSync(briefPath, '\nRe-emit `checks-file` as a JSON array of the runnable shell-command strings you ran, one per entry.\n');
         const again = await runModelStep({
           role: 'sdd-implementer', label: `implement task ${id} retry`, briefPath,
-          stepId: `implementer-task-${id}-checks`, schema: IMPLEMENTER_SCHEMA, task: id,
+          stepId: `implementer-task-${id}-checks`, schema: IMPLEMENTER_SCHEMA, task: id, model: await routeForStep(id),
         });
         if (again.error) return again.error;
         parsedChecks = readChecksFile(((again.result.structuredOutput ?? {}) as ImplementerReport).checksFile, ctx.codeRoot);
@@ -771,10 +852,11 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         return { result: 'error', reason: (err as Error).message, tasks: progress() };
       }
       appendRulings(fixBrief);
+      const fixRoute = await routeForStep(id);
       const fix = await runModelStep({
         role: 'sdd-implementer', label: `fix task ${id} round ${rounds}`, briefPath: fixBrief,
         stepId: `implementer-task-${id}-fix-${rounds}`, schema: IMPLEMENTER_SCHEMA, task: id, round: String(rounds),
-        resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
+        model: fixRoute, resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
       });
       if (fix.error) return fix.error;
       const fixReport = (fix.result.structuredOutput ?? {}) as ImplementerReport;
@@ -874,6 +956,146 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   }
 
   // -------------------------------------------------------------------------
+  // The security pass for a sensitive spec (design C6 flow steps 2-4, R3).
+  // Drives the loop from `readSecurityState`; returns `security-open`/`stopped`/
+  // `error` to end the gate, or `undefined` to continue to the HANDOFF write.
+  // -------------------------------------------------------------------------
+  async function securityPass(): Promise<ImplementationPhaseOutcome | undefined> {
+    // Sensitive = a `sensitive-path` class (a) item, or the class-a call failed.
+    const items = await classAItems();
+    const sensitive = items === null || items.some((i) => i.kind === 'sensitive-path');
+    if (!sensitive) return undefined;
+
+    for (;;) {
+      const halt = ctx.shouldStop?.();
+      if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
+      const state = readSecurityState(ledgerRows());
+      if (state.epoch === 0) { ctx.ledger.note('security: epoch 1'); continue; }
+      if (state.next === 'done') break;
+
+      if (state.next === 'escalate') {
+        ctx.ledger.note('security: escalated');
+        return { result: 'security-open', findings: state.open, tasks: progress() };
+      }
+      if (state.next === 'await-answer') {
+        const answer = (ctx.securityAnswers ?? []).find((a) => !state.answered.includes(a.waitId));
+        if (!answer) return { result: 'security-open', findings: state.open, tasks: progress() };
+        if (answer.value === 'accept') {
+          ctx.ledger.note(`security: answer ${answer.waitId} accept`);
+          ctx.ledger.note(`security: accepted ${JSON.stringify(state.open)}`);
+          for (const f of state.open) {
+            retro(phase, 'security', 'ruling', `accepted security finding: ${f.title} (${f.file}): ${f.command}`, 'security pass', 'operator accept');
+          }
+          ctx.ledger.note('security: done');
+        } else if (answer.value === 'retry') {
+          ctx.ledger.note(`security: answer ${answer.waitId} retry`);
+          ctx.ledger.note(`security: epoch ${state.epoch + 1}`);
+        } else {
+          // `abandon` (or anything else): the controller cancels the run (C7), so
+          // the gate never reaches the HANDOFF write or the push.
+          return { result: 'security-open', findings: state.open, tasks: progress() };
+        }
+        continue;
+      }
+
+      const err = await runSecurityModelStep(state);
+      if (err) return err;
+    }
+
+    // At `done`, each accepted finding goes to the Gotchas row and the PR body.
+    for (const f of readSecurityState(ledgerRows()).accepted) {
+      gotchas.push(`accepted security finding: ${f.title} (${f.file})`);
+      securityAccepted.push(f);
+    }
+    return undefined;
+  }
+
+  /** The findings text for a security fix, re-check or adjudication brief. */
+  function renderSecurityFindings(open: SecurityFinding[]): string {
+    if (open.length === 0) return 'none';
+    return open.map((f, i) => `${i + 1}. ${f.title} (${f.file})\n   reproduce: ${f.command}\n   output: ${f.output}`).join('\n\n');
+  }
+
+  /** One security step (pass, fix, re-check, adjudicator); writes its counts and open notes. */
+  async function runSecurityModelStep(state: SecurityState): Promise<ImplementationPhaseOutcome | undefined> {
+    const epoch = state.epoch;
+    const open = state.open;
+    const findingsText = renderSecurityFindings(open);
+
+    if (state.next === 'pass') {
+      const base = securityBase();
+      const entries = sensitivePathEntries();
+      const diff = (gitTry(ctx.codeRoot, ['diff', '--name-only', `${base}...HEAD`]) ?? '').split('\n').filter(Boolean);
+      const sens = diff.filter((f) => isSensitivePath(f, entries));
+      const other = diff.filter((f) => !isSensitivePath(f, entries));
+      let briefPath: string;
+      try {
+        briefPath = await brief('verifier', join(scratch, `verify-security-pass-e${epoch}.md`), {
+          variant: 'security', title: '', taskIds: '', files: '', round: '', gateResults: '', scenario: '',
+          base, sensitiveFiles: sens.join('\n'), otherFiles: other.join('\n'), scratch,
+        });
+      } catch (err) { return { result: 'error', reason: (err as Error).message, tasks: progress() }; }
+      const step = await runModelStep({ role: 'sdd-verifier', label: 'security pass', briefPath, stepId: `security-pass-e${epoch}`, schema: SECURITY_SCHEMA });
+      if (step.error) return step.error;
+      const { findings, suspicions } = classifySecurityReport(step.result.structuredOutput);
+      await createSuspicionDeferrals(suspicions);
+      ctx.ledger.note(`security: pass: findings ${findings.length}, suspicions ${suspicions.length}`);
+      ctx.ledger.note(`security: open ${JSON.stringify(findings)}`);
+      return undefined;
+    }
+
+    if (state.next === 'fix') {
+      const k = state.fixRounds + 1;
+      let briefPath: string;
+      try {
+        briefPath = await brief('fix', join(scratch, `impl-brief-security-e${epoch}-r${k}.md`), {
+          variant: 'security', round: String(k), taskId: 'security', findings: findingsText, commit: 'none',
+        });
+      } catch (err) { return { result: 'error', reason: (err as Error).message, tasks: progress() }; }
+      appendRulings(briefPath);
+      // The security fix round keeps the role profile model (R2 AC 10) and never pushes.
+      const step = await runModelStep({ role: 'sdd-implementer', label: `fix security round ${k}`, briefPath, stepId: `security-fix-e${epoch}-r${k}`, schema: IMPLEMENTER_SCHEMA });
+      if (step.error) return step.error;
+      ctx.ledger.note(`security: fix round ${k}: findings ${open.length}, suspicions 0`);
+      ctx.ledger.note(`security: open ${JSON.stringify(open)}`);
+      return undefined;
+    }
+
+    if (state.next === 'recheck' || state.next === 'recheck-adjudicated') {
+      const adjudicated = state.next === 'recheck-adjudicated';
+      const k = state.fixRounds;
+      let briefPath: string;
+      try {
+        briefPath = await brief('verifier', join(scratch, adjudicated ? `verify-security-adj-e${epoch}.md` : `verify-security-recheck-e${epoch}-r${k}.md`), {
+          variant: 'security-narrow', title: '', taskIds: '', files: '', round: String(k), gateResults: '', scenario: '',
+          findings: findingsText, base: '', sensitiveFiles: '', otherFiles: '', scratch,
+        });
+      } catch (err) { return { result: 'error', reason: (err as Error).message, tasks: progress() }; }
+      const step = await runModelStep({
+        role: 'sdd-verifier', label: adjudicated ? 'verify security adjudicated' : `verify security round ${k}`,
+        briefPath, stepId: adjudicated ? `security-recheck-adj-e${epoch}` : `security-recheck-e${epoch}-r${k}`, schema: SECURITY_SCHEMA,
+      });
+      if (step.error) return step.error;
+      const { findings, suspicions } = classifySecurityReport(step.result.structuredOutput);
+      await createSuspicionDeferrals(suspicions);
+      ctx.ledger.note(`security: ${adjudicated ? 'recheck adjudicated' : `recheck ${k}`}: findings ${findings.length}, suspicions ${suspicions.length}`);
+      ctx.ledger.note(`security: open ${JSON.stringify(findings)}`);
+      return undefined;
+    }
+
+    // 'adjudicate': the adjudicator rules on the open findings; it re-checks nothing.
+    let briefPath: string;
+    try {
+      briefPath = await brief('adjudicator', join(scratch, `adjudication-brief-security-e${epoch}.md`), { taskId: 'security', phase, items: findingsText });
+    } catch (err) { return { result: 'error', reason: (err as Error).message, tasks: progress() }; }
+    const step = await runModelStep({ role: 'sdd-adjudicator', label: 'adjudicate security', briefPath, stepId: `security-adjudicate-e${epoch}`, schema: ADJUDICATOR_SCHEMA });
+    if (step.error) return step.error;
+    ctx.ledger.note(`security: adjudicator: findings ${open.length}, suspicions 0`);
+    ctx.ledger.note(`security: open ${JSON.stringify(open)}`);
+    return undefined;
+  }
+
+  // -------------------------------------------------------------------------
   // The completion gate (completion.md steps 8-11) and the PR checks loop.
   // -------------------------------------------------------------------------
   async function completionGate(): Promise<ImplementationPhaseOutcome> {
@@ -881,34 +1103,44 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     const decomposition = (orient.data as { decomposition?: { title: string | null; scenario: string | null } } | undefined)?.decomposition;
     const scenario = decomposition?.scenario ?? `read the decomposition entry for ${specName} yourself`;
 
-    // 8. End-to-end verification, with the repair rounds on a fail.
-    for (let repair = 0; ; repair++) {
-      const halt = ctx.shouldStop?.();
-      if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
-      const e2e = await verifyEndToEnd(scenario, repair);
-      if ('error' in e2e) return e2e.error;
-      if (e2e.verify === 'pass') {
-        if (e2e.deferredCommand) {
-          const storage = new DeferralStorage(ctx.specStoreRoot);
-          const did = await storage.create({
-            title: `Deferred verification: ${specName}`, originSpec: specName, originPhase: 'implementation',
-            revisitTrigger: 'the checkout is rebuilt and the session restarted', tags: ['verification'], supersedes: null,
-            body: {
-              context: e2e.findings || 'the scenario needed a tool or skill the running session lacked',
-              decision: 'verified the in-process half; the live half runs after the rebuild',
-              revisitCriteria: e2e.deferredCommand,
-            },
-          });
-          ctx.ledger.note(`deferred verification ${did}: ${e2e.deferredCommand}`);
-          gotchas.push(`verification deferred (${did}): ${e2e.deferredCommand}`);
+    // 8. End-to-end verification, with the repair rounds on a fail. A re-entry whose
+    // newest marker is the e2e pass (design C6 flow step 1, D8, R3 AC 13) skips the
+    // loop: the pass stands until the next HANDOFF write.
+    if (!e2ePassStands(ledgerRows())) {
+      for (let repair = 0; ; repair++) {
+        const halt = ctx.shouldStop?.();
+        if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
+        const e2e = await verifyEndToEnd(scenario, repair);
+        if ('error' in e2e) return e2e.error;
+        if (e2e.verify === 'pass') {
+          if (e2e.deferredCommand) {
+            const storage = new DeferralStorage(ctx.specStoreRoot);
+            const did = await storage.create({
+              title: `Deferred verification: ${specName}`, originSpec: specName, originPhase: 'implementation',
+              revisitTrigger: 'the checkout is rebuilt and the session restarted', tags: ['verification'], supersedes: null,
+              body: {
+                context: e2e.findings || 'the scenario needed a tool or skill the running session lacked',
+                decision: 'verified the in-process half; the live half runs after the rebuild',
+                revisitCriteria: e2e.deferredCommand,
+              },
+            });
+            ctx.ledger.note(`deferred verification ${did}: ${e2e.deferredCommand}`);
+            gotchas.push(`verification deferred (${did}): ${e2e.deferredCommand}`);
+          }
+          // The pass marker (design C6 flow step 5, D8): a re-entry reads it and skips the loop above.
+          ctx.ledger.note('e2e verification passed');
+          break;
         }
-        break;
+        retro(phase, 'phase', 'bug', `end-to-end verification failed (round ${repair}): ${e2e.findings.slice(0, 300)}`, 'completion gate', `${repair} repair(s)`);
+        if (repair >= REPAIR_CAP) return stop('verify-failed', `end-to-end verification failed after ${REPAIR_CAP} repairs: ${e2e.findings.slice(0, 300)}`);
+        const fixed = await repairRound(repair + 1, e2e.findings);
+        if (fixed) return fixed;
       }
-      retro(phase, 'phase', 'bug', `end-to-end verification failed (round ${repair}): ${e2e.findings.slice(0, 300)}`, 'completion gate', `${repair} repair(s)`);
-      if (repair >= REPAIR_CAP) return stop('verify-failed', `end-to-end verification failed after ${REPAIR_CAP} repairs: ${e2e.findings.slice(0, 300)}`);
-      const fixed = await repairRound(repair + 1, e2e.findings);
-      if (fixed) return fixed;
     }
+
+    // 8.5. The security pass for a sensitive spec (design C6 flow steps 2-4).
+    const sec = await securityPass();
+    if (sec) return sec;
 
     // 9. Close the spec: INDEX, deferral counts, HANDOFF, the retro summary, the commit.
     const p = progress();
@@ -930,6 +1162,9 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       ['Next', mine.slice(0, 3).map((d) => `${d.id} ${d.title}`).join('; ') || 'none'],
       ['Gotchas', gotchas.join('; ') || 'none'],
     ]);
+    // The HANDOFF marker (design C6 flow step 5, D8): it makes the e2e pass above stale,
+    // so the next re-entry runs the e2e loop again.
+    ctx.ledger.note('completion handoff written');
     retro(phase, 'phase', 'cleanup',
       `implementation complete: ${p.total} tasks, ${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^fix task/.test(r.role ?? '')).length} fix rounds, `
       + `${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^adjudicate/.test(r.role ?? '')).length} adjudications, `
@@ -1049,6 +1284,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     lines.push('', '## Test plan', `- [x] End-to-end verification scenario (sdd-verifier), ${p.done}/${p.total} tasks gated`);
     for (const c of checksRun) lines.push(`- [x] \`${c}\``);
     for (const g of gotchas.filter((x) => x.startsWith('verification deferred'))) lines.push(`- [ ] ${g}`);
+    for (const f of securityAccepted) lines.push(`- [ ] accepted security finding: ${f.title} (${f.file}): ${f.command}`);
     let body = lines.join('\n') + '\n';
     for (const term of forbiddenPrTerms()) {
       body = body.split(term).join('[redacted]');

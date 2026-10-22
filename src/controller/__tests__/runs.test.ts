@@ -17,6 +17,7 @@ import {
 } from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
+import { openRunLedger } from '../ledger.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -718,4 +719,334 @@ describe('runOnce merge stage', () => {
     // The run routes to the retrospective once the PR is merged, never back to implementation.
     expect(rows.some((r) => r.type === 'spawn.usage' && r.role === 'end-to-end verification')).toBe(true);
   }, 30000);
+
+  // Contract (design C3 "Wiring", R1 AC 1, AC 4-9, AC 12):
+  //
+  // T1 a blocked `check` kind under the cap runs one fix round and leaves the
+  //    run `merging` with a `resumeAt`.
+  //    Pre: run.status 'merging' (resumes straight into the merge stage), a
+  //    stubbed `gh` reporting a failing commit status, a stubbed implementer
+  //    that makes no commit.
+  //    Test: runOnce(deps, runId).
+  //    Observable: run.status, run.resumeAt, one `spawn.start` row with role
+  //    'merge fix round 1', the round's start/end notes, no `error` wait.
+  //    Source: design C3 Wiring ("every other kind saves status merging with
+  //    resumeAt"); R1 AC 1, AC 4, AC 10.
+  //
+  // T2 after two rounds end, the third pass is not eligible and the `error`
+  //    wait text names both rounds' endings.
+  //    Pre: three sequential runOnce calls, each with a fresh failing-check
+  //    evaluate; the first two spawn a no-commit implementer round.
+  //    Test: runOnce(deps, runId) x3.
+  //    Observable: the third pass's `error` wait text.
+  //    Source: design C3 Wiring ("its text adds ... round 1 <ending>; round 2
+  //    <ending>"); R1 AC 7.
+  //
+  // T3 a `trailer` kind opens the `error` wait with no implementer spawn.
+  //    Pre: a PR blocked only by an attribution-trailer commit.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait opens; no `spawn.start` row is written.
+  //    Source: design C3 Wiring ("When not eligible: the error wait as
+  //    today"); R1 AC 8.
+  //
+  // T4 a "retry" re-entry after the cap is already used reads the round count
+  //    from the ledger and opens the `error` wait with no spawn.
+  //    Pre: the ledger already carries two `merge fix round N end:` notes for
+  //    this run; the run is seeded as an answered-retry re-entry (status
+  //    'running', a `merge` cursor), matching the no-PR retry test above.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait text names both endings; no new
+  //    `spawn.start` row.
+  //    Source: design C3 Wiring; R1 AC 9 ("read from this run's ledger... a
+  //    'retry' does not reset it").
+  //
+  // T5 (regression guard, R1 AC 12 — already true at base: `runCloseoutMergeStep`,
+  //    :931-966, is untouched by this task) a blocked close-out PR opens the
+  //    `error` wait with no fix round, so a later change to the `blocked`
+  //    switch-case cannot accidentally start wiring fix rounds into the
+  //    close-out merge path too.
+  //    Pre: a CLOSED retrospective plan with one pending close-out PR whose
+  //    check fails.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait opens; no `spawn.start` row.
+  //    Source: R1 AC 12; src/controller/runs.ts:931-966 unchanged.
+  describe('merge fix round in the blocked case (R1 AC 1, 4-9, AC 12)', () => {
+    /** A commit status failure: blocking kind `check`, no `runId` (no `gh run view` needed). */
+    const statusFailing = {
+      argvIncludes: ['api'],
+      stdout: { state: 'failure', total_count: 1, statuses: [{ context: 'ci/legacy', state: 'failure' }] },
+    };
+
+    /** A stubbed `sdd-implementer` step that reports success but makes no commit. */
+    const mergeFixNoCommit: StubRun = {
+      result: {
+        subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: '',
+        structured_output: { logged: 'n/a', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' },
+        usage: {},
+      },
+    };
+
+    it('T1: a blocked red check runs one round and leaves the run merging with a resumeAt', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, [mergeFixNoCommit]);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('merging');
+      expect(run?.resumeAt).toBeTruthy();
+
+      const rows = mergedRows(fx);
+      expect(rows.filter((r) => r.type === 'spawn.start' && r.role === 'merge fix round 1')).toHaveLength(1);
+      expect(rows.some((r) => r.type === 'note' && r.text === 'merge fix round 1 end: no commit')).toBe(true);
+      expect((await listWaits()).some((w) => w.kind === 'error' && w.run === 'run-20261011-000000')).toBe(false);
+    }, 30000);
+
+    it('T2: after two rounds end, the error wait text names both endings', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, [mergeFixNoCommit, mergeFixNoCommit]);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 1 evaluate
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 2 evaluate
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 3 evaluate: cap reached
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 1: merging
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 2: merging
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 3: cap reached, error wait
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      const text = err!.questions[0].text;
+      expect(text).toContain('2 fix round(s) ran');
+      expect(text).toContain('round 1 no commit');
+      expect(text).toContain('round 2 no commit');
+
+      expect(mergedRows(fx).filter((r) => r.type === 'spawn.start' && r.agent === 'sdd-implementer')).toHaveLength(2);
+    }, 30000);
+
+    it('T3: a trailer opens the error wait with no implementer spawn', async () => {
+      onFeatureBranch(fx);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: {
+          ...readyView,
+          commits: [{
+            oid: 'deadbeefcafe', messageHeadline: 'feat: do it',
+            messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>',
+            committedDate: '2026-10-11T11:00:00.000Z',
+          }],
+        } },
+        runsOk, statusOk,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+
+    it('T4: a retry re-entry after the cap reads the round count from the ledger and opens the error wait with no spawn', async () => {
+      onFeatureBranch(fx);
+      const seedLedger = openRunLedger({
+        specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC, now: () => new Date('2026-10-11T00:00:00.000Z'),
+      });
+      seedLedger.note('merge fix round 1 end: no commit');
+      seedLedger.note('merge fix round 2 end: no commit');
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, {
+        branch: BRANCH, pr: 42, status: 'running',
+        cursor: { phase: 'implementation', stepKind: 'merge', attempt: 1 },
+      }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      const text = err!.questions[0].text;
+      expect(text).toContain('round 1 no commit');
+      expect(text).toContain('round 2 no commit');
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+
+    it('T5 (regression guard, R1 AC 12): a blocked close-out PR opens the error wait with no implementer spawn', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      await approve(fx, 'tasks');
+      closePlan(fx);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: { ...readyView, headRefName: RETRO_BRANCH } },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { closeoutPrs: [{ repoDir: fx.repo, branch: RETRO_BRANCH, number: 7 }] }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+  });
+
+  // Contract (design C7; R3 AC 8-9):
+  //
+  // T1 a `security-open` implementation outcome maps to one `escalation` wait,
+  //    question id `security`, options accept/retry/abandon, no recommendation,
+  //    listing the open finding's title, file and command.
+  //    Pre: a sensitive-path task already `[x]`; the ledger already carries the
+  //    e2e pass and a security state that resolves to `escalate` with one open
+  //    finding (design C6 Data Models note shapes), so the completion gate's
+  //    security pass reaches `escalate` with no spawn.
+  //    Test: runOnce(deps, runId).
+  //    Observable: run.status 'waiting'; exactly one `escalation` wait for the
+  //    run; its question id, options, absent `recommended`, and text.
+  //    Source: design C7 ("maps `security-open`... to one `escalation` wait
+  //    with one question `{ id: 'security', text, options: [...] }` and no
+  //    `recommended`; `text` lists each open finding as `<title> (<file>):
+  //    <command>`"); R3 AC 8.
+  //
+  // T2 a second pass while that wait is still open opens no second wait.
+  //    Pre: same as T1.
+  //    Test: runOnce(deps, runId) x2.
+  //    Observable: still exactly one `escalation` wait with question id
+  //    `security` for the run.
+  //    Source: design C7 ("When an open escalation wait with question id
+  //    `security` exists for the run, it parks the run without a second
+  //    wait.").
+  //
+  // T3 an answered `accept` reaches the phase as a security answer (not an
+  //    operator ruling): the run resumes past the security wait instead of
+  //    reopening it.
+  //    Pre: same as T1; the wait is answered `accept` after the first pass.
+  //    Test: runOnce(deps, runId) x2 (open, then answer and resume).
+  //    Observable: the ledger carries `security: answer <waitId> accept`; no
+  //    second `escalation` wait with question id `security` was opened; the
+  //    run proceeds to the retrospective's `retro-plan` wait.
+  //    Source: design C7 ("A new `securityAnswers(runId)`... `runOnce` passes
+  //    it to `runImplementationPhase`"; "`escalationRulings`... skips waits
+  //    with question id `security`, so `accept` never reaches a brief as a
+  //    ruling"); R3 AC 9's `accept` clause.
+  describe('security escalation wait (design C7, R3 AC 8-9)', () => {
+    /** The one open finding this run's completion gate already escalated on. */
+    const finding = {
+      title: 'Hardcoded secret', file: 'package.json',
+      command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123',
+    };
+
+    /** A sensitive-path task, already `[x]`, so the task loop spawns nothing. */
+    function seedSensitiveTasks(fx: Fixture): void {
+      writeFileSync(join(fx.repo, '.spec-workflow', 'agent-rules.md'), [
+        '# Agent rules', '', '## Sensitive paths', '', '- package.json', '',
+      ].join('\n'));
+      writeFileSync(join(fx.specDir, 'tasks.md'), [
+        '# Tasks Document', '',
+        '- [x] 1. Touch the manifest',
+        '  - File: package.json',
+        '  - Purpose: do the thing.',
+        '  - _Requirements: 1.1_',
+        '  - _Prompt: Task: do it | Restrictions: none | Success: it works_',
+        '',
+      ].join('\n'));
+    }
+
+    /**
+     * The ledger state the completion gate already reached: the e2e pass
+     * stands, and the security loop's `recheck adjudicated` stage left one
+     * finding open, so `readSecurityState` resolves straight to `escalate`
+     * with no further spawn (design C6 `nextFor`).
+     */
+    function seedEscalatedLedger(fx: Fixture): void {
+      const ledger = openRunLedger({
+        specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC,
+        now: () => new Date('2026-10-11T00:00:00.000Z'),
+      });
+      ledger.note('e2e verification passed');
+      ledger.note('security: epoch 1');
+      ledger.note('security: recheck adjudicated: findings 1, suspicions 0');
+      ledger.note(`security: open ${JSON.stringify([finding])}`);
+    }
+
+    it('T1: security-open opens one escalation wait, question id security, options accept/retry/abandon, no recommendation', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const waits = (await listWaits()).filter((w) => w.kind === 'escalation' && w.run === 'run-20261011-000000');
+      expect(waits).toHaveLength(1);
+      const q = waits[0].questions[0];
+      expect(q.id).toBe('security');
+      expect(q.options).toEqual(['accept', 'retry', 'abandon']);
+      expect(q.recommended).toBeUndefined();
+      expect(q.text).toContain(finding.title);
+      expect(q.text).toContain(finding.file);
+      expect(q.text).toContain(finding.command);
+    }, 30000);
+
+    it('T2: a second pass with the wait still open opens no second escalation wait', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const waits = (await listWaits()).filter(
+        (w) => w.kind === 'escalation' && w.run === 'run-20261011-000000' && w.questions.some((q) => q.id === 'security'),
+      );
+      expect(waits).toHaveLength(1);
+    }, 30000);
+
+    it('T3: an answered accept reaches the phase as a security answer and is absent from the rulings', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      writeScript(fx, [compileRun, analystRun]);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+      const wait = (await listWaits()).find((w) => w.kind === 'escalation' && w.run === 'run-20261011-000000');
+      expect(wait).toBeTruthy();
+      await answerWait(wait!.id, { security: 'accept' }, 'matthew');
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      expect(mergedRows(fx).some((r) => r.type === 'note' && r.text === `security: answer ${wait!.id} accept`)).toBe(true);
+      // Reached the phase as a security answer, not an operator ruling: the
+      // run resumed past the wait instead of reopening the same question.
+      const secWaits = (await listWaits()).filter((w) => w.kind === 'escalation' && w.questions.some((q) => q.id === 'security'));
+      expect(secWaits).toHaveLength(1);
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      expect(run?.phase).toBe('retrospective');
+      expect((await listWaits()).some((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000')).toBe(true);
+    }, 30000);
+  });
 });

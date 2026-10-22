@@ -191,6 +191,8 @@ export interface ControllerPrRead {
   verdict: 'merged' | 'waiting' | 'not-ready' | 'blocked' | 'unreadable' | 'failed';
   reasons: string[];
   sha?: string;
+  /** The package names this PR head adds over its base (design C2, R4); absent when empty or unread. */
+  newDependencies?: string[];
   at: string;
 }
 

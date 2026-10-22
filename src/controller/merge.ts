@@ -12,10 +12,11 @@
 // in `run-setup.ts` owns `agent-rules.md`; `readMergeRules` picks the three
 // merge keys from it.
 import { execFile, execFileSync } from 'child_process';
-import { appendFileSync, mkdirSync, readdirSync } from 'fs';
+import { appendFileSync, mkdirSync, readdirSync, readFileSync } from 'fs';
 import { basename, join } from 'path';
 import { scrubbedGitEnv } from '../core/git-utils.js';
 import { readAgentRules } from '../dashboard/harness/run-setup.js';
+import { readNewDependencies } from './new-deps.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
 import { listWaits, type RunRecord, type PrRead } from './state.js';
 import type { RunLedger } from './ledger.js';
@@ -36,7 +37,7 @@ const POST_MERGE_TIMEOUT_MS = 10 * 60 * 1000;
  * rule reads workflow runs and commit statuses for the head sha instead.
  */
 const PR_VIEW_FIELDS =
-  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author,url,createdAt';
+  'mergeable,mergeStateStatus,headRefName,baseRefName,headRefOid,body,commits,author,url,createdAt';
 
 /**
  * A head commit younger than this with no workflow run yet is read as pending,
@@ -75,10 +76,27 @@ export interface PullRequest {
   url?: string;
 }
 
+/** The kind of a blocking reason (design C1): why the PR cannot merge. */
+export type BlockingKind = 'check' | 'conflict' | 'trailer' | 'head' | 'other';
+
+/** One blocking reason tagged with its kind; `text` equals the string pushed onto `reasons`. */
+export interface BlockingReason {
+  kind: BlockingKind;
+  text: string;
+  /** The failing check's name and, for a workflow run, the run id to read its log from. */
+  check?: { name: string; runId?: number };
+}
+
 /** The readiness verdict and the reasons it is (not) ready. */
 export interface MergeEvaluation {
   ready: boolean;
   reasons: string[];
+  /**
+   * One entry per blocking reason, tagged with its kind (design C1). Set only
+   * when `ready` is false and neither `pending` nor `unreadable` is set; a
+   * ready result stays exactly `{ ready: true, reasons: [] }`.
+   */
+  blocking?: BlockingReason[];
   /**
    * Something is still in flight: a workflow run or a commit status pending, a
    * head too fresh for its run to show, or mergeability not yet computed. A
@@ -108,6 +126,10 @@ export interface MergeStageResult {
   waitId?: string;
   /** What this pass read (design C1); absent on the no-PR return. */
   read?: PrRead;
+  /** The evaluation's tagged blocking reasons, copied on a `blocked` return (design C1). */
+  blocking?: BlockingReason[];
+  /** The PR's base branch, copied on a `blocked` return (design C1). */
+  base?: string;
 }
 
 /** Everything `runMergeStage` needs besides the run record. */
@@ -118,8 +140,11 @@ export interface MergeStageDeps {
   specDir: string;
   /** The run's step log dir; the post-merge command's output is appended here. */
   stepLogDir: string;
-  /** The run ledger; `pr.merged` is written through it. */
-  ledger: Pick<RunLedger, 'prMerged'>;
+  /**
+   * The run ledger; `pr.merged` and the new-dependency `note` are written
+   * through it, and `path` is read back to dedupe that note (design C2).
+   */
+  ledger: Pick<RunLedger, 'prMerged' | 'note' | 'path'>;
   /** Clock seam for tests; defaults to the wall clock. */
   now?: () => Date;
 }
@@ -305,6 +330,10 @@ export interface PullRequestEvaluation {
   mergeable?: string;
   /** The PR's web URL: `pr.url` when set, else the view's `url` string. */
   url?: string;
+  /** The head sha (`headRefOid`), present once the view parsed a non-empty head. */
+  head?: string;
+  /** The base branch (`baseRefName`), present once the view parsed it. */
+  base?: string;
 }
 
 /**
@@ -335,8 +364,10 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
   // Read right after the parse, so both are present on every return below.
   const rawMergeable = String(data.mergeable ?? '');
   const url = pr.url ?? (typeof data.url === 'string' ? data.url : undefined);
+  const base = typeof data.baseRefName === 'string' ? data.baseRefName : undefined;
 
   const reasons: string[] = [];
+  const blocking: BlockingReason[] = [];
   let pending = false;
   let ciFailed = false;
   let ciPending = false;
@@ -359,7 +390,13 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     const name = String(r.name ?? 'workflow');
     const state = classifyWorkflowRun(r);
     if (state === 'pending') { reasons.push(`workflow ${name} is still running`); pending = true; ciPending = true; }
-    else if (state === 'failed') { reasons.push(`workflow ${name} did not pass`); ciFailed = true; }
+    else if (state === 'failed') {
+      const text = `workflow ${name} did not pass`;
+      const runId = Number(r.id) || undefined;
+      reasons.push(text);
+      blocking.push({ kind: 'check', text, check: runId ? { name, runId } : { name } });
+      ciFailed = true;
+    }
   }
   // The combined `state` reads "pending" with zero statuses, so only the list counts.
   const statuses = Array.isArray(statusRead.data.statuses) ? (statusRead.data.statuses as Record<string, unknown>[]) : [];
@@ -367,7 +404,12 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     const name = String(c.context ?? 'status');
     const state = classifyStatusContext(c);
     if (state === 'pending') { reasons.push(`status ${name} is still pending`); pending = true; ciPending = true; }
-    else if (state === 'failed') { reasons.push(`status ${name} did not pass`); ciFailed = true; }
+    else if (state === 'failed') {
+      const text = `status ${name} did not pass`;
+      reasons.push(text);
+      blocking.push({ kind: 'check', text, check: { name } });
+      ciFailed = true;
+    }
   }
   const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
   if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(pr.repoDir)) {
@@ -387,28 +429,41 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     reasons.push('mergeability not yet computed (mergeable=UNKNOWN)');
     pending = true;
   } else if (mergeable !== 'MERGEABLE') {
-    reasons.push(`not mergeable (mergeable=${String(data.mergeable ?? 'unknown')})`);
+    const text = `not mergeable (mergeable=${String(data.mergeable ?? 'unknown')})`;
+    reasons.push(text);
+    blocking.push({ kind: mergeable === 'CONFLICTING' ? 'conflict' : 'other', text });
   }
 
   if (String(data.headRefName ?? '') !== pr.branch) {
-    reasons.push(`head branch is ${String(data.headRefName ?? '(none)')}, expected ${pr.branch}`);
+    const text = `head branch is ${String(data.headRefName ?? '(none)')}, expected ${pr.branch}`;
+    reasons.push(text);
+    blocking.push({ kind: 'head', text });
   }
 
   for (const commit of commits) {
     const message = `${String(commit.messageHeadline ?? '')}\n${String(commit.messageBody ?? '')}`;
     if (hasAttribution(message)) {
-      reasons.push(`commit ${shortOid(commit.oid)} carries a Claude attribution trailer`);
+      const text = `commit ${shortOid(commit.oid)} carries a Claude attribution trailer`;
+      reasons.push(text);
+      blocking.push({ kind: 'trailer', text });
     }
   }
   if (hasAttribution(String(data.body ?? ''))) {
-    reasons.push('the PR body carries a Claude attribution trailer');
+    const text = 'the PR body carries a Claude attribution trailer';
+    reasons.push(text);
+    blocking.push({ kind: 'trailer', text });
   }
 
   const ci: CiState['state'] = ciFailed ? 'red' : ciPending ? 'pending' : 'green';
-  const evaluation: MergeEvaluation = pending
-    ? { ready: false, reasons, pending: true }
-    : { ready: reasons.length === 0, reasons };
-  return { evaluation, ci, mergeable: rawMergeable, url };
+  let evaluation: MergeEvaluation;
+  if (pending) {
+    evaluation = { ready: false, reasons, pending: true };
+  } else if (reasons.length === 0) {
+    evaluation = { ready: true, reasons };
+  } else {
+    evaluation = { ready: false, reasons, blocking };
+  }
+  return { evaluation, ci, mergeable: rawMergeable, url, head: headOid, base };
 }
 
 /** One failing check of a head sha, with the workflow run to read its log from. */
@@ -534,6 +589,73 @@ async function readMergeSha(pr: PullRequest): Promise<string> {
   }
 }
 
+/** The newest `note` row's `text` in the ledger file that starts with `prefix`, or undefined. */
+function newestNote(ledgerPath: string, prefix: string): string | undefined {
+  let text: string;
+  try {
+    text = readFileSync(ledgerPath, 'utf8');
+  } catch {
+    return undefined;
+  }
+  let newest: string | undefined;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    let row: { type?: unknown; text?: unknown };
+    try {
+      row = JSON.parse(line) as { type?: unknown; text?: unknown };
+    } catch {
+      continue;
+    }
+    if (row.type === 'note' && typeof row.text === 'string' && row.text.startsWith(prefix)) {
+      newest = row.text;
+    }
+  }
+  return newest;
+}
+
+/**
+ * The new-dependency side output of one merge pass (design C2): when the
+ * evaluation is readable and the view carried `head` and `base`, read the
+ * package names the PR head adds over its base from local git (no `gh` call),
+ * log them once per change as a ledger `note` (Data Models' `new dependencies:
+ * <repo>#<n>: <a, b> | none | unreadable (<why>)` line), and return a non-empty
+ * list for the `PrRead`. A view without a `baseRefName` skips the read and
+ * writes nothing (design D14); an empty list writes `none` only after a logged
+ * non-empty list. It never changes the verdict, reasons, blocking, status or a
+ * wait (R4 AC 7) and never throws.
+ */
+function flagNewDependencies(opts: {
+  evaluation: MergeEvaluation;
+  repoDir: string;
+  base?: string;
+  head?: string;
+  repo: string;
+  number: number;
+  ledger: Pick<RunLedger, 'note' | 'path'>;
+}): string[] | undefined {
+  const { evaluation, repoDir, base, head, repo, number, ledger } = opts;
+  if (evaluation.unreadable || !base || !head) return undefined;
+
+  const result = readNewDependencies(repoDir, base, head);
+  const prefix = `new dependencies: ${repo}#${number}: `;
+  const prior = newestNote(ledger.path, prefix);
+
+  let names: string[] | undefined;
+  let text: string;
+  if (!result.ok) {
+    text = `${prefix}unreadable (${result.reason})`;
+  } else if (result.names.length > 0) {
+    names = result.names;
+    text = `${prefix}${result.names.join(', ')}`;
+  } else {
+    // An empty list writes `none` only after a logged non-empty list.
+    if (prior === undefined) return undefined;
+    text = `${prefix}none`;
+  }
+  if (text !== prior) ledger.note(text);
+  return names;
+}
+
 /**
  * Run the merge stage once for a run. The caller polls while `not-ready`
  * ({@link MERGE_POLL_INTERVAL_MS}): something is in flight. A PR that fails the
@@ -570,7 +692,7 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repoDir = pr.repoDir;
   const now = deps.now ?? ((): Date => new Date());
 
-  const { evaluation, ci, mergeable, url } = await evaluatePullRequest(pr);
+  const { evaluation, ci, mergeable, url, base, head } = await evaluatePullRequest(pr);
   // One read per pass, shaped for the callers (design C1): `repo` is a basename
   // (never a path), `kind` is `run` for the run's own PR and `closeout`
   // otherwise, the url is kept only when https, and `reasons`/`sha` are the same
@@ -578,8 +700,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repo = basename(repoDir);
   const kind: PrRead['kind'] = target.questionId === MERGE_QUESTION_ID ? 'run' : 'closeout';
   const viewUrl = typeof url === 'string' && url.startsWith('https://') ? url : undefined;
+  // The read-only new-dependency flag (design C2): a side output that logs its
+  // own note; it never touches the verdict, reasons or status (R4 AC 7).
+  const newDependencies = flagNewDependencies({ evaluation, repoDir, base, head, repo, number: pr.number, ledger: deps.ledger });
   const makeRead = (status: MergeStageStatus, reasons: string[], sha?: string): PrRead => ({
-    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha, at: now().toISOString(),
+    kind, repo, number: pr.number, url: viewUrl, ci, mergeable, verdict: status, reasons, sha,
+    ...(newDependencies ? { newDependencies } : {}), at: now().toISOString(),
   });
 
   if (evaluation.unreadable) {
@@ -587,7 +713,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   }
   if (!evaluation.ready) {
     const status: MergeStageStatus = evaluation.pending ? 'not-ready' : 'blocked';
-    return { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
+    const result: MergeStageResult = { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
+    if (status === 'blocked') {
+      result.blocking = evaluation.blocking;
+      result.base = base;
+    }
+    return result;
   }
 
   if (deps.rules.merge === 'ask') {
