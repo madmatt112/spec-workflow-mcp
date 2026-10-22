@@ -575,6 +575,85 @@ describe('runImplementationPhase', () => {
     expect(taskStatus(fx, '1')).toBe('completed');
   }, 60000);
 
+  // Contract (R3 AC 13, design C6 flow steps 1 and 5): a pass through the completion
+  // gate writes the `e2e verification passed` note once, and the note
+  // `completion handoff written` lands only after the HANDOFF write, also once.
+  // Pre-condition: one task, approved, no prior ledger rows for this run.
+  // Call: runImplementationPhase(ctx) run to completion.
+  // Observable: the ledger's `note` rows carry each text exactly once, pass before handoff.
+  // Source of expected value: task 11's Success clause and design C6 Data Models note texts.
+  it('writes the e2e pass note once and the handoff note once, pass before handoff', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    const texts = rows(fx).filter((e) => e.type === 'note').map((e) => e.text);
+    expect(texts.filter((t) => t === 'e2e verification passed')).toHaveLength(1);
+    expect(texts.filter((t) => t === 'completion handoff written')).toHaveLength(1);
+    expect(texts.indexOf('e2e verification passed')).toBeLessThan(texts.indexOf('completion handoff written'));
+  }, 60000);
+
+  // Contract (R3 AC 13, design C6 flow step 1 "skip the e2e loop... else run it as today"):
+  // a completion-gate re-entry after the pass note and before the handoff note reads the
+  // pass from the ledger and does not re-spawn the e2e verifier.
+  // Pre-condition: the one task is already `[x]` complete; the ledger carries a prior
+  // `phase.start` and the `e2e verification passed` note, but no `completion handoff
+  // written` note yet (a restart between the two markers); the stub script holds no run,
+  // so any spawn attempt breaks the `complete` outcome below.
+  // Call: runImplementationPhase(ctx).
+  // Observable: no `spawn.usage` row with role `end-to-end verification`; the run still
+  // reaches `complete` and gets its `completion handoff written` note.
+  // Source of expected value: task 11's Test and Success clauses ("a re-entry... spawns
+  // no e2e verifier (the stub script holds no e2e run)").
+  it('a re-entry after the e2e pass note and before the handoff note spawns no e2e verifier', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const tasks = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8').replace('- [ ] 1.', '- [x] 1.');
+    writeFileSync(join(fx.specDir, 'tasks.md'), tasks);
+    const ledger = openRunLedger({ specDir: fx.specDir, runId: RUN_ID, spec: fx.spec, now: NOW });
+    ledger.phaseStart('implementation', { mode: 'normal', state: 'tasks 1/1' });
+    ledger.note('e2e verification passed');
+    writeScript(fx, []); // the stub script holds no e2e run
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage' && e.role === 'end-to-end verification')).toHaveLength(0);
+    expect(r.filter((e) => e.type === 'note' && e.text === 'e2e verification passed')).toHaveLength(1);
+    expect(r.filter((e) => e.type === 'note' && e.text === 'completion handoff written')).toHaveLength(1);
+  }, 60000);
+
+  // Contract (R3 AC 13 "a re-entry after the HANDOFF write behaves as today", design D8
+  // "the e2e pass stands until the next HANDOFF marker"): once `completion handoff
+  // written` is the newer marker, the gate runs the e2e loop again on the next entry.
+  // Pre-condition: the one task is already `[x]` complete; the ledger carries
+  // `e2e verification passed` followed by a newer `completion handoff written` note (a
+  // restart after the first full pass completed its gate once already).
+  // Call: runImplementationPhase(ctx), with one `e2eRun('pass')` scripted.
+  // Observable: one `spawn.usage` row with role `end-to-end verification` runs, and a
+  // second `e2e verification passed` note is written.
+  // Source of expected value: task 11's Test clause ("a run whose newest marker is the
+  // handoff note runs e2e again").
+  it('a re-entry whose newest marker is the handoff note runs e2e again', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const tasks = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8').replace('- [ ] 1.', '- [x] 1.');
+    writeFileSync(join(fx.specDir, 'tasks.md'), tasks);
+    const ledger = openRunLedger({ specDir: fx.specDir, runId: RUN_ID, spec: fx.spec, now: NOW });
+    ledger.phaseStart('implementation', { mode: 'normal', state: 'tasks 1/1' });
+    ledger.note('e2e verification passed');
+    ledger.note('completion handoff written');
+    writeScript(fx, [e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage' && e.role === 'end-to-end verification')).toHaveLength(1);
+    expect(r.filter((e) => e.type === 'note' && e.text === 'e2e verification passed')).toHaveLength(2);
+  }, 60000);
+
   it('stops between tasks when asked and resumes from tasks.md', async () => {
     fx = await setup([taskMd('1', 'Add the first module', ['src/a.js']), taskMd('2', 'Add the second module', ['src/b.js'])]);
     writeScript(fx, [await implRun(fx, '1', 'src/a.js'), await implRun(fx, '2', 'src/b.js'), e2eRun('pass')]);
