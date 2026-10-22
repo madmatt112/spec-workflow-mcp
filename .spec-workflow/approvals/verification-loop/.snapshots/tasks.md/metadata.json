@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/verification-loop/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-22T01:03:50.679Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792631030605_yy6d7mksa",
+      "approvalTitle": "verification-loop tasks v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-22T01:03:50.761Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792631030605_yy6d7mksa",
+      "approvalTitle": "verification-loop tasks v3"
+    }
+  ]
+}

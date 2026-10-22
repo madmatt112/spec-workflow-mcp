@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/merge.test.ts"],"seams":{"src/controller/__tests__/merge.test.ts":"evaluatePullRequest(pr)"},"redCommit":"6bd96d362c2967e211b1112d7126b08c2afae994","baseSha":"5b8360378a3ecf15ebb4e169f98e99c00cb5189d","base":"assertion-red","head":"pass","amended":false,"judged":null}

@@ -4,7 +4,7 @@ Document version: v3
 
 Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and the dependency flag; task 5 adds the brief variants; 6 → 7 build and wire the merge fix round (6 needs 1 and 5); 8 → 9 build and wire the implementer route; 10 → 11 → 12 → 13 build the completion-gate security pass and its wait (12 needs 5, 9, 10 and 11); task 14 is documentation. Each task leaves the tree compiling and every existing suite green. Expected verifier spend: tasks 2, 6, 8 and 10 create new modules, so they route high risk to the verifier; no task touches a `## Sensitive paths` entry.
 
-- [ ] 1. Blocking kinds, base and head in the merge evaluation
+- [x] 1. Blocking kinds, base and head in the merge evaluation
   - File: src/controller/merge.ts
   - File: src/controller/__tests__/merge.test.ts
   - Test: src/controller/__tests__/merge.test.ts — evaluatePullRequest(pr)
