@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec adds eval cases: each runs one harness role on a frozen brief and a small fixture repository, three times, with code grading the report and the repository after each run. It serves the operator, who today catches a role regression only when a live run escalates, blocks a PR or edits the wrong tree. It changes the staged self-update (`scripts/sdd-self-update.sh`) to run the cases of every changed role or brief template and refuse the deploy on a failure, and makes the retrospective propose a case for each role or brief defect.
+This spec adds eval cases: each runs one harness role on a frozen brief and a small fixture repository, three times, with code grading the report and the repository after each run. Today a role regression surfaces only when a live run escalates, blocks a PR or edits the wrong tree. It changes the staged self-update (`scripts/sdd-self-update.sh`) to run the cases of every changed role or brief template and refuse the deploy on a failure, and makes the retrospective propose a case for each role or brief defect.
 
 ## Alignment with Product Vision
 
-The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:165-185`, decisions 18 to 25). Grill decision 1 puts verification first; an eval case verifies the harness itself before its change goes live. The glossary defines the term (`./GLOSSARY.md:52-55`): a case comes from a failure the harness had, so the suite grows only from real failures.
+The steering directory holds no `product.md`, so this section aligns with the 2026-10-20 grill instead (`docs/ai-resources-catalogue.md:165-185`, decisions 18 to 25). Grill decision 1 puts verification first; an eval case verifies the harness itself before its change goes live. The glossary defines the term (`./GLOSSARY.md:52-55`): a case comes from a real failure the harness had.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ A role runs only inside a controller run, through `runStep` (`src/controller/ste
 2. A case's brief values MAY contain a placeholder for the fixture's root and its scratch directory; the runner SHALL substitute both with the run's own paths before it renders each brief. WHEN the emulated step renders more than one brief — a close-out step renders `closeout-batch` and the `closeout-standing` it points at (`src/tools/brief-templates.ts:1505`) — the runner SHALL render every one from the build under evaluation and wire the pointer, so a template defect in either is caught (D1).
 3. The fixture definition SHALL describe a small git repository state: files, commits in order, and optional extras the seed cases need (a `.git/hooks/pre-commit` script, a second worktree, a spec store with documents). The runner SHALL build it fresh in a temporary directory for every run; no run SHALL reuse another run's fixture.
 4. Each grader SHALL be code that reads two inputs only: the step's structured report and the fixture repository after the run (files, git log, commit messages, working tree status, worktree list). A grader SHALL return pass or fail with a one-line reason; no model grades.
-5. WHEN `npm test` runs THEN every case under `harness/evals/` SHALL be validated without a model: the definition parses, the role file and the template exist, the template renders with the case values (no missing required key), the fixture builds, and every grader the case names resolves. A case that fails validation SHALL fail the suite.
+5. WHEN `npm test` runs THEN every case under `harness/evals/` SHALL be validated without a model: the definition parses, the role file and every template the case renders exist, each renders with the case values (no missing required key), the fixture builds, and every grader the case names resolves. A case that fails validation SHALL fail the suite.
 
 ### Requirement 2 — running a case
 
@@ -48,7 +48,7 @@ The self-update moves the live checkout to `origin/main` in step (b) before it b
 
 #### Acceptance Criteria
 
-1. The self-update SHALL select a case WHEN, between the live checkout's HEAD before the update and `origin/main`, any of these changed: the case's own directory, its role file, its role's entry in `harness/agent-profiles.json`, the grader code it names, or the text any brief template the case renders produces with the case's values (each brief rendered by both commits and compared).
+1. The self-update SHALL select a case WHEN, between the live checkout's HEAD before the update and `origin/main`, any of these changed: the case's own directory, its role file, its role's entry in `harness/agent-profiles.json`, the grader code it names and the shared code that grader uses, or the text any brief template the case renders produces with the case's values (each brief rendered by both commits and compared).
 2. WHEN at least one case is selected THEN the self-update SHALL run the selected cases with the staged build after the staged build and the smoke boot pass, and before it moves the live checkout or swaps `dist/`.
 3. IF any selected case fails or is inconclusive AND no override (Requirement 4) covers it THEN the self-update SHALL exit non-zero, leave the live checkout's HEAD, its `harness/` files and `dist/` unchanged, and write an `error` wait (as `write_error_wait` does, `scripts/sdd-self-update.sh:45-60`) whose text names the commit, each failing or inconclusive case id with its first grader reason or classification, and the result record path.
 4. WHEN every selected case passes THEN the self-update SHALL continue with the live checkout move, the swap and the restart as today.
@@ -120,22 +120,22 @@ The self-update moves the live checkout to `origin/main` in step (b) before it b
 
 ## Decisions taken in this document
 
-- D1 — The brief is rendered from the case's frozen values by the build under evaluation, not stored as a frozen brief file: a frozen file cannot catch a brief template defect, and two of the five seed failures are brief defects.
-- D2 — A case is selected when its own files, its role file, its profile entry, its grader code or its rendered brief text changed: chosen over role-and-template-only or every-case-every-deploy, because a profile model or effort change and a new case each change what the case proves, and every case costs 15+ spawns per deploy.
+- D1 — The brief is rendered from the case's frozen values by the build under evaluation, not stored as a frozen brief file: a frozen file cannot catch a brief template defect, and two seed failures are brief defects.
+- D2 — A case is selected when its own files, its role file, its profile entry, its grader code or the shared code it uses, or its rendered brief text changed: narrower than every-case-every-deploy, since every case costs 15+ spawns per deploy.
 - D3 — The evals run after the staged build and smoke boot, before the live checkout moves: the controller reads role files from the live checkout, so a refusal after the move would still ship the role change.
-- D4 — An override is recorded in an override log under the controller home and in a deferral carrying the Progress log line; the deploy does not edit the Progress log itself, because a dirty or locally committed docs file blocks the next self-update's fast-forward and store-only rebase.
-- D5 — The drafter brief template's instruction to write the integration test label is removed in this spec: the case would likely fail on the deploy that lands it, the template contradicts the drafter role, and no code reads that label.
-- D6 — An inconclusive run (usage limit, turn cap, schema-invalid, error) refuses the deploy like a failure: a skipped case is an untested change, and the override flag already covers a deliberate deploy.
-- D7 — Cases live under the harness directory, one directory per case: the close-out classes a harness path as a harness item, so a retro case lands in the same batch as its role fix.
-- D8 — Graders read only the structured report and the fixture repository, not the step's stream log (grill decision 21): every seed failure leaves a trace in the report or the repository, and stream parsing would tie graders to the CLI's event format.
-- D9 — The override deferral is owned by the harness, not by Matthew: fixing a failing case is harness work, and the override itself is already Matthew's recorded act.
-- D10 — The closeout reversing-proposal case is kept as a regression guard although the recorded instances show the implementer refusing correctly: the decomposition entry lists it and a later role edit could lose the refusal.
+- D4 — An override is recorded in an override log under the controller home and in a deferral carrying the Progress log line; the deploy does not edit the Progress log itself, because a dirty docs file blocks the next self-update's fast-forward and store-only rebase.
+- D5 — The drafter brief template's instruction to write the integration test label is removed in this spec: the template contradicts the drafter role and no code reads that label.
+- D6 — An inconclusive run (usage limit, turn cap, schema-invalid, error) refuses the deploy like a failure: a skipped case is an untested change.
+- D7 — Cases live under the harness directory: the close-out classes a harness path as a harness item, so a retro case lands in the same batch as its role fix.
+- D8 — Graders read only the structured report and the fixture repository, not the step's stream log (grill decision 21): stream parsing would tie graders to the CLI's event format.
+- D9 — The override deferral is owned by the harness, not by Matthew: fixing a failing case is harness work.
+- D10 — The closeout reversing-proposal case is kept as a regression guard although the recorded instances show the implementer refusing correctly: a later role edit could lose the refusal.
 - D11 — Posture: the spec touches no money, personal data, data deletion or legal surface; an eval run only spends subscription usage, bounded by D2 and the sequential runs.
 
 ## Scope notes
 
 - Carried from the decomposition: none.
-- Cut: none of the decomposition entry's items. Its "logged in the Progress log" is met by a ready-to-paste line in the deferral and a home log, not a write to the Progress log file (D4); a re-decision of the entry's wording.
+- Cut: none of the decomposition entry's items. Its "logged in the Progress log" is met by a ready-to-paste line in the deferral and a home log, not a write to the Progress log file (D4).
 - Added beyond the entry: the drafter brief template fix (Requirement 5 criterion 2, D5), so the seed case can pass on the deploy that lands it.
 - Deferred to design: the case file format, the grader set and how a case names them, the runner command name, the result-record and override-log shapes, how the eval step points the spec-workflow tools at the fixture's store, and how the report schemas are shared between phases and runner.
 - Not in this spec: `claude plugin eval` (grill decision 20), graders that read the stream log (D8), eval runs outside a deploy other than by hand, and evals for the skills directory's one remaining skill.
@@ -154,3 +154,6 @@ The self-update moves the live checkout to `origin/main` in step (b) before it b
   - **R2-1 — Accepted (MUST_FIX).** Selection now watches every brief a case renders, not one. Requirement 3 criterion 1 compares the rendered text of every brief template the case renders, and criterion 6's dry-run signal diffs the source of every render function and shared helper those templates use, so a standing-brief change selects the reversing-proposal case.
   - **R2-2 — Accepted (MUST_FIX).** Requirement 5 criterion 3 now holds the four other cases to 3 of 3 and lets the reversing-proposal case fall to an override on the landing deploy, matching criterion 4.
   - **MINOR — Rejected.** A runner-process crash exits the deploy non-zero and leaves the checkout unchanged by criterion 3, so no change ships untested; a partial-record contract is a design concern, not a requirements gap.
+- **v4** (2026-10-22) — SHOULD_FIX-only corrective pass.
+  - **R3-1 — Accepted (SHOULD_FIX).** Requirement 1 criterion 5 now validates every template the case renders, not one, so a multi-template close-out case's standing template is checked at pre-flight, matching criteria 1 and 2.
+  - **R3-2 — Accepted (SHOULD_FIX).** Requirement 3 criterion 1's grader trigger now selects on the grader code a case names and the shared code that grader uses, matching criterion 6's template-helper language; D2's selection list widened to the same.

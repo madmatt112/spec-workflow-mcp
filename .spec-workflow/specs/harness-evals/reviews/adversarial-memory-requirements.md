@@ -1,63 +1,67 @@
 # Adversarial Review Memory — requirements
-Last updated: 2026-10-22 (after v2 review)
+Last updated: 2026-10-22 (after v3 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- **R1-1 (MUST_FIX, v1→v2)** — schema keyed by (role, phase) not role; close-out batch
-  schema (`closeout.ts:82-104`, passed 411-414) now cited in Req 2 crit 2. Fix verified correct.
-- **R1-2 (MUST_FIX, v1→v2)** — a case now names the step + brief template(s); Req 1 crit 2
-  renders both close-out briefs at run time and wires the pointer. **Run side fixed; see R2-1
-  for the selection side it left behind.**
-- **R1-3 (SHOULD_FIX, v1→v2)** — dry-run marked provisional with a source-diff signal (Req 3
-  crit 6). Addressed, but the signal is single-function/single-template — see R2-1.
-- **R1-4 (SHOULD_FIX, v1→v2)** — Req 5 crit 4 softened for `closeout-reversing-proposal`
-  (expected, not required, at base; override handles a base failure). **Fixed crit 4 but not
-  crit 3 — see R2-2.**
-- **v1 grader-exception MINOR** — v2 crit 5 now records a grader throw / fixture-build failure
-  as inconclusive. Resolved.
+- **R1-1 (MUST_FIX, v1→v2)** — schema keyed by (role, phase); close-out batch schema
+  (`closeout.ts:82-104`, passed 411-414) cited in Req 2 crit 2. Verified correct.
+- **R1-2 (MUST_FIX, v1→v2)** — a case names the step + brief template(s); Req 1 crit 2
+  renders both close-out briefs and wires the pointer. Run side fixed. **Its plural-template
+  model was not propagated to Req 1 crit 5 — see R3-1.**
+- **R1-3 (SHOULD_FIX, v1→v2)** — dry-run marked provisional with a source-diff signal.
+- **R1-4 (SHOULD_FIX, v1→v2)** — Req 5 crit 4 softened for `closeout-reversing-proposal`.
+- **R2-1 (MUST_FIX, v2→v3)** — selection now watches every brief a case renders; Req 3
+  crit 1 compares rendered text of every template, crit 6 diffs every render fn + shared
+  helper. **Verified correct in v3.** But the companion grader trigger in crit 1 stayed
+  non-transitive — see R3-2.
+- **R2-2 (MUST_FIX, v2→v3)** — Req 5 crit 3 holds four cases to 3/3 and lets the judgment
+  case fall to an override, matching crit 4/D10. **Verified correct in v3.**
+- **v1 grader-exception MINOR / v2 crit 5** — grader throw / fixture-build failure →
+  inconclusive. Resolved.
 
 ### Partially Accepted
 - (none)
 
 ### Rejected
-- (none)
+- **r2 MINOR (partial result record on runner crash)** — Rejected in v3 Revision History:
+  a runner crash exits non-zero and leaves the checkout unchanged (crit 3), nothing ships
+  untested; a partial-record contract is a design concern. Closed — do not re-open.
 
 ### Unresolved
-- **R2-1 (MUST_FIX, Compounding on R1-2, fix-induced)** — Req 3 crit 1 (and crit 6's dry-run
-  signal) still select on "its brief template" (singular) / "the template render function's
-  source." The R1-2 fix made Req 1 crit 1 plural but left selection single-template. A change
-  to `renderCloseoutStanding` (`brief-templates.ts:1487-1489`, the standing brief, where the
-  reversing-proposal rule lives) changes neither the role file, profile, grader, nor the
-  `closeout-batch` render (which inlines only the standing *path*, `1505`), so
-  `closeout-reversing-proposal` is never selected and a standing-rule regression ships
-  unguarded. Fix: selection must compare the rendered text of every brief the case renders,
-  and the crit 6 source-diff must cover every render function + shared helper.
-- **R2-2 (MUST_FIX, Compounding on R1-4, fix-induced)** — Req 5 crit 3 ("all five … SHALL pass
-  3 of 3" on the landing deploy) contradicts the softened crit 4 ("expected, not required" +
-  override). The spec does not touch `renderCloseoutStanding`, so the landing render equals
-  base; a 2/3 judgment refusal fails the landing deploy's 3-of-3 bar and forces an override
-  crit 3 denies. Fix: qualify crit 3 for the judgment case.
+- **R3-1 (SHOULD_FIX, Compounds R1-2, carried)** — Req 1 crit 5 (`npm test` validation)
+  still reads "the template renders … (no missing required key)" (singular). A
+  multi-template close-out case whose *standing* values omit a key passes pre-flight and
+  only fails at deploy (inconclusive). Fix: crit 5 → "every template the case renders."
+- **R3-2 (SHOULD_FIX, Compounds R2-1, carried)** — Req 3 crit 1's grader trigger is "the
+  grader code it **names**" — non-transitive. A graders' *shared helper* changes (graders
+  are code, seed set shares "no new commit"/"main checkout unchanged"/attribution checks);
+  the named file is unchanged, so no case is selected and a weakened grader ships. crit 6
+  covers only templates. Fix: crit 1 → "the grader code it names and the shared code that
+  grader uses," mirroring crit 6's template-helper language.
 
 ## Patterns & Themes
-
-- **Two-sided seam, one side fixed.** Both round-2 findings are the same shape: a v2 fix
-  updated one side of a cross-criterion boundary and left the other asserting the old model.
-  R1-2 fixed run-time rendering (Req 1) but not selection (Req 3 crit 1/6). R1-4 fixed the
-  base-pass bar (crit 4) but not the landing-deploy bar (crit 3). Future rounds: when a fix
-  changes a case's model (templates, pass bar), grep every other criterion that restates the
-  old model — selection, dry-run, landing-deploy, docs.
-- **The close-out implementer case is still the stress point** (2/5 seed cases, one role + two
-  briefs + phase-keyed schema). Every unresolved finding traces to it. Schema (R1-1) and
-  run-time rendering (R1-2) now fit it; selection (R2-1) and the landing bar (R2-2) do not.
-- **Citations remain clean.** Every v1 and v2 citation verified correct at both ends across two
-  rounds. No misstated-artifact MUST_FIX in either round. Do not re-spend rounds on citations.
+- **One pattern, now three rounds deep: a model-flip propagated to some criteria, not all.**
+  R1-2/R2-1 flipped the case model to *plural templates + transitive shared code*. Updated:
+  run-time (Req 1 crit 2), selection text compare (Req 3 crit 1 template leg), dry-run
+  source diff (crit 6, templates). **Not updated:** static validation (Req 1 crit 5, R3-1)
+  and the selection grader leg (Req 3 crit 1, R3-2). Next round: confirm BOTH are pluralised
+  / made transitive, then check nothing else (docs Req 7, Req 6 retro-added case path)
+  still restates the singular model.
+- **Close-out implementer case is still the stress point** (2/5 cases, two briefs,
+  phase-keyed schema, shared helpers). Every round's findings trace to it.
+- **Citations clean across three rounds.** Every v1/v2/v3 citation verified at both ends.
+  No misstated-artifact MUST_FIX in any round. Do not re-spend rounds on citations.
 
 ## Guidance for Next Review
-- Verify the reviser updated **Req 3 crit 1 and crit 6** to watch every brief a case renders
-  (R2-1), and **Req 5 crit 3** to match crit 4 for the judgment case (R2-2). Check both ends.
-- Fresh lens candidate still unused: runner-self error paths — partial/aborted result record on
-  a runner crash (the MINOR here), and the Req 3 crit 3 error-wait text contract when the
-  result path does not exist.
-- Well-covered, do not re-examine: schema keying (R1-1), run-time two-brief rendering (R1-2),
-  all cited artifacts, D7/`classifyTarget` batch landing, the grader-throw classification.
+- Verify the reviser pluralised **Req 1 crit 5** (R3-1) and made **Req 3 crit 1's grader
+  trigger transitive** (R3-2). Check both ends; check they match the crit 1/crit 6
+  template language already there.
+- If both land, the plural/transitive model is finally uniform — likely a clean round.
+- Well-covered, do not re-examine: schema keying (R1-1), run-time two-brief rendering
+  (R1-2), selection text compare + dry-run helper diff for templates (R2-1), the
+  landing-deploy judgment carve-out (R2-2), all cited artifacts, D7 batch landing,
+  grader-throw classification, the runner-crash partial-record MINOR (ruled closed).
+- Unused fresh-lens candidate: Req 6 (retro-added case) ↔ Req 1/Req 3 wiring — does a
+  retro-proposed case arrive with the template-set and grader-closure metadata selection
+  needs, or only an id + one grader line (crit 1)?
