@@ -408,6 +408,97 @@ describe('evaluatePullRequest', () => {
   });
 });
 
+describe('evaluatePullRequest blocking kinds (design C1, R1 AC 1, AC 11)', () => {
+  // Contract per test: pre-condition (gh stub view/runs/statuses) -> call
+  // evaluatePullRequest(pr) -> observable result (evaluation.blocking,
+  // .head, .base) -> expected value source (design C1 post-conditions:
+  // "a failed workflow run gives check with name and runId ... a head
+  // branch mismatch gives head; an attribution trailer gives trailer").
+  let pr: PullRequest;
+  beforeEach(() => { pr = { number: 42, repoDir: tmp('ctrl-merge-repo-'), branch: 'feat/thing' }; });
+
+  it('tags a failed workflow run as check with its name and numeric runId', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'completed', conclusion: 'failure', id: 555 }),
+      STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'check', text: 'workflow build did not pass', check: { name: 'build', runId: 555 } },
+    ]);
+  });
+
+  it('tags a failed commit status as check with its name and no runId', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      RUNS_OK,
+      statusesOf({ context: 'ci/legacy', state: 'failure' }),
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'check', text: 'status ci/legacy did not pass', check: { name: 'ci/legacy' } },
+    ]);
+    expect(result.evaluation.blocking![0].check!.runId).toBeUndefined();
+  });
+
+  it('tags a merge conflict as conflict', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'CONFLICTING' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'conflict', text: 'not mergeable (mergeable=CONFLICTING)' },
+    ]);
+  });
+
+  it('tags any other non-MERGEABLE, non-UNKNOWN mergeable value as other', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, mergeable: 'DIRTY' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'other', text: 'not mergeable (mergeable=DIRTY)' },
+    ]);
+  });
+
+  it('tags a head branch mismatch as head', async () => {
+    useGhScript([{ argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, headRefName: 'feat/other' } }, RUNS_OK, STATUS_OK]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'head', text: 'head branch is feat/other, expected feat/thing' },
+    ]);
+  });
+
+  it('tags a PR body attribution trailer as trailer', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, body: 'Summary.\n\n🤖 Generated with [Claude Code](https://claude.com)' } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.blocking).toEqual([
+      { kind: 'trailer', text: 'the PR body carries a Claude attribution trailer' },
+    ]);
+  });
+
+  it('gives a pending-only result no blocking entries', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: READY_VIEW },
+      runsOf({ name: 'build', status: 'in_progress', conclusion: null }),
+      STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.evaluation.pending).toBe(true);
+    expect(result.evaluation.blocking).toBeUndefined();
+  });
+
+  it('reads head and base from the view\'s headRefOid and baseRefName', async () => {
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: { ...READY_VIEW, baseRefName: 'main' } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await evaluatePullRequest(pr);
+    expect(result.head).toBe('deadbeefcafe0001');
+    expect(result.base).toBe('main');
+  });
+});
+
 describe('runMergeStage', () => {
   let home: string;
   beforeEach(async () => {
@@ -484,6 +575,24 @@ describe('runMergeStage', () => {
     expect(result.number).toBe(42);
     expect(result.reasons.join(' ')).toMatch(/commit abcdef1 carries a Claude attribution trailer/);
     expect(recordedArgv(script)).toHaveLength(3); // no merge attempted
+  });
+
+  it('blocked result carries the structured blocking reason and the base branch (design C1)', async () => {
+    // Pre: an attribution trailer (kind trailer) and a baseRefName on the view.
+    useGhScript([
+      { argvIncludes: ['pr', 'view'], stdout: {
+        ...READY_VIEW,
+        baseRefName: 'main',
+        commits: [{ oid: 'abcdef1234', messageHeadline: 'test(s): task 1 red', messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>' }],
+      } },
+      RUNS_OK, STATUS_OK,
+    ]);
+    const result = await runMergeStage(makeRun(), makeDeps());
+    expect(result.status).toBe('blocked');
+    expect(result.blocking).toEqual([
+      { kind: 'trailer', text: 'commit abcdef1 carries a Claude attribution trailer' },
+    ]);
+    expect(result.base).toBe('main');
   });
 
   it('unreadable when gh pr view fails, without merging (a token that cannot read checks)', async () => {
