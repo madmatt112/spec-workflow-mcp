@@ -277,3 +277,12 @@
 {"ts":"2026-10-22T13:51:04.803Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: item P2 pass risk low"}
 {"ts":"2026-10-22T13:51:04.822Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"P2","outcome":"done"}
 {"ts":"2026-10-22T13:51:09.685Z","run":"run-20261021-184930","spec":"verification-loop","type":"phase.end","phase":"closeout","result":"closed","state":"items 7/7","note":"3 done, 0 to-do, 4 skipped"}
+{"ts":"2026-10-22T13:51:11.578Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp not-ready (no workflow run yet for d90bb87 (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-10-22T13:51:44.687Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-22T13:52:17.189Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-22T13:52:49.221Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-22T13:53:21.198Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #169 of spec-workflow-mcp)"}
+{"ts":"2026-10-22T13:54:11.757Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-10-22T13:54:17.962Z","run":"run-20261021-184930","spec":"verification-loop","type":"pr.merged","number":"169","sha":"b2fc31f7778af17cb449105fa6141ca78907a8b5","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-22T13:54:17.965Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"close-out merge: close-out PR #169 of spec-workflow-mcp merged (merged close-out PR #169 of spec-workflow-mcp via merge)"}
+{"ts":"2026-10-22T13:54:17.968Z","run":"run-20261021-184930","spec":"verification-loop","type":"run.end","status":"done"}
