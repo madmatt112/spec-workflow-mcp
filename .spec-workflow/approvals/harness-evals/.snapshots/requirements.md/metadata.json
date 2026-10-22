@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-evals/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-22T16:39:49.588Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792687189504_gbe4xx37d",
+      "approvalTitle": "harness-evals requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-22T16:39:49.726Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792687189504_gbe4xx37d",
+      "approvalTitle": "harness-evals requirements v4"
+    }
+  ]
+}

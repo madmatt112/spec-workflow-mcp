@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792687189504_gbe4xx37d",
+  "title": "harness-evals requirements v4",
+  "filePath": ".spec-workflow/specs/harness-evals/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-22T16:39:49.504Z",
+  "category": "spec",
+  "categoryName": "harness-evals",
+  "response": "v4; 4 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-22T16:39:49.730Z"
+}
