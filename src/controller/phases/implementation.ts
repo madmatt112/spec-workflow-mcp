@@ -144,7 +144,7 @@ const AUTHOR_SCHEMA = {
   },
 } as const;
 
-const IMPLEMENTER_SCHEMA = {
+export const IMPLEMENTER_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['logged', 'commit', 'checksFile', 'flag'],
