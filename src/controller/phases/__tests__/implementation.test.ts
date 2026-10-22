@@ -14,6 +14,7 @@ import { openRunLedger } from '../../ledger.js';
 import { ImplementationLogManager } from '../../../dashboard/implementation-log-manager.js';
 import { parseTasksFromMarkdown } from '../../../core/task-parser.js';
 import { approvalsHandler } from '../../../tools/approvals.js';
+import { DeferralStorage } from '../../../core/deferral-storage.js';
 import type { RunRecord } from '../../state.js';
 
 // Contract for step (c2) (docs/controller-design.md §5 "Implementation",
@@ -171,6 +172,38 @@ function verifierRun(verdict: 'pass' | 'fix-required', findings = 'none'): StubR
 
 function e2eRun(verify: 'pass' | 'fail', findings = ''): StubRun {
   return { result: result({ verify, deferredCommand: '', findings, retro: 'none' }, `VERIFY: ${verify}`) };
+}
+
+interface SecurityFindingLike { title: string; file: string; command: string; output: string }
+interface SecuritySuspicionLike { title: string; file: string; why: string }
+
+/** A security pass/recheck verifier report (design C6 `SECURITY_SCHEMA`). */
+function securityPassRun(findings: SecurityFindingLike[], suspicions: SecuritySuspicionLike[] = []): StubRun {
+  return { result: result({ findings, suspicions, retro: 'none' }) };
+}
+
+/** A security fix round: commits a change, no push (R3 AC 6, R2 AC 10). */
+function securityFixRun(file: string, message: string): StubRun {
+  return {
+    commands: [`echo "patched" >> ${file} && git add ${file} && git commit -qm "${message}"`],
+    result: result({ logged: 'n/a', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
+  };
+}
+
+function adjudicatorRun(): StubRun {
+  return { result: result({ commit: 'none', fixed: [], ruledOut: [], notes: '', flags: 'none' }) };
+}
+
+/** A multi-file implementer commit (one task touching more than one file). */
+async function implRunMulti(fx: Fixture, taskId: string, files: string[], opts: { message?: string } = {}): Promise<StubRun> {
+  const log = await logFile(fx, taskId, files);
+  const checksPath = join(fx.scratch, `checks-${taskId}-multi-${Date.now()}.json`);
+  const writes = files.map((f) => `mkdir -p "$(dirname ${f})" && echo "line ${Date.now()}" >> ${f}`).join(' && ');
+  return {
+    edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+    commands: [`${writes} && git add ${files.join(' ')} && git commit -qm "${opts.message ?? `feat: task ${taskId}`}"`],
+    result: result({ logged: `yes/${taskId}`, commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+  };
 }
 
 function ctxFor(fx: Fixture, over: Partial<ImplementationPhaseContext> = {}): ImplementationPhaseContext {
@@ -785,5 +818,254 @@ describe('runImplementationPhase', () => {
     // is Sonnet.
     const reconcileArgv = initArgv(fx, 'implementer-ci-r1');
     expect(reconcileArgv).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
+  }, 60000);
+});
+
+// Contract (design C6 flow steps 2-4, R3 AC 1-3, 6-12): the completion gate's security
+// pass loop, driven from the state reader task 10 exports (security-pass.ts) and the
+// brief variants task 5 adds. Fold record: AC 3.1, 3.3, 3.6, 3.7 and 3.8 are folded into
+// the single "a flagged spec runs..." case below (one spec exercising the full pass ->
+// fix -> recheck -> adjudicate -> recheck sequence and the brief's scoping); AC 3.12 (the
+// counts note after each step) is folded into the same case's note-prefix assertions; AC
+// 3.10 and 3.11 (one deferral per suspicion, a suspicion never blocks) are folded into the
+// "creates one deferral per suspicion..." case.
+describe('security pass loop (design C6, R3 AC 1-3, 6-12)', () => {
+  // Pre-condition: a spec with no `sensitive-path` class (a) item.
+  // Call: runImplementationPhase(ctx) run to completion.
+  // Observable: no `note` row whose text starts `security:`, and no `spawn.usage` row
+  // whose role mentions "security".
+  // Source of expected value: R3 AC 2 ("no task... THEN the controller SHALL run no
+  // security pass and the completion gate SHALL behave as today").
+  it('an unflagged spec writes no security: note and spawns no security step', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'note' && (e.text ?? '').startsWith('security:'))).toHaveLength(0);
+    expect(r.filter((e) => e.type === 'spawn.usage' && /security/i.test(e.role ?? ''))).toHaveLength(0);
+  }, 60000);
+
+  // Pre-condition: one task with a `sensitive-path` item (package.json), on a branch
+  // that diverges from `main` so the pass brief's diff is non-empty; the security pass
+  // reports the same finding on every pass/recheck (it never reproduces as fixed).
+  // Call: runImplementationPhase(ctx) run to completion.
+  // Observable: the spawn.usage role sequence (pass, two fix/recheck cycles, the
+  // adjudicator, a final recheck); the `security:` note prefixes in that order, ending
+  // `security: escalated`; the outcome `security-open` with the still-open finding; the
+  // pass brief lists the sensitive file before the other changed file and names the
+  // `security/` scratch directory; no `completion handoff written` note (the run stops
+  // short of the HANDOFF write and the push).
+  // Source of expected value: R3 AC 1 (run the pass once the spec is flagged), AC 3
+  // (scope and sensitive-first ordering), AC 6-7 (at most 2 fix/recheck rounds, then the
+  // adjudicator), AC 8 (escalate with the open findings), AC 12 (a counts note per step,
+  // read here as the stage-prefixed note existing once per step); design C6 Interfaces
+  // (the `security-pass.ts` note prefixes `readSecurityState` reads) and Flow steps 2-4.
+  it('a flagged spec runs pass, two fix/recheck rounds, the adjudicator and a final recheck, then returns security-open, scoping the pass brief to the diff with sensitive files first', async () => {
+    fx = await setup([taskMd('1', 'Touch the manifest', ['package.json', 'src/other.js'])]);
+    const origin = join(fx.base, 'origin.git');
+    git(fx.repo, ['init', '-q', '--bare', origin]);
+    git(fx.repo, ['remote', 'add', 'origin', origin]);
+    git(fx.repo, ['push', '-q', 'origin', 'main']);
+    git(fx.repo, ['fetch', '-q', 'origin']);
+    git(fx.repo, ['remote', 'set-head', 'origin', 'main']);
+    git(fx.repo, ['checkout', '-q', '-b', 'feat/sec']);
+
+    const finding = { title: 'Hardcoded secret', file: 'package.json', command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123' };
+    writeGhScript(fx, [{ argvIncludes: ['auth', 'status'], stdout: 'Logged in' }]);
+    writeScript(fx, [
+      await implRunMulti(fx, '1', ['package.json', 'src/other.js']),
+      verifierRun('pass'),
+      e2eRun('pass'),
+      securityPassRun([finding]),
+      securityFixRun('src/other.js', 'security fix 1'),
+      securityPassRun([finding]),
+      securityFixRun('src/other.js', 'security fix 2'),
+      securityPassRun([finding]),
+      adjudicatorRun(),
+      securityPassRun([finding]),
+    ]);
+
+    const outcome = (await runImplementationPhase(
+      ctxFor(fx, { run: { ...ctxFor(fx).run, branch: 'feat/sec' } }),
+    )) as unknown as { result: string; findings?: SecurityFindingLike[]; tasks: { done: number; total: number } };
+
+    expect(outcome.result).toBe('security-open');
+    expect(outcome.findings).toEqual([finding]);
+    expect(outcome.tasks).toEqual({ done: 1, total: 1 });
+
+    const r = rows(fx);
+    const roles = r.filter((e) => e.type === 'spawn.usage').map((e) => e.role);
+    expect(roles).toEqual([
+      'implement task 1', 'verify task 1', 'end-to-end verification',
+      'security pass', 'fix security round 1', 'verify security round 1',
+      'fix security round 2', 'verify security round 2',
+      'adjudicate security', 'verify security adjudicated',
+    ]);
+
+    const secNotes = r.filter((e) => e.type === 'note' && (e.text ?? '').startsWith('security:')).map((e) => e.text ?? '');
+    expect(secNotes[0]).toMatch(/^security: epoch 1\b/);
+    expect(secNotes.filter((t) => t.startsWith('security: pass'))).toHaveLength(1);
+    expect(secNotes.filter((t) => t.startsWith('security: fix round'))).toHaveLength(2);
+    expect(secNotes.filter((t) => t.startsWith('security: recheck adjudicated'))).toHaveLength(1);
+    expect(secNotes.filter((t) => t.startsWith('security: recheck ') && !t.startsWith('security: recheck adjudicated'))).toHaveLength(2);
+    expect(secNotes.some((t) => t.startsWith('security: adjudicator'))).toBe(true);
+    expect(secNotes[secNotes.length - 1]).toMatch(/^security: escalated\b/);
+    expect(r.some((e) => e.type === 'note' && e.text === 'completion handoff written')).toBe(false);
+
+    // AC 3.3: `git diff <base>...HEAD`, the sensitive file listed before the other one.
+    const briefFiles = readdirSync(fx.scratch).filter((f) => f.endsWith('.md'));
+    const passBriefName = briefFiles.find((f) => readFileSync(join(fx!.scratch, f), 'utf8').includes(`# Security review — spec ${fx!.spec}`));
+    expect(passBriefName).toBeDefined();
+    const passBrief = readFileSync(join(fx.scratch, passBriefName as string), 'utf8');
+    const sIdx = passBrief.indexOf('### Sensitive files');
+    const oIdx = passBrief.indexOf('### Other changed files');
+    expect(sIdx).toBeGreaterThan(-1);
+    expect(oIdx).toBeGreaterThan(sIdx);
+    expect(passBrief.slice(sIdx, oIdx)).toContain('package.json');
+    expect(passBrief.slice(oIdx)).toContain('src/other.js');
+    expect(passBrief).toContain('security/');
+  }, 60000);
+
+  // Pre-condition: one sensitive-path task; the pass reports a finding and a suspicion,
+  // the fix round resolves the finding, and the recheck re-reports the same suspicion
+  // (the suspicion never reproduces as "fixed" because it was never a finding).
+  // Call: runImplementationPhase(ctx) run to completion.
+  // Observable: exactly one deferral exists for this spec tagged `security`, owned by
+  // `matthew`, phase `implementation`, whose body names the file and the why; exactly
+  // one `security: suspicion <key> deferral <id>` note despite the suspicion being
+  // reported twice; the run still reaches `complete` (the suspicion opens no wait and
+  // stops nothing).
+  // Source of expected value: R3 AC 10 ("a re-entry SHALL NOT create the same deferral
+  // twice") and AC 11 ("A suspicion SHALL NOT start a fix round, open a wait, or stop the
+  // run"); design C6 flow step 3's deferral paragraph (`body.context` = `<file>: <why>`).
+  it('creates one deferral per suspicion even when a later security step repeats it, and does not block the run', async () => {
+    fx = await setup([taskMd('1', 'Touch the manifest', ['package.json'])]);
+    const suspicion = { title: 'Possible secret leak', file: 'package.json', why: 'env var name looks sensitive' };
+    const finding = { title: 'Hardcoded secret', file: 'package.json', command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123' };
+    writeScript(fx, [
+      await implRun(fx, '1', 'package.json'),
+      verifierRun('pass'),
+      e2eRun('pass'),
+      securityPassRun([finding], [suspicion]),
+      securityFixRun('package.json', 'security fix 1'),
+      securityPassRun([], [suspicion]),
+    ]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('complete');
+    const storage = new DeferralStorage(fx.repo);
+    const defs = await storage.list({ originSpec: fx.spec, tag: 'security' });
+    expect(defs).toHaveLength(1);
+    expect(defs[0]).toMatchObject({ owner: 'matthew', originPhase: 'implementation' });
+    expect(defs[0].tags).toContain('security');
+    expect(defs[0].body.context).toBe('package.json: env var name looks sensitive');
+
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'note' && /^security: suspicion [0-9a-f]{8} deferral \S+/.test(e.text ?? ''))).toHaveLength(1);
+  }, 60000);
+
+  // Pre-condition: the run already escalated (the ledger carries `security: epoch 1`,
+  // `security: open [<finding>]` and `security: escalated` for one finding) and reaches
+  // its completion gate again with the operator's `accept` answer; a remote and a bare
+  // origin exist so the PR body is built.
+  // Call: runImplementationPhase(ctx) with `securityAnswers: [{ waitId: 'w1', value:
+  // 'accept' }]`.
+  // Observable: the run reaches `complete`; the HANDOFF Gotchas row names the accepted
+  // finding; the PR body's Test plan carries an unchecked line with the finding and its
+  // reproduce command; the retro log carries a `ruling` entry naming the finding; the
+  // security pass is not re-run and the e2e verifier is not re-spawned.
+  // Source of expected value: R3 AC 9's `accept` clause (Gotchas row, unchecked PR body
+  // Test plan line, retro-log entry, continue to the HANDOFF write and the push without
+  // running the pass again) and AC 13 (the e2e verifier is not re-spawned on this
+  // re-entry).
+  it('accept resumes to the HANDOFF write and push, recording the finding in Gotchas, the PR body and the retro log', async () => {
+    fx = await setup([taskMd('1', 'Touch the manifest', ['package.json'])]);
+    const tasks = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8').replace('- [ ] 1.', '- [x] 1.');
+    writeFileSync(join(fx.specDir, 'tasks.md'), tasks);
+
+    const origin = join(fx.base, 'origin.git');
+    git(fx.repo, ['init', '-q', '--bare', origin]);
+    git(fx.repo, ['remote', 'add', 'origin', origin]);
+    git(fx.repo, ['push', '-q', 'origin', 'main']);
+    git(fx.repo, ['checkout', '-q', '-b', 'feat/x']);
+
+    const finding = { title: 'Hardcoded secret', file: 'package.json', command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123' };
+    const ledger = openRunLedger({ specDir: fx.specDir, runId: RUN_ID, spec: fx.spec, now: NOW });
+    ledger.phaseStart('implementation', { mode: 'normal', state: 'tasks 1/1' });
+    ledger.note('e2e verification passed');
+    ledger.note('security: epoch 1');
+    ledger.note(`security: open ${JSON.stringify([finding])}`);
+    ledger.note('security: escalated');
+
+    writeGhScript(fx, [
+      { argvIncludes: ['auth', 'status'], stdout: 'Logged in' },
+      { argvIncludes: ['pr', 'list'], stdout: [] },
+      { argvIncludes: ['pr', 'create'], stdout: 'https://github.com/x/y/pull/9\n' },
+      { argvIncludes: ['api'], stdout: { total_count: 0, workflow_runs: [] } },
+      { argvIncludes: ['api'], stdout: { total_count: 0, statuses: [] } },
+    ]);
+    writeScript(fx, []);
+
+    const over = {
+      run: { ...ctxFor(fx).run, branch: 'feat/x' },
+      securityAnswers: [{ waitId: 'w1', value: 'accept' }],
+    } as unknown as Partial<ImplementationPhaseContext>;
+    const outcome = (await runImplementationPhase(ctxFor(fx, over))) as unknown as { result: string };
+
+    expect(outcome.result).toBe('complete');
+    const ho = readFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), 'utf8');
+    expect(ho).toMatch(/\| Gotchas \|.*accepted security finding: Hardcoded secret \(package\.json\)/);
+    const body = readFileSync(join(fx.scratch, 'pr-body.md'), 'utf8');
+    expect(body).toContain('- [ ] accepted security finding: Hardcoded secret (package.json): grep -n SECRET package.json');
+    const retroLog = readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8');
+    expect(retroLog).toContain('· ruling');
+    expect(retroLog).toContain('Hardcoded secret');
+
+    const r = rows(fx);
+    expect(r.some((e) => e.type === 'note' && e.text === 'security: answer w1 accept')).toBe(true);
+    expect(r.some((e) => e.type === 'note' && (e.text ?? '').startsWith('security: accepted '))).toBe(true);
+    expect(r.filter((e) => e.type === 'note' && (e.text ?? '').startsWith('security: pass'))).toHaveLength(0);
+    expect(r.filter((e) => e.type === 'spawn.usage' && e.role === 'end-to-end verification')).toHaveLength(0);
+  }, 60000);
+
+  // Pre-condition: the run already escalated, same seeded state as the `accept` case
+  // above, but no remote (the PR path is not exercised here); the new epoch's pass finds
+  // nothing.
+  // Call: runImplementationPhase(ctx) with `securityAnswers: [{ waitId: 'w2', value:
+  // 'retry' }]`.
+  // Observable: a `security: answer w2 retry` note and a `security: epoch 2` note; the
+  // run spawns exactly one new security-labelled step (the new epoch's pass) and no
+  // `end-to-end verification` spawn; the run reaches `complete`.
+  // Source of expected value: R3 AC 9's `retry` clause ("write a `note` row that opens a
+  // new security-pass epoch and run the pass from round 1... the e2e verification SHALL
+  // NOT be re-run") and AC 13 (a security re-entry never re-spawns the e2e verifier).
+  it('retry opens a new epoch and runs the pass again without re-running e2e', async () => {
+    fx = await setup([taskMd('1', 'Touch the manifest', ['package.json'])]);
+    const tasks = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8').replace('- [ ] 1.', '- [x] 1.');
+    writeFileSync(join(fx.specDir, 'tasks.md'), tasks);
+
+    const finding = { title: 'Hardcoded secret', file: 'package.json', command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123' };
+    const ledger = openRunLedger({ specDir: fx.specDir, runId: RUN_ID, spec: fx.spec, now: NOW });
+    ledger.phaseStart('implementation', { mode: 'normal', state: 'tasks 1/1' });
+    ledger.note('e2e verification passed');
+    ledger.note('security: epoch 1');
+    ledger.note(`security: open ${JSON.stringify([finding])}`);
+    ledger.note('security: escalated');
+
+    writeScript(fx, [securityPassRun([], [])]);
+
+    const over = { securityAnswers: [{ waitId: 'w2', value: 'retry' }] } as unknown as Partial<ImplementationPhaseContext>;
+    const outcome = (await runImplementationPhase(ctxFor(fx, over))) as unknown as { result: string };
+
+    expect(outcome.result).toBe('complete');
+    const r = rows(fx);
+    expect(r.some((e) => e.type === 'note' && e.text === 'security: answer w2 retry')).toBe(true);
+    expect(r.some((e) => e.type === 'note' && e.text === 'security: epoch 2')).toBe(true);
+    expect(r.filter((e) => e.type === 'spawn.usage' && e.role === 'end-to-end verification')).toHaveLength(0);
+    expect(r.filter((e) => e.type === 'spawn.usage' && /security/i.test(e.role ?? ''))).toHaveLength(1);
   }, 60000);
 });
