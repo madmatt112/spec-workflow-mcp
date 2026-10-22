@@ -340,6 +340,7 @@ describe('runImplementationPhase', () => {
       await implRun(fx, '2', 'package.json'),
       verifierRun('pass'), // package.json is sensitive, so the gate's risk is high
       e2eRun('pass'),
+      securityPassRun([], []), // the sensitive spec gets a security pass that finds nothing
     ]);
 
     const outcome = await runImplementationPhase(ctxFor(fx));
@@ -743,7 +744,7 @@ describe('runImplementationPhase', () => {
       commands: [`mkdir -p test && echo "red" > test/a.test.js && git add test/a.test.js && git commit -qm "test(${fx.spec}): task 1 red"`],
       result: result({ commit: 'see git', files: ['test/a.test.js'], tests: 1, folds: 'none', flag: 'none', redImpossible: 'none', retro: 'none' }, 'commit: x\nfiles: test/a.test.js'),
     };
-    writeScript(fx, [authorRun, await implRun(fx, '1', 'package.json'), verifierRun('pass'), e2eRun('pass')]);
+    writeScript(fx, [authorRun, await implRun(fx, '1', 'package.json'), verifierRun('pass'), e2eRun('pass'), securityPassRun([], [])]);
 
     const outcome = await runImplementationPhase(ctxFor(fx));
 
