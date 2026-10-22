@@ -106,3 +106,17 @@
 
 ## Deferral type
 - src/types.ts:310-333 — `DeferralOwner`, `Deferral` fields and `body` shape.
+
+## Tasks phase additions
+- src/controller/step.ts:62-76 — `StepUsage` (five token fields) and `StepClassification`.
+- src/controller/phases/closeout.ts:242-248 — close-out `git` helper through `scrubbedGitEnv`.
+- src/core/git-utils.ts:45 — `scrubbedGitEnv` (exported).
+- src/core/path-utils.ts:208-210 — `getWorkflowRoot`: `<project>/.spec-workflow`, the deferral store's base.
+- src/core/test-home-guard.ts:45-57 — `guardTestHome`: a test resolving the real home throws.
+- vitest.setup.ts:19-30 — per-worker temp `SDD_HOME`, `SPEC_WORKFLOW_HOME`, `XDG_STATE_HOME`.
+- src/tools/brief-templates.ts:1584-1590 — `closeout-standing` and `closeout-batch` required keys.
+- src/tools/__tests__/harness.test.ts:368 — `drafterValues`, the drafter brief test values.
+- src/tools/__tests__/harness.test.ts:387 — drafter brief `toContain('Write v1 of')` assertion.
+- src/controller/phases/__tests__/retrospective.test.ts:150 — retro-compile brief holds the proposal format heading.
+- src/__tests__/service-scripts.test.ts:49-70 — `makeDivergedCheckout`, the toy origin and checkout.
+- package.json:25-40 — scripts: build, test (`vitest`); no plugin-asset sync script at base.

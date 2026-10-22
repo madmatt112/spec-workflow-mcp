@@ -1,0 +1,203 @@
+# Tasks Document — harness-evals
+
+Document version: v1
+
+Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the graders; task 4 (case loader) needs 1-3; 5 (fixture builder) and 6 (brief renderer) need 4; 7 (runner) needs 4-6; 8 (selector) needs 5 and 6; 9 (gate) needs 7 and 8; 10 (CLI) needs 7-9; 11 and 12 add the seed cases and need 2-6; 13 (brief and role text) is independent; 14 (self-update script) calls the CLI of task 10 and stubs it in tests; 15 is documentation; 16 writes the pending verification record. Each task leaves the tree compiling and every existing suite green. Expected verifier spend: tasks 1-12 create new modules or a new case tree, so they route structural red, high risk, to the verifier (12 verifiers); 13-16 route by the line rule; no task touches a `## Sensitive paths` entry.
+
+- [ ] 1. Report schema map
+  - File: src/evals/schemas.ts
+  - File: src/controller/phases/implementation.ts
+  - File: src/controller/phases/document.ts
+  - File: src/controller/phases/closeout.ts
+  - File: src/evals/__tests__/schemas.test.ts
+  - Test: src/evals/__tests__/schemas.test.ts — reportSchema(phase, role)
+  - Add `export` to `AUTHOR_SCHEMA` and `VERIFIER_SCHEMA` (`src/controller/phases/implementation.ts:144-184`), `DRAFTER_SCHEMA` (`src/controller/phases/document.ts:199-220`) and `BATCH_SCHEMA` (`src/controller/phases/closeout.ts:82-104`); create the map of design Component 4.
+  - Purpose: an eval step gets the same report schema object a live step gets (R2 AC2).
+  - _Leverage: src/controller/phases/implementation.ts:159 (`IMPLEMENTER_SCHEMA`, already exported)_
+  - _Requirements: 2.2_
+  - _Prompt: Task: Implement design Component 4 per R2 AC2: `reportSchema(phase, role)` returns the phase module's own constant for the five pairs the component lists and `undefined` for every other pair; export the `EvalPhase` type (`implementation`, `document`, `closeout`) from this module. Tests assert identity with `toBe` for each of the five pairs and `undefined` for an unknown role and for a known role under the wrong phase | Restrictions: add `export` only; change no schema value; never copy or spread a schema; no existing test asserts on these constants, so no existing assertion changes | Success: each of the five pairs returns the identical object (`toBe`); an unknown pair returns `undefined`; `npx tsc --noEmit` and schemas.test.ts pass_
+
+- [ ] 2. Grader registry, shared helpers and report graders
+  - File: src/evals/graders/index.ts
+  - File: src/evals/graders/shared.ts
+  - File: src/evals/graders/tasks-labels-canonical.ts
+  - File: src/evals/graders/report-flag.ts
+  - File: src/evals/graders/item-status.ts
+  - File: src/evals/graders/no-attribution-trailer.ts
+  - File: src/controller/merge.ts
+  - File: src/evals/__tests__/graders.test.ts
+  - Test: src/evals/__tests__/graders.test.ts — GRADERS[name].grade(input, args)
+  - Create the grader contract, the `GRADERS` registry and four graders of design Component 5.
+  - Export `ATTRIBUTION_PATTERNS` (`src/controller/merge.ts:252-256`) unchanged.
+  - Purpose: code grades a run from the report and the fixture only (R1 AC4, requirements D8).
+  - _Leverage: src/core/task-validator.ts:42 (`validateTasksMarkdown`), src/core/task-validator.ts:146-162 (near-miss error), src/core/git-utils.ts:45 (`scrubbedGitEnv`)_
+  - _Requirements: 1.4, 5.1_
+  - _Prompt: Task: Per design Component 5 and R1 AC4, define the `grade` signature and the `FixtureView` type, put the git helper and the report-item lookup (by `items[].id`) in shared.ts, and register `tasks-labels-canonical`, `report-flag`, `item-status` and `no-attribution-trailer` with the args the component lists. Each returns `{ pass, reason }` with a one-line reason. Tests on hand-built temp repos and report objects: a tasks file with `- Test (integration):` fails `tasks-labels-canonical` and the reason names its line, `- Test:` passes, a missing file fails; `report-flag` passes on a matching prefix and fails on `none`; `item-status` passes and fails; a `Co-Authored-By: Claude` message fails `no-attribution-trailer`, a clean one passes | Restrictions: no grader reads a stream log or calls a model; git through `execFileSync` with `scrubbedGitEnv()`; the export changes no value merge.test.ts asserts | Success: each grader passes and fails on the cases named; the reason names the failing line or commit; `npx tsc --noEmit` and graders.test.ts pass_
+
+- [ ] 3. Git-state graders
+  - File: src/evals/graders/no-new-commit.ts
+  - File: src/evals/graders/clean-tree.ts
+  - File: src/evals/graders/new-commit-count.ts
+  - File: src/evals/graders/repo-unchanged.ts
+  - File: src/evals/graders/item-commit-on-branch.ts
+  - File: src/evals/graders/no-commit-touches.ts
+  - File: src/evals/graders/index.ts
+  - File: src/evals/__tests__/graders.test.ts
+  - Test: src/evals/__tests__/graders.test.ts — GRADERS[name].grade(input, args)
+  - Add the six remaining seed graders of design Component 5 to the registry task 2 created.
+  - Purpose: grade commits, trees and branches against the fixture's post-setup bases (R1 AC4, R5 AC1).
+  - _Leverage: the shared helpers task 2 created_
+  - _Requirements: 1.4, 5.1_
+  - _Prompt: Task: Per design Component 5 and R5 AC1, implement `no-new-commit`, `clean-tree`, `new-commit-count`, `repo-unchanged`, `item-commit-on-branch` and `no-commit-touches` with the args the component lists; `repo` is a path relative to the fixture root and its base comes from `fixture.bases`. Tests on temp repos: each passes on an untouched repo or the matching commit and fails on a new commit, an untracked file (`clean-tree` uses `--untracked-files=all`), a wrong count, a commit on the wrong branch or not touching `path`, and a commit that touches a listed path; a commit made with hooks skipped still fails `no-new-commit` | Restrictions: read git only; no grader writes to the fixture; keep task 2's graders and their tests unchanged | Success: each of the six graders passes and fails on the cases named; a hook-skipped commit fails `no-new-commit`; the registry lists ten graders; graders.test.ts passes_
+
+- [ ] 4. Case loader
+  - File: src/evals/case.ts
+  - File: src/evals/__tests__/case.test.ts
+  - Test: src/evals/__tests__/case.test.ts — loadCase(id, root)
+  - Create `casesRoot`, `listCaseIds`, `loadCase`, `CaseError` and the `EvalCase` type of design Component 1 and Data Models.
+  - Purpose: a case is a checked-in definition that fails loudly when malformed (R1 AC1, AC5).
+  - _Leverage: src/controller/step.ts:146-150 (`harnessDir` resolution), the schema map of task 1, the registry of task 2_
+  - _Requirements: 1.1, 1.5_
+  - _Prompt: Task: Implement design Component 1 per R1 AC1 and AC5. `loadCase` throws one `CaseError` listing every problem the component's post-conditions name, plus one more: a `spec` value that does not start with `eval-` (D1 below). Tests on temp case directories: a valid case loads with its optional keys absent; one invalid case with an unknown key, an id unequal to its directory, a bad phase, a pair with no schema, a zero `turnCap`, an unknown grader, a missing fixture path and a non-`eval-` spec reports all eight problems in one error; `listCaseIds` returns sorted ids and skips a directory without `case.json` | Restrictions: resolve `casesRoot()` from this module's package root as `harnessDir` does, so a staged build reads its own cases; JSON only (design D1) | Success: the valid case loads; the invalid case's error lists all eight problems; `listCaseIds` is sorted and skips the stray directory; case.test.ts passes_
+
+- [ ] 5. Fixture builder
+  - File: src/evals/fixture.ts
+  - File: src/evals/__tests__/fixture.test.ts
+  - Test: src/evals/__tests__/fixture.test.ts — buildFixture(c, caseDir)
+  - Create `buildFixture`, `disposeFixture`, `Fixture` and `FixtureError` of design Component 2 and Data Models.
+  - Purpose: every run gets a fresh repository (R1 AC3).
+  - _Leverage: src/controller/phases/closeout.ts:242-248 (git through `scrubbedGitEnv`)_
+  - _Requirements: 1.3_
+  - _Prompt: Task: Implement design Component 2 post-conditions 1-6 per R1 AC3. Tests: two commits land in order with their messages and author `Eval Fixture`; the pre-commit hook is installed with mode 755 and setup commits do not run it; a worktree is on its branch and the root's `git status --porcelain` prints nothing; `bases` holds the root and each worktree; two calls never share a directory; a missing tree throws `FixtureError` and leaves no parent directory; `disposeFixture` removes the parent | Restrictions: setup commits run with hooks off; write only under the `mkdtemp` parent; assert only on files, git output and modes (node 20 fields) | Success: commits land in order with their messages and author `Eval Fixture`; the hook has mode 755 and setup commits do not run it; the worktree is on its branch and the root status is empty; `bases` holds the root and each worktree; no two calls share a directory; a missing tree throws `FixtureError` and leaves no parent; `disposeFixture` removes the parent; fixture.test.ts passes_
+
+- [ ] 6. Brief renderer
+  - File: src/evals/render.ts
+  - File: src/controller/phases/closeout.ts
+  - File: src/evals/__tests__/render.test.ts
+  - Test: src/evals/__tests__/render.test.ts — renderCaseBriefs(c, f, scratch, handler)
+  - Create `renderCaseBriefs` and `RenderError` of design Component 3.
+  - Export `COMMIT_SCRIPT` (`src/controller/phases/closeout.ts:196-206`) unchanged.
+  - Purpose: every brief renders from the build under evaluation, wired as the live step wires it (R1 AC2, requirements D1).
+  - _Leverage: src/controller/phases/implementation.ts:501-505 (the `brief` helper call shape), src/tools/harness.ts:617-842 (`briefAction`), src/tools/harness.ts:805-807 (absolute path)_
+  - _Requirements: 1.2_
+  - _Prompt: Task: Implement design Component 3 post-conditions 1-5 per R1 AC2. Tests with the real `harnessHandler` on a fixture store the test writes: `{{fixture}}` and `{{scratch}}` are substituted in every value; a `closeout-standing` then `closeout-batch` case writes both, and the batch text names the standing brief's rendered path; a close-out case writes `closeout-commit.sh` with mode 755 and the `COMMIT_SCRIPT` text before rendering; a missing required key throws `RenderError` carrying the action's message; `texts` maps each template to its text and the last brief is the launch brief | Restrictions: call the brief action unchanged; never write a brief outside `scratch`; the export changes no value a closeout test asserts | Success: both placeholders are substituted; the batch text names the standing brief's rendered path; `closeout-commit.sh` has mode 755 and the `COMMIT_SCRIPT` text; a missing key throws `RenderError` with the action's message; `texts` covers each template and the last brief is the launch brief; `npx tsc --noEmit` and render.test.ts pass_
+
+- [ ] 7. Runner
+  - File: src/evals/runner.ts
+  - File: src/evals/__tests__/runner.test.ts
+  - Test: src/evals/__tests__/runner.test.ts — runCases(ids, opts)
+  - Create `runCases` and `EvalResultRecord` of design Component 6 and Data Models, with one optional `casesRoot` in `opts` (D2 below).
+  - Purpose: run each case 3 times through the live step runner and record the verdicts (R2).
+  - _Leverage: src/controller/step.ts:343 (`runStep`), src/controller/step.ts:62-76 (`StepUsage`, `StepClassification`), src/controller/state.ts:239-243 (`controllerHome`), scripts/stub-claude.mjs:1-40_
+  - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.7_
+  - _Prompt: Task: Implement design Component 6 per R2 AC1, AC3-AC8 and R3 AC7, including the snapshot carve-out of design D3 (R2 AC6) and the scratch wipe of design D11. Tests set `CONTROLLER_CLAUDE_BIN` to scripts/stub-claude.mjs and use a temp cases root: 3 sequential runs on 3 distinct fixture roots; a stub commit with a `Co-Authored-By: Claude` trailer gives `fail`; a usage-limit result gives `inconclusive` with the classification; a throwing grader gives `inconclusive`, not `fail`; a stub edit to a tracked file of a temp live checkout gives `edited the live checkout`, an edit under its `.spec-workflow/` does not; the record holds per-run usage and the token total; the line reads `eval <id>: <verdict> <passed>/<runs>, <tokens> tokens`; the temp `SDD_HOME` holds no run record, wait or ledger row; the stub's init `env` has no `SDD_RUN_ID` | Restrictions: call `runStep` unchanged; one run at a time; never pass `runId` or `stepId`; assert only on exit codes, files and stdout (node 20 fields) | Success: 3 runs use 3 distinct fixture roots; the trailer commit gives `fail`; usage-limit gives `inconclusive` with the classification; a grader throw gives `inconclusive`; a tracked live-checkout edit gives `edited the live checkout` and a store edit does not; the record holds per-run usage and the token total; the case line matches the format; no run record, wait or ledger row exists; the stub env has no `SDD_RUN_ID`; runner.test.ts passes_
+
+- [ ] 8. Selector
+  - File: src/evals/select.ts
+  - File: src/evals/__tests__/select.test.ts
+  - Test: src/evals/__tests__/select.test.ts — selectCases(opts)
+  - Create `selectCases` of design Component 7.
+  - Purpose: a deploy runs only the cases a change can affect (R3 AC1, AC6, requirements D2).
+  - _Leverage: the fixture builder of task 5, the renderer of task 6_
+  - _Requirements: 3.1, 3.6_
+  - _Prompt: Task: Implement design Component 7 reasons 1-6 per R3 AC1 and AC6, with the one-hop import rule of design D4 and the per-file provisional signal of design D5. Tests on a two-commit temp repo holding a case: a new case dir, a role file change, a changed profile entry, a grader file change, a change to a file that grader imports, and a changed template output each select the case with that reason; an unrelated change selects nothing; in provisional mode a `src/tools/brief-templates.ts` change selects it marked provisional; a `baseDist` whose `tools/harness.js` throws gives `brief: base render unavailable`; an unset `baseDist` gives the same reason | Restrictions: read the target commit through `git ls-tree`, `git show` and `git archive` only, never a checkout; remove every temp directory | Success: each reason selects with its label; the unrelated change selects nothing; the provisional flag and the base-render reason hold; select.test.ts passes_
+
+- [ ] 9. Deploy gate
+  - File: src/evals/gate.ts
+  - File: src/evals/__tests__/gate.test.ts
+  - Test: src/evals/__tests__/gate.test.ts — runGate(opts)
+  - Create `runGate` of design Component 8, with one optional `casesRoot` in `opts` passed to the runner (D2 below).
+  - Purpose: select, run, apply overrides and decide the deploy (R3 AC2-AC3, AC5, R4 AC2-AC5).
+  - _Leverage: src/core/deferral-storage.ts:229 (`create`), src/core/deferral-storage.ts:321-342 (`update`)_
+  - _Requirements: 3.2, 3.3, 3.5, 4.2, 4.3, 4.4, 4.5_
+  - _Prompt: Task: Implement design Component 8 post-conditions 1-5 per R3 AC2, AC3, AC5 and R4 AC2-AC5, owner `harness` per requirements D9. Tests with the stub claude on a temp repo: an override naming no case or an unselected case gives exit 2 before any spawn; no selection gives exit 0, no stub invocation and no record; a passed case named by an override gives exit 2; an unnamed failing case gives exit 1, the summary line in the design format, no override line and no deferral; a failing case named by an override gives exit 0, one `overrides.log` line and one deferral with owner `harness`, the case id in its title and the Progress log line, holding the deferral id, in its context | Restrictions: no edit to `docs/foundation-review.md` (R4 AC5); a create or update failure exits 1 before any log line | Success: a bad override exits 2 before any spawn; no selection exits 0 with no stub call and no record; an override on a passed case exits 2; an unnamed failure exits 1 with the summary line and no log line or deferral; a named failure exits 0 with one log line and one `harness` deferral carrying the case id and the Progress log line; gate.test.ts passes_
+
+- [ ] 10. Eval CLI
+  - File: src/evals/cli.ts
+  - File: src/evals/__tests__/cli.test.ts
+  - Test: src/evals/__tests__/cli.test.ts — main(argv)
+  - Create the command of design Component 9, its own entry because `src/index.ts:239-241` rejects unknown flags.
+  - Purpose: the operator and the self-update run cases from the built package (R2 AC9).
+  - _Leverage: the runner, selector and gate of tasks 7-9_
+  - _Requirements: 2.9, 3.7_
+  - _Prompt: Task: Implement design Component 9 per R2 AC9 and R3 AC7. Export `main(argv)` returning the exit code, and run it only when the module is the process entry. Before any run, delete `SDD_RUN_ID` and `SDD_STEP_ID` from `process.env` (design Component 6, Record). Tests: an unknown flag and a missing value give exit 2 with a usage line; `select` on a two-commit temp repo prints `select <id>: <reasons>` and exits 0, with ` (provisional)` under `--provisional`; a run with `SDD_RUN_ID` set leaves it unset afterwards; a named case run through the stub claude prints its case line and the record path | Restrictions: no new flag beyond the component's; print through stdout only | Success: an unknown flag and a missing value exit 2 with a usage line; `select` prints its lines, exit 0, with the provisional suffix under `--provisional`; `SDD_RUN_ID` is unset after a run; a stub case run prints its case line and the record path; `npx tsc --noEmit` and cli.test.ts pass_
+
+- [ ] 11. Seed cases: drafter and test author
+  - File: harness/evals/drafter-test-seam-label/case.json
+  - File: harness/evals/test-author-precommit-hook/case.json
+  - File: harness/evals/test-author-trailer/case.json
+  - File: src/evals/__tests__/cases.test.ts
+  - Test: src/evals/__tests__/cases.test.ts — loadCase(id), buildFixture(c, caseDir), renderCaseBriefs(c, f, scratch)
+  - Add the three cases of design Component 13 with their fixture trees, and the model-free validation suite.
+  - Purpose: the first cases guard the drafter and test-author failures (R5 AC1); `npm test` validates every case (R1 AC5).
+  - _Leverage: design Component 13 (case-author contract, fixtures, turn caps), src/tools/harness.ts:707-712 (test-author `- Test:` check)_
+  - _Requirements: 1.5, 5.1, 5.4_
+  - _Prompt: Task: Per R5 AC1, R1 AC5 and design Component 13, write each case's `case.json`, fixture trees and pre-commit hook, with the evidence its R5 AC1 entry cites and `spec` values starting `eval-` (D1). cases.test.ts runs for every listed id: `loadCase` succeeds, `harness/agents/<role>.md` exists, the fixture builds, every brief renders with no missing key, every grader is in the registry; it also asserts the three ids are listed. Regression guard, not red-first: R5 AC4's base pass of the two test-author cases is a live check, recorded by task 16, not a unit test | Restrictions: no model; the drafter `docPath` equals the grader's `doc` arg; the hook runs `node --test` with no tests-only carve-out; no agent-rules plugin sync applies (no `plugins/` tree at base) | Success: the three cases load, build and render; cases.test.ts asserts their ids and passes_
+
+- [ ] 12. Seed cases: close-out
+  - File: harness/evals/closeout-landing-root/case.json
+  - File: harness/evals/closeout-reversing-proposal/case.json
+  - File: src/evals/__tests__/cases.test.ts
+  - Test: src/evals/__tests__/cases.test.ts — listCaseIds(), renderCaseBriefs(c, f, scratch)
+  - Add the two close-out cases of design Component 13; the validation suite then asserts all five ids.
+  - Purpose: guard the landing-root and reversing-proposal failures (R5 AC1).
+  - _Leverage: src/tools/brief-templates.ts:1584-1590 (`closeout-standing` and `closeout-batch` required keys), design Component 13 rows 4-5_
+  - _Requirements: 5.1, 5.3, 5.4_
+  - _Prompt: Task: Per R5 AC1 and design Component 13, write both cases with fixture trees: landing-root has worktree `landing` and an item naming `{{fixture}}/docs/notes.md`, batch `root` `{{fixture}}/.claude/worktrees/landing`, cwd that worktree; reversing-proposal's fixture design records a decision its item reverses without naming it. Both render `closeout-standing` then `closeout-batch` with `standing` wired and `commitScript` `{{scratch}}/closeout-commit.sh`. Widen cases.test.ts to assert exactly the five seed ids and to assert each close-out batch brief names its rendered standing path. Regression guard, not red-first: R5 AC4's base results are a live check recorded by task 16 | Restrictions: keep task 11's cases and assertions; turn cap 150 | Success: `listCaseIds()` returns exactly the five seed ids; both close-out cases load, build and render with the standing path wired; cases.test.ts passes_
+
+- [ ] 13. Brief and role text
+  - File: src/tools/brief-templates.ts
+  - File: harness/agents/sdd-retro-analyst.md
+  - File: src/tools/__tests__/harness.test.ts
+  - Test: src/tools/__tests__/harness.test.ts — harnessHandler({ action: 'brief', template, values })
+  - Apply design Component 11: the drafter sentence (`src/tools/brief-templates.ts:129-133`), the `Eval case:` line in the proposal format (`src/tools/brief-templates.ts:1381-1391`) and the role file (`harness/agents/sdd-retro-analyst.md:18-24`), and two rules in `renderCloseoutStanding` (`src/tools/brief-templates.ts:1472-1499`).
+  - Purpose: the drafter brief matches its role, and a retro defect arrives with a case (R5 AC2, R6).
+  - _Leverage: src/tools/__tests__/harness.test.ts:368 (`drafterValues`)_
+  - _Requirements: 5.2, 6.1, 6.2, 6.3_
+  - _Prompt: Task: Per R5 AC2 (requirements D5), R6 AC1-AC3 and design Component 11, replace the drafter sentence with the component's text, add the `Eval case:` line after `Prerequisites:` in the proposal format and in the role file, and add the two close-out rules. Tests through the brief action: the drafter brief has no `Test (integration)` and says `regression guard`; the `retro-compile` brief carries `Eval case:`; the `closeout-standing` brief names `harness/evals/` and says never to run an eval case | Restrictions: change only these sentences; the existing `toContain` assertions at src/tools/__tests__/harness.test.ts:387 and src/controller/phases/__tests__/retrospective.test.ts:150 keep their values (an illustrative minimum — widen to every assertion the change touches) | Success: the drafter brief lacks `Test (integration)` and says `regression guard`; the `retro-compile` brief carries `Eval case:`; the `closeout-standing` brief names `harness/evals/` and forbids running a case; harness.test.ts and retrospective.test.ts pass_
+
+- [ ] 14. Self-update eval step
+  - File: scripts/sdd-self-update.sh
+  - File: src/__tests__/service-scripts.test.ts
+  - Test: src/__tests__/service-scripts.test.ts — runScript(selfUpdateSh, args, env)
+  - Apply design Component 10 changes 1-8 to `scripts/sdd-self-update.sh` (arg loop :26-32, `write_error_wait` :45-60, step (b) :116-174, build and smoke :176-215, swap :217-240).
+  - Purpose: the deploy runs the selected cases before the live checkout moves and refuses on a failure (R3, R4 AC1-AC2, requirements D3).
+  - _Leverage: src/__tests__/service-scripts.test.ts:49-70 (`makeDivergedCheckout`)_
+  - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 4.1, 4.2_
+  - _Prompt: Task: Per design Component 10 and design D8, D10, implement R3 AC2-AC8 and R4 AC1-AC2. Read every optional variable as `${VAR:-}` under `set -euo pipefail`. Existing tests: the dry-run test (:244-265) keeps its assertions and also expects `eval selection unavailable`; the rebase tests (:267-292, :294-317) set `SDD_STAGE_BUILD` to write a stub `dist/evals/cli.js` exiting 0 and `SDD_STAGE_SMOKE` to `true`, keep their asserted values and assert `rebasing` prints after `building in staging`; the refusal tests (:319-364) are unchanged. New tests: a stub CLI exiting 1 leaves HEAD, `harness/` and `dist/` unchanged and logs `writing an error wait`; two `--eval-override` values reach the stub as two `--override` arguments; `--eval-override` with no value exits 2. Regression guard, not red-first: R3 AC5 (no selection behaves as today) | Restrictions: keep the store-only rebase and refusal rules (R3 AC8) and `wait_no_step` before the swap; `/usr/bin/git` in new lines | Success: every existing assertion passes with its value; the dry run prints `eval selection unavailable`; `rebasing` prints after `building in staging`; a failing stub CLI leaves HEAD, `harness/` and `dist/` unchanged and logs `writing an error wait`; two overrides reach the CLI as two `--override` arguments; a valueless `--eval-override` exits 2; `bash -n` passes; service-scripts.test.ts passes_
+
+- [ ] 15. Harness docs
+  - File: docs/SDD-HARNESS.md
+  - Rewrite "The staged self-update" (`docs/SDD-HARNESS.md:459-473`) per design Component 12 and add an "Eval cases" subsection after it.
+  - Purpose: the next operator plans against what the self-update does (R7).
+  - _Leverage: design Component 12_
+  - _Requirements: 7.1, 7.2_
+  - _Prompt: Task: Per R7 AC1-AC2 and design Component 12, list the steps in their new order (refuse while a step is live; fetch and check the move; build; smoke boot; run the selected cases; move the live checkout; swap and restart), the refusal and its error wait, `--eval-override` with the override log and the deferral; then the case directory and `case.json` fields, `node dist/evals/cli.js <id>`, the result record path and the retro's `Eval case:` line. Run `grep -n "steps in order\|six steps" docs/SDD-HARNESS.md README.md` and update any count word it finds | Restrictions: ASD-STE100 style; edit only these sections | Success: the section lists the seven steps in order with the override and its records; the subsection names the run command and the record path; the grep finds no stale count_
+
+- [ ] 16. Pending verification record
+  - File: .spec-workflow/specs/harness-evals/verification-evidence.md
+  - Write the live-check record for the landing deploy.
+  - Purpose: the deploy that lands this spec runs the five cases on the real `claude`; that needs a rebuilt, restarted session, so it stays pending (R5 AC3).
+  - _Leverage: .spec-workflow/specs/agent-cache-ttl/verification-evidence.md (shape)_
+  - _Requirements: 5.3, 5.4_
+  - _Prompt: Task: Verification-only. Write `/tmp/scratchpad/sdd/harness-evals/verification-evidence.md` with the H1 `# Verification evidence — harness-evals`, one sentence saying the operator runs these on the deploy that lands this spec, and three lines: `- (1) pending — the landing deploy selects all five seed cases`; `- (2) pending — drafter-test-seam-label, test-author-precommit-hook, test-author-trailer and closeout-landing-root each pass 3/3`; `- (3) pending — closeout-reversing-proposal passes 3/3, or an override deferral with owner harness exists`. `cp` it into the spec dir on its own line. The file is written on the feature branch; the orchestrator relocates it to the main spec store at the merge gate | Restrictions: no source change; never mark a line `passed`; do not edit HANDOFF or any approval | Success: `grep -c '^- (.) pending' <spec dir>/verification-evidence.md` prints 3_
+
+## Decisions taken in this document
+
+- D1 — Every case's spec name starts with the eval prefix, and the case loader rejects one that does not: the runner empties the role's scratch directory before each run (design D11), and a case named like a real spec would wipe that spec's scratch files. Options were a loader check, a convention only, or a separate scratch root; a check is one line and catches the mistake at test time.
+- D2 — The runner and the gate take one optional cases-root option that defaults to the package's cases root: their tests need cases that do not exist in the package until tasks 11 and 12, and the gate test needs cases at a temp repository's target commit. Options were the option, a module-level override, or tests only after the seed cases land; the option is the smallest seam and matches the loader's optional root.
+- D3 — The seed cases split into two tasks, drafter and test author first, close-out second, each with a red-first assertion on the case ids: one task for five cases exceeds the task cap. Options were one task or two; two keep each block under the cap.
+- D4 — The CLI exports its entry as a function that returns the exit code: the design names no CLI test, and an in-process call is the only way to test the argument handling without a build. Options were the export or spawning the built file; the export needs no build.
+- D5 — The pending verification record is its own task with three lines: R5 AC3 is a live check outside the loop (agent rules, fixtures and live verification). Options were a task or leaving it to the end-to-end gate; a task makes the record exist before the retrospective.
+
+## Scope notes
+
+- Carried from design: none.
+- Cut: nothing from the requirements, the design or the decomposition entry.
+- The agent-rules harness checks (plugin asset sync and validation) do not apply: no `plugins/` tree and no sync script exist at base, so harness tasks run only their tests.
+- Added beyond the design: the loader's eval-prefix check (D1), the optional cases-root option on the runner and the gate (D2), and a CLI test file (D4).
+- Not in this document: the landing deploy's live run (operator, task 16 record), eval cases for the skills directory, parallel runs.
+
+## Revision History
+
+- **v1** (2026-10-22) — Initial draft.
