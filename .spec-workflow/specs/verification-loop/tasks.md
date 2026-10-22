@@ -67,7 +67,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.10, 2.10_
   - _Prompt: Task: Create src/controller/merge-fix.ts per design C3 and R1 AC 1-6 and AC 10, using the blocking types task 1 exports and the `merge` brief variant task 5 adds. The round runs on `sdd-implementer` at the profile model (R2 AC 10). Tests: eligibility for each kind mix at used 0, 1 and 2; history over two runs' rows and a `step usage-limit` ending; a round against a bare remote that pushes; one with no commit; one with a rewritten HEAD (not pushed); one reporting `INFRA:` (the stub-gh `run rerun` argv); the start note text; the brief names the log path and the conflict merge | Restrictions: never `--force`, never rebase; the ancestry check runs before any push; the only implementation.ts change is to export `IMPLEMENTER_SCHEMA` with its value unchanged; stubs only, node 20 fields | Success: eligibility is true only for check or conflict kinds under the cap; history skips the other run's rows and the usage-limit ending; the pushed, no-commit, rewritten and `INFRA:` rounds give the ending and kind design C3 step 7 names, and a rewritten HEAD is never pushed; the `INFRA:` round records one `gh run rerun` per run id; the start and end notes match Data Models; the brief names the log path and, for a conflict, the merge of the default branch; merge-fix.test.ts and implementation.test.ts pass_
 
-- [ ] 7. Merge fix round in the run loop
+- [x] 7. Merge fix round in the run loop
   - File: src/controller/runs.ts
   - File: src/controller/__tests__/runs.test.ts
   - Test: src/controller/__tests__/runs.test.ts — runOnce(deps, runId)
