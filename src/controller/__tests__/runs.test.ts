@@ -807,6 +807,24 @@ describe('runOnce merge stage', () => {
       expect((await listWaits()).some((w) => w.kind === 'error' && w.run === 'run-20261011-000000')).toBe(false);
     }, 30000);
 
+    it('an eligible PR over the token cap opens the cap wait with the merge cursor, so a retry re-enters the merge stage', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, []);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce({ ...deps(fx), tokenCap: () => 0 }, 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.cursor?.stepKind).toBe('merge');
+      const wait = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(wait?.questions[0].id).toBe('cap');
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start' && r.role === 'merge fix round 1')).toBe(false);
+    }, 30000);
+
     it('T2: after two rounds end, the error wait text names both endings', async () => {
       onFeatureBranch(fx);
       writeScript(fx, [mergeFixNoCommit, mergeFixNoCommit]);
