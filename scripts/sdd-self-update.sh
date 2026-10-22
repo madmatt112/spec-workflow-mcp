@@ -68,13 +68,31 @@ if [ -f "$HOME_DIR/active-run" ] && grep -q '[^[:space:]]' "$HOME_DIR/active-run
   if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] in-flight: the legacy active-run pointer has a line (would refuse)";
   else log "refusing: the legacy active-run pointer has a live run"; exit 1; fi
 fi
-if [ -f "$REPO/dist/controller/state.js" ]; then
-  if ! REPO_STATE="$REPO/dist/controller/state.js" SDD_HOME="$HOME_DIR" node -e '
+# True (0) when a controller step is alive. Used here and again just before
+# the swap and the restart: the build takes minutes, and a run between steps
+# at the first check can start its next step meanwhile.
+step_live() {
+  [ -f "$REPO/dist/controller/state.js" ] || return 1
+  ! REPO_STATE="$REPO/dist/controller/state.js" SDD_HOME="$HOME_DIR" node -e '
       import(process.env.REPO_STATE).then(async (m) => {
         const runs = await m.listRuns();
         const live = runs.filter((r) => r.inFlight && m.isProcessAlive(r.inFlight.pid, r.inFlight.startTime));
         process.exit(live.length ? 3 : 0);
-      }).catch(() => process.exit(0));'; then
+      }).catch(() => process.exit(0));'
+}
+
+# Wait up to 30 minutes for no live step; 1 on timeout.
+wait_no_step() {
+  local waited=0
+  while step_live; do
+    [ "$waited" -ge 1800 ] && return 1
+    [ "$waited" = 0 ] && log "a step started since the first check; waiting for it to end"
+    sleep 5; waited=$((waited + 5))
+  done
+}
+
+if [ -f "$REPO/dist/controller/state.js" ]; then
+  if step_live; then
     if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] in-flight: a controller step is alive (would refuse)";
     else log "refusing: a controller step is in flight"; exit 1; fi
   fi
@@ -207,6 +225,7 @@ if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 
+wait_no_step || { log "refusing: a controller step is still in flight after 30 minutes; nothing swapped"; exit 1; }
 log "refreshing production dependencies in the live checkout"
 ( cd "$REPO" && npm ci --no-audit --no-fund )
 log "swapping dist/ in"
@@ -214,6 +233,7 @@ rsync -a --delete "$STAGING/dist/" "$REPO/dist/"
 if [ "$NO_RESTART" = 1 ]; then
   log "skipping restart (--no-restart); the new dist/ is live on the next start"
 else
+  wait_no_step || { log "refusing to restart: a controller step is still in flight after 30 minutes; the new dist/ is live on the next start"; exit 1; }
   log "restarting the controller"
   systemctl --user restart sdd-controller.service
 fi
