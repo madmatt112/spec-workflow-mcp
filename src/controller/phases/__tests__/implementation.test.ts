@@ -197,6 +197,13 @@ function taskStatus(fx: Fixture, id: string): string | undefined {
   return parseTasksFromMarkdown(readFileSync(join(fx.specDir, 'tasks.md'), 'utf8')).tasks.find((t) => t.id === id)?.status;
 }
 
+/** The real argv the stub recorded on the step's init event (design C5: the route's `--model`/`--effort`). */
+function initArgv(fx: Fixture, stepId: string): string[] {
+  const first = readFileSync(join(fx.logs, `${stepId}.jsonl`), 'utf8').split('\n').find((l) => l.trim().length > 0);
+  if (!first) return [];
+  return ((JSON.parse(first) as { argv?: string[] }).argv) ?? [];
+}
+
 let fx: Fixture | undefined;
 beforeEach(() => {
   chmodSync(STUB, 0o755);
@@ -290,6 +297,48 @@ describe('runImplementationPhase', () => {
     expect(git(fx.repo, ['log', '--format=%B'])).not.toMatch(/Co-Authored-By|Generated with/);
   }, 60000);
 
+  it('routes an unflagged task to the Sonnet route and a sensitive-path task to the Opus profile, with matching spawn rows and one route note per task', async () => {
+    fx = await setup([
+      taskMd('1', 'Add the first module', ['src/a.js']),
+      taskMd('2', 'Touch the manifest', ['package.json']),
+    ]);
+    writeScript(fx, [
+      await implRun(fx, '1', 'src/a.js'),
+      await implRun(fx, '2', 'package.json'),
+      verifierRun('pass'), // package.json is sensitive, so the gate's risk is high
+      e2eRun('pass'),
+    ]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+
+    // The unflagged task's implementer runs the Sonnet route (the sdd-test-author
+    // profile's model/effort), never resumed.
+    const argv1 = initArgv(fx, 'implementer-task-1');
+    expect(argv1).toEqual(expect.arrayContaining(['--model', 'claude-sonnet-5', '--effort', 'high']));
+    expect(argv1).not.toContain('--resume');
+
+    // The sensitive-path task's implementer keeps the sdd-implementer (Opus) profile.
+    const argv2 = initArgv(fx, 'implementer-task-2');
+    expect(argv2).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
+
+    const r = rows(fx);
+    const implStarts = r.filter((e) => e.type === 'spawn.start' && e.agent === 'sdd-implementer');
+    expect(implStarts.map((e) => ({ model: e.model, effort: e.effort }))).toEqual([
+      { model: 'claude-sonnet-5', effort: 'high' },
+      { model: 'claude-opus-4-8', effort: 'xhigh' },
+    ]);
+    const implEnds = r.filter((e) => e.type === 'spawn.end' && e.agent === 'sdd-implementer');
+    expect(implEnds.map((e) => e.model)).toEqual(['claude-sonnet-5', 'claude-opus-4-8']);
+
+    const routeNotes = r.filter((e) => e.type === 'note' && /^task \d+ route /.test(e.text)).map((e) => e.text);
+    expect(routeNotes).toEqual([
+      'task 1 route claude-sonnet-5 high: no sensitive-path flag',
+      'task 2 route claude-opus-4-8 xhigh: sensitive-path: package.json',
+    ]);
+  }, 60000);
+
   it('runs a fix round after a gate fail, then passes', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     writeScript(fx, [
@@ -310,6 +359,9 @@ describe('runImplementationPhase', () => {
     expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('1 fix round(s)');
     // The fix brief carried the gate output.
     expect(readFileSync(join(fx.scratch, 'impl-brief-task-1-fix-1.md'), 'utf8')).toContain('## Gate output');
+    // Two implementer spawns for the same task write only one route note (R2 AC 9).
+    const routeNotes = r.filter((e) => e.type === 'note' && /^task 1 route /.test(e.text)).map((e) => e.text);
+    expect(routeNotes).toEqual(['task 1 route claude-sonnet-5 high: no sensitive-path flag']);
   }, 60000);
 
   it('verifies a wiring task: fix-required, a fix round, then pass', async () => {
@@ -333,6 +385,10 @@ describe('runImplementationPhase', () => {
     expect(readFileSync(join(fx.scratch, 'impl-brief-task-1-fix-1.md'), 'utf8')).toContain('case-insensitive');
     expect(readFileSync(join(fx.scratch, 'verify-brief-task-1.md'), 'utf8')).toContain('## Gate results');
     expect(readFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), 'utf8')).toMatch(/\| Verifier-skipped \| none/);
+    // Regression guard (R2 AC 11): the verifier keeps its own (Opus) profile even
+    // though this task's own route is Sonnet.
+    const verifyArgv = initArgv(fx, 'verifier-task-1-task-r0');
+    expect(verifyArgv).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
   }, 60000);
 
   it('adjudicates after three fix rounds and closes the task as adjudicated', async () => {
@@ -465,6 +521,10 @@ describe('runImplementationPhase', () => {
     const roles = rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role);
     expect(roles).toEqual(['implement task 1', 'end-to-end verification', 'repair round 1', 'end-to-end verification']);
     expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('end-to-end verification failed (round 0)');
+    // Regression guard (R2 AC 10): a repair round belongs to no task and keeps the
+    // sdd-implementer (Opus) profile even though task 1's own route is Sonnet.
+    const repairArgv = initArgv(fx, 'implementer-repair-1');
+    expect(repairArgv).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
   }, 60000);
 
   it('stays verify-failed after two repairs', async () => {
@@ -565,6 +625,25 @@ describe('runImplementationPhase', () => {
       .toContain('## Operator rulings\n- use --no-verify for the red commit');
   }, 60000);
 
+  it('keeps the test author on its own profile even on a sensitive-path task (regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['package.json', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
+    const authorRun: StubRun = {
+      commands: [`mkdir -p test && echo "red" > test/a.test.js && git add test/a.test.js && git commit -qm "test(${fx.spec}): task 1 red"`],
+      result: result({ commit: 'see git', files: ['test/a.test.js'], tests: 1, folds: 'none', flag: 'none', redImpossible: 'none', retro: 'none' }, 'commit: x\nfiles: test/a.test.js'),
+    };
+    writeScript(fx, [authorRun, await implRun(fx, '1', 'package.json'), verifierRun('pass'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    // R2 AC 11: the test author keeps its own (Sonnet) profile though the task's
+    // own implementer route is Opus (package.json is sensitive).
+    const authorArgv = initArgv(fx, 'author-task-1');
+    expect(authorArgv).toEqual(expect.arrayContaining(['--model', 'claude-sonnet-5', '--effort', 'high']));
+    const implArgv = initArgv(fx, 'implementer-task-1');
+    expect(implArgv).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
+  }, 60000);
+
   it('opens the PR, reconciles a red check, and completes green', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     // A bare origin and a feature branch, so the push has somewhere to go.
@@ -622,5 +701,10 @@ describe('runImplementationPhase', () => {
     expect(git(origin, ['log', '--format=%s', 'feat/x'])).toContain('fix: the test');
     expect(readFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), 'utf8')).toMatch(/\| PR \| https:\/\/github.com\/x\/y\/pull\/7/);
     expect(rows(fx).find((e) => e.type === 'phase.end')).toMatchObject({ result: 'complete', note: 'PR #7' });
+    // Regression guard (R2 AC 10): a PR-checks reconcile round belongs to no task
+    // and keeps the sdd-implementer (Opus) profile even though task 1's own route
+    // is Sonnet.
+    const reconcileArgv = initArgv(fx, 'implementer-ci-r1');
+    expect(reconcileArgv).toEqual(expect.arrayContaining(['--model', 'claude-opus-4-8', '--effort', 'xhigh']));
   }, 60000);
 });
