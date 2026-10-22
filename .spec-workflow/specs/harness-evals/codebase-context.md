@@ -60,3 +60,49 @@
 - docs/foundation-review.md:300 — `### Progress log` heading.
 - docs/ai-resources-catalogue.md:165-185 — grill decisions 18-25 for harness evals.
 - GLOSSARY.md:46-55 — Check and Eval case terms.
+
+## Step env and callers (design phase)
+- src/controller/step.ts:381-387 — step env: `process.env` spread, API keys scrubbed, `SDD_RUN_ID`/`SDD_STEP_ID`/workspace/shared-root set only when given.
+- src/controller/phases/implementation.ts:435-474 — `runModelStep`: the `StepSpec` the implementation phase builds (cwd, turn cap, mcpConfig, roots).
+- src/controller/phases/implementation.ts:501-502 — `brief` helper: renders through `harnessHandler({ action: 'brief', … })`.
+- src/controller/phases/implementation.ts:638-652 — test-author brief values (`title`, `job`) and the author step with `AUTHOR_SCHEMA`.
+- src/controller/phases/closeout.ts:82-104 — `BATCH_SCHEMA` (module-private), `items[].status|commit|reason`.
+- src/controller/phases/closeout.ts:196-206 — `COMMIT_SCRIPT`, the close-out commit script text (module-private).
+- src/controller/phases/closeout.ts:301-328 — close-out `runModelStep` (cwd per step) and `brief` helper.
+- src/controller/phases/closeout.ts:346-353 — standing brief rendered with `commitScript`.
+- src/controller/phases/closeout.ts:403-414 — `closeout-batch` values and the implementer step, cwd = landing root.
+- src/controller/phases/document.ts:44 — `STEP_TURN_CAP = 80`.
+- src/controller/phases/document.ts:900-917 — in-process `renderBrief`/`writeBrief` for document-phase briefs.
+- src/controller/controller.ts:436-453 — default `mcpConfigFor`: the `spec-workflow` entry from the project's `.mcp.json`.
+- src/controller/state.ts:238-243 — `controllerHome()`.
+
+## Brief action (src/tools/harness.ts)
+- src/tools/harness.ts:585 — `SERVER_BRIEF_KEYS`: `agentRules`, `taskBlock`, `spec`.
+- src/tools/harness.ts:617-842 — `briefAction`: template lookup, `path` required, agent-rules line, task block, test-line check, missing-key report, write, returns `data.path`.
+- src/tools/harness.ts:707-712 — a `test-author` brief needs a task with a `- Test:` line.
+- src/tools/harness.ts:805-807 — an absolute output path is honoured as given.
+- src/tools/brief-templates.ts:1472-1499 — `renderCloseoutStanding`; lines 1487-1489 the cannot-do-as-written rule.
+- src/tools/brief-templates.ts:1381-1391 — the proposal format block, `Target:` and `Prerequisites:` lines.
+
+## Graders' sources
+- src/core/task-validator.ts:42 — `validateTasksMarkdown` (exported).
+- src/core/task-validator.ts:146-162 — near-miss label error, message "is not canonical", field `test` or `file`.
+- src/controller/merge.ts:258-260 — `hasAttribution` (module-private).
+
+## CLI and config
+- src/index.ts:156-169 — `CLI_FLAGS` registry of the server CLI.
+- src/index.ts:239-241 — unknown `--` flags are rejected.
+- src/core/git-utils.ts:214-221 — `SPEC_WORKFLOW_SHARED_ROOT` overrides the shared root.
+- src/core/git-utils.ts:341-345 — `SPEC_WORKFLOW_WORKSPACE` read for the workspace.
+- vitest.config.ts:8 — tests are `src/**/*.{test,spec}.{js,ts}`.
+- tsconfig.json:7-8 — `outDir ./dist`, `rootDir ./src`.
+
+## Self-update tests
+- src/__tests__/service-scripts.test.ts:244-265 — `--dry-run` in a temp clone: exit 0, no dist, no staging worktree.
+- src/__tests__/service-scripts.test.ts:267-317 — store-only rebase and autostash tests; expect `rebasing` and `building in staging`.
+- src/__tests__/service-scripts.test.ts:319-364 — refusal tests; expect no `building in staging`.
+- scripts/sdd-self-update.sh:19-32 — `set -euo pipefail`, flag loop.
+- scripts/sdd-self-update.sh:116-174 — step (b): fetch, divergence check, rebase or fast-forward.
+
+## Deferral type
+- src/types.ts:310-333 — `DeferralOwner`, `Deferral` fields and `body` shape.

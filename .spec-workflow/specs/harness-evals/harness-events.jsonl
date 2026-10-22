@@ -32,3 +32,7 @@
 {"ts":"2026-10-22T16:39:49.475Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-checker","input":"10","output":"1145","cacheWrite":"60063","cacheRead":"214748","tokens":"275966","cacheWrite5m":"0","cacheWrite1h":"60063","model":"claude-sonnet-5"}
 {"ts":"2026-10-22T16:39:49.475Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-checker","role":"narrow check v4","result":"success","phase":"requirements"}
 {"ts":"2026-10-22T16:39:49.859Z","run":"run-20261022-152135","spec":"harness-evals","type":"phase.end","phase":"requirements","result":"approved","state":"v4","note":"4 rounds"}
+{"ts":"2026-10-22T16:39:50.072Z","run":"run-20261022-152135","spec":"harness-evals","type":"phase.start","phase":"design","mode":"normal","state":"v0"}
+{"ts":"2026-10-22T16:39:50.073Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-10-22T16:49:48.375Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-drafter","input":"114","output":"64132","cacheWrite":"197909","cacheRead":"7298119","tokens":"7560274","cacheWrite5m":"0","cacheWrite1h":"197909","model":"claude-opus-5-5"}
+{"ts":"2026-10-22T16:49:48.375Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"design","round":"1"}
