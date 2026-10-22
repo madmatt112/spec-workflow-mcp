@@ -127,3 +127,33 @@ Code root: `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/verification-loop
 - e2e/worktree-shell.spec.ts:163-173 — seeded run record with `prReads`
 - e2e/worktree-shell.spec.ts:317-330 — PR panel assertions
 - src/dashboard_frontend/src/modules/shell/RunPage.tsx:332-337 — `CI_CHIP_STYLES`
+
+## Tasks phase seams
+- src/controller/merge.ts:588-591 — the `blocked` / `not-ready` return of `mergeByRule`
+- src/controller/merge.ts:581-583 — `makeRead`: the `PrRead` each pass saves
+- src/controller/ledger.ts:53-56 — `RunLedger.path`, the file the merge pass reads its own notes from
+- src/controller/phases/implementation.ts:72-109 — `ImplementationPhaseContext`
+- src/controller/phases/implementation.ts:111-124 — `ImplementationPhaseOutcome` (result union)
+- src/controller/phases/implementation.ts:147-161 — `IMPLEMENTER_SCHEMA` (not exported at base)
+- src/controller/phases/implementation.ts:235-238 — `isTddMarked`: a `kind: e2e` marker in a block routes the task implementer-only
+- src/controller/phases/implementation.ts:326-335 — `ledgerRows`: this run's rows
+- src/controller/phases/implementation.ts:350-360 — `retro`: idempotent retro-log entry
+- src/controller/phases/implementation.ts:534-539 — the `task <id> pick head` note
+- src/controller/phases/implementation.ts:569-572 — the test author step (keeps its profile)
+- src/controller/phases/implementation.ts:629-634 — implement attempts
+- src/controller/phases/implementation.ts:658-661 — checks-file re-spawn
+- src/controller/phases/implementation.ts:774-778 — task fix round step
+- src/controller/phases/implementation.ts:884-911 — e2e loop with repair rounds
+- src/controller/phases/implementation.ts:922-932 — HANDOFF section write
+- src/controller/phases/implementation.ts:1143-1148 — `INFRA:` re-run of failed workflow runs
+- src/controller/runs.ts:1050-1055 — the generic `error` wait for an unmapped implementation result
+- src/controller/runs.ts:859-867 — `runImplementationPhase` call in `runOnce`
+- src/core/task-validator.ts:142-163 — rejects a non-canonical `Test`/`File` label
+- src/core/lint-tasks.ts:320-348 — `checkTestSeams`: info finding for a source task with no `Test:` line
+- src/controller/phases/__tests__/implementation.test.ts:102-106 — fixture `## Sensitive paths` lists `package.json`
+- src/controller/phases/__tests__/implementation.test.ts:172-174 — `e2eRun` stub run
+- src/controller/phases/__tests__/implementation.test.ts:263 — exact count of `gate:` notes
+- src/controller/__tests__/merge.test.ts:59-67 — `READY_VIEW` (no `baseRefName`)
+- src/controller/__tests__/merge.test.ts:471, :486, :497 — exact `gh` argv counts (3, 3, 1)
+- src/controller/__tests__/runs.test.ts:600-619 — a merge-stage `runOnce` test with stub gh
+- harness/agent-profiles.json:50-55 — `sdd-test-author`: `claude-sonnet-5`, `high`
