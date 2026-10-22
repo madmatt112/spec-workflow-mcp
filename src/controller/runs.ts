@@ -920,6 +920,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         now: deps.now,
         shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
         operatorRulings: await escalationRulings(runId),
+        securityAnswers: await securityAnswers(runId),
       });
       run = (await readRun(runId)) ?? run;
       const handled = await handleImplementationOutcome(deps, run, ledger, specDir, outcome);
@@ -1049,7 +1050,11 @@ async function handleCloseoutOutcome(
   return 'stop';
 }
 
-/** The operator's answers to this run's answered `escalation` waits, oldest first. */
+/**
+ * The operator's answers to this run's answered `escalation` waits, oldest first.
+ * Skips `security` waits: their `accept`/`retry` answer reaches the phase through
+ * `securityAnswers`, never a brief as a ruling (design C7).
+ */
 async function escalationRulings(runId: string): Promise<string[]> {
   let waits: ControllerWaitRecord[];
   try {
@@ -1058,9 +1063,41 @@ async function escalationRulings(runId: string): Promise<string[]> {
     return [];
   }
   return waits
-    .filter((w) => w.kind === 'escalation' && w.run === runId && w.state === 'answered')
+    .filter((w) => w.kind === 'escalation' && w.run === runId && w.state === 'answered'
+      && !w.questions.some((q) => q.id === 'security'))
     .sort((a, b) => a.created.localeCompare(b.created))
     .flatMap((w) => Object.values(w.answer ?? {}).map((a) => a.value));
+}
+
+/**
+ * The operator's answers to this run's answered `security` escalation waits,
+ * oldest first (design C7). The completion gate's security loop consumes each
+ * unanswered entry in turn (`accept` records the findings, `retry` re-runs the pass).
+ */
+async function securityAnswers(runId: string): Promise<{ waitId: string; value: string }[]> {
+  let waits: ControllerWaitRecord[];
+  try {
+    waits = (await listWaits()) as ControllerWaitRecord[];
+  } catch {
+    return [];
+  }
+  return waits
+    .filter((w) => w.kind === 'escalation' && w.run === runId && w.state === 'answered'
+      && w.questions.some((q) => q.id === 'security'))
+    .sort((a, b) => a.created.localeCompare(b.created))
+    .map((w) => ({ waitId: w.id, value: w.answer?.security?.value ?? '' }));
+}
+
+/** True when an open `security` escalation wait is already parked on this run (design C7). */
+async function hasOpenSecurityWait(runId: string): Promise<boolean> {
+  let waits: ControllerWaitRecord[];
+  try {
+    waits = (await listWaits()) as ControllerWaitRecord[];
+  } catch {
+    return false;
+  }
+  return waits.some((w) => w.kind === 'escalation' && w.run === runId && w.state === 'open'
+    && w.questions.some((q) => q.id === 'security'));
 }
 
 /**
@@ -1089,6 +1126,26 @@ async function handleImplementationOutcome(
       text: `${outcome.result === 'design-defect' ? 'Design defect' : 'Escalation'} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): `
         + `${outcome.reason ?? 'no reason given'}. Rule on it; your answer goes into the next implementer brief.`,
       free: true,
+    }]);
+    return 'stop';
+  }
+  if (outcome.result === 'security-open') {
+    // The operator rules on findings that survived the security loop (R3 AC 8):
+    // one `escalation` wait, question id `security`, options accept/retry/abandon,
+    // no recommendation; `text` lists each open finding (design C7). A second pass
+    // while the wait is open parks the run without a second wait; `abandon` takes
+    // the existing cancel path (controller.ts `onWaitChange`).
+    if (await hasOpenSecurityWait(run.id)) {
+      await save(deps, run, { status: 'waiting', inFlight: undefined });
+      return 'stop';
+    }
+    const findings = outcome.findings ?? [];
+    await waitAnd(deps, run, ledger, 'escalation', specDir, [{
+      id: 'security',
+      text: `Security findings survived the loop (tasks ${outcome.tasks.done}/${outcome.tasks.total}):\n`
+        + findings.map((f) => `${f.title} (${f.file}): ${f.command}`).join('\n')
+        + '\nAccept to record them, retry the pass, or abandon the run.',
+      options: ['accept', 'retry', 'abandon'],
     }]);
     return 'stop';
   }
