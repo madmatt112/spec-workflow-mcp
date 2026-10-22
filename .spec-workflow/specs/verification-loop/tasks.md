@@ -87,7 +87,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 2.7_
   - _Prompt: Task: Create src/controller/implementer-route.ts with `ImplementerRoute` and `routeForTask` as design C5 pins, per R2 AC 1, 2, 3, 5 and 7. Tests: a `sensitive-path` item for the task gives the `sdd-implementer` profile and the item's reason; keyword-only items give the `sdd-test-author` profile and `no sensitive-path flag`; no items give the same; `null` gives the `sdd-implementer` profile and `class-a unavailable` (design D7); a `sensitive-path` item whose `taskId` is another task is ignored, so a query with only such an item returns the `sdd-test-author` profile and `no sensitive-path flag` (R2 AC 1) | Restrictions: read both profiles through `loadRole`, never literal model strings; add no key to harness/agent-profiles.json, so src/__tests__/agent-profiles.test.ts stays green with no edit | Success: each of the five cases returns the model, effort and reason listed, including the other-task `sensitive-path` item returning the `sdd-test-author` profile and `no sensitive-path flag`; implementer-route.test.ts and agent-profiles.test.ts pass_
 
-- [ ] 9. Implementer route in the implementation phase
+- [x] 9. Implementer route in the implementation phase
   - File: src/controller/phases/implementation.ts
   - File: src/controller/phases/__tests__/implementation.test.ts
   - Test: src/controller/phases/__tests__/implementation.test.ts — runImplementationPhase(ctx)
