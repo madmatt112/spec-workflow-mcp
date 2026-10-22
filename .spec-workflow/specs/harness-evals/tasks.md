@@ -132,7 +132,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - Purpose: the first cases guard the drafter and test-author failures (R5 AC1); `npm test` validates every case (R1 AC5).
   - _Leverage: design Component 13 (case-author contract, fixtures, turn caps), src/tools/harness.ts:707-712 (test-author `- Test:` check)_
   - _Requirements: 1.5, 5.1, 5.4_
-  - _Prompt: Task: Per R5 AC1, R1 AC5 and design Component 13, write each case's `case.json`, fixture trees and pre-commit hook, with the evidence its R5 AC1 entry cites and `spec` values starting `eval-` (D1). cases.test.ts runs for every listed id: `loadCase` succeeds, `harness/agents/<role>.md` exists, the fixture builds, every brief renders with no missing key, every grader is in the registry; it also asserts the three ids are listed. Regression guard, not red-first: R5 AC4's base pass of the two test-author cases is a live check, recorded by task 16, not a unit test | Restrictions: no model; the drafter `docPath` equals the grader's `doc` arg; the hook runs `node --test` with no tests-only carve-out; no agent-rules plugin sync applies (no `plugins/` tree at base) | Success: the three cases load, build and render; cases.test.ts asserts their ids and passes_
+  - _Prompt: Task: Per R5 AC1, R1 AC5 and design Component 13, write each case's `case.json`, fixture trees and pre-commit hook, with the evidence its R5 AC1 entry cites and `spec` values starting `eval-` (D1). cases.test.ts runs for every listed id: `loadCase` succeeds, `harness/agents/<role>.md` exists, the fixture builds, every brief renders with no missing key, every grader is in the registry; it also asserts the three ids are listed. Regression guard, not red-first: R5 AC4's base pass of the two test-author cases is a live check, recorded by the pending verification record, not a unit test | Restrictions: no model; the drafter `docPath` equals the grader's `doc` arg; the hook runs `node --test` with no tests-only carve-out; no agent-rules plugin sync applies (no `plugins/` tree at base) | Success: the three cases load, build and render; cases.test.ts asserts their ids and passes_
 
 - [ ] 12. Seed cases: close-out
   - File: harness/evals/closeout-landing-root/case.json
@@ -143,13 +143,13 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - Purpose: guard the landing-root and reversing-proposal failures (R5 AC1).
   - _Leverage: src/tools/brief-templates.ts:1584-1590 (`closeout-standing` and `closeout-batch` required keys), design Component 13 rows 4-5_
   - _Requirements: 5.1, 5.3, 5.4_
-  - _Prompt: Task: Per R5 AC1 and design Component 13, write both cases with fixture trees: landing-root has worktree `landing` and an item naming `{{fixture}}/docs/notes.md`, batch `root` `{{fixture}}/.claude/worktrees/landing`, cwd that worktree; reversing-proposal's fixture design records a decision its item reverses without naming it. Both render `closeout-standing` then `closeout-batch` with `standing` wired and `commitScript` `{{scratch}}/closeout-commit.sh`. Widen cases.test.ts to assert exactly the five seed ids and to assert each close-out batch brief names its rendered standing path. Regression guard, not red-first: R5 AC4's base results are a live check recorded by task 16 | Restrictions: keep task 11's cases and assertions; turn cap 150 | Success: `listCaseIds()` returns exactly the five seed ids; both close-out cases load, build and render with the standing path wired; cases.test.ts passes_
+  - _Prompt: Task: Per R5 AC1 and design Component 13, write both cases with fixture trees: landing-root has worktree `landing` and an item naming `{{fixture}}/docs/notes.md`, batch `root` `{{fixture}}/.claude/worktrees/landing`, cwd that worktree; reversing-proposal's fixture design records a decision its item reverses without naming it. Both render `closeout-standing` then `closeout-batch` with `standing` wired and `commitScript` `{{scratch}}/closeout-commit.sh`. Widen cases.test.ts to assert exactly the five seed ids and to assert each close-out batch brief names its rendered standing path. Regression guard, not red-first: R5 AC4's base results are a live check recorded by the pending verification record | Restrictions: keep task 11's cases and assertions; turn cap 150 | Success: `listCaseIds()` returns exactly the five seed ids; both close-out cases load, build and render with the standing path wired; cases.test.ts passes_
 
 - [ ] 13. Brief and role text
   - File: src/tools/brief-templates.ts
   - File: harness/agents/sdd-retro-analyst.md
   - File: src/tools/__tests__/harness.test.ts
-  - Test: src/tools/__tests__/harness.test.ts — harnessHandler({ action: 'brief', template, values })
+  - Test: src/tools/__tests__/harness.test.ts — `harnessHandler({ action: 'brief', template, values })`
   - Apply design Component 11: the drafter sentence (`src/tools/brief-templates.ts:129-133`), the `Eval case:` line in the proposal format (`src/tools/brief-templates.ts:1381-1391`) and the role file (`harness/agents/sdd-retro-analyst.md:18-24`), and two rules in `renderCloseoutStanding` (`src/tools/brief-templates.ts:1472-1499`).
   - Purpose: the drafter brief matches its role, and a retro defect arrives with a case (R5 AC2, R6).
   - _Leverage: src/tools/__tests__/harness.test.ts:368 (`drafterValues`)_
@@ -201,3 +201,4 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
 ## Revision History
 
 - **v1** (2026-10-22) — Initial draft.
+  - **Lint pass.** 3 fixed; rejected: none.
