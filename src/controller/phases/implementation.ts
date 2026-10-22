@@ -44,6 +44,7 @@ import { PathUtils } from '../../core/path-utils.js';
 import { handoffPath } from '../../watch/index.js';
 import { scrubbedGitEnv, defaultBranchIfOnIt } from '../../core/git-utils.js';
 import { findPullRequest, readCiState, type CiState } from '../merge.js';
+import { e2ePassStands } from './security-pass.js';
 import type { ToolContext } from '../../types.js';
 
 /** Fix rounds per task before the adjudicator rules (SKILL.md step 5). */
@@ -915,33 +916,39 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     const decomposition = (orient.data as { decomposition?: { title: string | null; scenario: string | null } } | undefined)?.decomposition;
     const scenario = decomposition?.scenario ?? `read the decomposition entry for ${specName} yourself`;
 
-    // 8. End-to-end verification, with the repair rounds on a fail.
-    for (let repair = 0; ; repair++) {
-      const halt = ctx.shouldStop?.();
-      if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
-      const e2e = await verifyEndToEnd(scenario, repair);
-      if ('error' in e2e) return e2e.error;
-      if (e2e.verify === 'pass') {
-        if (e2e.deferredCommand) {
-          const storage = new DeferralStorage(ctx.specStoreRoot);
-          const did = await storage.create({
-            title: `Deferred verification: ${specName}`, originSpec: specName, originPhase: 'implementation',
-            revisitTrigger: 'the checkout is rebuilt and the session restarted', tags: ['verification'], supersedes: null,
-            body: {
-              context: e2e.findings || 'the scenario needed a tool or skill the running session lacked',
-              decision: 'verified the in-process half; the live half runs after the rebuild',
-              revisitCriteria: e2e.deferredCommand,
-            },
-          });
-          ctx.ledger.note(`deferred verification ${did}: ${e2e.deferredCommand}`);
-          gotchas.push(`verification deferred (${did}): ${e2e.deferredCommand}`);
+    // 8. End-to-end verification, with the repair rounds on a fail. A re-entry whose
+    // newest marker is the e2e pass (design C6 flow step 1, D8, R3 AC 13) skips the
+    // loop: the pass stands until the next HANDOFF write.
+    if (!e2ePassStands(ledgerRows())) {
+      for (let repair = 0; ; repair++) {
+        const halt = ctx.shouldStop?.();
+        if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
+        const e2e = await verifyEndToEnd(scenario, repair);
+        if ('error' in e2e) return e2e.error;
+        if (e2e.verify === 'pass') {
+          if (e2e.deferredCommand) {
+            const storage = new DeferralStorage(ctx.specStoreRoot);
+            const did = await storage.create({
+              title: `Deferred verification: ${specName}`, originSpec: specName, originPhase: 'implementation',
+              revisitTrigger: 'the checkout is rebuilt and the session restarted', tags: ['verification'], supersedes: null,
+              body: {
+                context: e2e.findings || 'the scenario needed a tool or skill the running session lacked',
+                decision: 'verified the in-process half; the live half runs after the rebuild',
+                revisitCriteria: e2e.deferredCommand,
+              },
+            });
+            ctx.ledger.note(`deferred verification ${did}: ${e2e.deferredCommand}`);
+            gotchas.push(`verification deferred (${did}): ${e2e.deferredCommand}`);
+          }
+          // The pass marker (design C6 flow step 5, D8): a re-entry reads it and skips the loop above.
+          ctx.ledger.note('e2e verification passed');
+          break;
         }
-        break;
+        retro(phase, 'phase', 'bug', `end-to-end verification failed (round ${repair}): ${e2e.findings.slice(0, 300)}`, 'completion gate', `${repair} repair(s)`);
+        if (repair >= REPAIR_CAP) return stop('verify-failed', `end-to-end verification failed after ${REPAIR_CAP} repairs: ${e2e.findings.slice(0, 300)}`);
+        const fixed = await repairRound(repair + 1, e2e.findings);
+        if (fixed) return fixed;
       }
-      retro(phase, 'phase', 'bug', `end-to-end verification failed (round ${repair}): ${e2e.findings.slice(0, 300)}`, 'completion gate', `${repair} repair(s)`);
-      if (repair >= REPAIR_CAP) return stop('verify-failed', `end-to-end verification failed after ${REPAIR_CAP} repairs: ${e2e.findings.slice(0, 300)}`);
-      const fixed = await repairRound(repair + 1, e2e.findings);
-      if (fixed) return fixed;
     }
 
     // 9. Close the spec: INDEX, deferral counts, HANDOFF, the retro summary, the commit.
@@ -964,6 +971,9 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       ['Next', mine.slice(0, 3).map((d) => `${d.id} ${d.title}`).join('; ') || 'none'],
       ['Gotchas', gotchas.join('; ') || 'none'],
     ]);
+    // The HANDOFF marker (design C6 flow step 5, D8): it makes the e2e pass above stale,
+    // so the next re-entry runs the e2e loop again.
+    ctx.ledger.note('completion handoff written');
     retro(phase, 'phase', 'cleanup',
       `implementation complete: ${p.total} tasks, ${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^fix task/.test(r.role ?? '')).length} fix rounds, `
       + `${ledgerRows().filter((r) => r.type === 'spawn.usage' && /^adjudicate/.test(r.role ?? '')).length} adjudications, `
