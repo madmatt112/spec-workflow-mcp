@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-evals/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-22T20:28:26.866Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792700906821_l35fp9u0g",
+      "approvalTitle": "harness-evals design v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-22T20:28:26.963Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792700906821_l35fp9u0g",
+      "approvalTitle": "harness-evals design v1"
+    }
+  ]
+}

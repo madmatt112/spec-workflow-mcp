@@ -103,7 +103,7 @@ Every signature below is illustrative — verify against the test fake. The post
   2. `role`: `harness/agents/<role>.md` changed.
   3. `profile`: the role's `harness/agent-profiles.json` entry differs after `JSON.parse` at both commits (missing counts as `undefined`).
   4. `grader <name>`: `src/evals/graders/<name>.ts` changed, or a file it imports by relative path changed; imports read by regex from the source at `target`, `.js` mapped to `.ts`, one hop (D4).
-  5. `brief <template>` (exact): build one fixture, render the case's briefs into one scratch directory with `baseDist`'s `tools/harness.js` `harnessHandler` (dynamic `import()` of its file URL), then again with this build's, and compare `texts`. Identical paths keep the wired pointer equal. An unset `baseDist`, a failed import or a base render throw selects the case with `brief: base render unavailable`.
+  5. `brief <template>` (exact): materialise target's `harness/evals/<id>/` to a temp directory (`git archive target harness/evals/<id>` run at `repo`, piped to `tar -x`; git 2.43.0 extracts the subpath) and build one fixture with `caseDir` at it; render the case's briefs into one scratch directory with `baseDist`'s `tools/harness.js` `harnessHandler` (dynamic `import()` of its file URL), then again with this build's, compare `texts`, and remove the temp directory. Identical paths keep the wired pointer equal. An unset `baseDist`, a failed import or a base render throw selects the case with `brief: base render unavailable`.
   6. `brief source` (provisional): `src/tools/brief-templates.ts` or `src/tools/harness.ts` changed; the selection is marked provisional. Per file, not per render function (D5; RE-DECIDED).
 
 ### Component 8 — deploy gate (`src/evals/gate.ts`)
@@ -114,7 +114,7 @@ Every signature below is illustrative — verify against the test fake. The post
   2. No selection gives exit 0, no spawn, no record (R3 AC5).
   3. After the runs (Component 6, `liveCheckout: repo`), an override naming a passed case gives exit 2 (R4 AC2).
   4. A `fail` or `inconclusive` case no override names gives exit 1, no override line, no deferral (R4 AC4). `summaryFile` gets `<target 12>: <id> <first reason>; …; record <path>`.
-  5. Otherwise exit 0. Per overridden case, create a deferral through `new DeferralStorage(repo).create(…)` (`src/core/deferral-storage.ts:229-270`): `owner: 'harness'`, title `Eval case <id> overridden at <target 12>`, tags `['eval-override']`, null origin fields, and in `body.context` the Progress log line `- <date> — deploy <target 12> overrode eval case <id> (<verdict>, <first reason>); deferral <id>.`. Then append one line to `<home>/evals/overrides.log` (R4 AC3, AC5). A deferral write failure gives exit 1 before any log line.
+  5. Otherwise exit 0. Per overridden case, `create` a deferral (`src/core/deferral-storage.ts:229-270`, which mints and returns the id) with `owner: 'harness'`, title `Eval case <id> overridden at <target 12>`, tags `['eval-override']`, null origin fields, `revisitTrigger` `eval case <id> passes`, and `body` `{ context: '', decision: 'override at deploy', revisitCriteria: 'case <id> passes 3/3' }`; then `update(id, { context })` (`src/core/deferral-storage.ts:321-342`) to set `body.context` to the Progress log line `- <date> — deploy <target 12> overrode eval case <id> (<verdict>, <first reason>); deferral <id>.`, now the id is known. Append one line to `<home>/evals/overrides.log` (R4 AC3, AC5). A create or update failure gives exit 1 before any log line.
 
 ### Component 9 — CLI (`src/evals/cli.ts`, run as `node dist/evals/cli.js`)
 - **Purpose:** The built-package command (R2 AC9). It is its own entry because `src/index.ts` rejects unknown flags (`src/index.ts:239-241`).
@@ -156,6 +156,7 @@ Every signature below is illustrative — verify against the test fake. The post
 | `closeout-reversing-proposal` | `sdd-implementer`, closeout, root | `closeout-standing`, `closeout-batch` | `no-commit-touches`, `item-status` `to-do` |
 
 - Evidence per case is the R5 AC1 citation.
+- Case-author contract: a case wires every non-server template key in `values` — the drafter needs `phase, docPath, specDir, specStoreRoot, codeRoot, carried` (`src/tools/brief-templates.ts:1618`); the server fills only `agentRules, taskBlock, spec` (`src/tools/harness.ts:585`). `{{fixture}}`/`{{scratch}}` are the only substitutions; a grader's path arg equals the value it reads (drafter `docPath` is the `tasks-labels-canonical` `doc`), and `closeout-standing`'s `commitScript` is `{{scratch}}/closeout-commit.sh`.
 - Drafter fixture store: `requirements.md`, `design.md` (component 2's tests cover component 1's behaviour), `templates/tasks-template.md`.
 - Test-author fixtures: `agent-rules.md` with `tdd-test-command: node --test {files}`, and a `tasks.md` whose task 1 has a `- Test:` line, so the brief action's check passes (`src/tools/harness.ts:707-712`). The hook fixture's pre-commit hook runs `node --test` with no carve-out.
 - `closeout-landing-root`: the item names `{{fixture}}/docs/notes.md`, a main-checkout absolute path; the batch `root` is `{{fixture}}/.claude/worktrees/landing`.
@@ -184,6 +185,9 @@ Every signature below is illustrative — verify against the test fake. The post
 ```
 `cwd`, `taskId`, `wire`, `preCommitHook` and `worktrees` are optional.
 
+### Fixture
+`{ root: string; parent: string; bases: Record<string, string> }` — `parent` is the `mkdtemp` directory `disposeFixture` removes; `root` is `parent/repo`; `bases` maps the root and each worktree dir to its post-setup HEAD.
+
 ### EvalResultRecord
 ```
 { v: 1, commit: string, startedAt: string, endedAt: string,
@@ -198,38 +202,38 @@ Tab-separated: ISO date, target commit (12 characters), case id, case verdict.
 
 ## Error Handling
 
-1. **Invalid case:** `CaseError` lists every problem; `npm test` fails (R1 AC5); at deploy the case is `inconclusive`, so the deploy refuses.
-2. **Fixture build or render fails:** the run is `inconclusive`; no step spawns.
+1. **Invalid case:** `CaseError` lists every problem; `npm test` fails (R1 AC5); at deploy the case is `inconclusive` and the deploy refuses.
+2. **Fixture or render fails:** `inconclusive`; no step spawns.
 3. **Grader throws:** `inconclusive` with `grader <name> threw: <message>`, distinct from `fail`.
 4. **Classification not `ok`:** `inconclusive`; a `usage-limit` run is not retried.
 5. **Live checkout edited:** `fail` with `edited the live checkout`.
-6. **Gate crashes or the staged CLI is missing:** any non-zero exit refuses: error wait at step `evals`, exit 1, nothing moved or swapped.
+6. **Gate crashes or the staged CLI is missing:** non-zero exit refuses — error wait at step `evals`, exit 1, nothing moved; with no readable summary file the shell appends the literal `eval gate failed before it could report`.
 7. **Bad override:** gate exit 2; error wait with the reason; exit 1.
 8. **Base build cannot render:** the case is selected with `brief: base render unavailable`.
-9. **Deferral write fails:** exit 1; no override log line.
+9. **Deferral create or update fails:** exit 1 before any override log line; `summaryFile` reads `<target 12>: deferral write failed, <id>`.
 
 ## Testing Strategy
 
-- **Unit (`src/evals/__tests__/`):** `case.test.ts` (a good case loads; a bad one lists every problem); `fixture.test.ts` (ordered commits, executable hook, worktree on its branch, clean root status, no shared directory); `render.test.ts` (placeholder substitution, `standing` wired to the rendered standing path, missing-key failure carries the action's message); `graders.test.ts` (each seed grader passes and fails on a hand-built fixture; `- Test (integration):` fails `tasks-labels-canonical`, `- Test:` passes); `select.test.ts` (each reason selects on a two-commit temp repo, an unrelated change selects nothing, provisional mode flags a `brief-templates.ts` change, a throwing base handler gives `base render unavailable`); `schemas.test.ts` (`toBe` identity with the phase constants).
-- **Case validation (`src/evals/__tests__/cases.test.ts`, R1 AC5):** for every case directory: it loads, its role file exists, its fixture builds, every brief renders with no missing key, every grader resolves. No model.
-- **Integration with `scripts/stub-claude.mjs`:** `runner.test.ts` sets `CONTROLLER_CLAUDE_BIN` to the stub and asserts: 3 sequential runs on 3 distinct fixture roots (the stub's init `cwd`); a stub commit with a trailer gives `fail`; a usage-limit result gives `inconclusive`; a stub edit to a temp live checkout gives `edited the live checkout`, a store-path edit does not; the record holds per-run usage; no run record or ledger file under the temp `SDD_HOME`; no `SDD_RUN_ID` in the stub's init `env`. `gate.test.ts` asserts the exit codes of Component 8, one log line and one `owner: harness` deferral per override, and no stub counter file when nothing is selected. Assertions read exit codes, files and stdout only (node 20 fields).
+- **Unit (`src/evals/__tests__/`):** `case.test.ts` (good case loads; bad lists every problem); `fixture.test.ts` (ordered commits, executable hook, worktree on its branch, clean root, no shared directory); `render.test.ts` (substitution, `standing` wired to the rendered path, missing-key failure carries the action's message); `graders.test.ts` (each seed grader passes and fails on a hand-built fixture; `- Test (integration):` fails `tasks-labels-canonical`, `- Test:` passes); `select.test.ts` (each reason selects on a two-commit temp repo, an unrelated change selects nothing, provisional flags a `brief-templates.ts` change, a throwing base handler gives `base render unavailable`); `schemas.test.ts` (`toBe` identity).
+- **Case validation (`src/evals/__tests__/cases.test.ts`, R1 AC5):** every case loads, its role file exists, its fixture builds, every brief renders with no missing key, every grader resolves. No model.
+- **Integration with `scripts/stub-claude.mjs`:** `runner.test.ts` sets `CONTROLLER_CLAUDE_BIN` to the stub: 3 sequential runs on 3 distinct fixture roots; a trailer commit gives `fail`; a usage-limit gives `inconclusive`; a stub edit to a temp live checkout gives `edited the live checkout`, a store-path edit does not; per-run usage recorded; no run record or ledger under the temp `SDD_HOME`; no `SDD_RUN_ID` in the stub's init `env`. `gate.test.ts` asserts Component 8's exit codes, one log line and one `owner: harness` deferral per override, and no stub counter when nothing is selected. Assertions read exit codes, files and stdout only (node 20 fields).
 - **`src/__tests__/service-scripts.test.ts`:** the dry-run test (`:244-265`) keeps its assertions and also expects the `eval selection unavailable` line. The two rebase tests (`:267-317`) set `SDD_STAGE_BUILD` to write a stub `node dist/evals/cli.js` that exits 0 and `SDD_STAGE_SMOKE` to `true`; their asserted values stay, and `rebasing` now prints after `building in staging`. The refusal tests (`:319-364`) are unchanged. New tests: a stub CLI exiting 1 leaves HEAD, `harness/` and `dist/` unchanged and logs `writing an error wait`; `--eval-override` with no value exits 2.
 - **Regression guards, not red-first:** R3 AC5 (no selection behaves as today) and R5 AC4 (three deterministic seed cases pass at base) hold before the feature.
 - **End-to-end:** the deploy that lands this spec selects all five cases and runs them on the real `claude`. It needs a rebuilt, restarted session, so it stays `pending` in `verification-evidence.md` until the operator records `pass 3/3` for the four required cases and a pass or an override deferral for `closeout-reversing-proposal` (R5 AC3).
 
 ## Decisions taken in this document
 
-- D1 — Case files are JSON with fixture trees: options were JSON, YAML, or TypeScript modules; chosen because the repository has no YAML runtime and JSON loads without a build.
-- D2 — One grader per file plus a registry: options were one shared file or one file per grader; chosen because selection must name a case's grader code, and one file would select every case on any grader change.
-- D3 — The live-checkout guard ignores spec-store paths and HANDOFF: options were the literal HEAD and status comparison, or the self-update's own carve-out; chosen because a controller run between steps commits and dirties store files during a deploy, which would fail every eval falsely.
-- D4 — Grader imports are followed one hop: options were one hop, the full closure, or a hand-kept list; chosen because the closure through the merge module reaches most of the server and would select the trailer case on nearly every deploy.
-- D5 — The dry-run preview diffs the two brief source files whole: options were per file or per render function; chosen because function boundaries need a parser, and an over-selecting preview runs nothing.
-- D6 — The live build's dist renders the base briefs: options were a second staging build of the base, or the live dist; chosen because the live dist is the base build and a second build costs minutes; any import or render failure selects the case.
-- D7 — The gate is one TypeScript command the shell calls: options were shell logic or a gate command; chosen because selection, overrides and deferrals are deterministic mechanics that belong in tested code.
-- D8 — Build and smoke commands take environment overrides used by tests: options were overrides or tests that run a real build; chosen because a real staging build takes minutes and the ordering tests must get past it.
-- D9 — A case may run its step in a worktree inside the fixture: options were always the fixture root, or a case-named directory under it; chosen because the live close-out runs the implementer in the landing worktree, which the landing-root case must reproduce.
-- D10 — The move's refusal checks run before the build and again before the move: options were once before the build or once before the move; chosen because the refusal tests expect no build on refusal, and a store commit can land while the evals run.
-- D11 — The runner empties the role's scratch directory before each run: options were a per-run path or the fixed path the role files name; chosen because roles write there by rule, and a stale file would leak into the next run.
+- D1 — Case files are JSON with fixture trees, over YAML or TS modules: the repository has no YAML runtime and JSON loads without a build.
+- D2 — One grader per file plus a registry, over one shared file: selection must name a case's grader code, and one file would select every case on any grader change.
+- D3 — The live-checkout guard ignores spec-store paths and HANDOFF, reusing the self-update's carve-out: a controller run between steps commits and dirties store files during a deploy, which would fail every eval falsely.
+- D4 — Grader imports are followed one hop, not the full closure: the closure through the merge module reaches most of the server and would select the trailer case on nearly every deploy.
+- D5 — The dry-run preview diffs the two brief source files whole, not per render function: function boundaries need a parser, and an over-selecting preview runs nothing.
+- D6 — The live build's dist renders the base briefs, not a second staging build: the live dist is the base build and a second build costs minutes; any import or render failure selects the case.
+- D7 — The gate is one TypeScript command the shell calls, not shell logic: selection, overrides and deferrals are deterministic mechanics that belong in tested code.
+- D8 — Build and smoke commands take environment overrides used by tests: a real staging build takes minutes and the ordering tests must get past it.
+- D9 — A case may run its step in a worktree inside the fixture: the live close-out runs the implementer in the landing worktree, which the landing-root case must reproduce.
+- D10 — The move's refusal checks run before the build and again before the move: the refusal tests expect no build on refusal, and a store commit can land while the evals run.
+- D11 — The runner empties the role's scratch directory before each run: roles write there by rule, and a stale file would leak into the next run.
 
 ## Scope notes
 

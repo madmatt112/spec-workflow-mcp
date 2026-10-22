@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792700906821_l35fp9u0g",
+  "title": "harness-evals design v1",
+  "filePath": ".spec-workflow/specs/harness-evals/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-22T20:28:26.821Z",
+  "category": "spec",
+  "categoryName": "harness-evals",
+  "response": "v1; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-22T20:28:26.966Z"
+}

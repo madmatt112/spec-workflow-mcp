@@ -121,6 +121,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-22 | verification-loop | retrospective |  | retro-ready | 11 findings, 7 proposals |
 | 2026-10-22 | verification-loop | closeout | items 7/7 | closed | 3 done, 0 to-do, 4 skipped |
 | 2026-10-22 | harness-evals | requirements | v4 | approved | 4 rounds |
+| 2026-10-22 | harness-evals | design | v1 | approved | 2 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1018,6 +1019,19 @@ Gotchas:
 | State | approved at v4 on 2026-10-22 |
 | Rounds | 4; verdicts should-fix-only → converged |
 | Approval | `approval_1792687189504_gbe4xx37d` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
+
+
+## harness-evals — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-10-22 |
+| Rounds | 2; verdicts converged |
+| Approval | `approval_1792700906821_l35fp9u0g` |
 | Rulings | none |
 | Cut scope | none |
 | Carried items | none |
