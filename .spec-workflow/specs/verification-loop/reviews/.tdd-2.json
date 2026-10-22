@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/new-deps.test.ts"],"seams":{"src/controller/__tests__/new-deps.test.ts":"diffNewDependencies(before, after); readNewDependencies(repoDir, baseBranch, head)"},"redCommit":"0d2042458c04ac16c8951dd4b749f276fbfca736","baseSha":"5cb344926046e4d593e076ff6341539f9f97af81","base":"structural-red","head":"pass","amended":false,"judged":null}
