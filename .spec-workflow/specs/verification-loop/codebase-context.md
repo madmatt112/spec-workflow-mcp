@@ -87,3 +87,43 @@ Code root: `/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/verification-loop
 - src/controller/__tests__/merge.test.ts:1-693
 - src/controller/__tests__/runs.test.ts:1-721
 - src/controller/phases/__tests__/implementation.test.ts:1-626
+
+## Merge stage seams (design phase)
+- src/controller/merge.ts:38-39 — `PR_VIEW_FIELDS`, the one `gh pr view` field list
+- src/controller/merge.ts:79-95 — `MergeEvaluation` (ready, reasons, pending, unreadable)
+- src/controller/merge.ts:99-111 — `MergeStageResult`
+- src/controller/merge.ts:113-125 — `MergeStageDeps`; `ledger` is `Pick<RunLedger, 'prMerged'>` today
+- src/controller/merge.ts:300-308 — `PullRequestEvaluation` (evaluation, ci, mergeable, url)
+- src/controller/merge.ts:459-468 — local `git show` through `execFileSync` with `scrubbedGitEnv`
+- src/controller/runs.ts:29 — `parseJsonl` import used by the ledger readers
+- src/controller/runs.ts:387-410 — `RunDeps` (windowBlock, isCancelled, tokenCap, mcpConfigFor)
+- src/controller/runs.ts:425-449 — `stepLifecycle` and `stepActivityForwarder`
+- src/controller/runs.ts:534-544 — `waitAnd`: create a wait, mark the run `waiting`
+- src/controller/runs.ts:746-771 — loop head: the merge resume runs before the token cap and window checks
+- src/controller/runs.ts:997-1008 — `escalationRulings`: answered escalation waits into worker briefs
+- src/controller/runs.ts:1227-1235 — `toRow`: `prReads` passed to the wire as is
+- src/controller/controller.ts:353-358 — an `error`/`escalation` wait answered `abandon` cancels the run
+- src/controller/state.ts:140-150 — `WaitQuestion` (id, text, options, free, recommended)
+- src/core/git-utils.ts:281-290 — `defaultBranchIfOnIt`: `origin/HEAD` target, else `main`/`master`
+
+## Implementation phase seams (design phase)
+- src/controller/step.ts:343-358 — `runStep`: `--model`/`--effort` from the `StepSpec` override or the role
+- src/controller/phases/implementation.ts:302-312 — phase setup: `toolContext`, scratch dir
+- src/controller/phases/implementation.ts:469-477 — standing briefs written at phase start
+- src/controller/phases/implementation.ts:1042-1057 — `buildPrBody`: Summary, Test plan, unchecked deferred lines
+- src/controller/phases/implementation.ts:1117-1126 — failing-run log tails saved for the reconcile brief
+- src/controller/phases/implementation.ts:1237-1294 — HANDOFF row helpers (`setHandoffRow`, `readHandoffRow`, `writeHandoffSection`)
+- src/controller/phases/gates.ts:286-301 — class (a) fetched through `harnessHandler` `gate class-a`
+- src/core/veto-rules.ts:128-153 — keyword saturation fallback; sensitive-path items are kept
+
+## Brief templates (design phase)
+- src/tools/brief-templates.ts:833-848 — `renderVerifier`: variant dispatch (e2e, ci, narrow, task)
+- src/tools/brief-templates.ts:1553-1562 — `fix` and `verifier` template entries and their required keys
+
+## Test seams (design phase)
+- scripts/stub-claude.mjs:11-28 — run shape: `edits`, `appends`, `commands`; init event carries `argv`
+- src/controller/__tests__/merge.test.ts:105 — merge deps use a real `openRunLedger`
+- src/controller/__tests__/merge.test.ts:172 — exact `{ ready: true, reasons: [] }` assertion (also :255)
+- e2e/worktree-shell.spec.ts:163-173 — seeded run record with `prReads`
+- e2e/worktree-shell.spec.ts:317-330 — PR panel assertions
+- src/dashboard_frontend/src/modules/shell/RunPage.tsx:332-337 — `CI_CHIP_STYLES`
