@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Brief source",
+      "question": "Does a case freeze the rendered brief file or the template values rendered by the build under evaluation?",
+      "options": [
+        "Frozen values rendered by the build under evaluation",
+        "A frozen rendered brief file",
+        "Both, chosen per case"
+      ]
+    },
+    {
+      "header": "Case selection",
+      "question": "Which changes select a case for the deploy's eval run?",
+      "options": [
+        "Its own files, role file, role profile entry, grader code or rendered brief text",
+        "Role file and brief template only (the grill's literal)",
+        "Every case on every deploy"
+      ]
+    },
+    {
+      "header": "Eval order",
+      "question": "When in the self-update do the evals run?",
+      "options": [
+        "After the staged build and smoke boot, before the live checkout moves",
+        "After the move, with a rollback of the checkout",
+        "After the move, leaving the role files live"
+      ]
+    },
+    {
+      "header": "Override record",
+      "question": "Where is a deploy override recorded?",
+      "options": [
+        "An override log in the controller home plus a deferral carrying the Progress log line",
+        "The deploy appends to the Progress log file",
+        "The deploy commits the Progress log line on the live checkout"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "Money, personal-data-and-erasure, and legal/compliance posture of this spec?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}
