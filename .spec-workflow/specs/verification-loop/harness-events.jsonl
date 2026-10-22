@@ -269,3 +269,10 @@
 {"ts":"2026-10-22T13:47:40.468Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: item P7 pass risk low"}
 {"ts":"2026-10-22T13:47:40.496Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"P5","outcome":"done"}
 {"ts":"2026-10-22T13:47:40.498Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-10-22T13:47:55.798Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.pick","task":"P2","title":"P2 (F2) — `none` dependency note can follow an `unreadable` note."}
+{"ts":"2026-10-22T13:47:55.808Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.start","agent":"sdd-implementer","role":"implement code batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-22T13:50:57.254Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.end","agent":"sdd-implementer","input":"42","output":"10178","cacheWrite":"52311","cacheRead":"1114618","tokens":"1177149","cacheWrite5m":"0","cacheWrite1h":"52311","model":"claude-opus-4-8"}
+{"ts":"2026-10-22T13:50:57.254Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-22T13:50:57.278Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: item P2 test files from the commit added to the list"}
+{"ts":"2026-10-22T13:51:04.803Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-10-22T13:51:04.822Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"P2","outcome":"done"}
