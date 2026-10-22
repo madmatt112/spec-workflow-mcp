@@ -678,6 +678,25 @@ function renderVerifyStanding(v: Record<string, string>): string {
 
 // --- fix (briefs.md:103-132, :232-253) ---------------------------------------
 
+/** The reproduce-first paragraph of a CI/merge fix brief (briefs.md:235-246). */
+function ciReproduceParagraph(checkNames: string, logPaths: string): string {
+  return (
+    "The PR's checks failed: " + checkNames + ". The failing steps' log tail is in " + logPaths + '; ' +
+    'read those files. Reproduce the failure locally first, with the command the job runs ' +
+    '(read its workflow file under `.github/workflows/`). Fix the cause, not the symptom: when ' +
+    "the spec's change made shared test fixtures or setup stale, fix the fixtures. Run the " +
+    'reproduce command until it passes, run the checks the agent rules allow for the files you ' +
+    'touched, and commit on the current branch. Do not push. Call `log-implementation` for the ' +
+    "task the fix belongs to when that task's files changed."
+  );
+}
+
+/** The `INFRA:` escape-hatch paragraph of a CI/merge fix brief (briefs.md:247-249). */
+const CI_INFRA_PARAGRAPH =
+  'If the failure is CI infrastructure and not the code (a runner out of memory, a network ' +
+  'timeout, a job that passed before on the same commit), change nothing and report ' +
+  '`INFRA: <one line>`.';
+
 /** The CI-fix content (briefs.md:235-249), reused by both `ci` and `reconcile`. */
 function renderCiFix(v: Record<string, string>): string {
   const checkNames = v.checkNames ?? '<check names>';
@@ -687,17 +706,55 @@ function renderCiFix(v: Record<string, string>): string {
     '',
     'Read `/tmp/scratchpad/sdd/' + v.spec + '/impl-standing.md` first and obey it.',
     '',
-    "The PR's checks failed: " + checkNames + ". The failing steps' log tail is in " + logPaths + '; ' +
-      'read those files. Reproduce the failure locally first, with the command the job runs ' +
-      '(read its workflow file under `.github/workflows/`). Fix the cause, not the symptom: when ' +
-      "the spec's change made shared test fixtures or setup stale, fix the fixtures. Run the " +
-      'reproduce command until it passes, run the checks the agent rules allow for the files you ' +
-      'touched, and commit on the current branch. Do not push. Call `log-implementation` for the ' +
-      "task the fix belongs to when that task's files changed.",
+    ciReproduceParagraph(checkNames, logPaths),
     '',
-    'If the failure is CI infrastructure and not the code (a runner out of memory, a network ' +
-      'timeout, a job that passed before on the same commit), change nothing and report ' +
-      '`INFRA: <one line>`.',
+    CI_INFRA_PARAGRAPH,
+    '',
+    ...reportBlockLines(IMPLEMENTER_REPORT_KEYS),
+  ];
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Merge-fix brief (design C4, R1 AC 2-3). The CI-fix reproduce-first paragraph and
+ * `INFRA:` paragraph, plus the conflict merge instruction and the never-rebase rule.
+ */
+function renderMergeFix(v: Record<string, string>): string {
+  const pr = v.pr ?? '<pr>';
+  const base = v.base ?? '<base>';
+  const checkNames = v.checkNames ?? '<check names>';
+  const logPaths = v.logPaths ?? '<log file path(s)>';
+  const lines: string[] = [
+    '# PR #' + pr + ' — merge fix round ' + v.round + ' (spec ' + v.spec + ')',
+    '',
+    'Read `/tmp/scratchpad/sdd/' + v.spec + '/impl-standing.md` first and obey it.',
+    '',
+    ciReproduceParagraph(checkNames, logPaths),
+    '',
+    'If the branch conflicts with `' + base + '`: run `git fetch origin ' + base + '`, then ' +
+      '`git merge origin/' + base + '`, resolve, run the checks, commit the merge.',
+    '',
+    'In all cases, never rebase, never amend a pushed commit, never push: the controller pushes.',
+    '',
+    CI_INFRA_PARAGRAPH,
+    '',
+    ...reportBlockLines(IMPLEMENTER_REPORT_KEYS),
+  ];
+  return lines.join('\n') + '\n';
+}
+
+/** Security-fix brief (design C4, R3 AC 6): the findings, reproduce-and-cover, no push. */
+function renderSecurityFix(v: Record<string, string>): string {
+  const lines: string[] = [
+    '# Task security — fix round ' + v.round + ' (spec ' + v.spec + ')',
+    '',
+    'Read `/tmp/scratchpad/sdd/' + v.spec + '/impl-standing.md` first and obey it.',
+    '',
+    'The security review returned findings. Make each command stop reproducing, add coverage ' +
+      'that fails without the fix, commit, do not push.',
+    '',
+    '## Findings (from the security verifier)',
+    v.findings,
     '',
     ...reportBlockLines(IMPLEMENTER_REPORT_KEYS),
   ];
@@ -708,11 +765,14 @@ function renderCiFix(v: Record<string, string>): string {
  * Fix brief (briefs.md:103-132). Variants `verifier`, `repair` and `gate` swap the
  * middle paragraph (and, for `gate`, the findings heading); `ci` and `reconcile`
  * both render the CI-fix content (briefs.md:232-253), as today's Reconcile step
- * reuses it through the reviser template.
+ * reuses it through the reviser template; `merge` and `security` render their own
+ * briefs (design C4).
  */
 function renderFix(v: Record<string, string>): string {
   const variant = v.variant;
   if (variant === 'ci' || variant === 'reconcile') return renderCiFix(v);
+  if (variant === 'merge') return renderMergeFix(v);
+  if (variant === 'security') return renderSecurityFix(v);
 
   const lines: string[] = [
     '# Task ' + v.taskId + ' — fix round ' + v.round + ' (spec ' + v.spec + ')',
@@ -825,14 +885,63 @@ function renderVerifierCi(v: Record<string, string>): string {
 }
 
 /**
+ * Security review brief (design C4, R3 AC 3-6). The full `security` pass scopes the
+ * review to `git diff <base>...HEAD` with the sensitive files listed first, names the
+ * `security/` scratch directory, and states the finding/suspicion rule; the
+ * `security-narrow` re-check re-runs only the listed findings.
+ */
+function renderVerifierSecurity(v: Record<string, string>): string {
+  const base = v.base ?? '<base>';
+  const scratch = v.scratch ?? '<scratch>';
+  const sensitiveFiles = v.sensitiveFiles ?? '';
+  const otherFiles = v.otherFiles ?? '';
+  const findings = v.findings ?? '';
+  const lines: string[] = v.variant === 'security-narrow'
+    ? [
+        '# Security re-check round ' + v.round + ' — spec ' + v.spec,
+        '',
+        'Read `/tmp/scratchpad/sdd/' + v.spec + '/verify-standing.md` first and obey it.',
+        '',
+        "Re-check scope: re-run only the listed findings' commands and report only those that " +
+          'still reproduce.',
+        '',
+        '## Findings to re-check',
+        findings,
+        '',
+      ]
+    : [
+        '# Security review — spec ' + v.spec,
+        '',
+        'Read `/tmp/scratchpad/sdd/' + v.spec + '/verify-standing.md` first and obey it.',
+        '',
+        'Review the changes in `git diff ' + base + '...HEAD`, the sensitive files first:',
+        '',
+        '### Sensitive files',
+        sensitiveFiles,
+        '',
+        '### Other changed files',
+        otherFiles,
+        '',
+        'Write any reproduction only under `' + scratch + '/security/`. A finding carries the ' +
+          'exact command you ran and the output it produced; anything you cannot reproduce is a ' +
+          'suspicion with one line of why.',
+        '',
+      ];
+  lines.push(...reportBlockLines(VERIFIER_REPORT_KEYS));
+  return lines.join('\n') + '\n';
+}
+
+/**
  * Verifier brief (design C6 `verifier` row). `task`/`batch` render the per-task
  * review brief (no own report block — it defers to the verify-standing instructions);
  * `narrow` appends the post-adjudication narrow-verification text; `e2e` and `ci`
- * render the end-to-end and CI verify briefs with the C9 block.
+ * render the end-to-end and CI verify briefs with the C9 block; `security` and
+ * `security-narrow` render the security review brief (design C4).
  */
 function renderVerifier(v: Record<string, string>): string {
   if (v.variant === 'e2e') return renderVerifierE2e(v);
   if (v.variant === 'ci') return renderVerifierCi(v);
+  if (v.variant === 'security' || v.variant === 'security-narrow') return renderVerifierSecurity(v);
 
   const lines = verifierTaskLines(v);
   if (v.variant === 'narrow') {
