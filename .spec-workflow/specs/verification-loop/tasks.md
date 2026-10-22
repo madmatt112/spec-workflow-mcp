@@ -46,7 +46,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 4.3, 4.4_
   - _Prompt: Task: Per R4 AC 3 and AC 4 and design C8, add the optional field to both hand copies, matching the field task 3 added to `PrRead`; when non-empty, render a `new dependency` chip with the `pending` chip classes and `data-testid` `pr-deps-<repo>-<number>`, then the names joined by ", ". Extend the seeded run record in e2e/worktree-shell.spec.ts with `newDependencies` on one read and assert the chip text and names; assert the other read has no chip | Restrictions: run `npx playwright install chromium`, then `npx playwright test e2e/worktree-shell.spec.ts`; no new colour token; existing panel assertions (:317-330) keep their values | Success: the seeded read shows the chip and the names; a read without the field shows none; both hand copies match `PrRead`; `npx tsc --noEmit`, the frontend build and the suite pass_
 
-- [ ] 5. Merge-fix and security brief variants
+- [x] 5. Merge-fix and security brief variants
   - File: src/tools/brief-templates.ts
   - File: src/tools/__tests__/harness.test.ts
   - Test: src/tools/__tests__/harness.test.ts — `harnessHandler({ action: 'brief', template, specName, values })`
