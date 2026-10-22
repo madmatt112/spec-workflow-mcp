@@ -969,6 +969,33 @@ describe('new-dependency flag on the merge pass (design C2, R4)', () => {
     expect(depNotes[0]).toMatch(/new dependencies: .*#42: unreadable \(.+\)/);
   });
 
+  it('writes no "none" note after an "unreadable" note when the empty read recovers (P2)', async () => {
+    // Pre: a `feature` head that resolves (version-only change, no new
+    // dependency), but pass 1 is given an unresolvable headRefOid so the read
+    // is unreadable; pass 2 is given the real head so the read is empty.
+    const dir = initDepRepo();
+    const headSha = commitManifest(dir, { name: 'x', version: '2.0.0', dependencies: { a: '1.0.0' } }, 'bump version');
+    useGhScript([
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: '0000000000000000000000000000000000000000' }),
+      ...pendingScript({ ...READY_VIEW, baseRefName: 'main', headRefOid: headSha }),
+    ]);
+    const run = makeRun({ codeRoot: dir });
+    const deps = makeDeps();
+
+    // Call: pass 1 (unreadable), then pass 2 (readable, empty list).
+    await runMergeStage(run, deps);
+    expect(notesOf(deps).filter((t) => t.startsWith('new dependencies:'))).toHaveLength(1);
+
+    await runMergeStage(run, deps);
+    // Result: the empty read follows an `unreadable` note, not a logged
+    // non-empty list, so no `none` note is written (Data Models: "`none`
+    // follows only a logged non-empty list").
+    const depNotes = notesOf(deps).filter((t) => t.startsWith('new dependencies:'));
+    expect(depNotes).toHaveLength(1);
+    expect(depNotes[0]).toMatch(/new dependencies: .*#42: unreadable \(.+\)/);
+    expect(depNotes.some((t) => /#42: none$/.test(t))).toBe(false);
+  });
+
   it('skips the dependency read and writes no note when the view has no baseRefName (design D14, regression guard)', async () => {
     // Pre: READY_VIEW, unmodified, carries no baseRefName.
     const script = useGhScript(pendingScript(READY_VIEW));

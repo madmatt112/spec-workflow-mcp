@@ -648,8 +648,13 @@ function flagNewDependencies(opts: {
     names = result.names;
     text = `${prefix}${result.names.join(', ')}`;
   } else {
-    // An empty list writes `none` only after a logged non-empty list.
-    if (prior === undefined) return undefined;
+    // An empty list writes `none` only after a logged non-empty names list:
+    // not with no prior note, not after an `unreadable` note, and not after
+    // another `none` note (keeps the Data Models invariant on the
+    // `unreadable`->empty recovery path).
+    if (prior === undefined || prior === `${prefix}none` || prior.startsWith(`${prefix}unreadable`)) {
+      return undefined;
+    }
     text = `${prefix}none`;
   }
   if (text !== prior) ledger.note(text);
