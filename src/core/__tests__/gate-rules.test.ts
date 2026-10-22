@@ -230,6 +230,15 @@ describe('isTestPath', () => {
     expect(isTestPath('test/foo.ts')).toBe(true);
     expect(isTestPath('src/foo.ts')).toBe(false);
   });
+
+  it('is true for a test runner setup file and false for other setup files', () => {
+    expect(isTestPath('apps/api/src/test-setup.ts')).toBe(true);
+    expect(isTestPath('src/setupTests.ts')).toBe(true);
+    expect(isTestPath('vitest.setup.mts')).toBe(true);
+    expect(isTestPath('jest.setup.js')).toBe(true);
+    expect(isTestPath('src/setup.ts')).toBe(false);
+    expect(isTestPath('src/db-setup.ts')).toBe(false);
+  });
 });
 
 describe('worstTypecheckState', () => {

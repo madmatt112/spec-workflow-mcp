@@ -39,6 +39,13 @@ export const TEST_FILE_BASENAME_RE = /\.(test|spec)\./;
 /** A path segment that marks a test file (requirement 3.3). */
 export const TEST_DIR_SEGMENTS = ['__tests__', 'tests', 'test'];
 
+/**
+ * A test runner setup file (vitest/jest `setupFiles`, e.g. `test-setup.ts`,
+ * `setupTests.ts`, `vitest.setup.ts`): test infrastructure, so a test author
+ * may change it in the red commit.
+ */
+export const TEST_SETUP_BASENAME_RE = /^(test[-.]setup|setup[-.]?tests|vitest[-.]setup|jest[-.]setup)\.[cm]?[jt]sx?$/i;
+
 /** Checkbox line, copied from `src/core/task-parser.ts:167`; bounds a task block. */
 export const TASK_CHECKBOX_RE = /^\s*[-*]\s+\[([ x\-])\]/;
 
@@ -233,11 +240,11 @@ export function taskNamesTests(block: string): boolean {
   return TEST_WORD_RE.test(block);
 }
 
-/** True when a basename holds `.test.`/`.spec.`, or a segment is a test dir (3.3). */
+/** True when a basename holds `.test.`/`.spec.` or names a test setup file, or a segment is a test dir (3.3). */
 export function isTestPath(relPath: string): boolean {
   const p = normalizePath(relPath);
   const base = p.split('/').pop() ?? '';
-  if (TEST_FILE_BASENAME_RE.test(base)) return true;
+  if (TEST_FILE_BASENAME_RE.test(base) || TEST_SETUP_BASENAME_RE.test(base)) return true;
   return p.split('/').some((seg) => TEST_DIR_SEGMENTS.includes(seg));
 }
 
