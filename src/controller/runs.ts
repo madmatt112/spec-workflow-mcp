@@ -684,6 +684,11 @@ async function runMergeStageStep(
       // before. The `merge` cursor makes a "retry" re-enter the merge stage and
       // read the same round count from the ledger.
       const { used, endings } = mergeFixHistory(ledgerRows(specDir), run.id);
+      // Set before every wait and pause below, so a "retry" on the cap wait or a
+      // resume after the window re-enters the merge stage, not the whole phase.
+      run = await save(deps, run, {
+        cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+      });
       if (mergeFixEligible(result, used)) {
         // The merge resume path runs before `runOnce`'s own cancel, cap and
         // window checks, so guard the round here: a cancelled run stops, a full
@@ -725,9 +730,6 @@ async function runMergeStageStep(
       const ran = used > 0
         ? ` ${used} fix round(s) ran: ${endings.map((e, i) => `round ${i + 1} ${e}`).join('; ')}.`
         : '';
-      run = await save(deps, run, {
-        cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
-      });
       await waitAnd(deps, run, ledger, 'error', specDir, [{
         id: 'merge',
         text: `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}.${ran} `
