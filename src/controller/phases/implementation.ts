@@ -26,6 +26,7 @@ import { execFile, execFileSync } from 'child_process';
 import {
   runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
+import { routeForTask } from '../implementer-route.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore as commitStore, type RunLedger, type Serialize } from '../ledger.js';
 import { harnessHandler } from '../../tools/harness.js';
@@ -368,9 +369,12 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     commitStore({ specStoreRoot: ctx.specStoreRoot, spec: specName, message }, serialize);
 
   // --- a model step: the spawn boundary rows plus the classified result --------
+  // `override` (the implementer route, C5) replaces the role profile's model and
+  // effort in the boundary rows, so they match the `--model`/`--effort` argv.
   const stepUsage = (kind: 'start' | 'end' | 'usage', role: string, label: string,
-    result?: StepResult, resultText?: string, task?: string, round?: string): void => {
-    const profile = loadRole(role);
+    result?: StepResult, resultText?: string, task?: string, round?: string,
+    override?: { model: string; effort: string }): void => {
+    const profile = override ?? loadRole(role);
     if (kind === 'start') {
       ctx.ledger.spawnStart({ agent: role, role: label, model: profile.model, effort: profile.effort });
     } else if (kind === 'end' && result) {
@@ -383,8 +387,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   const runModelStep = async (opts: {
     role: string; label: string; briefPath: string; stepId: string;
     schema?: Record<string, unknown>; task?: string; round?: string; resultLine?: (r: StepResult) => string;
+    /** The implementer route (C5): overrides the role profile's model and effort for this step. */
+    model?: { model: string; effort: string };
   }): Promise<{ result: StepResult; error?: ImplementationPhaseOutcome }> => {
-    stepUsage('start', opts.role, opts.label);
+    stepUsage('start', opts.role, opts.label, undefined, undefined, undefined, undefined, opts.model);
     let spawnWrite: Promise<void> | void = undefined;
     const spec: StepSpec = {
       role: opts.role,
@@ -393,6 +399,8 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       logPath: join(ctx.stepLogDir, `${opts.stepId}.jsonl`),
       maxTurns: TURN_CAP[opts.role] ?? 100,
       sessionId: randomUUID(),
+      model: opts.model?.model,
+      effort: opts.model?.effort,
       mcpConfig: ctx.mcpConfig,
       schema: opts.schema,
       runId: ctx.run.id,
@@ -408,13 +416,37 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     // caller writes next is never overwritten by a late in-flight update.
     await spawnWrite;
     await ctx.onStepEnd?.(opts.stepId);
-    stepUsage('end', opts.role, opts.label, result);
+    stepUsage('end', opts.role, opts.label, result, undefined, undefined, undefined, opts.model);
     const line = result.classification === 'ok' ? (opts.resultLine?.(result) ?? 'ok') : result.classification;
     stepUsage('usage', opts.role, opts.label, result, line, opts.task, opts.round);
     if (result.classification !== 'ok') {
       return { result, error: { result: 'error', reason: result.classification, tasks: progress() } };
     }
     return { result };
+  };
+
+  // --- the implementer model route (design C5, R2) ---------------------------
+  // The gate-B class (a) veto items for this run, re-read at every task step
+  // start so the route sees the current `tasks.md` and `## Sensitive paths`
+  // (R2 AC 4). `null` is the strict path (the call failed), which `routeForTask`
+  // routes to the Opus profile (design D7).
+  const classAItems = async (): Promise<{ taskId: string; kind: string; reason: string }[] | null> => {
+    const res = await harnessHandler({ action: 'gate', op: 'class-a', specName }, toolContext);
+    if (!res.success) return null;
+    return (res.data as { items?: { taskId: string; kind: string; reason: string }[] } | undefined)?.items ?? [];
+  };
+
+  /**
+   * The route for a task's implementer step (model + effort), writing the route
+   * note at the task's first step and again only when the route changes from the
+   * newest route note for the task (R2 AC 9).
+   */
+  const routeForStep = async (taskId: string): Promise<{ model: string; effort: string }> => {
+    const route = routeForTask(await classAItems(), taskId);
+    const noteText = `task ${taskId} route ${route.model} ${route.effort}: ${route.reason}`;
+    const prev = ledgerRows().filter((r) => r.type === 'note' && (r.text ?? '').startsWith(`task ${taskId} route `)).pop();
+    if (!prev || prev.text !== noteText) ctx.ledger.note(noteText);
+    return { model: route.model, effort: route.effort };
   };
 
   /** Write a brief through the server's `brief` action (the task block and read-and-obey line are its job). */
@@ -627,10 +659,11 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       let report: ImplementerReport = {};
       let text: string | null = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
+        const route = await routeForStep(id);
         const step = await runModelStep({
           role: 'sdd-implementer', label: attempt === 1 ? `implement task ${id}` : `implement task ${id} retry`,
           briefPath, stepId: `implementer-task-${id}${attempt > 1 ? `-retry` : ''}`, schema: IMPLEMENTER_SCHEMA, task: id,
-          resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
+          model: route, resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
         });
         if (step.error) return step.error;
         report = (step.result.structuredOutput ?? {}) as ImplementerReport;
@@ -657,7 +690,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         appendFileSync(briefPath, '\nRe-emit `checks-file` as a JSON array of the runnable shell-command strings you ran, one per entry.\n');
         const again = await runModelStep({
           role: 'sdd-implementer', label: `implement task ${id} retry`, briefPath,
-          stepId: `implementer-task-${id}-checks`, schema: IMPLEMENTER_SCHEMA, task: id,
+          stepId: `implementer-task-${id}-checks`, schema: IMPLEMENTER_SCHEMA, task: id, model: await routeForStep(id),
         });
         if (again.error) return again.error;
         parsedChecks = readChecksFile(((again.result.structuredOutput ?? {}) as ImplementerReport).checksFile, ctx.codeRoot);
@@ -771,10 +804,11 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         return { result: 'error', reason: (err as Error).message, tasks: progress() };
       }
       appendRulings(fixBrief);
+      const fixRoute = await routeForStep(id);
       const fix = await runModelStep({
         role: 'sdd-implementer', label: `fix task ${id} round ${rounds}`, briefPath: fixBrief,
         stepId: `implementer-task-${id}-fix-${rounds}`, schema: IMPLEMENTER_SCHEMA, task: id, round: String(rounds),
-        resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
+        model: fixRoute, resultLine: (r) => (r.structuredOutput as ImplementerReport)?.logged ?? 'ok',
       });
       if (fix.error) return fix.error;
       const fixReport = (fix.result.structuredOutput ?? {}) as ImplementerReport;
