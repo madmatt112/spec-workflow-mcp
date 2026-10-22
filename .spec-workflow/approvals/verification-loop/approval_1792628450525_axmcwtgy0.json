@@ -1,0 +1,12 @@
+{
+  "id": "approval_1792628450525_axmcwtgy0",
+  "title": "verification-loop design v1",
+  "filePath": ".spec-workflow/specs/verification-loop/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-22T00:20:50.525Z",
+  "category": "spec",
+  "categoryName": "verification-loop",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-22T00:20:50.700Z"
+}
