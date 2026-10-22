@@ -77,7 +77,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.12_
   - _Prompt: Task: Per R1 AC 1 and AC 4-9 and design C3 "Wiring", read this run's ledger rows, apply the history and eligibility helpers task 6 exports, and when eligible check cancel, the token cap and `deps.windowBlock()` first, then run the round; `usage-limit` pauses the run, any other kind saves `merging` with `resumeAt: nextMergeCheck(deps)`. When not eligible, open the `error` wait and add the round endings when any ran. Tests: a blocked red check runs one round and leaves `merging` with `resumeAt`; after two rounds the wait text names both endings; a trailer opens the wait with no spawn; a "retry" after the cap opens the wait with no spawn; regression guard (already true at base, R1 AC 12): a blocked close-out PR opens the wait with no spawn | Restrictions: `runCloseoutMergeStep` (:931-966) unchanged; the merge rule runs no model step (R1 AC 11); no existing runs.test.ts assertion changes value | Success: a blocked red check spawns one implementer and leaves the run `merging` with a `resumeAt`; after two rounds the `error` wait text names both endings; a trailer, a retry after the cap and a blocked close-out PR each open the `error` wait with no implementer spawn; the round count read from the ledger survives a re-entry; runs.test.ts passes_
 
-- [ ] 8. Implementer route module
+- [x] 8. Implementer route module
   - File: src/controller/implementer-route.ts
   - File: src/controller/__tests__/implementer-route.test.ts
   - Test: src/controller/__tests__/implementer-route.test.ts — routeForTask(items, taskId)

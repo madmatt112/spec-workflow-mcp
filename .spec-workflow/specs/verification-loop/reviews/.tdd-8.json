@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/implementer-route.test.ts"],"seams":{"src/controller/__tests__/implementer-route.test.ts":"routeForTask(items, taskId)"},"redCommit":"95747a1e5ee0ac832d4e93ac6b536c99a51211b3","baseSha":"e865881471cd7395f09bf387c5c540da0d23e404","base":"structural-red","head":"pass","amended":false,"judged":null}
