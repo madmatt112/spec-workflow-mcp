@@ -127,7 +127,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 3.1, 3.2, 3.3, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12_
   - _Prompt: Task: Per R3 AC 1-12 and design C6 flow steps 2-4, drive the loop from the state reader task 10 exports, with the brief variants task 5 adds and the class-a closure task 9 adds. Bridge: until task 13, a `security-open` outcome reaches the generic `error` wait (src/controller/runs.ts:1050-1055); task 13 replaces it. Tests: an unflagged spec spawns no security step and writes no `security:` row; a flagged spec runs pass, fix, recheck, adjudicator and recheck, then returns `security-open`; one deferral per suspicion (owner `matthew`, tag `security`) across a re-entry; `accept` puts each finding in the Gotchas row, an unchecked PR body line and the retro log; `retry` writes epoch 2 and spawns no e2e | Restrictions: security fix rounds use the profile model (R2 AC 10) and never push; reproductions only under the scratch `security/` directory | Success: an unflagged spec spawns no security step and writes no `security:` row; a flagged spec spawns pass, fix, recheck, adjudicator and recheck in that order and returns `security-open` with the open findings; each suspicion makes one deferral (owner `matthew`, tag `security`) and a re-entry makes none more; `accept` puts each finding in the Gotchas row, an unchecked PR body Test plan line and one retro entry; `retry` writes `security: epoch 2` and spawns no e2e verifier; implementation.test.ts passes_
 
-- [ ] 13. Security escalation wait
+- [x] 13. Security escalation wait
   - File: src/controller/runs.ts
   - File: src/controller/__tests__/runs.test.ts
   - Test: src/controller/__tests__/runs.test.ts — runOnce(deps, runId)
