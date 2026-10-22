@@ -384,6 +384,17 @@ function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
                   ))}
                 </div>
               )}
+              {read.newDependencies && read.newDependencies.length > 0 && (
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CI_CHIP_STYLES.pending}`}
+                    data-testid={`pr-deps-${read.repo}-${read.number}`}
+                  >
+                    {'new dependency'}
+                  </span>
+                  <span className="text-[var(--text-muted)] break-words">{read.newDependencies.join(', ')}</span>
+                </div>
+              )}
               <div className="mt-0.5 text-xs text-[var(--text-muted)]">{formatDate(read.at, { includeSeconds: true })}</div>
             </div>
           );
