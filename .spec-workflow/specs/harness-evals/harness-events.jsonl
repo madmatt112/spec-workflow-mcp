@@ -58,3 +58,10 @@
 {"ts":"2026-10-22T20:35:38.620Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-reviser","role":"lint v1","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-10-22T20:37:38.778Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-reviser","input":"20","output":"7944","cacheWrite":"64276","cacheRead":"489786","tokens":"562026","cacheWrite5m":"0","cacheWrite1h":"64276","model":"claude-opus-4-8"}
 {"ts":"2026-10-22T20:37:38.778Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","result":"success","phase":"tasks"}
+{"ts":"2026-10-22T20:37:38.931Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-reviewer","role":"review v1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-22T20:50:16.471Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-reviewer","input":"50","output":"56580","cacheWrite":"154601","cacheRead":"2596283","tokens":"2807514","cacheWrite5m":"0","cacheWrite1h":"154601","model":"claude-opus-4-8"}
+{"ts":"2026-10-22T20:50:16.471Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-reviewer","role":"review v1","result":"success","phase":"tasks","round":"1"}
+{"ts":"2026-10-22T20:50:16.471Z","run":"run-20261022-152135","spec":"harness-evals","type":"round","phase":"tasks","round":"1","verdict":"iterate 0/1/0","version":"v1"}
+{"ts":"2026-10-22T20:50:16.472Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-reviser","role":"revise v2","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-22T20:52:41.474Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-reviser","input":"24","output":"10875","cacheWrite":"72376","cacheRead":"783102","tokens":"866377","cacheWrite5m":"0","cacheWrite1h":"72376","model":"claude-opus-4-8"}
+{"ts":"2026-10-22T20:52:41.474Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","result":"success","phase":"tasks","round":"1"}
