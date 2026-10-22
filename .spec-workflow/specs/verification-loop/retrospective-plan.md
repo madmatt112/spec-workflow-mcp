@@ -1,6 +1,6 @@
 # Retrospective plan — verification-loop
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-22
 
 ## Approved proposals
