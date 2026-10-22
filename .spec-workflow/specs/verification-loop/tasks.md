@@ -107,7 +107,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 3.4, 3.5, 3.6, 3.7, 3.9, 3.13_
   - _Prompt: Task: Create src/controller/phases/security-pass.ts with the types, `SECURITY_SCHEMA` and four functions design C6 pins, per R3 AC 4, 5, 6, 7, 9 and 13. Tests: a finding with no command or no output becomes a suspicion with why `reported without a reproduction`; output cut to 400 characters; `e2ePassStands` true after the pass note, false once a newer `completion handoff written` note exists; `readSecurityState` reaches every `next` value from the note sequences Data Models lists; two epochs count rounds only after the newest epoch; an answered wait id is listed; `suspicionKey` is stable for the same file and title | Restrictions: pure, no I/O; read only the note texts design Data Models lists | Success: an unreproduced finding is returned as a suspicion with that why; output is at most 400 characters; `e2ePassStands` is true after the pass note and false after a newer handoff note; `readSecurityState` returns each `next` value design C6 lists for its note sequence; rounds count only after the newest epoch; an answered wait id appears in `answered`; `suspicionKey` is equal for equal file and title; security-pass.test.ts passes_
 
-- [ ] 11. Record the end-to-end pass and skip it on re-entry
+- [x] 11. Record the end-to-end pass and skip it on re-entry
   - File: src/controller/phases/implementation.ts
   - File: src/controller/phases/__tests__/implementation.test.ts
   - Test: src/controller/phases/__tests__/implementation.test.ts — runImplementationPhase(ctx)
