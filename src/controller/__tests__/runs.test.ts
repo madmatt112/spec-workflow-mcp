@@ -17,6 +17,7 @@ import {
 } from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
+import { openRunLedger } from '../ledger.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -718,4 +719,189 @@ describe('runOnce merge stage', () => {
     // The run routes to the retrospective once the PR is merged, never back to implementation.
     expect(rows.some((r) => r.type === 'spawn.usage' && r.role === 'end-to-end verification')).toBe(true);
   }, 30000);
+
+  // Contract (design C3 "Wiring", R1 AC 1, AC 4-9, AC 12):
+  //
+  // T1 a blocked `check` kind under the cap runs one fix round and leaves the
+  //    run `merging` with a `resumeAt`.
+  //    Pre: run.status 'merging' (resumes straight into the merge stage), a
+  //    stubbed `gh` reporting a failing commit status, a stubbed implementer
+  //    that makes no commit.
+  //    Test: runOnce(deps, runId).
+  //    Observable: run.status, run.resumeAt, one `spawn.start` row with role
+  //    'merge fix round 1', the round's start/end notes, no `error` wait.
+  //    Source: design C3 Wiring ("every other kind saves status merging with
+  //    resumeAt"); R1 AC 1, AC 4, AC 10.
+  //
+  // T2 after two rounds end, the third pass is not eligible and the `error`
+  //    wait text names both rounds' endings.
+  //    Pre: three sequential runOnce calls, each with a fresh failing-check
+  //    evaluate; the first two spawn a no-commit implementer round.
+  //    Test: runOnce(deps, runId) x3.
+  //    Observable: the third pass's `error` wait text.
+  //    Source: design C3 Wiring ("its text adds ... round 1 <ending>; round 2
+  //    <ending>"); R1 AC 7.
+  //
+  // T3 a `trailer` kind opens the `error` wait with no implementer spawn.
+  //    Pre: a PR blocked only by an attribution-trailer commit.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait opens; no `spawn.start` row is written.
+  //    Source: design C3 Wiring ("When not eligible: the error wait as
+  //    today"); R1 AC 8.
+  //
+  // T4 a "retry" re-entry after the cap is already used reads the round count
+  //    from the ledger and opens the `error` wait with no spawn.
+  //    Pre: the ledger already carries two `merge fix round N end:` notes for
+  //    this run; the run is seeded as an answered-retry re-entry (status
+  //    'running', a `merge` cursor), matching the no-PR retry test above.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait text names both endings; no new
+  //    `spawn.start` row.
+  //    Source: design C3 Wiring; R1 AC 9 ("read from this run's ledger... a
+  //    'retry' does not reset it").
+  //
+  // T5 (regression guard, R1 AC 12 — already true at base: `runCloseoutMergeStep`,
+  //    :931-966, is untouched by this task) a blocked close-out PR opens the
+  //    `error` wait with no fix round, so a later change to the `blocked`
+  //    switch-case cannot accidentally start wiring fix rounds into the
+  //    close-out merge path too.
+  //    Pre: a CLOSED retrospective plan with one pending close-out PR whose
+  //    check fails.
+  //    Test: runOnce(deps, runId).
+  //    Observable: the `error` wait opens; no `spawn.start` row.
+  //    Source: R1 AC 12; src/controller/runs.ts:931-966 unchanged.
+  describe('merge fix round in the blocked case (R1 AC 1, 4-9, AC 12)', () => {
+    /** A commit status failure: blocking kind `check`, no `runId` (no `gh run view` needed). */
+    const statusFailing = {
+      argvIncludes: ['api'],
+      stdout: { state: 'failure', total_count: 1, statuses: [{ context: 'ci/legacy', state: 'failure' }] },
+    };
+
+    /** A stubbed `sdd-implementer` step that reports success but makes no commit. */
+    const mergeFixNoCommit: StubRun = {
+      result: {
+        subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: '',
+        structured_output: { logged: 'n/a', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' },
+        usage: {},
+      },
+    };
+
+    it('T1: a blocked red check runs one round and leaves the run merging with a resumeAt', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, [mergeFixNoCommit]);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('merging');
+      expect(run?.resumeAt).toBeTruthy();
+
+      const rows = mergedRows(fx);
+      expect(rows.filter((r) => r.type === 'spawn.start' && r.role === 'merge fix round 1')).toHaveLength(1);
+      expect(rows.some((r) => r.type === 'note' && r.text === 'merge fix round 1 end: no commit')).toBe(true);
+      expect((await listWaits()).some((w) => w.kind === 'error' && w.run === 'run-20261011-000000')).toBe(false);
+    }, 30000);
+
+    it('T2: after two rounds end, the error wait text names both endings', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, [mergeFixNoCommit, mergeFixNoCommit]);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 1 evaluate
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 2 evaluate
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing, // round 3 evaluate: cap reached
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 1: merging
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 2: merging
+      await runOnce(deps(fx), 'run-20261011-000000'); // round 3: cap reached, error wait
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      const text = err!.questions[0].text;
+      expect(text).toContain('2 fix round(s) ran');
+      expect(text).toContain('round 1 no commit');
+      expect(text).toContain('round 2 no commit');
+
+      expect(mergedRows(fx).filter((r) => r.type === 'spawn.start' && r.agent === 'sdd-implementer')).toHaveLength(2);
+    }, 30000);
+
+    it('T3: a trailer opens the error wait with no implementer spawn', async () => {
+      onFeatureBranch(fx);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: {
+          ...readyView,
+          commits: [{
+            oid: 'deadbeefcafe', messageHeadline: 'feat: do it',
+            messageBody: 'Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>',
+            committedDate: '2026-10-11T11:00:00.000Z',
+          }],
+        } },
+        runsOk, statusOk,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+
+    it('T4: a retry re-entry after the cap reads the round count from the ledger and opens the error wait with no spawn', async () => {
+      onFeatureBranch(fx);
+      const seedLedger = openRunLedger({
+        specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC, now: () => new Date('2026-10-11T00:00:00.000Z'),
+      });
+      seedLedger.note('merge fix round 1 end: no commit');
+      seedLedger.note('merge fix round 2 end: no commit');
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView }, runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, {
+        branch: BRANCH, pr: 42, status: 'running',
+        cursor: { phase: 'implementation', stepKind: 'merge', attempt: 1 },
+      }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      const text = err!.questions[0].text;
+      expect(text).toContain('round 1 no commit');
+      expect(text).toContain('round 2 no commit');
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+
+    it('T5 (regression guard, R1 AC 12): a blocked close-out PR opens the error wait with no implementer spawn', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      await approve(fx, 'tasks');
+      closePlan(fx);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: { ...readyView, headRefName: RETRO_BRANCH } },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { closeoutPrs: [{ repoDir: fx.repo, branch: RETRO_BRANCH, number: 7 }] }));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const err = (await listWaits()).find((w) => w.kind === 'error' && w.run === 'run-20261011-000000');
+      expect(err).toBeTruthy();
+      expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
+    }, 30000);
+  });
 });
