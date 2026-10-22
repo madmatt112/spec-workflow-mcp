@@ -137,7 +137,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 3.8, 3.9_
   - _Prompt: Task: Per R3 AC 8 and AC 9 and design C7, open one `escalation` wait with question id `security`, options `accept`, `retry`, `abandon` and no `recommended`, listing each finding as title, file and command; park without a second wait while one is open; pass the answered security waits, oldest first, as the context field task 12 adds; keep them out of the rulings. Remove the bridge task 12 names. Tests: `security-open` opens one wait with three options; a second pass opens no second wait; an answered `accept` reaches the phase and not a ruling | Restrictions: `abandon` takes the existing cancel path, no new status; no existing runs.test.ts assertion changes value | Success: `security-open` opens one `escalation` wait with question id `security`, options `accept`, `retry`, `abandon` and no recommendation; a second pass with that wait open opens no second wait; an answered `accept` reaches the phase as a security answer and is absent from the rulings; runs.test.ts passes_
 
-- [ ] 14. ADR amendment and controller design text
+- [x] 14. ADR amendment and controller design text
   - File: docs/adr/0003-merge-by-rule.md
   - File: docs/controller-design.md
   - Add the dated amendment to ADR 0003 and one paragraph to section 10 of the controller design (`docs/controller-design.md:194-208`), per design C9.

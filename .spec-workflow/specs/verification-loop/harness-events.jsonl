@@ -224,3 +224,10 @@
 {"ts":"2026-10-22T07:44:43.985Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 13","result":"yes/13","phase":"implementation","task":"13"}
 {"ts":"2026-10-22T07:45:14.711Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: task 13 pass risk low tdd assertion-red"}
 {"ts":"2026-10-22T07:45:14.721Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"13","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-22T07:45:14.869Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.pick","task":"14","title":"ADR amendment and controller design text"}
+{"ts":"2026-10-22T07:45:14.878Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"task 14 pick head b710a1c595c1b776833ac9d562869b522380316b"}
+{"ts":"2026-10-22T07:45:14.891Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.start","agent":"sdd-implementer","role":"implement task 14","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-22T07:49:51.453Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.end","agent":"sdd-implementer","input":"68","output":"20950","cacheWrite":"64599","cacheRead":"1960393","tokens":"2046010","cacheWrite5m":"0","cacheWrite1h":"64599","model":"claude-opus-4-8"}
+{"ts":"2026-10-22T07:49:51.453Z","run":"run-20261021-184930","spec":"verification-loop","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 14","result":"yes/14","phase":"implementation","task":"14"}
+{"ts":"2026-10-22T07:49:53.707Z","run":"run-20261021-184930","spec":"verification-loop","type":"note","text":"gate: task 14 pass risk low"}
+{"ts":"2026-10-22T07:49:53.717Z","run":"run-20261021-184930","spec":"verification-loop","type":"task.done","task":"14","rounds":"0","outcome":"gate"}
