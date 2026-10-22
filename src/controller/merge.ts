@@ -36,7 +36,7 @@ const POST_MERGE_TIMEOUT_MS = 10 * 60 * 1000;
  * rule reads workflow runs and commit statuses for the head sha instead.
  */
 const PR_VIEW_FIELDS =
-  'mergeable,mergeStateStatus,headRefName,headRefOid,body,commits,author,url,createdAt';
+  'mergeable,mergeStateStatus,headRefName,baseRefName,headRefOid,body,commits,author,url,createdAt';
 
 /**
  * A head commit younger than this with no workflow run yet is read as pending,
@@ -75,10 +75,27 @@ export interface PullRequest {
   url?: string;
 }
 
+/** The kind of a blocking reason (design C1): why the PR cannot merge. */
+export type BlockingKind = 'check' | 'conflict' | 'trailer' | 'head' | 'other';
+
+/** One blocking reason tagged with its kind; `text` equals the string pushed onto `reasons`. */
+export interface BlockingReason {
+  kind: BlockingKind;
+  text: string;
+  /** The failing check's name and, for a workflow run, the run id to read its log from. */
+  check?: { name: string; runId?: number };
+}
+
 /** The readiness verdict and the reasons it is (not) ready. */
 export interface MergeEvaluation {
   ready: boolean;
   reasons: string[];
+  /**
+   * One entry per blocking reason, tagged with its kind (design C1). Set only
+   * when `ready` is false and neither `pending` nor `unreadable` is set; a
+   * ready result stays exactly `{ ready: true, reasons: [] }`.
+   */
+  blocking?: BlockingReason[];
   /**
    * Something is still in flight: a workflow run or a commit status pending, a
    * head too fresh for its run to show, or mergeability not yet computed. A
@@ -108,6 +125,10 @@ export interface MergeStageResult {
   waitId?: string;
   /** What this pass read (design C1); absent on the no-PR return. */
   read?: PrRead;
+  /** The evaluation's tagged blocking reasons, copied on a `blocked` return (design C1). */
+  blocking?: BlockingReason[];
+  /** The PR's base branch, copied on a `blocked` return (design C1). */
+  base?: string;
 }
 
 /** Everything `runMergeStage` needs besides the run record. */
@@ -305,6 +326,10 @@ export interface PullRequestEvaluation {
   mergeable?: string;
   /** The PR's web URL: `pr.url` when set, else the view's `url` string. */
   url?: string;
+  /** The head sha (`headRefOid`), present once the view parsed a non-empty head. */
+  head?: string;
+  /** The base branch (`baseRefName`), present once the view parsed it. */
+  base?: string;
 }
 
 /**
@@ -335,8 +360,10 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
   // Read right after the parse, so both are present on every return below.
   const rawMergeable = String(data.mergeable ?? '');
   const url = pr.url ?? (typeof data.url === 'string' ? data.url : undefined);
+  const base = typeof data.baseRefName === 'string' ? data.baseRefName : undefined;
 
   const reasons: string[] = [];
+  const blocking: BlockingReason[] = [];
   let pending = false;
   let ciFailed = false;
   let ciPending = false;
@@ -359,7 +386,13 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     const name = String(r.name ?? 'workflow');
     const state = classifyWorkflowRun(r);
     if (state === 'pending') { reasons.push(`workflow ${name} is still running`); pending = true; ciPending = true; }
-    else if (state === 'failed') { reasons.push(`workflow ${name} did not pass`); ciFailed = true; }
+    else if (state === 'failed') {
+      const text = `workflow ${name} did not pass`;
+      const runId = Number(r.id) || undefined;
+      reasons.push(text);
+      blocking.push({ kind: 'check', text, check: runId ? { name, runId } : { name } });
+      ciFailed = true;
+    }
   }
   // The combined `state` reads "pending" with zero statuses, so only the list counts.
   const statuses = Array.isArray(statusRead.data.statuses) ? (statusRead.data.statuses as Record<string, unknown>[]) : [];
@@ -367,7 +400,12 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     const name = String(c.context ?? 'status');
     const state = classifyStatusContext(c);
     if (state === 'pending') { reasons.push(`status ${name} is still pending`); pending = true; ciPending = true; }
-    else if (state === 'failed') { reasons.push(`status ${name} did not pass`); ciFailed = true; }
+    else if (state === 'failed') {
+      const text = `status ${name} did not pass`;
+      reasons.push(text);
+      blocking.push({ kind: 'check', text, check: { name } });
+      ciFailed = true;
+    }
   }
   const commits = Array.isArray(data.commits) ? (data.commits as Record<string, unknown>[]) : [];
   if (runs.length === 0 && statuses.length === 0 && hasWorkflowFiles(pr.repoDir)) {
@@ -387,28 +425,41 @@ export async function evaluatePullRequest(pr: PullRequest, now: () => Date = () 
     reasons.push('mergeability not yet computed (mergeable=UNKNOWN)');
     pending = true;
   } else if (mergeable !== 'MERGEABLE') {
-    reasons.push(`not mergeable (mergeable=${String(data.mergeable ?? 'unknown')})`);
+    const text = `not mergeable (mergeable=${String(data.mergeable ?? 'unknown')})`;
+    reasons.push(text);
+    blocking.push({ kind: mergeable === 'CONFLICTING' ? 'conflict' : 'other', text });
   }
 
   if (String(data.headRefName ?? '') !== pr.branch) {
-    reasons.push(`head branch is ${String(data.headRefName ?? '(none)')}, expected ${pr.branch}`);
+    const text = `head branch is ${String(data.headRefName ?? '(none)')}, expected ${pr.branch}`;
+    reasons.push(text);
+    blocking.push({ kind: 'head', text });
   }
 
   for (const commit of commits) {
     const message = `${String(commit.messageHeadline ?? '')}\n${String(commit.messageBody ?? '')}`;
     if (hasAttribution(message)) {
-      reasons.push(`commit ${shortOid(commit.oid)} carries a Claude attribution trailer`);
+      const text = `commit ${shortOid(commit.oid)} carries a Claude attribution trailer`;
+      reasons.push(text);
+      blocking.push({ kind: 'trailer', text });
     }
   }
   if (hasAttribution(String(data.body ?? ''))) {
-    reasons.push('the PR body carries a Claude attribution trailer');
+    const text = 'the PR body carries a Claude attribution trailer';
+    reasons.push(text);
+    blocking.push({ kind: 'trailer', text });
   }
 
   const ci: CiState['state'] = ciFailed ? 'red' : ciPending ? 'pending' : 'green';
-  const evaluation: MergeEvaluation = pending
-    ? { ready: false, reasons, pending: true }
-    : { ready: reasons.length === 0, reasons };
-  return { evaluation, ci, mergeable: rawMergeable, url };
+  let evaluation: MergeEvaluation;
+  if (pending) {
+    evaluation = { ready: false, reasons, pending: true };
+  } else if (reasons.length === 0) {
+    evaluation = { ready: true, reasons };
+  } else {
+    evaluation = { ready: false, reasons, blocking };
+  }
+  return { evaluation, ci, mergeable: rawMergeable, url, head: headOid, base };
 }
 
 /** One failing check of a head sha, with the workflow run to read its log from. */
@@ -570,7 +621,7 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   const repoDir = pr.repoDir;
   const now = deps.now ?? ((): Date => new Date());
 
-  const { evaluation, ci, mergeable, url } = await evaluatePullRequest(pr);
+  const { evaluation, ci, mergeable, url, base } = await evaluatePullRequest(pr);
   // One read per pass, shaped for the callers (design C1): `repo` is a basename
   // (never a path), `kind` is `run` for the run's own PR and `closeout`
   // otherwise, the url is kept only when https, and `reasons`/`sha` are the same
@@ -587,7 +638,12 @@ export async function mergeByRule(target: MergeTarget, deps: MergeStageDeps): Pr
   }
   if (!evaluation.ready) {
     const status: MergeStageStatus = evaluation.pending ? 'not-ready' : 'blocked';
-    return { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
+    const result: MergeStageResult = { status, reasons: evaluation.reasons, number: pr.number, read: makeRead(status, evaluation.reasons) };
+    if (status === 'blocked') {
+      result.blocking = evaluation.blocking;
+      result.base = base;
+    }
+    return result;
   }
 
   if (deps.rules.merge === 'ask') {
