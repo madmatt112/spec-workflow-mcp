@@ -968,7 +968,7 @@ the adjudicator, then a wait; an unreproduced suspicion becomes a deferral owned
 (4) A PR that adds a new dependency is flagged on the Run page's PR panel and in the ledger;
 it opens no wait.
 
-### 27. `harness-evals` — every role failure becomes a case the next deploy must pass (deferred) — until 26 closes
+### 27. `harness-evals` — every role failure becomes a case the next deploy must pass
 
 **Delivers.** From the 2026-10-20 grill (`docs/ai-resources-catalogue.md`, decisions
 18-25). An eval case is one role run on a frozen brief and a small fixture repository

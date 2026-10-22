@@ -807,6 +807,17 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   route refuses a question id the wait never asked; an answer keyed `merge` on a
   `merge:<repo>#<n>` wait was stored and the run stayed parked). Spec 26 untagged
   (`a24bec4`). Matthew launched jobscout `europe-lane-relevance`. Deployed `a24bec4`.
+- 2026-10-22 **spec 26 `verification-loop` and jobscout `europe-lane-relevance` are `done`.**
+  Spec 26: PR #167 (14 tasks, 0 fix rounds), close-out #169 (P2) plus P5 and P7 as store-batch
+  commits on `harness/agents/` (drafter pre-marks base-holding criteria as guards; verifier
+  records a pass-time info finding as a deferral). jobscout: 14 tasks, the done-gate sweep
+  kept 28 rows through the europe lane with no false drop; retro all no-change. Fixes: #165
+  (`isTestPath` counts test runner setup files; tradr task 7 escalated on
+  `apps/api/src/test-setup.ts` in the red commit), #166 (self-update re-checks for a live
+  step before the swap and the restart; the #165 deploy killed a verifier that started
+  during the build), #168 (merge cursor set before the merge-fix cap wait; from the #167
+  review). Spec 27 untagged. tradr `import-off-request-thread` waits on escalation
+  `w-2f428487`, answerable since #165; Matthew parked tradr work. Deployed `ab28607`.
 
 ## 8. Pointers
 
