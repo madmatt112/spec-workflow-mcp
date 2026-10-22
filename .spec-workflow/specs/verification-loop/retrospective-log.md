@@ -54,3 +54,13 @@ Cost: 1 implementer spawn(s)
 task 11 closed: 0 fix round(s), outcome gate
 Evidence: task 11 · mark run-20261021-184930 d5528bd6
 Cost: 1 implementer spawn(s)
+
+## 2026-10-22T07:06:21Z · implementation · task 12 · doc-gap
+red-impossible: AC 3.2 — \"an unflagged spec writes no security: note and spawns no security step\" passed on first run because no C6 code exists yet for ANY spec (flagged or not), so the absence-of-security-activity assertion is vacuously true at base, not just for unflagged specs. No prior assertion in the base test file covers this (the concept didn't exist before this spec). Kept the test in the committed file as a forward regression guard — once task 12 lands the sensitivity gate, this test will meaningfully verify unflagged specs are excluded — but it is not counted among the 4 genuinely red tests. Implementer brief should treat it as a regression guard, not a red-test target."}
+Evidence: task 12 · mark run-20261021-184930 23b892a6
+Cost: 1 spawn
+
+## 2026-10-22T07:24:24Z · implementation · task 12 · gotcha
+task 12 closed: 0 fix round(s), outcome pass
+Evidence: task 12 · mark run-20261021-184930 2001bae3
+Cost: 1 implementer spawn(s)

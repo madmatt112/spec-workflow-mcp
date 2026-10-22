@@ -117,7 +117,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 3.13_
   - _Prompt: Task: Per R3 AC 13 and design C6 flow steps 1 and 5, use the pass-stands reader task 10 exports on this run's rows; when it is true skip the e2e loop, else run it as today and write the pass note. Write the handoff note right after the HANDOFF write. Tests: a re-entry after the pass note and before the handoff note spawns no e2e verifier (the stub script holds no e2e run); a run whose newest marker is the handoff note runs e2e again | Restrictions: the repair rounds and the deferred-verification deferral (:891-904) are unchanged; existing implementation.test.ts assertions keep their values (the new notes match none of their regexes, for example :263) | Success: a pass writes one `e2e verification passed` note and the HANDOFF write is followed by one `completion handoff written` note; a re-entry between the two spawns no e2e verifier; a re-entry after the handoff note runs e2e again; every existing implementation.test.ts case passes_
 
-- [ ] 12. Security pass loop in the completion gate
+- [x] 12. Security pass loop in the completion gate
   - File: src/controller/phases/implementation.ts
   - File: src/controller/phases/__tests__/implementation.test.ts
   - Test: src/controller/phases/__tests__/implementation.test.ts — runImplementationPhase(ctx)
