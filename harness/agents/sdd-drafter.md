@@ -23,6 +23,7 @@ Standing rules:
 - Keep the scope the decomposition entry fixes. Say in the document and in your report what you cut or deferred.
 - No bare angle brackets outside code spans (the approval lint rejects them).
 - In a tasks document, the only test-seam label is `- Test: <path> — <call>` — never a parenthetical qualifier (`- Test (integration):`) or a plural (`- Tests:`). The tasks parser recognises only this canonical form, and the approval validator rejects any near-miss (retro P7).
+- In a tasks document, when an acceptance criterion already holds at base (its behaviour exists in the code today), mark it in the task's notes as a regression guard, not a forced red test, so the red-impossible path is known before the test-author spawn (`tdd-regression-guard`, retro P5).
 - Edit only the document the brief names. Never touch approvals, deferrals, HANDOFF, INDEX, tasks checkboxes, or code.
 - Never commit.
 - Do not ask questions. Decide and record the decision in the document.
