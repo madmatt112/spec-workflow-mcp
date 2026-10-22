@@ -904,4 +904,149 @@ describe('runOnce merge stage', () => {
       expect(mergedRows(fx).some((r) => r.type === 'spawn.start')).toBe(false);
     }, 30000);
   });
+
+  // Contract (design C7; R3 AC 8-9):
+  //
+  // T1 a `security-open` implementation outcome maps to one `escalation` wait,
+  //    question id `security`, options accept/retry/abandon, no recommendation,
+  //    listing the open finding's title, file and command.
+  //    Pre: a sensitive-path task already `[x]`; the ledger already carries the
+  //    e2e pass and a security state that resolves to `escalate` with one open
+  //    finding (design C6 Data Models note shapes), so the completion gate's
+  //    security pass reaches `escalate` with no spawn.
+  //    Test: runOnce(deps, runId).
+  //    Observable: run.status 'waiting'; exactly one `escalation` wait for the
+  //    run; its question id, options, absent `recommended`, and text.
+  //    Source: design C7 ("maps `security-open`... to one `escalation` wait
+  //    with one question `{ id: 'security', text, options: [...] }` and no
+  //    `recommended`; `text` lists each open finding as `<title> (<file>):
+  //    <command>`"); R3 AC 8.
+  //
+  // T2 a second pass while that wait is still open opens no second wait.
+  //    Pre: same as T1.
+  //    Test: runOnce(deps, runId) x2.
+  //    Observable: still exactly one `escalation` wait with question id
+  //    `security` for the run.
+  //    Source: design C7 ("When an open escalation wait with question id
+  //    `security` exists for the run, it parks the run without a second
+  //    wait.").
+  //
+  // T3 an answered `accept` reaches the phase as a security answer (not an
+  //    operator ruling): the run resumes past the security wait instead of
+  //    reopening it.
+  //    Pre: same as T1; the wait is answered `accept` after the first pass.
+  //    Test: runOnce(deps, runId) x2 (open, then answer and resume).
+  //    Observable: the ledger carries `security: answer <waitId> accept`; no
+  //    second `escalation` wait with question id `security` was opened; the
+  //    run proceeds to the retrospective's `retro-plan` wait.
+  //    Source: design C7 ("A new `securityAnswers(runId)`... `runOnce` passes
+  //    it to `runImplementationPhase`"; "`escalationRulings`... skips waits
+  //    with question id `security`, so `accept` never reaches a brief as a
+  //    ruling"); R3 AC 9's `accept` clause.
+  describe('security escalation wait (design C7, R3 AC 8-9)', () => {
+    /** The one open finding this run's completion gate already escalated on. */
+    const finding = {
+      title: 'Hardcoded secret', file: 'package.json',
+      command: 'grep -n SECRET package.json', output: 'SECRET_KEY=abc123',
+    };
+
+    /** A sensitive-path task, already `[x]`, so the task loop spawns nothing. */
+    function seedSensitiveTasks(fx: Fixture): void {
+      writeFileSync(join(fx.repo, '.spec-workflow', 'agent-rules.md'), [
+        '# Agent rules', '', '## Sensitive paths', '', '- package.json', '',
+      ].join('\n'));
+      writeFileSync(join(fx.specDir, 'tasks.md'), [
+        '# Tasks Document', '',
+        '- [x] 1. Touch the manifest',
+        '  - File: package.json',
+        '  - Purpose: do the thing.',
+        '  - _Requirements: 1.1_',
+        '  - _Prompt: Task: do it | Restrictions: none | Success: it works_',
+        '',
+      ].join('\n'));
+    }
+
+    /**
+     * The ledger state the completion gate already reached: the e2e pass
+     * stands, and the security loop's `recheck adjudicated` stage left one
+     * finding open, so `readSecurityState` resolves straight to `escalate`
+     * with no further spawn (design C6 `nextFor`).
+     */
+    function seedEscalatedLedger(fx: Fixture): void {
+      const ledger = openRunLedger({
+        specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC,
+        now: () => new Date('2026-10-11T00:00:00.000Z'),
+      });
+      ledger.note('e2e verification passed');
+      ledger.note('security: epoch 1');
+      ledger.note('security: recheck adjudicated: findings 1, suspicions 0');
+      ledger.note(`security: open ${JSON.stringify([finding])}`);
+    }
+
+    it('T1: security-open opens one escalation wait, question id security, options accept/retry/abandon, no recommendation', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const waits = (await listWaits()).filter((w) => w.kind === 'escalation' && w.run === 'run-20261011-000000');
+      expect(waits).toHaveLength(1);
+      const q = waits[0].questions[0];
+      expect(q.id).toBe('security');
+      expect(q.options).toEqual(['accept', 'retry', 'abandon']);
+      expect(q.recommended).toBeUndefined();
+      expect(q.text).toContain(finding.title);
+      expect(q.text).toContain(finding.file);
+      expect(q.text).toContain(finding.command);
+    }, 30000);
+
+    it('T2: a second pass with the wait still open opens no second escalation wait', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      const waits = (await listWaits()).filter(
+        (w) => w.kind === 'escalation' && w.run === 'run-20261011-000000' && w.questions.some((q) => q.id === 'security'),
+      );
+      expect(waits).toHaveLength(1);
+    }, 30000);
+
+    it('T3: an answered accept reaches the phase as a security answer and is absent from the rulings', async () => {
+      await approve(fx, 'requirements');
+      await approve(fx, 'design');
+      seedSensitiveTasks(fx);
+      seedEscalatedLedger(fx);
+      writeScript(fx, [compileRun, analystRun]);
+      await writeRun(seedRun(fx));
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+      const wait = (await listWaits()).find((w) => w.kind === 'escalation' && w.run === 'run-20261011-000000');
+      expect(wait).toBeTruthy();
+      await answerWait(wait!.id, { security: 'accept' }, 'matthew');
+
+      await runOnce(deps(fx), 'run-20261011-000000');
+
+      expect(mergedRows(fx).some((r) => r.type === 'note' && r.text === `security: answer ${wait!.id} accept`)).toBe(true);
+      // Reached the phase as a security answer, not an operator ruling: the
+      // run resumed past the wait instead of reopening the same question.
+      const secWaits = (await listWaits()).filter((w) => w.kind === 'escalation' && w.questions.some((q) => q.id === 'security'));
+      expect(secWaits).toHaveLength(1);
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('waiting');
+      expect(run?.phase).toBe('retrospective');
+      expect((await listWaits()).some((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000')).toBe(true);
+    }, 30000);
+  });
 });
