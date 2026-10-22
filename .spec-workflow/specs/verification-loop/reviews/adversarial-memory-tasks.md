@@ -1,29 +1,29 @@
 # Adversarial Review Memory — tasks
 
-Last updated: 2026-10-21 (round 1, v1)
+Last updated: 2026-10-21 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet)
+- **R1-1 (SHOULD_FIX, v1)** — T8 `Success:` named four `routeForTask` cases while the Task body named five; the fifth (task-id scoping) was silently dropped. Fixed in v2 by adding the fifth case — but without the `sensitive-path` qualifier (see R2-1 Unresolved).
+- **R1-2 (MINOR, v1)** — T9 guard cited AC 11 but listed "repair" (an AC 10 step). Fixed in v2 by relabelling to "R2 AC 10 and 11"; the three listed steps now map correctly. Residual: AC 11's adjudicator still unnamed — known-safe (holds by construction, design omits it too), not re-raised.
+- **R1-3 (MINOR, v1)** — dependency header omitted T12's direct need of T11. Fixed in v2: parenthetical now reads "5, 9, 10 and 11". Closed.
 
 ### Partially Accepted
-- (none yet)
+- (none)
 
 ### Rejected
-- (none yet)
+- (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — T8 `Success:` says "the four cases" but the `Task:` body names five `routeForTask` scenarios; the fifth ("an item for another task is ignored" — the task-id scoping test) is silently dropped. A `routeForTask` that ignores `taskId` passes all four and mis-routes every task to Opus when any task is sensitive (defeats R2). Fix: add the fifth case to `Success:`.
-- **R1-2 (MINOR)** — T9 regression guard cites R2 AC 11 but lists "repair" (an AC 10 step) instead of the adjudicator; AC 11's adjudicator clause unguarded. Behaviourally safe (holds by construction; design omits it too). Wording fix.
-- **R1-3 (MINOR)** — dependency header "(12 needs 5, 9 and 10)" omits the direct T11 dependency (e2e-skip/handoff markers). No build risk; accuracy fix.
+- **R2-1 (SHOULD_FIX, v2) — Compounds R1-1, fix-induced.** T8's new fifth case reads "an item whose `taskId` is another task" in both Task body and Success, with no kind. The test author writes from `Success:`; a `keyword` item (taskId = other) satisfies the clause but is ignored by kind, not taskId, so it does not catch a `routeForTask` that ignores `taskId`. On a spec with one sensitive task that bug routes every non-sensitive task to Opus (defeats R2) with a green suite. Fix: insert `sensitive-path` before "item" in both the Task body and the Success clause, as round 1 proposed verbatim.
 
 ## Patterns & Themes
-- Success-clause vs Task-body drift is the live risk class for this doc: the test-author writes from `Success:`, so any case the `Task:` body enumerates but `Success:` collapses ("the four cases") is a silently-dropped test. Check every task's Task→Success test-count parity, not just presence.
-- Invariant guards ("verified, not red-first") are being mapped loosely to AC numbers (R1-2). The behaviour is safe by construction, but the AC-to-step labels drift.
-- Citations are clean: the v1 lint pass normalised function anchors and path prefixes; all delta citations and the key reused seams verified against the tree.
+- **Success-clause vs Task-body drift stays the live risk class, now one level deeper.** R1-1 was a dropped case; R2-1 is a case that was added but under-specified. A fix that adds the words without the *discriminating* attribute (here, item kind) re-opens the same hole. When checking a fix, verify the added test can actually fail against the defect it targets, not just that the words are present.
+- Invariant-guard AC labels keep drifting (R1-2): relabelling fixed the attribution but not the omitted third step (adjudicator). Behaviourally safe each time; the labels over-claim coverage.
+- Citations remain clean; the v2 delta was pure prose and added no anchors.
 
 ## Guidance for Next Review
-- If R1-1 is fixed, re-check only T8's `Success:` diff against R2 AC 1's "for that task" scoping — a fix-induced re-check, not a fresh round.
-- Do not re-open: coverage completeness (every AC mapped; R1 AC 13 justifiably task-less), the ordering chain (all producer→consumer edges satisfied by linear order), the T12 bridge-keeps-green (D4), the verifier-spend header claim (only T2/T6/T8/T10 are new modules; no task touches `## Sensitive paths`).
-- Rejected-in-design tokens (blocking kinds, new field names, `security:` note vocabulary) are design decisions; do not raise as tasks-phase lint.
+- If R2-1 is fixed, re-check only T8's fifth-case diff: confirm both Task body and Success name a `sensitive-path` item for another task. A fix-induced re-check, not a fresh round.
+- Do not re-open (closed by ruling / verified clean): coverage completeness (every AC mapped; R1 AC 13 justifiably task-less), the ordering chain, T12's bridge-keeps-green (D4), the verifier-spend header claim, the full Task→Success parity of T1–T7 and T9–T14, the T9 adjudicator residual (known-safe MINOR).
+- Rejected-in-design/lint tokens (blocking kinds, new field names, `classAItems` closure, `security:` vocabulary, task-4 e2e-only) are settled — do not raise as tasks-phase lint.

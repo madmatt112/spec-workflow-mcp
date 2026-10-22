@@ -1,6 +1,6 @@
 # Tasks Document — verification-loop
 
-Document version: v2
+Document version: v3
 
 Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and the dependency flag; task 5 adds the brief variants; 6 → 7 build and wire the merge fix round (6 needs 1 and 5); 8 → 9 build and wire the implementer route; 10 → 11 → 12 → 13 build the completion-gate security pass and its wait (12 needs 5, 9, 10 and 11); task 14 is documentation. Each task leaves the tree compiling and every existing suite green. Expected verifier spend: tasks 2, 6, 8 and 10 create new modules, so they route high risk to the verifier; no task touches a `## Sensitive paths` entry.
 
@@ -85,7 +85,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - Purpose: pick the implementer model and effort from the class (a) items with no model judgement (R2 AC 1-5, 7).
   - _Leverage: src/controller/step.ts `loadRole` (:229-242); harness/agent-profiles.json `sdd-implementer` (:20-25) and `sdd-test-author` (:50-55)_
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 2.7_
-  - _Prompt: Task: Create src/controller/implementer-route.ts with `ImplementerRoute` and `routeForTask` as design C5 pins, per R2 AC 1, 2, 3, 5 and 7. Tests: a `sensitive-path` item for the task gives the `sdd-implementer` profile and the item's reason; keyword-only items give the `sdd-test-author` profile and `no sensitive-path flag`; no items give the same; `null` gives the `sdd-implementer` profile and `class-a unavailable` (design D7); an item whose `taskId` is another task is ignored, so a query with only such an item returns the `sdd-test-author` profile and `no sensitive-path flag` (R2 AC 1) | Restrictions: read both profiles through `loadRole`, never literal model strings; add no key to harness/agent-profiles.json, so src/__tests__/agent-profiles.test.ts stays green with no edit | Success: each of the five cases returns the model, effort and reason listed, including the other-task item returning the `sdd-test-author` profile and `no sensitive-path flag`; implementer-route.test.ts and agent-profiles.test.ts pass_
+  - _Prompt: Task: Create src/controller/implementer-route.ts with `ImplementerRoute` and `routeForTask` as design C5 pins, per R2 AC 1, 2, 3, 5 and 7. Tests: a `sensitive-path` item for the task gives the `sdd-implementer` profile and the item's reason; keyword-only items give the `sdd-test-author` profile and `no sensitive-path flag`; no items give the same; `null` gives the `sdd-implementer` profile and `class-a unavailable` (design D7); a `sensitive-path` item whose `taskId` is another task is ignored, so a query with only such an item returns the `sdd-test-author` profile and `no sensitive-path flag` (R2 AC 1) | Restrictions: read both profiles through `loadRole`, never literal model strings; add no key to harness/agent-profiles.json, so src/__tests__/agent-profiles.test.ts stays green with no edit | Success: each of the five cases returns the model, effort and reason listed, including the other-task `sensitive-path` item returning the `sdd-test-author` profile and `no sensitive-path flag`; implementer-route.test.ts and agent-profiles.test.ts pass_
 
 - [ ] 9. Implementer route in the implementation phase
   - File: src/controller/phases/implementation.ts
@@ -163,6 +163,8 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
 
 ## Revision History
 
+- **v3** (2026-10-21) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** Task 8's fifth case named only "an item" scoped to another task, so a test author could write it with a keyword item that is dropped by kind, not taskId, and never catches a route that ignores taskId; qualified it to a sensitive-path item in both the Task body and the Success clause so the only item that exercises the taskId filter is the one the case pins.
 - **v2** (2026-10-21) — Round-1 adversarial response (adversarial-analysis-tasks.md, verdict iterate 0/1/2).
   - **R1-1 — Accepted (SHOULD_FIX).** Task 8 Success named only four cases while the Task body named five; added the fifth — an item scoped to another task returns the test-author profile and no sensitive-path flag — so the test author writes the task-id scoping test that catches a route ignoring taskId.
   - **R1-2 — Accepted (MINOR).** Task 9's regression guard cited only R2 AC 11, but repair is an AC 10 step while AC 11 covers the test author, verifier and adjudicator; relabelled the guard to R2 AC 10 and 11 so each named step sits under the criterion that governs it.
