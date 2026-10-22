@@ -29,3 +29,7 @@ project can set "ask me first", which turns the merge into a wait instead.
   an `error` wait as well; the controller re-checks only while a run, a status or
   mergeability is still pending. The run had sat two hours in `merging`, with no visible
   reason, on a `Co-Authored-By` trailer the test author wrote into one commit.
+- Amended 2026-10-22 after the verification-loop spec: a `blocked` run PR whose every
+  blocking reason is a red check or a conflict gets up to two implementer fix rounds
+  before the `error` wait. The rounds run `sdd-implementer` steps. The merge rule stays
+  code and a model still never merges.
