@@ -56,7 +56,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 1.2, 1.3, 3.3, 3.4, 3.6_
   - _Prompt: Task: Per R1 AC 2-3 and R3 AC 3, 4 and 6, add `renderMergeFix`, `renderSecurityFix` and `renderVerifierSecurity` with the lines design C4 pins, dispatched from `renderFix` and `renderVerifier`. Tests in harness.test.ts: the merge variant names the check, its log path, the conflict text with `git merge origin/<base>`, "never rebase" and the `INFRA:` paragraph; the security fix lists the findings and says do not push; the security verifier scopes to `git diff <base>...HEAD`, lists sensitive files first, names the `security/` scratch directory and the finding and suspicion rules; the narrow variant re-runs only the listed findings | Restrictions: the required keys of `fix` and `verifier` stay unchanged; existing variant output and its exact assertions in harness.test.ts are unchanged | Success: each of the four variants renders the lines listed in Task; every existing harness.test.ts brief test passes unchanged_
 
-- [ ] 6. Merge fix round module
+- [x] 6. Merge fix round module
   - File: src/controller/merge-fix.ts
   - File: src/controller/phases/implementation.ts
   - File: src/controller/__tests__/merge-fix.test.ts
