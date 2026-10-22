@@ -35,7 +35,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 4.1, 4.3, 4.5, 4.6, 4.7_
   - _Prompt: Task: Per R4 AC 1, 3, 5, 6 and 7 and design C2, call the reader task 2 exports from `mergeByRule` when the evaluation is readable and has `head` and `base`; put a non-empty list on the `PrRead` as `newDependencies`; widen `MergeStageDeps.ledger` to `prMerged`, `note` and `path`; write the `new dependencies:` note only when its text differs from the newest one for that PR (Data Models). Tests in src/controller/__tests__/merge.test.ts with a view that carries `baseRefName` and a temp repo: list on the read, one note over two passes, `none` after a logged list, `unreadable` note once; regression guard (already true at base, R4 AC 7): the verdict and reasons are unchanged | Restrictions: no new `gh` call, so the argv counts at src/controller/__tests__/merge.test.ts:471, :486 and :497 keep their values; a view without `baseRefName` (the existing `READY_VIEW` at src/controller/__tests__/merge.test.ts:59) skips the read and writes no note (design D14); never throw | Success: a PR adding a dependency carries `newDependencies` on its read; two passes write one note; a changed list writes one more; an empty list after a logged one writes one `none` note; an unreadable read writes one note and keeps the verdict and reasons; a view without `baseRefName` writes no note; existing src/controller/__tests__/merge.test.ts assertions pass unchanged_
 
-- [ ] 4. Run page new-dependency chip
+- [x] 4. Run page new-dependency chip
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/RunPage.tsx
