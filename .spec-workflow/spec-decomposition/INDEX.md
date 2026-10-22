@@ -29,7 +29,8 @@
 | 14 | dashboard-shell | Complete | 16/16 |
 | 15 | dashboard-loop-views | Complete | 14/14 |
 | 16 | project-bootstrap | Complete | 11/11 |
-| 17 | tighter-reviews | Complete | 29/29 |
+| 17 | verification-loop | Complete | 14/14 |
+| 18 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
