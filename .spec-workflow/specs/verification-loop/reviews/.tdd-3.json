@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/merge.test.ts"],"seams":{"src/controller/__tests__/merge.test.ts":"runMergeStage(run, deps)"},"redCommit":"a96ec76a6ca834ae6dc408fd3a38bc2baee9975c","baseSha":"49bffa4c02e2b85d9ed87dcc2093efa8ccc78120","base":"assertion-red","head":"pass","amended":false,"judged":null}

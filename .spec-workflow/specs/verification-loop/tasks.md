@@ -24,7 +24,7 @@ Dependency order: tasks 1 → 2 → 3 → 4 build the merge-evaluation facts and
   - _Requirements: 4.1, 4.2, 4.6_
   - _Prompt: Task: Create src/controller/new-deps.ts with `DEPENDENCY_SECTIONS`, `diffNewDependencies` and `readNewDependencies` as design C2 pins, per R4 AC 1, AC 2 and AC 6. The reader resolves `origin/<base>` else `<base>`, takes the merge base, lists changed `package.json` paths with `--no-renames`, and diffs both sides; a missing base side is empty. Tests: an added name; a name moved between sections; a re-versioned name; a removed name; a new manifest; on a temp git repo one added dependency, a lockfile-only commit (empty list) and a missing sha (`ok: false`) | Restrictions: git through `execFileSync` with `scrubbedGitEnv()`; assert only on returned values (node 20 safe); no `gh` call; never throw | Success: moved, re-versioned, removed and lockfile-only changes give no name; an added name and a new manifest's names are listed sorted and unique; an unreadable sha gives `ok: false` with one line of why; new-deps.test.ts passes_
 
-- [ ] 3. Dependency flag in the merge pass
+- [x] 3. Dependency flag in the merge pass
   - File: src/controller/merge.ts
   - File: src/controller/state.ts
   - File: src/controller/__tests__/merge.test.ts
