@@ -39,6 +39,7 @@ import {
   runMergeStage, findPullRequest, mergeByRule, closeoutMergeTarget, readMergeRules,
   MERGE_POLL_INTERVAL_MS, type MergeRules, type MergeStageResult,
 } from './merge.js';
+import { mergeFixHistory, mergeFixEligible, runMergeFixRound } from './merge-fix.js';
 import {
   runDocumentPhase, NO_OP_GATES,
   type DocumentPhase, type DocumentGates, type DocumentPhaseContext, type DocumentPhaseOutcome,
@@ -486,6 +487,15 @@ function hasMergedPr(specDir: string, runId: string, repoDir: string, number: nu
   }
 }
 
+/** This run's ledger rows as plain records (the merge-fix history read). */
+function ledgerRows(specDir: string): Record<string, string>[] {
+  try {
+    return parseJsonl<Record<string, string>>(readFileSync(ledgerPath(specDir), 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
 /** The run's token totals so far, summed from its `spawn.end` rows. */
 function runTokens(specDir: string, runId: string): TokenTotals {
   const totals: TokenTotals = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 };
@@ -666,20 +676,66 @@ async function runMergeStageStep(
     case 'not-ready':
       await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
       return 'stop';
-    case 'blocked':
+    case 'blocked': {
       // The PR fails the rule and nothing is in flight (a red check, a conflict,
-      // an attribution trailer, a wrong head branch); polling would never change
-      // that. The `merge` cursor makes a "retry" re-enter the merge stage.
+      // an attribution trailer, a wrong head branch). When every reason is a red
+      // check or a conflict and the cap has room, the run fixes its own PR before
+      // it asks the operator (design C3); otherwise it opens the `error` wait as
+      // before. The `merge` cursor makes a "retry" re-enter the merge stage and
+      // read the same round count from the ledger.
+      const { used, endings } = mergeFixHistory(ledgerRows(specDir), run.id);
+      if (mergeFixEligible(result, used)) {
+        // The merge resume path runs before `runOnce`'s own cancel, cap and
+        // window checks, so guard the round here: a cancelled run stops, a full
+        // cap opens the cap wait and a blocked window pauses, each with no round.
+        if (deps.isCancelled(run.id)) return 'stop';
+        const cap = deps.tokenCap(run);
+        const w = totalW(runTokens(specDir, run.id));
+        if (cap !== undefined && w >= cap) {
+          await waitAnd(deps, run, ledger, 'error', specDir, [{
+            id: 'cap', text: `This run used ${w} W, at or over its cap of ${cap}. Raise the cap or abandon.`,
+            options: ['retry', 'abandon'], recommended: 'abandon',
+          }]);
+          return 'stop';
+        }
+        const window = deps.windowBlock();
+        if (window.blocked) {
+          await pause(deps, run, 'usage-window', window.resumeAt);
+          return 'stop';
+        }
+        const outcome = await runMergeFixRound({
+          run, worktree: run.worktree ?? run.codeRoot, specStoreRoot: run.specStore, specDir, ledger,
+          stepLogDir: stepLogDir(run.id), mcpConfig: deps.mcpConfigFor(run),
+          onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
+          ...stepLifecycle(deps, run.id),
+        }, {
+          round: used + 1, pr: result.number ?? run.pr ?? 0,
+          blocking: result.blocking ?? [], base: result.base ?? 'main',
+        });
+        if (outcome.kind === 'usage-limit') {
+          await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
+          return 'stop';
+        }
+        // The round ran (or the round could not start past its branch guard): a
+        // re-check picks up the new state (a pushed fix, a rerun check).
+        await save(deps, run, { status: 'merging', pauseReason: undefined, resumeAt: nextMergeCheck(deps), inFlight: undefined });
+        return 'stop';
+      }
+      // Not eligible: the `error` wait as before, naming any rounds that ran.
+      const ran = used > 0
+        ? ` ${used} fix round(s) ran: ${endings.map((e, i) => `round ${i + 1} ${e}`).join('; ')}.`
+        : '';
       run = await save(deps, run, {
         cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
       });
       await waitAnd(deps, run, ledger, 'error', specDir, [{
         id: 'merge',
-        text: `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}. `
+        text: `PR #${result.number ?? run.pr ?? '?'} cannot merge by rule and nothing is in flight: ${result.reasons.join('; ')}.${ran} `
           + 'Fix the PR (rewrite the commit, resolve the conflict, fix the check), then answer "Retry", or abandon.',
         options: ['retry', 'abandon'], recommended: 'retry',
       }]);
       return 'stop';
+    }
     case 'waiting':
       // `runMergeStage` opened (or reused) the `merge` wait; just park the run.
       await save(deps, run, { status: 'waiting', inFlight: undefined });
