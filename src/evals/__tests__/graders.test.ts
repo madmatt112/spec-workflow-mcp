@@ -209,4 +209,383 @@ describe('GRADERS registry', () => {
     expect(result.pass).toBe(true);
     rmSync(repo, { recursive: true, force: true });
   });
+
+  // Pre-condition: a repo whose HEAD still equals the fixture's recorded base.
+  // Test: GRADERS['no-new-commit'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "no-new-commit [repo]: HEAD equals its base."
+  it('no-new-commit passes when HEAD still equals the base', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    const result = GRADERS['no-new-commit'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a repo with one commit landed after the fixture's recorded base.
+  // Test: GRADERS['no-new-commit'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "no-new-commit [repo]: HEAD equals its base."
+  it('no-new-commit fails when a new commit lands', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'one']);
+
+    const result = GRADERS['no-new-commit'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a repo whose pre-commit hook would refuse, but the commit landed with the
+  // hook skipped (`--no-verify`).
+  // Test: GRADERS['no-new-commit'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "no-new-commit … Any commit, hooked or
+  // hook-skipped, fails it" (task 3's _Prompt: "a commit made with hooks skipped still fails
+  // no-new-commit").
+  it('no-new-commit fails on a commit made with the pre-commit hook skipped', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    const hookPath = join(repo, '.git', 'hooks', 'pre-commit');
+    writeFileSync(hookPath, '#!/bin/sh\nexit 1\n');
+    execFileSync('chmod', ['755', hookPath]);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'skip hook', '--no-verify']);
+
+    const result = GRADERS['no-new-commit'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a repo with no pending changes since its last commit.
+  // Test: GRADERS['clean-tree'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "clean-tree [repo]: `git status --porcelain
+  // --untracked-files=all` prints nothing."
+  it('clean-tree passes on a repo with no pending changes', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+
+    const result = GRADERS['clean-tree'].grade(
+      { report: {}, fixture: stubFixture(repo) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a repo carrying one untracked file.
+  // Test: GRADERS['clean-tree'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "clean-tree [repo]: `git status --porcelain
+  // --untracked-files=all` prints nothing" (task 3's _Prompt: "an untracked file (`clean-tree`
+  // uses `--untracked-files=all`)").
+  it('clean-tree fails on an untracked file', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    writeFileSync(join(repo, 'untracked.txt'), 'x\n');
+
+    const result = GRADERS['clean-tree'].grade(
+      { report: {}, fixture: stubFixture(repo) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: `base..HEAD` holds exactly as many commits as the grader's `count` argument.
+  // Test: GRADERS['new-commit-count'].grade({ report: {}, fixture }, { repo: '.', count }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "new-commit-count [repo, count]: base..HEAD
+  // holds exactly count commits."
+  it('new-commit-count passes when base..HEAD holds exactly the given count', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'one']);
+
+    const result = GRADERS['new-commit-count'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', count: 1 }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: `base..HEAD` holds a different number of commits than the grader's `count`
+  // argument.
+  // Test: GRADERS['new-commit-count'].grade({ report: {}, fixture }, { repo: '.', count }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "new-commit-count [repo, count]: base..HEAD
+  // holds exactly count commits" (task 3's _Prompt: "a wrong count").
+  it('new-commit-count fails when base..HEAD holds the wrong count', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'one']);
+
+    const result = GRADERS['new-commit-count'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', count: 2 }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: HEAD equals base and the tree is clean.
+  // Test: GRADERS['repo-unchanged'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "repo-unchanged [repo]: HEAD equals base and
+  // the tree is clean."
+  it('repo-unchanged passes when HEAD equals base and the tree is clean', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    const result = GRADERS['repo-unchanged'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a new commit landed after the fixture's recorded base.
+  // Test: GRADERS['repo-unchanged'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "repo-unchanged [repo]: HEAD equals base and
+  // the tree is clean" (task 3's _Prompt: "fails on a new commit").
+  it('repo-unchanged fails when a new commit lands', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'one']);
+
+    const result = GRADERS['repo-unchanged'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: HEAD still equals base, but the tree carries an untracked file.
+  // Test: GRADERS['repo-unchanged'].grade({ report: {}, fixture }, { repo: '.' }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "repo-unchanged [repo]: HEAD equals base and
+  // the tree is clean" (task 3's _Prompt: "an untracked file"); this is the AND condition's
+  // other branch, distinct from the new-commit case above.
+  it('repo-unchanged fails when the tree carries an untracked file', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+    writeFileSync(join(repo, 'untracked.txt'), 'x\n');
+
+    const result = GRADERS['repo-unchanged'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: the report item's commit is reachable from the repo's HEAD, not from its
+  // base, and it touches the grader's `path` argument.
+  // Test: GRADERS['item-commit-on-branch'].grade({ report, fixture }, { item, repo, path }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "item-commit-on-branch [item, repo, path]: the
+  // report item's commit is reachable from the repo's HEAD, not from its base, and changes
+  // path."
+  it('item-commit-on-branch passes when the item commit is on HEAD, ahead of base, and touches the path', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'notes.md'), 'hi\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'add notes']);
+    const commit = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    const report = { items: [{ id: 'item-1', commit }] };
+    const result = GRADERS['item-commit-on-branch'].grade(
+      { report, fixture: stubFixture(repo, { '.': base }) },
+      { item: 'item-1', repo: '.', path: 'notes.md' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: the report item's commit was made on another branch and never reached this
+  // repo's HEAD.
+  // Test: GRADERS['item-commit-on-branch'].grade({ report, fixture }, { item, repo, path }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "item-commit-on-branch … reachable from the
+  // repo's HEAD" (task 3's _Prompt: "a commit on the wrong branch").
+  it('item-commit-on-branch fails when the item commit sits on another branch', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    gitAt(repo, ['checkout', '-q', '-b', 'other']);
+    writeFileSync(join(repo, 'notes.md'), 'hi\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'add notes']);
+    const commit = gitAt(repo, ['rev-parse', 'HEAD']);
+    gitAt(repo, ['checkout', '-q', 'main']);
+
+    const report = { items: [{ id: 'item-1', commit }] };
+    const result = GRADERS['item-commit-on-branch'].grade(
+      { report, fixture: stubFixture(repo, { '.': base }) },
+      { item: 'item-1', repo: '.', path: 'notes.md' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: the report item's commit is on HEAD, ahead of base, but it does not touch
+  // the grader's `path` argument.
+  // Test: GRADERS['item-commit-on-branch'].grade({ report, fixture }, { item, repo, path }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "item-commit-on-branch … changes path" (task
+  // 3's _Prompt: "not touching path").
+  it('item-commit-on-branch fails when the item commit does not touch the path', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'other.txt'), 'hi\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'unrelated change']);
+    const commit = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    const report = { items: [{ id: 'item-1', commit }] };
+    const result = GRADERS['item-commit-on-branch'].grade(
+      { report, fixture: stubFixture(repo, { '.': base }) },
+      { item: 'item-1', repo: '.', path: 'notes.md' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: no commit in `base..HEAD` touches any of the grader's `paths` argument.
+  // Test: GRADERS['no-commit-touches'].grade({ report: {}, fixture }, { repo: '.', paths }).
+  // Observable result: pass is true.
+  // Expected-value source: design.md Component 5 "no-commit-touches [repo, paths]: `git log
+  // base..HEAD -- paths` is empty."
+  it('no-commit-touches passes when no commit in base..HEAD touches the listed paths', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'file.txt'), 'b\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'unrelated change']);
+
+    const result = GRADERS['no-commit-touches'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', paths: ['design.md'] }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a commit in `base..HEAD` touches one of the grader's `paths` argument.
+  // Test: GRADERS['no-commit-touches'].grade({ report: {}, fixture }, { repo: '.', paths }).
+  // Observable result: pass is false.
+  // Expected-value source: design.md Component 5 "no-commit-touches [repo, paths]: `git log
+  // base..HEAD -- paths` is empty" (task 3's _Prompt: "a commit that touches a listed path").
+  it('no-commit-touches fails when a commit in base..HEAD touches a listed path', () => {
+    const repo = makeRepo();
+    writeFileSync(join(repo, 'file.txt'), 'a\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'init']);
+    const base = gitAt(repo, ['rev-parse', 'HEAD']);
+
+    writeFileSync(join(repo, 'design.md'), 'reverses the decision\n');
+    gitAt(repo, ['add', '-A']);
+    gitAt(repo, ['commit', '-q', '-m', 'reverse decision']);
+
+    const result = GRADERS['no-commit-touches'].grade(
+      { report: {}, fixture: stubFixture(repo, { '.': base }) },
+      { repo: '.', paths: ['design.md'] }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  // Pre-condition: task 2's four graders plus task 3's six git-state graders are all
+  // registered.
+  // Test: Object.keys(GRADERS).
+  // Observable result: the registry lists exactly the ten named graders.
+  // Expected-value source: task 3's _Prompt: "the registry lists ten graders."
+  it('registers ten graders including the six git-state graders', () => {
+    expect(Object.keys(GRADERS).sort()).toEqual([
+      'clean-tree',
+      'item-commit-on-branch',
+      'item-status',
+      'new-commit-count',
+      'no-attribution-trailer',
+      'no-commit-touches',
+      'no-new-commit',
+      'report-flag',
+      'repo-unchanged',
+      'tasks-labels-canonical',
+    ]);
+  });
 });
