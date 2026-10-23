@@ -677,17 +677,27 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       }
     }
 
-    // 2. Implement (or reconcile a resumed task that already carries a log).
+    // 2. Implement (or reconcile a task already satisfied at HEAD).
+    // The reconcile path also covers a non-resumed re-pick: an escalation resets
+    // the task to pending (stop() above), so a resume or same-run re-serve then
+    // re-spawns an implementer for a task its own commit already satisfies, which
+    // only writes a 0-line "already complete at HEAD" log (retro F5/P5). An
+    // existing completion log plus committed work in the task's range is the
+    // HEAD-satisfied signal; a partial commit carries no completion log, so it
+    // still re-spawns, and the gate runs on the committed range as the backstop.
     let commit: string | undefined;
     let implementerFiles: string[] = [];
     let checks: string[] = [];
     const existingLogs = await logManager.getTaskLogs(id);
-    if (resumed && existingLogs.length > 0) {
+    const priorCommits = taskCommits();
+    if (existingLogs.length > 0 && (resumed || priorCommits.length > 0)) {
       // stops.md "Resume recovery": a commit with no report is ambiguous state,
       // not unfinished work. Take the task's commits since its pick as the range.
-      commit = taskCommits()[0];
+      commit = priorCommits[0];
       implementerFiles = existingLogs.flatMap((e) => [...e.filesModified, ...e.filesCreated]);
-      ctx.ledger.note(`task ${id} resumed with its log present; gating from ${commit ? commit.slice(0, 7) : 'HEAD (no range)'}`);
+      ctx.ledger.note(resumed
+        ? `task ${id} resumed with its log present; gating from ${commit ? commit.slice(0, 7) : 'HEAD (no range)'}`
+        : `task ${id} already satisfied at HEAD (log present, ${priorCommits.length} commit(s) in range); reconciling without a re-spawn`);
     } else {
       const halt = ctx.shouldStop?.();
       if (halt) return { result: 'stopped', reason: halt, tasks: progress() };
