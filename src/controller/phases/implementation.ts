@@ -690,7 +690,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     let checks: string[] = [];
     const existingLogs = await logManager.getTaskLogs(id);
     const priorCommits = taskCommits();
-    if (existingLogs.length > 0 && (resumed || priorCommits.length > 0)) {
+    // Not after an operator ruling: an answered escalation must reach a fresh
+    // implementer with the ruling in its brief, even when the task has a log.
+    const hasRulings = (ctx.operatorRulings ?? []).some((r) => r.trim().length > 0);
+    if (existingLogs.length > 0 && (resumed || (priorCommits.length > 0 && !hasRulings))) {
       // stops.md "Resume recovery": a commit with no report is ambiguous state,
       // not unfinished work. Take the task's commits since its pick as the range.
       commit = priorCommits[0];
