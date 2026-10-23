@@ -1037,3 +1037,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## harness-evals — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/16, last commit 13aab83d, next task 2 |

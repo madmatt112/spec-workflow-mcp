@@ -1,11 +1,13 @@
 # Adversarial Review Memory — tasks
 
-Last updated: 2026-10-22 (round 1, v1)
+Last updated: 2026-10-22 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (SHOULD_FIX, v1)** — CLI `gate` subcommand argument handling was untested. v2 added a `gate` test to task 10 (`cli.test.ts`): stub claude on a two-commit temp repo, a failing overridden case exits 0 + one `overrides.log` line, a bad `--override` exits 2 before any spawn, with matching Success clause. Verified accurate in round 2.
+- **R1-2 (MINOR, v1)** — Missing dependency edge 6→5. v2 dependency paragraph now states 6 needs the `Fixture` type of 5 (`renderCaseBriefs(c, f: Fixture, …)`). Verified vs design Component 3.
+- **R1-3 (MINOR, v1)** — Task 13 role-file anchor: `sdd-retro-analyst.md` has no literal `Prerequisites:` line. v2 now extends the proposal-fields sentence at `:18` for the role file, keeps "after Prerequisites" only for the proposal format (`brief-templates.ts:1389`). Verified both ends.
 
 ### Partially Accepted
 - (none)
@@ -14,18 +16,16 @@ Last updated: 2026-10-22 (round 1, v1)
 - (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — Eval CLI `gate` subcommand argument handling is untested. Task 10 covers run + select only; the deploy calls `dist/evals/cli.js gate` (Component 10 change 4) but task 14 stubs the CLI and task 9 tests `runGate` directly, so no automated test exercises the gate dispatch. Contradicts D4's "export main to test argument handling". Fix: add a gate test + Success clause to task 10.
-- **R1-2 (MINOR)** — Missing dependency edge 6→5. `render.ts` imports the `Fixture` type from task 5; the dependency paragraph lists only "6 need[s] 4". Harmless under numeric order.
-- **R1-3 (MINOR)** — Task 13 says add the `Eval case:` line "after `Prerequisites:` … in the role file", but `sdd-retro-analyst.md` has no literal `Prerequisites:` line (only prose at :18). Anchor exists only in the proposal-format block (`brief-templates.ts:1389`).
+- (none)
 
 ## Patterns & Themes
-- The document is citation-accurate: every path/range/signature/behaviour verified against code at both ends; zero misstated artifacts. Do not re-verify these next round unless a fix touches them.
-- Coverage is complete: all R1–R7 ACs map to tasks and back; Success-clause coverage holds; all `- Test:` calls resolve. The lint-pass deltas are cosmetic.
-- The recurring weak spot is the **CLI↔deploy seam**: the gate runs through the CLI in production but every surrounding test either stubs the CLI (task 14) or bypasses it (task 9). Watch any revision that claims the gate is "tested".
-- A requirements(R6 AC1 "a brief template")-vs-design(Component 11 "server code, docs or templates") trigger-scope widening exists but is a closed prior-phase matter; the task cites Component 11, which is explicit — not re-raising.
+- Document is citation-accurate across both v1 and v2; zero misstated artifacts in either round. The v2 fix commit changed no code citation — only task-10 prose, the dependency edge, and the task-13 anchor — all verified.
+- Coverage (R1–R7 AC↔task), Success-clause coverage (retro P7), and `- Test:` resolution all complete and unchanged by v2.
+- The CLI↔deploy gate seam (R1-1) is now closed: task 10 tests `main(argv)` gate dispatch; task 9 tests `runGate`; task 14 tests the shell forwarding `--eval-override`→`--override`. The three layers together cover the production path end to end.
+- `src/evals/` correctly does not exist at base — these tasks create it; absence is expected, not a miss.
 
 ## Guidance for Next Review
-- If the reviser added a gate test to task 10, scope the re-check to that diff vs R1-1 (fix-induced re-check), not a full re-review.
-- Re-confirm only citations any fix commit changed.
-- Fresh lens not yet used: a timing/stub-fidelity lens on the runner (does the stub-claude seam faithfully model `runStep`'s snapshot/scratch-wipe ordering under node 20?).
-- Rejected-finding guard: nothing rejected yet.
+- This review converged (0/0/0). If a human revision reopens the doc, re-verify only the touched anchors; do not re-walk the clean surface.
+- Areas well-covered, skip unless a fix touches them: all citations (both ends read), AC↔task coverage, Success-clause coverage, `- Test:` resolution, Gate B/C, grader split (tasks 2–3), snapshot carve-out (D3), env/`SDD_RUN_ID` handling.
+- Residual non-defects for the operator, not the doc: the model-dependent 3/3 bar on `drafter-test-seam-label` (R5 AC3) on the landing deploy; the implicit "case must be selected" setup in task 10's gate test (recoverable from tasks 8/9's idiom).
+- Rejected-finding guard: nothing rejected in any round.

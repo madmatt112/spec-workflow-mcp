@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the graders; task 4 (case loader) needs 1-3; 5 (fixture builder) and 6 (brief renderer) need 4, and 6 also needs the `Fixture` type of 5 (`renderCaseBriefs(c, f: Fixture, …)`); 7 (runner) needs 4-6; 8 (selector) needs 5 and 6; 9 (gate) needs 7 and 8; 10 (CLI) needs 7-9; 11 and 12 add the seed cases and need 2-6; 13 (brief and role text) is independent; 14 (self-update script) calls the CLI of task 10 and stubs it in tests; 15 is documentation; 16 writes the pending verification record. Each task leaves the tree compiling and every existing suite green. Expected verifier spend: tasks 1-12 create new modules or a new case tree, so they route structural red, high risk, to the verifier (12 verifiers); 13-16 route by the line rule; no task touches a `## Sensitive paths` entry.
 
-- [ ] 1. Report schema map
+- [x] 1. Report schema map
   - File: src/evals/schemas.ts
   - File: src/controller/phases/implementation.ts
   - File: src/controller/phases/document.ts

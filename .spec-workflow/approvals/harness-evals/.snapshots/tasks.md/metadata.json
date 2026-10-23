@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/harness-evals/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-22T20:57:28.230Z",
+      "trigger": "initial",
+      "approvalId": "approval_1792702648075_0j4d9jtzo",
+      "approvalTitle": "harness-evals tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-22T20:57:28.340Z",
+      "trigger": "approved",
+      "approvalId": "approval_1792702648075_0j4d9jtzo",
+      "approvalTitle": "harness-evals tasks v2"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/schemas.test.ts"],"seams":{"src/evals/__tests__/schemas.test.ts":"reportSchema(phase, role)"},"redCommit":"6dca1f1d16562e56fec52d05839e4efb2cbe6e6b","baseSha":"d8be9cd3164497ba22e1725e842ce5201b3ea910","base":"structural-red","head":"pass","amended":false,"judged":null}
