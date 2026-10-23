@@ -583,8 +583,8 @@ describe('GRADERS registry', () => {
       'no-attribution-trailer',
       'no-commit-touches',
       'no-new-commit',
-      'report-flag',
       'repo-unchanged',
+      'report-flag',
       'tasks-labels-canonical',
     ]);
   });
