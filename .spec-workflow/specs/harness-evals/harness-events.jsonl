@@ -168,3 +168,18 @@
 {"ts":"2026-10-23T16:48:45.818Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-verifier","input":"38","output":"21234","cacheWrite":"79920","cacheRead":"1026131","tokens":"1127323","cacheWrite5m":"0","cacheWrite1h":"79920","model":"claude-opus-4-8"}
 {"ts":"2026-10-23T16:48:45.818Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 7","result":"VERDICT: pass","phase":"implementation","task":"7"}
 {"ts":"2026-10-23T16:48:45.819Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"7","rounds":"0","outcome":"pass"}
+{"ts":"2026-10-23T16:48:45.945Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"8","title":"Selector"}
+{"ts":"2026-10-23T16:48:45.950Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 8 pick head 11b5f4266492b64de4dabb36cb28348fe8454209"}
+{"ts":"2026-10-23T16:48:45.979Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-test-author","role":"author task 8","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-23T16:58:20.006Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-test-author","input":"56","output":"53108","cacheWrite":"120288","cacheRead":"2548783","tokens":"2722235","cacheWrite5m":"0","cacheWrite1h":"120288","model":"claude-sonnet-5"}
+{"ts":"2026-10-23T16:58:20.007Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-test-author","role":"author task 8","result":"none","phase":"implementation","task":"8"}
+{"ts":"2026-10-23T16:58:20.032Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 8 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-23T16:58:20.032Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement task 8","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-23T17:03:58.886Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"84","output":"26607","cacheWrite":"99245","cacheRead":"3694701","tokens":"3820637","cacheWrite5m":"0","cacheWrite1h":"99245","model":"claude-sonnet-5"}
+{"ts":"2026-10-23T17:03:58.886Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 8","result":"yes/8","phase":"implementation","task":"8"}
+{"ts":"2026-10-23T20:03:45.090Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 8 resumed with its log present; gating from 7279cd9"}
+{"ts":"2026-10-23T20:03:51.811Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: task 8 pass risk high tdd structural-red"}
+{"ts":"2026-10-23T20:03:51.823Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-verifier","role":"verify task 8","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-23T20:09:43.204Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-verifier","input":"36","output":"26422","cacheWrite":"113821","cacheRead":"1099890","tokens":"1240169","cacheWrite5m":"0","cacheWrite1h":"113821","model":"claude-opus-4-8"}
+{"ts":"2026-10-23T20:09:43.204Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 8","result":"VERDICT: pass","phase":"implementation","task":"8"}
+{"ts":"2026-10-23T20:09:43.206Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"8","rounds":"0","outcome":"pass"}

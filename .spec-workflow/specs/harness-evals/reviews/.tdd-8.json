@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/select.test.ts"],"seams":{"src/evals/__tests__/select.test.ts":"selectCases(opts)"},"redCommit":"817e3374685a2a2f265f1a25de9175f40ef10d81","baseSha":"11b5f4266492b64de4dabb36cb28348fe8454209","base":"structural-red","head":"pass","amended":false,"judged":null}
