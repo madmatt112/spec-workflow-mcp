@@ -112,7 +112,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 3.2, 3.3, 3.5, 4.2, 4.3, 4.4, 4.5_
   - _Prompt: Task: Implement design Component 8 post-conditions 1-5 per R3 AC2, AC3, AC5 and R4 AC2-AC5, owner `harness` per requirements D9. Tests with the stub claude on a temp repo: an override naming no case or an unselected case gives exit 2 before any spawn; no selection gives exit 0, no stub invocation and no record; a passed case named by an override gives exit 2; an unnamed failing case gives exit 1, the summary line in the design format, no override line and no deferral; a failing case named by an override gives exit 0, one `overrides.log` line and one deferral with owner `harness`, the case id in its title and the Progress log line, holding the deferral id, in its context | Restrictions: no edit to `docs/foundation-review.md` (R4 AC5); a create or update failure exits 1 before any log line | Success: a bad override exits 2 before any spawn; no selection exits 0 with no stub call and no record; an override on a passed case exits 2; an unnamed failure exits 1 with the summary line and no log line or deferral; a named failure exits 0 with one log line and one `harness` deferral carrying the case id and the Progress log line; gate.test.ts passes_
 
-- [ ] 10. Eval CLI
+- [x] 10. Eval CLI
   - File: src/evals/cli.ts
   - File: src/evals/__tests__/cli.test.ts
   - Test: src/evals/__tests__/cli.test.ts — main(argv)
