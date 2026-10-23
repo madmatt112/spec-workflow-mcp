@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/fixture.test.ts"],"seams":{"src/evals/__tests__/fixture.test.ts":"buildFixture(c, caseDir)"},"redCommit":"fec5783d325271c61ddf375c04b2577593e62068","baseSha":"2ff01c16aeeef608a51014aa8315b37dc1ee4e7c","base":"structural-red","head":"pass","amended":false,"judged":null}

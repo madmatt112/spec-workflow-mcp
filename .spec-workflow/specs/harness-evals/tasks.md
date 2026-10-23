@@ -60,7 +60,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.1, 1.5_
   - _Prompt: Task: Implement design Component 1 per R1 AC1 and AC5. `loadCase` throws one `CaseError` listing every problem the component's post-conditions name, plus one more: a `spec` value that does not start with `eval-` (D1 below). Tests on temp case directories: a valid case loads with its optional keys absent; one invalid case with an unknown key, an id unequal to its directory, a bad phase, a pair with no schema, a zero `turnCap`, an unknown grader, a missing fixture path and a non-`eval-` spec reports all eight problems in one error; `listCaseIds` returns sorted ids and skips a directory without `case.json` | Restrictions: resolve `casesRoot()` from this module's package root as `harnessDir` does, so a staged build reads its own cases; JSON only (design D1) | Success: the valid case loads; the invalid case's error lists all eight problems; `listCaseIds` is sorted and skips the stray directory; case.test.ts passes_
 
-- [ ] 5. Fixture builder
+- [x] 5. Fixture builder
   - File: src/evals/fixture.ts
   - File: src/evals/__tests__/fixture.test.ts
   - Test: src/evals/__tests__/fixture.test.ts — buildFixture(c, caseDir)
