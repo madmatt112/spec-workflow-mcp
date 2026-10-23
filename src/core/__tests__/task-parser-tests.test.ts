@@ -112,4 +112,15 @@ describe('parseTasksFromMarkdown — Test lines', () => {
     expect(tasks[0].tests).toEqual([{ path: 'tests/reader.test.ts', seam: 'readFile: x' }]);
     expect(tasks[0].files).toBeUndefined();
   });
+
+  it('drops a parenthetical note that holds a comma from a File entry', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - File: specs/x/probe-YYYY-MM-DD.txt (create, run date in the name)',
+      '  - Files: src/a.ts (modify), src/b.ts',
+      '',
+    ].join('\n');
+    const { tasks } = parseTasksFromMarkdown(md);
+    expect(tasks[0].files).toEqual(['specs/x/probe-YYYY-MM-DD.txt', 'src/a.ts', 'src/b.ts']);
+  });
 });
