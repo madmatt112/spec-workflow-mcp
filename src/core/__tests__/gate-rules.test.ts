@@ -539,6 +539,15 @@ describe('decideGate', () => {
     expect(r.reasons).toContain('file-outside-list: src/bar.ts');
   });
 
+  it('d: a YYYY-MM-DD placeholder entry lists the dated file and nothing else', () => {
+    const files = ['specs/x/probe-YYYY-MM-DD.txt'];
+    expect(decideGate({ ...passGate, files, touched: ['specs/x/probe-2026-10-22.txt'] })).toEqual({ gate: 'pass', reasons: [] });
+    expect(decideGate({ ...passGate, files, touched: ['specs/x/probe-latest.txt'] }).reasons)
+      .toContain('file-outside-list: specs/x/probe-latest.txt');
+    expect(decideGate({ ...passGate, files, touched: ['specs/x/probe-2026-10-22.txt.bak'] }).reasons)
+      .toContain('file-outside-list: specs/x/probe-2026-10-22.txt.bak');
+  });
+
   it('d: exempts a generated path from the files list (P3)', () => {
     const r = decideGate({
       ...passGate,
