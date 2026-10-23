@@ -193,7 +193,7 @@ function tail(text: string, lines: number): string {
 }
 
 /** The close-out commit script every brief names (briefs.md). */
-const COMMIT_SCRIPT = `#!/bin/bash
+export const COMMIT_SCRIPT = `#!/bin/bash
 # One commit for one close-out item: stages only the named files.
 set -e
 ROOT="$1"; MSG="$2"; shift 2
