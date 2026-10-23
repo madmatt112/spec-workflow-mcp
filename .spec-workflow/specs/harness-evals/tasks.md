@@ -82,7 +82,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.2_
   - _Prompt: Task: Implement design Component 3 post-conditions 1-5 per R1 AC2. Tests with the real `harnessHandler` on a fixture store the test writes: `{{fixture}}` and `{{scratch}}` are substituted in every value; a `closeout-standing` then `closeout-batch` case writes both, and the batch text names the standing brief's rendered path; a close-out case writes `closeout-commit.sh` with mode 755 and the `COMMIT_SCRIPT` text before rendering; a missing required key throws `RenderError` carrying the action's message; `texts` maps each template to its text and the last brief is the launch brief | Restrictions: call the brief action unchanged; never write a brief outside `scratch`; the export changes no value a closeout test asserts | Success: both placeholders are substituted; the batch text names the standing brief's rendered path; `closeout-commit.sh` has mode 755 and the `COMMIT_SCRIPT` text; a missing key throws `RenderError` with the action's message; `texts` covers each template and the last brief is the launch brief; `npx tsc --noEmit` and render.test.ts pass_
 
-- [ ] 7. Runner
+- [x] 7. Runner
   - File: src/evals/runner.ts
   - File: src/evals/__tests__/runner.test.ts
   - Test: src/evals/__tests__/runner.test.ts — runCases(ids, opts)
