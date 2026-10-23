@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/render.test.ts"],"seams":{"src/evals/__tests__/render.test.ts":"renderCaseBriefs(c, f, scratch, handler)"},"redCommit":"0ab8cdfec593b1d3a02c8fa5862d9b3e2ba561c8","baseSha":"6e919e7e16d4776a8e5a51d51250abfdbe0511c8","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -70,7 +70,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.3_
   - _Prompt: Task: Implement design Component 2 post-conditions 1-6 per R1 AC3. Tests: two commits land in order with their messages and author `Eval Fixture`; the pre-commit hook is installed with mode 755 and setup commits do not run it; a worktree is on its branch and the root's `git status --porcelain` prints nothing; `bases` holds the root and each worktree; two calls never share a directory; a missing tree throws `FixtureError` and leaves no parent directory; `disposeFixture` removes the parent | Restrictions: setup commits run with hooks off; write only under the `mkdtemp` parent; assert only on files, git output and modes (node 20 fields) | Success: commits land in order with their messages and author `Eval Fixture`; the hook has mode 755 and setup commits do not run it; the worktree is on its branch and the root status is empty; `bases` holds the root and each worktree; no two calls share a directory; a missing tree throws `FixtureError` and leaves no parent; `disposeFixture` removes the parent; fixture.test.ts passes_
 
-- [ ] 6. Brief renderer
+- [x] 6. Brief renderer
   - File: src/evals/render.ts
   - File: src/controller/phases/closeout.ts
   - File: src/evals/__tests__/render.test.ts
