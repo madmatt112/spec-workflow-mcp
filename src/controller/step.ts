@@ -72,6 +72,7 @@ export type StepClassification =
   | 'ok'
   | 'turn-cap'
   | 'usage-limit'
+  | 'login-expired'
   | 'schema-invalid'
   | 'error';
 
@@ -316,6 +317,12 @@ function classify(
   }
   if (/max.?turns|turn.?cap/i.test(subtype) || /max.?turns/i.test(stopReason)) {
     return 'turn-cap';
+  }
+  // An expired Claude login ends the step at once with no structured output;
+  // name it so the wait says to log in, not that the schema failed.
+  const resultText = result && typeof result.result === 'string' ? result.result : '';
+  if (isError && /failed to authenticate|oauth session expired/i.test(resultText)) {
+    return 'login-expired';
   }
   if ((schemaRequested && !hasStructuredOutput) || /schema|structured/i.test(subtype)) {
     return 'schema-invalid';

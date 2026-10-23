@@ -218,6 +218,17 @@ describe('runStep', () => {
     expect(result.structuredOutput).toBeNull();
   });
 
+  it('classifies an expired login as login-expired, not schema-invalid', async () => {
+    const { result } = await runWithScript([{
+      result: {
+        subtype: 'success', is_error: true, num_turns: 1, session_id: 'sess-1',
+        result: 'Failed to authenticate: OAuth session expired and could not be refreshed',
+        structured_output: null, usage: {},
+      },
+    }], { schema: { type: 'object', required: ['verdict'] } });
+    expect(result.classification).toBe('login-expired');
+  });
+
   it('passes --resume (not --session-id) on a resume', async () => {
     const { init } = await runWithScript([{
       result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 'resume-xyz', result: 'ok', usage: {} },
