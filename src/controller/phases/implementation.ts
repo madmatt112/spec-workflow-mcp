@@ -141,7 +141,7 @@ export interface ImplementationPhaseOutcome {
 // keys, and the loop also reads the flags off the report text as a fallback.
 // ---------------------------------------------------------------------------
 
-const AUTHOR_SCHEMA = {
+export const AUTHOR_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['commit', 'files', 'flag'],
@@ -172,7 +172,7 @@ export const IMPLEMENTER_SCHEMA = {
   },
 } as const;
 
-const VERIFIER_SCHEMA = {
+export const VERIFIER_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['verdict'],

@@ -79,7 +79,7 @@ export interface CloseoutPhaseOutcome {
 // ---------------------------------------------------------------------------
 
 const ITEM_STATUS = ['done', 'to-do', 'skipped'] as const;
-const BATCH_SCHEMA = {
+export const BATCH_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['items'],
