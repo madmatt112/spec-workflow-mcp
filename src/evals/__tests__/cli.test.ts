@@ -1,16 +1,12 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import {
-  mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, cpSync, chmodSync,
+  mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, chmodSync,
 } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { execFileSync } from 'child_process';
 import { main } from '../cli.js';
-import { renderCaseBriefs } from '../render.js';
-import { harnessHandler } from '../../tools/harness.js';
-import type { EvalCase } from '../case.js';
-import type { Fixture } from '../fixture.js';
 
 // Design Component 9 (src/evals/cli.ts, design.md:119-125), Requirement 2 AC9 and
 // Requirement 3 AC7: main(argv) is the built package's own entry for the eval runner
@@ -146,33 +142,21 @@ function writeAuthorCaseDir(
   );
 }
 
-/** Renders `c`'s one brief through this build's real `harnessHandler`, off the case's own
- * fixture tree directly (no git, no placeholder-substitution risk). */
-async function realRenderedText(caseDir: string, c: EvalCase): Promise<string> {
-  const root = mkdtempSync(join(tmpdir(), 'eval-cli-expected-'));
-  const scratch = mkdtempSync(join(tmpdir(), 'eval-cli-expected-scratch-'));
-  try {
-    cpSync(join(caseDir, c.fixture.commits[0].tree), root, { recursive: true });
-    const f: Fixture = { root, parent: root, bases: {} };
-    const { texts } = await renderCaseBriefs(c, f, scratch, harnessHandler);
-    return texts[c.briefs[0].template];
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(scratch, { recursive: true, force: true });
-  }
-}
-
-/** A `tools/harness.js` whose `harnessHandler` ignores its input and always writes `text`. */
-function writeMatchingBaseDist(baseDistDir: string, text: string): void {
+/** A `tools/harness.js` under `baseDistDir` whose `harnessHandler` forwards to this build's
+ * own real one. `selectCases`'s exact-mode comparison renders both ends off the same
+ * fixture within one call, so an unchanged case's brief renders byte-identical through
+ * either handler — this stands in for an unchanged old build without pinning an absolute
+ * fixture path baked in from a separate, throwaway render context. */
+function writeMatchingBaseDist(baseDistDir: string): void {
+  const realHarness = pathToFileURL(join(HERE, '..', '..', '..', 'dist', 'tools', 'harness.js')).href;
   mkdirSync(join(baseDistDir, 'tools'), { recursive: true });
   writeFileSync(join(baseDistDir, 'package.json'), '{"type":"module"}\n');
   writeFileSync(
     join(baseDistDir, 'tools', 'harness.js'),
     [
-      "import { writeFileSync } from 'fs';",
-      'export async function harnessHandler(args) {',
-      `  writeFileSync(args.values.path, ${JSON.stringify(text)}, 'utf-8');`,
-      '  return { success: true, data: { path: args.values.path } };',
+      'export async function harnessHandler(args, context) {',
+      `  const mod = await import(${JSON.stringify(realHarness)});`,
+      '  return mod.harnessHandler(args, context);',
       '}',
       '',
     ].join('\n'),
@@ -362,11 +346,8 @@ describe('main(argv)', () => {
     writeFileSync(join(dir, 'README.md'), 'hello v2\n');
     const target = commitAll(dir, 'target');
 
-    const caseDir = join(dir, 'harness', 'evals', 'cli-demo-case');
-    const c = JSON.parse(readFileSync(join(caseDir, 'case.json'), 'utf8')) as EvalCase;
-    const text = await realRenderedText(caseDir, c);
     const baseDist = mkdtempSync(join(tmpdir(), 'eval-cli-basedist-'));
-    writeMatchingBaseDist(baseDist, text);
+    writeMatchingBaseDist(baseDist);
 
     const home = mkdtempSync(join(tmpdir(), 'eval-cli-home-'));
     const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-cli-summary-')), 'summary.txt');
