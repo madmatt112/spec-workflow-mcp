@@ -183,3 +183,14 @@
 {"ts":"2026-10-23T20:09:43.204Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-verifier","input":"36","output":"26422","cacheWrite":"113821","cacheRead":"1099890","tokens":"1240169","cacheWrite5m":"0","cacheWrite1h":"113821","model":"claude-opus-4-8"}
 {"ts":"2026-10-23T20:09:43.204Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 8","result":"VERDICT: pass","phase":"implementation","task":"8"}
 {"ts":"2026-10-23T20:09:43.206Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"8","rounds":"0","outcome":"pass"}
+{"ts":"2026-10-23T20:09:43.341Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"9","title":"Deploy gate"}
+{"ts":"2026-10-23T20:09:43.348Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 9 pick head 7279cd99995b12cb683536522fb9e7b0f85ac00d"}
+{"ts":"2026-10-23T20:09:43.386Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-test-author","role":"author task 9","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-23T20:28:20.618Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-test-author","input":"110","output":"99855","cacheWrite":"250485","cacheRead":"8705538","tokens":"9055988","cacheWrite5m":"0","cacheWrite1h":"250485","model":"claude-sonnet-5"}
+{"ts":"2026-10-23T20:28:20.618Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-test-author","role":"author task 9","result":"none","phase":"implementation","task":"9"}
+{"ts":"2026-10-23T20:28:20.651Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 9 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-23T20:28:20.652Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement task 9","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-23T20:35:42.091Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"74","output":"27717","cacheWrite":"132105","cacheRead":"3384279","tokens":"3544175","cacheWrite5m":"0","cacheWrite1h":"132105","model":"claude-sonnet-5"}
+{"ts":"2026-10-23T20:35:42.092Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 9","result":"yes/9","phase":"implementation","task":"9"}
+{"ts":"2026-10-23T20:36:03.744Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: task 9 pass risk low tdd structural-red"}
+{"ts":"2026-10-23T20:36:03.751Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"9","rounds":"0","outcome":"gate"}

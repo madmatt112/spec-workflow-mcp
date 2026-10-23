@@ -102,7 +102,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 3.1, 3.6_
   - _Prompt: Task: Implement design Component 7 reasons 1-6 per R3 AC1 and AC6, with the one-hop import rule of design D4 and the per-file provisional signal of design D5. Tests on a two-commit temp repo holding a case: a new case dir, a role file change, a changed profile entry, a grader file change, a change to a file that grader imports, and a changed template output each select the case with that reason; an unrelated change selects nothing; in provisional mode a `src/tools/brief-templates.ts` change selects it marked provisional; a `baseDist` whose `tools/harness.js` throws gives `brief: base render unavailable`; an unset `baseDist` gives the same reason | Restrictions: read the target commit through `git ls-tree`, `git show` and `git archive` only, never a checkout; remove every temp directory | Success: each reason selects with its label; the unrelated change selects nothing; the provisional flag and the base-render reason hold; select.test.ts passes_
 
-- [ ] 9. Deploy gate
+- [x] 9. Deploy gate
   - File: src/evals/gate.ts
   - File: src/evals/__tests__/gate.test.ts
   - Test: src/evals/__tests__/gate.test.ts — runGate(opts)
