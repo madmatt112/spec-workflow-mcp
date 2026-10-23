@@ -151,11 +151,25 @@ function matchingEntry(relPath: string, entries: string[]): string | undefined {
   for (const entry of entries) {
     if (entry.endsWith('/')) {
       if (p.startsWith(entry)) return entry;
-    } else if (p === entry) {
+    } else if (p === entry || datePlaceholderMatch(p, entry)) {
       return entry;
     }
   }
   return undefined;
+}
+
+/**
+ * True when `entry` names a dated file with a `YYYY-MM-DD` placeholder (a task
+ * that writes "probe-YYYY-MM-DD.txt, run date in the name") and `p` is that
+ * file with real digits in place of the placeholder.
+ */
+function datePlaceholderMatch(p: string, entry: string): boolean {
+  if (!entry.includes('YYYY-MM-DD')) return false;
+  const pattern = entry
+    .split('YYYY-MM-DD')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\d{4}-\\d{2}-\\d{2}');
+  return new RegExp(`^${pattern}$`).test(p);
 }
 
 /**
