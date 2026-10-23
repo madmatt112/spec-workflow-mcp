@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/case.test.ts"],"seams":{"src/evals/__tests__/case.test.ts":"loadCase(id, root)"},"redCommit":"6a4358d42bdc6384900c479ca681f225eda65332","baseSha":"ceba62d4982a82a71f60b9817607978deb1a799d","base":"structural-red","head":"pass","amended":false,"judged":null}

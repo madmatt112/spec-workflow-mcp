@@ -50,7 +50,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.4, 5.1_
   - _Prompt: Task: Per design Component 5 and R5 AC1, implement `no-new-commit`, `clean-tree`, `new-commit-count`, `repo-unchanged`, `item-commit-on-branch` and `no-commit-touches` with the args the component lists; `repo` is a path relative to the fixture root and its base comes from `fixture.bases`. Tests on temp repos: each passes on an untouched repo or the matching commit and fails on a new commit, an untracked file (`clean-tree` uses `--untracked-files=all`), a wrong count, a commit on the wrong branch or not touching `path`, and a commit that touches a listed path; a commit made with hooks skipped still fails `no-new-commit` | Restrictions: read git only; no grader writes to the fixture; keep task 2's graders and their tests unchanged | Success: each of the six graders passes and fails on the cases named; a hook-skipped commit fails `no-new-commit`; the registry lists ten graders; graders.test.ts passes_
 
-- [ ] 4. Case loader
+- [x] 4. Case loader
   - File: src/evals/case.ts
   - File: src/evals/__tests__/case.test.ts
   - Test: src/evals/__tests__/case.test.ts — loadCase(id, root)
