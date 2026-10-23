@@ -609,6 +609,37 @@ describe('runImplementationPhase', () => {
     expect(taskStatus(fx, '1')).toBe('completed');
   }, 60000);
 
+  // Regression guard (retro europe-employer-sources F5/P5): a non-resumed re-pick —
+  // an escalation resets the task to pending, so a resume or same-run re-serve
+  // re-spawned an implementer that only re-confirmed the existing commit. An
+  // existing log plus committed work in range is the HEAD-satisfied signal, so
+  // the controller reconciles without a re-spawn even though the task is not [-].
+  it('reconciles a re-picked task that already carries its log and commit without re-spawning', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    // tasks.md stays [ ] (the escalation reset the task to pending), but the pick
+    // rows, the commit and the log from the first spawn are all already present.
+    const preHead = git(fx.repo, ['rev-parse', 'HEAD']);
+    const ledger = openRunLedger({ specDir: fx.specDir, runId: RUN_ID, spec: fx.spec, now: NOW });
+    ledger.phaseStart('implementation', { mode: 'normal', state: 'tasks 0/1' });
+    ledger.taskPick({ task: '1', title: 'Add the module' });
+    ledger.note(`task 1 pick head ${preHead}`);
+    writeFileSync(join(fx.repo, 'src', 'a.js'), 'done\n');
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'feat: task 1 (first spawn, before the escalation reset)']);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    mkdirSync(dirname(join(fx.repo, log.path)), { recursive: true });
+    writeFileSync(join(fx.repo, log.path), log.content);
+    writeScript(fx, [e2eRun('pass')]); // no implementer step is scripted
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const r = rows(fx);
+    expect(r.some((e) => e.type === 'note' && e.text.startsWith('task 1 already satisfied at HEAD'))).toBe(true);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['end-to-end verification']);
+    expect(taskStatus(fx, '1')).toBe('completed');
+  }, 60000);
+
   // Contract (R3 AC 13, design C6 flow steps 1 and 5): a pass through the completion
   // gate writes the `e2e verification passed` note once, and the note
   // `completion handoff written` lands only after the HANDOFF write, also once.
