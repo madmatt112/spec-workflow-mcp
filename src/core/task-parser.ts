@@ -332,10 +332,12 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
       } else if (contentLine.match(/Files?:/)) {
         const fileMatch = contentLine.match(/Files?:\s*(.+)$/);
         if (fileMatch) {
-          // Split by comma and clean up each file path
+          // Drop parenthetical notes first (they can hold commas, e.g.
+          // "(create, run date in the name)"), then split by comma.
           const filePaths = fileMatch[1]
+            .replace(/\([^)]*\)/g, '')
             .split(',')
-            .map(f => f.trim().replace(/\(.*?\)/, '').trim())
+            .map(f => f.trim())
             .filter(f => f.length > 0);
           files.push(...filePaths);
         }
