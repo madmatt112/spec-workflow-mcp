@@ -818,6 +818,16 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   during the build), #168 (merge cursor set before the merge-fix cap wait; from the #167
   review). Spec 27 untagged. tradr `import-off-request-thread` waits on escalation
   `w-2f428487`, answerable since #165; Matthew parked tradr work. Deployed `ab28607`.
+- 2026-10-23 **jobscout `europe-employer-sources` is `done`** (9 tasks). Its task 2 file list
+  named `probe-YYYY-MM-DD.txt (create, run date in the name)`; the gate failed the dated
+  file. Fixes: #170 (`matchingEntry` reads `YYYY-MM-DD` as digits), #172 (the task parser
+  split a `File:` line on the comma inside a parenthetical before removing it, so #170 never
+  saw a clean entry; #170's test used a clean entry and missed it), #171 (an expired Claude
+  login is `login-expired`, not `schema-invalid`; the login expired at 02:36Z). Close-out
+  #173 (P5: reconcile a re-picked task with a log and a commit without a re-spawn) failed CI:
+  it also skipped the implementer after an answered escalation, so the ruling never reached
+  one. The coordinator added a guard (no reconcile once the run has operator rulings) and
+  merged it. Deployed `b103c1c`. Spec 27 `harness-evals` is implementing.
 
 ## 8. Pointers
 

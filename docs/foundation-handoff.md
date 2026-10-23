@@ -82,6 +82,15 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at 2026-10-23 20:05Z
+
+- Live build `b103c1c`. Done: jobscout `europe-employer-sources`. Live: spec 27
+  `harness-evals` (implementation; gate B approved). tradr escalation `w-2f428487` still
+  parked (Matthew's, low priority). The 7-day window is at 84% until 2026-10-25 15:00Z.
+- After a harness fix for a live run, test it against the run's real input with the live
+  build (`dist/`) before telling Matthew to retry (#170 passed its own test and still
+  missed the real `File:` line).
+
 ## State at 2026-10-22 14:00Z
 
 - Live build `ab28607`. Done: spec 26 `verification-loop`, jobscout `europe-lane-relevance`.
