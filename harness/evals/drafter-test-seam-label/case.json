@@ -1,0 +1,33 @@
+{
+  "id": "drafter-test-seam-label",
+  "role": "sdd-drafter",
+  "phase": "document",
+  "spec": "eval-drafter-test-seam-label",
+  "turnCap": 80,
+  "evidence": "spec 23 task 4 escalation (docs/foundation-review.md:769-771)",
+  "briefs": [
+    {
+      "template": "drafter",
+      "file": "drafter-brief.md",
+      "values": {
+        "phase": "tasks",
+        "docPath": "{{fixture}}/.spec-workflow/specs/eval-drafter-test-seam-label/tasks.md",
+        "specDir": "{{fixture}}/.spec-workflow/specs/eval-drafter-test-seam-label",
+        "specStoreRoot": "{{fixture}}/.spec-workflow",
+        "codeRoot": "{{fixture}}",
+        "carried": "none"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements and design", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "tasks-labels-canonical",
+      "args": { "doc": ".spec-workflow/specs/eval-drafter-test-seam-label/tasks.md" }
+    }
+  ]
+}
