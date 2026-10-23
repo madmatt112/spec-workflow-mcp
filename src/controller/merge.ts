@@ -249,7 +249,7 @@ export async function findPullRequest(opts: {
 // Readiness.
 // ---------------------------------------------------------------------------
 
-const ATTRIBUTION_PATTERNS: RegExp[] = [
+export const ATTRIBUTION_PATTERNS: RegExp[] = [
   /Co-Authored-By:\s*Claude/i,
   /Generated with \[Claude Code\]/i,
   /Claude-Session:/i,
