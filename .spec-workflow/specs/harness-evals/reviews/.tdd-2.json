@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/graders.test.ts"],"seams":{"src/evals/__tests__/graders.test.ts":"GRADERS[name].grade(input, args)"},"redCommit":"99cc305f51a588c59b3593c47294d311873fbdac","baseSha":"13aab83db547ed7d7ae04b62308ed247da1ccd7c","base":"structural-red","head":"pass","amended":false,"judged":null}

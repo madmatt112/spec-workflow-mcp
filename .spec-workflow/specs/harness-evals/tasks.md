@@ -17,7 +17,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 2.2_
   - _Prompt: Task: Implement design Component 4 per R2 AC2: `reportSchema(phase, role)` returns the phase module's own constant for the five pairs the component lists and `undefined` for every other pair; export the `EvalPhase` type (`implementation`, `document`, `closeout`) from this module. Tests assert identity with `toBe` for each of the five pairs and `undefined` for an unknown role and for a known role under the wrong phase | Restrictions: add `export` only; change no schema value; never copy or spread a schema; no existing test asserts on these constants, so no existing assertion changes | Success: each of the five pairs returns the identical object (`toBe`); an unknown pair returns `undefined`; `npx tsc --noEmit` and schemas.test.ts pass_
 
-- [ ] 2. Grader registry, shared helpers and report graders
+- [x] 2. Grader registry, shared helpers and report graders
   - File: src/evals/graders/index.ts
   - File: src/evals/graders/shared.ts
   - File: src/evals/graders/tasks-labels-canonical.ts
@@ -34,7 +34,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.4, 5.1_
   - _Prompt: Task: Per design Component 5 and R1 AC4, define the `grade` signature and the `FixtureView` type, put the git helper and the report-item lookup (by `items[].id`) in shared.ts, and register `tasks-labels-canonical`, `report-flag`, `item-status` and `no-attribution-trailer` with the args the component lists. Each returns `{ pass, reason }` with a one-line reason. Tests on hand-built temp repos and report objects: a tasks file with `- Test (integration):` fails `tasks-labels-canonical` and the reason names its line, `- Test:` passes, a missing file fails; `report-flag` passes on a matching prefix and fails on `none`; `item-status` passes and fails; a `Co-Authored-By: Claude` message fails `no-attribution-trailer`, a clean one passes | Restrictions: no grader reads a stream log or calls a model; git through `execFileSync` with `scrubbedGitEnv()`; the export changes no value merge.test.ts asserts | Success: each grader passes and fails on the cases named; the reason names the failing line or commit; `npx tsc --noEmit` and graders.test.ts pass_
 
-- [ ] 3. Git-state graders
+- [x] 3. Git-state graders
   - File: src/evals/graders/no-new-commit.ts
   - File: src/evals/graders/clean-tree.ts
   - File: src/evals/graders/new-commit-count.ts
