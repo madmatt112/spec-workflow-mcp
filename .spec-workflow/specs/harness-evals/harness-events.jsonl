@@ -355,3 +355,4 @@
 {"ts":"2026-10-24T16:35:17.241Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P1","outcome":"skipped"}
 {"ts":"2026-10-24T16:35:17.241Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P3","outcome":"to-do"}
 {"ts":"2026-10-24T16:35:17.242Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-10-24T16:35:19.590Z","run":"run-20261022-152135","spec":"harness-evals","type":"phase.end","phase":"closeout","result":"closed","state":"items 12/12","note":"4 done, 1 to-do, 7 skipped"}

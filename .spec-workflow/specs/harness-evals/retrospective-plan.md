@@ -1,6 +1,6 @@
 # Retrospective plan — harness-evals
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-24
 
 ## Approved proposals

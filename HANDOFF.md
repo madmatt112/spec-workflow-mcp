@@ -126,6 +126,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-24 | harness-evals | implementation | tasks 10/16 | design-defect | task 11's File: list omits the fixture-tree files design Component 13 mandates on disk, so file-outside-list fails the gate every round regardless of content |
 | 2026-10-24 | harness-evals | implementation | tasks 16/16 | complete | PR #176 |
 | 2026-10-24 | harness-evals | retrospective |  | retro-ready | 12 findings, 10 proposals |
+| 2026-10-24 | harness-evals | closeout | items 12/12 | closed | 4 done, 1 to-do, 7 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1054,3 +1055,13 @@ Gotchas:
 | Verifier-skipped | none |
 | Next | d-afcd942d fixture.test.ts leaves-no-parent test is not concurrency-safe (diffs global os.tmpdir); d-3a26cd7c Eval selector marks provisional per brief-source change, not only when it is the sole reason (R3 AC6) |
 | Gotchas | none |
+
+## harness-evals — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 12/12: 4 done, 1 to-do, 7 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/177 |
+| To-dos | P3: Decision needed (human) between options A/B/C; recommended A leaves d-3a26cd7c deferred with no code change. Cannot decide or touch deferrals. |
+| Gotchas | none |
+
