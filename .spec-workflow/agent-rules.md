@@ -78,6 +78,10 @@ node-20 fields.
 - Any task that relocates an orchestrator-filled slot into a template enumerates every
   `<...>` / path placeholder in that slot and converts each to a template key; the task
   verifier greps the rendered output for residual `<...>`.
+- A task that seeds a fixture or generated tree on disk lists every path it writes in its
+  File: list, as a declared directory where a glob is unavoidable (no bare trailing
+  slash). The tasks-phase review rejects a fixture-seeding task whose File: list omits a
+  path the task writes.
 
 ## Lint false positives
 
