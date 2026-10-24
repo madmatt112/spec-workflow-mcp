@@ -289,3 +289,8 @@
 {"ts":"2026-10-24T03:44:07.436Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
 {"ts":"2026-10-24T03:44:07.437Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"e2e verification passed"}
 {"ts":"2026-10-24T03:44:07.660Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"completion handoff written"}
+{"ts":"2026-10-24T03:45:36.427Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-24T03:57:04.527Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-verifier","input":"82","output":"34418","cacheWrite":"78028","cacheRead":"3145371","tokens":"3257899","cacheWrite5m":"0","cacheWrite1h":"78028","model":"claude-opus-4-8"}
+{"ts":"2026-10-24T03:57:04.528Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
+{"ts":"2026-10-24T03:57:04.528Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"e2e verification passed"}
+{"ts":"2026-10-24T03:57:04.750Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"completion handoff written"}
