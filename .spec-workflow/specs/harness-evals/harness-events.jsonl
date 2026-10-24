@@ -313,3 +313,23 @@
 {"ts":"2026-10-24T04:17:17.901Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-10-24T04:17:17.901Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"retro: 10 proposals for 12 findings"}
 {"ts":"2026-10-24T04:17:17.902Z","run":"run-20261022-152135","spec":"harness-evals","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"12 findings, 10 proposals"}
+{"ts":"2026-10-24T16:12:02.856Z","run":"run-20261022-152135","spec":"harness-evals","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/12"}
+{"ts":"2026-10-24T16:12:02.862Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P6","title":"P6 (F6) — Whole-phase new-module TDD drove a high verifier/spawn count."}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P6","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P7","title":"P7 (F7) — Design specified no distinct error message, making a task-14 AC red-impossible."}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P8","title":"P8 (F8) — Requirements needed a SHOULD_FIX-only corrective pass at v4."}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P8","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P10","title":"P10 (F10) — Both info-findings were filed as harness-owned deferrals rather than escalated."}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P10","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.863Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"G1","title":"G1 — Fixture-seeding tasks must declare every seeded path (file-outside-list gate)."}
+{"ts":"2026-10-24T16:12:02.864Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"G1","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.864Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"G2","title":"G2 — Harness and script text must use `/usr/bin/git`, enforced by a check."}
+{"ts":"2026-10-24T16:12:02.864Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"G2","outcome":"skipped"}
+{"ts":"2026-10-24T16:12:02.871Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P5","title":"P5 (F5) — `file-outside-list` gate unsatisfiable when the File: list is incomplete."}
+{"ts":"2026-10-24T16:12:02.923Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-24T16:13:49.685Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"24","output":"7740","cacheWrite":"55121","cacheRead":"527454","tokens":"590339","cacheWrite5m":"0","cacheWrite1h":"55121","model":"claude-opus-4-8"}
+{"ts":"2026-10-24T16:13:49.685Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-10-24T16:13:49.704Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P5 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-24T16:13:54.908Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P5 pass risk low"}
+{"ts":"2026-10-24T16:13:54.925Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P5","outcome":"done"}
