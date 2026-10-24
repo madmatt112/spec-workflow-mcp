@@ -187,16 +187,18 @@ describe('buildFixture(c, caseDir)', () => {
   // Pre-condition: a case names a fixture.commits entry whose tree, "fixture/missing",
   // does not exist anywhere under the case directory.
   // Test: buildFixture(c, caseDir).
-  // Observable result: the call throws FixtureError, and no new entry appears under the
-  // system temp directory (`os.tmpdir()`) after the throw — the mkdtemp parent the design
-  // says a failure removes.
+  // Observable result: the call throws FixtureError, and no new `eval-fixture-` parent
+  // (the builder's own mkdtemp prefix) is left behind under the system temp directory
+  // (`os.tmpdir()`) after the throw — the mkdtemp parent the design says a failure removes.
+  // Scoping the diff to that prefix keeps a parallel test's temp entries from flaking it.
   // Expected-value source: design.md Component 2 post-condition 6, "A failure throws
   // FixtureError and removes the parent"; tasks.md task 5 Prompt, "a missing tree throws
   // FixtureError and leaves no parent directory".
   it('throws FixtureError and leaves no parent directory for a missing tree', () => {
     const caseDir = mkdtempSync(join(tmpdir(), 'fixture-case-'));
     const c = baseCase({ commits: [{ message: 'init', tree: 'fixture/missing' }] });
-    const before = new Set(readdirSync(tmpdir()));
+    const fixtureParents = () => readdirSync(tmpdir()).filter((name) => name.startsWith('eval-fixture-'));
+    const before = new Set(fixtureParents());
 
     let thrown: unknown;
     try {
@@ -206,7 +208,7 @@ describe('buildFixture(c, caseDir)', () => {
     }
 
     expect(thrown).toBeInstanceOf(FixtureError);
-    const leftBehind = readdirSync(tmpdir()).filter((name) => !before.has(name));
+    const leftBehind = fixtureParents().filter((name) => !before.has(name));
     expect(leftBehind).toEqual([]);
 
     rmSync(caseDir, { recursive: true, force: true });
