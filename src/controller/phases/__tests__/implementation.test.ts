@@ -755,6 +755,21 @@ describe('runImplementationPhase', () => {
     expect(r.some((e) => e.type === 'note' && /^gate: task 1 pass .* tdd inconclusive/.test(e.text))).toBe(true);
   }, 60000);
 
+  it('briefs the implementer with no red tests when the author finds every criterion red-impossible', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
+    const authorRun: StubRun = {
+      commands: [`mkdir -p test && echo "guard" > test/a.test.js && git add test/a.test.js && git commit -qm "test(${fx.spec}): task 1 red"`],
+      result: result({ commit: 'see git', files: ['test/a.test.js'], tests: 0, folds: 'none', flag: 'none', redImpossible: 'all', retro: 'none' }, 'all criteria pass at base'),
+    };
+    writeScript(fx, [authorRun, await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    expect(rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['author task 1', 'implement task 1', 'end-to-end verification']);
+    expect(readFileSync(join(fx.scratch, 'impl-brief-task-1.md'), 'utf8')).not.toContain('## Red tests (from the test author)');
+  }, 60000);
+
   it('hands the operator rulings to the test author', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js', 'test/a.test.js'], { test: 'test/a.test.js — a()' })]);
     const authorRun: StubRun = {
