@@ -125,6 +125,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-22 | harness-evals | tasks | v2 | approved | 2 rounds |
 | 2026-10-24 | harness-evals | implementation | tasks 10/16 | design-defect | task 11's File: list omits the fixture-tree files design Component 13 mandates on disk, so file-outside-list fails the gate every round regardless of content |
 | 2026-10-24 | harness-evals | implementation | tasks 16/16 | complete | PR #176 |
+| 2026-10-24 | harness-evals | retrospective |  | retro-ready | 12 findings, 10 proposals |
 
 ## Current state — 2026-08-04
 
