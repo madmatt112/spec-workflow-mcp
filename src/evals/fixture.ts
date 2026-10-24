@@ -40,6 +40,11 @@ export function buildFixture(c: EvalCase, caseDir: string): Fixture {
     const root = join(parent, 'repo');
     mkdirSync(root, { recursive: true });
     git(root, ['init', '-q']);
+    // A repo-level identity so a commit made inside the fixture — by the role under
+    // eval, or a stub standing in for it — succeeds without an ambient git config
+    // (CI has none). The seed commits below still pass AUTHOR_ENV explicitly.
+    git(root, ['config', 'user.name', AUTHOR_ENV.GIT_COMMITTER_NAME]);
+    git(root, ['config', 'user.email', AUTHOR_ENV.GIT_COMMITTER_EMAIL]);
 
     if (c.fixture.preCommitHook) {
       const hookDest = join(root, '.git', 'hooks', 'pre-commit');
