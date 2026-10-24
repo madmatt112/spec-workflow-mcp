@@ -400,6 +400,10 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
 
     let initSessionId: string | null = null;
     let resultEvent: Record<string, unknown> | null = null;
+    // A step that started a background shell task is woken again when it ends,
+    // so the stream can hold several `result` events; the last one may be a
+    // plain-text afterthought. Keep the latest one that carried a report.
+    let structuredEvent: Record<string, unknown> | null = null;
     let lastRateLimit: RateLimitWindows | null = null;
     let settled = false;
 
@@ -426,6 +430,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         spec.onRateLimit?.(lastRateLimit);
       } else if (type === 'result') {
         resultEvent = event;
+        if (event.structured_output != null) structuredEvent = event;
       }
     };
 
@@ -462,7 +467,8 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         handleLine(buffer);
         buffer = '';
       }
-      const result = resultEvent as Record<string, unknown> | null;
+      const last = resultEvent as Record<string, unknown> | null;
+      const result = last && last.structured_output == null && structuredEvent ? structuredEvent : last;
       const structuredOutput = result && 'structured_output' in result
         ? result.structured_output ?? null
         : null;
