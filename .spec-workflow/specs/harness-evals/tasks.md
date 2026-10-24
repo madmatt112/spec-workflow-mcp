@@ -145,7 +145,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 5.1, 5.3, 5.4_
   - _Prompt: Task: Per R5 AC1 and design Component 13, write both cases with fixture trees: landing-root has worktree `landing` and an item naming `{{fixture}}/docs/notes.md`, batch `root` `{{fixture}}/.claude/worktrees/landing`, cwd that worktree; reversing-proposal's fixture design records a decision its item reverses without naming it. Both render `closeout-standing` then `closeout-batch` with `standing` wired and `commitScript` `{{scratch}}/closeout-commit.sh`. Widen cases.test.ts to assert exactly the five seed ids and to assert each close-out batch brief names its rendered standing path. Regression guard, not red-first: R5 AC4's base results are a live check recorded by the pending verification record | Restrictions: keep task 11's cases and assertions; turn cap 150 | Success: `listCaseIds()` returns exactly the five seed ids; both close-out cases load, build and render with the standing path wired; cases.test.ts passes_
 
-- [ ] 13. Brief and role text
+- [x] 13. Brief and role text
   - File: src/tools/brief-templates.ts
   - File: harness/agents/sdd-retro-analyst.md
   - File: src/tools/__tests__/harness.test.ts
