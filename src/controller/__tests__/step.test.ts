@@ -218,6 +218,21 @@ describe('runStep', () => {
     expect(result.structuredOutput).toBeNull();
   });
 
+  it('keeps the last reported result when a background wake-up ends in plain text', async () => {
+    const { result } = await runWithScript([{
+      stream: [{
+        type: 'result', subtype: 'success', is_error: false, num_turns: 12, session_id: 'sess-1',
+        result: '{"verdict":"done"}', structured_output: { verdict: 'done' }, usage: {},
+      }],
+      result: {
+        subtype: 'success', is_error: false, num_turns: 2, session_id: 'sess-1',
+        result: 'Already complete; nothing further to do.', structured_output: null, usage: {},
+      },
+    }], { schema: { type: 'object', required: ['verdict'] } });
+    expect(result.classification).toBe('ok');
+    expect(result.structuredOutput).toEqual({ verdict: 'done' });
+  });
+
   it('classifies an expired login as login-expired, not schema-invalid', async () => {
     const { result } = await runWithScript([{
       result: {
