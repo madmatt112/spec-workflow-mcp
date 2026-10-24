@@ -49,3 +49,8 @@ Cost: 1 implementer spawn(s)
 task 10 closed: 0 fix round(s), outcome pass
 Evidence: task 10 · mark run-20261022-152135 68ff84e3
 Cost: 1 implementer spawn(s)
+
+## 2026-10-24T02:08:15Z · implementation · task 11 · deviation
+task 11's File: list omits the fixture-tree files design Component 13 mandates on disk, so file-outside-list fails the gate every round regardless of content
+Evidence: task 11 · mark run-20261022-152135 2a96b15e
+Cost: unknown

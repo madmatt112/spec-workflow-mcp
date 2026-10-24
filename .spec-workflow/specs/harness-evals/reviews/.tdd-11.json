@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/cases.test.ts"],"seams":{"src/evals/__tests__/cases.test.ts":"loadCase(id), buildFixture(c, caseDir), renderCaseBriefs(c, f, scratch)"},"redCommit":"5d8765cc70eeb82b6d156193aef4353d3c550dde","baseSha":"61a766e724bdc8de8cbd3aa0a31509de9dee5708","base":"structural-red","head":"pass","amended":false,"judged":null}
