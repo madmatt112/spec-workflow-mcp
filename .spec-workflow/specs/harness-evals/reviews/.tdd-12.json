@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/cases.test.ts"],"seams":{"src/evals/__tests__/cases.test.ts":"listCaseIds(), renderCaseBriefs(c, f, scratch)"},"redCommit":"de8bbd3902a218e137b10ee8809310b2cf81f95b","baseSha":"f07c12fa1e28fcc0e0608dcfaeed1db720b83ae1","base":"assertion-red","head":"pass","amended":false,"judged":null}

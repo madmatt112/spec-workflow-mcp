@@ -134,7 +134,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 1.5, 5.1, 5.4_
   - _Prompt: Task: Per R5 AC1, R1 AC5 and design Component 13, write each case's `case.json`, fixture trees and pre-commit hook, with the evidence its R5 AC1 entry cites and `spec` values starting `eval-` (D1). cases.test.ts runs for every listed id: `loadCase` succeeds, `harness/agents/<role>.md` exists, the fixture builds, every brief renders with no missing key, every grader is in the registry; it also asserts the three ids are listed. Regression guard, not red-first: R5 AC4's base pass of the two test-author cases is a live check, recorded by the pending verification record, not a unit test | Restrictions: no model; the drafter `docPath` equals the grader's `doc` arg; the hook runs `node --test` with no tests-only carve-out; no agent-rules plugin sync applies (no `plugins/` tree at base) | Success: the three cases load, build and render; cases.test.ts asserts their ids and passes_
 
-- [ ] 12. Seed cases: close-out
+- [x] 12. Seed cases: close-out
   - File: harness/evals/closeout-landing-root/
   - File: harness/evals/closeout-reversing-proposal/
   - File: src/evals/__tests__/cases.test.ts
