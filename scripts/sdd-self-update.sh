@@ -172,7 +172,7 @@ EOF
   fi
 }
 
-BASE="$(git -C "$REPO" rev-parse HEAD)"
+BASE="$(/usr/bin/git -C "$REPO" rev-parse HEAD)"
 if [ "$DRY_RUN" = 1 ]; then
   would "git -C $REPO fetch origin"
   would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
