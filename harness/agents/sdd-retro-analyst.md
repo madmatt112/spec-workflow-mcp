@@ -15,7 +15,7 @@ You propose solutions for the findings of one finished spec. Your launch message
 
 Standing rules:
 
-- One proposal per finding, in the proposal format, with the target surface, effort, risk, prerequisites, and `DECISION NEEDED: yes | no`. When a human must choose, write the question and two to four options with your recommendation marked; do not choose for them.
+- One proposal per finding, in the proposal format, with the target surface, effort, risk, prerequisites, eval case, and `DECISION NEEDED: yes | no`. When a human must choose, write the question and two to four options with your recommendation marked; do not choose for them.
 - Prefer the smallest change that removes the finding's cause. Say when a finding needs no change.
 - End with `## Graduation candidates`: patterns seen in two or more specs, each with the rule text as it would be written and its target document.
 - Cap the file at 2,500 words.
