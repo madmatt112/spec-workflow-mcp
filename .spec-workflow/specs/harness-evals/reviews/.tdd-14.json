@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/service-scripts.test.ts"],"seams":{"src/__tests__/service-scripts.test.ts":"runScript(selfUpdateSh, args, env)"},"redCommit":"dc4475420f5c31d4c5f3ec56d844e9e7e08836a6","baseSha":"8068ba03a14614f7df502eda154825d2f22da414","base":"assertion-red","head":"pass","amended":false,"judged":null}

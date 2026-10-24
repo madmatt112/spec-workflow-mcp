@@ -156,7 +156,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 5.2, 6.1, 6.2, 6.3_
   - _Prompt: Task: Per R5 AC2 (requirements D5), R6 AC1-AC3 and design Component 11, replace the drafter sentence with the component's text, add the `Eval case:` line after `Prerequisites:` in the proposal format, extend the proposal-fields sentence at `harness/agents/sdd-retro-analyst.md:18` to name `eval case` (the role file has no literal `Prerequisites:` line), and add the two close-out rules. Tests through the brief action: the drafter brief has no `Test (integration)` and says `regression guard`; the `retro-compile` brief carries `Eval case:`; the `closeout-standing` brief names `harness/evals/` and says never to run an eval case | Restrictions: change only these sentences; the existing `toContain` assertions at src/tools/__tests__/harness.test.ts:387 and src/controller/phases/__tests__/retrospective.test.ts:150 keep their values (an illustrative minimum — widen to every assertion the change touches) | Success: the drafter brief lacks `Test (integration)` and says `regression guard`; the `retro-compile` brief carries `Eval case:`; the `closeout-standing` brief names `harness/evals/` and forbids running a case; harness.test.ts and retrospective.test.ts pass_
 
-- [ ] 14. Self-update eval step
+- [x] 14. Self-update eval step
   - File: scripts/sdd-self-update.sh
   - File: src/__tests__/service-scripts.test.ts
   - Test: src/__tests__/service-scripts.test.ts — runScript(selfUpdateSh, args, env)

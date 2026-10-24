@@ -69,3 +69,13 @@ Cost: 1 implementer spawn(s)
 task 13 closed: 0 fix round(s), outcome gate
 Evidence: task 13 · mark run-20261022-152135 7565e16d
 Cost: 1 implementer spawn(s)
+
+## 2026-10-24T03:10:36Z · implementation · task 14 · doc-gap
+red-impossible: covered by the new \"exits 2 when --eval-override has no value\" test (service-scripts.test.ts:367-370), which already passes at base because an unrecognized flag already falls into the script's catch-all `exit 2`. No observable difference exists between \"recognized flag, missing value\" and \"unrecognized flag\" since the design specifies no distinct message. Kept as a regression guard, named for the implementer brief. R4 AC1's accept-branch (value present, forwarded) is genuinely red via the override-forwarding test.","retro":"none"}
+Evidence: task 14 · mark run-20261022-152135 07c41612
+Cost: 1 spawn
+
+## 2026-10-24T03:21:37Z · implementation · task 14 · gotcha
+task 14 closed: 0 fix round(s), outcome gate
+Evidence: task 14 · mark run-20261022-152135 60342b61
+Cost: 1 implementer spawn(s)
