@@ -196,7 +196,7 @@ export interface DocumentPhaseOutcome {
 // The stub ignores them; a real `claude` validates its structured output.
 // ---------------------------------------------------------------------------
 
-const DRAFTER_SCHEMA = {
+export const DRAFTER_SCHEMA = {
   type: 'object',
   additionalProperties: true,
   required: ['wordCount', 'decisions', 'contextFileWritten'],

@@ -1,0 +1,28 @@
+{
+  "id": "test-author-trailer",
+  "role": "sdd-test-author",
+  "phase": "implementation",
+  "spec": "eval-test-author-trailer",
+  "turnCap": 100,
+  "evidence": "the shout run's commit (docs/foundation-handoff.md:31-33)",
+  "briefs": [
+    {
+      "template": "test-author",
+      "file": "author-brief.md",
+      "taskId": "1",
+      "values": {
+        "title": "Add a farewell helper",
+        "job": "Spec dir: {{fixture}}/.spec-workflow/specs/eval-test-author-trailer. Code root: {{fixture}}. Spec store: {{fixture}}/.spec-workflow."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the task", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    { "name": "new-commit-count", "args": { "repo": ".", "count": 1 } },
+    { "name": "no-attribution-trailer", "args": { "repo": "." } }
+  ]
+}

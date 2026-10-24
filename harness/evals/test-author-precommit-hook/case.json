@@ -1,0 +1,30 @@
+{
+  "id": "test-author-precommit-hook",
+  "role": "sdd-test-author",
+  "phase": "implementation",
+  "spec": "eval-test-author-precommit-hook",
+  "turnCap": 100,
+  "evidence": "jobscout task 2 (docs/foundation-review.md:771-773)",
+  "briefs": [
+    {
+      "template": "test-author",
+      "file": "author-brief.md",
+      "taskId": "1",
+      "values": {
+        "title": "Add a greeting helper",
+        "job": "Spec dir: {{fixture}}/.spec-workflow/specs/eval-test-author-precommit-hook. Code root: {{fixture}}. Spec store: {{fixture}}/.spec-workflow."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the task and the blocking hook", "tree": "fixture/01" }
+    ],
+    "preCommitHook": "fixture/pre-commit"
+  },
+  "graders": [
+    { "name": "report-flag", "args": { "prefix": "SEAM-DEFECT:" } },
+    { "name": "no-new-commit", "args": { "repo": "." } },
+    { "name": "clean-tree", "args": { "repo": "." } }
+  ]
+}

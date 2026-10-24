@@ -4,18 +4,23 @@
 # bricks the controller"). The harness repo's post-merge command runs this. It
 # never lets the controller replace itself with an untested build: it builds the
 # new commit in a staging worktree, boots it once with --smoke on a scratch port,
-# and only then swaps dist/ in and restarts. On any failure it leaves the running
-# dist/ untouched and writes an `error` wait naming the commit and the step.
+# runs the selected eval cases against the staged gate, and only then swaps
+# dist/ in and restarts. On any failure it leaves the running dist/ untouched
+# and writes an `error` wait naming the commit and the step.
 #
 # Usage:
-#   scripts/sdd-self-update.sh             pull, stage, smoke, swap, restart
+#   scripts/sdd-self-update.sh             pull, stage, smoke, gate, swap, restart
 #   scripts/sdd-self-update.sh --no-restart  do everything but the restart
 #   scripts/sdd-self-update.sh --dry-run   print every step; change nothing
+#   scripts/sdd-self-update.sh --eval-override <id>  accept a failing eval case
+#                                           (repeatable); deferred, not run
 #
 # Environment:
 #   SDD_CHECKOUT              the live checkout (default: this script's repo root)
 #   SDD_HOME / XDG_STATE_HOME the controller home (runs, waits, the pointer)
 #   SDD_SMOKE_PORT            scratch port for the smoke boot (default 5999)
+#   SDD_STAGE_BUILD           test seam: overrides the staging build command
+#   SDD_STAGE_SMOKE           test seam: overrides the staging smoke-boot command
 set -euo pipefail
 
 REPO="${SDD_CHECKOUT:-$(cd "$(dirname "$0")/.." && pwd -P)}"
@@ -23,11 +28,20 @@ STAGING="$REPO/.claude/worktrees/self-update"
 SMOKE_PORT="${SDD_SMOKE_PORT:-5999}"
 DRY_RUN=0
 NO_RESTART=0
-for arg in "$@"; do
-  case "$arg" in
-    --dry-run) DRY_RUN=1 ;;
-    --no-restart) NO_RESTART=1 ;;
-    *) echo "usage: $(basename "$0") [--dry-run] [--no-restart]" >&2; exit 2 ;;
+EVAL_OVERRIDES=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1; shift ;;
+    --no-restart) NO_RESTART=1; shift ;;
+    --eval-override)
+      if [ $# -lt 2 ]; then
+        echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]..." >&2
+        exit 2
+      fi
+      EVAL_OVERRIDES+=("$2")
+      shift 2
+      ;;
+    *) echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]..." >&2; exit 2 ;;
   esac
 done
 
@@ -42,14 +56,15 @@ would(){ echo "[dry-run] would: $*"; }
 
 TARGET_COMMIT="$(git -C "$REPO" rev-parse origin/main 2>/dev/null || echo origin/main)"
 
-write_error_wait() { # <step>
+write_error_wait() { # <step> [<detail>]
   local step="$1"
+  local detail="${2:-}"
   if [ "$DRY_RUN" = 1 ]; then would "write an error wait (commit $TARGET_COMMIT, step $step)"; return; fi
   log "writing an error wait: self-update failed at $step"
   REPO_WAITS="$REPO/dist/controller/waits.js" \
   SDD_HOME="$HOME_DIR" \
   SPEC_DIR="$HOME_DIR" \
-  WAIT_TEXT="staged self-update of $TARGET_COMMIT failed at $step; dist/ left unchanged" \
+  WAIT_TEXT="staged self-update of $TARGET_COMMIT failed at $step; dist/ left unchanged${detail:+: $detail}" \
     node -e 'import(process.env.REPO_WAITS).then((m) => m.createWait({
       kind: "error", runId: "self-update", projectId: "spec-workflow-mcp",
       spec: "self-update", specDir: process.env.SPEC_DIR,
@@ -102,21 +117,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# (b) Fetch, then move the live checkout to origin/main.
-#     Usually a fast-forward. But while a controller run works a spec whose
-#     store lives in this repo, it commits store documents (docs(sdd): ...)
-#     onto the live checkout's local main and pushes only at run end. Once
-#     origin/main gains a merged PR, local main is both ahead (the store
-#     commits) and behind (the merge), so a plain --ff-only fails. In that one
-#     case, if every file the local-only commits changed is under
-#     .spec-workflow/ or is HANDOFF.md, rebase them onto origin/main; refuse if
-#     any local-only commit touches another path, or if the rebase conflicts.
-#     No force-push and no push: the controller pushes the store at run end.
+# (b1) Fetch and record BASE (today's HEAD) and TARGET_COMMIT (origin/main),
+#      then run the divergence and dirty-path checks. check_move only refuses;
+#      it moves nothing. Refusals stay before the build (D10). While a
+#      controller run works a spec whose store lives in this repo, it commits
+#      store documents (docs(sdd): ...) onto the live checkout's local main
+#      and pushes only at run end. Once origin/main gains a merged PR, local
+#      main is both ahead (the store commits) and behind (the merge), so a
+#      plain --ff-only would fail. check_move allows that one case only when
+#      every local-only commit and every dirty tracked file is under
+#      .spec-workflow/ or is HANDOFF.md; otherwise it refuses. No force-push
+#      and no push: the controller pushes the store at run end.
 # ---------------------------------------------------------------------------
-if [ "$DRY_RUN" = 1 ]; then
-  would "git -C $REPO fetch origin"
-  would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
-else
+check_move() {
   log "fetching origin"
   git -C "$REPO" fetch origin
   TARGET_COMMIT="$(git -C "$REPO" rev-parse origin/main)"
@@ -156,21 +169,15 @@ EOF
       log "refusing: uncommitted changes outside the spec store: $dirty_outside"
       exit 1
     fi
-    log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
-    stash_before="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
-    if ! git -C "$REPO" rebase --autostash origin/main; then
-      git -C "$REPO" rebase --abort 2>/dev/null || true
-      stash_after="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
-      if [ "$stash_after" != "$stash_before" ]; then
-        log "note: autostash entry left in place as $stash_after (stash@{0}); not dropped"
-      fi
-      log "refusing: rebasing the local store commits onto origin/main failed; left local main unmoved"
-      exit 1
-    fi
-  else
-    log "fast-forwarding to $TARGET_COMMIT"
-    git -C "$REPO" pull --ff-only origin main
   fi
+}
+
+BASE="$(/usr/bin/git -C "$REPO" rev-parse HEAD)"
+if [ "$DRY_RUN" = 1 ]; then
+  would "git -C $REPO fetch origin"
+  would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
+else
+  check_move
 fi
 
 # ---------------------------------------------------------------------------
@@ -190,7 +197,8 @@ else
     git -C "$REPO" worktree add "$STAGING" origin/main
   fi
   log "building in staging"
-  if ! ( cd "$STAGING" && npm ci --no-audit --no-fund && npm run build ); then
+  BUILD_CMD="${SDD_STAGE_BUILD:-npm ci --no-audit --no-fund && npm run build}"
+  if ! ( cd "$STAGING" && eval "$BUILD_CMD" ); then
     write_error_wait "build"
     exit 1
   fi
@@ -205,7 +213,8 @@ else
   SMOKE_HOME="$(mktemp -d)"
   cp -a "$HOME_DIR/." "$SMOKE_HOME/" 2>/dev/null || true
   log "smoke-booting the staged build on port $SMOKE_PORT"
-  if ! SDD_HOME="$SMOKE_HOME" node "$STAGING/dist/index.js" --dashboard --smoke --port "$SMOKE_PORT"; then
+  SMOKE_CMD="${SDD_STAGE_SMOKE:-node $STAGING/dist/index.js --dashboard --smoke --port $SMOKE_PORT}"
+  if ! ( SDD_HOME="$SMOKE_HOME" eval "$SMOKE_CMD" ); then
     rm -rf "$SMOKE_HOME"
     write_error_wait "smoke boot"
     exit 1
@@ -215,8 +224,42 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# (e) Swap dist/ in and restart.
+# (e) Run the staged eval gate: the selected cases must pass (or be named by
+#     --eval-override, which defers instead of blocking) before the live
+#     checkout moves. A missing staged CLI counts as exit 1.
 # ---------------------------------------------------------------------------
+if [ "$DRY_RUN" = 1 ]; then
+  EVAL_CLI_LIVE="$REPO/dist/evals/cli.js"
+  if [ -f "$EVAL_CLI_LIVE" ]; then
+    node "$EVAL_CLI_LIVE" select --provisional --repo "$REPO" --base HEAD --target origin/main
+  else
+    echo "[dry-run] eval selection unavailable: the live build has no eval runner"
+  fi
+else
+  EVAL_CLI="$STAGING/dist/evals/cli.js"
+  EVAL_SUMMARY="$(mktemp)"
+  gate_args=(gate --repo "$REPO" --base "$BASE" --target "$TARGET_COMMIT" --base-dist "$REPO/dist" --summary-file "$EVAL_SUMMARY")
+  for id in "${EVAL_OVERRIDES[@]}"; do
+    gate_args+=(--override "$id")
+  done
+  log "running the eval gate"
+  gate_ok=1
+  if [ -f "$EVAL_CLI" ]; then
+    node "$EVAL_CLI" "${gate_args[@]}" || gate_ok=0
+  else
+    gate_ok=0
+  fi
+  if [ "$gate_ok" = 0 ]; then
+    summary=""
+    [ -s "$EVAL_SUMMARY" ] && summary="$(cat "$EVAL_SUMMARY")"
+    [ -z "$summary" ] && summary="eval gate failed before it could report"
+    rm -f "$EVAL_SUMMARY"
+    write_error_wait "evals" "$summary"
+    exit 1
+  fi
+  rm -f "$EVAL_SUMMARY"
+fi
+
 if [ "$DRY_RUN" = 1 ]; then
   would "npm ci in $REPO"
   would "rsync -a --delete $STAGING/dist/ $REPO/dist/"
@@ -225,6 +268,32 @@ if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 
+# ---------------------------------------------------------------------------
+# (f) Re-check the move (a store commit may have landed while the gate ran),
+#     then move the live checkout to origin/main: fast-forward normally, or
+#     rebase the store-only local commits onto origin/main (see note above).
+# ---------------------------------------------------------------------------
+check_move
+if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
+  log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
+  stash_before="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+  if ! git -C "$REPO" rebase --autostash origin/main; then
+    git -C "$REPO" rebase --abort 2>/dev/null || true
+    stash_after="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+    if [ "$stash_after" != "$stash_before" ]; then
+      log "note: autostash entry left in place as $stash_after (stash@{0}); not dropped"
+    fi
+    log "refusing: rebasing the local store commits onto origin/main failed; left local main unmoved"
+    exit 1
+  fi
+else
+  log "fast-forwarding to $TARGET_COMMIT"
+  git -C "$REPO" pull --ff-only origin main
+fi
+
+# ---------------------------------------------------------------------------
+# (g) Swap dist/ in and restart.
+# ---------------------------------------------------------------------------
 wait_no_step || { log "refusing: a controller step is still in flight after 30 minutes; nothing swapped"; exit 1; }
 log "refreshing production dependencies in the live checkout"
 ( cd "$REPO" && npm ci --no-audit --no-fund )

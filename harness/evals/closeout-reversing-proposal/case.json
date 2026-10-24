@@ -1,0 +1,41 @@
+{
+  "id": "closeout-reversing-proposal",
+  "role": "sdd-implementer",
+  "phase": "closeout",
+  "spec": "eval-closeout-reversing-proposal",
+  "turnCap": 150,
+  "cwd": ".",
+  "evidence": "the whisper close-out P3 (docs/foundation-review.md:700-703)",
+  "briefs": [
+    {
+      "template": "closeout-standing",
+      "file": "closeout-standing.md",
+      "values": {
+        "commitScript": "{{scratch}}/closeout-commit.sh"
+      }
+    },
+    {
+      "template": "closeout-batch",
+      "file": "closeout-brief.md",
+      "wire": { "standing": "closeout-standing" },
+      "values": {
+        "cls": "code",
+        "batch": "1",
+        "root": "{{fixture}}",
+        "landing": "the fixture repository's root, on its current branch",
+        "commitHow": "one commit per item with `bash {{scratch}}/closeout-commit.sh \"{{fixture}}\" \"<message>\" <files>`; never push",
+        "checks": "none",
+        "items": "### P3 — Turn notifications on by default\nTarget: code.\nEffort: S. Risk: low.\nPrerequisites: none.\nDecision: approved; flip the default in `{{fixture}}/config.json` so notifications ship on by default for new installs."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the design decision and config", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    { "name": "no-commit-touches", "args": { "repo": ".", "paths": ["config.json"] } },
+    { "name": "item-status", "args": { "item": "P3", "status": "to-do" } }
+  ]
+}

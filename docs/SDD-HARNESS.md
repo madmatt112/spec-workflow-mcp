@@ -463,14 +463,71 @@ post-merge command runs it. The controller never replaces itself with an unteste
 The script does these steps in order:
 
 1. It refuses to run while a run step is in flight.
-2. It fast-forwards the checkout to `origin/main`.
+2. It fetches `origin/main` and checks the move: the divergence and dirty-path rules
+   that decide whether the live checkout may move at all.
 3. It builds the new commit in a staging worktree.
 4. It boots the staged build once with `--smoke` on a scratch port.
-5. On success, it swaps `dist/` in and restarts the controller.
-6. On failure, it keeps the running `dist/` and writes an `error` wait that names the
-   commit and the failing step, so the wait shows on the dashboard.
+5. It runs the eval cases the change selects, with the staged build (see "Eval cases"
+   below). A case that fails or is inconclusive, and that no `--eval-override` names,
+   stops the update here: the live checkout, `harness/` and `dist/` stay as they were.
+6. It checks the move again, in case a new commit landed during the build, then moves
+   the live checkout to the new commit.
+7. It swaps `dist/` in and restarts the controller.
+
+On a step 5 failure the script writes an `error` wait that names the commit, each
+failing or inconclusive case with its first reason, and the eval result record's path,
+so the wait shows on the dashboard.
+
+Pass `--eval-override <id>` once per failing or inconclusive case id to deploy past it.
+An override must name a case that was selected and did not pass; no flag overrides every
+case. Each override appends one line to an override log in the controller home (date,
+commit, case id, verdict) and creates one deferral, owned by `harness`, that names the
+case and carries a ready-to-paste Progress log line. The self-update does not edit
+`docs/foundation-review.md` itself; the operator pastes that line into the next Progress
+log commit.
 
 Run `scripts/sdd-self-update.sh --dry-run` to print every step without changing anything.
+When the staged `dist/evals/cli.js` exists, `--dry-run` also prints the cases the change
+would select and why, without running them.
+
+### Eval cases
+
+An eval case runs one harness role on a frozen brief against a small, fresh git
+repository, three times, and grades the report and the repository after each run. A case
+guards against a role or brief regression that a live run would otherwise have to catch.
+
+Each case is one directory under `harness/evals/<id>/`, holding a `case.json` file with
+these fields:
+
+- `id`: the case id. It equals the directory name.
+- `role`: the role file under `harness/agents/` the case emulates.
+- `phase`: `implementation`, `document` or `closeout`.
+- `spec`: the spec name the case's briefs render for.
+- `turnCap`: the run's turn limit.
+- `cwd`: the step's working directory under the fixture root. Optional; it defaults to
+  the fixture root.
+- `evidence`: the failure the case guards against — a Progress log date, a PR number or
+  a retro finding id.
+- `briefs`: the brief templates to render and the values to render them with.
+- `fixture`: the git repository to build for each run — files, commits in order, and any
+  extra the case needs, such as a pre-commit hook or a second worktree.
+- `graders`: the checks that pass or fail each run.
+
+To run one case by hand, build the package, then run:
+
+```
+node dist/evals/cli.js <id>
+```
+
+With no id, this command runs every case. It prints one line per case (verdict and run
+count) and, at the end, the path of the result record it wrote under the controller
+home, at `evals/results/<UTC stamp>-<commit>.json`.
+
+When a retrospective finds a role or brief defect, its proposal names a case id, with
+one line on what its grader checks, on an `Eval case:` line — or `none`, with the
+reason. When the operator approves that proposal, the close-out lands the new case
+directory under `harness/evals/` in the same commit as the fix. The close-out does not
+run the case; the next deploy's self-update runs it for the first time.
 
 ### Where the secret lives
 
