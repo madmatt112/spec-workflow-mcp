@@ -174,7 +174,7 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 7.1, 7.2_
   - _Prompt: Task: Per R7 AC1-AC2 and design Component 12, list the steps in their new order (refuse while a step is live; fetch and check the move; build; smoke boot; run the selected cases; move the live checkout; swap and restart), the refusal and its error wait, `--eval-override` with the override log and the deferral; then the case directory and `case.json` fields, `node dist/evals/cli.js <id>`, the result record path and the retro's `Eval case:` line. Run `grep -n "steps in order\|six steps" docs/SDD-HARNESS.md README.md` and update any count word it finds | Restrictions: ASD-STE100 style; edit only these sections | Success: the section lists the seven steps in order with the override and its records; the subsection names the run command and the record path; the grep finds no stale count_
 
-- [ ] 16. Pending verification record
+- [x] 16. Pending verification record
   - File: .spec-workflow/specs/harness-evals/verification-evidence.md
   - Write the live-check record for the landing deploy.
   - Purpose: the deploy that lands this spec runs the five cases on the real `claude`; that needs a rebuilt, restarted session, so it stays pending (R5 AC3).

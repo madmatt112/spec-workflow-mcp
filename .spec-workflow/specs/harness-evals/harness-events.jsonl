@@ -277,3 +277,10 @@
 {"ts":"2026-10-24T03:27:59.045Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 15 retry","result":"ok","phase":"implementation","task":"15"}
 {"ts":"2026-10-24T03:28:01.017Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: task 15 pass risk low"}
 {"ts":"2026-10-24T03:28:01.022Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"15","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-24T03:28:01.131Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"16","title":"Pending verification record"}
+{"ts":"2026-10-24T03:28:01.137Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 16 pick head ce8b6ecd2d92d147820d792725dbb1c9726dbe98"}
+{"ts":"2026-10-24T03:28:01.165Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"task 16 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-24T03:28:01.165Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement task 16","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-24T03:30:25.005Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"44","output":"11314","cacheWrite":"44680","cacheRead":"1282883","tokens":"1338921","cacheWrite5m":"0","cacheWrite1h":"44680","model":"claude-sonnet-5"}
+{"ts":"2026-10-24T03:30:25.005Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 16","result":"yes/16","phase":"implementation","task":"16"}
+{"ts":"2026-10-24T03:30:25.030Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"16","rounds":"0","outcome":"gate"}
