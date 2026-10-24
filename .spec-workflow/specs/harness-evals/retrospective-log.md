@@ -124,3 +124,18 @@ Cost: implementer
 harness batch 2: 2 done of 2, 0 fix round(s)
 Evidence: batch 2 · mark run-20261022-152135 cf4bcefc
 Cost: 1 implementer spawn(s)
+
+## 2026-10-24T16:35:15Z · closeout · code batch 3 · gotcha
+process — brief said "Checks: none" but a src/ change requires tsc + the module's vitest per agent-rules; process — P3 reached the implementer with DECISION NEEDED still open, should be resolved before the batch
+Evidence: batch 3 · mark run-20261022-152135 612e60ab
+Cost: implementer
+
+## 2026-10-24T16:35:17Z · closeout · code batch 3 · deviation
+P1 skipped: No change needed; fix already shipped in bc2b89ae, left as watch item (not a rule yet)
+Evidence: P1 · mark run-20261022-152135 a227e23d
+Cost: unknown
+
+## 2026-10-24T16:35:17Z · closeout · code batch 3 · cleanup
+code batch 3: 1 done of 3, 0 fix round(s)
+Evidence: batch 3 · mark run-20261022-152135 3e6a1834
+Cost: 1 implementer spawn(s)

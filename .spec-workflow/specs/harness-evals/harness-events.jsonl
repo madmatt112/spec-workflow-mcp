@@ -344,3 +344,14 @@
 {"ts":"2026-10-24T16:32:05.215Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P9 pass risk low"}
 {"ts":"2026-10-24T16:32:05.245Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P2","outcome":"done"}
 {"ts":"2026-10-24T16:32:05.246Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-10-24T16:32:11.760Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P1","title":"P1 (F1) — Fresh eval fixture repo needs a repo-level git identity."}
+{"ts":"2026-10-24T16:32:11.760Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P3","title":"P3 (F3) — Eval selector over-marks `provisional`."}
+{"ts":"2026-10-24T16:32:11.760Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P4","title":"P4 (F4) — `fixture.test.ts` leaves-no-parent test is not concurrency-safe."}
+{"ts":"2026-10-24T16:32:11.772Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement code batch 3","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-24T16:35:15.150Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"30","output":"12830","cacheWrite":"44191","cacheRead":"710489","tokens":"767540","cacheWrite5m":"0","cacheWrite1h":"44191","model":"claude-opus-4-8"}
+{"ts":"2026-10-24T16:35:15.151Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 3","result":"ok","phase":"closeout"}
+{"ts":"2026-10-24T16:35:15.170Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P4 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-24T16:35:17.210Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-10-24T16:35:17.241Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-10-24T16:35:17.241Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P3","outcome":"to-do"}
+{"ts":"2026-10-24T16:35:17.242Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P4","outcome":"done"}

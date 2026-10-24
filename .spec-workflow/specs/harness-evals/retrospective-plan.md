@@ -172,3 +172,6 @@ One line per proposal, written by the close-out phase.
 - P2: done — 05b83bcb5af8cf1cf4407393db44ecbe87c13a8f
 - P9: done — 29809b5d933e9190c93ba59e4b6fc7572fd3e12b
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/177
+- P1: skipped — No change needed; fix already shipped in bc2b89ae, left as watch item (not a rule yet)
+- P3: to-do (human) — Decision needed (human) between options A/B/C; recommended A leaves d-3a26cd7c deferred with no code change. Cannot decide or touch deferrals.
+- P4: done — e812a53bf5df9a352eb8bb9c71bbf3f9df0f0efe
