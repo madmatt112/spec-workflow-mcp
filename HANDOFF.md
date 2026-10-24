@@ -1044,4 +1044,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 10/16, stopped: design-defect — task 11's File: list omits the fixture-tree files design Component 13 mandates on disk, so file-outside-list fails the gate every round regardless of content |
+| State | tasks 11/16, last commit f07c12fa, next task 12 |

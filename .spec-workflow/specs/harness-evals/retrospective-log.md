@@ -54,3 +54,8 @@ Cost: 1 implementer spawn(s)
 task 11's File: list omits the fixture-tree files design Component 13 mandates on disk, so file-outside-list fails the gate every round regardless of content
 Evidence: task 11 · mark run-20261022-152135 2a96b15e
 Cost: unknown
+
+## 2026-10-24T02:33:30Z · implementation · task 11 · gotcha
+task 11 closed: 0 fix round(s), outcome gate
+Evidence: task 11 · mark run-20261022-152135 d5528bd6
+Cost: 1 implementer spawn(s)

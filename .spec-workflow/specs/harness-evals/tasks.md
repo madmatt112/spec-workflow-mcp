@@ -122,10 +122,10 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Requirements: 2.9, 3.7_
   - _Prompt: Task: Implement design Component 9 per R2 AC9 and R3 AC7. Export `main(argv)` returning the exit code, and run it only when the module is the process entry. Before any run, delete `SDD_RUN_ID` and `SDD_STEP_ID` from `process.env` (design Component 6, Record). Tests: an unknown flag and a missing value give exit 2 with a usage line; `select` on a two-commit temp repo prints `select <id>: <reasons>` and exits 0, with ` (provisional)` under `--provisional`; a run with `SDD_RUN_ID` set leaves it unset afterwards; a named case run through the stub claude prints its case line and the record path; `gate --repo … --base … --target … --base-dist … --summary-file …` on a two-commit temp repo holding a case, through the stub claude, forwards its flags to `runGate` and returns its exit code: a failing case named by one `--override` exits 0 and writes one line to the run's `overrides.log`; a `--override` naming no selected case exits 2 before any spawn (the one path the deploy uses, Component 10 change 4) | Restrictions: no new flag beyond the component's; print through stdout only | Success: an unknown flag and a missing value exit 2 with a usage line; `select` prints its lines, exit 0, with the provisional suffix under `--provisional`; `SDD_RUN_ID` is unset after a run; a stub case run prints its case line and the record path; a `gate` run forwards its flags and exit code — an `--override` on a failing case exits 0 with one `overrides.log` line, a bad `--override` exits 2 before any spawn; `npx tsc --noEmit` and cli.test.ts pass_
 
-- [ ] 11. Seed cases: drafter and test author
-  - File: harness/evals/drafter-test-seam-label/case.json
-  - File: harness/evals/test-author-precommit-hook/case.json
-  - File: harness/evals/test-author-trailer/case.json
+- [x] 11. Seed cases: drafter and test author
+  - File: harness/evals/drafter-test-seam-label/
+  - File: harness/evals/test-author-precommit-hook/
+  - File: harness/evals/test-author-trailer/
   - File: src/evals/__tests__/cases.test.ts
   - Test: src/evals/__tests__/cases.test.ts — loadCase(id), buildFixture(c, caseDir), renderCaseBriefs(c, f, scratch)
   - Add the three cases of design Component 13 with their fixture trees, and the model-free validation suite.
@@ -135,8 +135,8 @@ Dependency order: task 1 adds the report schema map; tasks 2 and 3 add the grade
   - _Prompt: Task: Per R5 AC1, R1 AC5 and design Component 13, write each case's `case.json`, fixture trees and pre-commit hook, with the evidence its R5 AC1 entry cites and `spec` values starting `eval-` (D1). cases.test.ts runs for every listed id: `loadCase` succeeds, `harness/agents/<role>.md` exists, the fixture builds, every brief renders with no missing key, every grader is in the registry; it also asserts the three ids are listed. Regression guard, not red-first: R5 AC4's base pass of the two test-author cases is a live check, recorded by the pending verification record, not a unit test | Restrictions: no model; the drafter `docPath` equals the grader's `doc` arg; the hook runs `node --test` with no tests-only carve-out; no agent-rules plugin sync applies (no `plugins/` tree at base) | Success: the three cases load, build and render; cases.test.ts asserts their ids and passes_
 
 - [ ] 12. Seed cases: close-out
-  - File: harness/evals/closeout-landing-root/case.json
-  - File: harness/evals/closeout-reversing-proposal/case.json
+  - File: harness/evals/closeout-landing-root/
+  - File: harness/evals/closeout-reversing-proposal/
   - File: src/evals/__tests__/cases.test.ts
   - Test: src/evals/__tests__/cases.test.ts — listCaseIds(), renderCaseBriefs(c, f, scratch)
   - Add the two close-out cases of design Component 13; the validation suite then asserts all five ids.
