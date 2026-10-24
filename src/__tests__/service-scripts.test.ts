@@ -68,6 +68,13 @@ function makeDivergedCheckout(): { checkout: string; origin: string; home: strin
   return { checkout, origin, home };
 }
 
+// A build-stage test seam (design Component 10 change 3, D8): writes a stub
+// `dist/evals/cli.js` into the staging worktree so step (c) succeeds without a
+// real `npm run build`, which the toy fixtures above cannot run (no build script).
+function stageBuildStub(body: string): string {
+  return `mkdir -p dist/evals\ncat > dist/evals/cli.js <<'JSEOF'\n${body}\nJSEOF\n`;
+}
+
 describe('service scripts (controller T9)', () => {
   it('pass bash -n', () => {
     for (const s of [serviceSh, watchdogSh, selfUpdateSh]) {
@@ -254,6 +261,7 @@ describe('service scripts (controller T9)', () => {
       });
       expect(res.code).toBe(0);
       expect(res.stdout).toContain('[dry-run]');
+      expect(res.stdout).toContain('eval selection unavailable');
       expect(res.stdout).toContain('dry run complete; nothing changed');
       // Nothing was staged or built.
       expect(existsSync(join(clone, 'dist'))).toBe(false);
@@ -274,13 +282,17 @@ describe('service scripts (controller T9)', () => {
       git(checkout, 'add', '-A');
       git(checkout, 'commit', '-qm', 'docs(sdd): store');
 
-      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+      const res = await runScript(selfUpdateSh, [], {
+        SDD_CHECKOUT: checkout, SDD_HOME: home,
+        SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'), SDD_STAGE_SMOKE: 'true',
+      });
 
-      // The local store commit was rebased onto origin/main, so origin/main is
-      // now an ancestor of HEAD and the store file survives on top. The run then
-      // moves past step (b) into the staging build (which fails in this toy repo).
+      // The local store commit is rebased onto origin/main only after the staged
+      // build and smoke boot pass, so `building in staging` prints before
+      // `rebasing`; the store file survives on top of origin/main.
       expect(res.stdout).toContain('rebasing');
       expect(res.stdout).toContain('building in staging');
+      expect(res.stdout.indexOf('building in staging')).toBeLessThan(res.stdout.indexOf('rebasing'));
       expect(res.stdout).not.toContain('refusing');
       expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).not.toThrow();
       expect(existsSync(join(checkout, '.spec-workflow', 'specs', 'foo', 'tasks.md'))).toBe(true);
@@ -302,10 +314,14 @@ describe('service scripts (controller T9)', () => {
       // A live run appends to the ledger without committing.
       writeFileSync(ledger, '{"n":1}\n{"n":2}\n');
 
-      const res = await runScript(selfUpdateSh, [], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+      const res = await runScript(selfUpdateSh, [], {
+        SDD_CHECKOUT: checkout, SDD_HOME: home,
+        SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'), SDD_STAGE_SMOKE: 'true',
+      });
 
       expect(res.stdout).toContain('rebasing');
       expect(res.stdout).toContain('building in staging');
+      expect(res.stdout.indexOf('building in staging')).toBeLessThan(res.stdout.indexOf('rebasing'));
       expect(res.stdout).not.toContain('refusing');
       expect(() => execFileSync('git', ['merge-base', '--is-ancestor', 'origin/main', 'HEAD'], { cwd: checkout })).not.toThrow();
       expect(readFileSync(ledger, 'utf-8')).toBe('{"n":1}\n{"n":2}\n');
@@ -362,4 +378,65 @@ describe('service scripts (controller T9)', () => {
       rmSync(home, { recursive: true, force: true });
     }
   }, 30000);
+
+  it('sdd-self-update.sh refuses on a failing eval stage and leaves HEAD, harness/ and dist/ unchanged', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      const originalHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim();
+      mkdirSync(join(checkout, 'harness'), { recursive: true });
+      writeFileSync(join(checkout, 'harness', 'marker.txt'), 'original\n');
+
+      const res = await runScript(selfUpdateSh, [], {
+        SDD_CHECKOUT: checkout, SDD_HOME: home,
+        SDD_STAGE_BUILD: stageBuildStub('process.exit(1);'), SDD_STAGE_SMOKE: 'true',
+      });
+
+      // The staged gate failed, so the live-checkout move (deferred to step (f))
+      // never ran: HEAD stays where it was before the update, not fast-forwarded.
+      expect(res.code).toBe(1);
+      expect(res.stdout).toContain('writing an error wait');
+      expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim()).toBe(originalHead);
+      expect(readFileSync(join(checkout, 'harness', 'marker.txt'), 'utf-8')).toBe('original\n');
+      expect(existsSync(join(checkout, 'dist'))).toBe(false);
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh forwards two --eval-override values as two --override arguments to the staged gate', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    const argsFile = join(home, 'invocation-args.txt');
+    try {
+      const res = await runScript(selfUpdateSh, ['--eval-override', 'case-one', '--eval-override', 'case-two'], {
+        SDD_CHECKOUT: checkout, SDD_HOME: home,
+        SDD_STAGE_BUILD: stageBuildStub(
+          [
+            "import { writeFileSync } from 'node:fs';",
+            `writeFileSync(${JSON.stringify(argsFile)}, process.argv.slice(2).join('\\n'));`,
+            'process.exit(1);',
+          ].join('\n'),
+        ),
+        SDD_STAGE_SMOKE: 'true',
+      });
+
+      expect(res.code).toBe(1);
+      expect(existsSync(argsFile)).toBe(true);
+      const lines = readFileSync(argsFile, 'utf-8').split('\n');
+      const overrideIdx = lines.reduce<number[]>((acc, l, i) => (l === '--override' ? [...acc, i] : acc), []);
+      expect(overrideIdx).toHaveLength(2);
+      expect(lines[overrideIdx[0] + 1]).toBe('case-one');
+      expect(lines[overrideIdx[1] + 1]).toBe('case-two');
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh exits 2 when --eval-override has no value', async () => {
+    const res = await runScript(selfUpdateSh, ['--eval-override'], {});
+    expect(res.code).toBe(2);
+  });
 });
