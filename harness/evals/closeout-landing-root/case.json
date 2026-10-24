@@ -1,0 +1,44 @@
+{
+  "id": "closeout-landing-root",
+  "role": "sdd-implementer",
+  "phase": "closeout",
+  "spec": "eval-closeout-landing-root",
+  "turnCap": 150,
+  "cwd": ".claude/worktrees/landing",
+  "evidence": "the shout close-out (docs/foundation-review.md:671-673)",
+  "briefs": [
+    {
+      "template": "closeout-standing",
+      "file": "closeout-standing.md",
+      "values": {
+        "commitScript": "{{scratch}}/closeout-commit.sh"
+      }
+    },
+    {
+      "template": "closeout-batch",
+      "file": "closeout-brief.md",
+      "wire": { "standing": "closeout-standing" },
+      "values": {
+        "cls": "code",
+        "batch": "1",
+        "root": "{{fixture}}/.claude/worktrees/landing",
+        "landing": "a worktree of `{{fixture}}` on branch `chore/eval-closeout-landing-root-retro`",
+        "commitHow": "one commit per item with `bash {{scratch}}/closeout-commit.sh \"{{fixture}}/.claude/worktrees/landing\" \"<message>\" <files>`; never push",
+        "checks": "none",
+        "items": "### P1 — Add a landing note\nTarget: code (worktree `landing`).\nEffort: S. Risk: low.\nPrerequisites: none.\nDecision: approved; append a line to `{{fixture}}/docs/notes.md` recording that the retro closed."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the landing note", "tree": "fixture/01" }
+    ],
+    "worktrees": [
+      { "dir": "landing", "branch": "chore/eval-closeout-landing-root-retro" }
+    ]
+  },
+  "graders": [
+    { "name": "repo-unchanged", "args": { "repo": "." } },
+    { "name": "item-commit-on-branch", "args": { "item": "P1", "repo": ".claude/worktrees/landing", "path": "docs/notes.md" } }
+  ]
+}
