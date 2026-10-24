@@ -403,6 +403,54 @@ describe('harnessHandler', () => {
     expect(written).toContain('Write v1 of');
   });
 
+  it('brief drafter drops the integration-test label and notes a regression guard instead (R5 AC2)', async () => {
+    const outPath = join(tempDir, 'drafter-brief-regression.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'drafter', values: drafterValues({ path: outPath }) },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).not.toContain('Test (integration)');
+    expect(written).toContain('regression guard');
+  });
+
+  it('brief retro-compile carries the Eval case line after Prerequisites in the proposal format (R6 AC1)', async () => {
+    const outPath = join(tempDir, 'retro-compile-brief.md');
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'retro-compile',
+        values: {
+          path: outPath,
+          specDir, specStoreRoot: join(tempDir, '.spec-workflow'), specStoreRepo: tempDir,
+          codeRoot: tempDir, mainCheckout: tempDir, outputPath: join(specDir, 'retrospective.md'),
+          handoff: join(tempDir, '.spec-workflow', 'HANDOFF.md'), date: '2026-10-23', defaultBranch: 'main',
+        },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain('## Proposal format (for the analyst)');
+    const prereqIdx = written.indexOf('Prerequisites:');
+    const evalIdx = written.indexOf('Eval case:');
+    expect(prereqIdx).toBeGreaterThan(-1);
+    expect(evalIdx).toBeGreaterThan(prereqIdx);
+  });
+
+  it('brief closeout-standing names the eval-case landing path and forbids running a case (R6 AC2, AC3)', async () => {
+    const outPath = join(tempDir, 'closeout-standing-brief.md');
+    const res = await harnessHandler(
+      { action: 'brief', specName: SPEC, template: 'closeout-standing',
+        values: { path: outPath, commitScript: join(tempDir, 'closeout-commit.sh') } },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+    expect(written).toContain('harness/evals/');
+    expect(written).toMatch(/never run an eval case/i);
+  });
+
   it('brief fails naming an unknown template and writes no file', async () => {
     const outPath = join(tempDir, 'nope.md');
     const res = await harnessHandler(
