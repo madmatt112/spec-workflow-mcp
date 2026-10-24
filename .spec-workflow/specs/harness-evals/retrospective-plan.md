@@ -169,3 +169,6 @@ One line per proposal, written by the close-out phase.
 - G1: skipped — no change chosen
 - G2: skipped — no change chosen
 - P5: done — 12a1ac8b24da8af8af2a999cdf48887b7a25a453
+- P2: done — 05b83bcb5af8cf1cf4407393db44ecbe87c13a8f
+- P9: done — 29809b5d933e9190c93ba59e4b6fc7572fd3e12b
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/177

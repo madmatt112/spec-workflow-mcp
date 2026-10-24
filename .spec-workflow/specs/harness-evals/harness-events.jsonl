@@ -333,3 +333,14 @@
 {"ts":"2026-10-24T16:13:49.704Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P5 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-10-24T16:13:54.908Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P5 pass risk low"}
 {"ts":"2026-10-24T16:13:54.925Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P5","outcome":"done"}
+{"ts":"2026-10-24T16:14:09.764Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P2","title":"P2 (F2) — The self-update BASE line must call `/usr/bin/git`."}
+{"ts":"2026-10-24T16:14:09.764Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.pick","task":"P9","title":"P9 (F9) — Task 16 shipped unreviewed."}
+{"ts":"2026-10-24T16:14:09.774Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-24T16:31:56.579Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.end","agent":"sdd-implementer","input":"116","output":"77438","cacheWrite":"146949","cacheRead":"6232625","tokens":"6457128","cacheWrite5m":"0","cacheWrite1h":"146949","model":"claude-opus-4-8"}
+{"ts":"2026-10-24T16:31:56.579Z","run":"run-20261022-152135","spec":"harness-evals","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-24T16:31:56.596Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P2 test files from the commit added to the list"}
+{"ts":"2026-10-24T16:32:03.302Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-10-24T16:32:03.317Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P9 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-24T16:32:05.215Z","run":"run-20261022-152135","spec":"harness-evals","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-10-24T16:32:05.245Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-10-24T16:32:05.246Z","run":"run-20261022-152135","spec":"harness-evals","type":"task.done","task":"P9","outcome":"done"}

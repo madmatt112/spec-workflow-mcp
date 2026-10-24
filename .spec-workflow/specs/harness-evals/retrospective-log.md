@@ -114,3 +114,13 @@ Cost: 2 spawns
 store batch 1: 1 done of 1, 0 fix round(s)
 Evidence: batch 1 · mark run-20261022-152135 06ecf37b
 Cost: 1 implementer spawn(s)
+
+## 2026-10-24T16:31:56Z · closeout · harness batch 2 · gotcha
+process — P9 close-out brief omitted the recorded decision (Option C, warn-only) and only listed options with "recommended A"; had to read the decision from retrospective-plan.md Decisions. G2 (graduate the /usr/bin/git rule into agent-rules.md) was recorded "skipped", so P2 added only the check + pinning, no agent-rules edit.
+Evidence: batch 2 · mark run-20261022-152135 64314953
+Cost: implementer
+
+## 2026-10-24T16:32:05Z · closeout · harness batch 2 · cleanup
+harness batch 2: 2 done of 2, 0 fix round(s)
+Evidence: batch 2 · mark run-20261022-152135 cf4bcefc
+Cost: 1 implementer spawn(s)
