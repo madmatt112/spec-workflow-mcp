@@ -1044,4 +1044,11 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 16/16, last commit ce8b6ecd, next completion gate |
+| State | tasks 16/16, implemented 2026-10-24 |
+| Implemented | 2026-10-24 |
+| PR | pending |
+| Coverage | logCoverage 16/16; reviewCoverage 15/16 (unreviewed: 16); TDD 14 task(s): assertion-red 4, structural-red 10, vacuous 0, inconclusive 0 |
+| Deferrals | 2 added by this spec, 18 open in all |
+| Verifier-skipped | task 11, task 12, task 13, task 14, task 15, task 16 (gate-only review, retro P6/P15) |
+| Next | d-afcd942d fixture.test.ts leaves-no-parent test is not concurrency-safe (diffs global os.tmpdir); d-3a26cd7c Eval selector marks provisional per brief-source change, not only when it is the sole reason (R3 AC6) |
+| Gotchas | none |
