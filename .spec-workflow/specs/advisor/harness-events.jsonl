@@ -50,3 +50,7 @@
 {"ts":"2026-10-26T22:19:05.123Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-checker","input":"16","output":"2584","cacheWrite":"58705","cacheRead":"372795","tokens":"434100","cacheWrite5m":"0","cacheWrite1h":"58705","model":"claude-sonnet-5"}
 {"ts":"2026-10-26T22:19:05.124Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-checker","role":"narrow check v3","result":"success","phase":"design"}
 {"ts":"2026-10-26T22:19:05.434Z","run":"run-20261026-204644","spec":"advisor","type":"phase.end","phase":"design","result":"approved","state":"v3","note":"3 rounds"}
+{"ts":"2026-10-26T22:19:05.536Z","run":"run-20261026-204644","spec":"advisor","type":"phase.start","phase":"tasks","mode":"normal","state":"v0"}
+{"ts":"2026-10-26T22:19:05.564Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-10-26T22:25:54.484Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-drafter","input":"78","output":"36452","cacheWrite":"124329","cacheRead":"3694990","tokens":"3855849","cacheWrite5m":"0","cacheWrite1h":"124329","model":"claude-opus-5-5"}
+{"ts":"2026-10-26T22:25:54.485Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"tasks","round":"1"}

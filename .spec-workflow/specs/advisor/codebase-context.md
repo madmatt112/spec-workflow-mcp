@@ -102,3 +102,39 @@
 - scripts/stub-claude.mjs:1-30 — canned `claude` stream for tests
 - scripts/stub-gh.mjs:1-86 — canned `gh` for tests
 - harness/agents/sdd-drafter.md:1-12 — agent file frontmatter shape (name, model, effort, tools)
+
+## Tasks-phase additions: controller and waits
+- src/controller/controller.ts:373-388 — `windowBlock` (corrects the 375-390 line above)
+- src/controller/controller.ts:73 — `active`: private run-slot set
+- src/controller/controller.ts:98 — `start()` returns false when another controller holds the lock
+- src/controller/controller.ts:412-413 — `runDeps` wires `windowBlock` and `onRateLimit`
+- src/controller/state.ts:94-99 — `RunRecord.prReads`: PR reads live on the run
+- src/controller/state.ts:343 — `listRuns`
+- src/controller/state.ts:372-397 — `listWaits`, `readWait`, `writeWait`
+- src/controller/state.ts:298 — `writeJsonAtomic` (not exported at base)
+- src/controller/waits.ts:119-126 — `attachAdvice` (advice string only at base)
+
+## Tasks-phase additions: access and server
+- src/controller/access.ts:191-209 — `installAccessControl`: hook plus login/logout routes
+- src/dashboard/multi-server.ts:341 — `controller.start()` call; return value ignored at base
+- src/dashboard/multi-server.ts:646-661 — answer route
+- src/index.ts:391-398 — `init`/`doctor` routing before argument parsing
+
+## Tasks-phase additions: tests a task changes
+- src/__tests__/agent-profiles.test.ts:23-24 — asserts 10 profile keys
+- src/watch/__tests__/ledger.test.ts:101-105 — asserts 10 profile keys
+- src/dashboard/shell/__tests__/shell-feed.test.ts:275-284 — pins the five feed messages in order
+- src/controller/__tests__/waits.test.ts:172-193 — `attachAdvice` tests
+- src/dashboard/__tests__/controller-waits-routes.test.ts:147-157 — advice route test
+- src/dashboard/__tests__/access-routes.test.ts:78-89 — loopback GET under `/api/controller/` needs auth
+
+## Tasks-phase additions: harness and build
+- harness/agents/sdd-drafter.md:1-12 — model on line 4, effort on line 5 (the profile test reads those lines)
+- scripts/copy-static.cjs:64-71 — copies `agent-profiles.json` to `dist/`; no plugins/ dir or plugin-assets script at base
+- vitest.config.ts:8-9 — vitest includes `src/**` tests and excludes `src/dashboard_frontend/**`
+- package.json:31 — `build:dashboard`: vite build of the frontend
+
+## Tasks-phase additions: frontend
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:288 — `DetailText`
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:351 — `AnswerSheet`
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:367 — answer POST fetch
