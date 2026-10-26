@@ -1,0 +1,50 @@
+{
+  "items": [
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing) for the advisor?",
+      "options": [
+        "Local only: no money, billing, refunds or credits; job search, notebook and website data stay on the machine; the push carries only wait kind, project and spec; erasure is deleting the home files; no legal framing for a one-operator tool",
+        "Send summaries through the push service",
+        "A hosted search index"
+      ]
+    },
+    {
+      "header": "Action guard",
+      "question": "How is a staged action kept from running without the operator's confirmation?",
+      "options": [
+        "A separate advisor credential the confirm route refuses, plus a permission rule that stops the advisor reading the operator secret",
+        "The operator secret with a confirm flag",
+        "A prompt rule only"
+      ]
+    },
+    {
+      "header": "Staged merge",
+      "question": "What does a confirmed staged merge do?",
+      "options": [
+        "Apply the merge rule's checks (green, mergeable, no attribution) and refuse on failure",
+        "Merge on confirm with no checks",
+        "Merge only through run merge waits"
+      ]
+    },
+    {
+      "header": "Opinion shape",
+      "question": "What shape does a second opinion take on the wait?",
+      "options": [
+        "Typed picks per question plus a short summary; old text advice still renders",
+        "Keep free text",
+        "Picks only"
+      ]
+    },
+    {
+      "header": "Push service",
+      "question": "How does the controller send one phone push per new wait?",
+      "options": [
+        "HTTP POST to an ntfy-style URL set in the home",
+        "Pushover",
+        "A Telegram bot",
+        "A Claude Code push from a session"
+      ]
+    }
+  ]
+}
