@@ -306,10 +306,10 @@ control the operator presses, and no run state depends on its output.
 - **State of the world.** A file the controller rebuilds on every state change, debounced:
   projects, runs (phase, step, age), open waits, the queue, open specs with phase and PR
   state, deferrals owned by the operator, retro outcomes of the last week, usage this
-  window, the harness version. Code builds it. **How it stays efficient, progressive,
-  searchable and organised (graphs, indices, and what else is out there) is a design session
-  with the operator before it is built**; this section only fixes what it must contain and
-  that it is machine-made.
+  window, the harness version. Code builds it. Decided in the design session of 2026-10-26
+  (decomposition entry 25): a short summary at hello, tallies the controller keeps from
+  the ledgers and retros, and drill-down search that runs text and local-embedding meaning
+  search together over every project's records.
 - **Tools.** The dashboard server exposes an MCP endpoint for the advisor: cross-project
   reads (projects, runs, waits, specs, any spec-store file, PR state, usage, the harness's
   docs and ADRs, search) and the operator's actions (launch, answer a wait, merge, file a

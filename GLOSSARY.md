@@ -80,9 +80,22 @@ the operator uses it. Nothing in a run depends on it.
 _Avoid_: overwatch, reviewer (that is a worker role), assistant
 
 **State of the world**:
-The controller's compiled view of every project, run, wait, open spec, PR and deferral,
-which the advisor reads at hello. Code builds it; no one writes it by hand.
+The controller's compiled view of every project, run, wait, open spec, PR and deferral:
+a short summary the advisor reads at hello, the tallies of cost, failures and findings
+over time, and the searchable records behind them. Code builds it; no one writes it by
+hand.
 _Avoid_: HUD, handoff, digest, dashboard (that shows it; it is not it)
+
+**Second opinion**:
+The advisor's picks on one wait, asked for by the operator and attached to the wait. A run
+never asks for one and never waits for one.
+_Avoid_: review, advice (too loose), recommendation (that is the wait's own pick)
+
+**Staged action**:
+Something the advisor wants done that changes shared state, such as a merge, a deploy, a
+launch or a wait answer. It waits in the dashboard with the advisor's reason and happens
+only when the operator confirms it there.
+_Avoid_: pending action, proposal, request
 
 **Source**:
 A named thing outside the harness the operator wants the advisor to know: a repository, a

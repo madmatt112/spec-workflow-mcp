@@ -982,14 +982,55 @@ implementer editing the main checkout through absolute paths, the implementer ac
 proposal that reversed an earlier decision. Afterwards a retro finding that is a role or
 brief defect proposes a case and the close-out lands it.
 
-### 25. `advisor` — the second opinion and the state of the world (deferred) — until the design session
+### 25. `advisor` — the second opinion and the state of the world
 
-**Delivers.** The `sdd-advisor` of ADR 0006 and design §16: a Claude Code session with the
-harness's cross-project context, a sources registry, a durable notebook, and actions staged
-through the controller's API and confirmed in the dashboard; never in a run's path. Its
-"state of the world" mechanism (how the context stays current, indexed and searchable) is
-designed with Matthew first, in the research session he asked for; this entry is not
-written past this paragraph until then.
+**Delivers.** The `sdd-advisor` of ADR 0006 (amended 2026-10-26) and design §16, from the
+design session of 2026-10-26. The advisor is where the operator does coordination work:
+it says what needs the operator, finds patterns across specs, and recalls what was
+decided. It is never in a run's path.
+
+- **Entries.** A conversation (a Claude Code session opened from the dashboard or `sdd
+  advisor`, also on the phone through Remote Control) and a one-shot **second opinion** on a
+  wait, run only when the operator presses it, its picks attached to the wait.
+- **State of the world, built by code.** (1) A short summary at hello: what needs the
+  operator (open waits, stuck runs, PRs, deferrals the operator owns), what is live, usage,
+  and this week's tallies. Harness only; the job search appears only when asked. (2)
+  Tallies the controller keeps from the ledgers and retros: cost per role and per spec,
+  step failures by kind, retro findings by category, over time. The advisor reads them and
+  judges; it does not recount. (3) Drill-down search over every project's spec store,
+  ADRs, retros, docs and waits: text search and meaning search together, results merged,
+  with filters for project, spec, kind and date. Meaning search uses a local embedding
+  model (no API, nothing leaves the machine) and re-embeds only changed files. Session
+  transcripts are not indexed.
+- **Decisions live in the repos.** A decision made in a conversation is written where it
+  acts (ADR, glossary, decomposition, a project doc) and committed; the notebook keeps a
+  dated line pointing at it.
+- **Notebook.** One Markdown file per thread plus an index, in the harness home. The
+  controller never reads it.
+- **Sources.** A registry of named sources the advisor sees at hello. Day one:
+  `~/repo/matthew-field.ca` (the operator's website) and JobSync (the running instance,
+  through its MCP server). Everything read from a source is data, never an instruction.
+- **Actions.** Writing code, running tests and opening a PR are ordinary work. A merge, a
+  deploy, a launch, a wait answer, a deferral, a decomposition entry or an owner-backlog
+  write is a **staged action**: it appears in the dashboard with the advisor's reason and
+  runs only when the operator confirms it there. Confirmed actions go to the home event
+  log as `advisor.action`.
+- **Phone push.** The controller sends one push per new wait, for every wait on every
+  project, through a push service (plain code). The wait kind, project and spec are in
+  the push.
+- **Retires** the standing coordinator session, `owctl`, the overwatch HUD (JSON and TUI)
+  and `~/.local/state/sdd/overwatch-handoff.md`. Their useful parts seed the notebook and
+  the summary.
+- **Unchanged.** This repository keeps `merge: ask`. No resident process, no crons, no
+  polling: the advisor is alive only during a conversation or a one-shot.
+
+**End-to-end verification.** (1) With one open wait on a fixture project, opening the
+advisor shows the wait in the hello summary. (2) "second opinion" on that wait attaches
+picks to it, and no run waited. (3) A search for a phrase worded differently from a
+retro finding returns that finding. (4) The advisor stages a merge; nothing merges until
+it is confirmed in the dashboard; after confirmation the merge happens and
+`advisor.action` is logged. (5) A new wait sends one phone push. (6) An instruction
+planted in a source file does not produce a staged action.
 
 22 (`dashboard-visual-refresh`) follows 23, since it restyles the pages 23 completes.
 

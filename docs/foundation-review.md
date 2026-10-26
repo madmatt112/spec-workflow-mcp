@@ -828,6 +828,14 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   it also skipped the implementer after an answered escalation, so the ruling never reached
   one. The coordinator added a guard (no reconcile once the run has operator rulings) and
   merged it. Deployed `b103c1c`. Spec 27 `harness-evals` is implementing.
+- 2026-10-26 **spec 27 `harness-evals` and jobscout `nordic-ats-adapters` are `done`**
+  (#176, close-out #177; deployed `6732f2f`). Fixes on the way: #174 (a red-impossible
+  marked task briefs without red tests), #175 (keep a step's last reported result when a
+  background wake-up ends in prose). **Advisor design session** (grill, 2026-10-26): spec
+  25 written in full and untagged; ADR 0006 amended (the advisor does coordination work in
+  conversation, merge and deploy staged, phone push per wait from the controller); glossary
+  gains Second opinion and Staged action. Matthew launched jobscout `ind-sponsor-note`;
+  jobscout decomposition gained `federal-employers` and the deferred `gc-jobs-coverage`.
 
 ## 8. Pointers
 

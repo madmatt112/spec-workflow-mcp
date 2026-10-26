@@ -19,3 +19,11 @@ word in the conversation, and are recorded as done by the advisor on the operato
 - A standing "watch X and tell me" is not part of the role. If wanted later it is a scheduled
   one-shot through the controller, never a resident session.
 - The advisor's notebook is its own; the controller never reads it.
+- Amended 2026-10-26 after the advisor design session: the advisor also does the
+  coordination work that a standing session did from 2026-10-15 to 2026-10-26 (picks on
+  waits, reviewing run PRs, fixing harness bugs that runs hit), but only inside a
+  conversation the operator opens. Writing a fix, testing it and opening its PR are
+  ordinary coding work; merging it and deploying it are staged actions. With no session
+  between conversations, the controller sends a phone push for every new wait (plain
+  code, no model). Picks on a wait stay on press ("second opinion"), so the guarantee that
+  the controller never calls the advisor without the operator holds.
