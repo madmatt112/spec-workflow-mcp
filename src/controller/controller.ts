@@ -30,7 +30,9 @@ import {
   type RunDeps, type CancelDeps,
 } from './runs.js';
 
-const DEFAULT_SLOTS = 2;
+// No global cap by default: one run per spec store already bounds concurrency to one run
+// per project, and the window threshold guards usage. CONTROLLER_SLOTS sets a cap.
+const DEFAULT_SLOTS = Number.POSITIVE_INFINITY;
 const DEFAULT_WINDOW_THRESHOLD = 0.95;
 const DEFAULT_TICK_MS = 1000;
 

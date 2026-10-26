@@ -52,7 +52,7 @@ describe('GET /api/health (controller T9)', () => {
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = join(tempDir, '.xdg-state');
     process.env.SDD_HOME = join(tempDir, 'sdd-home');
-    delete process.env.SDD_SLOTS;
+    delete process.env.CONTROLLER_SLOTS;
 
     // Make start()'s npm-version check fail so it falls back to the local
     // package.json version, deterministically, and never hits the network.
@@ -78,7 +78,7 @@ describe('GET /api/health (controller T9)', () => {
     expect(typeof body.version).toBe('string');
     expect(typeof body.uptimeSeconds).toBe('number');
     expect(body.pid).toBe(process.pid);
-    expect(body.slots).toEqual({ inUse: 0, total: 2 });
+    expect(body.slots).toEqual({ inUse: 0, total: null });
     expect(body.windows).toBeNull();
     // builtAt is a string from dist/build-info.json, or null under a dev build.
     expect(body.builtAt === null || typeof body.builtAt === 'string').toBe(true);

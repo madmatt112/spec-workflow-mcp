@@ -424,7 +424,8 @@ export class MultiProjectDashboardServer {
       } catch {
         // No home yet, or an unreadable run record: report zero rather than 500.
       }
-      const slotsTotal = Number(process.env.SDD_SLOTS) > 0 ? Number(process.env.SDD_SLOTS) : 2;
+      // null when uncapped (the default); CONTROLLER_SLOTS sets the controller's cap.
+      const slotsTotal = Number(process.env.CONTROLLER_SLOTS) > 0 ? Number(process.env.CONTROLLER_SLOTS) : null;
 
       let windows: unknown = null;
       try {
