@@ -175,8 +175,10 @@ fifteen minutes) is still a wait of kind `error` after the turn cap, never a sil
 
 ## 9. Capacity and the usage window
 
-- Slots: two concurrent runs by default, configurable. Within a run, steps are sequential
-  unless a loop fans out. First come, first served from `queue.json`.
+- Slots: no global cap by default (2026-10-26; it was two). One run per spec store already
+  bounds concurrency to one run per project, and the window threshold below guards usage.
+  `CONTROLLER_SLOTS` sets a cap. Within a run, steps are sequential unless a loop fans out.
+  First come, first served from `queue.json`.
 - Every step runs with `--output-format stream-json`, and every run emits a
   `rate_limit_event` carrying the five-hour and seven-day windows' `utilization` and
   `resetsAt`. The controller keeps the latest values. Before starting a step it refuses to

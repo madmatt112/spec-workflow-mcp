@@ -76,7 +76,7 @@ describe('POST /api/projects/add (design C7)', () => {
     process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
     process.env.XDG_STATE_HOME = join(tempDir, '.xdg-state');
     process.env.SDD_HOME = join(tempDir, 'sdd-home');
-    delete process.env.SDD_SLOTS;
+    delete process.env.CONTROLLER_SLOTS;
 
     (globalThis as any).fetch = async () => ({ ok: false, json: async () => ({}) });
 
