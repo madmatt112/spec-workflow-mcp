@@ -103,7 +103,11 @@ function parseHeadingBullets(markdown: string, heading: string): string[] | null
     if (/^\s*##\s/.test(lines[i])) break; // next section heading bounds the list
     const bullet = lines[i].match(/^\s*[-*]\s+(.+)$/);
     if (!bullet) continue; // non-bullet lines are ignored
-    const entry = normalizePath(bullet[1].replace(/`/g, '').trim());
+    // `path` — note: the path is the first backtick span, or the text before a dash
+    // note when there is no backtick (a note must never become part of the path).
+    const tick = bullet[1].match(/`([^`]+)`/);
+    const text = tick ? tick[1] : bullet[1].split(/\s+[—–]\s+/)[0];
+    const entry = normalizePath(text.trim());
     if (entry.length > 0) entries.push(entry);
   }
   return entries.length > 0 ? entries : null;

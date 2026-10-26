@@ -123,4 +123,14 @@ describe('parseTasksFromMarkdown — Test lines', () => {
     const { tasks } = parseTasksFromMarkdown(md);
     expect(tasks[0].files).toEqual(['specs/x/probe-YYYY-MM-DD.txt', 'src/a.ts', 'src/b.ts']);
   });
+
+  it('drops a trailing dash description from a File entry', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - File: ind-register.txt (create, at the repo root) — design Component 6, the committed register copy',
+      '',
+    ].join('\n');
+    const { tasks } = parseTasksFromMarkdown(md);
+    expect(tasks[0].files).toEqual(['ind-register.txt']);
+  });
 });

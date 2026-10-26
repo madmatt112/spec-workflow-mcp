@@ -91,6 +91,14 @@ describe('parseSensitivePaths', () => {
   });
 });
 
+describe('path list notes', () => {
+  it('reads the path, not its note, from a `path` — note bullet', () => {
+    const md = '## Sensitive paths\n- `jobscout/jobsync.py` — the outbound client (sends jobs out).\n- `deploy/` — deploy config.\n- plain/path.ts — no backticks\n';
+    expect(parseSensitivePaths(md)).toEqual(['jobscout/jobsync.py', 'deploy/', 'plain/path.ts']);
+    expect(isSensitivePath('jobscout/jobsync.py', parseSensitivePaths(md)!)).toBe(true);
+  });
+});
+
 describe('isSensitivePath', () => {
   it('matches a dir/ entry by prefix and any other by equality', () => {
     expect(isSensitivePath('harness/hooks/hooks.json', ['harness/hooks/'])).toBe(true);
