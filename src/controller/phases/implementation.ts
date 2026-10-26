@@ -1168,7 +1168,15 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     const deferred = await storage.list({ status: 'deferred' });
     const mine = deferred.filter((d) => d.originSpec === specName);
     const deferredVerification = mine.filter((d) => d.tags.includes('verification')).map((d) => d.id);
-    const coverage = await readCoverage();
+    const { line: coverage, reviewGap } = await readCoverage();
+    // A completed, logged task that reached the PR with no review record (retro
+    // P9, decision C): surface it loudly in the retro log and the HANDOFF
+    // Gotchas, but never block the merge — the passive Coverage line was missed.
+    if (reviewGap.length > 0) {
+      const msg = `review coverage gap: completed task(s) ${reviewGap.join(', ')} logged but unreviewed; merge allowed (retro P9)`;
+      gotchas.push(msg);
+      retro(phase, 'phase', 'deviation', msg, 'completion gate', 'merge allowed (decision C)');
+    }
     const date = now().toISOString().slice(0, 10);
     writeHandoffSection(hoFile, `## ${specName} — implementation`, [
       ['State', `tasks ${p.done}/${p.total}, implemented ${date}`],
@@ -1426,7 +1434,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   }
 
   /** `spec-status`'s coverage numbers, stated verbatim (completion.md step 11). */
-  async function readCoverage(): Promise<string> {
+  async function readCoverage(): Promise<{ line: string; reviewGap: string[] }> {
     const res = await specStatusHandler({ specName }, toolContext);
     const d = (res.data ?? {}) as {
       logCoverage?: { logged: number; unlogged: string[] };
@@ -1442,13 +1450,29 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         ? 'TDD: N/A (no tdd-test-command wired)'
         : `TDD ${d.tddCoverage.tasks} task(s): ${Object.entries(d.tddCoverage.base).map(([k, v]) => `${k} ${v}`).join(', ')}`);
     }
-    return parts.join('; ') || 'unknown';
+    return { line: parts.join('; ') || 'unknown', reviewGap: reviewCoverageGap(d.logCoverage, d.reviewCoverage) };
   }
 }
 
 // ---------------------------------------------------------------------------
 // Rendering and file helpers (module level, no closure state).
 // ---------------------------------------------------------------------------
+
+/**
+ * The review-coverage gap at the merge gate (retro P9, decision C): completed
+ * tasks that are logged but carry no review record. Task 16 reached the PR with
+ * reviewCoverage 15/16 while logCoverage was 16/16, invisible in the passive
+ * HANDOFF Coverage line. Surfaced loudly, never a merge block.
+ */
+export function reviewCoverageGap(
+  logCoverage?: { logged: number; unlogged: string[] },
+  reviewCoverage?: { reviewed: number; unreviewed: string[] },
+): string[] {
+  if (!logCoverage || !reviewCoverage) return [];
+  if (reviewCoverage.reviewed >= logCoverage.logged) return [];
+  const unlogged = new Set(logCoverage.unlogged);
+  return reviewCoverage.unreviewed.filter((t) => !unlogged.has(t));
+}
 
 /** The `## Gate results` block for a verifier brief: the gate's data, verbatim. */
 function renderGateResults(gate: GateData): string {

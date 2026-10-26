@@ -7,7 +7,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import {
-  runImplementationPhase, readChecksFile, isWiringTask, setHandoffRow, readHandoffRow,
+  runImplementationPhase, readChecksFile, isWiringTask, setHandoffRow, readHandoffRow, reviewCoverageGap,
   type ImplementationPhaseContext,
 } from '../implementation.js';
 import { openRunLedger } from '../../ledger.js';
@@ -266,6 +266,18 @@ describe('readChecksFile and isWiringTask', () => {
     expect(isWiringTask({ description: 'Add the --bye flag', files: ['src/cli.js'] })).toBe(true);
     expect(isWiringTask({ description: 'Add a route', files: ['src/api/users.ts'] })).toBe(true);
     expect(isWiringTask({ description: 'Move the name rule', files: ['src/name.js'] })).toBe(false);
+  });
+});
+
+describe('reviewCoverageGap (retro P9)', () => {
+  it('names a logged-but-unreviewed task, and is silent when coverage matches or data is missing', () => {
+    // reviewCoverage 15/16 while logCoverage 16/16: task 16 reached the PR unreviewed.
+    expect(reviewCoverageGap({ logged: 16, unlogged: [] }, { reviewed: 15, unreviewed: ['16'] })).toEqual(['16']);
+    expect(reviewCoverageGap({ logged: 2, unlogged: [] }, { reviewed: 2, unreviewed: [] })).toEqual([]);
+    // An unreviewed task that is also unlogged is a logging gap, not a review-coverage gap.
+    expect(reviewCoverageGap({ logged: 1, unlogged: ['2'] }, { reviewed: 1, unreviewed: ['2'] })).toEqual([]);
+    expect(reviewCoverageGap(undefined, { reviewed: 0, unreviewed: ['1'] })).toEqual([]);
+    expect(reviewCoverageGap({ logged: 1, unlogged: [] }, undefined)).toEqual([]);
   });
 });
 

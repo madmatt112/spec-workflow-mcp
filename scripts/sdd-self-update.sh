@@ -54,7 +54,7 @@ fi
 log()  { echo "[sdd-self-update] $*"; }
 would(){ echo "[dry-run] would: $*"; }
 
-TARGET_COMMIT="$(git -C "$REPO" rev-parse origin/main 2>/dev/null || echo origin/main)"
+TARGET_COMMIT="$(/usr/bin/git -C "$REPO" rev-parse origin/main 2>/dev/null || echo origin/main)"
 
 write_error_wait() { # <step> [<detail>]
   local step="$1"
@@ -131,13 +131,13 @@ fi
 # ---------------------------------------------------------------------------
 check_move() {
   log "fetching origin"
-  git -C "$REPO" fetch origin
-  TARGET_COMMIT="$(git -C "$REPO" rev-parse origin/main)"
-  ahead="$(git -C "$REPO" rev-list --count origin/main..HEAD)"
-  behind="$(git -C "$REPO" rev-list --count HEAD..origin/main)"
+  /usr/bin/git -C "$REPO" fetch origin
+  TARGET_COMMIT="$(/usr/bin/git -C "$REPO" rev-parse origin/main)"
+  ahead="$(/usr/bin/git -C "$REPO" rev-list --count origin/main..HEAD)"
+  behind="$(/usr/bin/git -C "$REPO" rev-list --count HEAD..origin/main)"
   if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
     log "local main has diverged ($ahead ahead, $behind behind); inspecting the local-only commits"
-    changed="$(git -C "$REPO" diff --name-only origin/main...HEAD)"
+    changed="$(/usr/bin/git -C "$REPO" diff --name-only origin/main...HEAD)"
     outside=""
     while IFS= read -r f; do
       [ -z "$f" ] && continue
@@ -154,7 +154,7 @@ EOF
     fi
     # A live controller run leaves ledger and other store files modified but
     # uncommitted. Those are fine (autostash); a dirty path elsewhere is not.
-    dirty="$(git -C "$REPO" status --porcelain --untracked-files=no | cut -c4-)"
+    dirty="$(/usr/bin/git -C "$REPO" status --porcelain --untracked-files=no | cut -c4-)"
     dirty_outside=""
     while IFS= read -r f; do
       [ -z "$f" ] && continue
@@ -174,7 +174,7 @@ EOF
 
 BASE="$(/usr/bin/git -C "$REPO" rev-parse HEAD)"
 if [ "$DRY_RUN" = 1 ]; then
-  would "git -C $REPO fetch origin"
+  would "/usr/bin/git -C $REPO fetch origin"
   would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
 else
   check_move
@@ -184,17 +184,17 @@ fi
 # (c) Build the new commit in a staging worktree (never in the live checkout).
 # ---------------------------------------------------------------------------
 if [ "$DRY_RUN" = 1 ]; then
-  would "git -C $REPO worktree add $STAGING origin/main (or reuse it)"
+  would "/usr/bin/git -C $REPO worktree add $STAGING origin/main (or reuse it)"
   would "npm ci in $STAGING"
   would "npm run build in $STAGING"
 else
   if [ -d "$STAGING" ]; then
     log "reusing the staging worktree"
-    git -C "$STAGING" fetch origin
-    git -C "$STAGING" reset --hard origin/main
+    /usr/bin/git -C "$STAGING" fetch origin
+    /usr/bin/git -C "$STAGING" reset --hard origin/main
   else
     log "adding the staging worktree"
-    git -C "$REPO" worktree add "$STAGING" origin/main
+    /usr/bin/git -C "$REPO" worktree add "$STAGING" origin/main
   fi
   log "building in staging"
   BUILD_CMD="${SDD_STAGE_BUILD:-npm ci --no-audit --no-fund && npm run build}"
@@ -276,10 +276,10 @@ fi
 check_move
 if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
   log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
-  stash_before="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
-  if ! git -C "$REPO" rebase --autostash origin/main; then
-    git -C "$REPO" rebase --abort 2>/dev/null || true
-    stash_after="$(git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+  stash_before="$(/usr/bin/git -C "$REPO" rev-parse -q --verify refs/stash || true)"
+  if ! /usr/bin/git -C "$REPO" rebase --autostash origin/main; then
+    /usr/bin/git -C "$REPO" rebase --abort 2>/dev/null || true
+    stash_after="$(/usr/bin/git -C "$REPO" rev-parse -q --verify refs/stash || true)"
     if [ "$stash_after" != "$stash_before" ]; then
       log "note: autostash entry left in place as $stash_after (stash@{0}); not dropped"
     fi
@@ -288,7 +288,7 @@ if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
   fi
 else
   log "fast-forwarding to $TARGET_COMMIT"
-  git -C "$REPO" pull --ff-only origin main
+  /usr/bin/git -C "$REPO" pull --ff-only origin main
 fi
 
 # ---------------------------------------------------------------------------
