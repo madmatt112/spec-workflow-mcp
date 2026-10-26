@@ -1,16 +1,16 @@
 ---
 id: "d-afcd942d"
-status: "deferred"
+status: "resolved"
 title: "fixture.test.ts leaves-no-parent test is not concurrency-safe (diffs global os.tmpdir)"
 createdAt: "2026-10-24T03:43:27.397Z"
-updatedAt: "2026-10-24T03:43:27.397Z"
-resolvedAt: null
+updatedAt: "2026-10-26T13:41:52.649Z"
+resolvedAt: "2026-10-26T13:41:52.649Z"
 originSpec: "harness-evals"
 originPhase: "implementation"
 revisitTrigger: "When fixture.test.ts or any eval test is next touched, or when full-suite flakiness is triaged. Fix: assert the fixture's own parent path is absent (scope to the eval-fixture- prefix or capture f.parent before the throw), not diff the global os.tmpdir listing."
 tags: ["info-finding", "test-isolation", "flaky-test"]
-resolution: null
-resolvedInSpec: null
+resolution: "Fixed by PR #177 (harness-evals retro P4): the leaves-no-parent test now scopes to the eval-fixture- prefix instead of diffing the global os.tmpdir listing."
+resolvedInSpec: "harness-evals"
 supersededBy: null
 supersedes: null
 owner: "harness"

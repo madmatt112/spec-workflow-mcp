@@ -1,15 +1,15 @@
 ---
 id: "d-a38fea66"
-status: "deferred"
+status: "resolved"
 title: "Verify the provider-per-role supervisor/orchestrator halves in a restarted session"
 createdAt: "2026-09-23T22:37:35.991Z"
-updatedAt: "2026-09-23T22:37:35.991Z"
-resolvedAt: null
+updatedAt: "2026-10-26T13:41:52.687Z"
+resolvedAt: "2026-10-26T13:41:52.687Z"
 originSpec: "provider-per-role"
 originPhase: "implementation"
 revisitTrigger: "Next session restart after this spec's harness skills merge, before relying on DeepSeek-provider routing in a real document phase."
 tags: ["verification", "provider-per-role"]
-resolution: null
+resolution: "Superseded: the supervisor and phase orchestrators this verified were deleted at foundation step (d) (PR #138, 2026-10-16, tag legacy-harness-final). The controller now chooses each step's model from harness-agent-profiles.json; nothing of the verified halves remains."
 resolvedInSpec: null
 supersededBy: null
 supersedes: null
