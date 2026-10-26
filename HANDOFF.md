@@ -127,6 +127,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-24 | harness-evals | implementation | tasks 16/16 | complete | PR #176 |
 | 2026-10-24 | harness-evals | retrospective |  | retro-ready | 12 findings, 10 proposals |
 | 2026-10-24 | harness-evals | closeout | items 12/12 | closed | 4 done, 1 to-do, 7 skipped |
+| 2026-10-26 | advisor | requirements | v2 | approved | 2 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1064,4 +1065,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/177 |
 | To-dos | P3: Decision needed (human) between options A/B/C; recommended A leaves d-3a26cd7c deferred with no code change. Cannot decide or touch deferrals. |
 | Gotchas | none |
+
+
+## advisor — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-10-26 |
+| Rounds | 2; verdicts converged |
+| Approval | `approval_1793049279282_o8s4wrw6b` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 

@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793049279282_o8s4wrw6b",
+  "title": "advisor requirements v2",
+  "filePath": ".spec-workflow/specs/advisor/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-26T21:14:39.282Z",
+  "category": "spec",
+  "categoryName": "advisor",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-26T21:14:39.499Z"
+}
