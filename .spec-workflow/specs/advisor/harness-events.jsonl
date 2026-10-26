@@ -26,3 +26,10 @@
 {"ts":"2026-10-26T21:24:58.252Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-reviser","role":"lint v1","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-10-26T21:27:51.719Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-reviser","input":"14","output":"13362","cacheWrite":"59809","cacheRead":"354903","tokens":"428088","cacheWrite5m":"0","cacheWrite1h":"59809","model":"claude-opus-4-8"}
 {"ts":"2026-10-26T21:27:51.719Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","result":"success","phase":"design"}
+{"ts":"2026-10-26T21:27:51.807Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-reviewer","role":"review v1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-26T21:38:53.776Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-reviewer","input":"60","output":"51434","cacheWrite":"141693","cacheRead":"3056540","tokens":"3249727","cacheWrite5m":"0","cacheWrite1h":"141693","model":"claude-opus-4-8"}
+{"ts":"2026-10-26T21:38:53.776Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-reviewer","role":"review v1","result":"success","phase":"design","round":"1"}
+{"ts":"2026-10-26T21:38:53.776Z","run":"run-20261026-204644","spec":"advisor","type":"round","phase":"design","round":"1","verdict":"iterate 1/1/0","version":"v1"}
+{"ts":"2026-10-26T21:38:53.777Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-reviser","role":"revise v2","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-26T21:48:31.717Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-reviser","input":"108","output":"37989","cacheWrite":"99033","cacheRead":"4655646","tokens":"4792776","cacheWrite5m":"0","cacheWrite1h":"99033","model":"claude-opus-4-8"}
+{"ts":"2026-10-26T21:48:31.717Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","result":"success","phase":"design","round":"1"}

@@ -70,8 +70,8 @@
 - src/controller/state.ts:479-482 — `isProcessAlive`: pid plus start time
 - src/controller/waits.ts:128-132 — `listOpenWaits`: open waits, newest first
 - src/controller/waits.ts:143-145 — `listWaitsForWire`: strips `specDir`
-- src/controller/controller.ts:85-86 — window threshold from options or env
-- src/controller/controller.ts:373-388 — `windowBlock`: private usage-window check
+- src/controller/controller.ts:87-88 — window threshold from options or env
+- src/controller/controller.ts:375-390 — `windowBlock`: private usage-window check
 - src/controller/step.ts:71-77 — `StepClassification` union
 - src/controller/step.ts:372-374 — `--mcp-config` always with `--strict-mcp-config`
 - src/controller/merge.ts:136-150 — `MergeStageDeps`: rules, specDir, stepLogDir, ledger
