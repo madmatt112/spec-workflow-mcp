@@ -61,3 +61,44 @@
 - src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:68-92 — seen-id set so a reload does not re-notify
 - src/dashboard_frontend/src/modules/shell/NowPage.tsx:529-539 — answer sheet renders `wait.advice` as text
 - src/dashboard_frontend/src/modules/shell/types.ts:172 — browser-side wait `advice?: string`
+
+## Design-phase additions: controller
+- src/controller/state.ts:109-128 — `PrRead`: one merge-pass read of a PR, path-free
+- src/controller/state.ts:194-201 — `RateLimitFile`: `fiveHour` and `sevenDay` windows
+- src/controller/state.ts:254-256 — `runStepsDir`: a run's step stream logs
+- src/controller/state.ts:427-429 — `readProjects`: the durable project list in the home
+- src/controller/state.ts:479-482 — `isProcessAlive`: pid plus start time
+- src/controller/waits.ts:128-132 — `listOpenWaits`: open waits, newest first
+- src/controller/waits.ts:143-145 — `listWaitsForWire`: strips `specDir`
+- src/controller/controller.ts:85-86 — window threshold from options or env
+- src/controller/controller.ts:373-388 — `windowBlock`: private usage-window check
+- src/controller/step.ts:71-77 — `StepClassification` union
+- src/controller/step.ts:372-374 — `--mcp-config` always with `--strict-mcp-config`
+- src/controller/merge.ts:136-150 — `MergeStageDeps`: rules, specDir, stepLogDir, ledger
+- src/controller/merge.ts:160-163 — `readMergeRules`
+- src/controller/merge.ts:542-551 — `MergeTarget`
+- src/controller/ledger.ts:53-73 — `RunLedger` writer interface
+- src/controller/ledger.ts:130-143 — `spawn.end` row: agent, tokens, usage split
+- src/controller/ledger.ts:145-153 — `spawn.usage` row: agent, role, result, phase
+- src/controller/ledger.ts:233-245 — `checkpoint`: stage given paths and commit, through a serialize lock
+- src/controller/phases/document.ts:375 — document phase writes the CLI subtype as `spawn.usage` result
+
+## Design-phase additions: access and server
+- src/controller/access.ts:168-171 — loopback read exemption skipped under `/api/controller/`
+- src/controller/access.ts:177 — the 401 body
+- src/controller/access.ts:194-203 — login compares only the operator secret
+- src/dashboard/multi-server.ts:230-231 — secret loaded and access hook installed
+- src/dashboard/multi-server.ts:338-344 — controller start in the server
+- src/dashboard/multi-server.ts:649-657 — answer route's unknown-question check
+- src/server.ts:255-268 — low-level MCP `Server` ListTools and CallTool handlers
+- src/core/dashboard-session.ts:153-177 — `peekDashboardSession`: running dashboard url, no writes
+- src/dashboard/shell/shell-feed.ts:121-129 — shell feed topics incl. `controller-waits`
+- src/dashboard/harness/hub.ts:45-51 — hub listeners that re-arm the shell feed
+- src/dashboard/harness/overview-watch.ts:24-29 — chokidar `WATCH_OPTS`
+- src/dashboard/harness/overview-watch.ts:247-248 — chokidar `add`/`change`/`unlink` handlers
+
+## Design-phase additions: stores and scripts
+- src/core/deferral-storage.ts:229-270 — `DeferralStorage.create`
+- scripts/stub-claude.mjs:1-30 — canned `claude` stream for tests
+- scripts/stub-gh.mjs:1-86 — canned `gh` for tests
+- harness/agents/sdd-drafter.md:1-12 — agent file frontmatter shape (name, model, effort, tools)
