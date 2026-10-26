@@ -2,11 +2,11 @@
 
 ## Introduction
 
-The advisor is the `sdd-advisor` role of ADR 0006 (amended 2026-10-26) and design §16: a model the operator talks to about every project the harness manages, plus a one-shot second opinion on a wait. It is for the one operator (ADR 0001) and replaces the standing overwatch session, `owctl`, the overwatch HUD and the overwatch handoff file. It adds a code-built state of the world (summary, tallies, search), staged actions the operator confirms in the dashboard, a notebook, a source registry and one phone push per new wait.
+The advisor is the `sdd-advisor` role of ADR 0006 (amended 2026-10-26) and design §16: a model the operator talks to about every project the harness manages, plus a one-shot second opinion on a wait. For the one operator (ADR 0001), it replaces the standing overwatch session, `owctl`, the overwatch HUD and the handoff file, and adds a code-built state of the world (summary, tallies, search), staged actions confirmed in the dashboard, a notebook, a source registry and one phone push per new wait.
 
 ## Alignment with Product Vision
 
-The steering directory holds no `product.md`, so this spec aligns with ADR 0004 and ADR 0006: the controller runs the work and no model sits in the control loop. The advisor adds judgement for the operator without adding a dependency for any run. The push and the staged-action guard are plain code, so the operator stays in control with no session running between conversations.
+The steering directory holds no `product.md`, so this spec aligns with ADR 0004 and ADR 0006: the controller runs the work and no model sits in the control loop. The advisor adds judgement for the operator without a dependency for any run; the push and the staged-action guard are plain code, so the operator stays in control between conversations with no session running.
 
 ## Requirements
 
@@ -67,7 +67,7 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 #### Acceptance Criteria
 
 1. WHEN the operator presses "Second opinion" on an open wait in the dashboard THEN the controller SHALL run one headless step with the role `sdd-advisor` through `runStep` (`src/controller/step.ts:350`), given the wait and the summary, and SHALL attach its typed result to the wait.
-2. The result SHALL hold one pick per question (question id, the pick, a reason of at most 60 words) and a summary of at most 100 words (D5). The answer sheet SHALL show the picks next to each question (today it shows `advice` as text, `src/dashboard_frontend/src/modules/shell/NowPage.tsx:529-539`).
+2. The result SHALL hold one pick per question (question id, the pick, a reason of at most 60 words) and a summary of at most 100 words (D5), carried in a new wait field `opinion` beside the legacy `advice` string and threaded through the controller record (`WaitRecord`, `src/controller/state.ts:162-178`), both wire types (`src/dashboard/shell/types.ts:151`, `src/dashboard_frontend/src/modules/shell/types.ts:172`), `attachAdvice`'s signature (`src/controller/waits.ts:118-126`) and the render (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:529-539`, today plain text); the answer sheet SHALL show each pick next to its question.
 3. The second opinion SHALL NOT answer the wait, change the run's status or start a run step; the operator still answers. Invariant (verified, not red-first): `attachAdvice` already leaves the run untouched (`src/controller/waits.ts:118-126`, `src/controller/controller.ts:339-362`).
 4. The controller SHALL run the second-opinion step only from the operator's press; no other controller code path SHALL start an `sdd-advisor` step (end-to-end check 2).
 5. IF a usage window is above the controller's threshold THEN the press SHALL be refused with the reason; the step SHALL NOT take a run slot (D9).
@@ -101,7 +101,7 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 #### Acceptance Criteria
 
 1. The dashboard server SHALL expose an MCP endpoint for the advisor with reads (projects, runs, waits, specs, any spec-store file, PR reads, usage windows, the summary, tallies, search, sources, staged actions) and one stage operation per kind of Requirement 6 AC 1.
-2. The endpoint SHALL sit under the access hook (`makeRequireAccess`, `src/controller/access.ts:156-180`) and SHALL require the advisor credential on loopback too.
+2. The endpoint SHALL sit under the access hook (`makeRequireAccess`, `src/controller/access.ts:156-180`), extended with a second credential — the advisor credential, distinct from the operator secret (`loadOrCreateSecret`, `src/controller/access.ts:40-67`) — and per-route scope: the endpoint accepts the advisor credential; the confirm and login routes refuse it (401). Because the hook exempts a loopback non-controller GET (`src/controller/access.ts:166-171`), the endpoint SHALL sit under `/api/controller/` so a loopback read still needs the credential. Design §17's "no roles" is superseded for the advisor.
 3. No tool on the endpoint SHALL execute a Requirement 6 action directly.
 4. A spec-store file read SHALL stay inside that project's `.spec-workflow/` and SHALL refuse any path that leaves it.
 
@@ -163,24 +163,25 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 - Source content SHALL never be placed in a staged action's parameters without the advisor's own reason beside it.
 
 ### Reliability
+- The home event log (Requirement 5 AC 6, Requirement 6 AC 5, Requirement 10 AC 5) SHALL be `events.jsonl` in the home: one JSON object per line, each carrying `v: 1`, a time and a `type` (`advisor.opinion`, `advisor.action`, `push.failure`) with its row fields. Rows SHALL be appended one line at a time, not rewritten through `writeJsonAtomic` (which cannot append across the separate processes that write push failures).
 - Every new home record (staged action, pushed-id list, search index metadata, sources, push config) SHALL carry `v: 1` and be written atomically (`writeJsonAtomic`, `src/controller/state.ts:297-303`).
 - No run, wait or merge SHALL depend on the advisor, the search index or the push service being available.
 
 ## Decisions taken in this document
 
-- D1 — Posture, local only (no money, billing, refunds or credits; personal data from the job search, notebook and website stays on the machine; the push carries only wait kind, project and spec; erasure is deleting the home files; no legal or compliance framing for a one-operator tool): options were this local-only posture, sending summaries through the push service, or a hosted search index; chosen because nothing in the entry needs data to leave the machine.
-- D2 — Staged-action guard is a separate advisor credential the confirm route refuses, plus a permission rule that stops the advisor reading the operator secret: options were a scoped advisor credential, the operator secret with a confirm flag, or a prompt rule only; chosen because design section 16 makes the guard code and a session that holds the operator secret could confirm its own action.
-- D3 — Meaning search uses a local embedding model whose weights are fetched once at install: options were a local model, a hosted embedding API, or text search only; chosen because the entry says no API and nothing leaves the machine.
-- D4 — A confirmed staged merge applies the merge rule's checks and refuses on failure: options were apply the merge rule then merge, merge on confirm with no checks, or merge only through run merge waits; chosen because a confirm must not bypass the green-checks and no-attribution rule.
-- D5 — Second-opinion advice becomes typed picks per question plus a short summary, and old text advice still renders: options were typed picks plus summary, keep free text, or picks only; chosen because the entry says picks attach to the wait and the sheet can place each pick by its question.
-- D6 — The phone push is an HTTP POST to an ntfy-style URL set in the home: options were an ntfy-style URL, Pushover, a Telegram bot, or a Claude Code push from a session; chosen because it is one request with no account library, and a session push needs a resident session.
-- D7 — The dashboard opens the conversation as a Remote Control session and shows the command when that cannot start without a terminal: options were a Remote Control launch with fallback, show the command only, or a terminal multiplexer launch; chosen because the phone entry needs Remote Control and the flag exists but is not yet proven without a terminal.
-- D8 — The shell entry is an advisor subcommand of the package binary, with the sdd advisor form as a documented shell alias: options were a subcommand, a second package binary named sdd, or a separate script; chosen because the package has one binary and subcommands already route the same way.
-- D9 — A second opinion takes no run slot and is refused above the usage threshold: options were no slot with a window check, a run slot, or no check; chosen because it must never delay a run and must not spend a nearly empty window.
-- D10 — One agent file serves both entries, on the drafter tier: options were one agent file, a skill plus an agent file, or two roles; chosen because the step runner loads roles from agent files and one text keeps both entries consistent.
-- D11 — Decision commits are ordinary work under the store lock, and a decomposition change is staged: options were ordinary commits, staging every repository write, or notebook-only decisions; chosen because the entry stages decomposition entries and says decisions are committed where they act.
-- D12 — The advisor seeds the notebook in its first conversation from the handoff file and the owner backlog: options were an advisor seed, a code import script, or no seed; chosen because the seed is prose and the advisor is the prose role.
-- D13 — The search index refreshes incrementally when a search starts: options were refresh on search, a file watcher, or a timed rebuild; chosen because the entry rules out polling and crons and re-embeds only changed files.
+- D1 — Posture, local only: no billing or compliance framing; personal data stays on the machine; erasure is deleting the home files. Chosen because nothing in the entry needs data to leave the machine.
+- D2 — The staged-action guard is a separate advisor credential the confirm route refuses, plus a permission rule stopping the advisor reading the operator secret. Chosen over the operator secret with a confirm flag because a session holding that secret could confirm its own action.
+- D3 — Meaning search uses a local embedding model whose weights are fetched once at install, chosen because the entry says nothing leaves the machine.
+- D4 — A confirmed staged merge applies the merge rule's checks and refuses on failure, chosen because a confirm must not bypass the green-checks and no-attribution rule.
+- D5 — Second-opinion advice becomes typed picks per question plus a short summary, and old text advice still renders, chosen over free text because picks attach to the wait and the sheet places each pick by its question.
+- D6 — The phone push is an HTTP POST to an ntfy-style URL set in the home, chosen because it is one request with no account library and needs no resident session.
+- D7 — The dashboard opens the conversation as a Remote Control session and shows the command when that cannot start without a terminal, chosen because the phone entry needs Remote Control and the flag is not yet proven without a terminal.
+- D8 — The shell entry is an advisor subcommand of the package binary, with the sdd advisor form as a documented shell alias, chosen because the package has one binary and subcommands already route the same way.
+- D9 — A second opinion takes no run slot and is refused above the usage threshold, chosen because it must never delay a run and must not spend a nearly empty window.
+- D10 — One agent file serves both entries, on the drafter tier, chosen because the step runner loads roles from agent files and one text keeps both entries consistent.
+- D11 — Decision commits are ordinary work under the store lock, and a decomposition change is staged, chosen because the entry stages decomposition entries and commits decisions where they act.
+- D12 — The advisor seeds the notebook in its first conversation from the handoff file and the owner backlog, chosen because the seed is prose and the advisor is the prose role.
+- D13 — The search index refreshes incrementally when a search starts, chosen because the entry rules out polling and crons and re-embeds only changed files.
 
 ## Scope notes
 
@@ -188,9 +189,13 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 - Deferred: a standing "watch X and tell me" one-shot (ADR 0006 consequence 1); not in the entry's delivered list.
 - Cut: indexing session transcripts (the entry excludes them) and the notebook (the advisor reads its own files).
 - Outside the repository: archiving `owctl` and deleting the retired home files are operator steps; this spec documents them (Requirement 11 AC 2) and does not perform them.
-- The steering `product.md` does not exist; alignment cites the ADRs instead.
 
 ## Revision History
 
 - **v1** (2026-10-26) — Initial draft.
   - **Lint pass.** 2 fixed; rejected: none.
+- **v2** (2026-10-26) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Requirement 7 AC 2 now extends the access hook with a second advisor credential and per-route scope — the endpoint accepts it, confirm and login routes refuse it, and it sits under the controller path so loopback reads still need it; section 17's "no roles" is superseded for the advisor.
+  - **R1-2 — Accepted (SHOULD_FIX).** Requirement 5 AC 2 names the typed second opinion a new field beside the legacy advice string, threaded through the record, both wire types, the attach signature and the render.
+  - **R1-3 — Accepted (SHOULD_FIX).** The Reliability section defines the home event log as a line-appended JSON-lines file, each row versioned with time and type, and points the three writing criteria at it.
+  - **Top-risk MINORs — Rejected.** The usage threshold, the two window names and the cross-process push trigger are design and config choices, left out of requirements altitude.
