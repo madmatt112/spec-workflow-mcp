@@ -29,7 +29,7 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 
 #### Acceptance Criteria
 
-1. WHEN the advisor asks for the summary THEN the controller SHALL return, built by code with no model: open waits (kind, project, spec, age), stuck runs (a run in `error`, or `running` with no step output for fifteen minutes), open PRs with the merge rule's last verdict (`PrRead`, `src/controller/state.ts:104-128`), deferrals with `owner: matthew` (`src/core/deferral-storage.ts:150-152`), live runs with phase and step, the two usage windows, and this week's tallies (Requirement 3).
+1. WHEN the advisor asks for the summary THEN the controller SHALL return, built by code with no model: open waits (kind, project, spec, age), stuck runs (a run in `error`, or `running` with no step output for fifteen minutes; `RunStatus`, `src/controller/state.ts:56-64`), open PRs with the merge rule's last verdict (`PrRead`, `src/controller/state.ts:104-128`), deferrals with `owner: matthew` (`src/core/deferral-storage.ts:150-152`), live runs with phase and step, the two usage windows, and this week's tallies (Requirement 3).
 2. WHEN a wait is open at the moment of the request THEN the summary SHALL list it (end-to-end check 1); the summary SHALL be built from current state on each request, never from a file older than the request.
 3. The summary SHALL cover harness projects only; a project or source the operator marks as personal (the job search) SHALL appear only when the advisor asks for it by name.
 4. The summary SHALL fit in 400 words of rendered text with every list capped and a "N more" line when capped.
@@ -193,3 +193,4 @@ The steering directory holds no `product.md`, so this spec aligns with ADR 0004 
 ## Revision History
 
 - **v1** (2026-10-26) — Initial draft.
+  - **Lint pass.** 2 fixed; rejected: none.
