@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design builds the advisor: a conversation entry (`spec-workflow-mcp advisor`, shell or Remote Control), a one-shot second opinion on a wait, and a code-built state of the world (summary, tallies, search) served through an MCP endpoint on the dashboard server. Every shared-state change the advisor asks for is a staged action that runs only on a confirm in the dashboard; the controller sends one phone push per new wait. It reuses the controller's waits, step runner, merge rule, store lock, launch admission and access hook, with new code in `src/advisor/`.
+This design builds the advisor: a conversation entry (`spec-workflow-mcp advisor`, shell or Remote Control), a one-shot second opinion on a wait, and a code-built state of the world (summary, tallies, search) served through an MCP endpoint. Every shared-state change the advisor asks for is a staged action that runs only on a confirm in the dashboard; the controller sends one phone push per new wait. It reuses the controller's waits, step runner, merge rule, store lock, launch admission and access hook, with new code in `src/advisor/`.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ N/A: no `design-system.md`. New controls reuse the Now page's CSS variables and 
 
 ## Architecture
 
-All advisor state lives in the harness home (`sddHome`, `src/dashboard/harness/state-files.ts:26-29`): `advisor/` plus `sources.json`, `push.json`, `search.json`, `pushed.json` and `events.jsonl`. The dashboard server process gains the advisor MCP endpoint, the operator routes (confirm, dismiss, second opinion, open advisor), the wait pusher and the search index refresh. Nothing runs on a timer: summary and tallies are built per request, the index refreshes when a search starts, and the pusher reacts to file events.
+All advisor state lives in the harness home (`sddHome`, `src/dashboard/harness/state-files.ts:26-29`): `advisor/` plus `sources.json`, `push.json`, `search.json`, `pushed.json` and `events.jsonl`. The dashboard server process gains the advisor MCP endpoint, the operator routes (confirm, dismiss, second opinion, open advisor), the wait pusher and the search index refresh. Nothing runs on a timer.
 
 ```mermaid
 graph LR
@@ -136,8 +136,8 @@ interface AdvisorSummary {
   deferrals: { project: string; title: string }[];
   liveRuns: { id: string; project: string; phase: string; stepKind?: string }[];
   windows: { fiveHour?: RateLimitFile['fiveHour']; sevenDay?: RateLimitFile['sevenDay'] };
-  week: Tallies;
-  sources: { name: string; location: string }[];
+  week: Tallies['weeks'][string];
+  sources: { name: string; about: string }[];
   push: 'on' | 'off';
   skipped: string[];                   // reads that threw
 }
@@ -177,26 +177,26 @@ interface SearchResult { hits: Hit[]; meaning: 'on' | 'off' | string }  // `inde
 
 ## Decisions taken in this document
 
-- D1 — The embedder is a local Ollama server named in a home config file: chosen because it adds no native dependency and an absent server simply means meaning search is off.
-- D2 — The push trigger is a file watch on the home waits directory plus a start-up scan: chosen because the watchdog writes waits from another process and polling is ruled out.
-- D3 — The first start records every open wait without a push: chosen because a deploy must not send a burst for old waits.
-- D4 — The advisor credential opens exactly one path, the MCP endpoint: chosen because the endpoint already carries every read.
-- D5 — The conversation id is a UUID the subcommand makes, used as the session id and sent as a header: chosen because the model cannot misstate a header.
-- D6 — A confirmed merge of a PR with no run uses the merge rule with the merge key set to auto: chosen because one merge path keeps the checks identical.
-- D7 — A confirmed merge of a run's PR under ask answers that run's merge wait: chosen because the run then records the merge in its own ledger.
-- D8 — A confirmed deploy runs the self-update script detached: chosen because the script restarts the server that would wait.
-- D9 — The one-shot gets the wait and summary inline, no MCP server and only the Read tool: chosen because a one-shot that cannot stage cannot be steered into staging.
-- D10 — The typed opinion rides a trailing optional argument of the advice attach, and the advice text becomes its summary: chosen because existing callers stay valid.
-- D11 — The wait record carries an opinion status: chosen because the wait list already reaches the browser.
-- D12 — The search index refreshes on search start and keeps embedding in process past 200 chunks: chosen because a first index would break the three-second bound.
-- D13 — Text search scans chunks in node and lists merge by rank fusion: chosen because ripgrep is not a sure install and fusion needs no score scaling.
-- D14 — A ledger result that is not a step classification counts as unknown: chosen because the document phase writes the CLI subtype there.
-- D15 — Personal marks live in the sources file: chosen because the operator already edits it.
-- D16 — Open advisor checks the spawned process once after ten seconds: chosen because the requirement allows showing the command instead.
-- D17 — A stuck run is one whose newest step log is older than fifteen minutes: chosen because the record does not change while a step streams.
-- D18 — The owner-backlog write is a plain append with no commit: chosen because that file is not in a repository.
-- D19 — Wait writes are queued per wait id in process: chosen because an advice write that lands after an answer read would erase the answer.
-- D20 — The advisor commits decisions through an advisor commit subcommand that holds the store lock: chosen because decision commits are ordinary work, yet the lock lives in controller code.
+- D1 — The embedder is a local Ollama server named in a home config file: because it adds no native dependency and an absent server simply means meaning search is off.
+- D2 — The push trigger is a file watch on the home waits directory plus a start-up scan: because the watchdog writes waits from another process and polling is ruled out.
+- D3 — The first start records every open wait without a push: because a deploy must not send a burst for old waits.
+- D4 — The advisor credential opens exactly one path, the MCP endpoint: because the endpoint already carries every read.
+- D5 — The conversation id is a UUID the subcommand makes, used as the session id and sent as a header: because the model cannot misstate a header.
+- D6 — A confirmed merge of a PR with no run uses the merge rule with the merge key set to auto: because one merge path keeps the checks identical.
+- D7 — A confirmed merge of a run's PR under ask answers that run's merge wait: because the run then records the merge in its own ledger.
+- D8 — A confirmed deploy runs the self-update script detached: because the script restarts the server that would wait.
+- D9 — The one-shot gets the wait and summary inline, no MCP server and only the Read tool: because a one-shot that cannot stage cannot be steered into staging.
+- D10 — The typed opinion rides a trailing optional argument of the advice attach, and the advice text becomes its summary: because existing callers stay valid.
+- D11 — The wait record carries an opinion status: because the wait list already reaches the browser.
+- D12 — The search index refreshes on search start and keeps embedding in process past 200 chunks: because a first index would break the three-second bound.
+- D13 — Text search scans chunks in node and lists merge by rank fusion: because ripgrep is not a sure install and fusion needs no score scaling.
+- D14 — A ledger result that is not a step classification counts as unknown: because the document phase writes the CLI subtype there.
+- D15 — Personal marks live in the sources file: because the operator already edits it.
+- D16 — Open advisor checks the spawned process once after ten seconds: because the requirement allows showing the command instead.
+- D17 — A stuck run is one whose newest step log is older than fifteen minutes: because the record does not change while a step streams.
+- D18 — The owner-backlog write is a plain append with no commit: because that file is not in a repository.
+- D19 — Wait writes are queued per wait id in process: because an advice write that lands after an answer read would erase the answer.
+- D20 — The advisor commits decisions through an advisor commit subcommand that holds the store lock: because decision commits are ordinary work, yet the lock lives in controller code.
 
 ## Scope notes
 
@@ -208,12 +208,15 @@ interface SearchResult { hits: Hit[]; meaning: 'on' | 'off' | string }  // `inde
 
 ## Revision History
 
+- **v3** (2026-10-26) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** The summary sources row now carries each source's one-line description, not its location, so the listing matches Requirement 8 AC 3 and day-one JobSync renders its line, not a blank.
+  - **R2-2 — Accepted (MINOR).** The summary week field now types one ISO week's cells, not the whole multi-week container, matching its name.
 - **v2** (2026-10-26) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 1/1/3).
   - **R1-1 — Accepted (MUST_FIX).** C7 cites the controller threshold and windowBlock (the lint pass corrected the exact lines).
   - **R1-2 — Accepted.** Data Models pins AdvisorSummary, Tallies, Hit/SearchResult and the per-week floor map (Requirement 3 AC 3); C6 returns SearchResult.
   - **R1-3 — Accepted.** C8's no-run merge names the full MergeTarget and synthetic openRunLedger; its pr.merged row lands outside the spec ledgers.
   - **R1-4 — Accepted.** C10 and the scope-note probe list mark the mcp.json headers key a task-phase probe.
   - **R1-5 — Accepted.** C7 notes the opinion runStep passes no onRateLimit; its spend reaches rate-limit.json at the next scheduled step (lag accepted).
-  - **Lint pass.** 2 fixed: L-36 windowBlock 375-390→373-388 and L-42 onRateLimit 415→413 — symbols the cited range missed; also fixed the sibling threshold cite 87-88→85-86. Rejected L-1–L-35, L-37–L-41, L-43–L-66 as citation-identifier false positives (token is never the line's cited symbol; verified against the tree).
+  - **Lint pass.** 2 fixed: windowBlock 375-390→373-388 and onRateLimit 415→413, plus the sibling threshold cite 87-88→85-86 — symbols the cited range missed. Rejected the rest as citation-identifier false positives (verified against the tree).
 - **v1** (2026-10-26) — Initial draft.
-  - **Lint pass.** 0 fixed; all 65 rejected as citation-identifier false positives — the flagged token is not the cited symbol (verified against the tree).
+  - **Lint pass.** 0 fixed; all 65 rejected as citation-identifier false positives (verified against the tree).
