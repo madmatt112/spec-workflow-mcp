@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/advisor/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-26T22:19:05.221Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793053145175_0sw6c21gj",
+      "approvalTitle": "advisor design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-26T22:19:05.295Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793053145175_0sw6c21gj",
+      "approvalTitle": "advisor design v3"
+    }
+  ]
+}

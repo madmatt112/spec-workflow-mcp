@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793053145175_0sw6c21gj",
+  "title": "advisor design v3",
+  "filePath": ".spec-workflow/specs/advisor/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-26T22:19:05.175Z",
+  "category": "spec",
+  "categoryName": "advisor",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-26T22:19:05.327Z"
+}
