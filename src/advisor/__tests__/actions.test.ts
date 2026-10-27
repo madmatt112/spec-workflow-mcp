@@ -1,13 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import { promises as fs } from 'fs';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { mkdirSync, mkdtempSync, writeFileSync, chmodSync, readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { stageAction, listActions, confirmAction, dismissAction, actionEvents } from '../actions.js';
-import { eventsPath } from '../home.js';
+import { eventsPath, advisorActionsDir } from '../home.js';
 import { createWait } from '../../controller/waits.js';
-import { readWait, controllerHome } from '../../controller/state.js';
+import { readWait, controllerHome, writeRun, listWaits, type RunRecord } from '../../controller/state.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
 
 // Contract for src/advisor/actions.ts (design.md C8; requirements.md
@@ -42,16 +43,33 @@ import { DeferralStorage } from '../../core/deferral-storage.js';
 
 let home: string;
 let savedSddHome: string | undefined;
+let savedGhBin: string | undefined;
+let savedGhScript: string | undefined;
+let savedHarnessRepo: string | undefined;
+
+beforeAll(() => {
+  // The stub is executed directly via its shebang; guarantee the mode.
+  chmodSync(STUB_GH, 0o755);
+});
 
 beforeEach(async () => {
   savedSddHome = process.env.SDD_HOME;
   home = await fs.mkdtemp(join(tmpdir(), 'sdd-advisor-actions-'));
   process.env.SDD_HOME = home;
+  savedGhBin = process.env.CONTROLLER_GH_BIN;
+  savedGhScript = process.env.STUB_GH_SCRIPT;
+  savedHarnessRepo = process.env.CONTROLLER_HARNESS_REPO;
 });
 
 afterEach(async () => {
   if (savedSddHome === undefined) delete process.env.SDD_HOME;
   else process.env.SDD_HOME = savedSddHome;
+  if (savedGhBin === undefined) delete process.env.CONTROLLER_GH_BIN;
+  else process.env.CONTROLLER_GH_BIN = savedGhBin;
+  if (savedGhScript === undefined) delete process.env.STUB_GH_SCRIPT;
+  else process.env.STUB_GH_SCRIPT = savedGhScript;
+  if (savedHarnessRepo === undefined) delete process.env.CONTROLLER_HARNESS_REPO;
+  else process.env.CONTROLLER_HARNESS_REPO = savedHarnessRepo;
   await fs.rm(home, { recursive: true, force: true });
 });
 
@@ -108,6 +126,51 @@ const noProjectDeps = {
     throw new Error('projectPath should not be called for this kind');
   },
 };
+
+// ---------------------------------------------------------------------------
+// gh stub plumbing for the merge executor (task 11; _Leverage scripts/stub-gh.mjs),
+// mirroring src/controller/__tests__/merge.test.ts's own helpers.
+// ---------------------------------------------------------------------------
+
+const STUB_GH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-gh.mjs');
+
+function tmp(prefix: string): string {
+  return mkdtempSync(join(tmpdir(), prefix));
+}
+
+/** Write a gh stub script and point CONTROLLER_GH_BIN/STUB_GH_SCRIPT at it. */
+function useGhScript(runs: unknown[]): string {
+  process.env.CONTROLLER_GH_BIN = STUB_GH;
+  const scriptPath = join(tmp('advisor-actions-gh-'), 'gh-script.json');
+  writeFileSync(scriptPath, JSON.stringify(runs));
+  process.env.STUB_GH_SCRIPT = scriptPath;
+  return scriptPath;
+}
+
+function recordedArgv(scriptPath: string): string[][] {
+  const raw = readFileSync(`${scriptPath}.argv`, 'utf8').trim();
+  return raw ? raw.split('\n').map((l) => JSON.parse(l) as string[]) : [];
+}
+
+/** A PR view with green, mergeable defaults (no `baseRefName`, so the
+ * read-only new-dependency flag skips its own git read — see merge.ts
+ * flagNewDependencies, which early-returns with no `base`). */
+const GH_PR_VIEW = {
+  mergeable: 'MERGEABLE',
+  mergeStateStatus: 'CLEAN',
+  headRefName: 'feat/thing',
+  headRefOid: 'deadbeefcafe0001',
+  body: 'A clean PR body with no trailers.',
+  commits: [{ oid: 'deadbeefcafe0001', messageHeadline: 'feat: do the thing', messageBody: 'Body line.' }],
+  author: { login: 'someone' },
+};
+
+function runsOf(...runs: Record<string, unknown>[]) {
+  return { argvIncludes: ['api'], stdout: { total_count: runs.length, workflow_runs: runs } };
+}
+function statusesOf(...statuses: Record<string, unknown>[]) {
+  return { argvIncludes: ['api'], stdout: { state: statuses.length ? 'success' : 'pending', total_count: statuses.length, statuses } };
+}
 
 describe('src/advisor/actions.ts', () => {
   // (a) Requirement 6 AC 2: "WHEN the advisor stages an action THEN the
@@ -479,5 +542,309 @@ describe('src/advisor/actions.ts', () => {
     expect(actionRows[0].outcome).toBe('failed');
     expect(typeof actionRows[0].detail).toBe('string');
     expect(actionRows[0].detail.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Task 11: merge, deploy and launch executors (design.md C8; requirements.md
+  // Requirement 6 AC 6, AC 7, AC 9; task 11 Success line). `merge` and `deploy`
+  // reach outside the advisor's own home (a real `gh` call through
+  // scripts/stub-gh.mjs, a real spawned script), so no collaborator inside
+  // actions.ts is mocked here either: only the external process boundary
+  // (`gh`, the self-update script) is swapped for a stub, the same seam
+  // src/controller/__tests__/merge.test.ts uses for `gh`.
+  //
+  // Per the task's Success line:
+  //   "a red-checks PR is refused with reasons and not merged"     -> merge-refused test
+  //   "a green PR merges and logs advisor.action (6.7)"            -> merge-merged test
+  //   "a run's open merge wait is answered by advisor"             -> merge-answered-wait test
+  //   "deploy is spawned detached"                                 -> deploy test
+  // Requirement 6 AC 9 (launch goes through enqueue's admission guards) has no
+  // bullet of its own on the Success line; it is covered by the launch test
+  // below, which proves confirmAction's launch executor reaches `launchSpec`
+  // (the function task 11 moves the guards into) rather than enqueuing
+  // directly. Requirement 6 AC 12 ("merge: ask unchanged") is the requirements
+  // document's own marked invariant ("verified, not red-first") about this
+  // repository's agent-rules.md, not actions.ts behavior; it is not a red test
+  // here (see report).
+  //
+  // The merge target/params shape (`target: {project, spec, pr}`, `params:
+  // {branch}`) and the deploy/launch seams (`CONTROLLER_HARNESS_REPO` for the
+  // self-update script's checkout root, a `launchSpec` field on `ActionDeps`)
+  // are this file's own concrete fixing of design.md's "Illustrative — verify
+  // against the test fake" Data Models note; they are not quoted from the
+  // design or requirements text.
+
+  describe('merge executor', () => {
+    // Requirement 6 AC 6: "...and SHALL refuse with the rule's reasons when
+    // they fail (D4)." Pre-condition: a staged `merge` action naming a PR
+    // whose head sha has a failed CI check (no matching run/wait exists, so
+    // the mergeByRule branch runs); `gh pr merge` is never stubbed, so a call
+    // to it would throw "no response at index". Test: confirmAction(id,
+    // deps). Observable result: confirm returns `{ok: false, error:
+    // 'refused'}`; the stored action's state is 'refused' and its
+    // outcome.detail includes the failing-check reason; exactly 3 gh
+    // invocations ran (view, runs, statuses) — no merge attempted; one
+    // advisor.action row with outcome 'refused' and a detail string
+    // naming the reason. Expected value source: Requirement 6 AC 6 and
+    // design C8's merge bullet ("Any status but merged is refused with the
+    // rule's reasons"), quoted above.
+    it('refuses a red-checks PR with the rule reasons, without merging', async () => {
+      const script = useGhScript([
+        { argvIncludes: ['pr', 'view'], stdout: GH_PR_VIEW },
+        runsOf({ name: 'test', status: 'completed', conclusion: 'failure' }),
+        statusesOf(),
+      ]);
+      const repo = tmp('sdd-advisor-merge-repo-');
+
+      const staged = await stageAction({
+        kind: 'merge',
+        target: { project: 'proj-1', spec: 'spec-1', pr: 7 },
+        params: { branch: 'feat/thing' },
+        reason: 'the advisor noticed the PR is green... or not',
+        conversation: 'conv-merge-refused',
+      });
+
+      const deps = { projectPath: (id: string) => (id === 'proj-1' ? repo : (() => { throw new Error('unknown project'); })()) };
+      const result = await confirmAction(staged.id, deps);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe('refused');
+
+      const refused = (await listActions()).find((a) => a.id === staged.id);
+      expect(refused?.state).toBe('refused');
+      expect(refused?.outcome?.detail.join(' ')).toMatch(/workflow test did not pass/);
+
+      expect(recordedArgv(script)).toHaveLength(3); // view, runs, statuses — no merge call
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].action).toBe(staged.id);
+      expect(actionRows[0].kind).toBe('merge');
+      expect(actionRows[0].outcome).toBe('refused');
+      expect(actionRows[0].detail).toMatch(/workflow test did not pass/);
+    });
+
+    // Requirement 6 AC 6 ("A confirmed merge SHALL apply the merge rule's
+    // checks...") and AC 7 ("...after confirmation the merge SHALL happen and
+    // advisor.action SHALL be logged"); design C8's merge bullet ("the
+    // project's rules...with merge set to auto"). Pre-condition: a green PR;
+    // the project's own agent-rules.md says `merge: ask` (proving the action
+    // forces `auto` rather than reading the project's own setting). Test:
+    // confirmAction(id, deps). Observable result: confirm succeeds; the
+    // synthetic ledger at advisor/actions/<id>/harness-events.jsonl carries
+    // one pr.merged row (number '7', sha, method 'merge', run the action id);
+    // no new `merge` wait was created (the `ask` rule never fired); one
+    // advisor.action row logged. Expected value source: Requirement 6 AC 6,
+    // AC 7 (quoted above) and design C8's merge bullet (the `auto` override
+    // and the synthetic ledger path).
+    it('merges a green PR even when the project rule says merge: ask, and logs advisor.action', async () => {
+      useGhScript([
+        { argvIncludes: ['pr', 'view'], stdout: GH_PR_VIEW },
+        runsOf({ name: 'test', status: 'completed', conclusion: 'success' }),
+        statusesOf(),
+        { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+        { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'f00dc0ffee1234' } } },
+      ]);
+      const repo = tmp('sdd-advisor-merge-repo-');
+      mkdirSync(join(repo, '.spec-workflow'), { recursive: true });
+      writeFileSync(join(repo, '.spec-workflow', 'agent-rules.md'), 'merge: ask\n');
+
+      const staged = await stageAction({
+        kind: 'merge',
+        target: { project: 'proj-1', spec: 'spec-1', pr: 7 },
+        params: { branch: 'feat/thing' },
+        reason: 'the PR is green',
+        conversation: 'conv-merge-merged',
+      });
+
+      const deps = { projectPath: (id: string) => (id === 'proj-1' ? repo : (() => { throw new Error('unknown project'); })()) };
+      const result = await confirmAction(staged.id, deps);
+      expect(result.ok).toBe(true);
+
+      const ledgerPath = join(advisorActionsDir(), staged.id, 'harness-events.jsonl');
+      const ledgerRows = readFileSync(ledgerPath, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+      const merged = ledgerRows.find((r) => r.type === 'pr.merged');
+      expect(merged).toMatchObject({ number: '7', sha: 'f00dc0ffee1234', method: 'merge', run: staged.id });
+
+      const mergeWaits = (await listWaits()).filter((w) => w.kind === 'merge');
+      expect(mergeWaits).toHaveLength(0); // the `ask` rule was overridden to auto; no wait opened
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].action).toBe(staged.id);
+      expect(actionRows[0].kind).toBe('merge');
+      expect(actionRows[0].target.pr).toBe(7);
+      expect(actionRows[0].conversation).toBe('conv-merge-merged');
+      expect(actionRows[0].outcome).toMatch(/merged/i);
+    });
+
+    // Design C8's merge bullet ("a run on that project with this pr and an
+    // open merge wait → answerWait with merge by advisor...outcome
+    // answered-wait"); Requirement 6 AC 8's `by: advisor` behaviour, restated
+    // for the merge kind. Pre-condition: a real RunRecord on project 'proj-1'
+    // with pr 7 and an open `merge` wait on that run (no gh stub installed:
+    // this branch never calls gh). Test: confirmAction(id, noProjectDeps) —
+    // `projectPath` is never needed on this branch. Observable result:
+    // confirm succeeds; the wait is now answered, `answer.merge.value` is
+    // 'merge' and `answer.merge.by` is 'advisor'; one advisor.action row with
+    // outcome exactly 'answered-wait'. Expected value source: design C8's
+    // merge bullet, quoted above.
+    it('answers a run\'s open merge wait by advisor instead of merging directly', async () => {
+      const run: RunRecord = {
+        v: 1,
+        id: 'run-advisor-merge-1',
+        project: 'proj-1',
+        codeRoot: '/irrelevant',
+        specStore: '/irrelevant',
+        spec: 'spec-1',
+        worktree: '/irrelevant',
+        branch: 'feat/thing',
+        pr: 7,
+        status: 'merging',
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(run);
+      const specDir = await fs.mkdtemp(join(tmpdir(), 'sdd-advisor-merge-specdir-'));
+      const wait = await createWait({
+        kind: 'merge',
+        runId: run.id,
+        projectId: 'proj-1',
+        spec: 'spec-1',
+        specDir,
+        questions: [{ id: 'merge', text: 'Merge PR #7?', options: ['merge', 'hold'], recommended: 'merge' }],
+      });
+
+      const staged = await stageAction({
+        kind: 'merge',
+        target: { project: 'proj-1', spec: 'spec-1', pr: 7 },
+        params: {},
+        reason: 'the advisor picked merge',
+        conversation: 'conv-merge-wait',
+      });
+
+      const result = await confirmAction(staged.id, noProjectDeps);
+      expect(result.ok).toBe(true);
+
+      const updatedWait = await readWait(wait.id);
+      expect(updatedWait?.state).toBe('answered');
+      expect((updatedWait as any)?.answer?.merge?.value).toBe('merge');
+      expect((updatedWait as any)?.answer?.merge?.by).toBe('advisor');
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].action).toBe(staged.id);
+      expect(actionRows[0].kind).toBe('merge');
+      expect(actionRows[0].conversation).toBe('conv-merge-wait');
+      expect(actionRows[0].outcome).toBe('answered-wait');
+    });
+  });
+
+  describe('deploy executor', () => {
+    // Design C8's deploy bullet: "spawn scripts/sdd-self-update.sh...from the
+    // checkout root, detached, logged to advisor/actions/id/deploy.log;
+    // outcome started; the script reports its own failures." Pre-condition:
+    // CONTROLLER_HARNESS_REPO points at a scratch checkout whose
+    // scripts/sdd-self-update.sh is a stub that sleeps 500ms, then writes a
+    // marker to stdout (standing in for the real script, which this test must
+    // never run for real). Test: confirmAction(id, deps), timed. Observable
+    // result: confirm returns `{ok: true}` and resolves in well under the
+    // stub's 500ms sleep (proving the spawn is detached, not awaited);
+    // advisor/actions/<id>/deploy.log eventually (polled) contains the stub's
+    // marker line; one advisor.action row with outcome exactly 'started'.
+    // Expected value source: design C8's deploy bullet, quoted above.
+    it('spawns sdd-self-update.sh detached, logging to deploy.log, with outcome started', async () => {
+      const checkout = tmp('sdd-advisor-deploy-checkout-');
+      mkdirSync(join(checkout, 'scripts'), { recursive: true });
+      const stubScript = join(checkout, 'scripts', 'sdd-self-update.sh');
+      writeFileSync(stubScript, '#!/bin/bash\nsleep 0.5\necho "DEPLOY_STUB_OK"\n');
+      chmodSync(stubScript, 0o755);
+      process.env.CONTROLLER_HARNESS_REPO = checkout;
+
+      const staged = await stageAction({
+        kind: 'deploy',
+        target: {},
+        params: {},
+        reason: 'ship the merged PR',
+        conversation: 'conv-deploy',
+      });
+
+      const startedAt = Date.now();
+      const result = await confirmAction(staged.id, noProjectDeps);
+      const elapsedMs = Date.now() - startedAt;
+
+      expect(result.ok).toBe(true);
+      expect(elapsedMs).toBeLessThan(400); // did not wait for the stub's 500ms sleep: detached
+
+      const logPath = join(advisorActionsDir(), staged.id, 'deploy.log');
+      let logged = '';
+      for (let i = 0; i < 40 && !logged.includes('DEPLOY_STUB_OK'); i++) {
+        await new Promise((r) => setTimeout(r, 50));
+        if (existsSync(logPath)) logged = readFileSync(logPath, 'utf-8');
+      }
+      expect(logged).toContain('DEPLOY_STUB_OK');
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].action).toBe(staged.id);
+      expect(actionRows[0].kind).toBe('deploy');
+      expect(actionRows[0].conversation).toBe('conv-deploy');
+      expect(actionRows[0].outcome).toBe('started');
+    });
+  });
+
+  describe('launch executor', () => {
+    // Requirement 6 AC 9: "A confirmed launch SHALL go through the
+    // controller's enqueue...and its admission guards." Design C8's launch
+    // bullet: "the launch route body...moves into launchSpec(projectId,
+    // input), called by route and executor, so the launch checks and enqueue
+    // apply." Pre-condition: a staged `launch` action; a fake
+    // `deps.launchSpec` standing in for the real one task 11 adds to
+    // multi-server.ts (the real guards are covered by
+    // src/dashboard/__tests__/harness-routes.test.ts against that same
+    // function, unchanged by this task). Test: confirmAction(id, deps).
+    // Observable result: confirm succeeds; `launchSpec` was called exactly
+    // once with the staged action's project id and an input carrying the
+    // staged spec; the advisor.action row's outcome names the runId
+    // `launchSpec` returned. Expected value source: Requirement 6 AC 9 and
+    // design C8's launch bullet, both quoted above.
+    it('a confirmed launch action calls launchSpec with the project and spec, and logs its runId', async () => {
+      const calls: { projectId: string; input: unknown }[] = [];
+      const deps = {
+        projectPath: noProjectDeps.projectPath,
+        launchSpec: async (projectId: string, input: unknown) => {
+          calls.push({ projectId, input });
+          return { ok: true as const, runId: 'run-20261027-093000' };
+        },
+      };
+
+      const staged = await stageAction({
+        kind: 'launch',
+        target: { project: 'proj-1', spec: 'spec-2' },
+        params: {},
+        reason: 'the spec is ready to launch',
+        conversation: 'conv-launch',
+      });
+
+      const result = await confirmAction(staged.id, deps as any);
+      expect(result.ok).toBe(true);
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0].projectId).toBe('proj-1');
+      expect((calls[0].input as { spec?: string }).spec).toBe('spec-2');
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].action).toBe(staged.id);
+      expect(actionRows[0].kind).toBe('launch');
+      expect(actionRows[0].conversation).toBe('conv-launch');
+      expect(actionRows[0].outcome).toMatch(/run-20261027-093000/);
+    });
   });
 });
