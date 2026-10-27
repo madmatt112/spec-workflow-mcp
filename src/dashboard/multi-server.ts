@@ -33,7 +33,7 @@ import { buildUsageRows } from './shell/usage-rows.js';
 import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
-import { checkAnswerKeys } from '../advisor/actions.js';
+import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
@@ -702,6 +702,53 @@ export class MultiProjectDashboardServer {
       const body = (request.body ?? {}) as { advice?: string };
       const record = await attachAdvice(id, body.advice ?? '');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      return { ok: true };
+    });
+
+    // ── Controller action routes (design.md C8; Requirement 6 AC 2-4) ──
+    // No access exemption added: the advisor bearer only ever authorizes
+    // ADVISOR_MCP_PATH (src/controller/access.ts), so it already gets 401
+    // here (AC 4) under the same global hook as every route above.
+
+    this.app.get('/api/controller/actions', async () => {
+      return { actions: await listActions() };
+    });
+
+    const actionDeps: ActionDeps = {
+      projectPath: (projectId: string) => {
+        const project = this.projectManager.getProject(projectId);
+        if (!project) throw new Error(`project not found: ${projectId}`);
+        return project.workspacePath;
+      },
+      launchSpec: async (projectId: string, input: Record<string, unknown>) => {
+        const project = this.projectManager.getProject(projectId);
+        if (!project) return { ok: false, error: 'project-not-found' };
+        // Headless, like the browser launch route (line ~666): force record mode.
+        const result = await launchSpec(project, { ...(input as unknown as SetupInput), gates: 'record' }, this.controller);
+        if (!result.ok) {
+          return { ok: false, error: result.status === 400 ? JSON.stringify(result.validationError) : result.error };
+        }
+        return { ok: true, runId: result.runId };
+      },
+    };
+
+    // Confirm a staged action: runs its executor exactly once (AC 3); 409 on
+    // anything not `staged` (design C8).
+    this.app.post('/api/controller/actions/:id/confirm', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await confirmAction(id, actionDeps);
+      if (!result.ok && result.error === 'not-staged') return reply.code(409).send({ error: 'not-staged' });
+      return result;
+    });
+
+    // Dismiss a staged action: it never runs (AC 3); 409 on anything not `staged`.
+    this.app.post('/api/controller/actions/:id/dismiss', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const actions = await listActions();
+      const action = actions.find((a) => a.id === id);
+      if (!action) return reply.code(404).send({ error: 'action-not-found' });
+      if (action.state !== 'staged') return reply.code(409).send({ error: 'not-staged' });
+      await dismissAction(id);
       return { ok: true };
     });
 
