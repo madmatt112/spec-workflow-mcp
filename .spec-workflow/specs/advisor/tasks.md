@@ -144,6 +144,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 - [ ] 14. Second opinion
   - File: src/advisor/opinion.ts
   - File: src/controller/controller.ts
+  - File: src/controller/waits.ts — attachAdvice clears opinionStatus inside the per-wait queue (C7, D19)
   - File: src/dashboard/multi-server.ts
   - Test: src/advisor/__tests__/opinion.test.ts — startSecondOpinion(waitId, deps)
   - `Controller` gains public `usageBlock()` returning `windowBlock()` (`src/controller/controller.ts:373-388`); add `POST /api/controller/waits/:id/second-opinion` returning 202.
