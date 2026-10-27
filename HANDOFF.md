@@ -129,6 +129,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-24 | harness-evals | closeout | items 12/12 | closed | 4 done, 1 to-do, 7 skipped |
 | 2026-10-26 | advisor | requirements | v2 | approved | 2 rounds |
 | 2026-10-26 | advisor | design | v3 | approved | 3 rounds |
+| 2026-10-27 | advisor | tasks | v2 | approved | 2 rounds |
+| 2026-10-27 | advisor | implementation | tasks 13/19 | design-defect | task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md |
 
 ## Current state — 2026-08-04
 
@@ -1098,4 +1100,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 13/19, last commit 7b31c30c, next task 14 |
+| State | tasks 13/19, stopped: design-defect — task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md |

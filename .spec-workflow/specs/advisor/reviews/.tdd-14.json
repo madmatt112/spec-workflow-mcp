@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/opinion.test.ts"],"seams":{"src/advisor/__tests__/opinion.test.ts":"startSecondOpinion(waitId, deps)"},"redCommit":"e11301822e001e4b308de74aafb681ee16bec5b8","baseSha":"7b31c30c06bc042f56fccdcf9a96dd2c561c35c5","base":"structural-red","head":"pass","amended":false,"judged":null}

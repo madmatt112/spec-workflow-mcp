@@ -74,3 +74,13 @@ Cost: 1 implementer spawn(s)
 task 13 closed: 0 fix round(s), outcome pass
 Evidence: task 13 · mark run-20261026-204644 b276bf67
 Cost: 1 implementer spawn(s)
+
+## 2026-10-27T08:06:23Z · implementation · task 14 · doc-gap
+tasks.md task 14 File: list omits src/controller/waits.ts, though design C7 and the author's own red test (opinionStatus cleared) require editing attachAdvice there
+Evidence: task 14 · mark run-20261026-204644 0d890845
+Cost: implementer
+
+## 2026-10-27T08:11:09Z · implementation · task 14 · deviation
+task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md
+Evidence: task 14 · mark run-20261026-204644 483a8860
+Cost: unknown
