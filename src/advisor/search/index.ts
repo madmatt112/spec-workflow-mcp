@@ -37,6 +37,8 @@ export interface RefreshResult {
   pending: number;
   /** Set past 200 chunks needing embedding; the rest finish in the background (design D12). */
   indexing?: { done: number; total: number };
+  /** Set when the embedder failed mid-refresh: the index keeps what it wrote, meaning search is off (design Error Handling #7). */
+  embedFailed?: boolean;
 }
 
 interface PlanEntry {
@@ -218,37 +220,33 @@ export async function refreshIndex(embedder: Embedder | null): Promise<RefreshRe
 
   const totalMissing = plan.reduce((sum, e) => sum + missingIndices(e.vectors).length, 0);
 
-  if (totalMissing <= EMBED_CAP) {
-    let embedded = 0;
-    for (const entry of plan) {
-      const missing = missingIndices(entry.vectors);
-      if (missing.length === 0) continue;
-      const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
-      missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
-      embedded += missing.length;
-    }
-    await writePlan(plan, models);
-    return { chunks: toChunks(plan), embedded, pending: 0 };
-  }
-
-  // Over 200 chunks to embed: embed up to the cap now, defer the rest to a background job (design D12).
+  // Embed up to the cap now; past 200 chunks, defer the rest to a background job (design D12).
   let budget = EMBED_CAP;
   const deferred: PlanEntry[] = [];
   let embedded = 0;
-  for (const entry of plan) {
-    const missing = missingIndices(entry.vectors);
-    if (missing.length === 0) continue;
-    if (budget > 0) {
-      const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
-      missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
-      embedded += missing.length;
-      budget -= missing.length;
-    } else {
-      deferred.push(entry);
+  try {
+    for (const entry of plan) {
+      const missing = missingIndices(entry.vectors);
+      if (missing.length === 0) continue;
+      if (budget > 0) {
+        const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
+        missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
+        embedded += missing.length;
+        budget -= missing.length;
+      } else {
+        deferred.push(entry);
+      }
     }
+  } catch {
+    // Embedder unreachable mid-refresh: stop, keep what was already embedded,
+    // meaning search is off (design Error Handling #7; review-9_v3 WARNING).
+    await writePlan(plan, models);
+    return { chunks: toChunks(plan), embedded, pending: totalMissing - embedded, embedFailed: true };
   }
 
   await writePlan(plan, models);
+
+  if (deferred.length === 0) return { chunks: toChunks(plan), embedded, pending: 0 };
 
   const job: BackgroundJob = { total: totalMissing, done: embedded, promise: Promise.resolve() };
   backgroundJob = job;

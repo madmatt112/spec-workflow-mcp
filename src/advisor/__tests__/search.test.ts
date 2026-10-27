@@ -158,6 +158,34 @@ async function startFakeOllama(vectors: Map<string, number[]>, queryVector: numb
   });
 }
 
+/** A fake Ollama that answers the first `okRequests` requests, then returns 500 (design Error Handling #7). */
+async function startFlakyOllama(okRequests: number): Promise<{ url: string }> {
+  let count = 0;
+  const server: Server = createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      count += 1;
+      if (count > okRequests) {
+        res.writeHead(500);
+        res.end();
+        return;
+      }
+      const body = JSON.parse(raw) as FakeOllamaRequest;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ model: body.model, embeddings: body.input.map(() => [1, 0]) }));
+    });
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      servers.push({ close: () => new Promise<void>((r) => server.close(() => r())) });
+      resolve({ url: `http://127.0.0.1:${port}` });
+    });
+  });
+}
+
 function writeSearchConfig(url: string): void {
   writeFileSync(searchPath(), JSON.stringify({ v: 1, url, model: 'fake-embed' }), 'utf-8');
 }
@@ -607,5 +635,60 @@ describe('src/advisor/search/embed.ts, index.ts and search.ts', () => {
 
     await refreshIndex(embedder);
     expect(calls).toBe(1);
+  });
+
+  // Design Error Handling #7 ("Embedder unreachable mid-refresh: refresh
+  // stops, the index keeps what it wrote, result says meaning: 'off'") on
+  // the synchronous path under 200 chunks (review-9_v3 WARNING). Pre-
+  // condition: two single-chunk files sharing the query word; a fake
+  // Ollama that answers the reachability ping and one file's embed, then
+  // returns 500. Test: search({ query: 'heron' }). Observable result: the
+  // search resolves (no rejection) with meaning 'off', both text hits, no
+  // meaningScore, and the on-disk index keeps exactly one embedded file.
+  // Expected value source: design.md Error Handling #7.
+  it('returns text hits with meaning "off" when the embedder fails mid-refresh, keeping what it wrote', async () => {
+    const root = projectRoot('sdd-advisor-search-midrefresh-');
+    writeMd(root, 'docs/a.md', '# A\n\nA heron stood in the reeds.\n');
+    writeMd(root, 'docs/b.md', '# B\n\nAnother heron flew past.\n');
+    const project = makeProject('proj-midrefresh', root);
+    await writeProjects({ v: 1, projects: [project] });
+
+    const fake = await startFlakyOllama(2);
+    writeSearchConfig(fake.url);
+
+    const result = await search({ query: 'heron' });
+
+    expect(result.meaning).toBe('off');
+    expect(result.hits).toHaveLength(2);
+    expect(result.hits.every((h) => h.meaningScore === undefined)).toBe(true);
+    const indexed = readOnDiskIndex('proj-midrefresh');
+    const embeddedCount = Object.values(indexed.files).filter((f) => f.chunks[0]?.vector !== undefined).length;
+    expect(embeddedCount).toBe(1);
+  });
+
+  // Design Error Handling #7 on the query embed (review-9_v3 WARNING,
+  // search.ts:87). Pre-condition: one file already indexed by a first
+  // search (ping, file, query: three requests); the fake Ollama then
+  // answers only the next ping and fails the query embed. Test: a second
+  // search({ query: 'otter' }). Observable result: it resolves with
+  // meaning 'off' and the text hit, no meaningScore. Expected value
+  // source: design.md Error Handling #7.
+  it('returns text hits with meaning "off" when the query embed fails', async () => {
+    const root = projectRoot('sdd-advisor-search-queryfail-');
+    writeMd(root, 'docs/a.md', '# A\n\nAn otter swam upstream.\n');
+    const project = makeProject('proj-queryfail', root);
+    await writeProjects({ v: 1, projects: [project] });
+
+    const fake = await startFlakyOllama(4);
+    writeSearchConfig(fake.url);
+
+    const first = await search({ query: 'otter' });
+    expect(first.meaning).toBe('on');
+
+    const second = await search({ query: 'otter' });
+
+    expect(second.meaning).toBe('off');
+    expect(second.hits).toHaveLength(1);
+    expect(second.hits[0].meaningScore).toBeUndefined();
   });
 });

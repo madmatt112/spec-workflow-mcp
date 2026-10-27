@@ -64,7 +64,7 @@ function fuse(textRanks: Map<string, number>, meaningRanks: Map<string, number>)
 
 async function run(q: SearchQuery): Promise<SearchResult> {
   const embedder = await loadEmbedder();
-  const { chunks, indexing } = await refreshIndex(embedder);
+  const { chunks, indexing, embedFailed } = await refreshIndex(embedder);
   const filtered = chunks.filter((c) => matchesFilters(c, q));
 
   const textHits = textSearch(filtered, q.query);
@@ -79,15 +79,25 @@ async function run(q: SearchQuery): Promise<SearchResult> {
   let meaning: 'on' | 'off' | string = 'off';
   const meaningRanks = new Map<string, number>();
 
+  // Embedder failed mid-refresh or on the query: text hits only, meaning "off" (design Error Handling #7).
+  let queryVector: number[] | undefined;
+  if (embedder && !indexing && !embedFailed) {
+    try {
+      [queryVector] = await embedder.embed([q.query]);
+    } catch {
+      queryVector = undefined;
+    }
+  }
+
   // Over 200 chunks to embed: text hits now, meaning still "indexing n of m" (design D12).
   if (embedder && indexing) {
     meaning = `indexing ${indexing.done} of ${indexing.total}`;
-  } else if (embedder) {
+  } else if (queryVector) {
     meaning = 'on';
-    const [queryVector] = await embedder.embed([q.query]);
+    const qv = queryVector;
     const ranked = filtered
       .filter((c): c is Chunk & { vector: number[] } => Array.isArray(c.vector))
-      .map((c) => ({ chunk: c, meaningScore: cosine(queryVector, c.vector) }))
+      .map((c) => ({ chunk: c, meaningScore: cosine(qv, c.vector) }))
       .sort((a, b) => b.meaningScore - a.meaningScore);
 
     ranked.forEach(({ chunk: c, meaningScore }, i) => {
