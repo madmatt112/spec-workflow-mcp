@@ -153,7 +153,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 3.4_
   - _Prompt: Task: Per design C7: 404 unknown wait, 409 not-open, 409 running when one is in flight, 409 usage-window with the reason when usageBlock is blocked (5.5, requirements D9); else set opinionStatus running, write advisor/opinions/waitId/stamp/brief.md, call runStep with role sdd-advisor, worktree the home advisor/, maxTurns 6, an opinion JSON schema, mcpConfig with no servers, noSessionPersistence true; a valid result (each pick names a wait question and, where options exist, one of them; reasons at most 60 words, summary at most 100) goes to attachAdvice with the opinion; otherwise opinionStatus failed with the reason, advice untouched (5.7); one advisor.opinion row with the five StepUsage fields either way (5.6) | Restrictions: Not in Controller.active, not queued, no onRateLimit; opinion.ts is the only runStep caller with role sdd-advisor (5.4); 5.3 holds at base, its assertion is a regression guard; existing controller.test.ts asserts no value this changes | Success: opinion.test.ts with stub-claude proves picks attach, an invalid pick keeps earlier advice and records failed, a blocked window gives 409 with no step, the run file and queue are unchanged, one advisor.opinion row is written, and a grep finds no other sdd-advisor runStep caller_
 
-- [ ] 15. Wait pusher
+- [x] 15. Wait pusher
   - File: src/advisor/push.ts
   - File: src/dashboard/multi-server.ts
   - Test: src/advisor/__tests__/push.test.ts — new WaitPusher(opts).start()

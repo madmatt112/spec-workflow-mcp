@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/push.test.ts","src/advisor/__tests__/helpers/write-wait-child.ts"],"seams":{"src/advisor/__tests__/push.test.ts":"new WaitPusher(opts).start()"},"redCommit":"11437fcaaac7b6ae849248b4c7e8a8ee202cf3fe","baseSha":"407dc935895e4a2ba833992e844a054468929803","base":"structural-red","head":"pass","amended":false,"judged":null}
