@@ -149,3 +149,18 @@ Cost: unknown
 store batch 1: 2 done of 5, 1 fix round(s)
 Evidence: batch 1 · mark run-20261026-204644 947f3e7b
 Cost: 2 implementer spawn(s)
+
+## 2026-10-27T19:41:42Z · closeout · harness batch 2 · gotcha
+workflow — on the first pass, Edit on both harness/agents files reported success but a concurrent process reverted them before the commit script ran; the script reported \"nothing to commit\" (exit 0), silently dropping the change. Re-applying and committing in immediate sequence landed ef7e0a9c. Harden: close-out commit script should fail loudly, or edit+commit each item atomically.
+Evidence: batch 2 · mark run-20261026-204644 d456a749
+Cost: implementer
+
+## 2026-10-27T19:41:49Z · closeout · harness batch 2 · deviation
+P13 skipped: No standalone change; item states it is covered by P7's enumerate-every-location rule.
+Evidence: P13 · mark run-20261026-204644 c1688f64
+Cost: unknown
+
+## 2026-10-27T19:41:49Z · closeout · harness batch 2 · cleanup
+harness batch 2: 1 done of 2, 0 fix round(s)
+Evidence: batch 2 · mark run-20261026-204644 97c5080e
+Cost: 1 implementer spawn(s)

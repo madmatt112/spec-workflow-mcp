@@ -157,3 +157,6 @@ One line per proposal, written by the close-out phase.
 - P10: skipped — no standalone change; folded into P9 (not in this batch)
 - P11: to-do (human) — Change already correct at 5d12a086; close-out gate false-positives because itemPaths() reads example path docs/SDD-HARNESS.md from the item prose as the file list, flagging the real target .spec-workflow/agent-rules.md as file-outside-list. No in-scope edit can pass the gate; touching docs/SDD-HARNESS.md would be wrong. Needs a controller/gate fix.
 - P12: done — 9eddd8c616069a1248d428984814f22aab114075
+- P7: done — ef7e0a9cbbe4261fc20cd31651aff07b6539c2da
+- P13: skipped — No standalone change; item states it is covered by P7's enumerate-every-location rule.
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/181
