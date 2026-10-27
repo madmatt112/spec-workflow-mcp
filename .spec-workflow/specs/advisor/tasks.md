@@ -14,7 +14,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: NFR Reliability_
   - _Prompt: Task: Create src/advisor/home.ts per design C1 and the NFR Reliability clauses: path functions under controllerHome() for advisor/, advisor/notes/, advisor/actions/, advisor/opinions/, advisor/index/, advisor/session.json, sources.json, push.json, search.json, pushed.json and events.jsonl; appendEvent writes one JSON.stringify(row) plus newline per fs.appendFile call and cuts a row's detail so the line stays at or under 4,096 bytes; export writeJsonAtomic from src/controller/state.ts:298 with no behaviour change | Restrictions: Never route appendEvent through writeJsonAtomic; add no npm dependency; existing src/controller/__tests__/state.test.ts asserts no value this changes | Success: home.test.ts proves every path sits under a temporary SDD_HOME, two appendEvent calls give two parseable lines each with v 1, ts and type, an oversize detail is cut so the line is at most 4,096 bytes; tsc clean_
 
-- [ ] 2. The sdd-advisor role file and profile
+- [x] 2. The sdd-advisor role file and profile
   - File: harness/agents/sdd-advisor.md
   - File: harness/agent-profiles.json
   - File: src/__tests__/agent-profiles.test.ts

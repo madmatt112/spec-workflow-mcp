@@ -4,3 +4,13 @@
 task 1 closed: 0 fix round(s), outcome gate
 Evidence: task 1 · mark run-20261026-204644 0031dd94
 Cost: 1 implementer spawn(s)
+
+## 2026-10-27T03:30:33Z · implementation · task 2 · doc-gap
+task 2's Count-change grep scopes "docs" but its File: list omits docs/SDD-HARNESS.md, which task 18 owns; reverted that edit. Detail: /tmp/scratchpad/sdd/advisor/impl-task-2-fix-1-report.md
+Evidence: task 2 · mark run-20261026-204644 189c14be
+Cost: implementer
+
+## 2026-10-27T03:30:39Z · implementation · task 2 · gotcha
+task 2 closed: 1 fix round(s), outcome gate
+Evidence: task 2 · mark run-20261026-204644 66645514
+Cost: 2 implementer spawn(s)

@@ -1,0 +1,1 @@
+{"testFiles":["src/__tests__/agent-profiles.test.ts","src/watch/__tests__/ledger.test.ts"],"seams":{"src/__tests__/agent-profiles.test.ts":"JSON.parse(harness/agent-profiles.json)"},"redCommit":"f444a4046534f7f8de3b9114231e53bb78883a9b","baseSha":"14bfa8f2a06251271a6122c68b742636a41956ad","base":"assertion-red","head":"pass","amended":false,"judged":null}
