@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/sources.test.ts"],"seams":{"src/advisor/__tests__/sources.test.ts":"seedSources()"},"redCommit":"d42c2d813bbde0b903459d8b1e91937f87081d78","baseSha":"cf02ed2d81b0f34b85ca36dde18fd386946565e7","base":"structural-red","head":"pass","amended":false,"judged":null}

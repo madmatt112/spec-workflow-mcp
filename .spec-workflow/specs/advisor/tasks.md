@@ -48,7 +48,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 6.4, 7.2, NFR Security_
   - _Prompt: Task: Per design C2 and Requirement 7.2, add the advisor secret (file advisor-secret in the home, 0600, created like loadOrCreateSecret) and ADVISOR_MCP_PATH '/api/controller/advisor/mcp'; in the hook, a request to exactly that path passes with Bearer advisor secret or the operator credential; isAuthorized and the login route keep comparing only the operator secret | Restrictions: Existing access.test.ts and src/dashboard/__tests__/access-routes.test.ts assert no value this changes (src/dashboard/__tests__/access-routes.test.ts:78-89 still gets 401 without auth); the advisor secret never opens a cookie or the /ws token | Success: access.test.ts proves the advisor file is created once with mode 0600 and differs from the operator secret; on an app with a dummy route at ADVISOR_MCP_PATH and one at /api/controller/waits, the advisor bearer gets 200 on the first and 401 on the second, and POST /api/login with the advisor secret gets 401; the operator bearer still passes both_
 
-- [ ] 5. Sources registry
+- [x] 5. Sources registry
   - File: src/advisor/sources.ts
   - Test: src/advisor/__tests__/sources.test.ts — seedSources()
   - Add `readSources()` and `seedSources()` over `sources.json` in the home (path from task 1).
