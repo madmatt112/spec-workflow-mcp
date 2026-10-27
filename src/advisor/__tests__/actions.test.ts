@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'child_process';
-import { stageAction, listActions, confirmAction, dismissAction } from '../actions.js';
+import { stageAction, listActions, confirmAction, dismissAction, actionEvents } from '../actions.js';
 import { eventsPath } from '../home.js';
 import { createWait } from '../../controller/waits.js';
 import { readWait, controllerHome } from '../../controller/state.js';
@@ -411,5 +411,73 @@ describe('src/advisor/actions.ts', () => {
     expect(actionRows[0].conversation).toBe('conv-backlog');
     expect(typeof actionRows[0].outcome).toBe('string');
     expect(actionRows[0].outcome.length).toBeGreaterThan(0);
+  });
+
+  // Added coverage (not an author test): actionEvents (design C8's interface
+  // list) emits `change` after every store write.
+  it('emits change on stageAction, confirmAction and dismissAction', async () => {
+    const seen: string[] = [];
+    const onChange = (action: { id: string; state: string }) => seen.push(action.state);
+    actionEvents.on('change', onChange);
+    try {
+      const staged = await stageAction({
+        kind: 'backlog',
+        target: {},
+        params: { text: 'watch for change events' },
+        reason: 'change-event test',
+        conversation: 'conv-change',
+      });
+      expect(seen).toEqual(['staged']);
+
+      await confirmAction(staged.id, noProjectDeps);
+      expect(seen).toEqual(['staged', 'running', 'done']);
+
+      const staged2 = await stageAction({
+        kind: 'backlog',
+        target: {},
+        params: { text: 'another' },
+        reason: 'change-event test 2',
+        conversation: 'conv-change-2',
+      });
+      await dismissAction(staged2.id);
+      expect(seen).toEqual(['staged', 'running', 'done', 'staged', 'dismissed']);
+    } finally {
+      actionEvents.off('change', onChange);
+    }
+  });
+
+  // Added coverage (not an author test): design Error Handling flow 6 — a
+  // throwing executor (here, execDecomposition against a repo with no
+  // decomposition.md) still lands the action failed and still logs one row.
+  it('a throwing executor still lands the action failed and still logs one advisor.action row', async () => {
+    const repo = mkdtempSync(join(tmpdir(), 'sdd-advisor-throw-proj-'));
+    mkdirSync(join(repo, '.spec-workflow'), { recursive: true });
+    git(repo, ['init', '-q']);
+    git(repo, ['config', 'user.email', 'test@example.com']);
+    git(repo, ['config', 'user.name', 'Test']);
+    git(repo, ['commit', '-q', '--allow-empty', '-m', 'init']);
+
+    const staged = await stageAction({
+      kind: 'decomposition',
+      target: { project: 'proj-1' },
+      params: { slug: 'new-thing', markdown: '### `new-thing`\n' },
+      reason: 'throw test',
+      conversation: 'conv-throw',
+    });
+
+    const deps = { projectPath: (id: string) => (id === 'proj-1' ? repo : (() => { throw new Error('unknown project'); })()) };
+    const result = await confirmAction(staged.id, deps);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('failed');
+
+    const rows = await readEventRows();
+    const actionRows = rows.filter((r) => r.type === 'advisor.action');
+    expect(actionRows).toHaveLength(1);
+    expect(actionRows[0].action).toBe(staged.id);
+    expect(actionRows[0].kind).toBe('decomposition');
+    expect(actionRows[0].outcome).toBe('failed');
+    expect(typeof actionRows[0].detail).toBe('string');
+    expect(actionRows[0].detail.length).toBeGreaterThan(0);
   });
 });
