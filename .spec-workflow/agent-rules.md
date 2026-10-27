@@ -161,6 +161,9 @@ re-measured on the next real spec.
 - A verification result worse than baseline is recorded as a retro finding, not a silent
   pass and not a merge block (D9): the operator records the signal and lets the merge
   proceed.
+- A task whose every acceptance criterion is a regression guard (holds at base) is marked
+  implementer-only in the decomposition up front, with the verifier/test-author skip
+  stated; the routing is not discovered mid-run.
 
 ## Sensitive paths
 
