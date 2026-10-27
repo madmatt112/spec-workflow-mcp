@@ -103,3 +103,14 @@
 {"ts":"2026-10-27T03:30:33.705Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-implementer","role":"fix task 2 round 1","result":"yes/2","phase":"implementation","task":"2","round":"1"}
 {"ts":"2026-10-27T03:30:39.015Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"gate: task 2 pass risk low round 1 tdd assertion-red"}
 {"ts":"2026-10-27T03:30:39.027Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"2","rounds":"1","outcome":"gate"}
+{"ts":"2026-10-27T03:30:39.188Z","run":"run-20261026-204644","spec":"advisor","type":"task.pick","task":"3","title":"Wait opinion fields and per-wait write queue"}
+{"ts":"2026-10-27T03:30:39.197Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 3 pick head 48ef3b41df4e9603157b7bca30018be93a4f8df6"}
+{"ts":"2026-10-27T03:30:39.231Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-test-author","role":"author task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T03:36:31.199Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-test-author","input":"76","output":"27860","cacheWrite":"91185","cacheRead":"3197998","tokens":"3317119","cacheWrite5m":"0","cacheWrite1h":"91185","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T03:36:31.199Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-test-author","role":"author task 3","result":"none","phase":"implementation","task":"3"}
+{"ts":"2026-10-27T03:36:31.245Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 3 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-27T03:36:31.245Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-implementer","role":"implement task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T03:39:02.017Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-implementer","input":"60","output":"11507","cacheWrite":"69126","cacheRead":"2266009","tokens":"2346702","cacheWrite5m":"0","cacheWrite1h":"69126","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T03:39:02.017Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","result":"yes/3","phase":"implementation","task":"3"}
+{"ts":"2026-10-27T03:39:17.495Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"gate: task 3 pass risk low tdd structural-red"}
+{"ts":"2026-10-27T03:39:17.506Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"3","rounds":"0","outcome":"gate"}

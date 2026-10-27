@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/waits.test.ts"],"seams":{"src/controller/__tests__/waits.test.ts":"attachAdvice(id, advice, opinion)"},"redCommit":"91ac1b4d5fe57fe0d445c3070b959dab04b94a79","baseSha":"48ef3b41df4e9603157b7bca30018be93a4f8df6","base":"structural-red","head":"pass","amended":false,"judged":null}
