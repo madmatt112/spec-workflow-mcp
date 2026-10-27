@@ -1,6 +1,6 @@
 # Tasks Document
 
-Document version: v1
+Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19. Tasks 1-9 add standalone modules and type changes that no existing caller sees; 10-12 add the action store, then its executors, then its routes; 13-16 wire the endpoint, the second opinion, the pusher and the entry into the server; 17 is the browser surface, 18 the docs, 19 the end-to-end proof. Each task leaves `npx tsc --noEmit` clean and every existing suite green. Planned verifier spend: eleven tasks (1, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16) create a brand-new module, so each routes structural-red to high risk and one verifier; no task touches a path in the agent-rules sensitive list.
 
@@ -36,7 +36,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - Purpose: The typed second opinion rides the wait; an advice write never erases an answer.
   - _Leverage: src/controller/waits.ts (answerWait at 90, attachAdvice at 119)_
   - _Requirements: 5.2, 5.3, 5.8_
-  - _Prompt: Task: Add the WaitOpinion type and the opinion and opinionStatus fields of design Data Models to WaitRecord and both wire ControllerWait copies; give attachAdvice a trailing optional opinion argument; add an exported opinion-status setter; route answerWait, attachAdvice and the status setter through one in-process promise queue per wait id inside src/controller/waits.ts (design C7 wait writes, design D19, Requirement 5.2) | Restrictions: Existing waits.test.ts assertions at 183-191 and src/dashboard/__tests__/controller-waits-routes.test.ts:147-157 keep their exact values; the advice route keeps its body; Requirement 5.3 already holds at base (attachAdvice touches no run, controller.ts onWaitChange at 339 acts only on answered), so its test is a regression guard, not a red test | Success: waits.test.ts proves attachAdvice with an opinion stores both advice and opinion; a record with only an advice string still reads back unchanged (5.8); an answerWait and an attachAdvice started together on one id both land, answer kept; attachAdvice leaves the wait state and the run file unchanged (regression guard, 5.3); tsc clean_
+  - _Prompt: Task: Add the WaitOpinion type and the opinion and opinionStatus fields of design Data Models to WaitRecord and both wire ControllerWait copies; give attachAdvice a trailing optional opinion argument; add an exported opinion-status setter; route answerWait, attachAdvice and the status setter through one in-process promise queue per wait id inside src/controller/waits.ts (design C7 wait writes, design D19, Requirement 5.2) | Restrictions: Existing waits.test.ts assertions at 183-191 and src/dashboard/__tests__/controller-waits-routes.test.ts:147-157 keep their exact values; the advice route keeps its body; Requirement 5.3 already holds at base (attachAdvice touches no run, controller.ts onWaitChange at 339 acts only on answered), so its test is a regression guard, not a red test | Success: waits.test.ts proves attachAdvice with an opinion stores both advice and opinion; a record with only an advice string still reads back unchanged (5.8); an answerWait and an attachAdvice started together on one id both land, answer kept; the opinion-status setter started together with an answerWait on one id serialises through the queue and leaves the answer intact; attachAdvice leaves the wait state and the run file unchanged (regression guard, 5.3); tsc clean_
 
 - [ ] 4. Advisor credential and scoped access
   - File: src/controller/access.ts
@@ -120,11 +120,12 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 - [ ] 12. Action routes and live updates
   - File: src/dashboard/multi-server.ts
   - File: src/dashboard/shell/shell-feed.ts
+  - File: src/dashboard/shell/types.ts
   - File: src/dashboard/harness/hub.ts
   - File: src/dashboard/shell/__tests__/shell-feed.test.ts
   - Test: src/dashboard/__tests__/advisor-routes.test.ts — POST /api/controller/actions/:id/confirm
-  - Register `GET /api/controller/actions`, `POST .../:id/confirm`, `POST .../:id/dismiss`; add a `controller-actions` feed message after the others (`src/dashboard/shell/shell-feed.ts:121-129`); the hub re-arms on the action events (`src/dashboard/harness/hub.ts:45-51`).
-  - Count change: run `grep -rn "quintet\|'controller-activity'" src` and move every pinned feed-message list from five to six (at least `src/dashboard/shell/__tests__/shell-feed.test.ts:275-284`).
+  - Register `GET /api/controller/actions`, `POST .../:id/confirm`, `POST .../:id/dismiss`; add the `controller-actions` member to the server `ShellMessage` union (`src/dashboard/shell/types.ts:207-212`) and the feed message after the others (`src/dashboard/shell/shell-feed.ts:121-129`); the hub re-arms on the action events (`src/dashboard/harness/hub.ts:45-51`). The browser consumption of this message is task 17.
+  - Count change: run `grep -rn "quintet\|'controller-activity'" src/dashboard` and move every pinned feed-message list from five to six (at least `src/dashboard/shell/__tests__/shell-feed.test.ts:275-284`).
   - Purpose: The operator sees and confirms staged actions in the dashboard.
   - _Leverage: the action functions tasks 10-11 export; src/dashboard/__tests__/controller-waits-routes.test.ts as the route-test pattern_
   - _Requirements: 6.2, 6.3, 6.4_
@@ -174,11 +175,13 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 
 - [ ] 17. Dashboard surface
   - File: src/dashboard_frontend/src/modules/shell/NowPage.tsx
-  - Render each pick and reason under its question in `AnswerSheet` (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:351`), the opinion summary, else the legacy advice text (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:534`); add the "Second opinion" button, the "Staged by the advisor" group and the "Open advisor" button.
+  - File: src/dashboard_frontend/src/modules/shell/types.ts
+  - File: src/dashboard_frontend/src/modules/shell/ShellProvider.tsx
+  - Render each pick and reason under its question in `AnswerSheet` (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:351`), the opinion summary, else the legacy advice text (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:534`); add the "Second opinion" button, the "Staged by the advisor" group and the "Open advisor" button. Own the browser consumption of the `controller-actions` message task 12 sends: the frontend `ShellMessage` union member (`src/dashboard_frontend/src/modules/shell/types.ts:224-229`), a subscription, a `controllerActions` state and a `ShellContextType` field in `ShellProvider.tsx`.
   - Purpose: The operator presses for opinions and confirms actions in one place.
-  - _Leverage: src/dashboard_frontend/src/modules/shell/NowPage.tsx (DetailText at 288, the answer fetch at 367)_
+  - _Leverage: src/dashboard_frontend/src/modules/shell/NowPage.tsx (DetailText at 288, the answer fetch at 367); src/dashboard_frontend/src/modules/shell/ShellProvider.tsx (the controller-activity subscribe at 99-104, controllerActivity state at 64, ShellContextType at 22-32) as the pattern_
   - _Requirements: 5.2, 5.7, 5.8, 6.2, 6.3, 1.3, 1.4_
-  - _Prompt: Task: Per design C12, call the second-opinion route task 14 adds, the action routes task 12 adds and the open route task 16 adds; the button is disabled while opinionStatus is running and shows the failure reason when failed; the staged group shows kind, target, reason, conversation, Confirm, Dismiss and outcome, updated from the controller-actions feed message; Open advisor shows the session name or the command | Restrictions: Reuse the Now page CSS variables and primitives; no new dependency; vitest excludes src/dashboard_frontend (./vitest.config.ts:9), so there is no unit test | Success: npm run build:dashboard passes; a wait with an opinion shows each pick under its question, a wait with only advice text still shows it, the staged group lists an action and Confirm calls the confirm route_
+  - _Prompt: Task: Per design C12, call the second-opinion route task 14 adds, the action routes task 12 adds and the open route task 16 adds; the button is disabled while opinionStatus is running and shows the failure reason when failed; the staged group shows kind, target, reason, conversation, Confirm, Dismiss and outcome, live-updated from the controller-actions message — add that member to the frontend ShellMessage union, subscribe to it in ShellProvider, hold it in a controllerActions state and a ShellContextType field, and read the group in NowPage through useShell(); Open advisor shows the session name or the command | Restrictions: Reuse the Now page CSS variables and primitives; no new dependency; vitest excludes src/dashboard_frontend (./vitest.config.ts:9), so there is no unit test | Success: npm run build:dashboard passes; a wait with an opinion shows each pick under its question, a wait with only advice text still shows it, the staged group reads from the useShell() controllerActions context, lists an action and Confirm calls the confirm route_
 
 - [ ] 18. Docs and retirement steps
   - File: docs/SDD-HARNESS.md
@@ -220,5 +223,9 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 
 ## Revision History
 
+- **v2** (2026-10-26) — Round-1 adversarial response (adversarial-analysis-tasks.md, verdict iterate 0/1/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Task 17 now owns the browser consumption of the new staged-action feed topic: its File list adds the browser shell wire-shapes file and the shell provider, and its prompt adds the frontend union member, the subscription, a state field and a context field read by the Now page. The staged group had no live-update owner before.
+  - **R1-2 — Accepted (MINOR).** Task 12's File list now carries the server shell wire-shapes module whose message union gains the new member, and its count-change grep is narrowed to the server dashboard tree so the frontend union stays with task 17.
+  - **R1-3 — Partially accepted (MINOR).** Task 3's success clause now asserts the opinion-status setter serialises through the per-wait queue beside a concurrent answer write; the setter's first downstream use stays in task 14, as the finding allows.
 - **v1** (2026-10-26) — Initial draft.
   - **Lint pass.** 9 fixed: L-3/L-4/L-8/L-13/L-19/L-20 bare test/component filenames given their directory prefix; L-21 root config given `./`; L-2/L-9 forward task-number references dropped (role body and purpose name consumers by role; the embedder hand-off names the verification evidence). Rejected: L-1 appendEvent, L-5 advisorSecretPath, L-6 loadOrCreateAdvisorSecret, L-7 ADVISOR_MCP_PATH, L-10 StagedAction, L-11 checkAnswerKeys, L-12 launchSpec, L-16 usageBlock — each is a new symbol this task creates or extracts, not a token the cited range anchors (writeJsonAtomic@298, makeRequireAccess@156/installAccessControl@191/loadOrCreateSecret@230-231, the moved route bodies@649-657 and @604-635, windowBlock@373-388 all verified present); L-14 Server, L-15 Controller — an SDK class and the enclosing class, not at the cited handler/method range; L-17 advisor — the new subcommand string, while the citations anchor bootstrapCommand@129-131 and the routing block; L-18 — D5 pins no frontend unit test (vitest excludes `src/dashboard_frontend`), proven by `build:dashboard` and the e2e checks.
