@@ -231,6 +231,26 @@ export function nextUnstartedSpec(workflowRoot: string): string | null {
   return null;
 }
 
+/**
+ * The launch payload a non-form caller (the advisor's confirm route, design C8
+ * / AC 9) starts from: every field `validateSetup` requires, each at the view's
+ * own default (the launchable spec, the supervisor model, worktree, gates and
+ * each role at its default model and provider). The caller overlays the spec it
+ * means to launch and forces its own gates; without these fields a real launch
+ * would fail `validateSetup`.
+ */
+export function defaultSetupInput(view: SetupView): SetupInput {
+  return {
+    spec: view.launchable ?? '',
+    supervisorModel: view.supervisor.model,
+    worktree: view.worktree,
+    gates: view.gates,
+    roles: Object.fromEntries(
+      view.roles.map((r) => [r.agent, { model: r.defaultModel, provider: r.defaultProvider }]),
+    ),
+  };
+}
+
 function checkAnthropicModel(model: string): string | null {
   if (MODEL_ALIASES.includes(model)) return null;
   if (model.startsWith('claude-')) return null;

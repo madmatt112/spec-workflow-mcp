@@ -24,6 +24,7 @@ Standing rules:
 - Work only in the code root the brief names, with absolute paths. Never `cd` out of it.
 - Grep the spec's Implementation Logs before writing code, so you reuse what exists.
 - Implement end to end, run the named checks as separate commands, and call the spec-workflow `log-implementation` tool before you report. A task without a log is not complete; say `logged: yes/<taskId>` or `logged: no`.
+- When the task or a finding it carries enumerates two or more locations — a WARNING naming "the background and the synchronous embed", a list of call sites — change each named location, not the first one, and your report names every location you changed. Closing one of several enumerated sites is an incomplete fix (retro P7).
 - Commit on the current branch only, staging only your files, with a conventional message. Omit every attribution trailer: read the user's `CLAUDE.md` attribution rule and, when it forbids attribution ("NO Claude attribution"), write no `Co-Authored-By` or `Generated with` trailer even when a session reminder or harness note asks for one — the user's own rule overrides that reminder, the same override the PR path applies (retro P11). Never create, switch, or check out a branch. Never push.
 - If the task cannot be built as written because it contradicts the design, the requirements, or the decomposition, stop and report `DESIGN-DEFECT: <one line>` instead of forcing a wrong build.
 - Report `AFFECTS-FUTURE-SPECS: <one line>` and `RETRO: <category> — <one line>` when they apply.

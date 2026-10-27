@@ -7,6 +7,7 @@ import {
   readAgentRules,
   buildSetupView,
   validateSetup,
+  defaultSetupInput,
   MODEL_ALIASES,
   DEEPSEEK_MODELS,
   ELIGIBLE_ROLES,
@@ -617,6 +618,33 @@ describe('run-setup', () => {
       const result = validateSetup({ ...base, spec: 'other-spec' }, view);
 
       expect(result).toEqual({ field: 'spec', value: 'other-spec', error: expect.any(String) });
+    });
+  });
+
+  // Retro P6: the advisor confirm route launches with a payload built from
+  // `defaultSetupInput(view)`, which must carry every field validateSetup
+  // requires so a real launch does not 400.
+  describe('defaultSetupInput', () => {
+    it('produces a payload validateSetup accepts (every gate field present at the view default)', () => {
+      const view = buildView();
+
+      const payload = defaultSetupInput(view);
+
+      expect(payload.spec).toBe(view.launchable);
+      expect(payload.supervisorModel).toBe(view.supervisor.model);
+      expect(payload.worktree).toBe(view.worktree);
+      expect(payload.gates).toBe(view.gates);
+      expect(Object.keys(payload.roles).sort()).toEqual(view.roles.map((r) => r.agent).sort());
+      expect(validateSetup(payload, view)).toBeNull();
+    });
+
+    it('still validates when the caller overlays the spec and forces record gates', () => {
+      const view = buildView();
+
+      // The confirm route overlays the staged spec and forces record mode.
+      const payload: SetupInput = { ...defaultSetupInput(view), spec: 'alpha', gates: 'record' };
+
+      expect(validateSetup(payload, view)).toBeNull();
     });
   });
 
