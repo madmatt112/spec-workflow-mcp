@@ -131,6 +131,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-26 | advisor | design | v3 | approved | 3 rounds |
 | 2026-10-27 | advisor | tasks | v2 | approved | 2 rounds |
 | 2026-10-27 | advisor | implementation | tasks 13/19 | design-defect | task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md |
+| 2026-10-27 | advisor | implementation | tasks 19/19 | complete | PR #180 |
 
 ## Current state — 2026-08-04
 
@@ -1102,7 +1103,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 19/19, implemented 2026-10-27 |
 | Implemented | 2026-10-27 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/180 |
 | Coverage | logCoverage 19/19; reviewCoverage 19/19; TDD 16 task(s): assertion-red 3, structural-red 13, vacuous 0, inconclusive 0 |
 | Deferrals | 5 added by this spec, 20 open in all |
 | Verifier-skipped | task 19 (gate-only review, retro P6/P15) |
