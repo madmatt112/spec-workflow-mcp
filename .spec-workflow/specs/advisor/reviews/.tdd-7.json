@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/summary.test.ts"],"seams":{"src/advisor/__tests__/summary.test.ts":"buildSummary({ include, now })"},"redCommit":"02d87219bc17c7244129e1df75551cddd4355dff","baseSha":"dd8820ee61ddd5991c14d8670b47faaa5bc8664a","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -66,7 +66,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
   - _Prompt: Task: Implement buildTallies per design C5 and the Tallies shape: spawn.end tokens by agent and by spec; advisor.opinion rows from the home event log task 1 names count under role sdd-advisor (3.4); spawn.usage result that is a non-ok StepClassification counts under it, any other value but ok or success counts as unknown (design D14); each line starting with "- **F" in retrospective.md counts under the level-2 heading above it, dated by the file's last commit; weeks keyed like 2026-W43 | Restrictions: A row missing a needed field counts as unknown and sets floor true on that column (3.3), never dropped; read-only on every file | Success: tallies.test.ts proves ISO week bucketing across a year boundary, an advisor.opinion row lands under sdd-advisor, a CLI-subtype result counts as unknown, a spawn.end without tokens sets floor.tokens, findings count per heading, and the project filter narrows the result_
 
-- [ ] 7. Hello summary
+- [x] 7. Hello summary
   - File: src/advisor/summary.ts
   - Test: src/advisor/__tests__/summary.test.ts — buildSummary({ include, now })
   - Build `AdvisorSummary` (design Data Models) from current files on each call; `renderSummary` gives the text.
