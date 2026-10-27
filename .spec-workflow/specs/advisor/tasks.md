@@ -106,7 +106,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 6.1, 6.2, 6.3, 6.5, 6.8, 6.10_
   - _Prompt: Task: Implement stageAction, listActions, confirmAction, dismissAction and actionEvents per design C8 and the StagedAction shape; confirm runs only a staged action, writes one advisor.action row through the appendEvent task 1 adds; answer runs checkAnswerKeys then answerWait with by advisor (6.8); deferral runs DeferralStorage.create and checkpoint of that file inside one withStoreLock (6.10); decomposition replaces the section whose heading holds the backticked slug, else inserts before "## Build order", else appends, then checkpoints, under the same lock; backlog appends one dated line to owner-backlog.md in the home, no commit (design D18) | Restrictions: Bridge: merge, deploy and launch confirm to state failed with detail "executor not built"; task 11 removes that bridge; the answer route keeps its 400 body exactly | Success: actions.test.ts proves a staged action is listed, dismiss marks it dismissed and a later confirm gets a not-staged refusal, a second confirm is refused, answer stores by advisor, deferral and decomposition each make one commit, backlog appends one line, and each confirm writes one advisor.action row with action, kind, target, conversation and outcome_
 
-- [ ] 11. Merge, deploy and launch executors
+- [x] 11. Merge, deploy and launch executors
   - File: src/advisor/actions.ts
   - File: src/dashboard/multi-server.ts
   - Test: src/advisor/__tests__/actions.test.ts — confirmAction(id, deps)

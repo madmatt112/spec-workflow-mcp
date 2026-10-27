@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/actions.test.ts"],"seams":{"src/advisor/__tests__/actions.test.ts":"confirmAction(id, deps)"},"redCommit":"4b9dadf411e3a7c5dbd92d8ced49eba02a98bd8f","baseSha":"475de89962564ead66a2ed6d7137e47151735a76","base":"assertion-red","head":"pass","amended":false,"judged":null}
