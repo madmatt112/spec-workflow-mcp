@@ -16,16 +16,7 @@ export interface Hit {
   score: number;
 }
 
-const STOP_WORDS = new Set([
-  'the', 'and', 'for', 'are', 'but', 'not', 'you', 'your', 'all', 'can', 'her', 'was', 'one',
-  'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see',
-  'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use', 'that',
-  'with', 'from', 'this', 'have', 'been', 'were', 'they', 'their', 'what', 'when', 'where',
-  'which', 'will', 'would', 'there', 'here', 'than', 'then', 'also', 'into', 'over', 'under',
-  'about', 'after', 'before', 'between', 'during', 'each', 'more', 'most', 'other', 'some',
-  'such', 'only', 'own', 'same', 'few', 'any', 'both', 'does', 'did', 'had', 'got', 'may',
-  'might', 'must', 'shall', 'should', 'could', 'while', 'because', 'into', 'onto', 'upon',
-]);
+const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'your', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use', 'that', 'with', 'from', 'this', 'have', 'been', 'were', 'they', 'their', 'what', 'when', 'where', 'which', 'will', 'would', 'there', 'here', 'than', 'then', 'also', 'into', 'over', 'under', 'about', 'after', 'before', 'between', 'during', 'each', 'more', 'most', 'other', 'some', 'such', 'only', 'own', 'same', 'few', 'any', 'both', 'does', 'had', 'got', 'may', 'might', 'must', 'shall', 'should', 'could', 'while', 'because', 'onto', 'upon']);
 
 function words(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length >= 3 && !STOP_WORDS.has(w));

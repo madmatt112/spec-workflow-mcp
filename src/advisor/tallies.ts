@@ -98,7 +98,7 @@ function readLedgerRows(specDir: string, spec: string, from: string, to: string,
 }
 
 /** The file's last commit date (`git log -1 --format=%cI`), or undefined outside a repo / unknown. */
-export function lastCommitDate(root: string, relPath: string): string | undefined {
+function lastCommitDate(root: string, relPath: string): string | undefined {
   try {
     const out = execFileSync('git', ['-C', root, 'log', '-1', '--format=%cI', '--', relPath], {
       encoding: 'utf-8',

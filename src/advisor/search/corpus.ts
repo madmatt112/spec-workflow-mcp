@@ -1,16 +1,14 @@
 // src/advisor/search/corpus.ts
 //
 // Search corpus listing and chunking (design.md C6; requirements.md
-// Requirement 4 AC 1, AC 3). Walks each known project's
-// `.spec-workflow/**/*.md`, `docs/**/*.md` and `GLOSSARY.md`, plus the home
-// `waits/*.json`. Session transcripts and the home `advisor/notes/` are never
-// visited (AC 1). Scans in node, no ripgrep (design D13).
+// Requirement 4 AC 1, AC 3). Scans in node, no ripgrep (design D13).
 import { promises as fs } from 'fs';
+import { execFileSync } from 'child_process';
 import { join, relative, sep } from 'path';
 import { controllerHome, listWaits } from '../../controller/state.js';
 import type { KnownProject } from '../../controller/state.js';
 import { PathUtils } from '../../core/path-utils.js';
-import { lastCommitDate } from '../tallies.js';
+import { scrubbedGitEnv } from '../../core/git-utils.js';
 
 export interface CorpusFile {
   project: string;
@@ -19,11 +17,7 @@ export interface CorpusFile {
   date: string;
 }
 
-export interface Chunk {
-  project: string;
-  path: string;
-  kind: string;
-  date: string;
+export interface Chunk extends CorpusFile {
   startLine: number;
   endLine: number;
   text: string;
@@ -42,22 +36,12 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function walkMarkdown(dir: string): Promise<string[]> {
-  let entries;
   try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
+    const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true });
+    return entries.filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => join(e.parentPath, e.name));
   } catch {
     return [];
   }
-  const out: string[] = [];
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...(await walkMarkdown(full)));
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      out.push(full);
-    }
-  }
-  return out;
 }
 
 /** design.md C6's kind vocabulary, derived from the file's path relative to the project root. */
@@ -73,6 +57,20 @@ function deriveKind(relPath: string): string {
   return 'doc';
 }
 
+/** The file's last commit date (`git log -1 --format=%cI`), or undefined outside a repo / unknown. */
+function lastCommitDate(root: string, relPath: string): string | undefined {
+  try {
+    const out = execFileSync('git', ['-C', root, 'log', '-1', '--format=%cI', '--', relPath], {
+      encoding: 'utf-8',
+      env: scrubbedGitEnv(),
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return out || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function projectFiles(project: KnownProject): Promise<CorpusFile[]> {
   const root = project.workflowRootPath;
   const candidates = [
@@ -85,8 +83,7 @@ async function projectFiles(project: KnownProject): Promise<CorpusFile[]> {
   const out: CorpusFile[] = [];
   for (const full of candidates) {
     const rel = relative(root, full);
-    const committed = lastCommitDate(root, rel);
-    const date = committed ?? (await fs.stat(full)).mtime.toISOString();
+    const date = lastCommitDate(root, rel) ?? (await fs.stat(full)).mtime.toISOString();
     out.push({ project: project.id, path: full, kind: deriveKind(rel), date });
   }
   return out;
@@ -106,9 +103,7 @@ async function waitFiles(): Promise<CorpusFile[]> {
 /** The search corpus for the given projects (design.md C6; Requirement 4 AC 1). */
 export async function listCorpus(projects: KnownProject[]): Promise<CorpusFile[]> {
   const out: CorpusFile[] = [];
-  for (const project of projects) {
-    out.push(...(await projectFiles(project)));
-  }
+  for (const project of projects) out.push(...(await projectFiles(project)));
   out.push(...(await waitFiles()));
   return out;
 }
@@ -118,28 +113,16 @@ function stripTrailingBlank(lines: string[]): string[] {
   return lines;
 }
 
-function headingSections(lines: string[]): { start: number; end: number }[] {
-  const n = lines.length;
-  const headingLines: number[] = [];
-  for (let i = 0; i < n; i++) {
-    if (HEADING_RE.test(lines[i])) headingLines.push(i + 1);
-  }
-  if (headingLines.length === 0) return n > 0 ? [{ start: 1, end: n }] : [];
-  const sections: { start: number; end: number }[] = [];
-  if (headingLines[0] > 1) sections.push({ start: 1, end: headingLines[0] - 1 });
-  for (let i = 0; i < headingLines.length; i++) {
-    const start = headingLines[i];
-    const end = i + 1 < headingLines.length ? headingLines[i + 1] - 1 : n;
-    sections.push({ start, end });
-  }
-  return sections;
+function sections(lines: string[]): { start: number; end: number }[] {
+  const heads = [...lines.keys()].filter((i) => HEADING_RE.test(lines[i])).map((i) => i + 1);
+  if (heads.length === 0) return lines.length > 0 ? [{ start: 1, end: lines.length }] : [];
+  const bounds = heads[0] > 1 ? [1, ...heads] : heads;
+  return bounds.map((start, i) => ({ start, end: i + 1 < bounds.length ? bounds[i + 1] - 1 : lines.length }));
 }
 
-function capWindows(start: number, end: number, max: number): { start: number; end: number }[] {
+function windows(start: number, end: number, max: number): { start: number; end: number }[] {
   const out: { start: number; end: number }[] = [];
-  for (let s = start; s <= end; s += max) {
-    out.push({ start: s, end: Math.min(s + max - 1, end) });
-  }
+  for (let s = start; s <= end; s += max) out.push({ start: s, end: Math.min(s + max - 1, end) });
   return out;
 }
 
@@ -147,26 +130,14 @@ function capWindows(start: number, end: number, max: number): { start: number; e
 export async function chunk(file: CorpusFile): Promise<Chunk[]> {
   const raw = await fs.readFile(file.path, 'utf-8');
   const lines = stripTrailingBlank(raw.split('\n'));
+  const meta = { project: file.project, path: file.path, kind: file.kind, date: file.date };
 
-  if (file.kind === 'wait') {
-    return [{
-      project: file.project, path: file.path, kind: file.kind, date: file.date,
-      startLine: 1, endLine: Math.max(1, lines.length), text: raw,
-    }];
-  }
+  if (file.kind === 'wait') return [{ ...meta, startLine: 1, endLine: Math.max(1, lines.length), text: raw }];
 
   const chunks: Chunk[] = [];
-  for (const section of headingSections(lines)) {
-    for (const win of capWindows(section.start, section.end, MAX_CHUNK_LINES)) {
-      chunks.push({
-        project: file.project,
-        path: file.path,
-        kind: file.kind,
-        date: file.date,
-        startLine: win.start,
-        endLine: win.end,
-        text: lines.slice(win.start - 1, win.end).join('\n'),
-      });
+  for (const section of sections(lines)) {
+    for (const win of windows(section.start, section.end, MAX_CHUNK_LINES)) {
+      chunks.push({ ...meta, startLine: win.start, endLine: win.end, text: lines.slice(win.start - 1, win.end).join('\n') });
     }
   }
   return chunks;
