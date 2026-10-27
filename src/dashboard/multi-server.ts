@@ -5,6 +5,7 @@ import fastifyCors from '@fastify/cors';
 import { join, dirname, resolve, isAbsolute } from 'path';
 import { readFile } from 'fs/promises';
 import { promises as fs, mkdirSync } from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
@@ -36,6 +37,7 @@ import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord }
 import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
 import { startSecondOpinion } from '../advisor/opinion.js';
 import { registerAdvisorMcp, type AdvisorMcpDeps } from '../advisor/mcp-endpoint.js';
+import { openAdvisorSession } from '../advisor/cli.js';
 import { WaitPusher } from '../advisor/push.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
@@ -731,6 +733,15 @@ export class MultiProjectDashboardServer {
       projectRoot: (projectId: string) => this.projectManager.getProject(projectId)?.workflowRootPath,
     };
     registerAdvisorMcp(this.app, advisorMcpDeps);
+
+    // Open (or report) the operator's advisor conversation (design.md C10;
+    // Requirement 1 AC 3, AC 4). Operator credential: no access exemption.
+    this.app.post('/api/controller/advisor/open', async () => {
+      return openAdvisorSession({
+        spawnDetached: () =>
+          spawn('spec-workflow-mcp', ['advisor', '--remote-control'], { detached: true, stdio: 'ignore' }),
+      });
+    });
 
     // ── Controller action routes (design.md C8; Requirement 6 AC 2-4) ──
     // No access exemption added: the advisor bearer only ever authorizes

@@ -130,6 +130,14 @@ export function bootstrapCommand(args: string[]): 'init' | 'doctor' | null {
   return args[0] === 'init' || args[0] === 'doctor' ? args[0] : null;
 }
 
+/**
+ * True when `args[0]` is exactly `advisor` (design.md C10): routed the same
+ * way as `bootstrapCommand`, before any other argument handling.
+ */
+export function advisorCommand(args: string[]): boolean {
+  return args[0] === 'advisor';
+}
+
 function expandTildePath(path: string): string {
   if (path.startsWith('~/') || path === '~') {
     return path.replace('~', homedir());
@@ -395,6 +403,13 @@ async function main() {
     if (command) {
       const { runBootstrapCommand } = await import('./bootstrap/cli.js');
       process.exit(await runBootstrapCommand(args));
+    }
+
+    // Route `advisor` the same way, before any other argument handling
+    // (design C10).
+    if (advisorCommand(args)) {
+      const { runAdvisorCommand } = await import('./advisor/cli.js');
+      process.exit(await runAdvisorCommand(args.slice(1)));
     }
 
     // Check for help flag. Read through the registry like every other boolean,
