@@ -7,12 +7,13 @@ import {
   createWait,
   answerWait,
   attachAdvice,
+  setOpinionStatus,
   listOpenWaits,
   listWaitsForView,
   type ControllerWaitRecord,
 } from '../waits.js';
-import { readWait } from '../state.js';
-import type { WaitQuestion } from '../state.js';
+import { readWait, readRun, writeRun } from '../state.js';
+import type { WaitQuestion, WaitOpinion, RunRecord } from '../state.js';
 
 // Contract for src/controller/waits.ts (controller-tasks.md "T4 waits";
 // controller-design.md §7). Each test runs against a fresh temp SDD_HOME so the
@@ -190,5 +191,173 @@ describe('attachAdvice', () => {
   it('returns undefined for an unknown id', async () => {
     expect(await attachAdvice('w-deadbeef', 'x')).toBeUndefined();
     expect(await answerWait('w-deadbeef', {}, 'operator')).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 — wait opinion fields and per-wait write queue (design C7 "Wait
+// writes", D19; Requirement 5.2, 5.3, 5.8).
+//
+// Contract:
+// - 5.2 "stores the opinion beside the advice" — Pre: an open `merge` wait
+//   with no advice/opinion. Call: `attachAdvice(id, opinion.summary,
+//   opinion)`. Observable: the returned and re-read record both carry
+//   `advice === opinion.summary` and `opinion` deep-equal to the typed
+//   `WaitOpinion`. Source: design Data Models (`WaitOpinion`, the
+//   `attachAdvice` trailing optional argument), Requirement 5.2.
+// - 5.8 (regression guard, folded here) "a legacy advice-only record still
+//   reads back unchanged" — Pre: the same open wait. Call: `attachAdvice(id,
+//   advice)` with no third argument. Observable: `opinion` stays `undefined`
+//   on both the returned and the re-read record. Source: Requirement 5.8;
+//   already true at base (base `attachAdvice` has no opinion argument at
+//   all), so this is a regression guard, not a red test — see the report.
+// - "an answerWait and an attachAdvice started together on one id both land,
+//   answer kept" — Pre: an open `merge` wait. Call: `answerWait(id, ...)` and
+//   `attachAdvice(id, ...)` started together via `Promise.all`. Observable:
+//   the re-read record carries both the answer and the advice. Source:
+//   design C7 "Wait writes" / D19 (the per-wait queue), task 3 Success.
+// - "the opinion-status setter started together with an answerWait on one id
+//   serialises through the queue and leaves the answer intact" — Pre: an
+//   open `merge` wait. Call: `answerWait(id, ...)` and `setOpinionStatus(id,
+//   { state: 'running' })` started together via `Promise.all`. Observable:
+//   the re-read record carries both the answer and `opinionStatus.state ===
+//   'running'`. Source: design D19, task 3 Success (the exported
+//   opinion-status setter).
+// - 5.3 (regression guard) "attachAdvice leaves the wait state and the run
+//   file unchanged" — Pre: an open wait whose `run` field names a run record
+//   on disk. Call: `attachAdvice(id, advice)`. Observable: the wait's
+//   `state` stays `open` (not `answered`) and the run record re-read is
+//   unchanged. Source: Requirement 5.3; already true at base
+//   (`attachAdvice` touches no run and never sets `state`, `controller.ts`
+//   `onWaitChange` at 339 acts only on `answered`), so this is a regression
+//   guard, not a red test — see the report.
+
+const MERGE_QUESTIONS: WaitQuestion[] = [
+  { id: 'merge', text: 'Merge PR #42?', options: ['merge', 'hold'], recommended: 'merge' },
+];
+
+describe('attachAdvice carries a typed opinion (5.2)', () => {
+  it('stores the opinion beside the advice summary and reads it back', async () => {
+    const record = await createWait({
+      kind: 'merge',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: MERGE_QUESTIONS,
+    });
+
+    const opinion: WaitOpinion = {
+      picks: [{ question: 'merge', pick: 'merge', reason: 'Checks are green; CI is clean.' }],
+      summary: 'Merging is safe.',
+    };
+    const updated = await attachAdvice(record.id, opinion.summary, opinion);
+    expect(updated?.advice).toBe('Merging is safe.');
+    expect(updated?.opinion).toEqual(opinion);
+
+    const stored = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(stored.advice).toBe('Merging is safe.');
+    expect(stored.opinion).toEqual(opinion);
+  });
+});
+
+describe('a legacy advice-only attach still reads back unchanged (5.8, regression guard)', () => {
+  it('leaves opinion undefined when only advice is given', async () => {
+    const record = await createWait({
+      kind: 'merge',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: MERGE_QUESTIONS,
+    });
+
+    const updated = await attachAdvice(record.id, 'Looks fine.');
+    expect(updated?.advice).toBe('Looks fine.');
+    expect(updated?.opinion).toBeUndefined();
+
+    const stored = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(stored.advice).toBe('Looks fine.');
+    expect(stored.opinion).toBeUndefined();
+  });
+});
+
+describe('wait writes serialise per wait id (design C7 "Wait writes", D19)', () => {
+  it('an answerWait and an attachAdvice started together on one id both land; the answer is kept', async () => {
+    const record = await createWait({
+      kind: 'merge',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: MERGE_QUESTIONS,
+    });
+
+    await Promise.all([
+      answerWait(record.id, { merge: 'merge' }, 'operator'),
+      attachAdvice(record.id, 'Checks are green.'),
+    ]);
+
+    const stored = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(stored.answer?.merge?.value).toBe('merge');
+    expect(stored.advice).toBe('Checks are green.');
+  });
+
+  it('the opinion-status setter started together with an answerWait on one id serialises through the queue, leaving the answer intact', async () => {
+    const record = await createWait({
+      kind: 'merge',
+      runId: 'run-1',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: MERGE_QUESTIONS,
+    });
+
+    await Promise.all([
+      answerWait(record.id, { merge: 'merge' }, 'operator'),
+      setOpinionStatus(record.id, { state: 'running' }),
+    ]);
+
+    const stored = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(stored.answer?.merge?.value).toBe('merge');
+    expect(stored.opinionStatus?.state).toBe('running');
+    expect(typeof stored.opinionStatus?.at).toBe('string');
+  });
+});
+
+describe('attachAdvice leaves the wait state and the run file unchanged (5.3, regression guard)', () => {
+  it('does not flip the wait to answered and does not touch the run record', async () => {
+    const run: RunRecord = {
+      v: 1,
+      id: 'run-5.3',
+      project: 'proj-1',
+      codeRoot: '/tmp/advisor-5-3-code',
+      specStore: '/tmp/advisor-5-3-store',
+      spec: 'controller-waits',
+      worktree: '/tmp/advisor-5-3-worktree',
+      branch: 'feat/controller-waits',
+      status: 'waiting',
+      created: '2026-10-01T00:00:00.000Z',
+      updated: '2026-10-01T00:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    await writeRun(run);
+
+    const record = await createWait({
+      kind: 'merge',
+      runId: run.id,
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: MERGE_QUESTIONS,
+    });
+
+    await attachAdvice(record.id, 'Checks are green.');
+
+    const storedWait = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(storedWait.state).toBe('open');
+
+    const storedRun = await readRun(run.id);
+    expect(storedRun).toEqual(run);
   });
 });
