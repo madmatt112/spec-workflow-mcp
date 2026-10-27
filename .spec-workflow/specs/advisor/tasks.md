@@ -184,7 +184,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 5.2, 5.7, 5.8, 6.2, 6.3, 1.3, 1.4_
   - _Prompt: Task: Per design C12, call the second-opinion route task 14 adds, the action routes task 12 adds and the open route task 16 adds; the button is disabled while opinionStatus is running and shows the failure reason when failed; the staged group shows kind, target, reason, conversation, Confirm, Dismiss and outcome, live-updated from the controller-actions message — add that member to the frontend ShellMessage union, subscribe to it in ShellProvider, hold it in a controllerActions state and a ShellContextType field, and read the group in NowPage through useShell(); Open advisor shows the session name or the command | Restrictions: Reuse the Now page CSS variables and primitives; no new dependency; vitest excludes src/dashboard_frontend (./vitest.config.ts:9), so there is no unit test | Success: npm run build:dashboard passes; a wait with an opinion shows each pick under its question, a wait with only advice text still shows it, the staged group reads from the useShell() controllerActions context, lists an action and Confirm calls the confirm route_
 
-- [ ] 18. Docs and retirement steps
+- [x] 18. Docs and retirement steps
   - File: docs/SDD-HARNESS.md
   - File: docs/USER-GUIDE.md
   - File: GLOSSARY.md
