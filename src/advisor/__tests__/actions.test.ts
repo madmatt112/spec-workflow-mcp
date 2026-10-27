@@ -796,6 +796,43 @@ describe('src/advisor/actions.ts', () => {
       expect(actionRows[0].conversation).toBe('conv-deploy');
       expect(actionRows[0].outcome).toBe('started');
     });
+
+    // Retro P5: a missing self-update script makes `spawn` emit an async
+    // 'error'; without a listener node throws it and crashes the server.
+    // Pre-condition: CONTROLLER_HARNESS_REPO points at a scratch checkout with
+    // no scripts/sdd-self-update.sh. Test: confirmAction(id, deps). Observable
+    // result: confirm returns `{ok: false}` (not a thrown, uncaught error), the
+    // stored action lands 'failed', and one advisor.action row carries outcome
+    // 'spawn-failed' with a non-empty detail. Expected value source: the retro
+    // finding ("attach an error handler that logs and returns a surfaced
+    // failure instead of propagating").
+    it('lands the action failed instead of crashing when the script cannot be spawned', async () => {
+      const checkout = tmp('sdd-advisor-deploy-missing-');
+      // No scripts/sdd-self-update.sh here: spawn emits ENOENT via 'error'.
+      process.env.CONTROLLER_HARNESS_REPO = checkout;
+
+      const staged = await stageAction({
+        kind: 'deploy',
+        target: {},
+        params: {},
+        reason: 'deploy a checkout with no script',
+        conversation: 'conv-deploy-missing',
+      });
+
+      const result = await confirmAction(staged.id, noProjectDeps);
+      expect(result.ok).toBe(false);
+
+      const landed = (await listActions()).find((a) => a.id === staged.id);
+      expect(landed?.state).toBe('failed');
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].kind).toBe('deploy');
+      expect(actionRows[0].outcome).toBe('spawn-failed');
+      expect(typeof actionRows[0].detail).toBe('string');
+      expect(actionRows[0].detail.length).toBeGreaterThan(0);
+    });
   });
 
   describe('launch executor', () => {

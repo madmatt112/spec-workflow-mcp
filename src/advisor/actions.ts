@@ -354,7 +354,10 @@ async function execMerge(action: StagedAction, deps: ActionDeps): Promise<ExecRe
  * `deploy` (design C8): spawn `scripts/sdd-self-update.sh` detached from the
  * checkout root (`CONTROLLER_HARNESS_REPO`, the same seam `closeout.ts` uses),
  * its output logged to `advisor/actions/<id>/deploy.log`. The script reports
- * its own failures; confirming it only proves the spawn, outcome `started`.
+ * its own failures; confirming it only proves the spawn, outcome `started`. A
+ * script that cannot be spawned (a missing file) emits an async `error` the
+ * handler surfaces as a `spawn-failed` failure instead of letting the unhandled
+ * event crash the dashboard server.
  */
 async function execDeploy(action: StagedAction): Promise<ExecResult> {
   const checkoutRoot = process.env.CONTROLLER_HARNESS_REPO ?? packageRoot();
@@ -364,11 +367,20 @@ async function execDeploy(action: StagedAction): Promise<ExecResult> {
   const logFd = openSync(join(actionDir, 'deploy.log'), 'a');
   try {
     const child = spawn(scriptPath, [], { cwd: checkoutRoot, detached: true, stdio: ['ignore', logFd, logFd] });
+    // Settle on the first of 'spawn' (success) or 'error' (unspawnable script),
+    // so a missing script lands `spawn-failed` rather than throwing an
+    // unhandled 'error'. 'spawn' fires once the process exists, not when the
+    // detached script finishes, so this does not wait for the deploy to run.
+    const result = await new Promise<ExecResult>((resolve) => {
+      child.once('spawn', () => resolve({ ok: true, outcome: 'started' }));
+      child.once('error', (err: Error) =>
+        resolve({ ok: false, outcome: 'spawn-failed', detail: err.message, error: 'spawn-failed' }));
+    });
     child.unref();
+    return result;
   } finally {
     closeSync(logFd);
   }
-  return { ok: true, outcome: 'started' };
 }
 
 /**
