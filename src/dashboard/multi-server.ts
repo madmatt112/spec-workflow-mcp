@@ -36,6 +36,7 @@ import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord }
 import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
 import { startSecondOpinion } from '../advisor/opinion.js';
 import { registerAdvisorMcp, type AdvisorMcpDeps } from '../advisor/mcp-endpoint.js';
+import { WaitPusher } from '../advisor/push.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
@@ -130,6 +131,7 @@ export class MultiProjectDashboardServer {
   private sessionManager: DashboardSessionManager;
   private harnessHub: HarnessHub;
   private controller: Controller;
+  private waitPusher?: WaitPusher;
   private options: MultiDashboardOptions;
   private bindAddress: string;
   private allowExternalAccess: boolean;
@@ -393,8 +395,14 @@ export class MultiProjectDashboardServer {
 
     // Start the controller: acquire its lock, recover in-flight runs, subscribe
     // to wait answers, and start the scheduler (controller-tasks.md T6, §8).
+    // The wait pusher (design C11) runs only alongside the controller that
+    // holds the lock, so there is one pusher.
     try {
-      await this.controller.start();
+      const tookLock = await this.controller.start();
+      if (tookLock) {
+        this.waitPusher = new WaitPusher();
+        await this.waitPusher.start();
+      }
     } catch (error) {
       console.error('Failed to start the controller:', error);
     }
@@ -957,6 +965,8 @@ export class MultiProjectDashboardServer {
     this.harnessHub.close();
 
     // Release the controller lock and stop its scheduler; runs survive (§8).
+    this.waitPusher?.stop();
+    this.waitPusher = undefined;
     try {
       await this.controller.stop();
     } catch (error) {
