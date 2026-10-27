@@ -274,12 +274,12 @@ it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.t
 
 ## Roles and models
 
-`harness/agent-profiles.json` mirrors the frontmatter of the eleven role files. A test pins
+`harness/agent-profiles.json` mirrors the frontmatter of the ten role files. A test pins
 them to each other. The controller is code and has no model.
 
 | Role | Model | Effort |
 | --- | --- | --- |
-| `sdd-drafter`, `sdd-adjudicator`, `sdd-advisor` | `claude-opus-5-5` | high |
+| `sdd-drafter`, `sdd-adjudicator` | `claude-opus-5-5` | high |
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | `claude-opus-4-8` | xhigh |
 | `sdd-reviser`, `sdd-retro-compiler`, `sdd-retro-analyst` | `claude-opus-4-8` | high |
 | `sdd-checker`, `sdd-test-author` | `claude-sonnet-5` | high |
