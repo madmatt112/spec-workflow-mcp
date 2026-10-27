@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Pins the generated harness/agent-profiles.json to the ten agent frontmatters
+// Pins the generated harness/agent-profiles.json to the eleven agent frontmatters
 // (Task 1, design Component 2, Requirements 3.1, 3.2, 3.6, 3.7). The JSON is read
 // from disk, never imported, because it sits outside the TypeScript rootDir.
 
@@ -20,8 +20,8 @@ describe('harness/agent-profiles.json', () => {
   const text = readFileSync(PROFILES_PATH, 'utf8');
   const profiles = JSON.parse(text) as Record<string, { model: string; effort: string; role: string; cacheTtl: string }>;
 
-  it('has one entry per agent frontmatter (10 keys)', () => {
-    expect(Object.keys(profiles)).toHaveLength(10);
+  it('has one entry per agent frontmatter (11 keys)', () => {
+    expect(Object.keys(profiles)).toHaveLength(11);
   });
 
   it('matches each agent frontmatter model (line 4) and effort (line 5)', () => {
