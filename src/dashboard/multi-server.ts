@@ -37,7 +37,7 @@ import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit, readWait } from '../controller/state.js';
-import { installAccessControl, loadOrCreateSecret, secretPath } from '../controller/access.js';
+import { installAccessControl, loadOrCreateSecret, loadOrCreateAdvisorSecret, secretPath } from '../controller/access.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -228,7 +228,8 @@ export class MultiProjectDashboardServer {
     // login/logout routes are installed before every other route so the hook
     // covers the static assets, the WebSocket upgrade and the API.
     const secret = await loadOrCreateSecret();
-    installAccessControl(this.app, secret);
+    const advisorSecret = await loadOrCreateAdvisorSecret();
+    installAccessControl(this.app, secret, advisorSecret);
     console.error(`🔐 Access: dashboard bound to ${this.bindAddress}; shared secret in ${secretPath()}`);
 
     // Register plugins
