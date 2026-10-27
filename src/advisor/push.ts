@@ -4,9 +4,10 @@
 // NFR Security). Started only when `controller.start()`
 // (`src/controller/controller.ts:98`, called at
 // `src/dashboard/multi-server.ts:341`) took the lock, so there is one pusher.
-// On the first start (no `pushed.json`) it records every open wait id without
-// pushing (D3); otherwise it pushes each open wait not yet recorded. It then
-// watches the home `waits/` directory (`add`, `change`) so a wait written by
+// On the first start (no readable `pushed.json`, including a corrupt one) it
+// records every open wait id without pushing (D3); otherwise it pushes each
+// open wait not yet recorded. It then watches the home `waits/` directory
+// (`add`, `change`) so a wait written by
 // another process (the watchdog's own `createWait` call,
 // `scripts/sdd-watchdog.sh:185-201`) is seen too. Every event runs through one
 // queue: an open wait not yet recorded is added to `pushed.json`, written,
@@ -19,7 +20,7 @@ import { promises as fs } from 'fs';
 import { basename, join } from 'path';
 import { once } from 'events';
 import chokidar from 'chokidar';
-import { controllerHome, readWait, type WaitRecord } from '../controller/state.js';
+import { controllerHome, readWait, writeJsonAtomic, type WaitRecord } from '../controller/state.js';
 import { listOpenWaits } from '../controller/waits.js';
 import { pushConfigPath, pushedPath, appendEvent } from './home.js';
 
@@ -81,25 +82,32 @@ async function readPushConfig(): Promise<PushConfig | undefined> {
   }
 }
 
-/** An unreadable `pushed.json` counts as absent (error handling #8). */
-async function readPushedIds(): Promise<Set<string>> {
+/**
+ * Read `pushed.json`. Returns `undefined` when it is missing or fails to
+ * parse — an unreadable file counts as absent, same as a missing one (error
+ * handling #8), not as a valid file with zero ids.
+ */
+async function readPushedIdsRaw(): Promise<Set<string> | undefined> {
   try {
     const parsed = JSON.parse(await fs.readFile(pushedPath(), 'utf-8')) as PushedFile;
     return new Set(parsed.ids);
   } catch {
-    return new Set();
+    return undefined;
   }
 }
 
-/** Write `pushed.json`, first dropping any id whose wait file is gone. */
+async function readPushedIds(): Promise<Set<string>> {
+  return (await readPushedIdsRaw()) ?? new Set();
+}
+
+/** Write `pushed.json` atomically, first dropping any id whose wait file is gone. */
 async function writePushedIds(ids: Set<string>): Promise<void> {
   const pruned: string[] = [];
   for (const id of ids) {
     if (await fileExists(waitPath(id))) pruned.push(id);
   }
   const file: PushedFile = { v: 1, ids: pruned };
-  await fs.mkdir(waitsDir(), { recursive: true });
-  await fs.writeFile(pushedPath(), JSON.stringify(file), 'utf-8');
+  await writeJsonAtomic(pushedPath(), file);
 }
 
 /** `WaitPusher { start(); stop() }` (design C11). */
@@ -143,18 +151,18 @@ export class WaitPusher {
     return next;
   }
 
-  /** D3: no `pushed.json` yet -> record every open id, push none; else push each open wait not recorded. */
+  /** D3: no readable `pushed.json` -> record every open id, push none; else push each open wait not recorded. */
   private async runStartupScan(): Promise<void> {
     if (this.closed) return;
-    const hadPushedFile = await fileExists(pushedPath());
+    const existingPushedIds = await readPushedIdsRaw();
     const openWaits = await listOpenWaits();
 
-    if (!hadPushedFile) {
+    if (!existingPushedIds) {
       await writePushedIds(new Set(openWaits.map((w) => w.id)));
       return;
     }
 
-    const pushedIds = await readPushedIds();
+    const pushedIds = existingPushedIds;
     for (const wait of openWaits) {
       if (this.closed) return;
       if (pushedIds.has(wait.id)) continue;
