@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/advisor/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-27T01:41:31.028Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793065291001_5ziayy1lo",
+      "approvalTitle": "advisor tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-27T01:41:31.098Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793065291001_5ziayy1lo",
+      "approvalTitle": "advisor tasks v2"
+    }
+  ]
+}

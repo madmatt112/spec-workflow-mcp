@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/home.test.ts"],"seams":{"src/advisor/__tests__/home.test.ts":"appendEvent(row)"},"redCommit":"ec940fb6bd971c96e2926e933ae3f8c325aa50ed","baseSha":"50cdf4f613c4d7b32409a2c29a6196aacf05dff5","base":"structural-red","head":"pass","amended":false,"judged":null}

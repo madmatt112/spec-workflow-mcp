@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793065291001_5ziayy1lo",
+  "title": "advisor tasks v2",
+  "filePath": ".spec-workflow/specs/advisor/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-27T01:41:31.001Z",
+  "category": "spec",
+  "categoryName": "advisor",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-27T01:41:31.133Z"
+}

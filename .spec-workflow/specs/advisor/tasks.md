@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19. Tasks 1-9 add standalone modules and type changes that no existing caller sees; 10-12 add the action store, then its executors, then its routes; 13-16 wire the endpoint, the second opinion, the pusher and the entry into the server; 17 is the browser surface, 18 the docs, 19 the end-to-end proof. Each task leaves `npx tsc --noEmit` clean and every existing suite green. Planned verifier spend: eleven tasks (1, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16) create a brand-new module, so each routes structural-red to high risk and one verifier; no task touches a path in the agent-rules sensitive list.
 
-- [ ] 1. Home layout and event log
+- [x] 1. Home layout and event log
   - File: src/advisor/home.ts
   - File: src/controller/state.ts
   - Test: src/advisor/__tests__/home.test.ts — appendEvent(row)

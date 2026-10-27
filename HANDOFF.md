@@ -1093,3 +1093,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## advisor — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/19, last commit 14bfa8f2, next task 2 |
