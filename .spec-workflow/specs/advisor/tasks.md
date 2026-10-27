@@ -96,7 +96,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 4.2, 4.4, 4.5, 4.6, 4.7, NFR Performance_
   - _Prompt: Task: Per design C6, loadEmbedder reads search.json (v 1, url, model) and returns null when absent, not loopback, or a one-text call fails; refreshIndex hashes every corpus file with SHA-256, re-embeds only changed files, drops gone files, stores advisor/index/projectId.json with base64 Float32 vectors and drops it on a model change; search applies filters before ranking, fuses text and cosine lists by reciprocal rank fusion k 60, de-duplicates on project, path and startLine, limit 10 default, 30 max, one search at a time; over 200 chunks to embed it returns text hits with meaning "indexing n of m" and keeps embedding in process (design D12) | Restrictions: Pin the Ollama request shape only from a probe of a running local Ollama or its current docs, recorded in the test fake; if no server can run here, leave the real-embedder check pending in the verification evidence | Success: search.test.ts with a fake Embedder proves fusion and de-dup, each filter, only a changed file re-embeds, a deleted file leaves the index, a non-loopback url gives meaning off with text hits (4.7), a reworded query sharing no key word with a retro finding ranks it in the first ten (4.4), and an unchanged corpus searches in under 3 seconds_
 
-- [ ] 10. Staged-action store and the store-side executors
+- [x] 10. Staged-action store and the store-side executors
   - File: src/advisor/actions.ts
   - File: src/dashboard/multi-server.ts
   - Test: src/advisor/__tests__/actions.test.ts — stageAction(input), confirmAction(id, deps), dismissAction(id)
