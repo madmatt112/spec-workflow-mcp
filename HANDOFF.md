@@ -133,6 +133,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-27 | advisor | implementation | tasks 13/19 | design-defect | task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md |
 | 2026-10-27 | advisor | implementation | tasks 19/19 | complete | PR #180 |
 | 2026-10-27 | advisor | retrospective |  | retro-ready | 20 findings, 17 proposals |
+| 2026-10-27 | advisor | closeout | items 17/17 | closed | 5 done, 1 to-do, 11 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1110,3 +1111,13 @@ Gotchas:
 | Verifier-skipped | task 19 (gate-only review, retro P6/P15) |
 | Next | d-b3d7382d log-implementation.test.ts and projectPath.test.ts: 2 tests fail env-coupled (live dashboard on :5000); d-42e16315 log-implementation.test.ts and projectPath.test.ts fail env-coupled (ambient SPEC_WORKFLOW_SHARED_ROOT/WORKSPACE); d-99ea856a project-manager-durable.test.ts: 3 failing tests pre-existing at advisor merge-base |
 | Gotchas | none |
+
+## advisor — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 17/17: 5 done, 1 to-do, 11 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/181 |
+| To-dos | P11: Change already correct at 5d12a086; close-out gate false-positives because itemPaths() reads example path docs/SDD-HARNESS.md from the item prose as the file list, flagging the real target .spec-workflow/agent-rules.md as file-outside-list. No in-scope edit can pass the gate; touching docs/SDD-HARNESS.md would be wrong. Needs a controller/gate fix. |
+| Gotchas | none |
+

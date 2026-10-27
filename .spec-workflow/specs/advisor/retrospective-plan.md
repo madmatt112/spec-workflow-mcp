@@ -1,6 +1,6 @@
 # Retrospective plan — advisor
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-27
 
 ## Approved proposals
