@@ -8,7 +8,8 @@ import type { KnownProject } from '../../controller/state.js';
 import { searchPath, advisorIndexDir } from '../home.js';
 import { search } from '../search/search.js';
 import type { SearchQuery } from '../search/search.js';
-import { waitForIndexing } from '../search/index.js';
+import { refreshIndex, waitForIndexing } from '../search/index.js';
+import type { Embedder } from '../search/embed.js';
 
 // Contract for src/advisor/search/embed.ts, index.ts and search.ts (design.md
 // C6; requirements.md Requirement 4 AC 2, AC 4, AC 5, AC 6, AC 7, NFR
@@ -164,6 +165,15 @@ function writeSearchConfig(url: string): void {
 /** Unit vector whose cosine similarity against [1, 0] is exactly `cosine`. */
 function vec(cosine: number): number[] {
   return [cosine, Math.sqrt(Math.max(0, 1 - cosine * cosine))];
+}
+
+interface OnDiskIndex {
+  model: string;
+  files: Record<string, { chunks: { vector?: string }[] }>;
+}
+
+function readOnDiskIndex(projectId: string): OnDiskIndex {
+  return JSON.parse(readFileSync(join(advisorIndexDir(), `${projectId}.json`), 'utf-8')) as OnDiskIndex;
 }
 
 describe('src/advisor/search/embed.ts, index.ts and search.ts', () => {
@@ -525,5 +535,77 @@ describe('src/advisor/search/embed.ts, index.ts and search.ts', () => {
     const elapsed = Date.now() - started;
 
     expect(elapsed).toBeLessThan(3000);
+  });
+
+  // Design Error Handling #7 (a background embedding job stops and keeps
+  // what it already wrote when the embedder fails, rather than crashing the
+  // host process on an unhandled rejection). Pre-condition: a fake Embedder
+  // whose `embed` throws after the synchronous first-200 calls plus two more
+  // background calls succeed. Test: refreshIndex(embedder) then
+  // waitForIndexing(). Observable result: waitForIndexing resolves (no
+  // unhandled rejection) and the on-disk index has some, but not all,
+  // chunks embedded. Expected value source: design.md Error Handling #7.
+  it('stops and keeps what it already wrote when the embedder fails mid-background-job, without crashing', async () => {
+    const root = projectRoot('sdd-advisor-index-crash-');
+    const total = 210;
+    for (let i = 0; i < total; i++) {
+      writeMd(root, `docs/note-${i}.md`, `# Note ${i}\n\nContent number ${i}.\n`);
+    }
+    const project = makeProject('proj-crash', root);
+    await writeProjects({ v: 1, projects: [project] });
+
+    let calls = 0;
+    const embedder: Embedder = {
+      model: 'fake-model',
+      embed: async (texts: string[]) => {
+        calls += 1;
+        if (calls > 202) throw new Error('embedder unreachable');
+        return texts.map(() => [1, 0]);
+      },
+    };
+
+    await refreshIndex(embedder);
+    await expect(waitForIndexing()).resolves.toBeUndefined();
+
+    const indexed = readOnDiskIndex('proj-crash');
+    const embeddedCount = Object.values(indexed.files).filter((f) => f.chunks[0]?.vector !== undefined).length;
+    expect(embeddedCount).toBeGreaterThan(0);
+    expect(embeddedCount).toBeLessThan(total);
+  });
+
+  // review-9_v1 INFO (index.ts: a no-embedder round forced model: '',
+  // wiping the cached vectors of every project index). Pre-condition: one
+  // project indexed once with a reachable embedder, then refreshed with no
+  // embedder. Test: refreshIndex(null) after refreshIndex(embedder).
+  // Observable result: the on-disk model name and the cached vector both
+  // survive the no-embedder round, and a later round with the same embedder
+  // makes no new embed calls (the cache was never wiped). Expected value
+  // source: design.md C6's cache-reuse rule.
+  it('keeps the cached vectors through a round with no embedder, instead of wiping the index', async () => {
+    const root = projectRoot('sdd-advisor-index-noembed-');
+    writeMd(root, 'docs/guide.md', '# Guide\n\nSome content.\n');
+    const project = makeProject('proj-noembed', root);
+    await writeProjects({ v: 1, projects: [project] });
+
+    let calls = 0;
+    const embedder: Embedder = {
+      model: 'fake-model',
+      embed: async (texts: string[]) => {
+        calls += 1;
+        return texts.map(() => [1, 0]);
+      },
+    };
+
+    await refreshIndex(embedder);
+    expect(calls).toBe(1);
+
+    await refreshIndex(null);
+
+    const afterNoEmbedder = readOnDiskIndex('proj-noembed');
+    expect(afterNoEmbedder.model).toBe('fake-model');
+    expect(afterNoEmbedder.files['docs/guide.md'].chunks[0].vector).toBeDefined();
+
+    await refreshIndex(embedder);
+    expect(calls).toBe(1);
   });
 });
