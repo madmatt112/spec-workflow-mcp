@@ -370,6 +370,11 @@ export class Controller extends EventEmitter {
 
   // --- the usage window ----------------------------------------------------
 
+  /** The controller's own usage-window check, for the second opinion (C7, Requirement 5.5). */
+  usageBlock(): { blocked: boolean; resumeAt?: string } {
+    return this.windowBlock();
+  }
+
   private windowBlock(): { blocked: boolean; resumeAt?: string } {
     const file = readRateLimitSync();
     if (!file) return { blocked: false };

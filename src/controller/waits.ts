@@ -143,7 +143,8 @@ export async function answerWait(
 /**
  * Attach an advisor's second opinion to a wait (§7); the operator still
  * answers. `opinion` is the typed second opinion (C7, Data Models); omit it
- * for a legacy advice-only attach.
+ * for a legacy advice-only attach. Clears a prior `opinionStatus` (C7: "status
+ * cleared"), since fresh advice supersedes it either way.
  */
 export async function attachAdvice(
   id: string,
@@ -155,6 +156,7 @@ export async function attachAdvice(
     if (!record) return undefined;
     record.advice = advice;
     if (opinion) record.opinion = opinion;
+    delete record.opinionStatus;
     await writeWait(record);
     waitEvents.emit('change', record);
     return record;

@@ -34,6 +34,7 @@ import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
 import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
+import { startSecondOpinion } from '../advisor/opinion.js';
 import { registerAdvisorMcp, type AdvisorMcpDeps } from '../advisor/mcp-endpoint.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
@@ -704,6 +705,17 @@ export class MultiProjectDashboardServer {
       const record = await attachAdvice(id, body.advice ?? '');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
       return { ok: true };
+    });
+
+    // Run one second-opinion step on a wait, on the operator's press only (design C7).
+    this.app.post('/api/controller/waits/:id/second-opinion', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await startSecondOpinion(id, { usageBlock: () => this.controller.usageBlock() });
+      if (!result.ok) {
+        if (result.error === 'not-found') return reply.code(404).send({ error: result.error });
+        return reply.code(409).send({ error: result.error, ...(result.reason ? { reason: result.reason } : {}) });
+      }
+      return reply.code(202).send({ ok: true });
     });
 
     // ── Advisor MCP endpoint (design.md C3; Requirement 7 AC 1, AC 3, AC 4) ──
