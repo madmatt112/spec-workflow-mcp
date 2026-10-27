@@ -7,17 +7,26 @@
 // its executor exactly once and logs one `advisor.action` event, `dismissAction`
 // marks it dismissed so a later confirm is refused.
 //
-// `merge`, `deploy` and `launch` have no executor yet: confirming one of those
-// kinds always fails with detail "executor not built" (a bridge task 11 removes).
-import { promises as fs } from 'fs';
+// `merge` answers an open merge wait of a run with this pr, else applies
+// `mergeByRule` with the project's rules forced to `auto` (design D6/D7, C8).
+// `deploy` spawns `scripts/sdd-self-update.sh` detached from the checkout
+// root. `launch` calls the real `launchSpec` (`src/dashboard/multi-server.ts`)
+// through `deps.launchSpec`, so the admission guards it moved out of stay in
+// one place.
+import { promises as fs, openSync, closeSync } from 'fs';
+import { spawn } from 'child_process';
 import { dirname, join } from 'path';
 import { randomBytes } from 'crypto';
 import { EventEmitter } from 'events';
+import { fileURLToPath } from 'url';
 import { advisorActionsDir, appendEvent } from './home.js';
-import { controllerHome, readWait, withStoreLock, writeJsonAtomic, type WaitQuestion } from '../controller/state.js';
+import {
+  controllerHome, listRuns, listWaits, readWait, withStoreLock, writeJsonAtomic, type WaitQuestion,
+} from '../controller/state.js';
 import { answerWait, type ControllerWaitRecord } from '../controller/waits.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
-import { checkpoint } from '../controller/ledger.js';
+import { checkpoint, openRunLedger } from '../controller/ledger.js';
+import { mergeByRule, readMergeRules, type MergeTarget } from '../controller/merge.js';
 import type { DeferralOwner } from '../types.js';
 
 export type ActionKind = 'merge' | 'deploy' | 'launch' | 'answer' | 'deferral' | 'decomposition' | 'backlog';
@@ -51,9 +60,14 @@ export interface StageActionInput {
   conversation: string;
 }
 
+/** What `launchSpec` (`src/dashboard/multi-server.ts`) reports back to the launch executor. */
+export type LaunchSpecResult = { ok: true; runId: string } | { ok: false; error: string };
+
 /** What the server passes a confirm so an executor can resolve a project id to its repo path. */
 export interface ActionDeps {
   projectPath(projectId: string): string;
+  /** The real `launchSpec`, so a confirmed launch goes through its admission guards (AC 9). */
+  launchSpec?(projectId: string, input: Record<string, unknown>): Promise<LaunchSpecResult>;
 }
 
 export type ConfirmResult = { ok: true } | { ok: false; error: string };
@@ -143,6 +157,13 @@ interface ExecResult {
   outcome: string;
   detail?: string;
   error?: string;
+  /** Overrides the stored action's landing state when it is not plain `done`/`failed` (e.g. `refused`). */
+  state?: ActionState;
+}
+
+/** The package root this module runs from (`src/advisor/actions.ts` -> repo root), the same pattern `closeout.ts`'s `packageRoot` uses for `CONTROLLER_HARNESS_REPO`. */
+function packageRoot(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
 
 type Executor = (action: StagedAction, deps: ActionDeps) => Promise<ExecResult>;
@@ -279,9 +300,92 @@ async function execBacklog(action: StagedAction): Promise<ExecResult> {
   return { ok: true, outcome: 'appended to owner-backlog.md' };
 }
 
-/** Bridge for `merge`/`deploy`/`launch`: no executor yet (task 11 removes this). */
-async function execNotBuilt(): Promise<ExecResult> {
-  return { ok: false, outcome: 'failed', detail: 'executor not built', error: 'executor-not-built' };
+/**
+ * `merge` (design C8; AC 6, AC 7, AC 9): a run on `target.project` with
+ * `target.pr` and an open `merge` wait answers that wait with `merge` by
+ * advisor instead of merging directly (D7), outcome `answered-wait`. Else
+ * `mergeByRule` runs against a synthetic ledger rooted at
+ * `advisor/actions/<id>/`, with the project's own merge rules forced to
+ * `auto` (D6): a `merged` status is `ok`, any other status is refused with
+ * the rule's reasons (6.6).
+ */
+async function execMerge(action: StagedAction, deps: ActionDeps): Promise<ExecResult> {
+  const target = action.target as { project?: string; spec?: string; pr?: number };
+  const projectId = target.project ?? '';
+  const spec = target.spec ?? '';
+  const prNumber = Number(target.pr);
+
+  const runs = await listRuns();
+  const run = runs.find((r) => r.project === projectId && r.pr === prNumber);
+  if (run) {
+    const openWaits = (await listWaits({ state: 'open' })) as ControllerWaitRecord[];
+    const wait = openWaits.find((w) => w.kind === 'merge' && w.run === run.id);
+    if (wait) {
+      const questionId = wait.questions[0]?.id ?? 'merge';
+      await answerWait(wait.id, { [questionId]: 'merge' }, 'advisor');
+      return { ok: true, outcome: 'answered-wait' };
+    }
+  }
+
+  const repoDir = deps.projectPath(projectId);
+  const branch = (action.params as { branch?: string }).branch ?? '';
+  const rules = { ...readMergeRules(join(repoDir, '.spec-workflow')), merge: 'auto' as const };
+  const actionDir = join(advisorActionsDir(), action.id);
+  await fs.mkdir(actionDir, { recursive: true });
+  const ledger = openRunLedger({ specDir: actionDir, runId: action.id, spec });
+
+  const mergeTarget: MergeTarget = {
+    pr: { number: prNumber, repoDir, branch },
+    runId: run?.id ?? action.id,
+    projectId,
+    spec,
+    questionId: 'merge',
+    label: `PR #${prNumber}`,
+  };
+  const result = await mergeByRule(mergeTarget, { rules, specDir: actionDir, stepLogDir: actionDir, ledger });
+
+  if (result.status === 'merged') {
+    return { ok: true, outcome: result.reasons.join('; ') };
+  }
+  return { ok: false, outcome: 'refused', detail: result.reasons.join('; '), error: 'refused', state: 'refused' };
+}
+
+/**
+ * `deploy` (design C8): spawn `scripts/sdd-self-update.sh` detached from the
+ * checkout root (`CONTROLLER_HARNESS_REPO`, the same seam `closeout.ts` uses),
+ * its output logged to `advisor/actions/<id>/deploy.log`. The script reports
+ * its own failures; confirming it only proves the spawn, outcome `started`.
+ */
+async function execDeploy(action: StagedAction): Promise<ExecResult> {
+  const checkoutRoot = process.env.CONTROLLER_HARNESS_REPO ?? packageRoot();
+  const scriptPath = join(checkoutRoot, 'scripts', 'sdd-self-update.sh');
+  const actionDir = join(advisorActionsDir(), action.id);
+  await fs.mkdir(actionDir, { recursive: true });
+  const logFd = openSync(join(actionDir, 'deploy.log'), 'a');
+  try {
+    const child = spawn(scriptPath, [], { cwd: checkoutRoot, detached: true, stdio: ['ignore', logFd, logFd] });
+    child.unref();
+  } finally {
+    closeSync(logFd);
+  }
+  return { ok: true, outcome: 'started' };
+}
+
+/**
+ * `launch` (design C8; AC 9): calls the real `launchSpec`
+ * (`src/dashboard/multi-server.ts`) through `deps.launchSpec`, so a confirmed
+ * launch goes through `enqueue`'s admission guards rather than enqueuing
+ * directly.
+ */
+async function execLaunch(action: StagedAction, deps: ActionDeps): Promise<ExecResult> {
+  if (!deps.launchSpec) return { ok: false, outcome: 'failed', detail: 'launchSpec not available', error: 'failed' };
+  const target = action.target as { project?: string; spec?: string };
+  const projectId = target.project ?? '';
+  const input = { spec: target.spec ?? '', ...(action.params as Record<string, unknown>) };
+
+  const result = await deps.launchSpec(projectId, input);
+  if (!result.ok) return { ok: false, outcome: 'failed', detail: result.error, error: result.error };
+  return { ok: true, outcome: `launched ${result.runId}` };
 }
 
 const EXECUTORS: Record<ActionKind, Executor> = {
@@ -289,9 +393,9 @@ const EXECUTORS: Record<ActionKind, Executor> = {
   deferral: execDeferral,
   decomposition: execDecomposition,
   backlog: execBacklog,
-  merge: execNotBuilt,
-  deploy: execNotBuilt,
-  launch: execNotBuilt,
+  merge: execMerge,
+  deploy: execDeploy,
+  launch: execLaunch,
 };
 
 /**
@@ -330,7 +434,7 @@ export async function confirmAction(id: string, deps: ActionDeps): Promise<Confi
     ...(result.detail !== undefined ? { detail: result.detail } : {}),
   });
 
-  action.state = result.ok ? 'done' : 'failed';
+  action.state = result.ok ? 'done' : (result.state ?? 'failed');
   action.outcome = { status: action.state, detail: result.detail !== undefined ? [result.outcome, result.detail] : [result.outcome] };
   await writeAction(action);
 

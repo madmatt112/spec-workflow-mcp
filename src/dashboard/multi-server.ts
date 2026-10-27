@@ -26,7 +26,7 @@ import { SecurityConfig, TddBlock } from '../types.js';
 import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
 import { buildSetupView, validateSetup, readAgentRules } from './harness/run-setup.js';
-import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
+import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
 import { buildUsageRows } from './shell/usage-rows.js';
@@ -68,6 +68,58 @@ export interface MultiDashboardOptions {
   allowExternalAccess?: boolean; // Explicit opt-in for non-localhost binding
   security?: Partial<SecurityConfig>; // Security features configuration
   harness?: { cli?: string; stopGraceMs?: number; pollMs?: number }; // Harness launcher options (C7)
+}
+
+/** The launch route's launchability check (controller-tasks.md T6): the setup view's routed spec, if any, must equal the one asked for. */
+function harnessNotLaunchable(view: SetupView, spec: string): string | null {
+  if (view.launchable === null) {
+    return view.disabledReason ?? 'No spec is launchable.';
+  }
+  if (view.launchable !== spec) {
+    return `The launchable spec is ${view.launchable}, not ${spec}.`;
+  }
+  return null;
+}
+
+export type LaunchSpecResult =
+  | { ok: true; runId: string }
+  | { ok: false; status: 409; error: 'not-launchable' | 'run-live'; reason: string }
+  | { ok: false; status: 400; validationError: ValidationError };
+
+/**
+ * Launch = enqueue (controller-tasks.md T6): the launchability/routed-spec
+ * check stays here; the controller's `enqueue` applies the run-level guards
+ * (one run per spec store, no live run on the project). Called by the launch
+ * route and by `src/advisor/actions.ts`'s launch executor (design C8, AC 9),
+ * so a confirmed advisor launch goes through the same admission guards.
+ */
+export async function launchSpec(
+  project: ProjectContext,
+  input: SetupInput,
+  controller: Controller,
+): Promise<LaunchSpecResult> {
+  const view = await buildSetupView(project);
+
+  const notLaunchable = harnessNotLaunchable(view, input.spec);
+  if (notLaunchable) {
+    return { ok: false, status: 409, error: 'not-launchable', reason: notLaunchable };
+  }
+
+  const validationError = validateSetup(input, view);
+  if (validationError) {
+    return { ok: false, status: 400, validationError };
+  }
+
+  const workflowRoot = join(project.projectPath, '.spec-workflow');
+  // A spec decomposition.md names but nobody has started has no directory yet.
+  mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
+
+  try {
+    const runId = await controller.enqueue({ projectId: project.projectId, spec: input.spec });
+    return { ok: true, runId };
+  } catch (error: any) {
+    return { ok: false, status: 409, error: 'run-live', reason: error?.message || 'could not enqueue' };
+  }
 }
 
 export class MultiProjectDashboardServer {
@@ -612,28 +664,12 @@ export class MultiProjectDashboardServer {
 
       // Launch always records; a headless run cannot answer a gate (Carried R3-minor-2).
       const input: SetupInput = { ...(request.body as SetupInput), gates: 'record' };
-      const view = await buildSetupView(project);
-
-      const notLaunchable = this.harnessNotLaunchable(view, input.spec);
-      if (notLaunchable) {
-        return reply.code(409).send({ error: 'not-launchable', reason: notLaunchable });
+      const result = await launchSpec(project, input, this.controller);
+      if (!result.ok) {
+        if (result.status === 400) return reply.code(400).send(result.validationError);
+        return reply.code(result.status).send({ error: result.error, reason: result.reason });
       }
-
-      const validationError = validateSetup(input, view);
-      if (validationError) {
-        return reply.code(400).send(validationError);
-      }
-
-      const workflowRoot = join(project.projectPath, '.spec-workflow');
-      // A spec decomposition.md names but nobody has started has no directory yet.
-      mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
-
-      try {
-        const runId = await this.controller.enqueue({ projectId, spec: input.spec });
-        return { runId };
-      } catch (error: any) {
-        return reply.code(409).send({ error: 'run-live', reason: error?.message || 'could not enqueue' });
-      }
+      return { runId: result.runId };
     });
 
     // ── Controller wait routes (controller-tasks.md T4; controller-design.md §7) ──
@@ -731,16 +767,6 @@ export class MultiProjectDashboardServer {
    * store with no launchable spec gives its `disabledReason`; a request for any
    * spec other than the launchable one gives a sentence naming both (design C7).
    */
-  private harnessNotLaunchable(view: SetupView, spec: string): string | null {
-    if (view.launchable === null) {
-      return view.disabledReason ?? 'No spec is launchable.';
-    }
-    if (view.launchable !== spec) {
-      return `The launchable spec is ${view.launchable}, not ${spec}.`;
-    }
-    return null;
-  }
-
   private broadcastToAll(message: any) {
     const messageStr = JSON.stringify(message);
     this.clients.forEach((connection) => {
