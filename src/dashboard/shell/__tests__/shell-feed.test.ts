@@ -84,6 +84,18 @@ import type { ShellMessage } from '../types.js';
 //   the bad project's id; console.error was called at least once.
 //   Expected-value source: the fixtures' own project ids, and the literal
 //   "logged" requirement of the _Prompt sentence.
+//
+// Criterion "controller-actions joins the feed as the sixth message" (task
+//   12 _Prompt: "the shell feed sends controller-actions with the action
+//   list"; task 12 Count change: the five-message order becomes six,
+//   controller-actions last):
+//   Pre-condition: a fresh ShellFeed over no projects.
+//   Test: feed.start(), then feed.snapshot().
+//   Observable result: the snapshot's message types are
+//   ['shell-now', 'shell-specs', 'controller-waits', 'controller-runs',
+//   'controller-activity', 'controller-actions'] in that order.
+//   Expected-value source: the task 12 Count change bullet's literal
+//   "five-message order becomes six, controller-actions last".
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -272,7 +284,7 @@ describe('ShellFeed', () => {
     expect(row?.prReads).toEqual(reads);
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity quintet in order after it', async () => {
+  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity/controller-actions sextet in order after it', async () => {
     const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -281,7 +293,7 @@ describe('ShellFeed', () => {
     await feed.start();
     const snap = feed.snapshot();
     expect(snap.map((m) => m.type)).toEqual([
-      'shell-now', 'shell-specs', 'controller-waits', 'controller-runs', 'controller-activity',
+      'shell-now', 'shell-specs', 'controller-waits', 'controller-runs', 'controller-activity', 'controller-actions',
     ]);
   });
 
