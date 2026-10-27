@@ -84,3 +84,8 @@ Cost: implementer
 task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md
 Evidence: task 14 · mark run-20261026-204644 483a8860
 Cost: unknown
+
+## 2026-10-27T13:33:22Z · implementation · task 14 · gotcha
+task 14 closed: 0 fix round(s), outcome gate
+Evidence: task 14 · mark run-20261026-204644 60342b61
+Cost: 1 implementer spawn(s)

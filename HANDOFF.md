@@ -1100,4 +1100,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 13/19, stopped: design-defect — task 14's File list omits src/controller/waits.ts, but the author's test requires attachAdvice to clear opinionStatus — a write only waits.ts's per-wait queue (D19) can safely make — so no implementer edit within the listed files can pass the gate (confirmed across 2 fix rounds); see /tmp/scratchpad/sdd/advisor/impl-notes-task-14-fix-2.md |
+| State | tasks 14/19, last commit 407dc935, next task 15 |

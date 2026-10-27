@@ -141,7 +141,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 7.1, 7.3, 7.4, NFR Security_
   - _Prompt: Task: Implement registerAdvisorMcp per design C3: read tools projects, runs, waits, specs, read_store_file, pr_reads, usage, summary, tallies, search, sources, staged_actions; stage tools stage_merge, stage_deploy, stage_launch, stage_answer, stage_deferral, stage_decomposition, stage_backlog, each needing a non-empty reason and only calling the stage function task 10 exports; conversation id from the x-sdd-conversation header, else unknown | Restrictions: No tool executes an action (7.3); read_store_file applies realpath and returns the tool error "path outside the spec store" with no content for any result outside the project's .spec-workflow/, .. and symlinks included (7.4); use the SDK transport design C3 probed on 1.27.1 | Success: mcp-endpoint.test.ts over a scratch server proves ListTools returns every tool above, summary returns the summary shape, stage_merge without a reason fails, stage_merge with one creates a staged action carrying the header conversation id and merges nothing, and read_store_file refuses a .. path and a symlink out_
 
-- [ ] 14. Second opinion
+- [x] 14. Second opinion
   - File: src/advisor/opinion.ts
   - File: src/controller/controller.ts
   - File: src/controller/waits.ts — attachAdvice clears opinionStatus inside the per-wait queue (C7, D19)
