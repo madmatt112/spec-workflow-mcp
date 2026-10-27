@@ -5,7 +5,7 @@ import { useShell } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
-import type { Wait, ControllerWait, ControllerRun } from './types';
+import type { Wait, ControllerWait, ControllerRun, StagedAction } from './types';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -14,6 +14,11 @@ const KIND_LABELS: Record<string, string> = {
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
   merge: 'Merge', escalation: 'Escalation', error: 'Error', question: 'Question',
+};
+
+const STAGED_KIND_LABELS: Record<StagedAction['kind'], string> = {
+  merge: 'Merge', deploy: 'Deploy', launch: 'Launch', answer: 'Answer',
+  deferral: 'Deferral', decomposition: 'Decomposition', backlog: 'Backlog',
 };
 
 /** Controller run statuses that count as queued-or-live on the Now page. */
@@ -91,10 +96,165 @@ function Age({ value }: { value: string | null }) {
   return <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{value}</span>;
 }
 
+/** One-line target of a staged action, built from whichever fields it has. */
+function actionTarget(action: StagedAction): string {
+  const t = action.target as { project?: string; spec?: string; pr?: number; wait?: string };
+  const parts = [t.project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+/** Opens (or reports) the operator's advisor conversation (design C10, C12). */
+function OpenAdvisorButton() {
+  const [opening, setOpening] = useState(false);
+  const [result, setResult] = useState<{ state: 'live'; name: string } | { state: 'command'; command: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function open() {
+    setOpening(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/controller/advisor/open', { method: 'POST' });
+      if (!res.ok) throw new Error(`open failed (${res.status})`);
+      setResult(await res.json());
+    } catch (e: any) {
+      setError(e?.message ?? 'open failed');
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={open}
+        disabled={opening}
+        data-testid="open-advisor"
+        className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+      >
+        {'Open advisor'}
+      </button>
+      {result && (
+        <span className="min-w-0 truncate text-xs text-[var(--text-muted)]">
+          {result.state === 'live' ? result.name : result.command}
+        </span>
+      )}
+      {error && <span className="text-xs text-[var(--accent-danger,#dc2626)]">{error}</span>}
+    </div>
+  );
+}
+
+/** One staged advisor action (design C8, C12): Confirm runs it, Dismiss drops it. */
+function StagedActionCard({ action }: { action: StagedAction }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function act(path: 'confirm' | 'dismiss') {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/actions/${action.id}/${path}`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as { error?: string }));
+        throw new Error(body?.error ?? `${path} failed (${res.status})`);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? `${path} failed`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-md border border-[var(--border-default)] p-2 text-sm"
+      data-testid={`staged-action-${action.id}`}
+    >
+      <div className="flex items-center gap-2">
+        <KindBadge label={STAGED_KIND_LABELS[action.kind] ?? action.kind} />
+        <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{actionTarget(action)}</span>
+        <span className="shrink-0 text-xs text-[var(--text-muted)]">{action.state}</span>
+      </div>
+      <p className="mt-1 whitespace-pre-wrap text-[var(--text-secondary)]">{action.reason}</p>
+      <p className="mt-0.5 text-xs text-[var(--text-muted)]">{action.conversation}</p>
+      {action.outcome && (
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+          {action.outcome.status}
+          {action.outcome.detail.length > 0 ? ` — ${action.outcome.detail.join('; ')}` : ''}
+        </p>
+      )}
+      {action.state === 'staged' && (
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => act('confirm')}
+            disabled={busy}
+            data-testid={`action-confirm-${action.id}`}
+            className="rounded-md bg-[var(--accent-primary,#2563eb)] px-2 py-1 text-xs font-medium text-white disabled:opacity-40 hover:opacity-90"
+          >
+            {'Confirm'}
+          </button>
+          <button
+            type="button"
+            onClick={() => act('dismiss')}
+            disabled={busy}
+            data-testid={`action-dismiss-${action.id}`}
+            className="rounded-md border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+          >
+            {'Dismiss'}
+          </button>
+        </div>
+      )}
+      {error && <p className="mt-1 text-xs text-[var(--accent-danger,#dc2626)]">{error}</p>}
+    </div>
+  );
+}
+
+/** "Second opinion" on an open wait (design C7, C12): disabled while running. */
+function SecondOpinionButton({ wait }: { wait: ControllerWait }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const running = wait.opinionStatus?.state === 'running';
+  const failureReason = wait.opinionStatus?.state === 'failed' ? wait.opinionStatus.reason : undefined;
+
+  async function press() {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/waits/${wait.id}/second-opinion`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({} as { error?: string; reason?: string }));
+        throw new Error(body?.reason ?? body?.error ?? `second opinion failed (${res.status})`);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'second opinion failed');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={press}
+        disabled={running || pending}
+        data-testid="second-opinion"
+        className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+      >
+        {'Second opinion'}
+      </button>
+      {(failureReason || error) && (
+        <span className="min-w-0 text-xs text-[var(--accent-danger,#dc2626)]">{failureReason ?? error}</span>
+      )}
+    </div>
+  );
+}
+
 export function NowPage() {
   const navigate = useNavigate();
   const { enabled, projects } = useProjects();
-  const { now, controllerWaits, controllerRuns } = useShell();
+  const { now, controllerWaits, controllerRuns, controllerActions } = useShell();
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tick, setTick] = useState(Date.now());
@@ -148,6 +308,20 @@ export function NowPage() {
 
   const list = (
     <div>
+      <OpenAdvisorButton />
+
+      <Group name="now-actions" title={'Staged by the advisor'} count={controllerActions.length}>
+        {controllerActions.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'Nothing staged.'}</p>
+        ) : (
+          <div className="space-y-2 px-2 py-1.5">
+            {controllerActions.map((a) => (
+              <StagedActionCard key={a.id} action={a} />
+            ))}
+          </div>
+        )}
+      </Group>
+
       <Group name="now-waits" title={'Waiting on you'} count={waitCount}>
         {waitCount === 0 ? (
           <p className="px-2 py-1.5 text-sm text-[var(--text-muted)]">{'Nothing waiting on you.'}</p>
@@ -382,7 +556,9 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
     wait.kind === 'gate-b' ? 'Gate B' :
     CTRL_KIND_LABELS[wait.kind] ?? wait.kind;
 
-  const questionFields = wait.questions.map((q) => (
+  const questionFields = wait.questions.map((q) => {
+    const pick = wait.opinion?.picks.find((p) => p.question === q.id);
+    return (
     <div key={q.id}>
       <p className="mb-1 whitespace-normal break-words text-sm font-medium text-[var(--text-primary)]">{q.text}</p>
       {!q.free && q.options && q.options.length > 0 ? (
@@ -411,8 +587,15 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
         />
       )}
       {q.reason && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{q.reason}</p>}
+      {pick && (
+        <p className="mt-1 text-xs text-[var(--text-secondary)]" data-testid={`opinion-pick-${q.id}`}>
+          <span className="font-medium text-[var(--text-primary)]">{'Advisor pick: '}{pick.pick}</span>
+          {' — '}{pick.reason}
+        </p>
+      )}
     </div>
-  ));
+    );
+  });
 
   let body: React.ReactNode;
   let footer: React.ReactNode;
@@ -531,7 +714,12 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
       <SheetHeader wait={wait} projectName={projectName} title={title} />
       <div className="space-y-4 border-t border-[var(--border-default)] pt-3">
         {body}
-        <DetailText heading={'Advice'} body={wait.advice} />
+        <SecondOpinionButton wait={wait} />
+        {wait.opinion ? (
+          <DetailText heading={'Opinion'} body={wait.opinion.summary} />
+        ) : (
+          <DetailText heading={'Advice'} body={wait.advice} />
+        )}
         {error && <p className="text-sm text-[var(--accent-danger,#dc2626)]">{error}</p>}
         <div className="flex items-center gap-3">{footer}</div>
       </div>

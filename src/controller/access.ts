@@ -17,14 +17,24 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { controllerHome } from './state.js';
 
 const SECRET_FILE = 'secret';
+const ADVISOR_SECRET_FILE = 'advisor-secret';
 const COOKIE_NAME = 'sdd_session';
 
-/** The secret file, keyed by home so a per-home test resolves its own secret. */
+/** The path under which the advisor's MCP endpoint is mounted; the advisor
+ *  secret authorizes exactly this path and nothing else. */
+export const ADVISOR_MCP_PATH = '/api/controller/advisor/mcp';
+
+/** The secret file, keyed by path so a per-home test resolves its own secret. */
 const secretCache = new Map<string, string>();
 
 /** The shared secret's path: the file `secret` in the controller home. */
 export function secretPath(): string {
   return join(controllerHome(), SECRET_FILE);
+}
+
+/** The advisor secret's path: the file `advisor-secret` in the controller home. */
+export function advisorSecretPath(): string {
+  return join(controllerHome(), ADVISOR_SECRET_FILE);
 }
 
 /** Clear the in-process secret cache. Tests swap the home between cases. */
@@ -37,8 +47,7 @@ export function _resetSecretCacheForTests(): void {
  * written mode 0600. Cached for the process. A concurrent creator is tolerated:
  * the exclusive write loses the race and the file is re-read.
  */
-export async function loadOrCreateSecret(): Promise<string> {
-  const path = secretPath();
+async function loadOrCreateSecretAt(path: string): Promise<string> {
   const cached = secretCache.get(path);
   if (cached) return cached;
 
@@ -64,6 +73,16 @@ export async function loadOrCreateSecret(): Promise<string> {
     secretCache.set(path, existing);
     return existing;
   }
+}
+
+export async function loadOrCreateSecret(): Promise<string> {
+  return loadOrCreateSecretAt(secretPath());
+}
+
+/** The advisor secret: created the same way as the operator secret, in its
+ *  own file, so the two never collide. */
+export async function loadOrCreateAdvisorSecret(): Promise<string> {
+  return loadOrCreateSecretAt(advisorSecretPath());
 }
 
 /** True for any 127.0.0.0/8 or IPv6 loopback address (incl. IPv4-mapped). */
@@ -143,6 +162,13 @@ function tokenAuthorized(request: FastifyRequest, secret: string): boolean {
   return typeof token === 'string' && constantTimeEqual(token, secret);
 }
 
+/** A valid `Authorization: Bearer <secret>` header; no cookie, no query token. */
+function bearerAuthorized(request: FastifyRequest, secret: string): boolean {
+  const auth = request.headers['authorization'];
+  return typeof auth === 'string' && auth.startsWith('Bearer ') &&
+    constantTimeEqual(auth.slice('Bearer '.length), secret);
+}
+
 function pathOf(request: FastifyRequest): string {
   return (request.url || '').split('?')[0];
 }
@@ -152,8 +178,12 @@ function pathOf(request: FastifyRequest): string {
  * for every mutating request, for every request under `/api/controller/`, and
  * for every request from a non-loopback address, and exempts the endpoints and
  * static assets the login box needs. A rejected request gets 401 JSON.
+ *
+ * The optional advisor secret, when given, additionally authorizes a bearer
+ * request to exactly `ADVISOR_MCP_PATH` — nowhere else, and only via the
+ * bearer header (never a cookie or the `/ws` query token).
  */
-export function makeRequireAccess(secret: string) {
+export function makeRequireAccess(secret: string, advisorSecret?: string) {
   return async function requireAccess(request: FastifyRequest, reply: FastifyReply) {
     const method = request.method.toUpperCase();
     const path = pathOf(request);
@@ -173,6 +203,7 @@ export function makeRequireAccess(secret: string) {
     // Everything else needs the secret.
     if (isAuthorized(request, secret)) return;
     if (path === '/ws' && tokenAuthorized(request, secret)) return;
+    if (path === ADVISOR_MCP_PATH && advisorSecret !== undefined && bearerAuthorized(request, advisorSecret)) return;
 
     reply.code(401).send({ error: 'unauthorized' });
     return reply;
@@ -186,10 +217,12 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * Call it before the static, WebSocket and API routes are registered so the
  * hook covers them. `POST /api/login` takes `{ secret }`, compares it in
  * constant time, sets the session cookie and answers 204; a wrong secret waits
- * one second and answers 401. `POST /api/logout` clears the cookie.
+ * one second and answers 401. `POST /api/logout` clears the cookie. The
+ * optional advisor secret only ever authorizes `ADVISOR_MCP_PATH` — login
+ * keeps comparing against the operator secret alone.
  */
-export function installAccessControl(app: FastifyInstance, secret: string): void {
-  app.addHook('onRequest', makeRequireAccess(secret));
+export function installAccessControl(app: FastifyInstance, secret: string, advisorSecret?: string): void {
+  app.addHook('onRequest', makeRequireAccess(secret, advisorSecret));
 
   app.post('/api/login', async (request, reply) => {
     const body = (request.body ?? {}) as { secret?: unknown };

@@ -26,6 +26,8 @@ import {
   type WaitQuestion,
   type WaitAnswer,
   type WaitKind,
+  type WaitOpinion,
+  type WaitOpinionStatus,
 } from './state.js';
 
 /**
@@ -60,6 +62,27 @@ export interface CreateWaitInput {
  */
 export const waitEvents = new EventEmitter();
 
+/**
+ * One in-process promise queue per wait id (design C7 "Wait writes", D19), so
+ * `answerWait`, `attachAdvice` and `setOpinionStatus` never interleave a
+ * read-then-write on the same id and an advice write never overwrites an
+ * answer read before it.
+ */
+const writeQueues = new Map<string, Promise<unknown>>();
+
+function enqueueWaitWrite<T>(id: string, run: () => Promise<T>): Promise<T> {
+  const previous = writeQueues.get(id) ?? Promise.resolve();
+  const next = previous.then(run, run);
+  writeQueues.set(
+    id,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
+}
+
 /** Open a wait: write the record (`state: open`, id `w-<8 hex>`) and emit. */
 export async function createWait(input: CreateWaitInput): Promise<ControllerWaitRecord> {
   const record: ControllerWaitRecord = {
@@ -92,37 +115,72 @@ export async function answerWait(
   answers: Record<string, string>,
   by: string,
 ): Promise<ControllerWaitRecord | undefined> {
-  const record = (await readWait(id)) as ControllerWaitRecord | undefined;
-  if (!record) return undefined;
+  return enqueueWaitWrite(id, async () => {
+    const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+    if (!record) return undefined;
 
-  const now = new Date().toISOString();
-  const answer: Record<string, WaitAnswer> = { ...(record.answer ?? {}) };
-  for (const [questionId, value] of Object.entries(answers)) {
-    answer[questionId] = { value, by, answered: now };
-  }
-  record.answer = answer;
-  record.state = 'answered';
-  await writeWait(record);
-
-  if (record.kind !== 'retro-plan') {
-    if (record.kind === 'gate-a' || record.kind === 'gate-b') {
-      await renderQuestionsMd(record);
+    const now = new Date().toISOString();
+    const answer: Record<string, WaitAnswer> = { ...(record.answer ?? {}) };
+    for (const [questionId, value] of Object.entries(answers)) {
+      answer[questionId] = { value, by, answered: now };
     }
-    await appendNote(record, by);
-  }
+    record.answer = answer;
+    record.state = 'answered';
+    await writeWait(record);
 
-  waitEvents.emit('change', record);
-  return record;
+    if (record.kind !== 'retro-plan') {
+      if (record.kind === 'gate-a' || record.kind === 'gate-b') {
+        await renderQuestionsMd(record);
+      }
+      await appendNote(record, by);
+    }
+
+    waitEvents.emit('change', record);
+    return record;
+  });
 }
 
-/** Attach an advisor's second opinion to a wait (§7); the operator still answers. */
-export async function attachAdvice(id: string, advice: string): Promise<ControllerWaitRecord | undefined> {
-  const record = (await readWait(id)) as ControllerWaitRecord | undefined;
-  if (!record) return undefined;
-  record.advice = advice;
-  await writeWait(record);
-  waitEvents.emit('change', record);
-  return record;
+/**
+ * Attach an advisor's second opinion to a wait (§7); the operator still
+ * answers. `opinion` is the typed second opinion (C7, Data Models); omit it
+ * for a legacy advice-only attach. Clears a prior `opinionStatus` (C7: "status
+ * cleared"), since fresh advice supersedes it either way.
+ */
+export async function attachAdvice(
+  id: string,
+  advice: string,
+  opinion?: WaitOpinion,
+): Promise<ControllerWaitRecord | undefined> {
+  return enqueueWaitWrite(id, async () => {
+    const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+    if (!record) return undefined;
+    record.advice = advice;
+    if (opinion) record.opinion = opinion;
+    delete record.opinionStatus;
+    await writeWait(record);
+    waitEvents.emit('change', record);
+    return record;
+  });
+}
+
+/** Set a wait's second-opinion run progress (C7, Data Models). */
+export async function setOpinionStatus(
+  id: string,
+  status: { state: 'running' | 'failed'; reason?: string },
+): Promise<ControllerWaitRecord | undefined> {
+  return enqueueWaitWrite(id, async () => {
+    const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+    if (!record) return undefined;
+    const opinionStatus: WaitOpinionStatus = {
+      state: status.state,
+      at: new Date().toISOString(),
+      ...(status.reason !== undefined ? { reason: status.reason } : {}),
+    };
+    record.opinionStatus = opinionStatus;
+    await writeWait(record);
+    waitEvents.emit('change', record);
+    return record;
+  });
 }
 
 /** Open waits, newest first. */

@@ -5,6 +5,7 @@ import fastifyCors from '@fastify/cors';
 import { join, dirname, resolve, isAbsolute } from 'path';
 import { readFile } from 'fs/promises';
 import { promises as fs, mkdirSync } from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
@@ -26,18 +27,23 @@ import { SecurityConfig, TddBlock } from '../types.js';
 import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
 import { buildSetupView, validateSetup, readAgentRules } from './harness/run-setup.js';
-import type { HarnessMessage, SetupInput, SetupView } from './harness/types.js';
+import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
 import { buildUsageRows } from './shell/usage-rows.js';
 import { FileCache } from './shell/file-cache.js';
 import type { ShellMessage } from './shell/types.js';
 import { answerWait, attachAdvice, listWaitsForWire, type ControllerWaitRecord } from '../controller/waits.js';
+import { checkAnswerKeys, listActions, confirmAction, dismissAction, type ActionDeps } from '../advisor/actions.js';
+import { startSecondOpinion } from '../advisor/opinion.js';
+import { registerAdvisorMcp, type AdvisorMcpDeps } from '../advisor/mcp-endpoint.js';
+import { openAdvisorSession } from '../advisor/cli.js';
+import { WaitPusher } from '../advisor/push.js';
 import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit, readWait } from '../controller/state.js';
-import { installAccessControl, loadOrCreateSecret, secretPath } from '../controller/access.js';
+import { installAccessControl, loadOrCreateSecret, loadOrCreateAdvisorSecret, secretPath } from '../controller/access.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,12 +75,65 @@ export interface MultiDashboardOptions {
   harness?: { cli?: string; stopGraceMs?: number; pollMs?: number }; // Harness launcher options (C7)
 }
 
+/** The launch route's launchability check (controller-tasks.md T6): the setup view's routed spec, if any, must equal the one asked for. */
+function harnessNotLaunchable(view: SetupView, spec: string): string | null {
+  if (view.launchable === null) {
+    return view.disabledReason ?? 'No spec is launchable.';
+  }
+  if (view.launchable !== spec) {
+    return `The launchable spec is ${view.launchable}, not ${spec}.`;
+  }
+  return null;
+}
+
+export type LaunchSpecResult =
+  | { ok: true; runId: string }
+  | { ok: false; status: 409; error: 'not-launchable' | 'run-live'; reason: string }
+  | { ok: false; status: 400; validationError: ValidationError };
+
+/**
+ * Launch = enqueue (controller-tasks.md T6): the launchability/routed-spec
+ * check stays here; the controller's `enqueue` applies the run-level guards
+ * (one run per spec store, no live run on the project). Called by the launch
+ * route and by `src/advisor/actions.ts`'s launch executor (design C8, AC 9),
+ * so a confirmed advisor launch goes through the same admission guards.
+ */
+export async function launchSpec(
+  project: ProjectContext,
+  input: SetupInput,
+  controller: Controller,
+): Promise<LaunchSpecResult> {
+  const view = await buildSetupView(project);
+
+  const notLaunchable = harnessNotLaunchable(view, input.spec);
+  if (notLaunchable) {
+    return { ok: false, status: 409, error: 'not-launchable', reason: notLaunchable };
+  }
+
+  const validationError = validateSetup(input, view);
+  if (validationError) {
+    return { ok: false, status: 400, validationError };
+  }
+
+  const workflowRoot = join(project.projectPath, '.spec-workflow');
+  // A spec decomposition.md names but nobody has started has no directory yet.
+  mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
+
+  try {
+    const runId = await controller.enqueue({ projectId: project.projectId, spec: input.spec });
+    return { ok: true, runId };
+  } catch (error: any) {
+    return { ok: false, status: 409, error: 'run-live', reason: error?.message || 'could not enqueue' };
+  }
+}
+
 export class MultiProjectDashboardServer {
   private app: FastifyInstance;
   private projectManager: ProjectManager;
   private sessionManager: DashboardSessionManager;
   private harnessHub: HarnessHub;
   private controller: Controller;
+  private waitPusher?: WaitPusher;
   private options: MultiDashboardOptions;
   private bindAddress: string;
   private allowExternalAccess: boolean;
@@ -228,7 +287,8 @@ export class MultiProjectDashboardServer {
     // login/logout routes are installed before every other route so the hook
     // covers the static assets, the WebSocket upgrade and the API.
     const secret = await loadOrCreateSecret();
-    installAccessControl(this.app, secret);
+    const advisorSecret = await loadOrCreateAdvisorSecret();
+    installAccessControl(this.app, secret, advisorSecret);
     console.error(`🔐 Access: dashboard bound to ${this.bindAddress}; shared secret in ${secretPath()}`);
 
     // Register plugins
@@ -337,8 +397,14 @@ export class MultiProjectDashboardServer {
 
     // Start the controller: acquire its lock, recover in-flight runs, subscribe
     // to wait answers, and start the scheduler (controller-tasks.md T6, §8).
+    // The wait pusher (design C11) runs only alongside the controller that
+    // holds the lock, so there is one pusher.
     try {
-      await this.controller.start();
+      const tookLock = await this.controller.start();
+      if (tookLock) {
+        this.waitPusher = new WaitPusher();
+        await this.waitPusher.start();
+      }
     } catch (error) {
       console.error('Failed to start the controller:', error);
     }
@@ -611,28 +677,12 @@ export class MultiProjectDashboardServer {
 
       // Launch always records; a headless run cannot answer a gate (Carried R3-minor-2).
       const input: SetupInput = { ...(request.body as SetupInput), gates: 'record' };
-      const view = await buildSetupView(project);
-
-      const notLaunchable = this.harnessNotLaunchable(view, input.spec);
-      if (notLaunchable) {
-        return reply.code(409).send({ error: 'not-launchable', reason: notLaunchable });
+      const result = await launchSpec(project, input, this.controller);
+      if (!result.ok) {
+        if (result.status === 400) return reply.code(400).send(result.validationError);
+        return reply.code(result.status).send({ error: result.error, reason: result.reason });
       }
-
-      const validationError = validateSetup(input, view);
-      if (validationError) {
-        return reply.code(400).send(validationError);
-      }
-
-      const workflowRoot = join(project.projectPath, '.spec-workflow');
-      // A spec decomposition.md names but nobody has started has no directory yet.
-      mkdirSync(join(workflowRoot, 'specs', input.spec), { recursive: true });
-
-      try {
-        const runId = await this.controller.enqueue({ projectId, spec: input.spec });
-        return { runId };
-      } catch (error: any) {
-        return reply.code(409).send({ error: 'run-live', reason: error?.message || 'could not enqueue' });
-      }
+      return { runId: result.runId };
     });
 
     // ── Controller wait routes (controller-tasks.md T4; controller-design.md §7) ──
@@ -650,11 +700,9 @@ export class MultiProjectDashboardServer {
       // An answer under a key the wait never asked is stored but never read, so
       // the run stays parked: refuse it (a merge wait asks `merge:<repo>#<n>`).
       const existing = (await readWait(id)) as ControllerWaitRecord | undefined;
-      const asked = new Set((existing?.questions ?? []).map((q) => q.id));
-      (existing?.proposals ?? []).forEach((_, i) => asked.add(`proposal:${i}`));
-      const unknown = asked.size > 0 ? Object.keys(body.answers ?? {}).filter((k) => !asked.has(k)) : [];
-      if (unknown.length > 0) {
-        return reply.code(400).send({ error: 'unknown-question', unknown, expected: [...asked] });
+      const check = checkAnswerKeys(existing, body.answers ?? {});
+      if (check) {
+        return reply.code(400).send({ error: 'unknown-question', unknown: check.unknown, expected: check.expected });
       }
       const record = await answerWait(id, body.answers ?? {}, body.by ?? 'operator');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
@@ -667,6 +715,79 @@ export class MultiProjectDashboardServer {
       const body = (request.body ?? {}) as { advice?: string };
       const record = await attachAdvice(id, body.advice ?? '');
       if (!record) return reply.code(404).send({ error: 'wait-not-found' });
+      return { ok: true };
+    });
+
+    // Run one second-opinion step on a wait, on the operator's press only (design C7).
+    this.app.post('/api/controller/waits/:id/second-opinion', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await startSecondOpinion(id, { usageBlock: () => this.controller.usageBlock() });
+      if (!result.ok) {
+        if (result.error === 'not-found') return reply.code(404).send({ error: result.error });
+        return reply.code(409).send({ error: result.error, ...(result.reason ? { reason: result.reason } : {}) });
+      }
+      return reply.code(202).send({ ok: true });
+    });
+
+    // ── Advisor MCP endpoint (design.md C3; Requirement 7 AC 1, AC 3, AC 4) ──
+    const advisorMcpDeps: AdvisorMcpDeps = {
+      projectRoot: (projectId: string) => this.projectManager.getProject(projectId)?.workflowRootPath,
+    };
+    registerAdvisorMcp(this.app, advisorMcpDeps);
+
+    // Open (or report) the operator's advisor conversation (design.md C10;
+    // Requirement 1 AC 3, AC 4). Operator credential: no access exemption.
+    this.app.post('/api/controller/advisor/open', async () => {
+      return openAdvisorSession({
+        spawnDetached: () =>
+          spawn('spec-workflow-mcp', ['advisor', '--remote-control'], { detached: true, stdio: 'ignore' }),
+      });
+    });
+
+    // ── Controller action routes (design.md C8; Requirement 6 AC 2-4) ──
+    // No access exemption added: the advisor bearer only ever authorizes
+    // ADVISOR_MCP_PATH (src/controller/access.ts), so it already gets 401
+    // here (AC 4) under the same global hook as every route above.
+
+    this.app.get('/api/controller/actions', async () => {
+      return { actions: await listActions() };
+    });
+
+    const actionDeps: ActionDeps = {
+      projectPath: (projectId: string) => {
+        const project = this.projectManager.getProject(projectId);
+        if (!project) throw new Error(`project not found: ${projectId}`);
+        return project.workspacePath;
+      },
+      launchSpec: async (projectId: string, input: Record<string, unknown>) => {
+        const project = this.projectManager.getProject(projectId);
+        if (!project) return { ok: false, error: 'project-not-found' };
+        // Headless, like the browser launch route (line ~666): force record mode.
+        const result = await launchSpec(project, { ...(input as unknown as SetupInput), gates: 'record' }, this.controller);
+        if (!result.ok) {
+          return { ok: false, error: result.status === 400 ? JSON.stringify(result.validationError) : result.error };
+        }
+        return { ok: true, runId: result.runId };
+      },
+    };
+
+    // Confirm a staged action: runs its executor exactly once (AC 3); 409 on
+    // anything not `staged` (design C8).
+    this.app.post('/api/controller/actions/:id/confirm', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await confirmAction(id, actionDeps);
+      if (!result.ok && result.error === 'not-staged') return reply.code(409).send({ error: 'not-staged' });
+      return result;
+    });
+
+    // Dismiss a staged action: it never runs (AC 3); 409 on anything not `staged`.
+    this.app.post('/api/controller/actions/:id/dismiss', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const actions = await listActions();
+      const action = actions.find((a) => a.id === id);
+      if (!action) return reply.code(404).send({ error: 'action-not-found' });
+      if (action.state !== 'staged') return reply.code(409).send({ error: 'not-staged' });
+      await dismissAction(id);
       return { ok: true };
     });
 
@@ -732,16 +853,6 @@ export class MultiProjectDashboardServer {
    * store with no launchable spec gives its `disabledReason`; a request for any
    * spec other than the launchable one gives a sentence naming both (design C7).
    */
-  private harnessNotLaunchable(view: SetupView, spec: string): string | null {
-    if (view.launchable === null) {
-      return view.disabledReason ?? 'No spec is launchable.';
-    }
-    if (view.launchable !== spec) {
-      return `The launchable spec is ${view.launchable}, not ${spec}.`;
-    }
-    return null;
-  }
-
   private broadcastToAll(message: any) {
     const messageStr = JSON.stringify(message);
     this.clients.forEach((connection) => {
@@ -866,6 +977,8 @@ export class MultiProjectDashboardServer {
     this.harnessHub.close();
 
     // Release the controller lock and stop its scheduler; runs survive (§8).
+    this.waitPusher?.stop();
+    this.waitPusher = undefined;
     try {
       await this.controller.stop();
     } catch (error) {

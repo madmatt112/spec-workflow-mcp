@@ -159,6 +159,20 @@ export interface WaitAnswer {
   answered: string;
 }
 
+/** The advisor's typed second opinion (C7, Data Models). */
+export interface WaitOpinion {
+  picks: { question: string; pick: string; reason: string }[];
+  summary: string;
+}
+
+/** The second-opinion run's progress on a wait (C7, Data Models). */
+export interface WaitOpinionStatus {
+  state: 'running' | 'failed';
+  /** ISO. */
+  at: string;
+  reason?: string;
+}
+
 /** `waits/<id>.json`: a run's request for the operator (§7). */
 export interface WaitRecord {
   v: 1;
@@ -174,6 +188,10 @@ export interface WaitRecord {
   answer?: Record<string, WaitAnswer>;
   /** Optional second opinion from an advisor step. */
   advice?: string;
+  /** The typed second opinion the advisor attached, alongside `advice`. */
+  opinion?: WaitOpinion;
+  /** The second-opinion run's progress; cleared once the opinion attaches. */
+  opinionStatus?: WaitOpinionStatus;
   state: WaitState;
 }
 
@@ -295,7 +313,7 @@ function storeLockPath(specStoreRoot: string): string {
 let tmpCounter = 0;
 
 /** Write JSON atomically: a temp file in the same directory, then rename. */
-async function writeJsonAtomic(path: string, data: unknown): Promise<void> {
+export async function writeJsonAtomic(path: string, data: unknown): Promise<void> {
   await fs.mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.${tmpCounter++}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(data, null, 2) + '\n', 'utf-8');

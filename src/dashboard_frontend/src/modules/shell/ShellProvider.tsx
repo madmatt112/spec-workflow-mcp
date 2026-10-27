@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useWs } from '../ws/WebSocketProvider';
 import { useProjects } from '../projects/ProjectProvider';
-import type { NowModel, SpecListRow, ControllerWait, ControllerRun, ControllerActivity } from './types';
+import type { NowModel, SpecListRow, ControllerWait, ControllerRun, ControllerActivity, StagedAction } from './types';
 
 export type Density = 'comfortable' | 'compact';
 
@@ -25,6 +25,7 @@ interface ShellContextType {
   controllerWaits: ControllerWait[];
   controllerRuns: ControllerRun[];
   controllerActivity: ControllerActivity[];
+  controllerActions: StagedAction[];
   deferralsByProject: Record<string, DeferralsPayload>;
   connected: boolean;
   density: Density;
@@ -62,6 +63,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [controllerWaits, setControllerWaits] = useState<ControllerWait[]>([]);
   const [controllerRuns, setControllerRuns] = useState<ControllerRun[]>([]);
   const [controllerActivity, setControllerActivity] = useState<ControllerActivity[]>([]);
+  const [controllerActions, setControllerActions] = useState<StagedAction[]>([]);
   const [deferralsByProject, setDeferralsByProject] = useState<Record<string, DeferralsPayload>>({});
   const [density, setDensityState] = useState<Density>(() => readDensity());
 
@@ -93,6 +95,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     const onControllerRuns = (data: { runs: ControllerRun[] }) => setControllerRuns(data?.runs ?? []);
     const onControllerActivity = (data: { activity: ControllerActivity[] }) =>
       setControllerActivity(data?.activity ?? []);
+    const onControllerActions = (data: { actions: StagedAction[] }) =>
+      setControllerActions(data?.actions ?? []);
     const onDeferrals = (data: DeferralsPayload, projectId?: string) => {
       if (projectId) setDeferralsByProject((prev) => ({ ...prev, [projectId]: data }));
     };
@@ -101,6 +105,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     subscribe('controller-waits', onControllerWaits);
     subscribe('controller-runs', onControllerRuns);
     subscribe('controller-activity', onControllerActivity);
+    subscribe('controller-actions', onControllerActions);
     subscribe('deferrals-update', onDeferrals);
     const release = watchView({ kind: 'overview' });
     return () => {
@@ -110,6 +115,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       unsubscribe('controller-waits', onControllerWaits);
       unsubscribe('controller-runs', onControllerRuns);
       unsubscribe('controller-activity', onControllerActivity);
+      unsubscribe('controller-actions', onControllerActions);
       unsubscribe('deferrals-update', onDeferrals);
     };
   }, [subscribe, unsubscribe, watchView]);
@@ -147,11 +153,12 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     controllerWaits,
     controllerRuns,
     controllerActivity,
+    controllerActions,
     deferralsByProject,
     connected,
     density,
     setDensity
-  }), [now, specRows, controllerWaits, controllerRuns, controllerActivity, deferralsByProject, connected, density, setDensity]);
+  }), [now, specRows, controllerWaits, controllerRuns, controllerActivity, controllerActions, deferralsByProject, connected, density, setDensity]);
 
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }

@@ -255,6 +255,20 @@ project-level and persist across specs, so they survive after the current spec i
 archived. Review open deferrals at the start of new work, and surface unresolved ones
 when planning.
 
+### The Advisor
+
+The harness runs an optional advisor: one model you talk to about any project, the
+harness itself, or an outside source you name in `sources.json`. Open it from the
+dashboard's "Open advisor" button, or run `spec-workflow-mcp advisor` (`sdd advisor` if
+you have that alias set). Press "Second opinion" on a wait for a one-shot read of just
+that wait.
+
+The advisor never changes shared state directly. A merge, a deploy, a launch or an answer
+it proposes is staged: it waits in the dashboard with the advisor's reason until you press
+Confirm. It keeps its own notebook of past conversations and sends one phone push per new
+wait, naming only the wait's kind, project and spec. See
+[SDD-HARNESS.md](SDD-HARNESS.md#the-advisor) for the full detail.
+
 ### Archive System
 
 Manage completed specs:

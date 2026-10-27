@@ -5,6 +5,7 @@
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
 import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js';
+import type { StagedAction } from '../../advisor/actions.js';
 
 export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
 
@@ -139,6 +140,12 @@ export interface ControllerWaitAnswer {
   answered: string;
 }
 
+/** The advisor's typed second opinion (design C7, Data Models). */
+export interface ControllerWaitOpinion {
+  picks: { question: string; pick: string; reason: string }[];
+  summary: string;
+}
+
 export interface ControllerWait {
   id: string;
   kind: ControllerWaitKind;
@@ -149,6 +156,8 @@ export interface ControllerWait {
   questions: ControllerWaitQuestion[];
   answer?: Record<string, ControllerWaitAnswer>;
   advice?: string;
+  opinion?: ControllerWaitOpinion;
+  opinionStatus?: { state: 'running' | 'failed'; at: string; reason?: string };
   state: 'open' | 'answered' | 'expired';
   proposals?: string[];
 }
@@ -209,4 +218,5 @@ export type ShellMessage =
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } };
+  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
+  | { type: 'controller-actions'; data: { actions: StagedAction[] } };

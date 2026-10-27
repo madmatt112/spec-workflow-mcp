@@ -16,6 +16,8 @@ import { FileCache } from './file-cache.js';
 import { listWaitsForWire } from '../../controller/waits.js';
 import { listRunsForWire } from '../../controller/runs.js';
 import { listActivityForWire } from '../../controller/activity.js';
+import { listActions } from '../../advisor/actions.js';
+import type { StagedAction } from '../../advisor/actions.js';
 import type {
   ShellMessage, SpecListRow, ControllerWait, ControllerRun, ControllerActivity,
 } from './types.js';
@@ -72,11 +74,12 @@ export class ShellFeed {
   /**
    * One recompute: read the run records once, run the Now builder over every project
    * and the Specs-row builder per project (a project whose rows throw is left out
-   * and logged once), read the controller waits, runs and latest-per-run
-   * activity, keep the quintet and send `shell-now`, `shell-specs`,
-   * `controller-waits`, `controller-runs` then `controller-activity`. The
-   * controller topics ride the same broadcast path as the other shell topics
-   * (T4/T6/T10; controller-design.md §7, §4).
+   * and logged once), read the controller waits, runs, latest-per-run
+   * activity and the advisor's staged actions, keep the sextet and send
+   * `shell-now`, `shell-specs`, `controller-waits`, `controller-runs`,
+   * `controller-activity` then `controller-actions`. The controller topics
+   * ride the same broadcast path as the other shell topics (T4/T6/T10;
+   * controller-design.md §7, §4; design C8).
    */
   private flush = async (): Promise<void> => {
     this.timer = undefined;
@@ -118,6 +121,13 @@ export class ShellFeed {
       console.error('ShellFeed: skipping controller activity', err);
     }
 
+    let actions: StagedAction[] = [];
+    try {
+      actions = await listActions();
+    } catch (err) {
+      console.error('ShellFeed: skipping controller actions', err);
+    }
+
     if (this.closed) return;
     const messages: ShellMessage[] = [
       { type: 'shell-now', data: nowModel },
@@ -125,6 +135,7 @@ export class ShellFeed {
       { type: 'controller-waits', data: { waits } },
       { type: 'controller-runs', data: { runs } },
       { type: 'controller-activity', data: { activity } },
+      { type: 'controller-actions', data: { actions } },
     ];
     this.last = messages;
     for (const m of messages) this.send(m);

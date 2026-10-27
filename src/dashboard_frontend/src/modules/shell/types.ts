@@ -160,6 +160,12 @@ export interface ControllerWaitAnswer {
   answered: string;
 }
 
+/** The advisor's typed second opinion (design C7, Data Models). */
+export interface ControllerWaitOpinion {
+  picks: { question: string; pick: string; reason: string }[];
+  summary: string;
+}
+
 export interface ControllerWait {
   id: string;
   kind: ControllerWaitKind;
@@ -170,6 +176,8 @@ export interface ControllerWait {
   questions: ControllerWaitQuestion[];
   answer?: Record<string, ControllerWaitAnswer>;
   advice?: string;
+  opinion?: ControllerWaitOpinion;
+  opinionStatus?: { state: 'running' | 'failed'; at: string; reason?: string };
   state: 'open' | 'answered' | 'expired';
   proposals?: string[];
 }
@@ -221,9 +229,30 @@ export interface ControllerActivity {
   ts?: string;
 }
 
+// --- Advisor staged actions (src/advisor/actions.ts; design C8) --------------
+// Hand copy of StagedAction; keep in step.
+
+export type StagedActionKind =
+  | 'merge' | 'deploy' | 'launch' | 'answer' | 'deferral' | 'decomposition' | 'backlog';
+
+export interface StagedAction {
+  v: 1;
+  id: string;
+  kind: StagedActionKind;
+  target: Record<string, unknown>;
+  params: Record<string, unknown>;
+  reason: string;
+  conversation: string;
+  created: string;
+  state: 'staged' | 'running' | 'done' | 'refused' | 'failed' | 'dismissed';
+  decided?: string;
+  outcome?: { status: string; detail: string[] };
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } };
+  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
+  | { type: 'controller-actions'; data: { actions: StagedAction[] } };
