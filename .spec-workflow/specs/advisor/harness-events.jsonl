@@ -391,3 +391,8 @@
 {"ts":"2026-10-27T18:22:54.884Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 19 resumed with its log present; gating from aa3f8a2"}
 {"ts":"2026-10-27T18:22:57.520Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"gate: task 19 pass risk low"}
 {"ts":"2026-10-27T18:22:57.532Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"19","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-27T18:22:57.824Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-27T18:29:27.048Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-verifier","input":"54","output":"24028","cacheWrite":"95787","cacheRead":"2005800","tokens":"2125669","cacheWrite5m":"0","cacheWrite1h":"95787","model":"claude-opus-4-8"}
+{"ts":"2026-10-27T18:29:27.049Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
+{"ts":"2026-10-27T18:29:27.049Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"e2e verification passed"}
+{"ts":"2026-10-27T18:29:27.367Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"completion handoff written"}

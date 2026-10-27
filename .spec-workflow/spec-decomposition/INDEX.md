@@ -27,11 +27,12 @@
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
-| 15 | dashboard-loop-views | Complete | 14/14 |
-| 16 | project-bootstrap | Complete | 11/11 |
-| 17 | verification-loop | Complete | 14/14 |
-| 18 | harness-evals | Complete | 16/16 |
-| 19 | tighter-reviews | Complete | 29/29 |
+| 15 | advisor | Complete | 19/19 |
+| 16 | dashboard-loop-views | Complete | 14/14 |
+| 17 | project-bootstrap | Complete | 11/11 |
+| 18 | verification-loop | Complete | 14/14 |
+| 19 | harness-evals | Complete | 16/16 |
+| 20 | tighter-reviews | Complete | 29/29 |
 
 ## Deferred
 
