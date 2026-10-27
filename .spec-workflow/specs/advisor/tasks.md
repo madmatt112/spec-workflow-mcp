@@ -75,7 +75,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 8.3, 10.4, NFR Performance_
   - _Prompt: Task: Implement buildSummary and renderSummary per design C4: open waits with age, stuck runs (error, or running with the newest file under runStepsDir older than 15 minutes or absent, design D17), open PRs from the latest PrRead per PR with verdict not merged and run not abandoned, owner matthew deferrals, live runs, fiveHour and sevenDay windows, this ISO week from the tallies builder task 6 exports, sources by name and about from the reader task 5 exports, push off when push.json is absent; a project in sources.json personalProjects appears only when named in include | Restrictions: No cache and no model; lists cap at 5 plus an "N more" line; a project whose reads throw is dropped from every section and named once in skipped (2.5) | Success: summary.test.ts proves a just-created open wait is listed (2.2), a running run with a stale step log is stuck, a torn project is skipped and named while others render, a personal project is hidden then shown when included, six waits render five plus "1 more", rendered text stays at or under 400 words, push reads off without push.json, and a three-project fixture returns in under 2 seconds_
 
-- [ ] 8. Search corpus and text search
+- [x] 8. Search corpus and text search
   - File: src/advisor/search/corpus.ts
   - File: src/advisor/search/text.ts
   - Test: src/advisor/__tests__/search-corpus.test.ts — listCorpus(projects), chunk(file), textSearch(chunks, query)

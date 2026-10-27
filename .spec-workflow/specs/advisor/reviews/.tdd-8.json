@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/search-corpus.test.ts"],"seams":{"src/advisor/__tests__/search-corpus.test.ts":"listCorpus(projects), chunk(file), textSearch(chunks, query)"},"redCommit":"48f6f92e671aa225f84b186de5fbb77b8e82688b","baseSha":"5908b0bd7f865588f422fd76fe709c8df56f347f","base":"structural-red","head":"pass","amended":false,"judged":null}
