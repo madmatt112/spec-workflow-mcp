@@ -134,3 +134,18 @@ Cost: see the ledger
 retrospective compiled: 20 findings, 17 proposals, 3 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261026-204644 ab2b4f2e
 Cost: 2 spawns
+
+## 2026-10-27T19:34:46Z · closeout · store batch 1 · deviation
+P8 skipped: no standalone change; folded into P7 (not in this batch)
+Evidence: P8 · mark run-20261026-204644 8dc60f33
+Cost: unknown
+
+## 2026-10-27T19:34:46Z · closeout · store batch 1 · deviation
+P10 skipped: no standalone change; folded into P9 (not in this batch)
+Evidence: P10 · mark run-20261026-204644 fe859921
+Cost: unknown
+
+## 2026-10-27T19:34:46Z · closeout · store batch 1 · cleanup
+store batch 1: 2 done of 5, 1 fix round(s)
+Evidence: batch 1 · mark run-20261026-204644 947f3e7b
+Cost: 2 implementer spawn(s)
