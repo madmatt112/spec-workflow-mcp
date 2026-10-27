@@ -82,6 +82,15 @@ async function readIndex(path: string, model: string): Promise<IndexFile> {
   }
 }
 
+/** The model already on disk, read without the drop-on-mismatch check above. */
+async function cachedModel(path: string): Promise<string> {
+  try {
+    return (JSON.parse(await readFile(path, 'utf-8')) as IndexFile).model;
+  } catch {
+    return '';
+  }
+}
+
 function relPathFor(file: CorpusFile, projects: KnownProject[]): string {
   const project = projects.find((p) => p.id === file.project);
   return project ? relative(project.workflowRootPath, file.path) : relative(controllerHome(), file.path);
@@ -121,7 +130,10 @@ async function buildPlan(embedder: Embedder | null): Promise<{ plan: PlanEntry[]
 
   for (const [projectId, projectFiles] of byProject) {
     const indexPath = join(advisorIndexDir(), `${projectId}.json`);
-    const model = embedder?.model ?? '';
+    // No embedder this round: read the model already on disk instead of
+    // forcing '', so a no-embedder search never wipes the vector cache
+    // (review-9_v1 INFO, index.ts:124/197).
+    const model = embedder ? embedder.model : await cachedModel(indexPath);
     models.set(projectId, model);
     const index = await readIndex(indexPath, model);
 
@@ -156,12 +168,18 @@ async function writePlan(plan: PlanEntry[], models: Map<string, string>): Promis
 
 /** Embeds the deferred entries and persists them once done (design D12: background job). */
 async function embedDeferred(embedder: Embedder, deferred: PlanEntry[], job: BackgroundJob): Promise<void> {
-  for (const entry of deferred) {
-    const missing = missingIndices(entry.vectors);
-    if (missing.length === 0) continue;
-    const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
-    missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
-    job.done += missing.length;
+  try {
+    for (const entry of deferred) {
+      const missing = missingIndices(entry.vectors);
+      if (missing.length === 0) continue;
+      const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
+      missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
+      job.done += missing.length;
+    }
+  } catch {
+    // Embedder unreachable mid-refresh: stop, keep what was already embedded
+    // (design Error Handling #7); never leave this detached job's rejection
+    // unhandled (review-9_v2 WARNING, index.ts:237).
   }
 
   const byProject = new Map<string, PlanEntry[]>();
