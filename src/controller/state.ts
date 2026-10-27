@@ -295,7 +295,7 @@ function storeLockPath(specStoreRoot: string): string {
 let tmpCounter = 0;
 
 /** Write JSON atomically: a temp file in the same directory, then rename. */
-async function writeJsonAtomic(path: string, data: unknown): Promise<void> {
+export async function writeJsonAtomic(path: string, data: unknown): Promise<void> {
   await fs.mkdir(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.${tmpCounter++}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(data, null, 2) + '\n', 'utf-8');
