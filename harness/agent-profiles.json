@@ -5,6 +5,12 @@
     "role": "adjudicator",
     "cacheTtl": "default"
   },
+  "sdd-advisor": {
+    "model": "claude-opus-5-5",
+    "effort": "high",
+    "role": "advisor",
+    "cacheTtl": "default"
+  },
   "sdd-checker": {
     "model": "claude-sonnet-5",
     "effort": "high",
