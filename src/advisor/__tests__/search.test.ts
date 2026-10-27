@@ -8,6 +8,7 @@ import type { KnownProject } from '../../controller/state.js';
 import { searchPath, advisorIndexDir } from '../home.js';
 import { search } from '../search/search.js';
 import type { SearchQuery } from '../search/search.js';
+import { waitForIndexing } from '../search/index.js';
 
 // Contract for src/advisor/search/embed.ts, index.ts and search.ts (design.md
 // C6; requirements.md Requirement 4 AC 2, AC 4, AC 5, AC 6, AC 7, NFR
@@ -455,6 +456,47 @@ describe('src/advisor/search/embed.ts, index.ts and search.ts', () => {
 
     expect(result.hits.length).toBeLessThanOrEqual(10);
     expect(result.hits.some((h) => h.path.endsWith('retrospective.md'))).toBe(true);
+  });
+
+  // Design D12 ("Over 200 chunks to embed: text hits now, meaning: 'indexing
+  // n of m', embedding continues in process"), cited by task 9's Prompt but
+  // left untested there (fix round 1). Pre-condition: one project with 210
+  // single-chunk files (no cache yet), all sharing the query word, and a
+  // reachable fake embedder. Test: search({ query: 'sparrow' }) on the first,
+  // never-indexed round. Observable result: the response carries text hits
+  // immediately, no hit has a meaningScore (meaning search is skipped while
+  // indexing), and `meaning` reports progress as "indexing <n> of 210" with
+  // n capped at 200. After the background job finishes (awaited via the
+  // test-only `waitForIndexing` hook so the fixture can be torn down safely),
+  // a second search resolves with `meaning: 'on'`. Expected value source:
+  // design.md C6 / D12 and requirements.md NFR Performance (bounding how much
+  // embedding a single search call blocks on).
+  it('returns text hits with an "indexing n of m" progress string past 200 chunks to embed, then finishes in the background', async () => {
+    const root = projectRoot('sdd-advisor-search-indexing-');
+    const total = 210;
+    for (let i = 0; i < total; i++) {
+      writeMd(root, `docs/note-${i}.md`, `# Note ${i}\n\nContent about sparrow number ${i}.\n`);
+    }
+    const project = makeProject('proj-indexing', root);
+    await writeProjects({ v: 1, projects: [project] });
+
+    const fake = await startFakeOllama(new Map(), vec(1));
+    writeSearchConfig(fake.url);
+
+    const first = await search({ query: 'sparrow' });
+
+    expect(first.hits.length).toBeGreaterThan(0);
+    expect(first.hits.every((h) => h.meaningScore === undefined)).toBe(true);
+    const match = /^indexing (\d+) of (\d+)$/.exec(first.meaning);
+    expect(match).not.toBeNull();
+    expect(Number(match![2])).toBe(total);
+    expect(Number(match![1])).toBeLessThanOrEqual(200);
+    expect(Number(match![1])).toBeGreaterThan(0);
+
+    await waitForIndexing();
+
+    const second = await search({ query: 'sparrow' });
+    expect(second.meaning).toBe('on');
   });
 
   // NFR Performance ("A search with no changed files SHALL return in under

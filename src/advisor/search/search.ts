@@ -64,7 +64,7 @@ function fuse(textRanks: Map<string, number>, meaningRanks: Map<string, number>)
 
 async function run(q: SearchQuery): Promise<SearchResult> {
   const embedder = await loadEmbedder();
-  const { chunks } = await refreshIndex(embedder);
+  const { chunks, indexing } = await refreshIndex(embedder);
   const filtered = chunks.filter((c) => matchesFilters(c, q));
 
   const textHits = textSearch(filtered, q.query);
@@ -79,7 +79,10 @@ async function run(q: SearchQuery): Promise<SearchResult> {
   let meaning: 'on' | 'off' | string = 'off';
   const meaningRanks = new Map<string, number>();
 
-  if (embedder) {
+  // Over 200 chunks to embed: text hits now, meaning still "indexing n of m" (design D12).
+  if (embedder && indexing) {
+    meaning = `indexing ${indexing.done} of ${indexing.total}`;
+  } else if (embedder) {
     meaning = 'on';
     const [queryVector] = await embedder.embed([q.query]);
     const ranked = filtered

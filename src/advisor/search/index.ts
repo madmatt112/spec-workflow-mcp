@@ -1,8 +1,12 @@
 // src/advisor/search/index.ts
 //
-// Index refresh (design.md C6; requirements.md Requirement 4 AC 6).
-// Hashes every corpus file, re-embeds only changed or never-embedded files,
-// drops files no longer in the corpus. A model change drops the index file.
+// Index refresh (design.md C6; requirements.md Requirement 4 AC 6, NFR
+// Performance; design D12). Hashes every corpus file, re-embeds only changed
+// or never-embedded files, drops files no longer in the corpus. A model
+// change drops the index file. Past 200 chunks needing embedding, only the
+// first 200 are embedded before returning; the rest embed in a background
+// job this process keeps running, so the caller gets text hits now instead
+// of blocking (design D12).
 import { createHash } from 'crypto';
 import { readFile } from 'fs/promises';
 import { join, relative } from 'path';
@@ -31,6 +35,32 @@ export interface RefreshResult {
   chunks: (Chunk & { vector?: number[] })[];
   embedded: number;
   pending: number;
+  /** Set past 200 chunks needing embedding; the rest finish in the background (design D12). */
+  indexing?: { done: number; total: number };
+}
+
+interface PlanEntry {
+  projectId: string;
+  relPath: string;
+  fileChunks: Chunk[];
+  hash: string;
+  vectors: (number[] | undefined)[];
+}
+
+interface BackgroundJob {
+  total: number;
+  done: number;
+  promise: Promise<void>;
+}
+
+const EMBED_CAP = 200;
+
+/** The one indexing job this process ever runs at a time (design D12: "keeps embedding in process"). */
+let backgroundJob: BackgroundJob | null = null;
+
+/** Test-only hook: resolves once any in-flight background indexing job finishes. */
+export function waitForIndexing(): Promise<void> {
+  return backgroundJob ? backgroundJob.promise : Promise.resolve();
 }
 
 function toBase64(vector: number[]): string {
@@ -57,50 +87,25 @@ function relPathFor(file: CorpusFile, projects: KnownProject[]): string {
   return project ? relative(project.workflowRootPath, file.path) : relative(controllerHome(), file.path);
 }
 
-async function refreshFile(
-  file: CorpusFile,
-  relPath: string,
-  index: IndexFile,
-  embedder: Embedder | null,
-  counts: { embedded: number; pending: number },
-): Promise<{ chunks: (Chunk & { vector?: number[] })[]; entry: IndexFile['files'][string] }> {
-  const fileChunks = await chunk(file);
-  const hash = createHash('sha256').update(fileChunks.map((c) => c.text).join('\n')).digest('hex');
-  const cached = index.files[relPath];
-  const reuse = cached?.hash === hash && cached.chunks.length === fileChunks.length;
+function missingIndices(vectors: (number[] | undefined)[]): number[] {
+  return vectors.map((v, i) => (v === undefined ? i : -1)).filter((i) => i >= 0);
+}
 
-  const vectors: (number[] | undefined)[] = fileChunks.map((_, i) =>
-    reuse && cached!.chunks[i].vector ? fromBase64(cached!.chunks[i].vector!) : undefined,
-  );
-
-  if (embedder) {
-    const missing = vectors.map((v, i) => (v === undefined ? i : -1)).filter((i) => i >= 0);
-    if (missing.length > 0) {
-      const embeddings = await embedder.embed(missing.map((i) => fileChunks[i].text));
-      missing.forEach((idx, j) => { vectors[idx] = embeddings[j]; });
-      counts.embedded += missing.length;
-    }
-  } else {
-    counts.pending += vectors.filter((v) => v === undefined).length;
-  }
-
+function entryToIndexed(entry: Pick<PlanEntry, 'hash' | 'fileChunks' | 'vectors'>): IndexFile['files'][string] {
   return {
-    chunks: fileChunks.map((c, i) => ({ ...c, vector: vectors[i] })),
-    entry: {
-      hash,
-      chunks: fileChunks.map((c, i) => ({
-        startLine: c.startLine,
-        endLine: c.endLine,
-        kind: c.kind,
-        date: c.date,
-        vector: vectors[i] ? toBase64(vectors[i]!) : undefined,
-      })),
-    },
+    hash: entry.hash,
+    chunks: entry.fileChunks.map((c, i) => ({
+      startLine: c.startLine,
+      endLine: c.endLine,
+      kind: c.kind,
+      date: c.date,
+      vector: entry.vectors[i] ? toBase64(entry.vectors[i]!) : undefined,
+    })),
   };
 }
 
-/** Refreshes every project's index and returns the whole corpus (design.md C6; Requirement 4 AC 6). */
-export async function refreshIndex(embedder: Embedder | null): Promise<RefreshResult> {
+/** Builds the hash/cache-reuse plan for the whole corpus, no network calls (design.md C6). */
+async function buildPlan(embedder: Embedder | null): Promise<{ plan: PlanEntry[]; models: Map<string, string> }> {
   const { projects } = await readProjects();
   const files = await listCorpus(projects);
 
@@ -111,24 +116,127 @@ export async function refreshIndex(embedder: Embedder | null): Promise<RefreshRe
     byProject.set(file.project, list);
   }
 
-  const allChunks: (Chunk & { vector?: number[] })[] = [];
-  const counts = { embedded: 0, pending: 0 };
+  const plan: PlanEntry[] = [];
+  const models = new Map<string, string>();
 
   for (const [projectId, projectFiles] of byProject) {
     const indexPath = join(advisorIndexDir(), `${projectId}.json`);
     const model = embedder?.model ?? '';
+    models.set(projectId, model);
     const index = await readIndex(indexPath, model);
-    const nextFiles: IndexFile['files'] = {};
 
     for (const file of projectFiles) {
       const relPath = relPathFor(file, projects);
-      const { chunks: fileChunks, entry } = await refreshFile(file, relPath, index, embedder, counts);
-      nextFiles[relPath] = entry;
-      allChunks.push(...fileChunks);
+      const fileChunks = await chunk(file);
+      const hash = createHash('sha256').update(fileChunks.map((c) => c.text).join('\n')).digest('hex');
+      const cached = index.files[relPath];
+      const reuse = cached?.hash === hash && cached.chunks.length === fileChunks.length;
+      const vectors: (number[] | undefined)[] = fileChunks.map((_, i) =>
+        reuse && cached!.chunks[i].vector ? fromBase64(cached!.chunks[i].vector!) : undefined,
+      );
+      plan.push({ projectId, relPath, fileChunks, hash, vectors });
     }
-
-    await writeJsonAtomic(indexPath, { v: 1, model, files: nextFiles });
   }
 
-  return { chunks: allChunks, embedded: counts.embedded, pending: counts.pending };
+  return { plan, models };
+}
+
+async function writePlan(plan: PlanEntry[], models: Map<string, string>): Promise<void> {
+  const nextFilesByProject = new Map<string, IndexFile['files']>();
+  for (const entry of plan) {
+    const nextFiles = nextFilesByProject.get(entry.projectId) ?? {};
+    nextFiles[entry.relPath] = entryToIndexed(entry);
+    nextFilesByProject.set(entry.projectId, nextFiles);
+  }
+  for (const [projectId, model] of models) {
+    const indexPath = join(advisorIndexDir(), `${projectId}.json`);
+    await writeJsonAtomic(indexPath, { v: 1, model, files: nextFilesByProject.get(projectId) ?? {} });
+  }
+}
+
+/** Embeds the deferred entries and persists them once done (design D12: background job). */
+async function embedDeferred(embedder: Embedder, deferred: PlanEntry[], job: BackgroundJob): Promise<void> {
+  for (const entry of deferred) {
+    const missing = missingIndices(entry.vectors);
+    if (missing.length === 0) continue;
+    const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
+    missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
+    job.done += missing.length;
+  }
+
+  const byProject = new Map<string, PlanEntry[]>();
+  for (const entry of deferred) {
+    const list = byProject.get(entry.projectId) ?? [];
+    list.push(entry);
+    byProject.set(entry.projectId, list);
+  }
+
+  for (const [projectId, entries] of byProject) {
+    const indexPath = join(advisorIndexDir(), `${projectId}.json`);
+    const current = await readIndex(indexPath, embedder.model);
+    for (const entry of entries) current.files[entry.relPath] = entryToIndexed(entry);
+    await writeJsonAtomic(indexPath, { v: 1, model: embedder.model, files: current.files });
+  }
+}
+
+function toChunks(plan: PlanEntry[]): (Chunk & { vector?: number[] })[] {
+  return plan.flatMap((entry) => entry.fileChunks.map((c, i) => ({ ...c, vector: entry.vectors[i] })));
+}
+
+/** Refreshes every project's index and returns the whole corpus (design.md C6; Requirement 4 AC 6, D12). */
+export async function refreshIndex(embedder: Embedder | null): Promise<RefreshResult> {
+  const { plan, models } = await buildPlan(embedder);
+
+  if (embedder && backgroundJob) {
+    // A background job already owns embedding; this round changes nothing on disk (design D12).
+    return { chunks: toChunks(plan), embedded: 0, pending: 0, indexing: { done: backgroundJob.done, total: backgroundJob.total } };
+  }
+
+  if (!embedder) {
+    const pending = plan.reduce((sum, e) => sum + missingIndices(e.vectors).length, 0);
+    await writePlan(plan, models);
+    return { chunks: toChunks(plan), embedded: 0, pending };
+  }
+
+  const totalMissing = plan.reduce((sum, e) => sum + missingIndices(e.vectors).length, 0);
+
+  if (totalMissing <= EMBED_CAP) {
+    let embedded = 0;
+    for (const entry of plan) {
+      const missing = missingIndices(entry.vectors);
+      if (missing.length === 0) continue;
+      const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
+      missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
+      embedded += missing.length;
+    }
+    await writePlan(plan, models);
+    return { chunks: toChunks(plan), embedded, pending: 0 };
+  }
+
+  // Over 200 chunks to embed: embed up to the cap now, defer the rest to a background job (design D12).
+  let budget = EMBED_CAP;
+  const deferred: PlanEntry[] = [];
+  let embedded = 0;
+  for (const entry of plan) {
+    const missing = missingIndices(entry.vectors);
+    if (missing.length === 0) continue;
+    if (budget > 0) {
+      const embeddings = await embedder.embed(missing.map((i) => entry.fileChunks[i].text));
+      missing.forEach((idx, j) => { entry.vectors[idx] = embeddings[j]; });
+      embedded += missing.length;
+      budget -= missing.length;
+    } else {
+      deferred.push(entry);
+    }
+  }
+
+  await writePlan(plan, models);
+
+  const job: BackgroundJob = { total: totalMissing, done: embedded, promise: Promise.resolve() };
+  backgroundJob = job;
+  job.promise = embedDeferred(embedder, deferred, job).finally(() => {
+    if (backgroundJob === job) backgroundJob = null;
+  });
+
+  return { chunks: toChunks(plan), embedded, pending: totalMissing - embedded, indexing: { done: job.done, total: job.total } };
 }
