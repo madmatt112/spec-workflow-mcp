@@ -26,7 +26,7 @@ import {
 import { SecurityConfig, TddBlock } from '../types.js';
 import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
-import { buildSetupView, validateSetup, readAgentRules } from './harness/run-setup.js';
+import { buildSetupView, defaultSetupInput, validateSetup, readAgentRules } from './harness/run-setup.js';
 import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
@@ -762,8 +762,14 @@ export class MultiProjectDashboardServer {
       launchSpec: async (projectId: string, input: Record<string, unknown>) => {
         const project = this.projectManager.getProject(projectId);
         if (!project) return { ok: false, error: 'project-not-found' };
-        // Headless, like the browser launch route (line ~666): force record mode.
-        const result = await launchSpec(project, { ...(input as unknown as SetupInput), gates: 'record' }, this.controller);
+        // The advisor's params name only the spec (and any role/model override);
+        // fill the gate fields validateSetup requires (supervisorModel, worktree,
+        // roles) from the current setup view so a real launch does not 400, then
+        // force record mode like the browser launch route (a headless run cannot
+        // answer a gate).
+        const view = await buildSetupView(project);
+        const payload: SetupInput = { ...defaultSetupInput(view), ...(input as Partial<SetupInput>), gates: 'record' };
+        const result = await launchSpec(project, payload, this.controller);
         if (!result.ok) {
           return { ok: false, error: result.status === 400 ? JSON.stringify(result.validationError) : result.error };
         }
