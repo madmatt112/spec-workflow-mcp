@@ -836,6 +836,14 @@ Report: `docs/foundation-review-adversarial.md`. Dispositions:
   conversation, merge and deploy staged, phone push per wait from the controller); glossary
   gains Second opinion and Staged action. Matthew launched jobscout `ind-sponsor-note`;
   jobscout decomposition gained `federal-employers` and the deferred `gc-jobs-coverage`.
+- 2026-10-26 (later) **#178**: no global slot cap by default (one run per spec store
+  already bounds concurrency; `CONTROLLER_SLOTS` sets a cap; health reports `total: null`).
+  **#179**: path-list bullets and `File:` lines drop a ` — note`; no jobscout sensitive path
+  had ever matched (`jobsync.py` included) because every entry carried a note. Run
+  unblocks by the coordinator: tradr task 8 gained `import.worker.ts` in its `File:` list;
+  jobscout `agent-rules.md` allows `jobscout ind-refresh` and declares `ind-register.txt` a
+  generated path. Spec 25 `advisor` launched (gate A answered with the recommended picks).
+  Deployed `20eab99`.
 
 ## 8. Pointers
 

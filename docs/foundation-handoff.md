@@ -82,6 +82,15 @@ Written 2026-10-15 by the session that landed step (c2). Read in this order: thi
 session on another model (Opus 5.5 or better): the rules, the state, the remaining plan in
 order, and how to brief subagents. Point a session at it and it carries the course on.
 
+## State at 2026-10-27 01:25Z
+
+- Live build `20eab99`. Live: spec 25 `advisor` (tasks), jobscout `ind-sponsor-note`
+  (escalation `w-3035a20b`, Matthew's: answer "ind-register.txt is a generated path and the
+  File-line parser is fixed (#179); re-run the gate"), tradr `import-off-request-thread`
+  (implementing). No slot cap. Next jobscout spec: `federal-employers`. Spec 22 waits for 25.
+- When the advisor lands (spec 25), this coordinator role, owctl, the HUD and the overwatch
+  handoff retire (ADR 0006 amendment 2026-10-26).
+
 ## State at 2026-10-23 20:05Z
 
 - Live build `b103c1c`. Done: jobscout `europe-employer-sources`. Live: spec 27
