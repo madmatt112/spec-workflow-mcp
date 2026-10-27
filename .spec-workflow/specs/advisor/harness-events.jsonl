@@ -468,3 +468,11 @@
 {"ts":"2026-10-27T19:48:26.223Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"P5","outcome":"done"}
 {"ts":"2026-10-27T19:48:26.223Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"P6","outcome":"done"}
 {"ts":"2026-10-27T19:48:28.572Z","run":"run-20261026-204644","spec":"advisor","type":"phase.end","phase":"closeout","result":"closed","state":"items 17/17","note":"5 done, 1 to-do, 11 skipped"}
+{"ts":"2026-10-27T19:48:30.437Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"close-out merge: close-out PR #181 of spec-workflow-mcp not-ready (no workflow run yet for ae9211d (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-10-27T19:49:02.513Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"close-out merge: close-out PR #181 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-27T19:49:34.437Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"close-out merge: close-out PR #181 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-27T19:50:06.902Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"close-out merge: close-out PR #181 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #181 of spec-workflow-mcp)"}
+{"ts":"2026-10-27T19:56:35.941Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"merge answered by operator: merge"}
+{"ts":"2026-10-27T19:56:43.435Z","run":"run-20261026-204644","spec":"advisor","type":"pr.merged","number":"181","sha":"597963ff3beaedb0638e5063e179a8e043e02e6b","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-27T19:56:43.438Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"close-out merge: close-out PR #181 of spec-workflow-mcp merged (merged close-out PR #181 of spec-workflow-mcp via merge)"}
+{"ts":"2026-10-27T19:56:43.441Z","run":"run-20261026-204644","spec":"advisor","type":"run.end","status":"done"}
