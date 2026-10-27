@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import fastify, { FastifyInstance } from 'fastify';
 import {
   loadOrCreateSecret,
   secretPath,
@@ -11,6 +12,10 @@ import {
   verifySessionCookie,
   isAuthorized,
   _resetSecretCacheForTests,
+  loadOrCreateAdvisorSecret,
+  advisorSecretPath,
+  ADVISOR_MCP_PATH,
+  installAccessControl,
 } from '../access.js';
 
 // Unit coverage for the access primitives (controller-design.md §17): the secret
@@ -90,5 +95,87 @@ describe('isAuthorized', () => {
     expect(isAuthorized(cookie, secret)).toBe(true);
     expect(isAuthorized(badBearer, secret)).toBe(false);
     expect(isAuthorized(none, secret)).toBe(false);
+  });
+});
+
+// C2 (controller-design.md / design.md §C2, task 4): the advisor holds a second
+// credential, created like the operator secret but distinct from it, and scoped
+// by the hook to exactly ADVISOR_MCP_PATH (_Requirements: 6.4, 7.2).
+
+describe('loadOrCreateAdvisorSecret', () => {
+  it('creates the advisor secret once as 32 bytes of hex with mode 0600, distinct from the operator secret', async () => {
+    const operatorSecret = await loadOrCreateSecret();
+    const first = await loadOrCreateAdvisorSecret();
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(first).not.toBe(operatorSecret);
+    expect(statSync(advisorSecretPath()).mode & 0o777).toBe(0o600);
+
+    // A fresh read (cache cleared) returns the same value: not regenerated.
+    _resetSecretCacheForTests();
+    const second = await loadOrCreateAdvisorSecret();
+    expect(second).toBe(first);
+  });
+});
+
+describe('advisor credential scope', () => {
+  let app: FastifyInstance;
+  let operatorSecret: string;
+  let advisorSecret: string;
+
+  beforeEach(async () => {
+    operatorSecret = await loadOrCreateSecret();
+    advisorSecret = await loadOrCreateAdvisorSecret();
+    app = fastify({ logger: false });
+    installAccessControl(app, operatorSecret, advisorSecret);
+    app.get(ADVISOR_MCP_PATH, async () => ({ ok: true }));
+    app.get('/api/controller/waits', async () => ({ waits: [] }));
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('lets the advisor bearer reach exactly the advisor endpoint, nowhere else, and keeps the operator bearer working everywhere', async () => {
+    const advisorOnAdvisorRoute = await app.inject({
+      method: 'GET',
+      url: ADVISOR_MCP_PATH,
+      remoteAddress: '127.0.0.1',
+      headers: { authorization: `Bearer ${advisorSecret}` },
+    });
+    expect(advisorOnAdvisorRoute.statusCode).toBe(200);
+
+    const advisorOnWaits = await app.inject({
+      method: 'GET',
+      url: '/api/controller/waits',
+      remoteAddress: '127.0.0.1',
+      headers: { authorization: `Bearer ${advisorSecret}` },
+    });
+    expect(advisorOnWaits.statusCode).toBe(401);
+
+    const advisorAtLogin = await app.inject({
+      method: 'POST',
+      url: '/api/login',
+      remoteAddress: '127.0.0.1',
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify({ secret: advisorSecret }),
+    });
+    expect(advisorAtLogin.statusCode).toBe(401);
+
+    const operatorOnAdvisorRoute = await app.inject({
+      method: 'GET',
+      url: ADVISOR_MCP_PATH,
+      remoteAddress: '127.0.0.1',
+      headers: { authorization: `Bearer ${operatorSecret}` },
+    });
+    expect(operatorOnAdvisorRoute.statusCode).toBe(200);
+
+    const operatorOnWaits = await app.inject({
+      method: 'GET',
+      url: '/api/controller/waits',
+      remoteAddress: '127.0.0.1',
+      headers: { authorization: `Bearer ${operatorSecret}` },
+    });
+    expect(operatorOnWaits.statusCode).toBe(200);
   });
 });
