@@ -2,14 +2,10 @@
 //
 // The second opinion (design.md C7; requirements.md Requirement 5, 3.4).
 // `startSecondOpinion` runs one headless `sdd-advisor` step on an open wait,
-// on the operator's press only: it takes no run slot, is never queued, and
-// never answers the wait or touches a run. A valid typed result attaches to
-// the wait through `attachAdvice`; an invalid or failed one records
-// `opinionStatus: failed` and leaves the wait's earlier advice untouched.
-// Either way it writes one `advisor.opinion` row to the home event log
-// (Requirement 5.6), the usage split the same five `StepUsage` fields that
-// `buildTallies` (`src/advisor/tallies.ts`) already attributes to role
-// `sdd-advisor`.
+// on the operator's press only: no run slot, never queued, never answers the
+// wait or touches a run. A valid result attaches through `attachAdvice`; an
+// invalid or failed one records `opinionStatus: failed`, advice untouched.
+// Either way it writes one `advisor.opinion` row (Requirement 5.6) with the five `StepUsage` fields `buildTallies` attributes to role `sdd-advisor`.
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
@@ -53,9 +49,8 @@ function wordCount(text: string): number {
 }
 
 /**
- * Schema match, each pick naming a wait question and, where it has options,
- * one of them; reasons at most 60 words, the summary at most 100 (D5,
- * Requirement 5.2). Returns `null` for anything that fails the check.
+ * Schema match: each pick names a wait question and, where it has options,
+ * one of them; reasons at most 60 words, summary at most 100 (D5, 5.2).
  */
 function validateOpinion(structured: unknown, questions: WaitQuestion[]): WaitOpinion | null {
   if (!structured || typeof structured !== 'object') return null;
@@ -114,15 +109,13 @@ function stamp(): string {
 }
 
 /**
- * Run one headless `sdd-advisor` step on `waitId`, from the operator's press
- * only (C7; Requirement 5.1, 5.4). Guards, in order: unknown wait (404),
- * not-open (409), one already running (409), the controller's usage window
- * (409, Requirement 5.5/D9) — none of these starts a step. Otherwise marks
- * `opinionStatus` running, writes the brief, and runs the step: a valid
- * result attaches to the wait and clears the status (5.1, 5.2); an invalid
- * or failed one records `opinionStatus: failed` with the reason, leaving the
- * wait's earlier advice untouched (5.7). Either way writes one
- * `advisor.opinion` event row (5.6).
+ * One headless `sdd-advisor` step on `waitId`, from the operator's press only
+ * (C7; 5.1, 5.4). Guards in order: unknown wait (404), not-open (409), one
+ * already running (409), the usage window (409, 5.5/D9) — none starts a step.
+ * Else marks `opinionStatus` running, writes the brief, runs the step: a valid
+ * result attaches and clears the status (5.1, 5.2); invalid/failed records
+ * `opinionStatus: failed`, advice untouched (5.7); either way writes one
+ * `advisor.opinion` row (5.6).
  */
 export async function startSecondOpinion(waitId: string, deps: SecondOpinionDeps): Promise<SecondOpinionResult> {
   const wait = await readWait(waitId);
