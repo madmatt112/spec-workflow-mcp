@@ -160,3 +160,5 @@ One line per proposal, written by the close-out phase.
 - P7: done — ef7e0a9cbbe4261fc20cd31651aff07b6539c2da
 - P13: skipped — No standalone change; item states it is covered by P7's enumerate-every-location rule.
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/181
+- P5: done — 4ee614f1cf5fd518f6d7204aac083bee17a2e597
+- P6: done — ae9211de0b2b2479d3c2bb108e3d6ca60a66b35e
