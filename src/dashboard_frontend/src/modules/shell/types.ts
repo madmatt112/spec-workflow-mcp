@@ -229,9 +229,30 @@ export interface ControllerActivity {
   ts?: string;
 }
 
+// --- Advisor staged actions (src/advisor/actions.ts; design C8) --------------
+// Hand copy of StagedAction; keep in step.
+
+export type StagedActionKind =
+  | 'merge' | 'deploy' | 'launch' | 'answer' | 'deferral' | 'decomposition' | 'backlog';
+
+export interface StagedAction {
+  v: 1;
+  id: string;
+  kind: StagedActionKind;
+  target: Record<string, unknown>;
+  params: Record<string, unknown>;
+  reason: string;
+  conversation: string;
+  created: string;
+  state: 'staged' | 'running' | 'done' | 'refused' | 'failed' | 'dismissed';
+  decided?: string;
+  outcome?: { status: string; detail: string[] };
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } };
+  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
+  | { type: 'controller-actions'; data: { actions: StagedAction[] } };
