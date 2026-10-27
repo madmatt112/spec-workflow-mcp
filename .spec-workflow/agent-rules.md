@@ -70,9 +70,7 @@ node-20 fields.
   that finds every member (`grep -n …`) and says to update the count word. This also
   covers counts and length assertions stated in code and test files: for each
   count-changing task the tasks-phase decomposition names the grep that finds every
-  dependent count/length assertion. The files the named grep can return must all appear
-  in the task's `File:` list, or the grep scope is narrowed to the `File:` list; the
-  tasks-phase review checks the two agree.
+  dependent count/length assertion.
 - When a task moves a verbatim brief section into a template, the tasks-phase
   decomposition names the source file and line range and requires the snapshot to be
   pinned from that exact text; the batched verifier diffs the snapshot against that
