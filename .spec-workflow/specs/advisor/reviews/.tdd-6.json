@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/tallies.test.ts"],"seams":{"src/advisor/__tests__/tallies.test.ts":"buildTallies({ from, to, project })"},"redCommit":"01c45afbd59dc3e2d98ee1f2de0da461df7fcc9d","baseSha":"b51d2d19036cff1b08b380c296fcf572514f0f4c","base":"structural-red","head":"pass","amended":false,"judged":null}

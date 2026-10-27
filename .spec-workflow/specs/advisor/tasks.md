@@ -57,7 +57,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 8.1, 8.2, 8.6, 2.3_
   - _Prompt: Task: Per design C9 and the SourcesFile shape in design Data Models, seedSources writes sources.json (v 1) only when absent, listing ~/repo/matthew-field.ca (kind repo) and JobSync (kind mcp, personal true, location empty until the operator fills it); readSources returns the parsed file, or an empty list for an absent or torn file | Restrictions: No controller code acts on source content; an existing file is never overwritten | Success: sources.test.ts proves the seed writes both day-one sources with kind, location and one-line about, JobSync marked personal; a second seed leaves a hand-edited file byte for byte; a torn file reads as no sources_
 
-- [ ] 6. Tallies
+- [x] 6. Tallies
   - File: src/advisor/tallies.ts
   - Test: src/advisor/__tests__/tallies.test.ts — buildTallies({ from, to, project })
   - Read every known project's `specs/*/harness-events.jsonl` and `specs/*/retrospective.md` plus the home `events.jsonl`; bucket by ISO week.
