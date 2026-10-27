@@ -12,6 +12,7 @@
 import { promises as fs } from 'fs';
 import { dirname, join } from 'path';
 import { randomBytes } from 'crypto';
+import { EventEmitter } from 'events';
 import { advisorActionsDir, appendEvent } from './home.js';
 import { controllerHome, readWait, withStoreLock, writeJsonAtomic, type WaitQuestion } from '../controller/state.js';
 import { answerWait, type ControllerWaitRecord } from '../controller/waits.js';
@@ -20,7 +21,7 @@ import { checkpoint } from '../controller/ledger.js';
 import type { DeferralOwner } from '../types.js';
 
 export type ActionKind = 'merge' | 'deploy' | 'launch' | 'answer' | 'deferral' | 'decomposition' | 'backlog';
-export type ActionState = 'staged' | 'confirmed' | 'dismissed' | 'failed';
+export type ActionState = 'staged' | 'running' | 'done' | 'refused' | 'failed' | 'dismissed';
 
 /** `advisor/actions/<id>.json`: one shared-state change the advisor proposed (C8). */
 export interface StagedAction {
@@ -34,7 +35,13 @@ export interface StagedAction {
   /** ISO. */
   created: string;
   state: ActionState;
+  /** ISO, set when the operator confirms or dismisses. */
+  decided?: string;
+  outcome?: { status: string; detail: string[] };
 }
+
+/** Emits `change` with the changed `StagedAction` after every write, so the hub re-arms on it (C8). */
+export const actionEvents = new EventEmitter();
 
 export interface StageActionInput {
   kind: ActionKind;
@@ -64,8 +71,9 @@ async function readAction(id: string): Promise<StagedAction | undefined> {
   }
 }
 
-function writeAction(action: StagedAction): Promise<void> {
-  return writeJsonAtomic(actionPath(action.id), action);
+async function writeAction(action: StagedAction): Promise<void> {
+  await writeJsonAtomic(actionPath(action.id), action);
+  actionEvents.emit('change', action);
 }
 
 /** Stage a shared-state change for the operator to confirm or dismiss (AC 2). */
@@ -108,6 +116,7 @@ export async function dismissAction(id: string): Promise<StagedAction | undefine
   const action = await readAction(id);
   if (!action) return undefined;
   action.state = 'dismissed';
+  action.decided = new Date().toISOString();
   await writeAction(action);
   return action;
 }
@@ -287,18 +296,27 @@ const EXECUTORS: Record<ActionKind, Executor> = {
 
 /**
  * Confirm a staged action: refuse anything not `staged` (dismissed, already
- * confirmed, or unknown), else mark it `confirmed` before running its executor
- * exactly once, then append one `advisor.action` event row (AC 5, AC 10).
+ * confirmed, or unknown), else mark it `running` before running its executor
+ * exactly once, then append one `advisor.action` event row (AC 5, AC 10). A
+ * throwing executor (lock busy, git error, unknown project) still lands the
+ * action `failed` with the message, and still writes the row (design Error
+ * Handling flow 6).
  */
 export async function confirmAction(id: string, deps: ActionDeps): Promise<ConfirmResult> {
   const action = await readAction(id);
   if (!action || action.state !== 'staged') return { ok: false, error: 'not-staged' };
 
-  action.state = 'confirmed';
+  action.state = 'running';
+  action.decided = new Date().toISOString();
   await writeAction(action);
 
   const executor = EXECUTORS[action.kind];
-  const result = await executor(action, deps);
+  let result: ExecResult;
+  try {
+    result = await executor(action, deps);
+  } catch (error) {
+    result = { ok: false, outcome: 'failed', detail: (error as Error).message, error: 'failed' };
+  }
 
   await appendEvent({
     v: 1,
@@ -312,10 +330,10 @@ export async function confirmAction(id: string, deps: ActionDeps): Promise<Confi
     ...(result.detail !== undefined ? { detail: result.detail } : {}),
   });
 
-  if (!result.ok) {
-    action.state = 'failed';
-    await writeAction(action);
-    return { ok: false, error: result.error ?? result.outcome };
-  }
+  action.state = result.ok ? 'done' : 'failed';
+  action.outcome = { status: action.state, detail: result.detail !== undefined ? [result.outcome, result.detail] : [result.outcome] };
+  await writeAction(action);
+
+  if (!result.ok) return { ok: false, error: result.error ?? result.outcome };
   return { ok: true };
 }
