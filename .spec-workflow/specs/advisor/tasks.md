@@ -117,7 +117,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 6.6, 6.7, 6.9, 6.12_
   - _Prompt: Task: Per design C8 executors: merge answers an open merge wait of a run with this pr with merge by advisor (outcome answered-wait, design D7); else calls mergeByRule with a full MergeTarget, the project's rules with merge set to auto (design D6), and a synthetic openRunLedger rooted at advisor/actions/id/, any status but merged becoming refused with the rule's reasons (6.6); deploy spawns scripts/sdd-self-update.sh detached from the checkout root, logged to advisor/actions/id/deploy.log, outcome started; launch calls launchSpec so enqueue's guards apply (6.9) | Restrictions: Remove task 10's "executor not built" bridge; harness-routes.test.ts launch assertions keep their exact values (regression guard); Requirement 6.12 holds at base, agent-rules.md merge ask untouched, a regression guard | Success: actions.test.ts with stub-gh proves a red-checks PR is refused with reasons and not merged, a green PR merges and logs advisor.action (6.7), a run's open merge wait is answered by advisor, deploy is spawned detached; harness-routes.test.ts passes unchanged_
 
-- [ ] 12. Action routes and live updates
+- [x] 12. Action routes and live updates
   - File: src/dashboard/multi-server.ts
   - File: src/dashboard/shell/shell-feed.ts
   - File: src/dashboard/shell/types.ts

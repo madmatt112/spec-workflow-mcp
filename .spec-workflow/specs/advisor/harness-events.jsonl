@@ -263,3 +263,17 @@
 {"ts":"2026-10-27T06:55:55.636Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-verifier","input":"94","output":"35436","cacheWrite":"135528","cacheRead":"4727938","tokens":"4898996","cacheWrite5m":"0","cacheWrite1h":"135528","model":"claude-opus-4-8"}
 {"ts":"2026-10-27T06:55:55.636Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 11","result":"VERDICT: pass","phase":"implementation","task":"11"}
 {"ts":"2026-10-27T06:55:55.637Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"11","rounds":"0","outcome":"pass"}
+{"ts":"2026-10-27T06:55:55.806Z","run":"run-20261026-204644","spec":"advisor","type":"task.pick","task":"12","title":"Action routes and live updates"}
+{"ts":"2026-10-27T06:55:55.817Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 12 pick head 9cd74c15920f51d2284c2c2c8d07264e25371c31"}
+{"ts":"2026-10-27T06:55:55.851Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-test-author","role":"author task 12","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T07:03:00.071Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-test-author","input":"94","output":"28736","cacheWrite":"109643","cacheRead":"4484770","tokens":"4623243","cacheWrite5m":"0","cacheWrite1h":"109643","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T07:03:00.071Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-test-author","role":"author task 12","result":"none","phase":"implementation","task":"12"}
+{"ts":"2026-10-27T07:03:00.120Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 12 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-27T07:03:00.120Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-implementer","role":"implement task 12","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T07:09:54.042Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-implementer","input":"126","output":"23810","cacheWrite":"114827","cacheRead":"6247295","tokens":"6386058","cacheWrite5m":"0","cacheWrite1h":"114827","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T07:09:54.042Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 12","result":"yes/12","phase":"implementation","task":"12"}
+{"ts":"2026-10-27T07:09:54.097Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-implementer","role":"implement task 12 retry","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T07:13:41.595Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-implementer","input":"54","output":"7218","cacheWrite":"64029","cacheRead":"1996331","tokens":"2067632","cacheWrite5m":"0","cacheWrite1h":"64029","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T07:13:41.595Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 12 retry","result":"ok","phase":"implementation","task":"12"}
+{"ts":"2026-10-27T07:14:05.766Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"gate: task 12 pass risk low tdd assertion-red"}
+{"ts":"2026-10-27T07:14:05.777Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"12","rounds":"0","outcome":"gate"}
