@@ -174,7 +174,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 9.1, 9.2, NFR Security_
   - _Prompt: Task: Per design C10: runAdvisorCommand exits 1 without a running dashboard; creates advisor/ and advisor/notes/; seeds sources; makes a conversation UUID; writes 0600 advisor/mcp.json (one http server at the dashboard url plus the endpoint path, the advisor bearer and x-sdd-conversation headers), advisor/settings.json denying Read and Bash on the operator secret file, advisor/system.md from the role body; spawns claude in advisor/ with the flags design C10 lists, prompt "Give me the hello summary."; writes session.json after the spawn, deletes it on exit; advisor commit runs checkpoint inside withStoreLock (9.2, design D20); the open route returns a live session as is (1.4), else spawns detached with --remote-control, checks liveness once after 10 seconds, returns live or command (1.3) | Restrictions: Probe claude 2.1.311 for the mcp.json headers key and the Bash deny-rule form and record each probe in the test; nothing stays armed after the response (1.5) | Success: cli.test.ts with stub-claude proves the spawned argv carries every listed flag, mcp.json and settings.json are 0600 with the probed forms, session.json exists while the child lives and is gone after, no dashboard exits 1, advisor commit makes one commit, the open route returns the live session without a second spawn_
 
-- [ ] 17. Dashboard surface
+- [x] 17. Dashboard surface
   - File: src/dashboard_frontend/src/modules/shell/NowPage.tsx
   - File: src/dashboard_frontend/src/modules/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/ShellProvider.tsx

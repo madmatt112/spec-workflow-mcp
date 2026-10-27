@@ -357,3 +357,14 @@
 {"ts":"2026-10-27T14:42:10.157Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-verifier","input":"58","output":"24429","cacheWrite":"98739","cacheRead":"2162475","tokens":"2285701","cacheWrite5m":"0","cacheWrite1h":"98739","model":"claude-opus-4-8"}
 {"ts":"2026-10-27T14:42:10.157Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 16","result":"VERDICT: pass","phase":"implementation","task":"16"}
 {"ts":"2026-10-27T14:42:10.158Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"16","rounds":"0","outcome":"pass"}
+{"ts":"2026-10-27T14:42:10.299Z","run":"run-20261026-204644","spec":"advisor","type":"task.pick","task":"17","title":"Dashboard surface"}
+{"ts":"2026-10-27T14:42:10.308Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 17 pick head d5e78509e5f5cc09af3dd602bb47324804d648cd"}
+{"ts":"2026-10-27T14:42:10.346Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"task 17 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-27T14:42:10.346Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-implementer","role":"implement task 17","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-27T14:48:58.792Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-implementer","input":"114","output":"26593","cacheWrite":"103297","cacheRead":"5169417","tokens":"5299421","cacheWrite5m":"0","cacheWrite1h":"103297","model":"claude-sonnet-5"}
+{"ts":"2026-10-27T14:48:58.792Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 17","result":"yes/17","phase":"implementation","task":"17"}
+{"ts":"2026-10-27T14:49:09.675Z","run":"run-20261026-204644","spec":"advisor","type":"note","text":"gate: task 17 pass risk high"}
+{"ts":"2026-10-27T14:49:09.686Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.start","agent":"sdd-verifier","role":"verify task 17","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-27T14:51:47.217Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.end","agent":"sdd-verifier","input":"38","output":"11048","cacheWrite":"81823","cacheRead":"1248649","tokens":"1341558","cacheWrite5m":"0","cacheWrite1h":"81823","model":"claude-opus-4-8"}
+{"ts":"2026-10-27T14:51:47.217Z","run":"run-20261026-204644","spec":"advisor","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 17","result":"VERDICT: pass","phase":"implementation","task":"17"}
+{"ts":"2026-10-27T14:51:47.218Z","run":"run-20261026-204644","spec":"advisor","type":"task.done","task":"17","rounds":"0","outcome":"pass"}
