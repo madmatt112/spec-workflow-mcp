@@ -195,7 +195,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 11.1, 11.2_
   - _Prompt: Task: Per Requirement 11.1-11.2, document the advisor subcommand and the sdd advisor alias, the second opinion, staged actions and the dashboard confirm, sources.json, the notebook, push.json and the home event log; amend §17's "no roles" for the advisor credential; list the operator steps: archive the owctl repository, delete overwatch-hud.json and overwatch-handoff.md from the home after the notebook seed | Restrictions: ASD-STE100 style; no code change; perform none of the retirement steps | Success: each of the four files names entries, staged actions, sources, notebook and push where in scope; §16 and §17 match the shipped paths and routes; the retirement list is present_
 
-- [ ] 19. End-to-end proof and live-check evidence
+- [x] 19. End-to-end proof and live-check evidence
   - File: src/advisor/__tests__/advisor-e2e.test.ts
   - File: .spec-workflow/specs/advisor/verification-evidence.md
   - Test: src/advisor/__tests__/advisor-e2e.test.ts — POST /api/controller/advisor/mcp then POST /api/controller/actions/:id/confirm
