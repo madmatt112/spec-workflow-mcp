@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/cli.test.ts","src/advisor/__tests__/helpers/stub-interactive-claude.mjs"],"seams":{"src/advisor/__tests__/cli.test.ts":"runAdvisorCommand(args)"},"redCommit":"f9951f9738393283097b412745fdb01ae1db7116","baseSha":"78c66b06f3c8a7f3b0ffff6635260053cc134898","base":"structural-red","head":"pass","amended":true,"judged":null}

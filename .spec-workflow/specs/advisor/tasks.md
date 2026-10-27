@@ -163,7 +163,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, NFR Security_
   - _Prompt: Task: Per design C11: on start with no pushed.json, record every open wait id and push none (design D3); else push each open wait not recorded; then watch waits/ add and change; per event through one queue, an open wait not yet recorded is added to pushed.json, written, then POSTed to push.json url with kind, project name, spec and dashboardUrl only; a failed POST retries once after 60 seconds, then appends push.failure through task 1's appendEvent; each write drops ids whose wait file is gone; no push.json means no send | Restrictions: No timer other than the one retry; an unreadable pushed.json counts as absent; the body carries no question text, advice, file content or path | Success: push.test.ts with a local capture server proves the first start pushes nothing, a wait file written by a child node process pushes once (10.2), answering or attaching advice does not repush, a restart does not repush (10.3), a failing endpoint gives one retry then one push.failure row, no config sends nothing, and the body has exactly the four keys_
 
-- [ ] 16. Conversation entry and decision commits
+- [x] 16. Conversation entry and decision commits
   - File: src/advisor/cli.ts
   - File: src/index.ts
   - File: src/dashboard/multi-server.ts
