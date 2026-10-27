@@ -38,7 +38,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 5.2, 5.3, 5.8_
   - _Prompt: Task: Add the WaitOpinion type and the opinion and opinionStatus fields of design Data Models to WaitRecord and both wire ControllerWait copies; give attachAdvice a trailing optional opinion argument; add an exported opinion-status setter; route answerWait, attachAdvice and the status setter through one in-process promise queue per wait id inside src/controller/waits.ts (design C7 wait writes, design D19, Requirement 5.2) | Restrictions: Existing waits.test.ts assertions at 183-191 and src/dashboard/__tests__/controller-waits-routes.test.ts:147-157 keep their exact values; the advice route keeps its body; Requirement 5.3 already holds at base (attachAdvice touches no run, controller.ts onWaitChange at 339 acts only on answered), so its test is a regression guard, not a red test | Success: waits.test.ts proves attachAdvice with an opinion stores both advice and opinion; a record with only an advice string still reads back unchanged (5.8); an answerWait and an attachAdvice started together on one id both land, answer kept; the opinion-status setter started together with an answerWait on one id serialises through the queue and leaves the answer intact; attachAdvice leaves the wait state and the run file unchanged (regression guard, 5.3); tsc clean_
 
-- [ ] 4. Advisor credential and scoped access
+- [x] 4. Advisor credential and scoped access
   - File: src/controller/access.ts
   - File: src/dashboard/multi-server.ts
   - Test: src/controller/__tests__/access.test.ts — makeRequireAccess(secret, advisorSecret)

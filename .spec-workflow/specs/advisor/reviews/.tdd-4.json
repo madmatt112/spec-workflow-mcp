@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/access.test.ts"],"seams":{"src/controller/__tests__/access.test.ts":"makeRequireAccess(secret, advisorSecret)"},"redCommit":"269e78d6d941ed274247911553ca3b8603e6dbde","baseSha":"fc311f77d1a93376d5db31ff7f73cd6bfb1f7d77","base":"structural-red","head":"pass","amended":false,"judged":null}
