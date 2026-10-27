@@ -129,3 +129,8 @@ Cost: 1 implementer spawn(s)
 implementation complete: 19 tasks, 10 fix rounds, 1 adjudications, 90 spawns, 5 deferrals added
 Evidence: completion gate · mark run-20261026-204644 bbaffb27
 Cost: see the ledger
+
+## 2026-10-27T19:25:03Z · retrospective · phase · cleanup
+retrospective compiled: 20 findings, 17 proposals, 3 decisions needed
+Evidence: retrospective.md, retrospective-proposals.md · mark run-20261026-204644 ab2b4f2e
+Cost: 2 spawns
