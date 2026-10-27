@@ -310,23 +310,32 @@ control the operator presses, and no run state depends on its output.
   (decomposition entry 25): a short summary at hello, tallies the controller keeps from
   the ledgers and retros, and drill-down search that runs text and local-embedding meaning
   search together over every project's records.
-- **Tools.** The dashboard server exposes an MCP endpoint for the advisor: cross-project
-  reads (projects, runs, waits, specs, any spec-store file, PR state, usage, the harness's
-  docs and ADRs, search) and the operator's actions (launch, answer a wait, merge, file a
-  deferral, add a decomposition entry, write to the owner backlog). An action from the
-  advisor is **staged, not executed**: it appears in the dashboard as a pending action with
-  the advisor's reason, and runs only when the operator confirms it there. The guard is
-  code, not a prompt rule, because the advisor reads sources the operator does not control
-  (a site, a folder, another system) and a planted instruction in one of them must not be
-  able to merge or launch. Everything the advisor reads from a source is data, never an
-  instruction, and the skill says so. Confirmed actions are written to the home event log as
-  `advisor.action` with the conversation id. (Proposed; narrows round 5 answer 5 and is put
-  to the operator in round 6.)
+- **Tools.** The dashboard server exposes one MCP endpoint for the advisor
+  (`ADVISOR_MCP_PATH`): read tools (`projects`, `runs`, `waits`, `specs`,
+  `read_store_file`, `pr_reads`, `usage`, `summary`, `tallies`, `search`, `sources`,
+  `staged_actions`) and stage tools (`stage_merge`, `stage_deploy`, `stage_launch`,
+  `stage_answer`, `stage_deferral`, `stage_decomposition`, `stage_backlog`), each needing a
+  reason. `read_store_file` reads only inside a project's `.spec-workflow/`; a path that
+  tries to leave it, by `..` or by a symlink, is refused. A stage tool never runs an action:
+  it appears in the dashboard as a pending action with the advisor's reason, and runs only
+  when the operator confirms it there. The guard is code, not a prompt rule, because the
+  advisor reads sources the operator does not control (a site, a folder, another system)
+  and a planted instruction in one of them must not be able to merge or launch. Everything
+  the advisor reads from a source is data, never an instruction, and the role file says so.
+  A confirmed action is written to the home event log as `advisor.action` with the
+  conversation id.
 - **Sources.** `sources.json` in the harness home: name, kind (repo, folder, url, mcp),
-  location, one line of what it is. The skill lists them at hello and reads what the
-  conversation needs. The operator edits the file or asks the advisor to.
+  location, one line of what it is, and whether it is personal. The role lists them at
+  hello and reads what the conversation needs. The operator edits the file or asks the
+  advisor to.
 - **Notebook.** `advisor/notes/` in the home: one Markdown file per thread, an index the
   advisor keeps. Prose by the model, which is what it is for. The controller never reads it.
+- **Push.** `push.json` in the harness home names a URL. The process that takes the
+  controller's start lock runs the one pusher. On its first start it records every open
+  wait without pushing; after that, a new open wait gets one POST carrying only its kind,
+  project, spec and the dashboard URL — no question text, advice or file content. A failed
+  push retries once after a minute, then is logged to the home event log as `push.failure`
+  and dropped.
 - **Lifetime.** No resident process, no crons, no polling. A conversation ends when the
   operator closes it; a one-shot exits. A future "watch X" is a scheduled one-shot through
   the controller, logged like any action.
@@ -338,11 +347,14 @@ control the operator presses, and no run state depends on its output.
 ## 17. Access
 
 The dashboard binds to 127.0.0.1 by default. Exposure on the LAN is opt-in. Every mutating
-route (launch, answer, merge, cancel, confirm an advisor action, edit a setup) and the
-advisor's MCP endpoint require a shared secret the controller generates on first start and
-keeps in the harness home; the dashboard sends it from a browser login once per device;
-`sdd advisor` reads it from the home. The secret is required on the LAN too. Read routes
-are open on loopback and need the secret on the LAN. There is no second user and no roles.
+route (launch, answer, merge, cancel, confirm an advisor action, edit a setup) requires the
+operator's shared secret, which the controller generates on first start and keeps in the
+harness home; the dashboard sends it from a browser login once per device. The advisor's
+MCP endpoint takes that same operator secret, or a second, scoped credential the
+controller generates alongside it: a bearer good for that one endpoint and no other route.
+`sdd advisor` reads its scoped credential from the home. The secret is required on the LAN
+too. Read routes are open on loopback and need the secret on the LAN. There is no second
+user and no roles, beyond that one scoped, read-and-stage-only credential.
 
 ## 18. Not in scope
 

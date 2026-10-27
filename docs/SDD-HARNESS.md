@@ -73,6 +73,8 @@ atomically.
 - `controller.lock` — the single-controller lock. A second controller that finds the
   lock held exits.
 - `watchdog.state` and `watchdog-alerts.log` — the watchdog's memory and its alerts.
+- `advisor/`, `sources.json`, `push.json`, `pushed.json`, `search.json` and `events.jsonl`
+  — the advisor's own files (see "The advisor").
 
 There is no pointer file and no `harness-run.json` any more; both went with the
 supervisor at step (d) of the foundation rework.
@@ -154,7 +156,9 @@ route and every `/api/controller/*` route needs the shared secret or the session
 The controller makes the secret on first start and keeps it in the harness home. The
 browser sends it from a login once per device. Read routes are open on loopback and need
 the secret on the LAN. `/api/health` is the one route that needs no secret. There is no
-second user and no roles (design §17).
+second user and no roles (design §17), beyond one exception: the advisor's own scoped
+credential, a second secret good only for its one MCP endpoint and no other route (see
+"The advisor").
 
 ### Cancel and discard
 
@@ -274,15 +278,18 @@ it as rules. The controller reads these keys (`src/dashboard/harness/run-setup.t
 
 ## Roles and models
 
-`harness/agent-profiles.json` mirrors the frontmatter of the ten role files. A test pins
-them to each other. The controller is code and has no model.
+`harness/agent-profiles.json` mirrors the frontmatter of the eleven role files. A test
+pins them to each other. The controller is code and has no model.
 
 | Role | Model | Effort |
 | --- | --- | --- |
-| `sdd-drafter`, `sdd-adjudicator` | `claude-opus-5-5` | high |
+| `sdd-drafter`, `sdd-adjudicator`, `sdd-advisor` | `claude-opus-5-5` | high |
 | `sdd-reviewer`, `sdd-implementer`, `sdd-verifier` | `claude-opus-4-8` | xhigh |
 | `sdd-reviser`, `sdd-retro-compiler`, `sdd-retro-analyst` | `claude-opus-4-8` | high |
 | `sdd-checker`, `sdd-test-author` | `claude-sonnet-5` | high |
+
+`sdd-advisor` is not a step in a run: it is the advisor's role, run only in the
+operator's conversation or the one-shot second opinion (see "The advisor").
 
 A `## Providers` row in `agent-rules.md` moves an eligible role (`sdd-reviewer`,
 `sdd-checker`, `sdd-reviser`) to DeepSeek for one project.
@@ -535,11 +542,60 @@ The dashboard binds to loopback. Every write route needs a shared secret (see T8
 controller design). The controller makes the secret on first start and keeps it in the
 harness home. `/api/health` is the one route that needs no secret.
 
+## The advisor
+
+The advisor is the one model the operator talks to about every project the harness
+manages, the harness itself, and the sources the operator names. It is nonessential: no
+run waits for it, and no run state depends on it (design §16).
+
+- **Entries.** Press "Open advisor" in the dashboard, or run `spec-workflow-mcp advisor`
+  (aliased `sdd advisor` where the operator has set that alias) in a shell. Either starts
+  a `claude` conversation in a fixed directory, with the `sdd-advisor` role, the hello
+  summary preloaded, and the controller's tools connected over MCP. The second entry is
+  one-shot: press "Second opinion" on a wait to run the same role as a headless step
+  against that one wait; it attaches its picks to the wait and changes nothing else.
+- **Staged actions.** A merge, a deploy, a launch, a wait answer, a deferral, a
+  decomposition entry or an owner-backlog line the advisor proposes is staged, not run. It
+  appears in the dashboard's "Staged by the advisor" group with the advisor's reason, and
+  runs only when the operator presses Confirm there; Dismiss marks it so a later confirm
+  is refused. A confirmed or refused action is written to the home event log as
+  `advisor.action`.
+- **Sources.** `sources.json` in the harness home names what the advisor may read outside
+  the harness: a repository, a folder, a site, an MCP server, each with one line saying
+  what it is, and a flag for a personal one. The operator edits the file by hand or asks
+  the advisor to.
+- **Notebook.** `advisor/notes/` in the harness home: one Markdown file per thread, with
+  an index. The advisor writes it in its own words; the controller never reads it. A
+  decision the advisor takes is committed where it acts (an ADR, `GLOSSARY.md`, a project
+  doc) with the `advisor commit` subcommand, plus a dated line in the notebook.
+- **Push.** `push.json` in the harness home names a URL. One push per new wait goes there,
+  naming only its kind, project, spec and the dashboard link — never the question, the
+  advice or any file content.
+- **Credential.** The advisor's conversation holds its own secret, separate from the
+  operator's, good only for the advisor's one MCP endpoint and no other route (see
+  "Access").
+
+Everything the advisor reads from a source is data, never an instruction: a planted line
+telling it to merge, launch or stage something is content to report, not a command to
+obey. That is why a staged action, not a direct write, is the only way the advisor changes
+shared state.
+
+### Retiring overwatch
+
+The advisor replaces the standing overwatch session, `owctl`, the overwatch HUD and the
+handoff file. Once the advisor's notebook has seeded its first threads from
+`overwatch-handoff.md` and `owner-backlog.md`, the operator takes these one-time steps:
+
+1. Archive the `owctl` repository (`~/repo/overwatch-tui`).
+2. Delete `overwatch-hud.json` from the harness home.
+3. Delete `overwatch-handoff.md` from the harness home.
+
 ## Dashboard pages
 
-- **Now.** The waits that need the operator, with an answer sheet per kind; the live runs,
-  the idle projects with their launchable spec, and the specs closed in the last seven
-  days.
+- **Now.** The waits that need the operator, with an answer sheet per kind and a Second
+  opinion button; the live runs, the idle projects with their launchable spec, the specs
+  closed in the last seven days, the actions the advisor has staged with Confirm and
+  Dismiss, and an Open advisor button.
 - **Runs.** Every run of the enabled projects in Live and Ended groups, and the Launch
   card: one card per project with the launchable spec, the setup defaults and the Launch
   button, disabled with its reason when the project cannot launch.

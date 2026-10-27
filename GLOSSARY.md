@@ -102,6 +102,16 @@ A named thing outside the harness the operator wants the advisor to know: a repo
 folder, a site, a system's MCP server, with one line saying what it is.
 _Avoid_: context (too broad), connector
 
+**Notebook**:
+The advisor's own record of its conversations: one file per thread in the harness home,
+with an index. Prose the advisor writes; the controller never reads it.
+_Avoid_: memory, journal
+
+**Push**:
+One phone notification the harness sends for a new wait, naming only its kind, project
+and spec.
+_Avoid_: ping, alert
+
 **Harness**:
 The whole product: what launches runs, carries them, shows them, and takes the operator's
 answers.
