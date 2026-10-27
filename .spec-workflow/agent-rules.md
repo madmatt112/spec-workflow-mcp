@@ -82,6 +82,9 @@ node-20 fields.
   File: list, as a declared directory where a glob is unavoidable (no bare trailing
   slash). The tasks-phase review rejects a fixture-seeding task whose File: list omits a
   path the task writes.
+- When a task's cited design clause pins a behaviour to a named module, the `File:` list
+  must include that module. The tasks-phase review rejects a task whose cited clause names
+  a write location absent from `File:`.
 
 ## Lint false positives
 
