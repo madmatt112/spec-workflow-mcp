@@ -85,7 +85,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 4.1, 4.3_
   - _Prompt: Task: Per design C6, listCorpus returns each project's .spec-workflow/**/*.md, docs/**/*.md and GLOSSARY.md plus the home waits/*.json, with kind derived from the path (requirements, design, tasks, retro, deferral, ADR, doc, wait) and date from a wait's created, else last commit date, else mtime; chunk splits at level 1-3 headings, at most 60 lines, a wait is one chunk; textSearch scores distinct query words of three letters or more, stop words removed, plus one for the whole phrase | Restrictions: Never list session transcripts or the home advisor/notes/ (4.1); scan in node, no ripgrep (design D13) | Success: search-corpus.test.ts proves notes and transcripts are absent from the corpus, an ADR under docs/adr/ gets kind ADR, a 150-line section splits into chunks of at most 60 lines, and the phrase bonus ranks an exact-phrase chunk first_
 
-- [ ] 9. Embedder, index refresh and merged search
+- [x] 9. Embedder, index refresh and merged search
   - File: src/advisor/search/embed.ts
   - File: src/advisor/search/index.ts
   - File: src/advisor/search/search.ts

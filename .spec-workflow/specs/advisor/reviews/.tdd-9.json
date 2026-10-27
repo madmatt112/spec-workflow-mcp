@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/search.test.ts"],"seams":{"src/advisor/__tests__/search.test.ts":"search(q)"},"redCommit":"45a13612a59cf99a280ed181a6f27085252853f2","baseSha":"41a15f8667ad311704f57972caff7b78d8c4fa2c","base":"structural-red","head":"pass","amended":true,"judged":null}
