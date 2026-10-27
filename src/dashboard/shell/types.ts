@@ -139,6 +139,12 @@ export interface ControllerWaitAnswer {
   answered: string;
 }
 
+/** The advisor's typed second opinion (design C7, Data Models). */
+export interface ControllerWaitOpinion {
+  picks: { question: string; pick: string; reason: string }[];
+  summary: string;
+}
+
 export interface ControllerWait {
   id: string;
   kind: ControllerWaitKind;
@@ -149,6 +155,8 @@ export interface ControllerWait {
   questions: ControllerWaitQuestion[];
   answer?: Record<string, ControllerWaitAnswer>;
   advice?: string;
+  opinion?: ControllerWaitOpinion;
+  opinionStatus?: { state: 'running' | 'failed'; at: string; reason?: string };
   state: 'open' | 'answered' | 'expired';
   proposals?: string[];
 }
