@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/mcp-endpoint.test.ts"],"seams":{"src/advisor/__tests__/mcp-endpoint.test.ts":"registerAdvisorMcp(app, deps)"},"redCommit":"f5b80b65ac348791e9542598c41410bd33125dee","baseSha":"a3f396d04859356f11a2cc51113228a24827e015","base":"structural-red","head":"pass","amended":false,"judged":null}

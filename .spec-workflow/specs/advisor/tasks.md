@@ -131,7 +131,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 6.2, 6.3, 6.4_
   - _Prompt: Task: Register the three routes per design C8 calling the store task 10 exports; confirm and dismiss answer 409 for an action not staged; the shell feed sends controller-actions with the action list and the hub listens to the store's change emitter | Restrictions: Add no access exemption; the operator credential is the only one these routes accept (the hook task 4 changed refuses the advisor secret here); the new message alters an exact value in src/dashboard/shell/__tests__/shell-feed.test.ts:275-284 (the five-message order becomes six, controller-actions last), so update it and every other hit of the grep; shell-routes.test.ts filters by type and asserts nothing this changes | Success: shell-feed.test.ts passes with controller-actions as the sixth message; advisor-routes.test.ts proves GET lists a staged action, confirm with the operator bearer runs it, confirm with the advisor bearer gets 401 and the action stays staged (6.4), dismiss marks dismissed, a repeat confirm gets 409_
 
-- [ ] 13. Advisor MCP endpoint
+- [x] 13. Advisor MCP endpoint
   - File: src/advisor/mcp-endpoint.ts
   - File: src/dashboard/multi-server.ts
   - Test: src/advisor/__tests__/mcp-endpoint.test.ts — registerAdvisorMcp(app, deps)
