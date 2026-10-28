@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793215356162_evd19nsws",
+  "title": "dashboard-visual-refresh requirements v4",
+  "filePath": ".spec-workflow/specs/dashboard-visual-refresh/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-28T19:22:36.162Z",
+  "category": "spec",
+  "categoryName": "dashboard-visual-refresh",
+  "response": "v4; 4 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-28T19:22:36.394Z"
+}

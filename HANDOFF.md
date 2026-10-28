@@ -134,6 +134,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-27 | advisor | implementation | tasks 19/19 | complete | PR #180 |
 | 2026-10-27 | advisor | retrospective |  | retro-ready | 20 findings, 17 proposals |
 | 2026-10-27 | advisor | closeout | items 17/17 | closed | 5 done, 1 to-do, 11 skipped |
+| 2026-10-28 | dashboard-visual-refresh | requirements | v4 | approved | 4 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1120,4 +1121,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/181 |
 | To-dos | P11: Change already correct at 5d12a086; close-out gate false-positives because itemPaths() reads example path docs/SDD-HARNESS.md from the item prose as the file list, flagging the real target .spec-workflow/agent-rules.md as file-outside-list. No in-scope edit can pass the gate; touching docs/SDD-HARNESS.md would be wrong. Needs a controller/gate fix. |
 | Gotchas | none |
+
+
+## dashboard-visual-refresh — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v4 on 2026-10-28 |
+| Rounds | 4; verdicts converged |
+| Approval | `approval_1793215356162_evd19nsws` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 

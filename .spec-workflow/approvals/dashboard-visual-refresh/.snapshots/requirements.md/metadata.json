@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-visual-refresh/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-28T19:22:36.246Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793215356162_evd19nsws",
+      "approvalTitle": "dashboard-visual-refresh requirements v4"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-28T19:22:36.392Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793215356162_evd19nsws",
+      "approvalTitle": "dashboard-visual-refresh requirements v4"
+    }
+  ]
+}
