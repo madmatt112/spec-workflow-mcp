@@ -135,6 +135,7 @@ Terms: **token file** is the one CSS file defining every design token; **FE** is
 - **v4** (2026-10-28) — Round-3 adversarial response (adversarial-analysis-requirements-r3.md, verdict iterate 1/0/1).
   - **R3-1 — Accepted (MUST_FIX).** Requirement 4.1's cross-view test now matches tone for the pill and variant for the button, so the by-design background and text colour are compared only within one tone and one variant; the shared list row is unaffected.
   - **R3-2 — Accepted (MINOR).** Requirement 6.2's grep brace branch now consumes one level of nested braces, so interpolated template literals match whole; re-probed on real code at 102/102 with every interpolated template captured.
+  - **Lint pass.** 0 fixed; rejected: L-1..L-8 — AC check-rule vocabulary and subjects, not citation tokens; text at lines 33 and 45 unchanged since rejected in v3 (rule 11); cited ranges verified (vitest.config.ts:8 include pattern; dark: variants present at the RunsPage/SpecsPage lines).
 - **v3** (2026-10-28) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 1/1/1).
   - **R2-1 — Accepted (MUST_FIX).** Requirement 6.2's check now matches string-literal, brace-expression and template-literal attribute forms, so every attribute is compared; the self-contradicting template-text clause is deleted.
   - **R2-2 — Accepted (SHOULD_FIX).** Requirement 4.1 now mandates a cross-view computed-style equality check for the list row, status pill and button kinds; the design names the harness.
