@@ -19,9 +19,9 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 #### Acceptance Criteria
 
 1. WHEN the refresh lands THEN exactly one file under FE SHALL declare token values: colour (light and dark), font family, font size, font weight, line height, spacing steps, radii, border widths, shadows, motion durations and easings, the two row heights, the sidebar width, the panel width and the content maximum width. Today the values sit in `src/dashboard_frontend/src/modules/theme/theme.css:7-221` and the row heights in `src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:140-143`.
-2. WHEN the density changes THEN the value written to `--row-h` SHALL be a reference to a token in the token file, not a pixel literal (today `'32px'` and `'36px'` at `src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:142`).
+2. WHEN the density changes THEN the value written to `--row-h` SHALL be a reference to a token in the token file, not a pixel literal (today `'32px'` and `'36px'` at `src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:142`). The density e2e (`e2e/worktree-shell.spec.ts:242-256`) still proves the row renders 36 and 32 px, so the token resolves.
 3. WHEN the dashboard is built THEN each token name SHALL carry one value per theme in the built stylesheet. Today the build carries Tailwind's `--text-sm:.875rem` and the token file's `--text-sm: 12px`, and the same split for `--radius-md` (vite build probe, recorded in `codebase-context.md`, Theme and tokens). Tailwind utilities the pages use (`text-*`, `rounded-*`, `shadow-*`, `font-sans`, `font-mono`) SHALL resolve to the token file's values.
-4. WHEN the refresh lands THEN every `var(--name)` reference under FE SHALL name a token the token file defines. Today `--accent-danger` is referenced with a `#dc2626` fallback and defined nowhere (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:142`).
+4. WHEN the refresh lands THEN every `var(--name)` reference under FE SHALL name a token the token file defines, and a test SHALL assert this. Today `--accent-danger` is referenced with a `#dc2626` fallback and defined nowhere (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:142`).
 5. WHEN the refresh lands THEN the CSS classes that no file under FE references SHALL be removed: the old-page classes at `src/dashboard_frontend/src/modules/theme/theme.css:246-505` and `:511-612`, and the component classes at `src/dashboard_frontend/src/modules/theme/tailwind.css:15-464`. Unlayered classes that share a name with a Tailwind utility (`.gap-N`, `.p-N` at `src/dashboard_frontend/src/modules/theme/tailwind.css:297-308`; `.font-mono`, `.tabular-nums` at `src/dashboard_frontend/src/modules/theme/theme.css:440-446`) SHALL be removed, so the Tailwind utility is the only rule for that name.
 
 ### Requirement 2 — No hard-coded colour or size outside the token file
@@ -41,7 +41,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 
 #### Acceptance Criteria
 
-1. WHEN the token file defines a colour token for one theme THEN it SHALL define the same token name for the other theme, and a test SHALL compare the two name sets.
+1. WHEN the token file declares theme-varying tokens (colours and shadows) THEN it SHALL put them in two dedicated blocks — one light, one `.dark` — that hold only theme-varying tokens, and SHALL keep theme-independent tokens (spacing, type, radius, motion) in a separate block. A test SHALL assert the light and `.dark` blocks declare the same set of custom-property names. This isolates the per-theme set so the comparison is well-defined; structural tokens are never duplicated into `.dark`.
 2. WHEN the refresh lands THEN no `className` under FE SHALL use the `dark:` variant; a theme difference SHALL live only in token values. Today `dark:text-amber-400` and `dark:text-green-400` appear at `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:192-193` and `src/dashboard_frontend/src/modules/shell/SpecsPage.tsx:33` (red-first, covered by the Requirement 2 test or its own assertion).
 3. WHEN the operator switches theme THEN native controls (checkbox, radio, switch, search field, scrollbars) SHALL follow the selected theme. Today `color-scheme: light dark` applies to both themes (`src/dashboard_frontend/src/modules/theme/tailwind.css:6-8`), so native controls follow the operating system instead (red-first, browser check).
 4. The theme switch SHALL stay in the settings popover with the same control and labels (`src/dashboard_frontend/src/modules/shell/Gear.tsx:67-72`), the default theme SHALL stay dark, and the choice SHALL stay stored under the `theme` key (`src/dashboard_frontend/src/modules/theme/ThemeProvider.tsx:14-22`). Invariant (verified, not red-first).
@@ -81,10 +81,10 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 #### Acceptance Criteria
 
 1. The routes SHALL stay as at `src/dashboard_frontend/src/modules/app/App.tsx:21-29`. Invariant (verified, not red-first).
-2. The set of `data-testid` values, `role` values and `aria-*` attributes under FE, and the visible label text of every control, SHALL be the same before and after. Check: the sorted list of `data-testid="..."` strings found by `grep -rhoE 'data-testid=[^ >]+' src/dashboard_frontend/src` is identical on base and on the branch, with template-literal ids compared by their template text. Invariant (verified, not red-first).
+2. The set of `data-testid` values, `role` values and `aria-*` attributes under FE, and the visible label text of every control, SHALL be the same before and after. Check: the sorted list of `data-testid=`, `role=` and `aria-*=` attribute strings found by `grep -rhoE '(data-testid|role|aria-[a-z-]+)="[^"]*"' src/dashboard_frontend/src` is identical on base and on the branch, with template-literal values compared by their template text. Visible label text SHALL not change — no AC permits it and the before/after screenshots (R7) surface any that does. Invariant (verified, not red-first).
 3. No file outside `src/dashboard_frontend/`, the new tests and this spec's directory SHALL change: the server, its routes, the WebSocket feed, the controller, `src/watch/` and the harness are untouched. Invariant (verified, not red-first).
 4. No existing test SHALL be edited. The suites under `e2e/` and every vitest suite SHALL pass unchanged; the e2e suites assert no class name and no colour (only row height at `e2e/worktree-shell.spec.ts:242-256` and panel position at `:296-308`). New checks go in new test blocks or new files. Invariant (verified, not red-first).
-5. The density radio SHALL still switch a row between 36 and 32 px (`e2e/worktree-shell.spec.ts:242-256`). Invariant (verified, not red-first).
+5. The density radio SHALL still switch a row between 36 and 32 px (`e2e/worktree-shell.spec.ts:242-256`), the density choice SHALL stay stored under its key (`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:147`) and the group-collapse state under its key (`src/dashboard_frontend/src/modules/shell/primitives.tsx:25-40`, guarded by `e2e/worktree-shell.spec.ts:258`). Invariant (verified, not red-first).
 6. `package.json` `dependencies` and `devDependencies` (`./package.json:56-108`) SHALL be unchanged: no new UI library, font package or CSS tool. Invariant (verified, not red-first).
 7. The font files SHALL stay the bundled Inter and JetBrains Mono faces (`src/dashboard_frontend/src/assets/fonts/fonts.css:1-74`); no font loads from the network. Invariant (verified, not red-first).
 
@@ -94,7 +94,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 
 #### Acceptance Criteria
 
-1. WHEN the implementation starts THEN a script SHALL capture "before" screenshots of the six views in light and dark at 1440 by 900 px, from the base build, against the fixture stores of the worktree e2e harness (`./playwright.worktree.config.ts:18-71`), with one detail panel open on each view that has one. WHEN the refresh is done THEN the same script SHALL capture the "after" set from the branch. The 24 images go to `screenshots/before/` and `screenshots/after/` in this spec's directory, named by view and theme.
+1. WHEN the implementation starts THEN a script SHALL capture "before" screenshots of the six views in light and dark at 1440 by 900 px, from the base build, as a Playwright spec under the worktree project (`./playwright.worktree.config.ts:18-71`) that reuses the suite's runtime seeding (`seedClosedSpec` at `e2e/worktree-shell.spec.ts:51`, `WorktreeHarness` at `e2e/helpers/worktree-harness.ts:288`), so each view renders against seeded projects, specs and runs, with one detail panel open on each view that has one. WHEN the refresh is done THEN the same script SHALL capture the "after" set from the branch. The 24 images go to `screenshots/before/` and `screenshots/after/` in this spec's directory, named by view and theme.
 2. The same script SHALL also capture each of the six views at 375 px in the after set, dark theme only, so the operator sees the stacked layout.
 3. WHEN both sets exist THEN `verification-evidence.md` in this spec's directory SHALL list one line per view, `pending` until the operator reviews the pair, then `passed`. The retrospective does not open until every line reads `passed` (agent-rules, Fixtures and live verification).
 4. WHEN the refresh is done THEN `npm run build`, `npx tsc --noEmit` and `npm test` SHALL be green, and the worktree e2e suite (`npm run test:e2e:worktree`) SHALL be green with no existing test edited.
@@ -105,7 +105,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 - In both themes, body and label text SHALL have at least 4.5:1 contrast on its surface, and large text, icons, borders of inputs and the focus ring at least 3:1 (WCAG 2.1 AA, 1.4.3 and 1.4.11). Where a palette value from the mock fails this, the token value is adjusted and the adjustment is listed in the design. A test SHALL compute the ratios from the token file for the text-on-surface pairs the design lists.
 
 ### Performance
-- The built dashboard stylesheet SHALL be no larger than at base (54.58 kB uncompressed in the 2026-10-28 probe build). Removing the unused classes of Requirement 1.5 should make it smaller.
+- The built dashboard stylesheet SHALL be no larger than at base; the gate re-measures base, so the 54.58 kB uncompressed from the 2026-10-28 probe build is a reference, not the bar. Removing the unused classes of Requirement 1.5 should make it smaller.
 
 ## Decisions taken in this document
 
@@ -118,7 +118,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 - D7 — The Run page counts as a view for every check and screenshot, so there are six views, not five; options were six views; the five nav pages only. Chosen because it is a routed page the refresh restyles.
 - D8 — The hard-coded value check is a vitest test that runs in the normal test command; options were a vitest test; a one-off search at the verification gate. Chosen because it keeps later pages from drifting.
 - D9 — Unused CSS classes and the duplicate unlayered utility classes are removed; options were remove them; keep them and restyle them. Chosen because no component uses them, they carry literal colours, and the duplicates override Tailwind utilities by name.
-- D10 — Screenshots use the e2e harness fixture stores at 1440 by 900 px, plus 375 px for the after set; options were fixture stores; the operator's live stores. Chosen because fixtures are reproducible and show no real project data.
+- D10 — Screenshots run as a worktree Playwright spec that reuses the e2e suite's runtime seeding, at 1440 by 900 px, plus 375 px for the after set; options were the e2e seeding; the operator's live stores. Chosen because the seeded fixtures are reproducible and show no real project data.
 - D11 — Status pills use six tones: success, warning, danger, info, accent and neutral; options were six tones; one tone per status value. Chosen because every status map today already falls into these groups.
 - D12 — Native controls follow the selected theme, not the operating system; options were follow the selected theme; keep following the operating system. Chosen because a dark page with light checkboxes is the inconsistency this spec removes.
 
@@ -133,5 +133,12 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 
 ## Revision History
 
+- **v2** (2026-10-28) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/3).
+  - **R1-1 — Accepted (SHOULD_FIX).** Requirement 6.2's check now matches the role and aria attribute families, not only the test ids, and visible label text is pinned to the before/after screenshots, so the check covers all four classes it claims.
+  - **R1-2 — Accepted (SHOULD_FIX).** Requirement 3.1 now mandates two dedicated theme-varying blocks, one light and one dark, holding colours and shadows only, with structural tokens kept in a separate block, so the name-set comparison is well-defined and structural tokens are never duplicated into the dark block.
+  - **R1-3 — Accepted (SHOULD_FIX).** Requirement 7.1 now specifies the capture as a Playwright spec under the worktree project that reuses the suite's runtime seeding helpers, not the empty temporary stores the cited config sets up; also applied to decision D10.
+  - **MINOR (methods for 1.2 and 1.4) — Partially accepted.** Added a test that every custom-property reference under the frontend names a token the file defines, and tied the row-height token to the density end-to-end test that proves the row renders 36 and 32 px.
+  - **MINOR (client-state keys) — Partially accepted.** Requirement 6.5 now pins the density and group-collapse persistence keys as invariants; no new test, since style-only work does not touch them.
+  - **MINOR (stylesheet-size baseline) — Partially accepted.** Marked the size figure a reference the gate re-measures, not the bar itself.
 - **v1** (2026-10-28) — Initial draft.
   - **Lint pass.** 4 fixed; rejected: L-2 — `className` is the AC's subject term (the JSX attribute), not a token the citation locates; the identifiers those ranges support, `dark:text-amber-400` and `dark:text-green-400`, are present and verified at RunsPage.tsx:192-193 and SpecsPage.tsx:33.
