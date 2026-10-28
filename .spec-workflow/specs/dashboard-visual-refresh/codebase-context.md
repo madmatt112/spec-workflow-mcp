@@ -76,3 +76,28 @@ Paths are relative to the code root `/home/mcf/repo/spec-workflow-mcp/.claude/wo
 - docs/dashboard-redesign.md:258-259 — density open item, mock uses 36 px rows.
 - src/watch/render.ts:12-19 — `--watch` terminal palette, ANSI basic colour codes.
 - docs/controller-design.md:255 — overwatch HUD retired.
+
+## Design phase additions (2026-10-28)
+- FE/modules/theme/ThemeProvider.tsx:2 — second import of `./tailwind.css`.
+- FE/modules/shell/primitives.tsx:131 — `SearchBox` input, `focus:outline-none focus:ring-2`.
+- FE/modules/auth/LoginPanel.tsx:44 — dialog form, bare `shadow-lg`; password input `focus:outline-none focus:ring-2` at 57.
+- FE/modules/shell/RunPage.tsx:223 — `min-w-[7rem]`, the only arbitrary length class.
+- FE/modules/shell/RunPage.tsx:305 — `dark:text-amber-400`; also `dark:` at RunPage.tsx:454, DeferralsPage.tsx:50, pause.ts:48.
+- FE/modules/shell/Sidebar.tsx:86-92 — project toggle, a checkbox with `role="switch"`.
+- FE/modules/shell/Sidebar.tsx:138 — drawer panel, `w-64` and `shadow-[var(--shadow-overlay)]`.
+- FE/modules/shell/Gear.tsx:63 — settings popover box; theme button 67; density radios 77-96.
+- FE/modules/shell/NowPage.tsx:573 — question radio; proposal checkbox at 630.
+- FE/modules/shell/UsagePage.tsx:52-56 — usage bar inline `style` on `--status-error` and `--interactive-primary`.
+- FE/modules/shell/UsageTrend.tsx:92 — axis line `stroke="var(--border-default)"` as an SVG attribute.
+- FE/modules/shell/UsageTrend.tsx:98-125 — series colour as `stroke`/`fill` attributes (98, 109, 116) and legend inline `style` (125).
+- e2e/worktree-shell.spec.ts:51-81 — `seedClosedSpec`, module-private (not exported).
+- e2e/worktree-shell.spec.ts:91-196 — `beforeAll`: harness, run record with PR reads, three deferrals, two closed specs.
+- playwright.worktree-pattern.ts:21 — `WORKTREE_SPEC_PATTERN`; every `e2e/worktree-*.spec.ts` runs under the worktree config.
+- probe (Tailwind 4.1.18 build of a scratch copy, 2026-10-28) — `@theme static` with `--text-*: initial` gives one `--text-sm` and one `--radius-md`; non-namespaced names are emitted; a namespace clear drops names declared before it; cleared namespaces make bare `rounded`, `shadow`, `shadow-lg`, `text-white`, `bg-black/50` compile to nothing; var shorthand `w-(--x)`, `max-w-(--x)`, `shadow-(--x)`, `border-(length:--x)`, `outline-(length:--x)`, `opacity-(--x)`, `accent-(--x)` compile; notes at /tmp/scratchpad/sdd/dashboard-visual-refresh/probe/NOTES.md.
+- probe (scan prototype on base, 2026-10-28) — 83 hits outside `modules/theme`, no false positive; script at /tmp/scratchpad/sdd/dashboard-visual-refresh/probe/scan/scan.cjs.
+- FE/modules/shell/RunsPage.tsx:188-196 — `CTRL_STATUS_STYLES`, controller run status pills.
+- FE/modules/shell/RunsPage.tsx:300-319 — discard pair: solid confirm 301-309, outlined Discard 311-319.
+- FE/modules/shell/SpecsPage.tsx:30-35 — `STATE_STYLES`; `DEFERRAL_STATUS_STYLES` at 232-235.
+- FE/modules/shell/DeferralsPage.tsx:48-51 — `STATUS_STYLES`, deferral status pills.
+- FE/modules/auth/LoginPanel.tsx:62-68 — submit button; busy label swap at 67.
+- node_modules/playwright-core/types/types.d.ts:2571-2602 — Playwright 1.58.0 `page.emulateMedia` options incl. `colorScheme`, `reducedMotion`; `addInitScript` at 307.
