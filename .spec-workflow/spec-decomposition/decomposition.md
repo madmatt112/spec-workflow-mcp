@@ -47,19 +47,7 @@ Carries R5 (per-task diff base), R7 (typecheck degrades honestly), R8 (attributi
 
 **End-to-end verification (to be refined in its own requirements phase).** A task started and committed on a worktree branch produces a diff covering the committed work; a worktree with unresolvable dependencies reports a typecheck that is unavailable rather than a flood of fabricated module errors; a review of work logged in worktree A but triggered from B reports a workspace mismatch and still produces a verdict.
 
-### 3. `worktree-dashboard-concurrency` — cost and safety under N worktrees (deferred)
-
-Keeps the dashboard's work constant in the number of worktrees, and makes concurrent writes to shared state safe.
-
-Carries R10 (shared per-workflow-root components) and the remainder of R11 — locking for the four shared-root files other than the registry, the staleness and atomic-break mechanics, and the global-directory location question.
-
-**Depends on 1** for per-worktree identity, which is what makes N registry entries and N component sets exist at all. **Deferred** because what remains prevents duplication and contention that only become visible once 1 has shipped.
-
-**End-to-end verification (to be refined in its own requirements phase).** With three worktrees registered on one workflow root, the dashboard constructs one spec watcher rather than three and a scheduled cleanup pass runs once rather than three times; removing one project leaves the survivors' watcher alive; a relative `SPEC_WORKFLOW_HOME` is rejected at startup with an error naming the absolute form.
-
-**Correction after design review v4.** The original wording — "nothing in it is a correctness fix for the reviewing path" — was wrong for one item. Spec 1 gives each worktree a distinct `projectId`, which converts `registerProject`'s read-modify-write from a benign convergence into a **lost-registration race**: two agents starting together each read the registry without the other, and the second write erases the first, so one worktree never appears in the dashboard and none of spec 1's route contracts can fire for it. Spec 1 creates that contention and no user configuration avoids it, so **a minimal registry lock moved into spec 1** (its Requirement 6). Everything else stayed here.
-
-One further dependency runs the other way and is recorded rather than moved: `getGlobalDir()` resolves a relative `SPEC_WORKFLOW_HOME` against `process.cwd()`, so per-worktree agents each get their own registry and the dashboard sees none of them. Spec 1's headline observable is unreachable in that configuration. This spec owns the anchor; spec 1 records the dependency in its Scope section.
+**3. `worktree-dashboard-concurrency` — culled 2026-10-28.** It kept the dashboard's work constant under N worktrees on one workflow root and locked the shared-root files they write. The controller runs one live run per project, one step at a time, so that concurrency no longer arises; the registry race it found was fixed in spec 1 (its Requirement 6). The scope record is in git history (`.spec-workflow/specs/worktree-dashboard-concurrency/`, removed in this commit).
 
 ## Harness efficiency specs
 

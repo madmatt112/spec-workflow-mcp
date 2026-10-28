@@ -6,8 +6,9 @@
 
 ## Next
 
-- **State:** all-on-disk-complete
-- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
+- **State:** active
+- **Spec:** dashboard-visual-refresh
+- **Why:** First not-Complete spec in build order (no tasks yet).
 
 ## Active
 
@@ -27,18 +28,13 @@
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
-| 15 | advisor | Complete | 19/19 |
-| 16 | dashboard-loop-views | Complete | 14/14 |
-| 17 | project-bootstrap | Complete | 11/11 |
-| 18 | verification-loop | Complete | 14/14 |
-| 19 | harness-evals | Complete | 16/16 |
-| 20 | tighter-reviews | Complete | 29/29 |
-
-## Deferred
-
-| Spec | Status | Reason |
-| --- | --- | --- |
-| worktree-dashboard-concurrency | Design | Split from worktree-execution-context after design review v3. Depends on that spec for per-worktree identity, which is what makes N registry entries and N component sets exist. Not a correctness fix for the reviewing path; deferred until spec 1 ships. |
+| 15 | dashboard-visual-refresh | Requirements | — |
+| 16 | advisor | Complete | 19/19 |
+| 17 | dashboard-loop-views | Complete | 14/14 |
+| 18 | project-bootstrap | Complete | 11/11 |
+| 19 | verification-loop | Complete | 14/14 |
+| 20 | harness-evals | Complete | 16/16 |
+| 21 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 
