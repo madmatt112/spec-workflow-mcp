@@ -101,3 +101,29 @@ Paths are relative to the code root `/home/mcf/repo/spec-workflow-mcp/.claude/wo
 - FE/modules/shell/DeferralsPage.tsx:48-51 — `STATUS_STYLES`, deferral status pills.
 - FE/modules/auth/LoginPanel.tsx:62-68 — submit button; busy label swap at 67.
 - node_modules/playwright-core/types/types.d.ts:2571-2602 — Playwright 1.58.0 `page.emulateMedia` options incl. `colorScheme`, `reducedMotion`; `addInitScript` at 307.
+
+## Tasks phase additions (2026-10-28)
+- FE/modules/app/App.tsx:20 — `main`, `min-w-0 flex-1 px-4 py-4 sm:px-6`; `Routes` at 21-29.
+- FE/main.tsx:7 — the `theme.css` import line.
+- FE/modules/shell/ShellProvider.tsx:142 — the `--row-h` `setProperty` with `'32px'`/`'36px'`; `DENSITY_KEY` at 48.
+- FE/modules/auth/LoginPanel.tsx:44 — form with bare `shadow-lg`; busy label at 67.
+- FE/modules/shell/PageLayout.tsx:22 — panel `aside`, `xl:w-96`.
+- FE/modules/shell/RunPage.tsx:332-337 — `CI_CHIP_STYLES`, CI chip map on legacy `--status-*` names; not in design C5.
+- FE/modules/shell/RunPage.tsx:223 — `min-w-[7rem]` phase box; bare `rounded` also at 319, 356, 424, 692.
+- FE/modules/shell/primitives.tsx:159 — Pager buttons with bare `rounded` (159, 168); Row at 196.
+- FE/modules/shell/RunsPage.tsx:401 — bare `rounded` (401, 419); launch button `text-white` at 412.
+- FE/modules/shell/Sidebar.tsx:86 — project row label, bare `rounded`.
+- FE/modules/shell/SpecsPage.tsx:421 — bare `rounded` (421, 434); `SearchBox` at 157.
+- FE/modules/shell/DeferralsPage.tsx:279 — bare `rounded`; `SearchBox` at 187.
+- FE/modules/shell/NowPage.tsx:208 — `--accent-danger` with `#dc2626` fallback (also 248, 727).
+- FE/modules/shell/RunPage.tsx:640 — tablist; tab at 645; log filter input 676, follow checkbox 685, log `pre` 692.
+- FE/modules/shell/NowPage.tsx:585 — textarea; second textarea at 705.
+- FE/modules/shell/RunsPage.tsx:64 — RunsPage root fragment, no horizontal padding; SpecsPage root `PageLayout` at SpecsPage.tsx:204, UsagePage root at UsagePage.tsx:122, DeferralsPage root at DeferralsPage.tsx:233.
+- FE/modules/shell/RunsPage.tsx:264 — panel recipe `rounded-lg border … p-4` (also RunsPage 381, RunPage 714, SpecsPage 270, UsagePage 45, DeferralsPage 253, NowPage 717, 801).
+- e2e/worktree-shell.spec.ts:164-174 — seeded done run record `e2e-pr-panel` with two PR reads (148-163).
+- e2e/worktree-shell.spec.ts:177-186 — three seeded deferrals, all `deferred`.
+- src/core/deferral-storage.ts:307 — `DeferralStorage.resolve(id, resolution, resolvedInSpec?)`.
+- playwright.worktree.config.ts:47-70 — web servers: `npm run dev` API on 5084, Vite dev server (not a build) on 5184.
+- playwright.worktree-pattern.ts:21 — `WORKTREE_SPEC_PATTERN`, `/[\\/]worktree-[^\\/]*\.spec\.ts$/`.
+- src/core/task-parser.ts:65 — `_Prompt` text split on every `|`.
+- /tmp/scratchpad/sdd/dashboard-visual-refresh/probe/scan/scan.cjs:4-12 — the seven prototype scan rules (copied into tasks.md Reference).
