@@ -5,7 +5,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { Controller } from '../controller.js';
-import { writeRun, readRun, writeRateLimit, type RunRecord } from '../state.js';
+import { writeRun, readRun, writeRateLimit, readRateLimit, type RunRecord } from '../state.js';
 import { listOpenWaits, answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 
@@ -264,6 +264,34 @@ describe('Controller usage window', () => {
     const done = await waitForStatus(id, 'done');
     expect(done.pauseReason).toBeUndefined();
     expect(done.resumeAt).toBeUndefined();
+  });
+
+  it('resumeNow releases a run parked on a window the file still reports as full', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
+
+    // A stale reading: the window reset early (a plan upgrade) but no step ran since.
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.97, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      sevenDay: { utilization: 0.4, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      updated: new Date().toISOString(),
+    });
+
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+    await waitForStatus(id, 'paused');
+
+    expect(await controller.resumeNow('run-nope')).toBeUndefined();
+    expect(await controller.resumeNow(id)).toBeTruthy();
+    await waitForStatus(id, 'done');
+    const file = await readRateLimit();
+    expect(file?.fiveHour.utilization).toBe(0);
+    expect(file?.sevenDay.utilization).toBe(0.4); // under the threshold: left as read
+    expect(await controller.resumeNow(id)).toBeNull(); // done, not paused
   });
 
   it('reads a window whose reset time has passed as reset, whatever its stale utilization', async () => {
