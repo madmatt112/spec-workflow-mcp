@@ -1,58 +1,64 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-10-28 (round 1, v1)
+Last updated: 2026-10-28 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (SHOULD_FIX, v1)** — R6.2 covered only `data-testid`. v2 added role/aria to the
+  grep and pinned label text to screenshots. **Incompletely resolved — see R2-1.**
+- **R1-2 (SHOULD_FIX, v1)** — R3.1 name-set test undefined. v2 mandates light/`.dark`/
+  structural blocks, no structural dup into `.dark`. Resolved bar a selector detail (R2-3).
+- **R1-3 (SHOULD_FIX, v1)** — R7.1 cited empty temp stores as "fixture stores." v2 points
+  the capture at the suite's runtime seeding (`seedClosedSpec`, `WorktreeHarness`),
+  citations verified accurate. Resolved.
 
 ### Partially Accepted
-- (none)
+- **MINOR methods for 1.2/1.4 (v1)** — v2 added a var-ref test (1.4) and tied `--row-h`
+  to the density e2e (1.2). OK.
+- **MINOR client-state keys (v1)** — v2 pinned density + group-collapse keys in R6.5,
+  citations verified. OK.
+- **MINOR stylesheet baseline (v1)** — v2 marked 54.58 kB a reference, gate re-measures. OK.
 
 ### Rejected
 - (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — R6.2 asserts `data-testid` + `role` + `aria-*` + label-text are
-  invariant, but the `Check:` only greps `data-testid`. Role/aria/label unverified; R4.1
-  rebuilds tabs (`RunPage.tsx:640-653`) and chips (`primitives.tsx:88` `aria-pressed`) from a
-  shared definition, so an a11y drop can merge green.
-- **R1-2 (SHOULD_FIX)** — R3.1 "a test SHALL compare the two name sets" is undefined: the
-  token file mixes theme-independent tokens (spacing/type/radius/motion, `:root` only) with
-  colour tokens (both themes) and shadows (both). No way given to identify the colour-token
-  subset the test compares.
-- **R1-3 (SHOULD_FIX)** — R7.1 cites `playwright.worktree.config.ts:18-71` as "the fixture
-  stores"; those lines set empty temp `SPEC_WORKFLOW_HOME`/`XDG_STATE_HOME`. Fixtures are
-  seeded at runtime by `WorktreeHarness`/`seedClosedSpec` in `e2e/worktree-shell.spec.ts`. A
-  script pointed at the config alone renders an empty dashboard.
-- **MINOR** — R1.2 and R1.4 state no verification method; R1.4 not in R2.3 red-first and R2
-  lint checks colour literals, not undefined var refs.
-- **MINOR** — client-state keys beyond `theme` unpinned (density `DENSITY_KEY`
-  `ShellProvider.tsx:147`; group collapse — the latter guarded by e2e `:258`).
-- **MINOR** — NFR baseline "54.58 kB" is a drafter probe, not independently rebuilt.
+- **R2-1 (MUST_FIX, v2, Recurring/Compounding, fix-induced, Compounds R1-1)** — R6.2's
+  new grep anchors on `="[^"]*"`, matching only string-literal values. Misses 31/86
+  brace/template `data-testid` (incl. `log-tab-*`, `chip-*`, `Row` `testId`), the `Row`
+  `role={onClick…}`, and ~6/10 aria (`aria-pressed`, `aria-expanded`, `aria-selected`,
+  template `aria-label`). Self-contradicts "template-literal values compared by their
+  template text" (grep emits none). Regressed v1 grep which caught all 86 test-ids.
+- **R2-2 (SHOULD_FIX, v2, Novel)** — R4.1 "two instances SHALL compute the same …" has no
+  test method; R2's literal scan does not catch two valid-but-different tokens. Central
+  claim of the spec, unfalsifiable as written.
+- **R2-3 (MINOR, v2, Compounding R1-2)** — R3.1 light block + structural block selectors
+  unnamed; if both are `:root` the name-set test can't identify "the light block."
 
 ## Patterns & Themes
 
-- **Invariant asserted, verification narrower than the assertion.** R6.2 (check covers 1 of
-  4 attribute classes). Watch every "SHALL be the same / a test SHALL compare" clause and
-  confirm the stated check actually covers the whole claim.
-- **Tests mandated against a token structure that doesn't exist yet.** R3.1 assumes a cleanly
-  separable colour-token set; the file doesn't provide one. Requirements that mandate a test
-  must also pin what the test can see.
-- **Citations load-bearing but one-sided.** R7.1's config citation is accurate as a file but
-  mislabelled as "fixture stores." Check that a cited artifact actually *contains* what the
-  sentence claims, not just that the path/line exists.
-- All code citations verified accurate this round; the delta (lint `./` prefixes) is clean;
-  `.hljs`/`.markdown-content` removal confirmed safe (no FE markdown rendering).
+- **Invariant asserted, verification narrower than the assertion.** Persistent. R6.2 fix
+  swapped one narrowness (data-testid only) for another (string-literal only). Any
+  grep-based check in this FE must account for JSX **expression** and **template-literal**
+  attribute forms — most role/aria/testid values here are `{…}`, not `"…"`.
+- **Fixes that regress an earlier-agreed behaviour.** R6.2's v2 grep caught fewer
+  test-ids than v1's grep. Diff the new check against the behaviour the prior round signed
+  off, not just against the new requirement.
+- **Core claims without tests.** R4.1's cross-view sameness — the spec's reason to exist —
+  has no mandated check while every lesser claim does.
 
 ## Guidance for Next Review
 
-- Deltas to attack first next round: whatever the reviser changes for R1-1/R1-2/R1-3. For a
-  fix-induced re-check, scope to the fix diff vs the requirement, don't re-review the doc.
-- Fresh lens used this round: wire contracts. Next unused lens candidates: testability/
-  acceptance-criteria falsifiability; cross-requirement contradiction (e.g. R1.2 token-ref vs
-  R2 inline-style literal check vs the e2e 36/32 px assertion all agreeing on `--row-h`).
-- Do not reopen L-2 (closed in Revision History) or the verified citation set above.
-- If R3.1 is "fixed" by duplicating structural tokens into `.dark`, flag it — that is the
-  wrong fix.
+- Attack first: whatever the reviser does for R2-1 (the grep). Verify the new command on
+  real code — run it and count against `grep -rhoE '(data-testid|role|aria-[a-z-]+)=' FE`.
+  If the fix still can't emit a template-literal/expression value it names, it is unfixed.
+- Then R2-2's R4.1 verification and R2-3's block selectors.
+- Closed, do not reopen: L-2 (Revision History); the v1 verified citation set; R1-3
+  direction (seeding) — citations confirmed accurate this round.
+- Lens used so far: wire contracts (v1), testability/falsifiability (v2). Unused:
+  cross-requirement contradiction sweep (R4.2 pill text vs R6.2 label invariant; R6.4
+  "no test edited" vs any new assertion wanting an existing suite); scope-creep (R4.1
+  component list vs the "look only" scope).
+- Open thread for the design phase, not yet a finding: does the suite's seeding open a
+  detail panel on **every** view (Deferrals, Now) as R7.1 requires?
