@@ -812,6 +812,15 @@ export class MultiProjectDashboardServer {
       return { ok: true };
     });
 
+    // Resume a paused run now (the operator knows the usage window reset early).
+    this.app.post('/api/controller/runs/:id/resume', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const run = await this.controller.resumeNow(id);
+      if (run === undefined) return reply.code(404).send({ error: 'run-not-found' });
+      if (run === null) return reply.code(409).send({ error: 'not-paused' });
+      return { ok: true };
+    });
+
     // Discard a run: cancel it, then remove the worktree, delete the branch, close the PR.
     this.app.post('/api/controller/runs/:id/discard', async (request, reply) => {
       const { id } = request.params as { id: string };
