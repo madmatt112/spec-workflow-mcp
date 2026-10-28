@@ -88,7 +88,7 @@ Paths are relative to the code root `/home/mcf/repo/spec-workflow-mcp/.claude/wo
 - FE/modules/shell/Gear.tsx:63 — settings popover box; theme button 67; density radios 77-96.
 - FE/modules/shell/NowPage.tsx:573 — question radio; proposal checkbox at 630.
 - FE/modules/shell/UsagePage.tsx:52-56 — usage bar inline `style` on `--status-error` and `--interactive-primary`.
-- FE/modules/shell/UsageTrend.tsx:92 — axis line `stroke="var(--border-default)"` as an SVG attribute.
+- FE/modules/shell/UsageTrend.tsx:88 — axis line `stroke="var(--border-default)"` as an SVG attribute (verified; line 92 is `key=`, 93 `data-testid`).
 - FE/modules/shell/UsageTrend.tsx:98-125 — series colour as `stroke`/`fill` attributes (98, 109, 116) and legend inline `style` (125).
 - e2e/worktree-shell.spec.ts:51-81 — `seedClosedSpec`, module-private (not exported).
 - e2e/worktree-shell.spec.ts:91-196 — `beforeAll`: harness, run record with PR reads, three deferrals, two closed specs.

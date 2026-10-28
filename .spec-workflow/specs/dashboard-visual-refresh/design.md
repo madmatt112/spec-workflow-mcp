@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds one token file, `src/dashboard_frontend/src/modules/theme/tokens.css`, rewrites `tailwind.css` as a small base stylesheet, deletes `theme.css`, and adds one shared UI module that every page uses for its component kinds. It sits inside the existing React and Tailwind 4.1.18 frontend; no route, provider, data hook or server file changes. It reuses Tailwind's theme layer (`@theme static`), so the utilities the pages use resolve to the token values, and the worktree e2e harness for browser checks and screenshots.
+This design adds one token file, `src/dashboard_frontend/src/modules/theme/tokens.css`, rewrites `tailwind.css` as a small base stylesheet, deletes `theme.css`, and adds one shared UI module every page uses for its component kinds. It changes no route, provider, data hook or server file. It reuses Tailwind's theme layer (`@theme static`) so utilities resolve to token values, and the worktree e2e harness for browser checks and screenshots.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ N/A: no `design-system.md` exists; C1 and C3 become the dashboard's design syste
 
 ## Architecture
 
-`tokens.css` holds every value; `tailwind.css` imports Tailwind, then `tokens.css`, then adds base rules, so utilities and `var()` references read the same values. `modules/ui/ui.tsx` holds one definition per component kind, and the pages swap their inline class strings for it without changing element types, attributes or text. Three vitest files check the source and the build; one worktree e2e file checks computed styles and captures the screenshots.
+`tokens.css` holds every value; `tailwind.css` imports Tailwind then `tokens.css` then base rules, so utilities and `var()` references read the same values. `modules/ui/ui.tsx` holds one definition per component kind; pages swap their inline class strings for it without changing element types, attributes or text. Three vitest files check source and build; one worktree e2e file checks computed styles and captures the screenshots.
 
 ```mermaid
 graph LR
@@ -37,9 +37,9 @@ graph LR
 ### C1 — Token file `src/dashboard_frontend/src/modules/theme/tokens.css`
 - **Purpose:** the only file under FE that declares token values (Requirement 1.1).
 - **Interfaces:** three top-level blocks, in this order:
-  1. `@theme static { … }` — theme-independent tokens. Inside it, each namespace clear (`--font-*: initial`, `--text-*: initial`, `--font-weight-*: initial`, `--leading-*: initial`, `--radius-*: initial`, `--shadow-*: initial`, `--color-*: initial`) comes before that namespace's names, because a clear drops names declared before it. `static` emits every name, including ones no utility uses (`--sidebar-w`). Both verified by the probe in codebase-context.
+  1. `@theme static { … }` — theme-independent tokens. Inside it, each namespace clear (`--font-*: initial`, `--text-*: initial`, `--font-weight-*: initial`, `--leading-*: initial`, `--radius-*: initial`, `--shadow-*: initial`, `--color-*: initial`) comes before that namespace's names, because a clear drops names declared before it. `static` emits every name, including ones no utility uses (`--sidebar-w`). Both are probe-verified (codebase-context).
   2. `:root { … }` — the light colour and shadow tokens only.
-  3. `.dark { … }` — the dark colour and shadow tokens only, the same names as `:root`. It comes after `:root`: both selectors have the same specificity, so the later block wins when `src/dashboard_frontend/src/modules/theme/ThemeProvider.tsx:19-22` puts `dark` on `html`.
+  3. `.dark { … }` — the dark colour and shadow tokens only, the same names as `:root`. It comes after `:root`: equal specificity means the later block wins when `src/dashboard_frontend/src/modules/theme/ThemeProvider.tsx:19-22` puts `dark` on `html`.
 - The names and values are in Data Models. Values are `#rrggbb` for every colour that is part of a contrast pair; the scrim and the shadows may use `rgb(… / alpha)`.
 - **Dependencies:** none. Imported only by `tailwind.css`.
 - **Reuses:** the font stacks and the effective type and radius values of `src/dashboard_frontend/src/modules/theme/theme.css:7-51` (the unlayered values win today, so the operator sees 11/12/14 px type and a 6 px `rounded-md`).
@@ -69,18 +69,18 @@ graph LR
   ```
 - **Post-conditions:**
   - Each component renders the element type it replaces and passes every other prop through, so test ids, roles, `aria-*`, handlers and children reach the DOM unchanged (Requirement 6.2).
-  - `Button`, `Pill`, `TextInput` and `Tab` add `data-ui` (the kind), and `Button` and `Pill` add `data-variant` or `data-tone`. These attributes are outside the Requirement 6.2 attribute set and give the e2e check (C7) a stable locator.
+  - `Button`, `Pill`, `TextInput`, `Tab` and the list `Row` add `data-ui` (the kind); `Button` also adds `data-variant` and `data-size`, `Pill` adds `data-tone`, and `Row` adds `data-selected`. These attributes are outside the Requirement 6.2 attribute set and give the e2e check (C7) a stable locator.
   - Every variant and tone is a full literal class string in a lookup object, because Tailwind finds classes by scanning literal text.
   - Colours come from token `var()` references; lengths from spacing steps or the var shorthand (`w-(--sidebar-w)`, `shadow-(--shadow-overlay)`), which the probe compiled.
   - Disabled and busy: one treatment, `disabled:opacity-(--disabled-opacity) disabled:cursor-not-allowed`, on every `Button` (Requirement 4.3). A busy button is passed `disabled` and keeps whatever label the page renders; the sign-in button keeps its two labels (`src/dashboard_frontend/src/modules/auth/LoginPanel.tsx:67`, D17).
   - Hover, selected and disabled looks use the state tokens (`--surface-hover`, `--surface-selected`, `--accent-solid-hover`, `--danger-solid-hover`, `--disabled-opacity`); transitions use `transition-colors`, which reads `--default-transition-duration` and `--default-transition-timing-function` (Requirement 4.6).
   - No component sets `outline-none` or a `focus:` ring; C2 draws the ring.
-- **Button variants:** primary = `--accent-solid` background, `--text-on-accent` text; secondary = `--border-strong` border, `--text-secondary` text, hover `--surface-hover`; danger = `--danger-solid` background, `--text-on-accent` text; ghost = no border, `--text-muted` text, hover `--surface-hover`. The outlined Discard button at `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:311-319` maps to `danger`, like its confirm step at `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:301-309` (D18). A call site never adds colour classes to a `Button`; it may add layout classes only (margin, width, flex).
+- **Button variants:** primary = `--accent-solid` background, `--text-on-accent` text; secondary = `--border-strong` border, `--text-secondary` text, hover `--surface-hover`; danger = `--danger-solid` background, `--text-on-accent` text; ghost = no border, `--text-muted` text, hover `--surface-hover`. The outlined Discard button at `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:311-319` maps to `danger`, like its confirm step at `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:301-309` (D18). A call site never adds colour classes to a `Button`, only layout (margin, width, flex).
 - **Dependencies:** C1 names; React.
 
 ### C4 — Restyled shell and primitives
-- `primitives.tsx` `Group` header uses `ui.groupHeader`; `Chips` uses the `Pill`-like chip recipe with active state `--accent-solid` and `--text-on-accent` (replacing `src/dashboard_frontend/src/modules/shell/primitives.tsx:89-93`); `SearchBox` renders `TextInput` (drops `focus:outline-none focus:ring-2` at `src/dashboard_frontend/src/modules/shell/primitives.tsx:131`); `Pager` buttons render `Button variant="secondary" size="sm"`; `Row` keeps `style={{ height: 'var(--row-h)' }}` and uses `--surface-selected` when selected, `--surface-hover` on hover, `rounded-sm` instead of bare `rounded`.
-- `Sidebar.tsx`: nav rows use `ui.navRow(active)`; desktop aside `lg:w-(--sidebar-w)` (was `lg:w-64` at line 113); drawer panel `w-(--sidebar-w)` with `ui.drawer` (line 138); scrim `ui.scrim`, background `--scrim` (line 136).
+- `primitives.tsx` `Group` header uses `ui.groupHeader`; `Chips` uses the `Pill`-like chip recipe with active state `--accent-solid` and `--text-on-accent` (replacing `src/dashboard_frontend/src/modules/shell/primitives.tsx:89-93`); `SearchBox` renders `TextInput` (drops `focus:outline-none focus:ring-2` at `src/dashboard_frontend/src/modules/shell/primitives.tsx:131`); `Pager` buttons render `Button variant="secondary" size="sm"`; `Row` keeps `style={{ height: 'var(--row-h)' }}`, uses `--surface-selected` when selected, `--surface-hover` on hover, `rounded-sm` instead of bare `rounded`, and adds `data-ui="row"` and `data-selected`.
+- `Sidebar.tsx`: nav rows use `ui.navRow(active)` (active row `--surface-selected` background, `--text-primary` text); desktop aside `lg:w-(--sidebar-w)` (was `lg:w-64` at line 113); drawer panel `w-(--sidebar-w)` with `ui.drawer` (line 138); scrim `ui.scrim`, background `--scrim` (line 136).
 - `src/dashboard_frontend/src/modules/shell/Gear.tsx:63` popover uses `ui.popover`; the theme button keeps its labels and control (Requirement 3.4) and becomes `Button variant="secondary" size="sm"`.
 - `LoginPanel.tsx`: overlay `ui.scrim`, form `ui.dialog` (drops bare `shadow-lg` at line 44), input `TextInput`, submit `Button variant="primary"`.
 - `src/dashboard_frontend/src/modules/shell/PageLayout.tsx:22` panel `xl:w-(--panel-w)` (was `xl:w-96`).
@@ -103,7 +103,7 @@ Each map keeps its keys and meaning and maps to a `Tone`; the page renders `Pill
 
 ### C6 — Usage chart and bar
 - `src/dashboard_frontend/src/modules/shell/UsageTrend.tsx:13` `SERIES` becomes `['var(--chart-1)', …, 'var(--chart-6)']`; the cycle by project-name order stays (Requirement 2.4).
-- The series colour and the axis colour move from SVG attributes (`stroke=`, `fill=` at lines 92, 98, 109, 116) to `style={{ stroke }}` and `style={{ fill }}` (D13); `strokeWidth`, `r` and the view-box numbers stay unitless SVG attributes.
+- The series colour and the axis colour move from SVG attributes (`stroke=`, `fill=` at lines 88, 98, 109, 116) to `style={{ stroke }}` and `style={{ fill }}` (D13); `strokeWidth`, `r` and the view-box numbers stay unitless SVG attributes.
 - `src/dashboard_frontend/src/modules/shell/UsagePage.tsx:52-56` bar colour: `var(--tone-danger-fg)` when hot, else `var(--accent)`.
 
 ### C7 — Tests and the capture script
@@ -123,7 +123,7 @@ Each map keeps its keys and meaning and maps to a `Tone`; the page renders `Pill
 - **T2 `src/dashboard/__tests__/frontend-tokens.test.ts`** (new). Parses C1 into its three top-level blocks by a small brace-matching reader (no CSS parser package, Requirement 6.6) and asserts: the `:root` and `.dark` blocks declare the same set of names (Requirement 3.1); no name is in both the `@theme static` block and a theme block; every name in Data Models is declared; every contrast pair in Data Models meets its ratio in both themes, using the WCAG relative-luminance formula on the `#rrggbb` values (NFR Accessibility). Red on base: `tokens.css` does not exist.
 - **T3 `src/dashboard/__tests__/frontend-build.test.ts`** (new). Runs `process.execPath node_modules/vite/bin/vite.js build --config src/dashboard_frontend/vite.config.ts --outDir <tmp> --emptyOutDir` with `spawnSync` and a 120 s timeout, asserts exit status 0, reads the one `assets/*.css` file, and asserts each name C1 declares has one declaration in the theme layer, or one in `:root` and one in `.dark`, and no other declaration (Requirement 1.3). It reads only `status`, `stdout` and `stderr` (node 20 fields); a timeout gives `status` null (local probe), reported as a failure. Both flags are in the installed vite 7.3.0 `build --help`. Red on base: the probe found two `--text-sm` and two `--radius-md` values.
 - **T4 `e2e/worktree-visual.spec.ts`** (new, worktree config). One serial suite on its own `WorktreeHarness` (`e2e/helpers/worktree-harness.ts:288`), seeded by a new helper `e2e/helpers/shell-seed.ts` that copies the fixture code of `e2e/worktree-shell.spec.ts:51-81` and `:91-196` (that function is module-private, and Requirement 6.4 forbids editing the existing file). Tests:
-  1. Cross-view sameness (Requirement 4.1): for each of `row`, `pill`, `button`, find one value of `data-tone` or `data-variant` (the row has none) present on two different views, read `getComputedStyle` background colour, colour, border, border radius, height, padding and font size in the resting state (mouse parked off the element), and assert equal. It fails, naming the kind, if no pair exists; the tasks author confirms the seed gives one per kind.
+  1. Cross-view sameness (Requirement 4.1): for each of `row`, `pill`, `button`, find one instance present on two different views and matched on the attributes that drive its look — `data-tone` for the pill, `data-variant` and `data-size` for the button, `data-ui="row"` with `data-selected="false"` for the row — read `getComputedStyle` background colour, colour, border, border radius, height, padding and font size in the resting state (mouse parked off the element), and assert equal. It fails, naming the kind, if no pair exists; the tasks author confirms the seed gives one per kind.
   2. Focus ring (Requirement 4.4): on each view, press Tab up to 40 times; for each focused element assert `outline-style` is not `none`, `outline-width` is at least 2 px, and the outline colour has at least 3:1 contrast against the nearest opaque ancestor background, in both themes.
   3. Mouse focus (Requirement 4.5): click a nav link and a button; assert `outline-style` is `none` on the clicked element.
   4. Native controls (Requirement 3.3): with the OS emulated as light (`page.emulateMedia({ colorScheme: 'light' })`) and the theme set to dark, `getComputedStyle(document.documentElement).colorScheme` is `dark`, and the reverse.
@@ -191,7 +191,7 @@ Mock base values from `docs/mockups/sdd-dashboard-linear.html:8-18`; adjusted va
 | `--scrim` | `rgb(0 0 0 / 0.4)` | `rgb(0 0 0 / 0.6)` |
 | `--shadow-overlay` | `0 4px 16px rgb(0 0 0 / 0.12)` | `0 4px 16px rgb(0 0 0 / 0.5)` |
 
-Light chart series 2-4 are darker than the mock (mock ratios 3.20, 2.82, 2.17 on white); series 5 and 6 are new, as the chart cycles six. Tone backgrounds are the hue mixed into `--surface-panel` at 12-16 %, stored opaque.
+Light chart series 2-4 are darker than the mock (mock ratios 3.20, 2.82, 2.17 on white); series 5 and 6 are new. Tone backgrounds are the hue mixed into `--surface-panel` at 12-16 %, stored opaque.
 
 Every other `theme.css` name (`--interactive-*`, `--accent-primary*`, `--status-*`, `--border-focus`, aliases) is removed; references move to a name above, and T1 fails on any left.
 
@@ -216,24 +216,24 @@ All pass (computed with `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/cx/p
 
 ## Decisions taken in this document
 
-- D1 — Token file location: a new tokens file in the theme module, with the old theme stylesheet deleted; options were rewrite the old theme stylesheet in place or add the new file; chosen because a fresh file holds only tokens and the scan can exempt it by name.
-- D2 — Theme-independent tokens live in Tailwind's static theme block, not under a plain selector; options were a plain selector or the static theme block; chosen because only the theme block makes the utilities resolve to the token values (Requirement 1.3). Departs from Requirement 3.1's word "selector" (RE-DECIDED).
-- D3 — Clear the Tailwind font, type, weight, leading, radius, shadow and colour namespaces before declaring them; options were override only the names in use, or clear and redeclare; chosen because a clear leaves one value per name and kills palette classes; the scan catches the silent gap.
-- D4 — Keep today's effective sizes (11, 12, 14 px type, 6 px medium radius); options were Tailwind defaults, the mock's 12.5 px, or today's values; chosen so the operator sees no size jump.
-- D5 — Shared definitions are one UI module of small components plus class constants, stamped with a kind attribute; options were CSS component classes, class constants only, or components; chosen because components keep element types and props intact, and the kind attribute is a locator outside the test-id set.
-- D6 — Token names: keep the surface, text and border names the pages already use; replace the interactive, accent-primary and status names with accent, solid and tone names; options were keep every old name or rename everything; chosen because it limits churn to the names whose meaning changes.
-- D7 — Tone backgrounds are opaque values in the token file, not a colour mix at the call site; options were an opaque value or a mix; chosen because the contrast test needs a concrete colour and the scan bans literal mixes.
-- D8 — Palette adjustments: light muted text, light success, warning and danger text, dark solid accent, light chart series 2-4 darkened; chart series 5 and 6 added; options were adjust or keep the mock; chosen because each mock value fails the contrast rule (ratios in Data Models).
-- D9 — Focus ring is one global focus-visible outline, 2 px, accent colour, 1 px offset; options were per-component rings or one global rule; chosen because it covers every focusable element, including ones no component wraps.
-- D10 — Native controls take the accent colour and the selected theme's colour scheme; options were custom-drawn or native controls; chosen because native ones keep their behaviour.
-- D11 — The built-stylesheet check is a vitest test that runs the vite build; options were a gate-only check or a test; chosen because Requirement 1.3 is a build property and the build takes about two seconds.
-- D12 — Browser checks and screenshot capture share one new worktree e2e file with a seed helper copied from the shell suite; options were edit the shell suite, or two new files; chosen because the shell suite may not be edited and one file pays the harness setup once.
-- D13 — Chart colours move to the style attribute; options were keep presentation attributes or use style; chosen because the style attribute certainly resolves custom properties.
-- D14 — Live and in-progress both map to the accent tone, deferred and not-started both to neutral; options were split them across accent and info; chosen because they share a colour today and the meaning must not change.
-- D15 — Disabled opacity is 0.4 everywhere; options were 0.4 or 0.5; chosen because 0.4 is the more common of the two today.
-- D16 — The typography plugin import and the dark variant line are removed from the stylesheet; the package stays; options were keep or remove; chosen because nothing uses them and the variant is banned.
-- D17 — A busy button keeps today's busy label swap; options were keep the swap or one fixed label; chosen because Requirement 6.2 forbids changing label text and Requirement 4.3 only bars a spinner replacing it.
-- D18 — The outlined Discard button becomes the solid danger variant; options were a fifth outlined-danger variant, the secondary variant, or the danger variant; chosen because Requirement 4.1 names four variants and Discard is a destructive action.
+- D1 — Token file location: a new tokens file in the theme module, old stylesheet deleted; over rewriting it in place, chosen because a fresh file holds only tokens and the scan exempts it by name.
+- D2 — Theme-independent tokens live in Tailwind's static theme block, not a plain selector; chosen because only the theme block makes utilities resolve to the token values (Requirement 1.3). Departs from Requirement 3.1's word "selector" (RE-DECIDED).
+- D3 — Clear the Tailwind font, type, weight, leading, radius, shadow and colour namespaces before declaring them; over overriding only names in use, chosen because a clear leaves one value per name and kills palette classes; the scan catches the silent gap.
+- D4 — Keep today's effective sizes (11, 12, 14 px type, 6 px medium radius); over Tailwind defaults or the mock's 12.5 px, chosen so the operator sees no size jump.
+- D5 — Shared definitions are one UI module of small components plus class constants, stamped with a kind attribute; over CSS component classes or class constants alone, chosen because components keep element types and props intact.
+- D6 — Token names: keep the surface, text and border names the pages use; replace the interactive, accent-primary and status names with accent, solid and tone names; over keeping or renaming everything, chosen because it limits churn to names whose meaning changes.
+- D7 — Tone backgrounds are opaque values in the token file, not a call-site colour mix; chosen because the contrast test needs a concrete colour and the scan bans literal mixes.
+- D8 — Palette adjustments: light muted text, light success, warning and danger text, dark solid accent, light chart series 2-4 darkened; chart series 5 and 6 added; over keeping the mock, chosen because each mock value fails the contrast rule (ratios in Data Models).
+- D9 — Focus ring is one global focus-visible outline, 2 px, accent colour, 1 px offset; over per-component rings, chosen because it covers every focusable element, including ones no component wraps.
+- D10 — Native controls take the accent colour and the selected theme's colour scheme; over custom-drawn controls, chosen because native ones keep their behaviour.
+- D11 — The built-stylesheet check is a vitest test that runs the vite build; over a gate-only check, chosen because Requirement 1.3 is a build property and the build takes about two seconds.
+- D12 — Browser checks and screenshot capture share one new worktree e2e file with a seed helper copied from the shell suite; over editing the shell suite or two new files, chosen because the shell suite may not be edited and one file pays the harness setup once.
+- D13 — Chart colours move to the style attribute; over keeping presentation attributes, chosen because the style attribute certainly resolves custom properties.
+- D14 — Live and in-progress both map to the accent tone, deferred and not-started both to neutral; over splitting them across accent and info, chosen because they share a colour today and the meaning must not change.
+- D15 — Disabled opacity is 0.4 everywhere; over 0.5, chosen because 0.4 is the more common of the two today.
+- D16 — The typography plugin import and the dark variant line are removed from the stylesheet; the package stays; chosen because nothing uses them and the variant is banned.
+- D17 — A busy button keeps today's busy label swap; over one fixed label, chosen because Requirement 6.2 forbids changing label text and Requirement 4.3 only bars a spinner replacing it.
+- D18 — The outlined Discard button becomes the solid danger variant; over a fifth outlined-danger variant or the secondary variant, chosen because Requirement 4.1 names four variants and Discard is destructive.
 
 ## Scope notes
 
@@ -244,5 +244,9 @@ All pass (computed with `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/cx/p
 
 ## Revision History
 
+- **v2** (2026-10-28) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 1/1/1).
+  - **R1-1 — Accepted (MUST_FIX).** C6 now cites line 88 for the axis stroke, keeping 98/109/116 for the series, and still moves the axis colour to the style attribute; the same slip is fixed in the context file.
+  - **R1-2 — Accepted (SHOULD_FIX).** T4.1 now matches button size and an unselected row, not tone and variant alone, and the UI module stamps the size, selection and row-locator attributes, so the equality holds and the pair is addressable.
+  - **R1-MINOR — Partially accepted (MINOR).** Named the active nav-row tokens, both already declared and contrast-checked.
 - **v1** (2026-10-28) — Initial draft.
   - **Lint pass.** 31 citations prefixed; rejected: L-30 ('theme' anchors to `ThemeProvider.tsx:15`, which L-31 resolves), L-32 ('setProperty' is T1's rule, not the cited e2e; rule 11 suppresses).
