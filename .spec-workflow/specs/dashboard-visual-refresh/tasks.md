@@ -84,7 +84,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Task 1 adds the visual e2e su
   - File: src/dashboard_frontend/src/modules/theme/tokens.css
   - File: src/dashboard_frontend/src/modules/theme/tailwind.css
   - Test: src/dashboard/__tests__/frontend-style-scan.test.ts — npx vitest run src/dashboard/__tests__/frontend-style-scan.test.ts
-  - Notes: red at this task's start on what tasks 2-4 leave, at least `UsageTrend.tsx:13` and `RunPage.tsx:223`, not the full base set (RE-DECIDED, Scope notes). The log view keeps filter, follow and scroll (Requirement 4.7): regression guard through the existing suites.
+  - Notes: red at this task's start on what tasks 2-4 leave, at least `src/dashboard_frontend/src/modules/shell/UsageTrend.tsx:13` and `src/dashboard_frontend/src/modules/shell/RunPage.tsx:223`, not the full base set (RE-DECIDED, Scope notes). The log view keeps filter, follow and scroll (Requirement 4.7): regression guard through the existing suites.
   - Purpose: Finish the sweep and lock it with the scan.
   - _Leverage: the input, tab and class constants task 3 exports, the Reference section of this document, src/dashboard_frontend/src/modules/shell/UsageTrend.tsx (SERIES 13, attributes 88-125)_
   - _Requirements: 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 3.2, 4.1, 4.7_
@@ -101,7 +101,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Task 1 adds the visual e2e su
 
 ## Reference — T1 scan rules
 
-Copied from the design-phase prototype `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/scan/scan.cjs:4-12` (83 hits outside the theme module at base, no false positive). Task 5 ports them to TypeScript unchanged.
+Copied from the design-phase prototype `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/scan/scan.cjs` (scratch, see Scope notes; 83 hits outside the theme module at base, no false positive). Task 5 ports them to TypeScript unchanged.
 
 ```js
 ['hex', /(?<![&\w])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g],
@@ -141,3 +141,4 @@ Copied from the design-phase prototype `/tmp/scratchpad/sdd/dashboard-visual-ref
 ## Revision History
 
 - **v1** (2026-10-28) — Initial draft.
+  - **Lint pass.** 3 fixed; rejected: L-1 task 1 creates e2e harness/spec files, not src/ source, and is explicitly implementer-only per agent-rules, so no Test line is correct; L-4 task 6 makes no source change (screenshots and evidence only) and is implementer-only for the same reason.
