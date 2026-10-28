@@ -38,7 +38,6 @@
 
 | Spec | Status | Reason |
 | --- | --- | --- |
-| approval-durability-and-routing | Design | Scope record only, no requirements phase yet. Independent of the three worktree specs — shares no files — but deferred behind worktree-execution-context by preference, since that spec is approved and ready to build. Root cause is that deriveSpecStatus keys on file existence, so there is no durable record a phase was approved; the document loop's resume convention exists to reconstruct it, and contradicts this server's own guide. |
 | worktree-dashboard-concurrency | Design | Split from worktree-execution-context after design review v3. Depends on that spec for per-worktree identity, which is what makes N registry entries and N component sets exist. Not a correctness fix for the reviewing path; deferred until spec 1 ships. |
 
 ## Other specs (not in decomposition.md)
