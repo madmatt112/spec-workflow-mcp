@@ -10,6 +10,10 @@ type MessageHandler = (data: any, projectId?: string) => void;
 
 type WsContextType = {
   connected: boolean;
+  /** Epoch ms of the next reconnect attempt while disconnected; null when connected or idle. */
+  nextRetryAt: number | null;
+  /** Reconnect now instead of waiting for the backoff timer. */
+  retryNow: () => void;
   subscribe: (eventType: string, handler: MessageHandler) => void;
   unsubscribe: (eventType: string, handler: MessageHandler) => void;
   /**
@@ -45,6 +49,7 @@ function unsubscribeMessage(view: WatchView): ViewMessage {
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false);
+  const [nextRetryAt, setNextRetryAt] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const eventHandlersRef = useRef<Map<string, Set<MessageHandler>>>(new Map());
   const retryTimerRef = useRef<any>(null);
@@ -74,6 +79,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     ws.onopen = () => {
       setConnected(true);
+      setNextRetryAt(null);
       // Reset retry delay on successful connection
       retryDelayRef.current = INITIAL_RETRY_DELAY;
       // Re-subscribe every view that still has users, so a reconnect restores them.
@@ -82,13 +88,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    ws.onclose = (event) => {
+    // Always retry: the unmount cleanup detaches this handler before it closes the
+    // socket, so any close that lands here is the server's. A controller restart (a
+    // deploy) closes with 1001 "going away", and the page must come back by itself.
+    ws.onclose = () => {
       setConnected(false);
-
-      // Don't reconnect on clean close (code 1000) or going away (code 1001)
-      if (event.code === 1000 || event.code === 1001) {
-        return;
-      }
+      setNextRetryAt(Date.now() + retryDelayRef.current);
 
       retryTimerRef.current = setTimeout(() => {
         connect();
@@ -176,12 +181,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     };
   }, [sendView]);
 
+  const retryNow = useCallback(() => {
+    retryDelayRef.current = INITIAL_RETRY_DELAY;
+    connect();
+  }, [connect]);
+
   const value = useMemo(() => ({
     connected,
+    nextRetryAt,
+    retryNow,
     subscribe,
     unsubscribe,
     watchView
-  }), [connected, subscribe, unsubscribe, watchView]);
+  }), [connected, nextRetryAt, retryNow, subscribe, unsubscribe, watchView]);
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
