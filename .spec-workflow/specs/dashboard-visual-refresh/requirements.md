@@ -133,9 +133,10 @@ Terms: **token file** is the one CSS file defining every design token; **FE** is
 ## Revision History
 
 - **v3** (2026-10-28) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 1/1/1).
-  - **R2-1 — Accepted (MUST_FIX).** Requirement 6.2's check now matches string-literal, brace-expression and template-literal attribute forms, so every test-id, role and aria attribute is compared, not only the double-quoted subset the prior pattern saw; the self-contradicting template-text clause is deleted.
-  - **R2-2 — Accepted (SHOULD_FIX).** Requirement 4.1 now mandates a cross-view computed-style equality check for the list row, status pill and button kinds, so the one-system claim has a verification method; the design names the harness.
+  - **R2-1 — Accepted (MUST_FIX).** Requirement 6.2's check now matches string-literal, brace-expression and template-literal attribute forms, so every attribute is compared; the self-contradicting template-text clause is deleted.
+  - **R2-2 — Accepted (SHOULD_FIX).** Requirement 4.1 now mandates a cross-view computed-style equality check for the list row, status pill and button kinds; the design names the harness.
   - **R2-3 — Accepted (MINOR).** Requirement 3.1 now pins the light set to the root block, the dark set to the dark block and the structural tokens to a third block with a distinct selector, so the name-set test identifies each block unambiguously.
+  - **Lint pass.** 0 fixed; rejected L-1..L-8: AC rule vocabulary/subjects, not citation tokens (rule 11).
 - **v2** (2026-10-28) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/3).
   - **R1-1 — Accepted (SHOULD_FIX).** Requirement 6.2's check now matches the role and aria attribute families, not only the test ids, and visible label text is pinned to the before/after screenshots, so the check covers all four classes it claims.
   - **R1-2 — Accepted (SHOULD_FIX).** Requirement 3.1 now mandates two dedicated theme-varying blocks, one light and one dark, holding colours and shadows only, with structural tokens kept in a separate block, so the name-set comparison is well-defined and structural tokens are never duplicated into the dark block.
