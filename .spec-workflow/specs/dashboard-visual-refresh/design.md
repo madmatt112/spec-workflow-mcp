@@ -17,7 +17,7 @@ N/A: no `design-system.md` exists; C1 and C3 become the dashboard's design syste
 
 ## Architecture
 
-`tokens.css` holds every value; `tailwind.css` imports Tailwind then `tokens.css` then base rules, so utilities and `var()` references read the same values. `modules/ui/ui.tsx` holds one definition per component kind; pages swap their inline class strings for it without changing element types, attributes or text. Three vitest files check source and build; one worktree e2e file checks computed styles and captures the screenshots.
+`tokens.css` holds every value; `tailwind.css` imports Tailwind then `tokens.css` then base rules, so utilities and `var()` references read the same values. `ui.tsx` holds one definition per component kind.
 
 ```mermaid
 graph LR
@@ -84,7 +84,7 @@ graph LR
 - `src/dashboard_frontend/src/modules/shell/Gear.tsx:63` popover uses `ui.popover`; the theme button keeps its labels and control (Requirement 3.4) and becomes `Button variant="secondary" size="sm"`.
 - `LoginPanel.tsx`: overlay `ui.scrim`, form `ui.dialog` (drops bare `shadow-lg` at line 44), input `TextInput`, submit `Button variant="primary"`.
 - `src/dashboard_frontend/src/modules/shell/PageLayout.tsx:22` panel `xl:w-(--panel-w)` (was `xl:w-96`).
-- `src/dashboard_frontend/src/modules/app/App.tsx:20`: `main` keeps `px-4 sm:px-6` (16 and 24 px from `--spacing: 4px`, Requirement 5.5) and wraps `Routes` in `div.mx-auto.w-full.max-w-(--content-max)`, so content is at most 1600 px and centred right of the sidebar (Requirement 5.4).
+- `src/dashboard_frontend/src/modules/app/App.tsx:20-21`: `main` keeps `px-4 sm:px-6` (16 and 24 px from `--spacing: 4px`, Requirement 5.5) and wraps `Routes` in `div.mx-auto.w-full.max-w-(--content-max)`, so content is at most 1600 px and centred right of the sidebar (Requirement 5.4).
 - `src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:142` writes `var(--row-h-compact)` or `var(--row-h-comfortable)` to `--row-h` (Requirement 1.2); C1 declares `--row-h: var(--row-h-comfortable)` as the default before the effect runs.
 
 ### C5 — Status tone maps
@@ -248,5 +248,6 @@ All pass (computed with `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/cx/p
   - **R1-1 — Accepted (MUST_FIX).** C6 now cites line 88 for the axis stroke, keeping 98/109/116 for the series, and still moves the axis colour to the style attribute; the same slip is fixed in the context file.
   - **R1-2 — Accepted (SHOULD_FIX).** T4.1 now matches button size and an unselected row, not tone and variant alone, and the UI module stamps the size, selection and row-locator attributes, so the equality holds and the pair is addressable.
   - **R1-MINOR — Partially accepted (MINOR).** Named the active nav-row tokens, both already declared and contrast-checked.
+  - **Lint pass.** 1 fixed (L-16: `App.tsx:20`→`:20-21`, reaching `Routes`); rejected: L-1,L-2,L-15,L-17 (descriptive / proposed-change words absent from base); L-3,L-4,L-5,L-6,L-10,L-12 (C3 names in `ui.tsx`); L-7,L-8,L-9,L-11,L-13,L-14 (primitives keyed to replaced base lines); L-18 (rule 11).
 - **v1** (2026-10-28) — Initial draft.
   - **Lint pass.** 31 citations prefixed; rejected: L-30 ('theme' anchors to `ThemeProvider.tsx:15`, which L-31 resolves), L-32 ('setProperty' is T1's rule, not the cited e2e; rule 11 suppresses).
