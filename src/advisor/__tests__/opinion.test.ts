@@ -255,6 +255,7 @@ describe('src/advisor/opinion.ts', () => {
     const wait = await makeWait('run-opinion-ok');
     const run = fakeRun('run-opinion-ok');
     await writeRun(run);
+    const before = await readRun(run.id); // writeRun stamps pausedAt on a waiting run
     const queue: QueueFile = { v: 1, runs: ['run-opinion-ok'] };
     await writeQueue(queue);
 
@@ -280,7 +281,7 @@ describe('src/advisor/opinion.ts', () => {
     expect(opinionRows[0].cacheWrite5m).toBe(44);
     expect(opinionRows[0].cacheWrite1h).toBe(55);
 
-    expect(await readRun('run-opinion-ok')).toEqual(run);
+    expect(await readRun('run-opinion-ok')).toEqual(before);
     expect(await readQueue()).toEqual(queue);
 
     const opinionsBase = join(advisorOpinionsDir(), wait.id);

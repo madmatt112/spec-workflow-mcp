@@ -6,6 +6,7 @@ import { PageLayout } from './PageLayout';
 import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { Wait, ControllerWait, ControllerRun, StagedAction } from './types';
+import { pauseNote, pauseNoteClass } from './pause';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -24,11 +25,10 @@ const STAGED_KIND_LABELS: Record<StagedAction['kind'], string> = {
 /** Controller run statuses that count as queued-or-live on the Now page. */
 const CTRL_LIVE_STATUSES: ControllerRun['status'][] = ['queued', 'running', 'merging', 'paused', 'waiting'];
 
-/** One-line detail of a controller run: status, step and pause reason. */
+/** One-line detail of a controller run: status and step (the pause note sits beside it). */
 function ctrlRunDetail(r: ControllerRun): string {
   const parts = [r.status];
   if (r.stepKind) parts.push(r.stepKind);
-  if (r.pauseReason) parts.push(r.pauseReason);
   return parts.join(' · ');
 }
 
@@ -374,6 +374,10 @@ export function NowPage() {
                 <span className="shrink-0 font-medium text-[var(--text-primary)]">{r.spec}</span>
                 {r.phase && <PhaseChip phase={r.phase} />}
                 <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{ctrlRunDetail(r)}</span>
+                {(() => {
+                  const pause = pauseNote(r, tick);
+                  return pause && <span className={`shrink-0 text-xs ${pauseNoteClass(pause)}`}>{pause.text}</span>;
+                })()}
                 <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
                   {r.tokens.toLocaleString()} {'tok'}
                 </span>

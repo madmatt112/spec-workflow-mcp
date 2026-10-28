@@ -86,6 +86,8 @@ export interface RunRecord {
    * the next merge-rule re-check when `merging` (T7's `MERGE_POLL_INTERVAL_MS`).
    */
   resumeAt?: string;
+  /** ISO time the run last became `paused` or `waiting`; absent while it moves. */
+  pausedAt?: string;
   phase?: string;
   cursor?: StepCursor;
   inFlight?: InFlightStep;
@@ -380,7 +382,11 @@ export function readRun(id: string): Promise<RunRecord | undefined> {
 }
 
 export function writeRun(record: RunRecord): Promise<void> {
-  return writeJsonAtomic(runPath(record.id), record);
+  // Every writer spreads the record it read, so `pausedAt` carries over while the
+  // run stays stopped and is stamped only on the write that stops it.
+  const stopped = record.status === 'paused' || record.status === 'waiting';
+  const out = { ...record, pausedAt: stopped ? (record.pausedAt ?? new Date().toISOString()) : undefined };
+  return writeJsonAtomic(runPath(record.id), out);
 }
 
 // ---------------------------------------------------------------------------

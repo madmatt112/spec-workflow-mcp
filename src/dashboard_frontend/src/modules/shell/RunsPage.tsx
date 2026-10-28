@@ -8,6 +8,7 @@ import {
   callHarness, buildLaunchInput, OpErrorView, type OpError,
 } from './harness';
 import type { RunListRow, NowModel, ControllerRun } from './types';
+import { pauseNote, pauseNoteClass } from './pause';
 import type { SetupView } from '../harness/types';
 
 /**
@@ -215,7 +216,7 @@ function ControllerRunRow({ run, projectName, now, selected, onClick }: {
   selected: boolean;
   onClick: () => void;
 }) {
-  const paused = run.status === 'paused' || run.status === 'waiting';
+  const pause = pauseNote(run, now);
   return (
     <Row testId={`ctrl-run-row-${run.id}`} selected={selected} onClick={onClick}>
       <span className="shrink-0 text-xs text-[var(--text-muted)]">{projectName}</span>
@@ -223,9 +224,9 @@ function ControllerRunRow({ run, projectName, now, selected, onClick }: {
       <CtrlStatusChip status={run.status} />
       {run.phase && <span className="shrink-0 text-xs text-[var(--text-secondary)]">{run.phase}</span>}
       <span className="shrink-0 text-xs text-[var(--text-muted)]">{cursorLine(run)}</span>
-      {paused && run.pauseReason && (
-        <span className="shrink-0 text-xs text-amber-600 dark:text-amber-400">
-          {run.pauseReason}{run.resumeAt ? ` → ${fmtAge(run.resumeAt, now) ?? ''}` : ''}
+      {pause && (
+        <span className={`shrink-0 text-xs ${pauseNoteClass(pause)}`} data-testid={`ctrl-run-pause-${run.id}`}>
+          {pause.text}
         </span>
       )}
       <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{run.tokens.toLocaleString()} tok</span>
@@ -241,6 +242,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
   onOpenRun: () => void;
   onGone: () => void;
 }) {
+  const pause = pauseNote(run, now);
   const [busy, setBusy] = useState<null | 'cancel' | 'discard'>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -272,8 +274,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
         <SummaryLine label={'Run id'} value={<span className="font-mono text-xs">{run.id}</span>} />
         {run.phase && <SummaryLine label={'Phase'} value={run.phase} />}
         <SummaryLine label={'Step'} value={cursorLine(run)} />
-        {run.pauseReason && <SummaryLine label={'Paused'} value={run.pauseReason} />}
-        {run.resumeAt && <SummaryLine label={'Resumes'} value={fmtAge(run.resumeAt, now) ?? run.resumeAt} />}
+        {pause && <SummaryLine label={'Paused'} value={<span className={pauseNoteClass(pause)}>{pause.text}</span>} />}
         <SummaryLine label={'Tokens'} value={`${run.tokens.toLocaleString()} tok`} />
         <SummaryLine label={'Age'} value={fmtAge(run.created, now) ?? '—'} />
       </div>
