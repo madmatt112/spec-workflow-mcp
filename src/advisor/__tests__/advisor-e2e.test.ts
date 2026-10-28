@@ -240,6 +240,7 @@ describe('advisor end-to-end (task 19; decomposition verification scenario)', ()
       tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     } as RunRecord;
     await writeRun(run);
+    const before = await readRun(run.id); // writeRun stamps pausedAt on a waiting run
     const queue: QueueFile = { v: 1, runs: ['run-e2e-opinion'] };
     await writeQueue(queue);
 
@@ -266,7 +267,7 @@ describe('advisor end-to-end (task 19; decomposition verification scenario)', ()
     expect(updated?.advice).toBe('Go with the careful rollout.');
     expect(updated?.state).toBe('open'); // the opinion never answers the wait
 
-    expect(await readRun(run.id)).toEqual(run);
+    expect(await readRun(run.id)).toEqual(before);
     expect(await readQueue()).toEqual(queue);
   }, 15000);
 

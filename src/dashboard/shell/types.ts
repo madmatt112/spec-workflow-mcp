@@ -192,6 +192,8 @@ export interface ControllerRun {
   stepKind?: string;
   pauseReason?: string;
   resumeAt?: string;
+  /** When the run became paused or waiting; set only while it is. */
+  pausedAt?: string;
   tokens: number;
   created: string;
   updated: string;

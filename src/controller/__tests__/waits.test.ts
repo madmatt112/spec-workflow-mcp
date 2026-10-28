@@ -342,6 +342,7 @@ describe('attachAdvice leaves the wait state and the run file unchanged (5.3, re
       tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
     };
     await writeRun(run);
+    const before = await readRun(run.id); // writeRun stamps pausedAt on a waiting run
 
     const record = await createWait({
       kind: 'merge',
@@ -358,6 +359,6 @@ describe('attachAdvice leaves the wait state and the run file unchanged (5.3, re
     expect(storedWait.state).toBe('open');
 
     const storedRun = await readRun(run.id);
-    expect(storedRun).toEqual(run);
+    expect(storedRun).toEqual(before);
   });
 });

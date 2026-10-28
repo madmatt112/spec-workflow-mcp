@@ -1332,6 +1332,8 @@ export interface ControllerRunRow {
   stepKind?: string;
   pauseReason?: string;
   resumeAt?: string;
+  /** When the run stopped; a run stopped before `pausedAt` existed falls back to `updated`. */
+  pausedAt?: string;
   tokens: number;
   created: string;
   updated: string;
@@ -1344,6 +1346,7 @@ function toRow(run: RunRecord): ControllerRunRow {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
     pauseReason: run.pauseReason, resumeAt: run.resumeAt,
+    pausedAt: run.status === 'paused' || run.status === 'waiting' ? (run.pausedAt ?? run.updated) : undefined,
     tokens: run.tokens ? totalW(run.tokens) : 0, created: run.created, updated: run.updated,
     prReads: run.prReads,
   };
