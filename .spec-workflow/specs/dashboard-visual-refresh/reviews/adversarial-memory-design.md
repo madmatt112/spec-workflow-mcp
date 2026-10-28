@@ -1,38 +1,42 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-10-28 (round 1, v1)
+Last updated: 2026-10-28 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-(none yet — awaiting reviser disposition)
+- **R1-1 (MUST_FIX, v1)** — C6 cited line 92 for the axis SVG colour; true line is 88.
+  Fixed in v2: `design.md:106` now cites 88/98/109/116; axis colour still moves to `style`.
+  Verified against `UsageTrend.tsx`.
+- **R1-2 (SHOULD_FIX, v1)** — T4.1 pair-selection ignored Button `size` and row selection and
+  the row had no locator. Fixed in v2: UI module stamps `data-size`, `data-selected`,
+  `data-ui="row"`; T4.1 keys on `data-variant`+`data-size` for the button and
+  `data-ui="row"`+`data-selected="false"` for the row. Verified.
 
 ### Partially Accepted
-(none)
+- **R1-MINOR (v1)** — active nav-row token unnamed. v2 named `--surface-selected` /
+  `--text-primary` (both declared, text-primary-on-surface-selected already in the 4.5:1 set).
 
 ### Rejected
-(none)
+- (none)
 
 ### Unresolved
-- **R1-1 (MUST_FIX)** — C6 cites `UsageTrend.tsx` lines "92, 98, 109, 116" for the SVG colour
-  attributes; line 92 is `key=`/93 `data-testid`. The axis colour attribute
-  `stroke="var(--border-default)"` is at line 88. Risk: axis stroke left as a presentation
-  attribute (does not resolve `var()`), uncaught by T1/T4. Same slip in `codebase-context.md:91`.
-- **R1-2 (SHOULD_FIX)** — T4.1 pair-selection pins only `data-tone`/`data-variant`, not the
-  props the compared values depend on: Button `size` (height/padding/font-size), row selection
-  state (`--surface-selected`), and the row has no `data-ui` locator. Can false-fail or be
-  unwritable.
-- **R1-MINOR** — active nav-row token (`ui.navRow(active)`) unnamed; safely later-phase.
+- **R2-1 (MINOR, v2)** — Button default `size` / `data-size`-when-omitted unstated; T4.1 keys on
+  `data-size`. Safely a tasks-phase value (implementer sets default, stamps unconditionally).
+  Non-blocking.
 
 ## Patterns & Themes
-- The design's code grounding is strong: versions, Playwright/vite API, `@theme static`
-  behaviour and WCAG contrast all probed and reproduced. Weak spots are (a) one propagated
-  line-number slip from the unreviewed context file, and (b) a test whose locator keys on fewer
-  dimensions than the compared properties span.
+- Code grounding is strong and stays strong: every library-capability claim (including the
+  `--text-*--line-height` companion under the namespace clear) is probe-backed in
+  `/tmp/scratchpad/sdd/dashboard-visual-refresh/probe/NOTES.md`. Round-1's two defects were a
+  propagated line-number slip and an under-keyed test locator; both are cleanly fixed with no
+  fix-induced regression. v2 delta (round-1 response + lint L-16 + D-reword) introduced no claim
+  error.
 
 ## Guidance for Next Review
-- Re-check only R1-1's fix diff (line 88 + "axis moves to `style`") against `UsageTrend.tsx`,
-  and R1-2's fix (size + selection pinned, row locator) against Requirement 4.1 — fix-induced
-  re-check, not a whole-document re-review.
-- Do not re-open D2's "selector" departure (RE-DECIDED) or the lint-pass L-30/L-31/L-32 rulings.
-- Contrast and `@theme static` claims are verified; do not re-probe absent new token changes.
+- The document is converged at v2 (0 MUST / 0 SHOULD). If a v3 appears, re-check only its delta.
+- Do not re-open: D2's "selector" departure (RE-DECIDED); lint rulings L-30/L-31/L-32;
+  C5 tone-map meaning; contrast pairs and `@theme static` behaviour (all probe-verified).
+- Do not re-probe the type scale, var-shorthand, transition or `color-scheme` claims — NOTES 1–10
+  cover them.
+- If tasks phase is reviewed: watch the T1 red-on-base sites with no named target token
+  (`min-w-[7rem]` at `RunPage.tsx:223`, the `dark:` pill sites) and the Button default-size (R2-1).

@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793218315062_dsve1azp0",
+  "title": "dashboard-visual-refresh design v2",
+  "filePath": ".spec-workflow/specs/dashboard-visual-refresh/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-28T20:11:55.062Z",
+  "category": "spec",
+  "categoryName": "dashboard-visual-refresh",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-28T20:11:55.220Z"
+}
