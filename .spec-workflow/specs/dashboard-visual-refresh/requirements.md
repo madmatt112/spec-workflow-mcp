@@ -140,5 +140,6 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
   - **MINOR (methods for 1.2 and 1.4) — Partially accepted.** Added a test that every custom-property reference under the frontend names a token the file defines, and tied the row-height token to the density end-to-end test that proves the row renders 36 and 32 px.
   - **MINOR (client-state keys) — Partially accepted.** Requirement 6.5 now pins the density and group-collapse persistence keys as invariants; no new test, since style-only work does not touch them.
   - **MINOR (stylesheet-size baseline) — Partially accepted.** Marked the size figure a reference the gate re-measures, not the bar itself.
+  - **Lint pass.** 0 fixed; rejected: L-1..L-7 — those are the AC's check-rule vocabulary, not what `./vitest.config.ts:8` locates (verified: the include pattern only). L-8 — rule 11: `className` unchanged since v1.
 - **v1** (2026-10-28) — Initial draft.
   - **Lint pass.** 4 fixed; rejected: L-2 — `className` is the AC's subject term (the JSX attribute), not a token the citation locates; the identifiers those ranges support, `dark:text-amber-400` and `dark:text-green-400`, are present and verified at RunsPage.tsx:192-193 and SpecsPage.tsx:33.
