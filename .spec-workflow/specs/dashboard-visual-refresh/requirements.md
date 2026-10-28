@@ -30,7 +30,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 
 #### Acceptance Criteria
 
-1. WHEN `npm test` runs THEN a vitest test under `src/dashboard/__tests__/` SHALL scan every `.ts`, `.tsx` and `.css` file under FE except the token file and `src/dashboard_frontend/src/assets/fonts/fonts.css`, and SHALL fail on any of: a hex colour literal; a colour function (`rgb(`, `rgba(`, `hsl(`, `hsla(`, `oklch(`, `color-mix(` with a literal colour argument); a Tailwind palette colour class (`white`, `black` or a named palette such as `amber-600`, with any colour utility prefix and any `dark:` or state variant, including opacity forms such as `bg-black/50`); a `var()` fallback that is a literal colour; an arbitrary-value length class (`w-[13px]`); a pixel or rem literal in an inline `style`. The keywords `transparent`, `currentColor` and `inherit` are allowed. The vitest include pattern already covers that directory (`vitest.config.ts:8`).
+1. WHEN `npm test` runs THEN a vitest test under `src/dashboard/__tests__/` SHALL scan every `.ts`, `.tsx` and `.css` file under FE except the token file and `src/dashboard_frontend/src/assets/fonts/fonts.css`, and SHALL fail on any of: a hex colour literal; a colour function (`rgb(`, `rgba(`, `hsl(`, `hsla(`, `oklch(`, `color-mix(` with a literal colour argument); a Tailwind palette colour class (`white`, `black` or a named palette such as `amber-600`, with any colour utility prefix and any `dark:` or state variant, including opacity forms such as `bg-black/50`); a `var()` fallback that is a literal colour; an arbitrary-value length class (`w-[13px]`); a pixel or rem literal in an inline `style`. The keywords `transparent`, `currentColor` and `inherit` are allowed. The vitest include pattern already covers that directory (`./vitest.config.ts:8`).
 2. WHEN the test fails THEN its message SHALL name each offending file, line and matched text.
 3. WHEN the refresh lands THEN the test SHALL pass. At base it fails on, at least, `src/dashboard_frontend/src/modules/shell/UsageTrend.tsx:13`, `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:192-193`, `src/dashboard_frontend/src/modules/shell/RunPage.tsx:454`, `src/dashboard_frontend/src/modules/shell/primitives.tsx:91`, `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:136` and `src/dashboard_frontend/src/modules/auth/LoginPanel.tsx:65` (red-first).
 4. WHEN the Usage trend draws its series THEN the series colours SHALL come from chart tokens defined for both themes (today six literal hex values at `src/dashboard_frontend/src/modules/shell/UsageTrend.tsx:13`), and the cycle order by project name SHALL stay as it is.
@@ -85,7 +85,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 3. No file outside `src/dashboard_frontend/`, the new tests and this spec's directory SHALL change: the server, its routes, the WebSocket feed, the controller, `src/watch/` and the harness are untouched. Invariant (verified, not red-first).
 4. No existing test SHALL be edited. The suites under `e2e/` and every vitest suite SHALL pass unchanged; the e2e suites assert no class name and no colour (only row height at `e2e/worktree-shell.spec.ts:242-256` and panel position at `:296-308`). New checks go in new test blocks or new files. Invariant (verified, not red-first).
 5. The density radio SHALL still switch a row between 36 and 32 px (`e2e/worktree-shell.spec.ts:242-256`). Invariant (verified, not red-first).
-6. `package.json` `dependencies` and `devDependencies` (`package.json:56-108`) SHALL be unchanged: no new UI library, font package or CSS tool. Invariant (verified, not red-first).
+6. `package.json` `dependencies` and `devDependencies` (`./package.json:56-108`) SHALL be unchanged: no new UI library, font package or CSS tool. Invariant (verified, not red-first).
 7. The font files SHALL stay the bundled Inter and JetBrains Mono faces (`src/dashboard_frontend/src/assets/fonts/fonts.css:1-74`); no font loads from the network. Invariant (verified, not red-first).
 
 ### Requirement 7 — Before-and-after evidence and operator acceptance
@@ -94,7 +94,7 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 
 #### Acceptance Criteria
 
-1. WHEN the implementation starts THEN a script SHALL capture "before" screenshots of the six views in light and dark at 1440 by 900 px, from the base build, against the fixture stores of the worktree e2e harness (`playwright.worktree.config.ts:18-71`), with one detail panel open on each view that has one. WHEN the refresh is done THEN the same script SHALL capture the "after" set from the branch. The 24 images go to `screenshots/before/` and `screenshots/after/` in this spec's directory, named by view and theme.
+1. WHEN the implementation starts THEN a script SHALL capture "before" screenshots of the six views in light and dark at 1440 by 900 px, from the base build, against the fixture stores of the worktree e2e harness (`./playwright.worktree.config.ts:18-71`), with one detail panel open on each view that has one. WHEN the refresh is done THEN the same script SHALL capture the "after" set from the branch. The 24 images go to `screenshots/before/` and `screenshots/after/` in this spec's directory, named by view and theme.
 2. The same script SHALL also capture each of the six views at 375 px in the after set, dark theme only, so the operator sees the stacked layout.
 3. WHEN both sets exist THEN `verification-evidence.md` in this spec's directory SHALL list one line per view, `pending` until the operator reviews the pair, then `passed`. The retrospective does not open until every line reads `passed` (agent-rules, Fixtures and live verification).
 4. WHEN the refresh is done THEN `npm run build`, `npx tsc --noEmit` and `npm test` SHALL be green, and the worktree e2e suite (`npm run test:e2e:worktree`) SHALL be green with no existing test edited.
@@ -128,9 +128,10 @@ Terms: **token file** is the one CSS file that defines every design token; **FE*
 - Toasts: the entry lists toasts, but the frontend has none (browser notifications only, from the shell provider). Nothing is restyled or added for them.
 - Translations: the entry says translations are untouched. This frontend has no i18n layer (no locale files, no translation hook), so there is nothing to touch.
 - Terminal HUD: cut by D4. The watch view's colours stay as they are.
-- Frontend type checking: `npx tsc --noEmit` excludes the frontend (`tsconfig.json:20`) and the Vite build does not type-check. This spec does not add a frontend type check; it is a flag for the operator.
+- Frontend type checking: `npx tsc --noEmit` excludes the frontend (`./tsconfig.json:20`) and the Vite build does not type-check. This spec does not add a frontend type check; it is a flag for the operator.
 - Carried items from the decomposition: none.
 
 ## Revision History
 
 - **v1** (2026-10-28) — Initial draft.
+  - **Lint pass.** 4 fixed; rejected: L-2 — `className` is the AC's subject term (the JSX attribute), not a token the citation locates; the identifiers those ranges support, `dark:text-amber-400` and `dark:text-green-400`, are present and verified at RunsPage.tsx:192-193 and SpecsPage.tsx:33.
