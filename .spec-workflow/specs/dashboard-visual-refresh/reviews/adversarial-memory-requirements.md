@@ -1,64 +1,65 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-10-28 (after v2 review)
+Last updated: 2026-10-28 (after v3 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- **R1-1 (SHOULD_FIX, v1)** — R6.2 covered only `data-testid`. v2 added role/aria to the
-  grep and pinned label text to screenshots. **Incompletely resolved — see R2-1.**
-- **R1-2 (SHOULD_FIX, v1)** — R3.1 name-set test undefined. v2 mandates light/`.dark`/
-  structural blocks, no structural dup into `.dark`. Resolved bar a selector detail (R2-3).
-- **R1-3 (SHOULD_FIX, v1)** — R7.1 cited empty temp stores as "fixture stores." v2 points
-  the capture at the suite's runtime seeding (`seedClosedSpec`, `WorktreeHarness`),
-  citations verified accurate. Resolved.
+- **R1-1 (SHOULD_FIX, v1)** — R6.2 covered only `data-testid`; escalated to R2-1. **Resolved
+  in v3:** the grep now emits all 102 attribute occurrences (86/86 testids, role, aria).
+- **R1-2 (SHOULD_FIX, v1)** — R3.1 name-set test undefined. v2 added light/`.dark`/structural
+  blocks; v3 (R2-3) named the selectors. **Resolved.**
+- **R1-3 (SHOULD_FIX, v1)** — R7.1 capture pointed at empty temp stores; v2 points it at the
+  suite's runtime seeding (`seedClosedSpec`, `WorktreeHarness`), citations verified. Resolved.
+- **R2-1 (MUST_FIX, v2)** — R6.2 grep dropped brace/template/expression attributes.
+  **Resolved in v3:** verified on real code, 102/102, every brace+expression form emits.
+  Residue → R3-2.
+- **R2-3 (MINOR, v2)** — R3.1 light/structural selectors unnamed. **Resolved in v3:** light→
+  `:root`, dark→`.dark`, structural→a third distinct selector; name-set test compares
+  `:root` vs `.dark`.
 
 ### Partially Accepted
-- **MINOR methods for 1.2/1.4 (v1)** — v2 added a var-ref test (1.4) and tied `--row-h`
-  to the density e2e (1.2). OK.
-- **MINOR client-state keys (v1)** — v2 pinned density + group-collapse keys in R6.5,
-  citations verified. OK.
-- **MINOR stylesheet baseline (v1)** — v2 marked 54.58 kB a reference, gate re-measures. OK.
+- **MINOR methods for 1.2/1.4 (v1)** — var-ref test (1.4) + `--row-h` tied to density e2e (1.2). OK.
+- **MINOR client-state keys (v1)** — density + group-collapse keys pinned in R6.5. OK.
+- **MINOR stylesheet baseline (v1)** — 54.58 kB marked a reference, gate re-measures. OK.
 
 ### Rejected
 - (none)
 
 ### Unresolved
-- **R2-1 (MUST_FIX, v2, Recurring/Compounding, fix-induced, Compounds R1-1)** — R6.2's
-  new grep anchors on `="[^"]*"`, matching only string-literal values. Misses 31/86
-  brace/template `data-testid` (incl. `log-tab-*`, `chip-*`, `Row` `testId`), the `Row`
-  `role={onClick…}`, and ~6/10 aria (`aria-pressed`, `aria-expanded`, `aria-selected`,
-  template `aria-label`). Self-contradicts "template-literal values compared by their
-  template text" (grep emits none). Regressed v1 grep which caught all 86 test-ids.
-- **R2-2 (SHOULD_FIX, v2, Novel)** — R4.1 "two instances SHALL compute the same …" has no
-  test method; R2's literal scan does not catch two valid-but-different tokens. Central
-  claim of the spec, unfalsifiable as written.
-- **R2-3 (MINOR, v2, Compounding R1-2)** — R3.1 light block + structural block selectors
-  unnamed; if both are `:root` the name-set test can't identify "the light block."
+- **R3-1 (MUST_FIX, v3, Novel, fix-induced, Compounds R2-2)** — R4.1's new cross-view
+  computed-style test compares all seven properties (incl. background + text colour) for the
+  **status pill and button** kinds across two views without fixing tone/variant. Pills have
+  six tones (R4.2: paused=warning amber RunsPage:192-193, done=success green RunPage:454,
+  error=danger, queued=neutral); buttons have four variants (danger RunsPage:306 vs primary
+  LoginPanel:65). So the test compares different-coloured-by-design instances and FAILS on a
+  correct build. Only the list row (shared `Row`) is well-defined. Fix: constrain to same
+  tone/variant, or drop colour from the pill/button comparison.
+- **R3-2 (MINOR, v3, Compounding R2-1, fix-induced)** — R6.2's `\{[^}]*\}` truncates
+  interpolated templates at the first inner `}` (all 28 of them, e.g. `pr-row-${read.repo}`
+  drops `-${read.number}`). The "matches template-literal forms alike" claim overclaims;
+  blind to template text after the first `${…}`. Backstopped by the unchanged e2e suite and
+  screenshots. Not loop-keeping.
 
 ## Patterns & Themes
-
-- **Invariant asserted, verification narrower than the assertion.** Persistent. R6.2 fix
-  swapped one narrowness (data-testid only) for another (string-literal only). Any
-  grep-based check in this FE must account for JSX **expression** and **template-literal**
-  attribute forms — most role/aria/testid values here are `{…}`, not `"…"`.
-- **Fixes that regress an earlier-agreed behaviour.** R6.2's v2 grep caught fewer
-  test-ids than v1's grep. Diff the new check against the behaviour the prior round signed
-  off, not just against the new requirement.
-- **Core claims without tests.** R4.1's cross-view sameness — the spec's reason to exist —
-  has no mandated check while every lesser claim does.
+- **Invariant/test asserted, verification narrower than the claim.** Persistent across all
+  three rounds. R6.2 (R2-1→R3-2) and now R4.1's cross-view test (R3-1). Any new test clause
+  here must be checked against the *design intent it is meant to prove*, not its own prose.
+- **Fix-induced contradictions.** The v3 delta that closed R2-2 created R3-1 — a test that
+  contradicts a sibling AC (R4.2 six tones, R4.1 four button variants). When a fix adds a
+  test, check it against every AC that defines legitimate variation in what it compares.
+- **JSX attribute forms.** This FE is mostly `{…}`/template-valued, not `"…"`. Any grep must
+  account for nested braces inside `${…}` — the current regex still can't.
 
 ## Guidance for Next Review
-
-- Attack first: whatever the reviser does for R2-1 (the grep). Verify the new command on
-  real code — run it and count against `grep -rhoE '(data-testid|role|aria-[a-z-]+)=' FE`.
-  If the fix still can't emit a template-literal/expression value it names, it is unfixed.
-- Then R2-2's R4.1 verification and R2-3's block selectors.
-- Closed, do not reopen: L-2 (Revision History); the v1 verified citation set; R1-3
-  direction (seeding) — citations confirmed accurate this round.
-- Lens used so far: wire contracts (v1), testability/falsifiability (v2). Unused:
-  cross-requirement contradiction sweep (R4.2 pill text vs R6.2 label invariant; R6.4
-  "no test edited" vs any new assertion wanting an existing suite); scope-creep (R4.1
-  component list vs the "look only" scope).
-- Open thread for the design phase, not yet a finding: does the suite's seeding open a
-  detail panel on **every** view (Deferrals, Now) as R7.1 requires?
+- Attack first: whatever the reviser does for R3-1. The test must not compare across tones/
+  variants. Confirm the fix names which instances (same tone, same variant) or which
+  properties (drop colour) and that the list-row path is untouched.
+- R3-2 is a one-line wording/regex nicety; do not escalate unless the reviser's edit
+  re-breaks the attribute match (re-run the 102/102 count).
+- Closed, do not reopen: R1-1/R1-2/R1-3 (resolved); R2-1 (verified resolved on real code);
+  R2-3 (selectors named); L-2 and the v1 verified citation set.
+- Lenses used: wire contracts (v1), testability/falsifiability (v2), cross-requirement
+  contradiction (v3). Unused and still open: scope-creep (R4.1's long component list vs the
+  "look only" scope); the R7.1 detail-panel-per-view thread is a design-phase check, not a
+  requirements finding.
