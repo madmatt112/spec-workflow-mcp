@@ -6,6 +6,7 @@ import { WebSocketProvider } from '../ws/WebSocketProvider';
 import { ProjectProvider } from '../projects/ProjectProvider';
 import { ShellProvider } from '../shell/ShellProvider';
 import { Sidebar } from '../shell/Sidebar';
+import { ConnectionBanner } from './ConnectionBanner';
 import { UsagePage } from '../shell/UsagePage';
 import { DeferralsPage } from '../shell/DeferralsPage';
 import { NowPage } from '../shell/NowPage';
@@ -18,6 +19,7 @@ function Shell() {
     <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)] lg:flex">
       <Sidebar />
       <main className="min-w-0 flex-1 px-4 py-4 sm:px-6">
+        <ConnectionBanner />
         <Routes>
           <Route path="/" element={<NowPage />} />
           <Route path="/runs" element={<RunsPage />} />
