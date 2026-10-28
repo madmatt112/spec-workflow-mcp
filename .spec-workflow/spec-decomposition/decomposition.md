@@ -886,6 +886,41 @@ and `npm test` are green with no behavioural test changed.
 **Depends on** spec 15 for the shell it restyles. It should run after the re-plan settles
 which dashboard pages exist, so it styles the final set once.
 
+### 28. `dashboard-project-list` — one sidebar row per project, with its state
+
+**Delivers.** From Matthew's 2026-10-28 report that the sidebar's project list "gets messy as
+runs start up". (1) A run's worktree is not a project of its own. A spec-workflow server that
+starts in a worktree whose workflow root is a known project's store attaches to that project
+instead of adding a sidebar row (today `spec-workflow-mcp · dashboard-visual-refresh` and
+`tradr-hosted · import-keeps-api-up` each get one). (2) The Specs and Deferrals counts read
+each spec store once, so a store with a live run is no longer counted twice (162 specs and
+208 deferrals on 2026-10-28). (3) The eval harness (`src/evals/fixture.ts`, fixtures under
+`/tmp/eval-fixture-*/repo`) registers nothing in the operator's registry; three such `repo`
+rows were in the sidebar on 2026-10-28. (4) A registration whose path no longer exists is
+removed. (5) Each sidebar project row carries a status dot: running, waiting on Matthew, or
+idle, with the live-run count. (6) Projects with a live run or an open wait sort first, then
+the rest by last activity.
+
+**Decided.** Items 1 to 6 only, in that order of importance. Not in scope, and recorded as
+later work: one row per product (a spec store and its separate code root, as `tradr-hosted`
+and `tradr-hosted · tradr`), better display names than the folder name, a persistent Hide,
+worktrees nested under their parent, a Remove action. It runs after spec 22 so it starts
+from the restyled sidebar; it adds no visual style of its own beyond the dot.
+
+**End-to-end verification.** With a project that has one live run in a worktree on its store,
+the sidebar shows one row for it, with a running dot and a live-run count of 1, and the Specs
+and Deferrals counts equal those with no run live. An eval run leaves the registry and the
+sidebar unchanged. A registration whose path is deleted is gone after the next start. A
+project with an open wait shows the waiting dot and sorts above an idle project with newer
+activity.
+
+**Depends on** spec 22 (`dashboard-visual-refresh`) for the sidebar it changes, and spec 1
+(`worktree-execution-context`) for the per-worktree identity and the registry lock. Design
+MUST enumerate: `src/core/project-registry.ts` (`registerProject`, the cleanup pass),
+`src/dashboard/project-manager.ts`, the controller's `projects.json` (`src/controller/state.ts`),
+`src/evals/fixture.ts`, the sidebar component and the counts behind the Specs and Deferrals
+nav items.
+
 ## Superseded entries (2026-10-10)
 
 Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard usage), the

@@ -28,7 +28,7 @@
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
-| 15 | dashboard-visual-refresh | Requirements | — |
+| 15 | dashboard-visual-refresh | Design | — |
 | 16 | advisor | Complete | 19/19 |
 | 17 | dashboard-loop-views | Complete | 14/14 |
 | 18 | project-bootstrap | Complete | 11/11 |
