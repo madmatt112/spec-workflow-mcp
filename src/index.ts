@@ -55,6 +55,8 @@ OPTIONS:
   --watch                 Watch the SDD harness run of the active spec in the
                          terminal (no MCP server, no dashboard). The path is
                          the spec store repo or its .spec-workflow directory.
+  --no-register           Do not add this server to the project registry;
+                         used by eval runs
   --spec <name>           With --watch: the spec to show (default: the active
                          spec named in HANDOFF.md, else the newest run)
   --once                  With --watch: render one frame and exit
@@ -167,6 +169,7 @@ const CLI_FLAGS = {
   '-h': 'boolean',
   '--host': 'value',
   '--no-open': 'boolean',
+  '--no-register': 'boolean',
   '--no-shared-worktree-specs': 'boolean',
   '--no-workspace-inference': 'boolean',
   '--once': 'boolean',
@@ -214,6 +217,7 @@ export function parseArguments(args: string[]): {
   specName?: string;
   noSharedWorktreeSpecs: boolean;
   noWorkspaceInference: boolean;
+  noRegister: boolean;
   workspaceSource: WorkspaceSource;
   port?: number;
   host?: string;
@@ -227,6 +231,7 @@ export function parseArguments(args: string[]): {
   let specName: string | undefined;
   const noSharedWorktreeSpecs = flags['--no-shared-worktree-specs'];
   const noWorkspaceInference = flags['--no-workspace-inference'];
+  const noRegister = flags['--no-register'];
   let customPort: number | undefined;
   let customHost: string | undefined;
 
@@ -344,6 +349,7 @@ export function parseArguments(args: string[]): {
     specName,
     noSharedWorktreeSpecs,
     noWorkspaceInference,
+    noRegister,
     workspaceSource,
     port: customPort,
     host: customHost,
@@ -426,6 +432,7 @@ async function main() {
     const workflowRootPath = cliArgs.workflowRootPath;
     const noSharedWorktreeSpecs = cliArgs.noSharedWorktreeSpecs;
     const noWorkspaceInference = cliArgs.noWorkspaceInference;
+    const noRegister = cliArgs.noRegister;
     const workspaceSource = cliArgs.workspaceSource;
 
     // Apply configuration from CLI args
@@ -664,7 +671,8 @@ async function main() {
           workflowRootPath,
           workspacePath,
           lang,
-          inferredWorkspaceFallback
+          inferredWorkspaceFallback,
+          { register: !noRegister }
         );
       } finally {
         const settledWorkspacePath = server.settledWorkspacePath ?? workspacePath;
