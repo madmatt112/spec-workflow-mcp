@@ -15,9 +15,9 @@ import { PathUtils } from '../core/path-utils.js';
 import { newRunId } from './ledger.js';
 import {
   acquireControllerLock, releaseControllerLock,
-  readQueue, writeQueue, listRuns, readRun, writeRun,
+  readQueue, writeQueue, listRuns, readRun, readRunSync, writeRun,
   writeRateLimit, listWaits, withStoreLock,
-  isProcessAlive,
+  isProcessAlive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
 import { waitEvents, type ControllerWaitRecord } from './waits.js';
@@ -196,17 +196,60 @@ export class Controller extends EventEmitter {
   }
 
   /**
-   * The operator's Resume now on a paused run. Only a running step refreshes the
-   * usage-window file, so an early reset (a plan upgrade) stays invisible while
-   * every run is parked on the window: mark each window over the threshold as
-   * reset now and schedule. The window is account-wide, so this releases every
-   * run parked on it; if it is in fact still full, the next step's rate-limit
-   * reading writes it back and the runs park again. Any other pause drops its
-   * resume time. `undefined` = no such run, `null` = the run is not paused.
+   * The operator's Pause (design C4, C5): hold a run at once where no step can
+   * be in flight (queued, already paused, or merging at rest); elsewhere the
+   * hold is pending and the driver's own stop point applies it between steps
+   * or at the merge cursor. `undefined` = no such run, `null` = done/abandoned/
+   * error, else the record — unchanged (no write) when already held.
+   */
+  async pause(runId: string): Promise<RunRecord | null | undefined> {
+    const run = await readRun(runId);
+    if (!run) return undefined;
+    if (run.status === 'done' || run.status === 'abandoned' || run.status === 'error') return null;
+    if (run.pauseRequested) return run;
+
+    const patch: Partial<RunRecord> = { pauseRequested: this.now().toISOString() };
+    if (!this.active.has(runId) && (run.status === 'queued' || run.status === 'paused' || run.status === 'merging')) {
+      patch.status = 'paused';
+      patch.pauseReason = OPERATOR_PAUSE;
+      patch.resumeAt = undefined;
+      patch.inFlight = undefined;
+      if (run.status === 'merging') {
+        patch.cursor = { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 };
+      }
+    }
+    const result = await this.save(run, patch, { ownsPauseRequest: true });
+    void this.schedule();
+    return result;
+  }
+
+  /**
+   * The operator's Resume now. A held run (design C5) resumes directly: an
+   * applied hold (status `paused`) goes back to `queued` with the hold
+   * cleared; a pending hold (the driver has not reached its stop point yet)
+   * just clears the request so the driver carries on. Neither branch touches
+   * `rate-limit.json`. An unheld run takes today's path: only a running step
+   * refreshes the usage-window file, so an early reset (a plan upgrade) stays
+   * invisible while every run is parked on the window: mark each window over
+   * the threshold as reset now and schedule. The window is account-wide, so
+   * this releases every run parked on it; if it is in fact still full, the
+   * next step's rate-limit reading writes it back and the runs park again.
+   * Any other pause drops its resume time. `undefined` = no such run, `null`
+   * = the run is not paused.
    */
   async resumeNow(runId: string): Promise<RunRecord | null | undefined> {
     const run = await readRun(runId);
     if (!run) return undefined;
+
+    if (run.pauseRequested) {
+      const patch: Partial<RunRecord> = run.status === 'paused'
+        ? { status: 'queued', pauseRequested: undefined, pauseReason: undefined, resumeAt: undefined }
+        : { pauseRequested: undefined };
+      const result = await this.save(run, patch, { ownsPauseRequest: true });
+      void this.schedule();
+      return result;
+    }
+
     if (run.status !== 'paused') return null;
     if (run.pauseReason === 'usage-window') {
       const file = readRateLimitSync();
@@ -332,6 +375,7 @@ export class Controller extends EventEmitter {
   // usage-limit step waits for its own `resumeAt`.
   private isStartable(run: RunRecord): boolean {
     if (this.active.has(run.id) || this.cancelled.has(run.id)) return false;
+    if (run.pauseRequested) return false;
     if (run.status === 'queued') return true;
     if (run.status === 'paused') {
       if (run.pauseReason === 'usage-window') return true;
@@ -449,6 +493,7 @@ export class Controller extends EventEmitter {
       onActivity: (a) => recordActivity(a),
       isCancelled: (id) => this.cancelled.has(id),
       setInFlight: () => { /* the driver persists run.inFlight itself */ },
+      isPauseRequested: (id) => Boolean(readRunSync(id)?.pauseRequested),
     };
   }
 
@@ -521,9 +566,11 @@ export class Controller extends EventEmitter {
     return this.opts.ghBin ? this.opts.ghBin() : (process.env.CONTROLLER_GH_BIN || 'gh');
   }
 
-  private async save(run: RunRecord, patch: Partial<RunRecord>): Promise<RunRecord> {
+  private async save(
+    run: RunRecord, patch: Partial<RunRecord>, opts?: { ownsPauseRequest?: boolean },
+  ): Promise<RunRecord> {
     const next: RunRecord = { ...run, ...patch, updated: this.now().toISOString() };
-    await writeRun(next);
+    await writeRun(next, opts);
     runEvents.emit('change', next);
     return next;
   }
