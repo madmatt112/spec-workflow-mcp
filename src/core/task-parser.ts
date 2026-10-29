@@ -332,10 +332,15 @@ export function parseTasksFromMarkdown(content: string): TaskParserResult {
       } else if (contentLine.match(/Files?:/)) {
         const fileMatch = contentLine.match(/Files?:\s*(.+)$/);
         if (fileMatch) {
-          // Drop parenthetical notes first (they can hold commas, e.g.
+          // A "(declared directory: ...)" annotation (agent-rules, Documents) marks the
+          // path before it as a directory; turn that into a trailing slash first, so the
+          // gate's files-list prefix match (core/gate-rules.ts matchingEntry) still covers
+          // every path under it once the annotation itself is dropped below.
+          // Drop parenthetical notes (they can hold commas, e.g.
           // "(create, run date in the name)") and a trailing " — description",
           // then split by comma.
           const filePaths = fileMatch[1]
+            .replace(/(\S+)\s*\(declared directory:[^)]*\)/gi, '$1/')
             .replace(/\([^)]*\)/g, '')
             .split(/\s+[—–]\s+/)[0]
             .split(',')
