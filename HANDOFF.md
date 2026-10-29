@@ -1162,6 +1162,6 @@ Gotchas:
 | PR | pending |
 | Coverage | logCoverage 6/6; reviewCoverage 5/6 (unreviewed: 6); TDD 4 task(s): assertion-red 1, structural-red 3, vacuous 0, inconclusive 0 |
 | Deferrals | 3 added by this spec, 23 open in all |
-| Verifier-skipped | task 6 (gate-only review, retro P6/P15) |
+| Verifier-skipped | none |
 | Next | d-9f5b2c00 Bridge legacy names remain at non-restyled colour sites in RunPage/RunsPage after task 4; d-85d402c5 dashboard-visual-refresh: uncommitted re-captured before screenshots in the worktree; d-e6bee5d8 Gate ranges from the implementer's last reported commit, not the task's first |
 | Gotchas | review coverage gap: completed task(s) 6 logged but unreviewed; merge allowed (retro P9) |
