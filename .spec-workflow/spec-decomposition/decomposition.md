@@ -921,6 +921,39 @@ MUST enumerate: `src/core/project-registry.ts` (`registerProject`, the cleanup p
 `src/evals/fixture.ts`, the sidebar component and the counts behind the Specs and Deferrals
 nav items.
 
+### 29. `run-pause` — pause a run after its current step, resume it later
+
+**Delivers.** From Matthew's 2026-10-29 request after a deploy waited hours for a gap between
+tax-lots steps. (1) A **Pause** button on the Runs page row and the run panel. The controller
+lets the in-flight step finish and starts no new step for that run; the run shows as paused by
+the operator, with the pause age from spec #182. (2) **Resume** on a run paused this way starts
+it again from the next step. The **Resume now** button from #183 stays for usage-window pauses.
+(3) A `POST /api/controller/runs/:id/pause` route beside the existing cancel, resume and
+discard routes, under the same bearer secret. (4) A paused run stays paused across a
+controller restart.
+
+**Decided.** The pause never kills or interrupts an in-flight step; cancel stays the only way to
+stop one. An operator pause has no resume time and no timer; only Resume ends it. A usage-window
+pause and an operator pause are two different reasons on the run record, and the row shows which
+one it is.
+
+**End-to-end verification.** With a run in flight, Pause returns at once, the step finishes and
+commits as normal, no next step starts, and the row shows "paused by you". `scripts/sdd-self-update.sh`
+then passes its in-flight check, deploys and restarts the controller; the run is still paused after
+the restart. Resume starts the next step. Pause on a run with no step in flight takes effect at once.
+
+**Notes.** Workaround used on 2026-10-29: marking a usage window over the threshold in
+`rate-limit.json` so the run paused at the next step boundary, then **Resume now** after the deploy.
+
+**Depends on** nothing in flight. Design MUST enumerate: `src/controller/controller.ts` (`schedule`,
+`resumeNow`, the window check), `src/controller/runs.ts` (the step loop and `pause`),
+`src/controller/state.ts` (the run record's pause reason), `src/dashboard/multi-server.ts`
+(the run routes), the Runs page row and `ControllerRunPanel`, and `scripts/sdd-self-update.sh`.
+
+**Design should address:** whether `sdd-self-update.sh` should pause every live run itself, wait for
+their steps to end, deploy, then resume them, instead of polling for a gap; what the waits that
+open while a run is paused look like; whether Pause applies to a queued run that has not started.
+
 ## Superseded entries (2026-10-10)
 
 Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard usage), the
