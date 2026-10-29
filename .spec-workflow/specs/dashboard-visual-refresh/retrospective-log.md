@@ -89,3 +89,13 @@ Cost: see the ledger
 retrospective compiled: 27 findings, 19 proposals, 4 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261028-181442 20e5010e
 Cost: 2 spawns
+
+## 2026-10-29T10:11:54Z · closeout · store batch 1 · gotcha
+P18 is a harness-only item (merge-gate policy + eval case under harness/) yet was batched into the spec store (store 1); route harness-target retro items to the harness store so the eval case can land with its fix.
+Evidence: batch 1 · mark run-20261028-181442 38b4b131
+Cost: implementer
+
+## 2026-10-29T10:16:13Z · closeout · store batch 1 · cleanup
+store batch 1: 1 done of 3, 1 fix round(s)
+Evidence: batch 1 · mark run-20261028-181442 20eaba44
+Cost: 2 implementer spawn(s)

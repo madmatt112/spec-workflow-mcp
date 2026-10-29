@@ -251,3 +251,30 @@
 {"ts":"2026-10-29T10:07:31.888Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-10-29T10:07:31.888Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"retro: 19 proposals for 27 findings"}
 {"ts":"2026-10-29T10:07:31.889Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"27 findings, 19 proposals"}
+{"ts":"2026-10-29T10:08:45.186Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/19"}
+{"ts":"2026-10-29T10:08:45.193Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P12","title":"P12 (F12) — Task 3 ran 4 fix rounds / 5 spawns before an adjudicated narrow pass."}
+{"ts":"2026-10-29T10:08:45.194Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P12","outcome":"skipped"}
+{"ts":"2026-10-29T10:08:45.194Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P14","title":"P14 (F15) — A 6-task visual refresh cost 54 spawns and 11 fix rounds."}
+{"ts":"2026-10-29T10:08:45.195Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P14","outcome":"skipped"}
+{"ts":"2026-10-29T10:08:45.195Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P16","title":"P16 (F16) — The implementer flagged, rather than absorbed, verdicts it could not fix."}
+{"ts":"2026-10-29T10:08:45.196Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P16","outcome":"skipped"}
+{"ts":"2026-10-29T10:08:45.196Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P17","title":"P17 (F17/F18) — Task 3 adjudicated after 3 rounds; task 4 escalated on a stale resend."}
+{"ts":"2026-10-29T10:08:45.196Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P17","outcome":"skipped"}
+{"ts":"2026-10-29T10:08:45.196Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P19","title":"P19 (F22) — The uncommitted re-captured before-screenshots deferral was resolved at the merge gate."}
+{"ts":"2026-10-29T10:08:45.197Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P19","outcome":"skipped"}
+{"ts":"2026-10-29T10:08:45.208Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P1","title":"P1 (F1) — A self-hosting repo cannot gate-verify its own gate fix before merge."}
+{"ts":"2026-10-29T10:08:45.208Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P15","title":"P15 (F21) — Six pre-existing npm test failures were allowed past the e2e gate (D9)."}
+{"ts":"2026-10-29T10:08:45.208Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P18","title":"P18 (F19/F20) — Task 6 was logged but unreviewed; merge allowed (decision C, retro P9)."}
+{"ts":"2026-10-29T10:08:45.256Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T10:11:54.910Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.end","agent":"sdd-implementer","input":"28","output":"14580","cacheWrite":"65107","cacheRead":"690855","tokens":"770570","cacheWrite5m":"0","cacheWrite1h":"65107","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T10:11:54.910Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-10-29T10:12:01.903Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P1 fail risk low"}
+{"ts":"2026-10-29T10:12:01.931Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P15 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-29T10:12:04.066Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P15 pass risk low"}
+{"ts":"2026-10-29T10:12:04.069Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.start","agent":"sdd-implementer","role":"fix store batch 1 round 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T10:16:13.516Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.end","agent":"sdd-implementer","input":"24","output":"19317","cacheWrite":"56384","cacheRead":"585307","tokens":"661032","cacheWrite5m":"0","cacheWrite1h":"56384","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T10:16:13.516Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.usage","agent":"sdd-implementer","role":"fix store batch 1 round 1","result":"ok","phase":"closeout","round":"1"}
+{"ts":"2026-10-29T10:16:13.583Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"closeout: item P1 not landed, reverted 67a4994"}
+{"ts":"2026-10-29T10:16:13.584Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P1","outcome":"to-do"}
+{"ts":"2026-10-29T10:16:13.584Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P15","outcome":"done"}
+{"ts":"2026-10-29T10:16:13.585Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P18","outcome":"to-do"}
