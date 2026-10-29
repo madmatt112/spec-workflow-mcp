@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/runs.test.ts"],"seams":{"src/controller/__tests__/runs.test.ts":"runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000')"},"redCommit":"834a670f93ded12ac946390137aa23b6d457a943","baseSha":"05e77357c29c0c701fd878f4f4737cf50a84f013","base":"assertion-red","head":"pass","amended":false,"judged":null}
