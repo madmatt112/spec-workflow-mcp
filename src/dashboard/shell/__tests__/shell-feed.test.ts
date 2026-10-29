@@ -112,6 +112,20 @@ import type { ShellMessage } from '../types.js';
 //   project on the same store.
 //   Expected-value source: the literal "once per group with the
 //   representative" of the C8/_Prompt sentence.
+//
+// Criterion "shell-now carries sidebar" (design.md C9 "`flush` fills it
+//   after reading waits and runs, before sending `shell-now`"; task 10
+//   _Prompt "a feed snapshot whose shell-now carries sidebar"; Requirement
+//   5.9 — sidebar rides the existing shell-now message, no new topic):
+//   Pre-condition: one listed project with no controller wait and no
+//   controller run record.
+//   Test: feed.start(), then read the shell-now message of
+//   feed.snapshot().
+//   Observable result: its `data.sidebar` is `[{ projectId: <the
+//   project's id>, dot: 'idle', liveCount: 0, lastActivity: null }]`.
+//   Expected-value source: the fixture's own project id, combined with
+//   design C9's idle/zero/null defaults for a project with no wait or
+//   run record.
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -397,5 +411,21 @@ describe('ShellFeed', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it('carries a sidebar row for a listed project with no wait or run record on the shell-now message', async () => {
+    const base = tmpBase();
+    bases.push(base);
+    const { project } = makeProject(base, 'spec-sidebar', 'Sidebar Project');
+
+    const feed = new ShellFeed(stubProjects([project]), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+
+    const nowMsg = ofType(feed.snapshot(), 'shell-now')[0];
+    expect(nowMsg).toBeDefined();
+    expect((nowMsg!.data as unknown as { sidebar: unknown }).sidebar).toEqual([
+      { projectId: project.projectId, dot: 'idle', liveCount: 0, lastActivity: null },
+    ]);
   });
 });
