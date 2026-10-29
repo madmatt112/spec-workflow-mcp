@@ -29,6 +29,10 @@ const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
 
 const savedEnv = { ...process.env };
 
+// A throwaway scratch root per test, so the runner never writes under (nor the teardown
+// ever wipes) the shared `/tmp/scratchpad/sdd` that holds a live run's briefs (retro P3).
+let evalScratchRoot: string;
+
 beforeAll(() => {
   chmodSync(STUB, 0o755);
 });
@@ -36,9 +40,12 @@ beforeAll(() => {
 beforeEach(() => {
   delete process.env.SDD_RUN_ID;
   delete process.env.SDD_STEP_ID;
+  evalScratchRoot = mkdtempSync(join(tmpdir(), 'swm-eval-scratch-'));
+  process.env.SWM_EVAL_SCRATCH_ROOT = evalScratchRoot;
 });
 
 afterEach(() => {
+  rmSync(evalScratchRoot, { recursive: true, force: true });
   for (const key of Object.keys(process.env)) {
     if (!(key in savedEnv)) delete process.env[key];
   }
@@ -218,7 +225,6 @@ function makeLiveCheckout(): string {
 
 function cleanup(...dirs: string[]): void {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
-  rmSync('/tmp/scratchpad/sdd', { recursive: true, force: true });
 }
 
 describe('main(argv)', () => {
