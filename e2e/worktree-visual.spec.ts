@@ -404,6 +404,12 @@ test.describe.serial('Dashboard visual suite', () => {
     const captures: Array<KindCapture & { view: View }> = [];
     for (const view of VIEWS) {
       await openView(page, view);
+      // ThemeProvider sets the `dark` class in an effect after first paint, and
+      // Button/Pill transition their colours over --default-transition-duration;
+      // the first view loaded (a fresh page load, unlike later in-SPA
+      // navigations) can still be mid-transition when `openView`'s visibility
+      // wait resolves, so wait past that duration before reading computed style.
+      await page.waitForTimeout(200);
       const found = await captureKindsInMain(page);
       for (const entry of found) captures.push({ ...entry, view });
     }

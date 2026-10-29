@@ -43,7 +43,7 @@ export function pauseNote(run: ControllerRun, now: number): PauseNote | null {
   return { text: parts.join(' · '), overdue };
 }
 
-/** Text colour for a pause note: amber while stopped, the error colour once overdue. */
+/** Text colour for a pause note: the warning tone while stopped, the danger tone once overdue. */
 export function pauseNoteClass(note: PauseNote): string {
-  return note.overdue ? 'text-[var(--status-error)]' : 'text-amber-600 dark:text-amber-400';
+  return note.overdue ? 'text-(--tone-danger-fg)' : 'text-(--tone-warning-fg)';
 }

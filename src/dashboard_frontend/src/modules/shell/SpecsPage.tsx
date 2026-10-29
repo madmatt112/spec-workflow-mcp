@@ -5,6 +5,7 @@ import { PageLayout, ScrollBox } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { SpecListRow, SpecDetail } from './types';
+import { Button, Pill, type Tone } from '../ui/ui';
 
 const STATE_LABELS: Record<string, string> = {
   live: 'Live', 'in-progress': 'In progress', closed: 'Closed',
@@ -27,19 +28,19 @@ const STATE_LABELS: Record<string, string> = {
 
 const STATES = ['live', 'in-progress', 'closed', 'deferred', 'not-started'] as const;
 
-const STATE_STYLES: Record<string, string> = {
-  live: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
-  'in-progress': 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  closed: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  deferred: 'bg-[var(--surface-inset)] text-[var(--text-secondary)]',
-  'not-started': 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const STATE_TONE: Record<string, Tone> = {
+  live: 'accent',
+  'in-progress': 'accent',
+  closed: 'success',
+  deferred: 'neutral',
+  'not-started': 'neutral',
 };
 
 function StateBadge({ state }: { state: SpecListRow['state'] }) {
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATE_STYLES[state] ?? STATE_STYLES['not-started']}`}>
+    <Pill tone={STATE_TONE[state] ?? STATE_TONE['not-started']} className="shrink-0">
       {STATE_LABELS[state] ?? state}
-    </span>
+    </Pill>
   );
 }
 
@@ -229,10 +230,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-const DEFERRAL_STATUS_STYLES: Record<string, string> = {
-  deferred: 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  resolved: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  superseded: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const DEFERRAL_STATUS_TONE: Record<string, Tone> = {
+  deferred: 'accent',
+  resolved: 'success',
+  superseded: 'neutral',
 };
 
 function SpecPanel({ item }: { item: Item }) {
@@ -356,9 +357,9 @@ function SpecPanel({ item }: { item: Item }) {
               <div className="space-y-1">
                 {detail.deferrals.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 text-sm" data-testid={`spec-deferral-${d.id}`}>
-                    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${DEFERRAL_STATUS_STYLES[d.status] ?? DEFERRAL_STATUS_STYLES.superseded}`}>
+                    <Pill tone={DEFERRAL_STATUS_TONE[d.status] ?? DEFERRAL_STATUS_TONE.superseded} className="shrink-0">
                       {d.status}
-                    </span>
+                    </Pill>
                     <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
                   </div>
@@ -414,14 +415,9 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">{file.name}</span>
         <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{fmtBytes(file.size)}</span>
-        <button
-          type="button"
-          onClick={copy}
-          data-testid={`copy-path-${file.name}`}
-          className="shrink-0 rounded-sm border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-        >
+        <Button variant="secondary" size="sm" onClick={copy} data-testid={`copy-path-${file.name}`} className="shrink-0">
           {'Copy path'}
-        </button>
+        </Button>
       </div>
       {fallback && (
         <input

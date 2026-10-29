@@ -4,6 +4,7 @@ import { useShell, DeferralRecord } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
+import { Pill, type Tone } from '../ui/ui';
 
 /**
  * The read-only Deferrals page (design C10 Deferrals, D15; Requirement 7 AC 2).
@@ -45,17 +46,17 @@ interface Item {
   d: FullDeferral;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  deferred: 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  resolved: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  superseded: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const STATUS_TONE: Record<string, Tone> = {
+  deferred: 'accent',
+  resolved: 'success',
+  superseded: 'neutral',
 };
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.superseded}`}>
+    <Pill tone={STATUS_TONE[status] ?? STATUS_TONE.superseded} className="shrink-0">
       {status}
-    </span>
+    </Pill>
   );
 }
 
