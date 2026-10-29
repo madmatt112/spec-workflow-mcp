@@ -1226,4 +1226,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 6/13, last commit fb1f6670, next task 7 |
+| State | tasks 7/13, last commit 0136ccde, next task 8 |
