@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { appendFile, mkdir, writeFile } from 'fs/promises';
+import { appendFile, mkdir, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './helpers/worktree-harness';
 import { DeferralStorage } from '../src/core/deferral-storage.js';
@@ -407,5 +407,96 @@ test.describe.serial('Dashboard shell end to end', () => {
           .toBeLessThanOrEqual(0);
       }
     }
+  });
+
+  // --- Pause note text (design C8; Requirement 6 AC 3/AC4/AC5) ---------------
+  // Each test seeds its own run.json, as the PR-panel seed at lines 164-174
+  // does, and removes it at the end so later tests see a clean run list.
+
+  test('(R5) an applied operator pause reads "paused by you" with no resume part', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-applied';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'paused', pauseReason: 'operator',
+      // Carries pauseRequested so the (inactive, in this harness) scheduler
+      // never reads this as a withdrawn hold and starts it.
+      pauseRequested: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      pausedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
+    await expect(note).toBeVisible({ timeout: 15000 });
+    await expect(note).toHaveText(/^paused by you/);
+    await expect(note).not.toContainText('resumes in');
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  test('(R5) a pending pause on a waiting run shows "pause requested"', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-pending-waiting';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      // Waiting with no wait record: a pending hold on an open gate, with
+      // nothing for this harness's inactive scheduler to act on.
+      status: 'waiting',
+      pauseRequested: new Date(Date.now() - 30 * 1000).toISOString(),
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
+    await expect(note).toBeVisible({ timeout: 15000 });
+    await expect(note).toContainText('pause requested');
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  // Regression guard (Requirement 6 AC 5, holds at base): a usage-reason pause
+  // keeps today's note and "resumes in", unchanged by C8's new pending/applied
+  // cases. Uses `usage-limit`, never `usage-window`, so no real rate-limit
+  // window logic treats this seed as live.
+  test('(R5) a usage-limit pause keeps its "resumes in" note', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-usage';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'paused', pauseReason: 'usage-limit',
+      pausedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      resumeAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
+    await expect(note).toBeVisible({ timeout: 15000 });
+    await expect(note).toContainText('usage-limit');
+    await expect(note).toContainText('resumes in');
+
+    await rm(runDir, { recursive: true, force: true });
   });
 });
