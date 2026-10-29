@@ -4,7 +4,8 @@ Read this before you touch the repository. It is short; obey all of it.
 
 worktree-per-change: required
 worktree-setup: `npm ci`; a task that runs a worktree Playwright e2e suite also runs `npx playwright install chromium` before it
-tdd-test-command: npx vitest run {files}
+tdd-test-command: sh -c 'for f; do case "$f" in e2e/worktree-*.spec.ts) npx playwright test -c playwright.worktree.config.ts "$f";; e2e/*) npx playwright test "$f";; *) npx vitest run "$f";; esac || exit 1; done' tdd {files}
+<!-- tdd-test-command runs each test file with its own runner: e2e specs are Playwright (worktree specs on playwright.worktree.config.ts), the rest vitest -->
 tdd-regression-guard: an AC whose behaviour already holds at base is a regression guard, not forced into a red test
 <!-- controller merge rule (ADR 0003): a green build here proves the tests, not that the controller boots, so this repo is merged by hand -->
 merge: ask
