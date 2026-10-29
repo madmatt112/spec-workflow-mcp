@@ -229,6 +229,7 @@ function emptyNowModel(overrides: { waits?: Wait[]; live?: LiveRunRow[] } = {}):
     idle: [],
     closed: [],
     runs: [],
+    sidebar: [],
     generatedAt: T.old,
   } as NowModel;
 }

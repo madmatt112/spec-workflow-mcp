@@ -11,6 +11,7 @@ import type { ProjectManager } from '../project-manager.js';
 import { listRunsSync } from '../../controller/state.js';
 import { liveRunsByProject } from './live-runs.js';
 import { buildNowModel } from './now-model.js';
+import { buildSidebarRows } from './sidebar-rows.js';
 import { buildSpecRows } from './spec-rows.js';
 import { groupByStore } from './store-groups.js';
 import { FileCache } from './file-cache.js';
@@ -131,6 +132,13 @@ export class ShellFeed {
     } catch (err) {
       console.error('ShellFeed: skipping controller actions', err);
     }
+
+    nowModel.sidebar = buildSidebarRows(
+      projects.map((p) => ({ projectId: p.projectId, projectName: p.projectName })),
+      nowModel,
+      waits,
+      runs,
+    );
 
     if (this.closed) return;
     const messages: ShellMessage[] = [
