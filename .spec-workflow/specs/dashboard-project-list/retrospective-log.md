@@ -69,3 +69,23 @@ Cost: 1 implementer spawn(s)
 task 13 closed: 0 fix round(s), outcome gate
 Evidence: task 13 · mark run-20261029-104125 7565e16d
 Cost: 1 implementer spawn(s)
+
+## 2026-10-29T16:11:26Z · implementation · phase · bug
+end-to-end verification failed (round 0): /tmp/scratchpad/sdd/dashboard-project-list/verify-e2e-findings.md
+Evidence: completion gate · mark run-20261029-104125 1193d5c8
+Cost: 0 repair(s)
+
+## 2026-10-29T16:29:52Z · implementation · phase · bug
+end-to-end verification failed (round 1): /tmp/scratchpad/sdd/dashboard-project-list/verify-e2e-r1-findings.md — BLOCKING regression: branch startup missing-path prune (project-manager.ts:54-55; project-registry.ts cleanupStaleProjectsLocked) removes route-test fixtures registering a never-created *-workspace path. 15 tests pass at merge-ba
+Evidence: completion gate · mark run-20261029-104125 9e6f0fe8
+Cost: 1 repair(s)
+
+## 2026-10-29T16:47:41Z · implementation · phase · deviation
+review coverage gap: completed task(s) 13 logged but unreviewed; merge allowed (retro P9)
+Evidence: completion gate · mark run-20261029-104125 50a2fe36
+Cost: merge allowed (decision C)
+
+## 2026-10-29T16:47:41Z · implementation · phase · cleanup
+implementation complete: 13 tasks, 1 fix rounds, 0 adjudications, 59 spawns, 0 deferrals added
+Evidence: completion gate · mark run-20261029-104125 b96bdc6b
+Cost: see the ledger

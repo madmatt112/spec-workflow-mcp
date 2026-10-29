@@ -28,12 +28,13 @@
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
 | 15 | dashboard-visual-refresh | Complete | 6/6 |
-| 16 | advisor | Complete | 19/19 |
-| 17 | dashboard-loop-views | Complete | 14/14 |
-| 18 | project-bootstrap | Complete | 11/11 |
-| 19 | verification-loop | Complete | 14/14 |
-| 20 | harness-evals | Complete | 16/16 |
-| 21 | tighter-reviews | Complete | 29/29 |
+| 16 | dashboard-project-list | Complete | 13/13 |
+| 17 | advisor | Complete | 19/19 |
+| 18 | dashboard-loop-views | Complete | 14/14 |
+| 19 | project-bootstrap | Complete | 11/11 |
+| 20 | verification-loop | Complete | 14/14 |
+| 21 | harness-evals | Complete | 16/16 |
+| 22 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 
