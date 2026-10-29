@@ -86,6 +86,12 @@ node-20 fields.
 - When a task's cited design clause pins a behaviour to a named module, the `File:` list
   must include that module. The tasks-phase review rejects a task whose cited clause names
   a write location absent from `File:`.
+- A task that adds or renames an exported function in a module guarded by an
+  export-classification test (today `src/core/git-utils.ts`, guarded by
+  `src/core/__tests__/git-utils.test.ts`, which enumerates every export) lists that guard
+  test in its `File:` list, because a new export is not classified automatically and fails
+  the guard until it is. The tasks-phase review rejects such a task whose `File:` list
+  omits the guard test.
 
 ## Lint false positives
 
