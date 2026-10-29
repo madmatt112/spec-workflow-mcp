@@ -99,3 +99,13 @@ Cost: implementer
 store batch 1: 1 done of 3, 1 fix round(s)
 Evidence: batch 1 · mark run-20261028-181442 20eaba44
 Cost: 2 implementer spawn(s)
+
+## 2026-10-29T10:28:36Z · closeout · harness batch 2 · gotcha
+done
+Evidence: batch 2 · mark run-20261028-181442 81896815
+Cost: implementer
+
+## 2026-10-29T10:28:46Z · closeout · harness batch 2 · cleanup
+harness batch 2: 1 done of 10, 0 fix round(s)
+Evidence: batch 2 · mark run-20261028-181442 192f2122
+Cost: 1 implementer spawn(s)

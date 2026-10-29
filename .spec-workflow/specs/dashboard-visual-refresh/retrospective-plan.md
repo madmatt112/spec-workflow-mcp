@@ -227,3 +227,14 @@ One line per proposal, written by the close-out phase.
 - P1: to-do (human) — Rule already correct and committed (67a4994a) in .spec-workflow/agent-rules.md Checks. Gate fail is an unmovable file-outside-list: closeout itemPaths derived the expected list from the backticked example src/core/task-parser.ts (only named token existing at root), while the correct steering-prose commit touched .spec-workflow/agent-rules.md. No permitted edit moves a file-list verdict; the real fix is in gate code (closeout.ts) or retrospective-plan.md, both forbidden here. DESIGN-DEFECT.
 - P15: done — a9a2f2d53a403dce822a496fd31d00411e593bd3
 - P18: to-do (human) — harness merge-gate policy + eval case harness/evals/merge-gate-coverage-gap/ are outside store 1's .spec-workflow scope; decision C keeps behaviour as-is, no spec-store change
+- P2: to-do (human) — gate-verdict Eval case unsupported by src/evals (agent-run graders only); blocked on P7 decision; medium-risk task-diff/controller change
+- P3: done — 589038f028cab57ccf08127fbab73a5a9a20f9cb
+- P5: to-do (human) — names a gate-verdict Eval case src/evals cannot grade (case.ts rejects unknown graders); cross-cutting medium-risk change to operatorRulings capture + every brief
+- P6: to-do (human) — prereq P8 not landed (needs P5+P8); gate-verdict Eval case unsupported by src/evals
+- P7: to-do (human) — DECISION NEEDED: yes, unresolved — the gate commit range (Option A/B/C) is a core design choice an implementer must not pick
+- P8: to-do (human) — names Eval case 'outside-list-escalate-first-round' describing a gate verdict src/evals cannot grade; medium-risk escalation-timing change needing live controller verification
+- P9: to-do (human) — prereq P1 (item wants its own standalone harness PR, not a retro-batch commit); names a gate/parser Eval case the agent-run eval infra cannot grade
+- P10: to-do (human) — blocked on P7 (clean range); routing-flag change must be honoured end-to-end with live verification; gate-verdict Eval case unsupported
+- P11: to-do (human) — DECISION NEEDED: yes, unresolved (graphify hook policy); target is ~/.claude which closeout-standing does not commit — needs a human
+- P13: to-do (human) — names gate-verdict Eval case src/evals cannot grade; medium-risk base-diff check-suppression change in implementation.ts/gate-rules.ts
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/189

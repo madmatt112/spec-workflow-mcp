@@ -278,3 +278,27 @@
 {"ts":"2026-10-29T10:16:13.584Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P1","outcome":"to-do"}
 {"ts":"2026-10-29T10:16:13.584Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P15","outcome":"done"}
 {"ts":"2026-10-29T10:16:13.585Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P18","outcome":"to-do"}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P2","title":"P2 (F2) — A net-zero revert pair in the gate range produced a phantom structural-red."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P3","title":"P3 (F3) — The e2e visual capture did not reset the durable project list."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P5","title":"P5 (F5) — A fix brief carried another task's content."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P6","title":"P6 (F6) — The gate re-sent a byte-identical fix brief as a new round."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P7","title":"P7 (F8) — The gate ranges from the implementer's last reported commit, not the task's first."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P8","title":"P8 (F9/F13) — A `file-outside-list` verdict cannot be moved by any implementer edit."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P9","title":"P9 (F10) — The declared-directory annotation dropped its trailing slash, so prefix matching flagged every file under the directory."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P10","title":"P10 (F11) — The loop resends an identical brief instead of routing to the verifier."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P11","title":"P11 (F7) — A \"MANDATORY: run graphify query\" reminder was injected into tool results."}
+{"ts":"2026-10-29T10:16:31.799Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.pick","task":"P13","title":"P13 (F14) — Task 5 spent 2 fix rounds / 3 spawns on pre-existing npm test failures."}
+{"ts":"2026-10-29T10:16:31.827Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T10:28:36.810Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.end","agent":"sdd-implementer","input":"78","output":"51610","cacheWrite":"124551","cacheRead":"3608290","tokens":"3784529","cacheWrite5m":"0","cacheWrite1h":"124551","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T10:28:36.810Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-29T10:28:46.712Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-10-29T10:28:46.827Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P2","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.828Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-10-29T10:28:46.828Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P5","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.828Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P6","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.829Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P7","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.829Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P8","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.829Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P9","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.830Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P10","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.830Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P11","outcome":"to-do"}
+{"ts":"2026-10-29T10:28:46.830Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P13","outcome":"to-do"}
