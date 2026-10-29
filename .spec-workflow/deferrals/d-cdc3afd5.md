@@ -1,15 +1,15 @@
 ---
 id: "d-cdc3afd5"
-status: "deferred"
+status: "resolved"
 title: "Keyboard focus ring on the danger Discard button is invisible (1.07:1); worktree-visual e2e red on main"
 createdAt: "2026-10-29T16:52:21.214Z"
-updatedAt: "2026-10-29T16:52:21.214Z"
-resolvedAt: null
+updatedAt: "2026-10-29T16:58:33.348Z"
+resolvedAt: "2026-10-29T16:58:33.348Z"
 originSpec: "dashboard-visual-refresh"
 originPhase: "implementation"
 revisitTrigger: "Next swm frontend change, or before the next frontend spec's verification"
 tags: ["frontend", "a11y", "e2e", "bug"]
-resolution: null
+resolution: "Fixed in PR #192 (merge e61fb627): new token --focus-ring-on-solid (#000000 light, #ffffff dark) for the primary and danger solid buttons, at least 3.38:1 on every solid fill and hover in both themes; frontend-tokens.test.ts asserts the four new pairs. The full e2e/worktree-visual.spec.ts suite passes (7 passed, 6 opt-in capture skips). The CI gap (worktree e2e not in CI) stays as a note here; not changed."
 resolvedInSpec: null
 supersededBy: null
 supersedes: null
