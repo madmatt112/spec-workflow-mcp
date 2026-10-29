@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { Gear } from './Gear';
+import { ui } from '../ui/ui';
 
 interface NavItem {
   to: string;
@@ -19,17 +20,11 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate: () => void })
       end={item.end}
       data-testid={item.testId}
       onClick={onNavigate}
-      className={({ isActive }) =>
-        `flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
-          isActive
-            ? 'bg-[var(--surface-hover)] text-[var(--text-primary)] font-medium'
-            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-        }`
-      }
+      className={({ isActive }) => ui.navRow(isActive)}
     >
       <span>{item.label}</span>
       {typeof item.count === 'number' && (
-        <span className="ml-2 rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+        <span className="ml-2 rounded-full bg-(--surface-inset) px-2 py-0.5 text-xs text-(--text-muted)">
           {item.count}
         </span>
       )}
@@ -58,14 +53,14 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]">
+      <div className="px-3 py-3 text-sm font-semibold text-(--text-primary)">
         {'Spec Workflow'}
       </div>
 
       {!connected && (
         <div
           data-testid="disconnected-marker"
-          className="mx-3 mb-2 rounded-md bg-[var(--status-error)]/10 px-3 py-1.5 text-xs text-[var(--status-error)]"
+          className="mx-3 mb-2 rounded-md bg-(--tone-danger-bg) px-3 py-1.5 text-xs text-(--tone-danger-fg)"
         >
           {'Disconnected'}
         </div>
@@ -78,12 +73,12 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
       </nav>
 
       <div className="mt-4 px-3">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-(--text-muted)">
           {'Projects'}
         </div>
         <div className="flex flex-col gap-1">
           {projects.map((p) => (
-            <label key={p.projectId} className="flex items-center gap-2 rounded-sm px-2 py-1 text-sm text-[var(--text-secondary)]">
+            <label key={p.projectId} className="flex items-center gap-2 rounded-sm px-2 py-1 text-sm text-(--text-secondary)">
               <input
                 type="checkbox"
                 role="switch"
@@ -97,7 +92,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
         </div>
       </div>
 
-      <div className="mt-auto border-t border-[var(--border-default)] p-2">
+      <div className="mt-auto border-t border-(--border-default) p-2">
         <Gear />
       </div>
     </div>
@@ -110,32 +105,32 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col lg:border-r lg:border-[var(--border-default)] lg:bg-[var(--surface-panel)]">
+      <aside className="hidden lg:flex lg:w-(--sidebar-w) lg:flex-shrink-0 lg:flex-col lg:border-r lg:border-(--border-default) lg:bg-(--surface-panel)">
         <SidebarContent onNavigate={() => {}} />
       </aside>
 
       {/* Mobile top bar with the drawer toggle, below the lg breakpoint */}
-      <div className="flex items-center gap-3 border-b border-[var(--border-default)] bg-[var(--surface-panel)] px-4 py-2 lg:hidden">
+      <div className="flex items-center gap-3 border-b border-(--border-default) bg-(--surface-panel) px-4 py-2 lg:hidden">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
           data-testid="sidebar-drawer-toggle"
-          className="rounded-md p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+          className="rounded-md p-2 text-(--text-muted) hover:bg-(--surface-hover)"
           title={'Open menu'}
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-[var(--text-primary)]">{'Spec Workflow'}</span>
+        <span className="text-sm font-semibold text-(--text-primary)">{'Spec Workflow'}</span>
       </div>
 
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setDrawerOpen(false)}>
-          <div className="absolute inset-0 bg-black/50" />
+          <div className={ui.scrim} />
           <div
-            className="absolute left-0 top-0 h-full w-64 bg-[var(--surface-panel)] shadow-[var(--shadow-overlay)]"
+            className={`absolute left-0 top-0 h-full w-(--sidebar-w) ${ui.drawer}`}
             onClick={(e) => e.stopPropagation()}
             data-testid="sidebar-drawer"
           >

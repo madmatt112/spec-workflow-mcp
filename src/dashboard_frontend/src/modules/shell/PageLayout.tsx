@@ -19,7 +19,7 @@ export function PageLayout({
         {list}
       </div>
       {panel !== undefined && (
-        <aside className="min-w-0 xl:w-96 xl:flex-shrink-0" data-testid="page-panel">
+        <aside className="min-w-0 xl:w-(--panel-w) xl:flex-shrink-0" data-testid="page-panel">
           {panel}
         </aside>
       )}

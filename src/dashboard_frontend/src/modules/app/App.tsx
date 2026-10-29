@@ -18,15 +18,17 @@ function Shell() {
     <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)] lg:flex">
       <Sidebar />
       <main className="min-w-0 flex-1 px-4 py-4 sm:px-6">
-        <Routes>
-          <Route path="/" element={<NowPage />} />
-          <Route path="/runs" element={<RunsPage />} />
-          <Route path="/runs/:projectId" element={<RunPage />} />
-          <Route path="/specs" element={<SpecsPage />} />
-          <Route path="/usage" element={<UsagePage />} />
-          <Route path="/deferrals" element={<DeferralsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <div className="mx-auto w-full max-w-(--content-max)">
+          <Routes>
+            <Route path="/" element={<NowPage />} />
+            <Route path="/runs" element={<RunsPage />} />
+            <Route path="/runs/:projectId" element={<RunPage />} />
+            <Route path="/specs" element={<SpecsPage />} />
+            <Route path="/usage" element={<UsagePage />} />
+            <Route path="/deferrals" element={<DeferralsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </main>
     </div>
   );

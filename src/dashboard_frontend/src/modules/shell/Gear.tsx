@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
+import { Button, ui } from '../ui/ui';
 
 /**
  * The settings gear at the foot of the sidebar: theme toggle, density, and the
@@ -48,7 +49,7 @@ export function Gear() {
         onClick={() => setOpen((o) => !o)}
         data-testid="gear-toggle"
         aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-(--text-secondary) hover:bg-(--surface-hover)"
         title="Settings"
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,20 +61,20 @@ export function Gear() {
 
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-2 w-64 rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-3 shadow-[var(--shadow-overlay)]"
+          className={`absolute bottom-full left-0 mb-2 w-64 ${ui.popover}`}
           data-testid="gear-panel"
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Theme</span>
-              <button onClick={toggleTheme} className="rounded-md bg-[var(--surface-inset)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
+              <span className="text-sm text-(--text-secondary)">Theme</span>
+              <Button variant="secondary" size="sm" onClick={toggleTheme}>
                 {theme === 'dark' ? 'Dark' : 'Light'}
-              </button>
+              </Button>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Density</span>
-              <div className="flex gap-3 text-sm text-[var(--text-secondary)]">
+              <span className="text-sm text-(--text-secondary)">Density</span>
+              <div className="flex gap-3 text-sm text-(--text-secondary)">
                 <label className="flex items-center gap-1">
                   <input
                     type="radio"
@@ -99,16 +100,16 @@ export function Gear() {
 
             {notifySupported && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--text-secondary)]">Notifications</span>
+                <span className="text-sm text-(--text-secondary)">Notifications</span>
                 {notifyPermission === 'granted' ? (
-                  <span className="text-xs text-[var(--text-muted)]" data-testid="notify-state">On</span>
+                  <span className="text-xs text-(--text-muted)" data-testid="notify-state">On</span>
                 ) : notifyPermission === 'denied' ? (
-                  <span className="text-xs text-[var(--text-muted)]" data-testid="notify-state">Blocked</span>
+                  <span className="text-xs text-(--text-muted)" data-testid="notify-state">Blocked</span>
                 ) : (
                   <button
                     onClick={requestNotify}
                     data-testid="notify-enable"
-                    className="rounded-md bg-[var(--surface-inset)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                    className="rounded-md bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-secondary) hover:bg-(--surface-hover)"
                   >
                     Enable
                   </button>
@@ -117,10 +118,10 @@ export function Gear() {
             )}
 
             {version && (
-              <div className="border-t border-[var(--border-default)] pt-2 text-center">
+              <div className="border-t border-(--border-default) pt-2 text-center">
                 <span
                   data-testid="gear-version"
-                  className="text-xs text-[var(--text-muted)]"
+                  className="text-xs text-(--text-muted)"
                 >
                   Spec-Workflow-MCP v{version}
                 </span>
