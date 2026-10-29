@@ -273,3 +273,30 @@
 {"ts":"2026-10-29T16:58:39.655Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-10-29T16:58:39.656Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"retro: 14 proposals for 20 findings"}
 {"ts":"2026-10-29T16:58:39.657Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"20 findings, 14 proposals"}
+{"ts":"2026-10-29T16:59:08.892Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/13"}
+{"ts":"2026-10-29T16:59:08.895Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P6","title":"P6 (F6) — Completion ledger reported \"0 deferrals added\" with 1 added."}
+{"ts":"2026-10-29T16:59:08.895Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P6","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.895Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P9","title":"P9 (F9) — Verifier base-diffs every suspected regression before blocking."}
+{"ts":"2026-10-29T16:59:08.895Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P10","title":"P10 (F10) — Review-coverage gap: task 13 logged but unreviewed, merge allowed."}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P10","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P11","title":"P11 (F11) — Nine tasks closed on a gate-only review, verifier skipped."}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P11","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P12","title":"P12 (F12) — Operator ruling on the task 1 file-list."}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P12","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P13","title":"P13 (F13) — Blocking e2e fixed in the test fixtures, not product code."}
+{"ts":"2026-10-29T16:59:08.896Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P13","outcome":"skipped"}
+{"ts":"2026-10-29T16:59:08.904Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P1","title":"P1 (F1) — A new exported symbol drags in the export-classification guard test."}
+{"ts":"2026-10-29T16:59:08.948Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T17:00:18.464Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"18","output":"4710","cacheWrite":"48706","cacheRead":"344622","tokens":"398056","cacheWrite5m":"0","cacheWrite1h":"48706","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T17:00:18.464Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-10-29T17:00:20.860Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P1 fail risk low"}
+{"ts":"2026-10-29T17:00:20.863Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"fix store batch 1 round 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T17:04:08.378Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"32","output":"16767","cacheWrite":"49677","cacheRead":"779004","tokens":"845480","cacheWrite5m":"0","cacheWrite1h":"49677","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T17:04:08.378Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"fix store batch 1 round 1","result":"ok","phase":"closeout","round":"1"}
+{"ts":"2026-10-29T17:04:10.529Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P1 fail risk low round 1"}
+{"ts":"2026-10-29T17:04:10.532Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"fix store batch 1 round 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T17:08:01.100Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"46","output":"16205","cacheWrite":"62828","cacheRead":"1241811","tokens":"1320890","cacheWrite5m":"0","cacheWrite1h":"62828","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T17:08:01.100Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"fix store batch 1 round 2","result":"ok","phase":"closeout","round":"2"}
+{"ts":"2026-10-29T17:08:01.134Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"closeout: item P1 not landed, reverted 95f65ea"}
+{"ts":"2026-10-29T17:08:01.134Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P1","outcome":"skipped"}

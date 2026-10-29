@@ -94,3 +94,13 @@ Cost: see the ledger
 retrospective compiled: 20 findings, 14 proposals, 4 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261029-104125 9f693591
 Cost: 2 spawns
+
+## 2026-10-29T17:08:01Z · closeout · store batch 1 · deviation
+P1 skipped: Already correctly implemented at 95f65eaf (round 1); rule present at .spec-workflow/agent-rules.md lines 89-94, tree clean, nothing valid to change. Gate's file-outside-list reason is a path-prefix false positive (item Target names bare agent-rules.md vs real .spec-workflow/agent-rules.md). No new commit — fabricating a cosmetic edit would be dishonest.
+Evidence: P1 · mark run-20261029-104125 7377fb4a
+Cost: unknown
+
+## 2026-10-29T17:08:01Z · closeout · store batch 1 · cleanup
+store batch 1: 0 done of 1, 2 fix round(s)
+Evidence: batch 1 · mark run-20261029-104125 535e4160
+Cost: 3 implementer spawn(s)
