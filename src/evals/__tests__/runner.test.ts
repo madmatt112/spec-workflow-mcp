@@ -7,6 +7,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { runCases, type EvalResultRecord } from '../runner.js';
+import type { StepSpec, StepResult } from '../../controller/step.js';
 
 // Design Component 6 (src/evals/runner.ts), Requirement 2 ACs 1, 3-8 and Requirement 3 AC7:
 // runCases(ids, opts) runs each named case's role 3 times through the live `runStep`
@@ -348,5 +349,48 @@ describe('runCases(ids, opts)', () => {
     expect(kaseB?.runs[0].reasons).not.toContain('edited the live checkout');
     expect(kaseB?.verdict).toBe('pass');
     cleanup(casesRootB, homeB, liveCheckoutB);
+  });
+
+  // Pre-condition: one case with no graders, run once with a stub `step` that records the
+  // `mcpConfig` it receives in place of running the live `runStep`.
+  // Test: runCases(['no-register-case'], { liveCheckout, casesRoot, home, runs: 1, step }).
+  // Observable result: the recorded spec-workflow server's `args` end with the step's own
+  // `workspace` field (the fixture root) followed immediately by `--no-register`.
+  // Expected-value source: design.md Component 7 ("runCases... appends '--no-register' to
+  // the inline server's args, after the fixture root", design.md:94); requirements.md R3 AC1
+  // (requirements.md:55) and AC4 (requirements.md:58); tasks.md task 8 Prompt, "append the
+  // flag task 7 adds to the inline server's args in runCases, after the fixture root" and
+  // "asserts that the spec-workflow server args end with the fixture root then that flag".
+  it("appends --no-register to the inline server's args, after the fixture root", async () => {
+    const casesRoot = mkdtempSync(join(tmpdir(), 'eval-cases-'));
+    const home = mkdtempSync(join(tmpdir(), 'eval-home-'));
+    const liveCheckout = makeLiveCheckout();
+    writeTestAuthorCase(casesRoot, 'no-register-case', []);
+
+    let recordedArgs: string[] = [];
+    let recordedWorkspace = '';
+    const step = async (spec: StepSpec): Promise<StepResult> => {
+      const mcpConfig = spec.mcpConfig as { mcpServers: Record<string, { args: string[] }> };
+      recordedArgs = mcpConfig.mcpServers['spec-workflow'].args;
+      recordedWorkspace = spec.workspace ?? '';
+      return {
+        structuredOutput: { commit: 'none', files: [], flag: 'none' },
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
+        sessionId: null,
+        numTurns: 1,
+        isError: false,
+        subtype: 'success',
+        resultText: '',
+        exitCode: 0,
+        classification: 'ok',
+        durationMs: 0,
+      };
+    };
+
+    await runCases(['no-register-case'], { liveCheckout, casesRoot, home, runs: 1, step });
+
+    expect(recordedArgs.slice(-2)).toEqual([recordedWorkspace, '--no-register']);
+
+    cleanup(casesRoot, home, liveCheckout);
   });
 });
