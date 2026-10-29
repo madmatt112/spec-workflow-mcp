@@ -124,6 +124,193 @@ test.describe.serial('Dashboard visual suite', () => {
     expect(duration).toBe('0s');
   });
 
+  /**
+   * Logs `context` in with the dashboard's shared secret (`src/controller/access.ts`),
+   * the same way `capture`'s `captureView` does, so the Usage and Run views'
+   * `/api/controller/` fetch does not 401 and raise the sign-in dialog over
+   * the view under test.
+   */
+  async function login(context: import('@playwright/test').BrowserContext): Promise<void> {
+    const secret = (await readFile(secretPath(), 'utf-8')).trim();
+    await context.request.post('/api/login', { data: { secret } });
+  }
+
+  /**
+   * Parses a `getComputedStyle` colour string (`rgb(r, g, b)` or
+   * `rgba(r, g, b, a)`) into its `[r, g, b]` channels.
+   */
+  function parseRgb(color: string): [number, number, number] {
+    const match = color.match(/rgba?\(([^)]+)\)/);
+    if (!match) {
+      throw new Error(`cannot parse colour ${color}`);
+    }
+    const parts = match[1].split(',').map((part) => parseFloat(part.trim()));
+    return [parts[0], parts[1], parts[2]];
+  }
+
+  /** WCAG relative luminance (NFR Accessibility formula) for an `[r, g, b]` triple. */
+  function relativeLuminance([r, g, b]: [number, number, number]): number {
+    const [R, G, B] = [r, g, b].map((channel) => {
+      const s = channel / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+  }
+
+  /** WCAG contrast ratio between two `getComputedStyle` colour strings. */
+  function contrastRatio(colorA: string, colorB: string): number {
+    const lumA = relativeLuminance(parseRgb(colorA));
+    const lumB = relativeLuminance(parseRgb(colorB));
+    const lighter = Math.max(lumA, lumB);
+    const darker = Math.min(lumA, lumB);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /**
+   * Tabs through `page` up to 40 stops (design T4.2, Requirement 4.4). Each
+   * stop's focused element must show an outline at least 2px wide with at
+   * least 3:1 contrast against the nearest ancestor that paints an opaque
+   * background. Stops when focus cycles back to its first element or leaves
+   * the document.
+   */
+  async function assertFocusRingAtEveryStop(page: Page, label: string): Promise<void> {
+    let firstKey: string | null = null;
+    for (let stop = 0; stop < 40; stop++) {
+      await page.keyboard.press('Tab');
+      const result = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) {
+          return null;
+        }
+        const style = getComputedStyle(el);
+        let bgEl: Element | null = el;
+        let background = 'rgba(0, 0, 0, 0)';
+        while (bgEl) {
+          const bg = getComputedStyle(bgEl).backgroundColor;
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            background = bg;
+            break;
+          }
+          bgEl = bgEl.parentElement;
+        }
+        const key = `${el.tagName}#${el.id}.${el.className}:${el.getAttribute('data-testid') ?? ''}`;
+        return {
+          key,
+          outlineStyle: style.outlineStyle,
+          outlineWidth: parseFloat(style.outlineWidth),
+          outlineColor: style.outlineColor,
+          background,
+        };
+      });
+      if (!result) {
+        break;
+      }
+      if (result.key === firstKey) {
+        break;
+      }
+      if (firstKey === null) {
+        firstKey = result.key;
+      }
+      const where = `${label} stop ${stop} (${result.key})`;
+      expect(result.outlineStyle, where).not.toBe('none');
+      expect(result.outlineWidth, where).toBeGreaterThanOrEqual(2);
+      expect(contrastRatio(result.outlineColor, result.background), where).toBeGreaterThanOrEqual(3);
+    }
+  }
+
+  // Task 3 / design T4.2 (Requirement 4.4): keyboard focus shows a focus ring,
+  // at least 2px wide with at least 3:1 contrast on its surface, on every
+  // view in both themes. Red-first at base: SearchBox and LoginPanel use
+  // `focus:outline-none`, and most other focusables draw no ring at all.
+  test('keyboard focus shows the focus ring on every view', async ({ browser }) => {
+    for (const theme of ['light', 'dark'] as const) {
+      const context = await browser.newContext();
+      await login(context);
+      const page = await context.newPage();
+      await page.addInitScript((t) => window.localStorage.setItem('theme', t), theme);
+      for (const view of VIEWS) {
+        await openView(page, view);
+        await assertFocusRingAtEveryStop(page, `${view} (${theme})`);
+      }
+      await context.close();
+    }
+  });
+
+  // Task 3 / design T4.6 (Requirement 5.4): above the sidebar-plus-content-max
+  // width, the routes wrapper inside `main` is capped at 1600px and centred,
+  // so the left and right gaps inside `main` match within 1px. Red-first at
+  // base: `main` wraps `Routes` directly with no cap (App.tsx:20-21).
+  test('content is capped and centred at 1920', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const page = await context.newPage();
+    await openView(page, 'now');
+    const result = await page.evaluate(() => {
+      const main = document.querySelector('main');
+      if (!main) {
+        throw new Error('no main element found');
+      }
+      if (main.children.length !== 1) {
+        throw new Error(`main has ${main.children.length} children, expected exactly one wrapper`);
+      }
+      const wrapper = main.children[0] as HTMLElement;
+      const mainRect = main.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      return {
+        wrapperWidth: wrapperRect.width,
+        leftGap: wrapperRect.left - mainRect.left,
+        rightGap: mainRect.right - wrapperRect.right,
+      };
+    });
+    await context.close();
+    expect(result.wrapperWidth).toBeLessThanOrEqual(1600);
+    expect(Math.abs(result.leftGap - result.rightGap)).toBeLessThanOrEqual(1);
+  });
+
+  // Task 3 / design T4.3 (Requirement 4.5, regression guard — mouse focus
+  // shows no ring today, tasks.md task 3 Notes): a mouse click on a nav link
+  // and on a button leaves `outline-style: none` on the clicked element.
+  test('mouse focus shows no ring', async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await openView(page, 'now');
+
+    const navLink = page.getByTestId('nav-runs');
+    await navLink.click();
+    const navOutline = await navLink.evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(navOutline).toBe('none');
+
+    const gearButton = page.getByTestId('gear-toggle');
+    await gearButton.click();
+    const gearOutline = await gearButton.evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(gearOutline).toBe('none');
+
+    await context.close();
+  });
+
+  // Task 3 / design T4.7 (Requirement 5.6, regression guard, D10): none of
+  // the six views scrolls sideways at 360, 768, 1000, 1440 or 1920px wide, in
+  // either theme.
+  test('no view scrolls sideways at five widths in both themes', async ({ browser }) => {
+    const widths = [360, 768, 1000, 1440, 1920];
+    for (const theme of ['light', 'dark'] as const) {
+      const context = await browser.newContext();
+      await login(context);
+      const page = await context.newPage();
+      await page.addInitScript((t) => window.localStorage.setItem('theme', t), theme);
+      for (const view of VIEWS) {
+        for (const width of widths) {
+          await page.setViewportSize({ width, height: 900 });
+          await openView(page, view);
+          const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          );
+          expect(overflow, `${view} at ${width}px (${theme})`).toBeLessThanOrEqual(0);
+        }
+      }
+      await context.close();
+    }
+  });
+
   test.describe('capture', () => {
     test.skip(
       !(process.env.SCREENSHOT_SET && process.env.SCREENSHOT_DIR),
