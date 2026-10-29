@@ -378,3 +378,169 @@ describe('requirement 1.12 — the identity-fallback ledger and its bound', () =
     expect(_identityFallbackLedgerSize()).toBe(IDENTITY_FALLBACK_LEDGER_LIMIT);
   });
 });
+
+/**
+ * Task 4 — `cleanupStaleProjects(isMissing?)` (design C4; requirements 4.1, 4.5,
+ * 4.6, 4.7).
+ *
+ * Contract per case:
+ * - Precondition: a registry entry written via `registerProject` (or, for the
+ *   held-lock case, written straight to `activeProjects.json`) plus, where
+ *   named, a stub `isMissing` predicate.
+ * - Call: `registry.cleanupStaleProjects(isMissing?)`.
+ * - Observable result: the return count, `getProjectById`/the raw registry
+ *   bytes, and (where named) the `console.error` lines and the predicate's
+ *   own call log.
+ * - Source of the expected value: requirement 4's acceptance criteria 1, 6
+ *   and 7, and design C4's exact log line and lock-miss behaviour.
+ */
+describe('ProjectRegistry.cleanupStaleProjects with an isMissing predicate', () => {
+  let tempDir: string;
+  const originalEnv = { ...process.env };
+
+  beforeEach(async () => {
+    const created = await fs.mkdtemp(join(tmpdir(), 'specwf-cleanup-'));
+    tempDir = await fs.realpath(created);
+    process.env[SPEC_WORKFLOW_HOME_ENV] = tempDir;
+  });
+
+  afterEach(async () => {
+    process.env = { ...originalEnv };
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  // AC 4.1 ("whether or not its pids are alive") and AC 4.7 (one log line
+  // naming the file, the project id and the missing path; design C4's exact
+  // format: "[ProjectRegistry] Removed <id> from <registry path>: <missing
+  // path> does not exist").
+  it('removes a live-pid entry when isMissing resolves true, and logs one line naming the id, the registry path and the missing path', async () => {
+    const registry = new ProjectRegistry();
+    const workspace = join(tempDir, 'workspace');
+    await fs.mkdir(workspace, { recursive: true });
+    const projectId = await registry.registerProject(workspace, process.pid, { workflowRootPath: workspace });
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const isMissing = vi.fn(async () => true);
+
+      const removed = await registry.cleanupStaleProjects(isMissing as any);
+
+      expect(removed).toBe(1);
+      expect(await registry.getProjectById(projectId)).toBeNull();
+
+      const logged = errorSpy.mock.calls.map((call) => String(call[0])).join('\n');
+      expect(logged).toContain(projectId);
+      expect(logged).toContain(registry.getRegistryPath());
+      expect(logged).toContain(workspace);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  // AC 4.1's "or": the predicate is the only source of truth, so an entry
+  // whose predicate resolves false for both of its paths must be kept and the
+  // predicate must actually have been asked about each path, not merely
+  // assumed absent.
+  it('keeps an entry when isMissing resolves false for both its projectPath and workflowRootPath', async () => {
+    const registry = new ProjectRegistry();
+    const workspace = join(tempDir, 'workspace');
+    const workflowRoot = join(tempDir, 'main-repo');
+    await fs.mkdir(workspace, { recursive: true });
+    await fs.mkdir(workflowRoot, { recursive: true });
+    const projectId = await registry.registerProject(workspace, process.pid, { workflowRootPath: workflowRoot });
+
+    const isMissing = vi.fn(async () => false);
+
+    const removed = await registry.cleanupStaleProjects(isMissing as any);
+
+    expect(removed).toBe(0);
+    expect(await registry.getProjectById(projectId)).not.toBeNull();
+    expect(isMissing).toHaveBeenCalledWith(workspace);
+    expect(isMissing).toHaveBeenCalledWith(workflowRoot);
+  });
+
+  // Regression guard (holds at base; no existing assertion anywhere exercises
+  // cleanupStaleProjects, so this is written fresh per the green-guard rule).
+  // The dead-pid rule at project-registry.ts:479-496 is unchanged when no
+  // predicate is given.
+  it('still removes a dead-pid entry when called with no predicate', async () => {
+    const registry = new ProjectRegistry();
+    const workspace = join(tempDir, 'workspace');
+    await fs.mkdir(workspace, { recursive: true });
+    const deadPid = 999999;
+    const registryPath = join(tempDir, 'activeProjects.json');
+    const projectId = generateProjectId(workspace);
+    await fs.writeFile(
+      registryPath,
+      JSON.stringify({
+        [projectId]: {
+          projectId,
+          projectPath: workspace,
+          workflowRootPath: workspace,
+          projectName: 'workspace',
+          instances: [{ pid: deadPid, registeredAt: new Date().toISOString() }],
+        },
+      }, null, 2),
+      'utf-8'
+    );
+
+    const removed = await registry.cleanupStaleProjects();
+
+    expect(removed).toBe(1);
+    expect(await registry.getProjectById(projectId)).toBeNull();
+  });
+});
+
+/**
+ * Task 4 — the registry lock around cleanupStaleProjects (design C4;
+ * requirement 4.6; AC 4.7's "on a lock miss ... write nothing").
+ *
+ * Mirrors the held-lock setup in registry-lock.test.ts:293-306 (a lock file
+ * written directly, with a fresh mtime so it is not breakable as stale).
+ */
+describe('ProjectRegistry.cleanupStaleProjects under a held lock', () => {
+  let tempDir: string;
+  const originalEnv = { ...process.env };
+
+  beforeEach(async () => {
+    const created = await fs.mkdtemp(join(tmpdir(), 'specwf-cleanup-lock-'));
+    tempDir = await fs.realpath(created);
+    process.env[SPEC_WORKFLOW_HOME_ENV] = tempDir;
+  });
+
+  afterEach(async () => {
+    process.env = { ...originalEnv };
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it(
+    'returns 0 and leaves the registry bytes unchanged when another host holds the lock',
+    async () => {
+      const registryPath = join(tempDir, 'activeProjects.json');
+      const deadPid = 999999; // not a live pid, so base code would remove and rewrite
+      const workspace = join(tempDir, 'dead-workspace');
+      const projectId = generateProjectId(workspace);
+      const originalBytes = JSON.stringify({
+        [projectId]: {
+          projectId,
+          projectPath: workspace,
+          workflowRootPath: workspace,
+          projectName: 'dead-workspace',
+          instances: [{ pid: deadPid, registeredAt: new Date().toISOString() }],
+        },
+      }, null, 2);
+      await fs.writeFile(registryPath, originalBytes, 'utf-8');
+
+      const lockPath = `${registryPath}.lock`;
+      const held = JSON.stringify({ pid: 999999, hostname: 'other-host', token: 'other' });
+      await fs.writeFile(lockPath, held, 'utf-8');
+
+      const registry = new ProjectRegistry();
+      const removed = await registry.cleanupStaleProjects();
+
+      expect(removed).toBe(0);
+      expect(await fs.readFile(registryPath, 'utf-8')).toBe(originalBytes);
+    },
+    15000
+  );
+});
