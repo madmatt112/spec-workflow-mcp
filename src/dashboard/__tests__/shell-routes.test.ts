@@ -216,6 +216,9 @@ describe('shell hub wiring and routes (task 7)', () => {
     // Project alpha: HANDOFF routes to spec-a; ledger starts with only a
     // run.start row (no open phase yet).
     const alphaWorkspace = join(tempDir, 'alpha-workspace');
+    // The workspace path must exist on disk, or the startup missing-path prune
+    // (R4 AC1) drops the registration before the server lists it.
+    await fsp.mkdir(alphaWorkspace, { recursive: true });
     alphaWorkflowRoot = join(tempDir, 'alpha-project');
     alphaSpecDir = join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-a');
     await fsp.mkdir(alphaSpecDir, { recursive: true });
@@ -258,6 +261,7 @@ describe('shell hub wiring and routes (task 7)', () => {
     // Project beta: HANDOFF routes to spec-b; no ledger for spec-b (idle). One
     // closed spec (spec-beta-mid) for the usage route.
     const betaWorkspace = join(tempDir, 'beta-workspace');
+    await fsp.mkdir(betaWorkspace, { recursive: true });
     betaWorkflowRoot = join(tempDir, 'beta-project');
     await fsp.mkdir(join(betaWorkflowRoot, '.spec-workflow', 'specs', 'spec-beta-mid'), { recursive: true });
     writeFileSync(join(betaWorkflowRoot, '.spec-workflow', 'HANDOFF.md'), [
