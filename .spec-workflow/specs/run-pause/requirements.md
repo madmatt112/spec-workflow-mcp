@@ -27,7 +27,7 @@ The steering directory holds no `product.md`, so this document aligns with `docs
 
 1. WHEN a client sends `POST /api/controller/runs/:id/pause` with the shared secret for a run in a live status THEN the server SHALL record the operator pause (applied or pending) and answer `200 { ok: true }`.
 2. WHEN the pause route is called THEN the server SHALL answer without waiting for an in-flight step to end and without sending a signal to any step process.
-3. IF no run has the id THEN the server SHALL answer `404 { error: 'run-not-found' }`, the same body as the cancel route (`src/dashboard/multi-server.ts:808-813`).
+3. IF no run has the id THEN the server SHALL answer `404 { error: 'run-not-found' }`, the same body as the cancel route (`src/dashboard/multi-server.ts:814`).
 4. IF the run's status is `done`, `abandoned` or `error` THEN the server SHALL answer `409 { error: 'not-pausable' }` and leave the record unchanged.
 5. IF the run already carries an operator pause, applied or pending, THEN the server SHALL answer `200 { ok: true }` and leave the record unchanged (the call is idempotent).
 6. WHEN a non-GET request to the pause route has no valid secret THEN the server SHALL answer `401`. Invariant (verified, not red-first): `makeRequireAccess` already rejects every non-GET under `/api/controller/` without the secret (`src/controller/access.ts:186-208`).
@@ -55,7 +55,7 @@ The steering directory holds no `product.md`, so this document aligns with `docs
 
 1. WHEN the operator pauses a `queued` run THEN the controller SHALL make it `paused` with reason `operator` at once, and the scheduler SHALL not start it.
 2. WHEN the operator pauses a run that is `paused` for a usage reason THEN the controller SHALL replace the reason with `operator` and clear `resumeAt`, so that the window reset or the usage-limit timer no longer resumes it.
-3. WHEN the operator pauses a `merging` run between merge re-checks THEN the controller SHALL make it `paused` with reason `operator` at once, and SHALL run no merge re-check and no merge until Resume.
+3. WHEN the operator pauses a `merging` run between merge re-checks THEN the controller SHALL make it `paused` with reason `operator` at once, SHALL set the run's `merge` cursor so Resume re-enters the merge stage (Requirement 4 AC 2; today a `not-ready` merging run keeps a `stepKind: 'implementation'` cursor, `src/controller/runs.ts:926`), and SHALL run no merge re-check and no merge until Resume.
 4. WHEN the operator pauses a `waiting` run THEN the wait SHALL stay open and answerable as today, the pause SHALL be pending, and when the wait is answered the controller SHALL write the answer as today and then make the run `paused` with reason `operator` instead of `queued` (`src/controller/controller.ts:369-392`).
 5. IF that wait is an `error` or `escalation` wait answered `abandon` THEN the run SHALL be cancelled as today and the pending pause dropped.
 6. WHEN a usage window goes over the threshold and later recovers THEN a run paused with reason `operator` SHALL stay paused with reason `operator`. The window-blocked branch already touches only `queued` runs (invariant, verified, not red-first: `src/controller/controller.ts:306-313`); the recovery branch today starts any paused run with no `resumeAt` (`src/controller/controller.ts:333-339`), so the recovery half is red-first.
@@ -68,11 +68,11 @@ The steering directory holds no `product.md`, so this document aligns with `docs
 #### Acceptance Criteria
 
 1. WHEN the operator calls `POST /api/controller/runs/:id/resume` on a run paused with reason `operator` THEN the controller SHALL clear the reason and the pause, and the scheduler SHALL start the run from its next step; the step that finished before the pause SHALL not run again.
-2. WHEN that run was paused from `merging`, or its last stage was the merge stage, THEN Resume SHALL re-enter the merge stage and SHALL not rerun the implementation phase.
+2. WHEN that run was paused from `merging`, or its last stage was the merge stage, THEN Resume SHALL re-enter the merge stage and SHALL not rerun the implementation phase. The paused write clears `status: 'merging'`, so the durable re-entry marker is the `merge` cursor (set when a `merging` run is paused, Requirement 3 AC 3) that `runOnce`'s merge-resume check reads (`src/controller/runs.ts:779-781`), the same marker the merge `blocked` path sets for a window resume (`src/controller/runs.ts:689-691`).
 3. IF a usage window is over the threshold when the operator resumes an operator-paused run THEN the run SHALL be parked with reason `usage-window` by the existing window check and resume on its own at the reset; Resume SHALL not reset `rate-limit.json` for an operator pause.
 4. WHEN the operator calls the resume route on a run whose operator pause is still pending (a `running` run with a step in flight, or a `waiting` run) THEN the controller SHALL withdraw the pending pause, answer `200 { ok: true }`, and the run SHALL carry on as if it had never been paused.
 5. WHEN the operator calls the resume route on a run paused for a usage reason THEN the behaviour of `resumeNow` SHALL be unchanged (`src/controller/controller.ts:207-224`). Regression guard (verified, not red-first).
-6. IF the run is neither paused nor carrying a pending pause THEN the resume route SHALL answer `409 { error: 'not-paused' }` as today (`src/dashboard/multi-server.ts:816-822`). Regression guard.
+6. IF the run is neither paused nor carrying a pending pause THEN the resume route SHALL answer `409 { error: 'not-paused' }` as today (`src/dashboard/multi-server.ts:823`). Regression guard.
 
 ### Requirement 5 — The pause survives a controller restart
 
@@ -93,7 +93,7 @@ The steering directory holds no `product.md`, so this document aligns with `docs
 #### Acceptance Criteria
 
 1. WHEN a controller run row (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:209-233`) or the run panel (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:235-324`) shows a run in a live status with no operator pause, applied or pending, THEN it SHALL show a **Pause** button that calls the pause route.
-2. WHEN the operator clicks Pause on a row THEN the click SHALL not also select the row or open the panel, and the button SHALL show a busy state until the route answers; a failed call SHALL show the error as the panel's other actions do.
+2. WHEN the operator clicks Pause on a row THEN the click SHALL not also select the row or open the panel, and the button SHALL show a busy state until the route answers. A failed call SHALL surface its error to the operator; because the run row is a stateless presentational component with no error surface today (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:209-233`), unlike the panel's error line (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:321`), where a failed row Pause shows its error is left to design, which SHALL not open the panel.
 3. WHILE an operator pause is pending THEN the row and the panel SHALL show the note "pause requested", and the panel SHALL show **Resume** (which withdraws the request, Requirement 4 AC 4) instead of Pause.
 4. WHILE a run is paused with reason `operator` THEN the row, the panel and the Now page note (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:351-352`) SHALL read "paused by you" followed by the pause age from `pausedAt`, with no "resumes in" or "overdue" part, and the panel SHALL show **Resume** and not **Resume now**.
 5. WHILE a run is paused for a usage reason THEN the note and the **Resume now** button SHALL stay as today (`src/dashboard_frontend/src/modules/shell/pause.ts:27-44`, `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:296-306`). Regression guard (verified, not red-first).
@@ -143,11 +143,16 @@ The steering directory holds no `product.md`, so this document aligns with `docs
 
 - Carried items from the decomposition: none.
 - Deferred to design, as the decomposition entry asks: whether `scripts/sdd-self-update.sh` should pause every live run itself, wait for their steps to end, deploy and resume them, instead of polling for a gap. This document requires only that the operator-driven flow in Requirement 7 works; the script needs no change for it (Requirement 7 AC 2 is an invariant).
+- Deferred to design: where a failed row Pause shows its error, since the run row holds no error state today (Requirement 6 AC 2). The behaviour (an error surfaced without opening the panel) is fixed here; only the render location is open.
 - Decided here rather than deferred: what waits that open while a pause is pending look like (D2, Requirement 2 AC 4, Requirement 3 AC 4) and whether Pause applies to a queued run (D1). Design may refine the display but not the behaviour.
 - Out of scope: the advisor's second-opinion step on an open wait (`src/advisor/opinion.ts:154`) is not a run step and is not tracked in `run.inFlight`; an operator pause does not stop it.
 - Out of scope: a pause timer or scheduled resume, pausing every run with one click, and any change to cancel or discard.
 
 ## Revision History
 
+- **v2** (2026-10-29) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 1/1/1).
+  - **R1-1 — Accepted (MUST_FIX).** Both response-body anchors sat one line short of the artifact; Requirement 1 AC 3 now anchors the run-not-found body on the cancel route's body line, and Requirement 4 AC 6 anchors the not-paused body on the resume route's body line.
+  - **R1-2 — Accepted (SHOULD_FIX).** The paused write clears the merging status, the only signal Resume keyed on. Requirement 3 AC 3 now sets the merge cursor when a merging run is paused, and Requirement 4 AC 2 names that cursor as the durable re-entry marker the merge-resume check reads, the same marker the blocked path already sets. Seam fixed at both the pause and resume ends.
+  - **R1-3 — Accepted (MINOR).** The run row is a stateless component with no error surface, so "as the panel does" had no target. Requirement 6 AC 2 now states a failed row Pause must surface its error without opening the panel and defers the render location to design; a matching deferral is noted in Scope notes.
 - **v1** (2026-10-29) — Initial draft.
   - **Lint pass.** 2 fixed; rejected: L-3/L-4 `paused`/`operator` are the new status/reason this AC sets, the citation anchors the current `queued` branch (`src/controller/controller.ts:390`) it replaces; L-5/L-6/L-7 `operator` is the new reason, the citations anchor the existing window/startable/recover behaviour the invariants describe; L-8/L-9 the citation anchors the Now-page `pauseNote` render site, not `operator`/`pausedAt` (a record field); L-10 the text states the advisor step is not tracked in `inFlight`, so its absence from the cited call is the point.
