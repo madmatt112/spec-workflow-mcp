@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793310272389_dh55xfno7",
+  "title": "run-pause tasks v2",
+  "filePath": ".spec-workflow/specs/run-pause/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-29T21:44:32.389Z",
+  "category": "spec",
+  "categoryName": "run-pause",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-29T21:44:32.579Z"
+}

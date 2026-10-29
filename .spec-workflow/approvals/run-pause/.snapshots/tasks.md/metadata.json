@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/run-pause/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-10-29T21:44:32.479Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793310272389_dh55xfno7",
+      "approvalTitle": "run-pause tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-10-29T21:44:32.577Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793310272389_dh55xfno7",
+      "approvalTitle": "run-pause tasks v2"
+    }
+  ]
+}

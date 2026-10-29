@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds the durable hold to the state module with no reader; tasks 2 and 3 teach the driver and the document phase to stop on it, still with no producer; task 4 wires the controller's pause, resume and start guard, task 5 the settle pass, wait answers and restart, task 6 the route and the wire field; tasks 7 and 8 change the frontend; task 9 writes the live-verification line. Each task leaves `npx tsc --noEmit`, `npm run build:dashboard` and every existing vitest and worktree e2e suite green with no asserted value changed. No task touches an agent-rules sensitive path and no task creates a new source module, so the planned verifier spend is the default routing only. Task 9 is a measurement task with no `- Test:` seam (implementer-only).
 
-- [ ] 1. Durable hold and write ownership in the state module
+- [x] 1. Durable hold and write ownership in the state module
   - File: src/controller/state.ts
   - File: src/controller/__tests__/pause-request.test.ts
   - Test: src/controller/__tests__/pause-request.test.ts — `writeRun(record, { ownsPauseRequest: true })`

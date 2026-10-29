@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/pause-request.test.ts"],"seams":{"src/controller/__tests__/pause-request.test.ts":"writeRun(record, { ownsPauseRequest: true })"},"redCommit":"54e16ea103374186c62f505fa0a91944783357b5","baseSha":"b1a0627fd800883e831932a0ae669ea783b629a5","base":"structural-red","head":"pass","amended":false,"judged":null}
