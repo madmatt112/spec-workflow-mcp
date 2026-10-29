@@ -136,6 +136,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-27 | advisor | closeout | items 17/17 | closed | 5 done, 1 to-do, 11 skipped |
 | 2026-10-28 | dashboard-visual-refresh | requirements | v4 | approved | 4 rounds |
 | 2026-10-28 | dashboard-visual-refresh | design | v2 | approved | 2 rounds |
+| 2026-10-28 | dashboard-visual-refresh | tasks | v2 | approved | 2 rounds |
+| 2026-10-29 | dashboard-visual-refresh | implementation | tasks 0/6 | design-defect | task 1: a fix round left the commit unchanged and the gate returned the same file-outside-list verdict for .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/deferrals-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/deferrals-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/now-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/now-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/run-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/run-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/runs-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/runs-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/specs-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/specs-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/usage-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/usage-light.png, src/core/__tests__/task-parser-tests.test.ts, src/core/task-parser.ts; no implementer edit can move a file-list verdict — the fix is to list the file(s) in the task's File entries in tasks.md |
 
 ## Current state — 2026-08-04
 
@@ -1149,3 +1151,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## dashboard-visual-refresh — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 0/6, stopped: design-defect — task 1: a fix round left the commit unchanged and the gate returned the same file-outside-list verdict for .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/deferrals-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/deferrals-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/now-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/now-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/run-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/run-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/runs-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/runs-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/specs-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/specs-light.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/usage-dark.png, .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/usage-light.png, src/core/__tests__/task-parser-tests.test.ts, src/core/task-parser.ts; no implementer edit can move a file-list verdict — the fix is to list the file(s) in the task's File entries in tasks.md |

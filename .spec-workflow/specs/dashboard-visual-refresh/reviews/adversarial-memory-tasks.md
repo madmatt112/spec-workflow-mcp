@@ -1,42 +1,37 @@
 # Adversarial Review Memory — tasks
-
-Last updated: 2026-10-28 (round 1, v1)
+Last updated: 2026-10-28 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet)
+- **R1-1 (SHOULD_FIX, v1)** — Requirement 3.4 was in no task and dropped from the gate, though
+  `design.md:214` lists it among gate-checked invariants. **Resolved in v2:** task 6 now carries
+  3.4 in its `_Requirements` line and its prompt gate-checks (against the merge base) that
+  `ThemeProvider.tsx` is unchanged (⇒ default dark + `theme` storage key, verified at
+  `ThemeProvider.tsx:15-21`) and the theme control and labels are present in `Gear.tsx:67-72`.
+  Verified clean against the code.
 
 ### Partially Accepted
-- (none yet)
+- (none)
 
 ### Rejected
-- (none yet)
+- (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX, Novel)** — Requirement 3.4 (theme control in popover, default dark,
-  `theme` storage key) is in no task's `_Requirements` line and task 6 (the gate) drops it,
-  though `design.md:214` lists 3.4 among gate-checked invariants. Default-dark / storage-key
-  stay unverified (after-screenshots set the theme explicitly; 6.2 grep only covers
-  labels/roles/testids). Mitigated by ThemeProvider being in no `File:` list + tasks 2–3
-  restrictions, so it is a verification/traceability hole, not a certain break. Fix: add 3.4 to
-  task 6 (+ one gate line) or to tasks 2/3.
+- (none)
 
 ## Patterns & Themes
-- The document is tightly built: bridge alias list, the 14+1 bare-radius sweep, the scan-hit
-  file set, and the test seams were each probed against the real tree and all came back
-  complete. Coverage weaknesses, if any, are at the invariant/gate edge, not in the red-first
-  chain.
-- Deltas this round were a clean lint pass (two citation-path fixes + one de-ranged scratch
-  citation); all verified against code.
+- The document is tightly built; both rounds found the only weaknesses at the invariant/gate
+  edge, never in the red-first chain. The v2 delta was a single, correct, self-contained fix with
+  no regression and no new artifact error.
+- Delta-first discipline paid off both rounds: round 1's sole finding and round 2's confirmation
+  both lived in the gate (task 6), not the implementation tasks.
 
 ## Guidance for Next Review
-- R1-1 is the only open item: check the reviser either added 3.4 to task 6 with a concrete
-  default-dark/`theme`-key check, or moved it into tasks 2/3, and did not just drop the design's
-  claim silently.
-- Do NOT re-probe (verified clean this round): bridge completeness, bare-radius coverage,
-  scan-hit file coverage, success-clause coverage, T3-vs-bridge double-declaration, the 1→6
-  dependency chain.
-- Fresh lenses still unused: completion-criteria precision of each `Success:` clause; whether
-  task 4's cross-view pairs (row/pill/button same tone+variant+size) are guaranteed by the task-1
-  seed; T1 utility-name-rule assertability against the design C7 list beyond the seven regexes.
+- Converged at v2 (0/0/0). If a v3 is spawned, it should be on a new human delta, not a re-probe.
+- Do NOT re-probe (verified clean across rounds): bridge (D1) completeness, the 14+1 bare-radius
+  sweep, scan-hit file coverage, success-clause coverage, the 1→6 dependency chain, the task-6
+  3.4 gate check, task-4's self-correcting cross-view pair fallback, T1 utility-name assertability.
+- Only remaining soft spot if anything changes: the gate's "control and labels are present"
+  phrasing is a presence check, not a sameness check (label sameness leans on Requirement 6.2 +
+  screenshots) — acceptable for a gate invariant, flag only if the design's wording tightens.

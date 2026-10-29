@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793219987049_3enhzbhzy",
+  "title": "dashboard-visual-refresh tasks v2",
+  "filePath": ".spec-workflow/specs/dashboard-visual-refresh/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-28T20:39:47.049Z",
+  "category": "spec",
+  "categoryName": "dashboard-visual-refresh",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-28T20:39:47.197Z"
+}
