@@ -46,9 +46,17 @@ export async function ensureWorktree(
     dir = existing;
   } else {
     dir = join(workspacePath, '.claude', 'worktrees', spec);
-    const addArgs = (await branchExists(workspacePath, branch))
-      ? ['worktree', 'add', dir, branch]
-      : ['worktree', 'add', '-b', branch, dir];
+    let addArgs: string[];
+    if (await branchExists(workspacePath, branch)) {
+      addArgs = ['worktree', 'add', dir, branch];
+    } else {
+      // A new branch starts at the remote's default branch when there is one, not
+      // at the checkout's HEAD: a local main nobody pulled is merges behind.
+      const start = await remoteStartPoint(workspacePath);
+      addArgs = start
+        ? ['worktree', 'add', '--no-track', '-b', branch, dir, start]
+        : ['worktree', 'add', '-b', branch, dir];
+    }
     await git(workspacePath, addArgs);
   }
   await runSetupIfNeeded(dir, worktreeSetup, opts.setupTimeoutMs ?? DEFAULT_SETUP_TIMEOUT_MS);
@@ -76,6 +84,33 @@ async function findWorktree(cwd: string, branch: string): Promise<string | null>
       return current;
     } else if (line === '') {
       current = null;
+    }
+  }
+  return null;
+}
+
+/**
+ * `origin/HEAD` (else `origin/main`) after a fetch, or null when the repo has no
+ * `origin` or neither ref resolves. A failed fetch keeps the last fetched refs.
+ */
+async function remoteStartPoint(cwd: string): Promise<string | null> {
+  const env = { ...scrubbedGitEnv(), GIT_TERMINAL_PROMPT: '0' };
+  try {
+    await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd, env });
+  } catch {
+    return null;
+  }
+  try {
+    await execFileAsync('git', ['fetch', '--quiet', 'origin'], { cwd, env, timeout: 60000 });
+  } catch {
+    // offline or auth failure: fall through to the refs from the last fetch
+  }
+  for (const ref of ['origin/HEAD', 'origin/main']) {
+    try {
+      await execFileAsync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd, env });
+      return ref;
+    } catch {
+      // try the next ref
     }
   }
   return null;
