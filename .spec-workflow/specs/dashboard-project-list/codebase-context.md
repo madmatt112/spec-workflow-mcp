@@ -80,3 +80,60 @@
 ## Prior spec
 - .spec-workflow/specs/worktree-execution-context/requirements.md:43 — R1: a worktree registers as its own project.
 - .spec-workflow/specs/worktree-execution-context/requirements.md:149-151 — R6: concurrent worktree registration keeps every entry.
+
+## Git helpers (design phase)
+- src/core/git-utils.ts:7-11 — `GIT_EXEC_OPTIONS`, every git call has a 5000 ms timeout.
+- src/core/git-utils.ts:64-71 — `gitCapture`, trimmed stdout or null, never throws.
+- src/core/git-utils.ts:101-112 — `normalizeIdentityPath`, realpath with absolute-path fallback.
+- src/core/git-utils.ts:133-139 — `gitCommonDirAbsolute`, realpath of the resolved common dir.
+- src/core/git-utils.ts:214-252 — `resolveGitRoot`, honours `SPEC_WORKFLOW_SHARED_ROOT` first.
+- src/core/git-utils.ts:260-270 — `isGitWorktree`, raw common dir not equal to `.git`.
+
+## Locks and atomic writes (design phase)
+- src/core/registry-lock.ts:371-412 — `withRegistryLock`, exclusive lock file, returns `acquired` instead of throwing.
+- src/controller/state.ts:302-304 — `projectsPath`, `projects.json` in the controller home.
+- src/controller/state.ts:318-323 — `writeJsonAtomic`, temp file then rename.
+- src/controller/state.ts:559-570 — `withStoreLock`, the registry lock reused as a per-path lock; throws on no lock.
+
+## MCP server start and CLI (design phase)
+- src/index.ts:37-65 — help text OPTIONS block.
+- src/index.ts:164-177 — `CLI_FLAGS`, the single flag registry.
+- src/index.ts:206-221 — `parseArguments` return shape.
+- src/index.ts:662-668 — the `server.initialize` call in MCP server mode.
+- src/server.ts:160-165 — `initialize` signature.
+- src/server.ts:185-195 — registration and the registered/not-registered log line.
+- src/server.ts:280-306 — `stop`; unregisters only when `registeredProjectId` is set (:289).
+
+## Eval step seam (design phase)
+- src/controller/step.ts:113-114 — `StepSpec.mcpConfig`, path or inline object.
+- src/controller/step.ts:372-374 — `--mcp-config` and `--strict-mcp-config` on the claude command.
+- src/controller/step.ts:388-394 — step env: inherited env plus workspace and shared-root overrides.
+- src/evals/runner.ts:141-147 — `runCases` options, `step` defaults to `runStep`.
+- src/evals/runner.ts:190-197 — the inline MCP server entry: `process.execPath`, `dist/index.js`, fixture root.
+
+## Frontend wire copies and pages (design phase)
+- src/dashboard_frontend/src/modules/shell/types.ts:86-93 — frontend `NowModel`.
+- src/dashboard_frontend/src/modules/shell/types.ts:169-183 — frontend `ControllerWait`.
+- src/dashboard_frontend/src/modules/shell/types.ts:207-223 — frontend `ControllerRun`.
+- src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:100-102 — `deferrals-update` stored by project id.
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:257-264 — controller live runs, ledger live rows only for projects without one.
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:280 — `waitCount`, open controller waits plus derived waits.
+- src/dashboard_frontend/src/modules/shell/SpecsPage.tsx:82-144 — counts, items, groups and selection keyed by project id.
+- src/dashboard_frontend/src/modules/shell/DeferralsPage.tsx:88-165 — counts, items, groups and selection keyed by project id.
+- src/dashboard_frontend/src/modules/theme/tokens.css:86-97 — light tone tokens.
+- src/dashboard_frontend/src/modules/theme/tokens.css:135-146 — dark tone tokens.
+
+## Build and test config (design phase)
+- tsconfig.json:4-5 — `module` and `moduleResolution` are `node16`.
+- tsconfig.json:20 — root compile excludes `src/dashboard_frontend/**`.
+- vitest.config.ts:9 — vitest excludes test files under `src/dashboard_frontend`.
+- playwright.worktree.config.ts:46-70 — worktree e2e web servers with `SPEC_WORKFLOW_HOME` and `XDG_STATE_HOME`.
+
+## Tests touched (design phase)
+- src/dashboard/__tests__/project-manager-durable.test.ts:73-88 — worktree entry listed beside its main project (:87 expects 2).
+- src/dashboard/__tests__/project-manager-durable.test.ts:103-117 — remembered project with a deleted dir stays remembered (:115).
+- src/__tests__/server-shutdown.test.ts:1-147 — in-process `initialize` and `stop` against a temp registry.
+- src/__tests__/index-args.test.ts:1-398 — CLI argument parsing.
+- src/dashboard/shell/__tests__/now-model.test.ts:1-397 — Now model builder tests.
+- e2e/worktree-shell.spec.ts:108 — shell e2e uses the no-shared harness (one store per worktree).
+- e2e/worktree-shell.spec.ts:174 — seeds a controller `run.json` under the state home.
