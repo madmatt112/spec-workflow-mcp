@@ -238,3 +238,4 @@ One line per proposal, written by the close-out phase.
 - P11: to-do (human) — DECISION NEEDED: yes, unresolved (graphify hook policy); target is ~/.claude which closeout-standing does not commit — needs a human
 - P13: to-do (human) — names gate-verdict Eval case src/evals cannot grade; medium-risk base-diff check-suppression change in implementation.ts/gate-rules.ts
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/189
+- P4: done — 6ba6dfa0d937e7b3f5fe4309d3907a5fe6b0aaa3
