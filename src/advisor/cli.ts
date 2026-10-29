@@ -217,6 +217,11 @@ export async function openAdvisorSession(deps: OpenAdvisorDeps): Promise<OpenAdv
   child.once('exit', () => {
     exited = true;
   });
+  // A spawn that fails (ENOENT: the command is not on PATH) emits 'error', not
+  // 'exit'; unhandled, that event kills the dashboard process.
+  child.once('error', () => {
+    exited = true;
+  });
 
   await sleep(deps.checkDelayMs ?? DEFAULT_OPEN_CHECK_DELAY_MS);
 
