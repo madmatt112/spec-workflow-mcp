@@ -120,7 +120,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.9, 5.11, 6.1, 6.2, 6.3, 6.4, 6.5_
   - _Prompt: Task: Per design C9, R5 AC1 to AC5, AC9 and AC11, and R6, create src/dashboard/shell/sidebar-rows.ts exporting NOW_LIVE_STATUSES and buildSidebarRows, and add the SidebarProjectRow type and a sidebar field on NowModel in types.ts; buildNowModel returns an empty sidebar; flush fills it from the listed projects' ids and names, the now model, waits and runs, before it sends shell-now. Rules per design C9: liveCount, dot (waiting over running over idle), lastActivity (newest updated of any status, else null), and the total order (active before idle, newest first, null last, then name, then id); the filter is not an input. Tests: each dot rule including a waiting from now.waits only; liveCount from controller runs and from now.live when no controller run is live; lastActivity across done and running records; order, ties and an unchanged order for equal input; a test that reads NowPage.tsx as text and asserts its CTRL_LIVE_STATUSES literal equals NOW_LIVE_STATUSES; a feed snapshot whose shell-now carries sidebar | Restrictions: No new route, poll or topic; no path on SidebarProjectRow | Success: Every dot, count, activity and order case passes; the literal test passes; shell-now carries sidebar; tsc is clean_
 
-- [ ] 11. Store identity, counts and page lists in the frontend
+- [x] 11. Store identity, counts and page lists in the frontend
   - File: src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx
   - File: src/dashboard_frontend/src/modules/projects/stores.ts (new)
   - File: src/dashboard_frontend/src/modules/shell/Sidebar.tsx

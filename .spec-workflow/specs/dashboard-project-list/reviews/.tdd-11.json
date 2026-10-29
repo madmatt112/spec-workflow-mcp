@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-project-list.spec.ts"],"seams":{"e2e/worktree-project-list.spec.ts":"test(\"a shared store counts once\")"},"redCommit":"f907e65f7734f54de299ba069ae9c28b725f19d8","baseSha":"ef2f224843c97eff0478c0996766d0dfb2d77cc0","base":"structural-red","head":"pass","amended":false,"judged":null}
