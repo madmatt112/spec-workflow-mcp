@@ -44,3 +44,13 @@ Cost: 4 rounds
 task 3 closed: 4 fix round(s), outcome adjudicated
 Evidence: task 3 · mark run-20261028-181442 ddf16dcb
 Cost: 5 implementer spawn(s)
+
+## 2026-10-29T04:34:16Z · implementation · task 4 · tool-error
+this fix brief's Operator rulings and &lt;A&gt;-&lt;B&gt; task-reference were task 1's content, not task 4's actual gate reasons
+Evidence: task 4 · mark run-20261028-181442 ab4d6374
+Cost: implementer
+
+## 2026-10-29T04:38:41Z · implementation · task 4 · escalation
+gate re-sent fix-round-2 with byte-identical output to round 1 (incl. task-1's already-resolved Operator rulings); line-count/structural-red are tasks.md's pre-declared verifier routing, not implementer defects, and "tests fail on HEAD" is contradicted by a live re-run — loop should route to the verifier instead of resending the same brief
+Evidence: task 4 · mark run-20261028-181442 ac5a342c
+Cost: unknown
