@@ -444,6 +444,15 @@ describe('openAdvisorSession', () => {
     expect(result).toEqual({ state: 'live', name: 'advisor' });
   });
 
+  it('returns command, without throwing, when the spawn itself fails (ENOENT)', async () => {
+    const result = await openAdvisorSession({
+      spawnDetached: () => spawn('spec-workflow-mcp-does-not-exist', [], { stdio: 'ignore' }),
+      checkDelayMs: 150,
+    });
+
+    expect(result.state).toBe('command');
+  });
+
   it('spawns detached and returns live when the process survives the check', async () => {
     const survivor = spawn(
       process.execPath,

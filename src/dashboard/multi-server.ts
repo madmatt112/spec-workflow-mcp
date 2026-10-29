@@ -740,7 +740,10 @@ export class MultiProjectDashboardServer {
     this.app.post('/api/controller/advisor/open', async () => {
       return openAdvisorSession({
         spawnDetached: () =>
-          spawn('spec-workflow-mcp', ['advisor', '--remote-control'], { detached: true, stdio: 'ignore' }),
+          // This build's own CLI (dist/index.js), so it works without a global install.
+          spawn(process.execPath, [join(__dirname, '..', 'index.js'), 'advisor', '--remote-control'], {
+            detached: true, stdio: 'ignore',
+          }),
       });
     });
 
