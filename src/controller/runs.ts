@@ -30,7 +30,7 @@ import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
   writeRun, readRun, listRuns, listWaits,
-  isProcessAlive, runStepsDir, withStoreLock,
+  isProcessAlive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -408,6 +408,16 @@ export interface RunDeps {
   isCancelled(runId: string): boolean;
   /** Record an in-flight step process so cancel/crash-recovery can find it. */
   setInFlight(pid: number, startTime: number): void;
+  /** Is the operator holding this run? Checked between steps. Absent means never held. */
+  isPauseRequested?(runId: string): boolean;
+}
+
+/** `cancelled` first, then `operator` when held, then `usage-window`, else `null` (design C3). */
+function stopReason(deps: RunDeps, runId: string): string | null {
+  if (deps.isCancelled(runId)) return 'cancelled';
+  if (deps.isPauseRequested?.(runId)) return 'operator';
+  if (deps.windowBlock().blocked) return 'usage-window';
+  return null;
 }
 
 /**
@@ -536,9 +546,20 @@ async function save(deps: RunDeps, run: RunRecord, patch: Partial<RunRecord>): P
   return next;
 }
 
-/** Park the run on the usage window or a usage-limit step (design §9). */
+/**
+ * Park the run on the usage window or a usage-limit step (design §9). While
+ * the operator holds the run, every pause becomes an operator pause with no
+ * `resumeAt`, whatever `reason` and `resumeAt` the caller passed (design C3,
+ * Requirement 2 AC 6).
+ */
 async function pause(deps: RunDeps, run: RunRecord, reason: string, resumeAt?: string): Promise<void> {
-  await save(deps, run, { status: 'paused', pauseReason: reason, resumeAt, inFlight: undefined });
+  const held = deps.isPauseRequested?.(run.id) === true;
+  await save(deps, run, {
+    status: 'paused',
+    pauseReason: held ? OPERATOR_PAUSE : reason,
+    resumeAt: held ? undefined : resumeAt,
+    inFlight: undefined,
+  });
 }
 
 /** Open a wait and mark the run `waiting` (its answer resumes it). */
@@ -623,6 +644,19 @@ async function runMergeStageStep(
 ): Promise<MergeStepOutcome> {
   if (hasMerged(specDir, run.id)) return 'none';
 
+  // The implementation phase exits into the merge stage by a direct call that
+  // bypasses the loop-top stop, so a held run is caught here first (design C3
+  // point 4): park it on the merge cursor before `runMergeStage` can merge the
+  // PR. This also covers the merge-resume re-entry, which reaches here unheld
+  // only because the loop top already intercepted a held one.
+  if (deps.isPauseRequested?.(run.id)) {
+    run = await save(deps, run, {
+      cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+    });
+    await pause(deps, run, OPERATOR_PAUSE);
+    return 'stop';
+  }
+
   // A run on the repository's default branch (a project without
   // `worktree-per-change: required`, so the work and the PR branch are the
   // default branch itself) has no PR by design: `pushAndOpenPr` already noted
@@ -694,6 +728,10 @@ async function runMergeStageStep(
         // window checks, so guard the round here: a cancelled run stops, a full
         // cap opens the cap wait and a blocked window pauses, each with no round.
         if (deps.isCancelled(run.id)) return 'stop';
+        if (deps.isPauseRequested?.(run.id)) {
+          await pause(deps, run, OPERATOR_PAUSE);
+          return 'stop';
+        }
         const cap = deps.tokenCap(run);
         const w = totalW(runTokens(specDir, run.id));
         if (cap !== undefined && w >= cap) {
@@ -804,6 +842,20 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   for (;;) {
     run = (await readRun(runId)) ?? run;
     if (run.status === 'abandoned' || deps.isCancelled(runId)) return;
+
+    // The loop-top stop (design C3 point 1): a held run parks before the merge
+    // resume, the cap and the window check, covering every routed phase and a
+    // run re-driven after a restart. A merge left mid-flight saves the merge
+    // cursor first (C5), so the resume lands back in the merge stage.
+    if (deps.isPauseRequested?.(runId)) {
+      if (resumingMerge) {
+        run = await save(deps, run, {
+          cursor: { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 },
+        });
+      }
+      await pause(deps, run, OPERATOR_PAUSE);
+      return;
+    }
 
     // Resume a merge left mid-flight (merging re-check, or an answered merge wait).
     if (resumingMerge) {
@@ -930,7 +982,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         ...stepLifecycle(deps, run.id),
         now: deps.now,
-        shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+        shouldStop: () => stopReason(deps, runId),
         operatorRulings: await escalationRulings(runId),
         securityAnswers: await securityAnswers(runId),
       });
@@ -961,7 +1013,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         ...stepLifecycle(deps, run.id),
         now: deps.now,
-        shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+        shouldStop: () => stopReason(deps, runId),
       });
       run = (await readRun(runId)) ?? run;
       const handled = await handleRetrospectiveOutcome(deps, run, ledger, specDir, outcome);
@@ -979,7 +1031,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
       ...stepLifecycle(deps, run.id),
       now: deps.now,
-      shouldStop: () => (deps.isCancelled(runId) ? 'cancelled' : (deps.windowBlock().blocked ? 'usage-window' : null)),
+      shouldStop: () => stopReason(deps, runId),
     });
     run = (await readRun(runId)) ?? run;
     const handled = await handleCloseoutOutcome(deps, run, ledger, specDir, outcome);
@@ -1044,6 +1096,7 @@ async function handleCloseoutOutcome(
   }
   if (outcome.result === 'stopped') {
     if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    else if (outcome.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
     return 'stop';
   }
   if (outcome.reason === 'usage-limit') {
@@ -1127,6 +1180,8 @@ async function handleImplementationOutcome(
   if (outcome.result === 'stopped') {
     if (outcome.reason === 'usage-window') {
       await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    } else if (outcome.reason === 'operator') {
+      await pause(deps, run, OPERATOR_PAUSE);
     }
     return 'stop'; // cancelled: the cancel path already marked the run
   }
@@ -1187,6 +1242,7 @@ async function handleRetrospectiveOutcome(
   if (outcome.result === 'retro-ready') return 'go';
   if (outcome.result === 'stopped') {
     if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
+    else if (outcome.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
     return 'stop';
   }
   if (outcome.reason === 'usage-limit') {
