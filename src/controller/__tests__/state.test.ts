@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -20,11 +20,15 @@ import {
   withStoreLock,
   isProcessAlive,
   processStartTime,
+  readProjects,
+  rememberProject,
+  pruneMissingProjects,
   type RunRecord,
   type WaitRecord,
   type QueueFile,
   type RateLimitFile,
   type ControllerLock,
+  type KnownProject,
 } from '../state.js';
 
 // Contract for src/controller/state.ts (controller-tasks.md "T2 state";
@@ -255,4 +259,148 @@ describe('process liveness', () => {
     expect(isProcessAlive(pid, start!)).toBe(false);
     expect(processStartTime(pid)).toBeUndefined();
   });
+});
+
+/**
+ * Task 5 — `pruneMissingProjects` (design C5; requirement 4's acceptance
+ * criteria 2, 7 and 8).
+ *
+ * Contract per case:
+ * - AC2/AC7 ("remove from projects.json every entry whose path does not
+ *   exist, and shall not list it" / "log one line naming the file, the
+ *   project id and the missing path"): pre-condition is two remembered
+ *   projects, one whose path the predicate calls missing; call
+ *   `pruneMissingProjects(isMissing)`; observable result is the returned
+ *   dropped-entry array, `readProjects()` no longer listing the dropped id,
+ *   and a `console.error` line naming the id, the `projects.json` path and
+ *   the missing path; expected values come from design C5's log format and
+ *   AC2's "shall not list it".
+ * - AC2 ("writes once if anything dropped" — the converse): pre-condition is
+ *   a remembered project the predicate never calls missing; call
+ *   `pruneMissingProjects(isMissing)`; observable result is the file's inode
+ *   unchanged (no atomic-rename write happened) and an empty returned array;
+ *   expected value comes from design C5's "writes once if anything dropped".
+ * - AC8 ("the startup removal shall not drop an entry the controller
+ *   remembered ... concurrently ... shall serialize with those writes"):
+ *   pre-condition is a prune blocked mid-flight on a deferred `isMissing`
+ *   result while a `rememberProject` call starts; call both, then resolve
+ *   the deferred; observable result is `readProjects()` after both settle
+ *   listing the remembered project and omitting the dropped one; expected
+ *   value comes from AC8 itself.
+ * - AC8 lock-miss side ("throws when the lock is not acquired, like
+ *   `withStoreLock`"): pre-condition is `projects.json.lock` held by another
+ *   writer; call `pruneMissingProjects` and `rememberProject` concurrently;
+ *   observable result is the prune resolving to `[]` and the remember call
+ *   rejecting; expected value comes from design C5's lock-miss clause.
+ */
+describe('pruneMissingProjects', () => {
+  const fixedNow = () => new Date('2026-10-20T00:00:00.000Z');
+
+  function sampleKnown(overrides: Partial<Omit<KnownProject, 'seen'>>): Omit<KnownProject, 'seen'> {
+    return {
+      id: 'proj-a',
+      workspacePath: '/code/proj-a',
+      workflowRootPath: '/code/proj-a',
+      name: 'Proj A',
+      ...overrides,
+    };
+  }
+
+  it('drops and returns the entry whose path is missing, keeps the other, and logs the id, the projects.json path and the missing path', async () => {
+    const a = sampleKnown({ id: 'proj-a', workspacePath: '/code/proj-a', workflowRootPath: '/code/proj-a', name: 'Proj A' });
+    const b = sampleKnown({ id: 'proj-b', workspacePath: '/code/proj-b', workflowRootPath: '/code/proj-b', name: 'Proj B' });
+    await rememberProject(a, fixedNow);
+    await rememberProject(b, fixedNow);
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const isMissing = async (path: string) => path === '/code/proj-a';
+
+      const dropped = await pruneMissingProjects(isMissing);
+
+      expect(dropped).toEqual([{ ...a, seen: '2026-10-20T00:00:00.000Z' }]);
+
+      const file = await readProjects();
+      expect(file.projects.map((p) => p.id)).toEqual(['proj-b']);
+
+      const logged = errorSpy.mock.calls.map((call) => String(call[0])).join('\n');
+      expect(logged).toContain('proj-a');
+      expect(logged).toContain(join(home, 'projects.json'));
+      expect(logged).toContain('/code/proj-a');
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('writes nothing and returns [] when nothing is missing', async () => {
+    const a = sampleKnown({ id: 'proj-a', workspacePath: '/code/proj-a', workflowRootPath: '/code/proj-a', name: 'Proj A' });
+    await rememberProject(a, fixedNow);
+
+    const projectsFile = join(home, 'projects.json');
+    const before = await fs.stat(projectsFile);
+    const bytesBefore = await fs.readFile(projectsFile, 'utf-8');
+
+    const dropped = await pruneMissingProjects(async () => false);
+
+    expect(dropped).toEqual([]);
+    const after = await fs.stat(projectsFile);
+    expect(after.ino).toBe(before.ino);
+    expect(await fs.readFile(projectsFile, 'utf-8')).toBe(bytesBefore);
+  });
+
+  it('a rememberProject started while a prune waits on a deferred isMissing result is present after both settle', async () => {
+    const a = sampleKnown({ id: 'proj-a', workspacePath: '/code/proj-a', workflowRootPath: '/code/proj-a', name: 'Proj A' });
+    const b = sampleKnown({ id: 'proj-b', workspacePath: '/code/proj-b', workflowRootPath: '/code/proj-b', name: 'Proj B' });
+    await rememberProject(a, fixedNow);
+    await rememberProject(b, fixedNow);
+
+    let resolveStarted!: () => void;
+    const started = new Promise<void>((r) => { resolveStarted = r; });
+    let resolveMissing!: (value: boolean) => void;
+    const missing = new Promise<boolean>((r) => { resolveMissing = r; });
+
+    const isMissing = async (path: string): Promise<boolean> => {
+      if (path === '/code/proj-a') {
+        resolveStarted();
+        return missing;
+      }
+      return false;
+    };
+
+    const prunePromise = pruneMissingProjects(isMissing);
+    await started; // the prune holds the lock and is now awaiting our deferred
+
+    const newProject = sampleKnown({ id: 'proj-new', workspacePath: '/code/new', workflowRootPath: '/code/new', name: 'New Project' });
+    const rememberPromise = rememberProject(newProject, fixedNow);
+
+    // Give the queued rememberProject a chance to attempt (and block on) the lock.
+    await new Promise((r) => setTimeout(r, 50));
+    resolveMissing(true);
+
+    const [dropped] = await Promise.all([prunePromise, rememberPromise]);
+
+    expect(dropped.map((p: KnownProject) => p.id)).toEqual(['proj-a']);
+    const file = await readProjects();
+    expect(file.projects.map((p) => p.id).sort()).toEqual(['proj-b', 'proj-new']);
+  });
+
+  it(
+    'with the lock held, pruneMissingProjects returns [] and rememberProject rejects',
+    async () => {
+      const lockPath = join(home, 'projects.json.lock');
+      await fs.mkdir(home, { recursive: true });
+      await fs.writeFile(lockPath, JSON.stringify({ pid: 999999, hostname: 'other-host', token: 'other' }), 'utf-8');
+
+      const a = sampleKnown({ id: 'proj-a', workspacePath: '/code/proj-a', workflowRootPath: '/code/proj-a', name: 'Proj A' });
+
+      const [pruneOutcome, rememberOutcome] = await Promise.allSettled([
+        pruneMissingProjects(async () => true),
+        rememberProject(a, fixedNow),
+      ]);
+
+      expect(pruneOutcome).toEqual({ status: 'fulfilled', value: [] });
+      expect(rememberOutcome.status).toBe('rejected');
+    },
+    15000
+  );
 });
