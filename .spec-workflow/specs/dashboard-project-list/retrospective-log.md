@@ -104,3 +104,13 @@ Cost: unknown
 store batch 1: 0 done of 1, 2 fix round(s)
 Evidence: batch 1 · mark run-20261029-104125 535e4160
 Cost: 3 implementer spawn(s)
+
+## 2026-10-29T17:29:09Z · closeout · harness batch 2 · gotcha
+process — Retro proposals P5/P7/P8 target an 'implementation orchestrator brief'; under ADR 0004 (controller, no model in the control loop) that maps to controller code (src/controller/), not a prose brief. Future retro targets should name the controller phase/module. gotcha — A stale local dist/ makes the eval gate selection test (cli.test.ts) fail at base; the full suite rebuilds first so it is green in CI. Record, do not block.
+Evidence: batch 2 · mark run-20261029-104125 72fcf307
+Cost: implementer
+
+## 2026-10-29T17:29:22Z · closeout · harness batch 2 · cleanup
+harness batch 2: 3 done of 5, 0 fix round(s)
+Evidence: batch 2 · mark run-20261029-104125 07d8bb2f
+Cost: 1 implementer spawn(s)

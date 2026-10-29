@@ -300,3 +300,22 @@
 {"ts":"2026-10-29T17:08:01.100Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"fix store batch 1 round 2","result":"ok","phase":"closeout","round":"2"}
 {"ts":"2026-10-29T17:08:01.134Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"closeout: item P1 not landed, reverted 95f65ea"}
 {"ts":"2026-10-29T17:08:01.134Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-10-29T17:08:15.943Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P2","title":"P2 (F2) — `SPEC_WORKFLOW_SHARED_ROOT` leaks into verification."}
+{"ts":"2026-10-29T17:08:15.943Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P3","title":"P3 (F3) — `npm test` wipes `/tmp/scratchpad/sdd`, destroying the live briefs."}
+{"ts":"2026-10-29T17:08:15.943Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P5","title":"P5 (F5) — The `deferrals` tool cannot see a worktree-created, uncommitted deferral."}
+{"ts":"2026-10-29T17:08:15.943Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P7","title":"P7 (F7) — Three redundant re-spawns re-did already-committed work."}
+{"ts":"2026-10-29T17:08:15.943Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P8","title":"P8 (F8) — `verify-standing.md` absent at the path the verifier expected."}
+{"ts":"2026-10-29T17:08:15.961Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T17:29:09.359Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"134","output":"89406","cacheWrite":"179369","cacheRead":"8610327","tokens":"8879236","cacheWrite5m":"0","cacheWrite1h":"179369","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T17:29:09.359Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-10-29T17:29:09.385Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P2 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-29T17:29:17.590Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-10-29T17:29:17.613Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P3 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-29T17:29:20.229Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-10-29T17:29:20.250Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P7 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-29T17:29:22.401Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: item P7 pass risk low"}
+{"ts":"2026-10-29T17:29:22.475Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-10-29T17:29:22.477Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P5","outcome":"to-do"}
+{"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P7","outcome":"done"}
+{"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P8","outcome":"to-do"}

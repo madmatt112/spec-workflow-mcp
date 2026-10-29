@@ -124,3 +124,9 @@ One line per proposal, written by the close-out phase.
 - P12: skipped — no change chosen
 - P13: skipped — no change chosen
 - P1: skipped — Already correctly implemented at 95f65eaf (round 1); rule present at .spec-workflow/agent-rules.md lines 89-94, tree clean, nothing valid to change. Gate's file-outside-list reason is a path-prefix false positive (item Target names bare agent-rules.md vs real .spec-workflow/agent-rules.md). No new commit — fabricating a cosmetic edit would be dishonest.
+- P2: done — dfa77c79c2a82da2cd98625c871462d3ffe3be57
+- P3: done — befa05798d8ddabd4cf78a7e31c0e1f4dd353a32
+- P5: to-do (human) — Targets an 'implementation orchestrator brief' that does not exist; under ADR 0004 the orchestrator is the controller (src/controller/), which writes deferrals straight to the spec store. Belongs in controller code or agent-rules relocation rule (outside this worktree root); cannot go in sdd-implementer.md (implementer must not touch deferrals). Needs re-scoping.
+- P7: done — ff17a8000d5dc4871561f264c2c0280e95abc2f6
+- P8: to-do (human) — DECISION NEEDED. Option A contradicts the controller design: the per-task verifier brief defers its report block to verify-standing, which also carries the agent-rules/codebase-context reads and git-diff rule absent from the role prompt, and the controller reliably generates verify-standing.md (implementation.ts:554) so the 'dead path' premise no longer holds. Dropping it touches brief-templates.ts + implementation.ts + harness.test.ts and risks losing verifier instructions. Needs a human ruling (A vs B).
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/193
