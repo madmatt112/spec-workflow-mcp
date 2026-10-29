@@ -25,7 +25,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 1.1, 1.2, 1.3, 1.9_
   - _Prompt: Task: Per design C2 and R1 AC1 to AC3 and AC9, create src/dashboard/project-folding.ts exporting the FoldCandidate type and computeFolds, which returns a Map from folded id to parent id. Call classify once for each candidate whose projectPath differs from its workflowRootPath, never for equal paths. Draw parents only from candidates that are not linked; an equal-path candidate counts as not linked. A linked candidate folds into the parent whose projectPath equals its mainTree and whose workflowRootPath equals its own (AC1); else into the parent whose projectPath and workflowRootPath both equal its workflowRootPath (AC2); else it is not in the map (AC3). When classify throws, the candidate is not in the map and the optional trailing onError gets its id and the error. Tests use a stub classify that records its calls | Restrictions: Pure module: no fs, no git, no logging; compare paths by string equality only | Success: AC1 folds into the main-tree parent; AC2 folds into the store's own project; AC2 is refused when that project's workflowRootPath differs; AC3 leaves a worktree with no parent unfolded; a separate-store main checkout that classify calls not linked is not folded (AC9); a linked candidate is never a parent; classify is not called for an equal-path candidate; a throw leaves the entry unfolded and reaches onError; tsc is clean_
 
-- [ ] 3. Missing-path rule
+- [x] 3. Missing-path rule
   - File: src/dashboard/path-missing.ts (new)
   - File: src/dashboard/__tests__/path-missing.test.ts (new)
   - Test: src/dashboard/__tests__/path-missing.test.ts — isPathMissing(hostPath)
