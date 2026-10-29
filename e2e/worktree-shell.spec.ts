@@ -1,9 +1,10 @@
-import { expect, test } from '@playwright/test';
-import { appendFile, mkdir, rm, writeFile } from 'fs/promises';
+import { expect, test, type Page } from '@playwright/test';
+import { appendFile, mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './helpers/worktree-harness';
 import { DeferralStorage } from '../src/core/deferral-storage.js';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
+import { secretPath } from '../src/controller/access.js';
 import type { PrRead, RunRecord } from '../src/controller/state.js';
 
 /**
@@ -496,6 +497,143 @@ test.describe.serial('Dashboard shell end to end', () => {
     await expect(note).toBeVisible({ timeout: 15000 });
     await expect(note).toContainText('usage-limit');
     await expect(note).toContainText('resumes in');
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  // --- Pause and Resume buttons (design C9; Requirement 6 AC 1 to AC 4) ------
+  // Each test seeds its own run.json, as the pause-note tests above do, and
+  // removes it at the end. The row-click test performs a real mutation
+  // through the pause route, so it logs in first, the same way
+  // worktree-visual.spec.ts's `login` does; the mocked-failure test never
+  // reaches the server, so it needs no session.
+
+  async function login(page: Page): Promise<void> {
+    const secret = (await readFile(secretPath(), 'utf-8')).trim();
+    await page.context().request.post('/api/login', { data: { secret } });
+  }
+
+  test('(R6) clicking the row Pause of an unheld waiting run selects nothing and opens no panel, then the row shows the pending note with no Pause button', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await login(page);
+
+    const runId = 'e2e-pause-row-click';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      // Unheld waiting, with no wait record: the same safe seed shape as the
+      // pending-pause note test above, minus pauseRequested.
+      status: 'waiting',
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    const row = page.getByTestId(`ctrl-run-row-${runId}`);
+    await expect(row).toBeVisible({ timeout: 15000 });
+    const pauseButton = page.getByTestId(`ctrl-row-pause-${runId}`);
+    await expect(pauseButton).toBeVisible();
+
+    await pauseButton.click();
+
+    await expect(row).toHaveAttribute('data-selected', 'false');
+    await expect(page.getByTestId('ctrl-run-panel')).toHaveCount(0);
+
+    await expect(pauseButton).toHaveCount(0, { timeout: 15000 });
+    await expect(page.getByTestId(`ctrl-run-pause-${runId}`)).toContainText('pause requested', { timeout: 15000 });
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  test('(R6) a failed row Pause shows "pause failed (500)" in a role alert and opens no panel', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-row-fail';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'waiting',
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    const row = page.getByTestId(`ctrl-run-row-${runId}`);
+    await expect(row).toBeVisible({ timeout: 15000 });
+
+    await page.route(`**/api/controller/runs/${runId}/pause`, (route) =>
+      route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) }),
+    );
+
+    await page.getByTestId(`ctrl-row-pause-${runId}`).click();
+
+    await expect(row.getByRole('alert')).toContainText('pause failed (500)', { timeout: 15000 });
+    await expect(page.getByTestId('ctrl-run-panel')).toHaveCount(0);
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  test('(R6) a held operator-paused run panel shows Resume (operator) and no Resume now', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-panel-operator';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'paused', pauseReason: 'operator',
+      pauseRequested: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      pausedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    await page.getByTestId(`ctrl-run-row-${runId}`).click();
+    await expect(page.getByTestId('ctrl-run-panel')).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByTestId('ctrl-resume-operator')).toBeVisible();
+    await expect(page.getByTestId('ctrl-resume')).toHaveCount(0);
+
+    await rm(runDir, { recursive: true, force: true });
+  });
+
+  // Regression guard (task 8 Note, holds at base): any `paused` run already
+  // shows Resume now before this task, so this case stays green throughout.
+  test('(R6) a usage-limit paused run panel shows Resume now', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const runId = 'e2e-pause-panel-usage';
+    const runRecord: RunRecord = {
+      v: 1, id: runId, project: projectA.projectId,
+      codeRoot: projectA.projectPath, specStore: projectA.projectPath,
+      spec: 'spec-a', worktree: projectA.projectPath, branch: 'feat/spec-a',
+      status: 'paused', pauseReason: 'usage-limit',
+      pausedAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      resumeAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    const runDir = join(sddHome(), 'runs', runId);
+    await mkdir(runDir, { recursive: true });
+    await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
+
+    await page.goto('/#/runs');
+    await page.getByTestId(`ctrl-run-row-${runId}`).click();
+    await expect(page.getByTestId('ctrl-run-panel')).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByTestId('ctrl-resume')).toBeVisible();
 
     await rm(runDir, { recursive: true, force: true });
   });
