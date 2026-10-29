@@ -6,9 +6,8 @@
 
 ## Next
 
-- **State:** active
-- **Spec:** dashboard-visual-refresh
-- **Why:** First not-Complete spec in build order (no tasks yet).
+- **State:** all-on-disk-complete
+- **Why:** Every spec on disk is Complete. This is NOT necessarily roadmap completion — check decomposition.md for a spec named there with no .spec-workflow/specs/<name>/ directory. Such a spec has not been created yet and is invisible here; it is the next spec, starting at Requirements.
 
 ## Active
 
@@ -28,7 +27,7 @@
 | 12 | harness-control-pane | Complete | 20/20 |
 | 13 | lean-orchestrators | Complete | 16/16 |
 | 14 | dashboard-shell | Complete | 16/16 |
-| 15 | dashboard-visual-refresh | Design | — |
+| 15 | dashboard-visual-refresh | Complete | 6/6 |
 | 16 | advisor | Complete | 19/19 |
 | 17 | dashboard-loop-views | Complete | 14/14 |
 | 18 | project-bootstrap | Complete | 11/11 |
