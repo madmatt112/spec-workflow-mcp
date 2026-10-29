@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Button, TextInput, ui } from '../ui/ui';
 
 /** Rows shown per page; the pager appears only above this count (design C9). */
 export const ROWS_PER_PAGE = 20;
@@ -45,12 +46,12 @@ export function Group({
         type="button"
         onClick={toggle}
         aria-expanded={!collapsed}
-        className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        className={ui.groupHeader}
       >
-        <span className="inline-block w-3 text-[var(--text-muted)]">{collapsed ? '▸' : '▾'}</span>
+        <span className="inline-block w-3 text-(--text-muted)">{collapsed ? '▸' : '▾'}</span>
         <span>{title}</span>
         {typeof count === 'number' && (
-          <span className="ml-1 rounded-full bg-[var(--surface-inset)] px-2 py-0.5 text-xs text-[var(--text-muted)]">{count}</span>
+          <span className="ml-1 rounded-full bg-(--surface-inset) px-2 py-0.5 text-xs text-(--text-muted)">{count}</span>
         )}
       </button>
       {!collapsed && <div className="mt-1">{children}</div>}
@@ -86,10 +87,10 @@ export function Chips({
             onClick={() => onToggle(chip.value)}
             data-testid={`chip-${chip.value}`}
             aria-pressed={on}
-            className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+            className={`rounded-full border px-2.5 py-0.5 text-xs outline-(--focus-ring) transition-colors ${
               on
-                ? 'border-transparent bg-[var(--accent-primary,#2563eb)] text-white'
-                : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                ? 'border-transparent bg-(--accent-solid) text-(--text-on-accent)'
+                : 'border-(--border-default) text-(--text-secondary) hover:bg-(--surface-hover)'
             }`}
           >
             {chip.label}
@@ -122,13 +123,12 @@ export function SearchBox({
   }, [text, debounceMs]);
 
   return (
-    <input
+    <TextInput
       type="search"
       value={text}
       onChange={(e) => setText(e.target.value)}
       placeholder={placeholder}
       data-testid="search-box"
-      className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary,#2563eb)]"
     />
   );
 }
@@ -151,24 +151,14 @@ export function Pager({
   const clamp = (p: number) => Math.max(0, Math.min(pages - 1, p));
 
   return (
-    <div className="flex items-center justify-end gap-2 px-2 py-2 text-xs text-[var(--text-muted)]" data-testid="pager">
-      <button
-        type="button"
-        onClick={() => onPage(clamp(page - 1))}
-        disabled={page <= 0}
-        className="rounded border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
-      >
+    <div className="flex items-center justify-end gap-2 px-2 py-2 text-xs text-(--text-muted)" data-testid="pager">
+      <Button variant="secondary" size="sm" onClick={() => onPage(clamp(page - 1))} disabled={page <= 0}>
         Prev
-      </button>
+      </Button>
       <span>{page + 1} / {pages}</span>
-      <button
-        type="button"
-        onClick={() => onPage(clamp(page + 1))}
-        disabled={page >= pages - 1}
-        className="rounded border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
-      >
+      <Button variant="secondary" size="sm" onClick={() => onPage(clamp(page + 1))} disabled={page >= pages - 1}>
         Next
-      </button>
+      </Button>
     </div>
   );
 }
@@ -192,10 +182,12 @@ export function Row({
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       data-testid={testId}
+      data-ui="row"
+      data-selected={Boolean(selected)}
       style={{ height: 'var(--row-h)' }}
-      className={`flex items-center gap-3 overflow-hidden truncate whitespace-nowrap rounded px-2 text-sm ${
+      className={`flex items-center gap-3 overflow-hidden truncate whitespace-nowrap rounded-sm px-2 text-sm ${
         onClick ? 'cursor-pointer' : ''
-      } ${selected ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'}`}
+      } ${selected ? 'bg-(--surface-selected)' : 'hover:bg-(--surface-hover)'}`}
     >
       {children}
     </div>

@@ -139,7 +139,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   // Density drives the shared row height CSS variable.
   useEffect(() => {
-    document.documentElement.style.setProperty('--row-h', density === 'compact' ? '32px' : '36px');
+    document.documentElement.style.setProperty('--row-h', density === 'compact' ? 'var(--row-h-compact)' : 'var(--row-h-comfortable)');
   }, [density]);
 
   const setDensity = useCallback((d: Density) => {

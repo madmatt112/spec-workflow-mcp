@@ -10,6 +10,7 @@ import {
 import type { RunListRow, NowModel, ControllerRun } from './types';
 import { pauseNote, pauseNoteClass } from './pause';
 import type { SetupView } from '../harness/types';
+import { Button, Pill, ui, type Tone } from '../ui/ui';
 
 /**
  * The Runs list and Launch card (design C10 Runs and Launch card, D8;
@@ -42,7 +43,7 @@ function StateBadge({ state }: { state: RunListRow['state'] }) {
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${
         live
-          ? 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]'
+          ? 'bg-[color-mix(in_srgb,var(--accent-solid)_15%,transparent)] text-(--accent-solid)'
           : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
       }`}
     >
@@ -117,19 +118,15 @@ export function RunsPage() {
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h1 className="text-base font-semibold text-[var(--text-primary)]">{'Runs'}</h1>
-        <button
-          type="button"
+        <Button
+          variant={launchOpen ? 'primary' : 'secondary'}
+          size="sm"
           onClick={() => setLaunchOpen((v) => !v)}
           aria-pressed={launchOpen}
           data-testid="launch-chip"
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            launchOpen
-              ? 'border-transparent bg-[var(--interactive-primary)] text-white'
-              : 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-          }`}
         >
           {'Launch'}
-        </button>
+        </Button>
       </div>
 
       {launchOpen && (
@@ -185,22 +182,22 @@ export function RunsPage() {
 
 // --- Controller runs -------------------------------------------------------
 
-const CTRL_STATUS_STYLES: Record<string, string> = {
-  running: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
-  merging: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
-  queued: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
-  paused: 'bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] text-amber-600 dark:text-amber-400',
-  waiting: 'bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] text-amber-600 dark:text-amber-400',
-  error: 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]',
-  done: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
-  abandoned: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const CTRL_STATUS_TONE: Record<string, Tone> = {
+  running: 'accent',
+  merging: 'accent',
+  queued: 'neutral',
+  paused: 'warning',
+  waiting: 'warning',
+  error: 'danger',
+  done: 'neutral',
+  abandoned: 'neutral',
 };
 
 function CtrlStatusChip({ status }: { status: ControllerRun['status'] }) {
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${CTRL_STATUS_STYLES[status] ?? CTRL_STATUS_STYLES.queued}`}>
+    <Pill tone={CTRL_STATUS_TONE[status] ?? CTRL_STATUS_TONE.queued}>
       {status}
-    </span>
+    </Pill>
   );
 }
 
@@ -274,7 +271,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
   };
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="ctrl-run-panel">
+    <div className={`${ui.panel} p-4`} data-testid="ctrl-run-panel">
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <CtrlStatusChip status={run.status} />
@@ -293,59 +290,35 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onOpenRun}
-          data-testid="ctrl-open-run"
-          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-        >
+        <Button variant="secondary" onClick={onOpenRun} data-testid="ctrl-open-run">
           {'Open run page'}
-        </button>
+        </Button>
         {run.status === 'paused' && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={resume}
             disabled={busy !== null}
             data-testid="ctrl-resume"
             title={'Resume now: use when the usage window reset early, e.g. after a plan upgrade'}
-            className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
           >
             {busy === 'resume' ? 'Resuming…' : 'Resume now'}
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          onClick={() => act('cancel')}
-          disabled={busy !== null}
-          data-testid="ctrl-cancel"
-          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-        >
+        <Button variant="secondary" onClick={() => act('cancel')} disabled={busy !== null} data-testid="ctrl-cancel">
           {busy === 'cancel' ? 'Cancelling…' : 'Cancel'}
-        </button>
+        </Button>
         {confirmDiscard ? (
-          <button
-            type="button"
-            onClick={() => act('discard')}
-            disabled={busy !== null}
-            data-testid="ctrl-discard-confirm"
-            className="rounded-md bg-[var(--status-error)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-          >
+          <Button variant="danger" onClick={() => act('discard')} disabled={busy !== null} data-testid="ctrl-discard-confirm">
             {busy === 'discard' ? 'Discarding…' : 'This deletes the worktree and branch and closes the PR'}
-          </button>
+          </Button>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmDiscard(true)}
-            disabled={busy !== null}
-            data-testid="ctrl-discard"
-            className="rounded-md border border-[var(--status-error)] px-3 py-1.5 text-sm text-[var(--status-error)] hover:bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] disabled:opacity-50"
-          >
+          <Button variant="danger" onClick={() => setConfirmDiscard(true)} disabled={busy !== null} data-testid="ctrl-discard">
             {'Discard'}
-          </button>
+          </Button>
         )}
       </div>
 
-      {error && <p className="mt-2 text-sm text-[var(--status-error)]">{error}</p>}
+      {error && <p className="mt-2 text-sm text-(--tone-danger-fg)">{error}</p>}
     </div>
   );
 }
@@ -403,13 +376,13 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
   }, [view, prefix, fetchSetup]);
 
   return (
-    <section className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4 min-w-0" data-testid={`launch-card-${project.projectId}`}>
+    <section className={`${ui.panel} p-4 min-w-0`} data-testid={`launch-card-${project.projectId}`}>
       <div className="mb-2 flex items-center gap-2">
         <h2 className="min-w-0 flex-1 break-words text-sm font-semibold text-[var(--text-primary)]">{project.projectName}</h2>
       </div>
 
       {loadError ? (
-        <p className="text-sm text-[var(--status-error)]">{'Could not load setup.'}</p>
+        <p className="text-sm text-(--tone-danger-fg)">{'Could not load setup.'}</p>
       ) : !view ? (
         <p className="text-sm text-[var(--text-muted)]">{'—'}</p>
       ) : (
@@ -423,26 +396,25 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
           </div>
 
           {disabledReason && (
-            <p className="mt-2 rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)] break-words" data-testid={`launch-disabled-${project.projectId}`}>
+            <p className="mt-2 rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)] break-words" data-testid={`launch-disabled-${project.projectId}`}>
               {disabledReason}
             </p>
           )}
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
+              variant="primary"
               onClick={doLaunch}
               disabled={!!disabledReason || busy}
               data-testid={`launch-button-${project.projectId}`}
-              className="rounded-md bg-[var(--interactive-primary)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
             >
               {busy ? 'Launching…' : 'Launch'}
-            </button>
+            </Button>
           </div>
 
           {opError && (
-            <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-              <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
+            <div className="mt-3 rounded-sm border border-(--tone-danger-fg) bg-[color-mix(in_srgb,var(--tone-danger-fg)_10%,transparent)] p-3 min-w-0">
+              <div className="mb-1 text-sm font-semibold text-(--tone-danger-fg)">{'The run was refused'}</div>
               <OpErrorView error={opError} />
             </div>
           )}

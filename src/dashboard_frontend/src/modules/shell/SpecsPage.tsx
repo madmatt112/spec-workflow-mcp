@@ -5,6 +5,7 @@ import { PageLayout, ScrollBox } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { SpecListRow, SpecDetail } from './types';
+import { Button, Pill, ui, type Tone } from '../ui/ui';
 
 const STATE_LABELS: Record<string, string> = {
   live: 'Live', 'in-progress': 'In progress', closed: 'Closed',
@@ -27,19 +28,19 @@ const STATE_LABELS: Record<string, string> = {
 
 const STATES = ['live', 'in-progress', 'closed', 'deferred', 'not-started'] as const;
 
-const STATE_STYLES: Record<string, string> = {
-  live: 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
-  'in-progress': 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  closed: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  deferred: 'bg-[var(--surface-inset)] text-[var(--text-secondary)]',
-  'not-started': 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const STATE_TONE: Record<string, Tone> = {
+  live: 'accent',
+  'in-progress': 'accent',
+  closed: 'success',
+  deferred: 'neutral',
+  'not-started': 'neutral',
 };
 
 function StateBadge({ state }: { state: SpecListRow['state'] }) {
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATE_STYLES[state] ?? STATE_STYLES['not-started']}`}>
+    <Pill tone={STATE_TONE[state] ?? STATE_TONE['not-started']} className="shrink-0">
       {STATE_LABELS[state] ?? state}
-    </span>
+    </Pill>
   );
 }
 
@@ -229,10 +230,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-const DEFERRAL_STATUS_STYLES: Record<string, string> = {
-  deferred: 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  resolved: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  superseded: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const DEFERRAL_STATUS_TONE: Record<string, Tone> = {
+  deferred: 'accent',
+  resolved: 'success',
+  superseded: 'neutral',
 };
 
 function SpecPanel({ item }: { item: Item }) {
@@ -267,7 +268,7 @@ function SpecPanel({ item }: { item: Item }) {
   const dash = '—';
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="spec-panel">
+    <div className={`${ui.panel} p-4`} data-testid="spec-panel">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h2 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec}</h2>
         <StateBadge state={row.state} />
@@ -294,24 +295,24 @@ function SpecPanel({ item }: { item: Item }) {
               <p className="px-1 text-sm text-[var(--text-muted)]">{'No runs.'}</p>
             ) : (
               <ScrollBox>
-                <table className="w-full border-collapse text-sm" data-testid="spec-runs-table">
+                <table className={`${ui.table} border-collapse`} data-testid="spec-runs-table">
                   <thead>
-                    <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{'Run'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Start'}</th>
-                      <th className="py-1 pr-3 font-medium">{'End'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Status'}</th>
-                      <th className="py-1 font-medium">{'Tokens'}</th>
+                    <tr>
+                      <th className={ui.th}>{'Run'}</th>
+                      <th className={ui.th}>{'Start'}</th>
+                      <th className={ui.th}>{'End'}</th>
+                      <th className={ui.th}>{'Status'}</th>
+                      <th className={ui.th}>{'Tokens'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detail.runs.map((r) => (
                       <tr key={r.runId} className="border-t border-[var(--border-default)]">
-                        <td className="py-1 pr-3 font-mono text-xs text-[var(--text-muted)]">{r.runId}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{formatDate(r.start)}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.end ? formatDate(r.end) : dash}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.status ?? dash}</td>
-                        <td className="py-1 text-[var(--text-secondary)] tabular-nums">{r.tokens.toLocaleString()}</td>
+                        <td className={`${ui.td} font-mono text-xs`}>{r.runId}</td>
+                        <td className={ui.td}>{formatDate(r.start)}</td>
+                        <td className={ui.td}>{r.end ? formatDate(r.end) : dash}</td>
+                        <td className={ui.td}>{r.status ?? dash}</td>
+                        <td className={`${ui.td} tabular-nums`}>{r.tokens.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -325,22 +326,22 @@ function SpecPanel({ item }: { item: Item }) {
               <p className="px-1 text-sm text-[var(--text-muted)]">{'No phases.'}</p>
             ) : (
               <ScrollBox>
-                <table className="w-full border-collapse text-sm" data-testid="spec-phases-table">
+                <table className={`${ui.table} border-collapse`} data-testid="spec-phases-table">
                   <thead>
-                    <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{'Phase'}</th>
-                      <th className="py-1 pr-3 font-medium">{'State'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Result'}</th>
-                      <th className="py-1 font-medium">{'Date'}</th>
+                    <tr>
+                      <th className={ui.th}>{'Phase'}</th>
+                      <th className={ui.th}>{'State'}</th>
+                      <th className={ui.th}>{'Result'}</th>
+                      <th className={ui.th}>{'Date'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detail.phases.map((p, i) => (
                       <tr key={`${p.phase}-${i}`} className="border-t border-[var(--border-default)]">
-                        <td className="py-1 pr-3 text-[var(--text-primary)]">{p.phase}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{p.state || dash}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{p.result || dash}</td>
-                        <td className="py-1 text-[var(--text-secondary)]">{p.date ? formatDate(p.date) : dash}</td>
+                        <td className={ui.td}>{p.phase}</td>
+                        <td className={ui.td}>{p.state || dash}</td>
+                        <td className={ui.td}>{p.result || dash}</td>
+                        <td className={ui.td}>{p.date ? formatDate(p.date) : dash}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -356,9 +357,9 @@ function SpecPanel({ item }: { item: Item }) {
               <div className="space-y-1">
                 {detail.deferrals.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 text-sm" data-testid={`spec-deferral-${d.id}`}>
-                    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${DEFERRAL_STATUS_STYLES[d.status] ?? DEFERRAL_STATUS_STYLES.superseded}`}>
+                    <Pill tone={DEFERRAL_STATUS_TONE[d.status] ?? DEFERRAL_STATUS_TONE.superseded} className="shrink-0">
                       {d.status}
-                    </span>
+                    </Pill>
                     <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
                     <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
                   </div>
@@ -414,14 +415,9 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">{file.name}</span>
         <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{fmtBytes(file.size)}</span>
-        <button
-          type="button"
-          onClick={copy}
-          data-testid={`copy-path-${file.name}`}
-          className="shrink-0 rounded border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
-        >
+        <Button variant="secondary" size="sm" onClick={copy} data-testid={`copy-path-${file.name}`} className="shrink-0">
           {'Copy path'}
-        </button>
+        </Button>
       </div>
       {fallback && (
         <input
@@ -431,7 +427,7 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
           value={file.path}
           data-testid={`copy-path-field-${file.name}`}
           onFocus={(e) => e.currentTarget.select()}
-          className="mt-1 w-full rounded border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs text-[var(--text-primary)]"
+          className="mt-1 w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 font-mono text-xs text-(--text-primary)"
         />
       )}
     </div>

@@ -32,7 +32,7 @@ export function ConnectionBanner() {
     <div
       role="alert"
       data-testid="connection-banner"
-      className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-[var(--status-error)]/40 bg-[var(--status-error)]/10 px-4 py-2 text-sm text-[var(--status-error)]"
+      className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-[var(--tone-danger-fg)]/40 bg-[var(--tone-danger-fg)]/10 px-4 py-2 text-sm text-[var(--tone-danger-fg)]"
     >
       <span className="font-medium">{"Can't reach the controller."}</span>
       <span className="text-[var(--text-secondary)]">

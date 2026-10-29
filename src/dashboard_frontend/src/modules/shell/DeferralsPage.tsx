@@ -4,6 +4,7 @@ import { useShell, DeferralRecord } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
+import { Pill, ui, type Tone } from '../ui/ui';
 
 /**
  * The read-only Deferrals page (design C10 Deferrals, D15; Requirement 7 AC 2).
@@ -45,17 +46,17 @@ interface Item {
   d: FullDeferral;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  deferred: 'bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] text-[var(--accent-primary,#2563eb)]',
-  resolved: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  superseded: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const STATUS_TONE: Record<string, Tone> = {
+  deferred: 'accent',
+  resolved: 'success',
+  superseded: 'neutral',
 };
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.superseded}`}>
+    <Pill tone={STATUS_TONE[status] ?? STATUS_TONE.superseded} className="shrink-0">
       {status}
-    </span>
+    </Pill>
   );
 }
 
@@ -250,7 +251,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 function DeferralPanel({ item }: { item: Item }) {
   const { d, projectName } = item;
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="deferral-panel">
+    <div className={`${ui.panel} p-4`} data-testid="deferral-panel">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h2 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{d.title}</h2>
         <StatusBadge status={d.status} />
@@ -276,7 +277,7 @@ function DeferralPanel({ item }: { item: Item }) {
             value={
               <span className="flex flex-wrap gap-1">
                 {d.tags.map((tg) => (
-                  <span key={tg} className="rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]">#{tg}</span>
+                  <span key={tg} className="rounded-sm bg-[var(--surface-inset)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]">#{tg}</span>
                 ))}
               </span>
             }

@@ -37,7 +37,7 @@ Carries R1 (identity inference), R2 (explicit override), R3 (typed two-root `Too
 
 Plus the full check suite: `npm run build` (bare `tsc` over `src/**/*`), `npm test`, `npm run test:e2e:worktree` — confirming from the run output that **both** worktree suites executed, since the config's `testMatch` previously pinned only one.
 
-### 2. `worktree-review-signals` — what the reviewer is told (deferred)
+### 2. `worktree-review-signals` — what the reviewer is told
 
 Everything concerning the accuracy of the signal a reviewing agent receives: the diff base, typecheck honesty, workspace attribution, and the disclosure channel that carries all three into the prompt.
 
@@ -854,7 +854,7 @@ stacks under the list and nothing scrolls sideways.
 **Depends on** spec 9 for the harness watchers, the launcher, the setup file and the run
 model wiring, and on spec 6 for the pointer file and the hook events.
 
-### 22. `dashboard-visual-refresh` — the same dashboard, restyled (deferred) — until 25 closes
+### 22. `dashboard-visual-refresh` — the same dashboard, restyled
 
 The dashboard's look grew with its pages: colours, spacing, type sizes and component styles
 were chosen page by page, and the breakpoints and content widths differ between them. This
@@ -907,7 +907,8 @@ controller design of the foundation review (`docs/foundation-review.md`,
 directory. Step (d) re-plans them below ("Re-planned entries"); until Matthew approves that
 section nothing past 15 is active. Approved 2026-10-17: 22 and 25 carry `(deferred)` so
 the controller routes 23, then 24; remove the tag from 22 when 25 closes, and from 25 after
-the advisor design session.
+the advisor design session. 25 closed 2026-10-27 (PRs #180, #181); 22's tag came off on
+2026-10-28.
 
 ## Re-planned entries (2026-10-16, approved 2026-10-17)
 

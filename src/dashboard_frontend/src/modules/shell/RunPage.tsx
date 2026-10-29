@@ -12,6 +12,7 @@ import type {
 import type {
   RunDetail, LedgerEvent, ActivityEvent, ControllerRun, ControllerActivity, ControllerWait, ControllerPrRead,
 } from './types';
+import { Button, Pill, Tab, TextInput, ui, type Tone } from '../ui/ui';
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   done: 'Done', 'in-progress': 'In progress', open: 'Open',
@@ -163,13 +164,9 @@ export function RunPage() {
   const list = (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => navigate('/runs')}
-          className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
+        <Button variant="ghost" size="sm" onClick={() => navigate('/runs')}>
           {'← Runs'}
-        </button>
+        </Button>
         {(spec || ctrlRun?.spec) && <h1 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec ?? ctrlRun?.spec}</h1>}
       </div>
 
@@ -220,9 +217,9 @@ function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
         {strip.map((p) => (
           <div
             key={p.phase}
-            className={`min-w-[7rem] flex-1 rounded border p-2 text-xs ${
+            className={`min-w-28 flex-1 rounded-sm border p-2 text-xs ${
               p.live
-                ? 'border-[var(--interactive-primary)] bg-[color-mix(in_srgb,var(--interactive-primary)_12%,transparent)]'
+                ? 'border-(--accent-solid) bg-[color-mix(in_srgb,var(--accent-solid)_12%,transparent)]'
                 : 'border-[var(--border-default)]'
             }`}
           >
@@ -268,12 +265,12 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
   const logLines = logTail ? logTail.split('\n') : [];
 
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-3" data-testid="live-now">
+    <div className={`${ui.panel} min-w-0 p-3`} data-testid="live-now">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium text-[var(--text-primary)]">{'Live now'}</span>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
           live
-            ? 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]'
+            ? 'bg-[color-mix(in_srgb,var(--accent-solid)_15%,transparent)] text-(--accent-solid)'
             : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
         }`}>
           {run.status}
@@ -302,9 +299,9 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
         <div className="mt-2 space-y-1" data-testid="live-now-waits">
           {waits.map((w) => (
             <Row key={w.id} testId={`live-now-wait-${w.id}`} onClick={onOpenWait}>
-              <span className="inline-flex shrink-0 items-center rounded-full bg-[color-mix(in_srgb,#f59e0b_18%,transparent)] px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <Pill tone="warning" className="shrink-0">
                 {CTRL_WAIT_LABELS[w.kind] ?? w.kind}
-              </span>
+              </Pill>
               <span className="min-w-0 flex-1 truncate text-[var(--text-secondary)]">{'Answer on the Now page'}</span>
             </Row>
           ))}
@@ -316,7 +313,7 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
         {logLines.length === 0 ? (
           <p className="px-2 py-1 text-xs text-[var(--text-muted)]">{'No log yet.'}</p>
         ) : (
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]" data-testid="live-now-log">
+          <pre className={`${ui.logView} max-h-64 overflow-auto break-words border border-(--border-default)`} data-testid="live-now-log">
             {logLines.slice(-50).join('\n')}
           </pre>
         )}
@@ -327,13 +324,12 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
 
 // --- PR panel (controller run) ---------------------------------------------
 
-// green/pending/red/unreadable -> the four status tokens (design C4). The full
-// class strings are literal so the Tailwind build keeps them.
-const CI_CHIP_STYLES: Record<ControllerPrRead['ci'], string> = {
-  green: 'bg-[color-mix(in_srgb,var(--status-success)_15%,transparent)] text-[var(--status-success)]',
-  pending: 'bg-[color-mix(in_srgb,var(--status-warning)_15%,transparent)] text-[var(--status-warning)]',
-  red: 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]',
-  unreadable: 'bg-[color-mix(in_srgb,var(--status-pending)_15%,transparent)] text-[var(--status-pending)]',
+// green/pending/red/unreadable -> the tone table (design C5, D11).
+const CI_CHIP_TONE: Record<ControllerPrRead['ci'], Tone> = {
+  green: 'success',
+  pending: 'warning',
+  red: 'danger',
+  unreadable: 'neutral',
 };
 
 /**
@@ -345,7 +341,7 @@ const CI_CHIP_STYLES: Record<ControllerPrRead['ci'], string> = {
 function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
   const dash = '—';
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-3" data-testid="pr-panel">
+    <div className={`${ui.panel} min-w-0 p-3`} data-testid="pr-panel">
       <div className="mb-2 text-sm font-medium text-[var(--text-primary)]">{'Pull requests'}</div>
       <div className="space-y-2">
         {reads.map((read) => {
@@ -353,24 +349,21 @@ function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
           return (
             <div
               key={`${read.repo}-${read.number}`}
-              className="rounded border border-[var(--border-default)] p-2 text-sm min-w-0"
+              className="rounded-sm border border-[var(--border-default)] p-2 text-sm min-w-0"
               data-testid={`pr-row-${read.repo}-${read.number}`}
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-[var(--text-primary)] break-words">{read.repo}</span>
                 {isLink ? (
-                  <a href={read.url} target="_blank" rel="noreferrer" className="text-[var(--interactive-primary)] hover:underline">
+                  <a href={read.url} target="_blank" rel="noreferrer" className="text-(--accent-solid) hover:underline">
                     {`#${read.number}`}
                   </a>
                 ) : (
                   <span className="text-[var(--text-secondary)]">{`#${read.number}`}</span>
                 )}
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CI_CHIP_STYLES[read.ci]}`}
-                  data-testid={`pr-ci-${read.repo}-${read.number}`}
-                >
+                <Pill tone={CI_CHIP_TONE[read.ci]} data-testid={`pr-ci-${read.repo}-${read.number}`}>
                   {read.ci}
-                </span>
+                </Pill>
                 <span className="text-xs text-[var(--text-muted)]">{read.mergeable ?? dash}</span>
               </div>
               <div className="mt-0.5 text-xs text-[var(--text-secondary)] break-words">
@@ -386,12 +379,9 @@ function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
               )}
               {read.newDependencies && read.newDependencies.length > 0 && (
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CI_CHIP_STYLES.pending}`}
-                    data-testid={`pr-deps-${read.repo}-${read.number}`}
-                  >
+                  <Pill tone={CI_CHIP_TONE.pending} data-testid={`pr-deps-${read.repo}-${read.number}`}>
                     {'new dependency'}
-                  </span>
+                  </Pill>
                   <span className="text-[var(--text-muted)] break-words">{read.newDependencies.join(', ')}</span>
                 </div>
               )}
@@ -421,13 +411,13 @@ function OpenSpawns({ spawns, profiles, now }: { spawns: SpawnNode[]; profiles: 
             const idleMs = s.lastActivityAt ? now - Date.parse(s.lastActivityAt) : NaN;
             const stale = Number.isFinite(idleMs) && idleMs > STALE_MS;
             return (
-              <div key={i} className="rounded border border-[var(--border-default)] p-2 text-sm min-w-0" data-testid={`spawn-open-${s.agent}`}>
+              <div key={i} className="rounded-sm border border-[var(--border-default)] p-2 text-sm min-w-0" data-testid={`spawn-open-${s.agent}`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-[var(--text-primary)] break-words">{s.role || s.agent}</span>
                   <span className="text-xs text-[var(--text-muted)]">{s.agent}</span>
                   {present(s.lastActivityAt) && (
                     <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs tabular-nums ${
-                      stale ? 'bg-[color-mix(in_srgb,var(--status-error)_15%,transparent)] text-[var(--status-error)]' : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
+                      stale ? 'bg-[color-mix(in_srgb,var(--tone-danger-fg)_15%,transparent)] text-(--tone-danger-fg)' : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
                     }`}>
                       {fmtDuration(idleMs)}{stale ? ` ${'idle >15m'}` : ''}
                     </span>
@@ -450,10 +440,10 @@ function OpenSpawns({ spawns, profiles, now }: { spawns: SpawnNode[]; profiles: 
 
 // --- Task table ------------------------------------------------------------
 
-const TASK_STATUS_STYLES: Record<string, string> = {
-  done: 'bg-[color-mix(in_srgb,#22c55e_18%,transparent)] text-green-600 dark:text-green-400',
-  'in-progress': 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]',
-  open: 'bg-[var(--surface-inset)] text-[var(--text-muted)]',
+const TASK_STATUS_TONE: Record<string, Tone> = {
+  done: 'success',
+  'in-progress': 'accent',
+  open: 'neutral',
 };
 
 function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDetail | null; summary: TaskReviewSummary }) {
@@ -484,16 +474,16 @@ function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDet
         <Chips chips={chips} active={active} onToggle={toggle} />
       </div>
       <ScrollBox>
-        <table className="w-full border-collapse text-sm" data-testid="task-table">
+        <table className={`${ui.table} border-collapse`} data-testid="task-table">
           <thead>
-            <tr className="text-left text-xs text-[var(--text-muted)]">
-              <th className="py-1 pr-3 font-medium">{'ID'}</th>
-              <th className="py-1 pr-3 font-medium">{'Title'}</th>
-              <th className="py-1 pr-3 font-medium">{'Status'}</th>
-              <th className="py-1 pr-3 font-medium">{'Verdict'}</th>
-              <th className="py-1 pr-3 font-medium">{'TDD'}</th>
-              <th className="py-1 pr-3 font-medium">{'Risk'}</th>
-              <th className="py-1 font-medium">{'Fix rounds'}</th>
+            <tr>
+              <th className={ui.th}>{'ID'}</th>
+              <th className={ui.th}>{'Title'}</th>
+              <th className={ui.th}>{'Status'}</th>
+              <th className={ui.th}>{'Verdict'}</th>
+              <th className={ui.th}>{'TDD'}</th>
+              <th className={ui.th}>{'Risk'}</th>
+              <th className={ui.th}>{'Fix rounds'}</th>
             </tr>
           </thead>
           <tbody>
@@ -503,17 +493,17 @@ function TaskTable({ model, detail, summary }: { model: RunModel; detail: RunDet
               const tdd = rev?.tdd ? (typeof rev.tdd === 'string' ? rev.tdd : JSON.stringify(rev.tdd)) : null;
               return (
                 <tr key={task.id} className="border-t border-[var(--border-default)]" data-testid={`task-row-${task.id}`}>
-                  <td className="py-1 pr-3 font-mono text-xs text-[var(--text-muted)]">{task.id}</td>
-                  <td className="py-1 pr-3 text-[var(--text-primary)]">{task.title}</td>
-                  <td className="py-1 pr-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TASK_STATUS_STYLES[task.status] ?? TASK_STATUS_STYLES.open}`}>
+                  <td className={`${ui.td} font-mono text-xs`}>{task.id}</td>
+                  <td className={ui.td}>{task.title}</td>
+                  <td className={ui.td}>
+                    <Pill tone={TASK_STATUS_TONE[task.status] ?? TASK_STATUS_TONE.open}>
                       {task.status}
-                    </span>
+                    </Pill>
                   </td>
-                  <td className="py-1 pr-3 text-[var(--text-secondary)]">{rev?.verdict ?? dash}</td>
-                  <td className="py-1 pr-3 text-[var(--text-secondary)] break-words">{tdd ?? dash}</td>
-                  <td className="py-1 pr-3 text-[var(--text-secondary)]">{meta?.risk ?? dash}</td>
-                  <td className="py-1 text-[var(--text-secondary)]">{meta?.fixRounds ?? dash}</td>
+                  <td className={ui.td}>{rev?.verdict ?? dash}</td>
+                  <td className={`${ui.td} break-words`}>{tdd ?? dash}</td>
+                  <td className={ui.td}>{meta?.risk ?? dash}</td>
+                  <td className={ui.td}>{meta?.fixRounds ?? dash}</td>
                 </tr>
               );
             })}
@@ -537,22 +527,22 @@ function CollapsedTables({ model, profiles, now }: { model: RunModel | null; pro
           <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No rounds.'}</p>
         ) : (
           <ScrollBox>
-            <table className="w-full border-collapse text-sm" data-testid="rounds-table">
+            <table className={`${ui.table} border-collapse`} data-testid="rounds-table">
               <thead>
-                <tr className="text-left text-xs text-[var(--text-muted)]">
-                  <th className="py-1 pr-3 font-medium">{'Phase'}</th>
-                  <th className="py-1 pr-3 font-medium">{'Round'}</th>
-                  <th className="py-1 pr-3 font-medium">{'Verdict'}</th>
-                  <th className="py-1 font-medium">{'Version'}</th>
+                <tr>
+                  <th className={ui.th}>{'Phase'}</th>
+                  <th className={ui.th}>{'Round'}</th>
+                  <th className={ui.th}>{'Verdict'}</th>
+                  <th className={ui.th}>{'Version'}</th>
                 </tr>
               </thead>
               <tbody>
                 {model.rounds.map((r, i) => (
                   <tr key={i} className="border-t border-[var(--border-default)]">
-                    <td className="py-1 pr-3 text-[var(--text-primary)]">{r.phase}</td>
-                    <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.round}</td>
-                    <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.verdict}</td>
-                    <td className="py-1 text-[var(--text-secondary)]">{r.version ?? dash}</td>
+                    <td className={ui.td}>{r.phase}</td>
+                    <td className={ui.td}>{r.round}</td>
+                    <td className={ui.td}>{r.verdict}</td>
+                    <td className={ui.td}>{r.version ?? dash}</td>
                   </tr>
                 ))}
               </tbody>
@@ -566,14 +556,14 @@ function CollapsedTables({ model, profiles, now }: { model: RunModel | null; pro
           <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No spawns.'}</p>
         ) : (
           <ScrollBox>
-            <table className="w-full border-collapse text-sm" data-testid="spawns-table">
+            <table className={`${ui.table} border-collapse`} data-testid="spawns-table">
               <thead>
-                <tr className="text-left text-xs text-[var(--text-muted)]">
-                  <th className="py-1 pr-3 font-medium">{'Role'}</th>
-                  <th className="py-1 pr-3 font-medium">{'Declared'}</th>
-                  <th className="py-1 pr-3 font-medium">{'Actual'}</th>
-                  <th className="py-1 pr-3 font-medium">{'Tokens'}</th>
-                  <th className="py-1 font-medium">{'Elapsed'}</th>
+                <tr>
+                  <th className={ui.th}>{'Role'}</th>
+                  <th className={ui.th}>{'Declared'}</th>
+                  <th className={ui.th}>{'Actual'}</th>
+                  <th className={ui.th}>{'Tokens'}</th>
+                  <th className={ui.th}>{'Elapsed'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -583,14 +573,14 @@ function CollapsedTables({ model, profiles, now }: { model: RunModel | null; pro
                   const end = s.endedAt ? Date.parse(s.endedAt) : now;
                   return (
                     <tr key={i} className="border-t border-[var(--border-default)]">
-                      <td className="py-1 pr-3 text-[var(--text-primary)]">
+                      <td className={ui.td}>
                         {s.role || s.agent}
                         <span className="ml-1 text-xs text-[var(--text-muted)]">{s.level === 2 ? '·' : ''}</span>
                       </td>
-                      <td className="py-1 pr-3 text-[var(--text-secondary)] break-words">{declared}</td>
-                      <td className="py-1 pr-3 text-[var(--text-secondary)]">{s.model ?? dash}{s.provider ? ` (${s.provider})` : ''}</td>
-                      <td className="py-1 pr-3 text-[var(--text-secondary)] tabular-nums">{s.tokens ?? dash}</td>
-                      <td className="py-1 text-[var(--text-secondary)] tabular-nums">{fmtDuration(end - Date.parse(s.startedAt))}</td>
+                      <td className={`${ui.td} break-words`}>{declared}</td>
+                      <td className={ui.td}>{s.model ?? dash}{s.provider ? ` (${s.provider})` : ''}</td>
+                      <td className={`${ui.td} tabular-nums`}>{s.tokens ?? dash}</td>
+                      <td className={`${ui.td} tabular-nums`}>{fmtDuration(end - Date.parse(s.startedAt))}</td>
                     </tr>
                   );
                 })}
@@ -637,19 +627,18 @@ function LogTabs({ detail }: { detail: RunDetail | null }) {
 
   return (
     <div className="min-w-0">
-      <div className="flex gap-1 border-b border-[var(--border-default)]" role="tablist">
+      <div className={ui.tablist} role="tablist">
         {tabs.map((tb) => (
-          <button
+          <Tab
             key={tb.id}
-            type="button"
+            selected={tab === tb.id}
             role="tab"
             aria-selected={tab === tb.id}
             onClick={() => setTab(tb.id)}
             data-testid={`log-tab-${tb.id}`}
-            className={`px-3 py-1.5 text-sm ${tab === tb.id ? 'border-b-2 border-[var(--interactive-primary)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
           >
             {tb.label}
-          </button>
+          </Tab>
         ))}
       </div>
       <LogView key={tab} lines={lines} />
@@ -673,13 +662,13 @@ function LogView({ lines }: { lines: string[] }) {
   return (
     <div>
       <div className="my-2 flex items-center gap-3">
-        <input
+        <TextInput
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={'Filter'}
           data-testid="log-filter"
-          className="flex-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-1 text-sm text-[var(--text-primary)]"
+          className="flex-1"
         />
         <label className="flex shrink-0 items-center gap-1.5 text-xs text-[var(--text-secondary)]">
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} data-testid="log-follow" />
@@ -689,7 +678,7 @@ function LogView({ lines }: { lines: string[] }) {
       {shown.length === 0 ? (
         <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No rows.'}</p>
       ) : (
-        <pre ref={boxRef} className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]">
+        <pre ref={boxRef} className={`${ui.logView} max-h-96 overflow-auto break-words border border-(--border-default)`}>
           {shown.join('\n')}
         </pre>
       )}
@@ -711,7 +700,7 @@ function PanelField({ label, value }: { label: string; value: React.ReactNode })
 
 function RunPanel({ model, view }: { model: RunModel | null; view: SetupView | null }) {
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="run-panel">
+    <div className={`${ui.panel} p-4`} data-testid="run-panel">
       <div className="space-y-1">
         <PanelField label={'Run id'} value={model?.runId ?? undefined} />
         <PanelField label={'Start'} value={model?.runStartedAt ? formatDate(model.runStartedAt) : undefined} />
@@ -725,31 +714,31 @@ function RunPanel({ model, view }: { model: RunModel | null; view: SetupView | n
       {view && (
         <div className="mt-4">
           <Group name="run-setup" title={'Defaults'} defaultCollapsed>
-            <table className="w-full border-collapse text-sm" data-testid="run-setup-table">
+            <table className={`${ui.table} border-collapse`} data-testid="run-setup-table">
               <tbody>
                 <tr className="border-b border-[var(--border-default)]">
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Supervisor'}</td>
-                  <td className="py-1 break-words text-[var(--text-primary)]">{view.supervisor.model}</td>
+                  <td className={ui.td}>{'Supervisor'}</td>
+                  <td className={`${ui.td} break-words`}>{view.supervisor.model}</td>
                 </tr>
                 {view.roles.map((r) => {
                   const modelVal = r.defaultModel;
                   const provider = r.defaultProvider;
                   return (
                     <tr key={r.agent} className="border-b border-[var(--border-default)]">
-                      <td className="py-1 pr-3 align-top text-[var(--text-muted)] break-words">{r.agent}</td>
-                      <td className="py-1 break-words text-[var(--text-primary)]">
+                      <td className={`${ui.td} align-top break-words`}>{r.agent}</td>
+                      <td className={`${ui.td} break-words`}>
                         {modelVal}{r.providerEditable ? ` (${provider})` : ''}
                       </td>
                     </tr>
                   );
                 })}
                 <tr className="border-b border-[var(--border-default)]">
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Worktree'}</td>
-                  <td className="py-1 text-[var(--text-primary)]">{view.worktree}</td>
+                  <td className={ui.td}>{'Worktree'}</td>
+                  <td className={ui.td}>{view.worktree}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 pr-3 text-[var(--text-muted)]">{'Gates'}</td>
-                  <td className="py-1 text-[var(--text-primary)]">{view.gates}</td>
+                  <td className={ui.td}>{'Gates'}</td>
+                  <td className={ui.td}>{view.gates}</td>
                 </tr>
               </tbody>
             </table>

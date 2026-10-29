@@ -7,6 +7,7 @@ import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { Wait, ControllerWait, ControllerRun, StagedAction } from './types';
 import { pauseNote, pauseNoteClass } from './pause';
+import { Button, Pill, ui } from '../ui/ui';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -84,11 +85,7 @@ function KindBadge({ label }: { label: string }) {
 }
 
 function PhaseChip({ phase }: { phase: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full bg-[color-mix(in_srgb,var(--accent-primary,#2563eb)_15%,transparent)] px-2 py-0.5 text-xs font-medium text-[var(--accent-primary,#2563eb)]">
-      {phase}
-    </span>
-  );
+  return <Pill tone="accent" className="shrink-0">{phase}</Pill>;
 }
 
 function Age({ value }: { value: string | null }) {
@@ -125,21 +122,15 @@ function OpenAdvisorButton() {
 
   return (
     <div className="mb-3 flex items-center gap-2">
-      <button
-        type="button"
-        onClick={open}
-        disabled={opening}
-        data-testid="open-advisor"
-        className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
-      >
+      <Button variant="secondary" onClick={open} disabled={opening} data-testid="open-advisor">
         {'Open advisor'}
-      </button>
+      </Button>
       {result && (
         <span className="min-w-0 truncate text-xs text-[var(--text-muted)]">
           {result.state === 'live' ? result.name : result.command}
         </span>
       )}
-      {error && <span className="text-xs text-[var(--accent-danger,#dc2626)]">{error}</span>}
+      {error && <span className="text-xs text-(--tone-danger-fg)">{error}</span>}
     </div>
   );
 }
@@ -185,27 +176,15 @@ function StagedActionCard({ action }: { action: StagedAction }) {
       )}
       {action.state === 'staged' && (
         <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => act('confirm')}
-            disabled={busy}
-            data-testid={`action-confirm-${action.id}`}
-            className="rounded-md bg-[var(--accent-primary,#2563eb)] px-2 py-1 text-xs font-medium text-white disabled:opacity-40 hover:opacity-90"
-          >
+          <Button variant="primary" size="sm" onClick={() => act('confirm')} disabled={busy} data-testid={`action-confirm-${action.id}`}>
             {'Confirm'}
-          </button>
-          <button
-            type="button"
-            onClick={() => act('dismiss')}
-            disabled={busy}
-            data-testid={`action-dismiss-${action.id}`}
-            className="rounded-md border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
-          >
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => act('dismiss')} disabled={busy} data-testid={`action-dismiss-${action.id}`}>
             {'Dismiss'}
-          </button>
+          </Button>
         </div>
       )}
-      {error && <p className="mt-1 text-xs text-[var(--accent-danger,#dc2626)]">{error}</p>}
+      {error && <p className="mt-1 text-xs text-(--tone-danger-fg)">{error}</p>}
     </div>
   );
 }
@@ -235,17 +214,11 @@ function SecondOpinionButton({ wait }: { wait: ControllerWait }) {
 
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={press}
-        disabled={running || pending}
-        data-testid="second-opinion"
-        className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
-      >
+      <Button variant="secondary" onClick={press} disabled={running || pending} data-testid="second-opinion">
         {'Second opinion'}
-      </button>
+      </Button>
       {(failureReason || error) && (
-        <span className="min-w-0 text-xs text-[var(--accent-danger,#dc2626)]">{failureReason ?? error}</span>
+        <span className="min-w-0 text-xs text-(--tone-danger-fg)">{failureReason ?? error}</span>
       )}
     </div>
   );
@@ -514,15 +487,9 @@ function SheetHeader({ wait, projectName, title }: { wait: ControllerWait; proje
 
 function SubmitButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-testid="answer-submit"
-      className="rounded-md bg-[var(--accent-primary,#2563eb)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 hover:opacity-90"
-    >
+    <Button variant="primary" onClick={onClick} disabled={disabled} data-testid="answer-submit">
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -587,7 +554,7 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
           onChange={(e) => setValue(q.id, e.target.value)}
           data-testid={`answer-text-${q.id}`}
           rows={2}
-          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+          className="w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-primary)"
         />
       )}
       {q.reason && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{q.reason}</p>}
@@ -671,15 +638,14 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
     footer = (
       <div className="flex gap-2">
         <SubmitButton label={'Merge'} disabled={submitting} onClick={() => submit({ [decisionKey(wait)]: 'merge' })} />
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => submit({ [decisionKey(wait)]: 'hold' })}
           disabled={submitting}
           data-testid="answer-hold"
-          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
         >
           Hold
-        </button>
+        </Button>
       </div>
     );
   } else if (wait.kind === 'error' || wait.kind === 'escalation') {
@@ -688,15 +654,14 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
     footer = (
       <div className="flex gap-2">
         <SubmitButton label={'Retry'} disabled={submitting} onClick={() => submit({ [decisionKey(wait)]: 'retry' })} />
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={() => submit({ [decisionKey(wait)]: 'abandon' })}
           disabled={submitting}
           data-testid="answer-abandon"
-          className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--surface-hover)]"
         >
           Abandon
-        </button>
+        </Button>
       </div>
     );
   } else {
@@ -707,14 +672,14 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
         onChange={(e) => setValue('answer', e.target.value)}
         data-testid="answer-text-answer"
         rows={3}
-        className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+        className="w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-primary)"
       />
     )}</div>;
     footer = <SubmitButton label={'Answer and continue'} disabled={submitting} onClick={() => submit(values)} />;
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-answer-sheet">
+    <div className={`${ui.panel} p-4`} data-testid="now-answer-sheet">
       <SheetHeader wait={wait} projectName={projectName} title={title} />
       <div className="space-y-4 border-t border-[var(--border-default)] pt-3">
         {body}
@@ -724,7 +689,7 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
         ) : (
           <DetailText heading={'Advice'} body={wait.advice} />
         )}
-        {error && <p className="text-sm text-[var(--accent-danger,#dc2626)]">{error}</p>}
+        {error && <p className="text-sm text-(--tone-danger-fg)">{error}</p>}
         <div className="flex items-center gap-3">{footer}</div>
       </div>
     </div>
@@ -798,7 +763,7 @@ function WaitDetail({ wait }: { wait: Wait }) {
 
 function WaitPanel({ wait }: { wait: Wait }) {
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-panel">
+    <div className={`${ui.panel} p-4`} data-testid="now-panel">
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <KindBadge label={KIND_LABELS[wait.kind] ?? wait.kind} />

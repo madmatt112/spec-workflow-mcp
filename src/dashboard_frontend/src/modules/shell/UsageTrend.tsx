@@ -10,7 +10,7 @@ import type { UsageSpecRow } from './types';
  * order (design D13).
  */
 
-const SERIES = ['#2563eb', '#16a34a', '#d97706', '#db2777', '#7c3aed', '#0891b2'];
+const SERIES = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)'];
 
 const VIEW_W = 800;
 const VIEW_H = 300;
@@ -85,7 +85,7 @@ export function UsageTrend({ rows }: { rows: UsageSpecRow[] }) {
     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4">
       <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full h-auto" role="img" aria-label="W per task trend">
         {/* baseline then plot axis */}
-        <line x1={PAD_L} y1={yOf(0)} x2={VIEW_W - PAD_R} y2={yOf(0)} stroke="var(--border-default)" strokeWidth={1} />
+        <line x1={PAD_L} y1={yOf(0)} x2={VIEW_W - PAD_R} y2={yOf(0)} style={{ stroke: 'var(--border-default)' }} strokeWidth={1} />
         {series.map((s) =>
           s.baseline !== null ? (
             <line
@@ -95,7 +95,7 @@ export function UsageTrend({ rows }: { rows: UsageSpecRow[] }) {
               y1={yOf(s.baseline)}
               x2={VIEW_W - PAD_R}
               y2={yOf(s.baseline)}
-              stroke={s.colour}
+              style={{ stroke: s.colour }}
               strokeWidth={1}
               strokeDasharray="4 4"
             />
@@ -106,14 +106,14 @@ export function UsageTrend({ rows }: { rows: UsageSpecRow[] }) {
             key={`line-${s.projectId}`}
             data-testid={`trend-line-${s.projectId}`}
             fill="none"
-            stroke={s.colour}
+            style={{ stroke: s.colour }}
             strokeWidth={2}
             points={s.points.map((p) => `${xOf(p.ts)},${yOf(p.wPerTask)}`).join(' ')}
           />
         ))}
         {series.flatMap((s) =>
           s.points.map((p) => (
-            <circle key={`pt-${s.projectId}-${p.spec}`} cx={xOf(p.ts)} cy={yOf(p.wPerTask)} r={3} fill={s.colour}>
+            <circle key={`pt-${s.projectId}-${p.spec}`} cx={xOf(p.ts)} cy={yOf(p.wPerTask)} r={3} style={{ fill: s.colour }}>
               <title>{`${p.spec}: ${Math.round(p.wPerTask).toLocaleString('en-US')}`}</title>
             </circle>
           ))

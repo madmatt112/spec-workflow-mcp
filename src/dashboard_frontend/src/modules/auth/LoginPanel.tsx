@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button, TextInput, ui } from '../ui/ui';
 
 // The login box the shell shows on a 401 (controller-design.md §17). One
 // password field and a Sign in button; it posts the secret to /api/login and,
@@ -34,38 +35,30 @@ export function LoginPanel() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className={`${ui.scrim} flex items-center justify-center p-4`}
       role="dialog"
       aria-modal="true"
       aria-label="Sign in"
     >
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-6 shadow-lg"
-      >
-        <h2 className="mb-1 text-base font-semibold text-[var(--text-primary)]">Sign in</h2>
-        <p className="mb-4 text-sm text-[var(--text-muted)]">
+      <form onSubmit={submit} className={ui.dialog}>
+        <h2 className="mb-1 text-base font-semibold text-(--text-primary)">Sign in</h2>
+        <p className="mb-4 text-sm text-(--text-muted)">
           Enter the dashboard's shared secret to continue.
         </p>
-        <input
+        <TextInput
           type="password"
           autoFocus
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           placeholder="Shared secret"
           aria-label="Shared secret"
-          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
         />
         {error && (
-          <p className="mt-2 text-sm text-[var(--status-error)]">That secret was not accepted.</p>
+          <p className="mt-2 text-sm text-(--tone-danger-fg)">That secret was not accepted.</p>
         )}
-        <button
-          type="submit"
-          disabled={busy || !secret}
-          className="mt-4 w-full rounded-md bg-[var(--interactive-primary)] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[var(--interactive-primary-hover)] disabled:opacity-50"
-        >
+        <Button type="submit" variant="primary" disabled={busy || !secret} className="mt-4 w-full">
           {busy ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
       </form>
     </div>
   );
