@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Worktree fold",
+      "question": "Where does a run's worktree fold into its project?",
+      "options": [
+        "The dashboard folds the entry when it builds its project set; the registry keeps one entry per worktree",
+        "The server registers under the parent project's id",
+        "The server skips registration inside a worktree"
+      ]
+    },
+    {
+      "header": "Eval isolation",
+      "question": "How does an eval run stay out of the operator's registry and project list?",
+      "options": [
+        "Isolate the eval's server from the operator's registry",
+        "Remove its entries after the run",
+        "Filter fixture paths out in the dashboard"
+      ]
+    },
+    {
+      "header": "Stale entries",
+      "question": "Where and when are registrations with a missing path removed?",
+      "options": [
+        "Registry and durable project list, at dashboard start",
+        "Registry only",
+        "A check on every registry read"
+      ]
+    },
+    {
+      "header": "Dot precedence",
+      "question": "When a project is both running and waiting, which dot shows?",
+      "options": [
+        "Waiting before running",
+        "Running before waiting",
+        "Two dots on one row"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}
