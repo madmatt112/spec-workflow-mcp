@@ -5,8 +5,18 @@ import { SpecWatcher } from './watcher.js';
 import { ApprovalStorage } from './approval-storage.js';
 import { ProjectRegistry, ProjectRegistryEntry, ProjectInstance } from '../core/project-registry.js';
 import { PathUtils } from '../core/path-utils.js';
-import { resolveGitRoot, resolveGitWorkspaceRoot, normalizeIdentityPath } from '../core/git-utils.js';
-import { readProjects, rememberProject, forgetProject } from '../controller/state.js';
+import { resolveGitRoot, resolveGitWorkspaceRoot, normalizeIdentityPath, linkedWorktreeInfo } from '../core/git-utils.js';
+import { readProjects, rememberProject, forgetProject, pruneMissingProjects } from '../controller/state.js';
+import { isPathMissing } from './path-missing.js';
+import { computeFolds, FoldCandidate } from './project-folding.js';
+
+/** Logs a fold-classification failure once per project id per process. */
+const loggedFoldErrors = new Set<string>();
+function onFoldError(projectId: string, error: unknown): void {
+  if (loggedFoldErrors.has(projectId)) return;
+  loggedFoldErrors.add(projectId);
+  console.error(`Could not classify project ${projectId} as a worktree:`, error);
+}
 
 export interface ProjectContext {
   projectId: string;
@@ -25,6 +35,8 @@ export class ProjectManager extends EventEmitter {
   private registry: ProjectRegistry;
   private projects: Map<string, ProjectContext> = new Map();
   private registryWatcher?: chokidar.FSWatcher;
+  private watcherDebounceTimer?: NodeJS.Timeout;
+  private syncChain: Promise<void> = Promise.resolve();
 
   constructor() {
     super();
@@ -32,76 +44,26 @@ export class ProjectManager extends EventEmitter {
   }
 
   /**
-   * Initialize the project manager
-   * Loads projects from registry and the durable list, and starts watching for changes
-   * Note: MCP servers handle their own lifecycle cleanup via stop()
+   * Initialize the project manager: prune stale/missing entries, run one full
+   * reconcile, then start watching the registry for changes. Note: MCP
+   * servers handle their own lifecycle cleanup via stop().
    */
   async initialize(): Promise<void> {
-    // Clean up stale instances once at startup (self-healing for crashes)
-    await this.registry.cleanupStaleProjects();
+    // Clean up stale instances and missing paths once at startup (self-healing
+    // for crashes and for a workspace removed while nothing was running).
+    await this.registry.cleanupStaleProjects(isPathMissing);
+    await pruneMissingProjects(isPathMissing);
 
-    // Load all projects from registry
-    await this.loadProjectsFromRegistry();
-
-    // Then every project the controller remembers (controller-design.md §3): a
-    // project with no live MCP server stays listed, with no instances, so a
-    // launch after a controller restart still finds it.
-    await this.loadRememberedProjects();
+    await this.syncWithRegistry();
 
     // Watch registry file for changes
     this.startRegistryWatcher();
-
-    // Note: Removed periodic cleanup interval
-    // MCP servers are responsible for cleaning up their own instances on stop()
-    // The cleanup at startup handles any orphaned instances from crashes
   }
 
   /**
-   * Load all projects from the registry
-   */
-  private async loadProjectsFromRegistry(): Promise<void> {
-    const entries = await this.registry.getAllProjects();
-
-    for (const entry of entries) {
-      if (!this.projects.has(entry.projectId)) {
-        await this.addProject(entry);
-      }
-    }
-  }
-
-  /**
-   * Load the projects remembered in the harness home that the registry did not
-   * supply. A remembered project whose directory is gone is skipped (and stays
-   * in the file until the operator removes it), never an error.
-   */
-  private async loadRememberedProjects(): Promise<void> {
-    let remembered;
-    try {
-      remembered = (await readProjects()).projects;
-    } catch (error) {
-      console.error('Could not read the durable project list:', error);
-      return;
-    }
-    for (const p of remembered) {
-      if (this.projects.has(p.id)) continue;
-      await this.addProject({
-        projectId: p.id, projectPath: p.workspacePath, workflowRootPath: p.workflowRootPath,
-        projectName: p.name, instances: [],
-      });
-    }
-  }
-
-  /** Is this project in the durable list? Read fresh so a removal is honoured. */
-  private async isRemembered(projectId: string): Promise<boolean> {
-    try {
-      return (await readProjects()).projects.some((p) => p.id === projectId);
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Start watching the registry file for changes
+   * Start watching the registry file for changes. Change/add events are
+   * debounced 100ms (trailing) so a burst of registry writes runs one
+   * reconcile instead of one per write (design C3).
    */
   private startRegistryWatcher(): void {
     const registryPath = this.registry.getRegistryPath();
@@ -112,13 +74,8 @@ export class ProjectManager extends EventEmitter {
       ignorePermissionErrors: true
     });
 
-    this.registryWatcher.on('change', async () => {
-      await this.syncWithRegistry();
-    });
-
-    this.registryWatcher.on('add', async () => {
-      await this.syncWithRegistry();
-    });
+    this.registryWatcher.on('change', () => this.scheduleSync());
+    this.registryWatcher.on('add', () => this.scheduleSync());
 
     // Add error handler to prevent watcher crashes
     this.registryWatcher.on('error', (error) => {
@@ -127,43 +84,77 @@ export class ProjectManager extends EventEmitter {
     });
   }
 
+  private scheduleSync(): void {
+    if (this.watcherDebounceTimer) clearTimeout(this.watcherDebounceTimer);
+    this.watcherDebounceTimer = setTimeout(() => {
+      this.watcherDebounceTimer = undefined;
+      void this.syncWithRegistry();
+    }, 100);
+  }
+
   /**
-   * Sync current projects with registry
-   * Add new projects, remove deleted ones, update instances for existing projects
+   * The one reconcile (design C3, C1/C2 folding): candidates are every
+   * registry entry plus every durable-list entry the registry lacks
+   * (instances empty), each file read once. Folded and absent candidates
+   * hold no context; every other candidate gets one (a new context via
+   * `addProject`, or an in-place update). Emits one `projects-update`.
+   *
+   * Serialized: a call waits for the one already running, then makes its own
+   * full pass, so a sync started while another is mid-flight still observes
+   * whatever state existed when it was called, not a stale snapshot.
    */
   private async syncWithRegistry(): Promise<void> {
+    const run = this.syncChain.then(() => this.syncOnce(), () => this.syncOnce());
+    this.syncChain = run;
+    return run;
+  }
+
+  private async syncOnce(): Promise<void> {
     try {
       const entries = await this.registry.getAllProjects();
-      const registryIds = new Set(entries.map(e => e.projectId));
-      const currentIds = new Set(this.projects.keys());
+      const remembered = (await readProjects()).projects;
 
-      // Add new projects or update instances for existing ones
+      const fullEntries = new Map<string, ProjectRegistryEntry>();
       for (const entry of entries) {
-        if (!currentIds.has(entry.projectId)) {
-          await this.addProject(entry);
+        fullEntries.set(entry.projectId, entry);
+      }
+      for (const p of remembered) {
+        if (fullEntries.has(p.id)) continue;
+        fullEntries.set(p.id, {
+          projectId: p.id,
+          projectPath: p.workspacePath,
+          workflowRootPath: p.workflowRootPath,
+          projectName: p.name,
+          instances: [],
+        });
+      }
+
+      const candidates: FoldCandidate[] = Array.from(fullEntries.values()).map((e) => ({
+        projectId: e.projectId,
+        projectPath: e.projectPath,
+        workflowRootPath: e.workflowRootPath,
+      }));
+
+      const folds = computeFolds(candidates, linkedWorktreeInfo, onFoldError);
+
+      for (const candidate of candidates) {
+        if (folds.has(candidate.projectId)) continue;
+        const entry = fullEntries.get(candidate.projectId)!;
+        const existing = this.projects.get(entry.projectId);
+        if (existing) {
+          existing.projectName = entry.projectName;
+          existing.originalProjectPath = entry.projectPath;
+          existing.workflowRootPath = entry.workflowRootPath;
+          existing.projectPath = PathUtils.translatePath(entry.workflowRootPath);
+          existing.workspacePath = PathUtils.translatePath(entry.projectPath);
+          existing.instances = entry.instances || [];
         } else {
-          // Update instances for existing project
-          const project = this.projects.get(entry.projectId);
-          if (project) {
-            project.projectName = entry.projectName;
-            project.originalProjectPath = entry.projectPath;
-            project.workflowRootPath = entry.workflowRootPath;
-            project.projectPath = PathUtils.translatePath(entry.workflowRootPath);
-            project.workspacePath = PathUtils.translatePath(entry.projectPath);
-            project.instances = entry.instances || [];
-          }
+          await this.addProject(entry);
         }
       }
 
-      // A project that left the registry (its last MCP server exited) stays
-      // listed while the controller remembers it, with no instances; only a
-      // forgotten one is removed.
-      for (const projectId of currentIds) {
-        if (registryIds.has(projectId)) continue;
-        if (await this.isRemembered(projectId)) {
-          const project = this.projects.get(projectId);
-          if (project) project.instances = [];
-        } else {
+      for (const projectId of Array.from(this.projects.keys())) {
+        if (folds.has(projectId) || !fullEntries.has(projectId)) {
           await this.removeProject(projectId);
         }
       }
@@ -302,12 +293,14 @@ export class ProjectManager extends EventEmitter {
     projectId: string;
     projectName: string;
     projectPath: string;
+    workflowRootPath: string;
     instances: ProjectInstance[];
   }> {
     return Array.from(this.projects.values()).map(p => ({
       projectId: p.projectId,
       projectName: p.projectName,
       projectPath: p.originalProjectPath,  // Return original path for display
+      workflowRootPath: p.workflowRootPath, // Untranslated workflow root, for display/debugging
       instances: p.instances
     }));
   }
@@ -329,9 +322,7 @@ export class ProjectManager extends EventEmitter {
       const entry = await this.registry.getProject(workspacePath);
       if (entry) {
         // Already registered
-        if (!this.projects.has(entry.projectId)) {
-          await this.addProject(entry);
-        }
+        await this.syncWithRegistry();
         return entry.projectId;
       }
 
@@ -340,12 +331,7 @@ export class ProjectManager extends EventEmitter {
         workflowRootPath: storeRoot
       });
 
-      // Get the entry and add it
-      const newEntry = await this.registry.getProjectById(projectId);
-      if (newEntry) {
-        await this.addProject(newEntry);
-      }
-
+      await this.syncWithRegistry();
       return projectId;
     }
 
@@ -359,16 +345,9 @@ export class ProjectManager extends EventEmitter {
       : await this.registry.registerProject(workspacePath, process.pid, { workflowRootPath: storeRoot });
 
     const entry = await this.registry.getProjectById(projectId);
-    if (!entry) return projectId;
-
-    // An in-memory context with a different store root is removed and added
-    // again so its watchers point at the new root (D12).
-    const context = this.projects.get(projectId);
-    if (!context) {
-      await this.addProject(entry);
-    } else if (context.workflowRootPath !== entry.workflowRootPath) {
-      await this.removeProject(projectId);
-      await this.addProject(entry);
+    if (!entry) {
+      await this.syncWithRegistry();
+      return projectId;
     }
 
     // Remember it even though the two paths differ; a failed write rejects so
@@ -380,22 +359,29 @@ export class ProjectManager extends EventEmitter {
       name: entry.projectName,
     });
 
+    await this.syncWithRegistry();
     return entry.projectId;
   }
 
   /**
-   * Manually remove a project
+   * Manually remove a project: forget it (a lock miss rejects, removing
+   * nothing), unregister it, then let the reconcile drop its context.
    */
   async removeProjectById(projectId: string): Promise<void> {
-    await this.removeProject(projectId);
-    await this.registry.unregisterProjectById(projectId);
     await forgetProject(projectId);
+    await this.registry.unregisterProjectById(projectId);
+    await this.syncWithRegistry();
   }
 
   /**
    * Stop the project manager
    */
   async stop(): Promise<void> {
+    if (this.watcherDebounceTimer) {
+      clearTimeout(this.watcherDebounceTimer);
+      this.watcherDebounceTimer = undefined;
+    }
+
     // Stop registry watcher
     if (this.registryWatcher) {
       this.registryWatcher.removeAllListeners();
