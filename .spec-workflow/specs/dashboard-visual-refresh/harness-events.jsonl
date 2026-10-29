@@ -309,3 +309,4 @@
 {"ts":"2026-10-29T10:36:13.720Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P4 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-10-29T10:36:16.754Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P4 pass risk low"}
 {"ts":"2026-10-29T10:36:16.787Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-10-29T10:36:19.415Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"phase.end","phase":"closeout","result":"closed","state":"items 19/19","note":"3 done, 11 to-do, 5 skipped"}

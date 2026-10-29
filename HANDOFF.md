@@ -141,6 +141,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | dashboard-visual-refresh | implementation | tasks 3/6 | escalate | gate re-sent fix-round-2 with byte-identical output to round 1 (incl. task-1's already-resolved Operator rulings); line-count/structural-red are tasks.md's pre-declared verifier routing, not implementer defects, and "tests fail on HEAD" is contradicted by a live re-run — loop should route to the verifier instead of resending the same brief |
 | 2026-10-29 | dashboard-visual-refresh | implementation | tasks 6/6 | complete | PR #187 |
 | 2026-10-29 | dashboard-visual-refresh | retrospective |  | retro-ready | 27 findings, 19 proposals |
+| 2026-10-29 | dashboard-visual-refresh | closeout | items 19/19 | closed | 3 done, 11 to-do, 5 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1167,3 +1168,13 @@ Gotchas:
 | Verifier-skipped | none |
 | Next | d-9f5b2c00 Bridge legacy names remain at non-restyled colour sites in RunPage/RunsPage after task 4; d-85d402c5 dashboard-visual-refresh: uncommitted re-captured before screenshots in the worktree; d-e6bee5d8 Gate ranges from the implementer's last reported commit, not the task's first |
 | Gotchas | review coverage gap: completed task(s) 6 logged but unreviewed; merge allowed (retro P9) |
+
+## dashboard-visual-refresh — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 19/19: 3 done, 11 to-do, 5 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/189 |
+| To-dos | P1: Rule already correct and committed (67a4994a) in .spec-workflow/agent-rules.md Checks. Gate fail is an unmovable file-outside-list: closeout itemPaths derived the expected list from the backticked example src/core/task-parser.ts (only named token existing at root), while the correct steering-prose commit touched .spec-workflow/agent-rules.md. No permitted edit moves a file-list verdict; the real fix is in gate code (closeout.ts) or retrospective-plan.md, both forbidden here. DESIGN-DEFECT.; P18: harness merge-gate policy + eval case harness/evals/merge-gate-coverage-gap/ are outside store 1's .spec-workflow scope; decision C keeps behaviour as-is, no spec-store change; P2: gate-verdict Eval case unsupported by src/evals (agent-run graders only); blocked on P7 decision; medium-risk task-diff/controller change; P5: names a gate-verdict Eval case src/evals cannot grade (case.ts rejects unknown graders); cross-cutting medium-risk change to operatorRulings capture + every brief; P6: prereq P8 not landed (needs P5+P8); gate-verdict Eval case unsupported by src/evals; P7: DECISION NEEDED: yes, unresolved — the gate commit range (Option A/B/C) is a core design choice an implementer must not pick; P8: names Eval case 'outside-list-escalate-first-round' describing a gate verdict src/evals cannot grade; medium-risk escalation-timing change needing live controller verification; P9: prereq P1 (item wants its own standalone harness PR, not a retro-batch commit); names a gate/parser Eval case the agent-run eval infra cannot grade; P10: blocked on P7 (clean range); routing-flag change must be honoured end-to-end with live verification; gate-verdict Eval case unsupported; P11: DECISION NEEDED: yes, unresolved (graphify hook policy); target is ~/.claude which closeout-standing does not commit — needs a human; P13: names gate-verdict Eval case src/evals cannot grade; medium-risk base-diff check-suppression change in implementation.ts/gate-rules.ts |
+| Gotchas | none |
+
