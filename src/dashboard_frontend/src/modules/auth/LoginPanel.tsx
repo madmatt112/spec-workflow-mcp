@@ -41,7 +41,7 @@ export function LoginPanel() {
     >
       <form
         onSubmit={submit}
-        className="w-full max-w-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-6 shadow-lg"
+        className="w-full max-w-sm rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-6 shadow-(--shadow-overlay)"
       >
         <h2 className="mb-1 text-base font-semibold text-[var(--text-primary)]">Sign in</h2>
         <p className="mb-4 text-sm text-[var(--text-muted)]">

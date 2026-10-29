@@ -418,7 +418,7 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
           type="button"
           onClick={copy}
           data-testid={`copy-path-${file.name}`}
-          className="shrink-0 rounded border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+          className="shrink-0 rounded-sm border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
         >
           {'Copy path'}
         </button>
@@ -431,7 +431,7 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
           value={file.path}
           data-testid={`copy-path-field-${file.name}`}
           onFocus={(e) => e.currentTarget.select()}
-          className="mt-1 w-full rounded border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs text-[var(--text-primary)]"
+          className="mt-1 w-full rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs text-[var(--text-primary)]"
         />
       )}
     </div>

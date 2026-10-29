@@ -220,7 +220,7 @@ function PhaseStrip({ strip }: { strip: RunDetail['phaseStrip'] }) {
         {strip.map((p) => (
           <div
             key={p.phase}
-            className={`min-w-[7rem] flex-1 rounded border p-2 text-xs ${
+            className={`min-w-[7rem] flex-1 rounded-sm border p-2 text-xs ${
               p.live
                 ? 'border-[var(--interactive-primary)] bg-[color-mix(in_srgb,var(--interactive-primary)_12%,transparent)]'
                 : 'border-[var(--border-default)]'
@@ -316,7 +316,7 @@ function LiveNow({ run, activity, profiles, waits, logTail, now, onOpenWait }: {
         {logLines.length === 0 ? (
           <p className="px-2 py-1 text-xs text-[var(--text-muted)]">{'No log yet.'}</p>
         ) : (
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]" data-testid="live-now-log">
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]" data-testid="live-now-log">
             {logLines.slice(-50).join('\n')}
           </pre>
         )}
@@ -353,7 +353,7 @@ function PrPanel({ reads }: { reads: ControllerPrRead[] }) {
           return (
             <div
               key={`${read.repo}-${read.number}`}
-              className="rounded border border-[var(--border-default)] p-2 text-sm min-w-0"
+              className="rounded-sm border border-[var(--border-default)] p-2 text-sm min-w-0"
               data-testid={`pr-row-${read.repo}-${read.number}`}
             >
               <div className="flex flex-wrap items-center gap-2">
@@ -421,7 +421,7 @@ function OpenSpawns({ spawns, profiles, now }: { spawns: SpawnNode[]; profiles: 
             const idleMs = s.lastActivityAt ? now - Date.parse(s.lastActivityAt) : NaN;
             const stale = Number.isFinite(idleMs) && idleMs > STALE_MS;
             return (
-              <div key={i} className="rounded border border-[var(--border-default)] p-2 text-sm min-w-0" data-testid={`spawn-open-${s.agent}`}>
+              <div key={i} className="rounded-sm border border-[var(--border-default)] p-2 text-sm min-w-0" data-testid={`spawn-open-${s.agent}`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-[var(--text-primary)] break-words">{s.role || s.agent}</span>
                   <span className="text-xs text-[var(--text-muted)]">{s.agent}</span>
@@ -689,7 +689,7 @@ function LogView({ lines }: { lines: string[] }) {
       {shown.length === 0 ? (
         <p className="px-2 py-1 text-sm text-[var(--text-muted)]">{'No rows.'}</p>
       ) : (
-        <pre ref={boxRef} className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]">
+        <pre ref={boxRef} className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)]">
           {shown.join('\n')}
         </pre>
       )}

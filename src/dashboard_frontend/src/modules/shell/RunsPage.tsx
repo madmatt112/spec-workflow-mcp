@@ -398,7 +398,7 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
           </div>
 
           {disabledReason && (
-            <p className="mt-2 rounded border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)] break-words" data-testid={`launch-disabled-${project.projectId}`}>
+            <p className="mt-2 rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] p-2 text-xs text-[var(--text-secondary)] break-words" data-testid={`launch-disabled-${project.projectId}`}>
               {disabledReason}
             </p>
           )}
@@ -416,7 +416,7 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
           </div>
 
           {opError && (
-            <div className="mt-3 rounded border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
+            <div className="mt-3 rounded-sm border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
               <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
               <OpErrorView error={opError} />
             </div>

@@ -276,7 +276,7 @@ function DeferralPanel({ item }: { item: Item }) {
             value={
               <span className="flex flex-wrap gap-1">
                 {d.tags.map((tg) => (
-                  <span key={tg} className="rounded bg-[var(--surface-inset)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]">#{tg}</span>
+                  <span key={tg} className="rounded-sm bg-[var(--surface-inset)] px-1.5 py-0.5 text-xs text-[var(--text-secondary)]">#{tg}</span>
                 ))}
               </span>
             }

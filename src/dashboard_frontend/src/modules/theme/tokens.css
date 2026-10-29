@@ -1,0 +1,167 @@
+/* Design tokens (design.md C1, Data Models). The only file under FE that
+   declares token values; every other module reads them with var(). */
+
+@theme static {
+  --font-*: initial;
+  --font-sans: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --text-*: initial;
+  --text-xs: 11px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --leading-*: initial;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --tracking-wide: 0.025em;
+
+  --spacing: 4px;
+
+  --radius-*: initial;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  --border-width: 1px;
+
+  --shadow-*: initial;
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 1px;
+
+  --default-transition-duration: 120ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+
+  --disabled-opacity: 0.4;
+
+  --row-h-comfortable: 36px;
+  --row-h-compact: 32px;
+  --row-h: var(--row-h-comfortable);
+
+  --sidebar-w: 256px;
+  --panel-w: 384px;
+  --content-max: 1600px;
+
+  /* Bridge (design D1): legacy names call sites still reference until task 5
+     migrates them to the names on the right. Removed in task 5. */
+  --interactive-primary: var(--accent-solid);
+  --interactive-primary-hover: var(--accent-solid-hover);
+  --accent-primary: var(--accent-solid);
+  --accent-danger: var(--tone-danger-fg);
+  --status-error: var(--tone-danger-fg);
+  --status-warning: var(--tone-warning-fg);
+  --status-success: var(--tone-success-fg);
+  --status-pending: var(--tone-neutral-fg);
+  --border-focus: var(--focus-ring);
+}
+
+:root {
+  --surface-base: #fcfcfc;
+  --surface-panel: #ffffff;
+  --surface-inset: #f4f5f7;
+  --surface-hover: #f0f0f3;
+  --surface-selected: #ecedfa;
+  --surface-overlay: #ffffff;
+
+  --text-primary: #282a30;
+  --text-secondary: #4b505a;
+  --text-muted: #646975;
+  --text-on-accent: #ffffff;
+
+  --border-default: #e8e8ec;
+  --border-strong: #80858f;
+
+  --accent: #5e6ad2;
+  --accent-solid: #5e6ad2;
+  --accent-solid-hover: #4f5bc4;
+
+  --danger-solid: #c93b40;
+  --danger-solid-hover: #b0333a;
+
+  --focus-ring: #5e6ad2;
+
+  --tone-success-fg: #1f7a48;
+  --tone-success-bg: #e6f3ec;
+  --tone-warning-fg: #8a5a00;
+  --tone-warning-bg: #f7eedb;
+  --tone-danger-fg: #c4343a;
+  --tone-danger-bg: #fce9ea;
+  --tone-info-fg: #1f63b8;
+  --tone-info-bg: #e5effa;
+  --tone-accent-fg: #4f5bc4;
+  --tone-accent-bg: #ecedfa;
+  --tone-neutral-fg: #646975;
+  --tone-neutral-bg: #f4f5f7;
+
+  --chart-1: #2a78d6;
+  --chart-2: #d5561f;
+  --chart-3: #138a5f;
+  --chart-4: #b07800;
+  --chart-5: #8e4ec6;
+  --chart-6: #0e7c86;
+
+  --scrim: rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+.dark {
+  --surface-base: #0f1011;
+  --surface-panel: #121314;
+  --surface-inset: #1b1d21;
+  --surface-hover: #1f2126;
+  --surface-selected: #21223a;
+  --surface-overlay: #18191b;
+
+  --text-primary: #e3e4e6;
+  --text-secondary: #b4b7bd;
+  --text-muted: #8a8f98;
+  --text-on-accent: #ffffff;
+
+  --border-default: #23252a;
+  --border-strong: #6a6f7b;
+
+  --accent: #7170ff;
+  --accent-solid: #5b5bd6;
+  --accent-solid-hover: #4c4cc4;
+
+  --danger-solid: #c62f35;
+  --danger-solid-hover: #a8282e;
+
+  --focus-ring: #7170ff;
+
+  --tone-success-fg: #4cb782;
+  --tone-success-bg: #1b2d26;
+  --tone-warning-fg: #f2c94c;
+  --tone-warning-bg: #312c1c;
+  --tone-danger-fg: #f06a6a;
+  --tone-danger-bg: #351e1f;
+  --tone-info-fg: #5b9cf0;
+  --tone-info-bg: #182635;
+  --tone-accent-fg: #8f8fff;
+  --tone-accent-bg: #21223a;
+  --tone-neutral-fg: #8a8f98;
+  --tone-neutral-bg: #1b1d21;
+
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #a56de2;
+  --chart-6: #1fa3ad;
+
+  --scrim: rgb(0 0 0 / 0.6);
+  --shadow-overlay: 0 4px 16px rgb(0 0 0 / 0.5);
+}

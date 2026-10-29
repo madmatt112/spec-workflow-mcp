@@ -4,7 +4,6 @@ import { HashRouter } from 'react-router-dom';
 import App from './modules/app/App';
 import './assets/fonts/fonts.css';
 import './modules/theme/tailwind.css';
-import './modules/theme/theme.css';
 
 const container = document.getElementById('root');
 if (container) {

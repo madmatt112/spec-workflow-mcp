@@ -156,7 +156,7 @@ export function Pager({
         type="button"
         onClick={() => onPage(clamp(page - 1))}
         disabled={page <= 0}
-        className="rounded border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+        className="rounded-sm border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
       >
         Prev
       </button>
@@ -165,7 +165,7 @@ export function Pager({
         type="button"
         onClick={() => onPage(clamp(page + 1))}
         disabled={page >= pages - 1}
-        className="rounded border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
+        className="rounded-sm border border-[var(--border-default)] px-2 py-0.5 disabled:opacity-40 hover:bg-[var(--surface-hover)]"
       >
         Next
       </button>
@@ -193,7 +193,7 @@ export function Row({
       onClick={onClick}
       data-testid={testId}
       style={{ height: 'var(--row-h)' }}
-      className={`flex items-center gap-3 overflow-hidden truncate whitespace-nowrap rounded px-2 text-sm ${
+      className={`flex items-center gap-3 overflow-hidden truncate whitespace-nowrap rounded-sm px-2 text-sm ${
         onClick ? 'cursor-pointer' : ''
       } ${selected ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'}`}
     >

@@ -83,7 +83,7 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
         </div>
         <div className="flex flex-col gap-1">
           {projects.map((p) => (
-            <label key={p.projectId} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-[var(--text-secondary)]">
+            <label key={p.projectId} className="flex items-center gap-2 rounded-sm px-2 py-1 text-sm text-[var(--text-secondary)]">
               <input
                 type="checkbox"
                 role="switch"
