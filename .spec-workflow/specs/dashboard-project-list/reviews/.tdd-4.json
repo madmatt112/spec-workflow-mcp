@@ -1,0 +1,1 @@
+{"testFiles":["src/core/__tests__/project-registry.test.ts"],"seams":{"src/core/__tests__/project-registry.test.ts":"new ProjectRegistry().cleanupStaleProjects(isMissing)"},"redCommit":"ba0a110cc7849405bdb41ce3cc18ca4ad6c7e4aa","baseSha":"b466d843e1424e22e674f5d34cacf99965cdea5e","base":"assertion-red","head":"pass","amended":false,"judged":null}

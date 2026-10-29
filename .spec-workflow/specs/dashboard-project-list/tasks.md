@@ -34,7 +34,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 4.3, 4.4_
   - _Prompt: Task: Per design C6 and R4 AC3 and AC4, create src/dashboard/path-missing.ts exporting isPathMissing. Translate the path with PathUtils.translatePath; when translation throws, return false. Stat the result. Return true only when the stat error code is ENOENT or ENOTDIR. Any other stat error returns false and logs once per path for the life of the process. An existing path returns false. Tests: a deleted directory is missing; a path under a regular file is missing; an existing directory is not; a translatePath that throws (vi.spyOn) is not; a stat that rejects with EACCES (spy on the fs module the implementation uses) is not missing and logs once across two calls | Restrictions: Do not edit src/core/path-utils.ts (agent-rules sensitive path); import it only | Success: ENOENT and ENOTDIR paths return true; an existing path returns false; a translation throw returns false; an EACCES stat returns false and logs exactly once over two calls; tsc is clean_
 
-- [ ] 4. Registry cleanup with a missing-path predicate
+- [x] 4. Registry cleanup with a missing-path predicate
   - File: src/core/project-registry.ts
   - File: src/core/__tests__/project-registry.test.ts
   - Test: src/core/__tests__/project-registry.test.ts — new ProjectRegistry().cleanupStaleProjects(isMissing)
