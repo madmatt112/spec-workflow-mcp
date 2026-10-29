@@ -84,7 +84,9 @@ describe('ProjectManager durable project list', () => {
     await (first as unknown as { syncWithRegistry(): Promise<void> }).syncWithRegistry();
     const ids = (await readProjects()).projects.map((p) => p.id);
     expect(ids).toEqual([mainId]);
-    expect(first.getProjectsList().length).toBe(2); // still listed while its instance is alive
+    // Folds into the main project while its instance is alive (R1 AC1).
+    expect(first.getProjectsList().length).toBe(1);
+    expect(first.getProjectsList()[0]?.projectId).toBe(mainId);
   });
 
   it('forgets a project the operator removes', async () => {
@@ -100,7 +102,7 @@ describe('ProjectManager durable project list', () => {
     expect(second.getProject(id)).toBeUndefined();
   });
 
-  it('lists a remembered project whose directory is gone without failing', async () => {
+  it('prunes a remembered project at startup once its directory is gone (R4 AC2)', async () => {
     const repo = makeRepo(base, 'gamma');
     const first = await start();
     const id = await first.addProjectByPath(repo);
@@ -110,11 +112,122 @@ describe('ProjectManager durable project list', () => {
     rmSync(repo, { recursive: true, force: true });
 
     const second = await start();
-    // Still remembered; whether the watcher could start on a missing dir is
-    // the registry's existing behaviour, not this list's concern.
-    expect((await readProjects()).projects.map((p) => p.id)).toEqual([id]);
-    expect(second).toBeDefined();
+    // Pruned at startup: its workspace directory is gone, so it is dropped
+    // from the durable list (R4 AC2) and its row is gone (R7 AC3).
+    expect((await readProjects()).projects.map((p) => p.id)).toEqual([]);
+    expect(second.getProjectsList().some((p) => p.projectId === id)).toBe(false);
   });
+
+  it('removes a registry entry whose workspace is gone even though its pid is alive (R4 AC1)', async () => {
+    const repo = makeRepo(base, 'deadpath');
+    const id = await new ProjectRegistry().registerProject(repo, process.pid);
+    rmSync(repo, { recursive: true, force: true });
+
+    const first = await start();
+
+    expect(await new ProjectRegistry().getProjectById(id)).toBeNull();
+    expect(first.getProjectsList().some((p) => p.projectId === id)).toBe(false);
+  });
+
+  it("lists each project's workflowRootPath on getProjectsList (R2 AC8)", async () => {
+    const repo = makeRepo(base, 'wfroot');
+    const storeRoot = join(base, 'wfroot-store');
+    mkdirSync(storeRoot, { recursive: true });
+    const first = await start();
+
+    const id = await first.addProjectByPath(repo, storeRoot);
+
+    const item = first.getProjectsList().find((p) => p.projectId === id);
+    expect(item).toMatchObject({
+      projectPath: realpathSync(repo),
+      workflowRootPath: realpathSync(storeRoot),
+    });
+  });
+
+  it('folds the worktree into its parent, relists it when the parent is removed, and folds it again (R1 AC1, AC2, AC3, AC4, AC5)', async () => {
+    const repo = makeRepo(base, 'wtree-main');
+    execFileSync('git', ['-C', repo, 'add', '-A']);
+    execFileSync('git', ['-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init']);
+    const wt = join(base, 'wtree-main-wt');
+    execFileSync('git', ['-C', repo, 'worktree', 'add', '-q', wt]);
+
+    const first = await start();
+    const wtId = await new ProjectRegistry().registerProject(wt, process.pid, { workflowRootPath: repo });
+    await (first as unknown as { syncWithRegistry(): Promise<void> }).syncWithRegistry();
+
+    // No parent registered yet: the worktree is listed as its own project (R1 AC3).
+    expect(first.getProjectsList().map((p) => p.projectId)).toEqual([wtId]);
+    expect(first.getProject(wtId)).toBeDefined();
+
+    // The parent appears: the worktree folds into it, holding no context of
+    // its own (R1 AC1, AC4, AC5).
+    const mainId = await first.addProjectByPath(repo);
+    expect(first.getProjectsList().map((p) => p.projectId)).toEqual([mainId]);
+    expect(first.getProject(wtId)).toBeUndefined();
+
+    // The parent is removed: the worktree relists, unfolded again (R1 AC5).
+    await first.removeProjectById(mainId);
+    expect(first.getProjectsList().map((p) => p.projectId)).toEqual([wtId]);
+    expect(first.getProject(wtId)).toBeDefined();
+
+    // The parent comes back: it folds again.
+    const mainId2 = await first.addProjectByPath(repo);
+    expect(first.getProjectsList().map((p) => p.projectId)).toEqual([mainId2]);
+    expect(first.getProject(wtId)).toBeUndefined();
+  });
+
+  it('two concurrent syncWithRegistry calls add a new candidate only once (design C3 serialization)', async () => {
+    const repo = makeRepo(base, 'concur');
+    const first = await start();
+    const id = await new ProjectRegistry().registerProject(repo, process.pid);
+
+    let addedCount = 0;
+    first.on('project-added', (addedId: string) => {
+      if (addedId === id) addedCount++;
+    });
+
+    const manager = first as unknown as { syncWithRegistry(): Promise<void> };
+    await Promise.all([manager.syncWithRegistry(), manager.syncWithRegistry()]);
+
+    expect(addedCount).toBe(1);
+    expect(first.getProject(id)).toBeDefined();
+  });
+
+  it('a burst of five registry writes within 100ms runs one reconcile (design C3 debounce)', async () => {
+    const first = await start();
+    let updates = 0;
+    first.on('projects-update', () => { updates++; });
+
+    const registry = new ProjectRegistry();
+    const repos = ['b1', 'b2', 'b3', 'b4', 'b5'].map((name) => makeRepo(base, name));
+    await Promise.all(repos.map((repo) => registry.registerProject(repo, process.pid)));
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(updates).toBe(1);
+    expect(first.getProjectsList().length).toBe(5);
+  });
+
+  it(
+    'rejects removeProjectById on a forgetProject lock miss, removing nothing (design C3 removeProjectById ordering)',
+    async () => {
+      const repo = makeRepo(base, 'lockmiss');
+      const first = await start();
+      const id = await first.addProjectByPath(repo);
+
+      const sddHomeDir = join(base, 'sdd-home');
+      mkdirSync(sddHomeDir, { recursive: true });
+      const lockPath = join(sddHomeDir, 'projects.json.lock');
+      writeFileSync(lockPath, JSON.stringify({ pid: 999999, hostname: 'other-host', token: 'other' }), 'utf-8');
+
+      await expect(first.removeProjectById(id)).rejects.toThrow();
+
+      expect(first.getProject(id)).toBeDefined();
+      expect((await readProjects()).projects.map((p) => p.id)).toEqual([id]);
+      expect(await new ProjectRegistry().getProjectById(id)).not.toBeNull();
+    },
+    15000
+  );
 });
 
 // Contract for addProjectByPath(repo, storeRoot) (design C7, Req 5 AC 3-5):
