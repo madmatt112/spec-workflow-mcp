@@ -13,7 +13,7 @@ import { join } from 'path';
 import { RegisteredProject, WorktreeHarness, resetSpecWorkflowHome } from './worktree-harness';
 import { DeferralStorage } from '../../src/core/deferral-storage.js';
 import { sddHome } from '../../src/dashboard/harness/state-files.js';
-import { writeProjects, type PrRead, type RunRecord } from '../../src/controller/state.js';
+import { type PrRead, type RunRecord } from '../../src/controller/state.js';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
 
@@ -84,15 +84,10 @@ export async function seedVisualSuite(options: {
   serverRoot: string;
   specWorkflowHome: string;
 }): Promise<SeededVisualFixture> {
+  // Empties both `activeProjects.json` and the controller's durable
+  // `projects.json`, so the sidebar carries no "remembered" entry from a prior
+  // invocation and the before/after screenshots are reproducible.
   await resetSpecWorkflowHome(options.specWorkflowHome);
-  // `playwright.worktree.config.ts` falls back to a fixed XDG_STATE_HOME
-  // when the invoking command sets no override (the capture command in
-  // tasks.md does not), so the controller's durable project list
-  // (`projects.json`, controller-design.md §3) survives every previous
-  // invocation. Left alone, the sidebar accumulates one "remembered" but
-  // dead entry per prior run, and every before/after screenshot differs by
-  // however many times this suite happened to run before it.
-  await writeProjects({ v: 1, projects: [] });
 
   const harness = new WorktreeHarness({
     serverRoot: options.serverRoot,
