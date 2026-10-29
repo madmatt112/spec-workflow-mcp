@@ -152,6 +152,18 @@ describe('--no-workspace-inference registration (requirements 1.15, 1.16)', () =
   });
 });
 
+describe('--no-register flag (design C7, requirements 3.1, 3.3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stubRoots({ workspacePath: '/workspace/default', workflowRootPath: '/shared/default' });
+  });
+
+  it('parses --no-register to true and its absence to false', () => {
+    expect(parseArguments(['--no-register']).noRegister).toBe(true);
+    expect(parseArguments([]).noRegister).toBe(false);
+  });
+});
+
 describe('boolean flags in --flag=value form (requirement 1.17)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -165,7 +177,7 @@ describe('boolean flags in --flag=value form (requirement 1.17)', () => {
   // suite with it automatically.
   it('covers every boolean flag the parser knows about', () => {
     expect([...BOOLEAN_FLAGS].sort()).toEqual(
-      ['--dashboard', '--help', '--no-open', '--no-shared-worktree-specs', '--no-workspace-inference', '--once', '--smoke', '--watch', '-h'].sort()
+      ['--dashboard', '--help', '--no-open', '--no-register', '--no-shared-worktree-specs', '--no-workspace-inference', '--once', '--smoke', '--watch', '-h'].sort()
     );
   });
 
@@ -393,6 +405,7 @@ describe('--help output', () => {
     const output = errorSpy.mock.calls.map((call: unknown[]) => String(call[0])).join('\n');
     expect(output).toContain('--no-workspace-inference');
     expect(output).toContain('--no-shared-worktree-specs');
+    expect(output).toContain('--no-register');
     expect(output).not.toContain('--no-open');
   });
 });
