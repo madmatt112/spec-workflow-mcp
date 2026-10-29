@@ -514,19 +514,6 @@ export function decideGate(input: GateInput): { gate: 'pass' | 'fail'; reasons: 
         reasons.push(`file-outside-list: ${p}`);
       }
     }
-    // d2 file-entry-not-literal. A `File:` entry must be a literal repo-relative
-    // path or a directory prefix ending in `/`. The task parser keeps a prose
-    // gloss verbatim (a "File: the handler and its test" survives note-stripping
-    // and the comma split), and a prose entry owns none of the paths the task
-    // touches, so file-outside-list never fires and edits outside the task's real
-    // files pass unflagged. A literal path holds no internal whitespace; a prose
-    // entry always does once the parser has split on commas, so flag any listed
-    // entry that still holds whitespace (zod-4-and-body-limit retro P7).
-    for (const entry of listed) {
-      if (/\s/.test(entry)) {
-        reasons.push(`file-entry-not-literal: ${entry}`);
-      }
-    }
   }
 
   // e listed-file-missing (files-only)

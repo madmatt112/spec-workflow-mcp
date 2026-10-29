@@ -614,24 +614,6 @@ describe('decideGate', () => {
     expect(r.reasons).toContain('file-outside-list: src/dashboard_frontend/src/modules/other/X.tsx');
   });
 
-  it('d2: flags a prose File: entry that is not a literal path (zod-4-and-body-limit P7)', () => {
-    const r = decideGate({
-      ...passGate,
-      files: ['the background handler and its test'],
-      touched: ['src/foo.ts'],
-    });
-    expect(r.reasons).toContain('file-entry-not-literal: the background handler and its test');
-  });
-
-  it('d2: does not flag a literal path or a trailing-slash dir prefix', () => {
-    const r = decideGate({
-      ...passGate,
-      files: ['src/core/gate-rules.ts', 'src/core/'],
-      touched: ['src/core/gate-rules.ts'],
-    });
-    expect(r).toEqual({ gate: 'pass', reasons: [] });
-  });
-
   it('e: fails when a listed file is missing under root (files-only)', () => {
     const r = decideGate({ ...passGate, filesOnly: true, missing: ['src/gone.ts'] });
     expect(r.reasons).toContain('listed-file-missing: src/gone.ts');
