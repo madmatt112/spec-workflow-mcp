@@ -7,6 +7,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 - [ ] 1. Worktree classification in one git call
   - File: src/core/git-utils.ts
   - File: src/core/__tests__/git-utils-worktree.test.ts (new)
+  - File: src/core/__tests__/git-utils.test.ts (add the new export to the exported-function classification list)
   - Test: src/core/__tests__/git-utils-worktree.test.ts — linkedWorktreeInfo(workspacePath)
   - `src/core/__tests__/git-utils.test.ts` is not edited; no value it asserts changes.
   - Purpose: Say whether a workspace is a linked worktree and where its main tree is, without the shared-root override.
