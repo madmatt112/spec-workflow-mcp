@@ -341,6 +341,8 @@ export class Controller extends EventEmitter {
   private async schedule(): Promise<void> {
     if (!this.started) return;
 
+    await this.settlePass();
+
     const window = this.windowBlock();
     const runs = await listRuns();
 
@@ -367,6 +369,29 @@ export class Controller extends EventEmitter {
         await this.save(run, { pauseReason: undefined, resumeAt: undefined });
       }
       this.startDrive(run.id);
+    }
+  }
+
+  /**
+   * Park every held run that has gone idle without hitting its own stop
+   * point: a `queued` run, a `merging` run at rest, or a run paused for a
+   * reason other than the operator (design C4 scheduler item 2). A run a
+   * drive still holds settles when the drive itself stops (design C3).
+   */
+  private async settlePass(): Promise<void> {
+    for (const run of await listRuns()) {
+      if (this.active.has(run.id) || !run.pauseRequested) continue;
+      const merging = run.status === 'merging';
+      const heldElsewhere = run.status === 'paused' && run.pauseReason !== OPERATOR_PAUSE;
+      if (run.status !== 'queued' && !merging && !heldElsewhere) continue;
+
+      const patch: Partial<RunRecord> = {
+        status: 'paused', pauseReason: OPERATOR_PAUSE, resumeAt: undefined, inFlight: undefined,
+      };
+      if (merging) {
+        patch.cursor = { phase: run.phase ?? 'implementation', stepKind: 'merge', attempt: 1 };
+      }
+      await this.save(run, patch);
     }
   }
 
@@ -431,7 +456,12 @@ export class Controller extends EventEmitter {
       await this.cancel(record.run);
       return;
     }
-    await this.save(run, { status: 'queued', pauseReason: undefined, resumeAt: undefined });
+    // A held run parks paused/operator instead of going back to queued; the
+    // answer itself is already on disk (design C4 "Waits").
+    const patch: Partial<RunRecord> = run.pauseRequested
+      ? { status: 'paused', pauseReason: OPERATOR_PAUSE, resumeAt: undefined }
+      : { status: 'queued', pauseReason: undefined, resumeAt: undefined };
+    await this.save(run, patch);
     void this.schedule();
   };
 
