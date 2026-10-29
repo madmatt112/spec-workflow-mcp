@@ -203,7 +203,12 @@ plan, or annotate it for one revision).
 The controller works the task list in order. For a task marked for TDD, the test author
 writes the failing tests first and commits them (`test(<spec>): task <N> red`); the
 red-on-base proof uses `tdd-test-command`, `red-on-base` and `red-on-base-setup` from
-`agent-rules.md`. The implementer implements the task and commits. The review gate runs
+`agent-rules.md`. A measurement or report task — one whose success is evidence produced
+by running the gates (a bench run, a staging capture, a generated reference), with
+nothing that can fail before the code exists — carries no `- Test:` seam, so the router
+(`isTddMarked`) routes it implementer-only and the checks it names are its pass
+criterion. This stays a drafter-authored exception, not a first-class task kind. The
+implementer implements the task and commits. The review gate runs
 in-process (`review-task`): the touched paths against the sensitive, generated and prose
 path lists, the checks the implementer reported, the typecheck, the hygiene signals and a
 risk score. A low-risk task closes on the gate. A high-risk task, or a task in a sensitive

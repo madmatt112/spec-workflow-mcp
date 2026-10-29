@@ -18,7 +18,7 @@ import {
   readQueue, writeQueue, listRuns, readRun, writeRun,
   writeRateLimit, listWaits, withStoreLock,
   isProcessAlive,
-  type RunRecord, type RateLimitFile,
+  type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
 import { waitEvents, type ControllerWaitRecord } from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
@@ -193,6 +193,34 @@ export class Controller extends EventEmitter {
     await this.dropFromQueue(runId);
     clearRunActivity(runId);
     return cancelRun(this.cancelDeps(), runId);
+  }
+
+  /**
+   * The operator's Resume now on a paused run. Only a running step refreshes the
+   * usage-window file, so an early reset (a plan upgrade) stays invisible while
+   * every run is parked on the window: mark each window over the threshold as
+   * reset now and schedule. The window is account-wide, so this releases every
+   * run parked on it; if it is in fact still full, the next step's rate-limit
+   * reading writes it back and the runs park again. Any other pause drops its
+   * resume time. `undefined` = no such run, `null` = the run is not paused.
+   */
+  async resumeNow(runId: string): Promise<RunRecord | null | undefined> {
+    const run = await readRun(runId);
+    if (!run) return undefined;
+    if (run.status !== 'paused') return null;
+    if (run.pauseReason === 'usage-window') {
+      const file = readRateLimitSync();
+      if (file) {
+        const now = this.now().toISOString();
+        const reset = (w: RateLimitWindow): RateLimitWindow =>
+          (w.utilization > this.windowThreshold ? { utilization: 0, resetsAt: now } : w);
+        await writeRateLimit({ ...file, fiveHour: reset(file.fiveHour), sevenDay: reset(file.sevenDay), updated: now });
+      }
+    } else {
+      await this.save(run, { resumeAt: undefined });
+    }
+    void this.schedule();
+    return run;
   }
 
   async discard(runId: string): Promise<RunRecord | undefined> {

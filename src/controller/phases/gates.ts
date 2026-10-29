@@ -331,6 +331,7 @@ export function createDocumentGates(deps: GateDeps = defaultDeps): DocumentGates
       answered: wait.state === 'answered',
       version: gateVersion(wait),
       answers: wait.state === 'answered' ? flattenAnswers(wait) : undefined,
+      created: wait.created,
     };
   }
 

@@ -240,7 +240,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
   onGone: () => void;
 }) {
   const pause = pauseNote(run, now);
-  const [busy, setBusy] = useState<null | 'cancel' | 'discard'>(null);
+  const [busy, setBusy] = useState<null | 'cancel' | 'discard' | 'resume'>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -255,6 +255,19 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
       setError(e?.message ?? `${kind} failed`);
       setBusy(null);
     }
+  };
+
+  // The run stays on the page; its new status arrives over the runs topic.
+  const resume = async () => {
+    setBusy('resume');
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/runs/${run.id}/resume`, { method: 'POST' });
+      if (!res.ok) throw new Error(`resume failed (${res.status})`);
+    } catch (e: any) {
+      setError(e?.message ?? 'resume failed');
+    }
+    setBusy(null);
   };
 
   return (
@@ -280,6 +293,17 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
         <Button variant="secondary" onClick={onOpenRun} data-testid="ctrl-open-run">
           {'Open run page'}
         </Button>
+        {run.status === 'paused' && (
+          <Button
+            variant="secondary"
+            onClick={resume}
+            disabled={busy !== null}
+            data-testid="ctrl-resume"
+            title={'Resume now: use when the usage window reset early, e.g. after a plan upgrade'}
+          >
+            {busy === 'resume' ? 'Resuming…' : 'Resume now'}
+          </Button>
+        )}
         <Button variant="secondary" onClick={() => act('cancel')} disabled={busy !== null} data-testid="ctrl-cancel">
           {busy === 'cancel' ? 'Cancelling…' : 'Cancel'}
         </Button>

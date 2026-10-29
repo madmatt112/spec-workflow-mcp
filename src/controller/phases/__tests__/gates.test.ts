@@ -6,7 +6,7 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
-import { runDocumentPhase, type DocumentPhaseContext, type DocumentPhase, type GateDecision } from '../document.js';
+import { runDocumentPhase, gateBAnnotationPending, type DocumentPhaseContext, type DocumentPhase, type GateDecision } from '../document.js';
 import { createDocumentGates, rankDecisions, parseVetoTags } from '../gates.js';
 import { openRunLedger } from '../../ledger.js';
 import { listWaits, type RunRecord } from '../../state.js';
@@ -397,5 +397,49 @@ describe('gate B (tasks)', () => {
     const ends = ledgerRows(fx).filter((r) => r.type === 'phase.end' && r.phase === 'tasks');
     expect(ends).toHaveLength(1);
     expect(ends[0]).toMatchObject({ result: 'approved', state: 'v1' });
+  });
+
+  /** Draft and converge the tasks document so it parks at gate B the way a run does. */
+  async function parkAtGateB(): Promise<{ ctx: DocumentPhaseContext; waitId: string }> {
+    const ctx = makeContext(fx, 'tasks', [
+      drafterRun('tasks', tasksDoc(1)),
+      reviewerRun('tasks', 'converged', ''),
+    ]);
+    const parked = await runDocumentPhase(ctx);
+    expect(parked.result).toBe('waiting');
+    return { ctx, waitId: parked.waitId as string };
+  }
+
+  it('an annotation after a real park runs one reviser round on re-entry, then stops', async () => {
+    process.env.SDD_HOME = fx.home;
+    const { ctx: parkedCtx, waitId } = await parkAtGateB();
+    await answerWait(waitId, { 'gate-b': 'Split task 1 into two tasks.' }, 'tester');
+    const gates = createDocumentGates();
+    // The phase.end approved row predates the answer; the annotation is still due.
+    expect(await gateBAnnotationPending(gates, parkedCtx.run, fx.repo, fx.specDir)).toBe(true);
+
+    const ctx = makeContext(fx, 'tasks', [reviserRun('tasks', tasksDoc(2))]);
+    const done = await runDocumentPhase(ctx);
+    expect(done).toMatchObject({ result: 'approved', version: 2 });
+    expect(reviserStarts(fx)).toBe(1);
+    expect(commitSubjects(fx)).toContain(`docs(sdd): ${SPEC} tasks v2 gate-B annotation`);
+
+    // The re-approval is newer than the wait: nothing is due, and a re-entry
+    // returns the approved outcome without another reviser (no loop).
+    expect(await gateBAnnotationPending(gates, ctx.run, fx.repo, fx.specDir)).toBe(false);
+    const again = await runDocumentPhase(makeContext(fx, 'tasks', []));
+    expect(again.result).toBe('approved');
+    expect(reviserStarts(fx)).toBe(1);
+  });
+
+  it('an approve reply after a real park leaves nothing pending and runs no reviser', async () => {
+    process.env.SDD_HOME = fx.home;
+    const { ctx: parkedCtx, waitId } = await parkAtGateB();
+    await answerWait(waitId, { 'gate-b': 'Approve' }, 'tester');
+    expect(await gateBAnnotationPending(createDocumentGates(), parkedCtx.run, fx.repo, fx.specDir)).toBe(false);
+
+    const done = await runDocumentPhase(makeContext(fx, 'tasks', []));
+    expect(done).toMatchObject({ result: 'approved', version: 1 });
+    expect(reviserStarts(fx)).toBe(0);
   });
 });
