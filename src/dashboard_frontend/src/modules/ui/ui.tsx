@@ -17,19 +17,20 @@ function cx(...parts: Array<string | undefined | false>): string {
 
 // --- Button ------------------------------------------------------------
 
-// `outline-(--focus-ring)` is static (not conditional on focus) so the colour
-// never changes value on focus; only `outline-style` does (via the global
-// `:focus-visible` rule), which `transition-colors` does not animate. Without
-// this, a focus read racing the `outline-color` fade (triggered because
-// `transition-colors` lists it) can catch a low-contrast in-between colour.
+// The outline colour is static (not conditional on focus) so it never changes
+// value on focus; only `outline-style` does (via the global `:focus-visible`
+// rule), which `transition-colors` does not animate. Without this, a focus read
+// racing the `outline-color` fade (triggered because `transition-colors` lists
+// it) can catch a low-contrast in-between colour. Each variant sets it: a solid
+// fill takes `--focus-ring-on-solid`, since `--focus-ring` is the accent itself.
 const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-1.5 rounded-md font-medium outline-(--focus-ring) transition-colors disabled:opacity-(--disabled-opacity) disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-(--disabled-opacity) disabled:cursor-not-allowed';
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-(--accent-solid) text-(--text-on-accent) hover:bg-(--accent-solid-hover)',
-  secondary: 'border border-(--border-strong) text-(--text-secondary) hover:bg-(--surface-hover)',
-  danger: 'bg-(--danger-solid) text-(--text-on-accent) hover:bg-(--danger-solid-hover)',
-  ghost: 'text-(--text-muted) hover:bg-(--surface-hover)',
+  primary: 'bg-(--accent-solid) text-(--text-on-accent) hover:bg-(--accent-solid-hover) outline-(--focus-ring-on-solid)',
+  secondary: 'border border-(--border-strong) text-(--text-secondary) hover:bg-(--surface-hover) outline-(--focus-ring)',
+  danger: 'bg-(--danger-solid) text-(--text-on-accent) hover:bg-(--danger-solid-hover) outline-(--focus-ring-on-solid)',
+  ghost: 'text-(--text-muted) hover:bg-(--surface-hover) outline-(--focus-ring)',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
