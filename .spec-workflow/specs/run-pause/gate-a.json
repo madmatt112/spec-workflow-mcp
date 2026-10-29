@@ -1,0 +1,48 @@
+{
+  "items": [
+    {
+      "header": "Queued runs",
+      "question": "Does Pause apply to a queued run that has not started?",
+      "options": [
+        "Apply it: paused at once, never started until Resume",
+        "Refuse it with a 409",
+        "Leave a queued run to start and pause later"
+      ]
+    },
+    {
+      "header": "Waiting runs",
+      "question": "What does Pause do to a run with an open wait?",
+      "options": [
+        "Keep the wait answerable; park the run paused when it is answered",
+        "Refuse the pause while a wait is open",
+        "Close or expire the wait"
+      ]
+    },
+    {
+      "header": "Usage pauses",
+      "question": "What does Pause do to a run already paused on the usage window or a usage limit?",
+      "options": [
+        "Replace the reason with operator and drop the resume time",
+        "Refuse with a 409",
+        "Keep the usage reason and ignore the pause"
+      ]
+    },
+    {
+      "header": "Undo pending",
+      "question": "What does Resume do while a pause is still pending (step in flight or wait open)?",
+      "options": [
+        "Withdraw the pending pause at once",
+        "Answer 409 not-paused until the run parks",
+        "Make the operator wait for the park, then resume"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "Top-level money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface",
+        "A posture review before design"
+      ]
+    }
+  ]
+}

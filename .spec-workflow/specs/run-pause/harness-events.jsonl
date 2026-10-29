@@ -1,0 +1,5 @@
+{"ts":"2026-10-29T19:42:25.033Z","run":"run-20261029-194113","spec":"run-pause","type":"run.start","model":"controller","setup":"controller","headless":"yes","specStore":"/home/mcf/repo/spec-workflow-mcp","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/run-pause","worktree":"yes"}
+{"ts":"2026-10-29T19:42:25.064Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.start","phase":"requirements","mode":"normal","state":"v0"}
+{"ts":"2026-10-29T19:42:25.108Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-10-29T19:47:55.214Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.end","agent":"sdd-drafter","input":"70","output":"28161","cacheWrite":"156522","cacheRead":"3674329","tokens":"3859082","cacheWrite5m":"0","cacheWrite1h":"156522","model":"claude-opus-5-5"}
+{"ts":"2026-10-29T19:47:55.214Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"requirements","round":"1"}
