@@ -311,6 +311,112 @@ test.describe.serial('Dashboard visual suite', () => {
     }
   });
 
+  type StyleSnapshot = {
+    background: string;
+    color: string;
+    border: string;
+    borderRadius: string;
+    height: string;
+    padding: string;
+    fontSize: string;
+  };
+
+  type KindCapture = { kind: 'row' | 'pill' | 'button'; key: string; style: StyleSnapshot };
+
+  /**
+   * Reads every row, pill and button kind instance inside `main` on the
+   * current page (design D7: the sidebar is the same element on every view
+   * and would pair trivially). A pill's key is its tone, a button's key is
+   * its variant and size, and a row's key is constant (only unselected rows
+   * are collected, design T4.1) — the attributes that drive each kind's look.
+   */
+  async function captureKindsInMain(page: Page): Promise<KindCapture[]> {
+    return page.evaluate(() => {
+      function snapshot(el: Element): StyleSnapshot {
+        const s = getComputedStyle(el as HTMLElement);
+        return {
+          background: s.backgroundColor,
+          color: s.color,
+          border: `${s.borderTopWidth} ${s.borderTopStyle} ${s.borderTopColor}`,
+          borderRadius: s.borderRadius,
+          height: s.height,
+          padding: s.padding,
+          fontSize: s.fontSize,
+        };
+      }
+      const main = document.querySelector('main');
+      const out: KindCapture[] = [];
+      if (!main) return out;
+      for (const el of Array.from(main.querySelectorAll('[data-ui="pill"]'))) {
+        out.push({ kind: 'pill', key: `tone=${el.getAttribute('data-tone')}`, style: snapshot(el) });
+      }
+      for (const el of Array.from(main.querySelectorAll('[data-ui="button"]'))) {
+        out.push({
+          kind: 'button',
+          key: `variant=${el.getAttribute('data-variant')}|size=${el.getAttribute('data-size')}`,
+          style: snapshot(el),
+        });
+      }
+      for (const el of Array.from(main.querySelectorAll('[data-ui="row"][data-selected="false"]'))) {
+        out.push({ kind: 'row', key: 'unselected', style: snapshot(el) });
+      }
+      return out;
+    });
+  }
+
+  /**
+   * Finds one key of `kind` captured on two distinct views and returns the
+   * first such pair, or `null` if every key of that kind is confined to one
+   * view (design T4.1: the test names the kind when no pair exists).
+   */
+  function findCrossViewPair(
+    captures: Array<KindCapture & { view: View }>,
+    kind: KindCapture['kind'],
+  ): [KindCapture & { view: View }, KindCapture & { view: View }] | null {
+    const byKey = new Map<string, Array<KindCapture & { view: View }>>();
+    for (const c of captures) {
+      if (c.kind !== kind) continue;
+      const list = byKey.get(c.key) ?? [];
+      list.push(c);
+      byKey.set(c.key, list);
+    }
+    for (const list of byKey.values()) {
+      const first = list[0];
+      const other = list.find((c) => c.view !== first.view);
+      if (other) return [first, other];
+    }
+    return null;
+  }
+
+  // Task 4 / design T4.1 (Requirement 4.1, red-first: the design names the
+  // harness). For each of row, pill and button, one instance matched on the
+  // attributes that drive its look (tone for the pill, variant and size for
+  // the button, an unselected row) computes the same background colour,
+  // colour, border, border radius, height, padding and font size on two
+  // different views, in the resting state (no hover triggered). Red at base:
+  // none of these views render the pill or button component task 3 exports
+  // yet, so no `data-tone`/`data-variant` pair exists across views.
+  test('one kind computes one style across views', async ({ browser }) => {
+    const context = await browser.newContext();
+    await login(context);
+    const page = await context.newPage();
+
+    const captures: Array<KindCapture & { view: View }> = [];
+    for (const view of VIEWS) {
+      await openView(page, view);
+      const found = await captureKindsInMain(page);
+      for (const entry of found) captures.push({ ...entry, view });
+    }
+    await context.close();
+
+    for (const kind of ['row', 'pill', 'button'] as const) {
+      const pair = findCrossViewPair(captures, kind);
+      expect(pair, `no cross-view pair found for kind "${kind}"`).not.toBeNull();
+      const [a, b] = pair!;
+      expect(a.style, `${kind} ${a.key}: ${a.view} vs ${b.view}`).toEqual(b.style);
+    }
+  });
+
   test.describe('capture', () => {
     test.skip(
       !(process.env.SCREENSHOT_SET && process.env.SCREENSHOT_DIR),
