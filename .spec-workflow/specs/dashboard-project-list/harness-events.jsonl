@@ -137,3 +137,14 @@
 {"ts":"2026-10-29T13:27:49.544Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4 retry","result":"ok","phase":"implementation","task":"4"}
 {"ts":"2026-10-29T13:28:09.570Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: task 4 pass risk low tdd assertion-red"}
 {"ts":"2026-10-29T13:28:09.578Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"4","rounds":"0","outcome":"gate"}
+{"ts":"2026-10-29T13:28:09.723Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"5","title":"Locked `projects.json` writes and the startup prune"}
+{"ts":"2026-10-29T13:28:09.731Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"task 5 pick head 947c00498d298c0e4a2033a0739147fef4e7b68c"}
+{"ts":"2026-10-29T13:28:09.776Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-test-author","role":"author task 5","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-29T13:34:25.070Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-test-author","input":"80","output":"29165","cacheWrite":"99380","cacheRead":"3757677","tokens":"3886302","cacheWrite5m":"0","cacheWrite1h":"99380","model":"claude-sonnet-5"}
+{"ts":"2026-10-29T13:34:25.070Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-test-author","role":"author task 5","result":"none","phase":"implementation","task":"5"}
+{"ts":"2026-10-29T13:34:25.103Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"task 5 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-10-29T13:34:25.104Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"implement task 5","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-10-29T13:37:09.687Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"48","output":"12196","cacheWrite":"66550","cacheRead":"1750175","tokens":"1828969","cacheWrite5m":"0","cacheWrite1h":"66550","model":"claude-sonnet-5"}
+{"ts":"2026-10-29T13:37:09.688Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","result":"yes/5","phase":"implementation","task":"5"}
+{"ts":"2026-10-29T13:37:38.074Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"gate: task 5 pass risk low tdd structural-red"}
+{"ts":"2026-10-29T13:37:38.083Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"5","rounds":"0","outcome":"gate"}

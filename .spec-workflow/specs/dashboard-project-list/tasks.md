@@ -45,7 +45,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 4.1, 4.5, 4.6, 4.7_
   - _Prompt: Task: Per design C4 and R4 AC1, AC6 and AC7, give cleanupStaleProjects an optional isMissing predicate and run its whole read-modify-write inside withRegistryLock on the registry's lockPath. With the predicate, delete an entry when isMissing resolves true for its projectPath or its workflowRootPath, whatever its pids, and log one line naming the id, the registry path and the missing path. Without it, the dead-pid rule at 479-496 is unchanged. The return value stays the count of removed instances. On a lock miss, log one line, return 0 and write nothing. Tests: an entry registered with process.pid whose predicate says missing is removed and logged; an entry the predicate passes is kept; with the lock file held by another host (as registry-lock.test.ts does at 293-306) the call returns 0 and the registry bytes are unchanged; the no-predicate call still removes a dead pid. Give the held-lock test a 15000 ms timeout, as the call waits the 5000 ms default | Restrictions: Do not edit readRegistry or writeRegistry; do not add a timeout parameter (design pins the signature) | Success: The live-pid missing-path entry is removed with one log line; the passing entry is kept; the held lock gives 0 and unchanged bytes; the dead-pid case behaves as before; existing tests stay green_
 
-- [ ] 5. Locked `projects.json` writes and the startup prune
+- [x] 5. Locked `projects.json` writes and the startup prune
   - File: src/controller/state.ts
   - File: src/controller/__tests__/state.test.ts
   - Test: src/controller/__tests__/state.test.ts — pruneMissingProjects(isMissing)

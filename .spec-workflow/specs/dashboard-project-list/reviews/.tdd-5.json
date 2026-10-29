@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/state.test.ts"],"seams":{"src/controller/__tests__/state.test.ts":"pruneMissingProjects(isMissing)"},"redCommit":"a5a7bb39d76d191f2b9d27aa0ca226590395012a","baseSha":"947c00498d298c0e4a2033a0739147fef4e7b68c","base":"structural-red","head":"pass","amended":false,"judged":null}
