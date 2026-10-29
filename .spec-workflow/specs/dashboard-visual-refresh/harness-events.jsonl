@@ -310,3 +310,12 @@
 {"ts":"2026-10-29T10:36:16.754Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"gate: item P4 pass risk low"}
 {"ts":"2026-10-29T10:36:16.787Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"task.done","task":"P4","outcome":"done"}
 {"ts":"2026-10-29T10:36:19.415Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"phase.end","phase":"closeout","result":"closed","state":"items 19/19","note":"3 done, 11 to-do, 5 skipped"}
+{"ts":"2026-10-29T10:36:21.732Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp not-ready (no workflow run yet for 6ba6dfa (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-10-29T10:36:53.816Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-29T10:37:25.812Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-29T10:37:57.919Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-10-29T10:38:30.059Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #189 of spec-workflow-mcp)"}
+{"ts":"2026-10-29T10:39:40.827Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-10-29T10:39:48.645Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"pr.merged","number":"189","sha":"c7cc2b6821d724f47cbcc5d0157623efb60625b3","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-29T10:39:48.648Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"note","text":"close-out merge: close-out PR #189 of spec-workflow-mcp merged (merged close-out PR #189 of spec-workflow-mcp via merge)"}
+{"ts":"2026-10-29T10:39:48.652Z","run":"run-20261028-181442","spec":"dashboard-visual-refresh","type":"run.end","status":"done"}
