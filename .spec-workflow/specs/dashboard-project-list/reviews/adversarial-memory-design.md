@@ -1,48 +1,49 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-10-29 (Round 1)
+Last updated: 2026-10-29 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — awaiting reviser disposition)
+- **R1-1 (SHOULD_FIX, v1)** — Integration test waited for a registration line the fix deletes.
+  v2 waits for whichever startup line prints. Fix applied, but see R2-1 (same seam).
+- **R1-2 (SHOULD_FIX, v1)** — Un-debounced watcher reconcile ran blocking git classification
+  per differing entry. v2 adds a 100 ms trailing debounce; first reconcile stays direct. Clean.
+- **R1-3 (SHOULD_FIX, v1)** — `removeProjectById` unregistered before forgetting, so a
+  contended DELETE could re-list. v2 forgets first (lock-guarded step runs first). Clean.
+- **R1-4 (MINOR, v1)** — C1 Reuses reworded: inline common-dir test + parent logic, not the
+  two helpers. Clean.
+- **R1-5 (MINOR, v1)** — Dropped the "illustrative" hedge from both Data Models shapes. Clean.
 
 ### Partially Accepted
 - (none)
 
 ### Rejected
-- (none)
+- (none substantive; v1/v2 lint citation re-fires suppressed per lint rule 11, recorded in
+  Revision History)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX, Novel)** — Integration test waits for "the registration log line";
-  the `--no-register` fix replaces it with a skip line, so the green test hangs. Must key on
-  a flag-invariant signal (ready/exit or either line), and state the node-20 child_process/
-  stream fields it relies on (agent-rules). Testing Strategy › Integration.
-- **R1-2 (SHOULD_FIX, Novel)** — Un-debounced chokidar reconcile (`project-manager.ts:115-121`)
-  now runs synchronous `execSync` git classification (`linkedWorktreeInfo`, 5000 ms) per
-  differing entry; a run-startup burst (the spec's motivating scenario) blocks the event loop
-  up to 5 s × N, serialized. D12 covers per-sync cost, not volume/blocking. C1, C3, D12.
-- **R1-3 (SHOULD_FIX, Novel)** — C5 makes `forgetProject` throw on lock-not-acquired;
-  `removeProjectById` (`:392`) does not catch, so a contended DELETE returns 500 and the
-  "removed" project reappears on next sync. Error Handling #3 covers `rememberProject` only.
-- **R1-4 (MINOR)** — C1 "Reuses the existing common-dir handling; no new git command" is
-  imprecise: to get raw `.git` test + normalized parent from one call it reimplements
-  `isGitWorktree`/`gitCommonDirAbsolute` logic inline.
-- **R1-5 (MINOR)** — Data Models tags both wire shapes "illustrative — verify against the test
-  fake" though fields are enumerated and correct.
+- **R2-1 (SHOULD_FIX, Compounding R1-1, carried)** — The new integration test asserts registry
+  byte-equality *after* the server exits; at base the start-time registration is reversed by the
+  shutdown unregister (`server.ts:289-290` → `unregisterProjectById`), so the red-first signal is
+  fragile/incorrect (green at base when the per-worker registry file pre-exists). Assert while the
+  server is alive. Testing Strategy › Integration.
+- **R2-2 (MINOR)** — C3 `removeProjectById` bullet omits whether the in-memory
+  `removeProject(:390)` call survives ahead of `forgetProject`; on a lock-miss throw the files
+  stay whole but the in-memory row may drop until next sync.
+- **R2-3 (MINOR)** — The integration test's `projects.json` byte-equal assertion is inert (the
+  MCP server never writes that file in this `runCases` test).
 
 ## Patterns & Themes
-- Citations and the folding core are accurate and feasible; the weak points are all at the
-  seams the design adds: a real-server integration test, the watcher hot path, and a lock
-  contract widening. Attack execution/operational edges next round, not the fold algebra.
-- The spec's own trigger ("messy as runs start up") is a burst scenario — any new per-sync
-  work must be judged under bursts, not single events.
+- The folding core, representative/store-key consistency, the debounce and the lock reorder are
+  all now verified clean. The sole live weak point is the real-server integration test's
+  lifecycle: both v1 and v2 assert byte-equality after shutdown, which erases the very write the
+  test means to catch. The seam R1-1 opened is still the one that bites.
+- Red-first integrity (does the test actually fail at base?) is the lens to keep applying to any
+  new start/stop or register/unregister test.
 
 ## Guidance for Next Review
-- Re-check R1-1/R1-2/R1-3 as fix-induced re-checks scoped to the reviser's diff.
-- If a debounce is added, confirm it does not delay the first reconcile past
-  `initialize()`'s ordering (cleanup → prune → sync → watcher).
-- Confirm any new integration/e2e test states which node-20 stream/child_process behaviours
-  it asserts on.
-- Folding algebra (C2), representative consistency (C8/C10), and the AC9/R1-AC3 edges were
-  checked clean in R1 — do not re-litigate without new evidence.
+- If R2-1 is fixed, confirm the snapshot/assert point is before stdin close and that base yields
+  an added entry vs. fixed yields none — do not accept "byte-equal after exit" wording.
+- Confirm the explicit new body of `removeProjectById` (R2-2).
+- Do NOT re-litigate: folding algebra (C2), representative consistency (C8/C10/C12),
+  R1-2 debounce, R1-3 forget-first, Data Models shapes, the vitest/tsc probe — all checked clean.
