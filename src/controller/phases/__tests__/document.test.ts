@@ -434,4 +434,17 @@ describe('runDocumentPhase', () => {
     expect(outcome.reason).toBe('usage-limit');
     expect(await approvedRecords(fx)).toHaveLength(0);
   });
+
+  it('stops at the first review-round top when shouldStop returns a reason (design C6)', async () => {
+    const ctx = makeContext(fx, [
+      drafterRun(cleanDoc(1)),
+      reviewerRun({ verdict: 'converged', suffix: '' }),
+    ]);
+
+    const outcome = await runDocumentPhase({ ...ctx, shouldStop: () => 'operator' });
+
+    expect(outcome).toMatchObject({ result: 'stopped', version: 1, rounds: 0, reason: 'operator' });
+    const rows = ledgerRows(fx);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual(['sdd-drafter']);
+  });
 });

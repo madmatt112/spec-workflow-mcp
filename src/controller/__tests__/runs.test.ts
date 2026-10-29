@@ -412,6 +412,35 @@ describe('runOnce operator pause (RunDeps.isPauseRequested, design C3 point 1)',
   });
 });
 
+describe('runOnce document-phase stop (design C6)', () => {
+  it('stops at the review-round top when held, after the drafter commits, with no reviewer spawned', async () => {
+    await approve(fx, 'requirements');
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/design.md`, content: cleanDoc('design', 1) }],
+      result: {
+        subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'drafted',
+        structured_output: { wordCount: 1, decisions: [], contextFileWritten: true }, usage: USAGE,
+      },
+    }]);
+    await writeRun(seedRun(fx));
+    // Unheld at the loop top (the drafter must still run); held by the time the
+    // document phase checks the first review-round top.
+    let calls = 0;
+    const isPauseRequested = () => { calls += 1; return calls > 1; };
+
+    await runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(run?.resumeAt).toBeUndefined();
+    expect(git(fx.repo, ['log', '--format=%s'])).toContain(`docs(sdd): ${SPEC} design v1`);
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual(['sdd-drafter']);
+  });
+});
+
 describe('cancelRun and discardRun', () => {
   function cancelDeps(fx: Fixture): CancelDeps {
     return { now: () => new Date(), ghBin: () => STUB_GH, graceMs: 2000 };
