@@ -105,7 +105,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 2.5, 2.7, NFR Performance_
   - _Prompt: Task: Per design C8 and R2 AC5 and AC7, create src/dashboard/shell/store-groups.ts exporting groupByStore: one group per distinct workflowRootPath; the representative is the project whose originalProjectPath equals the workflowRootPath, else the first by projectName (localeCompare), then projectId. In flush, call buildSpecRows once per group with the representative and the live spec of the first project in the group that has a live run; a group whose rows throw is skipped and logged as today. Set workflowRootPath on the existing stubs: makeProject uses its projectPath, the bad project a distinct string. Tests: groupByStore gives one group for two projects on one store, picks the store's own project as representative, and falls back to name then id; a feed over two projects on one store sends one set of spec rows carrying the representative's id; the bad-project case still keeps the good project's rows | Restrictions: Message order and the other topics are unchanged; buildSpecRows is not edited | Success: Grouping and both representative rules pass; two projects on one store give each spec once with the representative's id; the existing shell-feed cases stay green; tsc is clean_
 
-- [ ] 10. Sidebar rows in `shell-now`
+- [x] 10. Sidebar rows in `shell-now`
   - File: src/dashboard/shell/sidebar-rows.ts (new)
   - File: src/dashboard/shell/__tests__/sidebar-rows.test.ts (new)
   - File: src/dashboard/shell/types.ts
