@@ -262,3 +262,14 @@
 {"ts":"2026-10-29T16:47:41.639Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"e2e verification passed"}
 {"ts":"2026-10-29T16:47:41.880Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"completion handoff written"}
 {"ts":"2026-10-29T16:50:16.204Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"phase.end","phase":"implementation","result":"complete","state":"tasks 13/13","note":"PR #191"}
+{"ts":"2026-10-29T16:52:20.974Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-10-29T16:52:29.046Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"pr.merged","number":"191","sha":"ccd58906d8f92cb7370f60b0be035fb2b2ae664d","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-29T16:52:29.088Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"phase.start","phase":"retrospective","mode":"normal"}
+{"ts":"2026-10-29T16:52:29.100Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-retro-compiler","role":"compile findings","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-29T16:56:38.096Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-retro-compiler","input":"44","output":"16511","cacheWrite":"82042","cacheRead":"1281520","tokens":"1380117","cacheWrite5m":"0","cacheWrite1h":"82042","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T16:56:38.096Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-retro-compiler","role":"compile findings","result":"ok","phase":"retrospective"}
+{"ts":"2026-10-29T16:56:38.101Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-29T16:58:39.655Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-retro-analyst","input":"16","output":"8566","cacheWrite":"52965","cacheRead":"304878","tokens":"366425","cacheWrite5m":"0","cacheWrite1h":"52965","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T16:58:39.655Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
+{"ts":"2026-10-29T16:58:39.656Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"note","text":"retro: 14 proposals for 20 findings"}
+{"ts":"2026-10-29T16:58:39.657Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"20 findings, 14 proposals"}
