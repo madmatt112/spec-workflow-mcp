@@ -136,6 +136,10 @@ describe('runCases(ids, { step })', () => {
       const casesRoot = mkdtempSync(join(tmpdir(), 'eval-registry-cases-'));
       const home = mkdtempSync(join(tmpdir(), 'eval-registry-home-'));
       const liveCheckout = makeLiveCheckout();
+      // A throwaway scratch root, so the runner never writes under (nor cleanup ever wipes)
+      // the shared `/tmp/scratchpad/sdd` that holds a live run's briefs (retro P3).
+      const evalScratchRoot = mkdtempSync(join(tmpdir(), 'swm-eval-scratch-'));
+      process.env.SWM_EVAL_SCRATCH_ROOT = evalScratchRoot;
       writeTestAuthorCase(casesRoot, 'registry-case');
 
       let stderrAtStartup = '';
@@ -181,7 +185,8 @@ describe('runCases(ids, { step })', () => {
       rmSync(casesRoot, { recursive: true, force: true });
       rmSync(home, { recursive: true, force: true });
       rmSync(liveCheckout, { recursive: true, force: true });
-      rmSync('/tmp/scratchpad/sdd', { recursive: true, force: true });
+      rmSync(evalScratchRoot, { recursive: true, force: true });
+      delete process.env.SWM_EVAL_SCRATCH_ROOT;
     },
     60000,
   );

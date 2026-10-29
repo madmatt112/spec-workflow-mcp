@@ -168,7 +168,10 @@ export async function runCases(ids: string[], opts: RunCasesOpts): Promise<EvalR
       let fixture: Fixture | undefined;
       let runRecord: EvalRunRecord;
       try {
-        const scratch = join('/tmp/scratchpad/sdd', c.spec);
+        // Production writes real briefs under `/tmp/scratchpad/sdd/<spec>`; the test suite
+        // sets `SWM_EVAL_SCRATCH_ROOT` to a throwaway dir so it never touches that path and
+        // cannot destroy a live run's briefs (retro P3).
+        const scratch = join(process.env.SWM_EVAL_SCRATCH_ROOT ?? '/tmp/scratchpad/sdd', c.spec);
         rmSync(scratch, { recursive: true, force: true });
         mkdirSync(scratch, { recursive: true });
 
