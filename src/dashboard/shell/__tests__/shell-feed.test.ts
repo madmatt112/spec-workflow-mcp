@@ -96,6 +96,36 @@ import type { ShellMessage } from '../types.js';
 //   'controller-activity', 'controller-actions'] in that order.
 //   Expected-value source: the task 12 Count change bullet's literal
 //   "five-message order becomes six, controller-actions last".
+//
+// Criterion "one store read once per flush" (task 9 _Prompt: "In flush,
+//   buildSpecRows runs once per group with the representative ... Spec
+//   rows carry the representative's projectId and projectName";
+//   Requirements 2.5, 2.7):
+//   Pre-condition: two projects whose `workflowRootPath` is the same
+//   shared string (so they share one store) but whose own spec
+//   directories differ, named so the alphabetically-first project's name
+//   is the representative.
+//   Test: feed.start(), then read the shell-specs message of
+//   feed.snapshot().
+//   Observable result: the rows carry only the representative project's
+//   id and only its own spec, not a second set of rows for the other
+//   project on the same store.
+//   Expected-value source: the literal "once per group with the
+//   representative" of the C8/_Prompt sentence.
+//
+// Criterion "shell-now carries sidebar" (design.md C9 "`flush` fills it
+//   after reading waits and runs, before sending `shell-now`"; task 10
+//   _Prompt "a feed snapshot whose shell-now carries sidebar"; Requirement
+//   5.9 — sidebar rides the existing shell-now message, no new topic):
+//   Pre-condition: one listed project with no controller wait and no
+//   controller run record.
+//   Test: feed.start(), then read the shell-now message of
+//   feed.snapshot().
+//   Observable result: its `data.sidebar` is `[{ projectId: <the
+//   project's id>, dot: 'idle', liveCount: 0, lastActivity: null }]`.
+//   Expected-value source: the fixture's own project id, combined with
+//   design C9's idle/zero/null defaults for a project with no wait or
+//   run record.
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -129,7 +159,10 @@ function makeProject(base: string, spec: string, name = spec): { project: Projec
   const workflowRoot = join(projectPath, '.spec-workflow');
   const specDir = join(workflowRoot, 'specs', spec);
   mkdirSync(specDir, { recursive: true });
-  const project = { projectId: randomUUID(), projectName: name, projectPath, workspacePath: projectPath } as ProjectContext;
+  const project = {
+    projectId: randomUUID(), projectName: name, projectPath, workspacePath: projectPath,
+    workflowRootPath: projectPath,
+  } as ProjectContext;
   return { project, specDir };
 }
 
@@ -330,6 +363,27 @@ describe('ShellFeed', () => {
     expect(sends.length).toBe(countAtClose);
   });
 
+  it('reads one shared store once: two projects on it send one set of spec rows carrying the representative\'s id', async () => {
+    const base = tmpBase();
+    bases.push(base);
+    const shared = '/tmp/shared-store-for-test';
+    const { project: alpha } = makeProject(base, 'spec-a', 'Alpha');
+    const { project: zeta } = makeProject(base, 'spec-z', 'Zeta');
+    (alpha as unknown as { workflowRootPath: string }).workflowRootPath = shared;
+    (zeta as unknown as { workflowRootPath: string }).workflowRootPath = shared;
+
+    const feed = new ShellFeed(stubProjects([zeta, alpha]), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+
+    const specsMsg = ofType(feed.snapshot(), 'shell-specs')[0];
+    expect(specsMsg).toBeDefined();
+    const rows = specsMsg.data.rows;
+    expect(rows.every((r) => r.projectId === alpha.projectId)).toBe(true);
+    expect(rows.some((r) => r.spec === 'spec-z')).toBe(false);
+    expect(rows.some((r) => r.spec === 'spec-a')).toBe(true);
+  });
+
   it('omits a project whose spec rows throw from shell-specs while the other project keeps its rows, and logs once', async () => {
     const base = tmpBase();
     bases.push(base);
@@ -339,6 +393,7 @@ describe('ShellFeed', () => {
       projectName: 'Bad Project',
       projectPath: undefined,
       workspacePath: '/tmp',
+      workflowRootPath: '/tmp/bad-project-store',
     } as unknown as ProjectContext;
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -356,5 +411,21 @@ describe('ShellFeed', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it('carries a sidebar row for a listed project with no wait or run record on the shell-now message', async () => {
+    const base = tmpBase();
+    bases.push(base);
+    const { project } = makeProject(base, 'spec-sidebar', 'Sidebar Project');
+
+    const feed = new ShellFeed(stubProjects([project]), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+
+    const nowMsg = ofType(feed.snapshot(), 'shell-now')[0];
+    expect(nowMsg).toBeDefined();
+    expect((nowMsg!.data as unknown as { sidebar: unknown }).sidebar).toEqual([
+      { projectId: project.projectId, dot: 'idle', liveCount: 0, lastActivity: null },
+    ]);
   });
 });

@@ -146,6 +146,9 @@ describe('controller dashboard routes (T10)', () => {
     const spec = 'controller-dashboard';
     const specDir = join(workflowRoot, '.spec-workflow', 'specs', spec);
     mkdirSync(specDir, { recursive: true });
+    // The workspace path must exist on disk, or the startup missing-path prune
+    // (R4 AC1) drops the registration before the server lists it.
+    mkdirSync(workspace, { recursive: true });
     writeFileSync(join(specDir, 'requirements.md'), '# Requirements\n\nDraft.\n');
 
     const registry = new ProjectRegistry();

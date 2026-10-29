@@ -83,12 +83,20 @@ export interface RunListRow {
   since: string | null;
 }
 
+export interface SidebarProjectRow {
+  projectId: string;
+  dot: 'waiting' | 'running' | 'idle';
+  liveCount: number;
+  lastActivity: string | null;
+}
+
 export interface NowModel {
   waits: Wait[];
   live: LiveRunRow[];
   idle: IdleRow[];
   closed: ClosedRow[];
   runs: RunListRow[];
+  sidebar: SidebarProjectRow[];
   generatedAt: string;
 }
 

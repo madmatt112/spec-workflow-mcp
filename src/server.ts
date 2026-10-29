@@ -161,8 +161,10 @@ export class SpecWorkflowMCPServer {
     projectPath: string,
     workspacePath: string,
     lang?: string,
-    inferredWorkspaceFallback?: string
+    inferredWorkspaceFallback?: string,
+    options?: { register?: boolean }
   ): Promise<string> {
+    const register = options?.register ?? true;
     // Both roots settle here, together: a fallback that moved only the
     // workspace would leave the workflow root on the rejected path.
     const settled = await settleWorkspaceRoots(projectPath, workspacePath, inferredWorkspaceFallback);
@@ -183,16 +185,20 @@ export class SpecWorkflowMCPServer {
       await workspaceInitializer.initializeWorkspace();
 
       // Register this project in the global registry
-      const projectId = await this.projectRegistry.registerProject(this.workspacePath, process.pid, {
-        workflowRootPath: this.projectPath
-      });
-      this.registeredProjectId = projectId;
-      // Requirement 6.4: on lock-budget exhaustion `registerProject` still returns
-      // the id but logs that it is continuing UNREGISTERED, so claiming success
-      // here unconditionally would contradict that banner. Report what the
-      // registry actually holds.
-      const registered = await this.projectRegistry.getProjectById(projectId);
-      console.error(registered ? `Project registered: ${projectId}` : `Project NOT registered: ${projectId}`);
+      if (register) {
+        const projectId = await this.projectRegistry.registerProject(this.workspacePath, process.pid, {
+          workflowRootPath: this.projectPath
+        });
+        this.registeredProjectId = projectId;
+        // Requirement 6.4: on lock-budget exhaustion `registerProject` still returns
+        // the id but logs that it is continuing UNREGISTERED, so claiming success
+        // here unconditionally would contradict that banner. Report what the
+        // registry actually holds.
+        const registered = await this.projectRegistry.getProjectById(projectId);
+        console.error(registered ? `Project registered: ${projectId}` : `Project NOT registered: ${projectId}`);
+      } else {
+        console.error('Project registration skipped (--no-register)');
+      }
 
       // Try to get the dashboard URL from session manager
       let dashboardUrl: string | undefined = undefined;

@@ -129,6 +129,22 @@ describe.skipIf(process.platform === 'win32')('SpecWorkflowMCPServer.stop() — 
     expect(await registry.getProjectById(registeredId)).toBeNull();
   }, 30000);
 
+  it('writes no registry entry when initialized with { register: false }, and stop() leaves it unchanged', async () => {
+    const projectDir = join(root, 'real', 'no-register-project');
+    await fs.mkdir(projectDir, { recursive: true });
+
+    const server = new SpecWorkflowMCPServer();
+    await server.initialize(projectDir, projectDir, undefined, undefined, { register: false });
+
+    const registry = new ProjectRegistry();
+    expect(await registry.getProjectById(generateProjectId(projectDir))).toBeNull();
+    expect(await registry.getAllProjects()).toEqual([]);
+
+    await server.stop();
+
+    expect(await registry.getAllProjects()).toEqual([]);
+  }, 30000);
+
   it('still unregisters a workspace that is intact at shutdown', async () => {
     // The cached id has to be the id the entry was written under in the ordinary
     // case too — caching the wrong value would fail here and nowhere else.

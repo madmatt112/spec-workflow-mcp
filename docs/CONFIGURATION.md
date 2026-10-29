@@ -19,6 +19,7 @@ npx -y @madmatt112org/spec-workflow-mcp@latest [project-path] [options]
 | `--port <number>` | Specify custom dashboard port (1024-65535) | `npx -y @madmatt112org/spec-workflow-mcp@latest --dashboard --port 8080` |
 | `--no-shared-worktree-specs` | Disable shared `.spec-workflow` in git worktrees (use workspace-local instead) | `npx -y @madmatt112org/spec-workflow-mcp@latest ~/worktree --no-shared-worktree-specs` |
 | `--no-workspace-inference` | Don't infer the workspace from the launch directory; use the path argument's git top-level | `npx -y @madmatt112org/spec-workflow-mcp@latest ~/myproject --no-workspace-inference` |
+| `--no-register` | Do not add this server to the project registry; used by eval runs | `npx -y @madmatt112org/spec-workflow-mcp@latest ~/myproject --no-register` |
 
 ### Important Notes
 
@@ -26,7 +27,7 @@ npx -y @madmatt112org/spec-workflow-mcp@latest [project-path] [options]
 - **Default Port**: Dashboard uses port 5000 by default. Use `--port` only if 5000 is unavailable.
 - **Separate Dashboard**: Always run the dashboard separately from MCP servers.
 - **No browser opens.** The dashboard does not open a browser when it starts. Open the URL by hand. The server accepts `--no-open` but ignores it.
-- **Boolean flags take no value.** `--dashboard`, `--help` / `-h`, `--no-open`, `--no-shared-worktree-specs` and `--no-workspace-inference` are rejected with an error if written as `--flag=value`. Pass them bare. Only `--port` accepts both `--port 3456` and `--port=3456`.
+- **Boolean flags take no value.** `--dashboard`, `--help` / `-h`, `--no-open`, `--no-register`, `--no-shared-worktree-specs` and `--no-workspace-inference` are rejected with an error if written as `--flag=value`. Pass them bare. Only `--port` accepts both `--port 3456` and `--port=3456`.
 
 ## Usage Examples
 

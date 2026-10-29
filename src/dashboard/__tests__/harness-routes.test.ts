@@ -157,6 +157,9 @@ describe('harness hub and websocket wiring (task 9)', () => {
     const alphaWorkflowRoot = join(tempDir, 'alpha-project');
     const alphaSpecDir = join(alphaWorkflowRoot, '.spec-workflow', 'specs', 'spec-a');
     await fsp.mkdir(alphaSpecDir, { recursive: true });
+    // The workspace path must exist on disk, or the startup missing-path prune
+    // (R4 AC1) drops the registration before the server lists it.
+    await fsp.mkdir(alphaWorkspace, { recursive: true });
     writeFileSync(join(alphaWorkflowRoot, '.spec-workflow', 'HANDOFF.md'), handoffFixture('spec-a'));
     alphaLedgerPath = join(alphaSpecDir, 'harness-events.jsonl');
     writeFileSync(alphaLedgerPath, JSON.stringify({
@@ -167,6 +170,7 @@ describe('harness hub and websocket wiring (task 9)', () => {
     const betaWorkspace = join(tempDir, 'beta-workspace');
     const betaWorkflowRoot = join(tempDir, 'beta-project');
     await fsp.mkdir(join(betaWorkflowRoot, '.spec-workflow'), { recursive: true });
+    await fsp.mkdir(betaWorkspace, { recursive: true });
     writeFileSync(join(betaWorkflowRoot, '.spec-workflow', 'HANDOFF.md'), handoffFixture('spec-b'));
 
     const registry = new ProjectRegistry();

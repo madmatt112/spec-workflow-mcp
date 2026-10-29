@@ -214,6 +214,7 @@ export async function buildNowModel(
     idle,
     closed,
     runs,
+    sidebar: [],
     generatedAt: new Date(now).toISOString(),
   };
 }

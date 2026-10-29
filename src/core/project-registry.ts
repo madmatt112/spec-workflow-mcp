@@ -467,16 +467,58 @@ export class ProjectRegistry {
   }
 
   /**
-   * Clean up stale instances (where the process is no longer running)
-   * Projects with no live instances are removed entirely
-   * Returns the count of removed instances
+   * Clean up stale registry entries, under the registry lock (design C4).
+   *
+   * Without `isMissing`, the dead-pid rule is unchanged: projects whose
+   * instances are no longer running are pruned or dropped entirely. With
+   * `isMissing`, an entry is removed when its `projectPath` or its
+   * `workflowRootPath` is reported missing, whatever its pids — that check
+   * runs first and short-circuits the dead-pid rule for that entry.
+   *
+   * Returns the count of removed instances. On a lock miss, logs one line,
+   * returns 0 and writes nothing.
    */
-  async cleanupStaleProjects(): Promise<number> {
+  async cleanupStaleProjects(isMissing?: (path: string) => Promise<boolean>): Promise<number> {
+    const result = await withRegistryLock(
+      this.lockPath,
+      () => this.cleanupStaleProjectsLocked(isMissing)
+    );
+
+    if (result.acquired) {
+      return result.value;
+    }
+
+    console.error(
+      `[ProjectRegistry] Could not acquire the registry lock at ${this.lockPath}; skipping cleanup.`
+    );
+    return 0;
+  }
+
+  private async cleanupStaleProjectsLocked(isMissing?: (path: string) => Promise<boolean>): Promise<number> {
     const registry = await this.readRegistry();
     let removedInstanceCount = 0;
     let needsWrite = this.needsInitialization; // Write if file needs initialization
 
     for (const [projectId, entry] of registry.entries()) {
+      if (isMissing) {
+        let missingPath: string | undefined;
+        if (await isMissing(entry.projectPath)) {
+          missingPath = entry.projectPath;
+        } else if (await isMissing(entry.workflowRootPath)) {
+          missingPath = entry.workflowRootPath;
+        }
+
+        if (missingPath !== undefined) {
+          removedInstanceCount += entry.instances.length;
+          needsWrite = true;
+          registry.delete(projectId);
+          console.error(
+            `[ProjectRegistry] Removed ${projectId} from ${this.registryPath}: ${missingPath} does not exist`
+          );
+        }
+        continue;
+      }
+
       const liveInstances = entry.instances.filter(i => this.isProcessAlive(i.pid));
       const deadCount = entry.instances.length - liveInstances.length;
 

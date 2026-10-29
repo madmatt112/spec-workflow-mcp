@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
+import { storeGroups, storeOf } from '../projects/stores';
 import { useShell } from './ShellProvider';
 import { PageLayout, ScrollBox } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
@@ -60,13 +61,12 @@ function fmtBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function key(projectId: string, spec: string): string {
-  return `${projectId}::${spec}`;
+function key(store: string, spec: string): string {
+  return `${store}::${spec}`;
 }
 
 interface Item {
-  projectId: string;
-  projectName: string;
+  store: string;
   row: SpecListRow;
 }
 
@@ -79,36 +79,35 @@ export function SpecsPage() {
   const [page, setPage] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const enabledProjects = useMemo(
-    () => projects.filter((p) => enabled(p.projectId)),
-    [projects, enabled]
-  );
-  const enabledKey = enabledProjects.map((p) => p.projectId).join(',');
+  const groups = useMemo(() => storeGroups(projects, enabled), [projects, enabled]);
+  const enabledGroups = useMemo(() => groups.filter((g) => g.enabled), [groups]);
+  const enabledKey = enabledGroups.map((g) => g.store).join(',');
 
-  // State counts across every enabled project's rows (not the search / chip).
+  // State counts across every enabled store's rows (not the search / chip).
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {
       live: 0, 'in-progress': 0, closed: 0, deferred: 0, 'not-started': 0,
     };
-    for (const p of enabledProjects) {
-      for (const r of specRows) {
-        if (r.projectId === p.projectId && counts[r.state] !== undefined) counts[r.state] += 1;
+    const enabledStores = new Set(enabledGroups.map((g) => g.store));
+    for (const r of specRows) {
+      if (enabledStores.has(storeOf(projects, r.projectId)) && counts[r.state] !== undefined) {
+        counts[r.state] += 1;
       }
     }
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledKey, specRows]);
 
-  // Flatten the filtered rows of every enabled project, in project order.
+  // Flatten the filtered rows of every enabled store, in group order.
   const items = useMemo<Item[]>(() => {
     const q = query.trim().toLowerCase();
     const out: Item[] = [];
-    for (const p of enabledProjects) {
+    for (const g of enabledGroups) {
       for (const r of specRows) {
-        if (r.projectId !== p.projectId) continue;
+        if (storeOf(projects, r.projectId) !== g.store) continue;
         if (active.length && !active.includes(r.state)) continue;
         if (q && !r.spec.toLowerCase().includes(q)) continue;
-        out.push({ projectId: p.projectId, projectName: p.projectName, row: r });
+        out.push({ store: g.store, row: r });
       }
     }
     return out;
@@ -118,24 +117,24 @@ export function SpecsPage() {
   // Reset to the first page whenever the filter set changes.
   useEffect(() => { setPage(0); }, [active, query, enabledKey]);
 
-  const totalByProject = useMemo(() => {
+  const totalByStore = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const it of items) m[it.projectId] = (m[it.projectId] ?? 0) + 1;
+    for (const it of items) m[it.store] = (m[it.store] ?? 0) + 1;
     return m;
   }, [items]);
 
   const pageItems = items.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE);
-  const groups = enabledProjects
-    .map((p) => ({ p, rows: pageItems.filter((it) => it.projectId === p.projectId) }))
-    .filter((g) => g.rows.length > 0);
+  const groupsWithRows = enabledGroups
+    .map((g) => ({ g, rows: pageItems.filter((it) => it.store === g.store) }))
+    .filter((x) => x.rows.length > 0);
 
   // Resolve the selected row from current data so a push refreshes the panel.
   const selected = useMemo<Item | null>(() => {
     if (!selectedKey) return null;
-    for (const p of enabledProjects) {
+    for (const g of enabledGroups) {
       for (const r of specRows) {
-        if (r.projectId === p.projectId && key(r.projectId, r.spec) === selectedKey) {
-          return { projectId: r.projectId, projectName: p.projectName, row: r };
+        if (storeOf(projects, r.projectId) === g.store && key(g.store, r.spec) === selectedKey) {
+          return { store: g.store, row: r };
         }
       }
     }
@@ -165,17 +164,17 @@ export function SpecsPage() {
         </div>
       ) : (
         <>
-          {groups.map(({ p, rows }) => (
-            <Group key={p.projectId} name={p.projectId} title={p.projectName} count={totalByProject[p.projectId]}>
+          {groupsWithRows.map(({ g, rows }) => (
+            <Group key={g.store} name={g.store} title={g.representative.projectName} count={totalByStore[g.store]}>
               {rows.map(({ row: r }) => {
                 const versions = formatVersions(r.versions);
                 const prs = r.prs.map((n) => `#${n}`).join(' ');
                 return (
                   <Row
                     key={r.spec}
-                    testId={`spec-row-${p.projectId}-${r.spec}`}
-                    selected={selectedKey === key(p.projectId, r.spec)}
-                    onClick={() => setSelectedKey(key(p.projectId, r.spec))}
+                    testId={`spec-row-${r.projectId}-${r.spec}`}
+                    selected={selectedKey === key(g.store, r.spec)}
+                    onClick={() => setSelectedKey(key(g.store, r.spec))}
                   >
                     <StateBadge state={r.state} />
                     <span className="min-w-0 flex-1 truncate font-medium text-[var(--text-primary)]">{r.spec}</span>
@@ -237,7 +236,8 @@ const DEFERRAL_STATUS_TONE: Record<string, Tone> = {
 };
 
 function SpecPanel({ item }: { item: Item }) {
-  const { projectId, projectName, row } = item;
+  const { row } = item;
+  const { projectId, projectName } = row;
   const spec = row.spec;
   const updated = row.updated;
 

@@ -191,7 +191,7 @@ export async function runCases(ids: string[], opts: RunCasesOpts): Promise<EvalR
             mcpServers: {
               'spec-workflow': {
                 command: process.execPath,
-                args: [join(packageRoot(), 'dist', 'index.js'), fixture.root],
+                args: [join(packageRoot(), 'dist', 'index.js'), fixture.root, '--no-register'],
               },
             },
           },
