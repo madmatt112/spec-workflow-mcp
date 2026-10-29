@@ -181,4 +181,92 @@ describe('controller dashboard routes (T10)', () => {
     expect(view.launchable).toBeNull();
     expect(view.disabledReason).toMatch(/queued or live run/i);
   });
+
+  // Contract for task 6 (design C2, C7; run-pause requirements 1.1, 1.3, 1.4,
+  // 1.5, 1.6, 4.6, 6.7, NFR Security). Pre-condition: a run paused for a usage
+  // reason with a future resumeAt, and a done run, seeded after the server
+  // starts so the live controller never drives them. Call through the seam:
+  // fetch POST .../pause and GET /api/controller/runs. Observable result and
+  // its source: 200 { ok: true } and a wire row with status paused,
+  // pauseReason 'operator' (OPERATOR_PAUSE, design C1/C4) and pauseRequested
+  // set, no resumeAt — design C4 pause() post-condition 2, C7's toRow copy;
+  // the idempotent repeat's unchanged `updated` — design C4 post-condition 1
+  // (Requirement 1 AC 5); 404 `run-not-found` and 409 `not-pausable` with an
+  // unchanged record — design C2's three-way handler (Requirement 1 AC 3/4);
+  // no path field on the row — NFR Security (`src/controller/runs.ts:1333-1334`
+  // area, ControllerRunRow). The trailing 401 and resume-409 assertions are
+  // regression guards (task 6 Note): makeRequireAccess already rejects every
+  // non-GET under /api/controller/ with no secret, and resumeNow already
+  // answers null for a done run (controller.test.ts:295); they hold at base.
+  it('POST /api/controller/runs/:id/pause pauses, is idempotent, and 404s/409s; the row carries pauseRequested and no path', async () => {
+    const base = await startServer();
+
+    const specStore = join(tempDir, 'store');
+    const spec = 'controller-dashboard';
+    const resumeAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const usageRun: RunRecord = {
+      v: 1, id: 'run-pause-usage', project: 'proj-1', codeRoot: specStore, specStore, spec,
+      worktree: specStore, branch: 'feat/x', status: 'paused', pauseReason: 'usage-limit', resumeAt,
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    await writeRun(usageRun);
+
+    const doneRun: RunRecord = {
+      v: 1, id: 'run-pause-done', project: 'proj-1', codeRoot: specStore, specStore, spec,
+      worktree: specStore, branch: 'feat/y', status: 'done',
+      created: '2026-10-29T10:00:00.000Z', updated: '2026-10-29T10:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+    await writeRun(doneRun);
+
+    async function getRow(id: string): Promise<any> {
+      const listRes = await realFetch(`${base}/api/controller/runs`, auth());
+      const body: any = await listRes.json();
+      return (body.runs as any[]).find((r) => r.id === id);
+    }
+
+    // AC1, AC5, AC7, NFR Security: pausing a usage-paused run replaces the
+    // reason with `operator`, clears `resumeAt`, and the wire row carries
+    // `pauseRequested` with no path field.
+    const first = await realFetch(`${base}/api/controller/runs/${usageRun.id}/pause`, auth({ method: 'POST' }));
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ ok: true });
+
+    const rowAfterFirst = await getRow(usageRun.id);
+    expect(rowAfterFirst.status).toBe('paused');
+    expect(rowAfterFirst.pauseReason).toBe('operator');
+    expect(rowAfterFirst.pauseRequested).toBeTruthy();
+    expect(rowAfterFirst.resumeAt).toBeUndefined();
+    expect(rowAfterFirst.codeRoot).toBeUndefined();
+    expect(rowAfterFirst.specStore).toBeUndefined();
+    expect(rowAfterFirst.worktree).toBeUndefined();
+
+    // AC5 (idempotent): a second pause answers 200 and writes nothing new.
+    const second = await realFetch(`${base}/api/controller/runs/${usageRun.id}/pause`, auth({ method: 'POST' }));
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ ok: true });
+    const rowAfterSecond = await getRow(usageRun.id);
+    expect(rowAfterSecond.updated).toBe(rowAfterFirst.updated);
+
+    // AC3: no run has the id.
+    const missing = await realFetch(`${base}/api/controller/runs/run-nope/pause`, auth({ method: 'POST' }));
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: 'run-not-found' });
+
+    // AC4: a terminal run is refused and left unchanged.
+    const doneBefore = await getRow(doneRun.id);
+    const terminal = await realFetch(`${base}/api/controller/runs/${doneRun.id}/pause`, auth({ method: 'POST' }));
+    expect(terminal.status).toBe(409);
+    expect(await terminal.json()).toEqual({ error: 'not-pausable' });
+    const doneAfter = await getRow(doneRun.id);
+    expect(doneAfter).toEqual(doneBefore);
+
+    // Regression guards (hold at base; task 6 Note).
+    const noAuth = await realFetch(`${base}/api/controller/runs/${usageRun.id}/pause`, { method: 'POST' });
+    expect(noAuth.status).toBe(401);
+    const resumeDone = await realFetch(`${base}/api/controller/runs/${doneRun.id}/resume`, auth({ method: 'POST' }));
+    expect(resumeDone.status).toBe(409);
+    expect(await resumeDone.json()).toEqual({ error: 'not-paused' });
+  });
 });
