@@ -146,6 +146,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | dashboard-project-list | design | v3 | approved | 3 rounds |
 | 2026-10-29 | dashboard-project-list | tasks | v1 | approved | 1 rounds |
 | 2026-10-29 | dashboard-project-list | implementation | tasks 0/13 | design-defect | tasks.md File: list for task 1 omits src/core/__tests__/git-utils.test.ts, which must be edited (exported-function regression test) to implement linkedWorktreeInfo — no implementer edit clears this file-outside-list gate verdict; details in /tmp/scratchpad/sdd/dashboard-project-list/fix-1-design-defect-note.md |
+| 2026-10-29 | dashboard-project-list | implementation | tasks 13/13 | complete | PR #191 |
 
 ## Current state — 2026-08-04
 
@@ -1228,7 +1229,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 13/13, implemented 2026-10-29 |
 | Implemented | 2026-10-29 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/191 |
 | Coverage | logCoverage 13/13; reviewCoverage 12/13 (unreviewed: 13); TDD 12 task(s): assertion-red 4, structural-red 8, vacuous 0, inconclusive 0 |
 | Deferrals | 0 added by this spec, 26 open in all |
 | Verifier-skipped | task 1, task 2, task 3, task 4, task 5, task 8, task 9, task 12, task 13 (gate-only review, retro P6/P15) |
