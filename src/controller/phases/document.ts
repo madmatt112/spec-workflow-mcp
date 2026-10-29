@@ -31,6 +31,7 @@ import { adversarialReviewHandler } from '../../tools/adversarial-review.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { harnessHandler } from '../../tools/harness.js';
 import { PathUtils } from '../../core/path-utils.js';
+import { deriveDocumentApprovalStates } from '../../core/approval-records.js';
 import { handoffPath } from '../../watch/index.js';
 import { scrubbedGitEnv } from '../../core/git-utils.js';
 import type { ToolContext } from '../../types.js';
@@ -107,6 +108,8 @@ export interface PendingGate {
   /** The document version the gate was raised at (gate A: always 1). */
   version: number;
   answers?: Record<string, string>;
+  /** When the wait was raised (ISO). */
+  created: string;
 }
 
 /**
@@ -130,6 +133,24 @@ export const NO_OP_GATES: DocumentGates = {
   async resumeAfterGateB() { return { kind: 'proceed' }; },
   async pendingGate() { return undefined; },
 };
+
+/**
+ * True while the run's gate-b wait holds an answered annotation (any reply but
+ * empty or "Approve") that no re-approval has followed yet. The tasks document is
+ * approved before gate B parks the run, so without this check routing goes
+ * straight to implementation and the annotation's reviser round never runs. The
+ * re-approval after that round is newer than the wait, which ends the check.
+ */
+export async function gateBAnnotationPending(
+  gates: DocumentGates, run: RunRecord, specStoreRoot: string, specDir: string,
+): Promise<boolean> {
+  const pg = await gates.pendingGate(run, 'tasks');
+  if (!pg?.answered || !pg.answers) return false;
+  const dir = await gates.resumeAfterGateB({ run, specDir, version: pg.version, answers: pg.answers });
+  if (dir.kind !== 'revise') return false;
+  const tasks = (await deriveDocumentApprovalStates(specStoreRoot, run.spec)).tasks;
+  return !(tasks.approved && tasks.approvedAt && tasks.approvedAt > pg.created);
+}
 
 // ---------------------------------------------------------------------------
 // Context and outcome.
@@ -676,7 +697,11 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
 
   // Idempotent completion: a re-entry after the phase already approved returns the
   // approved outcome without re-running the phase (restart safety, design §5/§8).
-  if (existingRows.some((r) =>
+  // Not while a gate-B annotation is pending: the approved row predates it, and
+  // the Gate B resume below runs its reviser round.
+  const annotationPending = phase === 'tasks'
+    && await gateBAnnotationPending(gates, ctx.run, ctx.specStoreRoot, ctx.specDir);
+  if (!annotationPending && existingRows.some((r) =>
     r.type === 'phase.end' && (r as { phase?: string }).phase === phase &&
     (r as { result?: string }).result === 'approved')) {
     return { result: 'approved', version: D, rounds: totalRoundsNow() };

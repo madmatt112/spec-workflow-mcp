@@ -12,6 +12,7 @@ import {
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
+import { createDocumentGates } from '../phases/gates.js';
 import {
   writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord, type PrRead,
 } from '../state.js';
@@ -293,6 +294,55 @@ describe('runOnce in-flight step record', () => {
     const after = await readRun('run-20261011-000000');
     expect(after?.inFlight).toBeUndefined();
   }, 30000);
+});
+
+describe('runOnce gate-B annotation routing', () => {
+  /** Approved requirements, design and tasks, and a gate-b wait answered with `reply`. */
+  async function seedAnsweredGateB(reply: string, tasksMd?: string): Promise<RunRecord> {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    if (tasksMd) writeFileSync(join(fx.specDir, 'tasks.md'), tasksMd);
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'seed approved documents']);
+    const run = seedRun(fx);
+    await writeRun(run);
+    const dir = await createDocumentGates().gateB({
+      run, specDir: fx.specDir, specStoreRoot: fx.repo, codeRoot: fx.repo, version: 1,
+    });
+    await answerWait((dir as { waitId: string }).waitId, { 'gate-b': reply }, 'tester');
+    return run;
+  }
+  function reviserSpawns(): number {
+    const path = join(fx.specDir, 'harness-events.jsonl');
+    if (!existsSync(path)) return 0;
+    const rows = readFileSync(path, 'utf8')
+      .split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l) as Record<string, string>);
+    return rows.filter((r) => r.type === 'spawn.start' && r.agent === 'sdd-reviser').length;
+  }
+
+  it('sends an approved run back to the tasks phase for the annotation reviser round', async () => {
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/tasks.md`, content: cleanDoc('tasks', 2) }],
+      result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'revised', usage: USAGE },
+    }]);
+    await seedAnsweredGateB('Split task 1 into two tasks.');
+
+    // The token cap stops the loop on the pass after the reviser step spent tokens.
+    await runOnce(deps(fx, { gates: createDocumentGates(), tokenCap: () => 1 }), 'run-20261011-000000');
+
+    expect(reviserSpawns()).toBe(1);
+    expect(git(fx.repo, ['log', '--format=%s'])).toContain(`docs(sdd): ${SPEC} tasks v2 gate-B annotation`);
+  });
+
+  it('does not send the run back once a task has started', async () => {
+    writeScript(fx, []);
+    await seedAnsweredGateB('Split task 1 into two tasks.', `${cleanDoc('tasks', 1)}\n- [x] 1. Done task\n`);
+
+    await runOnce(deps(fx, { gates: createDocumentGates(), isCancelled: () => true }), 'run-20261011-000000');
+
+    expect(reviserSpawns()).toBe(0);
+  });
 });
 
 describe('runOnce usage-limit pause', () => {

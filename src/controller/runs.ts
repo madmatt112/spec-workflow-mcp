@@ -41,7 +41,7 @@ import {
 } from './merge.js';
 import { mergeFixHistory, mergeFixEligible, runMergeFixRound } from './merge-fix.js';
 import {
-  runDocumentPhase, NO_OP_GATES,
+  runDocumentPhase, NO_OP_GATES, gateBAnnotationPending,
   type DocumentPhase, type DocumentGates, type DocumentPhaseContext, type DocumentPhaseOutcome,
 } from './phases/document.js';
 import { runImplementationPhase, type ImplementationPhaseOutcome } from './phases/implementation.js';
@@ -835,7 +835,17 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
       return;
     }
 
-    const decision = await routeRun(specStoreRoot, run.spec);
+    let decision = await routeRun(specStoreRoot, run.spec);
+    // A gate-B annotation answered before any task ran sends the run back to the
+    // tasks phase for its reviser round (the tasks document is already approved,
+    // so routeRun alone never returns there).
+    if (decision.kind === 'implementation') {
+      const tp = taskProgress(specDir);
+      if (tp.completed === 0 && tp.inProgress === 0
+        && await gateBAnnotationPending(deps.gates ?? NO_OP_GATES, run, specStoreRoot, specDir)) {
+        decision = { kind: 'document', phase: 'tasks' };
+      }
+    }
 
     if (decision.kind === 'done') {
       // The close-out's PRs merge by rule before the run ends (T14); a stuck one
