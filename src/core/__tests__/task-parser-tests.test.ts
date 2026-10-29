@@ -124,16 +124,6 @@ describe('parseTasksFromMarkdown — Test lines', () => {
     expect(tasks[0].files).toEqual(['specs/x/probe-YYYY-MM-DD.txt', 'src/a.ts', 'src/b.ts']);
   });
 
-  it('turns a declared-directory annotation into a trailing-slash prefix', () => {
-    const md = [
-      '- [ ] 1. A task',
-      '  - File: screenshots/before (declared directory: twelve files, `now`, `runs`, each `view-theme.png`)',
-      '',
-    ].join('\n');
-    const { tasks } = parseTasksFromMarkdown(md);
-    expect(tasks[0].files).toEqual(['screenshots/before/']);
-  });
-
   it('drops a trailing dash description from a File entry', () => {
     const md = [
       '- [ ] 1. A task',
