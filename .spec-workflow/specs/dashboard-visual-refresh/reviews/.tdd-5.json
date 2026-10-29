@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/frontend-style-scan.test.ts"],"seams":{"src/dashboard/__tests__/frontend-style-scan.test.ts":"npx vitest run src/dashboard/__tests__/frontend-style-scan.test.ts"},"redCommit":"a75f68f8ddcc73475490393a827608ed6abe342f","baseSha":"2b7ae482ee6685d505fe9a53379b798298998e95","base":"assertion-red","head":"pass","amended":false,"judged":null}
