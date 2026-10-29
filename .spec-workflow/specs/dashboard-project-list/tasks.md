@@ -92,7 +92,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 3.1, 3.4, 3.5, 7.2_
   - _Prompt: Task: Per design C7 and the Testing Strategy Integration bullet, and R3 AC1, AC4 and AC5, append the flag task 7 adds to the inline server's args in runCases, after the fixture root. In runner.test.ts, add a case whose stub step records its mcpConfig and asserts the spec-workflow server args end with the fixture root then that flag. Create runner-registry.test.ts: runCases with a stub step that takes the step's server args, swaps dist/index.js for src/index.ts, spawns it with the tsx binary under node_modules/.bin, and waits for either "Project registered:" (src/server.ts:195) or the skip line task 7 logs, on stderr; while the child is alive, it reads activeProjects.json under the per-worker SPEC_WORKFLOW_HOME and asserts no entry whose projectPath is the fixture root; it then ends stdin and waits for exit code 0. Assert only on stderr data and the exit code (node 20 fields). Give it a 60000 ms timeout | Restrictions: The runner reads, edits and deletes nothing in the registry or projects.json; no live model call | Success: The stub sees the task 7 flag after the fixture root; the spawned server prints the skip line, leaves no fixture entry in the registry while alive, and exits 0; existing runner tests keep their values_
 
-- [ ] 9. Spec rows once per store
+- [x] 9. Spec rows once per store
   - File: src/dashboard/shell/store-groups.ts (new)
   - File: src/dashboard/shell/__tests__/store-groups.test.ts (new)
   - File: src/dashboard/shell/shell-feed.ts
