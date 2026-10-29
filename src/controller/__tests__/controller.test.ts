@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { Controller } from '../controller.js';
 import { writeRun, readRun, writeRateLimit, readRateLimit, type RunRecord } from '../state.js';
-import { listOpenWaits, answerWait } from '../waits.js';
+import { listOpenWaits, answerWait, createWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { runEvents } from '../runs.js';
 
@@ -808,4 +808,168 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     expect(second?.updated).toBe(first?.updated);
     expect(second?.pauseRequested).toBe(first?.pauseRequested);
   });
+});
+
+// Contract for the settle pass, wait answers and restart (design C4
+// "Scheduler changes" item 2, "Waits", "Recovery"; task 5 success criteria).
+// Per success criterion:
+// - A held `queued` record parks `paused`/`operator` on `pump()`. Pre: a
+//   `queued` run seeded with `pauseRequested` set (owned write), controller
+//   started. Call: `controller.pump()`. Result: `status: 'paused'`,
+//   `pauseReason: 'operator'`, no `resumeAt`, no `inFlight`. Source: design
+//   C4 scheduler item 2; Requirement 3 AC 5 (parked while idle, the general
+//   case AC 3 covers for `merging`).
+// - A held `merging` record parks `paused`/`operator` with the `merge`
+//   cursor. Pre: a `merging` run with an `implementation` cursor and
+//   `pauseRequested` set, controller started. Call: `controller.pump()`.
+//   Result: `status: 'paused'`, `pauseReason: 'operator'`, no `resumeAt`,
+//   cursor `{ phase, stepKind: 'merge', attempt: 1 }`. Source: design C4
+//   scheduler item 2, C5; Requirement 3 AC 3.
+// - Pausing a `waiting` run leaves it `waiting` and held; answering the
+//   wait parks it `paused`/`operator` with the answer written to
+//   `retrospective-plan.md` as today. Pre: a run driven to `waiting` at the
+//   retrospective's retro-plan wait. Call: `controller.pause(id)`, then
+//   `answerWait(retro.id, { 'proposal:0': 'approve' }, 'matthew')`. Result:
+//   `pause` returns `status: 'waiting'`, `pauseRequested` set; after the
+//   answer the run is `paused`/`operator`, no `resumeAt`, and
+//   `retrospective-plan.md` reads `Status: APPROVED`. Source: design C4
+//   "Waits"; Requirement 3 AC 4.
+// - Restart: `start()` on records seeded `paused`/`operator`, `running`
+//   with a dead pid, and `waiting` with an answered wait leaves all three
+//   `paused`/`operator`, with no stub step consumed. Source: design C4
+//   "Recovery", "Waits"; Requirement 5 AC 2, AC 4, AC 5.
+describe('Controller settle pass, wait answers and restart (design C4 item 2, Waits, Recovery)', () => {
+  it('settle pass parks a held queued record paused/operator on pump()', async () => {
+    const id = 'run-20261011-050515';
+    const iso = '2026-10-11T05:05:15.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', pauseRequested: iso,
+      created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    controller = makeController(fx);
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('paused');
+    expect(after?.pauseReason).toBe('operator');
+    expect(after?.resumeAt).toBeUndefined();
+    expect(after?.inFlight).toBeUndefined();
+  });
+
+  it('settle pass parks a held merging record paused/operator with the merge cursor', async () => {
+    const id = 'run-20261011-050516';
+    const iso = '2026-10-11T05:05:16.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'main', status: 'merging', phase: 'implementation',
+      cursor: { phase: 'implementation', stepKind: 'implementation', attempt: 1 },
+      pauseRequested: iso, created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    controller = makeController(fx);
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('paused');
+    expect(after?.pauseReason).toBe('operator');
+    expect(after?.resumeAt).toBeUndefined();
+    expect(after?.cursor).toEqual({ phase: 'implementation', stepKind: 'merge', attempt: 1 });
+  });
+
+  it('leaves a paused waiting run held and open, then parks it paused/operator with the answer on disk', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-proposals.md'), PROPOSALS);
+
+    const id = 'run-20261011-050517';
+    const iso = '2026-10-11T05:05:17.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    controller = makeController(fx);
+    await controller.start();
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.phase).toBe('retrospective');
+
+    const held = await controller.pause(id);
+    expect(held?.status).toBe('waiting');
+    expect(held?.pauseReason).toBeUndefined();
+    expect(held?.pauseRequested).toBeTruthy();
+
+    const open = await listOpenWaits();
+    const retro = open.find((w) => w.run === id && w.kind === 'retro-plan');
+    expect(retro).toBeTruthy();
+    await answerWait(retro!.id, { 'proposal:0': 'approve' }, 'matthew');
+
+    const parked = await waitForStatus(id, 'paused');
+    expect(parked.pauseReason).toBe('operator');
+    expect(parked.resumeAt).toBeUndefined();
+    expect(parked.pauseRequested).toBeTruthy();
+    expect(readFileSync(join(fx.specDir, 'retrospective-plan.md'), 'utf8')).toMatch(/Status: APPROVED/);
+  }, 20000);
+
+  it('restart parks a held paused/operator record, a held running record with a dead pid, and a held waiting record with an answered wait, all paused/operator with no stub step consumed', async () => {
+    const scriptPath = join(fx.base, 'script.json');
+
+    const idA = 'run-20261011-050518';
+    const isoA = '2026-10-11T05:05:18.000Z';
+    await writeRun({
+      v: 1, id: idA, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'paused', pauseReason: 'operator', pauseRequested: isoA,
+      created: isoA, updated: isoA,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    const idB = 'run-20261011-050519';
+    const isoB = '2026-10-11T05:05:19.000Z';
+    await writeRun({
+      v: 1, id: idB, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'main', status: 'running', pauseRequested: isoB,
+      phase: 'requirements', cursor: { phase: 'requirements', stepKind: 'reviewer', attempt: 1 },
+      inFlight: { id: 's-dead', pid: 999999, startTime: 0 },
+      created: isoB, updated: isoB,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    const idC = 'run-20261011-050520';
+    const isoC = '2026-10-11T05:05:20.000Z';
+    const wait = await createWait({
+      kind: 'question', runId: idC, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{ id: 'q', text: 'q?' }],
+    });
+    await answerWait(wait.id, { q: 'ok' }, 'matthew');
+    await writeRun({
+      v: 1, id: idC, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'waiting', pauseRequested: isoC,
+      created: isoC, updated: isoC,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    controller = makeController(fx);
+    await controller.start();
+
+    const a = await waitForStatus(idA, 'paused');
+    expect(a.pauseReason).toBe('operator');
+
+    const b = await waitForStatus(idB, 'paused');
+    expect(b.pauseReason).toBe('operator');
+    expect(b.inFlight).toBeUndefined();
+
+    const c = await waitForStatus(idC, 'paused');
+    expect(c.pauseReason).toBe('operator');
+    expect(c.resumeAt).toBeUndefined();
+
+    expect(existsSync(`${scriptPath}.counter`)).toBe(false);
+  }, 20000);
 });
