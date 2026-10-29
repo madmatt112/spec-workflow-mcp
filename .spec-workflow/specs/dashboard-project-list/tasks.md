@@ -135,7 +135,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8_
   - _Prompt: Task: Per design C10, the C11 count bullets and C12 (except the type copies, which task 12 adds), and R2 AC1 to AC6 and AC8, add workflowRootPath to Project; create stores.ts exporting storeGroups and storeOf as design C10 pins them; make the Specs count count specRows whose store is in an enabled group, and the Deferrals count take, per enabled group, the deferred records of the first project with a payload; make both pages iterate enabled store groups with store-keyed group and selection keys and the representative's name as group title, keeping the row test-id forms. Create the e2e file: resetSpecWorkflowHome, a shared-mode WorktreeHarness with two worktrees and no listed main project (two listed projects on one store), seeded specs and one deferred record in the store; assert nav-specs equals the store's spec count, nav-deferrals the store's deferred count, the Specs page row count equals nav-specs, both stay with one project toggled off, and both are 0 with both off; clean up in afterAll | Restrictions: No new colour, route or poll; e2e/worktree-shell.spec.ts is not edited and stays green | Success: The shared store counts each spec and deferral once; the Specs page row count equals the Specs count; the any-enabled rule holds; npm run build:dashboard passes_
 
-- [ ] 12. Status dot, live-run count and order on each project row
+- [x] 12. Status dot, live-run count and order on each project row
   - File: src/dashboard_frontend/src/modules/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/Sidebar.tsx
   - File: e2e/worktree-project-list.spec.ts

@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-project-list.spec.ts"],"seams":{"e2e/worktree-project-list.spec.ts":"test(\"a live worktree run shows one running row\")"},"redCommit":"9cd3f6f110925eb7aeda5d681fef9c216ebb7bc7","baseSha":"e9819fde54518c83388b8d35e1985222598afcb9","base":"structural-red","head":"pass","amended":false,"judged":null}
