@@ -4,6 +4,7 @@ import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { Gear } from './Gear';
 import { ui } from '../ui/ui';
+import { storeGroups, storeOf } from '../projects/stores';
 
 interface NavItem {
   to: string;
@@ -38,10 +39,20 @@ function SidebarContent({ onNavigate }: { onNavigate: () => void }) {
 
   const waitsCount = (now?.waits ?? []).filter((w) => enabled(w.projectId)).length;
   const liveCount = (now?.live ?? []).filter((r) => enabled(r.projectId)).length;
-  const specsCount = specRows.filter((r) => enabled(r.projectId)).length;
-  const deferredCount = projects
-    .filter((p) => enabled(p.projectId))
-    .reduce((sum, p) => sum + (deferralsByProject[p.projectId]?.deferrals ?? []).filter((d) => d.status === 'deferred').length, 0);
+
+  // Specs/Deferrals key on the store (design C10/C11, Requirement 2): a
+  // store counts once however many listed projects share it, and is
+  // enabled when any one of them is.
+  const groups = storeGroups(projects, enabled);
+  const enabledStores = new Set(groups.filter((g) => g.enabled).map((g) => g.store));
+  const specsCount = specRows.filter((r) => enabledStores.has(storeOf(projects, r.projectId))).length;
+  const deferredCount = groups
+    .filter((g) => g.enabled)
+    .reduce((sum, g) => {
+      const withPayload = g.projects.find((p) => deferralsByProject[p.projectId]);
+      const deferrals = withPayload ? (deferralsByProject[withPayload.projectId]?.deferrals ?? []) : [];
+      return sum + deferrals.filter((d) => d.status === 'deferred').length;
+    }, 0);
 
   const items: NavItem[] = [
     { to: '/', testId: 'nav-now', label: 'Now', count: waitsCount, end: true },

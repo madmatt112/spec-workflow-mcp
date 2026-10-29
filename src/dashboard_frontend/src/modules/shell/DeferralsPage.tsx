@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
-import { useShell, DeferralRecord } from './ShellProvider';
+import { storeGroups } from '../projects/stores';
+import { useShell, DeferralRecord, type DeferralsPayload } from './ShellProvider';
+import type { StoreGroup } from '../projects/stores';
 import { PageLayout } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
@@ -41,9 +43,17 @@ interface FullDeferral extends DeferralRecord {
 }
 
 interface Item {
-  projectId: string;
+  store: string;
   projectName: string;
   d: FullDeferral;
+}
+
+/** A group's records come from the first project in it with a payload
+ * (design C12): `deferralsByProject` is built per store, so whichever
+ * member's payload has arrived carries the whole store's records. */
+function recordsOf(group: StoreGroup, deferralsByProject: Record<string, DeferralsPayload>): FullDeferral[] {
+  const withPayload = group.projects.find((p) => deferralsByProject[p.projectId]);
+  return withPayload ? (deferralsByProject[withPayload.projectId]?.deferrals ?? []) as FullDeferral[] : [];
 }
 
 const STATUS_TONE: Record<string, Tone> = {
@@ -71,8 +81,8 @@ function OwnerBadge({ owner, testId }: { owner: string; testId: string }) {
   );
 }
 
-function key(projectId: string, id: string): string {
-  return `${projectId}::${id}`;
+function key(store: string, id: string): string {
+  return `${store}::${id}`;
 }
 
 export function DeferralsPage() {
@@ -85,17 +95,15 @@ export function DeferralsPage() {
   const [page, setPage] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const enabledProjects = useMemo(
-    () => projects.filter((p) => enabled(p.projectId)),
-    [projects, enabled]
-  );
-  const enabledKey = enabledProjects.map((p) => p.projectId).join(',');
+  const groups = useMemo(() => storeGroups(projects, enabled), [projects, enabled]);
+  const enabledGroups = useMemo(() => groups.filter((g) => g.enabled), [groups]);
+  const enabledKey = enabledGroups.map((g) => g.store).join(',');
 
-  // Status counts across every enabled project's records (not the search / chip).
+  // Status counts across every enabled store's records (not the search / chip).
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { deferred: 0, resolved: 0, superseded: 0 };
-    for (const p of enabledProjects) {
-      for (const d of (deferralsByProject[p.projectId]?.deferrals ?? [])) {
+    for (const g of enabledGroups) {
+      for (const d of recordsOf(g, deferralsByProject)) {
         if (counts[d.status] !== undefined) counts[d.status] += 1;
       }
     }
@@ -103,11 +111,11 @@ export function DeferralsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledKey, deferralsByProject]);
 
-  // Owner counts across every enabled project's records (unowned counts as 'none').
+  // Owner counts across every enabled store's records (unowned counts as 'none').
   const ownerCounts = useMemo(() => {
     const counts: Record<string, number> = { matthew: 0, harness: 0, none: 0 };
-    for (const p of enabledProjects) {
-      for (const d of ((deferralsByProject[p.projectId]?.deferrals ?? []) as FullDeferral[])) {
+    for (const g of enabledGroups) {
+      for (const d of recordsOf(g, deferralsByProject)) {
         const o = d.owner ?? 'none';
         if (counts[o] !== undefined) counts[o] += 1;
       }
@@ -116,20 +124,19 @@ export function DeferralsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledKey, deferralsByProject]);
 
-  // Flatten the filtered records of every enabled project, in project order.
+  // Flatten the filtered records of every enabled store, in group order.
   const items = useMemo<Item[]>(() => {
     const q = query.trim().toLowerCase();
     const out: Item[] = [];
-    for (const p of enabledProjects) {
-      const recs = (deferralsByProject[p.projectId]?.deferrals ?? []) as FullDeferral[];
-      for (const d of recs) {
+    for (const g of enabledGroups) {
+      for (const d of recordsOf(g, deferralsByProject)) {
         if (active.length && !active.includes(d.status)) continue;
         if (activeOwners.length && !activeOwners.includes(d.owner ?? 'none')) continue;
         if (q) {
           const hay = `${d.title ?? ''} ${d.id ?? ''} ${d.originSpec ?? ''}`.toLowerCase();
           if (!hay.includes(q)) continue;
         }
-        out.push({ projectId: p.projectId, projectName: p.projectName, d });
+        out.push({ store: g.store, projectName: g.representative.projectName, d });
       }
     }
     return out;
@@ -139,24 +146,24 @@ export function DeferralsPage() {
   // Reset to the first page whenever the filter set changes.
   useEffect(() => { setPage(0); }, [active, activeOwners, query, enabledKey]);
 
-  const totalByProject = useMemo(() => {
+  const totalByStore = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const it of items) m[it.projectId] = (m[it.projectId] ?? 0) + 1;
+    for (const it of items) m[it.store] = (m[it.store] ?? 0) + 1;
     return m;
   }, [items]);
 
   const pageItems = items.slice(page * ROWS_PER_PAGE, page * ROWS_PER_PAGE + ROWS_PER_PAGE);
-  const groups = enabledProjects
-    .map((p) => ({ p, rows: pageItems.filter((it) => it.projectId === p.projectId) }))
-    .filter((g) => g.rows.length > 0);
+  const groupsWithRows = enabledGroups
+    .map((g) => ({ g, rows: pageItems.filter((it) => it.store === g.store) }))
+    .filter((x) => x.rows.length > 0);
 
   // Resolve the selected record from current data so a push refreshes the panel.
   const selected = useMemo<Item | null>(() => {
     if (!selectedKey) return null;
-    for (const p of enabledProjects) {
-      for (const d of (deferralsByProject[p.projectId]?.deferrals ?? []) as FullDeferral[]) {
-        if (key(p.projectId, d.id) === selectedKey) {
-          return { projectId: p.projectId, projectName: p.projectName, d };
+    for (const g of enabledGroups) {
+      for (const d of recordsOf(g, deferralsByProject)) {
+        if (key(g.store, d.id) === selectedKey) {
+          return { store: g.store, projectName: g.representative.projectName, d };
         }
       }
     }
@@ -196,17 +203,17 @@ export function DeferralsPage() {
         </div>
       ) : (
         <>
-          {groups.map(({ p, rows }) => (
-            <Group key={p.projectId} name={p.projectId} title={p.projectName} count={totalByProject[p.projectId]}>
+          {groupsWithRows.map(({ g, rows }) => (
+            <Group key={g.store} name={g.store} title={g.representative.projectName} count={totalByStore[g.store]}>
               {rows.map(({ d }) => (
                 <Row
                   key={d.id}
-                  testId={`deferral-row-${p.projectId}-${d.id}`}
-                  selected={selectedKey === key(p.projectId, d.id)}
-                  onClick={() => setSelectedKey(key(p.projectId, d.id))}
+                  testId={`deferral-row-${g.representative.projectId}-${d.id}`}
+                  selected={selectedKey === key(g.store, d.id)}
+                  onClick={() => setSelectedKey(key(g.store, d.id))}
                 >
                   <StatusBadge status={d.status} />
-                  {d.owner && <OwnerBadge owner={d.owner} testId={`deferral-owner-${p.projectId}-${d.id}`} />}
+                  {d.owner && <OwnerBadge owner={d.owner} testId={`deferral-owner-${g.representative.projectId}-${d.id}`} />}
                   <span className="shrink-0 font-mono text-xs text-[var(--text-muted)]">{d.id}</span>
                   <span className="min-w-0 flex-1 truncate text-[var(--text-primary)]">{d.title}</span>
                   <span className="hidden shrink-0 text-xs text-[var(--text-secondary)] sm:inline">

@@ -9,6 +9,7 @@ export interface Project {
   projectId: string;
   projectName: string;
   projectPath: string;
+  workflowRootPath: string;
   instances: ProjectInstance[];
 }
 
