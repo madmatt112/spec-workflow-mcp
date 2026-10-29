@@ -63,6 +63,9 @@ export type RunStatus =
   | 'abandoned'
   | 'error';
 
+/** The `pauseReason` value of an applied operator pause. `pauseReason` stays a free string. */
+export const OPERATOR_PAUSE = 'operator';
+
 /** `runs/<id>/run.json`: the machine state of one run. */
 export interface RunRecord {
   v: 1;
@@ -81,6 +84,11 @@ export interface RunRecord {
   status: RunStatus;
   /** Why the run is paused, when `status` is `paused`. */
   pauseReason?: string;
+  /**
+   * ISO time of the operator's pause request: set while the hold is pending
+   * or applied, cleared only by Resume or the run ending (design C1).
+   */
+  pauseRequested?: string;
   /**
    * ISO time the run may resume: a usage window's `resetsAt` when `paused`, or
    * the next merge-rule re-check when `merging` (T7's `MERGE_POLL_INTERVAL_MS`).
@@ -385,12 +393,47 @@ export function readRun(id: string): Promise<RunRecord | undefined> {
   return readJson<RunRecord>(runPath(id));
 }
 
-export function writeRun(record: RunRecord): Promise<void> {
+/** Synchronous `readRun`, for the driver's per-check reads (C3, C1). */
+export function readRunSync(id: string): RunRecord | undefined {
+  try {
+    return JSON.parse(readFileSync(runPath(id), 'utf-8')) as RunRecord;
+  } catch {
+    return undefined;
+  }
+}
+
+// Serialises `writeRun` per run id, so the read-then-write below never races
+// another `writeRun` for the same id (design C1 post-condition 1). Chained
+// with a promise that never rejects, so a failed write does not stall later
+// writes for that id.
+const writeChains = new Map<string, Promise<void>>();
+
+async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
   // Every writer spreads the record it read, so `pausedAt` carries over while the
   // run stays stopped and is stamped only on the write that stops it.
   const stopped = record.status === 'paused' || record.status === 'waiting';
-  const out = { ...record, pausedAt: stopped ? (record.pausedAt ?? new Date().toISOString()) : undefined };
+  const terminal = record.status === 'done' || record.status === 'abandoned' || record.status === 'error';
+  let pauseRequested = record.pauseRequested;
+  if (!opts?.ownsPauseRequest && !terminal) {
+    pauseRequested = (await readRun(record.id))?.pauseRequested;
+  }
+  if (terminal) pauseRequested = undefined;
+  const out = {
+    ...record,
+    pausedAt: stopped ? (record.pausedAt ?? new Date().toISOString()) : undefined,
+    pauseRequested,
+  };
   return writeJsonAtomic(runPath(record.id), out);
+}
+
+export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
+  const prior = writeChains.get(record.id) ?? Promise.resolve();
+  const settled = prior.then(
+    () => writeRunLocked(record, opts),
+    () => writeRunLocked(record, opts),
+  );
+  writeChains.set(record.id, settled.catch(() => undefined));
+  return settled;
 }
 
 // ---------------------------------------------------------------------------
