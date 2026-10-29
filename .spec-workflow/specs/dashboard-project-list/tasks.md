@@ -55,7 +55,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 4.2, 4.7, 4.8_
   - _Prompt: Task: Per design C5 and R4 AC2, AC7 and AC8, add a private withProjectsLock that takes withRegistryLock on projects.json.lock beside projectsPath() and throws when the lock is not acquired, as withStoreLock does. Run the bodies of rememberProject and forgetProject inside it; signatures unchanged. Export pruneMissingProjects: inside the same lock, drop every entry whose workspacePath or workflowRootPath is missing, write once only if something dropped, log one line per drop naming the id, the projects.json path and the missing path, and return the dropped entries; on a lock miss, log and return an empty array with no write. Tests: two entries, one with a deleted workspace, give that one back and leave the other; nothing missing gives no write; a rememberProject started while a prune waits on a deferred isMissing is present after both settle; with the lock held the prune returns an empty array and rememberProject rejects. Held-lock tests get a 15000 ms timeout | Restrictions: readProjects stays unlocked; no other caller of these functions changes | Success: The missing entry is dropped, returned and logged; the file is not rewritten when nothing is missing; the concurrent remember survives; a held lock gives an empty prune and a rejecting remember; tsc is clean_
 
-- [ ] 6. Project manager reconcile
+- [x] 6. Project manager reconcile
   - File: src/dashboard/project-manager.ts
   - File: src/dashboard/__tests__/project-manager-durable.test.ts
   - Test: src/dashboard/__tests__/project-manager-durable.test.ts — new ProjectManager().initialize(), syncWithRegistry(), removeProjectById(id)
