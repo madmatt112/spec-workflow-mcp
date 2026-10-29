@@ -137,3 +137,25 @@
 - src/dashboard/shell/__tests__/now-model.test.ts:1-397 — Now model builder tests.
 - e2e/worktree-shell.spec.ts:108 — shell e2e uses the no-shared harness (one store per worktree).
 - e2e/worktree-shell.spec.ts:174 — seeds a controller `run.json` under the state home.
+
+## Tasks phase — tests and fixtures
+- src/__tests__/index-args.test.ts:167-169 — exact boolean-flag list; grows by one with a new flag.
+- src/__tests__/index-args.test.ts:172 — per-flag `=value` rejection loop over `BOOLEAN_FLAGS`.
+- src/core/registry-lock.ts:14 — `DEFAULT_LOCK_TIMEOUT_MS` is 5000.
+- src/core/__tests__/registry-lock.test.ts:293-306 — held fresh lock times out; the held-lock test pattern.
+- src/evals/__tests__/runner.test.ts:90 — `writeScript` helper.
+- src/evals/__tests__/runner.test.ts:99 — `makeLiveCheckout` helper.
+- src/dashboard/shell/__tests__/shell-feed.test.ts:127-134 — `makeProject` stub; sets no `workflowRootPath`.
+- src/dashboard/shell/__tests__/shell-feed.test.ts:337-342 — bad-project stub; sets no `workflowRootPath`.
+- src/dashboard/multi-server.ts:520-544 — `POST /api/projects/add`, body `projectPath` and optional `workflowRootPath`.
+- src/server.ts:234-236 — stdin `end` runs `stop()` then exits 0.
+- src/controller/waits.ts:87 — `createWait`, writes one open wait record.
+- e2e/helpers/worktree-harness.ts:246-255 — `resetSpecWorkflowHome`, empties the registry and `projects.json`.
+- e2e/helpers/worktree-harness.ts:327 — `getRepoPath`, the main checkout (shared store in shared mode).
+- e2e/helpers/worktree-harness.ts:614 — `waitForProjects`, counts only the fixture's own worktree ids.
+- e2e/worktree-shell.spec.ts:100-115 — no-shared harness setup.
+- e2e/worktree-shell.spec.ts:164-174 — run record seeded as `run.json` under the SDD home.
+- docs/CONFIGURATION.md:20-21 — CLI flag table rows.
+- docs/CONFIGURATION.md:29 — boolean-flag list sentence.
+- package.json:26 — `build` runs `tsc` then `build:dashboard`; the frontend has no type check.
+- package.json:39 — `test:e2e:worktree`.
