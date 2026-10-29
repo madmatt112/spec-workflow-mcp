@@ -7,6 +7,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Task 1 adds the visual e2e su
 - [ ] 1. Visual suite seed and the before screenshots
   - File: e2e/helpers/shell-seed.ts
   - File: e2e/worktree-visual.spec.ts
+  - File: src/core/task-parser.ts, src/core/__tests__/task-parser-tests.test.ts (a parser change and its revert, 3015906c and 9796d63e; no net change)
   - File: .spec-workflow/specs/dashboard-visual-refresh/screenshots/before/ (declared directory: twelve files, `now`, `runs`, `run`, `specs`, `usage`, `deferrals` × `light`, `dark`, each `view-theme.png`)
   - Verification-only: no change under `src/`. Implementer-only; no test author, no red test (agent-rules, Fixtures and live verification).
   - Purpose: Give later tasks a seeded harness and record the base look before any frontend change.
