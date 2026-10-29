@@ -54,3 +54,8 @@ Cost: implementer
 gate re-sent fix-round-2 with byte-identical output to round 1 (incl. task-1's already-resolved Operator rulings); line-count/structural-red are tasks.md's pre-declared verifier routing, not implementer defects, and "tests fail on HEAD" is contradicted by a live re-run — loop should route to the verifier instead of resending the same brief
 Evidence: task 4 · mark run-20261028-181442 ac5a342c
 Cost: unknown
+
+## 2026-10-29T04:51:48Z · implementation · task 4 · gotcha
+task 4 closed: 0 fix round(s), outcome pass
+Evidence: task 4 · mark run-20261028-181442 16754cf6
+Cost: 1 implementer spawn(s)
