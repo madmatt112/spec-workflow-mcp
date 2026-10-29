@@ -1,55 +1,56 @@
 # Adversarial Review Memory — requirements
 
-Last updated: 2026-10-29 (round 1, v1)
+Last updated: 2026-10-29 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-(none yet — round 1)
+- **R1-1 (MUST_FIX, v1)** — store identity missing on the wire. Fixed in v2: R2 AC8
+  adds store identity (workflow root) to the project-list payload; R2 AC5 restated to
+  group Specs-page rows by store; D13. Verified resolved.
+- **R1-2 (SHOULD_FIX, v1)** — worktree vs separate-store-main classification needs git,
+  not path comparison; main working tree not stored; cost unbounded. Partly fixed in v2
+  (Terms + NFR git-determination bullet) but the fix mis-cites the primitive — see R2-1.
+- **R1-3 (SHOULD_FIX, v1)** — filter × dot/sort unspecified. Fixed in v2: R5 AC11 + D14.
+- **R1-4 (SHOULD_FIX, v1)** — projects.json startup removal unserialized vs controller
+  remember/forget. Fixed in v2: R4 AC8 (serialize with the unlocked atomic-rename writes).
+- **R1-5 (SHOULD_FIX, v1)** — AC2 fallback could fold onto a different store. Fixed in v2:
+  AC2 gained the `P.workflowRoot === entry.workflowRoot` conjunct. Wrong-store fold closed;
+  a different AC2 gap remains — see R2-2.
 
 ### Partially Accepted
-(none yet)
+(none)
 
 ### Rejected
-(none yet)
+(none; lint L-1..L-5 dot-state literals rejected with reasons — closed, do not re-open)
 
 ### Unresolved
-- **R1-1 (MUST_FIX)** — R2 dedup + any-enabled filter unbuildable against cited
-  artifacts: project-list payload carries no store id (`project-manager.ts:301-313`),
-  `SpecListRow` has one `projectId` (`shell/types.ts:71-83`), SpecsPage groups by
-  `projectId` (`SpecsPage.tsx:83-111,169`), deferrals fetched per project
-  (`ShellProvider.tsx:127-134`). AC1+AC3+AC5 jointly unsatisfiable.
-- **R1-2 (SHOULD_FIX)** — fold rule can't tell a linked worktree from a separate-store
-  main checkout (both have workspace≠workflowRoot in the registry); needs git per
-  entry (`git-utils.ts:133-139,260-270`). "Main working tree" (AC1) and classification
-  not stored; R1 AC5 re-runs every sync; NFR Performance silent on the cost.
-- **R1-3 (SHOULD_FIX)** — filter × dot/sort unspecified for disabled projects; sidebar
-  renders a row for every project (`Sidebar.tsx:80-91`); a hidden waiting project
-  could sort to the top (R5/R6 vs R2's explicit filter handling).
-- **R1-4 (SHOULD_FIX)** — R4 AC2 bulk `projects.json` startup removal has no lock while
-  the registry removal has AC6's; `writeJsonAtomic` is rename-only
-  (`state.ts:318-323,460-473`); can clobber a concurrent controller remember.
-- **R1-5 (SHOULD_FIX)** — R1 AC2 fallback matches only `P.workspace===entry.workflowRoot`,
-  missing `P.workflowRoot===entry.workflowRoot`; can fold a worktree into a project on
-  a different store, the wrong-row case D5 claims to prevent.
-- Minor: R5 AC6 "1 or more" vs one-run guard (`controller.ts:160`); R5 AC8 token
-  availability for dot states.
+- **R2-1 (MUST_FIX, v2, fix-induced, Compounds R1-2)** — R1 Terms + NFR Performance cite
+  `git-utils.ts:260-270` (`isGitWorktree`, a boolean) for "finds that worktree's main
+  working tree". That function cannot return a path. The main-tree derivation lives in
+  `gitCommonDirAbsolute` (`git-utils.ts:133-139`) / `resolveGitRoot` (`:214-252`, parent-
+  of-.git at 238-244, but note it honours `SPEC_WORKFLOW_SHARED_ROOT` first so it returns
+  the store in the AC9 case). Cite the common-dir primitive for the path half.
+- **R2-2 (SHOULD_FIX, v2, Compounds R1-5)** — R1 AC2 store-only fold is not gated on the
+  entry being a linked worktree (AC1 repeats that precondition, AC2 omits it), so for a
+  separate-store main checkout (AC9) whose store is also a listed plain repo, AC2 folds it
+  and violates AC9's "only linked worktrees fold" invariant (and NFR Reliability on a
+  failed determination). Gate AC2 inside the linked-worktree branch.
 
 ## Patterns & Themes
-
-- The spec's weak seam is the **server→client wire for store-level aggregation**:
-  everything in R2/R5/R6 is attributed per `projectId`, but the real unit is the
-  **store** (workflowRoot). No wire shape carries store identity, so dedup, filter,
-  and worktree-vs-separate-store classification all lack the data they need.
-- Citations are accurate; run attribution (`controller.ts:166`) correctly lands the
-  dot/count on the parent, so R5/R7 are internally consistent on that axis.
+- The weak seam remains the **worktree-classification / main-working-tree derivation** in
+  git-utils. R1 repeatedly under-specifies which git primitive yields which value;
+  `isGitWorktree` (boolean) vs `gitCommonDirAbsolute`/`resolveGitRoot` (paths) are
+  distinct and `resolveGitRoot` is contaminated by the shared-root env override.
+- AC1/AC2 are a two-branch fold rule; AC2's preconditions keep drifting out of sync with
+  AC1's and with the AC9 invariant. Each round has closed one AC2 gap and exposed another.
+- Store-level aggregation wire (R1-1) now sound after AC8/D13.
 
 ## Guidance for Next Review
-
-- Re-probe whether the reviser added a store-identity field (payload `workflowRootPath`
-  or a row-level store/projectId-set) and whether SpecsPage grouping was restated. If
-  not, R1-1 stays MUST_FIX.
-- Check R1 ACs for an explicit worktree-classification mechanism and cost note.
-- Confirm R4 states projects.json removal serialization; confirm R1 AC2 gained the
-  workflowRoot conjunct.
-- Do not re-open the accurate citations or the run-attribution chain (verified sound).
+- Confirm the git citation was corrected so both halves (classify + find main tree) are
+  grounded, and that the shared-root-env contamination of `resolveGitRoot` is accounted for.
+- Confirm AC2 was gated on linked-worktree classification (no path-only fold of a
+  non-worktree or an unclassifiable entry).
+- Well-covered, do not re-examine: R2 store-identity wire (AC8/D13), R4 serialization
+  (AC8), R5 filter×dot/sort (AC11/D14), the dot-state lint literals. Citations outside
+  git-utils are verified accurate.
