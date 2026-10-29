@@ -1,0 +1,1 @@
+{"testFiles":["src/core/__tests__/git-utils-worktree.test.ts"],"seams":{"src/core/__tests__/git-utils-worktree.test.ts":"linkedWorktreeInfo(workspacePath)"},"redCommit":"1f077182df4b81b4223b95c3d7d4cc5b99bacaa1","baseSha":"4a39eff7ebd01c914e5ec47de87eb48c98b562b5","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -145,6 +145,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | dashboard-project-list | requirements | v3 | approved | 3 rounds |
 | 2026-10-29 | dashboard-project-list | design | v3 | approved | 3 rounds |
 | 2026-10-29 | dashboard-project-list | tasks | v1 | approved | 1 rounds |
+| 2026-10-29 | dashboard-project-list | implementation | tasks 0/13 | design-defect | tasks.md File: list for task 1 omits src/core/__tests__/git-utils.test.ts, which must be edited (exported-function regression test) to implement linkedWorktreeInfo — no implementer edit clears this file-outside-list gate verdict; details in /tmp/scratchpad/sdd/dashboard-project-list/fix-1-design-defect-note.md |
 
 ## Current state — 2026-08-04
 
@@ -1220,3 +1221,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## dashboard-project-list — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 0/13, stopped: design-defect — tasks.md File: list for task 1 omits src/core/__tests__/git-utils.test.ts, which must be edited (exported-function regression test) to implement linkedWorktreeInfo — no implementer edit clears this file-outside-list gate verdict; details in /tmp/scratchpad/sdd/dashboard-project-list/fix-1-design-defect-note.md |
