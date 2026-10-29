@@ -77,3 +77,48 @@
 
 ## Design reference
 - docs/controller-design.md:168-195 — §8 liveness and §9 usage window and pause.
+
+## Design phase additions — state and driver
+- src/controller/state.ts:322-327 — `writeJsonAtomic`: temp file then rename.
+- src/controller/state.ts:330-338 — `readJson`: async read, `undefined` on ENOENT.
+- src/controller/runs.ts:388-411 — `RunDeps` interface (test fakes build it).
+- src/controller/runs.ts:621-768 — `runMergeStageStep`; `blocked` branch saves the `merge` cursor at 689-691 and guards the merge-fix round at 692-710.
+- src/controller/runs.ts:770-781 — `runOnce` merge-resume detection (`merging` status or `merge` cursor).
+- src/controller/runs.ts:850-887 — `done` routing: close-out merge step, run end, store push, `done` write.
+- src/controller/runs.ts:1000-1035 — `runCloseoutMergeStep`: close-out PRs; `merging` on not-ready.
+- src/controller/runs.ts:1038-1063 — `handleCloseoutOutcome`.
+- src/controller/runs.ts:1184-1206 — `handleRetrospectiveOutcome`.
+- src/controller/controller.ts:524-529 — `Controller.save`: spread, `writeRun`, emit change.
+
+## Design phase additions — phase stop points
+- src/controller/phases/document.ts:200-213 — `DocumentPhaseOutcome` result union.
+- src/controller/phases/document.ts:686-713 — orient (`D`), idempotent approved return, `phase.start`.
+- src/controller/phases/document.ts:771-797 — draft only when `D === 0`.
+- src/controller/phases/document.ts:802-911 — review-round loop: reviewer, standoff, should-fix-only, circling, cap, reviser, lint.
+- src/controller/phases/implementation.ts:100-104 — `shouldStop` doc: reason ends the phase `stopped`, resume from `tasks.md`.
+- src/controller/phases/implementation.ts:636-637 — `shouldStop` before the test-author spawn.
+- src/controller/phases/implementation.ts:705-706 — `shouldStop` before the implementer spawn.
+- src/controller/phases/implementation.ts:786-787 — `shouldStop` at the gate-loop top.
+- src/controller/phases/implementation.ts:989-990 — `shouldStop` in the security loop.
+- src/controller/phases/implementation.ts:1130-1131 — `shouldStop` in the end-to-end repair loop.
+- src/controller/phases/implementation.ts:1339-1340 — `shouldStop` in the CI poll.
+- src/controller/phases/retrospective.ts:218-219 — second retrospective `shouldStop` check.
+
+## Design phase additions — frontend and access
+- src/controller/access.ts:186-211 — `makeRequireAccess` full body.
+- src/dashboard/harness/overview-watch.ts:181-187 — subscribes to `runEvents` change and pushes rows.
+- src/dashboard_frontend/src/modules/shell/primitives.tsx:168-193 — `Row`: div with role button and `onClick`.
+- src/dashboard_frontend/src/modules/ui/ui.tsx:41-61 — `Button`: passes native button props.
+- src/dashboard_frontend/src/modules/shell/pause.ts:46-49 — `pauseNoteClass` tone classes.
+- src/dashboard_frontend/src/modules/shell/types.ts:196-197 — `ControllerRunStatus` union.
+- src/dashboard_frontend/src/modules/shell/Sidebar.tsx:197 — existing `stopPropagation` use.
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:340-356 — Now page controller live rows with `pauseNote`.
+
+## Design phase additions — tests and fixtures
+- vitest.config.ts:8-9 — vitest includes `src/**/*.test.ts`, excludes `src/dashboard_frontend/**`.
+- scripts/stub-claude.mjs:17 — stub run `delayMs` option.
+- scripts/stub-claude.mjs:110-111 — stub waits `delayMs` before emitting.
+- e2e/worktree-shell.spec.ts:164-173 — seeds a controller `run.json` directly.
+- e2e/worktree-shell.spec.ts:310-319 — opens a controller run row on `/#/runs`.
+- src/controller/__tests__/controller.test.ts:414-449 — crash-recovery test pattern.
+- src/controller/__tests__/runs.test.ts:348-349 — usage-limit pause test start.
