@@ -24,3 +24,8 @@ Cost: unknown
 task 1: a fix round left the commit unchanged and the gate returned the same file-outside-list verdict for src/core/__tests__/task-parser-tests.test.ts, src/core/task-parser.ts; no implementer edit can move a file-list verdict — the fix is to list the file(s) in the task's File entries in tasks.md
 Evidence: task 1 · mark run-20261028-181442 06191492
 Cost: unknown
+
+## 2026-10-29T02:48:38Z · implementation · task 1 · gotcha
+task 1 closed: 0 fix round(s), outcome gate
+Evidence: task 1 · mark run-20261028-181442 0031dd94
+Cost: 1 implementer spawn(s)

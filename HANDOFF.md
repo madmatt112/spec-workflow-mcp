@@ -1156,4 +1156,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 0/6, stopped: design-defect — task 1: a fix round left the commit unchanged and the gate returned the same file-outside-list verdict for src/core/__tests__/task-parser-tests.test.ts, src/core/task-parser.ts; no implementer edit can move a file-list verdict — the fix is to list the file(s) in the task's File entries in tasks.md |
+| State | tasks 1/6, last commit 9796d63e, next task 2 |

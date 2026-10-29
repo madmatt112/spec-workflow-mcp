@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Task 1 adds the visual e2e suite and captures the before screenshots on the base frontend; task 2 swaps the token file and base stylesheet in behind a temporary bridge (D1); task 3 adds the shared UI module and restyles the shell; tasks 4 and 5 restyle the views, and task 5 removes the bridge and adds the scan test; task 6 captures the after set and runs the gate. Each task leaves `npm run build:dashboard` passing and every existing vitest and worktree e2e suite green; the frontend has no type check (`./tsconfig.json:20`). Planned verifier spend: four (tasks 2 and 3 create brand-new modules, so they route structural-red to high risk; tasks 4 and 5 exceed the line rule); tasks 1 and 6 are verification-only and implementer-only, still reviewed; no task touches an agent-rules sensitive path.
 
-- [ ] 1. Visual suite seed and the before screenshots
+- [x] 1. Visual suite seed and the before screenshots
   - File: e2e/helpers/shell-seed.ts
   - File: e2e/worktree-visual.spec.ts
   - File: src/core/task-parser.ts, src/core/__tests__/task-parser-tests.test.ts (a parser change and its revert, 3015906c and 9796d63e; no net change)
