@@ -80,7 +80,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 3.1, 3.3, 1.8_
   - _Prompt: Task: Per design C7 and R3 AC1 and AC3, add '--no-register': 'boolean' to CLI_FLAGS, return noRegister from parseArguments, add one help OPTIONS entry reading "Do not add this server to the project registry; used by eval runs", and pass register as the negation of noRegister into server.initialize at 662-668. Give SpecWorkflowMCPServer.initialize an optional trailing options argument with register defaulting to true; with register false it skips the block at 185-195, logs "Project registration skipped (--no-register)" and leaves registeredProjectId unset, so stop unregisters nothing. Add the flag to the docs/CONFIGURATION.md flag table after line 21 and to the line 29 list. Tests: --no-register parses to true and its absence to false; --no-register=1 is rejected by the existing loop at 172; the help output contains --no-register; initialize with register false leaves the registry with no entry for the root, and stop leaves it unchanged | Restrictions: Workspace, workflow root and tool context are unchanged; existing callers of initialize compile unchanged; the existing server-shutdown cases keep their values | Success: The flag parses, rejects a value and shows in help; the exact boolean-flag list includes it; a register-false server writes no registry entry and its stop writes nothing; tsc is clean_
 
-- [ ] 8. Eval runner opts its server out
+- [x] 8. Eval runner opts its server out
   - File: src/evals/runner.ts
   - File: src/evals/__tests__/runner.test.ts
   - File: src/evals/__tests__/runner-registry.test.ts (new)
