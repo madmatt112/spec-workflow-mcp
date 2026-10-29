@@ -962,6 +962,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         ...stepLifecycle(deps, run.id),
         now: deps.now,
+        shouldStop: () => (deps.isPauseRequested?.(runId) ? 'operator' : null),
       };
       const outcome = await runDocumentPhase(ctx);
       const handled = await handleDocumentOutcome(deps, run, ledger, specDir, decision.phase, outcome);
@@ -1285,15 +1286,24 @@ async function handleDocumentOutcome(
     }]);
     return 'stop';
   }
+  if (outcome.result === 'stopped') {
+    await pause(deps, run, OPERATOR_PAUSE);
+    return 'stop';
+  }
   // outcome.result === 'error'.
   if (outcome.reason === 'usage-limit') {
     const window = deps.windowBlock();
     await pause(deps, run, 'usage-limit', window.resumeAt ?? fifteenMinutes(deps));
     return 'stop';
   }
-  // One fresh retry, then an `error` wait (design §4).
+  // One fresh retry, then an `error` wait (design §4). A held run pauses here
+  // instead, without bumping the attempt (design C6).
   const attempt = run.cursor?.attempt ?? 1;
   if (attempt <= RUN_FRESH_RETRY) {
+    if (deps.isPauseRequested?.(run.id)) {
+      await pause(deps, run, OPERATOR_PAUSE);
+      return 'stop';
+    }
     await save(deps, run, { cursor: { phase, stepKind: 'document', attempt: attempt + 1 } });
     const retry = await runDocumentPhase({
       run, phase, specStoreRoot: run.specStore, specDir, codeRoot: run.worktree,
@@ -1302,9 +1312,11 @@ async function handleDocumentOutcome(
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
       ...stepLifecycle(deps, run.id),
       now: deps.now,
+      shouldStop: () => (deps.isPauseRequested?.(run.id) ? 'operator' : null),
     });
     if (retry.result === 'approved') return 'go';
     if (retry.result === 'waiting') { await save(deps, run, { status: 'waiting', inFlight: undefined }); return 'stop'; }
+    if (retry.result === 'stopped') { await pause(deps, run, OPERATOR_PAUSE); return 'stop'; }
     if (retry.result === 'error' && retry.reason === 'usage-limit') {
       await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
       return 'stop';
