@@ -1226,4 +1226,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 0/13, stopped: design-defect — tasks.md File: list for task 1 omits src/core/__tests__/git-utils.test.ts, which must be edited (exported-function regression test) to implement linkedWorktreeInfo — no implementer edit clears this file-outside-list gate verdict; details in /tmp/scratchpad/sdd/dashboard-project-list/fix-1-design-defect-note.md |
+| State | tasks 1/13, last commit 5a2f67b5, next task 2 |

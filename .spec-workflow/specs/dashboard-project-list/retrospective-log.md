@@ -4,3 +4,8 @@
 tasks.md File: list for task 1 omits src/core/__tests__/git-utils.test.ts, which must be edited (exported-function regression test) to implement linkedWorktreeInfo — no implementer edit clears this file-outside-list gate verdict; details in /tmp/scratchpad/sdd/dashboard-project-list/fix-1-design-defect-note.md
 Evidence: task 1 · mark run-20261029-104125 f0116771
 Cost: unknown
+
+## 2026-10-29T13:10:34Z · implementation · task 1 · gotcha
+task 1 closed: 0 fix round(s), outcome gate
+Evidence: task 1 · mark run-20261029-104125 0031dd94
+Cost: 1 implementer spawn(s)

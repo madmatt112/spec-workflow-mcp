@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13. Tasks 1 to 5 add the classification, fold, missing-path, registry-cleanup and `projects.json` pieces with no caller, so behaviour is unchanged until task 6 wires them into the project manager. Tasks 7 and 8 add the eval opt-out, tasks 9 and 10 change the shell feed, tasks 11 and 12 change the frontend and own the new worktree e2e suite, and task 13 runs the gate. Each task leaves `npx tsc --noEmit`, `npm run build:dashboard` and every existing vitest and worktree e2e suite green, except the two durable-list values task 6 changes on purpose. Planned verifier spend: about six — tasks 2, 3, 9, 10 and 11 create brand-new modules (structural-red, high risk) and task 6 is likely over the line rule. No task touches an agent-rules sensitive path; `src/core/path-utils.ts` is imported, never edited. Task 13 is a measurement task with no `- Test:` seam (implementer-only).
 
-- [ ] 1. Worktree classification in one git call
+- [x] 1. Worktree classification in one git call
   - File: src/core/git-utils.ts
   - File: src/core/__tests__/git-utils-worktree.test.ts (new)
   - File: src/core/__tests__/git-utils.test.ts (add the new export to the exported-function classification list)
