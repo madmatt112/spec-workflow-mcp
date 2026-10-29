@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { promises as fsp } from 'fs';
 import { join } from 'path';
@@ -96,5 +96,23 @@ describe('ensureWorktree', () => {
     const dir2 = await ensureWorktree(workspace, 'demo-spec', worktreeSetup);
     expect(dir2).toBe(worktreePath);
     expect(readFileSync(counterFile, 'utf-8').trim().split('\n').filter(Boolean)).toHaveLength(1);
+  });
+
+  it('a new branch starts at origin/main, not at a stale local main, and tracks nothing', async () => {
+    const origin = join(base, 'origin');
+    mkdirSync(origin, { recursive: true });
+    initGitRepo(origin);
+    execFileSync('git', ['branch', '-M', 'main'], { cwd: origin, env: gitEnv() });
+    const workspace = join(base, 'clone');
+    execFileSync('git', ['clone', '-q', origin, workspace], { env: gitEnv() });
+    // origin moves on after the clone; the clone's local main stays behind.
+    execFileSync('git', ['commit', '--allow-empty', '-q', '-m', 'merged later'], { cwd: origin, env: gitEnv() });
+    const originHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: origin, encoding: 'utf-8' }).trim();
+
+    const dir = await ensureWorktree(workspace, 'demo-spec', null);
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim();
+    expect(head).toBe(originHead);
+    const upstream = spawnSync('git', ['config', '--get', 'branch.feat/demo-spec.merge'], { cwd: workspace, encoding: 'utf-8' });
+    expect(upstream.stdout.trim()).toBe('');
   });
 });
