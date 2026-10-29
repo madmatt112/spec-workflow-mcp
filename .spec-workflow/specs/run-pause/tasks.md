@@ -7,7 +7,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
 - [ ] 1. Durable hold and write ownership in the state module
   - File: src/controller/state.ts
   - File: src/controller/__tests__/pause-request.test.ts
-  - Test: src/controller/__tests__/pause-request.test.ts — writeRun(record, { ownsPauseRequest: true })
+  - Test: src/controller/__tests__/pause-request.test.ts — `writeRun(record, { ownsPauseRequest: true })`
   - Note: the owned set-and-clear case already holds at base (the field passes through): regression guard, not a red test. The red cases are the stale-write keep, the terminal drop, the concurrent pair and `readRunSync`.
   - Note: `src/controller/__tests__/paused-at.test.ts` and `src/controller/__tests__/state.test.ts` are not edited; no value they assert changes.
   - Purpose: One durable hold that a stale driver or controller write cannot drop.
@@ -18,7 +18,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
 - [ ] 2. Driver stop points and the operator pause
   - File: src/controller/runs.ts
   - File: src/controller/__tests__/runs.test.ts
-  - Test: src/controller/__tests__/runs.test.ts — runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000')
+  - Test: src/controller/__tests__/runs.test.ts — `runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000')`
   - Note: the `deps` helper (104-119) gains no default, so every existing runs.test.ts case runs unheld and no value it asserts changes.
   - Note: the merge-stage-entry stop (design C3 point 4) has no dedicated case: any hold set while the last implementation step runs is caught first by an earlier phase stop point (for example the CI poll's shouldStop, `src/controller/phases/implementation.ts:1339-1340`); the in-flight case asserts only the observable outcome.
   - Purpose: A held run finishes its step, acts on the result, then parks instead of spawning the next step.
@@ -31,7 +31,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
   - File: src/controller/runs.ts
   - File: src/controller/phases/__tests__/document.test.ts
   - File: src/controller/__tests__/runs.test.ts
-  - Test: src/controller/phases/__tests__/document.test.ts — runDocumentPhase({ ...ctx, shouldStop: () => 'operator' })
+  - Test: src/controller/phases/__tests__/document.test.ts — `runDocumentPhase({ ...ctx, shouldStop: () => 'operator' })`
   - Count: `DocumentPhaseOutcome.result` gains `stopped`. `grep -n "outcome.result\|retry.result" src/controller/runs.ts` finds every branch that reads it; today an unmatched result falls through to the error path at 1232-1261.
   - Note: existing document.test.ts and runs.test.ts cases pass no shouldStop and no hold; no value they assert changes.
   - Purpose: Give the document phase its first stop check, at the one point where re-entry runs no step twice.
@@ -63,7 +63,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
   - File: src/dashboard/multi-server.ts
   - File: src/controller/runs.ts
   - File: src/dashboard/__tests__/controller-dashboard-routes.test.ts
-  - Test: src/dashboard/__tests__/controller-dashboard-routes.test.ts — fetch(`${base}/api/controller/runs/${id}/pause`, auth({ method: 'POST' }))
+  - Test: src/dashboard/__tests__/controller-dashboard-routes.test.ts — fetch(`${base}/api/controller/runs/${id}/pause`, `auth({ method: 'POST' })`)
   - Note: the 401 without the secret and the resume 409 `not-paused` hold at base: regression guards. Existing route tests and the listRunsForWire tests (runs.test.ts 430-453) keep every asserted value.
   - Purpose: Expose pause beside cancel, resume and discard, and tell the frontend a pending pause from an applied one.
   - _Leverage: src/dashboard/multi-server.ts (cancel and resume routes at 808-822); src/controller/runs.ts (ControllerRunRow and toRow at 1336-1363); routes test startServer and auth at 71-88_
@@ -97,7 +97,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
   - Purpose: Track the decomposition's deploy scenario, which the normal loop cannot run, so the retrospective waits for it.
   - _Leverage: .spec-workflow/specs/advisor/verification-evidence.md (format at 1-21); scripts/sdd-self-update.sh (step_live at 89-97, deploy and restart at 297-308)_
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
-  - _Prompt: Task: Per design Testing Strategy (end-to-end) and agent-rules "Fixtures and live verification", write verification-evidence.md on the feature branch in the advisor file's format: a short preamble saying the automated cases live in the controller, route and e2e suites, then one `(deploy) pending —` line covering Requirement 7 AC 1 to AC 5: pause a run with a step in flight, the route answers at once, the step commits, no next step starts, the row reads `paused by you`; scripts/sdd-self-update.sh passes its in-flight check, deploys and restarts; the run is still paused/operator; Resume starts the next step; Pause on an idle run applies at once. State that the orchestrator relocates the file to the main spec store at the merge gate and that it must read passed before the retrospective opens | Restrictions: No code change; do not run the scenario | Success: The file exists with the preamble and exactly one pending line naming all five checks and the relocation step_
+  - _Prompt: Task: Per design C10 and Testing Strategy (end-to-end) and agent-rules "Fixtures and live verification", write verification-evidence.md on the feature branch in the advisor file's format: a short preamble saying the automated cases live in the controller, route and e2e suites, then one `(deploy) pending —` line covering Requirement 7 AC 1 to AC 5: pause a run with a step in flight, the route answers at once, the step commits, no next step starts, the row reads `paused by you`; scripts/sdd-self-update.sh passes its in-flight check, deploys and restarts; the run is still paused/operator; Resume starts the next step; Pause on an idle run applies at once. State that the orchestrator relocates the file to the main spec store at the merge gate and that it must read passed before the retrospective opens | Restrictions: No code change; do not run the scenario | Success: The file exists with the preamble and exactly one pending line naming all five checks and the relocation step_
 
 ## Scope notes
 
@@ -118,3 +118,4 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
 ## Revision History
 
 - **v1** (2026-10-29) — Initial draft.
+  - **Lint pass.** 2 fixed; rejected: none.
