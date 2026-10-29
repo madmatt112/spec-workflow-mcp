@@ -2,7 +2,7 @@
 
 ## Overview
 
-The dashboard folds run worktrees into their parent, prunes registrations with missing paths at start, keeps eval servers out of the registry, reads each spec store once, and gives each sidebar row a status dot, a live-run count and an activity sort. The changes sit in the registry, the project manager, the shell feed, the MCP server start path, the eval runner and three frontend views. It reuses the registry lock, the git common-dir call, the shell feed's existing reads and the spec 22 tone tokens.
+The dashboard folds run worktrees into their parent, prunes registrations with missing paths at start, keeps eval servers out of the registry, reads each spec store once, and gives each sidebar row a status dot, a live-run count and an activity sort. The changes sit in the registry, the project manager, the shell feed, the MCP server start path, the eval runner and three frontend views, reusing the registry lock, the git common-dir call, the shell feed's existing reads and the spec 22 tone tokens.
 
 ## Steering Document Alignment
 
@@ -40,7 +40,7 @@ graph LR
 - **Purpose:** Classify one workspace as a linked worktree and return its main working tree, from one git call (R1 Terms, NFR Performance).
 - **Interfaces:** `linkedWorktreeInfo(workspacePath: string): { linked: boolean; mainTree: string | null }`. Post-conditions: runs `git rev-parse --git-common-dir` exactly once through `gitCapture` (`src/core/git-utils.ts:64-71`, scrubbed env, 5000 ms timeout at `src/core/git-utils.ts:7-11`); `linked` is true only when the raw output is non-null and not `.git` (the test `isGitWorktree` applies at `src/core/git-utils.ts:260-270`); `mainTree` is the parent of the realpath-normalized common directory (as `gitCommonDirAbsolute` computes it at `src/core/git-utils.ts:133-139`) when that directory's base name is `.git`, else null; a failed call returns `{ linked: false, mainTree: null }`. It never reads `SPEC_WORKFLOW_SHARED_ROOT`, unlike `resolveGitRoot` (`src/core/git-utils.ts:214-252`). Never throws.
 - **Dependencies:** `gitCapture` (`src/core/git-utils.ts:64-71`), `normalizeIdentityPath` (`src/core/git-utils.ts:101-112`).
-- **Reuses:** the existing common-dir handling; no new git command.
+- **Reuses:** its two dependencies only; it issues the common-dir command once and applies the non-`.git` test and parent-of-`.git` logic inline, not by calling `isGitWorktree` or `gitCommonDirAbsolute` (each would issue its own call).
 
 ### C2 — Fold computation (new `src/dashboard/project-folding.ts`)
 - **Purpose:** Decide which candidate entries fold and into which parent (R1 AC1 to AC3, D5, D6 of requirements).
@@ -56,10 +56,10 @@ graph LR
 - **Purpose:** Keep the in-memory project set equal to the unfolded candidates on every change (R1 AC4, AC5, AC6; R2 AC8).
 - **Interfaces:**
   - `syncWithRegistry()` keeps its name (a test calls it, `src/dashboard/__tests__/project-manager-durable.test.ts:84`) and becomes the one reconcile. Post-conditions: candidates are the registry entries plus each `projects.json` entry the registry lacks (with `instances: []`), each file read once; `computeFolds` runs with `linkedWorktreeInfo`; every unfolded candidate has a context (added by `addProject` or updated in place as `src/dashboard/project-manager.ts:146-154` does); every folded candidate and non-candidate has none (`removeProject` stops its watchers); one `projects-update` is emitted.
-  - Calls to `syncWithRegistry` are serialized: a call waits for the running one, then makes its own full pass, so a watcher event and a manual add cannot add one id twice.
+  - Calls to `syncWithRegistry` are serialized: a call waits for the running one, then makes its own full pass, so a watcher event and a manual add cannot add one id twice. The registry watcher's `change`/`add` handlers (`src/dashboard/project-manager.ts:115-121`) coalesce through a 100 ms trailing debounce (D12), so a run-startup burst of registry writes runs one reconcile, not one per write; `initialize()` runs the first `syncWithRegistry()` directly, not through the debounce, so the cleanup -> prune -> sync -> watcher order holds.
   - `initialize()` order: registry cleanup with the existence check (C4), `projects.json` prune (C5), `syncWithRegistry()`, then the registry watcher. `loadProjectsFromRegistry` and `loadRememberedProjects` are replaced by the first `syncWithRegistry()`.
   - `addProjectByPath` keeps its registry and `rememberProject` writes and its explicit-root re-add (`src/dashboard/project-manager.ts:364-372`), then awaits `syncWithRegistry()`; it returns the entry's id, folded or not.
-  - `removeProjectById` unregisters and forgets as today (`src/dashboard/project-manager.ts:389-393`), then awaits `syncWithRegistry()`, so a worktree it had folded is listed again (R1 AC5).
+  - `removeProjectById` forgets the `projects.json` entry before it unregisters (today's order is the reverse, `src/dashboard/project-manager.ts:389-393`), then awaits `syncWithRegistry()`, so a worktree it had folded is listed again (R1 AC5). Forgetting first means a `forgetProject` lock-miss throw (C5) happens before anything is removed, leaving both files whole (Error Handling #3).
   - `getProjectsList()` adds `workflowRootPath: string` (the original, untranslated workflow root) to each item (R2 AC8). No other field changes.
   - A failed classification logs once per project id per process: `[ProjectManager] Could not classify <id> (<path>): <message>; listing it`.
 - **Dependencies:** C1, C2, C4, C5.
@@ -143,14 +143,14 @@ graph LR
 
 ## Data Models
 
-### Project-list item (`GET /api/projects/list`, illustrative — verify against the test fake)
+### Project-list item (`GET /api/projects/list`)
 ```
 { projectId: string; projectName: string; projectPath: string;
   workflowRootPath: string;   // new: original workflow root, the store key
   instances: ProjectInstance[] }
 ```
 
-### SidebarProjectRow (in `shell-now` data as `sidebar`, illustrative — verify against the test fake)
+### SidebarProjectRow (in `shell-now` data as `sidebar`)
 ```
 { projectId: string;
   dot: 'waiting' | 'running' | 'idle';
@@ -167,7 +167,7 @@ The array is in sidebar order. It adds no path to the wire (NFR Security).
 
 1. **Git classification fails or times out:** `linkedWorktreeInfo` returns not-linked, so the entry stays listed (NFR Reliability). A throw inside `computeFolds` keeps the entry and logs once per id.
 2. **Registry lock not acquired at start:** the cleanup logs one line and keeps every entry; the dashboard still starts and lists them.
-3. **`projects.json` lock not acquired:** the prune logs and keeps every entry; `rememberProject` throws, which `addProject` already catches and logs (`src/dashboard/project-manager.ts:246-248`) and which makes the explicit-root manual add answer 500, as a failed write does today.
+3. **`projects.json` lock not acquired:** the prune logs and keeps every entry. `rememberProject` throws, which `addProject` already catches and logs (`src/dashboard/project-manager.ts:246-248`), making the explicit-root manual add answer 500 as a failed write does today. `forgetProject` throws too; `removeProjectById` calls it before it unregisters (C3), so the throw happens before the registry and `projects.json` are touched: the DELETE answers 500 with both files whole and a retry removes the entry cleanly, never a registry-removed but still-remembered entry the next sync re-lists.
 4. **Stat fails with anything other than `ENOENT` or `ENOTDIR`** (permission, I/O): the entry is kept and the path is logged once (R4 AC3, D11 of requirements).
 5. **Docker path translation throws:** the entry is kept (R4 AC4).
 6. **A live server's workspace was deleted:** the prune removes its entry whatever its pid (R4 AC1); its later `stop()` finds no entry (`src/core/project-registry.ts:421-425`).
@@ -176,9 +176,9 @@ The array is in sidebar order. It adds no path to the wire (NFR Security).
 ## Testing Strategy
 
 - **Unit:**
-  - `src/core/__tests__/git-utils-worktree.test.ts` (new): `linkedWorktreeInfo` on a main checkout (not linked), a `git worktree add` (linked, main tree is the checkout's realpath), a non-git directory, and with `SPEC_WORKFLOW_SHARED_ROOT` set (main tree is still the checkout).
+  - `src/core/__tests__/git-utils-worktree.test.ts` (new): `linkedWorktreeInfo` on a main checkout (not linked), a `git worktree add` (linked, main tree the checkout's realpath), a non-git directory, and with `SPEC_WORKFLOW_SHARED_ROOT` set (main tree still the checkout).
   - `src/dashboard/__tests__/project-folding.test.ts` (new): `computeFolds` with a stub `classify` — R1 AC1 fold, AC2 fallback, AC2 refused on another store, AC3 no parent, AC9 not folded, no linked parent, no `classify` call for equal paths, a throw keeps the entry.
-  - `src/dashboard/__tests__/project-manager-durable.test.ts`: new cases for fold on sync, unfold when the parent is removed, fold when the parent is added later (R1 AC5), `workflowRootPath` on `getProjectsList`, a startup prune of both files, and concurrent `syncWithRegistry` calls leaving one context per id. Changed exact values: `src/dashboard/__tests__/project-manager-durable.test.ts:87` expects 1, not 2 (the worktree now folds into its main project); `src/dashboard/__tests__/project-manager-durable.test.ts:115` expects `[]`, not the id (the deleted project is pruned at start). Both edits are required by R1 AC1 and R4 AC2.
+  - `src/dashboard/__tests__/project-manager-durable.test.ts`: new cases for fold on sync, unfold when the parent is removed, fold when the parent is added later (R1 AC5), `workflowRootPath` on `getProjectsList`, a startup prune of both files, concurrent `syncWithRegistry` calls leaving one context per id, a write burst running one debounced reconcile with the first reconcile direct (R1-2), and a `removeProjectById` whose `forgetProject` lock-miss removes nothing and rethrows (R1-3). Changed values at `src/dashboard/__tests__/project-manager-durable.test.ts:87` (expects 1, not 2 — the worktree folds into its main project) and `src/dashboard/__tests__/project-manager-durable.test.ts:115` (expects `[]`, not the id — the deleted project is pruned at start), both required by R1 AC1 and R4 AC2.
   - `src/core/__tests__/project-registry.test.ts`: `cleanupStaleProjects(isMissing)` removes a missing-path entry with a live pid, keeps one the predicate passes, writes nothing when the lock is held, and logs. Existing values are unchanged.
   - `src/controller/__tests__/state.test.ts`: `pruneMissingProjects` drops and returns missing entries; a `rememberProject` during the prune is not lost (R4 AC8).
   - `src/dashboard/__tests__/path-missing.test.ts` (new): `ENOENT` and `ENOTDIR` are missing; an existing path is not; a translation throw is not.
@@ -187,37 +187,42 @@ The array is in sidebar order. It adds no path to the wire (NFR Security).
   - `src/evals/__tests__/runner.test.ts`: the stub step receives a server entry whose `args` include `--no-register` (R3 AC4).
   - `src/dashboard/shell/__tests__/store-groups.test.ts` and `sidebar-rows.test.ts` (new): representative rule; each dot rule; live count with and without a controller run; last activity across statuses; sort order, ties and stability. `sidebar-rows.test.ts` also reads `NowPage.tsx` as text and asserts its `CTRL_LIVE_STATUSES` literal equals `NOW_LIVE_STATUSES`.
   - `src/dashboard/shell/__tests__/shell-feed.test.ts`: two projects on one store give one set of spec rows; `shell-now` carries `sidebar`. Message order is unchanged; an assertion that deep-equals a `shell-now` payload gains the `sidebar` key.
-- **Integration:** `src/evals/__tests__/runner-registry.test.ts` (new) runs `runCases` with a stub step that starts the configured server for real: it takes the `args` from the step's MCP config, swaps `dist/index.js` for `src/index.ts` and runs it with `tsx` (a dev dependency, used by `npm run dev`), waits for the registration log line, closes stdin, and asserts the per-worker registry and `projects.json` are byte-equal to before (R3 AC1, AC2, R7 AC2). At base the args lack the flag, the server registers the fixture, and the test fails.
+- **Integration:** `src/evals/__tests__/runner-registry.test.ts` (new) runs `runCases` with a stub step that starts the configured server for real: it takes the `args` from the step's MCP config, swaps `dist/index.js` for `src/index.ts` and runs it with `tsx` (a dev dependency, used by `npm run dev`), waits for whichever startup line the run prints — `Project registered:` at base (`src/server.ts:195`) or `Project registration skipped` after the fix (C7), a signal present in both states — then ends the child's stdin and waits for exit code 0 (`src/server.ts:234`), and asserts the per-worker registry and `projects.json` are byte-equal to before (R3 AC1, AC2, R7 AC2). It asserts only node-20-guaranteed fields: a stderr `data` line and the child's `exit` code; ending stdin fires the child's `'end'` and it exits 0. At base the args lack the flag, the server registers the fixture, and the test fails.
 - **End-to-end:** `e2e/worktree-project-list.spec.ts` (new, worktree Playwright config, `./playwright.worktree.config.ts:46-70`). It adds a main repo, starts one worktree MCP server on the same store, and seeds a controller run record (status `running`, project the main id) as `e2e/worktree-shell.spec.ts:174` does: one sidebar row, `data-state="running"`, count 1, and Specs and Deferrals counts equal to those read before the worktree server started (R7 AC1). A second project with a seeded open wait and an older run sorts above an idle project with a newer done run, with `data-state="waiting"` (R7 AC4). It also toggles the main project off and checks the dot and position stay (R5 AC11). R7 AC3 (deleted workspace, restart) is the `project-manager-durable` start-time case above, since the Playwright dashboard cannot restart mid-suite. `npm run build`, `npx tsc --noEmit` and `npm test` close the gate (R7 AC5).
 - **Regression guards (hold at base, verified, not red-first):** R1 AC3 (`e2e/worktree-shared.spec.ts:370-414` stays green), R1 AC7 (`e2e/worktree-shared.spec.ts:748-795`), R1 AC8, R1 AC9, R1 AC10, R4 AC5 (`readRegistry` is not edited), R5 AC8 (the existing frontend style scan, `src/dashboard/__tests__/frontend-style-scan.test.ts`), R5 AC10.
 - **Why no frontend vitest test:** a 2026-10-29 probe showed vitest 4.0.16 imports a frontend module from a root test, but `tsc` 5.9.3 under the root `node16` resolution (`./tsconfig.json:4-5`) rejects its extensionless imports (TS2835 on `src/dashboard_frontend/src/modules/shell/pause.ts:1`). So C9 lives on the server and C10 to C12 are proved by Playwright.
 
 ## Decisions taken in this document
 
-- D1 — Where the dot, the live-run count and the sort are computed: the options were the frontend from the controller topics, or the server in the shell feed as a new field of the existing Now payload; chosen the server because root tests cannot type-check a frontend module (probe in Testing Strategy) and the feed already reads every input.
-- D2 — How the eval server stays out of the registry: the options were a no-register CLI flag, pointing the global-directory variable at a fixture directory through the step environment, or an environment field in the inline MCP config; chosen the flag because both ends are in this repository, while the others rely on Claude Code passing environment to its MCP child, which no test here can prove without a live model.
-- D3 — How folds stay current: the options were incremental add and remove per event, or one full reconcile per sync, manual add and removal; chosen the full reconcile, serialized, because a parent's arrival or removal changes other entries' folds and two concurrent passes could add one id twice.
-- D4 — Which entries can be parents: chosen only non-worktree entries (over any listed entry), so folds never chain or depend on order.
-- D5 — The store's representative project: chosen the project whose workspace is the store, else by display name then id (over registry order), so the Specs group title and the spec rows' project id are stable across restarts.
-- D6 — How the durable-list prune serializes with remember and forget: the options were a file lock, or an in-process queue; chosen the file lock on its own lock path because the per-store lock already uses this primitive and it also covers a second dashboard process.
-- D7 — Where the registry stats run: the options were inside the registry lock, or before it with a re-check under it; chosen inside because it runs once per start over a few entries.
-- D8 — How the path check joins the registry cleanup: the options were an optional predicate on the existing cleanup, now run under the lock, or a second prune method with its own write; chosen the optional predicate so start does one locked read and one write.
-- D9 — Dot colours: chosen warning for waiting, success for running and neutral for idle (over the danger or info tones), because waiting is the call to action.
-- D10 — Last sort tie-break: chosen the project id after the display name (over list order), so a push that changes nothing cannot reorder rows.
-- D11 — The live status set on the server: chosen a copy of the Now page's set plus a test that compares the two by reading the page source (over a shared module, which the separate frontend compile does not allow).
-- D12 — Classification cache: chosen none (over a per-path cache), one git call per differing entry per sync, as the requirements' performance note states.
-- D13 — Dot position: chosen after the toggle and before the name, count after the dot (over after the name), so the name keeps its truncation.
+- D1 — Dot, count and sort computed on the server in the shell feed (over the frontend from controller topics), because root tests cannot type-check a frontend module (probe in Testing Strategy) and the feed already reads every input.
+- D2 — Eval server stays out of the registry via a no-register CLI flag (over pointing the global-directory variable at a fixture, or an inline-config env field), because both ends are in this repository and the others need Claude Code to pass env to its MCP child, unprovable without a live model.
+- D3 — Folds stay current through one full serialized reconcile per sync, manual add and removal (over incremental add/remove per event), because a parent's arrival or removal changes other entries' folds and two concurrent passes could add one id twice.
+- D4 — Only non-worktree entries can be parents (over any listed entry), so folds never chain or depend on order.
+- D5 — The store's representative is the project whose workspace is the store, else by display name then id (over registry order), so the Specs title and spec-row project id are stable across restarts.
+- D6 — The durable-list prune serializes with remember and forget via a file lock on its own lock path (over an in-process queue), because the per-store lock already uses this primitive and it also covers a second dashboard process.
+- D7 — Registry stats run inside the registry lock (over before it with a re-check under it), because it runs once per start over a few entries.
+- D8 — The path check joins the registry cleanup as an optional predicate run under the lock (over a second prune method with its own write), so start does one locked read and one write.
+- D9 — Dot colours: warning for waiting, success for running, neutral for idle (over the danger or info tones), because waiting is the call to action.
+- D10 — Last-sort tie-break is project id after display name (over list order), so a push that changes nothing cannot reorder rows.
+- D11 — The server's live-status set is a copy of the Now page's set plus a test that compares the two by reading the page source (over a shared module, which the separate frontend compile does not allow).
+- D12 — Classification cost and volume: no per-path cache (one git call per differing entry per sync, as the requirements' performance note states), plus a 100 ms trailing debounce on the watcher so a write burst runs one reconcile, not one per write. The synchronous `gitCapture` blocks the reconcile up to its 5000 ms timeout per differing candidate; the debounce bounds a burst to one such pass.
+- D13 — Dot position after the toggle and before the name, count after the dot (over after the name), so the name keeps its truncation.
 
 ## Scope notes
 
-- Kept: items 1 to 6 and every file the decomposition names: the registry (`registerProject` unchanged, cleanup in C4), the project manager (C3), `projects.json` (C5), the eval path (C7; `src/evals/fixture.ts` is unchanged because the registration comes from the server the runner starts), the sidebar (C11) and the Specs and Deferrals counts (C8, C11, C12).
+- Kept: items 1 to 6 and every file the decomposition names — the registry (cleanup in C4), the project manager (C3), `projects.json` (C5), the eval path (C7; `src/evals/fixture.ts` is unchanged, the registration comes from the server the runner starts), the sidebar (C11) and the Specs and Deferrals counts (C8, C11, C12).
 - Cut, as the requirements record: one row per product, better display names, a persistent Hide, nested worktrees, a Remove action.
 - Deferred, as the requirements record: pruning while the dashboard runs; showing a folded worktree's server instances on its parent row.
-- Not changed: the Now page's own rows for two projects that share a store; only the dot must agree with them.
-- Not changed: a project whose workflow root moves during a sync keeps its old watchers (`src/dashboard/project-manager.ts:146-154`), existing behaviour outside this spec.
+- Not changed: the Now page's own rows for two projects sharing a store (only the dot must agree with them); a project whose workflow root moves during a sync keeps its old watchers (`src/dashboard/project-manager.ts:146-154`), existing behaviour outside this spec.
 - Carried items from requirements: none.
 
 ## Revision History
 
+- **v2** (2026-10-29) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/3/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Integration test now waits for whichever startup line prints (registered at base, skip after the fix — a signal in both states), ends stdin and waits for exit 0, and names the node-20 fields it asserts on. Testing Strategy Integration now reads "waits for whichever startup line the run prints".
+  - **R1-2 — Accepted (SHOULD_FIX).** Watcher reconcile now coalesces writes through a 100 ms trailing debounce, first reconcile still called directly to keep the initialize order; D12 states the synchronous call is bounded at 5000 ms per differing candidate and coalesced to one pass per burst. C3 serialized bullet and D12 changed.
+  - **R1-3 — Accepted (SHOULD_FIX).** removeProjectById now forgets before it unregisters, so a lock-miss throw leaves both files whole and the DELETE answers 500 for a clean retry, never a registry-removed but still-remembered entry. C3 removeProjectById bullet and Error Handling item 3 changed.
+  - **R1-4 — Accepted (MINOR).** C1 Reuses now says it issues the common-dir command once and applies the worktree test and parent logic inline, not by calling the two helpers that each issue their own call.
+  - **R1-5 — Accepted (MINOR).** Dropped the "illustrative — verify against the test fake" hedge from both Data Models shapes; the enumerated fields are the pinned contract.
 - **v1** (2026-10-29) — Initial draft.
   - **Lint pass.** 5 fixed: L-3,15,16 gave each listed existing function its own range; L-38,41 prefixed the root config files with `./`. Rejected: L-1,2,4,5,10,11,13,14,20,25,26,27,30,31,35,36 (identifier this design defines, not a cited-code claim); L-6,7,8,9,19,21,22,23,24,28,29,32,33,34 (citation anchors the behaviour it names, not the reused subject's declaration); L-12,17,18,37,39,40 (keyword/literal/tool name, not a citable symbol).
