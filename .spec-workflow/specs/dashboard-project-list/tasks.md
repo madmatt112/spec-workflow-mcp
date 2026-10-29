@@ -15,7 +15,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Requirements: 1.1, 1.2, NFR Performance_
   - _Prompt: Task: Per design C1 and the R1 Terms paragraph, export linkedWorktreeInfo from src/core/git-utils.ts. Run git rev-parse --git-common-dir once through gitCapture in the workspace. linked is true only when the raw output is non-null and is not .git. mainTree is the parent of normalizeIdentityPath(resolve(workspace, raw)) when that path's base name is .git, else null. A null output gives linked false and mainTree null. Write the new test file with four cases on real temp repos: a main checkout gives linked false; a git worktree add checkout gives linked true and mainTree equal to the realpath of the main checkout; a non-git temp directory gives linked false and mainTree null; the worktree case with SPEC_WORKFLOW_SHARED_ROOT set to a third directory still gives the main checkout as mainTree | Restrictions: Do not call isGitWorktree or gitCommonDirAbsolute, as each issues its own git call; never read SPEC_WORKFLOW_SHARED_ROOT; never throw; restore any env var the test sets | Success: The main checkout case gives linked false; the worktree case gives linked true with the main checkout's realpath as mainTree; the non-git case gives linked false and mainTree null; the shared-root case gives the main checkout, not the shared root; tsc is clean_
 
-- [ ] 2. Fold computation
+- [x] 2. Fold computation
   - File: src/dashboard/project-folding.ts (new)
   - File: src/dashboard/__tests__/project-folding.test.ts (new)
   - Test: src/dashboard/__tests__/project-folding.test.ts — computeFolds(candidates, classify, onError)

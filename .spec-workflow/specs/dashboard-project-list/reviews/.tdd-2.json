@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/project-folding.test.ts"],"seams":{"src/dashboard/__tests__/project-folding.test.ts":"computeFolds(candidates, classify, onError)"},"redCommit":"147b4dc75f71e5cee93cdb7482598ac1267983be","baseSha":"5a2f67b5ed5a4dcc446512f62e53814c8405a8e1","base":"structural-red","head":"pass","amended":false,"judged":null}
