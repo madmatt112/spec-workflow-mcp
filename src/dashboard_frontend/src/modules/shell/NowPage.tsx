@@ -7,7 +7,7 @@ import { Group, Row } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { Wait, ControllerWait, ControllerRun, StagedAction } from './types';
 import { pauseNote, pauseNoteClass } from './pause';
-import { Button, Pill } from '../ui/ui';
+import { Button, Pill, ui } from '../ui/ui';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -554,7 +554,7 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
           onChange={(e) => setValue(q.id, e.target.value)}
           data-testid={`answer-text-${q.id}`}
           rows={2}
-          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+          className="w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-primary)"
         />
       )}
       {q.reason && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{q.reason}</p>}
@@ -672,14 +672,14 @@ function AnswerSheet({ wait, projectName, onDone }: { wait: ControllerWait; proj
         onChange={(e) => setValue('answer', e.target.value)}
         data-testid="answer-text-answer"
         rows={3}
-        className="w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 text-sm text-[var(--text-primary)]"
+        className="w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-primary)"
       />
     )}</div>;
     footer = <SubmitButton label={'Answer and continue'} disabled={submitting} onClick={() => submit(values)} />;
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-answer-sheet">
+    <div className={`${ui.panel} p-4`} data-testid="now-answer-sheet">
       <SheetHeader wait={wait} projectName={projectName} title={title} />
       <div className="space-y-4 border-t border-[var(--border-default)] pt-3">
         {body}
@@ -763,7 +763,7 @@ function WaitDetail({ wait }: { wait: Wait }) {
 
 function WaitPanel({ wait }: { wait: Wait }) {
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="now-panel">
+    <div className={`${ui.panel} p-4`} data-testid="now-panel">
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <KindBadge label={KIND_LABELS[wait.kind] ?? wait.kind} />

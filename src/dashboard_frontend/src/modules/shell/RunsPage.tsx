@@ -10,7 +10,7 @@ import {
 import type { RunListRow, NowModel, ControllerRun } from './types';
 import { pauseNote, pauseNoteClass } from './pause';
 import type { SetupView } from '../harness/types';
-import { Button, Pill, type Tone } from '../ui/ui';
+import { Button, Pill, ui, type Tone } from '../ui/ui';
 
 /**
  * The Runs list and Launch card (design C10 Runs and Launch card, D8;
@@ -43,7 +43,7 @@ function StateBadge({ state }: { state: RunListRow['state'] }) {
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${
         live
-          ? 'bg-[color-mix(in_srgb,var(--interactive-primary)_15%,transparent)] text-[var(--interactive-primary)]'
+          ? 'bg-[color-mix(in_srgb,var(--accent-solid)_15%,transparent)] text-(--accent-solid)'
           : 'bg-[var(--surface-inset)] text-[var(--text-muted)]'
       }`}
     >
@@ -258,7 +258,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
   };
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="ctrl-run-panel">
+    <div className={`${ui.panel} p-4`} data-testid="ctrl-run-panel">
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <CtrlStatusChip status={run.status} />
@@ -294,7 +294,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
         )}
       </div>
 
-      {error && <p className="mt-2 text-sm text-[var(--status-error)]">{error}</p>}
+      {error && <p className="mt-2 text-sm text-(--tone-danger-fg)">{error}</p>}
     </div>
   );
 }
@@ -352,13 +352,13 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
   }, [view, prefix, fetchSetup]);
 
   return (
-    <section className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4 min-w-0" data-testid={`launch-card-${project.projectId}`}>
+    <section className={`${ui.panel} p-4 min-w-0`} data-testid={`launch-card-${project.projectId}`}>
       <div className="mb-2 flex items-center gap-2">
         <h2 className="min-w-0 flex-1 break-words text-sm font-semibold text-[var(--text-primary)]">{project.projectName}</h2>
       </div>
 
       {loadError ? (
-        <p className="text-sm text-[var(--status-error)]">{'Could not load setup.'}</p>
+        <p className="text-sm text-(--tone-danger-fg)">{'Could not load setup.'}</p>
       ) : !view ? (
         <p className="text-sm text-[var(--text-muted)]">{'—'}</p>
       ) : (
@@ -389,8 +389,8 @@ function LaunchCard({ project, now }: { project: Project; now: NowModel | null }
           </div>
 
           {opError && (
-            <div className="mt-3 rounded-sm border border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,transparent)] p-3 min-w-0">
-              <div className="mb-1 text-sm font-semibold text-[var(--status-error)]">{'The run was refused'}</div>
+            <div className="mt-3 rounded-sm border border-(--tone-danger-fg) bg-[color-mix(in_srgb,var(--tone-danger-fg)_10%,transparent)] p-3 min-w-0">
+              <div className="mb-1 text-sm font-semibold text-(--tone-danger-fg)">{'The run was refused'}</div>
               <OpErrorView error={opError} />
             </div>
           )}

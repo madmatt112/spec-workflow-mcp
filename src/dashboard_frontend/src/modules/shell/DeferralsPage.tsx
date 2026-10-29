@@ -4,7 +4,7 @@ import { useShell, DeferralRecord } from './ShellProvider';
 import { PageLayout } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
-import { Pill, type Tone } from '../ui/ui';
+import { Pill, ui, type Tone } from '../ui/ui';
 
 /**
  * The read-only Deferrals page (design C10 Deferrals, D15; Requirement 7 AC 2).
@@ -251,7 +251,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 function DeferralPanel({ item }: { item: Item }) {
   const { d, projectName } = item;
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="deferral-panel">
+    <div className={`${ui.panel} p-4`} data-testid="deferral-panel">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h2 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{d.title}</h2>
         <StatusBadge status={d.status} />

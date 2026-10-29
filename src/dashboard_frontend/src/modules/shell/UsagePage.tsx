@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useShell } from './ShellProvider';
 import { Group, Row } from './primitives';
+import { ui } from '../ui/ui';
 import { UsageTrend } from './UsageTrend';
 import type { UsageSpecRow } from './types';
 
@@ -42,7 +43,7 @@ function UsageBar({ title, window, now }: { title: string; window: RateWindow; n
   const pct = Math.max(0, Math.min(100, Math.round(window.utilization * 100)));
   const hot = window.utilization >= 0.95;
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid={`usage-window-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+    <div className={`${ui.panel} p-4`} data-testid={`usage-window-${title.toLowerCase().replace(/\s+/g, '-')}`}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-[var(--text-primary)]">{title}</span>
         <span className="text-sm tabular-nums text-[var(--text-secondary)]">{pct}%</span>
@@ -52,7 +53,7 @@ function UsageBar({ title, window, now }: { title: string; window: RateWindow; n
           className="h-full rounded-full"
           style={{
             width: `${pct}%`,
-            backgroundColor: hot ? 'var(--status-error)' : 'var(--interactive-primary)',
+            backgroundColor: hot ? 'var(--tone-danger-fg)' : 'var(--accent)',
           }}
           data-testid={`usage-bar-${title.toLowerCase().replace(/\s+/g, '-')}`}
         />

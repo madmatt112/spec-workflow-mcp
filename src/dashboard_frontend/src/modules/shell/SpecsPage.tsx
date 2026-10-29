@@ -5,7 +5,7 @@ import { PageLayout, ScrollBox } from './PageLayout';
 import { Group, Chips, SearchBox, Pager, Row, ROWS_PER_PAGE, type Chip } from './primitives';
 import { formatDate } from '../../lib/dateUtils';
 import type { SpecListRow, SpecDetail } from './types';
-import { Button, Pill, type Tone } from '../ui/ui';
+import { Button, Pill, ui, type Tone } from '../ui/ui';
 
 const STATE_LABELS: Record<string, string> = {
   live: 'Live', 'in-progress': 'In progress', closed: 'Closed',
@@ -268,7 +268,7 @@ function SpecPanel({ item }: { item: Item }) {
   const dash = '—';
 
   return (
-    <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-panel)] p-4" data-testid="spec-panel">
+    <div className={`${ui.panel} p-4`} data-testid="spec-panel">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h2 className="min-w-0 break-words text-base font-semibold text-[var(--text-primary)]">{spec}</h2>
         <StateBadge state={row.state} />
@@ -295,24 +295,24 @@ function SpecPanel({ item }: { item: Item }) {
               <p className="px-1 text-sm text-[var(--text-muted)]">{'No runs.'}</p>
             ) : (
               <ScrollBox>
-                <table className="w-full border-collapse text-sm" data-testid="spec-runs-table">
+                <table className={`${ui.table} border-collapse`} data-testid="spec-runs-table">
                   <thead>
-                    <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{'Run'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Start'}</th>
-                      <th className="py-1 pr-3 font-medium">{'End'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Status'}</th>
-                      <th className="py-1 font-medium">{'Tokens'}</th>
+                    <tr>
+                      <th className={ui.th}>{'Run'}</th>
+                      <th className={ui.th}>{'Start'}</th>
+                      <th className={ui.th}>{'End'}</th>
+                      <th className={ui.th}>{'Status'}</th>
+                      <th className={ui.th}>{'Tokens'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detail.runs.map((r) => (
                       <tr key={r.runId} className="border-t border-[var(--border-default)]">
-                        <td className="py-1 pr-3 font-mono text-xs text-[var(--text-muted)]">{r.runId}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{formatDate(r.start)}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.end ? formatDate(r.end) : dash}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{r.status ?? dash}</td>
-                        <td className="py-1 text-[var(--text-secondary)] tabular-nums">{r.tokens.toLocaleString()}</td>
+                        <td className={`${ui.td} font-mono text-xs`}>{r.runId}</td>
+                        <td className={ui.td}>{formatDate(r.start)}</td>
+                        <td className={ui.td}>{r.end ? formatDate(r.end) : dash}</td>
+                        <td className={ui.td}>{r.status ?? dash}</td>
+                        <td className={`${ui.td} tabular-nums`}>{r.tokens.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -326,22 +326,22 @@ function SpecPanel({ item }: { item: Item }) {
               <p className="px-1 text-sm text-[var(--text-muted)]">{'No phases.'}</p>
             ) : (
               <ScrollBox>
-                <table className="w-full border-collapse text-sm" data-testid="spec-phases-table">
+                <table className={`${ui.table} border-collapse`} data-testid="spec-phases-table">
                   <thead>
-                    <tr className="text-left text-xs text-[var(--text-muted)]">
-                      <th className="py-1 pr-3 font-medium">{'Phase'}</th>
-                      <th className="py-1 pr-3 font-medium">{'State'}</th>
-                      <th className="py-1 pr-3 font-medium">{'Result'}</th>
-                      <th className="py-1 font-medium">{'Date'}</th>
+                    <tr>
+                      <th className={ui.th}>{'Phase'}</th>
+                      <th className={ui.th}>{'State'}</th>
+                      <th className={ui.th}>{'Result'}</th>
+                      <th className={ui.th}>{'Date'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detail.phases.map((p, i) => (
                       <tr key={`${p.phase}-${i}`} className="border-t border-[var(--border-default)]">
-                        <td className="py-1 pr-3 text-[var(--text-primary)]">{p.phase}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{p.state || dash}</td>
-                        <td className="py-1 pr-3 text-[var(--text-secondary)]">{p.result || dash}</td>
-                        <td className="py-1 text-[var(--text-secondary)]">{p.date ? formatDate(p.date) : dash}</td>
+                        <td className={ui.td}>{p.phase}</td>
+                        <td className={ui.td}>{p.state || dash}</td>
+                        <td className={ui.td}>{p.result || dash}</td>
+                        <td className={ui.td}>{p.date ? formatDate(p.date) : dash}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -427,7 +427,7 @@ function FileRow({ file }: { file: SpecDetail['files'][number] }) {
           value={file.path}
           data-testid={`copy-path-field-${file.name}`}
           onFocus={(e) => e.currentTarget.select()}
-          className="mt-1 w-full rounded-sm border border-[var(--border-default)] bg-[var(--surface-inset)] px-2 py-1 font-mono text-xs text-[var(--text-primary)]"
+          className="mt-1 w-full rounded-md border border-(--border-default) bg-(--surface-inset) px-3 py-1.5 font-mono text-xs text-(--text-primary)"
         />
       )}
     </div>

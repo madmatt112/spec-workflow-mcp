@@ -39,6 +39,8 @@
 
   --shadow-*: initial;
 
+  --color-*: initial;
+
   --focus-ring-width: 2px;
   --focus-ring-offset: 1px;
 
@@ -54,18 +56,6 @@
   --sidebar-w: 256px;
   --panel-w: 384px;
   --content-max: 1600px;
-
-  /* Bridge (design D1): legacy names call sites still reference until task 5
-     migrates them to the names on the right. Removed in task 5. */
-  --interactive-primary: var(--accent-solid);
-  --interactive-primary-hover: var(--accent-solid-hover);
-  --accent-primary: var(--accent-solid);
-  --accent-danger: var(--tone-danger-fg);
-  --status-error: var(--tone-danger-fg);
-  --status-warning: var(--tone-warning-fg);
-  --status-success: var(--tone-success-fg);
-  --status-pending: var(--tone-neutral-fg);
-  --border-focus: var(--focus-ring);
 }
 
 :root {
