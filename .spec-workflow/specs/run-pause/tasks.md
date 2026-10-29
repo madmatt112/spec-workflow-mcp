@@ -59,7 +59,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
   - _Requirements: 2.4, 2.5, 3.4, 3.5, 3.7, 5.2, 5.3, 5.4, 5.5_
   - _Prompt: Task: Per design C4 (scheduler item 2, Waits, Recovery), add a settle pass at the start of schedule, before the window check: every held run not in this.active whose status is queued, merging, or paused with a reason other than operator gets the applied pause write, with the merge cursor for merging. In onWaitChange, a held run becomes status paused, pauseReason operator, no resumeAt, instead of queued; the answer is written as today; an abandon on an error or escalation wait still cancels, and task 1's terminal rule drops the hold. recover needs no code change. Seed held records through writeRun with the owned option or by writing run.json directly | Restrictions: The settle pass never touches a run a drive holds; no new timer; the window-blocked branch keeps touching only queued runs | Success: A held queued record parks paused/operator on pump(); a held merging record parks paused/operator with cursor stepKind merge; pausing a waiting run leaves it waiting and held, and answering the wait makes it paused/operator with the answer on disk; an abandon answer on a held error wait leaves it abandoned with no pauseRequested; start() on held records seeded paused/operator, running with a dead pid, and waiting with an answered wait leaves all three paused/operator with no stub step consumed; tsc is clean_
 
-- [ ] 6. The pause route and the wire field
+- [x] 6. The pause route and the wire field
   - File: src/dashboard/multi-server.ts
   - File: src/controller/runs.ts
   - File: src/dashboard/__tests__/controller-dashboard-routes.test.ts
