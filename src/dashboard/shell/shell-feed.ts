@@ -12,6 +12,7 @@ import { listRunsSync } from '../../controller/state.js';
 import { liveRunsByProject } from './live-runs.js';
 import { buildNowModel } from './now-model.js';
 import { buildSpecRows } from './spec-rows.js';
+import { groupByStore } from './store-groups.js';
 import { FileCache } from './file-cache.js';
 import { listWaitsForWire } from '../../controller/waits.js';
 import { listRunsForWire } from '../../controller/runs.js';
@@ -73,8 +74,9 @@ export class ShellFeed {
 
   /**
    * One recompute: read the run records once, run the Now builder over every project
-   * and the Specs-row builder per project (a project whose rows throw is left out
-   * and logged once), read the controller waits, runs, latest-per-run
+   * and the Specs-row builder once per `.spec-workflow` store, over that store's
+   * representative project (a group whose rows throw is left out and logged
+   * once), read the controller waits, runs, latest-per-run
    * activity and the advisor's staged actions, keep the sextet and send
    * `shell-now`, `shell-specs`, `controller-waits`, `controller-runs`,
    * `controller-activity` then `controller-actions`. The controller topics
@@ -92,11 +94,13 @@ export class ShellFeed {
     const nowModel = await buildNowModel(projects, liveRuns, now, this.cache);
 
     const rows: SpecListRow[] = [];
-    for (const project of projects) {
+    for (const group of groupByStore(projects)) {
+      const liveProject = group.projects.find((p) => liveRuns.has(p.projectId));
+      const liveSpec = liveProject ? liveRuns.get(liveProject.projectId)?.spec ?? null : null;
       try {
-        rows.push(...(await buildSpecRows(project, liveRuns.get(project.projectId)?.spec ?? null, this.cache)));
+        rows.push(...(await buildSpecRows(group.representative, liveSpec, this.cache)));
       } catch (err) {
-        console.error(`ShellFeed: skipping spec rows for project ${project.projectId}`, err);
+        console.error(`ShellFeed: skipping spec rows for project ${group.representative.projectId}`, err);
       }
     }
 
