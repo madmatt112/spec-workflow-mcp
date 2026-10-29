@@ -70,7 +70,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 1.6, 4.6, 6.7, NFR Security_
   - _Prompt: Task: Per design C2 and C7, register `POST /api/controller/runs/:id/pause` after the cancel route; it calls the controller pause method task 4 adds: undefined gives 404 `{ error: 'run-not-found' }`, null gives 409 `{ error: 'not-pausable' }`, a record gives 200 `{ ok: true }`. Add `pauseRequested?: string` to ControllerRunRow and copy it in toRow. In the route test seed runs with writeRun: a paused run with pauseReason usage-limit and resumeAt one hour ahead (the started controller never starts it), and a done run | Restrictions: No access exemption; the row carries no path field | Success: POST pause on the usage-limit run answers 200 `{ ok: true }` and the GET /api/controller/runs row then has status paused, pauseReason operator, pauseRequested set and no resumeAt; a second POST answers 200 and the record's updated is unchanged; an unknown id answers 404 run-not-found; the done run answers 409 not-pausable and its record is unchanged; a POST with no bearer answers 401; resume on the done run answers 409 not-paused; the row has no codeRoot, specStore or worktree key; tsc is clean_
 
-- [ ] 7. Frontend type and the pause notes
+- [x] 7. Frontend type and the pause notes
   - File: src/dashboard_frontend/src/modules/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/pause.ts
   - File: e2e/worktree-shell.spec.ts

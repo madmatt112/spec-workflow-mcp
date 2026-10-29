@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-shell.spec.ts"],"seams":{"e2e/worktree-shell.spec.ts":"page.getByTestId(`ctrl-run-pause-${id}`)"},"redCommit":"fdbc5d6bd59cb5020cfe00ace70fb254b5e53c06","baseSha":"2596b1734c4743989a5255c07a49226d38e26ec3","base":"structural-red","head":"pass","amended":false,"judged":null}
