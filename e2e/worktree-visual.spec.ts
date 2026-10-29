@@ -91,6 +91,39 @@ test.describe.serial('Dashboard visual suite', () => {
   // Tasks 2-5 add their Requirement 3.3/4.1/4.4/4.5/4.6/5.4/5.6 tests directly
   // in this scope, reusing `fixture` and `openView`.
 
+  // Task 2 / design T4.4 (Requirement 3.3): native controls take their colour
+  // scheme from the selected theme, not the operating system. Each case opens
+  // its own context so the OS emulation and the `theme` key it sets never leak
+  // into the other direction's check.
+  test('native controls follow the selected theme', async ({ browser }) => {
+    async function colorSchemeFor(osScheme: 'light' | 'dark', theme: Theme): Promise<string> {
+      const context = await browser.newContext({ colorScheme: osScheme });
+      const page = await context.newPage();
+      await page.addInitScript((t) => window.localStorage.setItem('theme', t), theme);
+      await page.goto('/');
+      await expect(page.getByTestId('group-now-waits')).toBeVisible({ timeout: 15000 });
+      const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+      await context.close();
+      return scheme;
+    }
+
+    expect(await colorSchemeFor('light', 'dark')).toBe('dark');
+    expect(await colorSchemeFor('dark', 'light')).toBe('light');
+  });
+
+  // Task 2 / design T4.5 (Requirement 4.6): under prefers-reduced-motion, a
+  // nav link's transition duration is zeroed by the global reduced-motion rule.
+  test('reduced motion zeroes transitions', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    await page.goto('/');
+    const navLink = page.locator('[data-testid^="nav-"]').first();
+    await expect(navLink).toBeVisible({ timeout: 15000 });
+    const duration = await navLink.evaluate((el) => getComputedStyle(el).transitionDuration);
+    await context.close();
+    expect(duration).toBe('0s');
+  });
+
   test.describe('capture', () => {
     test.skip(
       !(process.env.SCREENSHOT_SET && process.env.SCREENSHOT_DIR),
