@@ -303,6 +303,10 @@ function projectsPath(): string {
   return join(controllerHome(), 'projects.json');
 }
 
+function projectsLockPath(): string {
+  return `${projectsPath()}.lock`;
+}
+
 function storeLockPath(specStoreRoot: string): string {
   const key = createHash('sha256').update(specStoreRoot).digest('hex').slice(0, 16);
   return join(controllerHome(), 'locks', `${key}.lock`);
@@ -456,21 +460,77 @@ export function writeProjects(file: ProjectsFile): Promise<void> {
   return writeJsonAtomic(projectsPath(), file);
 }
 
+/**
+ * Serialises `projects.json` writers (design C5), the same way `withStoreLock`
+ * serialises spec-store writers: throws when the lock is not acquired rather
+ * than silently skipping the write.
+ */
+async function withProjectsLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = await withRegistryLock(projectsLockPath(), fn);
+  if (!result.acquired) {
+    throw new Error(`could not acquire the projects lock at ${projectsLockPath()}: ${result.reason}`);
+  }
+  return result.value;
+}
+
 /** Add or refresh one project (matched by id); keeps the file sorted by name. */
 export async function rememberProject(project: Omit<KnownProject, 'seen'>, now: () => Date = () => new Date()): Promise<void> {
-  const file = await readProjects();
-  const next: KnownProject = { ...project, seen: now().toISOString() };
-  const rest = file.projects.filter((p) => p.id !== project.id);
-  rest.push(next);
-  rest.sort((a, b) => a.name.localeCompare(b.name));
-  await writeProjects({ v: 1, projects: rest });
+  await withProjectsLock(async () => {
+    const file = await readProjects();
+    const next: KnownProject = { ...project, seen: now().toISOString() };
+    const rest = file.projects.filter((p) => p.id !== project.id);
+    rest.push(next);
+    rest.sort((a, b) => a.name.localeCompare(b.name));
+    await writeProjects({ v: 1, projects: rest });
+  });
 }
 
 /** Drop one project by id; a missing id is a no-op. */
 export async function forgetProject(id: string): Promise<void> {
-  const file = await readProjects();
-  const rest = file.projects.filter((p) => p.id !== id);
-  if (rest.length !== file.projects.length) await writeProjects({ v: 1, projects: rest });
+  await withProjectsLock(async () => {
+    const file = await readProjects();
+    const rest = file.projects.filter((p) => p.id !== id);
+    if (rest.length !== file.projects.length) await writeProjects({ v: 1, projects: rest });
+  });
+}
+
+/**
+ * Drop every remembered project whose workspace or spec-store root is gone
+ * (design C5; requirement 4 AC2, AC7, AC8). Runs inside the same lock as
+ * `rememberProject`/`forgetProject`, so a remember that starts while a prune
+ * is still waiting on `isMissing` is serialised after it rather than lost. A
+ * lock miss logs and returns no drops instead of throwing, since the startup
+ * prune has no caller to report failure to.
+ */
+export async function pruneMissingProjects(
+  isMissing: (path: string) => Promise<boolean>,
+): Promise<KnownProject[]> {
+  try {
+    return await withProjectsLock(async () => {
+      const file = await readProjects();
+      const kept: KnownProject[] = [];
+      const dropped: Array<{ project: KnownProject; missingPath: string }> = [];
+      for (const project of file.projects) {
+        const missingPath = (await isMissing(project.workspacePath))
+          ? project.workspacePath
+          : (await isMissing(project.workflowRootPath))
+            ? project.workflowRootPath
+            : undefined;
+        if (missingPath === undefined) kept.push(project);
+        else dropped.push({ project, missingPath });
+      }
+      if (dropped.length > 0) {
+        await writeProjects({ v: 1, projects: kept });
+        for (const { project, missingPath } of dropped) {
+          console.error(`[state] pruned project ${project.id} from ${projectsPath()}: missing path ${missingPath}`);
+        }
+      }
+      return dropped.map((d) => d.project);
+    });
+  } catch (error) {
+    console.error(`[state] could not prune ${projectsPath()}: ${(error as Error).message}`);
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
