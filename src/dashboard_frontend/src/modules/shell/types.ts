@@ -223,6 +223,8 @@ export interface ControllerRun {
   resumeAt?: string;
   /** When the run became paused or waiting; set only while it is. */
   pausedAt?: string;
+  /** ISO time of an operator pause request; absent unless the operator holds the run. */
+  pauseRequested?: string;
   tokens: number;
   created: string;
   updated: string;

@@ -23,8 +23,27 @@ export interface PauseNote {
   overdue: boolean;
 }
 
+/** Held by the operator: a pause applied now, or requested and still pending. */
+export function isOperatorHeld(run: ControllerRun): boolean {
+  return run.pauseRequested !== undefined || (run.status === 'paused' && run.pauseReason === 'operator');
+}
+
 /** How long a paused or waiting run has been stopped, and when it resumes. */
 export function pauseNote(run: ControllerRun, now: number): PauseNote | null {
+  if (run.status === 'paused' && run.pauseReason === 'operator') {
+    const since = run.pausedAt ? Date.parse(run.pausedAt) : NaN;
+    const text = Number.isFinite(since) ? `paused by you ${fmtSpan(now - since)}` : 'paused by you';
+    return { text, overdue: false };
+  }
+  if (run.pauseRequested !== undefined && run.status !== 'paused') {
+    if (run.status !== 'waiting') return { text: 'pause requested', overdue: false };
+    const waiting = pausedOrWaitingNote(run, now);
+    return { text: `${waiting!.text} · pause requested`, overdue: waiting!.overdue };
+  }
+  return pausedOrWaitingNote(run, now);
+}
+
+function pausedOrWaitingNote(run: ControllerRun, now: number): PauseNote | null {
   if (run.status !== 'paused' && run.status !== 'waiting') return null;
   const parts: string[] = [];
   const since = run.pausedAt ? Date.parse(run.pausedAt) : NaN;
