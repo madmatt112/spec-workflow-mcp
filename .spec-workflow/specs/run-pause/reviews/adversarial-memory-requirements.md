@@ -1,11 +1,18 @@
 # Adversarial Review Memory — requirements
-
-Last updated: 2026-10-29 (round 1, v1)
+Last updated: 2026-10-29 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet; dispositions land after the reviser round)
+- **R1-1 (MUST_FIX, v1)** — Two response-body citations excluded the artifact line. Fixed in v2:
+  `run-not-found` anchors `multi-server.ts:814`, `not-paused` anchors `:823`. Re-verified correct.
+- **R1-2 (SHOULD_FIX, v1)** — `merging → paused` erased the only merge-resume signal (`status:'merging'`).
+  Fixed in v2: R3 AC3 sets the `merge` cursor (`stepKind:'merge'`) on pause; R4 AC2 names it as the marker
+  `runOnce`'s `resumingMerge` reads (`runs.ts:779-781`), same one the `blocked` path sets (`:689-691`).
+  Mechanism verified sound.
+- **R1-3 (MINOR, v1)** — Row-level Pause had no error surface ("as the panel does" had no target). Fixed in
+  v2: R6 AC2 requires the error surfaced without opening the panel and defers the render location to design
+  (Scope notes). Cites (`RunsPage.tsx:209-233` stateless row, `:321` panel error line) verified.
 
 ### Partially Accepted
 - (none)
@@ -14,36 +21,28 @@ Last updated: 2026-10-29 (round 1, v1)
 - (none)
 
 ### Unresolved
-- **R1-1 (MUST_FIX, Novel)** — Two response-body citations exclude the artifact line.
-  `src/dashboard/multi-server.ts:808-813` anchors `404 { error: 'run-not-found' }` but the body is
-  at 814; `:816-822` anchors `409 { error: 'not-paused' }` but the body is at 823. Wrong line
-  ranges. Fix: anchor at 814 and 823.
-- **R1-2 (SHOULD_FIX, Novel)** — R4 AC2 "Resume re-enters the merge stage" has no durable signal.
-  R2 AC2's pause write sets `status:'paused'`, erasing `status:'merging'` (the only thing
-  `resumingMerge` keys on, `runs.ts:779`). A `not-ready` merging run (`runs.ts:677`) keeps cursor
-  `stepKind:'implementation'` (`runs.ts:926`) and opens no merge wait, so on Resume `resumingMerge`
-  is false and `routeRun` skips merge → PR never merges. Requirement must name a persistent
-  merge-resume marker.
-- **R1-3 (MINOR, Novel)** — R6 AC2 requires row-level Pause busy + error display, but
-  `ControllerRunRow` (`RunsPage.tsx:209-233`) is stateless with no error surface; "as the panel's
-  other actions do" has no target on a row. Specify the row error/busy surface or defer the render
-  location explicitly.
+- **R2-1 (SHOULD_FIX, Compounding R1-2, v2)** — R3 AC3 pauses a `merging` run but never says to clear
+  `resumeAt`. A merging run always carries `resumeAt = now + 30 s` (`runs.ts:677`/`:726`,
+  `MERGE_POLL_INTERVAL_MS=30_000`). `isStartable` (`controller.ts:336-339`) starts any paused run once
+  `resumeAt <= now`, so an operator pause can self-resume mid-deploy — violating D9 and the Reliability NFR
+  ("an operator pause has no `resumeAt`"). R3 AC2 explicitly clears `resumeAt`; R3 AC3's silence reads as
+  "keep it". Fix: R3 AC3 clears `resumeAt` on the paused write.
 
 ## Patterns & Themes
-- Citation precision: body/response anchors drift one line off the quoted artifact (lands on the
-  handler opener, not the body line). Re-check every response-shape citation against the exact line.
-- The `merging → paused` transition is the fragile seam: it overwrites the only on-disk
-  merge-resume signal. Any AC that resumes a paused-from-merging run must say how the signal
-  survives.
-- Scheduler red-first points (`isStartable:333-339`, `schedule:316-327`) are correctly flagged by
-  the drafter; do not re-litigate.
+- The `merging → paused` transition is the recurring fragile seam. R1-2 closed the re-entry marker (cursor);
+  R2-1 shows the *same* write also leaves `resumeAt` dangling. When an AC changes a run's status, make it
+  state every field of the write (status, reason, resumeAt, inFlight, cursor), not just the new one.
+- Per-AC asymmetry misleads: when one AC spells out a field (R3 AC2 "clear resumeAt") and a sibling AC that
+  needs the same handling omits it, implementers read the omission as intent.
+- Citation precision (the v1 theme) is now clean — all v2 anchors land on their artifacts.
 
 ## Guidance for Next Review
-- Deltas verified clean this round (access.ts anchor, handleDocumentOutcome anchor). Start from the
-  reviser's disposition of R1-1/R1-2/R1-3.
-- Fix-induced re-check: if the reviser nudges the two body anchors, verify only that 814/823 now
-  fall inside the ranges — not a full re-read.
-- Next fresh lens candidate (if not reused): failure-mode / crash-recovery ordering (R5 AC3-AC5)
-  vs the live-step re-attach path (`controller.ts:261-289`).
-- Confirmed-sound areas not worth re-attacking without new evidence: live/terminal status
-  partition (R1), `runEvents` emission (R1 AC7), R4 AC3 window re-park via `runs.ts:831-836`.
+- If the reviser clears `resumeAt` in R3 AC3, fix-induced re-check only: confirm the paused-from-merging
+  write now lists `resumeAt: none` (or equivalent) and that no other paused-write AC lost a field — not a
+  full re-read.
+- Well-covered, do not re-attack without new evidence: response-body anchors (R1-1), the merge-cursor
+  re-entry mechanism (R1-2), the row error-surface deferral (R1-3), crash-recovery ordering R5 AC3–AC5
+  (checked sound this round), live/terminal status partition (R1), `runEvents` emission (R1 AC7).
+- Next fresh-lens candidate if a round 3 runs: the multi-site enforcement of R2 AC6 (usage-limit under a
+  pending pause → operator pause) across the document phase, `handleImplementationOutcome` (`runs.ts:1120-1181`)
+  and the merge-fix usage-limit path (`runs.ts:720-722`) — does every usage-limit write honour a pending pause?
