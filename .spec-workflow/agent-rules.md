@@ -31,12 +31,6 @@ Run each as its own command. Never run the Playwright e2e suites unless the task
   copies in the same commit), `npm run check:plugin-assets`, `claude plugin validate . --strict`.
 - Any change to `package.json` version or plugin manifests: `npm run check:plugin-version`.
 - Full suite, only at the end-to-end verification gate: `npm run build`, `npm test`.
-- A mid-spec fix to the running gate's own code (`src/core/task-parser.ts`,
-  `src/core/gate-rules.ts`, `src/core/task-diff.ts`) cannot be gate-verified in the loop:
-  the loop runs the old build, and the fix sits outside every feature task's `File:` list.
-  Do not fold such a fix into an unrelated feature task. Stop the spec, land the gate fix
-  as its own harness PR, rebuild and restart the session, then resume the spec on the new
-  build.
 
 CI runs node 20 (`.github/workflows/ci.yml:20`); local node is 24. A test that asserts on
 `child_process`, `fs` or stream behaviour asserts only on fields the node 20 docs
