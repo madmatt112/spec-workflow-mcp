@@ -1,6 +1,6 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
 import { realpathSync, statSync } from 'fs';
-import { resolve } from 'path';
+import { basename, dirname, resolve } from 'path';
 
 export const SPEC_WORKFLOW_SHARED_ROOT_ENV = 'SPEC_WORKFLOW_SHARED_ROOT';
 export const SPEC_WORKFLOW_WORKSPACE_ENV = 'SPEC_WORKFLOW_WORKSPACE';
@@ -267,6 +267,41 @@ export function isGitWorktree(projectPath: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Result of {@link linkedWorktreeInfo}. */
+export interface LinkedWorktreeInfo {
+  linked: boolean;
+  mainTree: string | null;
+}
+
+/**
+ * Classifies `workspacePath` as a linked worktree and derives its main
+ * working tree, from one `git rev-parse --git-common-dir` call (design C1;
+ * requirements R1 Terms, NFR Performance).
+ *
+ * `linked` is true only when the raw output is non-null and not `.git` — the
+ * same test {@link isGitWorktree} applies, inlined here rather than called so
+ * this stays one git invocation. `mainTree` is the parent of the
+ * realpath-normalized common directory when its base name is `.git`, mirrors
+ * {@link gitCommonDirAbsolute} for the same reason. A failed call returns
+ * `{ linked: false, mainTree: null }`.
+ *
+ * Deliberately never reads `SPEC_WORKFLOW_SHARED_ROOT`: unlike
+ * {@link resolveGitRoot}, the main tree this function returns must stay the
+ * actual main checkout, not the shared spec store the env var points at.
+ */
+export function linkedWorktreeInfo(workspacePath: string): LinkedWorktreeInfo {
+  const raw = gitCapture('git rev-parse --git-common-dir', workspacePath);
+  if (raw === null) {
+    return { linked: false, mainTree: null };
+  }
+
+  const linked = raw !== '.git';
+  const commonDir = normalizeIdentityPath(resolve(workspacePath, raw));
+  const mainTree = basename(commonDir) === '.git' ? dirname(commonDir) : null;
+
+  return { linked, mainTree };
 }
 
 /**

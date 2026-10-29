@@ -14,6 +14,7 @@ import {
   resolveWorkspaceRoots,
   defaultBranchIfOnIt,
   scrubbedGitEnv,
+  linkedWorktreeInfo,
   SPEC_WORKFLOW_SHARED_ROOT_ENV
 } from '../git-utils.js';
 
@@ -328,6 +329,7 @@ describe('git environment scrubbing (requirement 1.9)', () => {
     ['gitTopLevel', () => gitTopLevel('/test/path')],
     ['defaultBranchIfOnIt', () => defaultBranchIfOnIt('/test/path')],
     ['sameRepository', () => sameRepository('/test/a', '/test/b')],
+    ['linkedWorktreeInfo', () => linkedWorktreeInfo('/test/path')],
     ['resolveWorkspaceRoots', () => resolveWorkspaceRoots({
       configuredPath: '/test/path',
       cwd: '/test/cwd',
