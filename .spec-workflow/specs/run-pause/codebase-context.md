@@ -122,3 +122,39 @@
 - e2e/worktree-shell.spec.ts:310-319 — opens a controller run row on `/#/runs`.
 - src/controller/__tests__/controller.test.ts:414-449 — crash-recovery test pattern.
 - src/controller/__tests__/runs.test.ts:348-349 — usage-limit pause test start.
+
+## Tasks phase additions — state, driver and controller
+- src/controller/state.ts:348-365 — `listRunsSync`: the existing synchronous `run.json` read pattern.
+- src/controller/state.ts:384-386 — `readRun`: async read of one record.
+- src/controller/runs.ts:539-542 — `pause` doc comment and body.
+- src/controller/runs.ts:649-651 — no-PR branch saves the `merge` cursor.
+- src/controller/runs.ts:672-678 — `merged` and `not-ready` writes (`merging` with a poll `resumeAt`).
+- src/controller/runs.ts:1264-1266 — `fifteenMinutes`: usage-limit fallback resume time.
+- src/controller/phases/implementation.ts:130 — implementation outcome result union, already has `stopped`.
+- src/controller/phases/implementation.ts:1332-1340 — `prChecksGate` poll with its `shouldStop` check.
+- src/controller/controller.ts:276-294 — `reattach` and `resumeIfWaitAnswered`.
+- src/controller/controller.ts:347-365 — `startDrive` and `drive`: `active` set around `runOnce`.
+
+## Tasks phase additions — server and frontend
+- src/dashboard/multi-server.ts:398-410 — dashboard `start` starts the controller (recovery runs at server start).
+- src/dashboard/harness/overview-watch.ts:264-268 — `onRuns`: a run change marks rows dirty; rows are recomputed from disk.
+- src/dashboard_frontend/src/modules/shell/RunsPage.tsx:185-202 — status tone map and `CtrlStatusChip`.
+- src/dashboard_frontend/src/modules/shell/RunsPage.tsx:243-271 — panel busy/error state, `act` and `resume` handlers.
+- src/dashboard_frontend/src/modules/shell/primitives.tsx:186 — `Row` sets `data-selected`.
+- src/dashboard_frontend/src/modules/shell/types.ts:194 — hand-copy note for the controller wire types.
+- tsconfig.json:19-20 — `tsc` excludes `src/dashboard_frontend/**`.
+- package.json:26-31 — `build`, `dev`, `dev:dashboard`, `build:dashboard` scripts.
+
+## Tasks phase additions — tests and fixtures
+- src/controller/__tests__/runs.test.ts:104-119 — `deps` helper for `RunDeps` fakes.
+- src/controller/__tests__/runs.test.ts:430-453 — `listRunsForWire` tests.
+- src/controller/__tests__/runs.test.ts:455-613 — `runOnce merge stage` suite, `auto` not-ready-then-merged test at 574-613.
+- src/controller/__tests__/controller.test.ts:269-295 — `resumeNow` on a full-window pause.
+- src/controller/phases/__tests__/document.test.ts:141-147 — `makeContext` start.
+- src/controller/phases/__tests__/document.test.ts:407-436 — document usage-limit test.
+- src/dashboard/__tests__/controller-dashboard-routes.test.ts:71-88 — `startServer` and bearer `auth` helper.
+- e2e/worktree-shell.spec.ts:83-136 — serial suite `beforeAll` setup.
+- e2e/worktree-shell.spec.ts:198-202 — `afterAll` cleanup.
+- e2e/worktree-project-list.spec.ts:343-349 — seeds a `running` run after the server starts.
+- playwright.worktree.config.ts:46-66 — dev dashboard and dev frontend web servers.
+- .spec-workflow/specs/advisor/verification-evidence.md:1-21 — pending-line format reference.
