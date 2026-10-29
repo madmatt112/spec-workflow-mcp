@@ -51,7 +51,7 @@ Two listed projects **share a store** when their workflow roots are the same str
 
 #### Acceptance Criteria
 
-1. WHEN `runCases` starts a step THEN the spec-workflow server that step launches SHALL write no entry to the operator's registry, the `activeProjects.json` under the registry directory the operator's own servers use (`src/evals/runner.ts:179-198`, `src/core/global-dir.ts:40-51`).
+1. WHEN `runCases` starts a step THEN the spec-workflow server that step launches SHALL write no entry to the operator's registry, the `activeProjects.json` under the registry directory the operator's own servers use (`src/evals/runner.ts:141`, `src/evals/runner.ts:179-198`, `src/core/global-dir.ts:40-51`).
 2. WHEN an eval run ends THEN the controller's `projects.json` SHALL hold no entry it did not hold before the run.
 3. The eval's server SHALL still serve its tools with the fixture root as both workspace and workflow root, so case results do not change (`src/evals/runner.ts:186-189`).
 4. A unit test SHALL prove criterion 1 without a live model call, through the injectable step of `RunCasesOpts` (`src/evals/runner.ts:42-49`).
@@ -153,3 +153,4 @@ Two listed projects **share a store** when their workflow roots are the same str
 ## Revision History
 
 - **v1** (2026-10-29) — Initial draft.
+  - **Lint pass.** 1 fixed; rejected: L-2/L-3/L-4/L-5 — `waiting`/`running`/`idle` are new dot-state literals R5 AC1 defines, not code identifiers; citations anchor the row markup and wait derivation correctly.
