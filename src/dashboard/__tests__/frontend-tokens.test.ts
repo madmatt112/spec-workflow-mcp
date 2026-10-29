@@ -133,7 +133,7 @@ const THEME_TOKEN_NAMES = [
   '--border-default', '--border-strong',
   '--accent', '--accent-solid', '--accent-solid-hover',
   '--danger-solid', '--danger-solid-hover',
-  '--focus-ring',
+  '--focus-ring', '--focus-ring-on-solid',
   '--tone-success-fg', '--tone-success-bg',
   '--tone-warning-fg', '--tone-warning-bg',
   '--tone-danger-fg', '--tone-danger-bg',
@@ -161,6 +161,7 @@ const CONTRAST_PAIRS: Array<{ fg: string; bg: string; min: number }> = [
   ...cross(['--focus-ring', '--border-strong'], ['--surface-base', '--surface-panel', '--surface-inset', '--surface-overlay'], 3),
   { fg: '--focus-ring', bg: '--surface-hover', min: 3 },
   { fg: '--focus-ring', bg: '--surface-selected', min: 3 },
+  ...cross(['--focus-ring-on-solid'], ['--accent-solid', '--accent-solid-hover', '--danger-solid', '--danger-solid-hover'], 3),
   ...[1, 2, 3, 4, 5, 6].map((n) => ({ fg: `--chart-${n}`, bg: '--surface-panel', min: 3 })),
 ];
 

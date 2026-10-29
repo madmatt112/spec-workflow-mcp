@@ -82,6 +82,8 @@
   --danger-solid-hover: #b0333a;
 
   --focus-ring: #5e6ad2;
+  /* The ring on a solid (accent or danger) fill: --focus-ring is the accent itself. */
+  --focus-ring-on-solid: #000000;
 
   --tone-success-fg: #1f7a48;
   --tone-success-bg: #e6f3ec;
@@ -131,6 +133,7 @@
   --danger-solid-hover: #a8282e;
 
   --focus-ring: #7170ff;
+  --focus-ring-on-solid: #ffffff;
 
   --tone-success-fg: #4cb782;
   --tone-success-bg: #1b2d26;
