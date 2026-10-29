@@ -120,7 +120,7 @@ graph LR
 ### C9 — Runs page row and panel (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx`)
 - **Purpose:** Pause and Resume buttons (Requirement 6 AC 1 to AC 4).
 - **Interfaces:**
-  - `PauseButton({ run })` — local to `RunsPage.tsx`, owning its `busy` and `error` state. On click it calls `e.stopPropagation()` (React 18.3.1 installed; `@types/react` declares it at `node_modules/@types/react/index.d.ts:2196`; the shell uses it at `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:197`), then posts to the pause route. While busy it reads `Pausing…` and is disabled. A failure sets `pause failed (status)`, shown right of the button as a danger-tone span with `role="alert"` and the full message in `title`; it never selects the row or opens the panel. The new state arrives over the runs topic (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:260-271`).
+  - `PauseButton({ run })` — local to `RunsPage.tsx`, owning its `busy` and `error` state. On click it calls `e.stopPropagation()` (the shell already uses it at `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:197`), then posts to the pause route. While busy it reads `Pausing…` and is disabled. A failure sets `pause failed (status)`, shown right of the button as a danger-tone span with `role="alert"` and the full message in `title`; it never selects the row or opens the panel. The new state arrives over the runs topic (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:260-271`).
   - Row (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:209-233`): renders `PauseButton` (test id `ctrl-row-pause-<id>`) when the status is live (`queued`, `running`, `paused`, `waiting` or `merging`) and `isOperatorHeld` is false. The row shows no Resume.
   - Panel (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:235-324`): renders `PauseButton` (test id `ctrl-pause`) under the same condition as the row. When `isOperatorHeld` is true, it shows a **Resume** button (test id `ctrl-resume-operator`) that posts to the resume route, and it hides **Resume now**. **Resume now** (`ctrl-resume`, `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:296-306`) stays for a `paused` run that is not held. Cancel and Discard are unchanged.
 - **Reuses:** `Button`, the panel's `resume` handler shape, and the panel error line (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:321`) for Resume failures.
@@ -193,7 +193,7 @@ A test that seeds a held record through `writeRun` passes `{ ownsPauseRequest: t
 ## Scope notes
 
 - Carried items from requirements: none.
-- RE-DECIDED (D3): Requirement 2 AC 3 names each document-phase step as a boundary; this design parks the document phase only at a review-round top, so the reviewer, reviser, lint-fix, narrow-check and adjudicator steps of a round run on, and a pause can wait up to one round (an approval can land first). The other phases park at their existing `shouldStop` points, which are not before every spawn. A step-exact document resume is out of scope.
+- RE-DECIDED (D3): Requirement 2 AC 3 names each document-phase step as a boundary; this design parks the document phase only at a review-round top, so the reviewer, reviser, lint-fix, narrow-check and adjudicator steps of a round run on, and a pause can wait up to one round (an approval can land first). The other phases park at their existing `shouldStop` points. A step-exact document resume is out of scope.
 - Re-entry after a document-phase pause loses that phase's in-memory round state (standoff and circling history, the cap's extra round), as a usage-limit re-entry does today.
 - Decided here, as the decomposition asks: the self-update script (D8), the row error location (D9), and how waits opened under a pending pause display (D10, C8).
 - Out of scope, as the requirements set: the advisor second-opinion step, a pause timer, pausing every run with one click, and any change to cancel or discard.
@@ -201,3 +201,4 @@ A test that seeds a held record through `writeRun` passes `{ ownsPauseRequest: t
 ## Revision History
 
 - **v1** (2026-10-29) — Initial draft.
+  - **Lint pass.** 1 fixed (L-39: dropped unresolvable `node_modules/@types/react` citation, line 123); rejected L-1 to L-38, L-40 to L-62 as false positives.
