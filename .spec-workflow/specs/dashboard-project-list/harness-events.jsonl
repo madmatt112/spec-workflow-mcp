@@ -319,3 +319,8 @@
 {"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P5","outcome":"to-do"}
 {"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P7","outcome":"done"}
 {"ts":"2026-10-29T17:29:22.478Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P8","outcome":"to-do"}
+{"ts":"2026-10-29T17:29:28.005Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.pick","task":"P4","title":"P4 (F4) — `addProjectByPath` store-root change no longer re-points watchers."}
+{"ts":"2026-10-29T17:29:28.015Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.start","agent":"sdd-implementer","role":"implement code batch 3","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-29T17:30:39.968Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.end","agent":"sdd-implementer","input":"12","output":"4767","cacheWrite":"37004","cacheRead":"219687","tokens":"261470","cacheWrite5m":"0","cacheWrite1h":"37004","model":"claude-opus-4-8"}
+{"ts":"2026-10-29T17:30:39.968Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 3","result":"ok","phase":"closeout"}
+{"ts":"2026-10-29T17:30:39.986Z","run":"run-20261029-104125","spec":"dashboard-project-list","type":"task.done","task":"P4","outcome":"to-do"}
