@@ -1,49 +1,44 @@
 # Adversarial Review Memory — design
-
-Last updated: 2026-10-29 (Round 1)
+Last updated: 2026-10-29 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- none yet (round 1 pending disposition)
+- **R1-1 (SHOULD_FIX)** — No operator stop between implementation `complete` and the merge stage;
+  a held run on its last implementation step auto-merged its PR. Fixed in v2: C3 point 4 adds the
+  merge-stage-entry stop (after `hasMerged` at runs.ts:624, before runMergeStage at 663-675),
+  saves the `merge` cursor (C5), corrected loop-top wording, D3, Overview, + Testing case line 169.
+  Verified accurate against the code in R2.
+- **R1-2 (MINOR)** — Pause route reuse line wrongly cited the cancel route's shape. Fixed in v2:
+  C2 line 54 now cites the resume route's three-way shape. Verified.
 
 ### Partially Accepted
 - none
 
 ### Rejected
-- none
+- **R1-3 (MINOR)** — Per-check synchronous `readRunSync` cost unstated. Rejected in v2: already
+  stated and justified against the `windowBlock` precedent (C3 point 1, D11). Do not re-raise
+  without new evidence.
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — No operator stop between implementation `complete` and the merge
-  stage. `runOnce` calls `runMergeStageStep` at `runs.ts:947` with no `isPauseRequested` check;
-  `runMergeStage` merges a rule-passing PR (`runs.ts:663,672-675`) before the only operator
-  guard, which sits in the `blocked` branch (C3 point 3). A `running` run held during its last
-  implementation step auto-merges its PR, defeating D9/Req 7. Fix: stop at the merge-stage entry
-  (save `merge` cursor + `pause(OPERATOR_PAUSE)`) and fix C3 point 1's "boundary between phases".
-- **R1-2 (MINOR)** — C2 says the pause route reuses the cancel route's handler shape, but the
-  three-way `undefined→404 / null→409 / record→200` is the resume route's shape; cancel has no
-  409. Wording only.
-- **R1-3 (MINOR)** — `isPauseRequested` adds a per-check synchronous `readRunSync` (alongside the
-  existing `windowBlock` sync read); the added per-check I/O is unstated. Safe for implementation.
+- **R2-1 (MINOR)** — C3 point 4 and Testing line 169 cite `(Requirement 7 AC 1)` as the grounding
+  for "the PR stays unmerged," but Req 7 AC 1 only forbids starting a next *step*, and a clean
+  merge (`gh pr merge`) is not a step per the requirements' Terms. The real anchor is D9's
+  rationale. Wording/traceability only; behaviour is correct. Compounds R1-1 (fix-induced text).
 
 ## Patterns & Themes
-
-- The design is well-grounded: every cited path/range/signature matches the code, and the
-  hard races (writeRun carry rule D2, resume-vs-pause-write Error Handling 4, 30 s merge poll
-  vs. the new `isStartable` first-rule) are traced and sound.
-- The single real gap is a stop-point *enumeration* omission, not a false claim: the design
-  guards every phase reached through the `runOnce` loop top and the merge-*resume* path, but
-  the implementation→merge *entry* at `runs.ts:947` is a direct call that bypasses the loop top.
-  Pattern to watch next round: any other direct inter-phase call in `runOnce` (none found
-  besides 947; done-routing close-out merge at 850-858 is reached via the loop top, so safe).
+- The design remains well-grounded: every cited path/range/signature/behaviour matches the code,
+  across both the v1 base and the v2 delta.
+- R1's single real gap (the implementation→merge direct call at runs.ts:947 bypassing the loop
+  top) is now closed, and the stop-point enumeration is complete — 947 was the only un-held direct
+  inter-phase call; document/retro/close-out all re-enter through the loop-top check.
+- The only residue is a requirement-to-design traceability tag that over-claims (R2-1), not a code
+  or logic defect.
 
 ## Guidance for Next Review
-
-- If R1-1 is accepted and fixed, re-check: (a) the new merge-entry stop saves the `merge`
-  cursor so Resume re-enters the merge stage (Req 4 AC 2, C5), not the implementation phase;
-  (b) the Testing-Strategy case for an immediately-mergeable held PR was added; (c) C3 point 1's
-  wording was corrected.
-- Do not re-raise the `writeRun` serialisation, the document round-top RE-DECIDED (D3), or the
-  merge-poll/`isStartable` interaction — all checked and sound this round.
-- Verify the `resumeNow` held branch lands *first* (before the `status !== 'paused'` return,
-  `controller.ts:210`); mis-ordering silently regresses Req 4 AC 4 to a 409.
+- Design is converged (0/0). No further adversarial round is needed on logic.
+- If a v3 is cut, the only open item is the R2-1 tag (retag to D9); do not treat it as blocking.
+- Do NOT re-open: the `writeRun` carry rule (D2), Error Handling 4 (resume-vs-pause race), the
+  `isStartable` first-rule vs 30 s merge poll, the document round-top RE-DECIDED (D3), the
+  `resumeNow` held-branch-first ordering, the merge-entry placement/cursor/resume round-trip, or
+  the merge-stage test feasibility (harness supports it via stub-gh.mjs / scriptMergeablePR).

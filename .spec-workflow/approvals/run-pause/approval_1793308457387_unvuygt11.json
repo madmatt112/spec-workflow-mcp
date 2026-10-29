@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793308457387_unvuygt11",
+  "title": "run-pause design v2",
+  "filePath": ".spec-workflow/specs/run-pause/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-29T21:14:17.387Z",
+  "category": "spec",
+  "categoryName": "run-pause",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-29T21:14:17.729Z"
+}
