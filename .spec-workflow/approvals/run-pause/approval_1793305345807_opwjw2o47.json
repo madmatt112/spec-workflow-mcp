@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793305345807_opwjw2o47",
+  "title": "run-pause requirements v3",
+  "filePath": ".spec-workflow/specs/run-pause/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-10-29T20:22:25.807Z",
+  "category": "spec",
+  "categoryName": "run-pause",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-10-29T20:22:26.096Z"
+}

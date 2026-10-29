@@ -149,6 +149,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | dashboard-project-list | implementation | tasks 13/13 | complete | PR #191 |
 | 2026-10-29 | dashboard-project-list | retrospective |  | retro-ready | 20 findings, 14 proposals |
 | 2026-10-29 | dashboard-project-list | closeout | items 13/13 | closed | 3 done, 3 to-do, 7 skipped |
+| 2026-10-29 | run-pause | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1246,4 +1247,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/193 |
 | To-dos | P5: Targets an 'implementation orchestrator brief' that does not exist; under ADR 0004 the orchestrator is the controller (src/controller/), which writes deferrals straight to the spec store. Belongs in controller code or agent-rules relocation rule (outside this worktree root); cannot go in sdd-implementer.md (implementer must not touch deferrals). Needs re-scoping.; P8: DECISION NEEDED. Option A contradicts the controller design: the per-task verifier brief defers its report block to verify-standing, which also carries the agent-rules/codebase-context reads and git-diff rule absent from the role prompt, and the controller reliably generates verify-standing.md (implementation.ts:554) so the 'dead path' premise no longer holds. Dropping it touches brief-templates.ts + implementation.ts + harness.test.ts and risks losing verifier instructions. Needs a human ruling (A vs B).; P4: DECISION NEEDED (owner): Option A (recommended) = leave deferred under C3 scope note, no code change; Option B = schedule product fix, blocked on its project-manager-lifecycle prerequisite. Not forcing a medium-risk watcher-lifecycle change in close-out. |
 | Gotchas | none |
+
+
+## run-pause — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-10-29 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1793305345807_opwjw2o47` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 
