@@ -324,13 +324,18 @@ test.describe.serial('Dashboard visual suite', () => {
   type KindCapture = { kind: 'row' | 'pill' | 'button'; key: string; style: StyleSnapshot };
 
   /**
-   * Reads every row, pill and button kind instance inside `main` on the
-   * current page (design D7: the sidebar is the same element on every view
-   * and would pair trivially). A pill's key is its tone, a button's key is
-   * its variant and size, and a row's key is constant (only unselected rows
-   * are collected, design T4.1) — the attributes that drive each kind's look.
+   * Reads every row, pill and button kind instance across the whole shell —
+   * `main` plus the sidebar aside — on the current page. Widened from
+   * main-only (P4/F4): the Gear popover's theme and notify-enable buttons are
+   * shared Buttons that live in the sidebar, so requirement 4.1's
+   * one-style-across-views guarantee must reach them too. The sidebar is one
+   * element across views, so its buttons self-pair across views; that is
+   * harmless here because the assertion is style equality. A pill's key is its
+   * tone, a button's key is its variant and size, and a row's key is constant
+   * (only unselected rows are collected, design T4.1) — the attributes that
+   * drive each kind's look.
    */
-  async function captureKindsInMain(page: Page): Promise<KindCapture[]> {
+  async function captureKinds(page: Page): Promise<KindCapture[]> {
     return page.evaluate(() => {
       function snapshot(el: Element): StyleSnapshot {
         const s = getComputedStyle(el as HTMLElement);
@@ -344,20 +349,18 @@ test.describe.serial('Dashboard visual suite', () => {
           fontSize: s.fontSize,
         };
       }
-      const main = document.querySelector('main');
       const out: KindCapture[] = [];
-      if (!main) return out;
-      for (const el of Array.from(main.querySelectorAll('[data-ui="pill"]'))) {
+      for (const el of Array.from(document.querySelectorAll('[data-ui="pill"]'))) {
         out.push({ kind: 'pill', key: `tone=${el.getAttribute('data-tone')}`, style: snapshot(el) });
       }
-      for (const el of Array.from(main.querySelectorAll('[data-ui="button"]'))) {
+      for (const el of Array.from(document.querySelectorAll('[data-ui="button"]'))) {
         out.push({
           kind: 'button',
           key: `variant=${el.getAttribute('data-variant')}|size=${el.getAttribute('data-size')}`,
           style: snapshot(el),
         });
       }
-      for (const el of Array.from(main.querySelectorAll('[data-ui="row"][data-selected="false"]'))) {
+      for (const el of Array.from(document.querySelectorAll('[data-ui="row"][data-selected="false"]'))) {
         out.push({ kind: 'row', key: 'unselected', style: snapshot(el) });
       }
       return out;
@@ -404,13 +407,18 @@ test.describe.serial('Dashboard visual suite', () => {
     const captures: Array<KindCapture & { view: View }> = [];
     for (const view of VIEWS) {
       await openView(page, view);
+      // Open the Gear popover so its sidebar buttons (the theme toggle and the
+      // notify-enable button, P4/F4) render into the DOM for the widened
+      // capture below. Each `openView` reloads the page, so the popover is
+      // closed and this one click opens it.
+      await page.getByTestId('gear-toggle').click();
       // ThemeProvider sets the `dark` class in an effect after first paint, and
       // Button/Pill transition their colours over --default-transition-duration;
       // the first view loaded (a fresh page load, unlike later in-SPA
       // navigations) can still be mid-transition when `openView`'s visibility
       // wait resolves, so wait past that duration before reading computed style.
       await page.waitForTimeout(200);
-      const found = await captureKindsInMain(page);
+      const found = await captureKinds(page);
       for (const entry of found) captures.push({ ...entry, view });
     }
     await context.close();

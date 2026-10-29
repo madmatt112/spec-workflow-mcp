@@ -48,6 +48,7 @@ import {
   WorktreeLayout
 } from '../../src/core/__tests__/helpers/git-fixture.js';
 import { generateProjectId } from '../../src/core/project-registry.js';
+import { writeProjects } from '../../src/controller/state.js';
 
 export type { WorktreeLayout };
 
@@ -234,6 +235,12 @@ const RESOLUTION_LOG_MARKERS = [
  * projects that did register. Truncating the file to `{}` produces the same
  * empty registry and keeps the watch alive.
  *
+ * It also empties the controller's durable project list (`projects.json` in the
+ * home, controller-design.md §3), which `activeProjects.json` does not cover: left
+ * alone it survives every prior run and the sidebar accumulates one dead
+ * "remembered" entry per invocation. Truncating both here means a capturing suite
+ * gets a clean sidebar with no per-config reset of its own.
+ *
  * Call it from `beforeAll` in every suite that shares one dashboard.
  */
 export async function resetSpecWorkflowHome(specWorkflowHome: string): Promise<void> {
@@ -244,6 +251,7 @@ export async function resetSpecWorkflowHome(specWorkflowHome: string): Promise<v
   }
   await mkdir(specWorkflowHome, { recursive: true });
   await writeFile(join(specWorkflowHome, 'activeProjects.json'), '{}\n', 'utf-8');
+  await writeProjects({ v: 1, projects: [] });
 }
 
 function buildApprovalPayload(params: {

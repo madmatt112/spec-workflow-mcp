@@ -106,13 +106,14 @@ export function Gear() {
                 ) : notifyPermission === 'denied' ? (
                   <span className="text-xs text-(--text-muted)" data-testid="notify-state">Blocked</span>
                 ) : (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={requestNotify}
                     data-testid="notify-enable"
-                    className="rounded-md bg-(--surface-inset) px-3 py-1.5 text-sm text-(--text-secondary) hover:bg-(--surface-hover)"
                   >
                     Enable
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
