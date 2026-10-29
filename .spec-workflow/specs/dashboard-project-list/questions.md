@@ -23,3 +23,9 @@
 6. Proceed with this spec, or do nothing and defer it? Reply "Proceed" to continue, or pick "Do nothing — defer this spec" (optionally followed by a reason) to end the run now — the drafted requirements are kept and no design, tasks or implementation run.
    Options: Proceed | Do nothing — defer this spec
    Answer: Proceed
+
+## Gate B
+
+1. Approve the task plan, or annotate it? Reply "Approve" to proceed, or type an annotation to revise the tasks once before implementation.
+   Options: Approve | Annotate
+   Answer: Annotate: task 13 must parse with no File entries, so the controller treats it as verification-only. Right now the parser reads `none`, plus two fragments from the Lint pass note, as file paths. (1) Delete task 13's `- File: none (...)` line and state the same thing in prose without the label, e.g. `- Verification only: no source change, no test seam, implementer-only.` (2) In the trailing notes, reword the Lint pass bullet so it does not contain the text `File:` (e.g. 'task 13 lists no files and changes no source'), because any `File:` in a line after task 13 is attributed to it. Change nothing else.

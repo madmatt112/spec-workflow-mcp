@@ -1,6 +1,6 @@
 # Tasks Document
 
-Document version: v1
+Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13. Tasks 1 to 5 add the classification, fold, missing-path, registry-cleanup and `projects.json` pieces with no caller, so behaviour is unchanged until task 6 wires them into the project manager. Tasks 7 and 8 add the eval opt-out, tasks 9 and 10 change the shell feed, tasks 11 and 12 change the frontend and own the new worktree e2e suite, and task 13 runs the gate. Each task leaves `npx tsc --noEmit`, `npm run build:dashboard` and every existing vitest and worktree e2e suite green, except the two durable-list values task 6 changes on purpose. Planned verifier spend: about six — tasks 2, 3, 9, 10 and 11 create brand-new modules (structural-red, high risk) and task 6 is likely over the line rule. No task touches an agent-rules sensitive path; `src/core/path-utils.ts` is imported, never edited. Task 13 is a measurement task with no `- Test:` seam (implementer-only).
 
@@ -148,7 +148,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - _Prompt: Task: Per design C11 rows and colours, the C12 type-copy bullet, R5 AC1, AC6 to AC8, AC10 and AC11, and R7 AC1 and AC4, copy the row type and the sidebar field task 10 adds into the frontend NowModel by hand; sort project rows by their index in now.sidebar, absent ones last by name; render after the toggle and before the name one 8 px dot span with role img, aria-label and title per design C11, data-state, test id project-dot-projectId, and, when liveCount is 1 or more, the count with test id project-live-count-projectId in the row's muted style; colours --tone-warning-fg, --tone-success-fg, --tone-neutral-fg. Extend the e2e file: add the main repo with POST /api/projects/add, read nav-specs and nav-deferrals, start one shared-mode worktree server on its store, seed a running run record for the main id; expect one row, data-state running, count 1, equal counts. Then a second project with an open wait (createWait) and an older run sorts above an idle project with a newer done run, data-state waiting. Toggling the main project off keeps its dot and position | Restrictions: No other element, size or spacing change; no hard-coded colour | Success: The live worktree run gives one running row with count 1 and unchanged counts; the waiting project sorts above the newer idle one; the toggle changes neither dot nor position; the style scan stays green_
 
 - [ ] 13. End-to-end verification gate
-  - File: none (measurement task: no source change, no `- Test:` seam, implementer-only)
+  - Verification only: no source change, no test seam, implementer-only.
   - Purpose: Prove the whole spec on a full build and every suite.
   - _Leverage: agent-rules Checks and Fixtures sections; e2e/worktree-shared.spec.ts (370-414, 748-795)_
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 1.3, 1.7_
@@ -176,4 +176,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 ## Revision History
 
 - **v1** (2026-10-29) — Initial draft.
-  - **Lint pass.** 2 fixed; rejected: L-3 task 13 has `File: none` and changes no source, so the task-test-seam rule does not apply.
+  - **Lint pass.** 2 fixed; rejected: L-3 task 13 lists no files and changes no source, so the task-test-seam rule does not apply.
+
+- **v2** (2026-10-29) — Revision from the input below.
+  - **RI-1 — Accepted (MINOR).** Task 13 now states "Verification only: no source change, no test seam, implementer-only." in prose with no file label, and the Lint pass rejection now reads "task 13 lists no files and changes no source", so no line after task 13 holds the file-path label the controller's parser would attribute to it as a verification-only task.
