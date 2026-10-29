@@ -72,7 +72,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - File: src/__tests__/index-args.test.ts
   - File: src/__tests__/server-shutdown.test.ts
   - Test: src/__tests__/index-args.test.ts — parseArguments(['--no-register'])
-  - Test: src/__tests__/server-shutdown.test.ts — new SpecWorkflowMCPServer().initialize(root, root, undefined, undefined, { register: false })
+  - Test: src/__tests__/server-shutdown.test.ts — `new SpecWorkflowMCPServer().initialize(root, root, undefined, undefined, { register: false })`
   - Count change: one more boolean flag. Find every list with `grep -rn -- "--no-workspace-inference" src/__tests__ docs/CONFIGURATION.md README.md`; update the exact flag list at `src/__tests__/index-args.test.ts:167-169` and the boolean-flag sentence at `docs/CONFIGURATION.md:29`.
   - Purpose: Let a launcher start a server that writes nothing to the registry.
   - _Leverage: src/index.ts (help OPTIONS at 37-65, CLI_FLAGS at 164-177, parseArguments at 206-221, initialize call at 662-668), src/server.ts (initialize at 160-165, registration at 185-195, stop at 280-306)_
@@ -83,8 +83,8 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - File: src/evals/runner.ts
   - File: src/evals/__tests__/runner.test.ts
   - File: src/evals/__tests__/runner-registry.test.ts (new)
-  - Test: src/evals/__tests__/runner.test.ts — runCases(ids, { step })
-  - Test: src/evals/__tests__/runner-registry.test.ts — runCases(ids, { step })
+  - Test: src/evals/__tests__/runner.test.ts — `runCases(ids, { step })`
+  - Test: src/evals/__tests__/runner-registry.test.ts — `runCases(ids, { step })`
   - R3 AC2 holds by construction (only the dashboard writes `projects.json`); it is not asserted.
   - Purpose: An eval run leaves the operator's registry untouched.
   - _Leverage: src/evals/runner.ts (RunCasesOpts at 42-49, runCases at 141-147, inline server entry at 190-197), src/evals/__tests__/runner.test.ts (makeLiveCheckout at 99, writeScript at 90, the stub-step case at 162), src/server.ts (startup lines at 195, stdin end at 234-236), vitest.setup.ts (per-worker home at 23-24)_
@@ -128,6 +128,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
   - File: e2e/worktree-project-list.spec.ts (new)
   - Test: e2e/worktree-project-list.spec.ts — test("a shared store counts once")
   - Run `npx playwright install chromium` first (agent-rules).
+  - Bridge: this task leaves the frontend NowModel without the row type and sidebar field; task 12 copies them in (C12, D6).
   - Purpose: Key the Specs and Deferrals counts, the filter and both page lists on the store.
   - _Leverage: ProjectProvider.tsx (Project at 8-13), Sidebar.tsx (counts at 39-44), SpecsPage.tsx (82-144), DeferralsPage.tsx (88-165), e2e/worktree-shell.spec.ts (harness setup at 100-115), e2e/helpers/worktree-harness.ts (resetSpecWorkflowHome at 246, waitForProjects at 614)_
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8_
@@ -175,3 +176,4 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 1
 ## Revision History
 
 - **v1** (2026-10-29) — Initial draft.
+  - **Lint pass.** 2 fixed; rejected: L-3 task 13 has `File: none` and changes no source, so the task-test-seam rule does not apply.
