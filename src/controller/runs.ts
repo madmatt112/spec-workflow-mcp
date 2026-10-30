@@ -1121,18 +1121,22 @@ async function handleCloseoutOutcome(
  * Skips `security` waits: their `accept`/`retry` answer reaches the phase through
  * `securityAnswers`, never a brief as a ruling (design C7).
  */
-async function escalationRulings(runId: string): Promise<string[]> {
+async function escalationRulings(runId: string): Promise<{ task?: string; value: string }[]> {
   let waits: ControllerWaitRecord[];
   try {
     waits = (await listWaits()) as ControllerWaitRecord[];
   } catch {
     return [];
   }
+  // Each answered question carries its own task tag (retro P7), so the ruling
+  // reaches only that task's next brief; an untagged question stays untagged.
   return waits
     .filter((w) => w.kind === 'escalation' && w.run === runId && w.state === 'answered'
       && !w.questions.some((q) => q.id === 'security'))
     .sort((a, b) => a.created.localeCompare(b.created))
-    .flatMap((w) => Object.values(w.answer ?? {}).map((a) => a.value));
+    .flatMap((w) => w.questions
+      .filter((q) => w.answer?.[q.id] !== undefined)
+      .map((q) => ({ task: q.task, value: w.answer![q.id].value })));
 }
 
 /**
@@ -1194,6 +1198,8 @@ async function handleImplementationOutcome(
       text: `${outcome.result === 'design-defect' ? 'Design defect' : 'Escalation'} (tasks ${outcome.tasks.done}/${outcome.tasks.total}): `
         + `${outcome.reason ?? 'no reason given'}. Rule on it; your answer goes into the next implementer brief.`,
       free: true,
+      // Tag the ruling to its task so it reaches only that task's next brief (retro P7).
+      ...(outcome.task ? { task: outcome.task } : {}),
     }]);
     return 'stop';
   }

@@ -108,8 +108,10 @@ export interface ImplementationPhaseContext {
    * templates name for the standing files.
    */
   scratchDir?: string;
-  /** The operator's answers to earlier escalation waits of this run, oldest first. */
-  operatorRulings?: string[];
+  /** The operator's answers to earlier escalation waits of this run, oldest first.
+   * `task` tags a ruling to the task its escalation was about; an untagged ruling
+   * (no task) still reaches every task's brief (tax-lots retro P7). */
+  operatorRulings?: { task?: string; value: string }[];
   /** PR checks polling; tests shorten both. */
   ci?: { pollMs?: number; maxWaitMs?: number };
   /** The operator's answers to this run's security escalation waits (C6), oldest first. */
@@ -129,6 +131,9 @@ export interface ImplementationPhaseOutcome {
    */
   result: 'complete' | 'design-defect' | 'escalate' | 'verify-failed' | 'security-open' | 'error' | 'stopped';
   reason?: string;
+  /** The task a `design-defect`/`escalate` stop was about, so its ruling reaches
+   * only that task's next brief (tax-lots retro P7). */
+  task?: string;
   tasks: { done: number; total: number };
   pr?: { number: number; url?: string };
   /** The open security findings when `result` is `security-open` (C6). */
@@ -504,11 +509,15 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     return (res.data as { path: string }).path;
   };
 
-  /** Append the operator's earlier rulings to a worker brief (an answered escalation wait). */
-  const appendRulings = (briefPath: string): void => {
-    const rulings = (ctx.operatorRulings ?? []).filter((r) => r.trim().length > 0);
+  /** Append the operator's earlier rulings to a worker brief (an answered escalation
+   * wait). Scoped to the current task (tax-lots retro P7): a ruling tagged for another
+   * task is left out; an untagged ruling still reaches every task's brief. */
+  const appendRulings = (briefPath: string, taskId: string): void => {
+    const rulings = (ctx.operatorRulings ?? [])
+      .filter((r) => r.value.trim().length > 0)
+      .filter((r) => r.task === undefined || r.task === taskId);
     if (rulings.length === 0) return;
-    appendFileSync(briefPath, `\n## Operator rulings\n${rulings.map((r) => `- ${r}`).join('\n')}\n`);
+    appendFileSync(briefPath, `\n## Operator rulings\n${rulings.map((r) => `- ${r.value}`).join('\n')}\n`);
   };
 
   // --- stops (stops.md): HANDOFF, retro entry, commit, phase.end, outcome -------
@@ -527,7 +536,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     phaseEnd(result, reason);
     await harnessHandler({ action: 'phase-log', specName }, toolContext);
     await commitSpecStore(`docs(sdd): ${specName} implementation ${result}`);
-    return { result, reason, tasks: p };
+    return { result, reason, task: opts.task?.id, tasks: p };
   };
 
   // =========================================================================
@@ -642,7 +651,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
             job: `Spec dir: ${ctx.specDir}. Code root: ${ctx.codeRoot}. Spec store: ${workflowRoot}. `
               + 'Read the files your standing rules name from these roots; commit in the code root.',
           }, id);
-          appendRulings(briefPath);
+          appendRulings(briefPath, id);
         } catch (err) {
           return { result: 'error', reason: (err as Error).message, tasks: progress() };
         }
@@ -692,7 +701,9 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     const priorCommits = taskCommits();
     // Not after an operator ruling: an answered escalation must reach a fresh
     // implementer with the ruling in its brief, even when the task has a log.
-    const hasRulings = (ctx.operatorRulings ?? []).some((r) => r.trim().length > 0);
+    // Only a ruling for this task (or an untagged one) counts (tax-lots retro P7).
+    const hasRulings = (ctx.operatorRulings ?? [])
+      .some((r) => r.value.trim().length > 0 && (r.task === undefined || r.task === id));
     if (existingLogs.length > 0 && (resumed || (priorCommits.length > 0 && !hasRulings))) {
       // stops.md "Resume recovery": a commit with no report is ambiguous state,
       // not unfinished work. Take the task's commits since its pick as the range.
@@ -721,7 +732,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       } catch (err) {
         return { result: 'error', reason: (err as Error).message, tasks: progress() };
       }
-      appendRulings(briefPath);
+      appendRulings(briefPath, id);
 
       let report: ImplementerReport = {};
       let text: string | null = null;
@@ -870,7 +881,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       } catch (err) {
         return { result: 'error', reason: (err as Error).message, tasks: progress() };
       }
-      appendRulings(fixBrief);
+      appendRulings(fixBrief, id);
       const fixRoute = await routeForStep(id);
       const fix = await runModelStep({
         role: 'sdd-implementer', label: `fix task ${id} round ${rounds}`, briefPath: fixBrief,
@@ -1071,7 +1082,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
           variant: 'security', round: String(k), taskId: 'security', findings: findingsText, commit: 'none',
         });
       } catch (err) { return { result: 'error', reason: (err as Error).message, tasks: progress() }; }
-      appendRulings(briefPath);
+      appendRulings(briefPath, 'security');
       // The security fix round keeps the role profile model (R2 AC 10) and never pushes.
       const step = await runModelStep({ role: 'sdd-implementer', label: `fix security round ${k}`, briefPath, stepId: `security-fix-e${epoch}-r${k}`, schema: IMPLEMENTER_SCHEMA });
       if (step.error) return step.error;
@@ -1252,7 +1263,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     } catch (err) {
       return { result: 'error', reason: (err as Error).message, tasks: progress() };
     }
-    appendRulings(briefPath);
+    appendRulings(briefPath, 'repair');
     const step = await runModelStep({
       role: 'sdd-implementer', label: `repair round ${k}`, briefPath, stepId: `implementer-repair-${k}`,
       schema: IMPLEMENTER_SCHEMA, round: String(k),

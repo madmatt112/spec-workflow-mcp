@@ -159,6 +159,12 @@ export interface WaitQuestion {
   /** The run's recommended pick. */
   recommended?: string;
   reason?: string;
+  /**
+   * The task this question is about, when it has one (an implementation-phase
+   * escalation/design-defect ruling). The answer is carried only into that
+   * task's next brief, never a sibling's (tax-lots retro P7).
+   */
+  task?: string;
 }
 
 /** The operator's answer to one question (§7: with `by` and `answered`). */
