@@ -176,6 +176,10 @@ re-measured on the next real spec.
 - A task whose every acceptance criterion is a regression guard (holds at base) is marked
   implementer-only in the decomposition up front, with the verifier/test-author skip
   stated; the routing is not discovered mid-run.
+- A spec may merge with its final task gate-reviewed but verifier-skipped (an
+  implementer-only / regression-guard task, per the routing above), closing reviewCoverage
+  at N−1 of N. The completion gate proceeds rather than stopping (decision C); this is
+  intended and is not re-logged as a retro finding.
 - A dashboard task that adds a mutating `/api` fetch (POST/PUT) depends on the vite dev
   proxy rewriting the request `Origin` on `/api` (`vite.config.ts`, fixed in 4064229c).
   The decomposition anticipates this so a worktree e2e suite's mutating fetch is not
