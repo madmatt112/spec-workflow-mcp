@@ -74,3 +74,13 @@ Cost: implementer
 store batch 1: 4 done of 4, 0 fix round(s)
 Evidence: batch 1 · mark run-20261029-194113 1c895151
 Cost: 1 implementer spawn(s)
+
+## 2026-10-30T00:56:39Z · closeout · harness batch 2 · gotcha
+The eval cases named by P3/P4/P5 (gate-missing-checks-file, no-relaunch-after-pass, shouldfix-only-no-new-version) cannot be built in the harness/evals framework: a grader's GradeInput exposes only the agent report and the fixture git tree (src/evals/graders/shared.ts), never the controller ledger or spawn/version behaviour, and cases run an agent role, not the controller. Retro proposals that spec a harness/evals eval for controller-ledger/spawn behaviour should instead route to vitest under src/controller/phases/__tests__/.
+Evidence: batch 2 · mark run-20261029-194113 43287e5e
+Cost: implementer
+
+## 2026-10-30T00:56:49Z · closeout · harness batch 2 · cleanup
+harness batch 2: 2 done of 4, 0 fix round(s)
+Evidence: batch 2 · mark run-20261029-194113 7a8608ef
+Cost: 1 implementer spawn(s)

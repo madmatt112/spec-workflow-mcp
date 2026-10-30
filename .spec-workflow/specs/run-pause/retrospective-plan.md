@@ -154,3 +154,8 @@ One line per proposal, written by the close-out phase.
 - P6: done — 28dfed688b0fd2c0c7dcaf7c150fd2fc709ccc14
 - P9: done — df053f4620c6e0a75bca016c8f15b34ecc1e0c67
 - P10: done — 2be4b8099b89aefb53fda7e1e895f79812ef0052
+- P3: done — c5b3f2188e77c5de83d9a9e18eafbde15f40ed34
+- P4: to-do (human) — DECISION NEEDED unresolved (no plan resolves A vs B); real cause is the checks-file re-emit spawn at implementation.ts:756, not a spawn.end/liveness misread, so P3 fixes it; eval asserts controller behaviour the eval framework cannot observe
+- P5: to-do (human) — requires restructuring the reviser version-bump + approval/convergence flow (reviserStep always writes v(D+1)) to disposition in place and skip lint/narrow — not a scoped edit; eval asserts controller spawn/version behaviour harness/evals cannot express
+- P8: done — b52bf0d72f1988e48cb3f58f53365287fdd3f2c4
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/196
