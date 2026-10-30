@@ -535,6 +535,32 @@ describe('handleGate', () => {
       expect(result.data.reasons).toContain('tdd: author changed source: src/impl.js');
     }, TDD_MS);
 
+    it('rejects a red commit that touches none of the task\'s declared test files in one pass (retro P5)', async () => {
+      await writeTddRules();
+      await writeTddTask(); // declares - Test: src/sum.test.js
+      const implCommit = await commit('src/impl.js', IMPL_WRONG, 'impl wrong');
+      // A sibling task's red commit: it touches a different test file, never the
+      // task's own `src/sum.test.js` (the tax-lots task-9 misfire on task 4's commit).
+      const redCommit = await commit('src/other.test.js', SUM_TEST, 'red: sibling task');
+      await commit('src/impl.js', IMPL_RIGHT, 'green: fix impl');
+      await addTask1Log();
+
+      const result = await gate(
+        { baseRef: implCommit, tdd: { testFiles: ['src/sum.test.js'], redCommit } },
+        '1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data.gate).toBe('fail');
+      const ownership = result.data.reasons.filter((r: string) => r.startsWith('red-commit-ownership:'));
+      expect(ownership).toHaveLength(1);
+      expect(ownership[0]).toContain('src/sum.test.js');
+      // The proof was skipped: no proof reasons, no base/head run.
+      expect(result.data.reasons.some((r: string) => r.startsWith('tdd: '))).toBe(false);
+      expect(result.data.tdd.base).toBe('inconclusive');
+      expect(result.data.tdd.head).toBe('not-run');
+    }, TDD_MS);
+
     it('tdd-inconclusive is neutral: off base no longer forces high (retro P3)', async () => {
       await writeTddRules('red-on-base: off');
       await writeTddTask();
