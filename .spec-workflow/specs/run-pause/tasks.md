@@ -84,6 +84,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9. Task 1 adds
 - [ ] 8. Pause and Resume buttons on the row and the panel
   - File: src/dashboard_frontend/src/modules/shell/RunsPage.tsx
   - File: e2e/worktree-shell.spec.ts
+  - File: src/dashboard_frontend/vite.config.ts (dev proxy: rewrite the Origin on proxied HTTP requests, as the WebSocket proxy already does; dev server only)
   - Test: e2e/worktree-shell.spec.ts — page.getByTestId(`ctrl-row-pause-${id}`).click()
   - Note: Resume now on a usage pause holds at base: regression guard. The e2e never clicks Resume, because a resumed seed would be queued and driven by the live controller.
   - Purpose: Let the operator pause and resume from the Runs page without opening logs.
