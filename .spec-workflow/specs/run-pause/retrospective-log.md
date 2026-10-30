@@ -44,3 +44,8 @@ Cost: 1 spawn
 task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria.
 Evidence: task 8 · mark run-20261029-194113 bcf8bc4b
 Cost: unknown
+
+## 2026-10-30T00:15:25Z · implementation · task 8 · gotcha
+task 8 closed: 0 fix round(s), outcome gate
+Evidence: task 8 · mark run-20261029-194113 fd1fa387
+Cost: 1 implementer spawn(s)

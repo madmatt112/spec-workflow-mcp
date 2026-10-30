@@ -1282,4 +1282,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 7/9, stopped: design-defect — task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria. |
+| State | tasks 8/9, last commit 4064229c, next task 9 |
