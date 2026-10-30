@@ -29,12 +29,13 @@
 | 14 | dashboard-shell | Complete | 16/16 |
 | 15 | dashboard-visual-refresh | Complete | 6/6 |
 | 16 | dashboard-project-list | Complete | 13/13 |
-| 17 | advisor | Complete | 19/19 |
-| 18 | dashboard-loop-views | Complete | 14/14 |
-| 19 | project-bootstrap | Complete | 11/11 |
-| 20 | verification-loop | Complete | 14/14 |
-| 21 | harness-evals | Complete | 16/16 |
-| 22 | tighter-reviews | Complete | 29/29 |
+| 17 | run-pause | Complete | 9/9 |
+| 18 | advisor | Complete | 19/19 |
+| 19 | dashboard-loop-views | Complete | 14/14 |
+| 20 | project-bootstrap | Complete | 11/11 |
+| 21 | verification-loop | Complete | 14/14 |
+| 22 | harness-evals | Complete | 16/16 |
+| 23 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 
