@@ -91,6 +91,11 @@ node-20 fields.
   already holds at base is marked a regression guard rather than left unnamed. The
   tasks-phase review rejects a Success line that collapses distinct sub-cases into one
   behaviour.
+- When a task's own test forces an edit to a support or config file to pass — a dev proxy,
+  `vite.config.ts`, a build or runner config — that file is in the task's `File:` list.
+  The tasks-phase review rejects a task whose test must edit a file the `File:` list omits,
+  before the run, rather than letting the phase end `design-defect` and re-enter for a
+  no-op re-verify.
 
 ## Lint false positives
 
