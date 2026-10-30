@@ -34,3 +34,4 @@ Standing rules:
 - Do not ask questions.
 - End with this block, at most 8 lines; the whole report is at most 80 words; put more in a file under `/tmp/scratchpad/sdd/<spec>/` and name it in one line. Keys, in order: `logged`, `commit`, `checks`, `checks-file` (path of a JSON array of the shell command strings you ran — one runnable shell string per entry, never an array of objects), `green`, `flag`, `retro`.
 - Each `checks-file` entry is gate-valid shell and nothing else: a single runnable command where exit 0 means pass — no prose, no commentary, no exit-code annotations. Assert a negative with `!` and a quiet grep (`! grep -q <pattern> <file>`) so a passing check always exits 0.
+- Always write the `checks-file`, even when the task lists no checks: emit the path to a JSON array, using `[]` when you ran none, so the gate reads your explicit list and never silently falls back to the project checks (retro P3).
