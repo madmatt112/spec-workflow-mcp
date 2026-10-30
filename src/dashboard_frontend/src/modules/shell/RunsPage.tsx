@@ -8,9 +8,9 @@ import {
   callHarness, buildLaunchInput, OpErrorView, type OpError,
 } from './harness';
 import type { RunListRow, NowModel, ControllerRun } from './types';
-import { pauseNote, pauseNoteClass } from './pause';
+import { isOperatorHeld, pauseNote, pauseNoteClass } from './pause';
 import type { SetupView } from '../harness/types';
-import { Button, Pill, ui, type Tone } from '../ui/ui';
+import { Button, Pill, ui, type ButtonSize, type Tone } from '../ui/ui';
 
 /**
  * The Runs list and Launch card (design C10 Runs and Launch card, D8;
@@ -206,6 +206,39 @@ function cursorLine(run: ControllerRun): string {
   return run.stepKind ? run.stepKind : '—';
 }
 
+/** Statuses a Pause button applies to (design C9); terminal runs get none. */
+const CTRL_LIVE_STATUSES: ControllerRun['status'][] = ['queued', 'running', 'merging', 'paused', 'waiting'];
+
+/** A local Pause button owning its own busy and error state (design C9, D9). */
+function PauseButton({ run, testId, size }: { run: ControllerRun; testId: string; size?: ButtonSize }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/controller/runs/${run.id}/pause`, { method: 'POST' });
+      if (!res.ok) throw new Error(`pause failed (${res.status})`);
+    } catch (e: any) {
+      setError(e?.message ?? 'pause failed');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <>
+      <Button variant="secondary" size={size ?? 'md'} onClick={onClick} disabled={busy} data-testid={testId}>
+        {busy ? 'Pausing…' : 'Pause'}
+      </Button>
+      {error && (
+        <span role="alert" className="shrink-0 text-xs text-(--tone-danger-fg)">{error}</span>
+      )}
+    </>
+  );
+}
+
 function ControllerRunRow({ run, projectName, now, selected, onClick }: {
   run: ControllerRun;
   projectName: string;
@@ -214,6 +247,7 @@ function ControllerRunRow({ run, projectName, now, selected, onClick }: {
   onClick: () => void;
 }) {
   const pause = pauseNote(run, now);
+  const showPause = CTRL_LIVE_STATUSES.includes(run.status) && !isOperatorHeld(run);
   return (
     <Row testId={`ctrl-run-row-${run.id}`} selected={selected} onClick={onClick}>
       <span className="shrink-0 text-xs text-[var(--text-muted)]">{projectName}</span>
@@ -226,6 +260,7 @@ function ControllerRunRow({ run, projectName, now, selected, onClick }: {
           {pause.text}
         </span>
       )}
+      {showPause && <PauseButton run={run} testId={`ctrl-row-pause-${run.id}`} size="sm" />}
       <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{run.tokens.toLocaleString()} tok</span>
       <span className="shrink-0 text-xs tabular-nums text-[var(--text-muted)]">{fmtAge(run.created, now) ?? ''}</span>
     </Row>
@@ -240,6 +275,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
   onGone: () => void;
 }) {
   const pause = pauseNote(run, now);
+  const held = isOperatorHeld(run);
   const [busy, setBusy] = useState<null | 'cancel' | 'discard' | 'resume'>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -293,7 +329,16 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
         <Button variant="secondary" onClick={onOpenRun} data-testid="ctrl-open-run">
           {'Open run page'}
         </Button>
-        {run.status === 'paused' && (
+        {held ? (
+          <Button
+            variant="secondary"
+            onClick={resume}
+            disabled={busy !== null}
+            data-testid="ctrl-resume-operator"
+          >
+            {busy === 'resume' ? 'Resuming…' : 'Resume'}
+          </Button>
+        ) : run.status === 'paused' && (
           <Button
             variant="secondary"
             onClick={resume}
@@ -303,6 +348,9 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
           >
             {busy === 'resume' ? 'Resuming…' : 'Resume now'}
           </Button>
+        )}
+        {CTRL_LIVE_STATUSES.includes(run.status) && !held && (
+          <PauseButton run={run} testId="ctrl-pause" />
         )}
         <Button variant="secondary" onClick={() => act('cancel')} disabled={busy !== null} data-testid="ctrl-cancel">
           {busy === 'cancel' ? 'Cancelling…' : 'Cancel'}

@@ -25,15 +25,22 @@ async function createConfig() {
         '/api': {
           target: `http://localhost:${dashboardPort}`,
           changeOrigin: true,
+          // A browser sends an Origin header on a state-changing fetch (POST,
+          // PUT, DELETE) even when it is same-origin, and the dashboard's CORS
+          // only allows its own origin and the Vite default port. Rewrite the
+          // proxied Origin to the dashboard's own so a dev frontend on any port
+          // can still mutate (the WebSocket proxy below does the same for its
+          // handshake, which always carries an Origin).
+          configure: (proxy: any) => {
+            proxy.on('proxyReq', (proxyReq: any) => {
+              proxyReq.setHeader('origin', `http://localhost:${dashboardPort}`);
+            });
+          },
         },
         '/ws': {
           target: `ws://localhost:${dashboardPort}`,
           ws: true,
           changeOrigin: true,
-          // A browser always sends an Origin on a WebSocket handshake (unlike a
-          // same-origin fetch, which sends none), and the dashboard's CORS only
-          // allows its own origin and the Vite default port. Rewrite the proxied
-          // Origin to the dashboard's own so a dev frontend on any port connects.
           configure: (proxy: any) => {
             proxy.on('proxyReqWs', (proxyReq: any) => {
               proxyReq.setHeader('origin', `http://localhost:${dashboardPort}`);

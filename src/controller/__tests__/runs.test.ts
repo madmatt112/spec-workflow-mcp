@@ -364,6 +364,81 @@ describe('runOnce usage-limit pause', () => {
     expect(run?.pauseReason).toBe('usage-limit');
     expect(run?.resumeAt).toBeTruthy();
   });
+
+  it('turns a usage-limit pause into an operator pause when the run is held (R2 AC 6)', async () => {
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      stream: [{
+        type: 'rate_limit_event',
+        rate_limit_info: { status: 'rejected', unifiedWindows: { five_hour: { utilization: 0.99, resetsAt: 1 }, seven_day: { utilization: 0.5, resetsAt: 2 } } },
+      }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: '', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { status: 'queued', worktree: '' }));
+    // Unheld at the loop top (the step must still run); held by the time `pause`
+    // classifies the step's usage-limit outcome.
+    let calls = 0;
+    const isPauseRequested = () => { calls += 1; return calls > 1; };
+
+    await runOnce(deps(fx, { now: () => new Date('2026-10-11T00:00:00.000Z'), isPauseRequested }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(run?.resumeAt).toBeUndefined();
+  });
+});
+
+describe('runOnce operator pause (RunDeps.isPauseRequested, design C3 point 1)', () => {
+  it('pauses a held running run at the loop top before routing, consuming no step', async () => {
+    // Only exercised if the hold does not intercept (the red/base case): a
+    // real document step would otherwise try to spawn the actual `claude` CLI.
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'drafted', usage: USAGE },
+    }]);
+    await writeRun(seedRun(fx));
+
+    await runOnce(deps(fx, { isPauseRequested: () => true }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(run?.resumeAt).toBeUndefined();
+    expect(run?.inFlight).toBeUndefined();
+    const ledgerPath = join(fx.specDir, 'harness-events.jsonl');
+    const rows = readFileSync(ledgerPath, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.some((r) => r.type === 'spawn.start')).toBe(false);
+  });
+});
+
+describe('runOnce document-phase stop (design C6)', () => {
+  it('stops at the review-round top when held, after the drafter commits, with no reviewer spawned', async () => {
+    await approve(fx, 'requirements');
+    writeScript(fx, [{
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/design.md`, content: cleanDoc('design', 1) }],
+      result: {
+        subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'drafted',
+        structured_output: { wordCount: 1, decisions: [], contextFileWritten: true }, usage: USAGE,
+      },
+    }]);
+    await writeRun(seedRun(fx));
+    // Unheld at the loop top (the drafter must still run); held by the time the
+    // document phase checks the first review-round top.
+    let calls = 0;
+    const isPauseRequested = () => { calls += 1; return calls > 1; };
+
+    await runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(run?.resumeAt).toBeUndefined();
+    expect(git(fx.repo, ['log', '--format=%s'])).toContain(`docs(sdd): ${SPEC} design v1`);
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual(['sdd-drafter']);
+  });
 });
 
 describe('cancelRun and discardRun', () => {
@@ -612,6 +687,62 @@ describe('runOnce merge stage', () => {
     expect(retro).toBeTruthy();
   }, 30000);
 
+  it('a held run resuming the merge stage pauses at the loop top before any re-check or merge (design C3 point 1, C5)', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    closePlan(fx);
+    onFeatureBranch(fx);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'cafef00d1234' } } },
+    ]);
+    await writeRun(seedRun(fx, {
+      status: 'merging', branch: BRANCH, pr: 42,
+      cursor: { phase: 'implementation', stepKind: 'implementation', attempt: 1 },
+    }));
+
+    await runOnce(deps(fx, { isPauseRequested: () => true }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(run?.resumeAt).toBeUndefined();
+    expect(run?.cursor).toMatchObject({ stepKind: 'merge' });
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
+  it('a hold set while the last implementation step runs leaves its PR unmerged and parks the run operator-paused (design C3 point 4)', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    onFeatureBranch(fx);
+    writeScript(fx, [e2eRun]);
+    writeGhScript(fx, [
+      { argvIncludes: ['pr', 'list'], stdout: [{ number: 42, headRefName: BRANCH, baseRefName: 'main', url: 'x' }] },
+      { argvIncludes: ['pr', 'view'], stdout: readyView },
+      runsOk, statusOk,
+      { argvIncludes: ['pr', 'merge', '--merge'], stdout: 'Merged.' },
+      { argvIncludes: ['mergeCommit'], stdout: { mergeCommit: { oid: 'cafef00d1234' } } },
+    ]);
+    await writeRun(seedRun(fx, { branch: BRANCH }));
+    // The operator pauses while the only (last) implementation step is in
+    // flight: the hold flips true the moment the step reports its pid.
+    let held = false;
+
+    await runOnce(deps(fx, {
+      isPauseRequested: () => held,
+      setInFlight: () => { held = true; },
+    }), 'run-20261011-000000');
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('operator');
+    expect(mergedRows(fx).some((r) => r.type === 'pr.merged')).toBe(false);
+  }, 30000);
+
   it('ask: opens a merge wait, an answer of merge proceeds to the retro', async () => {
     await approve(fx, 'requirements');
     await approve(fx, 'design');
@@ -855,6 +986,30 @@ describe('runOnce merge stage', () => {
       expect(rows.filter((r) => r.type === 'spawn.start' && r.role === 'merge fix round 1')).toHaveLength(1);
       expect(rows.some((r) => r.type === 'note' && r.text === 'merge fix round 1 end: no commit')).toBe(true);
       expect((await listWaits()).some((w) => w.kind === 'error' && w.run === 'run-20261011-000000')).toBe(false);
+    }, 30000);
+
+    it('a run held just before the fix-round guard pauses operator instead of spawning the round (design C3 point 3)', async () => {
+      onFeatureBranch(fx);
+      writeScript(fx, [mergeFixNoCommit]);
+      writeGhScript(fx, [
+        { argvIncludes: ['pr', 'view'], stdout: readyView },
+        runsOk, statusFailing,
+      ]);
+      await writeRun(seedRun(fx, { branch: BRANCH, pr: 42, status: 'merging' }));
+      // Unheld entering the merge stage (loop top, then the merge-stage-entry
+      // check); held by the time the blocked branch reaches the fix-round guard.
+      let calls = 0;
+      const isPauseRequested = () => { calls += 1; return calls > 2; };
+
+      await runOnce(deps(fx, { isPauseRequested }), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('paused');
+      expect(run?.pauseReason).toBe('operator');
+      expect(run?.resumeAt).toBeUndefined();
+      expect(run?.cursor).toMatchObject({ stepKind: 'merge' });
+      const rows = mergedRows(fx);
+      expect(rows.some((r) => r.type === 'note' && /^merge fix round \d+ (start|end):/.test(r.text ?? ''))).toBe(false);
     }, 30000);
 
     it('an eligible PR over the token cap opens the cap wait with the merge cursor, so a retry re-enters the merge stage', async () => {

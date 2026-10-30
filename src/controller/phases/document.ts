@@ -195,14 +195,21 @@ export interface DocumentPhaseContext {
   serialize?: Serialize;
   /** Clock seam for tests. */
   now?: () => Date;
+  /**
+   * Checked once at the top of each review round, before the adversarial
+   * review (design C6). A non-null reason stops the phase there; it reads
+   * only the operator hold, never cancel or the usage window (design D7).
+   */
+  shouldStop?: () => string | null;
 }
 
 export interface DocumentPhaseOutcome {
   /**
    * `waiting` means a gate wait is open; T6 watches {@link waitId}. `deferred`
    * means gate A chose "do nothing": the run ends without design/tasks/impl.
+   * `stopped` means `shouldStop` returned a reason at a review-round top.
    */
-  result: 'approved' | 'escalate' | 'error' | 'waiting' | 'deferred';
+  result: 'approved' | 'escalate' | 'error' | 'waiting' | 'deferred' | 'stopped';
   /** The final document version D. */
   version: number;
   /** Review rounds run (reviewer spawns plus the narrow check when it ran). */
@@ -800,6 +807,13 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
   // Step 2/3 — the review rounds (SKILL.md Step 2 item 9 routing).
   // =========================================================================
   for (;;) {
+    // The review-round stop (design C6): checked once at the top of each round,
+    // before any reviewer spawns, so re-entry runs no step twice.
+    const stopReason = ctx.shouldStop?.();
+    if (stopReason) {
+      return { result: 'stopped', version: D, rounds: reviewRounds, reason: stopReason };
+    }
+
     // Build the adversarial prompt with the generator (verdictBlock: true),
     // then append the reviewer round section (the machine-verified bullet, the
     // lens, the closed-by-ruling line) and the `## Changes since v<N-1>` diff.

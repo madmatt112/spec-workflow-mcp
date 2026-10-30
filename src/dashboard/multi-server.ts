@@ -815,6 +815,16 @@ export class MultiProjectDashboardServer {
       return { ok: true };
     });
 
+    // Pause a run: hold it at once if nothing is in flight, else pending until
+    // the driver's own stop point applies it (design C2, C4).
+    this.app.post('/api/controller/runs/:id/pause', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const run = await this.controller.pause(id);
+      if (run === undefined) return reply.code(404).send({ error: 'run-not-found' });
+      if (run === null) return reply.code(409).send({ error: 'not-pausable' });
+      return { ok: true };
+    });
+
     // Resume a paused run now (the operator knows the usage window reset early).
     this.app.post('/api/controller/runs/:id/resume', async (request, reply) => {
       const { id } = request.params as { id: string };
