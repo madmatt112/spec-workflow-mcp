@@ -153,6 +153,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | run-pause | design | v2 | approved | 2 rounds |
 | 2026-10-29 | run-pause | tasks | v2 | approved | 2 rounds |
 | 2026-10-30 | run-pause | implementation | tasks 7/9 | design-defect | task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria. |
+| 2026-10-30 | run-pause | implementation | tasks 9/9 | complete | PR #195 |
 
 ## Current state — 2026-08-04
 
@@ -1284,7 +1285,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 9/9, implemented 2026-10-30 |
 | Implemented | 2026-10-30 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/195 |
 | Coverage | logCoverage 9/9; reviewCoverage 8/9 (unreviewed: 9); TDD 8 task(s): assertion-red 4, structural-red 4, vacuous 0, inconclusive 0 |
 | Deferrals | 0 added by this spec, 26 open in all |
 | Verifier-skipped | task 8, task 9 (gate-only review, retro P6/P15) |
