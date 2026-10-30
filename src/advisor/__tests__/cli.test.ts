@@ -453,20 +453,50 @@ describe('openAdvisorSession', () => {
     expect(result.state).toBe('command');
   });
 
-  it('spawns detached and returns live when the process survives the check', async () => {
-    const survivor = spawn(
-      process.execPath,
-      ['-e', 'setTimeout(() => {}, 60000)'],
-      { stdio: 'ignore' },
+  // The launcher writes session.json with claude's pid; a long-lived process
+  // stands in for claude here.
+  async function writeSession(pid: number): Promise<void> {
+    await fs.mkdir(advisorHomeDir(), { recursive: true });
+    await fs.writeFile(
+      advisorSessionPath(),
+      JSON.stringify({
+        v: 1, pid, startTime: processStartTime(pid), name: 'advisor',
+        conversation: 'c', remote: true, started: new Date().toISOString(),
+      }),
+      'utf-8',
     );
-    pidsToKill.push(survivor.pid as number);
+  }
+
+  it('spawns detached and returns live when the session claude survives the check', async () => {
+    const claude = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+    pidsToKill.push(claude.pid as number);
 
     const result = await openAdvisorSession({
-      spawnDetached: () => survivor,
+      spawnDetached: () => {
+        void writeSession(claude.pid as number);
+        return spawn(process.execPath, ['-e', 'process.exit(0)'], { stdio: 'ignore' });
+      },
       checkDelayMs: 150,
     });
 
     expect(result).toEqual({ state: 'live', name: 'advisor' });
+  });
+
+  it('returns the command when the launcher lives on but claude has exited', async () => {
+    const launcher = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+    pidsToKill.push(launcher.pid as number);
+    const claude = spawn(process.execPath, ['-e', 'process.exit(0)'], { stdio: 'ignore' });
+    await new Promise((resolve) => claude.once('exit', resolve));
+
+    const result = await openAdvisorSession({
+      spawnDetached: () => {
+        void writeSession(claude.pid as number);
+        return launcher;
+      },
+      checkDelayMs: 150,
+    });
+
+    expect(result).toEqual({ state: 'command', command: 'spec-workflow-mcp advisor --remote-control' });
   });
 
   it('spawns detached and returns the command when the process exits before the check', async () => {

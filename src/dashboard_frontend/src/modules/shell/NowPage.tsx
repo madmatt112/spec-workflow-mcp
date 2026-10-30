@@ -127,7 +127,9 @@ function OpenAdvisorButton() {
       </Button>
       {result && (
         <span className="min-w-0 truncate text-xs text-[var(--text-muted)]">
-          {result.state === 'live' ? result.name : result.command}
+          {result.state === 'live'
+            ? `Running: open "${result.name}" in the Claude app, or tmux attach -t ${result.name}`
+            : `Did not start. Run in a terminal: ${result.command}`}
         </span>
       )}
       {error && <span className="text-xs text-(--tone-danger-fg)">{error}</span>}

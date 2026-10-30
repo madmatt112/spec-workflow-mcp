@@ -740,10 +740,13 @@ export class MultiProjectDashboardServer {
     this.app.post('/api/controller/advisor/open', async () => {
       return openAdvisorSession({
         spawnDetached: () =>
-          // This build's own CLI (dist/index.js), so it works without a global install.
-          spawn(process.execPath, [join(__dirname, '..', 'index.js'), 'advisor', '--remote-control'], {
-            detached: true, stdio: 'ignore',
-          }),
+          // A detached tmux session gives the advisor a terminal: without one,
+          // claude answers its first prompt and exits. This build's own CLI
+          // (dist/index.js), so it works without a global install.
+          spawn('tmux', [
+            'new-session', '-d', '-s', 'advisor',
+            process.execPath, join(__dirname, '..', 'index.js'), 'advisor', '--remote-control',
+          ], { detached: true, stdio: 'ignore' }),
       });
     });
 
