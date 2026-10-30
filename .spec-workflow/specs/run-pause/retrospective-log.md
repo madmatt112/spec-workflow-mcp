@@ -34,3 +34,13 @@ Cost: 1 implementer spawn(s)
 task 7 closed: 0 fix round(s), outcome gate
 Evidence: task 7 · mark run-20261029-194113 d41ae101
 Cost: 1 implementer spawn(s)
+
+## 2026-10-29T23:48:02Z · implementation · task 8 · doc-gap
+red-impossible: base code shows ctrl-resume for any status==='paused' run regardless of pauseReason, matching the task's own Note. Written as a regression guard (green, 1 passed). 6.2's busy-state text and 6.3's pending-panel sub-case are not separately red-tested: not named in task 8's Success line, and ride the same isOperatorHeld branch test 3 covers. Notes in /tmp/scratchpad/sdd/run-pause/test-author-task-8-notes.md. Two stray background watchers (b1mloithq, b9nqkslw0) were killed on timeout after their results were already retrieved; no action needed."}
+Evidence: task 8 · mark run-20261029-194113 62b93b43
+Cost: 1 spawn
+
+## 2026-10-30T00:11:24Z · implementation · task 8 · deviation
+task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria.
+Evidence: task 8 · mark run-20261029-194113 bcf8bc4b
+Cost: unknown

@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-shell.spec.ts"],"seams":{"e2e/worktree-shell.spec.ts":"page.getByTestId(`ctrl-row-pause-${id}`).click()"},"redCommit":"2483db10f782101e74820a3624895fadf6f88165","baseSha":"d12e2b903e95d913331570bb069d84510b8a5302","base":"structural-red","head":"pass","amended":false,"judged":null}
