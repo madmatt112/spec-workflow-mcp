@@ -86,6 +86,11 @@ node-20 fields.
 - When a task's cited design clause pins a behaviour to a named module, the `File:` list
   must include that module. The tasks-phase review rejects a task whose cited clause names
   a write location absent from `File:`.
+- A task whose acceptance covers more than one distinct sub-case names each sub-case in
+  its Success line, so the test author red-tests each one separately; a sub-case that
+  already holds at base is marked a regression guard rather than left unnamed. The
+  tasks-phase review rejects a Success line that collapses distinct sub-cases into one
+  behaviour.
 
 ## Lint false positives
 
