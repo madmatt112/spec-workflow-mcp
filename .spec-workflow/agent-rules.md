@@ -166,6 +166,10 @@ re-measured on the next real spec.
 - A task whose every acceptance criterion is a regression guard (holds at base) is marked
   implementer-only in the decomposition up front, with the verifier/test-author skip
   stated; the routing is not discovered mid-run.
+- A dashboard task that adds a mutating `/api` fetch (POST/PUT) depends on the vite dev
+  proxy rewriting the request `Origin` on `/api` (`vite.config.ts`, fixed in 4064229c).
+  The decomposition anticipates this so a worktree e2e suite's mutating fetch is not
+  rediscovered mid-run as a proxy gap.
 
 ## Sensitive paths
 
