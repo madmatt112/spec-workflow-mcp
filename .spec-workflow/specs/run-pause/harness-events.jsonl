@@ -199,3 +199,45 @@
 {"ts":"2026-10-30T00:22:24.559Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"e2e verification passed"}
 {"ts":"2026-10-30T00:22:24.727Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"completion handoff written"}
 {"ts":"2026-10-30T00:24:36.890Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.end","phase":"implementation","result":"complete","state":"tasks 9/9","note":"PR #195"}
+{"ts":"2026-10-30T00:26:25.374Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-10-30T00:26:31.016Z","run":"run-20261029-194113","spec":"run-pause","type":"pr.merged","number":"195","sha":"22be8440df988d72772a406277a4c4168090994b","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-10-30T00:26:31.050Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.start","phase":"retrospective","mode":"normal"}
+{"ts":"2026-10-30T00:26:31.059Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.start","agent":"sdd-retro-compiler","role":"compile findings","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-30T00:29:29.053Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.end","agent":"sdd-retro-compiler","input":"32","output":"13728","cacheWrite":"70182","cacheRead":"786415","tokens":"870357","cacheWrite5m":"0","cacheWrite1h":"70182","model":"claude-opus-4-8"}
+{"ts":"2026-10-30T00:29:29.053Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.usage","agent":"sdd-retro-compiler","role":"compile findings","result":"ok","phase":"retrospective"}
+{"ts":"2026-10-30T00:29:29.058Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-30T00:31:27.919Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.end","agent":"sdd-retro-analyst","input":"14","output":"8555","cacheWrite":"52220","cacheRead":"255129","tokens":"315918","cacheWrite5m":"0","cacheWrite1h":"52220","model":"claude-opus-4-8"}
+{"ts":"2026-10-30T00:31:27.919Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
+{"ts":"2026-10-30T00:31:27.919Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.end","phase":"retrospective","result":"error","note":"the analyst wrote no retrospective-proposals.md"}
+{"ts":"2026-10-30T00:31:27.955Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.start","phase":"retrospective","mode":"normal"}
+{"ts":"2026-10-30T00:31:27.958Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.start","agent":"sdd-retro-analyst","role":"proposals","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-10-30T00:34:46.919Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.end","agent":"sdd-retro-analyst","input":"18","output":"15658","cacheWrite":"45825","cacheRead":"393726","tokens":"455227","cacheWrite5m":"0","cacheWrite1h":"45825","model":"claude-opus-4-8"}
+{"ts":"2026-10-30T00:34:46.920Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
+{"ts":"2026-10-30T00:34:46.920Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.end","phase":"retrospective","result":"error","note":"the analyst wrote no retrospective-proposals.md"}
+{"ts":"2026-10-30T00:36:17.980Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"error answered by coordinator: retry"}
+{"ts":"2026-10-30T00:36:40.121Z","run":"run-20261029-194113","spec":"run-pause","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/12"}
+{"ts":"2026-10-30T00:36:40.126Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P7","title":"P7 (F7) — Live-verification scenario still pending deploy."}
+{"ts":"2026-10-30T00:36:40.126Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-10-30T00:36:40.126Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P11","title":"P11 (F11) — Tasks 8 and 9 were verifier-skipped (gate-only review)."}
+{"ts":"2026-10-30T00:36:40.126Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P11","outcome":"skipped"}
+{"ts":"2026-10-30T00:36:40.126Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P12","title":"P12 (F12) — The completion gate merged the unreviewed task 9 without asking."}
+{"ts":"2026-10-30T00:36:40.127Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P12","outcome":"skipped"}
+{"ts":"2026-10-30T00:36:40.134Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P1","title":"P1 (F1) — New mutating dashboard fetch needs the dev-proxy Origin rewrite."}
+{"ts":"2026-10-30T00:36:40.134Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P6","title":"P6 (F6) — Task 8 AC red-impossible; two sub-cases never red-tested."}
+{"ts":"2026-10-30T00:36:40.134Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P9","title":"P9 (F9) — Task 8's File: list omitted `vite.config.ts`, tripping file-outside-list."}
+{"ts":"2026-10-30T00:36:40.134Z","run":"run-20261029-194113","spec":"run-pause","type":"task.pick","task":"P10","title":"P10 (F10) — Task 9 merged logged but unreviewed."}
+{"ts":"2026-10-30T00:36:40.165Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-10-30T00:41:49.738Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.end","agent":"sdd-implementer","input":"42","output":"23031","cacheWrite":"76028","cacheRead":"1247357","tokens":"1346458","cacheWrite5m":"0","cacheWrite1h":"76028","model":"claude-opus-4-8"}
+{"ts":"2026-10-30T00:41:49.738Z","run":"run-20261029-194113","spec":"run-pause","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-10-30T00:41:49.756Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P1 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-30T00:41:56.881Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-10-30T00:41:56.898Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P6 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-30T00:41:58.761Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P6 pass risk low"}
+{"ts":"2026-10-30T00:41:58.777Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P9 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-30T00:42:00.761Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-10-30T00:42:00.778Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P10 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-10-30T00:42:02.899Z","run":"run-20261029-194113","spec":"run-pause","type":"note","text":"gate: item P10 pass risk low"}
+{"ts":"2026-10-30T00:42:02.949Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-10-30T00:42:02.951Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P6","outcome":"done"}
+{"ts":"2026-10-30T00:42:02.952Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P9","outcome":"done"}
+{"ts":"2026-10-30T00:42:02.952Z","run":"run-20261029-194113","spec":"run-pause","type":"task.done","task":"P10","outcome":"done"}

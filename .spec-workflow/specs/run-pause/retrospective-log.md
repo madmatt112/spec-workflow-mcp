@@ -64,3 +64,13 @@ Cost: merge allowed (decision C)
 implementation complete: 9 tasks, 1 fix rounds, 0 adjudications, 44 spawns, 0 deferrals added
 Evidence: completion gate · mark run-20261029-194113 f0e0de41
 Cost: see the ledger
+
+## 2026-10-30T00:41:49Z · closeout · store batch 1 · gotcha
+P9 decision A steering rule landed in agent-rules.md; its named eval case test-forced-file-in-list needs harness/evals/, outside this store's .spec-workflow-only scope — carry to a code batch.
+Evidence: batch 1 · mark run-20261029-194113 00bfad7f
+Cost: implementer
+
+## 2026-10-30T00:42:02Z · closeout · store batch 1 · cleanup
+store batch 1: 4 done of 4, 0 fix round(s)
+Evidence: batch 1 · mark run-20261029-194113 1c895151
+Cost: 1 implementer spawn(s)

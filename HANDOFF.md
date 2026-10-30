@@ -154,6 +154,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-29 | run-pause | tasks | v2 | approved | 2 rounds |
 | 2026-10-30 | run-pause | implementation | tasks 7/9 | design-defect | task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria. |
 | 2026-10-30 | run-pause | implementation | tasks 9/9 | complete | PR #195 |
+| 2026-10-30 | run-pause | retrospective |  | error | the analyst wrote no retrospective-proposals.md |
 
 ## Current state — 2026-08-04
 
