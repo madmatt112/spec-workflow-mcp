@@ -1282,4 +1282,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 8/9, last commit 4064229c, next task 9 |
+| State | tasks 9/9, last commit ba9979fb, next completion gate |
