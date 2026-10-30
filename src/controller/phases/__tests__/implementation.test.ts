@@ -544,7 +544,7 @@ describe('runImplementationPhase', () => {
     const first = await runImplementationPhase(ctxFor(fx));
     expect(first.result).toBe('escalate');
 
-    const second = await runImplementationPhase(ctxFor(fx, { operatorRulings: ['Use the sandbox endpoint instead.'] }));
+    const second = await runImplementationPhase(ctxFor(fx, { operatorRulings: [{ value: 'Use the sandbox endpoint instead.' }] }));
     expect({ result: second.result, reason: second.reason }).toEqual({ result: 'complete', reason: undefined });
     const r = rows(fx);
     expect(r.filter((e) => e.type === 'phase.start')).toHaveLength(2);
@@ -790,10 +790,29 @@ describe('runImplementationPhase', () => {
     };
     writeScript(fx, [authorRun, await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
 
-    await runImplementationPhase(ctxFor(fx, { operatorRulings: ['use --no-verify for the red commit'] }));
+    await runImplementationPhase(ctxFor(fx, { operatorRulings: [{ value: 'use --no-verify for the red commit' }] }));
 
     expect(readFileSync(join(fx.scratch, 'author-brief-task-1.md'), 'utf8'))
       .toContain('## Operator rulings\n- use --no-verify for the red commit');
+  }, 60000);
+
+  it('scopes an operator ruling to the task it was tagged for (retro P7)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+
+    // A ruling tagged for task 2 must not reach task 1's brief; an untagged one does.
+    await runImplementationPhase(ctxFor(fx, {
+      operatorRulings: [
+        { task: '2', value: 'use the other endpoint' },
+        { task: '1', value: 'use the sandbox endpoint' },
+        { value: 'apply the shared fixture' },
+      ],
+    }));
+
+    const brief = readFileSync(join(fx.scratch, 'impl-brief-task-1.md'), 'utf8');
+    expect(brief).toContain('- use the sandbox endpoint');
+    expect(brief).toContain('- apply the shared fixture');
+    expect(brief).not.toContain('use the other endpoint');
   }, 60000);
 
   it('keeps the test author on its own profile even on a sensitive-path task (regression guard)', async () => {

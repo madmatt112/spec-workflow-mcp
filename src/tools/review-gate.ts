@@ -32,7 +32,7 @@ import {
   type TypecheckDiagnostic,
 } from '../core/typecheck.js';
 import { computeHygieneSignals, type HygieneSignal } from '../core/hygiene-signals.js';
-import { computeRangeStats, listDirtyTrackedFiles, type RangeSelector } from '../core/task-diff.js';
+import { computeRangeStats, listDirtyTrackedFiles, runGit, type RangeSelector } from '../core/task-diff.js';
 import { runChecks, type CheckResult } from '../core/check-runner.js';
 import {
   parseSensitivePaths,
@@ -140,6 +140,28 @@ async function readRequirementCriteria(specPath: string, ids: string[]): Promise
   return criteria(content.split('\n'))
     .filter((c) => wanted.has(`${c.requirement}.${c.index}`))
     .map((c) => c.text);
+}
+
+/**
+ * Whether an author-reported red commit is this task's own (tax-lots retro P5).
+ * `disowned` when the commit resolves but touches none of the task's declared
+ * test files; `ok` when it touches at least one, or when the commit does not
+ * resolve (proveRedGreen reports that as its own inconclusive cause, so the
+ * ownership check does not double-report it). Scoped to "touches ≥1 of this
+ * task's declared test files", so a red commit shared across sibling tasks —
+ * one commit that adds this task's test file too — still counts as owned.
+ */
+async function redCommitOwnership(
+  root: string,
+  redCommit: string,
+  declaredTests: Set<string>,
+): Promise<'ok' | 'disowned'> {
+  const resolved = await runGit(root, ['rev-parse', '--verify', `${redCommit}^{commit}`]);
+  if (!resolved.ok) return 'ok';
+  const show = await runGit(root, ['show', '--name-only', '--format=', redCommit]);
+  if (!show.ok) return 'ok';
+  const changed = show.stdout.split('\n').filter((l) => l.length > 0).map(normalizePath);
+  return changed.some((f) => declaredTests.has(f)) ? 'ok' : 'disowned';
 }
 
 /**
@@ -349,6 +371,28 @@ export async function handleGate(
         if (match) seams[tf] = match.seam;
       }
 
+      // P5 (tax-lots retro): before trusting the author-reported red commit,
+      // verify it touches at least one of the task's own declared test files.
+      // The tax-lots task-9 author cited task 4's commit `219c96d`; the proof
+      // then failed on unrelated reasons and looped three fix rounds plus an
+      // adjudication before it was ruled out. A disowned commit is rejected in
+      // one pass with a clear reason and the proof is skipped.
+      const declaredTests = new Set(taskTests.map((t) => normalizePath(t.path)));
+      if (declaredTests.size > 0 && (await redCommitOwnership(root, tdd.redCommit, declaredTests)) === 'disowned') {
+        proof = {
+          fail: [
+            `red-commit-ownership: red commit ${tdd.redCommit} touches none of task ${taskId}'s `
+            + `declared test files (${[...declaredTests].join(', ')}); it is not this task's red commit`,
+          ],
+          risk: [],
+        };
+        tddBlock = {
+          testFiles: tdd.testFiles, seams, redCommit: tdd.redCommit,
+          baseSha: null, base: 'inconclusive', head: 'not-run', amended: false, judged: null,
+        };
+        await new TaskReviewManager(specPath).writeLatestTdd(taskId, tddBlock);
+      } else {
+
       const proofResult: ProofResult = await proveRedGreen(root, tdd, proofRules);
       proof = proofReasons(proofResult);
 
@@ -383,6 +427,7 @@ export async function handleGate(
         judged,
       };
       await new TaskReviewManager(specPath).writeLatestTdd(taskId, tddBlock);
+      }
     }
 
     // Step 8: verdict and risk over the whole touched list, then truncate. When
