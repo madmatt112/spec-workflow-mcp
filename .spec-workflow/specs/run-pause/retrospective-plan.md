@@ -1,6 +1,6 @@
 # Retrospective plan — run-pause
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-10-30
 
 ## Approved proposals

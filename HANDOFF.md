@@ -155,6 +155,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-30 | run-pause | implementation | tasks 7/9 | design-defect | task 8's File: list omits src/dashboard_frontend/vite.config.ts, which 4064229c must touch (dev-proxy Origin rewrite) to pass the task's own real-click POST test; no implementer edit satisfies both the gate's file list and the Success criteria. |
 | 2026-10-30 | run-pause | implementation | tasks 9/9 | complete | PR #195 |
 | 2026-10-30 | run-pause | retrospective |  | error | the analyst wrote no retrospective-proposals.md |
+| 2026-10-30 | run-pause | closeout | items 12/12 | closed | 7 done, 2 to-do, 3 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1292,3 +1293,13 @@ Gotchas:
 | Verifier-skipped | task 8, task 9 (gate-only review, retro P6/P15) |
 | Next | none |
 | Gotchas | review coverage gap: completed task(s) 9 logged but unreviewed; merge allowed (retro P9) |
+
+## run-pause — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 12/12: 7 done, 2 to-do, 3 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/196 |
+| To-dos | P4: DECISION NEEDED unresolved (no plan resolves A vs B); real cause is the checks-file re-emit spawn at implementation.ts:756, not a spawn.end/liveness misread, so P3 fixes it; eval asserts controller behaviour the eval framework cannot observe; P5: requires restructuring the reviser version-bump + approval/convergence flow (reviserStep always writes v(D+1)) to disposition in place and skip lint/narrow — not a scoped edit; eval asserts controller spawn/version behaviour harness/evals cannot express |
+| Gotchas | none |
+
