@@ -159,3 +159,4 @@ One line per proposal, written by the close-out phase.
 - P5: to-do (human) — requires restructuring the reviser version-bump + approval/convergence flow (reviserStep always writes v(D+1)) to disposition in place and skip lint/narrow — not a scoped edit; eval asserts controller spawn/version behaviour harness/evals cannot express
 - P8: done — b52bf0d72f1988e48cb3f58f53365287fdd3f2c4
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/196
+- P2: done — 0a87730bff46143e0902a9e91eefd5878e7d3b8b
