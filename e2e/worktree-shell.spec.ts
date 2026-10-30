@@ -538,7 +538,13 @@ test.describe.serial('Dashboard shell end to end', () => {
     const pauseButton = page.getByTestId(`ctrl-row-pause-${runId}`);
     await expect(pauseButton).toBeVisible();
 
+    // (F2 regression) the frontend runs on a non-default port, so this browser
+    // POST only clears the dashboard's CORS origin check because the vite dev
+    // proxy rewrites the request Origin on /api (4064229c); a bare Origin would
+    // be rejected. A successful response proves the rewrite still holds.
+    const pauseResponse = page.waitForResponse(`**/api/controller/runs/${runId}/pause`);
     await pauseButton.click();
+    expect((await pauseResponse).ok()).toBe(true);
 
     await expect(row).toHaveAttribute('data-selected', 'false');
     await expect(page.getByTestId('ctrl-run-panel')).toHaveCount(0);
