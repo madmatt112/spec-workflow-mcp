@@ -200,33 +200,36 @@ async function readAdvisorSession(): Promise<AdvisorSession | null> {
   }
 }
 
+/** The advisor session whose claude process is still running, else null. */
+async function liveAdvisorSession(): Promise<AdvisorSession | null> {
+  const session = await readAdvisorSession();
+  return session && isProcessAlive(session.pid, session.startTime) ? session : null;
+}
+
 /**
  * `POST /api/controller/advisor/open`'s logic (design C10, D16; Requirement 1
  * AC 3, AC 4): a live session is returned as is, with no second spawn. Else a
  * detached conversation is spawned and checked once after `checkDelayMs`
- * (default ten seconds); still running is `live`, already exited is `command`.
+ * (default ten seconds). The check reads session.json, which holds the claude
+ * process's pid, so a launcher that is still alive while claude has exited
+ * does not count as live.
  */
 export async function openAdvisorSession(deps: OpenAdvisorDeps): Promise<OpenAdvisorResult> {
-  const existing = await readAdvisorSession();
-  if (existing && isProcessAlive(existing.pid, existing.startTime)) {
+  const existing = await liveAdvisorSession();
+  if (existing) {
     return { state: 'live', name: existing.name };
   }
 
   const child = deps.spawnDetached();
-  let exited = false;
-  child.once('exit', () => {
-    exited = true;
-  });
-  // A spawn that fails (ENOENT: the command is not on PATH) emits 'error', not
-  // 'exit'; unhandled, that event kills the dashboard process.
-  child.once('error', () => {
-    exited = true;
-  });
+  // A spawn that fails (ENOENT: the command is not on PATH) emits 'error';
+  // unhandled, that event kills the dashboard process.
+  child.once('error', () => {});
 
   await sleep(deps.checkDelayMs ?? DEFAULT_OPEN_CHECK_DELAY_MS);
 
-  if (!exited) {
-    return { state: 'live', name: 'advisor' };
+  const started = await liveAdvisorSession();
+  if (started) {
+    return { state: 'live', name: started.name };
   }
   return { state: 'command', command: OPEN_COMMAND };
 }
