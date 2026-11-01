@@ -569,12 +569,85 @@ describe('GRADERS registry', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  // Pre-condition: task 2's four graders plus task 3's six git-state graders are all
-  // registered.
+  // Pre-condition: a tasks.md whose guard task (File src/config/schema.ts) carries no `- Test:`
+  // seam.
+  // Test: GRADERS['task-no-test-seam'].grade({ report: {}, fixture }, { doc, file }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P6 — a schema/structural guard task is implementer-only (no
+  // `- Test:` seam); parseTasksFromMarkdown leaves such a task with no `tests` entry.
+  it('task-no-test-seam passes when the guard task carries no - Test: seam', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Define the config schema',
+        '  - File: src/config/schema.ts',
+        '  - _Requirements: 1.1_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-no-test-seam'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md', file: 'src/config/schema.ts' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose guard task (File src/config/schema.ts) was wrongly given a
+  // `- Test:` seam.
+  // Test: GRADERS['task-no-test-seam'].grade({ report: {}, fixture }, { doc, file }).
+  // Observable result: pass is false and the reason names the file.
+  // Expected-value source: retro P6 — a guard task with a `- Test:` seam is routed to the test
+  // author, the failure this eval catches.
+  it('task-no-test-seam fails when the guard task carries a - Test: seam', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Define the config schema',
+        '  - File: src/config/schema.ts',
+        '  - Test: src/config/schema.test.ts — schema shape',
+        '  - _Requirements: 1.1_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-no-test-seam'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md', file: 'src/config/schema.ts' }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('src/config/schema.ts');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: no task in the tasks.md declares the guard `file`.
+  // Test: GRADERS['task-no-test-seam'].grade({ report: {}, fixture }, { doc, file }).
+  // Observable result: pass is false.
+  // Expected-value source: retro P6 — the grader fails when the named guard task is absent.
+  it('task-no-test-seam fails when no task declares the guard file', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      ['# Tasks', '', '- [ ] 1. Something else', '  - File: src/other.ts'].join('\n')
+    );
+    const result = GRADERS['task-no-test-seam'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md', file: 'src/config/schema.ts' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: task 2's four graders, task 3's six git-state graders, and the retro-P6
+  // task-no-test-seam grader are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the ten named graders.
-  // Expected-value source: task 3's _Prompt: "the registry lists ten graders."
-  it('registers ten graders including the six git-state graders', () => {
+  // Observable result: the registry lists exactly the eleven named graders.
+  // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
+  // retro-P6 task-no-test-seam grader.
+  it('registers eleven graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
       'item-commit-on-branch',
@@ -585,6 +658,7 @@ describe('GRADERS registry', () => {
       'no-new-commit',
       'repo-unchanged',
       'report-flag',
+      'task-no-test-seam',
       'tasks-labels-canonical',
     ]);
   });

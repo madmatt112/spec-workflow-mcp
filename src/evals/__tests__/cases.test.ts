@@ -28,6 +28,7 @@ const SEED_IDS = [
   'closeout-landing-root',
   'closeout-reversing-proposal',
   'drafter-test-seam-label',
+  'guard-task-no-red-step',
   'test-author-precommit-hook',
   'test-author-trailer',
 ];
@@ -41,7 +42,7 @@ describe('the seed cases (design Component 13)', () => {
   // Observable result: the returned array equals the five seed ids, sorted.
   // Expected-value source: tasks.md task 12 Prompt, "listCaseIds() returns exactly the
   // five seed ids"; requirements.md R5 AC1 (the cases this spec ships).
-  it('lists exactly the five seed case ids', () => {
+  it('lists exactly the seed case ids', () => {
     expect(listCaseIds()).toEqual([...SEED_IDS].sort());
   });
 
