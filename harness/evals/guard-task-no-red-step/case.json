@@ -1,0 +1,36 @@
+{
+  "id": "guard-task-no-red-step",
+  "role": "sdd-drafter",
+  "phase": "document",
+  "spec": "eval-guard-task-no-red-step",
+  "turnCap": 80,
+  "evidence": "ca-acb-pooling retro F6 — guard task 1 was routed through a test author and tripped red-commit-ownership",
+  "briefs": [
+    {
+      "template": "drafter",
+      "file": "drafter-brief.md",
+      "values": {
+        "phase": "tasks",
+        "docPath": "{{fixture}}/.spec-workflow/specs/eval-guard-task-no-red-step/tasks.md",
+        "specDir": "{{fixture}}/.spec-workflow/specs/eval-guard-task-no-red-step",
+        "specStoreRoot": "{{fixture}}/.spec-workflow",
+        "codeRoot": "{{fixture}}",
+        "carried": "none"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements and design", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "task-no-test-seam",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-guard-task-no-red-step/tasks.md",
+        "file": "src/config/schema.ts"
+      }
+    }
+  ]
+}

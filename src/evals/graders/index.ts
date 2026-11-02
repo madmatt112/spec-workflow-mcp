@@ -8,6 +8,7 @@ import { grade as newCommitCount } from './new-commit-count.js';
 import { grade as repoUnchanged } from './repo-unchanged.js';
 import { grade as itemCommitOnBranch } from './item-commit-on-branch.js';
 import { grade as noCommitTouches } from './no-commit-touches.js';
+import { grade as taskNoTestSeam } from './task-no-test-seam.js';
 import type { Grader } from './shared.js';
 
 export type { FixtureView, GradeInput, GradeResult, Grader } from './shared.js';
@@ -24,4 +25,5 @@ export const GRADERS: Record<string, Grader> = {
   'repo-unchanged': { grade: repoUnchanged },
   'item-commit-on-branch': { grade: itemCommitOnBranch },
   'no-commit-touches': { grade: noCommitTouches },
+  'task-no-test-seam': { grade: taskNoTestSeam },
 };
