@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Push text",
+      "question": "What does the phone message carry from the wait?",
+      "options": [
+        "The first line of the first question, plus kind, project and spec (supersedes the advisor spec's no-question-text rule)",
+        "Kind, project and spec only, as the advisor spec decided",
+        "The full question text"
+      ]
+    },
+    {
+      "header": "Push config",
+      "question": "Which config file drives the phone push?",
+      "options": [
+        "notify.json replaces push.json; push.json is no longer read",
+        "Keep both targets",
+        "Read notify.json first, fall back to push.json"
+      ]
+    },
+    {
+      "header": "Crash wait",
+      "question": "What happens when a drive crashes inside the controller?",
+      "options": [
+        "An error wait with retry/abandon, run goes waiting; Re-drive answers retry; a restart expires it and re-drives",
+        "An acknowledge-only wait with Re-drive as the only resume",
+        "No wait; the stalled flag only"
+      ]
+    },
+    {
+      "header": "Reminder",
+      "question": "Does the one-hour reminder survive a controller restart?",
+      "options": [
+        "Yes: scheduled from the wait's created time, reminded ids recorded",
+        "An in-memory timer only",
+        "No reminder"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}
