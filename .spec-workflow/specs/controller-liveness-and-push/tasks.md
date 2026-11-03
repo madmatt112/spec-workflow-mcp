@@ -73,7 +73,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - Test: src/controller/__tests__/runs.test.ts — listRunsForWire(driven)
   - Test: src/dashboard/shell/__tests__/shell-feed.test.ts — new ShellFeed(projects, send, { drivenRuns }).start()
   - Bridge: no caller passes a set until task 9, so every row reads `driven: false`.
-  - `driven` is required and `tsconfig.json:19` compiles tests, so the `run()` helper at `sidebar-rows.test.ts:189-198` gains `driven: false`.
+  - `driven` is required and `tsconfig.json:19` compiles tests, so the `run()` helper at `src/dashboard/shell/__tests__/sidebar-rows.test.ts:189-198` gains `driven: false`.
   - Existing assertions: `runs.test.ts`, `shell-feed.test.ts` and `sidebar-rows.test.ts` assert no value this changes.
   - Purpose: Put both facts on the row the dashboard reads.
   - _Leverage: src/controller/runs.ts, src/dashboard/shell/shell-feed.ts_
@@ -85,7 +85,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - Test: src/controller/__tests__/controller.test.ts — controller.drivenRuns() and a one-shot throw through the mcpConfigFor option
   - Add the driven-set reader, the crash wait and the drive-end change event.
   - Regression guard (requirement 2.6, holds at base): `onWaitChange` already re-queues on `retry` and cancels on `abandon`; only the wait's creation is new.
-  - Existing assertions: the one `change` listener in `controller.test.ts:496-506` spans a pause with no drive, so the drive-end emit alters no asserted value.
+  - Existing assertions: the one `change` listener in `src/controller/__tests__/controller.test.ts:496-506` spans a pause with no drive, so the drive-end emit alters no asserted value.
   - Purpose: Make a crash a wait, never a silent `running`.
   - _Leverage: src/controller/controller.ts, src/controller/waits.ts_
   - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6_
@@ -122,7 +122,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - Test: src/advisor/__tests__/summary.test.ts — buildSummary({ now })
   - Add the three helpers and the `NotifyConfig` type; `pushState` reads through them.
   - Bridge: `pushConfigPath` stays exported for `src/advisor/push.ts` until task 12.
-  - Existing assertions: `home.test.ts:67`, `:79` and `summary.test.ts:411` still hold; this task changes no value they assert.
+  - Existing assertions: `src/advisor/__tests__/home.test.ts:67`, `src/advisor/__tests__/home.test.ts:79` and `src/advisor/__tests__/summary.test.ts:411` still hold; this task changes no value they assert.
   - Purpose: Give both config readers one validity rule.
   - _Leverage: src/advisor/home.ts, src/advisor/summary.ts_
   - _Requirements: 4.1, 4.2_
@@ -131,7 +131,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
 - [ ] 11. Build the ntfy message from the wait's own fields
   - File: src/advisor/push.ts
   - Test: src/advisor/__tests__/push.test.ts — buildMessage(wait, projectName, reminder)
-  - Export the pure builder; nothing calls it until task 12.
+  - Export the pure builder; it has no caller yet, so the unused export compiles green on its own.
   - Existing assertions: `push.test.ts` assertions are untouched here.
   - Purpose: Fix the message text with no model and no leaked path.
   - _Leverage: src/advisor/push.ts_
@@ -147,7 +147,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - Read `docs.ntfy.sh/publish` first (requirement 4.4): the design could not.
   - Remove task 10's bridge, so `push.json` is read nowhere.
   - Regression guards (hold at base): one retry then one `push.failure` row (4.5); first start sends nothing (4.6); the watchdog and browser notification stay outside this task's list (4.7).
-  - Existing assertions: these change exactly, at least `push.test.ts:211-212`, `:304-306` and `advisor-e2e.test.ts:438-441`, `:461`, `home.test.ts:14`, `:67`, `:79`.
+  - Existing assertions: these change exactly, at least `src/advisor/__tests__/push.test.ts:211-212`, `src/advisor/__tests__/push.test.ts:304-306` and `src/advisor/__tests__/advisor-e2e.test.ts:438-441`, `src/advisor/__tests__/advisor-e2e.test.ts:461`, `src/advisor/__tests__/home.test.ts:14`, `src/advisor/__tests__/home.test.ts:67`, `src/advisor/__tests__/home.test.ts:79`.
   - Purpose: Reach the phone through ntfy.
   - _Leverage: src/advisor/push.ts_
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, NFR_
@@ -169,7 +169,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - Test: src/controller/__tests__/liveness-e2e.test.ts — launchSpec(project, input, controller)
   - Widen the guard to every state that names no spec.
   - Regression guards (hold at base): `active` keeps its spec (6.3); a null name keeps the routing reason (6.4); the two states already consulted stay as they are. `launchSpec`'s directory code is unchanged (6.5), but scenario 5 is red until the guard widens.
-  - Existing assertions: `run-setup.test.ts:505-511` and `:516-529` keep their values.
+  - Existing assertions: `src/dashboard/harness/__tests__/run-setup.test.ts:505-511` and `src/dashboard/harness/__tests__/run-setup.test.ts:516-529` keep their values.
   - Purpose: Never block Launch on a routing state that names no spec.
   - _Leverage: src/dashboard/harness/run-setup.ts, src/core/index-generator.ts_
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
@@ -202,9 +202,10 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
 - Deferred, as the requirements fix: deriving and rendering stalled, and any Re-drive button. The only frontend edit is the type declaration in task 6.
 - Open item: requirement 4.4's ntfy check runs first in task 12, which escalates if the page disagrees or the fetch is denied.
 - The decomposition's "at most every 10 s" check is proved in task 2 on fake timers (D5), not in the end-to-end file.
-- Known gap, not in scope: the Now page's idle row reads the routing state directly (`src/dashboard/shell/now-model.ts:131-132`), so it can still show a disabled reason where the setup view now offers a spec. Requirement 6 names `buildSetupView` only.
+- Known gap, not in scope: the Now page's idle row reads the routing state directly (`src/dashboard/shell/now-model.ts:131-132`), so it can still show a disabled reason where the setup view now offers a spec. Requirement 6 names `buildSetupView` (`src/dashboard/harness/run-setup.ts:146-217`) only.
 - Carried items from design: none.
 
 ## Revision History
 
 - **v1** (2026-11-03) — Initial draft.
+  - **Lint pass.** 16 fixed; rejected: L-1 ("Enumerated, no change" is a design meta-section of deliberately untouched components — no task implements it, and settlePass/launchSpec/sidebar-rows already appear as regression-guard references in tasks 8, 9, 14), L-2 (`tsconfig.json` is the sole tsconfig at the code root; `tsconfig.json` is its path from the root, with no directory to prefix and nothing to re-resolve wrong), L-18 (task 15's only source edit is the non-executing `src/advisor/push.ts` header comment; the task declares no seam and verifies via tsc and the `push.json` grep).
