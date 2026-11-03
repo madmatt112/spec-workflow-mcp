@@ -2,7 +2,7 @@
 
 ## Overview
 
-This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix. The work sits in the controller (`src/controller/`), the wait pusher (`src/advisor/push.ts`) and the dashboard server (`src/dashboard/`).
+This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix.
 
 ## Steering Document Alignment
 
@@ -137,7 +137,7 @@ export function createStepHeartbeat(opts: {
   - Body line 1: `${kind} | ${projectName} | ${spec}`, prefixed `Reminder: ` for a reminder.
   - Body line 2: `wait.questions[0].text.trim()` cut at the first line break, with paths redacted; left out when the wait has no question.
   - Title: `SDD ${kind}`, or `SDD reminder: ${kind}`.
-  - Redaction: a path-shaped token becomes `[path]` — an absolute path (leading `/`), a `~/` path, or a relative token with a `/` and a file extension. `/home/mcf/repo/x.ts`, `~/notify.json` and `src/controller/step.ts` all redact (D12); a bare relative directory with no extension is the one residual AC 3 does not cover.
+  - Redaction: a path-shaped token becomes `[path]` — an absolute path, a `~/` path, any token with a `/`, or any token with a file extension. `/home/mcf/repo/x.ts`, `~/notify.json`, `src/controller/step.ts`, `src/controller` and `notify.json` all redact (D12). The one residual AC 3 misses is a bare slashless, extensionless token (`Makefile`, a directory name), indistinguishable from a plain word.
 - **Project name:** `readProjects()` (`src/controller/state.ts:504-506`), the entry whose `id` equals `wait.project`, its `name`; else, or on a read failure, `wait.project`.
 - **Probe (node 24.13.0, local capture server):** `fetch` sent the three headers as given and a UTF-8 body intact, with `content-type: text/plain;charset=UTF-8`. A header value of `日本` threw `TypeError`. The title therefore holds only the wait kind, which is ASCII (`src/controller/state.ts:140-147`).
 - **UNCONFIRMED — Requirement 4 AC 4.** The design could not read the ntfy documentation: the fetch of `docs.ntfy.sh/publish` was denied in the drafting session, and no local copy exists. The `Authorization: Bearer` header, the `Title` and `Priority` header names, the priority value and any body size limit are therefore pinned provisionally. The task that writes the POST SHALL fetch that page first (its implementer has `WebFetch`) and log the result. If the page disagrees, or the fetch is denied there too, it escalates for an operator-supplied value rather than shipping the header blind — so the gate resolves either way. The tests prove only what the sender emits, not what ntfy accepts.
@@ -189,7 +189,7 @@ A reminder is due only for an id in `firstPush` and not in `reminded`. A file wr
 
 ## Testing Strategy
 
-Tests assert only on the `close` exit code, stdout by line (never chunk boundaries), `fs.stat` `mode` bits and `fetch` results. No timing decision rests on a probe, and CI runs node 20.
+Tests assert only on the `close` exit code, stdout by line (never chunk boundaries), `fs.stat` `mode` bits and `fetch` results. No timing decision rests on a probe.
 
 - **Unit:**
   - New `src/controller/__tests__/heartbeat.test.ts`, on `vi.useFakeTimers()` with a fake `write` and no fs: each C3 post-condition.
@@ -198,7 +198,7 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
   - `waits.test.ts`: `expireWait`, `openDriveCrashWait`. `runs.test.ts`: the row carries `lastActivity`, and `driven` from the set, default `false`.
   - `src/dashboard/shell/__tests__/shell-feed.test.ts`: `drivenRuns` reaches the `controller-runs` row.
   - `src/dashboard/harness/__tests__/run-setup.test.ts`: `ambiguous` and `all-deferred` with an unstarted heading; null from `nextUnstartedSpec` keeps the routing reason. `active` and `all-on-disk-complete` are regression guards.
-  - `src/advisor/__tests__/push.test.ts`: `buildMessage` (fields, marker, no-question wait, redaction of relative and absolute paths, multi-line text); bearer header present and absent; on the injected `now` plus `await sweepReminders()`: due, answered first, expired first, failed and not rescheduled, restart past and inside the hour, first start, legacy record; the no-config path; the loose-mode warning; no topic or token in a `push.failure` row or a log.
+  - `src/advisor/__tests__/push.test.ts`: `buildMessage` (fields, marker, no-question wait, redaction of absolute, slash-relative and single-segment-filename tokens, multi-line text); bearer header present and absent; on the injected `now` plus `await sweepReminders()`: due, answered first, expired first, failed and not rescheduled, restart past and inside the hour, first start, legacy record; the no-config path; the loose-mode warning; no topic or token in a `push.failure` row or a log.
 - **Assertions that change:** widen every assertion the rename or body change touches; find them with `grep -rn "pushConfigPath\|push\.json\|dashboardUrl" src/advisor/__tests__`.
 - **Integration:** `controller.test.ts` with the existing stub `claude` bin: a one-shot throw through the existing `mcpConfigFor` option (`src/controller/controller.ts:54`, called at `src/controller/runs.ts:832`) gives the crash wait, `waiting`, no `inFlight`, and a change event with the id out of `drivenRuns()`; answers `retry` and `abandon` (regression guards); every `redrive` outcome, including a held run parking `paused` and a controller never started; the C5 `recover` branches. `src/dashboard/__tests__/controller-dashboard-routes.test.ts`: the route's 404, 409 and 200, and `driven` on the GET row.
 - **End-to-end** (in a new `src/controller/__tests__/liveness-e2e.test.ts` unless noted):
@@ -210,14 +210,14 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
 
 ## Decisions taken in this document
 
-- D1 — The heartbeat is one step-scoped object on the step spec, not callbacks on every caller or a process-wide emitter: ending it makes every late line a no-op, with no per-run state to leak.
+- D1 — The heartbeat is one step-scoped object on the step spec, not callbacks or a process-wide emitter: ending it makes every late line a no-op, with no per-run state to leak.
 - D2 — The heartbeat has its own chained writer and the general run write always takes the field from disk: no other caller ever owns the field.
 - D3 — The stored value is the time of the last parsed line, not the write: the requirement bounds the value against the last line, and a trailing write would overstate liveness.
 - D4 — RE-DECIDED: a crashed drive opens a wait only when the run is queued, running or merging, not on every throw: a throw on a terminal run would revive an abandoned run, and one after a park would stack a second wait.
 - D5 — The crash wait is recognised by a question id, not a new wait kind: the requirement keeps the error kind, so the existing answer path applies.
 - D6 — The drive-end change event fires after the drive entry is removed: only the later point guarantees the row reads not-driven at the emit.
 - D7 — RE-DECIDED: a process without the controller lock answers Re-drive with 409 not-stalled, not 503 or a silent 200: it cannot drive, a 200 would lie, and the error set stays as the requirement lists it.
-- D8 — The reminder runs from a 60-second sweep over the pushed record, not per-wait timers: a sweep needs no arming, covers restart with the same code, and gives the clock seam, at a cost of up to 60 seconds of lateness.
+- D8 — The reminder runs from a 60-second sweep over the pushed record, not per-wait timers: a sweep needs no arming, covers restart, and gives the clock seam, at a cost of up to 60 seconds of lateness.
 - D9 — The pushed record stays version 1 and gains two optional fields, not a migrated shape or a separate file: an old file then reads correctly with no migration.
 - D10 — A failed first POST still arms the reminder, and a wait seen with no config never does: the reminder is the only second chance after a failed send, and with no config nothing was pushed.
 - D11 — The ntfy title is SDD plus the wait kind, priority is 4 on every message, and every required field sits in the body: a non-Latin-1 header value throws in the probe, every wait blocks the operator, and a body-complete message survives a dropped header. Provisional until the ntfy page is read.
@@ -230,18 +230,20 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
 
 - Cut: nothing from the decomposition entry.
 - Deferred, as the requirements fix: deriving and rendering stalled, and any Re-drive button, belong to the later dashboard specs. No frontend code changes except the type declaration.
-- Open item: Requirement 4 AC 4's bearer-header confirmation moves to the push task (see C9), which also settles the title, priority and body-size questions; no body-length cap is pinned, because no limit could be confirmed.
-- Reminder anchor: Requirement 5 AC 1 (v3) times the reminder from the first push, not the wait's created time, which this design follows.
+- Open item: Requirement 4 AC 4's ntfy header/body confirmation moves to the push task (see C9); no body-length cap is pinned, none could be confirmed.
+- Reminder anchor: Requirement 5 AC 1 (v3) times the reminder from the first push, not the wait's created time; this design follows that.
 - Dropped from the message: `dashboardUrl` (Requirement 4 AC 3 allows four fields only).
 - Carried items from the requirements phase: none.
 
 ## Revision History
 
+- **v3** (2026-11-03) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** C9 redaction now marks any token carrying a slash or a file extension, so a single-segment filename in a crash message's first line redacts; the lone residual is a bare token with neither, superseding the narrower v2 residual and the R1-1 claim. The test list names the single-segment case.
 - **v2** (2026-11-03) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/3).
-  - **R1-1 — Partially accepted (SHOULD_FIX).** C9 redaction now marks any path-shaped token — absolute, tilde, or a relative token with a slash and a file extension — so a question's first line no longer sends a repo-relative file, and AC 3's no-path rule holds for file paths. A bare relative directory is the one residual; URLs stay, since AC 3 bans paths, not URLs.
+  - **R1-1 — Partially accepted (SHOULD_FIX).** C9 redaction widened to path-shaped tokens so a question's first line redacts file paths for AC 3; its residual was understated and is superseded in v3 (R2-1). URLs stay, since AC 3 bans paths, not URLs.
   - **R1-2 — Accepted (MINOR).** C9 now notes the config-read race between the recording read and the send read: the id is still recorded but its POST may skip; harmless for the one operator.
   - **R1-3 — Partially accepted (MINOR).** C9's AC 4 gate now escalates for an operator-supplied value when the task's ntfy-doc fetch is blocked, rather than shipping the provisional header.
   - **R1-4 — Accepted (MINOR).** C1 now cites the RunRecord interface at the line range the requirement and context use.
-  - **Lint pass.** 0 fixed; rejected: L-1–L-58 citation-identifier false positives, all cited anchors resolve, suppressed per rule 11.
+  - **Lint pass.** 0 fixed; L-1–L-58 rejected as citation-identifier false positives, anchors resolve.
 - **v1** (2026-11-03) — Initial draft.
-  - **Lint pass.** 3 fixed (L-25, L-34, L-42: bare ranges prefixed). Rejected L-1–L-24, L-26–L-33, L-35–L-41, L-43–L-60: citation-identifier false positives; cited anchors resolve. Reasons: /tmp/scratchpad/sdd/controller-liveness-and-push/lint.md
+  - **Lint pass.** 3 fixed (L-25, L-34, L-42: bare ranges prefixed); the rest rejected as citation-identifier false positives, anchors resolve. Reasons: /tmp/scratchpad/sdd/controller-liveness-and-push/lint.md

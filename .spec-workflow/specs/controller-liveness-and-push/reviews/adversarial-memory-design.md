@@ -1,55 +1,54 @@
 # Adversarial Review Memory — design
 
-Last updated: 2026-11-03 (round 1, v1)
+Last updated: 2026-11-03 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1 just filed)
+- **R1-2 (MINOR).** Config-read TOCTOU in C9 (recording read vs `attemptPush` read, `push.ts:189`).
+  v2 added the one-sentence note; verified accurate.
+- **R1-4 (MINOR).** RunRecord cite moved to `state.ts:69-109` (doc comment `:69` + interface `70-109`);
+  matches requirement/context. Fixed.
 
 ### Partially Accepted
-- (none)
+- **R1-1 (SHOULD_FIX).** Message redaction widened in v2 to path-shaped tokens: absolute (`/`), `~/`,
+  and relative-with-slash-and-extension. Residual documented. BUT the residual is understated — see
+  R2-1 below (single-segment relative filenames still leak). URLs intentionally stay (AC 3 bans paths,
+  not URLs — reviser's recorded scope).
+- **R1-3 (MINOR).** AC-4 ntfy-doc gate: v2 names the doc-access path (implementer has `WebFetch`,
+  verified) and escalates for an operator value if the fetch is denied. Resolved.
 
 ### Rejected
 - (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX).** C9/D12 message redaction redacts only absolute and `~/` paths; C9 states
-  relative paths and `https://` URLs are not redacted. This contradicts Requirement 4 AC 3 /
-  NFR Security "no path" and D12's own rationale ("the requirement bans paths"). A question's first
-  line (any wait kind) can carry a relative path like `src/controller/step.ts` to the phone.
-  Fix: widen redaction to path-shaped tokens, or narrow D12's "no path" scope with explicit AC-3
-  sign-off. Severity SHOULD_FIX not MUST_FIX because topic/token (the real secrets) are never in
-  the body and never logged.
-- **R1-2 (MINOR).** Config-read TOCTOU in C9: recording reads `notify.json` to arm
-  firstPush/reminded, `attemptPush` reads it again; a file flip between the awaits desyncs
-  arm-vs-send. Rare; one-sentence note.
-- **R1-3 (MINOR).** The ntfy confirmation gate (C9 UNCONFIRMED / Scope Open item) assumes the push
-  task can reach `docs.ntfy.sh`. WebFetch of that page is denied in both the drafting and the review
-  session; if also denied for the task, the confirm-or-escalate gate cannot fire. Name the doc-access
-  path for the task.
-- **R1-4 (MINOR).** `RunRecord` cited at state.ts:70-109 vs 69-109 in requirements/context. Interface
-  body is 70-109; resolves; cosmetic.
+- **R2-1 (SHOULD_FIX, Compounding R1-1, fix-induced).** The widened redaction rule requires a relative
+  token to have BOTH a `/` and a file extension. A single-segment relative filename (`step.ts`,
+  `notify.json`) — common inside the crash-wait `${message}` (e.g. `ENOENT ... open 'notify.json'`) —
+  is not redacted and reaches the phone, violating Requirement 4 AC 3 ("no path, no file content").
+  The design claims only one residual ("a bare relative directory") and that "a question's first line
+  no longer sends a repo-relative file"; both overstate coverage — there are two residual classes.
+  Fix: redact any token with a file extension (drop the `/` requirement), or restate the two-class
+  residual and correct the R1-1 disposition sentence. SHOULD_FIX not MUST_FIX: topic/token (the real
+  secrets) never enter the body or a log; the leak is the operator's own filename to their own phone.
 
 ## Patterns & Themes
-- The document is exceptionally citation-accurate: ~40 cited artifacts (state/step/controller/runs/
-  waits/push/home/summary/multi-server/run-setup/spec-routing-deriver/shell-feed/hub/types/RunsPage/
-  phase wiring) all verified at both ends. No misstated artifact. Do not spend round 2 re-checking
-  citations already confirmed here — attack logic and requirement-compliance instead.
-- The only live weakness class is the ntfy/message boundary (what leaves the machine, what ntfy
-  accepts). Both open items cluster there.
-- Confirmed sound and not worth re-opening: the write-chain ordering + terminal guard (C1), the
-  10 s throttle + step-end clear (C3), the crash-wait transient `driven:true` corrected by the live
-  `drivenRuns()` read at flush (C4/D6), the double-drive guard in `startDrive`, the `!== 'active'`
-  routing broadening (C10), the driven-set wiring completeness (grep-proved two callers + one
-  ShellFeed), and `pushState` switching to `readNotifyConfig` (C8, a real fix).
+- The document stays exceptionally citation-accurate. Round 2 re-verified only the three delta
+  citations (`69-109`, `push.ts:189`, the `WebFetch` capability claim); all correct. No misstated
+  artifact in any round.
+- Every live weakness still clusters at the ntfy/message boundary — specifically what leaves the
+  machine in the question's first line. R1-1 → R2-1 is the same seam, not yet fully closed.
+- The ntfy header/body contract (D11, UNCONFIRMED) is an honest, gated deferral; do not count it as a
+  defect. WebFetch to docs.ntfy.sh is DENIED in the review session — judge the gate, don't verify live.
 
 ## Guidance for Next Review
-- Check whether R1-1 was fixed by widening redaction (look at C9 "Redaction" and D12) or accepted
-  with an AC-3 scope note; scope the re-check to that clause's diff, not a full re-review.
-- If R1-3 is addressed, confirm the task-phase doc-access path is concrete (not "the task reads the
-  page" with no environment).
-- Environment note: WebFetch to external docs (docs.ntfy.sh) is DENIED in the review session. Do not
-  plan to verify the ntfy contract live; judge the deferral on its mitigation.
-- Data Models completeness and error-branch-shape lenses passed in round 1; only re-run them against
-  new objects/branches a revision introduces.
+- Check whether R2-1 was closed by widening the rule (redact any extension-bearing token) or by an
+  accurate two-class residual statement with AC-3 sign-off. Scope the re-check to the C9 "Redaction"
+  bullet and the Revision-History R2 entry — do not re-review the whole document.
+- Do NOT re-check: the RunRecord cite, the config-race note, the WebFetch gate, the decision
+  compression (D1–D15 meaning preserved), or the testing-strategy trim — all verified clean in round 2.
+- Do NOT re-check the round-1 "confirmed sound" set (write-chain ordering + terminal guard C1,
+  10s throttle + step-end clear C3, crash-wait transient driven:true corrected at flush C4/D6,
+  double-drive guard, `!== 'active'` routing C10, driven-set wiring, `pushState`→`readNotifyConfig`).
+- Data Models completeness and error-branch-shape lenses passed again; re-run only against new
+  objects/branches a future revision introduces.
