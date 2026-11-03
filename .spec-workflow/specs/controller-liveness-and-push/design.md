@@ -2,7 +2,7 @@
 
 ## Overview
 
-This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix. The work sits in the controller (`src/controller/`), the wait pusher (`src/advisor/push.ts`) and the dashboard server (`src/dashboard/`). It reuses the per-run write chain, the `error` wait answer path, the `WaitPusher` watch, and `nextUnstartedSpec`.
+This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix. The work sits in the controller (`src/controller/`), the wait pusher (`src/advisor/push.ts`) and the dashboard server (`src/dashboard/`).
 
 ## Steering Document Alignment
 
@@ -242,5 +242,6 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
   - **R1-2 — Accepted (MINOR).** C9 now notes the config-read race between the recording read and the send read: the id is still recorded but its POST may skip; harmless for the one operator.
   - **R1-3 — Partially accepted (MINOR).** C9's AC 4 gate now escalates for an operator-supplied value when the task's ntfy-doc fetch is blocked, rather than shipping the provisional header.
   - **R1-4 — Accepted (MINOR).** C1 now cites the RunRecord interface at the line range the requirement and context use.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-58 citation-identifier false positives, all cited anchors resolve, suppressed per rule 11.
 - **v1** (2026-11-03) — Initial draft.
   - **Lint pass.** 3 fixed (L-25, L-34, L-42: bare ranges prefixed). Rejected L-1–L-24, L-26–L-33, L-35–L-41, L-43–L-60: citation-identifier false positives; cited anchors resolve. Reasons: /tmp/scratchpad/sdd/controller-liveness-and-push/lint.md
