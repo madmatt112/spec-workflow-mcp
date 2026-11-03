@@ -954,6 +954,289 @@ the restart. Resume starts the next step. Pause on a run with no step in flight 
 their steps to end, deploy, then resume them, instead of polling for a gap; what the waits that
 open while a run is paused look like; whether Pause applies to a queued run that has not started.
 
+## Dashboard board specs (2026-11-02, revised 2026-11-03 after adversarial review)
+
+From the ideation of 2026-11-02 (`docs/dashboard-ideation.md`, mockups at
+https://claude.ai/artifact/7p1s6R33zMQWMaz7aVPeLP). The operator's verdict on the dashboard
+after specs 15, 22, 23 and 28: the content is cramped and dense inside a screen that is
+mostly empty. Decision 7 of the October grill (Linear density, a sidebar, a right detail
+panel) is reversed. The replacement is a mission-control board: fewer things, larger, colour
+only for state, and three plain pages. Five specs, in this order: 30 → 31 → 32 → 33 → 34.
+The two controller-side specs come first so that the three dashboard specs after them ship
+through the Deploy action and show a true liveness.
+
+### 30. `controller-liveness-and-push` — a durable heartbeat, a true "stalled", a phone push
+
+**Delivers.** (1) **`lastActivity`** on `RunRecord` (ISO): the controller writes it from every
+line the step's stream emits (`handleLine` in `step.ts`, not only `tool_use`), throttled to
+once per 10 s, and clears it when the step ends. The field is owned by one writer and carried
+over by every other writer the way `writeRunLocked` carries `pauseRequested`; no write to it
+lands after the step's exit event. (2) **Stalled is a controller fact.** A run is stalled when
+its status is `running` and the controller is not driving it (not in `active`, no step alive).
+This is the dead-run case of d-e1bae32a: a phase threw inside `runOnce`, `drive()` logged it
+and dropped the run, nothing re-drove it. The controller exposes `driven: boolean` on the run
+row it sends the dashboard, and writes an `error` wait ("step <kind> failed inside the
+controller: <message>") when a drive ends by exception, so a crash is a wait and never a
+silent "running". (3) **Re-drive.** `POST /api/controller/runs/:id/redrive` starts a drive from
+the run's cursor for a stalled run; 409 otherwise. Crash recovery on start keeps re-driving as
+today. (4) **Push to the phone from the controller.** `~/.local/state/sdd/notify.json`
+(`v`, `ntfy: { url, topic, token? }`). When a wait is written, the controller POSTs one message
+to `<url>/<topic>` with the kind, project, spec and the first line of the question; when a wait
+is still open one hour later, one reminder; then nothing. A missing file or a failed POST is
+logged and never blocks the wait. The shell's browser notification stays. (5) **Launch routing.**
+`buildSetupView` consults `nextUnstartedSpec` for every routing state that names no active spec
+(`all-on-disk-complete`, `no-specs`, `ambiguous`, `all-deferred`), not only the first two, so a
+spec named in `decomposition.md` with no directory is launchable whenever nothing on disk is
+live. The reason text "all specs complete" appears only when the decomposition has no unstarted,
+undeferred heading.
+
+**Decided.** ntfy over Pushover, Gotify and a Telegram bot: free on the public server for a few
+messages a day, one HTTP POST with no dependency, apps on both phone platforms, self-hostable
+later by changing `url`. The topic is the secret; the file holds it with mode 0600. The
+controller sends two messages per wait at most. The watchdog's `notify-send` is not changed.
+No model writes the message text; it is the wait's own fields.
+
+**End-to-end verification.** (1) While a fixture step runs, `lastActivity` in `run.json`
+advances at most every 10 s and is absent 1 s after the step ends; a status change written
+while a throttled write is pending wins. (2) Throw inside a phase through a test seam: the run
+row shows `driven: false` within 5 s, an `error` wait names the step and message, and Re-drive
+starts the next step from the cursor; after a controller restart the run is driven again
+without the action. (3) Kill a step process by hand: the controller retries as today and the
+row never shows stalled. (4) With `notify.json` pointing at a test ntfy topic, writing a wait
+sends one message with its kind and spec; one hour later (clock seam) one reminder; answering
+the wait before the hour sends nothing more. With the file absent, the wait is written and the
+log says so. (5) On a project whose routing is `ambiguous` with an unstarted decomposition
+heading, the setup view's launchable spec is that heading's name and Launch creates its
+directory.
+
+**Depends on** nothing in flight. **Design MUST enumerate:** `src/controller/state.ts`
+(`RunRecord`, `writeRunLocked`, `isProcessAlive`), `src/controller/step.ts` (`handleLine`,
+`onActivity`), `src/controller/runs.ts` (`save`, `patchRun`, the step loop),
+`src/controller/controller.ts` (`drive`, `active`, `recover`, `settlePass`, `resumeNow`),
+`src/controller/waits.ts` (`waitAnd`, where the push goes), `src/controller/activity.ts`,
+`src/dashboard/multi-server.ts` (the run routes, the run row), `src/dashboard/harness/hub.ts`,
+`src/dashboard/harness/run-setup.ts` (`buildSetupView`, `nextUnstartedSpec`, the folder
+creation in `multi-server.ts` `launchSpec`), `scripts/sdd-watchdog.sh`.
+
+**Design should address:** whether the reminder timer survives a controller restart (read the
+open waits' `created` on start); the ntfy message priority and title; whether the `error` wait
+for a crashed drive offers retry/abandon like the other `error` waits.
+
+### 31. `dashboard-deploy` — one Deploy action that pauses, updates and resumes
+
+**Delivers.** (1) `POST /api/controller/deploy` writes `~/.local/state/sdd/deploy.json` (`v`,
+`stage`, `runs` held by it, `commit`, `started`, `error`), holds every run that is `running`,
+`queued` or `waiting` with hold owner `deploy`, and when no step is in flight starts
+`scripts/sdd-self-update.sh` as a transient user unit (`systemd-run --user`), because the
+service unit has no `KillMode` and a restart kills every process in its cgroup, `setsid` children
+included. (2) **The script writes the stages.** `sdd-self-update.sh` gains `--deploy-record
+<path>`: it writes `stage` at each step (`wait`, `build`, `smoke`, `gate`, `swap`, `restart`,
+`done`) and `failed` with the step name on any refusal, timeout or failure. Without the flag it
+behaves as today. (3) **The restarted controller finishes.** On start, a controller that finds
+`deploy.json` at `restart` or `done` releases the `deploy` holds, writes `done`, and the
+reconnected page sees the strip finish. A record at `failed`, or at any stage with no live
+transient unit, is finished by the controller that is running: it releases the holds and leaves
+the record at `failed` for the strip. The script's `error` wait stays as today. (4) **Hold
+ownership.** `RunRecord` gains `holdBy?: 'operator' | 'deploy'`, carried over by every writer
+like `pauseRequested`; `settlePass` treats a `deploy` hold like an operator hold and never
+rewrites it. A run held by a deploy keeps its own status underneath (`waiting` stays `waiting`),
+so an answered wait does not start a step during the deploy. (5) "Cancel and resume now" before
+`swap` stops the transient unit, releases the holds and removes the record. (6) A minimal
+control on the current Now page: Deploy, a confirm, and a stage strip read from the record over
+the shell feed; the run rows show "held for deploy". Spec 32 re-homes it in the top bar. (7)
+Deploy is disabled with the reason while a record is open.
+
+**Decided.** The script keeps its refusals (in-flight step, divergence, dirty paths, smoke,
+evals) and its `wait_no_step` loop; the action adds the holds around it and never a bare build
+in the live checkout. A run already held by the operator is left to the operator and not
+released by the deploy. The record is the single source for the strip; the page derives nothing
+from the script's log. A deploy restart also ends the dashboard-opened advisor's tmux server
+(it lives in the service cgroup); the strip says so at `restart`. No check against
+`origin/main` before pressing: the script's own divergence check refuses a no-op.
+
+**End-to-end verification.** (1) With one running and one waiting run, press Deploy and
+confirm: both rows say "held for deploy"; when the step ends the strip walks `wait`, `build`,
+`smoke`, `gate`, `swap`, `restart`; the service restarts; the page reconnects within 10 s and
+shows `done`; the running run is running again from its cursor and the waiting run is still
+waiting; `deploy.json` holds `done`; the holds are gone. (2) Answer the waiting run's wait
+during stage `build`: it does not start a step until `done`. (3) A failing eval (test seam)
+leaves `failed: gate`, an `error` wait, the old `dist/`, and both runs released. (4) Cancel at
+`build` stops the unit and releases both runs. (5) Kill the controller at `wait`: the transient
+unit continues, the restart brings the controller back, and it finishes the record. (6) With the
+transient unit gone and the record at `build` (kill it by hand), the next controller start
+releases the holds and marks `failed`.
+
+**Depends on** spec 29 (`run-pause`, closed) for the operator hold and spec 30 for the run row.
+**Design MUST enumerate:** `scripts/sdd-self-update.sh` (the in-flight check, `wait_no_step`,
+the swap and the restart), `scripts/sdd-service.sh`, `src/controller/controller.ts` (startup,
+`schedule`, `settlePass`, `onWaitChange`), `src/controller/runs.ts` (`pause`, `stopReason`,
+resume), `src/controller/state.ts` (the record, `holdBy`, `writeRunLocked`),
+`src/dashboard/multi-server.ts` (the route, the advisor's tmux spawn), `NowPage.tsx` and
+`RunsPage.tsx` (the minimal control and the held row).
+
+**Design should address:** the transient unit's name and how a second press finds it; the
+`wait_no_step` timeout against a long step (30 min today); whether the controller start should
+list the open verification deferrals (`deferrals list tag=verification`) as the CLAUDE.md rule
+asks, as the last line of the strip.
+
+### 32. `dashboard-board` — Home as a board of tiles; no sidebar, no Runs page, no panel
+
+**Delivers.** (1) **The shell.** A top bar with four links (Home, Specs, Usage, Deferrals), the
+Deploy control of spec 31, Open advisor, and the gear. The sidebar, the right detail panel, the
+Runs and Run pages, the run log route and the task-review summary route are removed with their
+components, routes and tests. The gear holds theme and the project enable list (moved from the
+sidebar); the density toggle is deleted. The board shows enabled projects only; `sdd-fixture` is
+disabled by default. (2) **Home is three bands**, never collapsed, in this order: Needs you,
+Running, Next. Each band holds large tiles in two columns at desk width and one on a phone; an
+empty band shows one quiet line. Tiles sort by urgency inside a band: waits oldest first, runs
+most stale first, launchable specs in decomposition order. The project is a tag on the tile;
+there is no grouping and no filter. (3) **A wait tile** shows kind, project, spec, the first line
+of the question text, the age in large type and one action. Age colours the tile: neutral under
+15 min, amber under 1 h, red after. A `merge` wait's tile shows the PR number, CI state and
+rule verdict from `run.prReads`. An advisor-staged action (Confirm, Dismiss) is a Needs-you
+tile. The action opens the ruling view of spec 33; until 33 lands it opens the existing answer
+sheet in place of the board. (4) **A run tile** shows the step kind, the task when there is one,
+the step age, "last activity N ago" from spec 30's `lastActivity`, and Pause or Resume and Stop
+while the run moves. The dot is green while `inFlight` is set and the heartbeat is under 5 min
+old, amber to 15 min, red after; with no `inFlight` (between steps, `merging`, `waiting`) the
+dot is grey and no heartbeat line shows. A run with `driven: false` shows red "Stalled" and
+Re-drive (spec 30). A run that has stopped (`abandoned`, `error`, `done` with its branch still
+present) shows Discard in place of Stop (worktree, branch and PR close, as today). (5) **A Next
+tile** per enabled project with a launchable spec: the routed spec, the saved setup in one line,
+Launch. (6) **Every action shows its stages in its tile**: pressed, running, done, or failed with
+the reason. (7) **The tab title** carries the open-wait count and the oldest age ("2 · 4h20m").
+(8) Light and dark; the tokens of spec 22 are kept, the type and spacing scale is new.
+
+**Decided.** Fewer things, larger: no row density, no filters, no search, no pagination on Home.
+Colour means state and nothing else. The Runs page goes because the operator does not open it;
+the run tile plus the wait is the whole run view. No "edit setup": the editor went at step (d)
+and the saved setup is edited in `agent-rules.md`. Desk first: the board stacks to one column on
+a phone and gets no phone flows. No model writes status text; every tile field is derived from
+`run.json`, the wait records, the run row and `decomposition.md`. The TUI and the HUD are not
+touched.
+
+**End-to-end verification.** (1) With two live runs and two open waits, Home shows the two wait
+tiles first, oldest first, the older one red; the two run tiles with step, task, age and the
+heartbeat line; a Next tile per idle enabled project; nothing for a disabled project. (2) A run
+whose drive threw (spec 30's seam) shows red "Stalled" with Re-drive, and Re-drive moves it to
+green within 15 s. (3) A run between steps shows a grey dot and no heartbeat line; a merge wait
+tile shows its PR and verdict. (4) Pressing Pause shows "pausing after this step" in the tile,
+then "paused"; Discard appears only on a stopped run and removes its worktree and branch. (5)
+The tab title reads "2 · 4h20m" with two open waits. (6) The advisor's staged launch is a
+Needs-you tile whose Confirm starts the run. (7) No `/runs` route resolves, the run log and
+task-review summary routes are gone, and `npm run build`, `npx tsc --noEmit` and `npm test` are
+green. (8) At 390 px nothing scrolls sideways.
+
+**Depends on** spec 30 for `lastActivity`, `driven` and Re-drive, and spec 31 for the Deploy
+control. **Design MUST enumerate:** `src/dashboard_frontend/src/modules/shell/` (`NowPage.tsx`,
+`RunsPage.tsx`, `RunPage.tsx`, `Sidebar.tsx`, `PageLayout.tsx`, `ShellProvider.tsx`,
+`primitives.tsx`, `harness.tsx`, `pause.ts`, `types.ts`, `Gear.tsx`), `modules/projects/`
+(the enable state), `modules/theme/tokens.css`, `modules/ui/ui.tsx`,
+`modules/ws/WebSocketProvider.tsx`, `src/dashboard/harness/hub.ts`, `src/dashboard/multi-server.ts`
+(the run routes that stay: cancel, pause, resume, discard, redrive; the log and task-review
+summary routes that go; the advisor open and action routes), `src/dashboard/harness/run-setup.ts`.
+
+**Design should address:** whether Stop on a stalled run needs a confirm; the tile for a run
+`merging` (CI polls) and for a queued run; the project enable list's default for the two tradr
+entries that share one store.
+
+### 33. `dashboard-ruling-view` — one screen to rule on a wait, with the diff inline
+
+**Delivers.** (1) A full-width view in place of the board, opened from a wait tile, with a
+"Back to board" link. For every kind: the kind, project, spec, wait id, the age in large type,
+the run id, phase and step that raised it. (2) For an `escalation` or `error` raised while a
+task was being worked: the wait text; the task row from `tasks.md` (title, success criteria,
+risk, TDD, its `Files` list); the detail; the diff of the task's commits on the run branch,
+rendered per file with added and removed lines; then the answer form. (3) For `gate-a` and
+`gate-b`: each question with its options, the recommended pick marked and its reason, free-text
+questions as a box; the mechanics recorded without asking listed below. For `retro-plan`: the
+DECISION NEEDED questions, then the proposals as a ticked list. For `merge`: the PR, the CI
+state, mergeable, the rule's verdict and reasons from `run.prReads`, Merge. For a security
+`escalation`: the findings, then accept / retry / abandon. (4) **The detail lives in the wait
+record.** `WaitRecord` gains `detail?: string` and `commits?: string[]`. The implementation
+phase's outcome carries the stopping worker's report text (the implementer's ESCALATE or
+DESIGN-DEFECT flag text and the rest of its report) and, when a task review exists for the
+task, that review's analysis; and the task's commit hashes (`taskCommits`). `runs.ts` writes
+them into the wait. The worker roles do not change. (5) The diff is read live:
+`GET /api/controller/waits/:id/diff` runs `git show` for `commits` in the run's worktree and
+returns the per-file hunks, capped; the view says "worktree gone" when the path is missing.
+(6) The answer form: the wait's options as radios with the recommended one preselected when the
+wait has options; a free-text box when it does not (the task ruling is one free question);
+a notes box always, appended to the ruling. "Answer and continue the run" writes the record and
+resumes; "Second opinion" is the existing advice route. The button shows its stages in place.
+
+**Decided.** Everything inline on one screen; no "open in editor" links. The scratch folder
+(`/tmp/scratchpad/sdd/<spec>`) is never read by the dashboard: what the ruling needs is in the
+wait record or in git. The diff is read on open, not stored. All four projects' worktrees are on
+this machine. On a phone the view is a long scroll; that is accepted.
+
+**End-to-end verification.** (1) Raise an escalation on a fixture task: the wait record holds
+`detail` with the implementer's flag text and `commits` with the task's hashes. (2) The view
+shows the wait text, the task row with its files, the detail, and the diff with the added lines
+of the fixture commit; the board is not visible behind it. (3) Type a ruling and a note, press
+Answer: the wait is answered with `by`, `questions.md` carries the ruling, the run resumes at the
+fix step with the ruling in the next implementer brief, and the tile moves from Needs you to
+Running without a reload. (4) A gate-B wait shows its questions with the recommended picks
+preselected and the recorded mechanics; a merge wait shows the PR and Merge; a security
+escalation shows its three options. (5) With the worktree removed, the diff section says so and
+the answer form still works.
+
+**Depends on** spec 32 for the shell and the tile. **Design MUST enumerate:**
+`src/controller/state.ts` (`WaitRecord`), `src/controller/waits.ts` (`waitAnd`, the
+`questions.md` render), `src/controller/runs.ts` (`handleImplementationOutcome`),
+`src/controller/phases/implementation.ts` (`routeImplementerFlags`, `stop`, `taskCommits`, the
+outcome type), `src/tools/get-task-review.ts` (the review record), the wait routes in
+`src/dashboard/multi-server.ts`, the answer sheets in `NowPage.tsx` (moved here),
+`src/core/task-parser.ts` (the tasks.md rows).
+
+**Design should address:** the size cap on `detail` and on the diff response; commits that span
+a rebase; what an `error` wait from a document phase shows in place of a task; how a
+design-defect ruling and a security escalation lay out in the same view.
+
+### 34. `dashboard-plain-pages` — Specs as a decomposition list, Usage as the window, Deferrals as the queue
+
+**Delivers.** (1) **Specs.** One block per enabled project: the project name, then the
+decomposition as an ordered list, each line the number, a state word (closed, live, next,
+deferred, not started), the spec name and one fact: the PR for a closed spec, the phase and
+progress for a live one, the deferral id for a deferred one. Nothing else: no versions, no
+phase table, no panel, no search, no pagination. (2) **Usage.** The weekly window as one large
+figure (per cent left, resets at, time to reset) and a bar; the burn over the last 24 h as one
+figure; one line per live run with its tokens so far and, in the implementation phase, the
+remaining tasks and whether they fit before the reset. The burn and the fit come from a new
+append-only `~/.local/state/sdd/usage-log.jsonl` the controller writes on each rate-limit
+event (`ts`, `sevenDay.utilization`, `run`): burn is the utilisation delta over 24 h; the fit
+is the run's mean utilisation per task so far times its remaining tasks, against the headroom;
+"not known yet" before the first task ends and in document phases. The per-spec cost tab and
+the per-repository trend (`UsageTrend.tsx`, spec 23) are removed from the page; the usage tool
+action and the ledgers keep the data. The five-hour window is not shown. (3) **Deferrals.** One
+table across enabled projects: age, id, project, spec, tag, owner, summary; sorted by age;
+Resolve on every row opens a resolution box and writes the record through a new
+`POST /api/projects/:id/deferrals/:deferralId/resolve` that calls the deferrals tool's resolve.
+The filters and the panel go.
+
+**Decided.** Each page answers one question: where each project is, how much week is left, what
+is in the queue. The projection is deterministic and in the window's own unit; no model
+estimates. Read-only except Resolve.
+
+**End-to-end verification.** (1) Specs lists every decomposition heading of every enabled project
+in order with the right state word, and a `(deferred)` tag shows as deferred with its record id.
+(2) Usage shows the weekly figure from `rate-limit.json`; after two rate-limit events 24 h apart
+in the log (clock seam) the burn figure is their delta; a live implementation run with three tasks
+done shows a fit line, a document-phase run shows "not known yet". (3) Deferrals lists every open
+record across the enabled projects, oldest first; Resolve with a resolution text writes
+`status: resolved` and the text into the record file. (4) `UsageTrend.tsx` and the closed-specs
+usage route's frontend callers are gone and the build is green.
+
+**Depends on** spec 32 for the shell. **Design MUST enumerate:** `SpecsPage.tsx`, `UsagePage.tsx`,
+`UsageTrend.tsx`, `DeferralsPage.tsx`, `src/dashboard/harness/overview-watch.ts` and
+`project-watch.ts` (what the pages are fed), `src/tools/spec-index.ts` (the decomposition order
+and states), `src/tools/deferrals.ts` (resolve), the usage action in `src/tools/harness.ts`,
+`src/controller/controller.ts` (the rate-limit event, where the log line is appended),
+`src/controller/state.ts` (`RateLimitFile`), the deferrals routes in `multi-server.ts`.
+
+**Design should address:** the state word for a spec whose run is paused or held; whether the
+Specs line links anywhere; the log's growth and rotation.
+
 ## Superseded entries (2026-10-10)
 
 Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard usage), the
@@ -1119,6 +1402,14 @@ superseded; see "Superseded entries" and "Re-planned entries" above. Order past 
 2026-10-17): step (d)'s deletion (not a spec) → 23 → 24 → 26 (added
 2026-10-20) → 27 → 25 (after the advisor design session) → 22, which restyles the pages 23
 completes. Remove the `(deferred)` tag from 26 when 24 closes, and from 27 when 26 closes.
+
+30 → 31 → 32 → 33 → 34 (added 2026-11-02, revised 2026-11-03), after 29 (`run-pause`,
+closed). 30 first: the heartbeat, the stalled fact and the phone push are controller work the
+operator is waiting on, and every later tile reads them. 31 second: it needs 30's run row and
+29's operator hold, and once it lands the three dashboard specs ship through it instead of the
+manual pause, update, resume sequence. 32 third: the shell every later page renders into. 33
+fourth: the ruling view reuses 32's tile. 34 last: mostly deletions once 32 holds the shell.
+No release; each is live after a deploy.
 
 ## Boundary notes
 
