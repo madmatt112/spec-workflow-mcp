@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/controller-liveness-and-push/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-03T21:27:26.738Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793741246661_l97wgn9mu",
+      "approvalTitle": "controller-liveness-and-push requirements v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-03T21:27:26.874Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793741246661_l97wgn9mu",
+      "approvalTitle": "controller-liveness-and-push requirements v3"
+    }
+  ]
+}

@@ -156,6 +156,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-30 | run-pause | implementation | tasks 9/9 | complete | PR #195 |
 | 2026-10-30 | run-pause | retrospective |  | error | the analyst wrote no retrospective-proposals.md |
 | 2026-10-30 | run-pause | closeout | items 12/12 | closed | 7 done, 2 to-do, 3 skipped |
+| 2026-11-03 | controller-liveness-and-push | requirements | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1302,4 +1303,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/196 |
 | To-dos | P4: DECISION NEEDED unresolved (no plan resolves A vs B); real cause is the checks-file re-emit spawn at implementation.ts:756, not a spawn.end/liveness misread, so P3 fixes it; eval asserts controller behaviour the eval framework cannot observe; P5: requires restructuring the reviser version-bump + approval/convergence flow (reviserStep always writes v(D+1)) to disposition in place and skip lint/narrow — not a scoped edit; eval asserts controller spawn/version behaviour harness/evals cannot express |
 | Gotchas | none |
+
+
+## controller-liveness-and-push — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-11-03 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1793741246661_l97wgn9mu` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 
