@@ -2,7 +2,7 @@
 
 ## Overview
 
-This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix. The work sits in the controller (`src/controller/`), the wait pusher (`src/advisor/push.ts`) and the dashboard server (`src/dashboard/`). It reuses the per-run write chain, the existing `error` wait answer path, the `WaitPusher` watch and dedup, and `nextUnstartedSpec`.
+This spec adds a durable step heartbeat, a live `driven` fact on the run row, a crash wait, a Re-drive route, an ntfy phone push with one reminder, and a launch-routing fix. The work sits in the controller (`src/controller/`), the wait pusher (`src/advisor/push.ts`) and the dashboard server (`src/dashboard/`). It reuses the per-run write chain, the `error` wait answer path, the `WaitPusher` watch, and `nextUnstartedSpec`.
 
 ## Steering Document Alignment
 
@@ -21,7 +21,7 @@ Two data paths change. A step's stream feeds a step-scoped heartbeat object, whi
 
 ## Components and Interfaces
 
-All inline code below is illustrative — verify against the test fake. The post-conditions bind; the code shape does not.
+Inline code is illustrative; the post-conditions bind, not the code shape.
 
 ### C1 — Run record and heartbeat write (`src/controller/state.ts`)
 - **Purpose:** hold `lastActivity` and give it one writer.
@@ -106,7 +106,7 @@ export function createStepHeartbeat(opts: {
 - **Interfaces:**
   - `export const DRIVE_CRASH_QUESTION = 'drive-crash'`.
   - `openDriveCrashWait(runId: string): Promise<ControllerWaitRecord | undefined>` — the open wait for that run with a question of that id, from `listOpenWaits` (`src/controller/waits.ts:187-190`).
-  - `expireWait(id: string): Promise<ControllerWaitRecord | undefined>` — through `enqueueWaitWrite` (`:73-84`); an open wait becomes `expired`, is written, and `change` is emitted; any other state returns unchanged with no write.
+  - `expireWait(id: string): Promise<ControllerWaitRecord | undefined>` — through `enqueueWaitWrite` (`src/controller/waits.ts:73-84`); an open wait becomes `expired`, is written, and `change` is emitted; any other state returns unchanged with no write.
 - **Post-condition:** `onWaitChange` ignores the expired record (`src/controller/controller.ts:439`), and `listWaitsForView` hides it (`src/controller/waits.ts:193-198`).
 - **Reuses:** `createWait` and `answerWait` unchanged (`src/controller/waits.ts:87-141`). `expireWait` writes no `questions.md` and no ledger row.
 
@@ -125,7 +125,7 @@ export function createStepHeartbeat(opts: {
 - **Purpose:** send the ntfy message and the one reminder.
 - **Interfaces:**
   - `WaitPusherOptions` (`src/advisor/push.ts:48-51`) gains `now?: () => Date` and `sweepMs?: number` (default 60,000).
-  - Public `sweepReminders(): Promise<void>`, the timer's entry and the test seam. It runs through the existing queue (`:145-152`).
+  - Public `sweepReminders(): Promise<void>`, the timer's entry and the test seam. It runs through the existing queue (`src/advisor/push.ts:145-152`).
   - Exported pure `buildMessage(wait: WaitRecord, projectName: string, reminder: boolean): { title: string; body: string }`.
 - **Start:** `start()` reads the config once. Missing or invalid: one `console.error` saying push is off. Valid and loose: one warning. Neither line prints the url, topic or token. `attemptPush` still reads the config at each send, so a file added later needs no restart. After the start-up scan, `start()` enqueues one sweep and arms an unref'd `setInterval` of `sweepMs`; `stop()` clears it.
 - **Recording a new wait** (`runStartupScan` loop and `handleWait`, `src/advisor/push.ts:166-172`, `:175-186`): read the config. With a config, add the id to `ids` and set `firstPush[id]` to `now()`. Without one, add it to `ids` and `reminded`. Write the record, then POST. The record is written before the POST, as today, so a crash cannot double-send. A POST that fails twice leaves the reminder armed (D10).
@@ -144,7 +144,7 @@ export function createStepHeartbeat(opts: {
 
 ### C10 — Launch routing (`src/dashboard/harness/run-setup.ts`)
 - **Change:** the guard at `src/dashboard/harness/run-setup.ts:197-199` becomes `routing.state !== 'active' ? nextUnstartedSpec(workflowRoot) : null`. The union has five members (`src/core/spec-routing-deriver.ts:8-18`), so this names exactly the four states of Requirement 6 AC 1.
-- **Post-conditions:** `launchable` and `disabledReason` (`:200-201`) keep their code. `harnessNotLaunchable` (`src/dashboard/multi-server.ts:79-87`) and `validateSetup` (`src/dashboard/harness/run-setup.ts:265-267`) compare against `view.launchable`, and the dashboard reads `launchable` and not `routing.state` (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:406`), so no other site changes.
+- **Post-conditions:** `launchable` and `disabledReason` (`src/dashboard/harness/run-setup.ts:200-201`) keep their code. `harnessNotLaunchable` (`src/dashboard/multi-server.ts:79-87`) and `validateSetup` (`src/dashboard/harness/run-setup.ts:265-267`) compare against `view.launchable`, and the dashboard reads `launchable` and not `routing.state` (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:406`), so no other site changes.
 
 ### C11 — Docs
 - `docs/controller-design.md:335-340`: rewrite the Push bullet of §16 for `notify.json`, the message fields, the reminder and the D2/D3 supersession.
@@ -190,7 +190,7 @@ A reminder is due only for an id in `firstPush` and not in `reminded`. A file wr
 
 ## Testing Strategy
 
-Tests assert only on the `close` exit code, stdout by line (never chunk boundaries), `fs.stat` `mode` bits and `fetch` results. Node 20 is not installed locally (only 22 and 24); no timing decision rests on a probe, and CI runs node 20.
+Tests assert only on the `close` exit code, stdout by line (never chunk boundaries), `fs.stat` `mode` bits and `fetch` results. Node 20 is not installed locally; no timing decision rests on a probe, and CI runs node 20.
 
 - **Unit:**
   - New `src/controller/__tests__/heartbeat.test.ts`, on `vi.useFakeTimers()` with a fake `write` and no fs: each C3 post-condition.
@@ -232,10 +232,11 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
 - Cut: nothing from the decomposition entry.
 - Deferred, as the requirements fix: deriving and rendering stalled, and any Re-drive button, belong to the later dashboard specs. No frontend code changes except the type declaration.
 - Open item: Requirement 4 AC 4 asks the design to confirm the bearer header against the ntfy documentation. That confirmation did not happen (see C9); it moves to the push task, which also settles the title, priority and body-size questions. No body length cap is pinned, because no limit could be confirmed.
-- Reminder anchor: the gate A receipt records the reminder as scheduled from the wait's created time; Requirement 5 AC 1 (v3) moved it to the first push. This design follows the requirements. The operator should confirm that change.
+- Reminder anchor: the gate A receipt records the reminder as scheduled from the wait's created time; Requirement 5 AC 1 (v3) moved it to the first push, which this design follows. The operator should confirm that change.
 - Dropped from the message: `dashboardUrl` (Requirement 4 AC 3 allows four fields only).
 - Carried items from the requirements phase: none.
 
 ## Revision History
 
 - **v1** (2026-11-03) — Initial draft.
+  - **Lint pass.** 3 fixed (L-25, L-34, L-42: bare ranges prefixed). Rejected L-1–L-24, L-26–L-33, L-35–L-41, L-43–L-60: citation-identifier false positives; cited anchors resolve. Reasons: /tmp/scratchpad/sdd/controller-liveness-and-push/lint.md
