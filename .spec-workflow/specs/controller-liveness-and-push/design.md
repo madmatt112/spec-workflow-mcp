@@ -239,6 +239,7 @@ Tests assert only on the `close` exit code, stdout by line (never chunk boundari
 
 - **v3** (2026-11-03) — SHOULD_FIX-only corrective pass.
   - **R2-1 — Accepted (SHOULD_FIX).** C9 redaction now marks any token carrying a slash or a file extension, so a single-segment filename in a crash message's first line redacts; the lone residual is a bare token with neither, superseding the narrower v2 residual and the R1-1 claim. The test list names the single-segment case.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-58 citation-identifier false positives — each citation anchors to a structural location (chain map, branch, function body, union, opts object) that resolves, while the flagged token is prose beside it; unchanged since v2 rejection, so suppressed.
 - **v2** (2026-11-03) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/3).
   - **R1-1 — Partially accepted (SHOULD_FIX).** C9 redaction widened to path-shaped tokens so a question's first line redacts file paths for AC 3; its residual was understated and is superseded in v3 (R2-1). URLs stay, since AC 3 bans paths, not URLs.
   - **R1-2 — Accepted (MINOR).** C9 now notes the config-read race between the recording read and the send read: the id is still recorded but its POST may skip; harmless for the one operator.
