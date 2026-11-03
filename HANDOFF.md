@@ -157,6 +157,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-30 | run-pause | retrospective |  | error | the analyst wrote no retrospective-proposals.md |
 | 2026-10-30 | run-pause | closeout | items 12/12 | closed | 7 done, 2 to-do, 3 skipped |
 | 2026-11-03 | controller-liveness-and-push | requirements | v3 | approved | 3 rounds |
+| 2026-11-03 | controller-liveness-and-push | design | v3 | approved | 3 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1312,6 +1313,19 @@ Gotchas:
 | State | approved at v3 on 2026-11-03 |
 | Rounds | 3; verdicts should-fix-only → converged |
 | Approval | `approval_1793741246661_l97wgn9mu` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
+
+
+## controller-liveness-and-push — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v3 on 2026-11-03 |
+| Rounds | 3; verdicts should-fix-only → converged |
+| Approval | `approval_1793744839462_57glwjmir` |
 | Rulings | none |
 | Cut scope | none |
 | Carried items | none |

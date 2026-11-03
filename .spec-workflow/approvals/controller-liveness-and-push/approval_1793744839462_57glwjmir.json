@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793744839462_57glwjmir",
+  "title": "controller-liveness-and-push design v3",
+  "filePath": ".spec-workflow/specs/controller-liveness-and-push/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-03T22:27:19.462Z",
+  "category": "spec",
+  "categoryName": "controller-liveness-and-push",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-03T22:27:19.616Z"
+}
