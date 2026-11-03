@@ -109,3 +109,45 @@ Paths are relative to the code root `/home/mcf/repo/spec-workflow-mcp/.claude/wo
 - src/controller/__tests__/waits.test.ts — wait create and answer.
 - src/controller/__tests__/pause-request.test.ts — `pauseRequested` carry-over.
 - src/dashboard/__tests__/controller-dashboard-routes.test.ts — controller run routes.
+
+## Step contexts and wiring (added in design)
+- src/advisor/opinion.ts:154 — a `runStep` site outside any run.
+- src/controller/phases/document.ts:183-185 — context `onStepSpawn` and `onStepEnd` fields.
+- src/controller/phases/document.ts:377-396 — the document `StepSpec` build.
+- src/controller/phases/implementation.ts:94-96 — context `onStepSpawn` and `onStepEnd` fields.
+- src/controller/phases/retrospective.ts:42-44 — context `onStepSpawn` and `onStepEnd` fields.
+- src/controller/phases/closeout.ts:62-63 — context `onStepSpawn` and `onStepEnd` fields.
+- src/controller/merge-fix.ts:50-51 — context `onStepSpawn` and `onStepEnd` fields.
+- src/controller/runs.ts:753 — merge-fix context spreads `stepLifecycle`.
+- src/controller/runs.ts:958-966 — document phase context.
+- src/controller/runs.ts:980-989 — implementation phase context.
+- src/controller/runs.ts:1011-1018 — retrospective phase context.
+- src/controller/runs.ts:1029-1036 — close-out phase context.
+- src/controller/runs.ts:1314-1322 — document retry context.
+- src/controller/runs.ts:832 — `mcpConfigFor` call inside `runOnce`.
+- src/controller/runs.ts:850-858 — the loop-top hold stop.
+
+## Wire row and server wiring (added in design)
+- src/dashboard/shell/types.ts:194-210 — server `ControllerRun`.
+- src/dashboard_frontend/src/modules/shell/types.ts:215-233 — frontend `ControllerRun`.
+- src/dashboard/shell/sidebar-rows.ts:36-44 — sidebar column read from `updated`.
+- src/dashboard/multi-server.ts:79-87 — `harnessNotLaunchable`.
+- src/dashboard/multi-server.ts:165-169 — `HarnessHub` construction.
+- src/dashboard/multi-server.ts:176-193 — `Controller` construction.
+- src/dashboard/multi-server.ts:275-282 — app-level `onRequest` hooks.
+- src/dashboard/harness/overview-watch.ts:182 — second `runEvents` listener.
+- src/dashboard/harness/run-setup.ts:265-267 — `validateSetup` spec check.
+- src/dashboard_frontend/src/modules/shell/RunsPage.tsx:406 — Launch reads `launchable`.
+
+## Push config readers and docs (added in design)
+- src/advisor/summary.ts:93-100 — `pushState`.
+- src/advisor/__tests__/push.test.ts:210-212 — config writer helper.
+- src/advisor/__tests__/push.test.ts:304-305 — exact JSON body assertions.
+- src/advisor/__tests__/home.test.ts:67 — push config path under the home.
+- src/advisor/__tests__/home.test.ts:79 — exact `push.json` path assertion.
+- src/advisor/__tests__/summary.test.ts:409 — push off test.
+- src/advisor/__tests__/advisor-e2e.test.ts:436-440 — e2e push config seed.
+- docs/controller-design.md:335-340 — §16 Push bullet.
+- docs/SDD-HARNESS.md:76 — home file list naming `push.json`.
+- docs/SDD-HARNESS.md:166 — run route list.
+- docs/SDD-HARNESS.md:576-578 — Push bullet.
