@@ -151,3 +151,25 @@ Paths are relative to the code root `/home/mcf/repo/spec-workflow-mcp/.claude/wo
 - docs/SDD-HARNESS.md:76 — home file list naming `push.json`.
 - docs/SDD-HARNESS.md:166 — run route list.
 - docs/SDD-HARNESS.md:576-578 — Push bullet.
+
+## Test fixtures and support (added in tasks)
+- scripts/stub-claude.mjs:110-112 — `delayMs`, the only pause, before any event.
+- scripts/stub-claude.mjs:137-139 — prints every stream event with no gap.
+- tsconfig.json:19-20 — `include` compiles tests; `exclude` drops the frontend.
+- src/dashboard/shell/__tests__/sidebar-rows.test.ts:189-198 — `run()` helper typed `ControllerRun`.
+- src/controller/__tests__/controller.test.ts:95-117 — `setup`, the fixture repo and env.
+- src/controller/__tests__/controller.test.ts:163-172 — `makeController`.
+- src/controller/__tests__/controller.test.ts:496-506 — the one `runEvents` listener, across a pause.
+- src/advisor/__tests__/push.test.ts:166-191 — capture server; records the body only.
+- src/advisor/__tests__/advisor-e2e.test.ts:461 — exact push body assertion.
+- src/advisor/__tests__/cli.test.ts:315-334 — an unrelated `dashboardUrl` variable.
+- src/advisor/__tests__/summary.test.ts:404-412 — push off test and its comment.
+- src/dashboard/__tests__/controller-dashboard-routes.test.ts:71-88 — `startServer`, `auth`.
+- src/dashboard/__tests__/shell-routes.test.ts:175-191 — socket helpers `connect`, `collect` and the start of `send`.
+- src/dashboard/harness/__tests__/run-setup.test.ts:216-244 — `makeWorkflowRoot`, `createSpec`, `writeDecomposition`.
+- src/dashboard/harness/__tests__/run-setup.test.ts:505-530 — existing routing tests for `no-specs` and `all-on-disk-complete`.
+
+## Routing inputs (added in tasks)
+- src/core/index-generator.ts:88-90 — `snapshot` categorises, then calls `deriveRouting`.
+- src/core/index-generator.ts:113-127 — `defer`, writes the deferred marker.
+- src/dashboard/shell/now-model.ts:131-132 — idle row reads routing directly, no `nextUnstartedSpec`.
