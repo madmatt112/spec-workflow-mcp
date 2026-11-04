@@ -207,6 +207,10 @@ export interface ControllerRun {
   updated: string;
   /** One read per PR for the dashboard (design D5); undefined when the record has none. */
   prReads?: ControllerPrRead[];
+  /** Is this process currently driving the run (design C4/C5)? Never written to `run.json`. */
+  driven: boolean;
+  /** The run's last heartbeat (design C3), when it has one. */
+  lastActivity?: string;
 }
 
 /**

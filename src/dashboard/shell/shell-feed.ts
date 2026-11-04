@@ -28,6 +28,7 @@ export class ShellFeed {
   private readonly throttleMs: number;
   private readonly tickMs: number;
   private readonly now: () => number;
+  private readonly drivenRuns?: () => ReadonlySet<string>;
   private readonly cache = new FileCache();
 
   private timer?: NodeJS.Timeout;
@@ -38,11 +39,12 @@ export class ShellFeed {
   constructor(
     private readonly projects: ProjectManager,
     private readonly send: (m: ShellMessage) => void,
-    opts: { throttleMs?: number; tickMs?: number; now?: () => number } = {},
+    opts: { throttleMs?: number; tickMs?: number; now?: () => number; drivenRuns?: () => ReadonlySet<string> } = {},
   ) {
     this.throttleMs = opts.throttleMs ?? 1000;
     this.tickMs = opts.tickMs ?? 30000;
     this.now = opts.now ?? Date.now;
+    this.drivenRuns = opts.drivenRuns;
   }
 
   /** Compute and send both messages once, then arm the tick interval. */
@@ -114,7 +116,7 @@ export class ShellFeed {
 
     let runs: ControllerRun[] = [];
     try {
-      runs = (await listRunsForWire()) as ControllerRun[];
+      runs = (await listRunsForWire(this.drivenRuns?.())) as ControllerRun[];
     } catch (err) {
       console.error('ShellFeed: skipping controller runs', err);
     }

@@ -14,7 +14,8 @@ import {
 import { NO_OP_GATES } from '../phases/document.js';
 import { createDocumentGates } from '../phases/gates.js';
 import {
-  writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord, type PrRead,
+  writeRun, readRun, listWaits, processStartTime, isProcessAlive, writeLastActivity,
+  type RunRecord, type PrRead,
 } from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
@@ -533,7 +534,12 @@ describe('listRunsForWire', () => {
   //   row's `lastActivity` equals the record's value. Expected-value source:
   //   design C4's `toRow` adding `lastActivity: run.lastActivity`.
   it('carries lastActivity on the row when the record has it', async () => {
-    await writeRun(seedRun(fx, { lastActivity: '2026-10-11T00:00:05.000Z' } as Partial<RunRecord>));
+    // Seeded through `writeLastActivity`, not `writeRun`: design C1 makes
+    // `writeRun` always take `lastActivity` from disk (its one writer is
+    // `writeLastActivity`), so a value passed through `seedRun`/`writeRun`
+    // on a run's first write is discarded.
+    await writeRun(seedRun(fx));
+    await writeLastActivity('run-20261011-000000', '2026-10-11T00:00:05.000Z', '2026-10-11T00:00:05.000Z');
 
     const rows = await listRunsForWire();
     const row = rows.find((r) => r.id === 'run-20261011-000000');

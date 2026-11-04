@@ -41,7 +41,7 @@ export class HarnessHub {
     private readonly projects: ProjectManager,
     private readonly sendHarness: (m: HarnessMessage) => void,
     private readonly sendOverview: (m: HarnessMessage | ShellMessage) => void,
-    private readonly opts: { debounceMs?: number } = {},
+    private readonly opts: { debounceMs?: number; drivenRuns?: () => ReadonlySet<string> } = {},
   ) {
     this.projects.on('projects-update', this.onProjectsUpdate);
     this.projects.on('spec-change', this.onSourceChange);
@@ -95,7 +95,7 @@ export class HarnessHub {
     // re-arms the feed on each `overview-rows` it emits. Both fields are set
     // before the `await` so two concurrent reconciles cannot double-start.
     if (overviewCount > 0 && !this.overviewWatch) {
-      const feed = new ShellFeed(this.projects, this.sendOverview);
+      const feed = new ShellFeed(this.projects, this.sendOverview, { drivenRuns: this.opts.drivenRuns });
       this.shellFeed = feed;
       const watch = new OverviewWatch(this.projects, (m) => {
         this.sendOverview(m);
