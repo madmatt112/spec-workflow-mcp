@@ -954,6 +954,40 @@ the restart. Resume starts the next step. Pause on a run with no step in flight 
 their steps to end, deploy, then resume them, instead of polling for a gap; what the waits that
 open while a run is paused look like; whether Pause applies to a queued run that has not started.
 
+### 35. `eval-gate-runs` — fewer gate runs for cases that a change reaches only indirectly
+
+**Delivers.** The deploy eval gate sets the number of runs for each selected case from the
+reasons that selected it. (1) A case with a `case` or `grader` reason runs 3 times. (2) A case
+selected only by `role`, `profile` or `brief` reasons runs 1 time. (3) A case passes only when
+all of its runs pass, as today. (4) The gate output, the result record and the override deferral
+state the real run count of each case (`pass 1/1`, `passes 1/1`). (5) `sdd-self-update.sh
+--dry-run` prints the planned run count of each selected case and the total.
+
+**Decided.** The operator chose this on 2026-11-04 after the deploy of PR #202 selected 9 cases
+and ran 27 sequential agent runs in 62 minutes for 14.8M tokens. On that deploy, 5 cases had a
+`case` reason and 4 did not, so the same deploy now uses 19 runs. Tokens come first, so this spec cuts runs and does not add
+parallel runs. A failed single run blocks the deploy and has no automatic retry. Selection does
+not change: every case that the gate selects today stays selected. The gate alone uses the
+per-case count. A direct `eval run` of named cases stays at 3 runs.
+
+**End-to-end verification.** (1) With a stub step, a gate over a case with a `case` reason and a
+case with only a `role` reason makes 3 step calls for the first case and 1 for the second. (2) The
+result record holds 3 and 1 runs, and the output lines read `pass 3/3` and `pass 1/1`. (3) A stub
+failure on the single run fails the gate, leaves `dist/` unchanged and names the case in the
+`error` wait. (4) An override of that failed case passes the gate and its deferral says
+`passes 1/1`. (5) `sdd-self-update.sh --dry-run` on a range with both kinds of case prints the
+per-case counts and the total, and changes nothing.
+
+**Depends on** spec 27 (`harness-evals`, closed).
+**Design MUST enumerate:** `src/evals/select.ts` (`SelectedCase`, the reason strings),
+`src/evals/gate.ts` (`runGate`, the override deferral text), `src/evals/runner.ts` (`runCases`,
+the `runs` option, the result record), `src/evals/cli.ts` (`gate`, `select`, `run`), the tests in
+`src/evals/__tests__/`, and `scripts/sdd-self-update.sh` (the dry-run path).
+
+**Design should address:** where the reason-to-count rule lives, so that select and gate use one
+definition; whether provisional selection can state a count when the brief reason is not exact;
+what any reader of the result record assumes about 3 runs.
+
 ## Dashboard board specs (2026-11-02, revised 2026-11-03 after adversarial review)
 
 From the ideation of 2026-11-02 (`docs/dashboard-ideation.md`, mockups at
@@ -1410,6 +1444,10 @@ operator is waiting on, and every later tile reads them. 31 second: it needs 30'
 manual pause, update, resume sequence. 32 third: the shell every later page renders into. 33
 fourth: the ruling view reuses 32's tile. 34 last: mostly deletions once 32 holds the shell.
 No release; each is live after a deploy.
+
+35 → 31 (added 2026-11-04 by the operator). 30 is closed, so 35 is the next spec, then
+31 → 32 → 33 → 34. 35 first: each of those specs ships through the eval gate, so each one
+gets the shorter gate.
 
 ## Boundary notes
 
