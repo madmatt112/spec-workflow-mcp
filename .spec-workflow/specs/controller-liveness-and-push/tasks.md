@@ -175,7 +175,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   - _Prompt: Task: Implement design C10: change the guard at `src/dashboard/harness/run-setup.ts:197-199`. Add design end-to-end scenario 5 to the file task 4 created. For `ambiguous`, seed a decomposition that names only an unstarted heading plus two unnamed specs on disk; for `all-deferred`, defer the one spec with `IndexGenerator.defer` (`src/core/index-generator.ts:113`). | Restrictions: `launchable` and `disabledReason` (`:200-201`), `harnessNotLaunchable`, `validateSetup` and `launchSpec` keep their code. | Success: Each case has its own test: (a) `ambiguous` with an unstarted heading gives that name and a null reason; (b) `all-deferred` the same; (c) scenario 5: on that `ambiguous` project `launchSpec` creates the directory and enqueues; (d) regression guard: `no-specs` with a heading gives its name; (e) regression guard: `all-on-disk-complete` with a heading gives its name; (f) regression guard: `ambiguous` with no heading keeps launchable null and the routing reason; (g) regression guard: `all-deferred` with no heading, the same; (h) regression guard: `all-on-disk-complete` with no heading keeps its reason; (i) regression guard: `active` stays the routed spec_
 
-- [ ] 15. Update the docs for the push and the route
+- [x] 15. Update the docs for the push and the route
   - File: docs/controller-design.md
   - File: docs/SDD-HARNESS.md
   - File: src/advisor/push.ts
