@@ -1,0 +1,44 @@
+{
+  "items": [
+    {
+      "header": "Early stop",
+      "question": "Does a 3-run case keep its remaining runs after a failed run?",
+      "options": [
+        "Keep today's behaviour",
+        "Stop the case at its first failed run"
+      ]
+    },
+    {
+      "header": "Failure summary",
+      "question": "Does the failure summary state each failing case's run count?",
+      "options": [
+        "Add the count to the summary",
+        "Leave the summary as it is and print the count on stdout only"
+      ]
+    },
+    {
+      "header": "Base render failure",
+      "question": "How many runs does a case selected only by a base render failure get?",
+      "options": [
+        "1 run",
+        "3 runs"
+      ]
+    },
+    {
+      "header": "Provisional count",
+      "question": "How does provisional selection state run counts?",
+      "options": [
+        "State the count and mark the total provisional",
+        "Omit the count for provisional cases",
+        "Print a range"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the top-level money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ]
+    }
+  ]
+}

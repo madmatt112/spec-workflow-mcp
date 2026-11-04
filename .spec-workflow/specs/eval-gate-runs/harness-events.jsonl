@@ -1,0 +1,5 @@
+{"ts":"2026-11-04T21:56:07.696Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"run.start","model":"controller","setup":"controller","headless":"yes","specStore":"/home/mcf/repo/spec-workflow-mcp","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/eval-gate-runs","worktree":"yes"}
+{"ts":"2026-11-04T21:56:07.734Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"phase.start","phase":"requirements","mode":"normal","state":"v0"}
+{"ts":"2026-11-04T21:56:07.799Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-11-04T22:00:36.026Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-drafter","input":"26","output":"29288","cacheWrite":"124778","cacheRead":"908169","tokens":"1062261","cacheWrite5m":"0","cacheWrite1h":"124778","model":"claude-opus-5-5"}
+{"ts":"2026-11-04T22:00:36.027Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"requirements","round":"1"}
