@@ -31,6 +31,7 @@ const SEED_IDS = [
   'drafter-success-scope-narrow',
   'drafter-test-seam-label',
   'guard-task-no-red-step',
+  'implementer-file-outside-list-classify',
   'test-author-precommit-hook',
   'test-author-trailer',
 ];

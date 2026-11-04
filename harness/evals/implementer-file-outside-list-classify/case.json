@@ -1,0 +1,32 @@
+{
+  "id": "implementer-file-outside-list-classify",
+  "role": "sdd-implementer",
+  "phase": "implementation",
+  "spec": "eval-implementer-file-outside-list-classify",
+  "turnCap": 120,
+  "cwd": ".",
+  "evidence": "multi-leg-positions retro P5 — a file-outside-list verdict wasted a fix round before escalation (implementation.ts:825)",
+  "briefs": [
+    {
+      "template": "fix",
+      "file": "fix-brief.md",
+      "taskId": "1",
+      "values": {
+        "taskId": "1",
+        "round": "1",
+        "variant": "gate",
+        "commit": "none",
+        "findings": "file-outside-list: src/features/positions/multi-leg/aggregate.ts — the fix for task 1 edits this file, but it is not in the task's File entries"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the task and the off-list file", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    { "name": "report-flag", "args": { "prefix": "REQUIRED:" } },
+    { "name": "no-new-commit", "args": { "repo": "." } }
+  ]
+}

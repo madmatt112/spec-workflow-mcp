@@ -174,7 +174,7 @@ export const IMPLEMENTER_SCHEMA = {
     checks: { type: 'string' },
     checksFile: { type: 'string', description: 'Path of a JSON array of the shell commands run' },
     green: { type: 'string' },
-    flag: { type: 'string', description: '"none", "DESIGN-DEFECT: …", "ESCALATE: …", "AFFECTS-FUTURE-SPECS: …" or "INFRA: …"' },
+    flag: { type: 'string', description: '"none", "DESIGN-DEFECT: …", "REQUIRED: …", "ESCALATE: …", "AFFECTS-FUTURE-SPECS: …" or "INFRA: …"' },
     retro: { type: 'string', description: '"none" or "<category> — <one line>"' },
     reproduce: { type: 'string', description: 'CI fix only: the command that reproduces the check locally' },
   },
@@ -908,6 +908,17 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
   ): Promise<ImplementationPhaseOutcome | undefined> {
     const defect = flagText('DESIGN-DEFECT', report.flag, text);
     if (defect) return stop('design-defect', defect, { task, category: 'deviation' });
+    // P5: a file-outside-list fix round where the off-list file is genuinely required.
+    // No implementer edit can move a file-list verdict, so escalate at once rather than
+    // spend a second gate on the unchanged commit — the fix is in tasks.md.
+    const required = flagText('REQUIRED', report.flag, text);
+    if (required) {
+      return stop('design-defect',
+        `task ${task.id}: implementer reported REQUIRED for an off-list file — ${required}; `
+        + 'no implementer edit can move a file-list verdict — the fix is to list the file in the '
+        + "task's File entries in tasks.md",
+        { task, category: 'deviation' });
+    }
     const escalate = flagText('ESCALATE', report.flag, text);
     if (escalate) return stop('escalate', escalate, { task, category: 'escalation' });
     const affects = flagText('AFFECTS-FUTURE-SPECS', report.flag, text);
