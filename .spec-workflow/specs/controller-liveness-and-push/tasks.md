@@ -128,7 +128,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 4.1, 4.2_
   - _Prompt: Task: Implement design C8 in `src/advisor/home.ts` and `pushState` (`src/advisor/summary.ts:93-100`), except the removal of `pushConfigPath`, which task 12 does. `pushState` returns `on` exactly when the reader returns a value. Rename `push.json` to `notify.json` in the comment and title at `src/advisor/__tests__/summary.test.ts:404-409`. | Restrictions: The helpers never log the topic or token. | Success: Each case has its own test: (a) the path is `notify.json` under the controller home; (b) a valid file reads with a token; (c) a valid file reads without one; (d) undefined for a missing file; (e) undefined for an unparsable file; (f) undefined for `v` not 1; (g) undefined for an empty or missing `ntfy.url`; (h) undefined for an empty or missing `ntfy.topic`; (i) undefined for a non-string `ntfy.token`; (j) mode 0600 is not loose; (k) mode 0640 is loose; (l) a missing file is not loose; (m) the summary reads `on` with a valid file; (n) regression guard: it reads `off` with a malformed file; (o) regression guard: it reads `off` with no file_
 
-- [ ] 11. Build the ntfy message from the wait's own fields
+- [x] 11. Build the ntfy message from the wait's own fields
   - File: src/advisor/push.ts
   - Test: src/advisor/__tests__/push.test.ts — buildMessage(wait, projectName, reminder)
   - Export the pure builder; it has no caller yet, so the unused export compiles green on its own.

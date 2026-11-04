@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/push.test.ts"],"seams":{"src/advisor/__tests__/push.test.ts":"buildMessage(wait, projectName, reminder)"},"redCommit":"3163512696dbbcee9786890e6f788ec506976f59","baseSha":"06b3094b734bd369386b6b8a0c9f6ff104aff448","base":"structural-red","head":"pass","amended":false,"judged":null}
