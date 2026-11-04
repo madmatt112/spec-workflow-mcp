@@ -20,9 +20,9 @@ import { promises as fs } from 'fs';
 import { basename, join } from 'path';
 import { once } from 'events';
 import chokidar from 'chokidar';
-import { controllerHome, readWait, writeJsonAtomic, type WaitRecord } from '../controller/state.js';
+import { controllerHome, readProjects, readWait, writeJsonAtomic, type WaitRecord } from '../controller/state.js';
 import { listOpenWaits } from '../controller/waits.js';
-import { pushConfigPath, pushedPath, appendEvent } from './home.js';
+import { notifyConfigIsLoose, pushedPath, readNotifyConfig, appendEvent, type NotifyConfig } from './home.js';
 
 /** The four-file watch options shared with `src/dashboard/harness/overview-watch.ts:24-29`. */
 const WATCH_OPTS = {
@@ -33,12 +33,6 @@ const WATCH_OPTS = {
 } as const;
 
 const DEFAULT_RETRY_DELAY_MS = 60_000;
-
-interface PushConfig {
-  v: 1;
-  url: string;
-  dashboardUrl: string;
-}
 
 interface PushedFile {
   v: 1;
@@ -73,12 +67,13 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-/** An unreadable `push.json` counts as absent (no config, no send). */
-async function readPushConfig(): Promise<PushConfig | undefined> {
+/** The entry in the durable project list whose id is `wait.project`, its `name`; else, or on a read failure, `wait.project` (design C9). */
+async function projectName(wait: WaitRecord): Promise<string> {
   try {
-    return JSON.parse(await fs.readFile(pushConfigPath(), 'utf-8')) as PushConfig;
+    const { projects } = await readProjects();
+    return projects.find((p) => p.id === wait.project)?.name ?? wait.project;
   } catch {
-    return undefined;
+    return wait.project;
   }
 }
 
@@ -142,13 +137,26 @@ export class WaitPusher {
     this.retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   }
 
-  /** Arm the `waits/` watch, then run the start-up scan (D2, D3) through the same queue. */
+  /** Arm the `waits/` watch, log the config state once, then run the start-up scan (D2, D3) through the same queue. */
   async start(): Promise<void> {
     this.watcher = chokidar.watch(waitsDir(), WATCH_OPTS);
     this.watcher.on('add', this.onFile).on('change', this.onFile);
     await once(this.watcher, 'ready');
 
+    await this.logStartupConfigState();
     await this.enqueue(() => this.runStartupScan());
+  }
+
+  /** Neither line ever names the url, topic or token (NFR Security). */
+  private async logStartupConfigState(): Promise<void> {
+    const config = await readNotifyConfig();
+    if (!config) {
+      console.error('push is off: notify.json is missing or invalid');
+      return;
+    }
+    if (await notifyConfigIsLoose()) {
+      console.warn('notify.json has loose file permissions');
+    }
   }
 
   stop(): void {
@@ -206,31 +214,33 @@ export class WaitPusher {
     await this.attemptPush(wait);
   }
 
+  /** attemptPush re-reads the config at each send, so a file added after start needs no restart. */
   private async attemptPush(wait: WaitRecord): Promise<void> {
-    const config = await readPushConfig();
+    const config = await readNotifyConfig();
     if (!config) return;
 
-    if (await this.postOnce(config, wait)) return;
+    const message = buildMessage(wait, await projectName(wait), false);
+
+    if (await this.postOnce(config, message)) return;
     await sleep(this.retryDelayMs);
     if (this.closed) return;
-    if (await this.postOnce(config, wait)) return;
+    if (await this.postOnce(config, message)) return;
 
     await appendEvent({
       v: 1,
       ts: new Date().toISOString(),
       type: 'push.failure',
       wait: wait.id,
-      detail: `push to ${config.url} failed twice`,
+      detail: `push to ${config.ntfy.url} failed twice`,
     });
   }
 
-  private async postOnce(config: PushConfig, wait: WaitRecord): Promise<boolean> {
+  private async postOnce(config: NotifyConfig, message: { title: string; body: string }): Promise<boolean> {
     try {
-      const res = await fetch(config.url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: wait.kind, project: wait.project, spec: wait.spec, dashboardUrl: config.dashboardUrl }),
-      });
+      const headers: Record<string, string> = { Title: message.title, Priority: '4' };
+      if (config.ntfy.token) headers.Authorization = `Bearer ${config.ntfy.token}`;
+      const url = config.ntfy.url.replace(/\/+$/, '') + '/' + config.ntfy.topic;
+      const res = await fetch(url, { method: 'POST', headers, body: message.body });
       return res.ok;
     } catch {
       return false;

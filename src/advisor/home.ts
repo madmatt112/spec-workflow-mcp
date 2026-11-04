@@ -36,10 +36,6 @@ export function sourcesPath(): string {
   return join(controllerHome(), 'sources.json');
 }
 
-export function pushConfigPath(): string {
-  return join(controllerHome(), 'push.json');
-}
-
 export function notifyConfigPath(): string {
   return join(controllerHome(), 'notify.json');
 }
