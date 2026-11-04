@@ -63,7 +63,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 2.3, 3.4, 3.7_
   - _Prompt: Task: Implement design C6 in `src/controller/waits.ts`: `DRIVE_CRASH_QUESTION`, `openDriveCrashWait` from `listOpenWaits` (`:187-190`), and `expireWait` through `enqueueWaitWrite` (`:73-84`). | Restrictions: `createWait` and `answerWait` stay unchanged. `expireWait` writes no `questions.md` and no ledger row. | Success: Each case has its own test: (a) `expireWait` turns an open wait `expired`, writes it and emits `change`; (b) an answered wait returns unchanged with no write and no emit; (c) an unknown id returns undefined; (d) no `questions.md` or ledger row appears; (e) `openDriveCrashWait` finds the open wait of that run with that question id; (f) it returns undefined for another run's wait, for an open wait with a different question id, and for an answered crash wait; (g) regression guard: `listWaitsForView` omits the expired wait_
 
-- [ ] 6. Carry driven and lastActivity on the wire row
+- [x] 6. Carry driven and lastActivity on the wire row
   - File: src/controller/runs.ts
   - File: src/dashboard/shell/types.ts
   - File: src/dashboard_frontend/src/modules/shell/types.ts
