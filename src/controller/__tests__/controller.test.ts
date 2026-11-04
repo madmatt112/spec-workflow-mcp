@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, chmodSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { Controller } from '../controller.js';
 import { writeRun, readRun, writeRateLimit, readRateLimit, type RunRecord } from '../state.js';
-import { listOpenWaits, answerWait, createWait } from '../waits.js';
+import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { runEvents } from '../runs.js';
 
@@ -169,6 +169,38 @@ function makeController(fx: Fixture): Controller {
     tickMs: 25,
     graceMs: 1500,
   });
+}
+
+/** A controller whose `mcpConfigFor` is the test's crash seam (design D15). */
+function makeCrashingController(
+  fx: Fixture, mcpConfigFor: () => string | Record<string, unknown> | undefined,
+): Controller {
+  return new Controller({
+    resolveProject: () => ({ projectPath: fx.repo, workspacePath: fx.repo }),
+    mcpConfigFor,
+    ensureWorktree: async () => ({ worktree: fx.repo, branch: 'main' }),
+    claudeBin: () => STUB,
+    tickMs: 25,
+    graceMs: 1500,
+  });
+}
+
+/** A `running` run with no live step, for crash recovery to pick up at start(). */
+async function seedRunningRun(fx: Fixture, id: string, extra: Partial<RunRecord> = {}): Promise<void> {
+  const iso = new Date().toISOString();
+  await writeRun({
+    v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+    worktree: fx.repo, branch: 'main', status: 'running', created: iso, updated: iso,
+    tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    ...extra,
+  });
+}
+
+/** The open drive-crash wait for a run, by its question id (design C6). */
+function crashWaitFor(
+  waits: Array<{ run: string; questions: { id: string }[] }>, id: string,
+): { id: string; kind: string; questions: { id: string; text: string; options?: string[]; recommended?: string }[] } | undefined {
+  return waits.find((w) => w.run === id && w.questions.some((q) => q.id === DRIVE_CRASH_QUESTION)) as never;
 }
 
 async function waitForStatus(id: string, status: RunRecord['status'], ms = 15000): Promise<RunRecord> {
@@ -972,4 +1004,304 @@ describe('Controller settle pass, wait answers and restart (design C4 item 2, Wa
 
     expect(existsSync(`${scriptPath}.counter`)).toBe(false);
   }, 20000);
+});
+
+// Contract for `drivenRuns()`, the drive-crash wait and the drive-end change
+// event (design C5 "drivenRuns", "Drive crash", "Drive end"; task 7 success
+// criteria). Per success criterion:
+// - (a)+(b): a throw opens an `error` wait with the crash question id, the
+//   cursor's step kind and the error message, options `retry`/`abandon`
+//   recommended `retry`, and the run reads `waiting` with `inFlight` cleared.
+//   Pre: a `running` run with a cursor (`stepKind: 'drafter'`) and a stale
+//   `inFlight`. Call: `controller.start()` with an `mcpConfigFor` that throws
+//   `Error('boom')`. Result: the wait's one question matches exactly;
+//   `inFlight` is gone. Source: design C5 "Drive crash" steps 2-3;
+//   Requirement 2 AC 3. (b) folds into this test: the same crash event proves
+//   both facts, so one call through the seam covers both letters.
+// - (c): a run with no cursor names its step `unknown`. Pre: a `running` run
+//   with no cursor. Result: the question text starts `step unknown failed`.
+//   Source: design C5 step 2 (`run.cursor?.stepKind ?? 'unknown'`);
+//   Requirement 2 AC 3.
+// - (d): a non-Error throw uses its string form. Pre: `mcpConfigFor` throws
+//   the string `'nope'`. Result: the question text ends `: nope`. Source:
+//   design C5 step 2 (`String(err)` for a non-`Error`); Requirement 2 AC 3.
+// - (e): no wait opens for a run gone, cancelled, or outside
+//   queued/running/merging by the re-read. Three pres, one per sub-case,
+//   each forcing the condition from inside `mcpConfigFor` (synchronous, so
+//   it lands before the throw): deleting `run.json`, calling
+//   `controller.cancel(id)`, and hand-writing `status: 'done'` to disk.
+//   Result: no open wait carries the crash question id. Source: design C5
+//   "Drive crash" step 1; Requirement 2 AC 3 (D4).
+// - (f): a failed wait write is logged and the run stays as it was. Pre: a
+//   file named `waits` blocks `waitsDir()` from being created, so
+//   `createWait`'s write rejects. Call: trigger the crash. Result:
+//   `console.error` is called at least twice (the drive's own crash log plus
+//   the crash-wait failure log) and the run is still `running`. Source:
+//   design C5 "Drive crash" step 4; Requirement 2 AC 4.
+// - (g): a change event fires after a drive ends by return, with the id out
+//   of `drivenRuns()`. Pre: a run that reaches `done` with no claude step
+//   (every document pre-approved, the retro plan pre-closed). Call: capture
+//   every `runEvents` `change` for the id and read `drivenRuns()` inside each
+//   listener call. Result: the last captured read excludes the id. Source:
+//   design C5 "Drive end"; Requirement 2 AC 5.
+// - (h): the same after a throw. Pre/Call: the crash scenario from (a).
+//   Result: the last captured read excludes the id. Source: design C5 "Drive
+//   end"; Requirement 2 AC 5.
+// - (i): `drivenRuns()` holds the id during a drive. Pre: a delayed stub
+//   step. Call: poll until `inFlight` is set. Result: `drivenRuns().has(id)`
+//   is true. Source: design C5 "drivenRuns"; Requirement 2 AC 1.
+// - (j) regression guard: answering `retry` re-drives from the cursor. Pre: a
+//   `running` run with a `reviewer` cursor mid document phase (the crash
+//   recovery fixture), `mcpConfigFor` throwing once then succeeding. Call:
+//   `controller.start()`, then `answerWait(wait.id, { 'drive-crash': 'retry' }, 'operator')`.
+//   Result: the run resumes at the reviewer step and finishes `done`.
+//   Source: design C5 step 1; Requirement 2 AC 6 (holds at base: only the
+//   wait's creation is new).
+// - (k) regression guard: answering `abandon` cancels. Pre: the crash
+//   scenario from (a). Call: answer the wait `abandon`. Result: the run
+//   reads `abandoned`. Source: design C5 step 1; Requirement 2 AC 6 (holds
+//   at base).
+describe('Controller drivenRuns(), drive-crash wait and drive-end change (design C5)', () => {
+  it('(a)(b) opens a retry/abandon error wait naming the cursor step and message, and clears inFlight', async () => {
+    const id = 'run-20261103-cr0001';
+    await seedRunningRun(fx, id, {
+      cursor: { phase: 'implementation', stepKind: 'drafter', attempt: 1 },
+      inFlight: { id: 's-dead', pid: 999999, startTime: 0 },
+    });
+
+    controller = makeCrashingController(fx, () => { throw new Error('boom'); });
+    await controller.start();
+
+    const waiting = await waitForStatus(id, 'waiting');
+    expect(waiting.inFlight).toBeUndefined();
+
+    const wait = crashWaitFor(await listOpenWaits(), id);
+    expect(wait).toBeTruthy();
+    expect(wait!.kind).toBe('error');
+    expect(wait!.questions).toEqual([{
+      id: DRIVE_CRASH_QUESTION,
+      text: 'step drafter failed inside the controller: boom',
+      options: ['retry', 'abandon'],
+      recommended: 'retry',
+    }]);
+  });
+
+  it('(c) names the step unknown when the run has no cursor', async () => {
+    const id = 'run-20261103-cr0002';
+    await seedRunningRun(fx, id, {});
+
+    controller = makeCrashingController(fx, () => { throw new Error('boom'); });
+    await controller.start();
+    await waitForStatus(id, 'waiting');
+
+    const wait = crashWaitFor(await listOpenWaits(), id);
+    expect(wait!.questions[0].text).toBe('step unknown failed inside the controller: boom');
+  });
+
+  it('(d) uses the string form of a non-Error throw', async () => {
+    const id = 'run-20261103-cr0003';
+    await seedRunningRun(fx, id, {});
+
+    controller = makeCrashingController(fx, () => { throw 'nope'; });
+    await controller.start();
+    await waitForStatus(id, 'waiting');
+
+    const wait = crashWaitFor(await listOpenWaits(), id);
+    expect(wait!.questions[0].text).toBe('step unknown failed inside the controller: nope');
+  });
+
+  it('(e) opens no wait when the run is gone by the time it is re-read', async () => {
+    const id = 'run-20261103-cr0004';
+    await seedRunningRun(fx, id, {});
+    const runFile = join(fx.home, 'runs', id, 'run.json');
+
+    controller = makeCrashingController(fx, () => {
+      rmSync(runFile, { force: true });
+      throw new Error('boom');
+    });
+    await controller.start();
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(crashWaitFor(await listOpenWaits(), id)).toBeUndefined();
+    expect(controller.drivenRuns().has(id)).toBe(false); // the drive still ended
+  });
+
+  it('(e) opens no wait when the run is cancelled before the re-read', async () => {
+    const id = 'run-20261103-cr0005';
+    await seedRunningRun(fx, id, {});
+
+    controller = makeCrashingController(fx, () => {
+      void controller!.cancel(id);
+      throw new Error('boom');
+    });
+    await controller.start();
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(crashWaitFor(await listOpenWaits(), id)).toBeUndefined();
+    const after = await readRun(id);
+    expect(after?.status).toBe('abandoned');
+    expect(controller.drivenRuns().has(id)).toBe(false); // the drive still ended
+  });
+
+  it('(e) opens no wait when the status is no longer queued, running or merging by the re-read', async () => {
+    const id = 'run-20261103-cr0006';
+    await seedRunningRun(fx, id, {});
+    const runFile = join(fx.home, 'runs', id, 'run.json');
+
+    controller = makeCrashingController(fx, () => {
+      const current = JSON.parse(readFileSync(runFile, 'utf8')) as RunRecord;
+      writeFileSync(runFile, JSON.stringify({ ...current, status: 'done', updated: new Date().toISOString() }));
+      throw new Error('boom');
+    });
+    await controller.start();
+    await new Promise((r) => setTimeout(r, 300));
+
+    expect(crashWaitFor(await listOpenWaits(), id)).toBeUndefined();
+    expect(controller.drivenRuns().has(id)).toBe(false); // the drive still ended
+  });
+
+  it('(f) logs a failed wait write and leaves the run as it was', async () => {
+    const id = 'run-20261103-cr0007';
+    await seedRunningRun(fx, id, {});
+    writeFileSync(join(fx.home, 'waits'), 'blocking file'); // mkdir(waitsDir()) now throws EEXIST
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      controller = makeCrashingController(fx, () => { throw new Error('boom'); });
+      await controller.start();
+      await new Promise((r) => setTimeout(r, 300));
+
+      expect(errorSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      const after = await readRun(id);
+      expect(after?.status).toBe('running');
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('(g) emits a change event after a drive ends by return, with the id out of drivenRuns()', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), 'Status: CLOSED\n');
+
+    controller = makeController(fx);
+    await controller.start();
+
+    let id = '';
+    const seenExcluded: boolean[] = [];
+    const onChange = (r: RunRecord): void => {
+      if (r.id === id) seenExcluded.push(!controller!.drivenRuns().has(id));
+    };
+    runEvents.on('change', onChange);
+    try {
+      id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+      await waitForStatus(id, 'done');
+      await new Promise((r) => setTimeout(r, 200));
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    expect(seenExcluded.length).toBeGreaterThan(0);
+    expect(seenExcluded[seenExcluded.length - 1]).toBe(true);
+  });
+
+  it('(h) emits a change event after a drive ends by throw, with the id out of drivenRuns()', async () => {
+    const id = 'run-20261103-cr0008';
+    await seedRunningRun(fx, id, {});
+
+    const seenExcluded: boolean[] = [];
+    const onChange = (r: RunRecord): void => {
+      if (r.id === id) seenExcluded.push(!controller!.drivenRuns().has(id));
+    };
+    runEvents.on('change', onChange);
+    try {
+      controller = makeCrashingController(fx, () => { throw new Error('boom'); });
+      await controller.start();
+      await waitForStatus(id, 'waiting');
+      await new Promise((r) => setTimeout(r, 200));
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    expect(seenExcluded.length).toBeGreaterThan(0);
+    expect(seenExcluded[seenExcluded.length - 1]).toBe(true);
+  });
+
+  it('(i) drivenRuns() holds the run id while a drive is in flight', async () => {
+    writeScript(fx, [{ ...drafterRun('requirements'), delayMs: 800 } as StubRun]);
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    let seen: RunRecord | undefined;
+    for (let i = 0; i < 100 && !seen?.inFlight; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      seen = await readRun(id);
+    }
+    expect(seen?.inFlight).toBeTruthy();
+    expect(controller.drivenRuns().has(id)).toBe(true);
+  }, 10000);
+
+  it('(j) regression guard: answering retry re-drives the run from its cursor', async () => {
+    writeFileSync(join(fx.specDir, 'requirements.md'), cleanDoc('requirements'));
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', `docs(sdd): ${SPEC} requirements v1`]);
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+
+    writeScript(fx, [
+      reviewerRun('requirements'), e2eRun(), compileRun(), analystRun(), closeoutBatchRun(),
+    ]);
+    scriptMergeablePR(fx, 'main', 'c0ffee000003');
+
+    const id = 'run-20261103-cr0010';
+    const iso = '2026-11-03T01:01:01.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'main', status: 'running', created: iso, updated: iso,
+      phase: 'requirements', cursor: { phase: 'requirements', stepKind: 'reviewer', attempt: 1 },
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    let throwOnce = true;
+    controller = makeCrashingController(fx, () => {
+      if (throwOnce) { throwOnce = false; throw new Error('boom'); }
+      return { mcpServers: {} };
+    });
+    await controller.start();
+
+    const crashed = await waitForStatus(id, 'waiting');
+    expect(crashed.inFlight).toBeUndefined();
+    const wait = crashWaitFor(await listOpenWaits(), id);
+    expect(wait).toBeTruthy();
+    expect(wait!.questions[0].text).toBe('step reviewer failed inside the controller: boom');
+
+    await answerWait(wait!.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+
+    const retroWaiting = await waitForStatus(id, 'waiting');
+    expect(retroWaiting.phase).toBe('retrospective');
+    const retro = (await listOpenWaits()).find((w) => w.run === id && w.kind === 'retro-plan');
+    expect(retro).toBeTruthy();
+    await answerWait(retro!.id, {}, 'matthew');
+
+    await waitForStatus(id, 'done');
+  }, 20000);
+
+  it('(k) regression guard: answering abandon cancels the run', async () => {
+    const id = 'run-20261103-cr0009';
+    await seedRunningRun(fx, id, { cursor: { phase: 'implementation', stepKind: 'drafter', attempt: 1 } });
+
+    controller = makeCrashingController(fx, () => { throw new Error('boom'); });
+    await controller.start();
+    await waitForStatus(id, 'waiting');
+
+    const wait = crashWaitFor(await listOpenWaits(), id);
+    expect(wait).toBeTruthy();
+
+    await answerWait(wait!.id, { [DRIVE_CRASH_QUESTION]: 'abandon' }, 'operator');
+
+    const after = await waitForStatus(id, 'abandoned');
+    expect(after.status).toBe('abandoned');
+  });
 });
