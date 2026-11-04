@@ -525,6 +525,76 @@ describe('listRunsForWire', () => {
 
     expect(row?.prReads).toBeUndefined();
   });
+
+  // Source: tasks.md task 6, Success (a)-(e); design C4 `listRunsForWire`/`toRow`.
+  //
+  // Criterion (a) "lastActivity carried": Pre-condition: a run record with
+  //   `lastActivity` set. Test: listRunsForWire(). Observable result: the
+  //   row's `lastActivity` equals the record's value. Expected-value source:
+  //   design C4's `toRow` adding `lastActivity: run.lastActivity`.
+  it('carries lastActivity on the row when the record has it', async () => {
+    await writeRun(seedRun(fx, { lastActivity: '2026-10-11T00:00:05.000Z' } as Partial<RunRecord>));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.lastActivity).toBe('2026-10-11T00:00:05.000Z');
+  });
+
+  // Criterion (b) "lastActivity omitted" (regression guard, named for the
+  //   implementer brief: this branch already holds at base because `toRow`
+  //   carries no `lastActivity` key at all today, so a record with none
+  //   already produces a row with none): Pre-condition: a run record with no
+  //   `lastActivity`. Test: listRunsForWire(). Observable result: the row's
+  //   `lastActivity` is undefined. Expected-value source: design C4.
+  it('omits lastActivity on the row when the record has none', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.lastActivity).toBeUndefined();
+  });
+
+  // Criterion (c) "driven: true for a member of the set": Pre-condition: a
+  //   run record. Test: listRunsForWire(driven) with a set holding the run's
+  //   id. Observable result: the row reads `driven: true`. Expected-value
+  //   source: design C4's `driven: driven.has(run.id)`.
+  it('reads driven: true for a run id in the given set', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire(new Set(['run-20261011-000000']));
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(true);
+  });
+
+  // Criterion (d) "driven: false for a run outside the set": Pre-condition:
+  //   a run record. Test: listRunsForWire(driven) with a set holding a
+  //   different id. Observable result: the row reads `driven: false`.
+  //   Expected-value source: design C4's `driven: driven.has(run.id)`.
+  it('reads driven: false for a run id outside the given set', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire(new Set(['some-other-run']));
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(false);
+  });
+
+  // Criterion (e) "driven: false with no set given": Pre-condition: a run
+  //   record. Test: listRunsForWire() with no argument. Observable result:
+  //   the row reads `driven: false`. Expected-value source: design C4's
+  //   default `= new Set()` and Requirement 2 AC 1 "a dashboard process that
+  //   does not hold the controller lock ... SHALL report driven: false".
+  it('reads driven: false for every row when no set is given', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(false);
+  });
 });
 
 // Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
