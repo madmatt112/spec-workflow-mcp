@@ -20,7 +20,7 @@ import {
   isProcessAlive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
-import { waitEvents, type ControllerWaitRecord } from './waits.js';
+import { waitEvents, createWait, DRIVE_CRASH_QUESTION, type ControllerWaitRecord } from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
@@ -135,6 +135,11 @@ export class Controller extends EventEmitter {
   /** Drive the scheduler once (a test seam and the backstop the interval calls). */
   async pump(): Promise<void> {
     await this.schedule();
+  }
+
+  /** The run ids a drive currently holds: `active` plus the keys of `drives` (design C5). */
+  drivenRuns(): ReadonlySet<string> {
+    return new Set([...this.active, ...this.drives.keys()]);
   }
 
   // --- enqueue (design §9; Launch admission) -------------------------------
@@ -416,7 +421,15 @@ export class Controller extends EventEmitter {
   /** Launch a drive and track its promise so `stop()` can drain it. */
   private startDrive(runId: string): void {
     if (this.active.has(runId) || this.drives.has(runId) || !this.started) return;
-    const p = this.drive(runId).finally(() => this.drives.delete(runId));
+    const p = this.drive(runId).finally(async () => {
+      this.drives.delete(runId);
+      try {
+        const run = await readRun(runId);
+        if (run) runEvents.emit('change', run);
+      } catch (err) {
+        console.error(`[controller] could not read run ${runId} after drive end`, err);
+      }
+    });
     this.drives.set(runId, p);
   }
 
@@ -427,10 +440,45 @@ export class Controller extends EventEmitter {
       await runOnce(this.runDeps(), runId);
     } catch (err) {
       console.error(`[controller] run ${runId} errored`, err);
+      await this.openCrashWait(runId, err);
     } finally {
       this.active.delete(runId);
     }
     if (this.started) void this.schedule();
+  }
+
+  /**
+   * Turn a crashed drive into an `error` wait instead of a silent `running`
+   * (design C5 "Drive crash"). Called inside `drive`'s `try`/`catch`, so
+   * `active` still holds the run while it runs.
+   */
+  private async openCrashWait(runId: string, err: unknown): Promise<void> {
+    try {
+      const run = await readRun(runId);
+      if (!run || this.cancelled.has(runId)) return;
+      if (run.status !== 'queued' && run.status !== 'running' && run.status !== 'merging') return;
+
+      const stepKind = run.cursor?.stepKind ?? 'unknown';
+      const message = err instanceof Error ? err.message : String(err);
+      await createWait({
+        kind: 'error',
+        runId,
+        projectId: run.project,
+        spec: run.spec,
+        specDir: PathUtils.getSpecPath(run.specStore, run.spec),
+        questions: [{
+          id: DRIVE_CRASH_QUESTION,
+          text: `step ${stepKind} failed inside the controller: ${message}`,
+          options: ['retry', 'abandon'],
+          recommended: 'retry',
+        }],
+      });
+
+      const fresh = await readRun(runId);
+      if (fresh) await this.save(fresh, { status: 'waiting', inFlight: undefined });
+    } catch (innerErr) {
+      console.error(`[controller] could not open a crash wait for ${runId}`, innerErr);
+    }
   }
 
   // --- wait answers (design §7) --------------------------------------------

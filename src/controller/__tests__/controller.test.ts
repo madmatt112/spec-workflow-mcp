@@ -213,6 +213,17 @@ async function waitForStatus(id: string, status: RunRecord['status'], ms = 15000
   }
 }
 
+/** Poll until a run's status differs from `from`, so a later `waitForStatus(id, from)` cannot read a stale record still in that same status. */
+async function waitForStatusChange(id: string, from: RunRecord['status'], ms = 15000): Promise<void> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const run = await readRun(id);
+    if (run && run.status !== from) return;
+    if (Date.now() > deadline) throw new Error(`run ${id} never left ${from}`);
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
 let fx: Fixture;
 let controller: Controller | null;
 beforeEach(() => { chmodSync(STUB, 0o755); chmodSync(STUB_GH, 0o755); fx = setup(); controller = null; });
@@ -1278,6 +1289,7 @@ describe('Controller drivenRuns(), drive-crash wait and drive-end change (design
     expect(wait!.questions[0].text).toBe('step reviewer failed inside the controller: boom');
 
     await answerWait(wait!.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+    await waitForStatusChange(id, 'waiting');
 
     const retroWaiting = await waitForStatus(id, 'waiting');
     expect(retroWaiting.phase).toBe('retrospective');
