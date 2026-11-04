@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793746237804_rdyevvbvv",
+  "title": "controller-liveness-and-push tasks v1",
+  "filePath": ".spec-workflow/specs/controller-liveness-and-push/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-03T22:50:37.804Z",
+  "category": "spec",
+  "categoryName": "controller-liveness-and-push",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-03T22:50:37.972Z"
+}

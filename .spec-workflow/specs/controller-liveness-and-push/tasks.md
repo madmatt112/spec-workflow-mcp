@@ -4,7 +4,7 @@ Document version: v1
 
 Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing suite green. Tasks 1-4 build the heartbeat, 5-9 build the crash wait, wire row, controller and route, and 10-13 build the ntfy push; task 14 stands alone and task 15 documents what 9-13 shipped. Two bridges hold the tree green: task 6 defaults the driven set to empty until task 9 wires it, and task 10 leaves `pushConfigPath` exported until task 12 removes it.
 
-- [ ] 1. Add lastActivity and its single writer to the run store
+- [x] 1. Add lastActivity and its single writer to the run store
   - File: src/controller/state.ts
   - Test: src/controller/__tests__/state.test.ts — writeLastActivity(id, value, updated) and writeRun(record, opts)
   - Add the optional field and the chained writer; make `writeRunLocked` carry the field from disk and drop it on a terminal write.

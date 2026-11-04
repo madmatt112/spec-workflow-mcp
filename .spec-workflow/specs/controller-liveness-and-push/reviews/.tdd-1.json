@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/state.test.ts"],"seams":{"src/controller/__tests__/state.test.ts":"writeLastActivity(id, value, updated) and writeRun(record, opts)"},"redCommit":"ac2132d7ae63ed8c72a4f91199484dbdc1b4bd9c","baseSha":"45aef9cdc3fed66f8521f00d8f434ac95f0e4107","base":"structural-red","head":"pass","amended":false,"judged":null}

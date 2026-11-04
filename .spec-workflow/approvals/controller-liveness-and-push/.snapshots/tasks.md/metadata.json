@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/controller-liveness-and-push/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-03T22:50:37.858Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793746237804_rdyevvbvv",
+      "approvalTitle": "controller-liveness-and-push tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-03T22:50:37.965Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793746237804_rdyevvbvv",
+      "approvalTitle": "controller-liveness-and-push tasks v1"
+    }
+  ]
+}
