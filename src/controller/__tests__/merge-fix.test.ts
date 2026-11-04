@@ -252,7 +252,7 @@ describe('IMPLEMENTER_SCHEMA', () => {
   it('stays exported from implementation.ts, unchanged, for the merge fix round\'s step', () => {
     expect(IMPLEMENTER_SCHEMA.required).toEqual(['logged', 'commit', 'checksFile', 'flag']);
     expect(Object.keys(IMPLEMENTER_SCHEMA.properties)).toEqual(
-      ['logged', 'commit', 'checks', 'checksFile', 'green', 'flag', 'retro', 'reproduce'],
+      ['logged', 'commit', 'checks', 'checksFile', 'green', 'amendedTests', 'flag', 'retro', 'reproduce'],
     );
   });
 });
