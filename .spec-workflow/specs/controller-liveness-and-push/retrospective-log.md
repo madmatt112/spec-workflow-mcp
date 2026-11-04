@@ -64,3 +64,13 @@ Cost: 1 implementer spawn(s)
 task 11 closed: 0 fix round(s), outcome gate
 Evidence: task 11 · mark run-20261103-172257 d5528bd6
 Cost: 1 implementer spawn(s)
+
+## 2026-11-04T05:54:16Z · implementation · task 12 · doc-gap
+red-impossible: first-start branch never reads config, holds unchanged; adapted \"(o)\" test in push.test.ts (notify.json swap only) covers it. Dropped old restart/answer-advice dedup tests (unaffected plumbing, no task-12 letter) rather than leave them broken by the pushConfigPath removal.","retro":"The task text's \"regression guard (hold at base)\" note covered (4.5),(4.6); only (4.6)/(o) actually held unchanged when run — (4.5)/(n) needed a genuine new red test since notify.json isn't read yet, so its old-seam test would never even attempt a POST. Verify such labels by running, not by trusting them."}
+Evidence: task 12 · mark run-20261103-172257 4798a39f
+Cost: 1 spawn
+
+## 2026-11-04T06:00:00Z · implementation · task 12 · gotcha
+task 12 closed: 0 fix round(s), outcome gate
+Evidence: task 12 · mark run-20261103-172257 cff5d55f
+Cost: 1 implementer spawn(s)

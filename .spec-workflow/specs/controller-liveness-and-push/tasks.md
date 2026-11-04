@@ -138,7 +138,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 4.3, 4.8, 5.1_
   - _Prompt: Task: Export `buildMessage` from `src/advisor/push.ts` with the design C9 title, two body lines and redaction (design D12, requirement 4.3). | Restrictions: Pure: no file read, no clock. Use only the wait's kind, spec and first question, and the project name passed in. Redact any token with a `/`, URLs included, as C9 says. | Success: Each case has its own test: (a) body line 1 holds kind, project name and spec; (b) the title is `SDD ` plus the kind; (c) a reminder prefixes body line 1 and uses the reminder title; (d) body line 2 is the trimmed first line of the first question; (e) multi-line text keeps only that line; (f) a wait with no question has no line 2; (g) an absolute path redacts to `[path]`; (h) a `~/` path redacts; (i) a slash-relative path redacts; (j) a single-segment filename redacts; (k) plain words stay; (l) answer, advice and later questions never appear_
 
-- [ ] 12. Send the ntfy POST from the pusher
+- [x] 12. Send the ntfy POST from the pusher
   - File: src/advisor/push.ts
   - File: src/advisor/home.ts
   - File: src/advisor/__tests__/home.test.ts
