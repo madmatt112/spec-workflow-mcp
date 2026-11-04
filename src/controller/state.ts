@@ -96,6 +96,8 @@ export interface RunRecord {
   resumeAt?: string;
   /** ISO time the run last became `paused` or `waiting`; absent while it moves. */
   pausedAt?: string;
+  /** ISO time of the run's last observed liveness signal (design C1); written only by `writeLastActivity`. */
+  lastActivity?: string;
   phase?: string;
   cursor?: StepCursor;
   inFlight?: InFlightStep;
@@ -420,14 +422,24 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
   const stopped = record.status === 'paused' || record.status === 'waiting';
   const terminal = record.status === 'done' || record.status === 'abandoned' || record.status === 'error';
   let pauseRequested = record.pauseRequested;
-  if (!opts?.ownsPauseRequest && !terminal) {
-    pauseRequested = (await readRun(record.id))?.pauseRequested;
+  // `lastActivity` has one writer (`writeLastActivity`); every other write to a
+  // run carries it over from disk unchanged, ignoring whatever the caller's
+  // record holds (design C1).
+  let lastActivity = record.lastActivity;
+  if (!terminal) {
+    const onDisk = await readRun(record.id);
+    if (!opts?.ownsPauseRequest) pauseRequested = onDisk?.pauseRequested;
+    lastActivity = onDisk?.lastActivity;
   }
-  if (terminal) pauseRequested = undefined;
+  if (terminal) {
+    pauseRequested = undefined;
+    lastActivity = undefined;
+  }
   const out = {
     ...record,
     pausedAt: stopped ? (record.pausedAt ?? new Date().toISOString()) : undefined,
     pauseRequested,
+    lastActivity,
   };
   return writeJsonAtomic(runPath(record.id), out);
 }
@@ -439,6 +451,39 @@ export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean 
     () => writeRunLocked(record, opts),
   );
   writeChains.set(record.id, settled.catch(() => undefined));
+  return settled;
+}
+
+async function writeLastActivityLocked(
+  id: string,
+  value: string | undefined,
+  updated: string,
+): Promise<RunRecord | undefined> {
+  const record = await readRun(id);
+  if (!record) return undefined;
+  const terminal = record.status === 'done' || record.status === 'abandoned' || record.status === 'error';
+  if (terminal) return undefined;
+  if (value === undefined && record.lastActivity === undefined) return undefined;
+  const out: RunRecord = { ...record, lastActivity: value, updated };
+  await writeJsonAtomic(runPath(id), out);
+  return out;
+}
+
+/**
+ * The single writer of `lastActivity` (design C1). Queued on the same
+ * per-run chain as `writeRun`, so a status write and a heartbeat write for
+ * the same run settle in call order. Does not pass through `writeRunLocked`,
+ * so `pausedAt` and `pauseRequested` stay as read.
+ */
+export function writeLastActivity(
+  id: string,
+  value: string | undefined,
+  updated: string,
+): Promise<RunRecord | undefined> {
+  const prior = writeChains.get(id) ?? Promise.resolve();
+  const run = () => writeLastActivityLocked(id, value, updated);
+  const settled = prior.then(run, run);
+  writeChains.set(id, settled.then(() => undefined, () => undefined));
   return settled;
 }
 
