@@ -703,13 +703,65 @@ describe('GRADERS registry', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  // Pre-condition: a tasks.md whose only TS-touching task lists the worktree-root ESLint
+  // binary over its files in its Success checks.
+  // Test: GRADERS['task-success-eslint'].grade({ report: {}, fixture }, { doc }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P2 — a TS-touching task lints its files at the task gate.
+  it('task-success-eslint passes when the TS-touching task lints its files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add the helper',
+        '  - File: src/util/helper.ts',
+        '  - _Prompt: Task: implement | Restrictions: none | Success: ./node_modules/.bin/eslint src/util/helper.ts passes and vitest is green_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-eslint'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose TS-touching task omits ESLint from its Success checks.
+  // Test: GRADERS['task-success-eslint'].grade({ report: {}, fixture }, { doc }).
+  // Observable result: pass is false and the reason names the task.
+  // Expected-value source: retro P2 — without the lint check, an import-x/order error reds
+  // only at the phase-completion gate.
+  it('task-success-eslint fails when a TS-touching task omits eslint', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add the helper',
+        '  - File: src/util/helper.ts',
+        '  - _Prompt: Task: implement | Restrictions: none | Success: vitest run src/util/helper.test.ts is green_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-eslint'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md' }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('task 1');
+    rmSync(root, { recursive: true, force: true });
+  });
+
   // Pre-condition: task 2's four graders, task 3's six git-state graders, the retro-P6
-  // task-no-test-seam grader and the retro-P1 task-success-scope grader are all registered.
+  // task-no-test-seam grader and the retro-P1/P2 task-success-scope and task-success-eslint
+  // graders are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the twelve named graders.
+  // Observable result: the registry lists exactly the thirteen named graders.
   // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
-  // retro-P6 task-no-test-seam and retro-P1 task-success-scope graders.
-  it('registers twelve graders including the six git-state graders', () => {
+  // retro-P6 task-no-test-seam and retro-P1/P2 task-success-scope and task-success-eslint graders.
+  it('registers thirteen graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
       'item-commit-on-branch',
@@ -721,6 +773,7 @@ describe('GRADERS registry', () => {
       'repo-unchanged',
       'report-flag',
       'task-no-test-seam',
+      'task-success-eslint',
       'task-success-scope',
       'tasks-labels-canonical',
     ]);
