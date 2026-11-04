@@ -110,6 +110,27 @@ async function writePushedIds(ids: Set<string>): Promise<void> {
   await writeJsonAtomic(pushedPath(), file);
 }
 
+/** A path-shaped token redacts: an absolute path, a `~/` path, any token with a `/`, or any token with a file extension (design C9, D12). */
+function isPathShaped(token: string): boolean {
+  return token.startsWith('/') || token.startsWith('~/') || token.includes('/') || /\.[A-Za-z0-9]+$/.test(token);
+}
+
+function redactPaths(line: string): string {
+  return line.replace(/\S+/g, (token) => (isPathShaped(token) ? '[path]' : token));
+}
+
+/** Pure ntfy message builder (design C9): reads only `wait.kind`, `wait.spec` and `wait.questions[0]`. */
+export function buildMessage(wait: WaitRecord, projectName: string, reminder: boolean): { title: string; body: string } {
+  const prefix = reminder ? 'Reminder: ' : '';
+  const line1 = `${prefix}${wait.kind} | ${projectName} | ${wait.spec}`;
+  const question = wait.questions[0];
+  const line2 = question ? redactPaths(question.text.trim().split('\n')[0]) : undefined;
+  return {
+    title: reminder ? `SDD reminder: ${wait.kind}` : `SDD ${wait.kind}`,
+    body: line2 !== undefined ? `${line1}\n${line2}` : line1,
+  };
+}
+
 /** `WaitPusher { start(); stop() }` (design C11). */
 export class WaitPusher {
   private readonly retryDelayMs: number;
