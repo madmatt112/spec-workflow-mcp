@@ -27,8 +27,13 @@ import { GRADERS } from '../graders/index.js';
 const SEED_IDS = [
   'closeout-landing-root',
   'closeout-reversing-proposal',
+  'drafter-success-includes-eslint',
+  'drafter-success-scope-narrow',
   'drafter-test-seam-label',
   'guard-task-no-red-step',
+  'implementer-file-outside-list-classify',
+  'implementer-fix-tests-on-list',
+  'implementer-reports-amended-tests',
   'test-author-precommit-hook',
   'test-author-trailer',
 ];

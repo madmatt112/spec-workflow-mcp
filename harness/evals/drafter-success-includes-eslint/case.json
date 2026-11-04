@@ -1,0 +1,35 @@
+{
+  "id": "drafter-success-includes-eslint",
+  "role": "sdd-drafter",
+  "phase": "document",
+  "spec": "eval-drafter-success-includes-eslint",
+  "turnCap": 80,
+  "evidence": "multi-leg-positions retro P2 — a task omitted eslint from its Success check, so an import-x/order error reds only at the phase-completion gate",
+  "briefs": [
+    {
+      "template": "drafter",
+      "file": "drafter-brief.md",
+      "values": {
+        "phase": "tasks",
+        "docPath": "{{fixture}}/.spec-workflow/specs/eval-drafter-success-includes-eslint/tasks.md",
+        "specDir": "{{fixture}}/.spec-workflow/specs/eval-drafter-success-includes-eslint",
+        "specStoreRoot": "{{fixture}}/.spec-workflow",
+        "codeRoot": "{{fixture}}",
+        "carried": "none"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements and design", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "task-success-eslint",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-drafter-success-includes-eslint/tasks.md"
+      }
+    }
+  ]
+}

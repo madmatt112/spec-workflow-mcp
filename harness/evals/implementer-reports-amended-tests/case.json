@@ -1,0 +1,35 @@
+{
+  "id": "implementer-reports-amended-tests",
+  "role": "sdd-implementer",
+  "phase": "implementation",
+  "spec": "eval-implementer-reports-amended-tests",
+  "turnCap": 120,
+  "cwd": ".",
+  "evidence": "multi-leg-positions retro P12 — the implementer omitted a TEST-AMENDED report in task 15 round 1 (red-green.ts detects it a round later)",
+  "briefs": [
+    {
+      "template": "implementer",
+      "file": "implementer-brief.md",
+      "taskId": "1",
+      "values": {
+        "title": "Add leg field parsing",
+        "authorFiles": "src/features/positions/multi-leg/fields.test.ts",
+        "authorReport": "red commit seeded; wrote src/features/positions/multi-leg/fields.test.ts asserting parseFields trims each value"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the task and the author red test", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "report-names-path",
+      "args": {
+        "key": "amendedTests",
+        "path": "src/features/positions/multi-leg/fields.test.ts"
+      }
+    }
+  ]
+}

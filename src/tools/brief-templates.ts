@@ -46,7 +46,7 @@ function reportBlockLines(keys: string[]): string[] {
 }
 
 /** The implementer role's C9 report keys (design C9 `sdd-implementer` row). */
-const IMPLEMENTER_REPORT_KEYS = ['logged', 'commit', 'checks', 'checks-file', 'green', 'flag', 'retro'];
+const IMPLEMENTER_REPORT_KEYS = ['logged', 'commit', 'checks', 'checks-file', 'green', 'amended-tests', 'flag', 'retro'];
 
 /** The verifier role's C9 report keys (design C9 `sdd-verifier` row). */
 const VERIFIER_REPORT_KEYS = ['verdict', 'findings', 'retro'];
@@ -794,6 +794,17 @@ function renderFix(v: Record<string, string>): string {
       "The gate returned `fail`. Fix every reason below, re-run the task's checks, update the " +
         'implementation log with `log-implementation` if files changed, and report.',
     );
+    if (v.round === '1') {
+      lines.push(
+        '',
+        'If the gate output below lists a `file-outside-list: <file>` reason as its only actionable ' +
+          'finding, do not re-commit the unchanged tree: revert the off-list change when it was ' +
+          'accidental, or — when the task genuinely requires that file — report ' +
+          '`REQUIRED: <file> — <why>` instead of committing. A `REQUIRED` report escalates immediately ' +
+          "(the fix is to list the file in the task's `File:` entries in tasks.md); never use it to " +
+          'self-exempt an accidental off-list edit.',
+      );
+    }
   } else {
     lines.push(
       'The independent review of task ' + v.taskId + ' returned `fix-required`. Fix every ' +

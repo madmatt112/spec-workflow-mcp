@@ -641,13 +641,158 @@ describe('GRADERS registry', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  // Pre-condition: task 2's four graders, task 3's six git-state graders, and the retro-P6
-  // task-no-test-seam grader are all registered.
+  // Pre-condition: a tasks.md whose task scopes its Success vitest command to the narrow
+  // subtree the task touches, never the parent feature dir that also holds the flaky route
+  // test.
+  // Test: GRADERS['task-success-scope'].grade({ report: {}, fixture }, { doc, flakyTest, narrow }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P1 — scope the Success command to the touched subtree, not a
+  // parent dir that sweeps in a concurrency-heavy DB route test.
+  it('task-success-scope passes when the Success command names the narrow subtree', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add multi-leg positions',
+        '  - File: src/features/positions/multi-leg.ts',
+        '  - _Prompt: Task: implement multi-leg | Restrictions: none | Success: ./node_modules/.bin/vitest run src/features/positions/multi-leg passes_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-scope'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      {
+        doc: 'tasks.md',
+        flakyTest: 'src/features/positions/transfer-links.route.test.ts',
+        narrow: 'src/features/positions/multi-leg',
+      }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose task aims its Success vitest command at the whole parent
+  // feature dir, which also holds the flaky route test.
+  // Test: GRADERS['task-success-scope'].grade({ report: {}, fixture }, { doc, flakyTest, narrow }).
+  // Observable result: pass is false and the reason names the flaky route test.
+  // Expected-value source: retro P1 — a command aimed at the feature dir sweeps the flaky route
+  // test into the task gate.
+  it('task-success-scope fails when the Success command sweeps the flaky route test', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add multi-leg positions',
+        '  - File: src/features/positions/multi-leg.ts',
+        '  - _Prompt: Task: implement multi-leg | Restrictions: none | Success: ./node_modules/.bin/vitest run src/features/positions passes_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-scope'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      {
+        doc: 'tasks.md',
+        flakyTest: 'src/features/positions/transfer-links.route.test.ts',
+        narrow: 'src/features/positions/multi-leg',
+      }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('src/features/positions/transfer-links.route.test.ts');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose only TS-touching task lists the worktree-root ESLint
+  // binary over its files in its Success checks.
+  // Test: GRADERS['task-success-eslint'].grade({ report: {}, fixture }, { doc }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P2 — a TS-touching task lints its files at the task gate.
+  it('task-success-eslint passes when the TS-touching task lints its files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add the helper',
+        '  - File: src/util/helper.ts',
+        '  - _Prompt: Task: implement | Restrictions: none | Success: ./node_modules/.bin/eslint src/util/helper.ts passes and vitest is green_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-eslint'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose TS-touching task omits ESLint from its Success checks.
+  // Test: GRADERS['task-success-eslint'].grade({ report: {}, fixture }, { doc }).
+  // Observable result: pass is false and the reason names the task.
+  // Expected-value source: retro P2 — without the lint check, an import-x/order error reds
+  // only at the phase-completion gate.
+  it('task-success-eslint fails when a TS-touching task omits eslint', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add the helper',
+        '  - File: src/util/helper.ts',
+        '  - _Prompt: Task: implement | Restrictions: none | Success: vitest run src/util/helper.test.ts is green_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-eslint'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      { doc: 'tasks.md' }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('task 1');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a report whose `amendedTests` key names the author test file the
+  // grader's `path` argument asks for.
+  // Test: GRADERS['report-names-path'].grade({ report, fixture }, { key, path }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P12 — an implementer that edits an author test file names
+  // it in its report so the orchestrator sees the amendment in the round it happened.
+  it('report-names-path passes when the report key names the path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    const result = GRADERS['report-names-path'].grade(
+      { report: { amendedTests: 'src/features/positions/multi-leg/fields.test.ts' }, fixture: stubFixture(root) },
+      { key: 'amendedTests', path: 'src/features/positions/multi-leg/fields.test.ts' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a report whose `amendedTests` key is `none`, naming no author test file.
+  // Test: GRADERS['report-names-path'].grade({ report, fixture }, { key, path }).
+  // Observable result: pass is false.
+  // Expected-value source: retro P12 — a report that omits the amended author test file is
+  // the failure this eval catches.
+  it('report-names-path fails when the report key does not name the path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    const result = GRADERS['report-names-path'].grade(
+      { report: { amendedTests: 'none' }, fixture: stubFixture(root) },
+      { key: 'amendedTests', path: 'src/features/positions/multi-leg/fields.test.ts' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: task 2's four graders, task 3's six git-state graders, the retro-P6
+  // task-no-test-seam grader, the retro-P1/P2 task-success-scope and task-success-eslint
+  // graders and the retro-P12 report-names-path grader are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the eleven named graders.
+  // Observable result: the registry lists exactly the fourteen named graders.
   // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
-  // retro-P6 task-no-test-seam grader.
-  it('registers eleven graders including the six git-state graders', () => {
+  // retro-P6, retro-P1/P2 and retro-P12 graders.
+  it('registers fourteen graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
       'item-commit-on-branch',
@@ -658,7 +803,10 @@ describe('GRADERS registry', () => {
       'no-new-commit',
       'repo-unchanged',
       'report-flag',
+      'report-names-path',
       'task-no-test-seam',
+      'task-success-eslint',
+      'task-success-scope',
       'tasks-labels-canonical',
     ]);
   });
