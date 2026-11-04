@@ -14,6 +14,7 @@ import {
   SPEC_WORKFLOW_WORKSPACE_ENV, SPEC_WORKFLOW_SHARED_ROOT_ENV,
 } from '../core/git-utils.js';
 import { processStartTime } from './state.js';
+import type { StepHeartbeat } from './heartbeat.js';
 
 /** Environment variables the controller never passes to a step (design §4). */
 const SCRUBBED_STEP_ENV_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'];
@@ -126,6 +127,8 @@ export interface StepSpec {
   sharedRoot?: string;
   onActivity?: (activity: ActivityEvent) => void;
   onRateLimit?: (windows: RateLimitWindows) => void;
+  /** Reports every parsed stream line and the step's end (design C2/C3). */
+  heartbeat?: StepHeartbeat;
   /**
    * The spawned process's pid and `/proc` start time, right after the spawn
    * (design §8: `run.json` holds the in-flight step so a restart re-attaches or
@@ -444,6 +447,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         return; // Non-JSON noise is kept in the log but not interpreted.
       }
       if (parsed && typeof parsed === 'object') {
+        spec.heartbeat?.line();
         handleEvent(parsed as Record<string, unknown>);
       }
     };
@@ -467,6 +471,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         handleLine(buffer);
         buffer = '';
       }
+      spec.heartbeat?.end();
       const last = resultEvent as Record<string, unknown> | null;
       const result = last && last.structured_output == null && structuredEvent ? structuredEvent : last;
       const structuredOutput = result && 'structured_output' in result
@@ -509,6 +514,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
     child.on('error', (err: NodeJS.ErrnoException) => {
       if (settled) return;
       settled = true;
+      spec.heartbeat?.end();
       log.write(`claude spawn error: ${err.message}\n`);
       log.end();
       resolvePromise({

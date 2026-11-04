@@ -401,12 +401,43 @@ describe('src/advisor/summary.ts buildSummary/renderSummary', () => {
     ]);
   });
 
-  // AC 10.4 (the absent-push half). Pre-condition: no push.json in the home.
+  // AC 10.4 (the absent-push half). Pre-condition: no notify.json in the
+  // home. Test: buildSummary({ now }). Observable result: summary.push
+  // equals 'off'. Expected value source: requirements.md Requirement 10 AC 4
+  // ("IF notify.json is absent THEN ... the summary SHALL say push is off")
+  // and design.md C4 ("push: off without notify.json").
+  it('reports push as off when notify.json is absent (10.4)', async () => {
+    const summary = await buildSummary({ now: new Date('2026-10-26T12:00:00.000Z') });
+    expect(summary.push).toBe('off');
+  });
+
+  // AC (task 10 Success, item m; 4.2). Pre-condition: notify.json (the
+  // controller home's notify config, design.md C8) holds a valid config.
   // Test: buildSummary({ now }). Observable result: summary.push equals
-  // 'off'. Expected value source: requirements.md Requirement 10 AC 4 ("IF
-  // push.json is absent THEN ... the summary SHALL say push is off") and
-  // design.md C4 ("push: off without push.json").
-  it('reports push as off when push.json is absent (10.4)', async () => {
+  // 'on'. Expected value source: design.md C8 ("pushState ... returns on
+  // exactly when readNotifyConfig returns a value"). The fixture path is
+  // written literally (join(home, 'notify.json')), not through
+  // notifyConfigPath(), which task 10 adds.
+  it('reports push as on when notify.json is valid (4.2)', async () => {
+    writeFileSync(
+      join(home, 'notify.json'),
+      JSON.stringify({ v: 1, ntfy: { url: 'https://ntfy.sh', topic: 'sdd-wait' } }),
+      'utf-8',
+    );
+
+    const summary = await buildSummary({ now: new Date('2026-10-26T12:00:00.000Z') });
+    expect(summary.push).toBe('on');
+  });
+
+  // AC (task 10 Success, item n; regression guard). Pre-condition:
+  // notify.json holds text that is not valid JSON. Test: buildSummary({
+  // now }). Observable result: summary.push equals 'off'. Expected value
+  // source: design.md C8 ("pushState ... returns on exactly when
+  // readNotifyConfig returns a value"); an unparsable file never returns a
+  // value. The fixture path is written literally, same reason as above.
+  it('reports push as off when notify.json is malformed (regression guard)', async () => {
+    writeFileSync(join(home, 'notify.json'), '{not json', 'utf-8');
+
     const summary = await buildSummary({ now: new Date('2026-10-26T12:00:00.000Z') });
     expect(summary.push).toBe('off');
   });

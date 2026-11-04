@@ -36,8 +36,45 @@ export function sourcesPath(): string {
   return join(controllerHome(), 'sources.json');
 }
 
-export function pushConfigPath(): string {
-  return join(controllerHome(), 'push.json');
+export function notifyConfigPath(): string {
+  return join(controllerHome(), 'notify.json');
+}
+
+export interface NotifyConfig {
+  v: 1;
+  ntfy: { url: string; topic: string; token?: string };
+}
+
+function isValidNotifyConfig(value: unknown): value is NotifyConfig {
+  if (typeof value !== 'object' || value === null) return false;
+  const row = value as { v?: unknown; ntfy?: unknown };
+  if (row.v !== 1) return false;
+  if (typeof row.ntfy !== 'object' || row.ntfy === null) return false;
+  const ntfy = row.ntfy as { url?: unknown; topic?: unknown; token?: unknown };
+  if (typeof ntfy.url !== 'string' || ntfy.url.length === 0) return false;
+  if (typeof ntfy.topic !== 'string' || ntfy.topic.length === 0) return false;
+  if (ntfy.token !== undefined && typeof ntfy.token !== 'string') return false;
+  return true;
+}
+
+/** Returns undefined for a missing or unparsable file, `v` not 1, or a missing/invalid `ntfy` field. */
+export async function readNotifyConfig(): Promise<NotifyConfig | undefined> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(notifyConfigPath(), 'utf-8'));
+    return isValidNotifyConfig(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** True when the file's mode has any group/other bit set; false when it cannot be read. */
+export async function notifyConfigIsLoose(): Promise<boolean> {
+  try {
+    const stat = await fs.stat(notifyConfigPath());
+    return (stat.mode & 0o077) !== 0;
+  } catch {
+    return false;
+  }
 }
 
 export function searchPath(): string {

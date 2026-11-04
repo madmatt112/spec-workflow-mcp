@@ -126,6 +126,17 @@ import type { ShellMessage } from '../types.js';
 //   Expected-value source: the fixture's own project id, combined with
 //   design C9's idle/zero/null defaults for a project with no wait or
 //   run record.
+//
+// Criterion "drivenRuns reaches the controller-runs row" (task 6 _Prompt:
+//   "Add the `drivenRuns` option to `ShellFeed` ... whose flush passes its
+//   result to `listRunsForWire`"; design C4; Requirements 1.9, 2.1, 2.2):
+//   Pre-condition: one run record on disk, written through the controller
+//   state, not yet driven on disk (driven lives only in controller memory).
+//   Test: new ShellFeed(projects, send, { drivenRuns: () => <a set holding
+//   the run's id> }).start(), then read the controller-runs message.
+//   Observable result: the row for that run id reads `driven: true`.
+//   Expected-value source: the literal "drivenRuns" option name and its
+//   wiring to `listRunsForWire` in the _Prompt/design C4 text.
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -315,6 +326,26 @@ describe('ShellFeed', () => {
     const latest = ofType(sends, 'controller-runs').slice(-1)[0];
     const row = latest.data.runs.find((r) => r.id === 'run-pr');
     expect(row?.prReads).toEqual(reads);
+  });
+
+  it('reaches the controller-runs row with driven: true when the run id is in drivenRuns', async () => {
+    const base = tmpBase();
+    bases.push(base);
+    const spec = 'driven-spec';
+    const { project } = makeProject(base, spec);
+    await writeRun(runRecord(project, spec, 'run-driven'));
+
+    const sends: ShellMessage[] = [];
+    const feed = new ShellFeed(stubProjects([project]), (m) => sends.push(m), {
+      throttleMs: 20, tickMs: 1_000_000, drivenRuns: () => new Set(['run-driven']),
+    });
+    feeds.push(feed);
+
+    await feed.start();
+
+    const latest = ofType(sends, 'controller-runs').slice(-1)[0];
+    const row = latest.data.runs.find((r) => r.id === 'run-driven');
+    expect(row?.driven).toBe(true);
   });
 
   it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity/controller-actions sextet in order after it', async () => {

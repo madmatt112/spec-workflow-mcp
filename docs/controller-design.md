@@ -332,12 +332,15 @@ control the operator presses, and no run state depends on its output.
   advisor to.
 - **Notebook.** `advisor/notes/` in the home: one Markdown file per thread, an index the
   advisor keeps. Prose by the model, which is what it is for. The controller never reads it.
-- **Push.** `push.json` in the harness home names a URL. The process that takes the
-  controller's start lock runs the one pusher. On its first start it records every open
-  wait without pushing; after that, a new open wait gets one POST carrying only its kind,
-  project, spec and the dashboard URL — no question text, advice or file content. A failed
-  push retries once after a minute, then is logged to the home event log as `push.failure`
-  and dropped.
+- **Push.** `notify.json` in the harness home names an ntfy server, topic and token. The
+  process that takes the controller's start lock runs the one pusher. On its first start it
+  records every open wait without pushing; after that, each new open wait gets one POST.
+  The POST body carries the wait's kind, project, spec and the first line of its first
+  question, with any path-shaped word blanked out. No advice and no file content ever go
+  in the POST; this supersedes the advisor spec's rule that no question text leaves the
+  server. A failed push retries once after a minute, then is logged to the home event log
+  as `push.failure` and dropped. A wait that had a config at its first push gets one
+  reminder, one hour later, if it is still open.
 - **Lifetime.** No resident process, no crons, no polling. A conversation ends when the
   operator closes it; a one-shot exits. A future "watch X" is a scheduled one-shot through
   the controller, logged like any action.

@@ -6,6 +6,7 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { runStep, loadRole, type StepSpec, type ActivityEvent, type RateLimitWindows } from '../step.js';
+import type { StepHeartbeat } from '../heartbeat.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -102,6 +103,61 @@ function readFixtureStream(file: string): unknown[] {
 
 function readFixtureObject(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(FIXTURES, file), 'utf8')) as Record<string, unknown>;
+}
+
+/**
+ * Writes a one-off `claude` stand-in that prints exactly `raw` to stdout, byte
+ * for byte, then exits 0 once the write has flushed. Lets a test drive the
+ * step's line parser with content the canned-run stub (`STUB_CLAUDE_SCRIPT`)
+ * cannot produce: a blank line, non-JSON noise, a JSON scalar, or a final
+ * line with no trailing newline.
+ */
+function writeRawClaudeScript(dir: string, raw: string): string {
+  const scriptPath = join(dir, 'raw-claude.mjs');
+  writeFileSync(
+    scriptPath,
+    `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(raw)}, () => process.exit(0));\n`,
+  );
+  chmodSync(scriptPath, 0o755);
+  return scriptPath;
+}
+
+interface RawOutcome {
+  result: Awaited<ReturnType<typeof runStep>>;
+  calls: string[];
+  activity: ActivityEvent[];
+}
+
+async function runRaw(raw: string, overrides: Partial<StepSpec> = {}): Promise<RawOutcome> {
+  const dir = mkdtempSync(join(tmpdir(), 'ctrl-step-raw-'));
+  const worktree = join(dir, 'wt');
+  mkdirSync(worktree, { recursive: true });
+  const briefPath = join(dir, 'brief.md');
+  writeFileSync(briefPath, 'do the thing');
+  const logPath = join(dir, 'logs', 'step-1.jsonl');
+
+  process.env.CONTROLLER_CLAUDE_BIN = writeRawClaudeScript(dir, raw);
+  delete process.env.STUB_CLAUDE_SCRIPT;
+
+  const calls: string[] = [];
+  const activity: ActivityEvent[] = [];
+  const heartbeat: StepHeartbeat = {
+    line: () => calls.push('line'),
+    end: () => calls.push('end'),
+  };
+  const spec = {
+    role: 'sdd-reviewer',
+    briefPath,
+    worktree,
+    logPath,
+    maxTurns: 8,
+    sessionId: 'sess-1',
+    heartbeat,
+    onActivity: (a: ActivityEvent) => activity.push(a),
+    ...overrides,
+  } as StepSpec;
+  const result = await runStep(spec);
+  return { result, calls, activity };
 }
 
 describe('loadRole', () => {
@@ -344,6 +400,59 @@ describe('runStep', () => {
     expect(bad.classification).toBe('error');
     expect(bad.isError).toBe(true);
     expect(bad.exitCode).toBeNull();
+  });
+});
+
+describe('runStep heartbeat (task 3)', () => {
+  it('fires heartbeat.line() for a non-tool_use JSON object line, before heartbeat.end()', async () => {
+    const { calls, activity } = await runRaw('{"type":"system","subtype":"init"}\n');
+    expect(calls).toEqual(['line', 'end']);
+    expect(activity).toEqual([]);
+  });
+
+  it('does not fire heartbeat.line() for a blank line', async () => {
+    const { calls } = await runRaw('\n');
+    expect(calls).toEqual(['end']);
+  });
+
+  it('does not fire heartbeat.line() for a non-JSON line or a JSON scalar', async () => {
+    const { calls } = await runRaw('not json at all\n"just a scalar string"\n42\n');
+    expect(calls).toEqual(['end']);
+  });
+
+  it('fires heartbeat.line() for a final line with no trailing newline, before heartbeat.end()', async () => {
+    const { calls } = await runRaw('{"type":"system","subtype":"init"}');
+    expect(calls).toEqual(['line', 'end']);
+  });
+
+  it('fires heartbeat.end() exactly once on close, regardless of how many lines preceded it', async () => {
+    const { calls } = await runRaw(
+      '{"type":"system","subtype":"init"}\n{"type":"system","subtype":"init"}\n{"type":"system","subtype":"init"}',
+    );
+    expect(calls).toEqual(['line', 'line', 'line', 'end']);
+    expect(calls.filter((c) => c === 'end')).toHaveLength(1);
+  });
+
+  it('fires heartbeat.end() exactly once when the spawn fails, and never fires heartbeat.line()', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctrl-step-raw-'));
+    const worktree = join(dir, 'wt');
+    mkdirSync(worktree, { recursive: true });
+    const briefPath = join(dir, 'brief.md');
+    writeFileSync(briefPath, 'x');
+    process.env.CONTROLLER_CLAUDE_BIN = '/does/not/exist/claude-xyz';
+    delete process.env.STUB_CLAUDE_SCRIPT;
+
+    const calls: string[] = [];
+    const heartbeat: StepHeartbeat = {
+      line: () => calls.push('line'),
+      end: () => calls.push('end'),
+    };
+    await runStep({
+      role: 'sdd-reviewer', briefPath, worktree,
+      logPath: join(dir, 'step.jsonl'), maxTurns: 4, sessionId: 's',
+      heartbeat,
+    } as StepSpec);
+    expect(calls).toEqual(['end']);
   });
 });
 

@@ -20,13 +20,16 @@ import {
   isProcessAlive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
-import { waitEvents, type ControllerWaitRecord } from './waits.js';
+import {
+  waitEvents, createWait, answerWait, openDriveCrashWait, expireWait,
+  DRIVE_CRASH_QUESTION, type ControllerWaitRecord,
+} from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
-  runOnce, cancelRun, discardRun, writeApprovedRetroPlan, runEvents,
+  runOnce, cancelRun, discardRun, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
 
@@ -135,6 +138,36 @@ export class Controller extends EventEmitter {
   /** Drive the scheduler once (a test seam and the backstop the interval calls). */
   async pump(): Promise<void> {
     await this.schedule();
+  }
+
+  /** The run ids a drive currently holds: `active` plus the keys of `drives` (design C5). */
+  drivenRuns(): ReadonlySet<string> {
+    return new Set([...this.active, ...this.drives.keys()]);
+  }
+
+  /**
+   * Re-drive a stalled run with no restart (design C5 "redrive" post-conditions):
+   * a stalled `running` run resumes from its cursor; a `waiting` run with an open
+   * drive-crash wait is answered `retry` by `operator`, which `onWaitChange`
+   * re-queues. Anything already driven, or any other status, is `not-stalled`.
+   */
+  async redrive(runId: string): Promise<'ok' | 'not-found' | 'not-stalled'> {
+    const run = await readRun(runId);
+    if (!run) return 'not-found';
+    if (!this.started || this.drivenRuns().has(runId)) return 'not-stalled';
+
+    if (run.status === 'running') {
+      this.startDrive(runId);
+      return 'ok';
+    }
+    if (run.status === 'waiting') {
+      const wait = await openDriveCrashWait(runId);
+      if (wait) {
+        await answerWait(wait.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+        return 'ok';
+      }
+    }
+    return 'not-stalled';
   }
 
   // --- enqueue (design §9; Launch admission) -------------------------------
@@ -307,11 +340,18 @@ export class Controller extends EventEmitter {
         if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
           this.reattach(run); // alive: wait on the pid, then re-drive
         } else {
-          this.startDrive(run.id); // dead or none: resume from its cursor
+          await this.clearHeartbeat(run.id); // dead or none: clear the stale value, then resume from its cursor
+          this.startDrive(run.id);
         }
       } else if (run.status === 'waiting') {
-        // A wait answered while the controller was down still resumes the run.
-        await this.resumeIfWaitAnswered(run);
+        const crashWait = await openDriveCrashWait(run.id);
+        if (crashWait) {
+          await expireWait(crashWait.id); // an open drive-crash wait expires and re-drives, no operator action
+          this.startDrive(run.id);
+        } else {
+          // A wait answered while the controller was down still resumes the run.
+          await this.resumeIfWaitAnswered(run);
+        }
       }
     }
   }
@@ -323,12 +363,25 @@ export class Controller extends EventEmitter {
       if (!run.inFlight || !isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
         clearInterval(timer);
         this.resumeTimers.delete(timer);
-        this.active.delete(run.id);
-        this.startDrive(run.id);
+        // `active` keeps holding the run across the heartbeat clear, so `driven`
+        // never reads false in that gap (design C5 "reattach").
+        void this.clearHeartbeat(run.id).then(() => {
+          this.active.delete(run.id);
+          this.startDrive(run.id);
+        });
       }
     }, this.tickMs);
     timer.unref?.();
     this.resumeTimers.add(timer);
+  }
+
+  /** Clear a run's heartbeat, logging rather than throwing on a write failure. */
+  private async clearHeartbeat(runId: string): Promise<void> {
+    try {
+      await setRunHeartbeat(this.now, runId, undefined);
+    } catch (err) {
+      console.error(`[controller] could not clear the heartbeat for ${runId}`, err);
+    }
   }
 
   private async resumeIfWaitAnswered(run: RunRecord): Promise<void> {
@@ -416,7 +469,15 @@ export class Controller extends EventEmitter {
   /** Launch a drive and track its promise so `stop()` can drain it. */
   private startDrive(runId: string): void {
     if (this.active.has(runId) || this.drives.has(runId) || !this.started) return;
-    const p = this.drive(runId).finally(() => this.drives.delete(runId));
+    const p = this.drive(runId).finally(async () => {
+      this.drives.delete(runId);
+      try {
+        const run = await readRun(runId);
+        if (run) runEvents.emit('change', run);
+      } catch (err) {
+        console.error(`[controller] could not read run ${runId} after drive end`, err);
+      }
+    });
     this.drives.set(runId, p);
   }
 
@@ -427,10 +488,45 @@ export class Controller extends EventEmitter {
       await runOnce(this.runDeps(), runId);
     } catch (err) {
       console.error(`[controller] run ${runId} errored`, err);
+      await this.openCrashWait(runId, err);
     } finally {
       this.active.delete(runId);
     }
     if (this.started) void this.schedule();
+  }
+
+  /**
+   * Turn a crashed drive into an `error` wait instead of a silent `running`
+   * (design C5 "Drive crash"). Called inside `drive`'s `try`/`catch`, so
+   * `active` still holds the run while it runs.
+   */
+  private async openCrashWait(runId: string, err: unknown): Promise<void> {
+    try {
+      const run = await readRun(runId);
+      if (!run || this.cancelled.has(runId)) return;
+      if (run.status !== 'queued' && run.status !== 'running' && run.status !== 'merging') return;
+
+      const stepKind = run.cursor?.stepKind ?? 'unknown';
+      const message = err instanceof Error ? err.message : String(err);
+      await createWait({
+        kind: 'error',
+        runId,
+        projectId: run.project,
+        spec: run.spec,
+        specDir: PathUtils.getSpecPath(run.specStore, run.spec),
+        questions: [{
+          id: DRIVE_CRASH_QUESTION,
+          text: `step ${stepKind} failed inside the controller: ${message}`,
+          options: ['retry', 'abandon'],
+          recommended: 'retry',
+        }],
+      });
+
+      const fresh = await readRun(runId);
+      if (fresh) await this.save(fresh, { status: 'waiting', inFlight: undefined });
+    } catch (innerErr) {
+      console.error(`[controller] could not open a crash wait for ${runId}`, innerErr);
+    }
   }
 
   // --- wait answers (design §7) --------------------------------------------

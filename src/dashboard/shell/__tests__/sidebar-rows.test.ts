@@ -193,6 +193,7 @@ function run(overrides: Partial<ControllerRun> & { id: string; project: string }
     tokens: 0,
     created: T.old,
     updated: T.old,
+    driven: false,
     ...overrides,
   };
 }

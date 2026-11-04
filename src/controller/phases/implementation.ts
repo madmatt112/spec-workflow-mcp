@@ -26,6 +26,7 @@ import { execFile, execFileSync } from 'child_process';
 import {
   runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
+import type { StepHeartbeat } from '../heartbeat.js';
 import { routeForTask } from '../implementer-route.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore as commitStore, type RunLedger, type Serialize } from '../ledger.js';
@@ -94,6 +95,8 @@ export interface ImplementationPhaseContext {
   onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
   /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
   onStepEnd?: (id: string) => Promise<void> | void;
+  /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
+  stepHeartbeat?: () => StepHeartbeat;
   /** Serialises spec-store commits; defaults to the T2 per-store lock. */
   serialize?: Serialize;
   now?: () => Date;
@@ -463,6 +466,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
+      heartbeat: ctx.stepHeartbeat?.(),
     };
     const result = await runStep(spec);
     // Both record writes land before the result is acted on, so a status the

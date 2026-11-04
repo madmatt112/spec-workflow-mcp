@@ -13,7 +13,8 @@ import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { ADVISOR_MCP_PATH, loadOrCreateSecret, loadOrCreateAdvisorSecret } from '../../controller/access.js';
 import { createWait } from '../../controller/waits.js';
 import { readWait, readRun, writeRun, readQueue, writeQueue, type RunRecord, type QueueFile } from '../../controller/state.js';
-import { pushConfigPath, searchPath, eventsPath } from '../home.js';
+import { notifyConfigPath, searchPath, eventsPath } from '../home.js';
+import { buildMessage } from '../push.js';
 
 // End-to-end proof for the advisor spec (decomposition entry's verification
 // scenario; tasks.md task 19). Each check drives a real
@@ -411,17 +412,17 @@ describe('advisor end-to-end (task 19; decomposition verification scenario)', ()
     expect(String(actionRows[0].outcome)).toMatch(/merged/i);
   }, 20000);
 
-  // ── Check 5 (Requirement 10 AC 1, AC 3): a wait that appears open
-  // triggers exactly one push. ─────────────────────────────────────────────
-  it('check 5: a new wait gives exactly one push (10.1, 10.3)', async () => {
-    const requests: unknown[] = [];
+  // ── Check 5 (requirements.md 4.3; design C9): a wait that appears open
+  // triggers exactly one push, with the ntfy body/topic design C9 pins. ────
+  it('check 5: a new wait gives exactly one push (4.3)', async () => {
+    const requests: Array<{ path: string; body: string }> = [];
     const captureServer: Server = createServer((req, res) => {
       let raw = '';
       req.on('data', (c) => { raw += c; });
       req.on('end', () => {
-        try { requests.push(JSON.parse(raw)); } catch { requests.push(raw); }
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end('{}');
+        requests.push({ path: req.url ?? '', body: raw });
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end('OK');
       });
     });
     const captureUrl = await new Promise<string>((resolve) => {
@@ -433,19 +434,16 @@ describe('advisor end-to-end (task 19; decomposition verification scenario)', ()
     });
     helperServers.push({ close: () => new Promise<void>((r) => captureServer.close(() => r())) });
 
-    // push.json must exist before the server starts: the pusher's start-up
+    // notify.json must exist before the server starts: the pusher's start-up
     // scan and watch both run inside server.start() (design D2/D3).
-    await fsp.mkdir(dirname(pushConfigPath()), { recursive: true });
-    await fsp.writeFile(
-      pushConfigPath(),
-      JSON.stringify({ v: 1, url: captureUrl, dashboardUrl: 'http://127.0.0.1:1234' }),
-      'utf-8',
-    );
+    const topic = 'sdd-e2e-push';
+    await fsp.mkdir(dirname(notifyConfigPath()), { recursive: true });
+    await fsp.writeFile(notifyConfigPath(), JSON.stringify({ v: 1, ntfy: { url: captureUrl, topic } }), 'utf-8');
 
     await startServer();
 
     const specDir = scratchDir('advisor-e2e-specdir-');
-    await createWait({
+    const wait = await createWait({
       kind: 'question',
       runId: 'run-e2e-push',
       projectId: 'proj-e2e-push',
@@ -458,6 +456,9 @@ describe('advisor end-to-end (task 19; decomposition verification scenario)', ()
     await sleep(300); // settle: prove no second push follows
 
     expect(requests).toHaveLength(1);
-    expect(requests[0]).toEqual({ kind: 'question', project: 'proj-e2e-push', spec: 'spec-e2e-push', dashboardUrl: 'http://127.0.0.1:1234' });
+    expect(requests[0].path).toBe(`/${topic}`);
+    // No project is registered for 'proj-e2e-push', so the name falls back
+    // to the id (design C9 "Project name: ... else ... wait.project").
+    expect(requests[0].body).toBe(buildMessage(wait, 'proj-e2e-push', false).body);
   }, 15000);
 });

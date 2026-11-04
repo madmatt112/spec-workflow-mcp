@@ -192,9 +192,10 @@ export async function buildSetupView(
       };
     });
 
-  // Routing sees only specs on disk. With none left to do, the next spec is the
-  // first one decomposition.md names that has no directory yet; launch creates it.
-  const unstarted = routing.state === 'all-on-disk-complete' || routing.state === 'no-specs'
+  // Routing sees only specs on disk. Every state but `active` names no spec to
+  // work on from what's on disk; the next spec may still be one decomposition.md
+  // names that has no directory yet, so fall back to that before giving up.
+  const unstarted = routing.state !== 'active'
     ? nextUnstartedSpec(workflowRoot)
     : null;
   const launchable = routing.state === 'active' ? routing.spec : unstarted;

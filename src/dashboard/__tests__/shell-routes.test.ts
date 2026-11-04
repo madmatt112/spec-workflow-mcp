@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fsp, writeFileSync, appendFileSync } from 'fs';
+import { promises as fsp, writeFileSync, appendFileSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import net from 'net';
 import { WebSocket } from 'ws';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
+import { loadOrCreateSecret } from '../../controller/access.js';
+import { readRun } from '../../controller/state.js';
+
+const STUB_CLAUDE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-claude.mjs');
 
 // Real fetch, captured before any test below monkeypatches globalThis.fetch to
 // stub the dashboard's npm-version check (as harness-routes.test.ts does).
@@ -203,6 +208,7 @@ describe('shell hub wiring and routes (task 7)', () => {
   let alphaHandoffPath: string;
   let alphaLedgerPath: string;
   let betaWorkflowRoot: string;
+  let secret: string;
   const sockets: WebSocket[] = [];
   const originalEnv = { ...process.env };
 
@@ -286,6 +292,9 @@ describe('shell hub wiring and routes (task 7)', () => {
     port = await getFreePort();
     server = new MultiProjectDashboardServer({ port });
     await server.start();
+    // The mutating harness launch route (used by the task 9 driven-row test
+    // below) needs the shared secret (access control, controller-design.md §17).
+    secret = await loadOrCreateSecret();
     _resetMultiServerWarningsForTests();
   });
 
@@ -533,4 +542,59 @@ describe('shell hub wiring and routes (task 7)', () => {
     expect(row).toBeDefined();
     expect(row.baseline).toBeNull();
   });
+
+  // Contract for task 9 (design C4, C7 hub bullet "`src/dashboard/multi-server
+  // .ts:165-169` passes `{ drivenRuns: () => this.controller.drivenRuns() }`";
+  // Requirements 2.1, 3.1). Pre-condition: alpha's already-registered spec-a
+  // (routed `active` by alphaHandoffPath) is launched for real through
+  // `POST /api/projects/:alphaId/harness/launch`, scripted with a delayed
+  // claude stub (the task's restriction: no real `claude` ever spawns) and
+  // polled until `inFlight` is set. Call: an overview-subscribed ws client's
+  // `controller-runs` messages. Observable result: within five seconds a
+  // `controller-runs` message carries a row for that run id with
+  // `driven: true`. Expected-value source: design C4's "`driven:
+  // driven.has(run.id)`" with the real controller's own live id in the set,
+  // which only reaches the overview feed once `HarnessHub` is built with the
+  // `drivenRuns` closure (the bridge task 9 removes).
+  it('a controller-runs row on an overview socket reads driven: true during a drive', async () => {
+    chmodSync(STUB_CLAUDE, 0o755);
+    const scriptPath = join(tempDir, 'claude-script-h.json');
+    writeFileSync(scriptPath, JSON.stringify([{
+      result: {
+        subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'ok',
+        structured_output: {}, usage: {},
+      },
+      delayMs: 800,
+    }]));
+    process.env.CONTROLLER_CLAUDE_BIN = STUB_CLAUDE;
+    process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+    const launchRes = await realFetch(`http://127.0.0.1:${port}/api/projects/${alphaId}/harness/launch`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify({
+        spec: 'spec-a', supervisorModel: 'claude-opus-5-5', worktree: 'no', gates: 'block', roles: {},
+      }),
+    });
+    const launchBody: any = await launchRes.json();
+    expect(launchRes.status).toBe(200);
+    const runId = launchBody.runId as string;
+
+    const deadline = Date.now() + 5000;
+    for (;;) {
+      const run = await readRun(runId);
+      if (run?.inFlight) break;
+      if (Date.now() > deadline) throw new Error(`run ${runId} never went in flight`);
+      await new Promise((r) => setTimeout(r, 25));
+    }
+
+    const ws = await connect(port);
+    sockets.push(ws);
+    const messages = collect(ws);
+    send(ws, { type: 'overview-subscribe' });
+
+    await waitFor(() => messages
+      .filter((m) => m.type === 'controller-runs')
+      .some((m) => m.data.runs.some((r: any) => r.id === runId && r.driven === true)), 5000);
+  }, 15000);
 });

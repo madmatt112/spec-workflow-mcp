@@ -18,6 +18,7 @@ import {
   runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from './step.js';
 import type { RunRecord } from './state.js';
+import type { StepHeartbeat } from './heartbeat.js';
 import type { RunLedger } from './ledger.js';
 import type { BlockingReason, MergeStageResult } from './merge.js';
 import { IMPLEMENTER_SCHEMA } from './phases/implementation.js';
@@ -49,6 +50,8 @@ export interface MergeFixContext {
   onRateLimit?: (w: RateLimitWindows) => void;
   onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
   onStepEnd?: (id: string) => Promise<void> | void;
+  /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
+  stepHeartbeat?: () => StepHeartbeat;
   /** Where briefs and the standing file go; defaults to `/tmp/scratchpad/sdd/<spec>`. */
   scratchDir?: string;
 }
@@ -221,6 +224,7 @@ export async function runMergeFixRound(
     onActivity: (a) => ctx.onStepActivity?.({ stepId, role: 'sdd-implementer', tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
     onRateLimit: ctx.onRateLimit,
     onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: stepId, pid, startTime }); },
+    heartbeat: ctx.stepHeartbeat?.(),
   };
   const result: StepResult = await runStep(spec);
   await spawnWrite;

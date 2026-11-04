@@ -29,9 +29,10 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
-  writeRun, readRun, listRuns, listWaits,
+  writeRun, readRun, listRuns, listWaits, writeLastActivity,
   isProcessAlive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
+import { createStepHeartbeat, type StepHeartbeat } from './heartbeat.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
@@ -432,10 +433,23 @@ async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>)
   runEvents.emit('change', next);
 }
 
+/**
+ * The single caller of {@link writeLastActivity} from the run loop (design C3):
+ * carries a heartbeat's value into the run record and emits `runEvents`
+ * `change` only when a record was actually written.
+ */
+export async function setRunHeartbeat(
+  now: () => Date, runId: string, value: string | undefined,
+): Promise<void> {
+  const written = await writeLastActivity(runId, value, now().toISOString());
+  if (written) runEvents.emit('change', written);
+}
+
 /** The in-flight step record callbacks every in-code phase gets (design §8). */
 function stepLifecycle(deps: RunDeps, runId: string): {
   onStepSpawn: (s: { id: string; pid: number; startTime: number }) => Promise<void>;
   onStepEnd: (id: string) => Promise<void>;
+  stepHeartbeat: () => StepHeartbeat;
 } {
   return {
     onStepSpawn: (s) => {
@@ -443,6 +457,10 @@ function stepLifecycle(deps: RunDeps, runId: string): {
       return patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
     },
     onStepEnd: () => patchRun(deps, runId, { inFlight: undefined }),
+    stepHeartbeat: () => createStepHeartbeat({
+      now: deps.now,
+      write: (value) => setRunHeartbeat(deps.now, runId, value),
+    }),
   };
 }
 
@@ -1424,9 +1442,13 @@ export interface ControllerRunRow {
   updated: string;
   /** One read per PR for the dashboard (design D5); undefined when the record has none. */
   prReads?: PrRead[];
+  /** Is this process currently driving the run (design C4/C5)? Never written to `run.json`. */
+  driven: boolean;
+  /** The run's last heartbeat (design C3), when it has one. */
+  lastActivity?: string;
 }
 
-function toRow(run: RunRecord): ControllerRunRow {
+function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
   return {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
@@ -1434,13 +1456,15 @@ function toRow(run: RunRecord): ControllerRunRow {
     pausedAt: run.status === 'paused' || run.status === 'waiting' ? (run.pausedAt ?? run.updated) : undefined,
     tokens: run.tokens ? totalW(run.tokens) : 0, created: run.created, updated: run.updated,
     prReads: run.prReads,
+    driven: driven.has(run.id),
+    lastActivity: run.lastActivity,
   };
 }
 
 /** Every run as a path-free wire row, newest first (the GET route and WS payload). */
-export async function listRunsForWire(): Promise<ControllerRunRow[]> {
+export async function listRunsForWire(driven: ReadonlySet<string> = new Set()): Promise<ControllerRunRow[]> {
   const runs = await listRuns();
-  return runs.sort((a, b) => b.created.localeCompare(a.created)).map(toRow);
+  return runs.sort((a, b) => b.created.localeCompare(a.created)).map((r) => toRow(r, driven));
 }
 
 /** The step-log directory for a run (where supervisor/step streams are written). */

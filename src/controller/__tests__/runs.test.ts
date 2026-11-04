@@ -8,13 +8,14 @@ import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import {
   routeRun, parseProposals, buildRetroPlanMarkdown, runOnce, cancelRun, discardRun,
-  withPrRead, listRunsForWire,
+  withPrRead, listRunsForWire, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
 import { createDocumentGates } from '../phases/gates.js';
 import {
-  writeRun, readRun, listWaits, processStartTime, isProcessAlive, type RunRecord, type PrRead,
+  writeRun, readRun, listWaits, processStartTime, isProcessAlive, writeLastActivity,
+  type RunRecord, type PrRead,
 } from '../state.js';
 import { answerWait } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
@@ -524,6 +525,127 @@ describe('listRunsForWire', () => {
     const row = rows.find((r) => r.id === 'run-20261011-000000');
 
     expect(row?.prReads).toBeUndefined();
+  });
+
+  // Source: tasks.md task 6, Success (a)-(e); design C4 `listRunsForWire`/`toRow`.
+  //
+  // Criterion (a) "lastActivity carried": Pre-condition: a run record with
+  //   `lastActivity` set. Test: listRunsForWire(). Observable result: the
+  //   row's `lastActivity` equals the record's value. Expected-value source:
+  //   design C4's `toRow` adding `lastActivity: run.lastActivity`.
+  it('carries lastActivity on the row when the record has it', async () => {
+    // Seeded through `writeLastActivity`, not `writeRun`: design C1 makes
+    // `writeRun` always take `lastActivity` from disk (its one writer is
+    // `writeLastActivity`), so a value passed through `seedRun`/`writeRun`
+    // on a run's first write is discarded.
+    await writeRun(seedRun(fx));
+    await writeLastActivity('run-20261011-000000', '2026-10-11T00:00:05.000Z', '2026-10-11T00:00:05.000Z');
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.lastActivity).toBe('2026-10-11T00:00:05.000Z');
+  });
+
+  // Criterion (b) "lastActivity omitted" (regression guard, named for the
+  //   implementer brief: this branch already holds at base because `toRow`
+  //   carries no `lastActivity` key at all today, so a record with none
+  //   already produces a row with none): Pre-condition: a run record with no
+  //   `lastActivity`. Test: listRunsForWire(). Observable result: the row's
+  //   `lastActivity` is undefined. Expected-value source: design C4.
+  it('omits lastActivity on the row when the record has none', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.lastActivity).toBeUndefined();
+  });
+
+  // Criterion (c) "driven: true for a member of the set": Pre-condition: a
+  //   run record. Test: listRunsForWire(driven) with a set holding the run's
+  //   id. Observable result: the row reads `driven: true`. Expected-value
+  //   source: design C4's `driven: driven.has(run.id)`.
+  it('reads driven: true for a run id in the given set', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire(new Set(['run-20261011-000000']));
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(true);
+  });
+
+  // Criterion (d) "driven: false for a run outside the set": Pre-condition:
+  //   a run record. Test: listRunsForWire(driven) with a set holding a
+  //   different id. Observable result: the row reads `driven: false`.
+  //   Expected-value source: design C4's `driven: driven.has(run.id)`.
+  it('reads driven: false for a run id outside the given set', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire(new Set(['some-other-run']));
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(false);
+  });
+
+  // Criterion (e) "driven: false with no set given": Pre-condition: a run
+  //   record. Test: listRunsForWire() with no argument. Observable result:
+  //   the row reads `driven: false`. Expected-value source: design C4's
+  //   default `= new Set()` and Requirement 2 AC 1 "a dashboard process that
+  //   does not hold the controller lock ... SHALL report driven: false".
+  it('reads driven: false for every row when no set is given', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.driven).toBe(false);
+  });
+});
+
+// Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
+describe('setRunHeartbeat', () => {
+  const RUN_ID = 'run-20261011-000000';
+  const clock = (): Date => new Date('2026-10-11T00:00:10.000Z');
+
+  it('writes the value and emits one change', async () => {
+    // Pre-condition: a non-terminal run record exists on disk.
+    await writeRun(seedRun(fx));
+    const seen: RunRecord[] = [];
+    const onChange = (r: RunRecord): void => { if (r.id === RUN_ID) seen.push(r); };
+    runEvents.on('change', onChange);
+
+    // Test: setRunHeartbeat(now, runId, value).
+    try {
+      await setRunHeartbeat(clock, RUN_ID, '2026-10-11T00:00:05.000Z');
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    // Observable result: the record on disk carries the value, and exactly one
+    // `change` fired with that same value. Source: task 4 Success (a).
+    const run = await readRun(RUN_ID);
+    expect(run?.lastActivity).toBe('2026-10-11T00:00:05.000Z');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].lastActivity).toBe('2026-10-11T00:00:05.000Z');
+  });
+
+  it('emits nothing when no record was written', async () => {
+    // Pre-condition: no run exists at this id, so `writeLastActivity` resolves
+    // undefined (design C1 post-condition (g)) and nothing was written.
+    const seen: RunRecord[] = [];
+    const onChange = (r: RunRecord): void => { seen.push(r); };
+    runEvents.on('change', onChange);
+
+    // Test: setRunHeartbeat(now, runId, value) against a missing run.
+    try {
+      await setRunHeartbeat(clock, 'run-does-not-exist', '2026-10-11T00:00:05.000Z');
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    // Observable result: no `change` event fired. Source: task 4 Success (b).
+    expect(seen).toHaveLength(0);
   });
 });
 

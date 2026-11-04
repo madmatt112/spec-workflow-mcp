@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { execFileSync } from 'child_process';
 import { runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows } from '../step.js';
+import type { StepHeartbeat } from '../heartbeat.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore, type RunLedger, type Serialize } from '../ledger.js';
 import { harnessHandler } from '../../tools/harness.js';
@@ -42,6 +43,8 @@ export interface RetrospectivePhaseContext {
   onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
   /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
   onStepEnd?: (id: string) => Promise<void> | void;
+  /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
+  stepHeartbeat?: () => StepHeartbeat;
   serialize?: Serialize;
   now?: () => Date;
   shouldStop?: () => string | null;
@@ -161,6 +164,7 @@ export async function runRetrospectivePhase(ctx: RetrospectivePhaseContext): Pro
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
+      heartbeat: ctx.stepHeartbeat?.(),
     };
     const result = await runStep(spec);
     // Both record writes land before the result is acted on, so a status the

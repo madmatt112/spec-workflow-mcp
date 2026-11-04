@@ -15,6 +15,7 @@
 //     "result":   { ... },               // the final result object (type forced)
 //     "exitCode": 0,                      // process exit code (default 0)
 //     "delayMs":  0,                      // optional pause before emitting
+//     "eventDelayMs": 0,                  // optional pause between each printed stream line
 //     "edits":    [ { "path": "rel/or/abs", "content": "..." } ],  // writes in cwd
 //     "appends":  [ { "path": "rel/or/abs", "content": "..." } ],  // appends in cwd
 //     "commands": [ "git add -A && git commit -qm x" ]               // shell, in cwd
@@ -135,6 +136,7 @@ async function main() {
   }
 
   for (const event of events) {
+    if (run.eventDelayMs) await new Promise((r) => setTimeout(r, run.eventDelayMs));
     process.stdout.write(`${JSON.stringify(event)}\n`);
   }
   if (run.result) {
