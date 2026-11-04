@@ -16,11 +16,11 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 #### Acceptance Criteria
 
-1. WHEN the gate selects a case whose reasons are all `role`, `profile` or brief reasons THEN the gate SHALL run that case exactly 1 time. The brief reasons are `brief <template>`, `brief source` and `brief: base render unavailable` (`src/evals/select.ts:131`, `src/evals/select.ts:153`, `src/evals/select.ts:200`).
-2. WHEN one gate selects a case with a `case` reason and a case with only a `role` reason THEN the gate SHALL make 3 step calls for the first case and 1 step call for the second. `RunGateOpts.step` is the seam (`src/evals/gate.ts:17`).
+1. WHEN the gate selects a case whose reasons are all `role` (`src/evals/select.ts:188`), `profile` (`src/evals/select.ts:190`) or brief reasons THEN the gate SHALL run that case exactly 1 time. The brief reasons are `brief <template>`, `brief source` and `brief: base render unavailable` (`src/evals/select.ts:131`, `src/evals/select.ts:153`, `src/evals/select.ts:200`).
+2. WHEN one gate selects a case with a `case` reason (`src/evals/select.ts:184`) and a case with only a `role` reason (`src/evals/select.ts:188`) THEN the gate SHALL make 3 step calls for the first case and 1 step call for the second. `RunGateOpts.step` is the seam (`src/evals/gate.ts:17`).
 3. WHEN the gate selects a case with a `case` reason or a `grader <name>` reason, alone or with any other reason, THEN the gate SHALL run that case 3 times. **Invariant (verified, not red-first):** every gate case runs 3 times at base (`src/evals/gate.ts:56-58`, `src/evals/runner.ts:144`).
 4. The reason-to-count rule SHALL have one definition, which both the gate and the `select` command use.
-5. WHEN `selectCases` runs on any range THEN it SHALL return the same case ids, reasons and `provisional` values as at base. **Invariant (verified, not red-first):** `src/evals/__tests__/select.test.ts:158` and its sibling assertions.
+5. WHEN `selectCases` runs on any range THEN it SHALL return the same case ids, reasons and `provisional` values as at base. **Invariant (verified, not red-first):** `src/evals/__tests__/select.test.ts:155-159` and its sibling assertions.
 6. WHEN a direct run of named cases, or of every case, starts THEN each case SHALL run 3 times. **Invariant (verified, not red-first):** `src/evals/cli.ts:137-142` passes no run count.
 7. WHEN a caller of `runCases` passes the uniform `runs` number THEN every case in that call SHALL run that many times. **Invariant (verified, not red-first):** `src/evals/__tests__/runner.test.ts:242`.
 
@@ -105,3 +105,4 @@ The steering directory holds no `product.md`, so this section aligns with the op
 ## Revision History
 
 - **v1** (2026-11-04) — Initial draft.
+  - **Lint pass.** 6 fixed; rejected: none.
