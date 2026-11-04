@@ -20,7 +20,7 @@ import {
 } from '../controller/state.js';
 import { listOpenWaits } from '../controller/waits.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
-import { sourcesPath, pushConfigPath } from './home.js';
+import { sourcesPath, readNotifyConfig } from './home.js';
 import { buildTallies, type Tallies } from './tallies.js';
 
 type Week = Tallies['weeks'][string];
@@ -91,12 +91,7 @@ async function readSourcesFile(): Promise<SourcesFileShape> {
 }
 
 async function pushState(): Promise<'on' | 'off'> {
-  try {
-    await fs.access(pushConfigPath());
-    return 'on';
-  } catch {
-    return 'off';
-  }
+  return (await readNotifyConfig()) ? 'on' : 'off';
 }
 
 /** Build the hello summary fresh from current state (design.md C4). */
