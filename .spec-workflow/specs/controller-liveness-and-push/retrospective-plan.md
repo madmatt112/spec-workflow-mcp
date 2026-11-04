@@ -100,3 +100,5 @@ One line per proposal, written by the close-out phase.
 - P5: skipped — no change chosen
 - P6: skipped — no change chosen
 - P4: skipped — DECISION NEEDED resolved in retrospective-plan.md Decisions as Option A (accept as inherent TDD cost; change nothing); recommended B overridden
+- P1: done — 849159f35835b558c3e3f15d9f2b22b8a6a34acc
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/201

@@ -294,3 +294,10 @@
 {"ts":"2026-11-04T07:07:47.007Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.end","agent":"sdd-implementer","input":"12","output":"4407","cacheWrite":"50799","cacheRead":"209391","tokens":"264609","cacheWrite5m":"0","cacheWrite1h":"50799","model":"claude-opus-4-8"}
 {"ts":"2026-11-04T07:07:47.008Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
 {"ts":"2026-11-04T07:07:47.020Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"task.done","task":"P4","outcome":"skipped"}
+{"ts":"2026-11-04T07:08:02.359Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"task.pick","task":"P1","title":"P1 (F1) — Commit a reusable malformed-stream stub."}
+{"ts":"2026-11-04T07:08:02.367Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-04T07:12:02.350Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.end","agent":"sdd-implementer","input":"56","output":"17450","cacheWrite":"62841","cacheRead":"1682972","tokens":"1763319","cacheWrite5m":"0","cacheWrite1h":"62841","model":"claude-opus-4-8"}
+{"ts":"2026-11-04T07:12:02.350Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-11-04T07:12:02.367Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"gate: item P1 test files from the commit added to the list"}
+{"ts":"2026-11-04T07:12:10.959Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-11-04T07:12:10.979Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"task.done","task":"P1","outcome":"done"}
