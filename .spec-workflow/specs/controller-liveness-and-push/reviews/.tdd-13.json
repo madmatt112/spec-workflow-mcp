@@ -1,0 +1,1 @@
+{"testFiles":["src/advisor/__tests__/push.test.ts"],"seams":{"src/advisor/__tests__/push.test.ts":"WaitPusher.sweepReminders() on the injected now"},"redCommit":"d3ea8b399edeb3531af9cd6bf1d5cde5be668064","baseSha":"f7f52289592344e39f304d26e938c73febb18379","base":"structural-red","head":"pass","amended":false,"judged":null}
