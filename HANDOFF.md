@@ -158,6 +158,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-10-30 | run-pause | closeout | items 12/12 | closed | 7 done, 2 to-do, 3 skipped |
 | 2026-11-03 | controller-liveness-and-push | requirements | v3 | approved | 3 rounds |
 | 2026-11-03 | controller-liveness-and-push | design | v3 | approved | 3 rounds |
+| 2026-11-03 | controller-liveness-and-push | tasks | v1 | approved | 1 rounds |
+| 2026-11-04 | controller-liveness-and-push | implementation | tasks 15/15 | complete | PR #200 |
 
 ## Current state — 2026-08-04
 
@@ -1338,7 +1340,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 15/15, implemented 2026-11-04 |
 | Implemented | 2026-11-04 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/200 |
 | Coverage | logCoverage 15/15; reviewCoverage 15/15; TDD 14 task(s): assertion-red 5, structural-red 9, vacuous 0, inconclusive 0 |
 | Deferrals | 0 added by this spec, 32 open in all |
 | Verifier-skipped | task 10, task 11, task 12, task 13 (gate-only review, retro P6/P15) |
