@@ -8,6 +8,7 @@ import {
   listRuns,
   readRun,
   writeRun,
+  writeLastActivity,
   listWaits,
   readWait,
   writeWait,
@@ -96,6 +97,185 @@ describe('run records', () => {
     await writeRun(b);
     const ids = (await listRuns()).map((r) => r.id).sort();
     expect(ids).toEqual(['run-a', 'run-b']);
+  });
+});
+
+/**
+ * Contract for `writeLastActivity` and the `lastActivity` carry-over in
+ * `writeRun` (design C1; task 1; Requirements 1.1, 1.5, 1.6, 1.7). Per
+ * success criterion of the task's Success line:
+ *
+ * (a) "a stale writeRun keeps the on-disk value": pre — a run whose
+ *     `lastActivity` was set by `writeLastActivity`; call — `writeRun(record)`
+ *     with a record read before that write (no `lastActivity` of its own,
+ *     no opts); result — the on-disk value survives; source — design C1's
+ *     `writeRunLocked` change ("takes lastActivity from disk"), Requirement
+ *     1.5.
+ * (b) "the same with ownsPauseRequest": as (a) but
+ *     `writeRun(record, { ownsPauseRequest: true })`; result — the on-disk
+ *     `lastActivity` still survives, because the option governs only
+ *     `pauseRequested`; source — design C1 ("pauseRequested keeps its
+ *     rule"), Requirement 1.5.
+ * (c) "a value on the record passed to writeRun is ignored": pre — a run
+ *     whose `lastActivity` was set by `writeLastActivity`; call —
+ *     `writeRun(record)` where `record.lastActivity` carries a different,
+ *     explicit value; result — the disk value is kept, not the record's;
+ *     source — design C1 ("always ignoring the value on the record passed
+ *     in").
+ * (d) "a writeRun to done, to abandoned and to error each drops the field":
+ *     pre — a run whose `lastActivity` is set; call — `writeRun(record)`
+ *     with that terminal status; result — `lastActivity` absent; source —
+ *     Requirement 1.7.
+ * (e) "writeLastActivity changes only lastActivity and updated": pre — a run
+ *     with `phase`, `cursor` and `pauseRequested` set; call —
+ *     `writeLastActivity(id, value, updated)`; result — every other field
+ *     unchanged, `lastActivity` and `updated` hold the new values; source —
+ *     Requirement 1.6, design C1 post-condition 2.
+ * (f) "queued behind a status write, it keeps that status": pre — a
+ *     `running` run; call — `writeRun(record with a new status)`, then
+ *     without awaiting it, `writeLastActivity(id, value, updated)` for the
+ *     same id; result — the settled record carries the new status and the
+ *     new `lastActivity`; source — Requirement 1.6 ("the status change
+ *     shall survive the heartbeat write"), design C1 post-condition 1
+ *     (queued behind `writeRun` on `writeChains`).
+ * (g) "it resolves undefined and writes nothing", three sub-cases — a
+ *     missing run, a terminal run, and an undefined value on an
+ *     already-absent field; source — design C1 post-condition 3.
+ * (h) "otherwise it resolves the record written": pre — a non-terminal run;
+ *     call — `writeLastActivity(id, value, updated)`; result — resolves the
+ *     full written record; source — design C1 post-condition 3.
+ */
+describe('writeLastActivity and the lastActivity carry-over in writeRun', () => {
+  function runWith(overrides: Record<string, unknown> = {}): RunRecord {
+    return { ...sampleRun('run-heartbeat'), ...overrides } as RunRecord;
+  }
+
+  it('(a) a stale writeRun keeps the on-disk lastActivity value', async () => {
+    const run = runWith({ status: 'running' });
+    await writeRun(run);
+    await writeLastActivity(run.id, '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+    await writeRun(runWith({ status: 'running' })); // stale: no lastActivity, no opts
+
+    const record = (await readRun(run.id)) as any;
+    expect(record.lastActivity).toBe('2026-11-03T10:00:00.000Z');
+  });
+
+  it('(b) the same holds for a stale write that owns pauseRequested', async () => {
+    const run = runWith({ status: 'running' });
+    await writeRun(run);
+    await writeLastActivity(run.id, '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+    await writeRun(runWith({ status: 'running' }), { ownsPauseRequest: true });
+
+    const record = (await readRun(run.id)) as any;
+    expect(record.lastActivity).toBe('2026-11-03T10:00:00.000Z');
+  });
+
+  it('(c) a value on the record passed to writeRun is ignored', async () => {
+    const run = runWith({ status: 'running' });
+    await writeRun(run);
+    await writeLastActivity(run.id, '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+    await writeRun(runWith({ status: 'running', lastActivity: '1999-01-01T00:00:00.000Z' }));
+
+    const record = (await readRun(run.id)) as any;
+    expect(record.lastActivity).toBe('2026-11-03T10:00:00.000Z');
+  });
+
+  it.each(['done', 'abandoned', 'error'] as const)(
+    '(d) a writeRun to %s drops lastActivity',
+    async (status) => {
+      const run = runWith({ status: 'running' });
+      await writeRun(run);
+      await writeLastActivity(run.id, '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+      await writeRun(runWith({ status }));
+
+      const record = (await readRun(run.id)) as any;
+      expect(record.lastActivity).toBeUndefined();
+    },
+  );
+
+  it('(e) writeLastActivity changes only lastActivity and updated', async () => {
+    const run = runWith({
+      status: 'running',
+      phase: 'implementation',
+      pauseRequested: '2026-11-03T09:00:00.000Z',
+    });
+    await writeRun(run, { ownsPauseRequest: true });
+
+    const written = (await writeLastActivity(
+      run.id,
+      '2026-11-03T10:30:00.000Z',
+      '2026-11-03T10:30:05.000Z',
+    )) as any;
+
+    expect(written?.lastActivity).toBe('2026-11-03T10:30:00.000Z');
+    expect(written?.updated).toBe('2026-11-03T10:30:05.000Z');
+    expect(written?.phase).toBe('implementation');
+    expect(written?.pauseRequested).toBe('2026-11-03T09:00:00.000Z');
+    expect(written?.cursor).toEqual(run.cursor);
+    expect(written?.status).toBe('running');
+  });
+
+  it('(f) queued behind a status write, it keeps that status', async () => {
+    const run = runWith({ status: 'running' });
+    await writeRun(run);
+
+    const statusWrite = writeRun(runWith({ status: 'waiting' }));
+    const heartbeatWrite = writeLastActivity(run.id, '2026-11-03T11:00:00.000Z', '2026-11-03T11:00:00.000Z');
+    await Promise.all([statusWrite, heartbeatWrite]);
+
+    const record = (await readRun(run.id)) as any;
+    expect(record.status).toBe('waiting');
+    expect(record.lastActivity).toBe('2026-11-03T11:00:00.000Z');
+  });
+
+  describe('(g) resolves undefined and writes nothing', () => {
+    it('for a missing run', async () => {
+      const result = await writeLastActivity('no-such-run', '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+      expect(result).toBeUndefined();
+      expect(await readRun('no-such-run')).toBeUndefined();
+    });
+
+    it('for a terminal run', async () => {
+      const run = runWith({ status: 'done' });
+      await writeRun(run);
+
+      const result = await writeLastActivity(run.id, '2026-11-03T10:00:00.000Z', '2026-11-03T10:00:00.000Z');
+
+      expect(result).toBeUndefined();
+      const record = (await readRun(run.id)) as any;
+      expect(record.lastActivity).toBeUndefined();
+      expect(record.updated).toBe(run.updated);
+    });
+
+    it('for an undefined value on an already-absent field', async () => {
+      const run = runWith({ status: 'running' });
+      await writeRun(run);
+
+      const result = await writeLastActivity(run.id, undefined, '2026-11-03T12:00:00.000Z');
+
+      expect(result).toBeUndefined();
+      const record = (await readRun(run.id)) as any;
+      expect(record.lastActivity).toBeUndefined();
+      expect(record.updated).toBe(run.updated);
+    });
+  });
+
+  it('(h) otherwise it resolves the record written', async () => {
+    const run = runWith({ status: 'running' });
+    await writeRun(run);
+
+    const written = await writeLastActivity(run.id, '2026-11-03T13:00:00.000Z', '2026-11-03T13:00:05.000Z');
+
+    expect(written).toEqual({
+      ...run,
+      lastActivity: '2026-11-03T13:00:00.000Z',
+      updated: '2026-11-03T13:00:05.000Z',
+    });
   });
 });
 
