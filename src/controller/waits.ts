@@ -189,6 +189,32 @@ export async function listOpenWaits(): Promise<ControllerWaitRecord[]> {
   return waits.sort((a, b) => b.created.localeCompare(a.created));
 }
 
+/** The question id a drive-crash wait carries (design C6). */
+export const DRIVE_CRASH_QUESTION = 'drive-crash';
+
+/** The open drive-crash wait for a run, or `undefined` when there is none. */
+export async function openDriveCrashWait(runId: string): Promise<ControllerWaitRecord | undefined> {
+  const waits = await listOpenWaits();
+  return waits.find((w) => w.run === runId && w.questions.some((q) => q.id === DRIVE_CRASH_QUESTION));
+}
+
+/**
+ * Expire a wait: an open wait becomes `expired`, is written and `change` is
+ * emitted; any other state (or an unknown id) returns unchanged with no write
+ * and no emit. Writes no `questions.md` and no ledger row (design C6).
+ */
+export async function expireWait(id: string): Promise<ControllerWaitRecord | undefined> {
+  return enqueueWaitWrite(id, async () => {
+    const record = (await readWait(id)) as ControllerWaitRecord | undefined;
+    if (!record) return undefined;
+    if (record.state !== 'open') return record;
+    record.state = 'expired';
+    await writeWait(record);
+    waitEvents.emit('change', record);
+    return record;
+  });
+}
+
 /** Open and answered waits, newest first (the GET route and the WS payload). */
 export async function listWaitsForView(): Promise<ControllerWaitRecord[]> {
   const waits = (await listWaits()) as ControllerWaitRecord[];
