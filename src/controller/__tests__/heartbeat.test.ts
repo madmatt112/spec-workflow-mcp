@@ -41,7 +41,7 @@ import { createStepHeartbeat } from '../heartbeat.js';
 //     source: design C3 post-condition 5, second half.
 
 function fakeNow(...values: Date[]) {
-  const now = vi.fn<[], Date>();
+  const now = vi.fn<() => Date>();
   for (const value of values) now.mockReturnValueOnce(value);
   return now;
 }
