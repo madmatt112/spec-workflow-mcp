@@ -23,7 +23,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 1.3, 1.4_
   - _Prompt: Task: Create `src/controller/heartbeat.ts` with the design C3 interface and its five post-conditions. The value written is the time of the last recorded line, not the write time (design D3, requirement 1.3). | Restrictions: Unref the window timer. Test on `vi.useFakeTimers()` with a fake `write`, never a real wait (NFR Reliability). | Success: Each case has its own test: (a) the first `line()` writes at once with `now()`; (b) a `line()` inside an open window writes nothing then; (c) at the window's end one write carries the last line's time and a new window opens; (d) a window with no line closes with no write, and the next `line()` writes at once; (e) `end()` cancels the timer, drops the unwritten line and writes undefined once; (f) every later `line()` and `end()` is a no-op; (g) a rejected `write` is logged with `console.error` and does not reach the caller_
 
-- [ ] 3. Report stream lines and step end through the step spec
+- [x] 3. Report stream lines and step end through the step spec
   - File: src/controller/step.ts
   - Test: src/controller/__tests__/step.test.ts — runStep(spec) with a recording heartbeat
   - Add the optional heartbeat to `StepSpec`, typed from task 2, and call it from the stream and settle paths.

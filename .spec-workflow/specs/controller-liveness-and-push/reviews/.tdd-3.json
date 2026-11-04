@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/step.test.ts"],"seams":{"src/controller/__tests__/step.test.ts":"runStep(spec) with a recording heartbeat"},"redCommit":"62997cc140e4f7f1002cddbcd86cc011e64c3e95","baseSha":"9880cfd5aa4f40ef448d58f236cb7afbc4e48158","base":"assertion-red","head":"pass","amended":false,"judged":null}
