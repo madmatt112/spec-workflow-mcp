@@ -8,8 +8,8 @@ import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { WaitPusher, buildMessage } from '../push.js';
 import { notifyConfigPath, pushedPath, eventsPath } from '../home.js';
-import { createWait, listOpenWaits, type ControllerWaitRecord } from '../../controller/waits.js';
-import { writeProjects, controllerHome, type WaitRecord, type KnownProject } from '../../controller/state.js';
+import { createWait, listOpenWaits, answerWait, expireWait, type ControllerWaitRecord } from '../../controller/waits.js';
+import { writeProjects, writeWait, controllerHome, type WaitRecord, type KnownProject } from '../../controller/state.js';
 
 // Contract for `buildMessage` (src/advisor/push.ts, design.md C9, D12;
 // requirements.md 4.3, 4.8, 5.1; task 11 _Prompt). Pure: no fs, no fetch, no
@@ -829,5 +829,712 @@ describe('WaitPusher', () => {
 
     expect(capture.requests).toHaveLength(0);
     expect(await readPushedIds()).toContain(wait.id);
+  });
+});
+
+// Contract for the reminder sweep in src/advisor/push.ts (design.md C9 "sweepReminders
+// post-conditions", D8-D10, the `pushed.json` Data Model; task 13 _Prompt;
+// requirements.md 5.1-5.6). The `WaitPusherOptions.now` and `sweepMs` seams and the public
+// `sweepReminders()` entry do not exist yet (task 12 left them); every case below reaches
+// the behaviour only by constructing `new WaitPusher({ now, sweepMs })` and calling
+// `start()` / `sweepReminders()` / `stop()`, never a private member. No collaborator inside
+// push.ts is mocked: waits are written through the real `createWait`/`writeWait`
+// (src/controller/waits.ts, src/controller/state.ts) and a push is a real HTTP POST to a
+// plain `http.createServer` capture server, same pattern as the WaitPusher block above.
+//
+// Criteria (a) and (e), folded into one test ("a wait open one hour after its first push
+//   gets one reminder with the marker" and "a first push on a live wait arms it", 5.1):
+//   Pre-condition: a started WaitPusher with an injected `now`; a wait created in-process
+//   after start (so the live `handleWait` path, not the start scan, records `firstPush`).
+//   Test: after the first push lands, advance the injected clock by exactly one hour and
+//   call `await pusher.sweepReminders()`.
+//   Observable result: a second request arrives whose body equals
+//   `buildMessage(wait, projectId, true).body` (the reminder marker). (e)'s coverage is
+//   this same test's first phase: the reminder firing at all proves `firstPush` was armed
+//   when the wait was created live.
+//   Expected-value source: design C9 "sweepReminders post-conditions: ... POST with
+//   reminder: true" and "Recording a new wait ... handleWait ...: ... set firstPush[id] to
+//   now()".
+//
+// Criterion (b) "none before the hour" (5.1):
+//   Pre-condition: same as (a), one first push landed.
+//   Test: advance the clock by one hour minus one second, call `sweepReminders()`.
+//   Observable result: no second request arrives.
+//   Expected-value source: design C9 "with now() - firstPush[id] >= 3_600_000".
+//
+// Criterion (c) "the hour runs from the first push, so a wait created long before it gets
+//   no immediate reminder" (5.1):
+//   Pre-condition: a wait written directly (bypassing `createWait`) with `created` two
+//   hours before the pusher's injected `now`; the live file-watch path performs its first
+//   push for it at that `now`.
+//   Test: immediately after that first push (no clock advance), call `sweepReminders()`.
+//   Observable result: no second request arrives, despite `created` being two hours in the
+//   past.
+//   Expected-value source: requirements.md 5.1 "The hour runs from that first push, never
+//   from created"; design "Reminder anchor: ... times the reminder from the first push, not
+//   the wait's created time".
+//
+// Criterion (d) "a first push on the start scan arms the reminder" (5.1):
+//   Pre-condition: an existing (non-first-start) `pushed.json` that already names one
+//   unrelated wait id; a second, new open wait on disk before the pusher starts.
+//   Test: `pusher.start()` (the start scan pushes the new wait, not the live file-watch
+//   path), then advance the clock by one hour and call `sweepReminders()`.
+//   Observable result: a reminder request arrives for the new wait.
+//   Expected-value source: design C9 "Recording a new wait (runStartupScan loop and
+//   handleWait ...): ... set firstPush[id] to now()" — the scan loop shares this step with
+//   the live path.
+//
+// Criterion (f) "none after an answer" (5.3):
+//   Pre-condition: a wait pushed once, then answered before the hour is up.
+//   Test: advance the clock by one hour, call `sweepReminders()`.
+//   Observable result: no second request arrives.
+//   Expected-value source: requirements.md 5.3; design "POST with reminder: true only if
+//   the wait is open".
+//
+// Criterion (g) "none after expiry" (5.3):
+//   Pre-condition: a wait pushed once, then expired before the hour is up.
+//   Test: advance the clock by one hour, call `sweepReminders()`.
+//   Observable result: no second request arrives.
+//   Expected-value source: requirements.md 5.3; design, same sentence as (f).
+//
+// Criterion (h) "a failed reminder retries once, logs one push.failure row and is never
+//   rescheduled" (5.2):
+//   Pre-condition: a server that answers the first request (the initial push) with 200 and
+//   destroys every connection after that; a wait pushed once successfully.
+//   Test: advance the clock by one hour, call `sweepReminders()` (the reminder's own POST
+//   fails and retries once), then call `sweepReminders()` again.
+//   Observable result: exactly two more requests land after the first (the reminder's
+//   attempt and its one retry); exactly one `push.failure` row is appended, whose `detail`
+//   names it a reminder; the second `sweepReminders()` call sends no further request.
+//   Expected-value source: requirements.md 5.2 "A failed reminder SHALL follow Requirement 4
+//   AC 5 and SHALL not be rescheduled"; design C9 "the id is recorded before the POST, so a
+//   failed reminder is not rescheduled" and "detail names ... whether it was a reminder".
+//
+// Criterion (i) "a failed first POST leaves the reminder armed" (D10, 5.1):
+//   Pre-condition: a wait's first push POST fails twice (a server that destroys every
+//   connection); the config is then repointed at a working capture server before the hour
+//   is up.
+//   Test: advance the clock by one hour, call `sweepReminders()`.
+//   Observable result: one reminder request lands at the working server.
+//   Expected-value source: design D10 "A failed first POST still arms the reminder" and C9
+//   "The record is written before the POST, so a crash cannot double-send" (recording
+//   precedes the send attempt either way).
+//
+// Criterion (j) "a wait seen with no config never gets one" (D10, 5.1):
+//   Pre-condition: a wait created while no `notify.json` exists at all; a working capture
+//   server and config are added afterwards.
+//   Test: advance the clock by one hour, call `sweepReminders()`.
+//   Observable result: `pushed.json`'s `reminded` list already names the wait right after
+//   creation; no request ever lands at the capture server.
+//   Expected-value source: design C9 "Recording a new wait ...: ... Without one, add it to
+//   ids and reminded" and D10 "a wait seen with no config never does".
+//
+// Criterion (k) "a restart past the hour sends at the start sweep" (5.4):
+//   Pre-condition: a `pushed.json` naming a wait's `firstPush` time two hours before a new
+//   pusher instance's injected `now` (simulating a restart long after the original push).
+//   Test: `pusher.start()` alone (no explicit `sweepReminders()` call).
+//   Observable result: one reminder request lands, sent by the sweep `start()` enqueues.
+//   Expected-value source: design C9 "A restart past the hour sends through the sweep
+//   start() enqueues."; requirements.md 5.4.
+//
+// Criterion (l) "a restart inside the hour sends only after it" (5.4):
+//   Pre-condition: a `pushed.json` naming a wait's `firstPush` time thirty minutes before a
+//   new pusher instance's injected `now`.
+//   Test: `pusher.start()`, confirm nothing arrives, then advance the clock to the hour mark
+//   and call `sweepReminders()`.
+//   Observable result: no request after `start()`; one reminder request after the clock
+//   reaches the hour and the sweep runs.
+//   Expected-value source: requirements.md 5.4 "schedule the reminder for that time plus one
+//   hour, or send it at once if that time has passed" (negated: it has not passed yet).
+//
+// Criterion (m) "a restart after a reminder sends no second one" (5.2, 5.4):
+//   Pre-condition: a `pushed.json` already naming the wait's id as `reminded`, with a
+//   `firstPush` time two hours before a new pusher instance's injected `now`.
+//   Test: `pusher.start()`, then call `sweepReminders()` again for good measure.
+//   Observable result: no request ever lands.
+//   Expected-value source: requirements.md 5.4 "It SHALL record which waits it has
+//   reminded, so a restart never sends a second reminder."
+//
+// Criterion (n) "first start marks every open wait reminded and sends nothing" (5.5):
+//   Pre-condition: one open wait on disk, no readable `pushed.json` at all, a working
+//   config.
+//   Test: `pusher.start()`, then advance the clock by over an hour and call
+//   `sweepReminders()`.
+//   Observable result: no request ever lands; `pushed.json`'s `ids` and `reminded` both
+//   name the wait right after `start()`.
+//   Expected-value source: requirements.md 5.5; design C9 "First start (no readable
+//   record): ids and reminded both take every open wait; nothing is sent".
+//
+// Criterion (o) "a legacy record gets no reminder and still reads" (D9):
+//   Pre-condition: a `pushed.json` written in today's shape (`{ v: 1, ids: [id] }`, no
+//   `firstPush`/`reminded` fields) naming an open wait's id.
+//   Test: `pusher.start()` (must not throw), then advance the clock and call
+//   `sweepReminders()`.
+//   Observable result: `start()` completes with no new push (the id is already in `ids`);
+//   no reminder request ever lands (the id is absent from `firstPush`).
+//   Expected-value source: design D9 "The pushed record stays version 1 and gains two
+//   optional fields ... an old file then reads correctly with no migration" and the Data
+//   Models note "ids never get a reminder and no migration runs".
+//
+// Criterion (p) "a file with no ids array counts as a first start" (design C9 pushed.json):
+//   Pre-condition: a `pushed.json` holding `{ v: 1 }` (no `ids` field at all); one open wait
+//   on disk; a working config.
+//   Test: `pusher.start()`.
+//   Observable result: no request lands (unlike a normal non-first-start scan, which would
+//   push the unseen wait); `pushed.json`'s `ids` and `reminded` both name the wait.
+//   Expected-value source: design C9 pushed.json "A file with no ids array counts as
+//   unreadable (a first start)."
+//
+// Criterion (q) "a write prunes a gone wait from all three fields" (design C9 pushed.json):
+//   Pre-condition: a `pushed.json` naming an id in `ids`, `firstPush` and `reminded` whose
+//   wait file does not exist on disk.
+//   Test: trigger one write (a new live wait pushed through the real flow).
+//   Observable result: the written `pushed.json` has that gone id absent from `ids`, from
+//   the `firstPush` keys and from `reminded`.
+//   Expected-value source: design C9 pushed.json "Each write drops, from all three fields,
+//   any id whose wait file is gone."
+//
+// Criterion (r) "stop() clears the sweep timer" (design C9 Start):
+//   Pre-condition: a `WaitPusher` constructed with a distinctive `sweepMs`.
+//   Test: `pusher.start()`, then `pusher.stop()`.
+//   Observable result: `start()` armed one `setInterval` at that distinctive delay; `stop()`
+//   cleared that same interval handle.
+//   Expected-value source: design C9 "start() enqueues one sweep and arms an unref'd
+//   setInterval of sweepMs; stop() clears it."
+//
+// Criteria (s) and (t), design Testing Strategy #4 ("a capture server stands in for ntfy:
+//   one message, then one reminder on the injected clock, then nothing"; "nothing after an
+//   early answer"):
+//   (s) Pre-condition/Test: as (a), plus a second `sweepReminders()` call one more hour
+//     later. Observable result: still exactly two requests total, ever.
+//   (t) Pre-condition/Test: as (f). Observable result: exactly one request, ever.
+//   Expected-value source: design "Testing Strategy" end-to-end item 4.
+const HOUR_MS = 3_600_000;
+
+function clockBox(initial: Date) {
+  let current = initial;
+  return {
+    now: () => current,
+    set(value: Date) {
+      current = value;
+    },
+    advanceMs(ms: number) {
+      current = new Date(current.getTime() + ms);
+    },
+  };
+}
+
+async function writeRawWait(overrides: Partial<WaitRecord> & { id: string }): Promise<WaitRecord> {
+  const record: WaitRecord = {
+    v: 1,
+    kind: 'question',
+    run: 'run-raw',
+    project: 'proj-raw',
+    spec: 'spec-raw',
+    created: new Date().toISOString(),
+    questions: [{ id: 'q1', text: 'raw question text' }],
+    state: 'open',
+    ...overrides,
+  };
+  await writeWait(record);
+  return record;
+}
+
+interface PushedRaw {
+  v: 1;
+  ids: string[];
+  firstPush?: Record<string, string>;
+  reminded?: string[];
+}
+
+async function writePushedRaw(file: PushedRaw): Promise<void> {
+  await fs.mkdir(dirname(pushedPath()), { recursive: true });
+  await fs.writeFile(pushedPath(), JSON.stringify(file), 'utf-8');
+}
+
+async function readPushedRaw(): Promise<PushedRaw | undefined> {
+  try {
+    const raw = await fs.readFile(pushedPath(), 'utf-8');
+    return JSON.parse(raw) as PushedRaw;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A server that answers the first request with 200 and destroys every connection after. */
+async function startServerThatFailsAfterFirst(): Promise<{ url: string; calls: { count: number }; close(): Promise<void> }> {
+  const calls = { count: 0 };
+  const server: Server = createServer((req, res) => {
+    calls.count += 1;
+    if (calls.count === 1) {
+      req.on('data', () => {});
+      req.on('end', () => {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end('OK');
+      });
+    } else {
+      req.socket.destroy();
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const addr = server.address();
+  const port = typeof addr === 'object' && addr ? addr.port : 0;
+  return {
+    url: `http://127.0.0.1:${port}`,
+    calls,
+    close: () => new Promise<void>((r) => server.close(() => r())),
+  };
+}
+
+describe('sweepReminders', () => {
+  it('(a, e) a wait open one hour after its first push gets one reminder, armed by firstPush on a live wait (5.1)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-rem-a', 'proj-rem-a');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(2);
+    const expected = buildMessage(wait, 'proj-rem-a', true);
+    expect(capture.requests[1].body).toBe(expected.body);
+  });
+
+  it('(b) sends no reminder before the hour elapses (5.1)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-rem-b', 'proj-rem-b');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+
+    box.advanceMs(HOUR_MS - 1000);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(1);
+  });
+
+  it("(c) the hour runs from the first push, not from created, so a long-past created time gets no immediate reminder (5.1)", async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const t0 = new Date('2026-11-04T00:00:00.000Z');
+    const box = clockBox(t0);
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await writeRawWait({
+      id: 'w-old-created',
+      created: new Date(t0.getTime() - 2 * HOUR_MS).toISOString(),
+      project: 'proj-rem-c',
+      spec: 'spec-rem-c',
+      state: 'open',
+    });
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(1);
+  });
+
+  it('(d) a first push performed during the start scan arms the reminder (5.1)', async () => {
+    const seedWait = await makeOpenWait('spec-rem-seed', 'proj-rem-seed');
+    await writePushedRaw({ v: 1, ids: [seedWait.id], firstPush: {}, reminded: [] });
+    const newWait = await makeOpenWait('spec-rem-d', 'proj-rem-d');
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].path).toBe('/sdd-ops');
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(2);
+    const expected = buildMessage(newWait, 'proj-rem-d', true);
+    expect(capture.requests[1].body).toBe(expected.body);
+  });
+
+  it('(f) a wait answered before the hour gets no reminder (5.3)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-rem-f', 'proj-rem-f');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+
+    await answerWait(wait.id, { q1: 'A' }, 'operator');
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(1);
+  });
+
+  it('(g) a wait expired before the hour gets no reminder (5.3)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-rem-g', 'proj-rem-g');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+
+    await expireWait(wait.id);
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(1);
+  });
+
+  it('(h) a failed reminder retries once, logs one push.failure row naming it a reminder, and is never rescheduled (5.2)', async () => {
+    const server = await startServerThatFailsAfterFirst();
+    servers.push(server);
+    await writeNotifyConfig(server.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now, retryDelayMs: 20 } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-rem-h', 'proj-rem-h');
+    await waitFor(() => server.calls.count > 0);
+    await sleep(200);
+    expect(server.calls.count).toBe(1);
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(200);
+
+    expect(server.calls.count).toBe(3);
+
+    const failureRows = (await readEventRows()).filter((r) => r.type === 'push.failure');
+    expect(failureRows).toHaveLength(1);
+    expect(String(failureRows[0].detail).toLowerCase()).toContain('reminder');
+
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(100);
+    expect(server.calls.count).toBe(3);
+  }, 10000);
+
+  it('(i) a failed first POST still leaves the reminder armed (D10, 5.1)', async () => {
+    const failing = await startFailingServer();
+    servers.push(failing);
+    await writeNotifyConfig(failing.url, 'sdd-ops-i');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now, retryDelayMs: 20 } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-rem-i', 'proj-rem-i');
+    await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'));
+    await sleep(100);
+    expect(failing.counter.count).toBe(2);
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops-i');
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].body.startsWith('Reminder:')).toBe(true);
+  }, 10000);
+
+  it('(j) a wait seen with no config never gets a reminder (D10, 5.1)', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    const wait = await makeOpenWait('spec-rem-j', 'proj-rem-j');
+    await sleep(200);
+
+    const raw = await readPushedRaw();
+    expect(raw?.reminded).toContain(wait.id);
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    box.advanceMs(HOUR_MS);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(200);
+
+    expect(capture.requests).toHaveLength(0);
+  });
+
+  it('(k) a restart past the hour sends the reminder at the start sweep (5.4)', async () => {
+    const wait = await makeOpenWait('spec-rem-k', 'proj-rem-k');
+    const tOld = new Date('2026-11-04T00:00:00.000Z');
+    await writePushedRaw({ v: 1, ids: [wait.id], firstPush: { [wait.id]: tOld.toISOString() }, reminded: [] });
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const tNew = new Date(tOld.getTime() + 2 * HOUR_MS);
+    const pusher = new WaitPusher({ now: () => tNew } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    await waitFor(() => capture.requests.length > 0, 2000);
+    await sleep(200);
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].body.startsWith('Reminder:')).toBe(true);
+  });
+
+  it('(l) a restart inside the hour withholds the reminder until it is due (5.4)', async () => {
+    const wait = await makeOpenWait('spec-rem-l', 'proj-rem-l');
+    const tOld = new Date('2026-11-04T00:00:00.000Z');
+    await writePushedRaw({ v: 1, ids: [wait.id], firstPush: { [wait.id]: tOld.toISOString() }, reminded: [] });
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date(tOld.getTime() + 30 * 60 * 1000));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+    await sleep(300);
+    expect(capture.requests).toHaveLength(0);
+
+    box.set(new Date(tOld.getTime() + HOUR_MS));
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+
+    expect(capture.requests).toHaveLength(1);
+  });
+
+  it('(m) a restart after the reminder already sent never sends a second one (5.2, 5.4)', async () => {
+    const wait = await makeOpenWait('spec-rem-m', 'proj-rem-m');
+    const tOld = new Date('2026-11-04T00:00:00.000Z');
+    await writePushedRaw({ v: 1, ids: [wait.id], firstPush: { [wait.id]: tOld.toISOString() }, reminded: [wait.id] });
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const tNew = new Date(tOld.getTime() + 2 * HOUR_MS);
+    const pusher = new WaitPusher({ now: () => tNew } as never);
+    pushers.push(pusher);
+    await pusher.start();
+    await sleep(300);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(100);
+
+    expect(capture.requests).toHaveLength(0);
+  });
+
+  it('(n) first start marks every open wait reminded and sends nothing (5.5)', async () => {
+    const wait = await makeOpenWait('spec-rem-n', 'proj-rem-n');
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(0);
+    const raw = await readPushedRaw();
+    expect(raw?.ids).toContain(wait.id);
+    expect(raw?.reminded).toContain(wait.id);
+
+    box.advanceMs(HOUR_MS + 1000);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(100);
+    expect(capture.requests).toHaveLength(0);
+  });
+
+  it('(o) a legacy pushed.json record with no firstPush/reminded fields gets no reminder and still reads (D9)', async () => {
+    const wait = await makeOpenWait('spec-rem-o', 'proj-rem-o');
+    await writePushedRaw({ v: 1, ids: [wait.id] });
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+    const pusher = new WaitPusher({ now: box.now } as never);
+    pushers.push(pusher);
+    await pusher.start();
+    await sleep(200);
+    expect(capture.requests).toHaveLength(0);
+
+    box.advanceMs(HOUR_MS + 1000);
+    await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+    await sleep(100);
+    expect(capture.requests).toHaveLength(0);
+  });
+
+  it('(p) a pushed.json file with no ids array counts as a first start (design C9 pushed.json)', async () => {
+    const wait = await makeOpenWait('spec-rem-p', 'proj-rem-p');
+    await fs.mkdir(dirname(pushedPath()), { recursive: true });
+    await fs.writeFile(pushedPath(), JSON.stringify({ v: 1 }), 'utf-8');
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(0);
+    const raw = await readPushedRaw();
+    expect(raw?.ids).toContain(wait.id);
+    expect(raw?.reminded).toContain(wait.id);
+  });
+
+  it('(q) a write prunes a gone wait from ids, firstPush and reminded alike (design C9 pushed.json)', async () => {
+    await writePushedRaw({
+      v: 1,
+      ids: ['gone-id'],
+      firstPush: { 'gone-id': new Date().toISOString() },
+      reminded: ['gone-id'],
+    });
+
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-rem-q', 'proj-rem-q');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(200);
+
+    const raw = await readPushedRaw();
+    expect(raw?.ids).not.toContain('gone-id');
+    expect(raw?.firstPush).toBeDefined();
+    expect(Object.keys(raw!.firstPush!)).not.toContain('gone-id');
+    expect(raw?.reminded).toBeDefined();
+    expect(raw!.reminded).not.toContain('gone-id');
+  });
+
+  it('(r) stop() clears the sweep timer armed by start() (design C9 Start)', async () => {
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
+    const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+    const pusher = new WaitPusher({ sweepMs: 1234567 } as never);
+    pushers.push(pusher);
+    await pusher.start();
+
+    const sweepCallIndex = setIntervalSpy.mock.calls.findIndex((call) => call[1] === 1234567);
+    expect(sweepCallIndex).toBeGreaterThanOrEqual(0);
+    const handle = setIntervalSpy.mock.results[sweepCallIndex]!.value;
+
+    pusher.stop();
+
+    expect(clearIntervalSpy.mock.calls.some((call) => call[0] === handle)).toBe(true);
+  });
+
+  describe('scenario 4: reminder end-to-end against a capture server (design Testing Strategy #4)', () => {
+    it('(s) one message, then one reminder on the injected clock, then nothing more (5.1, 5.2)', async () => {
+      const capture = await startCaptureServer();
+      servers.push(capture);
+      await writeNotifyConfig(capture.url, 'sdd-ops');
+
+      const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+      const pusher = new WaitPusher({ now: box.now } as never);
+      pushers.push(pusher);
+      await pusher.start();
+
+      await makeOpenWait('spec-rem-s', 'proj-rem-s');
+      await waitFor(() => capture.requests.length > 0);
+      await sleep(200);
+      expect(capture.requests).toHaveLength(1);
+
+      box.advanceMs(HOUR_MS);
+      await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+      await sleep(100);
+      expect(capture.requests).toHaveLength(2);
+      expect(capture.requests[1].body.startsWith('Reminder:')).toBe(true);
+
+      box.advanceMs(HOUR_MS);
+      await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+      await sleep(100);
+      expect(capture.requests).toHaveLength(2);
+    });
+
+    it('(t) a wait answered early gets no reminder (5.3)', async () => {
+      const capture = await startCaptureServer();
+      servers.push(capture);
+      await writeNotifyConfig(capture.url, 'sdd-ops');
+
+      const box = clockBox(new Date('2026-11-04T00:00:00.000Z'));
+      const pusher = new WaitPusher({ now: box.now } as never);
+      pushers.push(pusher);
+      await pusher.start();
+
+      const wait = await makeOpenWait('spec-rem-t', 'proj-rem-t');
+      await waitFor(() => capture.requests.length > 0);
+      await sleep(200);
+      expect(capture.requests).toHaveLength(1);
+
+      await answerWait(wait.id, { q1: 'A' }, 'operator');
+
+      box.advanceMs(HOUR_MS);
+      await (pusher as unknown as { sweepReminders(): Promise<void> }).sweepReminders();
+      await sleep(100);
+      expect(capture.requests).toHaveLength(1);
+    });
   });
 });
