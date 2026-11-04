@@ -115,7 +115,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 2.1, 3.1, 3.2, 3.3, 3.4, 3.5_
   - _Prompt: Task: Implement design C7 and the `multi-server.ts` lines of C4. Add `POST /api/controller/runs/:id/redrive` after the resume route (`src/dashboard/multi-server.ts:832-838`), mapping the results of the method task 8 adds to the C7 answers. Remove task 6's bridge: the GET route (`:809-811`) passes the set from the reader task 7 adds, and the `HarnessHub` construction (`:165-169`) passes a closure over that reader. | Restrictions: The closure runs at flush time, so the hub stays built before the controller (`:176`). Add no per-route security code (`:275-282`). Any test that starts a drive sets `CONTROLLER_CLAUDE_BIN` to `scripts/stub-claude.mjs` with a script, so no real `claude` spawns. | Success: Each case has its own test: (a) an unknown id answers 404 `{ error: 'run-not-found' }`; (b) a driven run answers 409 `{ error: 'not-stalled' }`; (c) a `done` run answers the same 409 and changes nothing; (d) a stalled run answers 200 `{ ok: true }`; (e) a run on an open crash wait answers 200; (f) the GET row reads `driven: true` during a drive; (g) the GET row reads `driven: false` for an undriven run; (h) the `controller-runs` row on an overview socket reads `driven: true` during a drive; (i) regression guard: no secret answers 401_
 
-- [ ] 10. Add the notify config reader and move the hello to it
+- [x] 10. Add the notify config reader and move the hello to it
   - File: src/advisor/home.ts
   - File: src/advisor/summary.ts
   - Test: src/advisor/__tests__/home.test.ts — notifyConfigPath(), readNotifyConfig() and notifyConfigIsLoose()
