@@ -39,3 +39,13 @@ Cost: 1 implementer spawn(s)
 task 7 closed: 0 fix round(s), outcome pass
 Evidence: task 7 · mark run-20261103-172257 761eed67
 Cost: 1 implementer spawn(s)
+
+## 2026-11-04T04:48:11Z · implementation · task 8 · doc-gap
+red-impossible: kill-retry (runs.ts RUN_FRESH_RETRY, step.ts classify) + drivenRuns() (task 7) already hold; no exact existing assertion names the combo, so wrote a regression-guard test (liveness-e2e.test.ts) per P10 — it passed green at base, committed as a guard, not counted red. 12/13 tests genuinely RED (7 TypeError on missing redrive, 5 assertion/timeout failures against current recover/reattach/start behaviour). No regressions in 36 pre-existing tests across both files. No pre-commit hook present."}
+Evidence: task 8 · mark run-20261103-172257 00489bd6
+Cost: 1 spawn
+
+## 2026-11-04T04:52:42Z · implementation · task 8 · gotcha
+task 8 closed: 0 fix round(s), outcome gate
+Evidence: task 8 · mark run-20261103-172257 fd1fa387
+Cost: 1 implementer spawn(s)
