@@ -302,3 +302,12 @@
 {"ts":"2026-11-04T07:12:10.959Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"gate: item P1 pass risk low"}
 {"ts":"2026-11-04T07:12:10.979Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"task.done","task":"P1","outcome":"done"}
 {"ts":"2026-11-04T07:12:15.887Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"phase.end","phase":"closeout","result":"closed","state":"items 6/6","note":"1 done, 0 to-do, 5 skipped"}
+{"ts":"2026-11-04T07:12:17.607Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp not-ready (no workflow run yet for 849159f (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-11-04T07:12:49.642Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-04T07:13:21.877Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-04T07:13:53.970Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-04T07:14:26.046Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #201 of spec-workflow-mcp)"}
+{"ts":"2026-11-04T07:15:05.397Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-11-04T07:15:11.377Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"pr.merged","number":"201","sha":"799fe7aa5d36b4ff4dbf872c5a97bbe0bf41c367","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-04T07:15:11.381Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"close-out merge: close-out PR #201 of spec-workflow-mcp merged (merged close-out PR #201 of spec-workflow-mcp via merge)"}
+{"ts":"2026-11-04T07:15:11.384Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"run.end","status":"done"}
