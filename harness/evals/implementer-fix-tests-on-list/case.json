@@ -1,0 +1,37 @@
+{
+  "id": "implementer-fix-tests-on-list",
+  "role": "sdd-implementer",
+  "phase": "implementation",
+  "spec": "eval-implementer-fix-tests-on-list",
+  "turnCap": 120,
+  "cwd": ".",
+  "evidence": "multi-leg-positions retro P9 — an off-list test file pushed a fix round over the 200-line cap (the task-19 fix moved sanitize into on-list fields.ts instead)",
+  "briefs": [
+    {
+      "template": "fix",
+      "file": "fix-brief.md",
+      "taskId": "1",
+      "values": {
+        "taskId": "1",
+        "round": "1",
+        "variant": "verifier",
+        "commit": "none",
+        "findings": "The fix needs a regression test for sanitizeField() — it must strip control characters. Add the coverage to a file the task already lists (fields.test.ts), or cover the logic where it already lives; do not create a new off-list test file."
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed the task and its on-list files", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "no-commit-touches",
+      "args": {
+        "repo": ".",
+        "paths": ["src/features/positions/multi-leg/sanitize.test.ts"]
+      }
+    }
+  ]
+}
