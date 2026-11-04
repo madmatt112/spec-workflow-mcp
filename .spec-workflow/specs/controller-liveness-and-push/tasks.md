@@ -80,7 +80,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 1.9, 2.1, 2.2_
   - _Prompt: Task: Implement design C4 except its `multi-server.ts` lines, which task 9 owns. `listRunsForWire` takes the optional set and `toRow` adds `driven` and `lastActivity`. Declare both on the three shapes C4 names. Add the `drivenRuns` option to `ShellFeed` (`src/dashboard/shell/shell-feed.ts:41`), whose flush passes its result to `listRunsForWire` (`:117`), and to `HarnessHub` (`src/dashboard/harness/hub.ts:44`), which passes it to `new ShellFeed` (`:98`). | Restrictions: `driven` is never written to `run.json` (requirement 2.1). Derive and render no stalled state (requirement 2.2). The frontend change is the type declaration only. | Success: Each case has its own test: (a) a row carries `lastActivity` when the record has it; (b) a row omits it when the record does not; (c) a run in the set reads `driven: true`; (d) a run outside the set reads `driven: false`; (e) with no set every row reads `driven: false`; (f) `drivenRuns` given to `ShellFeed` reaches the `controller-runs` row. `npx tsc --noEmit` passes with `driven` required on the server shapes_
 
-- [ ] 7. Turn a crashed drive into a wait and expose the driven set
+- [x] 7. Turn a crashed drive into a wait and expose the driven set
   - File: src/controller/controller.ts
   - Test: src/controller/__tests__/controller.test.ts — controller.drivenRuns() and a one-shot throw through the mcpConfigFor option
   - Add the driven-set reader, the crash wait and the drive-end change event.

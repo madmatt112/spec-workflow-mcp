@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/controller.test.ts"],"seams":{"src/controller/__tests__/controller.test.ts":"controller.drivenRuns() and a one-shot throw through the mcpConfigFor option"},"redCommit":"93359bc4015c263cff71b94548cf4ce43be1e4f4","baseSha":"e548c853f12964cb3211a7498fdcafb6ee5d48dc","base":"structural-red","head":"pass","amended":true,"judged":null}
