@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import { createServer, type Server } from 'http';
 import { spawn } from 'child_process';
@@ -7,9 +7,9 @@ import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { WaitPusher, buildMessage } from '../push.js';
-import { pushConfigPath, pushedPath, eventsPath } from '../home.js';
-import { createWait, answerWait, attachAdvice, listOpenWaits, type ControllerWaitRecord } from '../../controller/waits.js';
-import type { WaitRecord } from '../../controller/state.js';
+import { notifyConfigPath, pushedPath, eventsPath } from '../home.js';
+import { createWait, listOpenWaits, type ControllerWaitRecord } from '../../controller/waits.js';
+import { writeProjects, controllerHome, type WaitRecord, type KnownProject } from '../../controller/state.js';
 
 // Contract for `buildMessage` (src/advisor/push.ts, design.md C9, D12;
 // requirements.md 4.3, 4.8, 5.1; task 11 _Prompt). Pure: no fs, no fetch, no
@@ -221,108 +221,154 @@ describe('buildMessage', () => {
   });
 });
 
-// Contract for src/advisor/push.ts (design.md C11, D2, D3; requirements.md
-// Requirement 10.1-10.5, NFR Security; task 15 _Prompt). design.md pins only
-// `WaitPusher { start(); stop() }`; the constructor's options are not shown
-// beyond that, so this file fixes the one knob the tests need —
-// `retryDelayMs`, overriding the production one-minute delay (Requirement
-// 10.5) so the retry test does not really wait 60 seconds — the same way
-// opinion.test.ts and overview-watch.test.ts each fix a shape design.md left
-// as shorthand.
+// Contract for the sender in src/advisor/push.ts (design.md C9; task 12
+// _Prompt; requirements.md 4.1-4.7, 5.1, NFR Security). design.md pins only
+// `WaitPusher { start(); stop() }`; this file fixes the constructor's
+// `retryDelayMs` knob the retry test needs, the same way the buildMessage
+// contract above fixes shapes design.md leaves as shorthand.
 //
 // No collaborator inside push.ts is mocked: every wait is written through the
-// real `createWait`/`answerWait`/`attachAdvice` (src/controller/waits.ts),
-// read back through the real `listOpenWaits`, and a push is a real HTTP POST
-// from push.ts to a plain `http.createServer` standing in for the operator's
-// ntfy-style endpoint (the same "local capture server" pattern
-// src/advisor/__tests__/search.test.ts uses for its fake Ollama). Each test
-// runs against a fresh temp SDD_HOME so the real home is never touched.
+// real `createWait` (src/controller/waits.ts), read back through the real
+// `listOpenWaits`, and a push is a real HTTP POST from push.ts to a plain
+// `http.createServer` standing in for the operator's ntfy server (the same
+// "local capture server" pattern src/advisor/__tests__/search.test.ts uses
+// for its fake Ollama). Each test runs against a fresh temp SDD_HOME.
 //
-// Criterion "first start pushes nothing" (design D3, C11 "On start: no
-//   pushed.json -> record every open wait id, push none"; Requirement 10.3):
-//   Pre-condition: one open wait already on disk before any WaitPusher has
-//   ever run (no pushed.json yet); a working push.json pointing at a capture
-//   server.
-//   Test: new WaitPusher({}).start().
-//   Observable result: the capture server receives zero requests; pushed.json
-//   ends up holding the wait's id.
-//   Expected-value source: design C11's "record every open wait id, push
-//   none" sentence, cited directly to D3.
-//
-// Criterion "a wait file written by a child node process pushes once, body
-//   has exactly the four keys" (Requirement 10.1, 10.2; NFR Security):
-//   Pre-condition: a started WaitPusher with no waits yet on disk; a push.json
-//   naming the capture server and a dashboardUrl.
+// Criterion (a) "a new open wait POSTs once to url/topic" (4.3), folded with
+//   requirement 4.2's "a wait written by another process is seen":
+//   Pre-condition: a started WaitPusher, notify.json naming the capture
+//   server and a topic.
 //   Test: a separate `node --import tsx` child process calls the real
-//   `createWait` directly (write-wait-child.ts), writing one open wait with a
-//   distinctive question text; then new WaitPusher({}).start() having already
-//   run, waitFor the capture server to receive a request.
-//   Observable result: the capture server receives exactly one request,
-//   whose JSON body's keys are exactly `kind`, `project`, `spec`,
-//   `dashboardUrl`, with the wait's own kind/project/spec and the configured
-//   dashboardUrl, and whose serialised body never contains the question text.
-//   Expected-value source: design C11 "Body: kind, project name, spec and
-//   dashboardUrl from push.json, nothing else" and requirements.md NFR
-//   Security "no question text ... "; the literal kind/project/spec/text
-//   values are the ones this test's own fixture and child-process args set.
+//   `createWait` (write-wait-child.ts).
+//   Observable result: the capture server receives exactly one request whose
+//   path is `/<topic>`.
+//   Expected-value source: design C9 "POST: fetch(url... + '/' + topic ...)".
 //
-// Criterion "answering or attaching advice does not repush" (Requirement
-//   10.3):
-//   Pre-condition: a wait already pushed once (via the child-process route
-//   above).
-//   Test: answerWait(id, ...) then attachAdvice(id, ...) on that same id,
-//   each of which rewrites the wait file chokidar is watching.
-//   Observable result: the capture server's request count stays at 1 after
-//   both calls settle.
-//   Expected-value source: design C11 "an open wait not yet recorded is
-//   added to pushed.json" (recorded means never pushed twice), Requirement
-//   10.3's "an answer or an advice attach SHALL NOT push again".
+// Criterion (b) "a trailing slash on url is trimmed" (4.3):
+//   Pre-condition: notify.json's url carries a trailing slash.
+//   Test: a wait is created in-process after start.
+//   Observable result: the request path is still exactly `/<topic>`, not
+//   `//<topic>`.
+//   Expected-value source: design C9 "POST: ... url.replace(/\/+$/, '') +
+//   '/' + topic".
 //
-// Criterion "a restart does not repush" (Requirement 10.3):
-//   Pre-condition: a first WaitPusher that has already run its first-start
-//   baseline over one open wait (recording it without pushing, D3), then
-//   stopped.
-//   Test: a second, independent `new WaitPusher({}).start()` against the same
-//   home (standing in for a process restart) while that wait is still open.
-//   Observable result: the capture server still receives zero requests after
-//   the second start settles.
-//   Expected-value source: design C11's "else push each open wait not in it"
-//   branch combined with D3 (the first pusher already recorded the id without
-//   pushing), cited to Requirement 10.3's "a restart ... SHALL NOT push
-//   again".
+// Criteria (c) and (f) "the body and Title come from the builder, with
+//   Priority: 4" and "no JSON content-type is set" (4.3, 4.4), folded into
+//   one test:
+//   Pre-condition: a started WaitPusher, no project list (project name falls
+//   back to the wait's project id).
+//   Test: a wait is created in-process; buildMessage(wait, id, false) (task
+//   11, already proven correct) computes the expected title/body in the test
+//   itself.
+//   Observable result: the request body equals buildMessage's `body`; the
+//   `title` header equals buildMessage's `title`; the `priority` header is
+//   '4'; the `content-type` header is `text/plain;charset=UTF-8` (design C9
+//   Probe), never `application/json`.
+//   Expected-value source: design C9 "Headers: Title, Priority: 4 ..." and
+//   "Body line 1/2" (task 11), and the Probe's recorded content-type.
 //
-// Criterion "a failing endpoint gives one retry then one push.failure row;
-//   the wait is unaffected" (Requirement 10.5; error handling #8 "the id
-//   stays in pushed.json, so it never repeats"):
-//   Pre-condition: push.json points at a server that destroys the connection
-//   on every request (an unambiguous POST failure); a started WaitPusher with
-//   `retryDelayMs` set small for the test.
-//   Test: a child process writes one open wait, so the pusher attempts to
-//   push it.
-//   Observable result: the server is hit exactly twice (the attempt and its
-//   one retry); events.jsonl gains exactly one `push.failure` row naming the
-//   wait; pushed.json still holds the wait's id; the wait record read back
-//   through listOpenWaits is still `state: 'open'` with no `answer` or
-//   `advice`.
-//   Expected-value source: requirements.md 10.5 ("retry once after one
-//   minute, then log the failure ... the wait and the run SHALL be
-//   unaffected") and design error handling #8, combined with this test's own
-//   fixture values (which kind/project/spec it wrote, so nothing else could
-//   have produced them).
+// Criterion (d) "a token sends Authorization: Bearer" (4.4):
+//   Pre-condition: notify.json's ntfy.token is set.
+//   Test: a wait is created in-process.
+//   Observable result: the request's `authorization` header is
+//   `Bearer <token>`.
+//   Expected-value source: design C9 "Headers: ... Authorization: Bearer
+//   <token> only when token is present".
 //
-// Criterion "no config sends nothing" (Requirement 10.4):
-//   Pre-condition: no push.json file in the home at all.
-//   Test: a started WaitPusher, then a child process writes one open wait.
-//   Observable result: events.jsonl gains no `push.failure` row (nothing was
-//   even attempted, so nothing could have failed either).
-//   Expected-value source: requirements.md 10.4 "IF push.json is absent THEN
-//   no push SHALL be sent", and design error handling #8 (a failure is what
-//   produces a `push.failure` row; absent config produces neither a send nor
-//   that row).
+// Criterion (e) "no token sends no such header" (4.4):
+//   Pre-condition: notify.json has no ntfy.token.
+//   Test: a wait is created in-process.
+//   Observable result: the request has no `authorization` header.
+//   Expected-value source: design C9, same sentence as (d), negated.
+//
+// Criterion (g) "the project name comes from the project list" (4.3):
+//   Pre-condition: `projects.json` holds an entry whose id matches the
+//   wait's project, with a distinct `name`.
+//   Test: a wait is created in-process for that project id.
+//   Observable result: the request body equals buildMessage(wait, name,
+//   false).
+//   Expected-value source: design C9 "Project name: readProjects() ..., the
+//   entry whose id equals wait.project, its name".
+//
+// Criterion (h) "an unknown project uses its id" (4.3):
+//   Pre-condition: `projects.json` holds only unrelated entries.
+//   Test: a wait is created in-process for a project id absent from the list.
+//   Observable result: the request body equals buildMessage(wait, id,
+//   false).
+//   Expected-value source: design C9, same sentence as (g), "else ...
+//   wait.project".
+//
+// Criterion (i) "an unreadable list uses the id" (4.3):
+//   Pre-condition: `projects.json` holds unparsable text.
+//   Test: a wait is created in-process.
+//   Observable result: the pusher does not throw; the request body equals
+//   buildMessage(wait, id, false).
+//   Expected-value source: design C9 "... else, or on a read failure,
+//   wait.project".
+//
+// Criteria (j) "a missing or malformed file sends nothing and logs one
+//   push-off line per start, and the wait is still written" (4.1), split
+//   into its two sub-cases:
+//   Pre-condition (missing): no notify.json at all.
+//   Pre-condition (malformed): notify.json holds unparsable text.
+//   Test (each): new WaitPusher({}).start(), then a wait is written.
+//   Observable result (each): console.error is called exactly once during
+//   start(); no push.failure row is logged; listOpenWaits() still carries the
+//   wait, state 'open'.
+//   Expected-value source: design C9 "Start: ... Missing or invalid: one
+//   console.error saying push is off" and requirements.md 4.1 "no message is
+//   sent ... log once per start that push is off".
+//
+// Criterion (k) "a loose file logs one warning and still sends" (NFR
+//   Security):
+//   Pre-condition: a valid notify.json at mode 0640 (group-readable).
+//   Test: new WaitPusher({}).start(), then a wait is written.
+//   Observable result: exactly one console.error/warn call total during
+//   start(), whose text excludes the configured topic; the wait is still
+//   pushed (one request).
+//   Expected-value source: requirements.md NFR Security "log one warning per
+//   start and still send" and "never ... log the topic or token".
+//
+// Criterion (l) "a file added after start sends with no restart" (design C9
+//   Start):
+//   Pre-condition: a started WaitPusher with no notify.json yet.
+//   Test: a wait is written (nothing sent, no config); notify.json is then
+//   written; a second wait is written, with no stop()/start() call in
+//   between.
+//   Observable result: zero requests after the first wait; exactly one
+//   request, for the second wait, with no restart.
+//   Expected-value source: design C9 "attemptPush still reads the config at
+//   each send, so a file added later needs no restart".
+//
+// Criteria (n) and (m) "a failed POST retries once, then logs one
+//   push.failure row and leaves the wait open" (4.5, regression guard) and
+//   "neither log nor push.failure row holds the topic or token" (NFR
+//   Security), folded into one test:
+//   Pre-condition: notify.json names a topic and a token, both distinctive
+//   strings, pointed at a server that destroys every connection; a small
+//   `retryDelayMs`.
+//   Test: a child process writes one open wait.
+//   Observable result: the server is hit exactly twice; events.jsonl gains
+//   exactly one `push.failure` row, whose serialised form contains neither
+//   the topic nor the token string; the wait stays `open`, unanswered.
+//   Expected-value source: requirements.md 4.5 ("retry once ... then append
+//   one push.failure row ... never block, delay or change the wait") and NFR
+//   Security ("never write, copy or log the topic or token").
+//
+// Criterion (o) "first start sends nothing" (4.6, regression guard — this
+//   branch does not read any config at all, so it already holds at base;
+//   kept here, adapted off push.json, as the implementer brief's named
+//   coverage for this branch):
+//   Pre-condition: one open wait already on disk before any WaitPusher has
+//   ever run (no pushed.json yet).
+//   Test: new WaitPusher({}).start().
+//   Observable result: the capture server receives zero requests;
+//   pushed.json ends up holding the wait's id.
+//   Expected-value source: design C9 "First start (no readable record): ids
+//   and reminded both take every open wait; nothing is sent".
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..', '..');
 const CHILD_SCRIPT = join(HERE, 'helpers', 'write-wait-child.ts');
-const DASHBOARD_URL = 'http://localhost:4321/p/testproj';
 
 let home: string;
 let savedSddHome: string | undefined;
@@ -349,6 +395,7 @@ afterEach(async () => {
   else process.env.SDD_HOME = savedSddHome;
   await Promise.all(servers.map((s) => s.close()));
   rmSync(home, { recursive: true, force: true });
+  vi.restoreAllMocks();
 });
 
 function waitFor(predicate: () => boolean | Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<void> {
@@ -373,22 +420,24 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** A capture server standing in for the operator's ntfy-style push.json url. */
-async function startCaptureServer(): Promise<{ url: string; requests: unknown[]; close(): Promise<void> }> {
-  const requests: unknown[] = [];
+interface CapturedRequest {
+  path: string;
+  headers: Record<string, string | string[] | undefined>;
+  body: string;
+}
+
+/** A capture server standing in for the operator's ntfy server. */
+async function startCaptureServer(): Promise<{ url: string; requests: CapturedRequest[]; close(): Promise<void> }> {
+  const requests: CapturedRequest[] = [];
   const server: Server = createServer((req, res) => {
     let raw = '';
     req.on('data', (c) => {
       raw += c;
     });
     req.on('end', () => {
-      try {
-        requests.push(JSON.parse(raw));
-      } catch {
-        requests.push(raw);
-      }
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{}');
+      requests.push({ path: req.url ?? '', headers: req.headers, body: raw });
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('OK');
     });
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -418,9 +467,24 @@ async function startFailingServer(): Promise<{ url: string; counter: { count: nu
   };
 }
 
-async function writePushConfig(url: string, dashboardUrl: string): Promise<void> {
-  await fs.mkdir(dirname(pushConfigPath()), { recursive: true });
-  await fs.writeFile(pushConfigPath(), JSON.stringify({ v: 1, url, dashboardUrl }), 'utf-8');
+async function writeNotifyConfig(url: string, topic: string, token?: string): Promise<void> {
+  await fs.mkdir(dirname(notifyConfigPath()), { recursive: true });
+  const ntfy = token ? { url, topic, token } : { url, topic };
+  await fs.writeFile(notifyConfigPath(), JSON.stringify({ v: 1, ntfy }), 'utf-8');
+}
+
+function makeProject(id: string, name: string): KnownProject {
+  return {
+    id,
+    workspacePath: `/tmp/${id}`,
+    workflowRootPath: `/tmp/${id}/.spec-workflow`,
+    name,
+    seen: '2026-11-03T00:00:00.000Z',
+  };
+}
+
+async function writeProjectList(projects: KnownProject[]): Promise<void> {
+  await writeProjects({ v: 1, projects });
 }
 
 async function readPushedIds(): Promise<string[]> {
@@ -444,14 +508,14 @@ async function readEventRows(): Promise<Array<Record<string, unknown>>> {
   }
 }
 
-async function makeOpenWait(spec: string, project: string): Promise<ControllerWaitRecord> {
+async function makeOpenWait(spec: string, project: string, questionText = 'question text'): Promise<ControllerWaitRecord> {
   return createWait({
     kind: 'question',
     runId: 'in-process-run',
     projectId: project,
     spec,
     specDir: join(home, 'spec-dir'),
-    questions: [{ id: 'q1', text: 'local-process question text', options: ['A', 'B'] }],
+    questions: [{ id: 'q1', text: questionText, options: ['A', 'B'] }],
   });
 }
 
@@ -479,104 +543,258 @@ function writeWaitFromChildProcess(
 }
 
 describe('WaitPusher', () => {
-  it('on the very first start, with an open wait already on disk and no pushed.json, records the id but pushes nothing (D3, 10.3)', async () => {
-    const wait = await makeOpenWait('spec-a', 'proj-a');
+  it('(a) a new open wait written by a separate process POSTs exactly once to url/topic (4.2, 4.3)', async () => {
     const capture = await startCaptureServer();
     servers.push(capture);
-    await writePushConfig(capture.url, DASHBOARD_URL);
-
-    const pusher = new WaitPusher({});
-    pushers.push(pusher);
-    await pusher.start();
-    await sleep(300);
-
-    expect(capture.requests).toHaveLength(0);
-    expect(await readPushedIds()).toContain(wait.id);
-  });
-
-  it('a wait file written by a separate child process is pushed exactly once, with a body of exactly the four keys and no leaked text (10.1, 10.2, NFR Security)', async () => {
-    const capture = await startCaptureServer();
-    servers.push(capture);
-    await writePushConfig(capture.url, DASHBOARD_URL);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
 
     const pusher = new WaitPusher({});
     pushers.push(pusher);
     await pusher.start();
 
-    const secretQuestion = 'This question text must never leave the machine';
-    const result = await writeWaitFromChildProcess('question', 'proj-child', 'spec-child', 'q1', secretQuestion);
+    const result = await writeWaitFromChildProcess('question', 'proj-a', 'spec-a', 'q1', 'question text');
     expect(result.code).toBe(0);
 
     await waitFor(() => capture.requests.length > 0);
     await sleep(300);
 
     expect(capture.requests).toHaveLength(1);
-    const body = capture.requests[0] as Record<string, unknown>;
-    expect(Object.keys(body).sort()).toEqual(['dashboardUrl', 'kind', 'project', 'spec']);
-    expect(body).toEqual({ kind: 'question', project: 'proj-child', spec: 'spec-child', dashboardUrl: DASHBOARD_URL });
-    expect(JSON.stringify(body)).not.toContain(secretQuestion);
+    expect(capture.requests[0].path).toBe('/sdd-ops');
   }, 10000);
 
-  it('answering a wait or attaching advice after it has already been pushed does not push it again (10.3)', async () => {
+  it('(b) a trailing slash on the configured url is trimmed before the topic is appended (4.3)', async () => {
     const capture = await startCaptureServer();
     servers.push(capture);
-    await writePushConfig(capture.url, DASHBOARD_URL);
+    await writeNotifyConfig(`${capture.url}/`, 'sdd-ops');
 
     const pusher = new WaitPusher({});
     pushers.push(pusher);
     await pusher.start();
 
-    const result = await writeWaitFromChildProcess('question', 'proj-c', 'spec-c', 'q1', 'question text');
-    expect(result.code).toBe(0);
+    await makeOpenWait('spec-b', 'proj-b');
     await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
     expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].path).toBe('/sdd-ops');
+  });
 
-    const wait = (await listOpenWaits()).find((w) => w.project === 'proj-c');
-    expect(wait).toBeDefined();
+  it('(c, f) the body and Title come from the builder, with Priority: 4, and no JSON content-type is set (4.3, 4.4)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
 
-    await answerWait(wait!.id, { q1: 'A' }, 'operator');
-    await attachAdvice(wait!.id, 'advice text', {
-      picks: [{ question: 'q1', pick: 'A', reason: 'reason' }],
-      summary: 'summary',
-    });
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-c', 'proj-c', 'question text for c');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    const req = capture.requests[0];
+    const expected = buildMessage(wait, 'proj-c', false);
+    expect(req.body).toBe(expected.body);
+    expect(req.headers['title']).toBe(expected.title);
+    expect(req.headers['priority']).toBe('4');
+    expect(req.headers['content-type']).toBe('text/plain;charset=UTF-8');
+  });
+
+  it('(d) a token in notify.json sends an Authorization: Bearer header (4.4)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops', 'tok_abc123');
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-d', 'proj-d');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].headers['authorization']).toBe('Bearer tok_abc123');
+  });
+
+  it('(e) no token in notify.json sends no Authorization header (4.4)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-e', 'proj-e');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].headers['authorization']).toBeUndefined();
+  });
+
+  it('(g) the project name in the pushed body comes from the durable project list (4.3)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+    await writeProjectList([makeProject('proj-g', 'Acme Project')]);
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-g', 'proj-g', 'question text for g');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    const expected = buildMessage(wait, 'Acme Project', false);
+    expect(capture.requests[0].body).toBe(expected.body);
+  });
+
+  it('(h) an unknown project (not in the list) uses its id as the name (4.3)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+    await writeProjectList([makeProject('some-other-project', 'Someone Else')]);
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-h', 'proj-h', 'question text for h');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    const expected = buildMessage(wait, 'proj-h', false);
+    expect(capture.requests[0].body).toBe(expected.body);
+  });
+
+  it('(i) an unreadable (malformed) project list uses the project id as the name (4.3)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+    await fs.mkdir(controllerHome(), { recursive: true });
+    await fs.writeFile(join(controllerHome(), 'projects.json'), '{not json', 'utf-8');
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-i', 'proj-i', 'question text for i');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    const expected = buildMessage(wait, 'proj-i', false);
+    expect(capture.requests[0].body).toBe(expected.body);
+  });
+
+  it('(j) with no notify.json in the home, start logs one push-off line, sends nothing, and the wait is still written (4.1)', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    const result = await writeWaitFromChildProcess('question', 'proj-j1', 'spec-j1', 'q1', 'question text');
+    expect(result.code).toBe(0);
     await sleep(400);
 
-    expect(capture.requests).toHaveLength(1);
+    const failureRows = (await readEventRows()).filter((r) => r.type === 'push.failure');
+    expect(failureRows).toHaveLength(0);
+
+    const wait = (await listOpenWaits()).find((w) => w.project === 'proj-j1');
+    expect(wait).toBeDefined();
+    expect(wait!.state).toBe('open');
   }, 10000);
 
-  it('a restart (a second, independent WaitPusher against the same home) does not repush an already-recorded, still-open wait (10.3)', async () => {
+  it('(j) a malformed notify.json also logs one push-off line, sends nothing, and the wait is still written (4.1)', async () => {
+    await fs.mkdir(dirname(notifyConfigPath()), { recursive: true });
+    await fs.writeFile(notifyConfigPath(), '{not json', 'utf-8');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    const result = await writeWaitFromChildProcess('question', 'proj-j2', 'spec-j2', 'q1', 'question text');
+    expect(result.code).toBe(0);
+    await sleep(400);
+
+    const failureRows = (await readEventRows()).filter((r) => r.type === 'push.failure');
+    expect(failureRows).toHaveLength(0);
+
+    const wait = (await listOpenWaits()).find((w) => w.project === 'proj-j2');
+    expect(wait).toBeDefined();
+    expect(wait!.state).toBe('open');
+  }, 10000);
+
+  it('(k) a notify.json with loose file permissions logs one warning and still sends (NFR Security)', async () => {
     const capture = await startCaptureServer();
     servers.push(capture);
-    await writePushConfig(capture.url, DASHBOARD_URL);
+    await writeNotifyConfig(capture.url, 'sdd-ops-loose');
+    await fs.chmod(notifyConfigPath(), 0o640);
 
-    const wait = await makeOpenWait('spec-d', 'proj-d');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const firstPusher = new WaitPusher({});
-    pushers.push(firstPusher);
-    await firstPusher.start();
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const loggedCalls = [...errorSpy.mock.calls, ...warnSpy.mock.calls];
+    expect(loggedCalls).toHaveLength(1);
+    expect(loggedCalls.map((c) => c.join(' ')).join('\n')).not.toContain('sdd-ops-loose');
+
+    await makeOpenWait('spec-k', 'proj-k');
+    await waitFor(() => capture.requests.length > 0);
     await sleep(300);
-    expect(capture.requests).toHaveLength(0);
-    expect(await readPushedIds()).toContain(wait.id);
-    firstPusher.stop();
 
-    const secondPusher = new WaitPusher({});
-    pushers.push(secondPusher);
-    await secondPusher.start();
-    await sleep(300);
-
-    expect(capture.requests).toHaveLength(0);
+    expect(capture.requests).toHaveLength(1);
   });
 
-  it('a push that fails retries exactly once, then logs one push.failure row; the wait stays open and unmodified (10.5)', async () => {
+  it('(l) a notify.json written after start sends a later wait with no restart (design C9 Start)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    await makeOpenWait('spec-l1', 'proj-l1');
+    await sleep(300);
+    expect(capture.requests).toHaveLength(0);
+
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
+    await makeOpenWait('spec-l2', 'proj-l2');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    expect(capture.requests[0].path).toBe('/sdd-ops');
+  });
+
+  it('(n, m) a failing POST retries once, then logs exactly one push.failure row with no topic or token leaked, and leaves the wait open (4.5, NFR Security)', async () => {
     const failing = await startFailingServer();
     servers.push(failing);
-    await writePushConfig(failing.url, DASHBOARD_URL);
+    const topic = 'secret-topic-xyz';
+    const token = 'secret-token-abc';
+    await writeNotifyConfig(failing.url, topic, token);
 
     const pusher = new WaitPusher({ retryDelayMs: 30 });
     pushers.push(pusher);
     await pusher.start();
 
-    const result = await writeWaitFromChildProcess('question', 'proj-e', 'spec-e', 'q1', 'question text');
+    const result = await writeWaitFromChildProcess('question', 'proj-n', 'spec-n', 'q1', 'question text');
     expect(result.code).toBe(0);
 
     await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'), 5000);
@@ -586,10 +804,10 @@ describe('WaitPusher', () => {
 
     const failureRows = (await readEventRows()).filter((r) => r.type === 'push.failure');
     expect(failureRows).toHaveLength(1);
-    expect(typeof failureRows[0].wait).toBe('string');
-    expect((failureRows[0].wait as string).length).toBeGreaterThan(0);
+    expect(JSON.stringify(failureRows[0])).not.toContain(topic);
+    expect(JSON.stringify(failureRows[0])).not.toContain(token);
 
-    const wait = (await listOpenWaits()).find((w) => w.project === 'proj-e');
+    const wait = (await listOpenWaits()).find((w) => w.project === 'proj-n');
     expect(wait).toBeDefined();
     expect(wait!.state).toBe('open');
     expect(wait!.answer).toBeUndefined();
@@ -598,16 +816,18 @@ describe('WaitPusher', () => {
     expect(await readPushedIds()).toContain(wait!.id);
   }, 10000);
 
-  it('with no push.json in the home at all, nothing is attempted and no push.failure is logged (10.4)', async () => {
+  it('(o) regression guard: on the very first start, with an open wait already on disk and no pushed.json, records the id but sends nothing (4.6)', async () => {
+    const wait = await makeOpenWait('spec-o', 'proj-o');
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+
     const pusher = new WaitPusher({});
     pushers.push(pusher);
     await pusher.start();
+    await sleep(300);
 
-    const result = await writeWaitFromChildProcess('question', 'proj-f', 'spec-f', 'q1', 'question text');
-    expect(result.code).toBe(0);
-    await sleep(400);
-
-    const failureRows = (await readEventRows()).filter((r) => r.type === 'push.failure');
-    expect(failureRows).toHaveLength(0);
-  }, 10000);
+    expect(capture.requests).toHaveLength(0);
+    expect(await readPushedIds()).toContain(wait.id);
+  });
 });

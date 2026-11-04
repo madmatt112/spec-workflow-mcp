@@ -11,7 +11,6 @@ import {
   advisorIndexDir,
   advisorSessionPath,
   sourcesPath,
-  pushConfigPath,
   searchPath,
   pushedPath,
   eventsPath,
@@ -50,13 +49,14 @@ function readLines(contents: string): string[] {
 describe('src/advisor/home.ts', () => {
   // AC (task 1 Success, item 1): every path function returns a path under
   // controllerHome(). Pre-condition: SDD_HOME points at the temp `home`.
-  // Test: call each of the eleven path functions named in the task's
-  // _Prompt. Observable result: every returned path is controllerHome()
-  // itself (the advisor/ directory) or sits strictly under it. Expected
-  // value source: the task's file list (advisor/, advisor/notes/,
-  // advisor/actions/, advisor/opinions/, advisor/index/, advisor/session.json,
-  // sources.json, push.json, search.json, pushed.json, events.jsonl) plus
-  // design C1 ("all under controllerHome()").
+  // Test: call each of the ten path functions named in the task's _Prompt
+  // (task 12 removes `pushConfigPath`, design C9: "The old name is removed,
+  // so a leftover reader fails tsc"). Observable result: every returned path
+  // is controllerHome() itself (the advisor/ directory) or sits strictly
+  // under it. Expected value source: the task's file list (advisor/,
+  // advisor/notes/, advisor/actions/, advisor/opinions/, advisor/index/,
+  // advisor/session.json, sources.json, search.json, pushed.json,
+  // events.jsonl) plus design C1 ("all under controllerHome()").
   it('names every home path under controllerHome()', () => {
     const root = controllerHome();
     const under = (p: string) => p === root || p.startsWith(root + sep);
@@ -68,7 +68,6 @@ describe('src/advisor/home.ts', () => {
     expect(under(advisorIndexDir())).toBe(true);
     expect(under(advisorSessionPath())).toBe(true);
     expect(under(sourcesPath())).toBe(true);
-    expect(under(pushConfigPath())).toBe(true);
     expect(under(searchPath())).toBe(true);
     expect(under(pushedPath())).toBe(true);
     expect(under(eventsPath())).toBe(true);
@@ -80,7 +79,6 @@ describe('src/advisor/home.ts', () => {
     expect(advisorIndexDir()).toBe(join(advisorHomeDir(), 'index'));
     expect(advisorSessionPath()).toBe(join(advisorHomeDir(), 'session.json'));
     expect(sourcesPath()).toBe(join(root, 'sources.json'));
-    expect(pushConfigPath()).toBe(join(root, 'push.json'));
     expect(searchPath()).toBe(join(root, 'search.json'));
     expect(pushedPath()).toBe(join(root, 'pushed.json'));
     expect(eventsPath()).toBe(join(root, 'events.jsonl'));
