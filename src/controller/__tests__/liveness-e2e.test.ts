@@ -7,7 +7,7 @@
 // `controller.test.ts:95-117` (`setup`) and `:163-172` (`makeController`).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +16,9 @@ import { Controller } from '../controller.js';
 import { readRun, writeRun, readWait, type RunRecord } from '../state.js';
 import { listOpenWaits, createWait, DRIVE_CRASH_QUESTION, type ControllerWaitRecord } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
+import { launchSpec } from '../../dashboard/multi-server.js';
+import { buildSetupView, defaultSetupInput } from '../../dashboard/harness/run-setup.js';
+import type { ProjectContext } from '../../dashboard/project-manager.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -484,4 +487,44 @@ describe('liveness e2e: scenario 3 — a killed stub step retries with driven tr
     expect(seenDriven.length).toBeGreaterThan(0);
     expect(seenDriven.every(Boolean)).toBe(true);
   }, 15000);
+});
+
+// Design end-to-end scenario 5 (design.md "Testing Strategy", C10): launch
+// routing widens to every state that names no spec, so an `ambiguous` store
+// with a decomposition-named-but-not-yet-created spec still launches —
+// `launchSpec` creates that spec's directory before it enqueues, as it
+// already does today (multi-server.ts:118-123); only the routing guard that
+// makes the spec launchable in the first place is new (task 14, Requirement
+// 6 AC 5).
+describe('liveness e2e: scenario 5 — launch routes to an unstarted decomposition spec, creating its directory', () => {
+  it('launchSpec creates the directory and enqueues when ambiguous routing names an unstarted decomposition spec', async () => {
+    const decompDir = join(fx.repo, '.spec-workflow', 'spec-decomposition');
+    mkdirSync(decompDir, { recursive: true });
+    writeFileSync(join(decompDir, 'decomposition.md'), '# Plan\n\n### 1. `spec-next` — next\n');
+    mkdirSync(join(fx.repo, '.spec-workflow', 'specs', 'spec-extra'), { recursive: true });
+
+    const project = { projectId: 'p', projectPath: fx.repo } as ProjectContext;
+
+    // Test: buildSetupView(project, {}) — confirm the fixture is the intended
+    // ambiguous, no-directory-yet state before exercising launchSpec.
+    const view = await buildSetupView(project);
+    expect(view.routing.state).toBe('ambiguous');
+    expect(view.launchable).toBe('spec-next');
+
+    controller = makeController(fx);
+    const specDir = join(fx.repo, '.spec-workflow', 'specs', 'spec-next');
+    expect(existsSync(specDir)).toBe(false);
+
+    // Test: launchSpec(project, input, controller).
+    const result = await launchSpec(project, defaultSetupInput(view), controller);
+
+    // Observable result: the directory is created and the run is enqueued.
+    // Source: task 14 Success (c), Requirement 6 AC 5.
+    expect(result.ok).toBe(true);
+    expect(existsSync(specDir)).toBe(true);
+    if (result.ok) {
+      const run = await readRun(result.runId);
+      expect(run?.status).toBe('queued');
+    }
+  });
 });

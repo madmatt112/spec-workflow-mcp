@@ -15,6 +15,7 @@ import {
 import type { SetupInput, SetupView } from '../types.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { AgentProfile } from '../../../watch/ledger.js';
+import { IndexGenerator } from '../../../core/index-generator.js';
 
 // Contract for src/dashboard/harness/run-setup.ts (design.md C3; task 4
 // _Prompt; Requirements 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11,
@@ -188,6 +189,69 @@ import type { AgentProfile } from '../../../watch/ledger.js';
 //   are all present on the returned file.
 //   Expected-value source: Requirement 1 AC 11 (the file's field list) and
 //   task 4 _Prompt ("writtenAt is now.toISOString()").
+//
+// Criterion "ambiguous routes to an unstarted decomposition spec" (task 14
+//   design C10; Requirement 6 AC 1-2):
+//   Pre-condition: decomposition.md names one unstarted heading (`nextspec`,
+//   no `specs/nextspec/` directory) and two spec directories on disk that
+//   decomposition.md does not mention, both unstarted.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'ambiguous'; view.launchable is
+//   'nextspec'; view.disabledReason is null.
+//   Expected-value source: Requirement 6 AC 1 ("for every routing state that
+//   names no spec: all-on-disk-complete, no-specs, ambiguous and
+//   all-deferred") and AC 2.
+//
+// Criterion "all-deferred routes to an unstarted decomposition spec" (task 14
+//   design C10; Requirement 6 AC 1-2):
+//   Pre-condition: decomposition.md names one unstarted heading (`nextspec`)
+//   and one spec directory on disk, deferred via IndexGenerator.defer.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'all-deferred'; view.launchable
+//   is 'nextspec'; view.disabledReason is null.
+//   Expected-value source: Requirement 6 AC 1-2.
+//
+// Regression guard "no-specs already consults nextUnstartedSpec" (Requirement
+//   6 AC 1, invariant — holds at base):
+//   Pre-condition: decomposition.md names one unstarted heading, no spec
+//   directories exist.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'no-specs'; view.launchable is
+//   'nextspec'; view.disabledReason is null.
+//   Expected-value source: run-setup.ts:197-199 at base already consults
+//   nextUnstartedSpec for 'no-specs'.
+//
+// Regression guard "null name keeps the routing reason — ambiguous"
+//   (Requirement 6 AC 4, invariant):
+//   Pre-condition: decomposition.md with no heading line, two unstarted spec
+//   directories it does not mention.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'ambiguous'; view.launchable is
+//   null; view.disabledReason equals view.routing.reason.
+//   Expected-value source: Requirement 6 AC 4.
+//
+// Regression guard "null name keeps the routing reason — all-deferred"
+//   (Requirement 6 AC 4, invariant):
+//   Pre-condition: one deferred spec directory, no decomposition.md.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'all-deferred'; view.launchable
+//   is null; view.disabledReason equals view.routing.reason.
+//   Expected-value source: Requirement 6 AC 4.
+//
+// Regression guard "all-on-disk-complete keeps its reason with no heading"
+//   (Requirement 6 AC 4, invariant):
+//   Pre-condition: one completed spec directory, no decomposition.md.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'all-on-disk-complete';
+//   view.launchable is null; view.disabledReason equals view.routing.reason.
+//   Expected-value source: Requirement 6 AC 4 ("for all-on-disk-complete").
+//
+// Regression guard "active keeps its spec" (Requirement 6 AC 3, invariant):
+//   Pre-condition: two specs in decomposition order, the first not complete.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.routing.state is 'active'; view.launchable is
+//   the first spec's name; view.disabledReason is null.
+//   Expected-value source: Requirement 6 AC 3.
 //
 // Criterion "writeRunFile writes harness-run.json" (Requirement 1 AC 11):
 //   Pre-condition: an empty workflow root directory and a HarnessRunFile
@@ -535,6 +599,98 @@ describe('run-setup', () => {
       const view = await buildSetupView(projectFor(projectPath), {});
 
       expect(view.roles).toEqual([]);
+    });
+
+    it('routes to an unstarted decomposition heading when routing is ambiguous (Req 6.1, 6.2)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\n### 1. `nextspec` — next\n');
+      await createSpec(workflowRoot, 'un-a', {});
+      await createSpec(workflowRoot, 'un-b', {});
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('ambiguous');
+      expect(view.launchable).toBe('nextspec');
+      expect(view.disabledReason).toBeNull();
+    });
+
+    it('routes to an unstarted decomposition heading when every spec on disk is deferred (Req 6.1, 6.2)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\n### 1. `nextspec` — next\n');
+      await createSpec(workflowRoot, 'onlyone', {});
+      await new IndexGenerator(projectPath).defer('onlyone', 'paused for now');
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('all-deferred');
+      expect(view.launchable).toBe('nextspec');
+      expect(view.disabledReason).toBeNull();
+    });
+
+    it('regression guard: routes to an unstarted decomposition heading with no specs on disk (Req 6.1, invariant)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\n### 1. `nextspec` — next\n');
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('no-specs');
+      expect(view.launchable).toBe('nextspec');
+      expect(view.disabledReason).toBeNull();
+    });
+
+    it('regression guard: keeps launchable null and the routing reason when ambiguous names no heading (Req 6.4)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\nNothing sequenced yet.\n');
+      await createSpec(workflowRoot, 'un-a', {});
+      await createSpec(workflowRoot, 'un-b', {});
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('ambiguous');
+      expect(view.launchable).toBeNull();
+      expect(view.disabledReason).toBe(view.routing.reason);
+    });
+
+    it('regression guard: keeps launchable null and the routing reason when all-deferred names no heading (Req 6.4)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'onlyone', {});
+      await new IndexGenerator(projectPath).defer('onlyone', 'paused for now');
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('all-deferred');
+      expect(view.launchable).toBeNull();
+      expect(view.disabledReason).toBe(view.routing.reason);
+    });
+
+    it('regression guard: keeps its reason when all-on-disk-complete names no heading (Req 6.4)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'done', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n',
+      });
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('all-on-disk-complete');
+      expect(view.launchable).toBeNull();
+      expect(view.disabledReason).toBe(view.routing.reason);
+    });
+
+    it('regression guard: active state keeps the routed spec as launchable (Req 6.3)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'alpha', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n- [ ] 2. b\n',
+      });
+      await createSpec(workflowRoot, 'bravo', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n- [x] 2. b\n',
+      });
+      await writeDecomposition(workflowRoot, '# Plan\n\n1. alpha\n2. bravo\n');
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('active');
+      expect(view.launchable).toBe('alpha');
+      expect(view.disabledReason).toBeNull();
     });
   });
 
