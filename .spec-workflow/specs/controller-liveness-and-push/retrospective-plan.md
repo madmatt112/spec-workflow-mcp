@@ -1,6 +1,6 @@
 # Retrospective plan — controller-liveness-and-push
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-11-04
 
 ## Approved proposals
