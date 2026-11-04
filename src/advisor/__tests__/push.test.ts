@@ -6,9 +6,220 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
-import { WaitPusher } from '../push.js';
+import { WaitPusher, buildMessage } from '../push.js';
 import { pushConfigPath, pushedPath, eventsPath } from '../home.js';
 import { createWait, answerWait, attachAdvice, listOpenWaits, type ControllerWaitRecord } from '../../controller/waits.js';
+import type { WaitRecord } from '../../controller/state.js';
+
+// Contract for `buildMessage` (src/advisor/push.ts, design.md C9, D12;
+// requirements.md 4.3, 4.8, 5.1; task 11 _Prompt). Pure: no fs, no fetch, no
+// clock; every case below calls `buildMessage` directly on a plain
+// `WaitRecord` literal, never through the pusher.
+//
+// Criterion (a) "body line 1 holds kind, project name and spec" (4.3):
+//   Pre-condition: a wait with kind 'question', spec 'spec-a'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's first line is exactly
+//   'question | Acme Project | spec-a'.
+//   Expected-value source: design C9 "Body line 1: `${kind} | ${projectName}
+//   | ${spec}`".
+//
+// Criterion (b) "the title is `SDD ` plus the kind" (4.3):
+//   Pre-condition: a wait with kind 'escalation'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: title === 'SDD escalation'.
+//   Expected-value source: design C9 "Title: `SDD ${kind}`".
+//
+// Criterion (c) "a reminder prefixes body line 1 and uses the reminder
+//   title" (5.1):
+//   Pre-condition: the same wait as (a)/(b), kind 'question', spec 'spec-a'.
+//   Test: buildMessage(wait, 'Acme Project', true).
+//   Observable result: body's first line is exactly
+//   'Reminder: question | Acme Project | spec-a'; title ===
+//   'SDD reminder: question'.
+//   Expected-value source: design C9 "prefixed `Reminder: ` for a reminder"
+//   and "Title: ... or `SDD reminder: ${kind}`".
+//
+// Criterion (d) "body line 2 is the trimmed first line of the first
+//   question" (4.3):
+//   Pre-condition: a wait whose first question's text is
+//   '  hello operator  '.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly 'hello operator'.
+//   Expected-value source: design C9 "Body line 2:
+//   `wait.questions[0].text.trim()` cut at the first line break".
+//
+// Criterion (e) "multi-line text keeps only that line" (4.3):
+//   Pre-condition: a wait whose first question's text is
+//   'first line\nsecond line\nthird line'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly 'first line'; the body
+//   has exactly two lines.
+//   Expected-value source: design C9 "cut at the first line break".
+//
+// Criterion (f) "a wait with no question has no line 2" (4.3):
+//   Pre-condition: a wait whose questions array is empty.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body has no newline and equals line 1 alone.
+//   Expected-value source: design C9 "left out when the wait has no
+//   question".
+//
+// Criterion (g) "an absolute path redacts to `[path]`" (4.8):
+//   Pre-condition: a wait whose first question's text is
+//   '/home/mcf/repo/x.ts failed to load'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly '[path] failed to
+//   load'.
+//   Expected-value source: design C9 "Redaction: ... an absolute path ...
+//   `/home/mcf/repo/x.ts` ... all redact (D12)".
+//
+// Criterion (h) "a `~/` path redacts" (4.8):
+//   Pre-condition: a wait whose first question's text is
+//   '~/notify.json is missing'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly '[path] is missing'.
+//   Expected-value source: design C9 "a `~/` path ... `~/notify.json` ...
+//   all redact (D12)".
+//
+// Criterion (i) "a slash-relative path redacts" (4.8):
+//   Pre-condition: a wait whose first question's text is
+//   'src/controller/step.ts broke'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly '[path] broke'.
+//   Expected-value source: design C9 "any token with a `/` ...
+//   `src/controller/step.ts`, `src/controller` ... all redact (D12)".
+//
+// Criterion (j) "a single-segment filename redacts" (4.8):
+//   Pre-condition: a wait whose first question's text is
+//   'see notify.json for detail'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly 'see [path] for
+//   detail'.
+//   Expected-value source: design C9 "any token with a file extension ...
+//   `notify.json` ... redact (D12)".
+//
+// Criterion (k) "plain words stay" (4.8):
+//   Pre-condition: a wait whose first question's text is
+//   'the crash happened again'.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: body's second line is exactly 'the crash happened
+//   again', unchanged.
+//   Expected-value source: design C9's residual: "a bare slashless,
+//   extensionless token ... indistinguishable from a plain word", i.e. none
+//   of these tokens redact.
+//
+// Criterion (l) "answer, advice and later questions never appear" (4.3, NFR
+//   Security):
+//   Pre-condition: a wait with an `answer` record, an `advice` string, and a
+//   second question, each holding a distinctive secret string not present in
+//   the first question's text.
+//   Test: buildMessage(wait, 'Acme Project', false).
+//   Observable result: none of the three secret strings appear anywhere in
+//   `title` or `body`.
+//   Expected-value source: requirements.md 4.3 "and nothing else: no answer,
+//   no advice, no path, no file content"; design C9 reads only
+//   `wait.questions[0]`.
+function makeWait(overrides: Partial<WaitRecord> = {}): WaitRecord {
+  return {
+    v: 1,
+    id: 'w1',
+    kind: 'question',
+    run: 'run-1',
+    project: 'proj-1',
+    spec: 'spec-a',
+    created: '2026-11-03T00:00:00.000Z',
+    questions: [{ id: 'q1', text: 'a question' }],
+    state: 'open',
+    ...overrides,
+  };
+}
+
+describe('buildMessage', () => {
+  it('(a) body line 1 holds kind, project name and spec (4.3)', () => {
+    const wait = makeWait({ kind: 'question', spec: 'spec-a' });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[0]).toBe('question | Acme Project | spec-a');
+  });
+
+  it('(b) the title is `SDD ` plus the kind (4.3)', () => {
+    const wait = makeWait({ kind: 'escalation' });
+    const { title } = buildMessage(wait, 'Acme Project', false);
+    expect(title).toBe('SDD escalation');
+  });
+
+  it('(c) a reminder prefixes body line 1 and uses the reminder title (5.1)', () => {
+    const wait = makeWait({ kind: 'question', spec: 'spec-a' });
+    const { title, body } = buildMessage(wait, 'Acme Project', true);
+    expect(body.split('\n')[0]).toBe('Reminder: question | Acme Project | spec-a');
+    expect(title).toBe('SDD reminder: question');
+  });
+
+  it('(d) body line 2 is the trimmed first line of the first question (4.3)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: '  hello operator  ' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('hello operator');
+  });
+
+  it('(e) multi-line text keeps only that line (4.3)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: 'first line\nsecond line\nthird line' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    const lines = body.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toBe('first line');
+  });
+
+  it('(f) a wait with no question has no line 2 (4.3)', () => {
+    const wait = makeWait({ questions: [] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body).not.toContain('\n');
+    expect(body).toBe(body.split('\n')[0]);
+  });
+
+  it('(g) an absolute path redacts to [path] (4.8)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: '/home/mcf/repo/x.ts failed to load' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('[path] failed to load');
+  });
+
+  it('(h) a ~/ path redacts (4.8)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: '~/notify.json is missing' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('[path] is missing');
+  });
+
+  it('(i) a slash-relative path redacts (4.8)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: 'src/controller/step.ts broke' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('[path] broke');
+  });
+
+  it('(j) a single-segment filename redacts (4.8)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: 'see notify.json for detail' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('see [path] for detail');
+  });
+
+  it('(k) plain words stay (4.8)', () => {
+    const wait = makeWait({ questions: [{ id: 'q1', text: 'the crash happened again' }] });
+    const { body } = buildMessage(wait, 'Acme Project', false);
+    expect(body.split('\n')[1]).toBe('the crash happened again');
+  });
+
+  it('(l) answer, advice and later questions never appear (4.3, NFR Security)', () => {
+    const wait = makeWait({
+      questions: [
+        { id: 'q1', text: 'first question text' },
+        { id: 'q2', text: 'SECRET-LATER-QUESTION' },
+      ],
+      answer: { q1: { value: 'SECRET-ANSWER', by: 'operator', answered: '2026-11-03T00:00:00.000Z' } },
+      advice: 'SECRET-ADVICE',
+    });
+    const { title, body } = buildMessage(wait, 'Acme Project', false);
+    expect(title + body).not.toContain('SECRET-ANSWER');
+    expect(title + body).not.toContain('SECRET-ADVICE');
+    expect(title + body).not.toContain('SECRET-LATER-QUESTION');
+  });
+});
 
 // Contract for src/advisor/push.ts (design.md C11, D2, D3; requirements.md
 // Requirement 10.1-10.5, NFR Security; task 15 _Prompt). design.md pins only
