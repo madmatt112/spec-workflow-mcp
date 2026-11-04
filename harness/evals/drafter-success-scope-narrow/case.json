@@ -1,0 +1,37 @@
+{
+  "id": "drafter-success-scope-narrow",
+  "role": "sdd-drafter",
+  "phase": "document",
+  "spec": "eval-drafter-success-scope-narrow",
+  "turnCap": 80,
+  "evidence": "multi-leg-positions retro P1 — a wide Success command swept the flaky transfer-links.route.test.ts into the task gate (d-81829919)",
+  "briefs": [
+    {
+      "template": "drafter",
+      "file": "drafter-brief.md",
+      "values": {
+        "phase": "tasks",
+        "docPath": "{{fixture}}/.spec-workflow/specs/eval-drafter-success-scope-narrow/tasks.md",
+        "specDir": "{{fixture}}/.spec-workflow/specs/eval-drafter-success-scope-narrow",
+        "specStoreRoot": "{{fixture}}/.spec-workflow",
+        "codeRoot": "{{fixture}}",
+        "carried": "none"
+      }
+    }
+  ],
+  "fixture": {
+    "commits": [
+      { "message": "seed requirements and design", "tree": "fixture/01" }
+    ]
+  },
+  "graders": [
+    {
+      "name": "task-success-scope",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-drafter-success-scope-narrow/tasks.md",
+        "flakyTest": "src/features/positions/transfer-links.route.test.ts",
+        "narrow": "src/features/positions/multi-leg"
+      }
+    }
+  ]
+}

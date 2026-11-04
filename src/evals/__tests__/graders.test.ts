@@ -641,13 +641,75 @@ describe('GRADERS registry', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  // Pre-condition: task 2's four graders, task 3's six git-state graders, and the retro-P6
-  // task-no-test-seam grader are all registered.
+  // Pre-condition: a tasks.md whose task scopes its Success vitest command to the narrow
+  // subtree the task touches, never the parent feature dir that also holds the flaky route
+  // test.
+  // Test: GRADERS['task-success-scope'].grade({ report: {}, fixture }, { doc, flakyTest, narrow }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P1 — scope the Success command to the touched subtree, not a
+  // parent dir that sweeps in a concurrency-heavy DB route test.
+  it('task-success-scope passes when the Success command names the narrow subtree', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add multi-leg positions',
+        '  - File: src/features/positions/multi-leg.ts',
+        '  - _Prompt: Task: implement multi-leg | Restrictions: none | Success: ./node_modules/.bin/vitest run src/features/positions/multi-leg passes_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-scope'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      {
+        doc: 'tasks.md',
+        flakyTest: 'src/features/positions/transfer-links.route.test.ts',
+        narrow: 'src/features/positions/multi-leg',
+      }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a tasks.md whose task aims its Success vitest command at the whole parent
+  // feature dir, which also holds the flaky route test.
+  // Test: GRADERS['task-success-scope'].grade({ report: {}, fixture }, { doc, flakyTest, narrow }).
+  // Observable result: pass is false and the reason names the flaky route test.
+  // Expected-value source: retro P1 — a command aimed at the feature dir sweeps the flaky route
+  // test into the task gate.
+  it('task-success-scope fails when the Success command sweeps the flaky route test', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    writeFileSync(
+      join(root, 'tasks.md'),
+      [
+        '# Tasks',
+        '',
+        '- [ ] 1. Add multi-leg positions',
+        '  - File: src/features/positions/multi-leg.ts',
+        '  - _Prompt: Task: implement multi-leg | Restrictions: none | Success: ./node_modules/.bin/vitest run src/features/positions passes_',
+      ].join('\n')
+    );
+    const result = GRADERS['task-success-scope'].grade(
+      { report: {}, fixture: stubFixture(root) },
+      {
+        doc: 'tasks.md',
+        flakyTest: 'src/features/positions/transfer-links.route.test.ts',
+        narrow: 'src/features/positions/multi-leg',
+      }
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain('src/features/positions/transfer-links.route.test.ts');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: task 2's four graders, task 3's six git-state graders, the retro-P6
+  // task-no-test-seam grader and the retro-P1 task-success-scope grader are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the eleven named graders.
+  // Observable result: the registry lists exactly the twelve named graders.
   // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
-  // retro-P6 task-no-test-seam grader.
-  it('registers eleven graders including the six git-state graders', () => {
+  // retro-P6 task-no-test-seam and retro-P1 task-success-scope graders.
+  it('registers twelve graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
       'item-commit-on-branch',
@@ -659,6 +721,7 @@ describe('GRADERS registry', () => {
       'repo-unchanged',
       'report-flag',
       'task-no-test-seam',
+      'task-success-scope',
       'tasks-labels-canonical',
     ]);
   });
