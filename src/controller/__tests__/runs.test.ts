@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import {
   routeRun, parseProposals, buildRetroPlanMarkdown, runOnce, cancelRun, discardRun,
-  withPrRead, listRunsForWire,
+  withPrRead, listRunsForWire, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
@@ -524,6 +524,52 @@ describe('listRunsForWire', () => {
     const row = rows.find((r) => r.id === 'run-20261011-000000');
 
     expect(row?.prReads).toBeUndefined();
+  });
+});
+
+// Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
+describe('setRunHeartbeat', () => {
+  const RUN_ID = 'run-20261011-000000';
+  const clock = (): Date => new Date('2026-10-11T00:00:10.000Z');
+
+  it('writes the value and emits one change', async () => {
+    // Pre-condition: a non-terminal run record exists on disk.
+    await writeRun(seedRun(fx));
+    const seen: RunRecord[] = [];
+    const onChange = (r: RunRecord): void => { if (r.id === RUN_ID) seen.push(r); };
+    runEvents.on('change', onChange);
+
+    // Test: setRunHeartbeat(now, runId, value).
+    try {
+      await setRunHeartbeat(clock, RUN_ID, '2026-10-11T00:00:05.000Z');
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    // Observable result: the record on disk carries the value, and exactly one
+    // `change` fired with that same value. Source: task 4 Success (a).
+    const run = await readRun(RUN_ID);
+    expect(run?.lastActivity).toBe('2026-10-11T00:00:05.000Z');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].lastActivity).toBe('2026-10-11T00:00:05.000Z');
+  });
+
+  it('emits nothing when no record was written', async () => {
+    // Pre-condition: no run exists at this id, so `writeLastActivity` resolves
+    // undefined (design C1 post-condition (g)) and nothing was written.
+    const seen: RunRecord[] = [];
+    const onChange = (r: RunRecord): void => { seen.push(r); };
+    runEvents.on('change', onChange);
+
+    // Test: setRunHeartbeat(now, runId, value) against a missing run.
+    try {
+      await setRunHeartbeat(clock, 'run-does-not-exist', '2026-10-11T00:00:05.000Z');
+    } finally {
+      runEvents.removeListener('change', onChange);
+    }
+
+    // Observable result: no `change` event fired. Source: task 4 Success (b).
+    expect(seen).toHaveLength(0);
   });
 });
 
