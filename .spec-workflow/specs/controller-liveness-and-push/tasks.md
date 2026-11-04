@@ -14,7 +14,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 1.1, 1.5, 1.6, 1.7_
   - _Prompt: Task: Implement design C1. `RunRecord` (`src/controller/state.ts:69-109`) gains `lastActivity`. Export `writeLastActivity`, queued on `writeChains` (`:415`), with the three C1 post-conditions. Change `writeRunLocked` (`:417-433`) as C1 says, keeping the `pauseRequested` rule. | Restrictions: `writeLastActivity` does not pass through `writeRunLocked`, so `pausedAt` and `pauseRequested` stay as read. Seed the field in tests with `writeLastActivity`, because `writeRun` ignores the value on the record it gets. | Success: Each case has its own test: (a) a stale `writeRun` keeps the on-disk value; (b) the same with `ownsPauseRequest`; (c) a value on the record passed to `writeRun` is ignored; (d) a `writeRun` to `done`, to `abandoned` and to `error` each drops the field; (e) `writeLastActivity` changes only `lastActivity` and `updated`; (f) queued behind a status write, it keeps that status; (g) it resolves undefined and writes nothing for a missing run, for a terminal run, and for an undefined value on an absent field; (h) otherwise it resolves the record written_
 
-- [ ] 2. Build the step heartbeat throttle
+- [x] 2. Build the step heartbeat throttle
   - File: src/controller/heartbeat.ts
   - Test: src/controller/__tests__/heartbeat.test.ts — createStepHeartbeat({ now, write, windowMs }).line() and .end()
   - Create the throttle object: no file access, no knowledge of runs.

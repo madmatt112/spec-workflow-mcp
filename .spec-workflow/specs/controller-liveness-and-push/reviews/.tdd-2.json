@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/heartbeat.test.ts"],"seams":{"src/controller/__tests__/heartbeat.test.ts":"createStepHeartbeat({ now, write, windowMs }).line() and .end()"},"redCommit":"001b10310787273bb7f39136021b264a5e60360e","baseSha":"2476e4dad68af13b6b46b7c07798b04177a7103d","base":"structural-red","head":"pass","amended":true,"judged":null}
