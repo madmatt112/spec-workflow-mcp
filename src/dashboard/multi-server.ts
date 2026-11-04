@@ -166,6 +166,7 @@ export class MultiProjectDashboardServer {
       this.projectManager,
       (m: HarnessMessage) => this.sendToHarness((m as { projectId: string }).projectId, m),
       (m: HarnessMessage | ShellMessage) => this.sendToOverview(m),
+      { drivenRuns: () => this.controller.drivenRuns() },
     );
 
     // The controller (controller-tasks.md T6; controller-design.md §1-3). It owns
@@ -807,7 +808,7 @@ export class MultiProjectDashboardServer {
 
     // Every controller run, path-free, newest first.
     this.app.get('/api/controller/runs', async () => {
-      return { runs: await listRunsForWire() };
+      return { runs: await listRunsForWire(this.controller.drivenRuns()) };
     });
 
     // Cancel a run: signal its in-flight step, abandon it, keep the worktree/branch/PR.
@@ -834,6 +835,15 @@ export class MultiProjectDashboardServer {
       const run = await this.controller.resumeNow(id);
       if (run === undefined) return reply.code(404).send({ error: 'run-not-found' });
       if (run === null) return reply.code(409).send({ error: 'not-paused' });
+      return { ok: true };
+    });
+
+    // Re-drive a stalled run with no restart (design C5/C7 "redrive").
+    this.app.post('/api/controller/runs/:id/redrive', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const result = await this.controller.redrive(id);
+      if (result === 'not-found') return reply.code(404).send({ error: 'run-not-found' });
+      if (result === 'not-stalled') return reply.code(409).send({ error: 'not-stalled' });
       return { ok: true };
     });
 
