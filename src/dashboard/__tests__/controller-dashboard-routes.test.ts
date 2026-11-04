@@ -1,14 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fsp, mkdirSync, writeFileSync } from 'fs';
+import { promises as fsp, mkdirSync, writeFileSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import net from 'net';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { loadOrCreateSecret } from '../../controller/access.js';
-import { writeRun, writeRateLimit, type RunRecord } from '../../controller/state.js';
+import { writeRun, readRun, type RunRecord, writeRateLimit } from '../../controller/state.js';
 import { stepLogDir } from '../../controller/runs.js';
+import { createWait, DRIVE_CRASH_QUESTION } from '../../controller/waits.js';
+
+const STUB_CLAUDE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-claude.mjs');
+
+/** A generic one-run script for the claude stub (task 9 restriction: every test
+ * that starts a drive sets CONTROLLER_CLAUDE_BIN to this stub with a script, so
+ * no real `claude` ever spawns). `delayMs` keeps the stub process (and so
+ * `inFlight`) alive long enough to observe `driven: true` before it exits. */
+function writeClaudeScript(path: string, delayMs = 0): void {
+  writeFileSync(path, JSON.stringify([{
+    result: {
+      subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'ok',
+      structured_output: {}, usage: {},
+    },
+    delayMs,
+  }]));
+}
 
 // Contract for the T10 dashboard routes (controller-tasks.md "T10 dashboard";
 // controller-design.md §9, §4). Same shape as controller-waits-routes.test.ts:
@@ -85,6 +103,52 @@ describe('controller dashboard routes (T10)', () => {
       ...init,
       headers: { ...(init.headers as Record<string, string> | undefined), authorization: `Bearer ${secret}` },
     };
+  }
+
+  // Register a project whose spec is the one launchable thing on disk, via a
+  // HANDOFF naming it in progress (as the GET /harness/setup test above
+  // does). The registration must land on disk before the server (and so its
+  // ProjectManager) starts, as every other registered-project test in this
+  // suite family does.
+  async function prepareLaunchableProject(spec: string): Promise<string> {
+    const workspace = join(tempDir, `ws-${spec}`);
+    const workflowRoot = join(tempDir, `proj-${spec}`);
+    const specDir = join(workflowRoot, '.spec-workflow', 'specs', spec);
+    await fsp.mkdir(specDir, { recursive: true });
+    await fsp.mkdir(workspace, { recursive: true });
+    writeFileSync(join(workflowRoot, '.spec-workflow', 'HANDOFF.md'), [
+      `> **READ FIRST — SDD routing.** Active spec **\`${spec}\`**.`,
+      '> Live phase **document**, state **in-progress**, last result **gate-a**.',
+      '',
+    ].join('\n'));
+
+    const registry = new ProjectRegistry();
+    await registry.registerProject(workspace, process.pid, { workflowRootPath: workflowRoot });
+    return generateProjectId(workspace);
+  }
+
+  async function launchViaRoute(base: string, projectId: string, spec: string): Promise<string> {
+    const res = await realFetch(`${base}/api/projects/${projectId}/harness/launch`, auth({
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        spec, supervisorModel: 'claude-opus-5-5', worktree: 'no', gates: 'block', roles: {},
+      }),
+    }));
+    const body: any = await res.json();
+    if (res.status !== 200) throw new Error(`launch failed: ${res.status} ${JSON.stringify(body)}`);
+    return body.runId as string;
+  }
+
+  /** Poll `readRun` until `inFlight` is set, so a scripted drive is caught mid-step. */
+  async function waitForInFlight(id: string, ms = 5000): Promise<RunRecord> {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      const run = await readRun(id);
+      if (run?.inFlight) return run;
+      if (Date.now() > deadline) throw new Error(`run ${id} never went in flight`);
+      await new Promise((r) => setTimeout(r, 25));
+    }
   }
 
   it('GET /api/controller/rate-limit returns null when absent, then the file once written', async () => {
@@ -268,5 +332,199 @@ describe('controller dashboard routes (T10)', () => {
     const resumeDone = await realFetch(`${base}/api/controller/runs/${doneRun.id}/resume`, auth({ method: 'POST' }));
     expect(resumeDone.status).toBe(409);
     expect(await resumeDone.json()).toEqual({ error: 'not-paused' });
+  });
+
+  // Contract for task 9 (design C7, C4, C5 "redrive"; Requirements 2.1, 3.1,
+  // 3.2, 3.3, 3.4, 3.5). Per success criterion in the task 9 _Prompt. Every
+  // test that starts a drive points CONTROLLER_CLAUDE_BIN at the stub with a
+  // script (the task's own restriction), so no real `claude` ever spawns.
+  describe('POST /api/controller/runs/:id/redrive and GET /api/controller/runs (driven) — task 9', () => {
+    // (a): an unknown id. Pre: no such run. Call: POST .../redrive. Result:
+    // 404 { error: 'run-not-found' }. Source: design C7 "not-found" -> 404;
+    // Requirement 3 AC 2.
+    it('(a) an unknown run answers 404 run-not-found', async () => {
+      const base = await startServer();
+      const res = await realFetch(`${base}/api/controller/runs/run-nope/redrive`, auth({ method: 'POST' }));
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'run-not-found' });
+    });
+
+    // (b): a currently-driven run. Pre: a run launched through the real
+    // harness launch route, scripted with a delayed stub step and polled
+    // until `inFlight` is set (so `controller.drivenRuns()` holds its id).
+    // Call: POST .../redrive while it is in flight. Result: 409
+    // { error: 'not-stalled' }, with `updated` unchanged. Source: design C5
+    // "redrive" post-condition 2 via C7's 409 mapping; Requirement 3 AC 5.
+    it('(b) a driven run answers 409 not-stalled and changes nothing', async () => {
+      const projectId = await prepareLaunchableProject('ctrl-redrive-b');
+      const base = await startServer();
+      chmodSync(STUB_CLAUDE, 0o755);
+      const scriptPath = join(tempDir, 'claude-script-b.json');
+      writeClaudeScript(scriptPath, 800);
+      process.env.CONTROLLER_CLAUDE_BIN = STUB_CLAUDE;
+      process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+      const runId = await launchViaRoute(base, projectId, 'ctrl-redrive-b');
+      const before = await waitForInFlight(runId);
+
+      const res = await realFetch(`${base}/api/controller/runs/${runId}/redrive`, auth({ method: 'POST' }));
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'not-stalled' });
+
+      const after = await readRun(runId);
+      expect(after?.updated).toBe(before.updated);
+    }, 15000);
+
+    // (c): a done run. Pre: a `done` run written directly to disk. Call:
+    // POST .../redrive. Result: 409 { error: 'not-stalled' }, record
+    // unchanged. Source: design C5 "redrive" post-condition 5 via C7's 409
+    // mapping; Requirement 3 AC 5.
+    it('(c) a done run answers 409 not-stalled and changes nothing', async () => {
+      const base = await startServer();
+      const specStore = join(tempDir, 'store-c');
+      const spec = 'ctrl-redrive-c';
+      const id = 'run-redrive-done';
+      const iso = '2026-11-03T10:00:00.000Z';
+      await writeRun({
+        v: 1, id, project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/x', status: 'done', created: iso, updated: iso,
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      });
+
+      const res = await realFetch(`${base}/api/controller/runs/${id}/redrive`, auth({ method: 'POST' }));
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'not-stalled' });
+
+      const after = await readRun(id);
+      expect(after?.status).toBe('done');
+      expect(after?.updated).toBe(iso);
+    });
+
+    // (d): a stalled `running` run. Pre: a `running` record written directly
+    // to disk after the server (and so its controller's recovery) started, so
+    // it is genuinely undriven. Call: POST .../redrive. Result: 200
+    // { ok: true }. Source: design C5 "redrive" post-condition 3 via C7's 200
+    // mapping; Requirement 3 AC 3.
+    it('(d) a stalled running run answers 200 ok and starts a drive', async () => {
+      const base = await startServer();
+      chmodSync(STUB_CLAUDE, 0o755);
+      const scriptPath = join(tempDir, 'claude-script-d.json');
+      writeClaudeScript(scriptPath, 300);
+      process.env.CONTROLLER_CLAUDE_BIN = STUB_CLAUDE;
+      process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+      const specStore = join(tempDir, 'store-d');
+      const spec = 'ctrl-redrive-d';
+      mkdirSync(join(specStore, '.spec-workflow', 'specs', spec), { recursive: true });
+      const id = 'run-redrive-stalled';
+      const iso = '2026-11-03T10:00:00.000Z';
+      await writeRun({
+        v: 1, id, project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/x', status: 'running', created: iso, updated: iso,
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      });
+
+      const res = await realFetch(`${base}/api/controller/runs/${id}/redrive`, auth({ method: 'POST' }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    });
+
+    // (e): a run `waiting` on an open drive-crash wait. Pre: a `waiting`
+    // record and an open `error` wait carrying the `DRIVE_CRASH_QUESTION`
+    // question, both written directly after the server started. Call: POST
+    // .../redrive. Result: 200 { ok: true }. Source: design C5 "redrive"
+    // post-condition 4 via C7's 200 mapping; Requirement 3 AC 4.
+    it('(e) a run waiting on an open drive-crash wait answers 200 ok', async () => {
+      const base = await startServer();
+      chmodSync(STUB_CLAUDE, 0o755);
+      const scriptPath = join(tempDir, 'claude-script-e.json');
+      writeClaudeScript(scriptPath, 300);
+      process.env.CONTROLLER_CLAUDE_BIN = STUB_CLAUDE;
+      process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+      const specStore = join(tempDir, 'store-e');
+      const spec = 'ctrl-redrive-e';
+      const specDir = join(specStore, '.spec-workflow', 'specs', spec);
+      mkdirSync(specDir, { recursive: true });
+      const id = 'run-redrive-crash-wait';
+      const iso = '2026-11-03T10:00:00.000Z';
+      await writeRun({
+        v: 1, id, project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/x', status: 'waiting', created: iso, updated: iso,
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      });
+      await createWait({
+        kind: 'error', runId: id, projectId: 'proj-1', spec, specDir,
+        questions: [{
+          id: DRIVE_CRASH_QUESTION, text: 'step drafter failed inside the controller: boom',
+          options: ['retry', 'abandon'], recommended: 'retry',
+        }],
+      });
+
+      const res = await realFetch(`${base}/api/controller/runs/${id}/redrive`, auth({ method: 'POST' }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    });
+
+    // (f): a run the controller is currently driving. Pre: the same
+    // launched-and-polled-in-flight setup as (b). Call: GET
+    // /api/controller/runs. Result: the row for that id reads `driven: true`.
+    // Source: design C4 "the GET route ... calls listRunsForWire(this
+    // .controller.drivenRuns())"; Requirement 2 AC 1.
+    it('(f) the GET row reads driven: true for a run the controller is driving', async () => {
+      const projectId = await prepareLaunchableProject('ctrl-redrive-f');
+      const base = await startServer();
+      chmodSync(STUB_CLAUDE, 0o755);
+      const scriptPath = join(tempDir, 'claude-script-f.json');
+      writeClaudeScript(scriptPath, 800);
+      process.env.CONTROLLER_CLAUDE_BIN = STUB_CLAUDE;
+      process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+      const runId = await launchViaRoute(base, projectId, 'ctrl-redrive-f');
+      await waitForInFlight(runId);
+
+      const listRes = await realFetch(`${base}/api/controller/runs`, auth());
+      const body: any = await listRes.json();
+      const row = (body.runs as any[]).find((r) => r.id === runId);
+      expect(row?.driven).toBe(true);
+    }, 15000);
+
+    // (g) regression guard: an undriven run. Pre: a `running` record written
+    // directly to disk after the server started (so recovery never touched
+    // it, and it starts no step of its own). Call: GET
+    // /api/controller/runs. Result: the row for that id reads
+    // `driven: false`. Source: design C4 "driven: driven.has(run.id)" with an
+    // id outside the set; Requirement 2 AC 1. This already holds at base
+    // (task 6 wires the GET route with no caller passing a set, so every row
+    // reads false); written here as the regression guard the real wiring
+    // must not break.
+    it('(g) regression guard: an undriven run reads driven: false on the GET row', async () => {
+      const base = await startServer();
+      const specStore = join(tempDir, 'store-g');
+      const spec = 'ctrl-redrive-g';
+      const id = 'run-redrive-undriven';
+      const iso = '2026-11-03T10:00:00.000Z';
+      await writeRun({
+        v: 1, id, project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/x', status: 'running', created: iso, updated: iso,
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      });
+
+      const listRes = await realFetch(`${base}/api/controller/runs`, auth());
+      const body: any = await listRes.json();
+      const row = (body.runs as any[]).find((r) => r.id === id);
+      expect(row?.driven).toBe(false);
+    });
+
+    // (i) regression guard: no secret. Pre: a started server, no run needed.
+    // Call: POST .../redrive with no Authorization header. Result: 401.
+    // Source: the app-level `onRequest` access-control hook
+    // (`makeRequireAccess`, installed before every route) already rejects
+    // every non-GET under /api/controller/ with no secret; holds at base.
+    it('(i) regression guard: POST redrive with no secret answers 401', async () => {
+      const base = await startServer();
+      const res = await realFetch(`${base}/api/controller/runs/anything/redrive`, { method: 'POST' });
+      expect(res.status).toBe(401);
+    });
   });
 });
