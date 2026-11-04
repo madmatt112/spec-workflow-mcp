@@ -16,7 +16,7 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 #### Acceptance Criteria
 
-1. WHEN the gate selects a case whose reasons are all `role` (`src/evals/select.ts:188`), `profile` (`src/evals/select.ts:190`) or brief reasons THEN the gate SHALL run that case exactly 1 time. The brief reasons are `brief <template>`, `brief source` and `brief: base render unavailable` (`src/evals/select.ts:131`, `src/evals/select.ts:153`, `src/evals/select.ts:200`).
+1. WHEN the gate selects a case whose reasons are all `role` (`src/evals/select.ts:188`), `profile` (`src/evals/select.ts:190`) or brief reasons THEN the gate SHALL run that case exactly 1 time. The brief reasons are `brief <template>` (`src/evals/select.ts:153`), `brief source` (`src/evals/select.ts:200`) and `brief: base render unavailable` (`src/evals/select.ts:131`).
 2. WHEN one gate selects a case with a `case` reason (`src/evals/select.ts:184`) and a case with only a `role` reason (`src/evals/select.ts:188`) THEN the gate SHALL make 3 step calls for the first case and 1 step call for the second. `RunGateOpts.step` is the seam (`src/evals/gate.ts:17`).
 3. WHEN the gate selects a case with a `case` reason or a `grader <name>` reason, alone or with any other reason, THEN the gate SHALL run that case 3 times. **Invariant (verified, not red-first):** every gate case runs 3 times at base (`src/evals/gate.ts:56-58`, `src/evals/runner.ts:144`).
 4. The reason-to-count rule SHALL have one definition, which both the gate and the `select` command use.
@@ -30,11 +30,11 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 #### Acceptance Criteria
 
-1. WHEN the single run of a 1-run case fails THEN the gate SHALL make no further step call for that case and SHALL exit 1.
-2. WHEN the single run of a 1-run case is inconclusive THEN the case verdict SHALL be `inconclusive` and the gate SHALL exit 1, with no further step call for that case.
+1. WHEN the single run of a 1-run case fails, and no `--eval-override` names that case, THEN the gate SHALL exit 1 (`src/evals/gate.ts:74`).
+2. WHEN the single run of a 1-run case is inconclusive, and no `--eval-override` names that case, THEN the case verdict SHALL be `inconclusive` and the gate SHALL exit 1 (`src/evals/gate.ts:74`).
 3. A case SHALL pass only when all of its runs pass. **Invariant (verified, not red-first):** `src/evals/runner.ts:246-250`.
 4. WHEN a case with 3 planned runs fails a run THEN the remaining runs of that case SHALL still run. **Invariant (verified, not red-first):** `src/evals/runner.ts:165-243`.
-5. WHEN the gate exits non-zero THEN the self-update SHALL leave `dist/` unchanged and write an `error` wait that names the failing case. **Invariant (verified, not red-first):** `scripts/sdd-self-update.sh:252-258`, `src/__tests__/service-scripts.test.ts:382-406`.
+5. WHEN the gate exits non-zero THEN the self-update SHALL leave `dist/` unchanged and write an `error` wait carrying the gate's summary, which names the failing case or, on an exit-2 override-validation error, the bad override. **Invariant (verified, not red-first):** `scripts/sdd-self-update.sh:252-258`, `src/__tests__/service-scripts.test.ts:382-406`.
 
 ### Requirement 3 — stating the real run count
 
@@ -56,7 +56,7 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 #### Acceptance Criteria
 
-1. WHEN `select` prints a selected case THEN the line SHALL end with its planned count: `select <id>: <reasons>: 3 runs`, or `select <id>: <reasons> (provisional): 1 run`. The existing text stays a prefix of the line, so the `toContain` at `src/evals/__tests__/cli.test.ts:283` still holds.
+1. WHEN `select` prints a selected case THEN the line SHALL end with its planned count after any ` (provisional)` marker: `select <id>: <reasons>: 3 runs`, or `select <id>: <reasons> (provisional): 1 run`. The count comes from the reasons (AC4), not from whether the case is provisional, so a provisional `case`-reason line reads `(provisional): 3 runs`. The existing text stays a prefix of the line, so the `toContain` at `src/evals/__tests__/cli.test.ts:283` still holds.
 2. WHEN `select` finishes THEN it SHALL print one total line after the case lines: `select: <cases> cases, <runs> runs`, with the singular word for a count of 1. It SHALL print this line for an empty selection too, as `select: 0 cases, 0 runs`.
 3. WHEN any selected case is provisional THEN the total line SHALL end with ` (provisional)`.
 4. WHEN selection is provisional THEN each case's count SHALL come from the same rule as the gate's. The `case`, `role`, `profile` and `grader` reasons are the same in both modes (`src/evals/select.ts:184-195`), so a case that stays selected keeps its count. Only the membership of brief-only cases, and so the total, is provisional.
@@ -99,6 +99,7 @@ The steering directory holds no `product.md`, so this section aligns with the op
 - Added to the entry: Requirement 5, because the docs state 3 runs and the entry's list omits them. The entry's "gate output" is read as both stdout and the failure summary (D2).
 - The entry's list names `scripts/sdd-self-update.sh`, but Requirement 4 may need no script edit, because the script already prints what `select` prints. Design decides.
 - Unchanged, on purpose: `docs/ai-resources-catalogue.md:175-176` records a past grill decision, not current behaviour.
+- Known consequence, not fixed here: the dry run selects over `HEAD..origin/main` (`scripts/sdd-self-update.sh:234`) while the deploy gate runs over `$BASE..$TARGET_COMMIT` (`scripts/sdd-self-update.sh:241`), so the preview is an estimate when those ranges differ; AC5's equality holds only for exact `select` over the gate's range.
 - Known consequence, not fixed here: a single-run failure can be a flake. A later deploy with an override on that case refuses with exit 2 if the case then passes, and it refuses after the runs (`src/evals/gate.ts:66-72`). The operator then deploys again with no override.
 - Carried from the decomposition: none.
 
@@ -106,3 +107,10 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 - **v1** (2026-11-04) — Initial draft.
   - **Lint pass.** 6 fixed; rejected: none.
+- **v2** (2026-11-04) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 2/0/4).
+  - **R1-1 — Accepted (MUST_FIX).** R1 AC1 now inlines each brief reason's citation, so brief template reads line 153, brief source line 200, and base-render-unavailable line 131 (requirements.md line 19), ending the rotated triplet.
+  - **R1-2 — Accepted (MUST_FIX).** R2 AC1 and AC2 now carve out an override naming the case and cite the exit-1 guard at gate line 74 (requirements.md lines 33-34), so they no longer contradict R3 AC5's exit-0.
+  - **R1-3 — Accepted (MINOR).** R4 AC1 now states the count follows the reasons, not provisional-ness, and shows a provisional 3-runs form (requirements.md line 59).
+  - **R1-4 — Accepted (MINOR).** Dropped the vacuous "no further step call" clause from R2 AC1 and AC2 (requirements.md lines 33-34); the testable content is the exit code.
+  - **R1-5 — Accepted (MINOR).** R2 AC5 now says the error wait carries the gate summary, naming the failing case or, on an exit-2 validation error, the bad override (requirements.md line 37).
+  - **R1-6 — Accepted (MINOR).** Added a scope note that the dry-run range may differ from the gate range, so the preview is an estimate (requirements.md Scope notes).
