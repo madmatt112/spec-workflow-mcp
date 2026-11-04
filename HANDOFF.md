@@ -160,6 +160,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-03 | controller-liveness-and-push | design | v3 | approved | 3 rounds |
 | 2026-11-03 | controller-liveness-and-push | tasks | v1 | approved | 1 rounds |
 | 2026-11-04 | controller-liveness-and-push | implementation | tasks 15/15 | complete | PR #200 |
+| 2026-11-04 | controller-liveness-and-push | retrospective |  | retro-ready | 8 findings, 6 proposals |
 
 ## Current state — 2026-08-04
 
