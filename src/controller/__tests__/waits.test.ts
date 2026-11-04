@@ -10,9 +10,13 @@ import {
   setOpinionStatus,
   listOpenWaits,
   listWaitsForView,
+  expireWait,
+  openDriveCrashWait,
+  DRIVE_CRASH_QUESTION,
+  waitEvents,
   type ControllerWaitRecord,
 } from '../waits.js';
-import { readWait, readRun, writeRun } from '../state.js';
+import { readWait, readRun, writeRun, writeWait } from '../state.js';
 import type { WaitQuestion, WaitOpinion, RunRecord } from '../state.js';
 
 // Contract for src/controller/waits.ts (controller-tasks.md "T4 waits";
@@ -360,5 +364,210 @@ describe('attachAdvice leaves the wait state and the run file unchanged (5.3, re
 
     const storedRun = await readRun(run.id);
     expect(storedRun).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5 — the drive-crash wait helpers (design C6; Requirement 2.3, 3.4,
+// 3.7).
+//
+// Contract:
+// - (a)+(d) "expireWait turns an open wait expired, writes it, emits change,
+//   and writes no receipt or ledger row" — Pre: an open `error` wait whose
+//   one question has id `DRIVE_CRASH_QUESTION`. Call: `expireWait(id)`.
+//   Observable: the returned record and the re-read record both have
+//   `state === 'expired'`; a `waitEvents` `change` listener attached before
+//   the call fires once with a record of that id and `state: 'expired'`;
+//   `<specDir>/questions.md` and `<specDir>/harness-events.jsonl` are both
+//   still absent (ENOENT). Source: design C6 ("an open wait becomes
+//   `expired`, is written, and `change` is emitted" / "`expireWait` writes no
+//   `questions.md` and no ledger row").
+// - (b) "an answered wait returns unchanged with no write and no emit" —
+//   Pre: the same kind of wait, already `answerWait`-ed (state `answered`).
+//   Call: `expireWait(id)` with a `change` listener attached first.
+//   Observable: the return value deep-equals the pre-call stored record (no
+//   `expired` flip); the re-read record also deep-equals the pre-call
+//   snapshot; the listener is never called. Source: design C6 ("any other
+//   state returns unchanged with no write").
+// - (c) "an unknown id returns undefined" — Pre: none. Call:
+//   `expireWait('w-deadbeef')`. Observable: `undefined`. Source: design C6
+//   ("any other state returns unchanged"), mirrored on the existing unknown-id
+//   cases for `attachAdvice`/`answerWait` above.
+// - (e) "openDriveCrashWait finds the open wait of that run with that
+//   question id" — Pre: an open `error` wait for run `run-crash-a` whose
+//   question id is `DRIVE_CRASH_QUESTION`. Call:
+//   `openDriveCrashWait('run-crash-a')`. Observable: the returned record's
+//   `id` equals the created record's `id`. Source: design C6
+//   ("the open wait for that run with a question of that id, from
+//   `listOpenWaits`").
+// - (f.1) "returns undefined for another run's wait" — Pre: the open crash
+//   wait for `run-crash-a` from the previous case. Call:
+//   `openDriveCrashWait('run-crash-b')`. Observable: `undefined`. Source:
+//   design C6, Success (f).
+// - (f.2) "returns undefined for an open wait with a different question id"
+//   — Pre: an open `error` wait for `run-crash-a` whose question id is not
+//   `DRIVE_CRASH_QUESTION`. Call: `openDriveCrashWait('run-crash-a')`.
+//   Observable: `undefined`. Source: design C6, Success (f).
+// - (f.3) "returns undefined for an answered crash wait" — Pre: an `error`
+//   wait for `run-crash-a` with a `DRIVE_CRASH_QUESTION` question, answered
+//   (state `answered`). Call: `openDriveCrashWait('run-crash-a')`.
+//   Observable: `undefined`, because `listOpenWaits` only returns `state:
+//   'open'` records. Source: design C6, Success (f).
+// - (g) regression guard (holds at base; task text names it explicitly) —
+//   Pre: a wait whose stored `state` is `expired`, written directly through
+//   `writeWait` (not through `expireWait`, so the guard stands on its own
+//   and does not depend on this task's new code). Call: `listWaitsForView()`.
+//   Observable: the result's ids do not include that wait's id. Source:
+//   task 5 "Regression guard (holds at base): `listWaitsForView` hides an
+//   expired wait (`src/controller/waits.ts:193-198`)."; not forced red — see
+//   the report.
+
+const CRASH_QUESTION: WaitQuestion = {
+  id: DRIVE_CRASH_QUESTION,
+  text: 'step implementation failed inside the controller: boom',
+  options: ['retry', 'abandon'],
+  recommended: 'retry',
+};
+
+describe('expireWait (design C6)', () => {
+  it('turns an open wait expired, writes it, emits change, and writes no receipt or ledger row (a, d)', async () => {
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+
+    const seen: ControllerWaitRecord[] = [];
+    const onChange = (changed: ControllerWaitRecord) => seen.push(changed);
+    waitEvents.on('change', onChange);
+    try {
+      const result = await expireWait(record.id);
+      expect(result?.state).toBe('expired');
+
+      const stored = (await readWait(record.id)) as ControllerWaitRecord;
+      expect(stored.state).toBe('expired');
+
+      expect(seen).toHaveLength(1);
+      expect(seen[0].id).toBe(record.id);
+      expect(seen[0].state).toBe('expired');
+    } finally {
+      waitEvents.off('change', onChange);
+    }
+
+    await expect(fs.readFile(join(specDir, 'questions.md'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(fs.readFile(join(specDir, 'harness-events.jsonl'), 'utf-8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
+  it('returns an answered wait unchanged with no write and no emit (b)', async () => {
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+    await answerWait(record.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+    const before = (await readWait(record.id)) as ControllerWaitRecord;
+    expect(before.state).toBe('answered');
+
+    const seen: ControllerWaitRecord[] = [];
+    const onChange = (changed: ControllerWaitRecord) => seen.push(changed);
+    waitEvents.on('change', onChange);
+    try {
+      const result = await expireWait(record.id);
+      expect(result).toEqual(before);
+
+      const after = (await readWait(record.id)) as ControllerWaitRecord;
+      expect(after).toEqual(before);
+
+      expect(seen).toHaveLength(0);
+    } finally {
+      waitEvents.off('change', onChange);
+    }
+  });
+
+  it('returns undefined for an unknown id (c)', async () => {
+    expect(await expireWait('w-deadbeef')).toBeUndefined();
+  });
+});
+
+describe('openDriveCrashWait (design C6)', () => {
+  it("finds the open wait of that run with that question id (e)", async () => {
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+
+    const found = await openDriveCrashWait('run-crash-a');
+    expect(found?.id).toBe(record.id);
+  });
+
+  it("returns undefined for another run's wait (f.1)", async () => {
+    await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+
+    expect(await openDriveCrashWait('run-crash-b')).toBeUndefined();
+  });
+
+  it('returns undefined for an open wait with a different question id (f.2)', async () => {
+    await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [{ id: 'some-other-question', text: 'unrelated', options: ['a', 'b'] }],
+    });
+
+    expect(await openDriveCrashWait('run-crash-a')).toBeUndefined();
+  });
+
+  it('returns undefined for an answered crash wait (f.3)', async () => {
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+    await answerWait(record.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+
+    expect(await openDriveCrashWait('run-crash-a')).toBeUndefined();
+  });
+});
+
+describe("listWaitsForView hides an expired wait (regression guard, holds at base)", () => {
+  it('omits a wait whose stored state is expired', async () => {
+    const record = await createWait({
+      kind: 'error',
+      runId: 'run-crash-a',
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: [CRASH_QUESTION],
+    });
+    const expired = (await readWait(record.id)) as ControllerWaitRecord;
+    expired.state = 'expired';
+    await writeWait(expired);
+
+    const ids = (await listWaitsForView()).map((w) => w.id);
+    expect(ids).not.toContain(record.id);
   });
 });
