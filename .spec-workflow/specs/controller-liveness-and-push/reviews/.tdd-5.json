@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/waits.test.ts"],"seams":{"src/controller/__tests__/waits.test.ts":"expireWait(id) and openDriveCrashWait(runId)"},"redCommit":"cbdc5549c446ba7bfb7e728769972f92bacc577e","baseSha":"16c09abfc8335b21ad146ea97f06ffa1c75037f9","base":"structural-red","head":"pass","amended":false,"judged":null}

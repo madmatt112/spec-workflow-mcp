@@ -52,7 +52,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 1.2, 1.4, 1.7_
   - _Prompt: Task: Implement the design C3 wiring and `setRunHeartbeat`, using the writer task 1 exports and the factory task 2 exports. `stepLifecycle` (`src/controller/runs.ts:436-447`) gains the factory; each of the five context types gains the field beside `onStepEnd`; each `StepSpec` build sets `heartbeat` from it, so every step gets a fresh object. Add an optional `eventDelayMs` run field to the stub. Create `liveness-e2e.test.ts`, copying the fixture setup from `src/controller/__tests__/controller.test.ts:95-117` and `:163-172`, with design end-to-end scenario 1. | Restrictions: Do not wire the advisor opinion step (`src/advisor/opinion.ts:154`). Emit `runEvents` `change` only when a record was written (NFR Performance). A stub run without the new field prints exactly as today. Assert the 10-second rate only in task 2's fake-timer test, never with a real wait. | Success: Each case has its own test: (a) `setRunHeartbeat` writes the value and emits one `change`; (b) it emits nothing when no record was written; (c) while a stub step streams, `lastActivity` appears in `run.json`; (d) the field is absent within 1 second of that step's end; (e) a cancel during the step leaves status `abandoned` with the field absent_
 
-- [ ] 5. Add the drive-crash wait helpers
+- [x] 5. Add the drive-crash wait helpers
   - File: src/controller/waits.ts
   - Test: src/controller/__tests__/waits.test.ts — expireWait(id) and openDriveCrashWait(runId)
   - Add the question id constant, the finder and the expiry.
