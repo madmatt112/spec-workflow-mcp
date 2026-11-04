@@ -28,13 +28,23 @@
 // init event is augmented with `env`, `argv` and `cwd` extras so tests can assert
 // env scrubbing, that `--resume` was passed, and the cwd.
 
-import { readFileSync, writeFileSync, renameSync, mkdirSync, appendFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, appendFileSync, writeSync } from 'node:fs';
 import { dirname, join, isAbsolute } from 'node:path';
 import { execSync } from 'node:child_process';
 
 function fail(message) {
   process.stderr.write(`stub-claude: ${message}\n`);
   process.exit(2);
+}
+
+// RAW_STDOUT mode: echo exactly these bytes to stdout and exit 0, bypassing the
+// canned-run script. It lets stream line-parser tests drive content the
+// STUB_CLAUDE_SCRIPT shape cannot produce — a blank line, non-JSON noise, a JSON
+// scalar, or a final line with no trailing newline. Keyed on presence, so an
+// empty value prints nothing. writeSync flushes before exit.
+if ('RAW_STDOUT' in process.env) {
+  writeSync(1, process.env.RAW_STDOUT);
+  process.exit(0);
 }
 
 const scriptPath = process.env.STUB_CLAUDE_SCRIPT;

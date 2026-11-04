@@ -105,23 +105,6 @@ function readFixtureObject(file: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(FIXTURES, file), 'utf8')) as Record<string, unknown>;
 }
 
-/**
- * Writes a one-off `claude` stand-in that prints exactly `raw` to stdout, byte
- * for byte, then exits 0 once the write has flushed. Lets a test drive the
- * step's line parser with content the canned-run stub (`STUB_CLAUDE_SCRIPT`)
- * cannot produce: a blank line, non-JSON noise, a JSON scalar, or a final
- * line with no trailing newline.
- */
-function writeRawClaudeScript(dir: string, raw: string): string {
-  const scriptPath = join(dir, 'raw-claude.mjs');
-  writeFileSync(
-    scriptPath,
-    `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(raw)}, () => process.exit(0));\n`,
-  );
-  chmodSync(scriptPath, 0o755);
-  return scriptPath;
-}
-
 interface RawOutcome {
   result: Awaited<ReturnType<typeof runStep>>;
   calls: string[];
@@ -136,7 +119,10 @@ async function runRaw(raw: string, overrides: Partial<StepSpec> = {}): Promise<R
   writeFileSync(briefPath, 'do the thing');
   const logPath = join(dir, 'logs', 'step-1.jsonl');
 
-  process.env.CONTROLLER_CLAUDE_BIN = writeRawClaudeScript(dir, raw);
+  // Drive the line parser with exact bytes the canned-run script shape cannot
+  // produce, via the headless stub's RAW_STDOUT mode.
+  process.env.CONTROLLER_CLAUDE_BIN = STUB;
+  process.env.RAW_STDOUT = raw;
   delete process.env.STUB_CLAUDE_SCRIPT;
 
   const calls: string[] = [];
