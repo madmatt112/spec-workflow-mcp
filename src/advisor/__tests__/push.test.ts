@@ -797,7 +797,11 @@ describe('WaitPusher', () => {
     const result = await writeWaitFromChildProcess('question', 'proj-n', 'spec-n', 'q1', 'question text');
     expect(result.code).toBe(0);
 
-    await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'), 5000);
+    // The two failing fetches + retry delay + file-watch + append must all run
+    // after the wait lands. On a loaded CI runner (node 20, 2 cores, the whole
+    // suite in parallel) the event loop is starved, so `waitFor`'s wall-clock
+    // deadline needs more headroom than the ~600ms this takes unloaded.
+    await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'), 15000);
     await sleep(200);
 
     expect(failing.counter.count).toBe(2);
@@ -814,7 +818,7 @@ describe('WaitPusher', () => {
     expect(wait!.advice).toBeUndefined();
 
     expect(await readPushedIds()).toContain(wait!.id);
-  }, 10000);
+  }, 20000);
 
   it('(o) regression guard: on the very first start, with an open wait already on disk and no pushed.json, records the id but sends nothing (4.6)', async () => {
     const wait = await makeOpenWait('spec-o', 'proj-o');
