@@ -33,6 +33,7 @@ const SEED_IDS = [
   'guard-task-no-red-step',
   'implementer-file-outside-list-classify',
   'implementer-fix-tests-on-list',
+  'implementer-reports-amended-tests',
   'test-author-precommit-hook',
   'test-author-trailer',
 ];

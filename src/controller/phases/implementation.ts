@@ -174,6 +174,7 @@ export const IMPLEMENTER_SCHEMA = {
     checks: { type: 'string' },
     checksFile: { type: 'string', description: 'Path of a JSON array of the shell commands run' },
     green: { type: 'string' },
+    amendedTests: { type: 'string', description: 'Any author test file the implementer edited, root-relative, else "none"' },
     flag: { type: 'string', description: '"none", "DESIGN-DEFECT: …", "REQUIRED: …", "ESCALATE: …", "AFFECTS-FUTURE-SPECS: …" or "INFRA: …"' },
     retro: { type: 'string', description: '"none" or "<category> — <one line>"' },
     reproduce: { type: 'string', description: 'CI fix only: the command that reproduces the check locally' },
@@ -217,7 +218,7 @@ const ADJUDICATOR_SCHEMA = {
 } as const;
 
 interface AuthorReport { commit?: string; files?: string[]; tests?: number; folds?: string; flag?: string; redImpossible?: string; retro?: string }
-interface ImplementerReport { logged?: string; commit?: string; checks?: string; checksFile?: string; green?: string; flag?: string; retro?: string; reproduce?: string }
+interface ImplementerReport { logged?: string; commit?: string; checks?: string; checksFile?: string; green?: string; amendedTests?: string; flag?: string; retro?: string; reproduce?: string }
 interface VerifierReport { verdict?: string; findings?: string; retro?: string }
 interface E2eReport { verify?: string; deferredCommand?: string; findings?: string; retro?: string }
 interface AdjudicatorReport { commit?: string; fixed?: string[]; ruledOut?: string[]; notes?: string; flags?: string }

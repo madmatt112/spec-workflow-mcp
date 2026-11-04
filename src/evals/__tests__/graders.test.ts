@@ -754,14 +754,45 @@ describe('GRADERS registry', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  // Pre-condition: a report whose `amendedTests` key names the author test file the
+  // grader's `path` argument asks for.
+  // Test: GRADERS['report-names-path'].grade({ report, fixture }, { key, path }).
+  // Observable result: pass is true.
+  // Expected-value source: retro P12 — an implementer that edits an author test file names
+  // it in its report so the orchestrator sees the amendment in the round it happened.
+  it('report-names-path passes when the report key names the path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    const result = GRADERS['report-names-path'].grade(
+      { report: { amendedTests: 'src/features/positions/multi-leg/fields.test.ts' }, fixture: stubFixture(root) },
+      { key: 'amendedTests', path: 'src/features/positions/multi-leg/fields.test.ts' }
+    );
+    expect(result.pass).toBe(true);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // Pre-condition: a report whose `amendedTests` key is `none`, naming no author test file.
+  // Test: GRADERS['report-names-path'].grade({ report, fixture }, { key, path }).
+  // Observable result: pass is false.
+  // Expected-value source: retro P12 — a report that omits the amended author test file is
+  // the failure this eval catches.
+  it('report-names-path fails when the report key does not name the path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'grader-fx-'));
+    const result = GRADERS['report-names-path'].grade(
+      { report: { amendedTests: 'none' }, fixture: stubFixture(root) },
+      { key: 'amendedTests', path: 'src/features/positions/multi-leg/fields.test.ts' }
+    );
+    expect(result.pass).toBe(false);
+    rmSync(root, { recursive: true, force: true });
+  });
+
   // Pre-condition: task 2's four graders, task 3's six git-state graders, the retro-P6
-  // task-no-test-seam grader and the retro-P1/P2 task-success-scope and task-success-eslint
-  // graders are all registered.
+  // task-no-test-seam grader, the retro-P1/P2 task-success-scope and task-success-eslint
+  // graders and the retro-P12 report-names-path grader are all registered.
   // Test: Object.keys(GRADERS).
-  // Observable result: the registry lists exactly the thirteen named graders.
+  // Observable result: the registry lists exactly the fourteen named graders.
   // Expected-value source: task 3's _Prompt: "the registry lists ten graders", plus the
-  // retro-P6 task-no-test-seam and retro-P1/P2 task-success-scope and task-success-eslint graders.
-  it('registers thirteen graders including the six git-state graders', () => {
+  // retro-P6, retro-P1/P2 and retro-P12 graders.
+  it('registers fourteen graders including the six git-state graders', () => {
     expect(Object.keys(GRADERS).sort()).toEqual([
       'clean-tree',
       'item-commit-on-branch',
@@ -772,6 +803,7 @@ describe('GRADERS registry', () => {
       'no-new-commit',
       'repo-unchanged',
       'report-flag',
+      'report-names-path',
       'task-no-test-seam',
       'task-success-eslint',
       'task-success-scope',

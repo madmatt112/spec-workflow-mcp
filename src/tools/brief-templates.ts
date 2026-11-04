@@ -46,7 +46,7 @@ function reportBlockLines(keys: string[]): string[] {
 }
 
 /** The implementer role's C9 report keys (design C9 `sdd-implementer` row). */
-const IMPLEMENTER_REPORT_KEYS = ['logged', 'commit', 'checks', 'checks-file', 'green', 'flag', 'retro'];
+const IMPLEMENTER_REPORT_KEYS = ['logged', 'commit', 'checks', 'checks-file', 'green', 'amended-tests', 'flag', 'retro'];
 
 /** The verifier role's C9 report keys (design C9 `sdd-verifier` row). */
 const VERIFIER_REPORT_KEYS = ['verdict', 'findings', 'retro'];
