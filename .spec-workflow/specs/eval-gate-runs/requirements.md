@@ -31,7 +31,7 @@ The steering directory holds no `product.md`, so this section aligns with the op
 #### Acceptance Criteria
 
 1. WHEN the single run of a 1-run case fails, and no `--eval-override` names that case, THEN the gate SHALL exit 1 (`src/evals/gate.ts:74`).
-2. WHEN the single run of a 1-run case is inconclusive, and no `--eval-override` names that case, THEN the case verdict SHALL be `inconclusive` and the gate SHALL exit 1 (`src/evals/gate.ts:74`).
+2. WHEN the single run of a 1-run case is inconclusive, and no `--eval-override` names that case, THEN the case verdict SHALL be `inconclusive` (`src/evals/runner.ts:250`) and the gate SHALL exit 1 (`src/evals/gate.ts:74`).
 3. A case SHALL pass only when all of its runs pass. **Invariant (verified, not red-first):** `src/evals/runner.ts:246-250`.
 4. WHEN a case with 3 planned runs fails a run THEN the remaining runs of that case SHALL still run. **Invariant (verified, not red-first):** `src/evals/runner.ts:165-243`.
 5. WHEN the gate exits non-zero THEN the self-update SHALL leave `dist/` unchanged and write an `error` wait carrying the gate's summary, which names the failing case or, on an exit-2 override-validation error, the bad override. **Invariant (verified, not red-first):** `scripts/sdd-self-update.sh:252-258`, `src/__tests__/service-scripts.test.ts:382-406`.
@@ -56,7 +56,7 @@ The steering directory holds no `product.md`, so this section aligns with the op
 
 #### Acceptance Criteria
 
-1. WHEN `select` prints a selected case THEN the line SHALL end with its planned count after any ` (provisional)` marker: `select <id>: <reasons>: 3 runs`, or `select <id>: <reasons> (provisional): 1 run`. The count comes from the reasons (AC4), not from whether the case is provisional, so a provisional `case`-reason line reads `(provisional): 3 runs`. The existing text stays a prefix of the line, so the `toContain` at `src/evals/__tests__/cli.test.ts:283` still holds.
+1. WHEN `select` prints a selected case THEN the line SHALL end with its planned count after any ` (provisional)` marker: `select <id>: <reasons>: 3 runs`, or `select <id>: <reasons> (provisional): 1 run`. The count comes from the reasons (AC4), not from whether the case is provisional, so a provisional `case`-reason line (`src/evals/select.ts:184`) reads `(provisional): 3 runs`. The existing text stays a prefix of the line, so the `toContain` at `src/evals/__tests__/cli.test.ts:283` still holds.
 2. WHEN `select` finishes THEN it SHALL print one total line after the case lines: `select: <cases> cases, <runs> runs`, with the singular word for a count of 1. It SHALL print this line for an empty selection too, as `select: 0 cases, 0 runs`.
 3. WHEN any selected case is provisional THEN the total line SHALL end with ` (provisional)`.
 4. WHEN selection is provisional THEN each case's count SHALL come from the same rule as the gate's. The `case`, `role`, `profile` and `grader` reasons are the same in both modes (`src/evals/select.ts:184-195`), so a case that stays selected keeps its count. Only the membership of brief-only cases, and so the total, is provisional.
@@ -114,3 +114,4 @@ The steering directory holds no `product.md`, so this section aligns with the op
   - **R1-4 — Accepted (MINOR).** Dropped the vacuous "no further step call" clause from R2 AC1 and AC2 (requirements.md lines 33-34); the testable content is the exit code.
   - **R1-5 — Accepted (MINOR).** R2 AC5 now says the error wait carries the gate summary, naming the failing case or, on an exit-2 validation error, the bad override (requirements.md line 37).
   - **R1-6 — Accepted (MINOR).** Added a scope note that the dry-run range may differ from the gate range, so the preview is an estimate (requirements.md Scope notes).
+  - **Lint pass.** 2 fixed; rejected: none.
