@@ -11,14 +11,15 @@
 // another process (the watchdog's own `createWait` call,
 // `scripts/sdd-watchdog.sh:185-201`) is seen too. Every event runs through one
 // queue: an open wait not yet recorded is added to `pushed.json`, written,
-// then POSTed with exactly `kind`, `project`, `spec` and `dashboardUrl` — no
-// question text, advice, file content or path (NFR Security). A failed POST
-// retries once after `retryDelayMs`, then logs one `push.failure` row; the
-// wait and the run are unaffected. Each write to `pushed.json` drops ids whose
-// wait file is gone. No `push.json` means no send. A wait with a config at its
-// first push is reminded once, an hour later, through `sweepReminders()` (the
-// `setInterval` entry and the test seam); a wait first seen with no config
-// never gets one.
+// then POSTed with `kind`, `project`, `spec` and the first line of its first
+// question, any path-shaped word blanked out — no advice or file content
+// (NFR Security; this supersedes the advisor spec's no-question-text rule,
+// per D2/D3). A failed POST retries once after `retryDelayMs`, then logs one
+// `push.failure` row; the wait and the run are unaffected. Each write to
+// `pushed.json` drops ids whose wait file is gone. No `notify.json` means no
+// send. A wait with a config at its first push is reminded once, an hour
+// later, through `sweepReminders()` (the `setInterval` entry and the test
+// seam); a wait first seen with no config never gets one.
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
 import { once } from 'events';

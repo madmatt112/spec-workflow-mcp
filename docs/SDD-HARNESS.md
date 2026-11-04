@@ -73,7 +73,7 @@ atomically.
 - `controller.lock` — the single-controller lock. A second controller that finds the
   lock held exits.
 - `watchdog.state` and `watchdog-alerts.log` — the watchdog's memory and its alerts.
-- `advisor/`, `sources.json`, `push.json`, `pushed.json`, `search.json` and `events.jsonl`
+- `advisor/`, `sources.json`, `notify.json`, `pushed.json`, `search.json` and `events.jsonl`
   — the advisor's own files (see "The advisor").
 
 There is no pointer file and no `harness-run.json` any more; both went with the
@@ -160,13 +160,16 @@ second user and no roles (design §17), beyond one exception: the advisor's own 
 credential, a second secret good only for its one MCP endpoint and no other route (see
 "The advisor").
 
-### Cancel and discard
+### Cancel, discard and redrive
 
 The operator can stop a run from the dashboard, or with `POST
 /api/controller/runs/:id/cancel` and `.../discard`. **Cancel** signals the in-flight step,
 marks the run abandoned, and leaves the worktree, the branch and any open PR in place.
 **Discard** cancels the run and then removes the worktree, deletes the branch and closes
-the PR.
+the PR. **Redrive** (`POST /api/controller/runs/:id/redrive`) resumes a stalled run with no
+restart: it drives the run again from its cursor, or, when an open drive-crash wait is
+blocking it, answers that wait as `retry`. It answers 404 for an unknown run and 409 when
+the run is not stalled.
 
 ## Phase flow
 
@@ -573,9 +576,12 @@ run waits for it, and no run state depends on it (design §16).
   an index. The advisor writes it in its own words; the controller never reads it. A
   decision the advisor takes is committed where it acts (an ADR, `GLOSSARY.md`, a project
   doc) with the `advisor commit` subcommand, plus a dated line in the notebook.
-- **Push.** `push.json` in the harness home names a URL. One push per new wait goes there,
-  naming only its kind, project, spec and the dashboard link — never the question, the
-  advice or any file content.
+- **Push.** `notify.json` in the harness home names an ntfy server, topic and token. One
+  push per new wait goes there. The push names the wait's kind, project, spec and the
+  first line of its first question, with any path-shaped word blanked out; advice and
+  file content never go out. This supersedes the advisor spec's rule that no question text
+  leaves the server. A wait that had a config at its first push gets one reminder, one hour
+  later, if it is still open.
 - **Credential.** The advisor's conversation holds its own secret, separate from the
   operator's, good only for the advisor's one MCP endpoint and no other route (see
   "Access").
