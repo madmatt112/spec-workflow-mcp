@@ -256,3 +256,8 @@
 {"ts":"2026-11-04T06:36:49.624Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.end","agent":"sdd-verifier","input":"42","output":"9187","cacheWrite":"62224","cacheRead":"1227852","tokens":"1299305","cacheWrite5m":"0","cacheWrite1h":"62224","model":"claude-opus-4-8"}
 {"ts":"2026-11-04T06:36:49.625Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 15","result":"VERDICT: pass","phase":"implementation","task":"15"}
 {"ts":"2026-11-04T06:36:49.626Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"task.done","task":"15","rounds":"0","outcome":"pass"}
+{"ts":"2026-11-04T06:36:49.782Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-04T06:41:16.957Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.end","agent":"sdd-verifier","input":"60","output":"18462","cacheWrite":"108047","cacheRead":"2189837","tokens":"2316406","cacheWrite5m":"0","cacheWrite1h":"108047","model":"claude-opus-4-8"}
+{"ts":"2026-11-04T06:41:16.958Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
+{"ts":"2026-11-04T06:41:16.958Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"e2e verification passed"}
+{"ts":"2026-11-04T06:41:17.220Z","run":"run-20261103-172257","spec":"controller-liveness-and-push","type":"note","text":"completion handoff written"}
