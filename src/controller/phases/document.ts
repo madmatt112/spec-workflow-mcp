@@ -23,6 +23,7 @@ import { execFileSync } from 'child_process';
 import {
   runStep, loadRole, type StepResult, type StepSpec, type ActivityEvent, type RateLimitWindows,
 } from '../step.js';
+import type { StepHeartbeat } from '../heartbeat.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { checkpoint, type RunLedger, type Serialize } from '../ledger.js';
 import { BRIEF_TEMPLATES } from '../../tools/brief-templates.js';
@@ -183,6 +184,8 @@ export interface DocumentPhaseContext {
   onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
   /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
   onStepEnd?: (id: string) => Promise<void> | void;
+  /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
+  stepHeartbeat?: () => StepHeartbeat;
   /** Gate A/B hooks; defaults to {@link NO_OP_GATES} (T5b supplies real ones). */
   gates?: DocumentGates;
   /**
@@ -393,6 +396,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       },
       onRateLimit: ctx.onRateLimit,
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
+      heartbeat: ctx.stepHeartbeat?.(),
     };
     const result = await runStep(spec);
     // Both record writes land before the result is acted on, so a status the

@@ -29,9 +29,10 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
-  writeRun, readRun, listRuns, listWaits,
+  writeRun, readRun, listRuns, listWaits, writeLastActivity,
   isProcessAlive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
+import { createStepHeartbeat, type StepHeartbeat } from './heartbeat.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
 import { createWait, type ControllerWaitRecord } from './waits.js';
@@ -432,10 +433,23 @@ async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>)
   runEvents.emit('change', next);
 }
 
+/**
+ * The single caller of {@link writeLastActivity} from the run loop (design C3):
+ * carries a heartbeat's value into the run record and emits `runEvents`
+ * `change` only when a record was actually written.
+ */
+export async function setRunHeartbeat(
+  now: () => Date, runId: string, value: string | undefined,
+): Promise<void> {
+  const written = await writeLastActivity(runId, value, now().toISOString());
+  if (written) runEvents.emit('change', written);
+}
+
 /** The in-flight step record callbacks every in-code phase gets (design §8). */
 function stepLifecycle(deps: RunDeps, runId: string): {
   onStepSpawn: (s: { id: string; pid: number; startTime: number }) => Promise<void>;
   onStepEnd: (id: string) => Promise<void>;
+  stepHeartbeat: () => StepHeartbeat;
 } {
   return {
     onStepSpawn: (s) => {
@@ -443,6 +457,10 @@ function stepLifecycle(deps: RunDeps, runId: string): {
       return patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
     },
     onStepEnd: () => patchRun(deps, runId, { inFlight: undefined }),
+    stepHeartbeat: () => createStepHeartbeat({
+      now: deps.now,
+      write: (value) => setRunHeartbeat(deps.now, runId, value),
+    }),
   };
 }
 

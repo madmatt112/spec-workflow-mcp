@@ -18,6 +18,7 @@ import { homedir } from 'os';
 import { execFile, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows } from '../step.js';
+import type { StepHeartbeat } from '../heartbeat.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore, type RunLedger, type Serialize } from '../ledger.js';
 import { harnessHandler, parsePlanItems, parseCloseoutDone, classifyTarget, type TargetClass, type PlanItem } from '../../tools/harness.js';
@@ -61,6 +62,8 @@ export interface CloseoutPhaseContext {
   onRateLimit?: (w: RateLimitWindows) => void;
   onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
   onStepEnd?: (id: string) => Promise<void> | void;
+  /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
+  stepHeartbeat?: () => StepHeartbeat;
   serialize?: Serialize;
   now?: () => Date;
   shouldStop?: () => string | null;
@@ -311,6 +314,7 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
+      heartbeat: ctx.stepHeartbeat?.(),
     };
     const result = await runStep(spec);
     await spawnWrite;
