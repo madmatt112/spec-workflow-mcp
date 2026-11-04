@@ -20,13 +20,16 @@ import {
   isProcessAlive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
-import { waitEvents, createWait, DRIVE_CRASH_QUESTION, type ControllerWaitRecord } from './waits.js';
+import {
+  waitEvents, createWait, answerWait, openDriveCrashWait, expireWait,
+  DRIVE_CRASH_QUESTION, type ControllerWaitRecord,
+} from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
-  runOnce, cancelRun, discardRun, writeApprovedRetroPlan, runEvents,
+  runOnce, cancelRun, discardRun, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
 
@@ -140,6 +143,31 @@ export class Controller extends EventEmitter {
   /** The run ids a drive currently holds: `active` plus the keys of `drives` (design C5). */
   drivenRuns(): ReadonlySet<string> {
     return new Set([...this.active, ...this.drives.keys()]);
+  }
+
+  /**
+   * Re-drive a stalled run with no restart (design C5 "redrive" post-conditions):
+   * a stalled `running` run resumes from its cursor; a `waiting` run with an open
+   * drive-crash wait is answered `retry` by `operator`, which `onWaitChange`
+   * re-queues. Anything already driven, or any other status, is `not-stalled`.
+   */
+  async redrive(runId: string): Promise<'ok' | 'not-found' | 'not-stalled'> {
+    const run = await readRun(runId);
+    if (!run) return 'not-found';
+    if (!this.started || this.drivenRuns().has(runId)) return 'not-stalled';
+
+    if (run.status === 'running') {
+      this.startDrive(runId);
+      return 'ok';
+    }
+    if (run.status === 'waiting') {
+      const wait = await openDriveCrashWait(runId);
+      if (wait) {
+        await answerWait(wait.id, { [DRIVE_CRASH_QUESTION]: 'retry' }, 'operator');
+        return 'ok';
+      }
+    }
+    return 'not-stalled';
   }
 
   // --- enqueue (design §9; Launch admission) -------------------------------
@@ -312,11 +340,18 @@ export class Controller extends EventEmitter {
         if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
           this.reattach(run); // alive: wait on the pid, then re-drive
         } else {
-          this.startDrive(run.id); // dead or none: resume from its cursor
+          await this.clearHeartbeat(run.id); // dead or none: clear the stale value, then resume from its cursor
+          this.startDrive(run.id);
         }
       } else if (run.status === 'waiting') {
-        // A wait answered while the controller was down still resumes the run.
-        await this.resumeIfWaitAnswered(run);
+        const crashWait = await openDriveCrashWait(run.id);
+        if (crashWait) {
+          await expireWait(crashWait.id); // an open drive-crash wait expires and re-drives, no operator action
+          this.startDrive(run.id);
+        } else {
+          // A wait answered while the controller was down still resumes the run.
+          await this.resumeIfWaitAnswered(run);
+        }
       }
     }
   }
@@ -328,12 +363,25 @@ export class Controller extends EventEmitter {
       if (!run.inFlight || !isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
         clearInterval(timer);
         this.resumeTimers.delete(timer);
-        this.active.delete(run.id);
-        this.startDrive(run.id);
+        // `active` keeps holding the run across the heartbeat clear, so `driven`
+        // never reads false in that gap (design C5 "reattach").
+        void this.clearHeartbeat(run.id).then(() => {
+          this.active.delete(run.id);
+          this.startDrive(run.id);
+        });
       }
     }, this.tickMs);
     timer.unref?.();
     this.resumeTimers.add(timer);
+  }
+
+  /** Clear a run's heartbeat, logging rather than throwing on a write failure. */
+  private async clearHeartbeat(runId: string): Promise<void> {
+    try {
+      await setRunHeartbeat(this.now, runId, undefined);
+    } catch (err) {
+      console.error(`[controller] could not clear the heartbeat for ${runId}`, err);
+    }
   }
 
   private async resumeIfWaitAnswered(run: RunRecord): Promise<void> {
