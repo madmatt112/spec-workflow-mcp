@@ -34,7 +34,7 @@ Tasks run in number order, and each leaves `npx tsc --noEmit` and every existing
   - _Requirements: 1.2, 1.4_
   - _Prompt: Task: Implement design C2. `StepSpec` (`src/controller/step.ts:94-135`) gains `heartbeat`, of the type task 2 exports. `handleLine` calls `line()` in the parsed-object branch (`:446-448`) before `handleEvent`. `finish` calls `end()` after the leftover-buffer `handleLine` (`:466-469`) and before the promise resolves; the spawn `error` handler calls it after `settled = true` (`:509-511`). | Restrictions: Do not touch `src/controller/activity.ts` (NFR Performance). Assert on lines, never chunk boundaries. | Success: Each case has its own test: (a) `line()` fires for a non-`tool_use` event; (b) it does not fire for a blank line; (c) it does not fire for a non-JSON line or a JSON scalar; (d) a last line with no newline fires `line()` before `end()`; (e) `end()` fires once on close; (f) `end()` fires once on spawn failure; (g) regression guard: `onActivity` still fires only for `tool_use` blocks_
 
-- [ ] 4. Wire the heartbeat into every run step
+- [x] 4. Wire the heartbeat into every run step
   - File: src/controller/runs.ts
   - File: src/controller/phases/document.ts
   - File: src/controller/phases/implementation.ts
