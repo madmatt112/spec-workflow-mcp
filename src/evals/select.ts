@@ -22,6 +22,14 @@ export interface SelectedCase {
   provisional: boolean;
 }
 
+/** 1 when every reason is `role`, `profile` or a `brief`-prefixed reason; 3 otherwise (design D2). */
+export function plannedRuns(reasons: string[]): 1 | 3 {
+  const indirect = reasons.every(
+    (reason) => reason === 'role' || reason === 'profile' || reason.startsWith('brief'),
+  );
+  return indirect ? 1 : 3;
+}
+
 function git(repo: string, args: string[]): string {
   return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
 }
