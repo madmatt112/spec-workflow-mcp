@@ -168,6 +168,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-05 | eval-gate-runs | implementation | tasks 6/6 | complete | PR #203 |
 | 2026-11-05 | eval-gate-runs | retrospective |  | retro-ready | 11 findings, 8 proposals |
 | 2026-11-05 | eval-gate-runs | closeout | items 10/10 | closed | 3 done, 1 to-do, 6 skipped |
+| 2026-11-05 | dashboard-deploy | requirements | v5 | approved | 5 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1412,4 +1413,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/204 |
 | To-dos | P5: Open DECISION NEEDED — human owns the determinism-vs-cost process-track choice; no decision recorded, recommended option is no change |
 | Gotchas | none |
+
+
+## dashboard-deploy — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v5 on 2026-11-05 |
+| Rounds | 5; verdicts adjudicated |
+| Approval | `approval_1793898936916_j40cj764f` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 

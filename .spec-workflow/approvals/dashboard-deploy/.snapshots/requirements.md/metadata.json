@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-deploy/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T17:15:37.079Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793898936916_j40cj764f",
+      "approvalTitle": "dashboard-deploy requirements v5"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T17:15:37.252Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793898936916_j40cj764f",
+      "approvalTitle": "dashboard-deploy requirements v5"
+    }
+  ]
+}
