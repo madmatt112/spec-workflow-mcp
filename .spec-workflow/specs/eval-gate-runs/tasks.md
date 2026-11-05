@@ -1,6 +1,6 @@
 # Tasks Document
 
-Document version: v1
+Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule and the runner option with no caller, task 3 applies them in the gate, task 4 reports them from the CLI, task 5 guards the deploy script's output, and task 6 updates the docs. Each task leaves `npx tsc --noEmit` and every existing suite green, and no file is edited by two tasks, so every line citation below stays valid. No task touches a sensitive path or creates a module; task 4 edits `src/evals/cli.ts`, so `isWiringTask` routes it a verifier (`src/controller/phases/implementation.ts:266-272`, `src/controller/phases/implementation.ts:850`).
 
@@ -48,8 +48,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
 
 - [ ] 5. Guard the dry run and the error wait in the script tests
   - File: src/__tests__/service-scripts.test.ts
-  - Test: src/__tests__/service-scripts.test.ts — `runScript(selfUpdateSh, ['--dry-run'], env)`
-  - Note: regression guard, not a red test. Earlier tasks shipped the dry-run output and requirement 2.5 holds at base, so every criterion passes before this task. Expected route: the author reports RED-IMPOSSIBLE and the implementer writes the tests.
+  - Note: implementer-only, no test author and no verifier. Every acceptance criterion is a regression guard: earlier tasks shipped the dry-run output and requirement 2.5 holds at base, so there is no red to prove. The implementer writes the two guard tests directly (`agent-rules.md:176-178`).
   - Note: the tests at `src/__tests__/service-scripts.test.ts:251-273` and :382-406 do not change; no value they assert changes.
   - Purpose: Prove design Component 5: `scripts/sdd-self-update.sh` shows the counts and the failing case with no script edit.
   - _Leverage: src/__tests__/service-scripts.test.ts:24-34, src/__tests__/service-scripts.test.ts:49-69, src/__tests__/service-scripts.test.ts:74-76, scripts/sdd-self-update.sh:59-75, scripts/sdd-self-update.sh:231-237_
@@ -84,3 +83,5 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
 
 - **v1** (2026-11-04) — Initial draft.
   - **Lint pass.** 1 fixed; rejected: none.
+- **v2** (2026-11-04) — Round-1 adversarial response (adversarial-analysis-tasks.md, verdict iterate 0/1/0).
+  - **R1-1 — Accepted (SHOULD_FIX).** Removed task 5's Test seam and marked the task implementer-only up front, stating the test-author and verifier skip, so its all-regression-guard criteria no longer spawn a test author that reports red-impossible and re-routes mid-run; the dry run and error wait stay named in its Success clause. No sibling task carries this construct — tasks 1 to 4 each add genuinely new behaviour.

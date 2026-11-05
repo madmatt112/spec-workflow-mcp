@@ -41,3 +41,10 @@
 {"ts":"2026-11-05T00:35:50.388Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-reviser","role":"lint v1","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-11-05T00:38:00.951Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-reviser","input":"16","output":"9488","cacheWrite":"63191","cacheRead":"416785","tokens":"489480","cacheWrite5m":"0","cacheWrite1h":"63191","model":"claude-opus-4-8"}
 {"ts":"2026-11-05T00:38:00.951Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","result":"success","phase":"tasks"}
+{"ts":"2026-11-05T00:38:01.075Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-reviewer","role":"review v1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T00:51:14.579Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-reviewer","input":"64","output":"62230","cacheWrite":"163574","cacheRead":"3491801","tokens":"3717669","cacheWrite5m":"0","cacheWrite1h":"163574","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T00:51:14.579Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviewer","role":"review v1","result":"success","phase":"tasks","round":"1"}
+{"ts":"2026-11-05T00:51:14.579Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"round","phase":"tasks","round":"1","verdict":"iterate 0/1/0","version":"v1"}
+{"ts":"2026-11-05T00:51:14.580Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-reviser","role":"revise v2","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-11-05T00:52:29.397Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-reviser","input":"14","output":"5768","cacheWrite":"49624","cacheRead":"326419","tokens":"381825","cacheWrite5m":"0","cacheWrite1h":"49624","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T00:52:29.398Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","result":"success","phase":"tasks","round":"1"}
