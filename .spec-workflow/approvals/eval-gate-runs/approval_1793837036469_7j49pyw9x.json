@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793837036469_7j49pyw9x",
+  "title": "eval-gate-runs requirements v2",
+  "filePath": ".spec-workflow/specs/eval-gate-runs/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-05T00:03:56.469Z",
+  "category": "spec",
+  "categoryName": "eval-gate-runs",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-05T00:03:56.771Z"
+}

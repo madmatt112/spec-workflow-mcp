@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/eval-gate-runs/requirements.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T00:03:56.587Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793837036469_7j49pyw9x",
+      "approvalTitle": "eval-gate-runs requirements v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T00:03:56.768Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793837036469_7j49pyw9x",
+      "approvalTitle": "eval-gate-runs requirements v2"
+    }
+  ]
+}

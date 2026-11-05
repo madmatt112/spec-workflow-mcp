@@ -1,46 +1,48 @@
 # Adversarial Review Memory — requirements
-
-Last updated: 2026-11-04 (round 1, v1)
+Last updated: 2026-11-04 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- none yet (round 1).
+- **R1-1 (MUST_FIX, v1→v2)** — R1 AC1 brief-reason citations were rotated; v2 inlined each
+  (`brief <template>`:153, `brief source`:200, `brief: base render unavailable`:131). Verified fixed.
+- **R1-2 (MUST_FIX, v1→v2)** — R2 AC1/AC2 contradicted R3 AC5's override exit-0; v2 added the
+  "no `--eval-override` names that case" carve-out + `gate.ts:74`. Verified fixed (see R2-1 tail).
+- **R1-3 (MINOR, v1→v2)** — R4 AC1 implied provisional⟺1 run; v2 shows a provisional `case`
+  line reads `(provisional): 3 runs`. Verified.
+- **R1-4 (MINOR, v1→v2)** — dropped the vacuous "no further step call" clause from R2 AC1/AC2.
+- **R1-5 (MINOR, v1→v2)** — R2 AC5 now says the error wait carries the gate summary (failing
+  case, or on exit-2 the bad override). Verified against `sdd-self-update.sh:252-258` + gate exit-2.
+- **R1-6 (MINOR, v1→v2)** — scope note on the dry-run range (`HEAD..origin/main`) vs gate range.
 
 ### Partially Accepted
-- none yet.
+- none.
 
 ### Rejected
-- none yet.
+- none.
 
 ### Unresolved (raised this round)
-- **R1-1 (MUST_FIX)** — R1 AC1 brief-reason citations `(:131, :153, :200)` are rotated
-  against the reasons `brief <template>` / `brief source` / `brief: base render
-  unavailable`. Correct mapping: `:153` / `:200` / `:131`.
-- **R1-2 (MUST_FIX)** — R2 AC1/AC2 ("SHALL exit 1") contradict R3 AC5 (overridden failed
-  1-run case exits 0). Needs an "absent an `--eval-override` naming that case" carve-out;
-  mirrors `gate.ts:74`.
-- **R1-3 (MINOR)** — R4 AC1 example forms imply provisional ⟺ 1 run; a provisional case
-  with a `case`/`role`/`grader`/`profile` reason runs 3 (AC4 governs).
-- **R1-4 (MINOR)** — R2 AC1 "no further step call" is vacuous/duplicative for a 1-run case.
-- **R1-5 (MINOR)** — R2 AC5 "names the failing case" over-promises for exit-2
-  override-validation waits.
-- **R1-6 (MINOR)** — dry-run range `HEAD..origin/main` differs from gate range
-  `BASE..TARGET_COMMIT`; preview is an estimate.
+- **R2-1 (MINOR, Novel / Compounds R1-2, fix-induced)** — R2 AC1/AC2 "SHALL exit 1" is preempted
+  by the `passedOverrides` exit-2 check (`gate.ts:66-72`) when a *different* override names a
+  passed case in the same run. Deploy still blocked, story holds; wording precision only, does
+  not gate. Not yet responded to by the author.
 
 ## Patterns & Themes
-- Citations are accurate overall (delta inline cites all verified); the one defect is a
-  grouped triplet whose order breaks the inline convention of its own sentence.
-- The partition rule (reason→count) is total and disjoint; invariants are well-chosen.
-- The gate→runner wire contract (one record, mixed counts, uniform runs kept) is already
-  pinned by R3 AC3/AC4 + R1 AC7 — the fresh wire-contract lens found no gap there.
-- The recurring soft spot is override interaction: R2's story is written as if overrides
-  do not exist, so its exit-code THENs collide with R3.
+- v2 is citation-clean: every added/changed line verifies at both ends. The R1 MUST_FIXes were
+  fixed the code-true way (reorder to the real `select.ts` lines; mirror `gate.ts:74`).
+- The only recurring soft spot is override/exit-code interaction: R2's stories keep being
+  written as if only one override and one outcome exist. R1-2 closed the same-case clash; R2-1
+  is the residue (a *different* override's exit-2 beating the exit-1 THEN).
+- R3 AC4's "no outside reader, keep v:1" claim is verified true (grep of non-test consumers:
+  only `runner.ts` writes/reads the eval record). The record-shape lens is exhausted.
+- The gate→runner wire (one record, mixed per-case counts, uniform `runs` kept for other
+  callers, direct-run default 3) remains bounded at requirements altitude; carried to design.
 
 ## Guidance for Next Review
-- Confirm R1-1 reorder landed and every brief reason points at its own `select.ts` line.
-- Confirm R2 AC1/AC2 gained the override carve-out and no longer contradict R3 AC5/AC6.
-- Re-probe `select.ts:197-202` if the design claims provisional cases are always 1-run.
-- Fresh lens next: error-handling / failure-mode completeness (classification vs grader
-  fail vs "edited the live checkout" vs base-render-unavailable), since round 1 used the
-  wire-contract lens.
+- Requirements phase is converged (0/0, DESIGN_READY yes). No further requirements round needed
+  unless the author re-opens.
+- At design, confirm `runCases` gains a per-case count path that preserves R1 AC6 (direct=3)
+  and R1 AC7 (uniform `runs`), and that the gate wires an `onLine` for R3 AC1 without breaking
+  `cli.ts` which prints nothing for the gate today.
+- Do not re-till: brief-reason partition (total/disjoint), the record shape, the dry-run range
+  caveat — all covered. If probing R2-1 further, scope it to `gate.ts:45-72` precedence only.
