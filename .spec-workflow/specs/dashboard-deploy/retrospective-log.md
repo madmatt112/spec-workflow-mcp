@@ -69,3 +69,23 @@ Cost: 1 implementer spawn(s)
 task 12 closed: 0 fix round(s), outcome gate
 Evidence: task 12 · mark run-20261105-155538 cff5d55f
 Cost: 1 implementer spawn(s)
+
+## 2026-11-05T23:21:38Z · implementation · task 13 · harness-defect
+shared tdd-test-command/isTestPath has no exemption for a config file a task's own File: list legitimately requires the test author to edit (D27), so TDD proof always hard-fails for task 13
+Evidence: task 13 · mark run-20261105-155538 3b92552d
+Cost: implementer
+
+## 2026-11-05T23:28:20Z · implementation · task 13 · harness-defect
+red-green.ts's isTestPath/tdd-test-command dispatch has no case for a *.config.ts support file a task's File: list legitimately requires the test author to edit, producing a permanent false gate fail (3 identical rounds now)
+Evidence: task 13 · mark run-20261105-155538 d07e428f
+Cost: implementer
+
+## 2026-11-05T23:37:28Z · implementation · task 13 · ruling
+adjudicated after 3 fix rounds; narrow verdict pass
+Evidence: task 13 · mark run-20261105-155538 92ffb9fe
+Cost: 4 rounds
+
+## 2026-11-05T23:37:28Z · implementation · task 13 · inefficiency
+task 13 closed: 4 fix round(s), outcome adjudicated
+Evidence: task 13 · mark run-20261105-155538 ae4f4421
+Cost: 5 implementer spawn(s)

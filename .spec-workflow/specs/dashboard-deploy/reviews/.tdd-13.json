@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-deploy.spec.ts","playwright.worktree.config.ts"],"seams":{"e2e/worktree-deploy.spec.ts":"page.getByTestId('deploy-strip')"},"redCommit":"15df8afaaa9da4c54a2b080a936c1eb1f58e186b","baseSha":"16a6f2875ad8d3475565c1491f0c3428ddaaf32c","base":"inconclusive","head":"fail","amended":false,"judged":null}
