@@ -66,7 +66,9 @@ else
   HOME_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/sdd"
 fi
 
-log()  { echo "[sdd-self-update] $*"; }
+LAST_LOG=""
+FAIL_NOTE=""
+log()  { LAST_LOG="$*"; echo "[sdd-self-update] $*"; }
 would(){ echo "[dry-run] would: $*"; }
 
 # R2 AC5: merges the given JSON fields (comma-joined, no braces) into the
@@ -96,12 +98,63 @@ write_stage() { # <stage>
   write_record "\"stage\":\"$1\""
 }
 
+# D25/D15: writes the final `failed` stage and `error` text into the record
+# through the same temp-file/rename path as write_record. Called only from
+# on_exit, so it never races a normal write_stage. Ignores a write failure
+# (e.g. the record was removed mid-run, R5 AC2) rather than recreating it.
+write_failed() { # <error text>
+  [ -z "${DEPLOY_RECORD:-}" ] && return 0
+  DEPLOY_RECORD_PATH="$DEPLOY_RECORD" DEPLOY_RECORD_ERROR="$1" node -e '
+    const fs = require("fs");
+    const p = process.env.DEPLOY_RECORD_PATH;
+    if (!fs.existsSync(p)) { process.exit(1); }
+    const rec = JSON.parse(fs.readFileSync(p, "utf8"));
+    rec.stage = "failed";
+    rec.error = process.env.DEPLOY_RECORD_ERROR;
+    const i = p.lastIndexOf("/");
+    const dir = i >= 0 ? p.slice(0, i) : ".";
+    const tmp = dir + "/.deploy." + process.pid + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(rec));
+    fs.renameSync(tmp, p);
+  ' 2>/dev/null || true
+}
+
+# Design C4 Failure capture (R2 AC3, D25): on a non-zero exit, build
+# "<STAGE>: <text>" from FAIL_NOTE when a step set it, else the last log
+# line with its exit code appended (unless that line is already a
+# refusal), and the swap/restart suffix when the move may have started.
+on_exit() {
+  local code=$?
+  if [ "$code" -ne 0 ] && [ -n "${DEPLOY_RECORD:-}" ]; then
+    local text
+    if [ -n "$FAIL_NOTE" ]; then
+      text="$FAIL_NOTE"
+    else
+      case "$LAST_LOG" in
+        refusing:*) text="$LAST_LOG" ;;
+        *) text="$LAST_LOG (exit $code)" ;;
+      esac
+    fi
+    case "${STAGE:-wait}" in
+      swap|restart) text="$text; the live checkout or dist/ may already have changed" ;;
+    esac
+    write_failed "${STAGE:-wait}: $text"
+  fi
+  exit "$code"
+}
+
+if [ -n "${DEPLOY_RECORD:-}" ]; then
+  trap 'exit 143' TERM
+  trap on_exit EXIT
+fi
+
 TARGET_COMMIT="$(/usr/bin/git -C "$REPO" rev-parse origin/main 2>/dev/null || echo origin/main)"
 
 write_error_wait() { # <step> [<detail>]
   local step="$1"
   local detail="${2:-}"
   if [ "$DRY_RUN" = 1 ]; then would "write an error wait (commit $TARGET_COMMIT, step $step)"; return; fi
+  FAIL_NOTE="the step failed; see the error wait"
   log "writing an error wait: self-update failed at $step"
   REPO_WAITS="$REPO/dist/controller/waits.js" \
   SDD_HOME="$HOME_DIR" \
@@ -222,6 +275,12 @@ if [ "$DRY_RUN" = 1 ]; then
 else
   check_move
   write_record "\"commit\":\"$TARGET_COMMIT\""
+  # No-op refusal (R2 AC4, D2): only this, the first, check_move checks it;
+  # the second at the swap step does not repeat it.
+  if [ -n "${DEPLOY_RECORD:-}" ] && [ "$behind" -eq 0 ]; then
+    log "refusing: nothing to deploy; the checkout is at origin/main"
+    exit 1
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -320,6 +379,14 @@ fi
 #     then move the live checkout to origin/main: fast-forward normally, or
 #     rebase the store-only local commits onto origin/main (see note above).
 # ---------------------------------------------------------------------------
+# Claim (D15): a one-shot atomic claim, so once it is taken no cancel can
+# reach the checkout move or the dist/ swap below.
+if [ -n "${DEPLOY_RECORD:-}" ]; then
+  if ! mkdir "$DEPLOY_RECORD.claim" 2>/dev/null; then
+    log "refusing: a cancel holds the deploy; nothing moved"
+    exit 1
+  fi
+fi
 write_stage swap
 check_move
 if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then

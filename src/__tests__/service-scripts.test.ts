@@ -672,7 +672,13 @@ describe('service scripts (controller T9)', () => {
           const originHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: origin }).toString().trim();
           expect(final.commit).toBe(originHead); // R2 AC2
 
-          const leftovers = readdirSync(home).filter((f) => f !== 'deploy.json' && f.includes('deploy'));
+          // Task 8 (design C4 Claim, D15): the claim directory is a deliberate,
+          // persistent artifact of a completed swap, not a leaked temp file;
+          // excluded here so this check still targets only the atomic write's
+          // temp-rename leftovers (R2 AC5).
+          const leftovers = readdirSync(home).filter(
+            (f) => f !== 'deploy.json' && f !== 'deploy.json.claim' && f.includes('deploy'),
+          );
           expect(leftovers).toEqual([]); // the atomic write leaves no temp file (R2 AC5)
 
           const gap = Number(readFileSync(gapFile, 'utf-8'));
@@ -682,6 +688,7 @@ describe('service scripts (controller T9)', () => {
           rmSync(origin, { recursive: true, force: true });
           rmSync(home, { recursive: true, force: true });
           rmSync(stubDir, { recursive: true, force: true });
+          rmSync(`${recordPath}.claim`, { recursive: true, force: true });
         }
       },
       30000,
