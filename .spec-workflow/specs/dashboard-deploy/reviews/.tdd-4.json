@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/deploy.test.ts"],"seams":{"src/controller/__tests__/deploy.test.ts":"coordinator.cancel()"},"redCommit":"258ce1bf539da48ddc8a125733c9a3864f94da50","baseSha":"49207f6fe08950d4716c87f719a0fdeb5a63236a","base":"structural-red","head":"pass","amended":false,"judged":null}
