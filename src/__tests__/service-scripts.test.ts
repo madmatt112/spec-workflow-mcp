@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -559,5 +559,174 @@ describe('service scripts (controller T9)', () => {
   it('sdd-self-update.sh exits 2 when --eval-override has no value', async () => {
     const res = await runScript(selfUpdateSh, ['--eval-override'], {});
     expect(res.code).toBe(2);
+  });
+
+  // Task 7 (design C4): --deploy-record <path>, write_stage, the commit write,
+  // and the three-second restart gap. Each stage seam below copies the
+  // record's current `stage` field into a shared log through
+  // LOG_STAGE_SCRIPT, proving each write happens before the step it gates.
+  describe('sdd-self-update.sh --deploy-record', () => {
+    it(
+      'runs build, smoke, gate, swap, restart in order, ends at done, keeps a field it ' +
+        "does not set, matches the toy origin's commit, leaves no temp file beside the " +
+        'record, and waits at least 3 seconds before the restart',
+      async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+        const recordPath = join(home, 'deploy.json');
+        const seqLog = join(home, 'seq.log');
+        const gapFile = join(home, 'gap.txt');
+        const logStageScript = join(stubDir, 'log-stage.cjs');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: ['run-1'], started: new Date().toISOString() }),
+          );
+          writeFileSync(seqLog, '');
+          writeFileSync(
+            logStageScript,
+            [
+              "const fs = require('fs');",
+              "const rec = JSON.parse(fs.readFileSync(process.env.RECORD_PATH, 'utf8'));",
+              "fs.appendFileSync(process.env.SEQ_LOG, rec.stage + '\\n');",
+              '',
+            ].join('\n'),
+          );
+          writeFileSync(
+            join(stubDir, 'npm'),
+            ['#!/usr/bin/env node', 'require(process.env.LOG_STAGE_SCRIPT);', ''].join('\n'),
+            { mode: 0o755 },
+          );
+          writeFileSync(
+            join(stubDir, 'systemctl'),
+            [
+              '#!/usr/bin/env node',
+              "const fs = require('fs');",
+              'require(process.env.LOG_STAGE_SCRIPT);',
+              'const gap = Date.now() - fs.statSync(process.env.RECORD_PATH).mtimeMs;',
+              'fs.writeFileSync(process.env.GAP_FILE, String(gap));',
+              '',
+            ].join('\n'),
+            { mode: 0o755 },
+          );
+          const gateBody = ['require(process.env.LOG_STAGE_SCRIPT);', 'process.exit(0);', ''].join('\n');
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+            PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+            RECORD_PATH: recordPath,
+            SEQ_LOG: seqLog,
+            GAP_FILE: gapFile,
+            LOG_STAGE_SCRIPT: logStageScript,
+            SDD_STAGE_BUILD: `node "$LOG_STAGE_SCRIPT"\n${stageBuildStub(gateBody)}`,
+            SDD_STAGE_SMOKE: 'node "$LOG_STAGE_SCRIPT"',
+          });
+
+          expect(res.code).toBe(0);
+          const seq = readFileSync(seqLog, 'utf-8').split('\n').filter((l) => l.trim().length > 0);
+          expect(seq).toEqual(['build', 'smoke', 'gate', 'swap', 'restart']);
+
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('done');
+          expect(final.runs).toEqual(['run-1']); // a seeded field the script never sets (R2 AC5)
+
+          const originHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: origin }).toString().trim();
+          expect(final.commit).toBe(originHead); // R2 AC2
+
+          const leftovers = readdirSync(home).filter((f) => f !== 'deploy.json' && f.includes('deploy'));
+          expect(leftovers).toEqual([]); // the atomic write leaves no temp file (R2 AC5)
+
+          const gap = Number(readFileSync(gapFile, 'utf-8'));
+          expect(gap).toBeGreaterThanOrEqual(2500); // R2 AC6 / D6: a 3-second sleep before the restart
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+          rmSync(stubDir, { recursive: true, force: true });
+        }
+      },
+      30000,
+    );
+
+    it('a build seam that deletes the record leaves it absent, not recreated (requirement 5 AC 2)', async () => {
+      const { checkout, origin, home } = makeDivergedCheckout();
+      const recordPath = join(home, 'deploy.json');
+      try {
+        writeFileSync(
+          recordPath,
+          JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+        );
+
+        const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+          SDD_CHECKOUT: checkout,
+          SDD_HOME: home,
+          RECORD_PATH: recordPath,
+          SDD_STAGE_BUILD: 'rm -f "$RECORD_PATH"',
+          SDD_STAGE_SMOKE: 'true',
+        });
+
+        expect(res.code).not.toBe(0);
+        expect(existsSync(recordPath)).toBe(false);
+      } finally {
+        rmSync(checkout, { recursive: true, force: true });
+        rmSync(origin, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    it('--dry-run with --deploy-record leaves the record bytes unchanged (R2 AC 7)', async () => {
+      const clone = mkdtempSync(join(tmpdir(), 'self-update-clone-'));
+      const home = mkdtempSync(join(tmpdir(), 'self-update-home-'));
+      const recordPath = join(home, 'deploy.json');
+      try {
+        execFileSync('git', ['clone', '--quiet', repoRoot, clone]);
+        copyFileSync(selfUpdateSh, join(clone, 'scripts', 'sdd-self-update.sh'));
+        const seeded = JSON.stringify({ v: 1, stage: 'build', runs: ['run-9'], started: '2026-01-01T00:00:00.000Z' });
+        writeFileSync(recordPath, seeded);
+
+        const res = await runScript(join(clone, 'scripts', 'sdd-self-update.sh'), ['--dry-run', '--deploy-record', recordPath], {
+          SDD_CHECKOUT: clone,
+          SDD_HOME: home,
+        });
+
+        expect(res.code).toBe(0);
+        expect(readFileSync(recordPath, 'utf-8')).toBe(seeded);
+      } finally {
+        rmSync(clone, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    // Regression guard (requirement 2 AC 8, invariant, "not red-first"): no
+    // existing test passes --deploy-record, so this already holds at base;
+    // the branch "no record is written" has no prior assertion, so it is
+    // added fresh here rather than left unnamed.
+    it('writes no deploy record when --deploy-record is absent', async () => {
+      const clone = mkdtempSync(join(tmpdir(), 'self-update-clone-'));
+      const home = mkdtempSync(join(tmpdir(), 'self-update-home-'));
+      try {
+        execFileSync('git', ['clone', '--quiet', repoRoot, clone]);
+        copyFileSync(selfUpdateSh, join(clone, 'scripts', 'sdd-self-update.sh'));
+
+        await runScript(join(clone, 'scripts', 'sdd-self-update.sh'), ['--dry-run'], {
+          SDD_CHECKOUT: clone,
+          SDD_HOME: home,
+        });
+
+        expect(existsSync(join(home, 'deploy.json'))).toBe(false);
+      } finally {
+        rmSync(clone, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    // Regression guard: the parser's existing catch-all already exits 2 for
+    // any unrecognized token, so a bare --deploy-record with no path already
+    // exits 2 at base, mirroring the --eval-override test above.
+    it('exits 2 when --deploy-record has no path', async () => {
+      const res = await runScript(selfUpdateSh, ['--deploy-record'], {});
+      expect(res.code).toBe(2);
+    });
   });
 });
