@@ -10,7 +10,7 @@ This spec adds one Deploy action to the dashboard: it holds the runs, runs the s
 
 ## Requirements
 
-Terms. A record is **open** when its `stage` is neither `done` nor `failed`. A **live step** is a run with an `inFlight` process that passes the test in `scripts/sdd-self-update.sh:89-97`. **Release** is the operation in Requirement 3 AC 6.
+Terms. A record is **open** when its `stage` is neither `done` nor `failed`. A **live step** is a run with an `inFlight` process that passes the test in `scripts/sdd-self-update.sh:89-97`. **Release** is the operation in Requirement 3 AC 6. The **deploy lock** is one new in-process mutex: every controller write to the record, and every release, runs under it after a re-read of the record.
 
 ### Requirement 1
 
@@ -21,7 +21,7 @@ Terms. A record is **open** when its `stage` is neither `done` nor `failed`. A *
 1. WHEN the operator POSTs `/api/controller/deploy` AND no record is open THEN the controller SHALL write `deploy.json` in the controller home (`src/controller/state.ts:275-279`; `~/.local/state/sdd/deploy.json` by default) with `v: 1`, `stage: 'wait'`, `runs`, `started` (the press time) and no `error`, hold the runs, and answer 202.
 2. WHEN a press holds runs THEN the controller SHALL hold every run with status `running`, `queued`, `waiting`, `merging` or `paused` that has no operator hold, set `pauseRequested` and `holdBy: 'deploy'` on each, and list exactly those ids in `runs` (D1).
 3. IF a run already has an operator hold (`pauseRequested` set, `holdBy` `operator` or absent) THEN the press SHALL leave the run unchanged and SHALL NOT list it in `runs`.
-4. WHEN no live step remains THEN, under its lock, the controller SHALL re-read the record, start nothing unless it is still open at `wait` (so a cancel per R5 AC2 cannot be overtaken by this tick), persist `unitStarted: true` to `deploy.json` (`src/controller/state.ts:338-343`), and only then start `scripts/sdd-self-update.sh --deploy-record <path>` as a transient user unit with `systemd-run --user`, so a crash between the persist and the spawn leaves no live unit with `unitStarted` absent. The unit is required because the service's `KillMode` is `control-group` (probe 2026-11-05: `systemctl --user show sdd-controller.service -p KillMode`), and the script resolves from the same checkout root as `src/advisor/actions.ts:363-364`.
+4. WHEN no live step remains THEN, under the deploy lock, the controller SHALL re-read the record, start nothing unless it is still open at `wait` with `unitStarted` not true, persist `unitStarted: true` to `deploy.json` (`src/controller/state.ts:338-343`), and only then, still under the lock, start `scripts/sdd-self-update.sh --deploy-record <path>` as a transient user unit with `systemd-run --user`, so a crash between the persist and the spawn leaves no live unit with `unitStarted` absent. The unit is required because the service's `KillMode` is `control-group` (probe 2026-11-05: `systemctl --user show sdd-controller.service -p KillMode`), and the script resolves from the same checkout root as `src/advisor/actions.ts:363-364`.
 5. WHEN the unit starts THEN it SHALL have the controller's `PATH`, `HOME` and `SDD_HOME` and the contents of `service.env` (`scripts/sdd-service.sh:82`), and SHALL NOT carry `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` (`scripts/sdd-service.sh:84`). A bare transient unit inherits none of these (probe 2026-11-05: `systemd-run --user --wait --pipe` printed a `PATH` with no node or npm and a caller variable unset, in a cgroup outside `sdd-controller.service`).
 6. IF the unit cannot be started THEN the controller SHALL write `failed` with the reason in `error` and release the holds.
 7. IF a live step outlasts the time limit the design pins THEN the controller SHALL write `failed` with `error` naming `wait`, and release the holds.
@@ -85,8 +85,8 @@ Terms. A record is **open** when its `stage` is neither `done` nor `failed`. A *
 
 #### Acceptance Criteria
 
-1. WHEN the operator POSTs `/api/controller/deploy/cancel` AND the record is at `wait`, `build`, `smoke` or `gate` THEN the controller SHALL stop the unit if `unitStarted`, wait until the unit is gone, then under the same lock as R1 AC4 release the holds and remove the record, and answer 200.
-2. WHEN the controller removes the record THEN no later script write SHALL recreate it, so removal SHALL come after the unit is gone, and a cancelled script SHALL leave no `failed` record. Because the removal runs under R1 AC4's lock, it is serialised against that AC's re-read → persist → spawn: the re-read is decisive, so the removal falls either before it or after a completed spawn the cancel then stops, and the controller SHALL start no unit once the record is removed.
+1. WHEN the operator POSTs `/api/controller/deploy/cancel` THEN the controller SHALL take the deploy lock, re-read the record, act only on that re-read, and keep the lock until it answers. IF the record is at `wait`, `build`, `smoke` or `gate` THEN it SHALL stop the unit if `unitStarted` is true or a unit is live, wait until the unit is gone, release the holds, remove the record, and answer 200.
+2. WHEN the controller removes the record THEN no later script write SHALL recreate it, so removal SHALL come after the unit is gone, and a cancelled script SHALL leave no `failed` record. AC 1's single hold excludes R1 AC4's re-read → persist → spawn: if the cancel goes first, the tick's re-read finds no record and starts nothing; if the tick goes first, the cancel's re-read finds `unitStarted` true and stops the completed spawn. No later controller write recreates the record, because each re-reads it under the lock.
 3. IF the record is at `swap`, `restart`, `done` or `failed` THEN the route SHALL answer 409 `deploy-past-swap` and change nothing. IF no record exists THEN the route SHALL answer 404.
 4. WHEN a cancel completes THEN the live checkout and `dist/` SHALL be unchanged. The staging worktree may stay; the next run resets it (`scripts/sdd-self-update.sh:191-194`).
 
@@ -153,25 +153,27 @@ Cut or deferred:
 - The Deploy action never passes `--no-restart` or `--eval-override`. An eval override stays a shell operation.
 - Hand runs and the post-merge command are not guarded against an open record.
 
-Left to the design: the unit's name and how a second press finds it, the `wait_no_step` timeout against a long step (Requirement 1 AC 7 needs the limit), and whether the controller start lists open verification deferrals on the strip.
+Left to the design: the unit's name and how a second press finds it, the `wait_no_step` timeout against a long step (Requirement 1 AC 7 needs the limit), whether the controller start lists open verification deferrals on the strip, and what the tick does while a cancel holds the deploy lock.
 
 The entry's six end-to-end scenarios carry into the design unchanged, except scenario 5's note above. Scenario 3 needs no new seam: the staged-CLI stub already fails the gate (`src/__tests__/service-scripts.test.ts:460`). Nothing was carried from an earlier phase.
 
 ## Revision History
 
+- **v5** (2026-11-05) — Post-cap corrective pass, adjudicated, not re-reviewed.
+  - **M-1 — fixed (MUST_FIX).** R4-1: cancel re-reads, stops any unit and removes the record in one deploy-lock hold; all controller record writes take that lock; R1 AC4 skips a set `unitStarted`.
 - **v4** (2026-11-05) — Round-3 adversarial response (adversarial-analysis-requirements-r3.md, verdict iterate 1/1/1).
-  - **R3-1 — Accepted (MUST_FIX).** Cancel's release-and-remove (R5 AC1) now runs under R1 AC4's lock, serialising it against the re-read, persist and spawn; R5 AC2 drops the unsound "re-read under its lock" claim, so the controller's own persist cannot recreate a removed record.
-  - **R3-2 — Accepted (SHOULD_FIX).** R2 AC3 drops "from outside a cancel": the script writes failed on any SIGTERM, and cancel's removal of the record after the unit is gone is what leaves a cancelled deploy no failed record.
-  - **R3-3 — Accepted (MINOR).** R3 AC3, D3 and the scope note read the flag as "committed to starting the unit", and D3 scopes does-not-fail to the flag false or absent.
+  - **R3-1 — Accepted (MUST_FIX).** Cancel's release-and-remove runs under R1 AC4's lock.
+  - **R3-2 — Accepted (SHOULD_FIX).** The script writes failed on any SIGTERM; cancel's removal clears it.
+  - **R3-3 — Accepted (MINOR).** The flag reads as "committed to starting the unit".
   - **Lint pass.** 0 fixed; rejected: L-1–L-47 citation-identifier false positives, suppressed per rule 11.
 - **v3** (2026-11-05) — Round-2 response (adversarial-analysis-requirements-r2.md, iterate 1/1/0).
   - **R2-1 — Accepted (MUST_FIX).** Persist the unit-started flag before the spawn; R3 AC4 gains no-unit-live and defers to AC5, closing the double-spawn.
-  - **R2-2 — Accepted (SHOULD_FIX).** Controller re-reads under its lock and spawns only while open at wait; R5 AC2 names the reciprocal.
+  - **R2-2 — Accepted (SHOULD_FIX).** Controller re-reads under its lock and spawns only while open at wait.
 - **v2** (2026-11-05) — Round-1 response (adversarial-analysis-requirements.md, iterate 0/3/2).
-  - **R1-1 — Accepted (SHOULD_FIX).** Deploy hold sets the pause flag and release clears it, so a released run is startable; R4 AC4 names the reason.
-  - **R1-2 — Accepted (SHOULD_FIX).** Unit-started signal split into its own field, distinct from the press-time started.
-  - **R1-3 — Accepted (SHOULD_FIX).** R6 AC2 pins the client half of the deploy message, mirroring the hold-by wire.
+  - **R1-1 — Accepted (SHOULD_FIX).** Deploy hold sets the pause flag; release clears it.
+  - **R1-2 — Accepted (SHOULD_FIX).** Unit-started signal gets its own field.
+  - **R1-3 — Accepted (SHOULD_FIX).** R6 AC2 pins the client half of the deploy message.
   - **R1-4 — Accepted (MINOR).** R5 AC1 answers 200 on a successful cancel.
-  - **R1-5 — Accepted (MINOR).** D4 scopes "keeps its status underneath" and notes a live-drive run parks paused.
+  - **R1-5 — Accepted (MINOR).** D4 notes a live-drive run parks paused.
 - **v1** (2026-11-05) — Initial draft.
 - **Lint.** Every round: 0 fixed; L-1 onward rejected as citation-identifier false positives, each cited range re-read and anchoring.
