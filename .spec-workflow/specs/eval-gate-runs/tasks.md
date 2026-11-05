@@ -48,7 +48,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
 
 - [ ] 5. Guard the dry run and the error wait in the script tests
   - File: src/__tests__/service-scripts.test.ts
-  - Note: implementer-only, no test author and no verifier. Every acceptance criterion is a regression guard: earlier tasks shipped the dry-run output and requirement 2.5 holds at base, so there is no red to prove. The implementer writes the two guard tests directly (`agent-rules.md:176-178`).
+  - Note: implementer-only, no test author and no verifier. Every acceptance criterion is a regression guard: earlier tasks shipped the dry-run output and requirement 2.5 holds at base, so there is no red to prove. The implementer writes the two guard tests directly (`.spec-workflow/agent-rules.md:176-178`).
   - Note: the tests at `src/__tests__/service-scripts.test.ts:251-273` and :382-406 do not change; no value they assert changes.
   - Purpose: Prove design Component 5: `scripts/sdd-self-update.sh` shows the counts and the failing case with no script edit.
   - _Leverage: src/__tests__/service-scripts.test.ts:24-34, src/__tests__/service-scripts.test.ts:49-69, src/__tests__/service-scripts.test.ts:74-76, scripts/sdd-self-update.sh:59-75, scripts/sdd-self-update.sh:231-237_
@@ -85,3 +85,4 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
   - **Lint pass.** 1 fixed; rejected: none.
 - **v2** (2026-11-04) — Round-1 adversarial response (adversarial-analysis-tasks.md, verdict iterate 0/1/0).
   - **R1-1 — Accepted (SHOULD_FIX).** Removed task 5's Test seam and marked the task implementer-only up front, stating the test-author and verifier skip, so its all-regression-guard criteria no longer spawn a test author that reports red-impossible and re-routes mid-run; the dry run and error wait stay named in its Success clause. No sibling task carries this construct — tasks 1 to 4 each add genuinely new behaviour.
+  - **Lint pass.** 1 fixed; rejected: none.

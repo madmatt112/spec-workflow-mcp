@@ -48,3 +48,6 @@
 {"ts":"2026-11-05T00:51:14.580Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-reviser","role":"revise v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-11-05T00:52:29.397Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-reviser","input":"14","output":"5768","cacheWrite":"49624","cacheRead":"326419","tokens":"381825","cacheWrite5m":"0","cacheWrite1h":"49624","model":"claude-opus-4-8"}
 {"ts":"2026-11-05T00:52:29.398Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviser","role":"revise v2","result":"success","phase":"tasks","round":"1"}
+{"ts":"2026-11-05T00:52:29.544Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
+{"ts":"2026-11-05T00:52:57.949Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-reviser","input":"12","output":"1986","cacheWrite":"36717","cacheRead":"245142","tokens":"283857","cacheWrite5m":"0","cacheWrite1h":"36717","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T00:52:57.949Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"tasks"}
