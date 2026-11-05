@@ -17,7 +17,7 @@ N/A: no `design-system.md`; the control uses the existing `Button` and tone clas
 
 ## Architecture
 
-The press writes the record and the holds under the deploy lock; the controller's tick waits for quiet, starts the unit and reads the record each second. While the unit lives, the script is the only writer of `deploy.json`, except on start at `restart`, where both sides converge on `done`. One new seam, `DeployUnit`, hides `systemd-run` and `systemctl`, so every test runs without systemd.
+The press writes the record and the holds under the deploy lock; the controller's tick waits for quiet, starts the unit and reads the record each second. While the unit lives, the script is the only writer of `deploy.json`, except on start at `restart`, where both sides converge on `done`. One new seam, `DeployUnit` (C5), hides `systemd-run` and `systemctl`.
 
 ## Components and Interfaces
 
@@ -55,7 +55,7 @@ Decision numbers continue from the requirements, whose decisions end at D12.
 | any other open record | `unit.state()`: `gone` means re-read once and, if the record is still open, write `failed` and release (R3 AC3); `live` or `unknown` means nothing |
 
 - **Starting the unit (R1 AC4, AC6).** Already under the lock, re-read; go on only if the record is still open at `wait` with `unitStarted` not true. Persist `unitStarted: true`, then call `unit.start(deployRecordPath())`. A rejection writes `failed` and releases.
-- **`isQuiet` (D17).** True when no run passes the `scripts/sdd-self-update.sh:89-97` test (`inFlight` set and `isProcessAlive`) and `Controller.drivenRuns()` is empty (`src/controller/controller.ts:144-146`). The drive term covers a run past its stop check with no `inFlight` yet, and an in-process merge.
+- **`isQuiet` (D17).** True when no run passes the `scripts/sdd-self-update.sh:89-97` test (`inFlight` set and `isProcessAlive`) and `Controller.drivenRuns()` is empty (`src/controller/controller.ts:144-146`).
 - **`onStart` (under the lock, before `recover`, D21):**
 
 | Record | Action |
@@ -68,7 +68,7 @@ Decision numbers continue from the requirements, whose decisions end at D12.
 | any other open record, unit `gone` | write `failed`, release (R3 AC3) |
 | any other open record, unit `unknown` | nothing; the tick decides |
 
-- **Release (R3 AC6).** For every run listed with `holdBy: 'deploy'`, `updateRun` re-checks `holdBy` inside the chain, clears it and `pauseRequested`, and emits `runEvents` `change` for it (parity with press step 6). A run `paused` with `pauseReason: 'operator'` goes to `queued` with `pauseReason` and `resumeAt` cleared, as in `src/controller/controller.ts:278-281`. Any other run keeps its status. A `waiting` run then goes through `deps.resumeIfAnswered`, and `deps.schedule()` runs. A repeat finds no run.
+- **Release (R3 AC6).** For every run listed with `holdBy: 'deploy'`, `updateRun` re-checks `holdBy` inside the chain and clears it and `pauseRequested`. A run `paused` with `pauseReason: 'operator'` goes to `queued` with `pauseReason` and `resumeAt` cleared, as in `src/controller/controller.ts:278-281`. Any other run keeps its status. A `waiting` run then goes through `deps.resumeIfAnswered`. Release then emits one `runEvents` `change` and runs `deps.schedule()` (parity with press step 6: the coordinator emits, not `updateRun`). A repeat finds no run.
 - **`cancel` (R5), one hold of the lock:**
   1. Re-read. No record gives 404. Stage `swap`, `restart`, `done` or `failed` gives 409 `deploy-past-swap`.
   2. Claim: `fs.mkdir` on the claim path, not recursive. `EEXIST` gives 409 `deploy-past-swap`, because the script has claimed the swap (D15).
@@ -280,11 +280,13 @@ Departures from a requirement's literal:
 
 ## Revision History
 
+- **v3** (2026-11-05) — SHOULD_FIX-only corrective pass.
+  - **R2-1 — Accepted (SHOULD_FIX).** Release now clears the holds through updateRun, then emits one runEvents change itself, matching press step 6 where the coordinator, not the state-layer primitive, emits (C1 Release).
 - **v2** (2026-11-05) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/2/2).
   - **R1-1 — Accepted (SHOULD_FIX).** Release now emits a runEvents change per cleared run, as press step 6 does, so a released row refreshes at once, not at the 30 s feed tick (C1 Release).
   - **R1-2 — Accepted (SHOULD_FIX).** The failed and done writes now both keep the record's other fields, commit included, so the reconnect done strip keeps commit (C1, Failed and done writes).
   - **R1-M1 — Rejected (MINOR).** R4 AC9 is met by launchBlock's deploy-specific refusal and the 409; the run-live discriminant on the enqueue-race fallback is cosmetic and reworking it would widen scope.
   - **R1-M2 — Accepted (MINOR).** execDeploy's refusal return adds state refused, as execMerge does, so the action lands refused not failed (C8).
-  - **Lint pass.** 0 fixed; rejected: L-1–L-56 (citation-identifier false positives; each flagged token is a design name, stage/status literal, keyword, or existing symbol, and its co-located citation anchors a verified adjacent claim, not the token).
+  - **Lint pass.** 0 fixed; rejected L-1–L-56 (citation-identifier false positives: each flagged token is a design name, literal, keyword or existing symbol, and its citation anchors a verified adjacent claim).
 - **v1** (2026-11-05) — Initial draft.
-  - **Lint pass.** 32 citation-bare fixed; every other bare `:N` path-qualified; L-68/L-69 `./`-prefixed; L-47/L-48 resolved by the qualified ranges. Rejected L-1–L-7, L-21–L-22, L-24–L-25, L-39–L-42, L-49–L-50, L-52–L-67, L-70–L-72 (citation-identifier: symbols/values/keywords absent from the cited range).
+  - **Lint pass.** 32 citation-bare fixed; every other bare `:N` path-qualified. Rejected L-1–L-7, L-21–L-22, L-24–L-25, L-39–L-42, L-49–L-50, L-52–L-67, L-70–L-72 (citation-identifier: symbols/values/keywords absent from the cited range).
