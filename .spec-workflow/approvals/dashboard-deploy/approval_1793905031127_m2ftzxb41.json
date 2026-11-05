@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793905031127_m2ftzxb41",
+  "title": "dashboard-deploy tasks v1",
+  "filePath": ".spec-workflow/specs/dashboard-deploy/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-05T18:57:11.127Z",
+  "category": "spec",
+  "categoryName": "dashboard-deploy",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-05T18:57:11.345Z"
+}

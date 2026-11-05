@@ -4,7 +4,7 @@ Document version: v1
 
 Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 → 4 → 5 → 6 → 9 → 14 → 15 and 7 → 8 → 14, with task 2 feeding 10 and 11, and tasks 10 and 12 feeding 13. Each task leaves `npx tsc --noEmit` and every existing suite green, because the coordinator has no caller until task 5 and nothing presses until task 9. Line citations are to base `25e36f6d`; where an earlier task here edited the file, the named symbol is the anchor and the implementer re-resolves the line.
 
-- [ ] 1. Add the hold owner and an in-chain run update
+- [x] 1. Add the hold owner and an in-chain run update
   - File: src/controller/state.ts
   - File: src/controller/__tests__/pause-request.test.ts
   - Test: src/controller/__tests__/pause-request.test.ts — `updateRun(id, fn)`

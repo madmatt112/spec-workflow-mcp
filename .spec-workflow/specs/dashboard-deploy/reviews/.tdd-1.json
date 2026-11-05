@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/pause-request.test.ts"],"seams":{"src/controller/__tests__/pause-request.test.ts":"updateRun(id, fn)"},"redCommit":"80a639d1c4e7708ffa8211f8a6d11fced962885c","baseSha":"25e36f6dc70808d4d9cd6032be1ed64e5cd62928","base":"structural-red","head":"pass","amended":false,"judged":null}

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-deploy/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T18:57:11.192Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793905031127_m2ftzxb41",
+      "approvalTitle": "dashboard-deploy tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T18:57:11.340Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793905031127_m2ftzxb41",
+      "approvalTitle": "dashboard-deploy tasks v1"
+    }
+  ]
+}
