@@ -32,6 +32,10 @@ import {
   runOnce, cancelRun, discardRun, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
+import {
+  DeployCoordinator, systemdDeployUnit, readDeployForWireSync,
+  type DeployUnit, type ControllerDeploy,
+} from './deploy.js';
 
 // No global cap by default: one run per spec store already bounds concurrency to one run
 // per project, and the window threshold guards usage. CONTROLLER_SLOTS sets a cap.
@@ -66,6 +70,12 @@ export interface ControllerOptions {
   ghBin?(): string;
   /** Cancel grace before SIGKILL (ms). */
   graceMs?: number;
+  /** The deploy unit seam (C5); defaults to the real `systemd-run`/`systemctl` unit. */
+  deployUnit?: DeployUnit;
+  /** The deploy coordinator's wait limit (ms); defaults to 5 hours. */
+  deployWaitLimitMs?: number;
+  /** Skip the deploy coordinator's `onStart` and `tick` entirely (R3 AC8). */
+  deployDisabled?: boolean;
 }
 
 export class Controller extends EventEmitter {
@@ -82,6 +92,8 @@ export class Controller extends EventEmitter {
   private tickTimer?: NodeJS.Timeout;
   private started = false;
   private locked = false;
+  private readonly deployDisabled: boolean;
+  private readonly deploy: DeployCoordinator;
 
   constructor(opts: ControllerOptions) {
     super();
@@ -91,6 +103,15 @@ export class Controller extends EventEmitter {
       ?? (Number(process.env.CONTROLLER_WINDOW_THRESHOLD) || DEFAULT_WINDOW_THRESHOLD);
     this.tickMs = opts.tickMs ?? DEFAULT_TICK_MS;
     this.now = opts.now ?? ((): Date => new Date());
+    this.deployDisabled = Boolean(opts.deployDisabled);
+    this.deploy = new DeployCoordinator({
+      now: this.now,
+      unit: opts.deployUnit ?? systemdDeployUnit(),
+      isQuiet: () => this.isQuiet(),
+      resumeIfAnswered: (run) => this.resumeIfWaitAnswered(run),
+      schedule: () => { void this.schedule(); },
+      waitLimitMs: opts.deployWaitLimitMs,
+    });
   }
 
   // --- lifecycle -----------------------------------------------------------
@@ -107,6 +128,8 @@ export class Controller extends EventEmitter {
     this.started = true;
 
     waitEvents.on('change', this.onWaitChange);
+
+    if (!this.deployDisabled) await this.deploy.onStart();
 
     await this.recover();
 
@@ -143,6 +166,33 @@ export class Controller extends EventEmitter {
   /** The run ids a drive currently holds: `active` plus the keys of `drives` (design C5). */
   drivenRuns(): ReadonlySet<string> {
     return new Set([...this.active, ...this.drives.keys()]);
+  }
+
+  /**
+   * D17: quiet when no run has a live `inFlight` process and nothing is a
+   * drive's `drivenRuns()` — a drive between its stop check and its step, or
+   * in a merge, has no live step and would still trip the script's refusal.
+   */
+  private async isQuiet(): Promise<boolean> {
+    if (this.drivenRuns().size > 0) return false;
+    for (const run of await listRuns()) {
+      if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) return false;
+    }
+    return true;
+  }
+
+  // --- deploy (design C1, C3) -----------------------------------------------
+
+  pressDeploy(): Promise<{ ok: true } | { ok: false; error: 'deploy-open'; stage: string }> {
+    return this.deploy.press();
+  }
+
+  cancelDeploy(): Promise<{ status: 200 | 404 | 409 | 500; error?: string; stage?: string }> {
+    return this.deploy.cancel();
+  }
+
+  deployRecord(): ControllerDeploy | null {
+    return readDeployForWireSync();
   }
 
   /**
@@ -394,16 +444,19 @@ export class Controller extends EventEmitter {
   private async schedule(): Promise<void> {
     if (!this.started) return;
 
+    if (!this.deployDisabled) await this.deploy.tick();
+
     await this.settlePass();
 
     const window = this.windowBlock();
     const runs = await listRuns();
 
     // The usage window is over the threshold: park every run that would start and
-    // re-check at the reset (design §9).
+    // re-check at the reset (design §9). A deploy-held run stays as the deploy
+    // coordinator left it (D4).
     if (window.blocked) {
       for (const run of runs) {
-        if (run.status === 'queued' && !this.active.has(run.id)) {
+        if (run.status === 'queued' && !this.active.has(run.id) && run.holdBy !== 'deploy') {
           await this.save(run, { status: 'paused', pauseReason: 'usage-window', resumeAt: window.resumeAt });
         }
       }
@@ -434,6 +487,7 @@ export class Controller extends EventEmitter {
   private async settlePass(): Promise<void> {
     for (const run of await listRuns()) {
       if (this.active.has(run.id) || !run.pauseRequested) continue;
+      if (run.holdBy === 'deploy') continue;
       const merging = run.status === 'merging';
       const heldElsewhere = run.status === 'paused' && run.pauseReason !== OPERATOR_PAUSE;
       if (run.status !== 'queued' && !merging && !heldElsewhere) continue;
@@ -544,6 +598,9 @@ export class Controller extends EventEmitter {
 
     const run = await readRun(record.run);
     if (!run || run.status !== 'waiting') return;
+    // A deploy-held run stays `waiting`; release replays the answer through
+    // `resumeIfWaitAnswered` once the hold clears (R4 AC6).
+    if (run.holdBy === 'deploy') return;
 
     // An `error`/`escalation` wait answered `abandon` ends the run; anything else
     // resumes it (the gate/plan answer is already on disk).

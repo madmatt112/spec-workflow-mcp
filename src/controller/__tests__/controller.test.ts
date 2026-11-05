@@ -1865,7 +1865,7 @@ describe('DeployCoordinator wiring: start before recover, deployDisabled (design
   });
 
   it('with deployDisabled, a wait record starts no unit (control: a sibling controller starts it once)', async () => {
-    const iso = '2026-11-05T05:00:03.000Z';
+    const iso = new Date().toISOString();
     writeOpenDeployRecord('wait', [], iso);
 
     const disabledUnit = fakeDeployUnit();
@@ -1897,7 +1897,7 @@ describe('DeployCoordinator wiring: start before recover, deployDisabled (design
 
 describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task 5)', () => {
   it('pump at wait starts the fake unit once when quiet', async () => {
-    const iso = '2026-11-05T05:00:04.000Z';
+    const iso = new Date().toISOString();
     writeOpenDeployRecord('wait', [], iso);
 
     const unit = fakeDeployUnit();
@@ -1911,7 +1911,7 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
   });
 
   it('a run with a live inFlight process stops the unit from starting (control: quiet once the process dies, the same unit starts)', async () => {
-    const iso = '2026-11-05T05:00:05.000Z';
+    const iso = new Date().toISOString();
     const id = 'run-20261105-dep0005';
     writeOpenDeployRecord('wait', [], iso);
 
@@ -1941,8 +1941,7 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
   }, 10000);
 
   it('a run in drivenRuns stops the unit from starting (control: once the drive ends, the same unit starts)', async () => {
-    const iso = '2026-11-05T05:00:06.000Z';
-    writeOpenDeployRecord('wait', [], iso);
+    const iso = new Date().toISOString();
     writeScript(fx, [{ ...drafterRun('requirements'), delayMs: 800 } as StubRun]);
 
     const unit = fakeDeployUnit();
@@ -1954,6 +1953,11 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
       await new Promise((r) => setTimeout(r, 10));
     }
     expect(controller.drivenRuns().has(id)).toBe(true);
+
+    // Pressed only once the run is confirmed driving, so no earlier quiet
+    // tick (before this run existed, or before its drive began) starts the
+    // unit ahead of the assertion below.
+    writeOpenDeployRecord('wait', [], iso);
 
     await controller.pump();
     expect(unit.start).not.toHaveBeenCalled();
@@ -2051,7 +2055,10 @@ describe('Controller.onWaitChange guards a deploy hold (design C3, requirement 4
     const id = 'run-20261105-dep0012';
     const iso = '2026-11-05T05:00:12.000Z';
 
-    controller = makeDeployController(fx, {});
+    // A large tickMs keeps the periodic scheduler from racing the absent-record
+    // release (D24) against this test's own answerWait call; only the explicit
+    // start()/pump() calls below drive the coordinator.
+    controller = makeDeployController(fx, { tickMs: 100_000 });
     await controller.start();
     await writeHeldRun(fx, id, 'waiting', iso);
 
@@ -2077,7 +2084,9 @@ describe('Controller.onWaitChange guards a deploy hold (design C3, requirement 4
     const id = 'run-20261105-dep0013';
     const iso = '2026-11-05T05:00:13.000Z';
 
-    controller = makeDeployController(fx, {});
+    // Same reasoning as the previous test: keep the periodic tick from
+    // releasing the hold before the explicit pump() below does.
+    controller = makeDeployController(fx, { tickMs: 100_000 });
     await controller.start();
     await writeHeldRun(fx, id, 'waiting', iso);
 
