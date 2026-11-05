@@ -49,3 +49,33 @@
 - docs/SDD-HARNESS.md:474-506 — the staged self-update, the `error` wait, overrides, dry-run (:505 says "staged"; the script uses the live build)
 - docs/SDD-HARNESS.md:508-545 — eval cases, "three times" at :511, direct run at :531-539
 - docs/ai-resources-catalogue.md:175-176 — grill decision 21, "3 runs per case"
+
+## CLI entry and readers (src/evals/cli.ts)
+- src/evals/cli.ts:148 — `runRun` reads the returned verdicts for its exit code
+- src/evals/cli.ts:193-201 — exported `main`: dispatches `select`, `gate`, or a direct run
+- src/evals/cli.ts:203-215 — entrypoint check: unresolved `argv[1]` against the module's real path
+
+## Deploy script, dry run (scripts/sdd-self-update.sh)
+- scripts/sdd-self-update.sh:24 — `set -euo pipefail`
+- scripts/sdd-self-update.sh:175-181 — `BASE`, and the dry-run branch that only prints the fetch
+- scripts/sdd-self-update.sh:109-117 — the `dist/controller/state.js` check, with its dry-run note
+
+## Test seams
+- src/evals/__tests__/gate.test.ts:87-110 — `writeDeterministicCase`: a case with no `agent-rules.md`
+- src/evals/__tests__/gate.test.ts:113-141 — `writeAuthorCase`: a case with chosen graders
+- src/evals/__tests__/gate.test.ts:145-157 — `realRenderedText`: this build's text for one case
+- src/evals/__tests__/gate.test.ts:160-174 — `writeMatchingBaseDist`: a base build that writes fixed text
+- src/evals/__tests__/gate.test.ts:179-186 — `writeScript`: the stub `claude` script and counter path
+- src/evals/__tests__/gate.test.ts:188-201 — `okRun`: one scripted stub run
+- src/evals/__tests__/cli.test.ts:76-90 — `captureStdout` over `console.log` and `process.stdout.write`- src/evals/__tests__/cli.test.ts:157-171 — `writeMatchingBaseDist`: forwards to the real `dist/tools/harness.js`, so it needs a built tree
+- src/evals/__tests__/cli.test.ts:175-187 — `writeSelectRepo`: role, profile, brief-source files and one case
+- src/evals/__tests__/runner.test.ts:378-394 — a stub `step` returning a full `StepResult`
+- scripts/stub-claude.mjs:62-72 — the `.counter` file, one increment per invocation
+- src/__tests__/service-scripts.test.ts:24-34 — `runScript`: 20 s timeout, `code`, `stdout`, `stderr`
+- src/__tests__/service-scripts.test.ts:49-69 — `makeDivergedCheckout`: toy `package.json` with no `type`, clone made before origin advances
+- src/__tests__/service-scripts.test.ts:74-76 — `stageBuildStub`: stub staged `dist/evals/cli.js`
+- src/__tests__/service-scripts.test.ts:408-436 — override forwarding through a stub CLI that reads its argv
+
+## CI
+- .github/workflows/ci.yml:30 — `npm run build` step
+- .github/workflows/ci.yml:33 — `npm test -- --run` step
