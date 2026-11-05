@@ -173,3 +173,4 @@
 {"ts":"2026-11-05T03:19:58.499Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P1 test files from the commit added to the list"}
 {"ts":"2026-11-05T03:20:01.351Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P1 pass risk low"}
 {"ts":"2026-11-05T03:20:01.382Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"P1","outcome":"done"}
+{"ts":"2026-11-05T03:20:03.626Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"phase.end","phase":"closeout","result":"closed","state":"items 10/10","note":"3 done, 1 to-do, 6 skipped"}

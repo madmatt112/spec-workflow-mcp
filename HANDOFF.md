@@ -167,6 +167,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-05 | eval-gate-runs | tasks | v2 | approved | 2 rounds |
 | 2026-11-05 | eval-gate-runs | implementation | tasks 6/6 | complete | PR #203 |
 | 2026-11-05 | eval-gate-runs | retrospective |  | retro-ready | 11 findings, 8 proposals |
+| 2026-11-05 | eval-gate-runs | closeout | items 10/10 | closed | 3 done, 1 to-do, 6 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1402,3 +1403,13 @@ Gotchas:
 | Verifier-skipped | task 1, task 2, task 3, task 5, task 6 (gate-only review, retro P6/P15) |
 | Next | none |
 | Gotchas | none |
+
+## eval-gate-runs — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 10/10: 3 done, 1 to-do, 6 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/204 |
+| To-dos | P5: Open DECISION NEEDED — human owns the determinism-vs-cost process-track choice; no decision recorded, recommended option is no change |
+| Gotchas | none |
+

@@ -1,6 +1,6 @@
 # Retrospective plan — eval-gate-runs
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-11-05
 
 ## Approved proposals
