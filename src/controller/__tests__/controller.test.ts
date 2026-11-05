@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import { Controller, type ControllerOptions } from '../controller.js';
 import {
-  writeRun, readRun, writeRateLimit, readRateLimit, readWait, writeLastActivity, processStartTime,
+  writeRun, readRun, listRuns, writeRateLimit, readRateLimit, readWait, writeLastActivity, processStartTime,
   type RunRecord,
 } from '../state.js';
 import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION } from '../waits.js';
@@ -2135,5 +2135,285 @@ describe('Controller.onWaitChange guards a deploy hold (design C3, requirement 4
     expect(unit.start).not.toHaveBeenCalled();
     expect(unit.stop).not.toHaveBeenCalled();
     expect((await readDeployRecord())?.stage).toBe('build');
+  });
+});
+
+// Contract for task 6 ("Make operator actions respect an open deploy", design
+// C3, D23; requirement 4 AC1, AC7, AC8, AC9, AC11). Per success criterion:
+// - `pause` on a deploy-held `waiting` run writes `holdBy: 'operator'`
+//   (the record stays `waiting`, held), and a later release (the controller
+//   resolving an open `restart` record on `start()`) leaves it held because
+//   release only clears runs with `holdBy: 'deploy'`. Pre: such a run. Call:
+//   `controller.pause(id)`, then an open `restart` record and
+//   `controller.start()`. Result: `pause` returns `holdBy: 'operator'`,
+//   `status: 'waiting'`; after `start()` the record is `done` and the run is
+//   unchanged. Source: design C3 `pause` bullet (R4 AC1, AC7); D9.
+// - `pause` on a deploy-held `queued` run parks it `paused`/`operator`. Pre:
+//   such a run. Call: `controller.pause(id)`. Result: `status: 'paused'`,
+//   `pauseReason: 'operator'`, `holdBy: 'operator'`. Source: design C3
+//   `pause` bullet; R4 AC1, AC7.
+// - A fresh operator pause (no prior hold) writes `holdBy: 'operator'`
+//   alongside the existing `pauseReason`. Pre: an unheld `queued` run. Call:
+//   `controller.pause(id)`. Result: `status: 'paused'`, `pauseReason:
+//   'operator'`, `holdBy: 'operator'`. Source: design C3 "every pause patch
+//   sets `holdBy: 'operator'`"; R4 AC1.
+// - `resumeNow` on a deploy-held run gives `'deploy-open'` and changes
+//   nothing. Pre: a `holdBy: 'deploy'` run, no deploy record on disk (so the
+//   sentinel is proven to come from `holdBy` alone, not an open record).
+//   Call: `controller.resumeNow(id)`. Result: `'deploy-open'`; the record on
+//   disk is byte-identical. Source: design C3 `resumeNow` bullet; R4 AC8.
+// - `resumeNow` on an operator-held run gives `'deploy-open'` and changes
+//   nothing while a record is open. Pre: a `holdBy: 'operator'` run, an open
+//   record. Call: `controller.resumeNow(id)`. Result: `'deploy-open'`; the
+//   record on disk is byte-identical. Source: design C3 `resumeNow` bullet
+//   ("or a record is open"); R4 AC8.
+// - `resumeNow` with no record open clears `holdBy` and `pauseRequested` on
+//   an operator-held run (today's clearing branch also drops `holdBy` now).
+//   Pre: a `holdBy: 'operator'` run, no deploy record. Call:
+//   `controller.resumeNow(id)`. Result: `status: 'queued'`, `pauseRequested`
+//   and `holdBy` both undefined. Source: design C3 "Its held branch also
+//   clears `holdBy`"; R4 AC8.
+// - `enqueue` throws the stage text and writes no run while a record is
+//   open. Pre: an open `build` record. Call: `controller.enqueue(...)`.
+//   Result: rejects `enqueue: a deploy is open (stage build)`; `listRuns()`
+//   stays empty. Source: design C3 `enqueue` bullet; R4 AC9, D23.
+// - `enqueue` waits for a held deploy lock, then refuses once press writes
+//   an open record. Pre: a fake unit whose `state()` is held pending. Call:
+//   `controller.pressDeploy()` (unawaited), then `controller.enqueue(...)`
+//   (unawaited) while the lock is still held. Result: `listRuns()` is still
+//   empty while the lock holds; once the unit state resolves, press
+//   succeeds and the queued `enqueue` rejects `enqueue: a deploy is open
+//   (stage wait)`, still writing no run. Source: design C3 `enqueue` bullet
+//   ("runs inside `deploy.withLock`"); R4 AC9, D23.
+// - `launchBlock` gives the deploy text before the live-run text. Pre: a
+//   live run on the project/store AND an open record. Call:
+//   `controller.launchBlock(projectId, specStore)`. Result: the deploy
+//   message, not the live-run message. Source: design C3 `launchBlock`
+//   bullet ("first while a record is open"); R4 AC9.
+//
+// Regression guards (RED-IMPOSSIBLE at base: each already holds because no
+// code yet reads deploy state for these paths, or because an unrelated
+// mechanism — the terminal-status clear, D22 — already produces the result;
+// named for the implementer brief rather than red-tested):
+// - "`resumeNow` on an unknown id gives `undefined` with a record open": the
+//   existing assertion `expect(await controller.resumeNow('run-nope')).
+//   toBeUndefined()` (`Controller.pause and resumeNow`, no record present)
+//   covers the same `!run` branch, but never with an open record on disk;
+//   the test below adds that combination as a fresh guard.
+// - "`launchBlock` and `enqueue` both work as today with a `done` record":
+//   base code never reads the deploy record in either path, so a closed
+//   record already changes nothing; no existing assertion pins `launchBlock`
+//   returning `null` at the `Controller` level, so the test below adds it
+//   alongside the existing `enqueue` success path.
+// - "`cancel` and `discard` on a held run end it as today and a later
+//   release skips it" (requirement 4 AC11): `cancelRun`/`discardRun`
+//   (`runs.test.ts` "cancelRun and discardRun") already prove a terminal
+//   write on an unheld run; the terminal-status clear in `writeRunLocked`
+//   (task 1, D22) already drops `holdBy` on any terminal write, and
+//   `DeployCoordinator.release` already filters to `holdBy: 'deploy'`
+//   (task 3) — but no existing assertion combines a `holdBy: 'deploy'` run
+//   with cancel/discard and a later release. The test below adds that
+//   combination as a fresh guard.
+// - "a second pause on an operator-held run writes nothing": fully covered,
+//   branch-exact, by the existing test "pause returns undefined for an
+//   unknown run, null for a done run, and the unchanged record for an
+//   already-held run" (`Controller.pause and resumeNow`) — the early return
+//   `run.pauseRequested && run.holdBy !== 'deploy'` is unchanged for a run
+//   whose `holdBy` is `'operator'` (or absent, which R4 AC1 reads as
+//   `'operator'`), so that test needs no change and no new guard.
+describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open deploy (design C3, D23; requirement 4 AC1, AC7, AC8, AC9, AC11; task 6)', () => {
+  it('pause on a deploy-held waiting run moves the hold to operator; a later release leaves it held', async () => {
+    const id = 'run-20261105-dep0015';
+    const iso = '2026-11-05T05:00:15.000Z';
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit() });
+    const held = await controller.pause(id);
+    expect(held?.holdBy).toBe('operator');
+    expect(held?.status).toBe('waiting');
+    expect(held?.pauseRequested).toBeTruthy();
+
+    writeOpenDeployRecord('restart', [id], iso, { unitStarted: true });
+    await controller.start();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('done');
+
+    const after = await readRun(id);
+    expect(after?.holdBy).toBe('operator');
+    expect(after?.status).toBe('waiting');
+    expect(after?.pauseRequested).toBeTruthy();
+  });
+
+  it('pause on a deploy-held queued run parks it paused with reason operator', async () => {
+    const id = 'run-20261105-dep0016';
+    const iso = '2026-11-05T05:00:16.000Z';
+    await writeHeldRun(fx, id, 'queued', iso);
+
+    controller = makeController(fx);
+    const result = await controller.pause(id);
+    expect(result?.status).toBe('paused');
+    expect(result?.pauseReason).toBe('operator');
+    expect(result?.holdBy).toBe('operator');
+  });
+
+  it('a fresh operator pause writes holdBy operator', async () => {
+    const id = 'run-20261105-dep0017';
+    const iso = '2026-11-05T05:00:17.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    controller = makeController(fx);
+    const result = await controller.pause(id);
+    expect(result?.status).toBe('paused');
+    expect(result?.pauseReason).toBe('operator');
+    expect(result?.holdBy).toBe('operator');
+  });
+
+  it('resumeNow on a deploy-held run gives deploy-open and changes nothing', async () => {
+    const id = 'run-20261105-dep0018';
+    const iso = '2026-11-05T05:00:18.000Z';
+    await writeHeldRun(fx, id, 'paused', iso);
+
+    controller = makeController(fx);
+    const before = await readRun(id);
+    const result = await controller.resumeNow(id);
+    expect(result).toBe('deploy-open');
+    expect(await readRun(id)).toEqual(before);
+  });
+
+  it('resumeNow on an operator-held run gives deploy-open and changes nothing while a record is open', async () => {
+    const id = 'run-20261105-dep0019';
+    const iso = '2026-11-05T05:00:19.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'paused', pauseReason: 'operator', pauseRequested: iso, holdBy: 'operator',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:00.000Z');
+
+    controller = makeController(fx);
+    const before = await readRun(id);
+    const result = await controller.resumeNow(id);
+    expect(result).toBe('deploy-open');
+    expect(await readRun(id)).toEqual(before);
+  });
+
+  it('resumeNow with no record open clears holdBy and pauseRequested on an operator-held run', async () => {
+    const id = 'run-20261105-dep0020';
+    const iso = '2026-11-05T05:00:20.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'paused', pauseReason: 'operator', pauseRequested: iso, holdBy: 'operator',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    controller = makeController(fx);
+    const result = await controller.resumeNow(id);
+    expect(result?.status).toBe('queued');
+    expect(result?.pauseRequested).toBeUndefined();
+    expect(result?.holdBy).toBeUndefined();
+  });
+
+  it('enqueue throws the stage text and writes no run while a record is open', async () => {
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:21.000Z');
+
+    controller = makeController(fx);
+    await expect(controller.enqueue({ projectId: 'p', spec: SPEC }))
+      .rejects.toThrow(/enqueue: a deploy is open \(stage build\)/);
+    expect(await listRuns()).toEqual([]);
+  });
+
+  it('enqueue waits for a held deploy lock, then refuses once press writes an open record', async () => {
+    let resolveState: (s: UnitState) => void = () => {};
+    const unit = fakeDeployUnit({
+      state: vi.fn(() => new Promise<UnitState>((resolve) => { resolveState = resolve; })),
+    });
+    controller = makeDeployController(fx, { deployUnit: unit });
+
+    const pressPromise = controller.pressDeploy();
+    await new Promise((r) => setTimeout(r, 50));
+    const enqueuePromise = controller.enqueue({ projectId: 'p', spec: SPEC });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(await listRuns()).toEqual([]);
+
+    resolveState('gone');
+    await expect(pressPromise).resolves.toEqual({ ok: true });
+    await expect(enqueuePromise).rejects.toThrow(/enqueue: a deploy is open \(stage wait\)/);
+    expect(await listRuns()).toEqual([]);
+  }, 10000);
+
+  it('launchBlock gives the deploy text before the live-run text', async () => {
+    const id = 'run-20261105-dep0022';
+    const iso = '2026-11-05T05:00:22.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    writeOpenDeployRecord('build', [id], iso);
+
+    controller = makeController(fx);
+    const block = await controller.launchBlock('p', fx.repo);
+    expect(block).toBe('A deploy is in progress (build); launch waits until it ends.');
+  });
+
+  // Regression guard: resumeNow('unknown') already returns undefined before
+  // ever consulting deploy state; this pins that an open record does not
+  // change that.
+  it('[regression guard] resumeNow on an unknown id gives undefined while a record is open', async () => {
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:23.000Z');
+    controller = makeController(fx);
+    expect(await controller.resumeNow('run-nope')).toBeUndefined();
+  });
+
+  // Regression guard: neither launchBlock nor enqueue reads deploy state for
+  // a closed (done) record, so both already behave as if there were no
+  // record at all; this pins that a done record changes nothing.
+  it('[regression guard] launchBlock and enqueue work as today with a done record', async () => {
+    writeOpenDeployRecord('done', [], '2026-11-05T05:00:24.000Z');
+    controller = makeController(fx);
+
+    expect(await controller.launchBlock('p', fx.repo)).toBeNull();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+    expect(id).toMatch(/^run-/);
+  });
+
+  // Regression guard: the terminal-status clear (task 1, D22) already drops
+  // holdBy on any cancel/discard write, and release (task 3) already skips
+  // any run whose holdBy isn't 'deploy'; this pins that combination for a
+  // run that started deploy-held.
+  it('[regression guard] cancel and discard on deploy-held runs clear the hold as today, and a later release skips them', async () => {
+    const cancelId = 'run-20261105-dep0025';
+    const discardId = 'run-20261105-dep0026';
+    const iso = '2026-11-05T05:00:25.000Z';
+    await writeHeldRun(fx, cancelId, 'queued', iso);
+    await writeHeldRun(fx, discardId, 'queued', iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit() });
+
+    const cancelled = await controller.cancel(cancelId);
+    expect(cancelled?.status).toBe('abandoned');
+
+    const discarded = await controller.discard(discardId);
+    expect(discarded?.status).toBe('abandoned');
+
+    // `cancelRun`/`discardRun` return their own in-memory patch, not the
+    // disk-side terminal clear, so `holdBy` is read back fresh (D22).
+    const beforeCancel = await readRun(cancelId);
+    const beforeDiscard = await readRun(discardId);
+    expect(beforeCancel?.holdBy).toBeUndefined();
+    expect(beforeDiscard?.holdBy).toBeUndefined();
+
+    writeOpenDeployRecord('restart', [], iso, { unitStarted: true });
+    await controller.start();
+
+    expect((await readDeployRecord())?.stage).toBe('done');
+    expect(await readRun(cancelId)).toEqual(beforeCancel);
+    expect(await readRun(discardId)).toEqual(beforeDiscard);
   });
 });
