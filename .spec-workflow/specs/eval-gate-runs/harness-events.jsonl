@@ -121,3 +121,8 @@
 {"ts":"2026-11-05T01:42:57.474Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","result":"yes/6","phase":"implementation","task":"6"}
 {"ts":"2026-11-05T01:42:59.660Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: task 6 pass risk low"}
 {"ts":"2026-11-05T01:42:59.668Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T01:42:59.839Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T01:50:07.837Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-verifier","input":"86","output":"27361","cacheWrite":"128612","cacheRead":"3908316","tokens":"4064375","cacheWrite5m":"0","cacheWrite1h":"128612","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T01:50:07.837Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
+{"ts":"2026-11-05T01:50:07.838Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"e2e verification passed"}
+{"ts":"2026-11-05T01:50:08.030Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"completion handoff written"}

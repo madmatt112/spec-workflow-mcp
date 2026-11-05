@@ -30,13 +30,14 @@
 | 15 | dashboard-visual-refresh | Complete | 6/6 |
 | 16 | dashboard-project-list | Complete | 13/13 |
 | 17 | run-pause | Complete | 9/9 |
-| 18 | controller-liveness-and-push | Complete | 15/15 |
-| 19 | advisor | Complete | 19/19 |
-| 20 | dashboard-loop-views | Complete | 14/14 |
-| 21 | project-bootstrap | Complete | 11/11 |
-| 22 | verification-loop | Complete | 14/14 |
-| 23 | harness-evals | Complete | 16/16 |
-| 24 | tighter-reviews | Complete | 29/29 |
+| 18 | eval-gate-runs | Complete | 6/6 |
+| 19 | harness-evals | Complete | 16/16 |
+| 20 | controller-liveness-and-push | Complete | 15/15 |
+| 21 | advisor | Complete | 19/19 |
+| 22 | dashboard-loop-views | Complete | 14/14 |
+| 23 | project-bootstrap | Complete | 11/11 |
+| 24 | verification-loop | Complete | 14/14 |
+| 25 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 
