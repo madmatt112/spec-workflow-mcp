@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/deploy.test.ts"],"seams":{"src/controller/__tests__/deploy.test.ts":"new DeployCoordinator(deps).press()"},"redCommit":"4fe1ae2820cdf16961934684b1cab16952888613","baseSha":"4adfbc6b304d046fec2cf604174dc9dc782fba66","base":"structural-red","head":"pass","amended":false,"judged":null}

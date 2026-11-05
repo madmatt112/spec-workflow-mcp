@@ -115,3 +115,14 @@
 {"ts":"2026-11-05T19:13:33.575Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
 {"ts":"2026-11-05T19:14:00.784Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 2 pass risk low tdd structural-red"}
 {"ts":"2026-11-05T19:14:00.797Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T19:14:00.997Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"3","title":"Add the coordinator's lock, press, release and tick"}
+{"ts":"2026-11-05T19:14:01.006Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 3 pick head 4adfbc6b304d046fec2cf604174dc9dc782fba66"}
+{"ts":"2026-11-05T19:14:01.063Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-test-author","role":"author task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T19:29:12.681Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-test-author","input":"94","output":"76774","cacheWrite":"174099","cacheRead":"6179672","tokens":"6430639","cacheWrite5m":"0","cacheWrite1h":"174099","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T19:29:12.681Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-test-author","role":"author task 3","result":"none","phase":"implementation","task":"3"}
+{"ts":"2026-11-05T19:29:12.724Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 3 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T19:29:12.725Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement task 3","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T19:42:10.303Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"4","output":"354","cacheWrite":"882","cacheRead":"364876","tokens":"366116","cacheWrite5m":"0","cacheWrite1h":"882","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T19:42:10.303Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","result":"yes/3","phase":"implementation","task":"3"}
+{"ts":"2026-11-05T19:42:34.990Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 3 pass risk low tdd structural-red"}
+{"ts":"2026-11-05T19:42:34.999Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
