@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/controller.test.ts"],"seams":{"src/controller/__tests__/controller.test.ts":"controller.resumeNow(id)"},"redCommit":"733eaa1d44c0fa077db9796739fbd5b621fef839","baseSha":"a9f86cc1cd87298477d1d55d6b98206fd58b8fa9","base":"assertion-red","head":"pass","amended":true,"judged":null}
