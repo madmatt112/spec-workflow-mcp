@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, chmodSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, chmodSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
@@ -9,8 +9,15 @@ import {
   readDeployForWireSync,
   deployUnitArgs,
   systemdDeployUnit,
+  DeployCoordinator,
+  deployEvents,
   type DeployRecord,
+  type DeployDeps,
+  type DeployUnit,
+  type UnitState,
 } from '../deploy.js';
+import { writeRun, readRun, controllerHome, type RunRecord } from '../state.js';
+import { runEvents } from '../runs.js';
 
 // Contract for design C1 (deployRecordPath, readDeployRecord, isDeployOpen,
 // readDeployForWireSync) and C5 (deployUnitArgs, systemdDeployUnit). No
@@ -283,5 +290,581 @@ describe('systemdDeployUnit', () => {
 
       errorSpy.mockRestore();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 3 — DeployCoordinator: lock, press, release and tick (design C1
+// "Deploy lock", "press" post-conditions, "tick" table, "Starting the unit",
+// "Release", "Failed and `done` writes"). `onStart` and `cancel` are task 4,
+// so every call below reaches the coordinator only through `press()`,
+// `tick()` and `withLock()`. `writeRun`/`readRun` (state.ts) and `runEvents`
+// (runs.ts) are the real implementations — never mocked; only `DeployUnit`
+// and the rest of `DeployDeps` (`isQuiet`, `resumeIfAnswered`, `schedule`,
+// `now`, `waitLimitMs`) are the fakes the design names as the coordinator's
+// seam.
+//
+// Per success criterion (task 3 _Prompt Success line), grouped by clause:
+// - Press with no record writes `v: 1`, stage `wait`, `runs` and `started`
+//   with no `error`, and answers ok (requirement 1 AC1). Pre: no record, no
+//   runs. Call: `press()`. Result: `{ ok: true }`; the record has those
+//   fields. Source: design C1 "press" step 5; requirement 1 AC1.
+// - It holds a run of each holdable status with `holdBy: 'deploy'`,
+//   `pauseRequested` set and status unchanged (AC2), each tested; and lists
+//   exactly those ids. Pre: one run per status / five runs plus a `done`
+//   distractor. Call: `press()`. Result: per-run fields; `runs` equals the
+//   five ids. Source: design C1 "press" step 6; requirement 1 AC2.
+// - An operator-held run (`holdBy` `operator` or absent, `pauseRequested`
+//   set) stays unchanged and unlisted (AC3). Pre: such a run. Call:
+//   `press()`. Result: the run is untouched; its id is absent from `runs`.
+//   Source: requirement 1 AC3.
+// - The record is on disk before the first hold. Pre: one holdable run whose
+//   directory cannot accept a new write. Call: `press()` (rejection
+//   expected). Result: the record still exists with `stage: 'wait'` and that
+//   run's id in `runs`. Source: design C1 "press" step 5 ("before any hold,
+//   so a crash still lists the holds to re-apply").
+// - Press removes a leftover claim. Pre: a `.claim` directory beside the
+//   record path. Call: `press()`. Result: the claim directory is gone.
+//   Source: design C1 "press" step 3.
+// - An open record gives `deploy-open` with its stage (AC8). Pre: a record at
+//   `build`. Call: `press()`. Result: `{ ok: false, error: 'deploy-open',
+//   stage: 'build' }`. Source: requirement 1 AC8.
+// - A live unit with a finished (`done`/`failed`) record gives `deploy-open`
+//   with that stage, and with no record gives stage `unit` (D19). Pre: a
+//   finished record, or none; `unit.state()` resolves `live`. Call:
+//   `press()`. Result: `deploy-open` with the finished stage, or `'unit'`.
+//   Source: design C1 "press" step 2; D19.
+// - Two presses together give one record and one `deploy-open` (AC9). Pre:
+//   one holdable run. Call: `Promise.all([press(), press()])` on one
+//   coordinator. Result: one `{ ok: true }`, one `deploy-open` at `wait`; one
+//   record. Source: requirement 1 AC9.
+// - A `done` and a `failed` record are each replaced (AC10). Pre: a finished
+//   record with `commit`/`error` set. Call: `press()`. Result: a fresh
+//   record (`stage: 'wait'`, no `error`, no `commit`). Source: requirement 1
+//   AC10.
+// - `tick` at `wait` when quiet persists `unitStarted: true` before
+//   `unit.start` is called, seen by the fake reading the file (AC4). Pre: a
+//   record at `wait`, `isQuiet` true. Call: `tick()`. Result: the fake's
+//   `start` observes `unitStarted: true` on disk when it runs; the record has
+//   it after. Source: design C1 "Starting the unit"; requirement 1 AC4.
+// - Not quiet starts nothing; `unitStarted` already true starts nothing.
+//   Pre/Call/Result: as named, `unit.start` never called. Source: design C1
+//   tick table rows 4/5.
+// - A `unit.start` rejection writes `failed` with the fixed exit-code text and
+//   releases (AC6). Pre: `start` rejects with `.code`; a held run. Call:
+//   `tick()`. Result: `error` is the exact fixed string; the run is
+//   released. Source: requirement 1 AC6; design "Failed and done writes".
+// - Past `waitLimitMs` it writes `failed` with the fixed 5-hour text (AC7),
+//   and the default is 5 hours. Pre: `started` older than the limit. Call:
+//   `tick()`. Result: `failed` with that exact text. Source: requirement 1
+//   AC7; D14.
+// - An open record with the unit `gone` writes `failed` naming the stage and
+//   `sdd-deploy.service`, with the `swap`/`restart` suffix at those stages,
+//   and releases (requirement 3 AC3); `live` and `unknown` do nothing. Pre: a
+//   record open at each non-`wait` stage; a held run. Call: `tick()`.
+//   Result: per design C1 "Failed and done writes" third bullet.
+// - A `failed` and a `done` record with deploy holds release and keep their
+//   stage and `commit` (requirement 3 AC2). Pre: such a record plus a held
+//   run. Call: `tick()`. Result: the run is released; the record's stage and
+//   `commit` are unchanged. Source: design C1 tick table row 2.
+// - An absent record with deploy holds releases (D24), and Release itself:
+//   moves a `paused`/`operator` run to `queued` clearing `pauseReason` and
+//   `resumeAt`; keeps a usage pause's status/reason/`resumeAt`; calls
+//   `resumeIfAnswered` for a `waiting` run with its hold cleared; skips a run
+//   whose `holdBy` is now `operator`; emits exactly one `runEvents` `change`
+//   and calls `schedule`; a repeat changes nothing (requirement 3 AC6). Pre:
+//   runs held `holdBy: 'deploy'` in each state, no deploy record. Call:
+//   `tick()` (twice for the repeat). Result: per design C1 "Release".
+//   Source: requirement 3 AC6; D24.
+// - A held lock makes `tick` return at once with no read and no write. Pre:
+//   the lock held via `withLock`. Call: `tick()`. Result: `isQuiet` and
+//   `unit.start` never called; the record file's bytes are unchanged. Source:
+//   design C1 "Deploy lock" ("`tick` returns at once when it is held", D16).
+// - `deployEvents` emits once per wire change and not on an unchanged tick.
+//   Pre: a record at `build`, unit `live` (so tick acts on nothing). Call:
+//   `tick()` twice. Result: one `change` event total. Source: design C1
+//   "tick" ("emits `deployEvents` when the wire form changed"); NFR
+//   Performance.
+
+const PRESS_NOW = '2026-11-05T12:00:00.000Z';
+
+function fakeUnit(overrides: Partial<DeployUnit> = {}): DeployUnit {
+  return {
+    start: vi.fn(async () => {}),
+    state: vi.fn(async (): Promise<UnitState> => 'gone'),
+    stop: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
+function makeDeps(overrides: Partial<DeployDeps> = {}): DeployDeps {
+  return {
+    now: () => new Date(PRESS_NOW),
+    unit: fakeUnit(),
+    isQuiet: vi.fn(async () => true),
+    resumeIfAnswered: vi.fn(async () => {}),
+    schedule: vi.fn(),
+    ...overrides,
+  } as DeployDeps;
+}
+
+function baseRun(id: string, status: RunRecord['status'], extra: Partial<RunRecord> = {}): RunRecord {
+  return {
+    v: 1, id, project: 'p', codeRoot: '/c', specStore: '/s', spec: 's',
+    worktree: '/w', branch: 'b', status, created: '2026-11-01T00:00:00.000Z',
+    updated: '2026-11-01T00:00:00.000Z', tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    ...extra,
+  } as RunRecord;
+}
+
+async function seedRun(id: string, status: RunRecord['status'], extra: Partial<RunRecord> = {}): Promise<void> {
+  await writeRun(baseRun(id, status, extra), { ownsPauseRequest: true } as any);
+}
+
+async function seedHeldRun(id: string, status: RunRecord['status'], extra: Partial<RunRecord> = {}): Promise<void> {
+  await seedRun(id, status, { holdBy: 'deploy', pauseRequested: PRESS_NOW, ...extra });
+}
+
+function writeDeployRecordFile(record: DeployRecord): void {
+  writeFileSync(deployRecordPath(), JSON.stringify(record));
+}
+
+describe('DeployCoordinator.press', () => {
+  it('with no record writes v 1, stage wait, runs and started with no error, and answers ok', async () => {
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: true });
+    const record = await readDeployRecord();
+    expect(record?.v).toBe(1);
+    expect(record?.stage).toBe('wait');
+    expect(record?.runs).toEqual([]);
+    expect(record?.started).toBe(PRESS_NOW);
+    expect(record?.error).toBeUndefined();
+  });
+
+  it.each(['running', 'queued', 'waiting', 'merging', 'paused'] as const)(
+    'holds a %s run with holdBy deploy, pauseRequested set, status unchanged',
+    async (status) => {
+      await seedRun('run-held', status);
+      const coordinator = new DeployCoordinator(makeDeps());
+
+      const result = await coordinator.press();
+
+      expect(result).toEqual({ ok: true });
+      const run = await readRun('run-held');
+      expect(run?.status).toBe(status);
+      expect(run?.holdBy).toBe('deploy');
+      expect(run?.pauseRequested).toBe(PRESS_NOW);
+    },
+  );
+
+  it('lists exactly the ids of the runs it held', async () => {
+    const held: [string, RunRecord['status']][] = [
+      ['run-running', 'running'],
+      ['run-queued', 'queued'],
+      ['run-waiting', 'waiting'],
+      ['run-merging', 'merging'],
+      ['run-paused', 'paused'],
+    ];
+    for (const [id, status] of held) await seedRun(id, status);
+    await seedRun('run-untouched', 'done');
+
+    const coordinator = new DeployCoordinator(makeDeps());
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: true });
+    const record = await readDeployRecord();
+    expect([...(record?.runs ?? [])].sort()).toEqual(held.map(([id]) => id).sort());
+  });
+
+  it.each(['operator', undefined] as const)(
+    'an operator-held run (holdBy %s) stays unchanged and unlisted',
+    async (holdBy) => {
+      await seedRun('run-operator-held', 'paused', { pauseRequested: '2026-11-04T00:00:00.000Z', holdBy });
+      const coordinator = new DeployCoordinator(makeDeps());
+
+      const result = await coordinator.press();
+
+      expect(result).toEqual({ ok: true });
+      const run = await readRun('run-operator-held');
+      expect(run?.holdBy).toBe(holdBy);
+      expect(run?.pauseRequested).toBe('2026-11-04T00:00:00.000Z');
+      expect(run?.status).toBe('paused');
+      const record = await readDeployRecord();
+      expect(record?.runs ?? []).not.toContain('run-operator-held');
+    },
+  );
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'writes the record to disk before applying the first hold',
+    async () => {
+      const id = 'run-locked-dir';
+      await seedRun(id, 'running');
+      const dir = join(controllerHome(), 'runs', id);
+      chmodSync(dir, 0o555);
+      try {
+        await new DeployCoordinator(makeDeps()).press().catch(() => {});
+        const record = await readDeployRecord();
+        expect(record?.stage).toBe('wait');
+        expect(record?.runs).toEqual([id]);
+      } finally {
+        chmodSync(dir, 0o755);
+      }
+    },
+  );
+
+  it('removes a leftover claim from an earlier deploy', async () => {
+    const claimPath = `${deployRecordPath()}.claim`;
+    mkdirSync(claimPath, { recursive: true });
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: true });
+    expect(existsSync(claimPath)).toBe(false);
+  });
+
+  it('an open record gives deploy-open with its stage', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: [], started: '2026-11-05T00:00:00.000Z' });
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: false, error: 'deploy-open', stage: 'build' });
+  });
+
+  it.each(['done', 'failed'] as const)(
+    'a live unit with a finished %s record gives deploy-open with that stage',
+    async (stage) => {
+      writeDeployRecordFile({ v: 1, stage, runs: [], started: '2026-11-05T00:00:00.000Z' });
+      const coordinator = new DeployCoordinator(makeDeps({ unit: fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) }));
+
+      const result = await coordinator.press();
+
+      expect(result).toEqual({ ok: false, error: 'deploy-open', stage });
+    },
+  );
+
+  it('a live unit with no record gives stage unit', async () => {
+    const coordinator = new DeployCoordinator(makeDeps({ unit: fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) }));
+
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: false, error: 'deploy-open', stage: 'unit' });
+  });
+
+  it('two presses together give one record and one deploy-open', async () => {
+    await seedRun('run-x', 'running');
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const [first, second] = await Promise.all([coordinator.press(), coordinator.press()]);
+
+    expect(first).toEqual({ ok: true });
+    expect(second).toEqual({ ok: false, error: 'deploy-open', stage: 'wait' });
+    const record = await readDeployRecord();
+    expect(record?.runs).toEqual(['run-x']);
+  });
+
+  it.each(['done', 'failed'] as const)('a %s record is replaced by a fresh one', async (stage) => {
+    writeDeployRecordFile({
+      v: 1, stage, runs: ['old-run'], started: '2020-01-01T00:00:00.000Z', commit: 'deadbeef',
+      ...(stage === 'failed' ? { error: 'old error' } : {}),
+    });
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const result = await coordinator.press();
+
+    expect(result).toEqual({ ok: true });
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('wait');
+    expect(record?.started).toBe(PRESS_NOW);
+    expect(record?.error).toBeUndefined();
+    expect(record?.commit).toBeUndefined();
+  });
+});
+
+describe('DeployCoordinator.tick — starting the unit (R1 AC4, AC6, AC7)', () => {
+  it('persists unitStarted true before calling unit.start, seen by the fake reading the file', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: PRESS_NOW });
+    const sawUnitStartedFirst = { value: false };
+    const unit = fakeUnit({
+      start: vi.fn(async () => {
+        const onDisk = JSON.parse(readFileSync(deployRecordPath(), 'utf-8')) as DeployRecord;
+        sawUnitStartedFirst.value = onDisk.unitStarted === true;
+      }),
+    });
+    const coordinator = new DeployCoordinator(makeDeps({ unit, isQuiet: vi.fn(async () => true) }));
+
+    await coordinator.tick();
+
+    expect(sawUnitStartedFirst.value).toBe(true);
+    expect(unit.start).toHaveBeenCalledTimes(1);
+    const record = await readDeployRecord();
+    expect(record?.unitStarted).toBe(true);
+  });
+
+  it('does not start the unit when not quiet', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: PRESS_NOW });
+    const unit = fakeUnit();
+    const coordinator = new DeployCoordinator(makeDeps({ unit, isQuiet: vi.fn(async () => false) }));
+
+    await coordinator.tick();
+
+    expect(unit.start).not.toHaveBeenCalled();
+    const record = await readDeployRecord();
+    expect(record?.unitStarted).toBeFalsy();
+    expect(record?.stage).toBe('wait');
+  });
+
+  it('does not start the unit again when unitStarted is already true', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: PRESS_NOW, unitStarted: true });
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit, isQuiet: vi.fn(async () => true) }));
+
+    await coordinator.tick();
+
+    expect(unit.start).not.toHaveBeenCalled();
+  });
+
+  it('writes failed with the systemd-run exit code and releases on a unit.start rejection', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-fail-start'], started: PRESS_NOW });
+    await seedHeldRun('run-fail-start', 'queued');
+    const error = new Error('/secret/path should not leak') as Error & { code?: number };
+    error.code = 7;
+    const unit = fakeUnit({ start: vi.fn(async () => { throw error; }) });
+    const coordinator = new DeployCoordinator(makeDeps({ unit, isQuiet: vi.fn(async () => true) }));
+
+    await coordinator.tick();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe('wait: systemd-run could not start the unit (exit 7)');
+    const run = await readRun('run-fail-start');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+  });
+
+  it('writes failed when a live step outlasts waitLimitMs', async () => {
+    const started = new Date(Date.parse(PRESS_NOW) - 2000).toISOString();
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-timeout'], started });
+    await seedHeldRun('run-timeout', 'queued');
+    const coordinator = new DeployCoordinator(makeDeps({ waitLimitMs: 1000 }));
+
+    await coordinator.tick();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe('wait: a live step outlasted the 5-hour limit');
+    const run = await readRun('run-timeout');
+    expect(run?.holdBy).toBeUndefined();
+  });
+
+  it('defaults waitLimitMs to 5 hours', async () => {
+    const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+    const notQuiet = vi.fn(async () => false);
+
+    const justUnder = new Date(Date.parse(PRESS_NOW) - (FIVE_HOURS_MS - 1000)).toISOString();
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: justUnder });
+    await new DeployCoordinator(makeDeps({ isQuiet: notQuiet })).tick();
+    expect((await readDeployRecord())?.stage).toBe('wait');
+
+    const justOver = new Date(Date.parse(PRESS_NOW) - (FIVE_HOURS_MS + 1000)).toISOString();
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: justOver });
+    await new DeployCoordinator(makeDeps({ isQuiet: notQuiet })).tick();
+    expect((await readDeployRecord())?.stage).toBe('failed');
+  });
+});
+
+describe('DeployCoordinator.tick — a live unit gone (requirement 3 AC3)', () => {
+  it.each([
+    ['build', 'build: unit sdd-deploy.service is not live'],
+    ['smoke', 'smoke: unit sdd-deploy.service is not live'],
+    ['gate', 'gate: unit sdd-deploy.service is not live'],
+    ['swap', 'swap: unit sdd-deploy.service is not live; the live checkout or dist/ may already have changed'],
+    ['restart', 'restart: unit sdd-deploy.service is not live; the live checkout or dist/ may already have changed'],
+  ] as const)('writes failed naming the stage at %s and releases', async (stage, expectedError) => {
+    writeDeployRecordFile({ v: 1, stage, runs: ['run-gone'], started: PRESS_NOW });
+    await seedHeldRun('run-gone', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.tick();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe(expectedError);
+    const run = await readRun('run-gone');
+    expect(run?.holdBy).toBeUndefined();
+  });
+
+  it.each(['live', 'unknown'] as const)('does nothing when the unit is %s', async (state) => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: ['run-stay'], started: PRESS_NOW });
+    await seedHeldRun('run-stay', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async () => state) });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.tick();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('build');
+    const run = await readRun('run-stay');
+    expect(run?.holdBy).toBe('deploy');
+  });
+});
+
+describe('DeployCoordinator.tick — a finished record with deploy holds (requirement 3 AC2)', () => {
+  it.each(['failed', 'done'] as const)(
+    'releases holds on a %s record, keeping its stage and commit',
+    async (stage) => {
+      writeDeployRecordFile({
+        v: 1, stage, runs: ['run-finished'], started: PRESS_NOW, commit: 'abc123',
+        ...(stage === 'failed' ? { error: 'gate: boom' } : {}),
+      });
+      await seedHeldRun('run-finished', 'queued');
+      const coordinator = new DeployCoordinator(makeDeps());
+
+      await coordinator.tick();
+
+      const record = await readDeployRecord();
+      expect(record?.stage).toBe(stage);
+      expect(record?.commit).toBe('abc123');
+      const run = await readRun('run-finished');
+      expect(run?.holdBy).toBeUndefined();
+      expect(run?.pauseRequested).toBeUndefined();
+    },
+  );
+});
+
+describe('DeployCoordinator.tick — release with no record (D24, requirement 3 AC6)', () => {
+  it('moves a paused operator-held run to queued, clearing pauseReason and resumeAt', async () => {
+    await seedHeldRun('run-op', 'paused', { pauseReason: 'operator', resumeAt: '2026-11-05T01:00:00.000Z' });
+    await new DeployCoordinator(makeDeps()).tick();
+
+    const run = await readRun('run-op');
+    expect(run?.status).toBe('queued');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+    expect(run?.pauseReason).toBeUndefined();
+    expect(run?.resumeAt).toBeUndefined();
+  });
+
+  it('keeps a usage-paused run\'s status, reason and resume time', async () => {
+    await seedHeldRun('run-usage', 'paused', { pauseReason: 'usage-window', resumeAt: '2026-11-05T02:00:00.000Z' });
+    await new DeployCoordinator(makeDeps()).tick();
+
+    const run = await readRun('run-usage');
+    expect(run?.status).toBe('paused');
+    expect(run?.pauseReason).toBe('usage-window');
+    expect(run?.resumeAt).toBe('2026-11-05T02:00:00.000Z');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+  });
+
+  it('calls resumeIfAnswered for a waiting run, with its hold cleared', async () => {
+    await seedHeldRun('run-wait', 'waiting');
+    const resumeIfAnswered = vi.fn(async (_run: RunRecord) => {});
+
+    await new DeployCoordinator(makeDeps({ resumeIfAnswered })).tick();
+
+    expect(resumeIfAnswered).toHaveBeenCalledTimes(1);
+    const arg = resumeIfAnswered.mock.calls[0][0];
+    expect(arg.id).toBe('run-wait');
+    expect(arg.holdBy).toBeUndefined();
+    const run = await readRun('run-wait');
+    expect(run?.status).toBe('waiting');
+    expect(run?.holdBy).toBeUndefined();
+  });
+
+  it('skips a run whose hold has become the operator\'s', async () => {
+    await seedRun('run-other-op', 'queued', { holdBy: 'operator', pauseRequested: PRESS_NOW });
+
+    await new DeployCoordinator(makeDeps()).tick();
+
+    const run = await readRun('run-other-op');
+    expect(run?.holdBy).toBe('operator');
+    expect(run?.pauseRequested).toBe(PRESS_NOW);
+    expect(run?.status).toBe('queued');
+  });
+
+  it('emits exactly one runEvents change and calls schedule', async () => {
+    await seedHeldRun('run-a', 'queued');
+    await seedHeldRun('run-b', 'queued');
+    const schedule = vi.fn();
+    const events: unknown[] = [];
+    const handler = (e: unknown): void => { events.push(e); };
+    runEvents.on('change', handler);
+
+    try {
+      await new DeployCoordinator(makeDeps({ schedule })).tick();
+      expect(events.length).toBe(1);
+      expect(schedule).toHaveBeenCalled();
+    } finally {
+      runEvents.off('change', handler);
+    }
+  });
+
+  it('a repeat release changes nothing', async () => {
+    await seedHeldRun('run-again', 'queued');
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    await coordinator.tick();
+    const after1 = await readRun('run-again');
+
+    await coordinator.tick();
+    const after2 = await readRun('run-again');
+
+    expect(after2).toEqual(after1);
+  });
+});
+
+describe('DeployCoordinator.tick — the deploy lock (D16)', () => {
+  it('returns at once with no read or write when the lock is held', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: [], started: PRESS_NOW });
+    const before = readFileSync(deployRecordPath(), 'utf-8');
+    const isQuiet = vi.fn(async () => true);
+    const unit = fakeUnit();
+    const coordinator = new DeployCoordinator(makeDeps({ isQuiet, unit }));
+
+    let releaseLock: () => void = () => {};
+    let lockEntered = false;
+    const locked = coordinator.withLock(() => new Promise<void>((resolve) => {
+      lockEntered = true;
+      releaseLock = resolve;
+    }));
+    const deadline = Date.now() + 2000;
+    while (!lockEntered && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5));
+    expect(lockEntered).toBe(true);
+
+    await coordinator.tick();
+
+    expect(isQuiet).not.toHaveBeenCalled();
+    expect(unit.start).not.toHaveBeenCalled();
+    expect(readFileSync(deployRecordPath(), 'utf-8')).toBe(before);
+
+    releaseLock();
+    await locked;
+  });
+});
+
+describe('deployEvents (NFR Performance)', () => {
+  it('emits once per wire change and not on an unchanged tick', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: [], started: PRESS_NOW });
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+    const events: unknown[] = [];
+    const handler = (e: unknown): void => { events.push(e); };
+    deployEvents.on('change', handler);
+
+    try {
+      await coordinator.tick();
+      expect(events.length).toBe(1);
+
+      await coordinator.tick();
+      expect(events.length).toBe(1);
+    } finally {
+      deployEvents.off('change', handler);
+    }
   });
 });
