@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Runs held by a deploy",
+      "question": "Which runs does a deploy hold?",
+      "options": [
+        "Every live run with no operator hold",
+        "The three statuses the decomposition names",
+        "Those three plus a scheduler-wide stop"
+      ]
+    },
+    {
+      "header": "No-op press",
+      "question": "What does a press do when there is nothing new to deploy?",
+      "options": [
+        "A refusal in the script under the new flag",
+        "The full pipeline and a restart",
+        "A check before the press"
+      ]
+    },
+    {
+      "header": "Operator actions during a deploy",
+      "question": "What do Pause and Resume do on a run during a deploy?",
+      "options": [
+        "Pause moves the hold to the operator and Resume is refused",
+        "Resume converts to a deploy hold",
+        "Both act as today"
+      ]
+    },
+    {
+      "header": "Who waits for a live step",
+      "question": "Who waits for a live step before the update starts?",
+      "options": [
+        "The controller waits and then starts the unit",
+        "The unit starts at once and the script waits in place of its refusal"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the top-level money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, and the legal/compliance framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ],
+      "basis": "Checked the money, billing, deletion and personal-data surfaces: the spec changes the self-update script, run hold state, two controller routes and two dashboard pages. It handles no payments, credits or user accounts. deploy.json holds run ids, a commit, a timestamp and an error text; removing it on cancel deletes no personal data. The gh credentials in service.env are passed to the unit, never stored in the record."
+    }
+  ]
+}
