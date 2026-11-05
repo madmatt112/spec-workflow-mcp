@@ -399,4 +399,116 @@ describe('runCases(ids, opts)', () => {
 
     cleanup(casesRoot, home, liveCheckout);
   });
+
+  /** Always `ok`, vacuously-passing stub step (design.md Component 2; shape at this file's own :378-394). */
+  function okStep(): (spec: StepSpec) => Promise<StepResult> {
+    return async (_spec: StepSpec): Promise<StepResult> => ({
+      structuredOutput: { commit: 'none', files: [], flag: 'none' },
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
+      sessionId: null,
+      numTurns: 1,
+      isError: false,
+      subtype: 'success',
+      resultText: '',
+      exitCode: 0,
+      classification: 'ok',
+      durationMs: 0,
+    });
+  }
+
+  // Pre-condition: two no-grader cases (vacuously passing), one call passing `runsByCase`
+  // mapping `map-a` to 3 and `map-b` to 1, with no uniform `runs` option, and a stub `step`
+  // that always reports `ok`.
+  // Test: runCases(['map-a', 'map-b'], { liveCheckout, casesRoot, home, runsByCase, step }).
+  // Observable result: `map-a`'s record holds 3 `runs` entries and `map-b`'s holds 1; `onLine`
+  // receives a line for `map-a` containing `pass 3/3` and a line for `map-b` containing
+  // `pass 1/1`; the written record keeps `v: 1`.
+  // Expected-value source: design.md Component 2 post-conditions 1 and 3 ("For a case id in
+  // `runsByCase`, the case runs that many times"; "Each case's `runs` array holds one entry
+  // per real run"); requirements.md R3 AC3 (requirements.md:47); tasks.md task 2 Prompt
+  // Success, "a map of 3 for one case and 1 for another gives records with 3 and 1 `runs`
+  // entries, and `onLine` lines holding `pass 3/3` and `pass 1/1`"; R3 AC4 (requirements.md:48,
+  // "keeps v: 1", regression guard) folded into this same call.
+  it('runs each case the count its id maps to, regardless of the uniform option', async () => {
+    const casesRoot = mkdtempSync(join(tmpdir(), 'eval-cases-'));
+    const home = mkdtempSync(join(tmpdir(), 'eval-home-'));
+    const liveCheckout = makeLiveCheckout();
+    writeTestAuthorCase(casesRoot, 'map-a', []);
+    writeTestAuthorCase(casesRoot, 'map-b', []);
+
+    const lines: string[] = [];
+    const record = await runCases(['map-a', 'map-b'], {
+      liveCheckout, casesRoot, home, step: okStep(),
+      runsByCase: new Map([['map-a', 3], ['map-b', 1]]),
+      onLine: (l) => lines.push(l),
+    });
+
+    const kaseA = record.cases.find((c) => c.id === 'map-a');
+    const kaseB = record.cases.find((c) => c.id === 'map-b');
+    expect(kaseA?.runs).toHaveLength(3);
+    expect(kaseB?.runs).toHaveLength(1);
+    expect(lines.find((l) => l.startsWith('eval map-a:'))).toContain('pass 3/3');
+    expect(lines.find((l) => l.startsWith('eval map-b:'))).toContain('pass 1/1');
+    expect(record.v).toBe(1);
+
+    cleanup(casesRoot, home, liveCheckout);
+  });
+
+  // Pre-condition: two no-grader cases, one call passing `runsByCase` naming only `map-a`
+  // (3), a uniform `runs: 2`, and a stub `step` that always reports `ok`; `map-b` is absent
+  // from the map.
+  // Test: runCases(['map-a', 'map-b'], { liveCheckout, casesRoot, home, runs: 2, runsByCase, step }).
+  // Observable result: `map-a` (named in the map) still runs 3 times; `map-b` (absent from
+  // the map) runs 2 times — `opts.runs`, not the map's value and not the default of 3.
+  // Expected-value source: design.md Component 2 post-condition 2 ("For a case id not in
+  // `runsByCase`, ... the case runs `opts.runs ?? 3` times"); requirements.md R3 AC3; tasks.md
+  // task 2 Prompt Success, "a case absent from the map takes `runs` when `runs` is set".
+  it('falls a case absent from the map back to the uniform runs option', async () => {
+    const casesRoot = mkdtempSync(join(tmpdir(), 'eval-cases-'));
+    const home = mkdtempSync(join(tmpdir(), 'eval-home-'));
+    const liveCheckout = makeLiveCheckout();
+    writeTestAuthorCase(casesRoot, 'map-a', []);
+    writeTestAuthorCase(casesRoot, 'map-b', []);
+
+    const record = await runCases(['map-a', 'map-b'], {
+      liveCheckout, casesRoot, home, step: okStep(), runs: 2,
+      runsByCase: new Map([['map-a', 3]]),
+    });
+
+    const kaseA = record.cases.find((c) => c.id === 'map-a');
+    const kaseB = record.cases.find((c) => c.id === 'map-b');
+    expect(kaseA?.runs).toHaveLength(3);
+    expect(kaseB?.runs).toHaveLength(2);
+
+    cleanup(casesRoot, home, liveCheckout);
+  });
+
+  // Pre-condition: two no-grader cases, one call passing `runsByCase` naming only `map-a`
+  // (1), no uniform `runs` option, and a stub `step` that always reports `ok`; `map-b` is
+  // absent from the map.
+  // Test: runCases(['map-a', 'map-b'], { liveCheckout, casesRoot, home, runsByCase, step }).
+  // Observable result: `map-a` (named in the map) runs 1 time; `map-b` (absent from the map,
+  // with no `runs` option) runs 3 times, the default.
+  // Expected-value source: design.md Component 2 post-condition 2 ("For a case id not in
+  // `runsByCase`, or with no map, the case runs `opts.runs ?? 3` times"); requirements.md R3
+  // AC3; tasks.md task 2 Prompt Success, "a case absent from the map with no `runs` takes 3".
+  it('falls a case absent from the map back to 3 when no uniform runs option is set', async () => {
+    const casesRoot = mkdtempSync(join(tmpdir(), 'eval-cases-'));
+    const home = mkdtempSync(join(tmpdir(), 'eval-home-'));
+    const liveCheckout = makeLiveCheckout();
+    writeTestAuthorCase(casesRoot, 'map-a', []);
+    writeTestAuthorCase(casesRoot, 'map-b', []);
+
+    const record = await runCases(['map-a', 'map-b'], {
+      liveCheckout, casesRoot, home, step: okStep(),
+      runsByCase: new Map([['map-a', 1]]),
+    });
+
+    const kaseA = record.cases.find((c) => c.id === 'map-a');
+    const kaseB = record.cases.find((c) => c.id === 'map-b');
+    expect(kaseA?.runs).toHaveLength(1);
+    expect(kaseB?.runs).toHaveLength(3);
+
+    cleanup(casesRoot, home, liveCheckout);
+  });
 });
