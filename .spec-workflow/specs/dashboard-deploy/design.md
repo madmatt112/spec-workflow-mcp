@@ -285,5 +285,6 @@ Departures from a requirement's literal:
   - **R1-2 — Accepted (SHOULD_FIX).** The failed and done writes now both keep the record's other fields, commit included, so the reconnect done strip keeps commit (C1, Failed and done writes).
   - **R1-M1 — Rejected (MINOR).** R4 AC9 is met by launchBlock's deploy-specific refusal and the 409; the run-live discriminant on the enqueue-race fallback is cosmetic and reworking it would widen scope.
   - **R1-M2 — Accepted (MINOR).** execDeploy's refusal return adds state refused, as execMerge does, so the action lands refused not failed (C8).
+  - **Lint pass.** 0 fixed; rejected: L-1–L-56 (citation-identifier false positives; each flagged token is a design name, stage/status literal, keyword, or existing symbol, and its co-located citation anchors a verified adjacent claim, not the token).
 - **v1** (2026-11-05) — Initial draft.
   - **Lint pass.** 32 citation-bare fixed; every other bare `:N` path-qualified; L-68/L-69 `./`-prefixed; L-47/L-48 resolved by the qualified ranges. Rejected L-1–L-7, L-21–L-22, L-24–L-25, L-39–L-42, L-49–L-50, L-52–L-67, L-70–L-72 (citation-identifier: symbols/values/keywords absent from the cited range).
