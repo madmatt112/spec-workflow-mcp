@@ -42,6 +42,7 @@ export interface EvalResultRecord {
 export interface RunCasesOpts {
   liveCheckout: string;
   runs?: number;
+  runsByCase?: ReadonlyMap<string, number>;
   home?: string;
   casesRoot?: string;
   step?: typeof runStep;
@@ -135,13 +136,12 @@ function utcStamp(): string {
 }
 
 /**
- * Runs each named case's role 3 times through the live `runStep`, one run after the
- * other, each on a fresh fixture, and writes the result record (design Component 6, R2).
+ * Runs each named case's role through the live `runStep`, one run after the other,
+ * each on a fresh fixture, and writes the result record (design Component 6, R2).
  */
 export async function runCases(ids: string[], opts: RunCasesOpts): Promise<EvalResultRecord> {
   const root = opts.casesRoot ?? defaultCasesRoot();
   const resolvedIds = ids.length > 0 ? ids : listCaseIds(root);
-  const runs = opts.runs ?? 3;
   const home = opts.home ?? controllerHome();
   const step = opts.step ?? runStep;
   const onLine = opts.onLine ?? (() => {});
@@ -161,6 +161,7 @@ export async function runCases(ids: string[], opts: RunCasesOpts): Promise<EvalR
     const c = loadCase(id, root);
     const caseDir = join(root, id);
     const runRecords: EvalRunRecord[] = [];
+    const runs = opts.runsByCase?.get(id) ?? opts.runs ?? 3;
 
     for (let n = 1; n <= runs; n++) {
       const before = snapshotLiveCheckout(opts.liveCheckout);

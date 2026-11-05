@@ -416,4 +416,269 @@ describe('main(argv)', () => {
 
     cleanup(dir, home, dirname(summaryFile));
   });
+
+  // Pre-condition: a two-commit temp repo built from `writeSelectRepo` (role file, profile,
+  // brief-source files, README, case `cli-demo`) whose only differences between `base` and
+  // `target` are an edit to the role file `harness/agents/sdd-test-author.md` and a newly
+  // added case `cli-demo-2` present only at `target`. `cli-demo` keeps its `role`-only
+  // reason (`src/evals/select.ts:188`, 1 run); `cli-demo-2` gains a `case` reason
+  // (`src/evals/select.ts:184`+`role`, 3 runs since `case` is not indirect).
+  // Test: main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']).
+  // Observable result: the returned exit code is 0; the captured stdout output, split into
+  // lines, contains the literal line `select cli-demo: role: 1 run`; one of its lines starts
+  // with `select cli-demo-2:` and ends with `: 3 runs`; and one of its lines is the literal
+  // `select: 2 cases, 4 runs`.
+  // Expected-value source: design.md Component 4 post-conditions 2-3 (design.md:72-73, the
+  // `plannedRuns` suffix and the total line) and Data Models (design.md:100-110, the
+  // `<count>` and total-line grammar); requirements.md R4 AC1 (line 59) and AC2 (line 60);
+  // tasks.md task 4 Success, "A provisional select over a role edit and an added case prints
+  // `select cli-demo: role: 1 run`, the added case's line ending `: 3 runs`, and `select: 2
+  // cases, 4 runs`".
+  it('prints "role: 1 run" for a role-reason case and ": 3 runs" for an added case, with total "2 cases, 4 runs", under --provisional', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-select-counts-'));
+    initRepo(dir);
+    writeSelectRepo(dir);
+    const base = commitAll(dir, 'base');
+    writeFileSync(join(dir, 'harness', 'agents', 'sdd-test-author.md'), 'role body v2\n');
+    writeAuthorCaseDir(dir, 'cli-demo-2', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+    const target = commitAll(dir, 'target');
+
+    const { exit, output } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']),
+    );
+
+    expect(exit).toBe(0);
+    const lines = output.split('\n');
+    expect(lines).toContain('select cli-demo: role: 1 run');
+    expect(lines.some((l) => l.startsWith('select cli-demo-2:') && l.endsWith(': 3 runs'))).toBe(true);
+    expect(lines).toContain('select: 2 cases, 4 runs');
+
+    cleanup(dir);
+  });
+
+  // Pre-condition: a two-commit temp repo built from `writeSelectRepo` whose only difference
+  // between `base` and `target` is the content of `src/tools/brief-templates.ts` (the `brief
+  // source` trigger, `src/evals/select.ts:200`), with no case added. `cli-demo` gets reasons
+  // `['brief source']` and `provisional: true` (1 run, indirect).
+  // Test: main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']).
+  // Observable result: the returned exit code is 0; the captured stdout output, split into
+  // lines, contains the literal lines `select cli-demo: brief source (provisional): 1 run`
+  // and `select: 1 case, 1 run (provisional)`.
+  // Expected-value source: design.md Component 4 post-conditions 2-3 (design.md:72-73) and
+  // Data Models (design.md:100-110); requirements.md R4 AC1 (line 59), AC2 (line 60, singular
+  // word for a count of 1) and AC3 (line 61, the total's provisional marker); tasks.md task 4
+  // Success, "a brief-source edit with one case prints `select cli-demo: brief source
+  // (provisional): 1 run` and `select: 1 case, 1 run (provisional)`".
+  it('prints "brief source (provisional): 1 run" and total "1 case, 1 run (provisional)" for a brief-source edit with one case', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-select-counts-'));
+    initRepo(dir);
+    writeSelectRepo(dir);
+    const base = commitAll(dir, 'base');
+    writeFileSync(join(dir, 'src', 'tools', 'brief-templates.ts'), '// brief templates v2\n');
+    const target = commitAll(dir, 'target');
+
+    const { exit, output } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']),
+    );
+
+    expect(exit).toBe(0);
+    const lines = output.split('\n');
+    expect(lines).toContain('select cli-demo: brief source (provisional): 1 run');
+    expect(lines).toContain('select: 1 case, 1 run (provisional)');
+
+    cleanup(dir);
+  });
+
+  // Pre-condition: the same brief-source edit as above, plus a newly added case `cli-demo-2`
+  // present only at `target`. `cli-demo-2` gains reasons `['case', 'brief source']` and
+  // `provisional: true` (3 runs, since `case` is not indirect — D4 (design.md, "a case that
+  // stays selected keeps its count")).
+  // Test: main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']).
+  // Observable result: the returned exit code is 0; one of the captured stdout lines starts
+  // with `select cli-demo-2:` and ends with `(provisional): 3 runs`; one of the lines is the
+  // literal `select: 2 cases, 4 runs (provisional)`.
+  // Expected-value source: design.md Component 4 post-conditions 2-3 and Data Models
+  // (design.md:72-73,100-110); requirements.md R4 AC1 (line 59), AC2 (line 60) and AC4 (line
+  // 62, a `case`-reason case keeps 3 runs under provisional selection); tasks.md task 4
+  // Success, "a brief-source edit with an added case prints a line ending `(provisional): 3
+  // runs` and `select: 2 cases, 4 runs (provisional)`".
+  it('prints "(provisional): 3 runs" for an added case and total "2 cases, 4 runs (provisional)" for a brief-source edit with an added case', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-select-counts-'));
+    initRepo(dir);
+    writeSelectRepo(dir);
+    const base = commitAll(dir, 'base');
+    writeFileSync(join(dir, 'src', 'tools', 'brief-templates.ts'), '// brief templates v2\n');
+    writeAuthorCaseDir(dir, 'cli-demo-2', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+    const target = commitAll(dir, 'target');
+
+    const { exit, output } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']),
+    );
+
+    expect(exit).toBe(0);
+    const lines = output.split('\n');
+    expect(lines.some((l) => l.startsWith('select cli-demo-2:') && l.endsWith('(provisional): 3 runs'))).toBe(true);
+    expect(lines).toContain('select: 2 cases, 4 runs (provisional)');
+
+    cleanup(dir);
+  });
+
+  // Pre-condition: a two-commit temp repo built from `writeSelectRepo` whose only difference
+  // between `base` and `target` is the role-file edit (no brief-source edit, no added case).
+  // `cli-demo` gets reasons `['role']` and `provisional: false` (1 run; the `role` reason
+  // never sets `provisional`).
+  // Test: main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']).
+  // Observable result: the returned exit code is 0; the captured stdout output, split into
+  // lines, contains the literal line `select: 1 case, 1 run`, with no ` (provisional)` suffix.
+  // Expected-value source: design.md Component 4 post-condition 3 and Data Models
+  // (design.md:73,100-110); requirements.md R4 AC2 (line 60) and AC3 (line 61, the marker
+  // appears only "WHEN any selected case is provisional"); tasks.md task 4 Success, "a role
+  // edit with one case prints `select: 1 case, 1 run` with no marker".
+  it('prints total "1 case, 1 run" with no provisional marker for a role edit with one case', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-select-counts-'));
+    initRepo(dir);
+    writeSelectRepo(dir);
+    const base = commitAll(dir, 'base');
+    writeFileSync(join(dir, 'harness', 'agents', 'sdd-test-author.md'), 'role body v2\n');
+    const target = commitAll(dir, 'target');
+
+    const { exit, output } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']),
+    );
+
+    expect(exit).toBe(0);
+    expect(output.split('\n')).toContain('select: 1 case, 1 run');
+
+    cleanup(dir);
+  });
+
+  // Pre-condition: a two-commit temp repo built from `writeSelectRepo` whose only difference
+  // between `base` and `target` is an unrelated edit to `README.md`, touching no role,
+  // profile, grader or brief-source path. `cli-demo` gets no reasons and is not selected.
+  // Test: main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']).
+  // Observable result: the returned exit code is 0; the captured stdout output, split into
+  // lines, contains the literal line `select: 0 cases, 0 runs`.
+  // Expected-value source: design.md Component 4 post-condition 3 (design.md:73, "always
+  // prints one total line ... for an empty selection too") and Data Models
+  // (design.md:100-110); requirements.md R4 AC2 (line 60, "SHALL print this line for an
+  // empty selection too, as `select: 0 cases, 0 runs`"); tasks.md task 4 Success, "a
+  // README-only edit prints `select: 0 cases, 0 runs`".
+  it('prints "select: 0 cases, 0 runs" for a README-only edit that selects no case', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-select-counts-'));
+    initRepo(dir);
+    writeSelectRepo(dir);
+    const base = commitAll(dir, 'base');
+    writeFileSync(join(dir, 'README.md'), 'hello v2\n');
+    const target = commitAll(dir, 'target');
+
+    const { exit, output } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target, '--provisional']),
+    );
+
+    expect(exit).toBe(0);
+    expect(output.split('\n')).toContain('select: 0 cases, 0 runs');
+
+    cleanup(dir);
+  });
+
+  // Pre-condition: a two-commit temp repo whose `target` adds one case (`cli-gate-line`, a
+  // `test-author` case with a passing `report-flag` grader), giving it a `case` reason (3
+  // runs); the stub `claude` is scripted with 3 `ok` runs so every run passes.
+  // Test: main(['gate', '--repo', dir, '--base', base, '--target', target, '--summary-file',
+  // summaryFile], { casesRoot, home }).
+  // Observable result: the returned exit code is 0; the captured stdout output contains the
+  // runner's case line `eval cli-gate-line: pass 3/3, 42 tokens`.
+  // Expected-value source: design.md Component 4 post-condition 1 (design.md:71, `onLine:
+  // (line) => console.log(line)`, the same way `runRun` does) and Component 3 post-condition
+  // 1 (design.md:60, `runGate` passes `runsByCase` and `opts.onLine` into `runCases`);
+  // requirements.md R3 AC1 (line 45, "the gate SHALL print the runner's case line to
+  // stdout"); tasks.md task 4 Success, "`main(['gate', ...])` prints the case line `eval
+  // <id>: pass 3/3` with its token count".
+  it('prints the gate case line "eval cli-gate-line: pass 3/3, 42 tokens" on main([\'gate\', ...])', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-gate-line-'));
+    initRepo(dir);
+    writeFileSync(join(dir, 'README.md'), 'hello\n');
+    const base = commitAll(dir, 'base');
+    writeAuthorCaseDir(dir, 'cli-gate-line', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+    const target = commitAll(dir, 'target');
+
+    const home = mkdtempSync(join(tmpdir(), 'eval-cli-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-cli-summary-')), 'summary.txt');
+    writeScript([okRun('s1'), okRun('s2'), okRun('s3')]);
+
+    const { exit, output } = await captureStdout(() =>
+      main([
+        'gate', '--repo', dir, '--base', base, '--target', target, '--summary-file', summaryFile,
+      ], { casesRoot: join(dir, 'harness', 'evals'), home }),
+    );
+
+    expect(exit).toBe(0);
+    expect(output).toContain('eval cli-gate-line: pass 3/3, 42 tokens');
+
+    cleanup(dir, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: a two-commit temp repo with case `cli-eq-old` present at both commits
+  // (unchanged) and case `cli-eq-new` added only at `target`, no `--base-dist`. Under exact
+  // selection with no base build, every case gets `brief: base render unavailable`
+  // (`src/evals/select.ts:131`); `cli-eq-old` has only that reason (1 run), `cli-eq-new` also
+  // has `case` (3 runs). The stub `claude` is scripted with 4 `ok` runs.
+  // Test: first `main(['select', '--repo', dir, '--base', base, '--target', target])`, then
+  // `main(['gate', '--repo', dir, '--base', base, '--target', target, '--summary-file',
+  // summaryFile], { casesRoot, home })`.
+  // Observable result: `select`'s exit code is 0, and its stdout, split into lines, has a
+  // line starting `select cli-eq-old:` ending `: 1 run`, a line starting `select
+  // cli-eq-new:` ending `: 3 runs`, and the literal line `select: 2 cases, 4 runs`. The
+  // gate's exit code is 0; the stub's `<scriptPath>.counter` file reads `4`; the written
+  // result record's `cli-eq-old` case has a 1-entry `runs` array and `cli-eq-new` has a
+  // 3-entry one.
+  // Expected-value source: design.md Testing Strategy (design.md:135, "R4 AC5: exact `select`
+  // and `gate` over one fixture with no `--base-dist` agree per case, and the stub's
+  // `.counter` file ... equals the select total") and Error Handling 4 (design.md:117, "every
+  // case gets `brief: base render unavailable` ... and a case with no other reason plans 1
+  // run"); requirements.md R4 AC5 (line 63, "the count `select` prints for each case SHALL
+  // equal the gate's step calls for that case"); tasks.md task 4 Success, "exact `select` and
+  // `gate` over one fixture with an added case and an unchanged case and no `--base-dist`
+  // agree per case, and the stub `.counter` equals the select total of 4".
+  it('agrees per case between exact select and the gate, giving the stub .counter the select total of 4, with no --base-dist', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'eval-cli-gate-eq-'));
+    initRepo(dir);
+    writeFileSync(join(dir, 'README.md'), 'hello\n');
+    writeAuthorCaseDir(dir, 'cli-eq-old', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+    const base = commitAll(dir, 'base');
+    writeAuthorCaseDir(dir, 'cli-eq-new', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+    const target = commitAll(dir, 'target');
+
+    const { exit: selectExit, output: selectOutput } = await captureStdout(() =>
+      main(['select', '--repo', dir, '--base', base, '--target', target]),
+    );
+    expect(selectExit).toBe(0);
+    const selectLines = selectOutput.split('\n');
+    expect(selectLines.some((l) => l.startsWith('select cli-eq-old:') && l.endsWith(': 1 run'))).toBe(true);
+    expect(selectLines.some((l) => l.startsWith('select cli-eq-new:') && l.endsWith(': 3 runs'))).toBe(true);
+    expect(selectLines).toContain('select: 2 cases, 4 runs');
+
+    const home = mkdtempSync(join(tmpdir(), 'eval-cli-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-cli-summary-')), 'summary.txt');
+    const scriptPath = writeScript([okRun('s1'), okRun('s2'), okRun('s3'), okRun('s4')]);
+
+    const gateExit = await main([
+      'gate', '--repo', dir, '--base', base, '--target', target, '--summary-file', summaryFile,
+    ], { casesRoot: join(dir, 'harness', 'evals'), home });
+
+    expect(gateExit).toBe(0);
+    expect(readFileSync(`${scriptPath}.counter`, 'utf8').trim()).toBe('4');
+
+    const resultsDir = join(home, 'evals', 'results');
+    const recordFile = readdirSync(resultsDir)[0];
+    const record = JSON.parse(readFileSync(join(resultsDir, recordFile), 'utf8')) as {
+      cases: { id: string; runs: unknown[] }[];
+    };
+    const oldCase = record.cases.find((c) => c.id === 'cli-eq-old');
+    const newCase = record.cases.find((c) => c.id === 'cli-eq-new');
+    expect(oldCase?.runs).toHaveLength(1);
+    expect(newCase?.runs).toHaveLength(3);
+
+    cleanup(dir, home, dirname(summaryFile));
+  });
 });

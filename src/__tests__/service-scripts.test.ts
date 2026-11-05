@@ -3,7 +3,7 @@ import { execFileSync, spawn } from 'child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import http from 'http';
 
 // Contract for controller-tasks.md T9: the three scripts pass `bash -n`;
@@ -73,6 +73,54 @@ function makeDivergedCheckout(): { checkout: string; origin: string; home: strin
 // real `npm run build`, which the toy fixtures above cannot run (no build script).
 function stageBuildStub(body: string): string {
   return `mkdir -p dist/evals\ncat > dist/evals/cli.js <<'JSEOF'\n${body}\nJSEOF\n`;
+}
+
+// Design Component 5 (scripts/sdd-self-update.sh:231-237): the dry run's `select` call
+// reads `base`/`target` straight off the checkout's own git history, so a toy checkout
+// whose HEAD holds one case and its role file, with `origin/main` ahead by a role edit
+// and an added case, exercises the real selection reasons (`role`, `case`) without a
+// live build.
+function makeEvalSelectionCheckout(): { checkout: string; origin: string; home: string } {
+  const origin = mkdtempSync(join(tmpdir(), 'self-update-eval-origin-'));
+  const checkout = mkdtempSync(join(tmpdir(), 'self-update-eval-co-'));
+  const home = mkdtempSync(join(tmpdir(), 'self-update-eval-home-'));
+  git(origin, 'init', '-q', '-b', 'main');
+  git(origin, 'config', 'user.email', 't@example.com');
+  git(origin, 'config', 'user.name', 'Test');
+  mkdirSync(join(origin, 'harness', 'agents'), { recursive: true });
+  mkdirSync(join(origin, 'harness', 'evals', 'alpha'), { recursive: true });
+  writeFileSync(join(origin, 'harness', 'agents', 'demo-role.md'), 'role v1\n');
+  writeFileSync(
+    join(origin, 'harness', 'evals', 'alpha', 'case.json'),
+    `${JSON.stringify({ role: 'demo-role', graders: [] })}\n`,
+  );
+  git(origin, 'add', '-A');
+  git(origin, 'commit', '-qm', 'init');
+  execFileSync('git', ['clone', '--quiet', origin, checkout]);
+  git(checkout, 'config', 'user.email', 't@example.com');
+  git(checkout, 'config', 'user.name', 'Test');
+  // origin advances with a role edit and an added case.
+  writeFileSync(join(origin, 'harness', 'agents', 'demo-role.md'), 'role v2\n');
+  mkdirSync(join(origin, 'harness', 'evals', 'beta'), { recursive: true });
+  writeFileSync(
+    join(origin, 'harness', 'evals', 'beta', 'case.json'),
+    `${JSON.stringify({ role: 'other-role', graders: [] })}\n`,
+  );
+  git(origin, 'add', '-A');
+  git(origin, 'commit', '-qm', 'role edit + added case');
+  return { checkout, origin, home };
+}
+
+// A wrapper, not a symlink: a symlinked `dist` prints nothing (src/evals/cli.ts:208-215,
+// the entrypoint/currentFile comparison). The wrapper dynamic-imports this repository's
+// own built `dist/evals/cli.js`, calls `main`, and exits with its code.
+function writeEvalCliWrapper(checkout: string): void {
+  mkdirSync(join(checkout, 'dist', 'evals'), { recursive: true });
+  const realCli = pathToFileURL(join(repoRoot, 'dist', 'evals', 'cli.js')).href;
+  writeFileSync(
+    join(checkout, 'dist', 'evals', 'cli.js'),
+    `import(${JSON.stringify(realCli)}).then((m) => m.main(process.argv.slice(2))).then((code) => { process.exit(code); });\n`,
+  );
 }
 
 describe('service scripts (controller T9)', () => {
@@ -272,6 +320,36 @@ describe('service scripts (controller T9)', () => {
     }
   }, 30000);
 
+  it('sdd-self-update.sh --dry-run prints the select counts for a role edit and an added case, and changes nothing', async () => {
+    const { checkout, origin, home } = makeEvalSelectionCheckout();
+    try {
+      writeEvalCliWrapper(checkout);
+      // The dry run itself never fetches (scripts/sdd-self-update.sh:176-178), so the
+      // test fetches origin/main before invoking it.
+      git(checkout, 'fetch', 'origin');
+      const headBefore = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim();
+      const statusBefore = execFileSync('git', ['status', '--porcelain'], { cwd: checkout }).toString();
+
+      const res = await runScript(selfUpdateSh, ['--dry-run'], { SDD_CHECKOUT: checkout, SDD_HOME: home });
+
+      expect(res.code).toBe(0);
+      expect(res.stdout).toContain('select alpha: role: 1 run');
+      expect(res.stdout).toContain('select beta: case: 3 runs');
+      expect(res.stdout).toContain('select: 2 cases, 4 runs');
+      // No case actually ran: the select call never touches the results dir (and so
+      // never spawns a stub `claude`, which would leave a `.counter` sibling behind).
+      expect(existsSync(join(home, 'evals'))).toBe(false);
+      const headAfter = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim();
+      const statusAfter = execFileSync('git', ['status', '--porcelain'], { cwd: checkout }).toString();
+      expect(headAfter).toBe(headBefore);
+      expect(statusAfter).toBe(statusBefore);
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
   it('sdd-self-update.sh rebases store-only local commits when origin has advanced', async () => {
     const { checkout, origin, home } = makeDivergedCheckout();
     try {
@@ -398,6 +476,49 @@ describe('service scripts (controller T9)', () => {
       expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim()).toBe(originalHead);
       expect(readFileSync(join(checkout, 'harness', 'marker.txt'), 'utf-8')).toBe('original\n');
       expect(existsSync(join(checkout, 'dist'))).toBe(false);
+    } finally {
+      rmSync(checkout, { recursive: true, force: true });
+      rmSync(origin, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('sdd-self-update.sh writes an error wait naming the staged gate summary, leaving the waits stub and HEAD unchanged', async () => {
+    const { checkout, origin, home } = makeDivergedCheckout();
+    try {
+      const originalHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim();
+      // A stub `dist/controller/waits.js` in the live checkout (design D8): the toy
+      // package has no `type` field, so this is CommonJS with `exports.createWait`. It
+      // records the wait text it is given to a file under the test's home.
+      mkdirSync(join(checkout, 'dist', 'controller'), { recursive: true });
+      const waitsStub = [
+        "const fs = require('fs');",
+        "const path = require('path');",
+        'exports.createWait = async function (opts) {',
+        "  fs.writeFileSync(path.join(process.env.SDD_HOME, 'wait-record.txt'), opts.questions[0].text);",
+        '};',
+        '',
+      ].join('\n');
+      writeFileSync(join(checkout, 'dist', 'controller', 'waits.js'), waitsStub);
+
+      const res = await runScript(selfUpdateSh, [], {
+        SDD_CHECKOUT: checkout, SDD_HOME: home,
+        SDD_STAGE_BUILD: stageBuildStub(
+          [
+            "const fs = require('fs');",
+            "const i = process.argv.indexOf('--summary-file');",
+            "fs.writeFileSync(process.argv[i + 1], 'demo fail 0/1 stub reason; record /x');",
+            'process.exit(1);',
+          ].join('\n'),
+        ),
+        SDD_STAGE_SMOKE: 'true',
+      });
+
+      expect(res.code).toBe(1);
+      expect(res.stdout).toContain('writing an error wait');
+      expect(readFileSync(join(home, 'wait-record.txt'), 'utf-8')).toContain('demo fail 0/1');
+      expect(readFileSync(join(checkout, 'dist', 'controller', 'waits.js'), 'utf-8')).toBe(waitsStub);
+      expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim()).toBe(originalHead);
     } finally {
       rmSync(checkout, { recursive: true, force: true });
       rmSync(origin, { recursive: true, force: true });
