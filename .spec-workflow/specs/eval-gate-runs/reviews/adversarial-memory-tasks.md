@@ -1,43 +1,43 @@
 # Adversarial Review Memory — tasks
-
-Last updated: 2026-11-04 (round 1, v1)
+Last updated: 2026-11-04 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- none yet
+- **R1-1 (SHOULD_FIX, v1→resolved in v2)** — Task 5 was all-regression-guard yet carried a
+  `- Test:` seam, forcing a test-author spawn → RED-IMPOSSIBLE → mid-run re-route
+  (`implementation.ts:255-259, 672-678`), which `agent-rules.md:176-178` forbids. v2 removed
+  the seam and marked the task implementer-only up front with the skip stated.
 
 ### Partially Accepted
-- none yet
+- none
 
 ### Rejected
-- none yet
+- none
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX)** — Task 5 is all-regression-guard (its Note says every criterion holds
-  at base) and its only `File:` is a test file, yet it carries a `- Test:` seam. The seam makes
-  `isTddMarked` (implementation.ts:255-259) spawn the test author, which cannot go red, reports
-  RED-IMPOSSIBLE, and is re-routed implementer-only mid-run (implementation.ts:672-678) — the
-  mid-run discovery agent-rules.md:176-178 forbids, plus a wasted spawn. Fix: drop the `Test:`
-  line, mark implementer-only up front with the test-author/verifier skip stated. Lint-safe:
-  checkTestSeams (lint-tasks.ts:337-344) only fires on a source file with no Test line.
+- none
 
 ## Patterns & Themes
 
-- The document is citation-clean: every line range, `src/evals/*` symbol, test seam and doc
-  site verified at both ends on v1. No misstated artifacts.
-- Coverage is complete (every R1-R5 AC + NFR Performance mapped; Components 1-6 all named).
-- Ordering 1→2→3→4→5→6 respects the real DAG (3 needs 1&2; 4 needs 1&3; 5 needs 4).
-- Count-change grep rule satisfied where it bites (task 3 `fail-case\|3/3`; task 6
-  `three times\|3 runs\|3/3`); task 2 is additive so needs none.
-- The only soft spot is the regression-guard routing of task 5 (the D1 split was right in
-  spirit but kept the seam).
+- The document is citation-clean across two rounds: every line range, `src/evals/*` symbol,
+  test seam, routing citation and doc site verified at both ends. No misstated artifacts in
+  v1 or v2.
+- Coverage complete (every R1–R5 AC + NFR Performance mapped; Components 1–6 all named);
+  ordering 1→2→3→4→5→6 respects the real DAG; no file edited twice.
+- v2 touched only task 5 and did so correctly: `isTddMarked` false (no author), non-wiring +
+  low-risk (gate stands as review, no verifier), no `task-test-seam` lint finding
+  (`lint-tasks.ts:338-345` skips a test-only task), both tests still named in `Success:`.
+- Routing truth for this spec: test author ⇐ `- Test:` line present; verifier ⇐ high-risk OR
+  `isWiringTask` (CLI/entry file or cli/route/flag title). Task 4 is the only verifier task;
+  tasks 5 and 6 are verifier-skipped (task 6 docs, task 5 regression-guard — both blessed).
 
 ## Guidance for Next Review
 
-- Confirm R1-1 is dispositioned: either the `Test:` line is removed from task 5 and an
-  implementer-only/skip note added, or a documented ruling explains why the seam stays.
-- If the fix removes the seam, re-check that task 5 still names both tests (dry run + error
-  wait) in its Success clause and that no `task-test-seam` lint finding appears.
-- Do not re-open the verified citations or the coverage tally without new evidence.
+- R1-1 is resolved; do not re-open it. Do not re-raise the task-5/task-6 verifier-skip — it
+  is pre-existing and rule-blessed (`agent-rules.md:176-178, 179-182`).
+- Do not re-verify the citations, coverage tally, ordering DAG or count-greps without new
+  evidence — all confirmed over two rounds.
+- The document is converged (0 MUST_FIX, 0 SHOULD_FIX). A further round needs genuinely new
+  evidence, not MINOR padding.
 - No security/data/money surface here; ESCALATE stays none.

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/eval-gate-runs/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T00:56:11.488Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793840171431_ultatgkef",
+      "approvalTitle": "eval-gate-runs tasks v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T00:56:11.642Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793840171431_ultatgkef",
+      "approvalTitle": "eval-gate-runs tasks v2"
+    }
+  ]
+}

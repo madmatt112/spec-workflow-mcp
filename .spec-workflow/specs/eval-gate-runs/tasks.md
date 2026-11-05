@@ -4,7 +4,7 @@ Document version: v2
 
 Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule and the runner option with no caller, task 3 applies them in the gate, task 4 reports them from the CLI, task 5 guards the deploy script's output, and task 6 updates the docs. Each task leaves `npx tsc --noEmit` and every existing suite green, and no file is edited by two tasks, so every line citation below stays valid. No task touches a sensitive path or creates a module; task 4 edits `src/evals/cli.ts`, so `isWiringTask` routes it a verifier (`src/controller/phases/implementation.ts:266-272`, `src/controller/phases/implementation.ts:850`).
 
-- [ ] 1. Add the reason-to-count rule to the selection module
+- [x] 1. Add the reason-to-count rule to the selection module
   - File: src/evals/select.ts
   - File: src/evals/__tests__/select.test.ts
   - Test: src/evals/__tests__/select.test.ts — `plannedRuns(reasons)`

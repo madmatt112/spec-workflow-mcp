@@ -1386,3 +1386,9 @@ Gotchas:
 | Carried items | none |
 | Next phase loads | codebase-context.md |
 
+
+## eval-gate-runs — implementation
+
+| Field | Value |
+| --- | --- |
+| State | tasks 1/6, last commit 0fc4d730, next task 2 |
