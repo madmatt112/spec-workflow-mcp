@@ -8,7 +8,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
   - File: src/evals/select.ts
   - File: src/evals/__tests__/select.test.ts
   - Test: src/evals/__tests__/select.test.ts — `plannedRuns(reasons)`
-  - Note: requirement 1.5 holds at base: regression guard, not a red test. The `selectCases` tests (`src/evals/__tests__/select.test.ts:158` and its siblings) pass unchanged; no value they assert changes.
+  - Note: requirement 1.5 holds at base: regression guard, not a red test. The `selectCases` tests (`src/evals/__tests__/select.test.ts:155-158` and its siblings) pass unchanged; no value they assert changes.
   - Purpose: One definition of the count, beside the reason strings it reads.
   - _Leverage: src/evals/select.ts:131, src/evals/select.ts:153, src/evals/select.ts:184-200_
   - _Requirements: 1.1, 1.3, 1.4, 1.5_
@@ -83,3 +83,4 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
 ## Revision History
 
 - **v1** (2026-11-04) — Initial draft.
+  - **Lint pass.** 1 fixed; rejected: none.
