@@ -79,3 +79,18 @@
 ## CI
 - .github/workflows/ci.yml:30 — `npm run build` step
 - .github/workflows/ci.yml:33 — `npm test -- --run` step
+
+## Task routing and red proof
+- src/controller/phases/implementation.ts:255-259 — `isTddMarked`: a `- Test:` seam routes a task to the test author
+- src/controller/phases/implementation.ts:266-272 — `isWiringTask`: a CLI file or title; line 850 gives it a verifier
+- src/controller/phases/implementation.ts:672-678 — RED-IMPOSSIBLE on every criterion routes the task implementer-only
+- src/core/red-green.ts:123-184 — `runBaseWorktree`: red run in a fresh detached worktree, no build
+- src/core/red-green.ts:192-265 — `proveRedGreen`: base run, then the head run in the code root
+- src/core/lint-tasks.ts:241-266 — `checkCoverage`: each design component label must appear in a task block
+- src/core/lint-tasks.ts:278-300 — `checkBridges`: a block that names a later task needs a bridge word
+
+## Tasks-phase test seams
+- src/evals/graders/report-flag.ts:4-11 — `grade`: passes when the report `flag` starts with `prefix`
+- src/evals/__tests__/cli.test.ts:122-150 — `writeAuthorCaseDir`: a case under a temp repo, with chosen graders
+- src/evals/__tests__/cli.test.ts:346-372 — gate refusal test; fails on an unbuilt tree (exit 0, expected 2)
+- scripts/sdd-self-update.sh:132-173 — `check_move`: refusals read tracked paths only, so an untracked `dist/` stub passes

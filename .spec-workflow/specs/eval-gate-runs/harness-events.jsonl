@@ -34,3 +34,7 @@
 {"ts":"2026-11-05T00:29:21.346Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-reviewer","role":"review v1","result":"success","phase":"design","round":"1"}
 {"ts":"2026-11-05T00:29:21.346Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"round","phase":"design","round":"1","verdict":"converged 0/0/0","version":"v1"}
 {"ts":"2026-11-05T00:29:21.885Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"phase.end","phase":"design","result":"approved","state":"v1","note":"1 rounds"}
+{"ts":"2026-11-05T00:29:22.073Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"phase.start","phase":"tasks","mode":"normal","state":"v0"}
+{"ts":"2026-11-05T00:29:22.143Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-11-05T00:35:50.244Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-drafter","input":"34","output":"43939","cacheWrite":"164876","cacheRead":"2100184","tokens":"2309033","cacheWrite5m":"0","cacheWrite1h":"164876","model":"claude-opus-5-5"}
+{"ts":"2026-11-05T00:35:50.244Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"tasks","round":"1"}
