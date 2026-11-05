@@ -182,6 +182,8 @@ export function systemdDeployUnit(): DeployUnit {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_WAIT_LIMIT_MS = 5 * 60 * 60 * 1000;
+const CANCEL_STOP_LIMIT_MS = 30 * 1000;
+const CANCEL_STOP_POLL_MS = 200;
 
 const HOLDABLE_STATUSES = new Set<RunRecord['status']>(['running', 'queued', 'waiting', 'merging', 'paused']);
 
@@ -332,6 +334,92 @@ export class DeployCoordinator {
   private async writeFailed(record: DeployRecord, error: string): Promise<void> {
     await writeJsonAtomic(deployRecordPath(), { ...record, stage: 'failed', error });
     await this.release();
+  }
+
+  /** Before `recover`, on controller start (design C1 "onStart" table, D21). */
+  async onStart(): Promise<void> {
+    return this.withLock(async () => {
+      const record = await readDeployRecord();
+      if (!record) {
+        await this.release();
+        return;
+      }
+      if (record.stage === 'restart' || record.stage === 'done') {
+        if (record.stage !== 'done') {
+          await writeJsonAtomic(deployRecordPath(), { ...record, stage: 'done' });
+        }
+        await this.release();
+        return;
+      }
+      if (record.stage === 'failed') {
+        await this.release();
+        return;
+      }
+
+      const state = await this.deps.unit.state();
+      if (state === 'live') return;
+
+      if (record.stage === 'wait' && record.unitStarted !== true) {
+        for (const id of record.runs) {
+          await updateRun(id, (run) => {
+            if (run.status === 'done' || run.status === 'abandoned' || run.status === 'error') return undefined;
+            if (run.pauseRequested && run.holdBy !== 'deploy') return undefined;
+            return { ...run, holdBy: 'deploy', pauseRequested: record.started };
+          });
+        }
+        return;
+      }
+
+      if (state === 'gone') {
+        await this.writeFailed(record, unitGoneMessage(record.stage));
+      }
+    });
+  }
+
+  /** `cancel` (R5): one hold of the lock. */
+  async cancel(): Promise<{ status: 200 | 404 | 409 | 500; error?: string; stage?: string }> {
+    return this.withLock(async () => {
+      const record = await readDeployRecord();
+      if (!record) return { status: 404 } as const;
+      if (
+        record.stage === 'swap' || record.stage === 'restart' ||
+        record.stage === 'done' || record.stage === 'failed'
+      ) {
+        return { status: 409, error: 'deploy-past-swap' } as const;
+      }
+
+      const claimPath = `${deployRecordPath()}.claim`;
+      try {
+        await fs.mkdir(claimPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          return { status: 409, error: 'deploy-past-swap' } as const;
+        }
+        throw error;
+      }
+
+      const shouldStop = record.unitStarted === true || (await this.deps.unit.state()) === 'live';
+      if (shouldStop) {
+        await this.deps.unit.stop();
+        const start = this.deps.now().getTime();
+        while (true) {
+          const state = await this.deps.unit.state();
+          if (state === 'gone') break;
+          if (this.deps.now().getTime() - start > CANCEL_STOP_LIMIT_MS) {
+            return { status: 500, error: 'deploy-stop-failed' } as const;
+          }
+          await new Promise((resolve) => setTimeout(resolve, CANCEL_STOP_POLL_MS));
+        }
+      }
+
+      await this.release();
+      await fs.rm(deployRecordPath(), { force: true });
+      await fs.rm(claimPath, { recursive: true, force: true });
+      this.sawWire = true;
+      this.lastWire = null;
+      deployEvents.emit('change', null);
+      return { status: 200 } as const;
+    });
   }
 
   /** Release (R3 AC6): every run with `holdBy: 'deploy'`, found live, not from the record. */
