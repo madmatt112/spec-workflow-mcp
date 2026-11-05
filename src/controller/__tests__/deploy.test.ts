@@ -868,3 +868,401 @@ describe('deployEvents (NFR Performance)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 4 — `onStart` and `cancel` (design C1 "onStart" table, "cancel" steps
+// 1-4, D15, D21). Neither method exists on `DeployCoordinator` yet, so every
+// call below reaches the coordinator only through `onStart()` or `cancel()` —
+// no caller to mock. `DeployUnit` stays the only fake; `writeRun`/`readRun`
+// and `runEvents` stay the real implementations, as in task 3.
+//
+// Per success criterion (task 4 _Prompt Success line), grouped by clause:
+// - `onStart` at `restart` and at `done` releases and ends at `done` with
+//   `commit` kept (requirement 3 AC1). Pre: a record at each stage with a
+//   held run and a `commit`. Call: `onStart()`. Result: record stage `done`,
+//   `commit` unchanged; run released. Source: design C1 onStart table row 2.
+// - `onStart` at `failed` with deploy holds releases and stays `failed`
+//   (AC2). Pre: a `failed` record with `error` and a held run. Call:
+//   `onStart()`. Result: record unchanged (`failed`, same `error`); run
+//   released. Source: design C1 onStart table row 3.
+// - `onStart` with an absent record and deploy holds on disk releases (D24).
+//   Pre: no record file, a held run. Call: `onStart()`. Result: run released.
+//   Source: design C1 onStart table row 1.
+// - `onStart` on an open record with a live unit leaves the record, the unit
+//   and the holds alone (AC5). Pre: a record at `build`, `unit.state()` live,
+//   a held run. Call: `onStart()`. Result: record and run unchanged; neither
+//   `unit.start` nor `unit.stop` called. Source: design C1 onStart table row
+//   4; requirement 3 AC5.
+// - `onStart` at `wait` with `unitStarted` not true and no live unit
+//   re-applies the hold to a run that lost it, using the record's `started`
+//   as `pauseRequested`, and calls no `unit.start` (AC4). Pre: such a record,
+//   a run with no hold. Call: `onStart()`. Result: the run gains `holdBy:
+//   'deploy'` and that `pauseRequested`; `unit.start` not called. Source:
+//   design C1 onStart table row 5; requirement 3 AC4.
+// - The same re-apply skips a run that is gone (not on disk), a terminal run,
+//   and a run with an operator hold, each tested. Pre: the id absent / a
+//   `done` run / a `paused` run with `holdBy: 'operator'`, listed in `runs`.
+//   Call: `onStart()`. Result: no run created / run unchanged / run
+//   unchanged. Source: design C1 onStart table row 5 ("skip a run that is
+//   gone or terminal, or that has `pauseRequested` with `holdBy` other than
+//   `deploy`").
+// - `onStart` on any other open record with the unit `gone` writes `failed`
+//   naming the stage and releases, including `wait` with `unitStarted` true
+//   (AC3). Pre: a record at `build`, or at `wait` with `unitStarted: true`;
+//   `unit.state()` resolves `gone`; a held run. Call: `onStart()`. Result:
+//   `failed` with the fixed "unit ... is not live" text; run released.
+//   Source: design C1 onStart table row 6; requirement 3 AC3.
+// - `onStart` on any other open record with the unit `unknown` does nothing.
+//   Pre: a record at `build`, `unit.state()` resolves `unknown`, a held run.
+//   Call: `onStart()`. Result: record and run unchanged. Source: design C1
+//   onStart table row 7.
+// - `cancel` with no record gives 404. Pre: no record file. Call: `cancel()`.
+//   Result: `status: 404`. Source: design C1 "cancel" step 1; requirement 5
+//   AC3.
+// - `cancel` at each of `swap`, `restart`, `done` and `failed` gives 409
+//   `deploy-past-swap` and changes nothing (requirement 5 AC3), each tested.
+//   Pre: a record at that stage, a held run. Call: `cancel()`. Result:
+//   `status: 409`, `error: 'deploy-past-swap'`; record and run unchanged.
+//   Source: design C1 "cancel" step 1; requirement 5 AC3.
+// - `cancel` with an existing claim at `gate` gives 409 `deploy-past-swap`
+//   with no `unit.stop` call (D15). Pre: a record at `gate`, the claim
+//   directory pre-created. Call: `cancel()`. Result: `status: 409`, `error:
+//   'deploy-past-swap'`; `unit.stop` not called. Source: design C1 "cancel"
+//   step 2; D15.
+// - `cancel` at each of `wait`, `build`, `smoke` and `gate` with `unitStarted`
+//   true stops the unit, waits for `gone`, releases, removes the record and
+//   the claim, emits `change` with `null`, and gives 200 (AC1), each tested.
+//   Pre: a record at that stage with `unitStarted: true`, a held run. Call:
+//   `cancel()`. Result: `unit.stop` called once; record and claim gone; run
+//   released; a `deployEvents` `change` carrying `null`; `status: 200`.
+//   Source: design C1 "cancel" steps 3-4; requirement 5 AC1.
+// - `cancel` at `wait` with `unitStarted` not true and the unit `gone` calls
+//   no `stop` and still gives 200. Pre: such a record. Call: `cancel()`.
+//   Result: `unit.stop` not called; `status: 200`; record removed. Source:
+//   design C1 "cancel" step 3 ("If `unitStarted` is true or `unit.state()`
+//   is `live`").
+// - A unit that never goes gives 500 `deploy-stop-failed` and keeps the
+//   record and the claim. Pre: `unitStarted: true`, `unit.state()` always
+//   `live`, `deps.now()` crossing the 30-second limit on its next call. Call:
+//   `cancel()`. Result: `status: 500`, `error: 'deploy-stop-failed'`; record
+//   and claim still present. Source: design C1 "cancel" step 3 ("Past that,
+//   answer 500 ... and keep the record and the claim"); task 4 _Prompt
+//   ("Measure the 30-second stop limit with `deps.now`").
+// - A `tick` queued during a `cancel` recreates no record (AC2). Pre: a
+//   record at `wait` with `unitStarted: true`, the unit `gone`. Call:
+//   `cancel()` then `tick()` without an intervening `await`, both awaited
+//   together. Result: no record on disk afterward. Source: design C1
+//   "cancel" step 2 note; requirement 5 AC2.
+
+describe('DeployCoordinator.onStart — finish or release at restart, done, failed (requirement 3 AC1, AC2)', () => {
+  it.each(['restart', 'done'] as const)(
+    'releases and ends at done keeping commit when the record is at %s',
+    async (stage) => {
+      writeDeployRecordFile({ v: 1, stage, runs: ['run-onstart'], started: PRESS_NOW, commit: 'abc123' });
+      await seedHeldRun('run-onstart', 'queued');
+      const coordinator = new DeployCoordinator(makeDeps());
+
+      await coordinator.onStart();
+
+      const record = await readDeployRecord();
+      expect(record?.stage).toBe('done');
+      expect(record?.commit).toBe('abc123');
+      const run = await readRun('run-onstart');
+      expect(run?.holdBy).toBeUndefined();
+      expect(run?.pauseRequested).toBeUndefined();
+    },
+  );
+
+  it('releases holds and stays failed when the record is failed', async () => {
+    writeDeployRecordFile({
+      v: 1, stage: 'failed', runs: ['run-onstart-f'], started: PRESS_NOW, error: 'gate: boom',
+    });
+    await seedHeldRun('run-onstart-f', 'queued');
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    await coordinator.onStart();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe('gate: boom');
+    const run = await readRun('run-onstart-f');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+  });
+
+  it('releases an absent record\'s leftover deploy holds (D24)', async () => {
+    await seedHeldRun('run-onstart-absent', 'queued');
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    await coordinator.onStart();
+
+    const run = await readRun('run-onstart-absent');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+  });
+});
+
+describe('DeployCoordinator.onStart — a live unit leaves everything alone (requirement 3 AC5)', () => {
+  it('leaves the record, the unit and the holds alone', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: ['run-onstart-live'], started: PRESS_NOW });
+    await seedHeldRun('run-onstart-live', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    expect(unit.start).not.toHaveBeenCalled();
+    expect(unit.stop).not.toHaveBeenCalled();
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('build');
+    const run = await readRun('run-onstart-live');
+    expect(run?.holdBy).toBe('deploy');
+    expect(run?.pauseRequested).toBe(PRESS_NOW);
+  });
+});
+
+describe('DeployCoordinator.onStart — re-apply holds at wait with no live unit (requirement 3 AC4)', () => {
+  it('re-applies the hold to a run that lost it, using the record\'s started time', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-recover'], started: PRESS_NOW });
+    await seedRun('run-recover', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const run = await readRun('run-recover');
+    expect(run?.holdBy).toBe('deploy');
+    expect(run?.pauseRequested).toBe(PRESS_NOW);
+    expect(run?.status).toBe('queued');
+    expect(unit.start).not.toHaveBeenCalled();
+  });
+
+  it('skips a run that is gone (not on disk)', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-gone-id'], started: PRESS_NOW });
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    expect(await readRun('run-gone-id')).toBeUndefined();
+  });
+
+  it('skips a terminal run', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-terminal'], started: PRESS_NOW });
+    await seedRun('run-terminal', 'done');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const run = await readRun('run-terminal');
+    expect(run?.status).toBe('done');
+    expect(run?.holdBy).toBeUndefined();
+    expect(run?.pauseRequested).toBeUndefined();
+  });
+
+  it('skips a run that has an operator hold', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-operator'], started: PRESS_NOW });
+    await seedRun('run-operator', 'paused', { pauseRequested: '2026-11-04T00:00:00.000Z', holdBy: 'operator' });
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const run = await readRun('run-operator');
+    expect(run?.holdBy).toBe('operator');
+    expect(run?.pauseRequested).toBe('2026-11-04T00:00:00.000Z');
+  });
+});
+
+describe('DeployCoordinator.onStart — unit gone or unknown on an open record (requirement 3 AC3)', () => {
+  it('writes failed and releases for a non-wait open stage', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: ['run-gone-open'], started: PRESS_NOW });
+    await seedHeldRun('run-gone-open', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe('build: unit sdd-deploy.service is not live');
+    const run = await readRun('run-gone-open');
+    expect(run?.holdBy).toBeUndefined();
+  });
+
+  it('writes failed and releases for wait with unitStarted true', async () => {
+    writeDeployRecordFile({
+      v: 1, stage: 'wait', runs: ['run-gone-wait'], started: PRESS_NOW, unitStarted: true,
+    });
+    await seedHeldRun('run-gone-wait', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('failed');
+    expect(record?.error).toBe('wait: unit sdd-deploy.service is not live');
+    const run = await readRun('run-gone-wait');
+    expect(run?.holdBy).toBeUndefined();
+  });
+
+  it('does nothing when the unit is unknown', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'build', runs: ['run-unknown-open'], started: PRESS_NOW });
+    await seedHeldRun('run-unknown-open', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'unknown') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    await coordinator.onStart();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('build');
+    const run = await readRun('run-unknown-open');
+    expect(run?.holdBy).toBe('deploy');
+  });
+});
+
+describe('DeployCoordinator.cancel — no record or past the swap (requirement 5 AC3)', () => {
+  it('with no record gives 404', async () => {
+    const coordinator = new DeployCoordinator(makeDeps());
+
+    const result = await coordinator.cancel();
+
+    expect(result.status).toBe(404);
+  });
+
+  it.each(['swap', 'restart', 'done', 'failed'] as const)(
+    'at stage %s gives 409 deploy-past-swap and changes nothing',
+    async (stage) => {
+      const record: DeployRecord = {
+        v: 1, stage, runs: ['run-past-swap'], started: PRESS_NOW,
+        ...(stage === 'failed' ? { error: 'gate: boom' } : {}),
+        ...(stage === 'done' ? { commit: 'abc123' } : {}),
+      };
+      writeDeployRecordFile(record);
+      await seedHeldRun('run-past-swap', 'queued');
+      const unit = fakeUnit();
+      const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+      const result = await coordinator.cancel();
+
+      expect(result.status).toBe(409);
+      expect(result.error).toBe('deploy-past-swap');
+      expect(await readDeployRecord()).toEqual(record);
+      const run = await readRun('run-past-swap');
+      expect(run?.holdBy).toBe('deploy');
+    },
+  );
+});
+
+describe('DeployCoordinator.cancel — an existing claim (D15)', () => {
+  it('at gate gives 409 deploy-past-swap with no unit.stop', async () => {
+    const record: DeployRecord = { v: 1, stage: 'gate', runs: ['run-claimed'], started: PRESS_NOW };
+    writeDeployRecordFile(record);
+    await seedHeldRun('run-claimed', 'queued');
+    mkdirSync(`${deployRecordPath()}.claim`);
+    const unit = fakeUnit();
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    const result = await coordinator.cancel();
+
+    expect(result.status).toBe(409);
+    expect(result.error).toBe('deploy-past-swap');
+    expect(unit.stop).not.toHaveBeenCalled();
+    expect(await readDeployRecord()).toEqual(record);
+  });
+});
+
+describe('DeployCoordinator.cancel — stop, release, remove (requirement 5 AC1)', () => {
+  it.each(['wait', 'build', 'smoke', 'gate'] as const)(
+    'at stage %s with unitStarted true stops the unit, releases, removes the record and claim, emits null, gives 200',
+    async (stage) => {
+      writeDeployRecordFile({
+        v: 1, stage, runs: ['run-cancel'], started: PRESS_NOW, unitStarted: true,
+      });
+      await seedHeldRun('run-cancel', 'queued');
+      const unit = fakeUnit({
+        state: vi.fn()
+          .mockResolvedValueOnce('live' as UnitState)
+          .mockResolvedValue('gone' as UnitState),
+      });
+      const coordinator = new DeployCoordinator(makeDeps({ unit }));
+      const events: unknown[] = [];
+      const handler = (e: unknown): void => { events.push(e); };
+      deployEvents.on('change', handler);
+
+      let result;
+      try {
+        result = await coordinator.cancel();
+      } finally {
+        deployEvents.off('change', handler);
+      }
+
+      expect(result).toEqual({ status: 200 });
+      expect(unit.stop).toHaveBeenCalledTimes(1);
+      expect(await readDeployRecord()).toBeUndefined();
+      expect(existsSync(`${deployRecordPath()}.claim`)).toBe(false);
+      const run = await readRun('run-cancel');
+      expect(run?.holdBy).toBeUndefined();
+      expect(run?.pauseRequested).toBeUndefined();
+      expect(events).toContain(null);
+    },
+  );
+
+  it('at wait with unitStarted not true and the unit gone calls no stop and still gives 200', async () => {
+    writeDeployRecordFile({ v: 1, stage: 'wait', runs: ['run-cancel-no-stop'], started: PRESS_NOW });
+    await seedHeldRun('run-cancel-no-stop', 'queued');
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    const result = await coordinator.cancel();
+
+    expect(result).toEqual({ status: 200 });
+    expect(unit.stop).not.toHaveBeenCalled();
+    expect(await readDeployRecord()).toBeUndefined();
+  });
+});
+
+describe('DeployCoordinator.cancel — a unit that never goes', () => {
+  it('answers 500 deploy-stop-failed and keeps the record and the claim', async () => {
+    writeDeployRecordFile({
+      v: 1, stage: 'build', runs: ['run-stuck'], started: PRESS_NOW, unitStarted: true,
+    });
+    await seedHeldRun('run-stuck', 'queued');
+    let calls = 0;
+    const now = (): Date => {
+      calls += 1;
+      return calls === 1 ? new Date(PRESS_NOW) : new Date(Date.parse(PRESS_NOW) + 31000);
+    };
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit, now }));
+
+    const result = await coordinator.cancel();
+
+    expect(result).toEqual({ status: 500, error: 'deploy-stop-failed' });
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('build');
+    expect(record?.unitStarted).toBe(true);
+    expect(existsSync(`${deployRecordPath()}.claim`)).toBe(true);
+    const run = await readRun('run-stuck');
+    expect(run?.holdBy).toBe('deploy');
+  }, 15000);
+});
+
+describe('DeployCoordinator.cancel — a queued tick recreates no record (requirement 5 AC2)', () => {
+  it('recreates no record when a tick is queued behind a cancel', async () => {
+    writeDeployRecordFile({
+      v: 1, stage: 'wait', runs: [], started: PRESS_NOW, unitStarted: true,
+    });
+    const unit = fakeUnit({ state: vi.fn(async (): Promise<UnitState> => 'gone') });
+    const coordinator = new DeployCoordinator(makeDeps({ unit }));
+
+    const cancelPromise = coordinator.cancel();
+    const tickPromise = coordinator.tick();
+    const [cancelResult] = await Promise.all([cancelPromise, tickPromise]);
+
+    expect(cancelResult.status).toBe(200);
+    expect(await readDeployRecord()).toBeUndefined();
+  });
+});
