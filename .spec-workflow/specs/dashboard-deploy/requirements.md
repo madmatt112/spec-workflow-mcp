@@ -163,7 +163,7 @@ The entry's six end-to-end scenarios carry into the design unchanged, except sce
   - **R3-1 — Accepted (MUST_FIX).** Cancel's release-and-remove (R5 AC1) now runs under R1 AC4's lock, serialising it against the re-read, persist and spawn; R5 AC2 drops the unsound "re-read under its lock" claim, so the controller's own persist cannot recreate a removed record.
   - **R3-2 — Accepted (SHOULD_FIX).** R2 AC3 drops "from outside a cancel": the script writes failed on any SIGTERM, and cancel's removal of the record after the unit is gone is what leaves a cancelled deploy no failed record.
   - **R3-3 — Accepted (MINOR).** R3 AC3, D3 and the scope note read the flag as "committed to starting the unit", and D3 scopes does-not-fail to the flag false or absent.
-  - **Lint pass.** 0 fixed; prior rounds' citation-identifier false positives still suppressed per rule 11.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-47 citation-identifier false positives, suppressed per rule 11.
 - **v3** (2026-11-05) — Round-2 response (adversarial-analysis-requirements-r2.md, iterate 1/1/0).
   - **R2-1 — Accepted (MUST_FIX).** Persist the unit-started flag before the spawn; R3 AC4 gains no-unit-live and defers to AC5, closing the double-spawn.
   - **R2-2 — Accepted (SHOULD_FIX).** Controller re-reads under its lock and spawns only while open at wait; R5 AC2 names the reciprocal.
