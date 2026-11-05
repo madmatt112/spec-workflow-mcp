@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fsp, writeFileSync, appendFileSync, chmodSync } from 'fs';
+import { promises as fsp, writeFileSync, appendFileSync, chmodSync, mkdtempSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { EventEmitter } from 'events';
 import net from 'net';
 import { WebSocket } from 'ws';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
+import { HarnessHub } from '../harness/hub.js';
+import type { ProjectManager } from '../project-manager.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
 import { loadOrCreateSecret } from '../../controller/access.js';
-import { readRun } from '../../controller/state.js';
+import { readRun, writeJsonAtomic } from '../../controller/state.js';
+import { deployEvents, deployRecordPath, type ControllerDeploy } from '../../controller/deploy.js';
 
 const STUB_CLAUDE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-claude.mjs');
 
@@ -136,6 +140,26 @@ const realFetch: typeof fetch = globalThis.fetch;
 //   Expected-value source: the task 7 _Prompt sentence giving the literal
 //   404 bodies, and the `SpecDetail` interface (task 1, src/dashboard/shell
 //   /types.ts) naming exactly those six keys with no content field.
+//
+// Contract addition for task 10 (design.md C7; task 10 _Prompt; Requirement
+// 6 AC 9). Reached through the same real server/ws fixture as the rest of
+// this file; the record is seeded directly on disk with `writeJsonAtomic`
+// (task 2's writer), the same way the self-update script would.
+//
+// Criterion "an overview subscriber's first messages carry a seeded record"
+//   (task 10 _Prompt Success: "an overview subscriber's first messages
+//   carry a seeded record"; Requirement 6 AC 9 "the page reconnects ...
+//   receives the current record with the first feed flush" — a fresh
+//   subscribe rides the same `overview-subscribe` -> `overviewSnapshot()`
+//   path a reconnect does):
+//   Pre-condition: `deploy.json` written directly at stage 'build' before
+//   any client connects.
+//   Test: connect a ws client, send `{ type: 'overview-subscribe' }`.
+//   Observable result: within five seconds a `controller-deploy` message
+//   arrives whose `data` is `{ deploy: { stage: 'build', runs: ['run-x'],
+//   started } }`.
+//   Expected-value source: the literal stage/runs/started fields written
+//   into the seeded record.
 
 async function getFreePort(): Promise<number> {
   return await new Promise((resolvePort, reject) => {
@@ -597,4 +621,113 @@ describe('shell hub wiring and routes (task 7)', () => {
       .filter((m) => m.type === 'controller-runs')
       .some((m) => m.data.runs.some((r: any) => r.id === runId && r.driven === true)), 5000);
   }, 15000);
+
+  it('carries a seeded deploy record on an overview subscriber\'s first controller-deploy message', async () => {
+    const started = '2026-11-05T09:00:00.000Z';
+    await writeJsonAtomic(deployRecordPath(), {
+      v: 1, stage: 'build', runs: ['run-x'], started, unitStarted: true,
+    });
+
+    const ws = await connect(port);
+    sockets.push(ws);
+    const messages = collect(ws);
+    send(ws, { type: 'overview-subscribe' });
+
+    await waitFor(() => messages.some((m) => m.type === 'controller-deploy'), 5000);
+    const msg = messages.find((m) => m.type === 'controller-deploy');
+    expect(msg.data).toEqual({ deploy: { stage: 'build', runs: ['run-x'], started } });
+  });
+});
+
+// Contract additions for task 10 (design.md C7 hub bullet; task 10 _Prompt;
+// NFR Performance). Reached only through `new HarnessHub(...)`, `.reconcile()`
+// and `.close()`; `deployEvents` (task 2's real, non-mocked EventEmitter) is
+// the event source, so these tests exercise the actual listener HarnessHub
+// adds and removes, not a stub of it.
+//
+// Criterion "a change event reaches an overview subscriber within 2 seconds"
+//   (task 10 _Prompt Success: "a change event on the hub reaches an
+//   overview subscriber within 2 seconds"; NFR Performance "a stage ...
+//   SHALL reach a connected page within 2 seconds"):
+//   Pre-condition: a HarnessHub reconciled with one overview-view client
+//   (no project, no harness view), so its ShellFeed and overview watch are
+//   live.
+//   Test: `deployEvents.emit('change', deploy)`, timed from emission.
+//   Observable result: within 2000 ms the hub's `sendOverview` callback is
+//   called with `{ type: 'controller-deploy', data: { deploy } }`.
+//   Expected-value source: the literal "within 2 seconds" of the NFR
+//   Performance requirement, and the deploy payload given to `emit`.
+//
+// Criterion "after the hub closes, a change event sends nothing" (task 10
+//   _Prompt Success: "after the hub closes, a change event sends
+//   nothing"):
+//   Pre-condition: the same reconciled hub, then `hub.close()`.
+//   Test: `deployEvents.emit('change', deploy)` after `close()`.
+//   Observable result: the `sendOverview` callback is not called again
+//   within 200 ms.
+//   Expected-value source: the literal "sends nothing" of the _Prompt
+//   sentence, which pins `HarnessHub` removing its `deployEvents` listener
+//   in `close()` (design C7, hub.ts:139-154).
+describe('controller-deploy change events on the harness hub (task 10)', () => {
+  const hubs: HarnessHub[] = [];
+  const projectDirs: string[] = [];
+
+  // One real project directory, so the overview watch's handoff glob
+  // (`handoffPaths()`) is non-empty: chokidar never emits `ready` for an
+  // empty path list, which would hang `OverviewWatch.start()`'s
+  // `whenReady()` forever (overview-watch.ts:254-255 notes the same gap for
+  // the ledger watcher).
+  function stubProjectManager(): ProjectManager {
+    const projectPath = mkdtempSync(join(tmpdir(), 'hub-task10-proj-'));
+    mkdirSync(join(projectPath, '.spec-workflow'), { recursive: true });
+    projectDirs.push(projectPath);
+    const project = {
+      projectId: 'proj-task10', projectName: 'Task10 Project', projectPath, workspacePath: projectPath,
+      workflowRootPath: projectPath,
+    };
+    const pm = new EventEmitter();
+    (pm as unknown as { getAllProjects: () => unknown[] }).getAllProjects = () => [project];
+    return pm as unknown as ProjectManager;
+  }
+
+  async function reconciledHub(onOverview: (m: unknown) => void): Promise<HarnessHub> {
+    const hub = new HarnessHub(stubProjectManager(), () => { /* no harness subscribers */ }, onOverview);
+    hubs.push(hub);
+    await hub.reconcile([{ views: new Set(['overview']) }]);
+    return hub;
+  }
+
+  afterEach(() => {
+    for (const hub of hubs.splice(0)) hub.close();
+    for (const dir of projectDirs.splice(0)) {
+      try { rmSync(dir, { recursive: true, force: true }); } catch { /* already gone */ }
+    }
+  });
+
+  it('forwards a deployEvents change to an overview subscriber within 2 seconds', async () => {
+    const sends: any[] = [];
+    await reconciledHub((m) => sends.push(m));
+    sends.length = 0;
+
+    const deploy: ControllerDeploy = { stage: 'build', runs: ['run-1'], started: '2026-11-05T09:00:00.000Z' };
+    const t0 = Date.now();
+    deployEvents.emit('change', deploy);
+
+    await waitFor(() => sends.some((m) => m.type === 'controller-deploy'), 2000, 5);
+    expect(Date.now() - t0).toBeLessThan(2000);
+    const msg = sends.find((m) => m.type === 'controller-deploy');
+    expect(msg.data).toEqual({ deploy });
+  });
+
+  it('sends nothing on a deployEvents change after the hub closes', async () => {
+    const sends: any[] = [];
+    const hub = await reconciledHub((m) => sends.push(m));
+    hub.close();
+    sends.length = 0;
+
+    deployEvents.emit('change', { stage: 'done', runs: [], started: '2026-11-05T09:00:00.000Z' });
+    await sleep(200);
+
+    expect(sends.length).toBe(0);
+  });
 });
