@@ -166,3 +166,10 @@
 {"ts":"2026-11-05T03:15:41.091Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-11-05T03:15:51.223Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P8 pass risk low"}
 {"ts":"2026-11-05T03:15:51.251Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-11-05T03:15:56.642Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.pick","task":"P1","title":"P1 (F1) — Symlinked `dist/evals/cli.js` never runs `main()`."}
+{"ts":"2026-11-05T03:15:56.655Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-implementer","role":"implement code batch 3","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T03:19:58.469Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-implementer","input":"56","output":"14837","cacheWrite":"54095","cacheRead":"1508824","tokens":"1577812","cacheWrite5m":"0","cacheWrite1h":"54095","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T03:19:58.469Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 3","result":"ok","phase":"closeout"}
+{"ts":"2026-11-05T03:19:58.499Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P1 test files from the commit added to the list"}
+{"ts":"2026-11-05T03:20:01.351Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P1 pass risk low"}
+{"ts":"2026-11-05T03:20:01.382Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"P1","outcome":"done"}

@@ -144,3 +144,4 @@ One line per proposal, written by the close-out phase.
 - G1: done — 5876e27b40d0b28506d4f410347a2c952e49da27
 - P8: done — 833e70611cff95ce3e49695bb05dc4dcae3ff900
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/204
+- P1: done — 1db5873db06e3264b90f90da170acd47003745ea
