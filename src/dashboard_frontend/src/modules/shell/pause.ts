@@ -25,11 +25,15 @@ export interface PauseNote {
 
 /** Held by the operator: a pause applied now, or requested and still pending. */
 export function isOperatorHeld(run: ControllerRun): boolean {
+  if (run.holdBy === 'deploy') return false;
   return run.pauseRequested !== undefined || (run.status === 'paused' && run.pauseReason === 'operator');
 }
 
 /** How long a paused or waiting run has been stopped, and when it resumes. */
 export function pauseNote(run: ControllerRun, now: number): PauseNote | null {
+  if (run.holdBy === 'deploy') {
+    return { text: 'held for deploy', overdue: false };
+  }
   if (run.status === 'paused' && run.pauseReason === 'operator') {
     const since = run.pausedAt ? Date.parse(run.pausedAt) : NaN;
     const text = Number.isFinite(since) ? `paused by you ${fmtSpan(now - since)}` : 'paused by you';
