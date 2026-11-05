@@ -103,3 +103,48 @@
 - src/__tests__/service-scripts.test.ts:299 — script dry-run test
 - src/__tests__/service-scripts.test.ts:353 — script rebase test with stage seams
 - src/__tests__/service-scripts.test.ts:460 — failing eval through the staged-CLI stub
+
+## Design additions: controller seams
+- src/controller/controller.ts:49-69 — ControllerOptions
+- src/controller/controller.ts:109-115 — start order: wait listener, recover, interval, first schedule
+- src/controller/controller.ts:144-146 — drivenRuns
+- src/controller/controller.ts:154-171 — redrive
+- src/controller/controller.ts:405-412 — usage-window branch parks queued runs
+- src/controller/state.ts:417-417 — writeChains map
+- src/controller/runs.ts:826-845 — runOnce entry: status set to running
+- src/controller/runs.ts:860-876 — loop-top stop parks a held run
+- src/controller/runs.ts:1004-1004 — step shouldStop reads stopReason
+
+## Design additions: server and smoke
+- src/dashboard/multi-server.ts:70-75 — head of MultiDashboardOptions
+- src/dashboard/multi-server.ts:165-170 — HarnessHub construction
+- src/dashboard/multi-server.ts:177-194 — Controller construction
+- src/dashboard/multi-server.ts:360-368 — overview-subscribe sends the snapshot
+- src/index.ts:452-452 — isSmokeMode read
+- src/index.ts:563-568 — server construction
+- src/index.ts:592-609 — smoke health check and exit
+- src/advisor/actions.ts:164-167 — packageRoot
+- src/dashboard/harness/hub.ts:139-154 — close drops the listeners
+
+## Design additions: script and unit
+- scripts/sdd-self-update.sh:54-54 — log
+- scripts/sdd-self-update.sh:175-181 — BASE and first check_move
+- scripts/sdd-self-update.sh:302-309 — restart branch and final log
+- scripts/sdd-service.sh:213-214 — systemd-run with EnvironmentFile
+
+## Design additions: frontend
+- src/dashboard_frontend/src/modules/shell/RunsPage.tsx:210-210 — CTRL_LIVE_STATUSES
+- src/dashboard_frontend/src/modules/shell/RunsPage.tsx:358-366 — inline confirm pattern
+- src/dashboard_frontend/src/modules/shell/types.ts:268-274 — hand copy of ShellMessage
+- src/dashboard_frontend/src/modules/app/ConnectionBanner.tsx:14-14 — reads nextRetryAt
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:11-26 — context type
+
+## Design additions: tests
+- vitest.config.ts:8-9 — include and exclude; the frontend tree is skipped
+- tsconfig.json:19-20 — tsc include and exclude
+- src/__tests__/service-scripts.test.ts:24-34 — runScript, 20-second limit
+- src/__tests__/service-scripts.test.ts:49-76 — makeDivergedCheckout, stageBuildStub
+- src/dashboard/shell/__tests__/shell-feed.test.ts:359-361 — exact message order
+- src/controller/__tests__/pause-request.test.ts:58-59 — pauseRequested carry-over tests
+- src/dashboard/__tests__/controller-dashboard-routes.test.ts:91-91 — server under test
+- e2e/worktree-shell.spec.ts:417-444 — seeded run.json pattern
