@@ -35,7 +35,7 @@ graph TD
 - **Purpose:** The one definition of the reason-to-count rule (R1 AC1, AC3, AC4).
 - **Interfaces:** `export function plannedRuns(reasons: string[]): 1 | 3`.
 - **Post-conditions:**
-  1. It returns 1 when every reason is indirect. A reason is indirect when it equals `role`, equals `profile`, or starts with `brief`. That prefix covers all three brief forms (`src/evals/select.ts:131`, `src/evals/select.ts:153`, `src/evals/select.ts:200`).
+  1. It returns 1 when every reason is indirect. A reason is indirect when it equals `role` or `profile` (`src/evals/select.ts:188-190`), or starts with `brief`. That prefix covers all three brief forms (`src/evals/select.ts:131`, `src/evals/select.ts:153`, `src/evals/select.ts:200`).
   2. It returns 3 in every other case. So a `case` or `grader <name>` reason gives 3, alone or with other reasons, and a reason this function does not know also gives 3 (D2).
   3. The caller passes a non-empty list. `selectCases` keeps a case only when it has a reason (`src/evals/select.ts:204`).
 - **Unchanged:** `SelectedCase` (`src/evals/select.ts:19-23`) gains no field, and the reason strings and `selectCases` stay as they are (R1 AC5).
@@ -55,12 +55,12 @@ graph TD
 
 ### Component 3 — the gate (`src/evals/gate.ts`)
 - **Purpose:** Applies the rule and states real counts in the failure summary and the override deferral.
-- **Interfaces:** `RunGateOpts` (`src/evals/gate.ts:8-18`) gains the optional trailing `onLine?: RunCasesOpts['onLine']`. `RunGateResult` does not change.
+- **Interfaces:** `RunGateOpts` (`src/evals/gate.ts:8-18`) gains the optional trailing `onLine?: RunCasesOpts['onLine']`. `RunGateResult` (`src/evals/gate.ts:20-23`) does not change.
 - **Post-conditions:**
   1. `runGate` builds `runsByCase` from `selected` with `plannedRuns`, and passes it and `opts.onLine` in the `runCases` call at `src/evals/gate.ts:56-58` (R1 AC1-3, R3 AC1).
   2. Each part of the summary at `src/evals/gate.ts:76` reads `<id> <verdict> <passed>/<runs> <first reason>`. `<passed>` counts the case's runs with verdict `pass`; `<runs>` is `c.runs.length`. The `<target 12>: ` start and `; record <path>` end stay (R3 AC2).
   3. `revisitCriteria` at `src/evals/gate.ts:96` reads `case <id> passes <n>/<n>`, with `n` equal to `c.runs.length` (R3 AC5, AC6).
-  4. The override checks and their exit codes (`src/evals/gate.ts:45-49`, `src/evals/gate.ts:66-72`), the exit-1 guard (`src/evals/gate.ts:74`), `revisitTrigger`, the deferral context and the `overrides.log` line stay as they are (R2 AC1, AC2, R3 AC7).
+  4. The override checks and their exit codes (`src/evals/gate.ts:45-49`, `src/evals/gate.ts:66-72`), the exit-1 guard (`src/evals/gate.ts:74`), `revisitTrigger` (`src/evals/gate.ts:92`), the deferral context and the `overrides.log` line stay as they are (R2 AC1, AC2, R3 AC7).
 - **Dependencies:** Component 1, Component 2.
 - **Reuses:** `firstReason` (`src/evals/gate.ts:25-30`).
 
@@ -93,7 +93,7 @@ graph TD
 
 ## Data Models
 
-The result record (`src/evals/runner.ts:18-40`) and `SelectedCase` do not change.
+The result record (`src/evals/runner.ts:18-40`) and `SelectedCase` (`src/evals/select.ts:19-23`) do not change.
 
 **Readers of the record.** `EvalResultRecord`, `EvalCaseRecord` and `evals/results` appear only under `src/evals/`, and nothing in `scripts/` or `harness/` reads a record or parses `select` output. The readers of the returned record are `src/evals/gate.ts:66-81`, `firstReason` and `src/evals/cli.ts:148`. All read verdicts or reasons, and none assumes 3 runs.
 
@@ -164,3 +164,4 @@ The checks assert on the seams below. "Guard" marks an AC that holds at base: a 
 ## Revision History
 
 - **v1** (2026-11-04) — Initial draft.
+  - **Lint pass.** 5 fixed; rejected: L-3, L-4, L-5, L-6, L-8, L-9, L-10, L-11, L-12, L-13, L-14, L-16, L-17, L-18, L-19, L-21, L-22, L-23, L-24, L-25, L-26, L-27, L-28, L-29, L-30, L-31, L-32, L-33, L-34, L-35 — all citation-identifier false positives, every cited range re-verified at both ends. Fixed: L-1/L-2 `role`/`profile` reasons given their build site `src/evals/select.ts:188-190`; L-7 `RunGateResult` given its declaration `src/evals/gate.ts:20-23`; L-15 `revisitTrigger` given `src/evals/gate.ts:92`; L-20 `SelectedCase` corrected to `src/evals/select.ts:19-23` (the `runner.ts:18-40` block named it but it lives in select.ts). Rejected by class: design-introduced symbols (`runsByCase`, `plannedRuns`, `onLine`, `createWait`); string-literal reason values/fields (`pass`, `length`, `grader`, `profile` in docs, `type`); reused subjects whose adjacent citation anchors the behaviour not the declaration (`selectCases`, `runCases`, `runGate`, `runRun`, `EvalResultRecord`, `EvalCaseRecord`); command/keyword/descriptive tokens (`select`, `gate`, `dist`, `import`); new-test mechanics absent from the cited fixture helpers (`target`, `step`, `logPath`, `counter`). Reasons: /tmp/scratchpad/sdd/eval-gate-runs/lint.md
