@@ -54,3 +54,13 @@ Cost: 1 implementer spawn(s)
 task 10 closed: 0 fix round(s), outcome pass
 Evidence: task 10 · mark run-20261105-155538 68ff84e3
 Cost: 1 implementer spawn(s)
+
+## 2026-11-05T22:36:30Z · implementation · task 11 · doc-gap
+red-impossible: base execDeploy reads no record at all, so it already spawns regardless of stage. Written fresh per retro P10 since no existing assertion named that branch specifically (only the \"no record\" case was previously asserted)."}
+Evidence: task 11 · mark run-20261105-155538 44209d0a
+Cost: 1 spawn
+
+## 2026-11-05T22:38:29Z · implementation · task 11 · gotcha
+task 11 closed: 0 fix round(s), outcome gate
+Evidence: task 11 · mark run-20261105-155538 d5528bd6
+Cost: 1 implementer spawn(s)
