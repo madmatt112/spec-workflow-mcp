@@ -490,8 +490,8 @@ The script does these steps in order:
 7. It swaps `dist/` in and restarts the controller.
 
 On a step 5 failure the script writes an `error` wait that names the commit, each
-failing or inconclusive case with its first reason, and the eval result record's path,
-so the wait shows on the dashboard.
+failing or inconclusive case with its run count and its first reason, and the eval
+result record's path, so the wait shows on the dashboard.
 
 Pass `--eval-override <id>` once per failing or inconclusive case id to deploy past it.
 An override must name a case that was selected and did not pass; no flag overrides every
@@ -502,14 +502,17 @@ case and carries a ready-to-paste Progress log line. The self-update does not ed
 log commit.
 
 Run `scripts/sdd-self-update.sh --dry-run` to print every step without changing anything.
-When the staged `dist/evals/cli.js` exists, `--dry-run` also prints the cases the change
-would select and why, without running them.
+When the live `dist/evals/cli.js` exists, `--dry-run` also prints each case the change
+would select, why, and its planned run count, with the total case and run counts at the
+end, without running them.
 
 ### Eval cases
 
 An eval case runs one harness role on a frozen brief against a small, fresh git
-repository, three times, and grades the report and the repository after each run. A case
-guards against a role or brief regression that a live run would otherwise have to catch.
+repository, and grades the report and the repository after each run. The eval gate runs
+a case 3 times when it was selected for a `case` or `grader` reason, and 1 time when it
+was selected only by `role`, `profile` or brief reasons. A case guards against a role or
+brief regression that a live run would otherwise have to catch.
 
 Each case is one directory under `harness/evals/<id>/`, holding a `case.json` file with
 these fields:
@@ -534,9 +537,10 @@ To run one case by hand, build the package, then run:
 node dist/evals/cli.js <id>
 ```
 
-With no id, this command runs every case. It prints one line per case (verdict and run
-count) and, at the end, the path of the result record it wrote under the controller
-home, at `evals/results/<UTC stamp>-<commit>.json`.
+A direct run stays at 3 runs per case; the 1-run and 3-run split above applies only to
+the eval gate's planned count. With no id, this command runs every case. It prints one
+line per case (verdict and run count) and, at the end, the path of the result record it
+wrote under the controller home, at `evals/results/<UTC stamp>-<commit>.json`.
 
 When a retrospective finds a role or brief defect, its proposal names a case id, with
 one line on what its grader checks, on an `Eval case:` line — or `none`, with the
