@@ -12,6 +12,7 @@ import { harnessHandler } from '../../tools/harness.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
 import type { EvalCase } from '../case.js';
 import type { Fixture } from '../fixture.js';
+import type { StepSpec, StepResult } from '../../controller/step.js';
 
 // Design Component 8 (src/evals/gate.ts, design.md:109-117), Requirement 3 ACs 2, 3, 5 and
 // Requirement 4 ACs 2-5: runGate(opts) selects the cases a deploy between `base` and `target`
@@ -204,6 +205,76 @@ function cleanup(...dirs: string[]): void {
   for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 }
 
+const ZERO_USAGE = { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 };
+
+/** The case id a run's `logPath` names (`<id>-r<n>.jsonl`, `src/evals/runner.ts:181`). */
+function caseIdFromLogPath(logPath: string): string {
+  const base = logPath.split(/[\\/]/).pop() ?? '';
+  const match = base.match(/^(.+)-r\d+\.jsonl$/);
+  return match ? match[1] : base;
+}
+
+function stepResultFor(verdict: 'pass' | 'fail' | 'usage-limit'): StepResult {
+  if (verdict === 'usage-limit') {
+    return {
+      structuredOutput: null, usage: ZERO_USAGE, sessionId: null, numTurns: 1, isError: false,
+      subtype: null, resultText: null, exitCode: null, classification: 'usage-limit', durationMs: 0,
+    };
+  }
+  return {
+    structuredOutput: { commit: 'none', files: [], flag: verdict === 'pass' ? 'none' : 'bad' },
+    usage: ZERO_USAGE, sessionId: null, numTurns: 1, isError: false, subtype: 'success',
+    resultText: '', exitCode: 0, classification: 'ok', durationMs: 0,
+  };
+}
+
+/** A `RunGateOpts.step` stub that counts calls per case id, read off `logPath`, and returns the
+ * next verdict from that case's scripted sequence (repeating the sequence's last entry past its
+ * end; a case absent from `scripts` always reports `pass`). */
+function scriptedStep(
+  calls: Record<string, number>,
+  scripts: Record<string, Array<'pass' | 'fail' | 'usage-limit'>>,
+): (spec: StepSpec) => Promise<StepResult> {
+  return async (spec: StepSpec): Promise<StepResult> => {
+    const id = caseIdFromLogPath(spec.logPath);
+    const n = (calls[id] = (calls[id] ?? 0) + 1);
+    const seq = scripts[id] ?? ['pass'];
+    const verdict = seq[Math.min(n - 1, seq.length - 1)];
+    return stepResultFor(verdict);
+  };
+}
+
+/** The R1 AC2 fixture (design.md Testing Strategy): `old-case` from `writeDeterministicCase` at
+ * `base`, with `harness/agents/sdd-test-author.md` present; `target` edits that role file and
+ * adds `new-case`. `baseDist` is baked, via `writeMatchingBaseDist`, with `old-case`'s own real
+ * rendered text, so `old-case` ends up selected by `role` alone; `new-case`, new at `target`, is
+ * selected by `case` (and, through the same role-file edit, `role` too). */
+async function buildTwoCaseFixture(): Promise<{
+  dir: string; base: string; target: string; target12: string; casesRoot: string; baseDist: string;
+}> {
+  const dir = mkdtempSync(join(tmpdir(), 'eval-gate-'));
+  initRepo(dir);
+  writeFileSync(join(dir, 'README.md'), 'hello\n');
+  mkdirSync(join(dir, 'harness', 'agents'), { recursive: true });
+  writeFileSync(join(dir, 'harness', 'agents', 'sdd-test-author.md'), '# sdd-test-author\n\nv1\n');
+  writeDeterministicCase(dir, 'old-case');
+  const base = commitAll(dir, 'base');
+
+  const oldCaseDir = join(dir, 'harness', 'evals', 'old-case');
+  const c = JSON.parse(readFileSync(join(oldCaseDir, 'case.json'), 'utf8')) as EvalCase;
+  const text = await realRenderedText(oldCaseDir, c);
+  const baseDist = mkdtempSync(join(tmpdir(), 'eval-gate-basedist-'));
+  writeMatchingBaseDist(baseDist, text);
+
+  writeFileSync(join(dir, 'harness', 'agents', 'sdd-test-author.md'), '# sdd-test-author\n\nv2\n');
+  writeAuthorCase(dir, 'new-case', [{ name: 'report-flag', args: { prefix: 'none' } }]);
+  const target = commitAll(dir, 'target');
+
+  return {
+    dir, base, target, target12: target.slice(0, 12), casesRoot: join(dir, 'harness', 'evals'), baseDist,
+  };
+}
+
 describe('runGate(opts)', () => {
   // Pre-condition: a two-commit repo holding one case, `demo-case`, byte-identical at `base`
   // and `target` (only an unrelated `README.md` edit separates the commits), with a `baseDist`
@@ -334,9 +405,9 @@ describe('runGate(opts)', () => {
   // whose only grader (`report-flag`, prefix `SEAM-DEFECT:`) fails on every run (the stub's
   // `flag` is `none`); no override is given.
   // Test: runGate({ repo, base, target, casesRoot, overrides: [], summaryFile, home }).
-  // Observable result: `exit: 1`; `summaryFile` reads exactly `<target 12>: fail-case <first
-  // reason>; record <result.record>`; no `<home>/evals/overrides.log` is written; no deferral
-  // exists under the repo's `.spec-workflow/deferrals/`.
+  // Observable result: `exit: 1`; `summaryFile` reads exactly `<target 12>: fail-case fail 0/3
+  // <first reason>; record <result.record>`; no `<home>/evals/overrides.log` is written; no
+  // deferral exists under the repo's `.spec-workflow/deferrals/`.
   // Expected-value source: design.md Component 8 post-condition 4 (design.md:116, "A `fail` or
   // `inconclusive` case no override names gives exit 1, no override line, no deferral (R4 AC4).
   // `summaryFile` gets `<target 12>: <id> <first reason>; …; record <path>`"); requirements.md
@@ -367,7 +438,7 @@ describe('runGate(opts)', () => {
 
     const expectedReason = 'flag "none" does not start with "SEAM-DEFECT:"';
     expect(readFileSync(summaryFile, 'utf8').trim()).toBe(
-      `${target12}: fail-case ${expectedReason}; record ${result.record}`,
+      `${target12}: fail-case fail 0/3 ${expectedReason}; record ${result.record}`,
     );
     expect(existsSync(join(home, 'evals', 'overrides.log'))).toBe(false);
     const deferralsDir = join(dir, '.spec-workflow', 'deferrals');
@@ -446,5 +517,165 @@ describe('runGate(opts)', () => {
     );
 
     cleanup(dir, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: `buildTwoCaseFixture()`: `old-case`, unchanged between `base` and `target`,
+  // selected only by `role`; `new-case`, added at `target`, selected by `case` (and `role`). A
+  // `step` stub counts calls per case id (read off `logPath`) and reports `pass` for every call.
+  // No override is given.
+  // Test: runGate({ repo, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+  // step, onLine }), with `onLine` collecting every line it receives into an array.
+  // Observable result: the step stub is called 3 times for `new-case` and 1 time for
+  // `old-case`; the returned `record`'s `new-case` entry holds 3 `runs` entries and its
+  // `old-case` entry holds 1; the collected lines include one containing `pass 3/3` and one
+  // containing `pass 1/1`.
+  // Expected-value source: design.md Component 3 post-condition 1 (design.md:60, "runGate
+  // builds runsByCase from selected with plannedRuns, and passes it and opts.onLine in the
+  // runCases call"); requirements.md R1 AC1 (requirements.md:19), AC2 (requirements.md:20) and
+  // R3 AC1 (requirements.md:45), AC3 (requirements.md:47); tasks.md task 3 Prompt Success, "a
+  // gate over new-case and old-case (reason role only) makes 3 step calls for new-case and 1
+  // for old-case; that run's record holds 3 and 1 runs entries, and onLine gets lines holding
+  // pass 3/3 and pass 1/1".
+  it('makes 3 step calls for the case-reason case and 1 for the role-only case, with matching run counts and onLine lines', async () => {
+    const { dir, base, target, casesRoot, baseDist } = await buildTwoCaseFixture();
+    const home = mkdtempSync(join(tmpdir(), 'eval-gate-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-gate-summary-')), 'summary.txt');
+    const calls: Record<string, number> = {};
+    const lines: string[] = [];
+
+    const result = await runGate({
+      repo: dir, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+      step: scriptedStep(calls, {}),
+      onLine: (line: string) => lines.push(line),
+    });
+
+    expect(result.exit).toBe(0);
+    expect(calls['new-case']).toBe(3);
+    expect(calls['old-case']).toBe(1);
+
+    const record = JSON.parse(readFileSync(result.record as string, 'utf8'));
+    expect(record.cases.find((c: { id: string }) => c.id === 'new-case').runs).toHaveLength(3);
+    expect(record.cases.find((c: { id: string }) => c.id === 'old-case').runs).toHaveLength(1);
+
+    expect(lines.some((l) => l.includes('pass 3/3'))).toBe(true);
+    expect(lines.some((l) => l.includes('pass 1/1'))).toBe(true);
+
+    cleanup(dir, baseDist, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: `buildTwoCaseFixture()`, with a `step` stub that fails `old-case`'s one run
+  // (`pass` for `new-case`'s 3 runs); no override is given.
+  // Test: runGate({ repo, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+  // step }).
+  // Observable result: `exit: 1`; the step stub is called exactly once for `old-case`;
+  // `summaryFile` contains `fail 0/1`.
+  // Expected-value source: design.md Component 3 post-condition 2 (design.md:61, "<passed>/
+  // <runs>" in the summary); requirements.md R2 AC1 (requirements.md:33) and R3 AC2
+  // (requirements.md:46); tasks.md task 3 Prompt Success, "a failing grader on the 1-run case
+  // with no override gives exit 1, 1 step call and a summary holding fail 0/1".
+  it('gives exit 1, one step call and a summary holding fail 0/1 when the 1-run case fails its grader', async () => {
+    const { dir, base, target, casesRoot, baseDist } = await buildTwoCaseFixture();
+    const home = mkdtempSync(join(tmpdir(), 'eval-gate-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-gate-summary-')), 'summary.txt');
+    const calls: Record<string, number> = {};
+
+    const result = await runGate({
+      repo: dir, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+      step: scriptedStep(calls, { 'old-case': ['fail'] }),
+    });
+
+    expect(result.exit).toBe(1);
+    expect(calls['old-case']).toBe(1);
+    expect(readFileSync(summaryFile, 'utf8')).toContain('fail 0/1');
+
+    cleanup(dir, baseDist, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: `buildTwoCaseFixture()`, with a `step` stub reporting `old-case`'s one run
+  // as classified `usage-limit` (`pass` for `new-case`'s 3 runs); no override is given.
+  // Test: runGate({ repo, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+  // step }).
+  // Observable result: `exit: 1`; `summaryFile` contains `inconclusive 0/1`.
+  // Expected-value source: requirements.md R2 AC2 (requirements.md:34, "the case verdict SHALL
+  // be inconclusive ... and the gate SHALL exit 1"); design.md Component 3 post-condition 2;
+  // tasks.md task 3 Prompt Success, "a stub step classified usage-limit on the 1-run case gives
+  // exit 1 and a summary holding inconclusive 0/1".
+  it('gives exit 1 and a summary holding inconclusive 0/1 when the 1-run case is classified usage-limit', async () => {
+    const { dir, base, target, casesRoot, baseDist } = await buildTwoCaseFixture();
+    const home = mkdtempSync(join(tmpdir(), 'eval-gate-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-gate-summary-')), 'summary.txt');
+    const calls: Record<string, number> = {};
+
+    const result = await runGate({
+      repo: dir, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+      step: scriptedStep(calls, { 'old-case': ['usage-limit'] }),
+    });
+
+    expect(result.exit).toBe(1);
+    expect(readFileSync(summaryFile, 'utf8')).toContain('inconclusive 0/1');
+
+    cleanup(dir, baseDist, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: `buildTwoCaseFixture()`, with a `step` stub failing `old-case`'s one run
+  // (`pass` for `new-case`'s 3 runs); the override names `old-case`.
+  // Test: runGate({ repo, base, target, baseDist, casesRoot, overrides: ['old-case'],
+  // summaryFile, home, step }).
+  // Observable result: `exit: 0`; the deferral created for `old-case` has `body.revisitCriteria`
+  // equal to `case old-case passes 1/1`.
+  // Expected-value source: design.md Component 3 post-condition 3 (design.md:62,
+  // "revisitCriteria ... reads case <id> passes <n>/<n>, with n equal to c.runs.length");
+  // requirements.md R3 AC5 (requirements.md:49, "the number comes from the case's real run
+  // count"); tasks.md task 3 Prompt Success, "an override of the failed 1-run case gives exit 0
+  // and revisitCriteria of case <id> passes 1/1".
+  it('gives exit 0 and a revisitCriteria of case <id> passes 1/1 when an override names the failed 1-run case', async () => {
+    const { dir, base, target, target12, casesRoot, baseDist } = await buildTwoCaseFixture();
+    const home = mkdtempSync(join(tmpdir(), 'eval-gate-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-gate-summary-')), 'summary.txt');
+    const calls: Record<string, number> = {};
+
+    const result = await runGate({
+      repo: dir, base, target, baseDist, casesRoot, overrides: ['old-case'], summaryFile, home,
+      step: scriptedStep(calls, { 'old-case': ['fail'] }),
+    });
+
+    expect(result.exit).toBe(0);
+
+    const storage = new DeferralStorage(dir);
+    const all = await storage.list();
+    const deferral = all.find((d) => d.title === `Eval case old-case overridden at ${target12}`);
+    expect(deferral?.body.revisitCriteria).toBe('case old-case passes 1/1');
+
+    cleanup(dir, baseDist, home, dirname(summaryFile));
+  });
+
+  // Pre-condition: `buildTwoCaseFixture()`, with a `step` stub failing only `new-case`'s first
+  // run and passing its second and third (`old-case`'s one run passes); no override is given.
+  // Test: runGate({ repo, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+  // step }).
+  // Observable result: the step stub is called 3 times for `new-case` (the run loop keeps going
+  // after the first failure — a regression guard for requirement 2.4's step count, true at
+  // base); `exit: 1`; `summaryFile` contains `fail 2/3`.
+  // Expected-value source: requirements.md R2 AC4 (requirements.md:36, "the remaining runs of
+  // that case SHALL still run"), invariant verified not red-first; design.md Component 3
+  // post-condition 2 (the `<passed>/<runs>` text, which is new); tasks.md task 3 Prompt Success,
+  // "a 3-run case that fails only its first run makes 3 step calls (regression guard,
+  // requirement 2.4) and its summary reads fail 2/3".
+  it('keeps running a 3-run case after its first run fails, and reports fail 2/3', async () => {
+    const { dir, base, target, casesRoot, baseDist } = await buildTwoCaseFixture();
+    const home = mkdtempSync(join(tmpdir(), 'eval-gate-home-'));
+    const summaryFile = join(mkdtempSync(join(tmpdir(), 'eval-gate-summary-')), 'summary.txt');
+    const calls: Record<string, number> = {};
+
+    const result = await runGate({
+      repo: dir, base, target, baseDist, casesRoot, overrides: [], summaryFile, home,
+      step: scriptedStep(calls, { 'new-case': ['fail', 'pass', 'pass'] }),
+    });
+
+    expect(result.exit).toBe(1);
+    expect(calls['new-case']).toBe(3);
+    expect(readFileSync(summaryFile, 'utf8')).toContain('fail 2/3');
+
+    cleanup(dir, baseDist, home, dirname(summaryFile));
   });
 });
