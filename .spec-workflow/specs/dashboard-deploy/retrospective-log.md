@@ -29,3 +29,13 @@ Cost: 1 implementer spawn(s)
 task 6 closed: 0 fix round(s), outcome pass
 Evidence: task 6 · mark run-20261105-155538 7a5c0df3
 Cost: 1 implementer spawn(s)
+
+## 2026-11-05T21:27:30Z · implementation · task 7 · harness-defect
+gate env lacked a built dist/ before running this test file; building dist locally made all 23 tests green, no code change
+Evidence: task 7 · mark run-20261105-155538 f834c837
+Cost: implementer
+
+## 2026-11-05T21:31:29Z · implementation · task 7 · gotcha
+task 7 closed: 1 fix round(s), outcome pass
+Evidence: task 7 · mark run-20261105-155538 e4e43c61
+Cost: 2 implementer spawn(s)
