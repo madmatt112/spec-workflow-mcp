@@ -14,7 +14,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
   - _Requirements: 1.1, 1.3, 1.4, 1.5_
   - _Prompt: Task: Per design Component 1 and requirement 1 AC 1, AC 3 and AC 4, export `plannedRuns(reasons: string[]): 1 | 3` from `src/evals/select.ts`. It returns 1 when every reason equals `role` or `profile` or starts with `brief`, and 3 otherwise, so a reason it does not know gives 3 (design D2). Add a `describe` block to `select.test.ts` | Restrictions: Leave `selectCases`, `SelectedCase` and the reason strings as they are; add no file | Success: `plannedRuns` returns 1 for each of `['role']`, `['profile']`, `['brief source']`, `['brief test-author']` and `['brief: base render unavailable']`, and for the mix `['role', 'profile', 'brief source']`; it returns 3 for `['case']`, `['grader x']`, `['case', 'role']`, `['grader x', 'brief source']`, `['unknown']` and `['unknown', 'role']`; the existing `selectCases` tests pass unchanged (regression guard, requirement 1.5); `npx tsc --noEmit` and `npx vitest run src/evals/__tests__/select.test.ts` pass_
 
-- [ ] 2. Add the per-case run count to the runner
+- [x] 2. Add the per-case run count to the runner
   - File: src/evals/runner.ts
   - File: src/evals/__tests__/runner.test.ts
   - Test: src/evals/__tests__/runner.test.ts — `runCases(ids, { ...opts, runsByCase, step })`

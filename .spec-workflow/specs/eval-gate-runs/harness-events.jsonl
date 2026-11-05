@@ -69,3 +69,14 @@
 {"ts":"2026-11-05T01:09:10.213Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
 {"ts":"2026-11-05T01:09:26.872Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
 {"ts":"2026-11-05T01:09:26.881Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T01:09:27.030Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.pick","task":"2","title":"Add the per-case run count to the runner"}
+{"ts":"2026-11-05T01:09:27.038Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"task 2 pick head 0fc4d73046491ca8277b7cca61feeeec2a46e80d"}
+{"ts":"2026-11-05T01:09:27.086Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-test-author","role":"author task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T01:13:10.821Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-test-author","input":"26","output":"19147","cacheWrite":"86444","cacheRead":"1123898","tokens":"1229515","cacheWrite5m":"0","cacheWrite1h":"86444","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T01:13:10.821Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-test-author","role":"author task 2","result":"none","phase":"implementation","task":"2"}
+{"ts":"2026-11-05T01:13:10.851Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"task 2 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T01:13:10.851Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-implementer","role":"implement task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T01:14:12.841Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-implementer","input":"34","output":"3386","cacheWrite":"54158","cacheRead":"1139200","tokens":"1196778","cacheWrite5m":"0","cacheWrite1h":"54158","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T01:14:12.841Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
+{"ts":"2026-11-05T01:14:24.932Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: task 2 pass risk low tdd assertion-red"}
+{"ts":"2026-11-05T01:14:24.941Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
