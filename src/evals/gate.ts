@@ -3,7 +3,7 @@ import { join } from 'path';
 import { controllerHome } from '../controller/state.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
 import { runCases, type EvalCaseRecord, type RunCasesOpts } from './runner.js';
-import { selectCases } from './select.js';
+import { plannedRuns, selectCases } from './select.js';
 
 export interface RunGateOpts {
   repo: string;
@@ -15,6 +15,7 @@ export interface RunGateOpts {
   summaryFile: string;
   home?: string;
   step?: RunCasesOpts['step'];
+  onLine?: RunCasesOpts['onLine'];
 }
 
 export interface RunGateResult {
@@ -53,8 +54,11 @@ export async function runGate(opts: RunGateOpts): Promise<RunGateResult> {
   const resultsDir = join(home, 'evals', 'results');
   const before = existsSync(resultsDir) ? new Set(readdirSync(resultsDir)) : new Set<string>();
 
+  const runsByCase = new Map(selected.map((s) => [s.id, plannedRuns(s.reasons)]));
+
   const record = await runCases([...selectedIds], {
     liveCheckout: opts.repo, home, casesRoot: opts.casesRoot, step: opts.step,
+    runsByCase, onLine: opts.onLine,
   });
 
   const after = existsSync(resultsDir) ? readdirSync(resultsDir) : [];
@@ -73,7 +77,10 @@ export async function runGate(opts: RunGateOpts): Promise<RunGateResult> {
 
   const unnamedFailures = record.cases.filter((c) => c.verdict !== 'pass' && !overrideSet.has(c.id));
   if (unnamedFailures.length > 0) {
-    const parts = unnamedFailures.map((c) => `${c.id} ${firstReason(c)}`);
+    const parts = unnamedFailures.map((c) => {
+      const passed = c.runs.filter((r) => r.verdict === 'pass').length;
+      return `${c.id} ${c.verdict} ${passed}/${c.runs.length} ${firstReason(c)}`;
+    });
     writeFileSync(opts.summaryFile, `${target12}: ${parts.join('; ')}; record ${recordPath}\n`);
     return { exit: 1, record: recordPath };
   }
@@ -93,7 +100,7 @@ export async function runGate(opts: RunGateOpts): Promise<RunGateResult> {
         tags: ['eval-override'],
         supersedes: null,
         owner: 'harness',
-        body: { context: '', decision: 'override at deploy', revisitCriteria: `case ${c.id} passes 3/3` },
+        body: { context: '', decision: 'override at deploy', revisitCriteria: `case ${c.id} passes ${c.runs.length}/${c.runs.length}` },
       });
       const date = new Date().toISOString().slice(0, 10);
       await storage.update(id, {
