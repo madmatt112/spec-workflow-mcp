@@ -14,6 +14,8 @@
 #   scripts/sdd-self-update.sh --dry-run   print every step; change nothing
 #   scripts/sdd-self-update.sh --eval-override <id>  accept a failing eval case
 #                                           (repeatable); deferred, not run
+#   scripts/sdd-self-update.sh --deploy-record <path>  write stage/commit into
+#                                           <path> as it runs; dropped with --dry-run
 #
 # Environment:
 #   SDD_CHECKOUT              the live checkout (default: this script's repo root)
@@ -29,21 +31,34 @@ SMOKE_PORT="${SDD_SMOKE_PORT:-5999}"
 DRY_RUN=0
 NO_RESTART=0
 EVAL_OVERRIDES=()
+DEPLOY_RECORD=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
     --no-restart) NO_RESTART=1; shift ;;
     --eval-override)
       if [ $# -lt 2 ]; then
-        echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]..." >&2
+        echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]... [--deploy-record <path>]" >&2
         exit 2
       fi
       EVAL_OVERRIDES+=("$2")
       shift 2
       ;;
-    *) echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]..." >&2; exit 2 ;;
+    --deploy-record)
+      if [ $# -lt 2 ]; then
+        echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]... [--deploy-record <path>]" >&2
+        exit 2
+      fi
+      DEPLOY_RECORD="$2"
+      shift 2
+      ;;
+    *) echo "usage: $(basename "$0") [--dry-run] [--no-restart] [--eval-override <id>]... [--deploy-record <path>]" >&2; exit 2 ;;
   esac
 done
+
+# R2 AC7: --dry-run drops the path, so every write_stage/write_record call
+# below is a no-op for the rest of the run.
+if [ "$DRY_RUN" = 1 ]; then DEPLOY_RECORD=""; fi
 
 if [ -n "${SDD_HOME:-}" ]; then
   HOME_DIR="$SDD_HOME"
@@ -53,6 +68,33 @@ fi
 
 log()  { echo "[sdd-self-update] $*"; }
 would(){ echo "[dry-run] would: $*"; }
+
+# R2 AC5: merges the given JSON fields (comma-joined, no braces) into the
+# record at $DEPLOY_RECORD through a temp file and rename in the same
+# directory, keeping every field it does not set. A no-op when the flag is
+# absent (R2 AC8). Exits non-zero when the record is missing, so a write
+# never recreates a removed record (R2 AC5, R5 AC2). Loads only `fs`, so it
+# never depends on a module under dist/.
+write_record() { # <json-fields>
+  [ -z "${DEPLOY_RECORD:-}" ] && return 0
+  DEPLOY_RECORD_PATH="$DEPLOY_RECORD" DEPLOY_RECORD_FIELDS="{$1}" node -e '
+    const fs = require("fs");
+    const p = process.env.DEPLOY_RECORD_PATH;
+    if (!fs.existsSync(p)) { process.exit(1); }
+    const rec = JSON.parse(fs.readFileSync(p, "utf8"));
+    Object.assign(rec, JSON.parse(process.env.DEPLOY_RECORD_FIELDS));
+    const i = p.lastIndexOf("/");
+    const dir = i >= 0 ? p.slice(0, i) : ".";
+    const tmp = dir + "/.deploy." + process.pid + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(rec));
+    fs.renameSync(tmp, p);
+  '
+}
+
+write_stage() { # <stage>
+  STAGE="$1"
+  write_record "\"stage\":\"$1\""
+}
 
 TARGET_COMMIT="$(/usr/bin/git -C "$REPO" rev-parse origin/main 2>/dev/null || echo origin/main)"
 
@@ -78,6 +120,7 @@ write_error_wait() { # <step> [<detail>]
 # (a) Refuse while a step is in flight: a live controller step, or (until the
 #     bootstrap retires the pointer) any line in the legacy active-run file.
 # ---------------------------------------------------------------------------
+write_stage wait
 log "checking for in-flight runs"
 if [ -f "$HOME_DIR/active-run" ] && grep -q '[^[:space:]]' "$HOME_DIR/active-run" 2>/dev/null; then
   if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] in-flight: the legacy active-run pointer has a line (would refuse)";
@@ -178,6 +221,7 @@ if [ "$DRY_RUN" = 1 ]; then
   would "fast-forward to origin/main (or rebase store-only local commits if main has diverged)"
 else
   check_move
+  write_record "\"commit\":\"$TARGET_COMMIT\""
 fi
 
 # ---------------------------------------------------------------------------
@@ -188,6 +232,7 @@ if [ "$DRY_RUN" = 1 ]; then
   would "npm ci in $STAGING"
   would "npm run build in $STAGING"
 else
+  write_stage build
   if [ -d "$STAGING" ]; then
     log "reusing the staging worktree"
     /usr/bin/git -C "$STAGING" fetch origin
@@ -210,6 +255,7 @@ fi
 if [ "$DRY_RUN" = 1 ]; then
   would "node $STAGING/dist/index.js --dashboard --smoke --port $SMOKE_PORT (isolated SDD_HOME copy)"
 else
+  write_stage smoke
   SMOKE_HOME="$(mktemp -d)"
   cp -a "$HOME_DIR/." "$SMOKE_HOME/" 2>/dev/null || true
   log "smoke-booting the staged build on port $SMOKE_PORT"
@@ -236,6 +282,7 @@ if [ "$DRY_RUN" = 1 ]; then
     echo "[dry-run] eval selection unavailable: the live build has no eval runner"
   fi
 else
+  write_stage gate
   EVAL_CLI="$STAGING/dist/evals/cli.js"
   EVAL_SUMMARY="$(mktemp)"
   gate_args=(gate --repo "$REPO" --base "$BASE" --target "$TARGET_COMMIT" --base-dist "$REPO/dist" --summary-file "$EVAL_SUMMARY")
@@ -273,6 +320,7 @@ fi
 #     then move the live checkout to origin/main: fast-forward normally, or
 #     rebase the store-only local commits onto origin/main (see note above).
 # ---------------------------------------------------------------------------
+write_stage swap
 check_move
 if [ "$ahead" -ne 0 ] && [ "$behind" -ne 0 ]; then
   log "rebasing $ahead store-only local commit(s) onto $TARGET_COMMIT"
@@ -304,6 +352,10 @@ if [ "$NO_RESTART" = 1 ]; then
 else
   wait_no_step || { log "refusing to restart: a controller step is still in flight after 30 minutes; the new dist/ is live on the next start"; exit 1; }
   log "restarting the controller"
+  write_stage restart
+  # R2 AC6/D6: give the feed time to deliver the stage before the socket closes.
+  if [ -n "${DEPLOY_RECORD:-}" ]; then sleep 3; fi
   systemctl --user restart sdd-controller.service
 fi
+write_stage done
 log "self-update complete at $TARGET_COMMIT"
