@@ -115,6 +115,11 @@ node-20 fields.
   design/requirements text governs something else. The tasks-phase review verifies each
   cited `D` id governs the behaviour the task changes.
 
+- When an AC or a task cites more than one line in a grouped list `(:a, :b, :c)`, each
+  citation is verified against the specific phrase it follows; a drafter never carries a
+  grouped citation whose members are rotated relative to the items they annotate. The
+  adversarial review spot-checks one member of every grouped citation.
+
 ## Run ledger
 
 Only the supervisor creates or writes `/tmp/scratchpad/sdd/<spec>/event.sh`, its
