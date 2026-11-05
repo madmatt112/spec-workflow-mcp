@@ -44,3 +44,13 @@ Cost: 2 spawns
 store batch 1: 1 done of 2, 0 fix round(s)
 Evidence: batch 1 · mark run-20261104-215550 e2278e15
 Cost: 1 implementer spawn(s)
+
+## 2026-11-05T03:15:41Z · closeout · harness batch 2 · gotcha
+process — agent-rules.md still instructs harness/ edits to run scripts/sync-plugin-assets.cjs, npm run check:plugin-assets and commit plugins/, none of which exist in this repo anymore (plugin-copy model retired); a future harness implementer will chase missing scripts/checks
+Evidence: batch 2 · mark run-20261104-215550 5735f752
+Cost: implementer
+
+## 2026-11-05T03:15:51Z · closeout · harness batch 2 · cleanup
+harness batch 2: 1 done of 1, 0 fix round(s)
+Evidence: batch 2 · mark run-20261104-215550 9ad569e1
+Cost: 1 implementer spawn(s)

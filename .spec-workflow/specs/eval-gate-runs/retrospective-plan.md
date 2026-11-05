@@ -142,3 +142,5 @@ One line per proposal, written by the close-out phase.
 - G2: skipped — no change chosen
 - P5: to-do (human) — Open DECISION NEEDED — human owns the determinism-vs-cost process-track choice; no decision recorded, recommended option is no change
 - G1: done — 5876e27b40d0b28506d4f410347a2c952e49da27
+- P8: done — 833e70611cff95ce3e49695bb05dc4dcae3ff900
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/204

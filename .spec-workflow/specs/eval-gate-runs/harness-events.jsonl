@@ -159,3 +159,10 @@
 {"ts":"2026-11-05T03:10:55.112Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item G1 pass risk low"}
 {"ts":"2026-11-05T03:10:55.152Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"P5","outcome":"to-do"}
 {"ts":"2026-11-05T03:10:55.152Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"G1","outcome":"done"}
+{"ts":"2026-11-05T03:11:13.196Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.pick","task":"P8","title":"P8 (F8) — Gate A's \"Posture\" item was pre-answered n/a."}
+{"ts":"2026-11-05T03:11:13.218Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T03:15:41.062Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-implementer","input":"54","output":"20016","cacheWrite":"60759","cacheRead":"1543177","tokens":"1624006","cacheWrite5m":"0","cacheWrite1h":"60759","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T03:15:41.062Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-11-05T03:15:41.091Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-05T03:15:51.223Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-11-05T03:15:51.251Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"P8","outcome":"done"}
