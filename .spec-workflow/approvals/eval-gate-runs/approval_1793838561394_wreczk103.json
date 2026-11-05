@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793838561394_wreczk103",
+  "title": "eval-gate-runs design v1",
+  "filePath": ".spec-workflow/specs/eval-gate-runs/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-05T00:29:21.395Z",
+  "category": "spec",
+  "categoryName": "eval-gate-runs",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-05T00:29:21.607Z"
+}

@@ -163,6 +163,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-04 | controller-liveness-and-push | retrospective |  | retro-ready | 8 findings, 6 proposals |
 | 2026-11-04 | controller-liveness-and-push | closeout | items 6/6 | closed | 1 done, 0 to-do, 5 skipped |
 | 2026-11-05 | eval-gate-runs | requirements | v2 | approved | 2 rounds |
+| 2026-11-05 | eval-gate-runs | design | v1 | approved | 1 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1367,6 +1368,19 @@ Gotchas:
 | State | approved at v2 on 2026-11-05 |
 | Rounds | 2; verdicts converged |
 | Approval | `approval_1793837036469_7j49pyw9x` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
+
+
+## eval-gate-runs — design
+
+| Field | Value |
+| --- | --- |
+| State | approved at v1 on 2026-11-05 |
+| Rounds | 1; verdicts converged |
+| Approval | `approval_1793838561394_wreczk103` |
 | Rulings | none |
 | Cut scope | none |
 | Carried items | none |

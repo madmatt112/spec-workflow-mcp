@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/eval-gate-runs/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T00:29:21.452Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793838561394_wreczk103",
+      "approvalTitle": "eval-gate-runs design v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T00:29:21.603Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793838561394_wreczk103",
+      "approvalTitle": "eval-gate-runs design v1"
+    }
+  ]
+}
