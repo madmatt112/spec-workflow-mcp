@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, realpathSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { controllerHome } from '../controller/state.js';
@@ -215,7 +215,16 @@ export async function main(argv: string[], opts: MainOpts = {}): Promise<number>
 
 function resolveEntrypoint(pathValue: string | undefined): string | undefined {
   if (!pathValue) return undefined;
-  return resolve(pathValue);
+  const resolved = resolve(pathValue);
+  // Node realpath's import.meta.url, so a symlinked argv[1] must be realpath'd too
+  // or the equality below never holds (the entry would print nothing, exit 0).
+  // Fall back to the plain resolved path when it does not exist on disk (the
+  // dynamic-import test wrapper's argv[1] is not a real file).
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
 }
 
 const entrypoint = resolveEntrypoint(process.argv[1]);
