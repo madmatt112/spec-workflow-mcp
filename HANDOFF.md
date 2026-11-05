@@ -166,6 +166,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-05 | eval-gate-runs | design | v1 | approved | 1 rounds |
 | 2026-11-05 | eval-gate-runs | tasks | v2 | approved | 2 rounds |
 | 2026-11-05 | eval-gate-runs | implementation | tasks 6/6 | complete | PR #203 |
+| 2026-11-05 | eval-gate-runs | retrospective |  | retro-ready | 11 findings, 8 proposals |
 
 ## Current state — 2026-08-04
 
