@@ -655,7 +655,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     writeScript(fx, []); // no claude step is expected on this path
     scriptMergeablePR(fx, BRANCH, 'c0ffee050507');
 
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
     expect(resumed?.pauseReason).toBeUndefined();
@@ -732,7 +732,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     await controller.start();
 
     writeScript(fx, [{ ...drafterRun('requirements'), delayMs: 1200 } as StubRun]);
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -775,7 +775,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     });
 
     await controller.start();
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -814,7 +814,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     expect(held?.pauseReason).toBeUndefined();
     expect(held?.pauseRequested).toBeTruthy();
 
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('waiting');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -2312,7 +2312,7 @@ describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open d
     }, { ownsPauseRequest: true });
 
     controller = makeController(fx);
-    const result = await controller.resumeNow(id);
+    const result = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(result?.status).toBe('queued');
     expect(result?.pauseRequested).toBeUndefined();
     expect(result?.holdBy).toBeUndefined();

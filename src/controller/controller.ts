@@ -34,6 +34,7 @@ import {
 } from './runs.js';
 import {
   DeployCoordinator, systemdDeployUnit, readDeployForWireSync,
+  readDeployRecord, isDeployOpen,
   type DeployUnit, type ControllerDeploy,
 } from './deploy.js';
 
@@ -236,9 +237,16 @@ export class Controller extends EventEmitter {
       throw new Error(`enqueue: spec ${input.spec} has no directory at ${specDir}`);
     }
 
-    // Serialise the admission-and-write per spec store so two concurrent launches
-    // cannot both pass the one-run guard (design §9, §11).
-    const record = await withStoreLock(project.projectPath, async () => {
+    // Admission runs under the deploy lock (design C3, D23; requirement 4
+    // AC9): a concurrent press() either hasn't written its record yet (this
+    // call proceeds) or already has (this call waits for the lock, then
+    // refuses). Serialise the write per spec store too so two concurrent
+    // launches cannot both pass the one-run guard (design §9, §11).
+    const record = await this.deploy.withLock(() => withStoreLock(project.projectPath, async () => {
+      const openRecord = await readDeployRecord();
+      if (openRecord && isDeployOpen(openRecord)) {
+        throw new Error(`enqueue: a deploy is open (stage ${openRecord.stage})`);
+      }
       const live = (await listRuns()).filter((r) => isLive(r.status));
       if (live.some((r) => r.project === input.projectId || r.specStore === project.projectPath)) {
         throw new Error(`enqueue: a run is already live for project ${input.projectId}`);
@@ -256,7 +264,7 @@ export class Controller extends EventEmitter {
       if (!queue.runs.includes(id)) queue.runs.push(id);
       await writeQueue(queue);
       return rec;
-    });
+    }));
 
     runEvents.emit('change', record);
     void this.schedule();
@@ -283,15 +291,18 @@ export class Controller extends EventEmitter {
    * be in flight (queued, already paused, or merging at rest); elsewhere the
    * hold is pending and the driver's own stop point applies it between steps
    * or at the merge cursor. `undefined` = no such run, `null` = done/abandoned/
-   * error, else the record — unchanged (no write) when already held.
+   * error, else the record — unchanged (no write) when already held by
+   * anything but a deploy. A deploy-held run is not short-circuited: pause
+   * moves the hold to `operator` (design C3, requirement 4 AC1, AC7), so a
+   * later deploy release skips it and the hold outlives the deploy.
    */
   async pause(runId: string): Promise<RunRecord | null | undefined> {
     const run = await readRun(runId);
     if (!run) return undefined;
     if (run.status === 'done' || run.status === 'abandoned' || run.status === 'error') return null;
-    if (run.pauseRequested) return run;
+    if (run.pauseRequested && run.holdBy !== 'deploy') return run;
 
-    const patch: Partial<RunRecord> = { pauseRequested: this.now().toISOString() };
+    const patch: Partial<RunRecord> = { pauseRequested: this.now().toISOString(), holdBy: 'operator' };
     if (!this.active.has(runId) && (run.status === 'queued' || run.status === 'paused' || run.status === 'merging')) {
       patch.status = 'paused';
       patch.pauseReason = OPERATOR_PAUSE;
@@ -318,35 +329,45 @@ export class Controller extends EventEmitter {
    * this releases every run parked on it; if it is in fact still full, the
    * next step's rate-limit reading writes it back and the runs park again.
    * Any other pause drops its resume time. `undefined` = no such run, `null`
-   * = the run is not paused.
+   * = the run is not paused. Run under the deploy lock (design C3, D23;
+   * requirement 4 AC8): a run held by a deploy, or any run while a deploy
+   * record is open, gives the sentinel `'deploy-open'` and changes nothing;
+   * otherwise the held branch also clears `holdBy`.
    */
-  async resumeNow(runId: string): Promise<RunRecord | null | undefined> {
-    const run = await readRun(runId);
-    if (!run) return undefined;
+  async resumeNow(runId: string): Promise<RunRecord | null | undefined | 'deploy-open'> {
+    return this.deploy.withLock(async () => {
+      const run = await readRun(runId);
+      if (!run) return undefined;
 
-    if (run.pauseRequested) {
-      const patch: Partial<RunRecord> = run.status === 'paused'
-        ? { status: 'queued', pauseRequested: undefined, pauseReason: undefined, resumeAt: undefined }
-        : { pauseRequested: undefined };
-      const result = await this.save(run, patch, { ownsPauseRequest: true });
-      void this.schedule();
-      return result;
-    }
-
-    if (run.status !== 'paused') return null;
-    if (run.pauseReason === 'usage-window') {
-      const file = readRateLimitSync();
-      if (file) {
-        const now = this.now().toISOString();
-        const reset = (w: RateLimitWindow): RateLimitWindow =>
-          (w.utilization > this.windowThreshold ? { utilization: 0, resetsAt: now } : w);
-        await writeRateLimit({ ...file, fiveHour: reset(file.fiveHour), sevenDay: reset(file.sevenDay), updated: now });
+      const record = await readDeployRecord();
+      if (run.holdBy === 'deploy' || (record && isDeployOpen(record))) {
+        return 'deploy-open';
       }
-    } else {
-      await this.save(run, { resumeAt: undefined });
-    }
-    void this.schedule();
-    return run;
+
+      if (run.pauseRequested) {
+        const patch: Partial<RunRecord> = run.status === 'paused'
+          ? { status: 'queued', pauseRequested: undefined, pauseReason: undefined, resumeAt: undefined, holdBy: undefined }
+          : { pauseRequested: undefined, holdBy: undefined };
+        const result = await this.save(run, patch, { ownsPauseRequest: true });
+        void this.schedule();
+        return result;
+      }
+
+      if (run.status !== 'paused') return null;
+      if (run.pauseReason === 'usage-window') {
+        const file = readRateLimitSync();
+        if (file) {
+          const now = this.now().toISOString();
+          const reset = (w: RateLimitWindow): RateLimitWindow =>
+            (w.utilization > this.windowThreshold ? { utilization: 0, resetsAt: now } : w);
+          await writeRateLimit({ ...file, fiveHour: reset(file.fiveHour), sevenDay: reset(file.sevenDay), updated: now });
+        }
+      } else {
+        await this.save(run, { resumeAt: undefined });
+      }
+      void this.schedule();
+      return run;
+    });
   }
 
   async discard(runId: string): Promise<RunRecord | undefined> {
@@ -363,6 +384,10 @@ export class Controller extends EventEmitter {
    * threshold, or every slot in use.
    */
   async launchBlock(projectId: string, specStore: string): Promise<string | null> {
+    const deployRecord = await readDeployRecord();
+    if (deployRecord && isDeployOpen(deployRecord)) {
+      return `A deploy is in progress (${deployRecord.stage}); launch waits until it ends.`;
+    }
     const live = (await listRuns()).filter((r) => isLive(r.status));
     if (live.some((r) => r.project === projectId || r.specStore === specStore)) {
       return 'This store already has a queued or live run.';
