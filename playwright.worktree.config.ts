@@ -52,7 +52,12 @@ export default defineConfig({
       env: {
         ...process.env,
         SPEC_WORKFLOW_HOME,
-        XDG_STATE_HOME
+        XDG_STATE_HOME,
+        // The worktree-deploy suite seeds `deploy.json` and `run.json` directly
+        // and never presses a real deploy, but this server runs a real
+        // Controller: with the deploy coordinator live it would fail a seeded
+        // record at once, or start a real unit from a `wait` record (D27).
+        SDD_DEPLOY_DISABLED: '1'
       }
     },
     {
