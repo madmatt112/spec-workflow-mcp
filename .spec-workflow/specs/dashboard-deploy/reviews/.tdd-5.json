@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/controller.test.ts"],"seams":{"src/controller/__tests__/controller.test.ts":"controller.pump()"},"redCommit":"90d6bac0f130db29f78e2a339f99c50b37deef47","baseSha":"e08fdad177f109a9ea49e36b47e9469c3fd69366","base":"assertion-red","head":"pass","amended":true,"judged":null}

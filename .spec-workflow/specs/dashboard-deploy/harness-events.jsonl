@@ -137,3 +137,17 @@
 {"ts":"2026-11-05T19:54:24.926Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","result":"yes/4","phase":"implementation","task":"4"}
 {"ts":"2026-11-05T19:54:59.113Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 4 pass risk low tdd structural-red"}
 {"ts":"2026-11-05T19:54:59.123Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"4","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T19:54:59.278Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"5","title":"Wire the coordinator into the controller lifecycle and scheduler"}
+{"ts":"2026-11-05T19:54:59.286Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 5 pick head e08fdad177f109a9ea49e36b47e9469c3fd69366"}
+{"ts":"2026-11-05T19:54:59.342Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-test-author","role":"author task 5","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T20:15:27.395Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-test-author","input":"108","output":"109570","cacheWrite":"241126","cacheRead":"8023511","tokens":"8374315","cacheWrite5m":"0","cacheWrite1h":"241126","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T20:15:27.396Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-test-author","role":"author task 5","result":"none","phase":"implementation","task":"5"}
+{"ts":"2026-11-05T20:15:27.433Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 5 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T20:15:27.433Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement task 5","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T20:35:35.531Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"134","output":"89141","cacheWrite":"203558","cacheRead":"10218642","tokens":"10511475","cacheWrite5m":"0","cacheWrite1h":"203558","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T20:35:35.531Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 5","result":"yes/5","phase":"implementation","task":"5"}
+{"ts":"2026-11-05T20:36:38.842Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 5 pass risk high tdd assertion-red"}
+{"ts":"2026-11-05T20:36:38.861Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-verifier","role":"verify task 5","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T20:40:20.199Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-verifier","input":"34","output":"16437","cacheWrite":"114713","cacheRead":"1325347","tokens":"1456531","cacheWrite5m":"0","cacheWrite1h":"114713","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T20:40:20.199Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 5","result":"VERDICT: pass","phase":"implementation","task":"5"}
+{"ts":"2026-11-05T20:40:20.201Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"5","rounds":"0","outcome":"pass"}
