@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { controllerHome } from '../controller/state.js';
 import { runCases } from './runner.js';
-import { selectCases } from './select.js';
+import { plannedRuns, selectCases } from './select.js';
 import { runGate } from './gate.js';
 
 export interface MainOpts {
@@ -148,6 +148,10 @@ async function runRun(argv: string[], opts: MainOpts): Promise<number> {
   return record.cases.every((c) => c.verdict === 'pass') ? 0 : 1;
 }
 
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
 async function runSelect(argv: string[]): Promise<number> {
   const parsed = parseSelect(argv);
   if (!parsed) return usageError();
@@ -160,10 +164,18 @@ async function runSelect(argv: string[]): Promise<number> {
     baseDist: parsed.baseDist,
   });
 
+  let totalRuns = 0;
+  let anyProvisional = false;
   for (const s of selected) {
+    const runs = plannedRuns(s.reasons);
+    totalRuns += runs;
+    if (s.provisional) anyProvisional = true;
     const suffix = s.provisional ? ' (provisional)' : '';
-    console.log(`select ${s.id}: ${s.reasons.join(', ')}${suffix}`);
+    console.log(`select ${s.id}: ${s.reasons.join(', ')}${suffix}: ${plural(runs, 'run')}`);
   }
+
+  const totalSuffix = anyProvisional ? ' (provisional)' : '';
+  console.log(`select: ${plural(selected.length, 'case')}, ${plural(totalRuns, 'run')}${totalSuffix}`);
 
   return 0;
 }
@@ -181,6 +193,7 @@ async function runGateCommand(argv: string[], opts: MainOpts): Promise<number> {
     summaryFile: parsed.summaryFile,
     casesRoot: opts.casesRoot,
     home: opts.home,
+    onLine: (line) => console.log(line),
   });
 
   return result.exit;
