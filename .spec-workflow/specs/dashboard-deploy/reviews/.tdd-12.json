@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/deploy-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/deploy-view.test.ts":"pauseNote(run, now)"},"redCommit":"3edef4a3438bfae8c486ae518797cd7eaefd0238","baseSha":"ba6fea3d51b834a441fc293334624835ba3c9e06","base":"structural-red","head":"pass","amended":false,"judged":null}

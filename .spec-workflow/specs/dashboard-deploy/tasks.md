@@ -120,7 +120,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 4.10_
   - _Prompt: Task: Per design C8. Wire rows and the advisor guard, and D11, make the first statement of `execDeploy` read the record with the reader task 2 exports. While it is open, return `{ ok: false, outcome: 'refused', detail: <stage>, error: 'deploy-open', state: 'refused' }` and spawn nothing | Restrictions: The detached spawn stays as it is when no record is open; no rerouting through the unit (requirements Scope notes) | Success: Confirming a staged deploy with a `build` record gives `ok: false`, `error: 'deploy-open'` and `detail: 'build'`; the action lands `refused`; the stub script never runs and no `deploy.log` appears; with a `done` record and with no record the action spawns as today (regression guards); `npx tsc --noEmit` and `npx vitest run src/advisor/__tests__/actions.test.ts` pass_
 
-- [ ] 12. Add the frontend's pure deploy helpers
+- [x] 12. Add the frontend's pure deploy helpers
   - File: src/dashboard_frontend/src/modules/shell/deploy.ts
   - File: src/dashboard_frontend/src/modules/shell/pause.ts
   - File: src/dashboard_frontend/src/modules/shell/types.ts
