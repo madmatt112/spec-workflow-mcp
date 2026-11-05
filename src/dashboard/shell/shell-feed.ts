@@ -20,6 +20,8 @@ import { listRunsForWire } from '../../controller/runs.js';
 import { listActivityForWire } from '../../controller/activity.js';
 import { listActions } from '../../advisor/actions.js';
 import type { StagedAction } from '../../advisor/actions.js';
+import { readDeployForWireSync } from '../../controller/deploy.js';
+import type { ControllerDeploy } from '../../controller/deploy.js';
 import type {
   ShellMessage, SpecListRow, ControllerWait, ControllerRun, ControllerActivity,
 } from './types.js';
@@ -80,11 +82,12 @@ export class ShellFeed {
    * and the Specs-row builder once per `.spec-workflow` store, over that store's
    * representative project (a group whose rows throw is left out and logged
    * once), read the controller waits, runs, latest-per-run
-   * activity and the advisor's staged actions, keep the sextet and send
-   * `shell-now`, `shell-specs`, `controller-waits`, `controller-runs`,
-   * `controller-activity` then `controller-actions`. The controller topics
-   * ride the same broadcast path as the other shell topics (T4/T6/T10;
-   * controller-design.md §7, §4; design C8).
+   * activity, the advisor's staged actions and the deploy record, keep the
+   * septet and send `shell-now`, `shell-specs`, `controller-waits`,
+   * `controller-runs`, `controller-activity`, `controller-actions` then
+   * `controller-deploy`. The controller topics ride the same broadcast path
+   * as the other shell topics (T4/T6/T10; controller-design.md §7, §4;
+   * design C8).
    */
   private flush = async (): Promise<void> => {
     this.timer = undefined;
@@ -143,6 +146,7 @@ export class ShellFeed {
     );
 
     if (this.closed) return;
+    const deploy = readDeployForWireSync();
     const messages: ShellMessage[] = [
       { type: 'shell-now', data: nowModel },
       { type: 'shell-specs', data: { rows } },
@@ -150,8 +154,21 @@ export class ShellFeed {
       { type: 'controller-runs', data: { runs } },
       { type: 'controller-activity', data: { activity } },
       { type: 'controller-actions', data: { actions } },
+      { type: 'controller-deploy', data: { deploy } },
     ];
     this.last = messages;
     for (const m of messages) this.send(m);
   };
+
+  /**
+   * Send `controller-deploy` for `deploy` at once, outside the flush/throttle
+   * cycle, and replace that message in `last` so `snapshot()` holds the new
+   * value in place (design D18). A no-op once closed.
+   */
+  pushDeploy(deploy: ControllerDeploy | null): void {
+    if (this.closed) return;
+    const message: ShellMessage = { type: 'controller-deploy', data: { deploy } };
+    this.last = this.last.map((m) => (m.type === 'controller-deploy' ? message : m));
+    this.send(message);
+  }
 }

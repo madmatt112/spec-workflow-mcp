@@ -6,6 +6,7 @@
 // the frontend.
 import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
+import type { ControllerDeploy } from '../../controller/deploy.js';
 
 export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
 
@@ -211,6 +212,8 @@ export interface ControllerRun {
   driven: boolean;
   /** The run's last heartbeat (design C3), when it has one. */
   lastActivity?: string;
+  /** Who is holding the run paused, when it is (design C8); undefined when not held. */
+  holdBy?: 'operator' | 'deploy';
 }
 
 /**
@@ -233,4 +236,5 @@ export type ShellMessage =
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
-  | { type: 'controller-actions'; data: { actions: StagedAction[] } };
+  | { type: 'controller-actions'; data: { actions: StagedAction[] } }
+  | { type: 'controller-deploy'; data: { deploy: ControllerDeploy | null } };

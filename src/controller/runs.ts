@@ -1446,6 +1446,8 @@ export interface ControllerRunRow {
   driven: boolean;
   /** The run's last heartbeat (design C3), when it has one. */
   lastActivity?: string;
+  /** Who is holding the run paused, when it is (design C8); undefined when not held. */
+  holdBy?: 'operator' | 'deploy';
 }
 
 function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
@@ -1458,6 +1460,7 @@ function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
     prReads: run.prReads,
     driven: driven.has(run.id),
     lastActivity: run.lastActivity,
+    holdBy: run.holdBy,
   };
 }
 

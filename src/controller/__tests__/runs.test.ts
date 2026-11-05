@@ -611,7 +611,7 @@ describe('listRunsForWire', () => {
   //   result: the row's holdBy equals 'deploy'. Expected-value source: the
   //   literal 'deploy' value seeded into the record.
   it('carries holdBy on the row for a run held by a deploy', async () => {
-    await writeRun(seedRun(fx, { holdBy: 'deploy', pauseRequested: '2026-10-11T00:00:00.000Z' }));
+    await writeRun(seedRun(fx, { holdBy: 'deploy', pauseRequested: '2026-10-11T00:00:00.000Z' }), { ownsPauseRequest: true });
 
     const rows = await listRunsForWire();
     const row = rows.find((r) => r.id === 'run-20261011-000000');
