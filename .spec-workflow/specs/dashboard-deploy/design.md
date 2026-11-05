@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds a deploy coordinator to the controller, a `--deploy-record` mode to `scripts/sdd-self-update.sh`, a `holdBy` field on the run record, two routes, one shell-feed message and one self-contained dashboard control. The coordinator lives inside the `Controller` and the script runs outside the service cgroup in a transient user unit, so the restart cannot kill it. It reuses the operator hold (`pauseRequested`), the per-run write chain, the feed's broadcast path and the script's existing checks.
+This design adds a deploy coordinator to the controller, a `--deploy-record` mode to `scripts/sdd-self-update.sh`, a `holdBy` field on the run record, two routes, one shell-feed message and one dashboard control. The coordinator lives inside the `Controller`; the script runs outside the service cgroup in a transient user unit, so the restart cannot kill it.
 
 ## Steering Document Alignment
 
@@ -10,7 +10,7 @@ This design adds a deploy coordinator to the controller, a `--deploy-record` mod
 N/A: `.spec-workflow/steering/` holds no `tech.md`; the design follows `.spec-workflow/agent-rules.md`.
 
 ### Project Structure (structure.md)
-N/A: no `structure.md`; new modules sit beside their peers (`src/controller/`, `src/dashboard_frontend/src/modules/shell/`) and tests in the adjacent `__tests__/`.
+N/A: no `structure.md`; new modules sit beside their peers and tests in the adjacent `__tests__/`.
 
 ### Design System (design-system.md) — if applicable
 N/A: no `design-system.md`; the control uses the existing `Button` and tone classes as `OpenAdvisorButton` does (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:104-138`).
@@ -68,13 +68,13 @@ Decision numbers continue from the requirements, whose decisions end at D12.
 | any other open record, unit `gone` | write `failed`, release (R3 AC3) |
 | any other open record, unit `unknown` | nothing; the tick decides |
 
-- **Release (R3 AC6).** For every run listed with `holdBy: 'deploy'`, `updateRun` re-checks `holdBy` inside the chain and clears it and `pauseRequested`. A run `paused` with `pauseReason: 'operator'` goes to `queued` with `pauseReason` and `resumeAt` cleared, as in `src/controller/controller.ts:278-281`. Any other run keeps its status. A `waiting` run then goes through `deps.resumeIfAnswered`, and `deps.schedule()` runs. A repeat finds no run.
+- **Release (R3 AC6).** For every run listed with `holdBy: 'deploy'`, `updateRun` re-checks `holdBy` inside the chain, clears it and `pauseRequested`, and emits `runEvents` `change` for it (parity with press step 6). A run `paused` with `pauseReason: 'operator'` goes to `queued` with `pauseReason` and `resumeAt` cleared, as in `src/controller/controller.ts:278-281`. Any other run keeps its status. A `waiting` run then goes through `deps.resumeIfAnswered`, and `deps.schedule()` runs. A repeat finds no run.
 - **`cancel` (R5), one hold of the lock:**
   1. Re-read. No record gives 404. Stage `swap`, `restart`, `done` or `failed` gives 409 `deploy-past-swap`.
   2. Claim: `fs.mkdir` on the claim path, not recursive. `EEXIST` gives 409 `deploy-past-swap`, because the script has claimed the swap (D15).
   3. If `unitStarted` is true or `unit.state()` is `live`: `unit.stop()`, then poll `unit.state()` until `gone`, for at most 30 seconds. Past that, answer 500 `deploy-stop-failed` and keep the record and the claim; the tick fails the record once the unit is gone.
   4. Release, remove the record, remove the claim, emit `change` with `null`, answer 200.
-- **Failed-record writes** keep the other fields. The `error` texts carry no absolute path:
+- **Failed and `done` writes** keep the record's other fields, `commit` included. The failed `error` texts carry no absolute path:
   - `wait: a live step outlasted the 5-hour limit`
   - `wait: systemd-run could not start the unit (exit N)`; the raw stderr goes to `console.error` only, because it can name a path (probe below).
   - `<stage>: unit sdd-deploy.service is not live`, with the `swap`/`restart` suffix from C4 at those stages.
@@ -112,7 +112,7 @@ Decision numbers continue from the requirements, whose decisions end at D12.
 - **Stage calls (R2 AC1):** `wait` before `scripts/sdd-self-update.sh:81`, `build` before `scripts/sdd-self-update.sh:191`, `smoke` before `scripts/sdd-self-update.sh:213`, `gate` before `scripts/sdd-self-update.sh:239`, `swap` after the claim and before `scripts/sdd-self-update.sh:276`, `restart` between `scripts/sdd-self-update.sh:305` and `scripts/sdd-self-update.sh:307`, `done` after `scripts/sdd-self-update.sh:308`.
 - **`commit` (R2 AC2):** written after `check_move` at `scripts/sdd-self-update.sh:180`.
 - **No-op refusal (R2 AC4):** at the same point, with the flag set and `behind` equal to 0: `log "refusing: nothing to deploy; the checkout is at origin/main"; exit 1`. The second `check_move` at `scripts/sdd-self-update.sh:276` does not repeat it.
-- **Claim (D15):** with the flag, immediately before `write_stage swap`: `mkdir "$DEPLOY_RECORD.claim"`. On failure: `log "refusing: a cancel holds the deploy; nothing moved"; exit 1`. After this `mkdir` a cancel cannot claim and sends no stop, so no cancel's SIGTERM reaches the checkout move or the `dist/` swap.
+- **Claim (D15):** with the flag, immediately before `write_stage swap`: `mkdir "$DEPLOY_RECORD.claim"`. On failure: `log "refusing: a cancel holds the deploy; nothing moved"; exit 1`. After this `mkdir` no cancel sends a stop, so no SIGTERM reaches the checkout move or the `dist/` swap.
 - **Failure capture (R2 AC3):** `log` (`scripts/sdd-self-update.sh:54`) also stores its text in `LAST_LOG`. With the flag: `trap 'exit 143' TERM` and an EXIT trap. When the exit code is non-zero the EXIT trap writes `stage: 'failed'` and `error`, and ignores a write failure.
   - Every refusal logs before it exits, so the existing `exit 1` sites stay as they are (R2 AC9).
   - `error` is `<STAGE>: <text>`. `<text>` is `FAIL_NOTE` when set, else `LAST_LOG`, with ` (exit N)` added when `LAST_LOG` is not a refusal.
@@ -172,7 +172,7 @@ export function systemdDeployUnit(): DeployUnit;
 ### C8. Wire rows and the advisor guard
 
 - `ControllerRunRow`, `toRow` (`src/controller/runs.ts:1428-1462`), server `ControllerRun` (`src/dashboard/shell/types.ts:194-214`) and the hand copy (`src/dashboard_frontend/src/modules/shell/types.ts:215-237`) gain `holdBy?: 'operator' | 'deploy'` (R4 AC12).
-- `execDeploy` (`src/advisor/actions.ts:362-384`): first statement reads the record. While open it returns `{ ok: false, outcome: 'refused', detail: <stage>, error: 'deploy-open' }`, spawning nothing (R4 AC10). The confirm route already returns the result body (`src/dashboard/multi-server.ts:789-794`).
+- `execDeploy` (`src/advisor/actions.ts:362-384`): first statement reads the record. While open it returns `{ ok: false, outcome: 'refused', detail: <stage>, error: 'deploy-open', state: 'refused' }`, spawning nothing (R4 AC10). The confirm route already returns the result body (`src/dashboard/multi-server.ts:789-794`).
 
 ### C9. Dashboard control
 
@@ -181,7 +181,7 @@ export function systemdDeployUnit(): DeployUnit;
 - **`src/dashboard_frontend/src/modules/shell/RunsPage.tsx`:** the `Resume now` branch gains `run.holdBy !== 'deploy'` (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:341`). `held` is false for such a run, so `Resume` hides and Pause stays (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:332-354`).
 - **`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx`:** adds `controllerDeploy: ControllerDeploy | null`, subscribes to `controller-deploy` (`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx:76-121`), and runs one effect calling `setRetryCap(deployRetryCap(stage))`.
 - **`src/dashboard_frontend/src/modules/shell/types.ts`:** hand copy of `ControllerDeploy` and the `ShellMessage` member (`src/dashboard_frontend/src/modules/shell/types.ts:268-274`).
-- **`DeployControl.tsx` (new):** no props; reads only `useShell()` (R6 AC10). `src/dashboard_frontend/src/modules/shell/NowPage.tsx:286` renders it beside `OpenAdvisorButton`, the only Now page change.
+- **`DeployControl.tsx` (new):** no props; reads only `useShell()` (R6 AC10). `src/dashboard_frontend/src/modules/shell/NowPage.tsx:286` renders it beside `OpenAdvisorButton`.
   - No open record: `Deploy` (test id `deploy-button`) swaps to an inline confirm, as `confirmDiscard` does (`src/dashboard_frontend/src/modules/shell/RunsPage.tsx:358-366`), stating the count and that the restart ends the advisor. The POST goes only from `deploy-confirm` (R6 AC1).
   - Open record: `Deploy` disabled with visible `Deploying: <stage>` (R6 AC3).
   - Record present: `deploy-strip` shows the seven stages, the current one with `aria-current="step"` (R6 AC2).
@@ -220,14 +220,14 @@ type ControllerDeploy = Omit<DeployRecord, 'v' | 'unitStarted'>;  // wire form
 
 Failure texts are in C1 and C4.
 
-1. **Press with a record open or a unit live:** 409 `deploy-open`; the page shows the stage.
+1. **Press, record open or unit live:** 409 `deploy-open` with the stage.
 2. **`systemd-run` fails, or a live step outlasts 5 hours:** `failed` naming `wait`, holds released (R1 AC6, AC7).
-3. **Script refusal or failure:** `failed` from the EXIT trap, the tick releases, the script's error wait stays (scenario 3).
+3. **Script refusal or failure:** `failed` from the EXIT trap, the tick releases, the error wait stays (scenario 3).
 4. **Unit killed by hand:** no trap ran; the tick or the next start writes `failed` and releases (scenario 6).
-5. **Cancel loses the claim race:** 409 `deploy-past-swap`, even if the record still reads `gate` for the instant before the script's `swap` write.
+5. **Cancel loses the claim race:** 409 `deploy-past-swap`, even if the record still reads `gate` before the `swap` write.
 6. **Cancel cannot stop the unit:** 500 `deploy-stop-failed`; the script cannot pass the claim.
-7. **`systemctl` unreadable:** `unknown`; the tick tries again.
-8. **Controller dies mid-cancel:** after the claim, the script refuses at the claim and the tick releases; after the stop, the TERM trap left `failed` and `onStart` releases.
+7. **`systemctl` unreadable:** `unknown`; the tick retries.
+8. **Controller dies mid-cancel:** after the claim the script refuses and the tick releases; after the stop the TERM trap left `failed` and `onStart` releases.
 9. **Record removed by hand while holds remain:** the tick releases them (D24).
 
 ## Testing Strategy
@@ -251,24 +251,24 @@ Script tests assert only exit codes and file contents, and `EEXIST` is read thro
 
 ## Decisions taken in this document
 
-- D13 — Unit name and how a second press finds it: a fixed name, a per-press name stored in the record, or a pid file; chosen fixed because systemd then refuses a duplicate and a press or restart needs no stored state.
-- D14 — Time limit on the controller's wait: 30 minutes, 2 hours, 5 hours, or none; chosen 5 hours because no step has a timeout, 1 percent of the 202 ledgered spawns ran over 259 minutes, and the operator can cancel throughout. The script's 30 minutes stays; the holds leave it only stragglers.
-- D15 — How a cancel and the swap exclude each other: a one-shot atomic claim, ignoring the signal from the swap on, or a blocking file lock; chosen the claim because after it no stop is sent, so nothing has to survive one, and a crash leaves no waiter.
-- D16 — The tick while a cancel holds the deploy lock: skip, or wait; chosen skip because a wait stalls the scheduler for as long as the stop takes.
-- D17 — What counts as quiet: live steps, or live steps and active drives; chosen both, because a drive between its stop check and its step, or in a merge, has no live step and would trip the script's first refusal.
-- D18 — How a stage reaches the page: arm the throttled feed, or send the one message at once; chosen at once because tick plus throttle already uses the two seconds.
-- D19 — A press that finds a finished record and a live unit: refuse, or replace; chosen refuse because the new unit could not start under the same name.
-- D20 — Open verification deferrals on the strip: add, or leave out; chosen leave out because the strip reads only the record and the Deferrals page lists them.
-- D21 — Order on start: finish the deploy before crash recovery, or after; chosen before, so recovery sees released runs and an answered wait resumes on the normal path.
-- D22 — How holds are written: read-then-save, or an update inside the per-run write chain; chosen the chain because a stale write could revert a driver's park.
-- D23 — Resume and launch against a press: read the record outside the lock, or take it; chosen take it, because otherwise a run can slip past the hold list.
-- D24 — Deploy holds with no record: leave, or release on the tick; chosen release because Resume refuses such a run and nothing else frees it.
-- D25 — Script failure text: the last log line after the stage name, or an edit at every refusal site; chosen the log line because it leaves the checks the entry keeps untouched. Error-wait failures use a fixed note, since the eval summary can hold a path.
-- D26 — Proof of the live scenarios: an evidence file after a hand deploy, or a suite test on real systemd; chosen the file because a suite must never restart the operator's service.
+- D13 — Unit name and how a second press finds it: chosen a fixed name because systemd then refuses a duplicate and a press or restart needs no stored state.
+- D14 — Time limit on the controller's wait: chosen 5 hours because no step has a timeout, 1 percent of the 202 ledgered spawns ran over 259 minutes, and the operator can cancel throughout. The script's 30 minutes stays; the holds leave it only stragglers.
+- D15 — How a cancel and the swap exclude each other: chosen a one-shot atomic claim because after it no stop is sent, so nothing has to survive one, and a crash leaves no waiter.
+- D16 — The tick while a cancel holds the deploy lock: chosen skip because a wait stalls the scheduler for as long as the stop takes.
+- D17 — What counts as quiet: chosen live steps and active drives, because a drive between its stop check and its step, or in a merge, has no live step and would trip the script's first refusal.
+- D18 — How a stage reaches the page: chosen sending the one message at once because tick plus throttle already uses the two seconds.
+- D19 — A press that finds a finished record and a live unit: chosen refuse because the new unit could not start under the same name.
+- D20 — Open verification deferrals on the strip: chosen leave out because the strip reads only the record and the Deferrals page lists them.
+- D21 — Order on start: chosen finish the deploy before crash recovery, so recovery sees released runs and an answered wait resumes on the normal path.
+- D22 — How holds are written: chosen an update inside the per-run write chain because a stale read-then-save could revert a driver's park.
+- D23 — Resume and launch against a press: chosen take the lock because otherwise a run can slip past the hold list.
+- D24 — Deploy holds with no record: chosen release on the tick because Resume refuses such a run and nothing else frees it.
+- D25 — Script failure text: chosen the last log line after the stage name because it leaves the checks the entry keeps untouched. Error-wait failures use a fixed note, since the eval summary can hold a path.
+- D26 — Proof of the live scenarios: chosen an evidence file after a hand deploy because a suite must never restart the operator's service.
 
 ## Scope notes
 
-The requirements' "left to the design" list is answered by D13, D14, D16 and D20. Nothing was carried from the requirements phase.
+The requirements' "left to the design" list is answered by D13, D14, D16 and D20.
 
 Cut: the deferrals line on the strip, which the entry poses as a question (D20).
 
@@ -280,5 +280,10 @@ Departures from a requirement's literal:
 
 ## Revision History
 
+- **v2** (2026-11-05) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/2/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** Release now emits a runEvents change per cleared run, as press step 6 does, so a released row refreshes at once, not at the 30 s feed tick (C1 Release).
+  - **R1-2 — Accepted (SHOULD_FIX).** The failed and done writes now both keep the record's other fields, commit included, so the reconnect done strip keeps commit (C1, Failed and done writes).
+  - **R1-M1 — Rejected (MINOR).** R4 AC9 is met by launchBlock's deploy-specific refusal and the 409; the run-live discriminant on the enqueue-race fallback is cosmetic and reworking it would widen scope.
+  - **R1-M2 — Accepted (MINOR).** execDeploy's refusal return adds state refused, as execMerge does, so the action lands refused not failed (C8).
 - **v1** (2026-11-05) — Initial draft.
   - **Lint pass.** 32 citation-bare fixed; every other bare `:N` path-qualified; L-68/L-69 `./`-prefixed; L-47/L-48 resolved by the qualified ranges. Rejected L-1–L-7, L-21–L-22, L-24–L-25, L-39–L-42, L-49–L-50, L-52–L-67, L-70–L-72 (citation-identifier: symbols/values/keywords absent from the cited range).
