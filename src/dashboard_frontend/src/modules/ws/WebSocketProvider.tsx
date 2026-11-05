@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { ViewMessage } from '../harness/types';
+import { retryDelayFor } from './retry-delay';
 
 /** A page's live view: the per-project harness pane, or the global overview. */
 export type WatchView =
@@ -16,6 +17,8 @@ type WsContextType = {
   retryNow: () => void;
   subscribe: (eventType: string, handler: MessageHandler) => void;
   unsubscribe: (eventType: string, handler: MessageHandler) => void;
+  /** Cap the reconnect delay at `ms` (null removes the cap); design C10, C9. */
+  setRetryCap: (ms: number | null) => void;
   /**
    * Subscribe the socket to a view for as long as at least one caller holds it.
    * The first caller sends the subscribe message; the returned release function,
@@ -54,6 +57,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const eventHandlersRef = useRef<Map<string, Set<MessageHandler>>>(new Map());
   const retryTimerRef = useRef<any>(null);
   const retryDelayRef = useRef(INITIAL_RETRY_DELAY);
+  // Set by ShellProvider from the deploy stage; null outside swap/restart.
+  const retryCapRef = useRef<number | null>(null);
   // Reference count per view key; the descriptor is kept so onopen can re-subscribe.
   const viewsRef = useRef<Map<string, { view: WatchView; count: number }>>(new Map());
 
@@ -93,11 +98,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     // deploy) closes with 1001 "going away", and the page must come back by itself.
     ws.onclose = () => {
       setConnected(false);
-      setNextRetryAt(Date.now() + retryDelayRef.current);
+      const delay = retryDelayFor(retryDelayRef.current, retryCapRef.current);
+      setNextRetryAt(Date.now() + delay);
 
       retryTimerRef.current = setTimeout(() => {
         connect();
-      }, retryDelayRef.current);
+      }, delay);
 
       // Exponential backoff for next retry
       retryDelayRef.current = Math.min(retryDelayRef.current * 1.5, MAX_RETRY_DELAY);
@@ -186,14 +192,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     connect();
   }, [connect]);
 
+  const setRetryCap = useCallback((ms: number | null) => {
+    retryCapRef.current = ms;
+  }, []);
+
   const value = useMemo(() => ({
     connected,
     nextRetryAt,
     retryNow,
     subscribe,
     unsubscribe,
+    setRetryCap,
     watchView
-  }), [connected, nextRetryAt, retryNow, subscribe, unsubscribe, watchView]);
+  }), [connected, nextRetryAt, retryNow, subscribe, unsubscribe, setRetryCap, watchView]);
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }

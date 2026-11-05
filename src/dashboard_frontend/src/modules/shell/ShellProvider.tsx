@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useWs } from '../ws/WebSocketProvider';
 import { useProjects } from '../projects/ProjectProvider';
-import type { NowModel, SpecListRow, ControllerWait, ControllerRun, ControllerActivity, StagedAction } from './types';
+import { deployRetryCap } from './deploy';
+import type { NowModel, SpecListRow, ControllerWait, ControllerRun, ControllerActivity, StagedAction, ControllerDeploy } from './types';
 
 export type Density = 'comfortable' | 'compact';
 
@@ -26,6 +27,7 @@ interface ShellContextType {
   controllerRuns: ControllerRun[];
   controllerActivity: ControllerActivity[];
   controllerActions: StagedAction[];
+  controllerDeploy: ControllerDeploy | null;
   deferralsByProject: Record<string, DeferralsPayload>;
   connected: boolean;
   density: Density;
@@ -56,7 +58,7 @@ function readDensity(): Density {
 }
 
 export function ShellProvider({ children }: { children: React.ReactNode }) {
-  const { connected, subscribe, unsubscribe, watchView } = useWs();
+  const { connected, subscribe, unsubscribe, watchView, setRetryCap } = useWs();
   const { projects } = useProjects();
   const [now, setNow] = useState<NowModel | null>(null);
   const [specRows, setSpecRows] = useState<SpecListRow[]>([]);
@@ -64,6 +66,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [controllerRuns, setControllerRuns] = useState<ControllerRun[]>([]);
   const [controllerActivity, setControllerActivity] = useState<ControllerActivity[]>([]);
   const [controllerActions, setControllerActions] = useState<StagedAction[]>([]);
+  const [controllerDeploy, setControllerDeploy] = useState<ControllerDeploy | null>(null);
   const [deferralsByProject, setDeferralsByProject] = useState<Record<string, DeferralsPayload>>({});
   const [density, setDensityState] = useState<Density>(() => readDensity());
 
@@ -97,6 +100,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       setControllerActivity(data?.activity ?? []);
     const onControllerActions = (data: { actions: StagedAction[] }) =>
       setControllerActions(data?.actions ?? []);
+    const onControllerDeploy = (data: { deploy: ControllerDeploy | null }) =>
+      setControllerDeploy(data?.deploy ?? null);
     const onDeferrals = (data: DeferralsPayload, projectId?: string) => {
       if (projectId) setDeferralsByProject((prev) => ({ ...prev, [projectId]: data }));
     };
@@ -106,6 +111,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     subscribe('controller-runs', onControllerRuns);
     subscribe('controller-activity', onControllerActivity);
     subscribe('controller-actions', onControllerActions);
+    subscribe('controller-deploy', onControllerDeploy);
     subscribe('deferrals-update', onDeferrals);
     const release = watchView({ kind: 'overview' });
     return () => {
@@ -116,9 +122,16 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       unsubscribe('controller-runs', onControllerRuns);
       unsubscribe('controller-activity', onControllerActivity);
       unsubscribe('controller-actions', onControllerActions);
+      unsubscribe('controller-deploy', onControllerDeploy);
       unsubscribe('deferrals-update', onDeferrals);
     };
   }, [subscribe, unsubscribe, watchView]);
+
+  // Cap the reconnect delay while the record is at swap or restart (design
+  // C9/C10; Requirement 6 AC8), so a client reconnects within 10 seconds.
+  useEffect(() => {
+    setRetryCap(deployRetryCap(controllerDeploy?.stage));
+  }, [controllerDeploy, setRetryCap]);
 
   // Fetch the per-project deferrals payloads; `deferrals-update` replaces them.
   const projectKey = projects.map((p) => p.projectId).sort().join(',');
@@ -154,11 +167,12 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     controllerRuns,
     controllerActivity,
     controllerActions,
+    controllerDeploy,
     deferralsByProject,
     connected,
     density,
     setDensity
-  }), [now, specRows, controllerWaits, controllerRuns, controllerActivity, controllerActions, deferralsByProject, connected, density, setDensity]);
+  }), [now, specRows, controllerWaits, controllerRuns, controllerActivity, controllerActions, controllerDeploy, deferralsByProject, connected, density, setDensity]);
 
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }

@@ -338,7 +338,7 @@ function ControllerRunPanel({ run, projectName, now, onOpenRun, onGone }: {
           >
             {busy === 'resume' ? 'Resuming…' : 'Resume'}
           </Button>
-        ) : run.status === 'paused' && (
+        ) : run.status === 'paused' && run.holdBy !== 'deploy' && (
           <Button
             variant="secondary"
             onClick={resume}

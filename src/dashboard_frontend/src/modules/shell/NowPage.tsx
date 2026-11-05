@@ -8,6 +8,7 @@ import { formatDate } from '../../lib/dateUtils';
 import type { Wait, ControllerWait, ControllerRun, StagedAction } from './types';
 import { pauseNote, pauseNoteClass } from './pause';
 import { Button, Pill, ui } from '../ui/ui';
+import { DeployControl } from './DeployControl';
 
 const KIND_LABELS: Record<string, string> = {
   gate: 'Gate', ruling: 'Ruling', retro: 'Retro', exited: 'Exited', quiet: 'Quiet',
@@ -284,6 +285,7 @@ export function NowPage() {
   const list = (
     <div>
       <OpenAdvisorButton />
+      <DeployControl />
 
       <Group name="now-actions" title={'Staged by the advisor'} count={controllerActions.length}>
         {controllerActions.length === 0 ? (
