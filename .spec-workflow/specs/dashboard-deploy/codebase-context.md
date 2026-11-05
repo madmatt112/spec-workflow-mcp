@@ -148,3 +148,23 @@
 - src/controller/__tests__/pause-request.test.ts:58-59 — pauseRequested carry-over tests
 - src/dashboard/__tests__/controller-dashboard-routes.test.ts:91-91 — server under test
 - e2e/worktree-shell.spec.ts:417-444 — seeded run.json pattern
+
+## Tasks additions: routing and config
+- src/controller/phases/implementation.ts:266-272 — isWiringTask: file and title patterns that route a verifier
+- tsconfig.json:4-5 — module and moduleResolution node16; a relative import needs a file suffix
+- playwright.worktree.config.ts:52-56 — env of the worktree suite's dashboard server
+- src/dashboard/__tests__/frontend-style-scan.test.ts:9-13 — frontend read as text, kept outside tsc
+
+## Tasks additions: tests
+- src/controller/__tests__/pause-request.test.ts:37-56 — base record and temp SDD_HOME pattern
+- src/controller/__tests__/controller.test.ts:98 — setup fixture
+- src/controller/__tests__/controller.test.ts:166 — makeController
+- src/controller/__tests__/controller.test.ts:829-856 — pause on unknown, done and already-held runs
+- src/controller/__tests__/runs.test.ts:506 — listRunsForWire tests
+- src/controller/__tests__/liveness-e2e.test.ts:63-80 — streaming stub step
+- src/controller/__tests__/liveness-e2e.test.ts:128-164 — real-controller fixture
+- src/__tests__/service-scripts.test.ts:353-382 — full script run on the stage seams
+- src/__tests__/service-scripts.test.ts:493-502 — stub dist/controller/waits.js
+- src/dashboard/__tests__/controller-dashboard-routes.test.ts:89-106 — startServer and auth
+- src/dashboard/__tests__/shell-routes.test.ts:313-322 — overview subscriber pattern
+- src/advisor/__tests__/actions.test.ts:747-760 — deploy executor tests
