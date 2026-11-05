@@ -3,7 +3,7 @@ import { execFileSync } from 'child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { selectCases } from '../select.js';
+import { plannedRuns, selectCases } from '../select.js';
 
 // Design Component 7 (src/evals/select.ts, design.md:98-107), Requirement 3 ACs 1 and 6
 // (requirements.md:51, requirements.md:56): selectCases(opts) chooses the eval cases a
@@ -376,5 +376,140 @@ describe('selectCases(opts)', () => {
     expect(demo?.reasons).toEqual(['brief: base render unavailable']);
 
     cleanup(dir);
+  });
+});
+
+// Design Component 1 (design.md:34-44), Requirement 1 ACs 1, 3 and 4 (requirements.md:19,
+// requirements.md:21-22): plannedRuns(reasons) is a pure function beside the reason strings
+// selectCases builds. It returns 1 when every reason equals `role` or `profile`
+// (design.md:38, src/evals/select.ts:188, src/evals/select.ts:190) or starts with `brief`
+// (design.md:38, covering `brief <template>` at src/evals/select.ts:153, `brief source` at
+// src/evals/select.ts:200, and `brief: base render unavailable` at src/evals/select.ts:131).
+// It returns 3 in every other case, including a `case` or `grader <name>` reason
+// (design.md:39, src/evals/select.ts:184, src/evals/select.ts:194) and a reason it does not
+// know (design.md:39, D2, requirements.md:21). Each test calls plannedRuns directly with a
+// fixed reasons array; no fixture or repository is needed because the function is pure.
+describe('plannedRuns(reasons)', () => {
+  // Pre-condition: none; plannedRuns is a pure function of its argument.
+  // Test: plannedRuns(['role']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "equals
+  // `role` or `profile` ... (`src/evals/select.ts:188-190`)"); requirements.md R1 AC1
+  // (requirements.md:19, "reasons are all `role` ... THEN the gate SHALL run that case
+  // exactly 1 time").
+  it('returns 1 for a role-only reason', () => {
+    expect(plannedRuns(['role'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['profile']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "equals
+  // `role` or `profile`"); requirements.md R1 AC1 (requirements.md:19, "`profile`
+  // (`src/evals/select.ts:190`) ... THEN ... run that case exactly 1 time").
+  it('returns 1 for a profile-only reason', () => {
+    expect(plannedRuns(['profile'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['brief source']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "starts
+  // with `brief`. That prefix covers all three brief forms"); requirements.md R1 AC1
+  // (requirements.md:19, "`brief source` (`src/evals/select.ts:200`)").
+  it('returns 1 for a brief-source-only reason', () => {
+    expect(plannedRuns(['brief source'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['brief test-author']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "starts
+  // with `brief`"); requirements.md R1 AC1 (requirements.md:19, "`brief <template>`
+  // (`src/evals/select.ts:153`)").
+  it('returns 1 for a brief-template-only reason', () => {
+    expect(plannedRuns(['brief test-author'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['brief: base render unavailable']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "starts
+  // with `brief`"); requirements.md R1 AC1 (requirements.md:19, "`brief: base render
+  // unavailable` (`src/evals/select.ts:131`)").
+  it('returns 1 for a base-render-unavailable-only reason', () => {
+    expect(plannedRuns(['brief: base render unavailable'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['role', 'profile', 'brief source']).
+  // Observable result: returns 1.
+  // Expected-value source: design.md Component 1 post-condition 1 (design.md:38, "It returns
+  // 1 when every reason is indirect"); requirements.md R1 AC1 (requirements.md:19, "reasons
+  // are all `role` ... `profile` ... or brief reasons THEN ... run that case exactly 1
+  // time").
+  it('returns 1 for a mix of role, profile and brief-source reasons', () => {
+    expect(plannedRuns(['role', 'profile', 'brief source'])).toBe(1);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['case']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "a `case`
+  // ... reason gives 3"); requirements.md R1 AC3 (requirements.md:21, "a `case` reason
+  // (`src/evals/select.ts:184`) ... THEN the gate SHALL run that case 3 times").
+  it('returns 3 for a case-only reason', () => {
+    expect(plannedRuns(['case'])).toBe(3);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['grader x']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "a ...
+  // `grader <name>` reason gives 3"); requirements.md R1 AC3 (requirements.md:21, "a `grader
+  // <name>` reason ... THEN the gate SHALL run that case 3 times").
+  it('returns 3 for a grader-only reason', () => {
+    expect(plannedRuns(['grader x'])).toBe(3);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['case', 'role']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "alone or
+  // with other reasons"); requirements.md R1 AC3 (requirements.md:21, "alone or with any
+  // other reason, THEN the gate SHALL run that case 3 times").
+  it('returns 3 for a case reason mixed with role', () => {
+    expect(plannedRuns(['case', 'role'])).toBe(3);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['grader x', 'brief source']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "alone or
+  // with other reasons"); requirements.md R1 AC3 (requirements.md:21, "a `grader <name>`
+  // reason, alone or with any other reason, THEN the gate SHALL run that case 3 times").
+  it('returns 3 for a grader reason mixed with brief source', () => {
+    expect(plannedRuns(['grader x', 'brief source'])).toBe(3);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['unknown']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "a reason
+  // this function does not know also gives 3 (D2)"); design.md D2 (design.md:148, "a reason
+  // the rule does not know gives 3 runs ... it never silently weakens the gate").
+  it('returns 3 for a reason the rule does not know', () => {
+    expect(plannedRuns(['unknown'])).toBe(3);
+  });
+
+  // Pre-condition: none.
+  // Test: plannedRuns(['unknown', 'role']).
+  // Observable result: returns 3.
+  // Expected-value source: design.md Component 1 post-condition 2 (design.md:39, "a reason
+  // this function does not know also gives 3"); design.md D2 (design.md:148), read together
+  // with post-condition 2's "In every other case" so one unknown reason outweighs an
+  // otherwise-indirect reason in the same list.
+  it('returns 3 for an unknown reason mixed with role', () => {
+    expect(plannedRuns(['unknown', 'role'])).toBe(3);
   });
 });
