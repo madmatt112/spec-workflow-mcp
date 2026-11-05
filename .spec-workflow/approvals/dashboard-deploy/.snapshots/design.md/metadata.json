@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-deploy/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-05T18:22:42.319Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793902962272_l2dr3vs3r",
+      "approvalTitle": "dashboard-deploy design v3"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-05T18:22:42.450Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793902962272_l2dr3vs3r",
+      "approvalTitle": "dashboard-deploy design v3"
+    }
+  ]
+}

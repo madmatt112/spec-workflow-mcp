@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793902962272_l2dr3vs3r",
+  "title": "dashboard-deploy design v3",
+  "filePath": ".spec-workflow/specs/dashboard-deploy/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-05T18:22:42.272Z",
+  "category": "spec",
+  "categoryName": "dashboard-deploy",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-05T18:22:42.454Z"
+}
