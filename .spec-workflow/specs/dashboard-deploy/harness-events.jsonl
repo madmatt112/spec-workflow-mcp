@@ -104,3 +104,14 @@
 {"ts":"2026-11-05T19:04:19.187Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
 {"ts":"2026-11-05T19:04:35.891Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
 {"ts":"2026-11-05T19:04:35.910Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T19:04:36.189Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"2","title":"Add the deploy record and the transient unit seam"}
+{"ts":"2026-11-05T19:04:36.206Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 2 pick head 66e18f4db8e6c50ee45c51b1e033d4e4e34048d0"}
+{"ts":"2026-11-05T19:04:36.287Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-test-author","role":"author task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T19:09:42.849Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-test-author","input":"64","output":"27811","cacheWrite":"101190","cacheRead":"2924694","tokens":"3053759","cacheWrite5m":"0","cacheWrite1h":"101190","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T19:09:42.849Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-test-author","role":"author task 2","result":"none","phase":"implementation","task":"2"}
+{"ts":"2026-11-05T19:09:42.891Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 2 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T19:09:42.891Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T19:13:33.575Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"62","output":"16184","cacheWrite":"84799","cacheRead":"2623391","tokens":"2724436","cacheWrite5m":"0","cacheWrite1h":"84799","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T19:13:33.575Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
+{"ts":"2026-11-05T19:14:00.784Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 2 pass risk low tdd structural-red"}
+{"ts":"2026-11-05T19:14:00.797Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
