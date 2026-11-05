@@ -282,6 +282,7 @@ Departures from a requirement's literal:
 
 - **v3** (2026-11-05) — SHOULD_FIX-only corrective pass.
   - **R2-1 — Accepted (SHOULD_FIX).** Release now clears the holds through updateRun, then emits one runEvents change itself, matching press step 6 where the coordinator, not the state-layer primitive, emits (C1 Release).
+  - **Lint pass.** 0 fixed; rejected: L-1–L-56 (citation-identifier false positives, unchanged since the v2 rejection — rule 11 suppresses them; every cited range re-verified sound, each flagged token a design name, literal union value, keyword or existing symbol whose citation anchors a verified adjacent claim).
 - **v2** (2026-11-05) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/2/2).
   - **R1-1 — Accepted (SHOULD_FIX).** Release now emits a runEvents change per cleared run, as press step 6 does, so a released row refreshes at once, not at the 30 s feed tick (C1 Release).
   - **R1-2 — Accepted (SHOULD_FIX).** The failed and done writes now both keep the record's other fields, commit included, so the reconnect done strip keeps commit (C1, Failed and done writes).
