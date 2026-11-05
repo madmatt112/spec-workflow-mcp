@@ -91,3 +91,17 @@
 {"ts":"2026-11-05T01:23:02.721Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 3","result":"yes/3","phase":"implementation","task":"3"}
 {"ts":"2026-11-05T01:23:20.404Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: task 3 pass risk low tdd assertion-red"}
 {"ts":"2026-11-05T01:23:20.414Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"3","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-05T01:23:20.566Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.pick","task":"4","title":"Print the gate's case lines and the planned counts from the CLI"}
+{"ts":"2026-11-05T01:23:20.574Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"task 4 pick head 81241d9e1c9e26084b2a4cb551f1647bc7b6a3b0"}
+{"ts":"2026-11-05T01:23:20.620Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-test-author","role":"author task 4","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T01:29:37.389Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-test-author","input":"56","output":"33960","cacheWrite":"105515","cacheRead":"2584777","tokens":"2724308","cacheWrite5m":"0","cacheWrite1h":"105515","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T01:29:37.389Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-test-author","role":"author task 4","result":"none","phase":"implementation","task":"4"}
+{"ts":"2026-11-05T01:29:37.420Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"task 4 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T01:29:37.420Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-implementer","role":"implement task 4","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T01:31:08.004Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-implementer","input":"32","output":"5294","cacheWrite":"68462","cacheRead":"1245896","tokens":"1319684","cacheWrite5m":"0","cacheWrite1h":"68462","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T01:31:08.004Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 4","result":"yes/4","phase":"implementation","task":"4"}
+{"ts":"2026-11-05T01:31:40.351Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"note","text":"gate: task 4 pass risk low tdd assertion-red"}
+{"ts":"2026-11-05T01:31:40.363Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.start","agent":"sdd-verifier","role":"verify task 4","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-05T01:33:26.040Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.end","agent":"sdd-verifier","input":"16","output":"8044","cacheWrite":"105350","cacheRead":"392483","tokens":"505893","cacheWrite5m":"0","cacheWrite1h":"105350","model":"claude-opus-4-8"}
+{"ts":"2026-11-05T01:33:26.040Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 4","result":"VERDICT: pass","phase":"implementation","task":"4"}
+{"ts":"2026-11-05T01:33:26.041Z","run":"run-20261104-215550","spec":"eval-gate-runs","type":"task.done","task":"4","rounds":"0","outcome":"pass"}

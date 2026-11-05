@@ -1,0 +1,1 @@
+{"testFiles":["src/evals/__tests__/cli.test.ts"],"seams":{"src/evals/__tests__/cli.test.ts":"main(argv, opts)"},"redCommit":"1d406b075fa15bdc762344f8325e3bd7e3a574ae","baseSha":"81241d9e1c9e26084b2a4cb551f1647bc7b6a3b0","base":"assertion-red","head":"pass","amended":false,"judged":null}
