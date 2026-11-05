@@ -24,7 +24,7 @@ Dependency order: 1 → 2 → 3 → 4 → 5 → 6. Tasks 1 and 2 add the rule an
   - _Requirements: 1.6, 1.7, 2.3, 2.4, 3.3, 3.4_
   - _Prompt: Task: Per design Component 2, add the optional `runsByCase?: ReadonlyMap<string, number>` to `RunCasesOpts` (`src/evals/runner.ts:42-49`). Resolve the count per case inside the loop at `src/evals/runner.ts:160`: the map's value, else `opts.runs ?? 3`, replacing the single value at `src/evals/runner.ts:144`. Change the doc comment at `src/evals/runner.ts:137-140` so it no longer says 3 times. Use a stub `step` of the shape at `src/evals/__tests__/runner.test.ts:378-394` | Restrictions: `runCases` keeps its signature; leave the verdict rule (`src/evals/runner.ts:246-250`), the run loop that continues after a failed run, the case line and `v: 1` as they are | Success: One call with a map of 3 for one case and 1 for another gives records with 3 and 1 `runs` entries, and `onLine` lines holding `pass 3/3` and `pass 1/1`; a case absent from the map takes `runs` when `runs` is set; a case absent from the map with no `runs` takes 3; the record keeps `v: 1` (regression guard, requirement 3.4); `src/evals/__tests__/runner.test.ts:200` and the `runs: 1` tests pass unchanged (regression guards, requirements 1.6 and 1.7); `npx tsc --noEmit` and `npx vitest run src/evals/__tests__/runner.test.ts` pass_
 
-- [ ] 3. Apply the rule in the gate and state real counts
+- [x] 3. Apply the rule in the gate and state real counts
   - File: src/evals/gate.ts
   - File: src/evals/__tests__/gate.test.ts
   - Test: src/evals/__tests__/gate.test.ts — `runGate(opts)`
