@@ -8,9 +8,10 @@ import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { loadOrCreateSecret } from '../../controller/access.js';
-import { writeRun, readRun, type RunRecord, writeRateLimit } from '../../controller/state.js';
+import { writeRun, readRun, writeJsonAtomic, type RunRecord, writeRateLimit } from '../../controller/state.js';
 import { stepLogDir } from '../../controller/runs.js';
 import { createWait, DRIVE_CRASH_QUESTION } from '../../controller/waits.js';
+import { deployRecordPath, readDeployRecord, type DeployUnit, type UnitState } from '../../controller/deploy.js';
 
 const STUB_CLAUDE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'scripts', 'stub-claude.mjs');
 
@@ -86,15 +87,32 @@ describe('controller dashboard routes (T10)', () => {
     await fsp.rm(tempDir, { recursive: true, force: true });
   });
 
-  async function startServer(): Promise<string> {
+  // `unit` (task 9): every test that presses or cancels a deploy passes a
+  // fake `DeployUnit` here, so the live controller's own 1-second tick can
+  // never shell out to a real `systemd-run`/`systemctl`.
+  async function startServer(unit?: DeployUnit): Promise<string> {
     port = await getFreePort();
-    server = new MultiProjectDashboardServer({ port });
+    server = new MultiProjectDashboardServer({ port, ...(unit ? { deployUnit: unit } : {}) });
     await server.start();
     // Controller routes require the shared secret even for a loopback GET
     // (access control, controller-design.md §17).
     secret = await loadOrCreateSecret();
     _resetMultiServerWarningsForTests();
     return `http://127.0.0.1:${port}`;
+  }
+
+  // A stateful fake unit (task 9 Restrictions): `live` starts at `initialLive`
+  // and only changes on `start`/`stop`, so a record left at a non-`wait`
+  // stage never looks unit-gone to the controller's own tick while a test is
+  // mid-flight (design C1 "tick": a non-`wait` stage with the unit gone is
+  // written `failed` at once).
+  function fakeDeployUnit(initialLive = false): DeployUnit {
+    let live = initialLive;
+    return {
+      async start() { live = true; },
+      async state(): Promise<UnitState> { return live ? 'live' : 'gone'; },
+      async stop() { live = false; },
+    };
   }
 
   // Add the shared secret as a bearer header for the /api/controller/ routes.
@@ -525,6 +543,204 @@ describe('controller dashboard routes (T10)', () => {
       const base = await startServer();
       const res = await realFetch(`${base}/api/controller/runs/anything/redrive`, { method: 'POST' });
       expect(res.status).toBe(401);
+    });
+  });
+
+  // Contract for task 9 (design C6; Requirements 1.1, 1.8, 1.9, 3.8, 4.8,
+  // 5.1, 5.3, NFR Security). Per success criterion in the task 9 _Prompt.
+  // Every test that presses or cancels passes a fake `DeployUnit` through
+  // `startServer`, so no test can start a real `systemd-run`.
+  describe('POST /api/controller/deploy and /api/controller/deploy/cancel — task 9', () => {
+    // Pre: no open record. Call: fetch POST .../deploy. Result: 202
+    // { ok: true } and `deploy.json` written with stage 'wait'. Source:
+    // design C6 "202 { ok: true }"; controller `pressDeploy` -> coordinator
+    // `press`; Requirement 1 AC 1.
+    it('a press with no open record answers 202 ok and writes deploy.json', async () => {
+      const base = await startServer(fakeDeployUnit());
+
+      const res = await realFetch(`${base}/api/controller/deploy`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(202);
+      expect(await res.json()).toEqual({ ok: true });
+      const record = await readDeployRecord();
+      expect(record?.stage).toBe('wait');
+    });
+
+    // Pre: a record already open at 'wait' from a first press. Call: a
+    // second fetch POST .../deploy. Result: 409 { error: 'deploy-open',
+    // stage: 'wait' }. Source: design C6 "409 { error: 'deploy-open',
+    // stage }"; Requirement 1 AC 8.
+    it('a press with an open record answers 409 deploy-open with the stage', async () => {
+      const base = await startServer(fakeDeployUnit());
+
+      const first = await realFetch(`${base}/api/controller/deploy`, auth({ method: 'POST' }));
+      expect(first.status).toBe(202);
+
+      const second = await realFetch(`${base}/api/controller/deploy`, auth({ method: 'POST' }));
+
+      expect(second.status).toBe(409);
+      expect(await second.json()).toEqual({ error: 'deploy-open', stage: 'wait' });
+    });
+
+    // Pre: no open record. Call: two concurrent fetch POSTs .../deploy.
+    // Result: exactly one 202 and one 409 deploy-open. Source: design C6
+    // routes over the coordinator's one lock; Requirement 1 AC 9.
+    it('two presses together give one 202 and one 409 deploy-open', async () => {
+      const base = await startServer(fakeDeployUnit());
+
+      const [a, b] = await Promise.all([
+        realFetch(`${base}/api/controller/deploy`, auth({ method: 'POST' })),
+        realFetch(`${base}/api/controller/deploy`, auth({ method: 'POST' })),
+      ]);
+
+      expect([a.status, b.status].sort()).toEqual([202, 409]);
+      const open = a.status === 409 ? a : b;
+      expect(await open.json()).toEqual({ error: 'deploy-open', stage: 'wait' });
+    });
+
+    // Pre: a record written directly at stage 'build', `unitStarted: false`,
+    // with a fake unit left `live` so the controller's own tick never marks
+    // it `failed` first. Call: fetch POST .../deploy/cancel. Result: 200
+    // { ok: true } and the record removed. Source: design C6 "200
+    // { ok: true }"; coordinator `cancel`'s stop path (the fake unit's
+    // `live` state makes `shouldStop` true; `stop` then takes it gone, so no
+    // 500 and the record removal proceeds); Requirement 5 AC 1.
+    it('a cancel at build answers 200 ok and removes the record', async () => {
+      const unit = fakeDeployUnit(true);
+      const base = await startServer(unit);
+      await writeJsonAtomic(deployRecordPath(), {
+        v: 1, stage: 'build', runs: [], started: new Date().toISOString(), unitStarted: false,
+      });
+
+      const res = await realFetch(`${base}/api/controller/deploy/cancel`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+      expect(await readDeployRecord()).toBeUndefined();
+    });
+
+    // Pre: no record. Call: fetch POST .../deploy/cancel. Result: 404
+    // { error: 'no-deploy' }. Source: design C6 "404 { error: 'no-deploy' }";
+    // coordinator `cancel`'s `{ status: 404 }" mapped by the route;
+    // Requirement 5 AC 3 ("no record exists").
+    it('a cancel with no record answers 404 no-deploy', async () => {
+      const base = await startServer(fakeDeployUnit());
+
+      const res = await realFetch(`${base}/api/controller/deploy/cancel`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'no-deploy' });
+    });
+
+    // Pre: a record written directly at stage 'swap', with a fake unit left
+    // `live` so the tick never touches it. Call: fetch POST
+    // .../deploy/cancel. Result: 409 { error: 'deploy-past-swap',
+    // stage: 'swap' }, record unchanged. Source: design C6 "409
+    // { error: 'deploy-past-swap', stage }"; Requirement 5 AC 3.
+    it('a cancel at swap answers 409 deploy-past-swap with the stage, changing nothing', async () => {
+      const base = await startServer(fakeDeployUnit(true));
+      await writeJsonAtomic(deployRecordPath(), {
+        v: 1, stage: 'swap', runs: [], started: new Date().toISOString(),
+      });
+
+      const res = await realFetch(`${base}/api/controller/deploy/cancel`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'deploy-past-swap', stage: 'swap' });
+      expect((await readDeployRecord())?.stage).toBe('swap');
+    });
+
+    // Pre: the server's controller stubbed so `cancelDeploy` resolves the
+    // stop-timeout outcome without the real 30-second wait. Call: fetch POST
+    // .../deploy/cancel. Result: 500 { error: 'deploy-stop-failed' }.
+    // Source: design C6 "500 { error: 'deploy-stop-failed' }"; task 9
+    // Restrictions ("the 500 case stubs the controller's cancel on the test
+    // server, because the real limit is 30 seconds").
+    it('a stubbed stop failure answers 500 deploy-stop-failed', async () => {
+      const base = await startServer(fakeDeployUnit());
+      (server as any).controller.cancelDeploy = async () => ({ status: 500, error: 'deploy-stop-failed' });
+
+      const res = await realFetch(`${base}/api/controller/deploy/cancel`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ error: 'deploy-stop-failed' });
+    });
+
+    // Pre: a run written directly to disk, after the server started, with
+    // `holdBy: 'deploy'` and `pauseRequested` set. Call: fetch POST
+    // .../runs/:id/resume. Result: 409 { error: 'deploy-open' }, run
+    // unchanged. Source: task 9 _Prompt ("Map the sentinel task 6 adds to
+    // 409 { error: 'deploy-open' } in the resume route"); controller
+    // `resumeNow` already answers the `'deploy-open'` sentinel for a
+    // deploy-held run (`src/controller/controller.ts:343-345`); Requirement
+    // 4 AC 8.
+    it('a resume on a deploy-held run answers 409 deploy-open and changes nothing', async () => {
+      const base = await startServer(fakeDeployUnit());
+      const iso = '2026-11-05T10:00:00.000Z';
+      const run: RunRecord = {
+        v: 1, id: 'run-deploy-held', project: 'proj-1', codeRoot: '/c', specStore: '/s', spec: 's',
+        worktree: '/w', branch: 'feat/x', status: 'queued', holdBy: 'deploy', pauseRequested: iso,
+        created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(run, { ownsPauseRequest: true });
+      const before = await readRun(run.id);
+
+      const res = await realFetch(`${base}/api/controller/runs/${run.id}/resume`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'deploy-open' });
+      expect(await readRun(run.id)).toEqual(before);
+    });
+
+    // Regression guard (task 9 Note): the global `onRequest` access-control
+    // hook already 401s any mutating `/api/controller/` request with no
+    // bearer, for any path under that prefix, whether or not a handler is
+    // registered for it; holds at base.
+    it('(regression guard) both new deploy routes answer 401 with no bearer', async () => {
+      const base = await startServer();
+
+      const pressNoAuth = await realFetch(`${base}/api/controller/deploy`, { method: 'POST' });
+      expect(pressNoAuth.status).toBe(401);
+
+      const cancelNoAuth = await realFetch(`${base}/api/controller/deploy/cancel`, { method: 'POST' });
+      expect(cancelNoAuth.status).toBe(401);
+    });
+
+    // Pre: a record written directly at stage 'restart', before the server
+    // starts. Call: construct the server with `smoke: true` and `start()`
+    // it. Result: the record is still at `restart` after start (the
+    // controller never ran its deploy `onStart`, which would otherwise move
+    // a `restart`/`done` record to `done`). Source: design C3
+    // "`deployDisabled`, `start()` skips `onStart`"; task 9 _Prompt ("The
+    // disabled option is true when `smoke` is set"); Requirement 3 AC 8.
+    it('a server with smoke: true leaves a seeded restart record at restart after start', async () => {
+      await writeJsonAtomic(deployRecordPath(), {
+        v: 1, stage: 'restart', runs: [], started: new Date().toISOString(),
+      });
+      port = await getFreePort();
+      server = new MultiProjectDashboardServer({ port, smoke: true, deployUnit: fakeDeployUnit() });
+
+      await server.start();
+
+      expect((await readDeployRecord())?.stage).toBe('restart');
+    });
+
+    // Pre: a record written directly at stage 'restart', before the server
+    // starts, and `SDD_DEPLOY_DISABLED=1` in the environment. Call:
+    // construct the server with no `smoke` option and `start()` it. Result:
+    // the record is still at `restart` after start. Source: task 9 _Prompt
+    // ("or `process.env.SDD_DEPLOY_DISABLED` is `1`"); Requirement 3 AC 8.
+    it('a server with SDD_DEPLOY_DISABLED=1 leaves a seeded restart record at restart after start', async () => {
+      process.env.SDD_DEPLOY_DISABLED = '1';
+      await writeJsonAtomic(deployRecordPath(), {
+        v: 1, stage: 'restart', runs: [], started: new Date().toISOString(),
+      });
+      port = await getFreePort();
+      server = new MultiProjectDashboardServer({ port, deployUnit: fakeDeployUnit() });
+
+      await server.start();
+
+      expect((await readDeployRecord())?.stage).toBe('restart');
     });
   });
 });
