@@ -10,6 +10,7 @@ import { eventsPath, advisorActionsDir } from '../home.js';
 import { createWait } from '../../controller/waits.js';
 import { readWait, controllerHome, writeRun, listWaits, type RunRecord } from '../../controller/state.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
+import { deployRecordPath, type DeployStage } from '../../controller/deploy.js';
 
 // Contract for src/advisor/actions.ts (design.md C8; requirements.md
 // Requirement 6 AC 1, AC 2, AC 3, AC 5, AC 8, AC 10). Each test runs
@@ -136,6 +137,13 @@ const STUB_GH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 
 
 function tmp(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
+}
+
+/** Writes a deploy record to controllerHome()/deploy.json, standing in for
+ * the record a real deploy press (task 1/2) would leave on disk. */
+async function writeDeployRecord(stage: DeployStage): Promise<void> {
+  const record = { v: 1, stage, runs: [], started: new Date().toISOString() };
+  await fs.writeFile(deployRecordPath(), JSON.stringify(record), 'utf-8');
 }
 
 /** Write a gh stub script and point CONTROLLER_GH_BIN/STUB_GH_SCRIPT at it. */
@@ -832,6 +840,118 @@ describe('src/advisor/actions.ts', () => {
       expect(actionRows[0].outcome).toBe('spawn-failed');
       expect(typeof actionRows[0].detail).toBe('string');
       expect(actionRows[0].detail.length).toBeGreaterThan(0);
+    });
+
+    // Requirement 4 AC 10 ("WHILE a record is open THEN confirming an
+    // advisor-staged `deploy` action SHALL fail with `deploy-open` and spawn
+    // nothing", src/advisor/actions.ts:362-384) and design C8's execDeploy
+    // bullet ("first statement reads the record. While open it returns {ok:
+    // false, outcome: 'refused', detail: <stage>, error: 'deploy-open',
+    // state: 'refused'}, spawning nothing"). Pre-condition: a deploy record
+    // on disk at stage 'build'; CONTROLLER_HARNESS_REPO points at a scratch
+    // checkout whose scripts/sdd-self-update.sh is the same detached stub as
+    // the first test above, so a wrongly-run spawn would still be observable.
+    // Test: confirmAction(id, deps). Observable result: confirm returns
+    // {ok: false, error: 'deploy-open'}; the stored action lands state
+    // 'refused' with outcome.detail ['refused', 'build']; no
+    // advisor/actions/<id>/deploy.log is ever created, proving the stub
+    // never ran; one advisor.action row with outcome 'refused' and detail
+    // 'build'. Expected value source: R4 AC10 and design C8's execDeploy
+    // bullet, both quoted above.
+    it('refuses a staged deploy while a build record is open, spawning nothing', async () => {
+      const checkout = tmp('sdd-advisor-deploy-open-checkout-');
+      mkdirSync(join(checkout, 'scripts'), { recursive: true });
+      const stubScript = join(checkout, 'scripts', 'sdd-self-update.sh');
+      writeFileSync(stubScript, '#!/bin/bash\nsleep 0.1\necho "DEPLOY_STUB_OK"\n');
+      chmodSync(stubScript, 0o755);
+      process.env.CONTROLLER_HARNESS_REPO = checkout;
+
+      await writeDeployRecord('build');
+
+      const staged = await stageAction({
+        kind: 'deploy',
+        target: {},
+        params: {},
+        reason: 'ship the merged PR',
+        conversation: 'conv-deploy-open',
+      });
+
+      const result = await confirmAction(staged.id, noProjectDeps);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe('deploy-open');
+
+      const refused = (await listActions()).find((a) => a.id === staged.id);
+      expect(refused?.state).toBe('refused');
+      expect(refused?.outcome?.detail).toEqual(['refused', 'build']);
+
+      // Give a wrongly-run spawn a moment to land before proving it did not.
+      await new Promise((r) => setTimeout(r, 150));
+      const logPath = join(advisorActionsDir(), staged.id, 'deploy.log');
+      expect(existsSync(logPath)).toBe(false);
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].kind).toBe('deploy');
+      expect(actionRows[0].outcome).toBe('refused');
+      expect(actionRows[0].detail).toBe('build');
+    });
+
+    // Task 11 Success line, regression-guard sub-case ("...with a `done`
+    // record...the action spawns as today"): a closed record must not block
+    // the spawn (design C8's execDeploy bullet gates only "while open", and
+    // isDeployOpen(record) is false at 'done' — src/controller/deploy.ts:47).
+    // Pre-condition: a deploy record on disk at stage 'done';
+    // CONTROLLER_HARNESS_REPO as the detached-stub checkout the first test
+    // above uses. Test: confirmAction(id, deps), timed. Observable result:
+    // confirm returns {ok: true}, in well under the stub's 500ms sleep
+    // (detached, not awaited); deploy.log eventually (polled) contains the
+    // stub's marker line; one advisor.action row with outcome 'started'.
+    // Expected value source: the task's Success line, quoted above. This
+    // branch is RED-IMPOSSIBLE at base: execDeploy today reads no record at
+    // all, so a 'done' record already has no effect on the spawn; written
+    // fresh here because no existing assertion names this branch (retro
+    // P10) — the "no record" sibling sub-case keeps the first test above
+    // unchanged instead.
+    it('spawns sdd-self-update.sh when the deploy record is already done', async () => {
+      const checkout = tmp('sdd-advisor-deploy-done-checkout-');
+      mkdirSync(join(checkout, 'scripts'), { recursive: true });
+      const stubScript = join(checkout, 'scripts', 'sdd-self-update.sh');
+      writeFileSync(stubScript, '#!/bin/bash\nsleep 0.5\necho "DEPLOY_STUB_OK"\n');
+      chmodSync(stubScript, 0o755);
+      process.env.CONTROLLER_HARNESS_REPO = checkout;
+
+      await writeDeployRecord('done');
+
+      const staged = await stageAction({
+        kind: 'deploy',
+        target: {},
+        params: {},
+        reason: 'ship the merged PR',
+        conversation: 'conv-deploy-done',
+      });
+
+      const startedAt = Date.now();
+      const result = await confirmAction(staged.id, noProjectDeps);
+      const elapsedMs = Date.now() - startedAt;
+
+      expect(result.ok).toBe(true);
+      expect(elapsedMs).toBeLessThan(400); // did not wait for the stub's 500ms sleep: detached
+
+      const logPath = join(advisorActionsDir(), staged.id, 'deploy.log');
+      let logged = '';
+      for (let i = 0; i < 40 && !logged.includes('DEPLOY_STUB_OK'); i++) {
+        await new Promise((r) => setTimeout(r, 50));
+        if (existsSync(logPath)) logged = readFileSync(logPath, 'utf-8');
+      }
+      expect(logged).toContain('DEPLOY_STUB_OK');
+
+      const rows = await readEventRows();
+      const actionRows = rows.filter((r) => r.type === 'advisor.action');
+      expect(actionRows).toHaveLength(1);
+      expect(actionRows[0].kind).toBe('deploy');
+      expect(actionRows[0].outcome).toBe('started');
     });
   });
 

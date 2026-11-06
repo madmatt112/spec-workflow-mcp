@@ -15,6 +15,8 @@ import { waitEvents } from '../../controller/waits.js';
 import { runEvents } from '../../controller/runs.js';
 import { activityEvents } from '../../controller/activity.js';
 import { actionEvents } from '../../advisor/actions.js';
+import { deployEvents } from '../../controller/deploy.js';
+import type { ControllerDeploy } from '../../controller/deploy.js';
 import type { HarnessMessage } from './types.js';
 import type { ShellMessage } from '../shell/types.js';
 
@@ -50,6 +52,7 @@ export class HarnessHub {
     runEvents.on('change', this.onSourceChange);
     activityEvents.on('activity', this.onSourceChange);
     actionEvents.on('change', this.onSourceChange);
+    deployEvents.on('change', this.onDeployChange);
   }
 
   /**
@@ -145,6 +148,7 @@ export class HarnessHub {
     runEvents.removeListener('change', this.onSourceChange);
     activityEvents.removeListener('activity', this.onSourceChange);
     actionEvents.removeListener('change', this.onSourceChange);
+    deployEvents.removeListener('change', this.onDeployChange);
     for (const watch of this.projectWatches.values()) watch.close();
     this.projectWatches.clear();
     this.overviewWatch?.close();
@@ -163,5 +167,10 @@ export class HarnessHub {
   // T4/T6/T10; design C8); the overview watch owns its own file triggers.
   private onSourceChange = (): void => {
     this.shellFeed?.schedule();
+  };
+
+  /** A deploy record change pushes `controller-deploy` at once (C7, D18, NFR Performance). */
+  private onDeployChange = (deploy: ControllerDeploy | null): void => {
+    this.shellFeed?.pushDeploy(deploy);
   };
 }

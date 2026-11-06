@@ -44,6 +44,7 @@ import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit, readWait } from '../controller/state.js';
 import { installAccessControl, loadOrCreateSecret, loadOrCreateAdvisorSecret, secretPath } from '../controller/access.js';
+import type { DeployUnit } from '../controller/deploy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,6 +74,10 @@ export interface MultiDashboardOptions {
   allowExternalAccess?: boolean; // Explicit opt-in for non-localhost binding
   security?: Partial<SecurityConfig>; // Security features configuration
   harness?: { cli?: string; stopGraceMs?: number; pollMs?: number }; // Harness launcher options (C7)
+  /** The e2e smoke boot (design C3): disables the deploy coordinator's onStart/tick. */
+  smoke?: boolean;
+  /** The deploy unit seam (C5); tests pass a fake unit so no real `systemd-run` starts. */
+  deployUnit?: DeployUnit;
 }
 
 /** The launch route's launchability check (controller-tasks.md T6): the setup view's routed spec, if any, must equal the one asked for. */
@@ -191,6 +196,8 @@ export class MultiProjectDashboardServer {
         return { worktree: dir, branch: `feat/${spec}` };
       },
       claudeBin: () => process.env.CONTROLLER_CLAUDE_BIN ?? options.harness?.cli ?? 'claude',
+      deployUnit: options.deployUnit,
+      deployDisabled: Boolean(options.smoke) || process.env.SDD_DEPLOY_DISABLED === '1',
     });
 
     // Initialize network binding configuration
@@ -834,6 +841,7 @@ export class MultiProjectDashboardServer {
       const { id } = request.params as { id: string };
       const run = await this.controller.resumeNow(id);
       if (run === undefined) return reply.code(404).send({ error: 'run-not-found' });
+      if (run === 'deploy-open') return reply.code(409).send({ error: 'deploy-open' });
       if (run === null) return reply.code(409).send({ error: 'not-paused' });
       return { ok: true };
     });
@@ -869,6 +877,24 @@ export class MultiProjectDashboardServer {
     // The latest five-hour and seven-day usage windows, or null (§9; the Usage page).
     this.app.get('/api/controller/rate-limit', async () => {
       return (await readRateLimit()) ?? null;
+    });
+
+    // Press a self-update deploy, and cancel one before it swaps dist/ in
+    // (design C6; controller-tasks.md T9).
+    this.app.post('/api/controller/deploy', async (request, reply) => {
+      const result = await this.controller.pressDeploy();
+      if (!result.ok) return reply.code(409).send({ error: result.error, stage: result.stage });
+      return reply.code(202).send({ ok: true });
+    });
+
+    this.app.post('/api/controller/deploy/cancel', async (request, reply) => {
+      const result = await this.controller.cancelDeploy();
+      if (result.status === 200) return { ok: true };
+      if (result.status === 404) return reply.code(404).send({ error: 'no-deploy' });
+      if (result.status === 409) {
+        return reply.code(409).send({ error: result.error, stage: this.controller.deployRecord()?.stage });
+      }
+      return reply.code(500).send({ error: result.error });
     });
   }
 

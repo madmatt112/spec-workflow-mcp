@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { readRun, writeRun, readRunSync, controllerHome, type RunRecord } from '../state.js';
+import { readRun, writeRun, readRunSync, updateRun, controllerHome, type RunRecord } from '../state.js';
 
 // Contract for the durable hold (design C1; requirements 2.5, 2.7, 3.5, 5.1, NFR
 // Reliability). Each test runs against a fresh temp SDD_HOME, as paused-at.test.ts
@@ -34,7 +34,10 @@ import { readRun, writeRun, readRunSync, controllerHome, type RunRecord } from '
 
 const RUN_ID = 'run-pause-request';
 
-function base(status: RunRecord['status'], extra: { pauseRequested?: string } = {}): RunRecord {
+function base(
+  status: RunRecord['status'],
+  extra: { pauseRequested?: string; holdBy?: 'operator' | 'deploy' } = {},
+): RunRecord {
   return {
     v: 1, id: RUN_ID, project: 'p', codeRoot: '/c', specStore: '/s', spec: 's',
     worktree: '/w', branch: 'b', status, created: '2026-10-01T00:00:00.000Z',
@@ -112,5 +115,152 @@ describe('readRunSync', () => {
     writeFileSync(join(dir, 'run.json'), '{not valid json', 'utf-8');
 
     expect(readRunSync('bad-run')).toBeUndefined();
+  });
+});
+
+// Contract for the hold owner and updateRun (design C2, D22; requirements 4.1,
+// 4.2). Per success criterion:
+//
+// - A normal write (no `ownsPauseRequest`) over an on-disk `holdBy` keeps it.
+//   Pre: a run held via an owned write with `holdBy: 'deploy'`. Call:
+//   `writeRun(record)` with a record that carries no `holdBy`. Result: the
+//   field survives on disk, unchanged. Source: design C2 ("treats `holdBy`
+//   exactly as `pauseRequested`"); Requirement 4 AC2.
+// - An owned write whose record has no `holdBy` clears it, and an owned write
+//   that sets `holdBy` sets it: both already hold at base, because
+//   `writeRunLocked` spreads the caller's record as the base of `out`
+//   (`src/controller/state.ts:438`) and nothing yet gives `holdBy` any
+//   special carry-over when the writer owns the request — an absent key
+//   stays absent, a present key passes through. Written here as regression
+//   guards (not red), named for the implementer brief.
+// - A write with status `done`, `abandoned` or `error` clears `holdBy`
+//   whatever the options (owned or normal). Pre: a run held via an owned
+//   write with `holdBy: 'deploy'`. Call: `writeRun(record, opts)` with that
+//   terminal status, `opts` varied. Result: `holdBy` is absent. Source:
+//   design C2 ("cleared on a terminal status"); Requirement 4 AC2.
+// - `updateRun` started together with a `writeRun` status change ends with
+//   that status and the `fn` change both on disk, so `fn` saw the fresh
+//   record. Pre: a run at `running`. Call: `writeRun(paused)` (call order 1)
+//   and `updateRun(id, fn)` (call order 2) together, where `fn` only sets a
+//   marker field when it observes `status === 'paused'`. Result: the marker
+//   is set and `status` is `paused`. Source: design C2 ("re-reads the
+//   record"); D22.
+// - `fn` returning `undefined` leaves the file bytes unchanged. Pre: a run on
+//   disk. Call: `updateRun(id, () => undefined)`. Result: the file's raw
+//   bytes are identical before and after. Source: design C2 ("`fn` returning
+//   `undefined` writes nothing").
+// - A missing id returns `undefined` without calling `fn`. Pre: no record for
+//   the id. Call: `updateRun('no-such-id', fn)` with `fn` recording whether it
+//   ran. Result: the call resolves `undefined` and `fn` never ran. Source:
+//   design C2 interface line.
+// - A clearing `fn` removes `holdBy` and `pauseRequested`. Pre: a run held
+//   with both fields set via an owned write. Call: `updateRun(id, (run) => ({
+//   ...run, holdBy: undefined, pauseRequested: undefined }))`. Result: both
+//   fields are absent on disk. Source: design C2 ("writes with
+//   `ownsPauseRequest: true`"); Requirement 4 AC2.
+// - The existing tests in this file (above) keep every asserted value
+//   unchanged; the `pauseRequested` rules hold at base. Regression guards,
+//   covered by the unmodified tests above — no new test needed.
+
+describe('writeRun carries holdBy from disk unless the writer owns it', () => {
+  it('a normal write over an on-disk holdBy keeps it', async () => {
+    await writeRun(base('running', { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+    await writeRun(base('running')); // normal write, no opts, record carries no holdBy
+
+    const record = await readRun(RUN_ID);
+    expect((record as any)?.holdBy).toBe('deploy');
+  });
+
+  it('an owned write whose record has no holdBy clears it (regression guard)', async () => {
+    await writeRun(base('running', { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+    await writeRun(base('running'), { ownsPauseRequest: true } as any); // owned write, record carries no holdBy
+
+    const record = await readRun(RUN_ID);
+    expect((record as any)?.holdBy).toBeUndefined();
+  });
+
+  it('an owned write that sets holdBy sets it (regression guard)', async () => {
+    await writeRun(base('running', { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+    const record = await readRun(RUN_ID);
+    expect((record as any)?.holdBy).toBe('deploy');
+  });
+
+  it.each(['done', 'abandoned', 'error'] as const)(
+    'an owned write with status %s clears holdBy',
+    async (status) => {
+      await writeRun(base('running', { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+      await writeRun(base(status, { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+      const record = await readRun(RUN_ID);
+      expect((record as any)?.holdBy).toBeUndefined();
+    },
+  );
+
+  it.each(['done', 'abandoned', 'error'] as const)(
+    'a normal write with status %s clears holdBy too, whatever the options',
+    async (status) => {
+      await writeRun(base('running', { holdBy: 'deploy' }), { ownsPauseRequest: true } as any);
+
+      await writeRun(base(status, { holdBy: 'deploy' })); // no opts
+
+      const record = await readRun(RUN_ID);
+      expect((record as any)?.holdBy).toBeUndefined();
+    },
+  );
+});
+
+describe('updateRun', () => {
+  it('applies fn to the freshly re-read record when it races a writeRun status change', async () => {
+    await writeRun(base('running'), { ownsPauseRequest: true } as any); // seed
+
+    const statusChange = writeRun(base('paused')); // call order 1
+    const held = updateRun(RUN_ID, (run) => ({ ...run, pr: run.status === 'paused' ? 99 : -1 } as any)); // call order 2
+
+    await Promise.all([statusChange, held]);
+
+    const record = await readRun(RUN_ID);
+    expect(record?.status).toBe('paused');
+    expect((record as any)?.pr).toBe(99);
+  });
+
+  it('fn returning undefined leaves the file bytes unchanged', async () => {
+    await writeRun(base('running', { holdBy: 'operator' }), { ownsPauseRequest: true } as any);
+    const path = join(controllerHome(), 'runs', RUN_ID, 'run.json');
+    const before = readFileSync(path, 'utf-8');
+
+    const result = await updateRun(RUN_ID, () => undefined);
+
+    const after = readFileSync(path, 'utf-8');
+    expect(after).toBe(before);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined for a missing id without calling fn', async () => {
+    let called = false;
+
+    const result = await updateRun('no-such-run-updaterun', () => {
+      called = true;
+      return undefined;
+    });
+
+    expect(result).toBeUndefined();
+    expect(called).toBe(false);
+  });
+
+  it('a clearing fn removes holdBy and pauseRequested', async () => {
+    await writeRun(
+      base('running', { pauseRequested: '2026-10-29T10:00:00.000Z', holdBy: 'operator' }),
+      { ownsPauseRequest: true } as any,
+    );
+
+    await updateRun(RUN_ID, (run) => ({ ...run, holdBy: undefined, pauseRequested: undefined } as any));
+
+    const record = await readRun(RUN_ID);
+    expect((record as any)?.holdBy).toBeUndefined();
+    expect((record as any)?.pauseRequested).toBeUndefined();
   });
 });

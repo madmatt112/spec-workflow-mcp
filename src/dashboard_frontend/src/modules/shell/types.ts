@@ -234,6 +234,8 @@ export interface ControllerRun {
   driven: boolean;
   /** The run's last heartbeat (design C3), when it has one. */
   lastActivity?: string;
+  /** Who is holding the run paused, when it is (design C8); undefined when not held. */
+  holdBy?: 'operator' | 'deploy';
 }
 
 export interface ControllerActivity {
@@ -265,10 +267,23 @@ export interface StagedAction {
   outcome?: { status: string; detail: string[] };
 }
 
+// Hand copy of DeployStage in src/controller/deploy.ts; keep in step.
+export type DeployStage = 'wait' | 'build' | 'smoke' | 'gate' | 'swap' | 'restart' | 'done' | 'failed';
+
+// Hand copy of ControllerDeploy in src/controller/deploy.ts; keep in step.
+export interface ControllerDeploy {
+  stage: DeployStage;
+  runs: string[];
+  started: string;
+  commit?: string;
+  error?: string;
+}
+
 export type ShellMessage =
   | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
   | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
-  | { type: 'controller-actions'; data: { actions: StagedAction[] } };
+  | { type: 'controller-actions'; data: { actions: StagedAction[] } }
+  | { type: 'controller-deploy'; data: { deploy: ControllerDeploy | null } };

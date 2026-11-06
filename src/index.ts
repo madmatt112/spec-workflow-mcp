@@ -564,7 +564,8 @@ async function main() {
           port: dashboardPort,
           bindAddress,
           allowExternalAccess,
-          security: securityConfig
+          security: securityConfig,
+          smoke: isSmokeMode
         });
       } catch (error: any) {
         // Provide user-friendly error message with environment variable names

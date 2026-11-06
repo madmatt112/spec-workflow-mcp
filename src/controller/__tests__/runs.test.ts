@@ -601,6 +601,36 @@ describe('listRunsForWire', () => {
 
     expect(row?.driven).toBe(false);
   });
+
+  // Source: task 10 _Prompt Success ("A row for a held run carries holdBy,
+  //   and a row with none has it undefined"); R4 AC12; design C8
+  //   ("ControllerRunRow, toRow ... gain holdBy?: 'operator' | 'deploy'").
+  //
+  // Criterion "holdBy carried for a held run": Pre-condition: a run record
+  //   written with holdBy: 'deploy'. Test: listRunsForWire(). Observable
+  //   result: the row's holdBy equals 'deploy'. Expected-value source: the
+  //   literal 'deploy' value seeded into the record.
+  it('carries holdBy on the row for a run held by a deploy', async () => {
+    await writeRun(seedRun(fx, { holdBy: 'deploy', pauseRequested: '2026-10-11T00:00:00.000Z' }), { ownsPauseRequest: true });
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.holdBy).toBe('deploy');
+  });
+
+  // Criterion "holdBy undefined for a run with none": Pre-condition: a run
+  //   record written with no holdBy. Test: listRunsForWire(). Observable
+  //   result: the row's holdBy is undefined. Expected-value source: the
+  //   _Prompt's "a row with none has it undefined".
+  it('leaves holdBy undefined on the row for a run with none', async () => {
+    await writeRun(seedRun(fx));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-20261011-000000');
+
+    expect(row?.holdBy).toBeUndefined();
+  });
 });
 
 // Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.

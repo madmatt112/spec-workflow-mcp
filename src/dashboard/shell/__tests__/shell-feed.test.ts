@@ -5,7 +5,8 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { ShellFeed } from '../shell-feed.js';
 import { recordActivity, _resetActivityForTests } from '../../../controller/activity.js';
-import { writeRun, type RunRecord, type PrRead } from '../../../controller/state.js';
+import { writeRun, writeJsonAtomic, type RunRecord, type PrRead } from '../../../controller/state.js';
+import { deployRecordPath, type ControllerDeploy } from '../../../controller/deploy.js';
 import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
@@ -137,6 +138,53 @@ import type { ShellMessage } from '../types.js';
 //   Observable result: the row for that run id reads `driven: true`.
 //   Expected-value source: the literal "drivenRuns" option name and its
 //   wiring to `listRunsForWire` in the _Prompt/design C4 text.
+
+// Contract additions for task 10 (design.md C7; task 10 _Prompt; Requirements
+// 4.12, 6.2, 6.9, NFR Performance). Reached only through `feed.start()`,
+// `feed.pushDeploy(deploy)` and `feed.snapshot()`; `deployRecordPath()` and
+// `writeJsonAtomic` (task 2) seed the record on disk the same way the
+// self-update script would.
+//
+// Criterion "no record gives { deploy: null }" (task 10 _Prompt Success: "with
+//   no record its data is { deploy: null }"):
+//   Pre-condition: a fresh ShellFeed over no projects, no deploy.json on disk.
+//   Test: feed.start(), then read the controller-deploy message of
+//   feed.snapshot().
+//   Observable result: its data is { deploy: null }.
+//   Expected-value source: the literal "{ deploy: null }" of the _Prompt
+//   sentence.
+//
+// Criterion "a seeded build record carries stage and no v or unitStarted"
+//   (task 10 _Prompt Success: "with a seeded build record it carries
+//   stage: 'build' and no v or unitStarted"):
+//   Pre-condition: deploy.json written directly (writeJsonAtomic) with
+//   v: 1, stage: 'build', runs: ['run-1'], started, unitStarted: true.
+//   Test: feed.start(), then read the controller-deploy message of
+//   feed.snapshot().
+//   Observable result: its data is { deploy: { stage: 'build',
+//   runs: ['run-1'], started } }, with no v or unitStarted key.
+//   Expected-value source: the literal "stage: 'build'" / "no v or
+//   unitStarted" of the _Prompt sentence, combined with the seeded fixture's
+//   own runs/started values.
+//
+// Criterion "pushDeploy sends at once and snapshot holds it, still seven
+//   long" (task 10 _Prompt Success: "pushDeploy sends one message at once
+//   and snapshot() then holds the new value in place, still seven long"):
+//   Pre-condition: a started ShellFeed over no projects.
+//   Test: feed.pushDeploy(deploy), observed synchronously with no await.
+//   Observable result: exactly one more message was sent, the last one being
+//   { type: 'controller-deploy', data: { deploy } }; feed.snapshot() has
+//   length 7 and its controller-deploy entry carries the same data.
+//   Expected-value source: the literal "sends one message at once" / "still
+//   seven long" of the _Prompt sentence.
+//
+// Criterion "pushDeploy after close sends nothing" (task 10 _Prompt Success:
+//   "pushDeploy after close sends nothing"):
+//   Pre-condition: a started, then closed, ShellFeed.
+//   Test: feed.pushDeploy(deploy) after feed.close().
+//   Observable result: the count of captured sends is unchanged.
+//   Expected-value source: the literal "sends nothing" of the _Prompt
+//   sentence.
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -348,7 +396,7 @@ describe('ShellFeed', () => {
     expect(row?.driven).toBe(true);
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity/controller-actions sextet in order after it', async () => {
+  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity/controller-actions/controller-deploy septet in order after it', async () => {
     const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -358,6 +406,7 @@ describe('ShellFeed', () => {
     const snap = feed.snapshot();
     expect(snap.map((m) => m.type)).toEqual([
       'shell-now', 'shell-specs', 'controller-waits', 'controller-runs', 'controller-activity', 'controller-actions',
+      'controller-deploy',
     ]);
   });
 
@@ -458,5 +507,63 @@ describe('ShellFeed', () => {
     expect((nowMsg!.data as unknown as { sidebar: unknown }).sidebar).toEqual([
       { projectId: project.projectId, dot: 'idle', liveCount: 0, lastActivity: null },
     ]);
+  });
+
+  it('sends controller-deploy with { deploy: null } when no record exists on disk', async () => {
+    const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+
+    await feed.start();
+
+    const msg = ofType(feed.snapshot(), 'controller-deploy')[0];
+    expect(msg).toBeDefined();
+    expect(msg.data).toEqual({ deploy: null });
+  });
+
+  it('carries a seeded build-stage record on controller-deploy with no v or unitStarted', async () => {
+    const started = '2026-11-05T00:00:00.000Z';
+    await writeJsonAtomic(deployRecordPath(), {
+      v: 1, stage: 'build', runs: ['run-1'], started, unitStarted: true,
+    });
+
+    const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
+    feeds.push(feed);
+
+    await feed.start();
+
+    const msg = ofType(feed.snapshot(), 'controller-deploy')[0];
+    expect(msg).toBeDefined();
+    expect(msg.data).toEqual({ deploy: { stage: 'build', runs: ['run-1'], started } });
+  });
+
+  it('pushDeploy sends controller-deploy at once and snapshot holds it, still seven long', async () => {
+    const sends: ShellMessage[] = [];
+    const feed = new ShellFeed(stubProjects([]), (m) => sends.push(m), { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+    const countAtStart = sends.length;
+
+    const deploy: ControllerDeploy = { stage: 'build', runs: ['run-9'], started: '2026-11-05T00:00:00.000Z' };
+    feed.pushDeploy(deploy);
+
+    expect(sends.length).toBe(countAtStart + 1);
+    expect(sends[sends.length - 1]).toEqual({ type: 'controller-deploy', data: { deploy } });
+
+    const snap = feed.snapshot();
+    expect(snap).toHaveLength(7);
+    expect(ofType(snap, 'controller-deploy')[0]?.data).toEqual({ deploy });
+  });
+
+  it('pushDeploy after close sends nothing', async () => {
+    const sends: ShellMessage[] = [];
+    const feed = new ShellFeed(stubProjects([]), (m) => sends.push(m), { tickMs: 1_000_000 });
+    feeds.push(feed);
+    await feed.start();
+    feed.close();
+    const countAtClose = sends.length;
+
+    feed.pushDeploy({ stage: 'done', runs: [], started: '2026-11-05T00:00:00.000Z' });
+
+    expect(sends.length).toBe(countAtClose);
   });
 });

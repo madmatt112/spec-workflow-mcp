@@ -27,6 +27,7 @@ import { answerWait, type ControllerWaitRecord } from '../controller/waits.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
 import { checkpoint, openRunLedger } from '../controller/ledger.js';
 import { mergeByRule, readMergeRules, type MergeTarget } from '../controller/merge.js';
+import { isDeployOpen, readDeployRecord } from '../controller/deploy.js';
 import type { DeferralOwner } from '../types.js';
 
 export type ActionKind = 'merge' | 'deploy' | 'launch' | 'answer' | 'deferral' | 'decomposition' | 'backlog';
@@ -357,9 +358,18 @@ async function execMerge(action: StagedAction, deps: ActionDeps): Promise<ExecRe
  * its own failures; confirming it only proves the spawn, outcome `started`. A
  * script that cannot be spawned (a missing file) emits an async `error` the
  * handler surfaces as a `spawn-failed` failure instead of letting the unhandled
- * event crash the dashboard server.
+ * event crash the dashboard server. While a deploy record is open (R4 AC10), confirming
+ * refuses with `deploy-open` and spawns nothing: two scripts never share the staging
+ * worktree.
  */
 async function execDeploy(action: StagedAction): Promise<ExecResult> {
+  const record = await readDeployRecord();
+  if (record && isDeployOpen(record)) {
+    return {
+      ok: false, outcome: 'refused', detail: record.stage, error: 'deploy-open', state: 'refused',
+    };
+  }
+
   const checkoutRoot = process.env.CONTROLLER_HARNESS_REPO ?? packageRoot();
   const scriptPath = join(checkoutRoot, 'scripts', 'sdd-self-update.sh');
   const actionDir = join(advisorActionsDir(), action.id);

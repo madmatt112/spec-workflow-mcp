@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, copyFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -121,6 +121,44 @@ function writeEvalCliWrapper(checkout: string): void {
     join(checkout, 'dist', 'evals', 'cli.js'),
     `import(${JSON.stringify(realCli)}).then((m) => m.main(process.argv.slice(2))).then((code) => { process.exit(code); });\n`,
   );
+}
+
+// Task 8 (design C4, R2 AC4/D2): a checkout whose local main already equals
+// origin/main, so the first check_move computes behind === 0. Plain clone,
+// no second commit on origin, unlike makeDivergedCheckout.
+function makeNotBehindCheckout(): { checkout: string; origin: string; home: string } {
+  const origin = mkdtempSync(join(tmpdir(), 'self-update-nb-origin-'));
+  const checkout = mkdtempSync(join(tmpdir(), 'self-update-nb-co-'));
+  const home = mkdtempSync(join(tmpdir(), 'self-update-nb-home-'));
+  git(origin, 'init', '-q', '-b', 'main');
+  git(origin, 'config', 'user.email', 't@example.com');
+  git(origin, 'config', 'user.name', 'Test');
+  writeFileSync(join(origin, 'package.json'), '{"name":"toy","version":"0.0.0"}\n');
+  git(origin, 'add', '-A');
+  git(origin, 'commit', '-qm', 'init');
+  execFileSync('git', ['clone', '--quiet', origin, checkout]);
+  git(checkout, 'config', 'user.email', 't@example.com');
+  git(checkout, 'config', 'user.name', 'Test');
+  return { checkout, origin, home };
+}
+
+// Task 8: polls the deploy record's `stage` field so a TERM can be sent
+// exactly once the script has reached a given stage, instead of racing a
+// fixed delay against the toy checkout's fetch/worktree setup.
+async function waitForStage(recordPath: string, stage: string, timeoutMs: number): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (existsSync(recordPath)) {
+      try {
+        const rec = JSON.parse(readFileSync(recordPath, 'utf-8'));
+        if (rec.stage === stage) return;
+      } catch {
+        // mid-write of the record; retry.
+      }
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error(`stage ${stage} not reached within ${timeoutMs}ms`);
 }
 
 describe('service scripts (controller T9)', () => {
@@ -559,5 +597,649 @@ describe('service scripts (controller T9)', () => {
   it('sdd-self-update.sh exits 2 when --eval-override has no value', async () => {
     const res = await runScript(selfUpdateSh, ['--eval-override'], {});
     expect(res.code).toBe(2);
+  });
+
+  // Task 7 (design C4): --deploy-record <path>, write_stage, the commit write,
+  // and the three-second restart gap. Each stage seam below copies the
+  // record's current `stage` field into a shared log through
+  // LOG_STAGE_SCRIPT, proving each write happens before the step it gates.
+  describe('sdd-self-update.sh --deploy-record', () => {
+    it(
+      'runs build, smoke, gate, swap, restart in order, ends at done, keeps a field it ' +
+        "does not set, matches the toy origin's commit, leaves no temp file beside the " +
+        'record, and waits at least 3 seconds before the restart',
+      async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+        const recordPath = join(home, 'deploy.json');
+        const seqLog = join(home, 'seq.log');
+        const gapFile = join(home, 'gap.txt');
+        const logStageScript = join(stubDir, 'log-stage.cjs');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: ['run-1'], started: new Date().toISOString() }),
+          );
+          writeFileSync(seqLog, '');
+          writeFileSync(
+            logStageScript,
+            [
+              "const fs = require('fs');",
+              "const rec = JSON.parse(fs.readFileSync(process.env.RECORD_PATH, 'utf8'));",
+              "fs.appendFileSync(process.env.SEQ_LOG, rec.stage + '\\n');",
+              '',
+            ].join('\n'),
+          );
+          writeFileSync(
+            join(stubDir, 'npm'),
+            ['#!/usr/bin/env node', 'require(process.env.LOG_STAGE_SCRIPT);', ''].join('\n'),
+            { mode: 0o755 },
+          );
+          writeFileSync(
+            join(stubDir, 'systemctl'),
+            [
+              '#!/usr/bin/env node',
+              "const fs = require('fs');",
+              'require(process.env.LOG_STAGE_SCRIPT);',
+              'const gap = Date.now() - fs.statSync(process.env.RECORD_PATH).mtimeMs;',
+              'fs.writeFileSync(process.env.GAP_FILE, String(gap));',
+              '',
+            ].join('\n'),
+            { mode: 0o755 },
+          );
+          const gateBody = ['require(process.env.LOG_STAGE_SCRIPT);', 'process.exit(0);', ''].join('\n');
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+            PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+            RECORD_PATH: recordPath,
+            SEQ_LOG: seqLog,
+            GAP_FILE: gapFile,
+            LOG_STAGE_SCRIPT: logStageScript,
+            SDD_STAGE_BUILD: `node "$LOG_STAGE_SCRIPT"\n${stageBuildStub(gateBody)}`,
+            SDD_STAGE_SMOKE: 'node "$LOG_STAGE_SCRIPT"',
+          });
+
+          expect(res.code).toBe(0);
+          const seq = readFileSync(seqLog, 'utf-8').split('\n').filter((l) => l.trim().length > 0);
+          expect(seq).toEqual(['build', 'smoke', 'gate', 'swap', 'restart']);
+
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('done');
+          expect(final.runs).toEqual(['run-1']); // a seeded field the script never sets (R2 AC5)
+
+          const originHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: origin }).toString().trim();
+          expect(final.commit).toBe(originHead); // R2 AC2
+
+          // Task 8 (design C4 Claim, D15): the claim directory is a deliberate,
+          // persistent artifact of a completed swap, not a leaked temp file;
+          // excluded here so this check still targets only the atomic write's
+          // temp-rename leftovers (R2 AC5).
+          const leftovers = readdirSync(home).filter(
+            (f) => f !== 'deploy.json' && f !== 'deploy.json.claim' && f.includes('deploy'),
+          );
+          expect(leftovers).toEqual([]); // the atomic write leaves no temp file (R2 AC5)
+
+          const gap = Number(readFileSync(gapFile, 'utf-8'));
+          expect(gap).toBeGreaterThanOrEqual(2500); // R2 AC6 / D6: a 3-second sleep before the restart
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+          rmSync(stubDir, { recursive: true, force: true });
+          rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+        }
+      },
+      30000,
+    );
+
+    it('a build seam that deletes the record leaves it absent, not recreated (requirement 5 AC 2)', async () => {
+      const { checkout, origin, home } = makeDivergedCheckout();
+      const recordPath = join(home, 'deploy.json');
+      try {
+        writeFileSync(
+          recordPath,
+          JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+        );
+
+        const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+          SDD_CHECKOUT: checkout,
+          SDD_HOME: home,
+          RECORD_PATH: recordPath,
+          SDD_STAGE_BUILD: 'rm -f "$RECORD_PATH"',
+          SDD_STAGE_SMOKE: 'true',
+        });
+
+        expect(res.code).not.toBe(0);
+        expect(existsSync(recordPath)).toBe(false);
+      } finally {
+        rmSync(checkout, { recursive: true, force: true });
+        rmSync(origin, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    it('--dry-run with --deploy-record leaves the record bytes unchanged (R2 AC 7)', async () => {
+      const clone = mkdtempSync(join(tmpdir(), 'self-update-clone-'));
+      const home = mkdtempSync(join(tmpdir(), 'self-update-home-'));
+      const recordPath = join(home, 'deploy.json');
+      try {
+        execFileSync('git', ['clone', '--quiet', repoRoot, clone]);
+        copyFileSync(selfUpdateSh, join(clone, 'scripts', 'sdd-self-update.sh'));
+        const seeded = JSON.stringify({ v: 1, stage: 'build', runs: ['run-9'], started: '2026-01-01T00:00:00.000Z' });
+        writeFileSync(recordPath, seeded);
+
+        const res = await runScript(join(clone, 'scripts', 'sdd-self-update.sh'), ['--dry-run', '--deploy-record', recordPath], {
+          SDD_CHECKOUT: clone,
+          SDD_HOME: home,
+        });
+
+        expect(res.code).toBe(0);
+        expect(readFileSync(recordPath, 'utf-8')).toBe(seeded);
+      } finally {
+        rmSync(clone, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    // Regression guard (requirement 2 AC 8, invariant, "not red-first"): no
+    // existing test passes --deploy-record, so this already holds at base;
+    // the branch "no record is written" has no prior assertion, so it is
+    // added fresh here rather than left unnamed.
+    it('writes no deploy record when --deploy-record is absent', async () => {
+      const clone = mkdtempSync(join(tmpdir(), 'self-update-clone-'));
+      const home = mkdtempSync(join(tmpdir(), 'self-update-home-'));
+      try {
+        execFileSync('git', ['clone', '--quiet', repoRoot, clone]);
+        copyFileSync(selfUpdateSh, join(clone, 'scripts', 'sdd-self-update.sh'));
+
+        await runScript(join(clone, 'scripts', 'sdd-self-update.sh'), ['--dry-run'], {
+          SDD_CHECKOUT: clone,
+          SDD_HOME: home,
+        });
+
+        expect(existsSync(join(home, 'deploy.json'))).toBe(false);
+      } finally {
+        rmSync(clone, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+      }
+    }, 30000);
+
+    // Regression guard: the parser's existing catch-all already exits 2 for
+    // any unrecognized token, so a bare --deploy-record with no path already
+    // exits 2 at base, mirroring the --eval-override test above.
+    it('exits 2 when --deploy-record has no path', async () => {
+      const res = await runScript(selfUpdateSh, ['--deploy-record'], {});
+      expect(res.code).toBe(2);
+    });
+
+    // Task 8 (design C4: No-op refusal, Claim, Failure capture, D2, D15, D25).
+    // Contract per criterion (pre-condition / call / observable result / source):
+    // - wait refusal (R2 AC3): active-run pointer has a line / run the script with
+    //   --deploy-record / record ends stage 'failed', error starts 'wait: refusing'
+    //   / design C4 Failure capture, error format "<STAGE>: <text>".
+    // - divergence refusal (R2 AC3): a local-only commit touches src/ outside the
+    //   store / run the script / same stage/error shape / same source.
+    // - no-op refusal (R2 AC4, D2): checkout already at origin/main (behind === 0)
+    //   / run the script / exit 1, stage 'failed', error contains "nothing to
+    //   deploy", no "building in staging" log / design C4 No-op refusal.
+    // - failing build (R2 AC3, D25): SDD_STAGE_BUILD fails / run the script /
+    //   error === "build: the step failed; see the error wait" / design C4
+    //   Failure capture, write_error_wait sets FAIL_NOTE.
+    // - failing smoke (R2 AC3, D25): SDD_STAGE_SMOKE fails / run the script /
+    //   error === "smoke: the step failed; see the error wait", not "smoke boot"
+    //   / same source.
+    // - failing gate (R2 AC9, D25): staged eval CLI writes a summary with a path
+    //   and exits 1 / run the script / error === "gate: the step failed; see the
+    //   error wait" (no "evals", no summary text), error wait still written
+    //   / design C4 Failure capture; the write_error_wait call itself is the
+    //   regression guard.
+    // - TERM during build (R2 AC3): SIGTERM once stage is 'build' / run the
+    //   script / exit 143, stage 'failed', error starts "build:" / design C4
+    //   Failure capture, `trap 'exit 143' TERM`; timing per the 2026-11-05 probe.
+    // - claim held at swap (D15): `<record>.claim` directory pre-exists / run the
+    //   script through a passing gate / exit 1, error starts "gate: refusing",
+    //   HEAD and dist/ unchanged, stage 'failed' (never 'swap') / design C4 Claim.
+    // - claim survives a full run: no pre-existing claim, full pass with stubbed
+    //   npm/systemctl / run the script / exit 0, `<record>.claim` exists
+    //   afterward / design C4 Claim (no removal step).
+    // - npm ci failure at swap (NFR Reliability, D25): stub `npm` exits 1 / run
+    //   the script through a passing gate / error starts "swap:", contains
+    //   "(exit 1)" and "the live checkout or dist/ may already have changed"
+    //   / design C4 Failure capture.
+    // - systemctl failure at restart (NFR Reliability, D25): stub `systemctl`
+    //   exits 1 / same setup / error starts "restart:" with the same suffix
+    //   / same source.
+    // - second check_move no-op (R2 AC4): the staged eval CLI fast-forwards the
+    //   live checkout to origin/main before exiting 0 / run the script / exit 0,
+    //   stage 'done', no "nothing to deploy" / design C4 No-op refusal ("The
+    //   second check_move ... does not repeat it").
+    describe('task 8: claim, failure capture, no-op refusal', () => {
+      it('an active-run refusal writes failed with error starting "wait: refusing" (R2 AC3)', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(join(home, 'active-run'), 'run-1\n');
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+          });
+
+          expect(res.code).toBe(1);
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error.startsWith('wait: refusing')).toBe(true);
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it('a divergence refusal writes failed with error starting "wait: refusing" (R2 AC3)', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(join(checkout, 'src', 'index.ts'), 'export const x = 1;\n// local hack\n');
+          git(checkout, 'add', '-A');
+          git(checkout, 'commit', '-qm', 'local src change');
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+          });
+
+          expect(res.code).toBe(1);
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error.startsWith('wait: refusing')).toBe(true);
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it('refuses when the checkout is not behind origin/main, with no build run (R2 AC4, D2)', async () => {
+        const { checkout, origin, home } = makeNotBehindCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+          });
+
+          expect(res.code).toBe(1);
+          expect(res.stdout).not.toContain('building in staging');
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error).toContain('nothing to deploy');
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it('a failing build writes error "build: the step failed; see the error wait" (R2 AC3, D25)', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+            SDD_STAGE_BUILD: 'exit 1',
+          });
+
+          expect(res.code).toBe(1);
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error).toBe('build: the step failed; see the error wait');
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it('a failing smoke boot writes error "smoke: the step failed; see the error wait", not "smoke boot" (R2 AC3, D25)', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+            SDD_STAGE_BUILD: 'true',
+            SDD_STAGE_SMOKE: 'false',
+          });
+
+          expect(res.code).toBe(1);
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error).toBe('smoke: the step failed; see the error wait');
+          expect(final.error).not.toContain('smoke boot');
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it(
+        'a failing eval gate writes error "gate: the step failed; see the error wait" with no summary text, ' +
+          'not "evals", and the error wait is still written (R2 AC9, D25)',
+        async () => {
+          const { checkout, origin, home } = makeDivergedCheckout();
+          const recordPath = join(home, 'deploy.json');
+          try {
+            writeFileSync(
+              recordPath,
+              JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+            );
+
+            const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+              SDD_CHECKOUT: checkout,
+              SDD_HOME: home,
+              SDD_STAGE_BUILD: stageBuildStub(
+                [
+                  "const fs = require('fs');",
+                  "const i = process.argv.indexOf('--summary-file');",
+                  "fs.writeFileSync(process.argv[i + 1], 'demo fail 0/1 stub reason; record /x');",
+                  'process.exit(1);',
+                ].join('\n'),
+              ),
+              SDD_STAGE_SMOKE: 'true',
+            });
+
+            expect(res.code).toBe(1);
+            expect(res.stdout).toContain('writing an error wait');
+            const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+            expect(final.stage).toBe('failed');
+            expect(final.error).toBe('gate: the step failed; see the error wait');
+            expect(final.error).not.toContain('evals');
+            expect(final.error).not.toContain('demo fail');
+            expect(final.error).not.toContain('/x');
+          } finally {
+            rmSync(checkout, { recursive: true, force: true });
+            rmSync(origin, { recursive: true, force: true });
+            rmSync(home, { recursive: true, force: true });
+          }
+        },
+        30000,
+      );
+
+      it('a TERM during the build exits 143 with failed and error starting "build:" (R2 AC3)', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+
+          const child = spawn('bash', [selfUpdateSh, '--deploy-record', recordPath], {
+            env: { ...process.env, SDD_CHECKOUT: checkout, SDD_HOME: home, SDD_STAGE_BUILD: 'sleep 2' },
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+          const exitPromise = new Promise<number | null>((resolve, reject) => {
+            const t = setTimeout(() => {
+              child.kill('SIGKILL');
+              reject(new Error('script timed out'));
+            }, 15000);
+            child.on('error', (e) => {
+              clearTimeout(t);
+              reject(e);
+            });
+            child.on('exit', (code) => {
+              clearTimeout(t);
+              resolve(code);
+            });
+          });
+
+          await waitForStage(recordPath, 'build', 10000);
+          child.kill('SIGTERM');
+          const code = await exitPromise;
+
+          expect(code).toBe(143);
+          const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+          expect(final.stage).toBe('failed');
+          expect(final.error.startsWith('build:')).toBe(true);
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it(
+        'an existing claim directory refuses at "gate: refusing", leaving HEAD and dist/ unchanged and no swap recorded (D15)',
+        async () => {
+          const { checkout, origin, home } = makeDivergedCheckout();
+          const recordPath = join(home, 'deploy.json');
+          try {
+            const originalHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim();
+            writeFileSync(
+              recordPath,
+              JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+            );
+            mkdirSync(`${recordPath}.claim`);
+
+            const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+              SDD_CHECKOUT: checkout,
+              SDD_HOME: home,
+              SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'),
+              SDD_STAGE_SMOKE: 'true',
+            });
+
+            expect(res.code).toBe(1);
+            const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+            expect(final.stage).toBe('failed');
+            expect(final.error.startsWith('gate: refusing')).toBe(true);
+            expect(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: checkout }).toString().trim()).toBe(
+              originalHead,
+            );
+            expect(existsSync(join(checkout, 'dist'))).toBe(false);
+          } finally {
+            rmSync(checkout, { recursive: true, force: true });
+            rmSync(origin, { recursive: true, force: true });
+            rmSync(home, { recursive: true, force: true });
+            rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+          }
+        },
+        30000,
+      );
+
+      it('a run that completes the swap leaves the claim directory in place', async () => {
+        const { checkout, origin, home } = makeDivergedCheckout();
+        const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+        const recordPath = join(home, 'deploy.json');
+        try {
+          writeFileSync(
+            recordPath,
+            JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+          );
+          writeFileSync(join(stubDir, 'npm'), ['#!/usr/bin/env node', 'process.exit(0);', ''].join('\n'), {
+            mode: 0o755,
+          });
+          writeFileSync(join(stubDir, 'systemctl'), ['#!/usr/bin/env node', 'process.exit(0);', ''].join('\n'), {
+            mode: 0o755,
+          });
+
+          const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+            SDD_CHECKOUT: checkout,
+            SDD_HOME: home,
+            PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+            SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'),
+            SDD_STAGE_SMOKE: 'true',
+          });
+
+          expect(res.code).toBe(0);
+          expect(existsSync(`${recordPath}.claim`)).toBe(true);
+        } finally {
+          rmSync(checkout, { recursive: true, force: true });
+          rmSync(origin, { recursive: true, force: true });
+          rmSync(home, { recursive: true, force: true });
+          rmSync(stubDir, { recursive: true, force: true });
+          rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+        }
+      }, 30000);
+
+      it(
+        'a failing npm ci in the live checkout writes error "swap: ... (exit 1); the live checkout or ' +
+          'dist/ may already have changed" (NFR Reliability, D25)',
+        async () => {
+          const { checkout, origin, home } = makeDivergedCheckout();
+          const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+          const recordPath = join(home, 'deploy.json');
+          try {
+            writeFileSync(
+              recordPath,
+              JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+            );
+            writeFileSync(join(stubDir, 'npm'), ['#!/usr/bin/env node', 'process.exit(1);', ''].join('\n'), {
+              mode: 0o755,
+            });
+
+            const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+              SDD_CHECKOUT: checkout,
+              SDD_HOME: home,
+              PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+              SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'),
+              SDD_STAGE_SMOKE: 'true',
+            });
+
+            expect(res.code).toBe(1);
+            const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+            expect(final.stage).toBe('failed');
+            expect(final.error.startsWith('swap:')).toBe(true);
+            expect(final.error).toContain('(exit 1)');
+            expect(final.error).toContain('the live checkout or dist/ may already have changed');
+          } finally {
+            rmSync(checkout, { recursive: true, force: true });
+            rmSync(origin, { recursive: true, force: true });
+            rmSync(home, { recursive: true, force: true });
+            rmSync(stubDir, { recursive: true, force: true });
+            rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+          }
+        },
+        30000,
+      );
+
+      it(
+        'a failing systemctl restart writes error "restart: ... (exit 1); the live checkout or dist/ may ' +
+          'already have changed" (NFR Reliability, D25)',
+        async () => {
+          const { checkout, origin, home } = makeDivergedCheckout();
+          const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+          const recordPath = join(home, 'deploy.json');
+          try {
+            writeFileSync(
+              recordPath,
+              JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+            );
+            writeFileSync(join(stubDir, 'npm'), ['#!/usr/bin/env node', 'process.exit(0);', ''].join('\n'), {
+              mode: 0o755,
+            });
+            writeFileSync(join(stubDir, 'systemctl'), ['#!/usr/bin/env node', 'process.exit(1);', ''].join('\n'), {
+              mode: 0o755,
+            });
+
+            const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+              SDD_CHECKOUT: checkout,
+              SDD_HOME: home,
+              PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+              SDD_STAGE_BUILD: stageBuildStub('process.exit(0);'),
+              SDD_STAGE_SMOKE: 'true',
+            });
+
+            expect(res.code).toBe(1);
+            const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+            expect(final.stage).toBe('failed');
+            expect(final.error.startsWith('restart:')).toBe(true);
+            expect(final.error).toContain('(exit 1)');
+            expect(final.error).toContain('the live checkout or dist/ may already have changed');
+          } finally {
+            rmSync(checkout, { recursive: true, force: true });
+            rmSync(origin, { recursive: true, force: true });
+            rmSync(home, { recursive: true, force: true });
+            rmSync(stubDir, { recursive: true, force: true });
+            rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+          }
+        },
+        30000,
+      );
+
+      it(
+        'a gate seam that fast-forwards the checkout does not trigger the no-op refusal at the second check_move (R2 AC4)',
+        async () => {
+          const { checkout, origin, home } = makeDivergedCheckout();
+          const stubDir = mkdtempSync(join(tmpdir(), 'self-update-stubs-'));
+          const recordPath = join(home, 'deploy.json');
+          try {
+            writeFileSync(
+              recordPath,
+              JSON.stringify({ v: 1, stage: 'wait', runs: [], started: new Date().toISOString() }),
+            );
+            writeFileSync(join(stubDir, 'npm'), ['#!/usr/bin/env node', 'process.exit(0);', ''].join('\n'), {
+              mode: 0o755,
+            });
+            writeFileSync(join(stubDir, 'systemctl'), ['#!/usr/bin/env node', 'process.exit(0);', ''].join('\n'), {
+              mode: 0o755,
+            });
+            const gateBody = [
+              "const { execFileSync } = require('child_process');",
+              "execFileSync('git', ['-C', process.env.LIVE_CHECKOUT, 'merge', '--ff-only', 'origin/main']);",
+              'process.exit(0);',
+            ].join('\n');
+
+            const res = await runScript(selfUpdateSh, ['--deploy-record', recordPath], {
+              SDD_CHECKOUT: checkout,
+              SDD_HOME: home,
+              LIVE_CHECKOUT: checkout,
+              PATH: `${stubDir}:${process.env.PATH ?? ''}`,
+              SDD_STAGE_BUILD: stageBuildStub(gateBody),
+              SDD_STAGE_SMOKE: 'true',
+            });
+
+            expect(res.stdout).not.toContain('nothing to deploy');
+            expect(res.code).toBe(0);
+            const final = JSON.parse(readFileSync(recordPath, 'utf-8'));
+            expect(final.stage).toBe('done');
+          } finally {
+            rmSync(checkout, { recursive: true, force: true });
+            rmSync(origin, { recursive: true, force: true });
+            rmSync(home, { recursive: true, force: true });
+            rmSync(stubDir, { recursive: true, force: true });
+            rmSync(`${recordPath}.claim`, { recursive: true, force: true });
+          }
+        },
+        30000,
+      );
+    });
   });
 });

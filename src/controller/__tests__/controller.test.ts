@@ -4,14 +4,18 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
-import { Controller } from '../controller.js';
+import { Controller, type ControllerOptions } from '../controller.js';
 import {
-  writeRun, readRun, writeRateLimit, readRateLimit, readWait, writeLastActivity, processStartTime,
+  writeRun, readRun, listRuns, writeRateLimit, readRateLimit, readWait, writeLastActivity, processStartTime,
   type RunRecord,
 } from '../state.js';
 import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { runEvents } from '../runs.js';
+import {
+  deployRecordPath, readDeployRecord,
+  type DeployRecord, type DeployStage, type DeployUnit, type UnitState,
+} from '../deploy.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -651,7 +655,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     writeScript(fx, []); // no claude step is expected on this path
     scriptMergeablePR(fx, BRANCH, 'c0ffee050507');
 
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
     expect(resumed?.pauseReason).toBeUndefined();
@@ -728,7 +732,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     await controller.start();
 
     writeScript(fx, [{ ...drafterRun('requirements'), delayMs: 1200 } as StubRun]);
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -771,7 +775,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     });
 
     await controller.start();
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('queued');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -810,7 +814,7 @@ describe('Controller.pause and resumeNow (design C4, C5)', () => {
     expect(held?.pauseReason).toBeUndefined();
     expect(held?.pauseRequested).toBeTruthy();
 
-    const resumed = await controller.resumeNow(id);
+    const resumed = await controller.resumeNow(id) as RunRecord | null | undefined;
     expect(resumed?.status).toBe('waiting');
     expect(resumed?.pauseRequested).toBeUndefined();
 
@@ -1659,4 +1663,757 @@ describe('Controller.recover and reattach (design C5 "recover", "reattach")', ()
     const stillOpen = await readWait(plainWait.id);
     expect(stillOpen?.state).toBe('open');
   }, 15000);
+});
+
+// Contract for task 5 ("Wire the coordinator into the controller lifecycle and
+// scheduler", design C3, D17, D21). `ControllerOptions.deployUnit` /
+// `deployWaitLimitMs` / `deployDisabled`, `pressDeploy`/`cancelDeploy`/
+// `deployRecord`, the `onStart`-before-`recover` wiring, the `tick`-first-in-
+// `schedule` wiring, and the `holdBy: 'deploy'` guards in `settlePass`, the
+// usage-window branch and `onWaitChange` do not exist yet, so every call below
+// reaches them only through `controller.start()` / `controller.pump()` — no
+// caller to mock. `DeployCoordinator` itself (design C1, tasks 3-4) is the
+// real implementation, never mocked; only `DeployUnit` is a fake, passed
+// through the new `deployUnit` option so no test can reach real systemd.
+//
+// Per success criterion (task 5 _Prompt Success line), grouped by clause:
+// - A `start` with a `restart` record and a deploy-held `waiting` run whose
+//   wait is answered ends at `done` with the hold gone and the run past
+//   `waiting`. Pre: such a record and run, the wait pre-answered. Call:
+//   `controller.start()`. Result: the record reads `done`; the run is no
+//   longer `waiting`, `holdBy` and `pauseRequested` are gone. Source: design
+//   C3 `start()` post-condition (D21); requirement 3 AC1, AC6.
+// - With `deployDisabled`, a `restart` record stays at `restart` after
+//   `start` and `pump`, proven against a sibling controller (no
+//   `deployDisabled`) that resolves the same still-open record to `done`,
+//   so the "stays the same" half is not merely the absence of any wiring.
+//   Pre/Call/Result: design C3 "With `deployDisabled`, `start()` skips
+//   `onStart`..." ; requirement 3 AC8.
+// - With `deployDisabled`, a `wait` record starts no unit, proven against a
+//   sibling controller that starts the fake unit once. Source: design C3
+//   "...`schedule` skips `tick`"; requirement 3 AC8.
+// - `pump` at `wait` starts the fake unit once when quiet. Pre: such a
+//   record, no runs. Call: `controller.start()` then `controller.pump()`.
+//   Result: `unit.start` called once with `deployRecordPath()`;
+//   `unitStarted` persists `true`. Source: design C1 "Starting the unit";
+//   requirement 1 AC4.
+// - A run with a live `inFlight` process stops the unit from starting. Pre:
+//   such a record, a `running` run with a live spawned `inFlight`. Call: as
+//   above. Result: `unit.start` never called. Source: design D17; requirement
+//   1 AC4 (the quiet condition).
+// - A run in `drivenRuns()` stops the unit from starting. Pre: such a record,
+//   a `queued` run mid a delayed stub step (`drivenRuns()` polled true).
+//   Call: `controller.pump()`. Result: `unit.start` never called. Source:
+//   design D17.
+// - `settlePass` writes nothing to a deploy-held `queued`, `merging` and
+//   usage-`paused` run, each tested: status, the merge cursor / pause reason,
+//   and `updated` all stay as written. Pre: such a run under an open record
+//   with a live unit (so `tick` itself touches nothing). Call:
+//   `controller.pump()`. Result: the run is byte-identical but for nothing.
+//   Source: design C3 `settlePass` bullet; requirement 4 AC3.
+// - A deploy-held `queued` run stays `queued` with no `pauseReason` while the
+//   usage window is over the threshold. Pre: such a run, `rate-limit.json`
+//   over the threshold. Call: `controller.pump()`. Result: status `queued`,
+//   no `pauseReason`. Source: design C3 usage-window-branch bullet; D4.
+// - An answer on a deploy-held `waiting` run leaves it `waiting`, the answer
+//   on disk, and no stub step consumed. Pre: such a run, a plain question
+//   wait. Call: `answerWait(...)`. Result: status stays `waiting`; the wait
+//   reads `answered` with the value; no stub counter file. Source: design C3
+//   `onWaitChange` bullet; requirement 4 AC6.
+// - An `abandon` answer on a deploy-held `error` wait leaves it `waiting`
+//   until release. Pre: such a run, an `error` wait with the crash question.
+//   Call: `answerWait(..., abandon)`, then `controller.pump()` with no
+//   record on disk (D24 releases the leftover hold). Result: `waiting` right
+//   after the answer; `abandoned` after the release-triggered replay. Source:
+//   design C3 `onWaitChange` bullet ("before the abandon branch"); requirement
+//   4 AC6.
+// - A `start` over an answered deploy-held wait with a live unit leaves it
+//   `waiting`. Pre: an open record (unit `live`), a deploy-held `waiting`
+//   run with an answered plain wait. Call: `controller.start()`. Result:
+//   status stays `waiting`, `holdBy` stays `deploy`, the record is
+//   untouched, `unit.start`/`unit.stop` never called. Source: design C3
+//   `onWaitChange` bullet ("This SHALL also hold on the recovery path");
+//   requirement 3 AC5; requirement 4 AC6.
+//
+// Folded / regression-guard criteria (requirement 4 AC4, AC5, and the
+// Success line's "(regression guard)" items), named for the implementer
+// brief rather than red-tested here, because each already holds at base:
+// - "an operator-held `queued` run still parks (regression guard)": fully
+//   covered by the existing test "settle pass parks a held queued record
+//   paused/operator on pump()" above (same `settlePass` branch, a
+//   `pauseRequested` queued run with no `holdBy`, which already reads as
+//   `operator`).
+// - "`isStartable` refuses a deploy-held run (regression guard, requirement
+//   4 AC 4)": `isStartable`'s `if (run.pauseRequested) return false;` does
+//   not branch on `holdBy`, so the existing test "applies a pause to a
+//   queued run at once, fires a runEvents change, and pump() does not start
+//   it" (`Controller.pause and resumeNow` describe block) already exercises
+//   the identical code path.
+// - "a deploy-held run's live drive parks `paused` with `holdBy` still
+//   `deploy` (regression guard, requirement 4 AC 5)": the park-at-the-next-
+//   stop-point mechanism is covered by the existing test "answers before a
+//   delayed in-flight step ends, acts on its result, and ends paused/
+//   operator with no further stub run consumed"; `holdBy` surviving that
+//   write (not owned) is covered by `pause-request.test.ts`'s "a normal
+//   write over an on-disk holdBy keeps it". Together they name every branch;
+//   no new assertion is needed.
+
+function fakeDeployUnit(overrides: Partial<DeployUnit> = {}): DeployUnit {
+  return {
+    start: vi.fn(async () => {}),
+    state: vi.fn(async (): Promise<UnitState> => 'gone'),
+    stop: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
+function writeOpenDeployRecord(
+  stage: DeployStage, runs: string[], started: string, extra: Partial<DeployRecord> = {},
+): void {
+  writeFileSync(deployRecordPath(), JSON.stringify({ v: 1, stage, runs, started, ...extra } as DeployRecord));
+}
+
+function makeDeployController(fx: Fixture, extra: Partial<ControllerOptions> = {}): Controller {
+  return new Controller({
+    resolveProject: () => ({ projectPath: fx.repo, workspacePath: fx.repo }),
+    mcpConfigFor: () => ({ mcpServers: {} }),
+    ensureWorktree: async () => ({ worktree: fx.repo, branch: 'main' }),
+    claudeBin: () => STUB,
+    tickMs: 25,
+    graceMs: 1500,
+    ...extra,
+  });
+}
+
+async function writeHeldRun(
+  fx: Fixture, id: string, status: RunRecord['status'], iso: string, extra: Partial<RunRecord> = {},
+): Promise<void> {
+  await writeRun({
+    v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+    worktree: '', branch: '', status, pauseRequested: iso, holdBy: 'deploy',
+    created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    ...extra,
+  }, { ownsPauseRequest: true });
+}
+
+describe('DeployCoordinator wiring: start before recover, deployDisabled (design C3, D21; task 5)', () => {
+  it('a start with a restart record and a deploy-held waiting run whose answered wait ends at done, hold gone, run past waiting', async () => {
+    const id = 'run-20261105-dep0001';
+    const iso = '2026-11-05T05:00:01.000Z';
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    const wait = await createWait({
+      kind: 'question', runId: id, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{ id: 'q', text: 'q?' }],
+    });
+    await answerWait(wait.id, { q: 'ok' }, 'matthew');
+
+    writeOpenDeployRecord('restart', [id], iso, { unitStarted: true });
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit() });
+    await controller.start();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('done');
+
+    const after = await readRun(id);
+    expect(after?.status).not.toBe('waiting');
+    expect(after?.holdBy).toBeUndefined();
+    expect(after?.pauseRequested).toBeUndefined();
+  });
+
+  it('with deployDisabled, a restart record stays at restart after start and pump (control: a sibling controller resolves it)', async () => {
+    const id = 'run-20261105-dep0002';
+    const iso = '2026-11-05T05:00:02.000Z';
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    const wait = await createWait({
+      kind: 'question', runId: id, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{ id: 'q', text: 'q?' }],
+    });
+    await answerWait(wait.id, { q: 'ok' }, 'matthew');
+
+    writeOpenDeployRecord('restart', [id], iso, { unitStarted: true });
+
+    const disabledUnit = fakeDeployUnit();
+    const disabled = makeDeployController(fx, { deployUnit: disabledUnit, deployDisabled: true });
+    try {
+      await disabled.start();
+      await disabled.pump();
+
+      expect((await readDeployRecord())?.stage).toBe('restart');
+      const stillHeld = await readRun(id);
+      expect(stillHeld?.status).toBe('waiting');
+      expect(stillHeld?.holdBy).toBe('deploy');
+      expect(disabledUnit.start).not.toHaveBeenCalled();
+    } finally {
+      await disabled.stop();
+    }
+
+    const enabledUnit = fakeDeployUnit();
+    const enabled = makeDeployController(fx, { deployUnit: enabledUnit });
+    try {
+      await enabled.start();
+
+      expect((await readDeployRecord())?.stage).toBe('done');
+      const resumed = await readRun(id);
+      expect(resumed?.status).not.toBe('waiting');
+      expect(resumed?.holdBy).toBeUndefined();
+    } finally {
+      await enabled.stop();
+    }
+  });
+
+  it('with deployDisabled, a wait record starts no unit (control: a sibling controller starts it once)', async () => {
+    const iso = new Date().toISOString();
+    writeOpenDeployRecord('wait', [], iso);
+
+    const disabledUnit = fakeDeployUnit();
+    const disabled = makeDeployController(fx, { deployUnit: disabledUnit, deployDisabled: true });
+    try {
+      await disabled.start();
+      await disabled.pump();
+
+      expect(disabledUnit.start).not.toHaveBeenCalled();
+      const stillWaiting = await readDeployRecord();
+      expect(stillWaiting?.stage).toBe('wait');
+      expect(stillWaiting?.unitStarted).not.toBe(true);
+    } finally {
+      await disabled.stop();
+    }
+
+    const enabledUnit = fakeDeployUnit();
+    const enabled = makeDeployController(fx, { deployUnit: enabledUnit });
+    try {
+      await enabled.start();
+      await enabled.pump();
+
+      expect(enabledUnit.start).toHaveBeenCalledTimes(1);
+    } finally {
+      await enabled.stop();
+    }
+  });
+});
+
+describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task 5)', () => {
+  it('pump at wait starts the fake unit once when quiet', async () => {
+    const iso = new Date().toISOString();
+    writeOpenDeployRecord('wait', [], iso);
+
+    const unit = fakeDeployUnit();
+    controller = makeDeployController(fx, { deployUnit: unit });
+    await controller.start();
+    await controller.pump();
+
+    expect(unit.start).toHaveBeenCalledTimes(1);
+    expect(unit.start).toHaveBeenCalledWith(deployRecordPath());
+    expect((await readDeployRecord())?.unitStarted).toBe(true);
+  });
+
+  it('a run with a live inFlight process stops the unit from starting (control: quiet once the process dies, the same unit starts)', async () => {
+    const iso = new Date().toISOString();
+    const id = 'run-20261105-dep0005';
+    writeOpenDeployRecord('wait', [], iso);
+
+    const child = spawn('sleep', ['5']);
+    await new Promise((r) => setTimeout(r, 50));
+    const startTime = processStartTime(child.pid!) ?? 0;
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'main', status: 'running',
+      inFlight: { id: 's-live', pid: child.pid!, startTime },
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    const unit = fakeDeployUnit();
+    controller = makeDeployController(fx, { deployUnit: unit });
+    await controller.start();
+    await controller.pump();
+
+    expect(unit.start).not.toHaveBeenCalled();
+    expect((await readDeployRecord())?.unitStarted).not.toBe(true);
+
+    child.kill('SIGKILL');
+    await new Promise((r) => setTimeout(r, 150));
+    await controller.pump();
+
+    expect(unit.start).toHaveBeenCalledTimes(1);
+  }, 10000);
+
+  it('a run in drivenRuns stops the unit from starting (control: once the drive ends, the same unit starts)', async () => {
+    const iso = new Date().toISOString();
+    writeScript(fx, [{ ...drafterRun('requirements'), delayMs: 800 } as StubRun]);
+
+    const unit = fakeDeployUnit();
+    controller = makeDeployController(fx, { deployUnit: unit });
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    for (let i = 0; i < 100 && !controller.drivenRuns().has(id); i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(controller.drivenRuns().has(id)).toBe(true);
+
+    // Pressed only once the run is confirmed driving, so no earlier quiet
+    // tick (before this run existed, or before its drive began) starts the
+    // unit ahead of the assertion below.
+    writeOpenDeployRecord('wait', [], iso);
+
+    await controller.pump();
+    expect(unit.start).not.toHaveBeenCalled();
+
+    for (let i = 0; i < 200 && controller.drivenRuns().has(id); i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(controller.drivenRuns().has(id)).toBe(false);
+
+    await controller.pump();
+    expect(unit.start).toHaveBeenCalledTimes(1);
+  }, 10000);
+});
+
+describe('Controller.settlePass and the usage-window branch skip a deploy hold (design C3, requirement 4 AC3; task 5)', () => {
+  it('writes nothing to a deploy-held queued run', async () => {
+    const id = 'run-20261105-dep0007';
+    const iso = '2026-10-11T05:05:21.000Z';
+    await writeHeldRun(fx, id, 'queued', iso);
+    writeOpenDeployRecord('build', [id], iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) });
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('queued');
+    expect(after?.pauseReason).toBeUndefined();
+    expect(after?.updated).toBe(iso);
+  });
+
+  it('writes nothing to a deploy-held merging run', async () => {
+    const id = 'run-20261105-dep0008';
+    const iso = '2026-10-11T05:05:22.000Z';
+    const cursor = { phase: 'implementation' as const, stepKind: 'implementation' as const, attempt: 1 };
+    await writeHeldRun(fx, id, 'merging', iso, {
+      worktree: fx.repo, branch: 'main', phase: 'implementation', cursor,
+    });
+    writeOpenDeployRecord('build', [id], iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) });
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('merging');
+    expect(after?.cursor).toEqual(cursor);
+    expect(after?.updated).toBe(iso);
+  });
+
+  it('writes nothing to a deploy-held usage-paused run', async () => {
+    const id = 'run-20261105-dep0009';
+    const iso = '2026-10-11T05:05:23.000Z';
+    const resumeAt = new Date(Date.now() + 3_600_000).toISOString();
+    await writeHeldRun(fx, id, 'paused', iso, { pauseReason: 'usage-window', resumeAt });
+    writeOpenDeployRecord('build', [id], iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) });
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('paused');
+    expect(after?.pauseReason).toBe('usage-window');
+    expect(after?.resumeAt).toBe(resumeAt);
+    expect(after?.updated).toBe(iso);
+  });
+
+  it('a deploy-held queued run stays queued with no pauseReason while the usage window is over the threshold', async () => {
+    const id = 'run-20261105-dep0010';
+    const iso = '2026-10-11T05:05:24.000Z';
+    await writeHeldRun(fx, id, 'queued', iso);
+    writeOpenDeployRecord('build', [id], iso);
+
+    await writeRateLimit({
+      v: 1,
+      fiveHour: { utilization: 0.99, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      sevenDay: { utilization: 0.1, resetsAt: new Date(Date.now() + 3_600_000).toISOString() },
+      updated: new Date().toISOString(),
+    });
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') }) });
+    await controller.start();
+    await controller.pump();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('queued');
+    expect(after?.pauseReason).toBeUndefined();
+  });
+});
+
+describe('Controller.onWaitChange guards a deploy hold (design C3, requirement 4 AC6; task 5)', () => {
+  it('an answer on a deploy-held waiting run leaves it waiting, the answer on disk, and no stub step consumed', async () => {
+    const scriptPath = join(fx.base, 'script.json');
+    const id = 'run-20261105-dep0012';
+    const iso = '2026-11-05T05:00:12.000Z';
+
+    // A large tickMs keeps the periodic scheduler from racing the absent-record
+    // release (D24) against this test's own answerWait call; only the explicit
+    // start()/pump() calls below drive the coordinator.
+    controller = makeDeployController(fx, { tickMs: 100_000 });
+    await controller.start();
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    const wait = await createWait({
+      kind: 'question', runId: id, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{ id: 'q', text: 'q?' }],
+    });
+    await answerWait(wait.id, { q: 'ok' }, 'matthew');
+    await new Promise((r) => setTimeout(r, 300));
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('waiting');
+    expect(after?.holdBy).toBe('deploy');
+    expect(after?.pauseRequested).toBeTruthy();
+
+    const storedWait = await readWait(wait.id);
+    expect(storedWait?.state).toBe('answered');
+    expect(storedWait?.answer?.q.value).toBe('ok');
+    expect(existsSync(`${scriptPath}.counter`)).toBe(false);
+  });
+
+  it('an abandon answer on a deploy-held error wait leaves it waiting until release', async () => {
+    const id = 'run-20261105-dep0013';
+    const iso = '2026-11-05T05:00:13.000Z';
+
+    // Same reasoning as the previous test: keep the periodic tick from
+    // releasing the hold before the explicit pump() below does.
+    controller = makeDeployController(fx, { tickMs: 100_000 });
+    await controller.start();
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    const wait = await createWait({
+      kind: 'error', runId: id, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{
+        id: DRIVE_CRASH_QUESTION, text: 'step drafter failed inside the controller: boom',
+        options: ['retry', 'abandon'], recommended: 'retry',
+      }],
+    });
+    await answerWait(wait.id, { [DRIVE_CRASH_QUESTION]: 'abandon' }, 'operator');
+    await new Promise((r) => setTimeout(r, 300));
+
+    const held = await readRun(id);
+    expect(held?.status).toBe('waiting');
+    expect(held?.holdBy).toBe('deploy');
+
+    // No deploy record on disk: the tick's absent-record row releases the
+    // leftover hold (D24), replaying the already-answered abandon.
+    await controller.pump();
+    const released = await waitForStatus(id, 'abandoned');
+    expect(released.status).toBe('abandoned');
+  }, 10000);
+
+  it('a start over an answered deploy-held wait with a live unit leaves it waiting', async () => {
+    const id = 'run-20261105-dep0014';
+    const iso = '2026-11-05T05:00:14.000Z';
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    const wait = await createWait({
+      kind: 'question', runId: id, projectId: 'p', spec: SPEC, specDir: fx.specDir,
+      questions: [{ id: 'q', text: 'q?' }],
+    });
+    await answerWait(wait.id, { q: 'ok' }, 'matthew');
+
+    writeOpenDeployRecord('build', [id], iso);
+    const unit = fakeDeployUnit({ state: vi.fn(async (): Promise<UnitState> => 'live') });
+
+    controller = makeDeployController(fx, { deployUnit: unit });
+    await controller.start();
+
+    const after = await readRun(id);
+    expect(after?.status).toBe('waiting');
+    expect(after?.holdBy).toBe('deploy');
+    expect(after?.pauseRequested).toBeTruthy();
+    expect(unit.start).not.toHaveBeenCalled();
+    expect(unit.stop).not.toHaveBeenCalled();
+    expect((await readDeployRecord())?.stage).toBe('build');
+  });
+});
+
+// Contract for task 6 ("Make operator actions respect an open deploy", design
+// C3, D23; requirement 4 AC1, AC7, AC8, AC9, AC11). Per success criterion:
+// - `pause` on a deploy-held `waiting` run writes `holdBy: 'operator'`
+//   (the record stays `waiting`, held), and a later release (the controller
+//   resolving an open `restart` record on `start()`) leaves it held because
+//   release only clears runs with `holdBy: 'deploy'`. Pre: such a run. Call:
+//   `controller.pause(id)`, then an open `restart` record and
+//   `controller.start()`. Result: `pause` returns `holdBy: 'operator'`,
+//   `status: 'waiting'`; after `start()` the record is `done` and the run is
+//   unchanged. Source: design C3 `pause` bullet (R4 AC1, AC7); D9.
+// - `pause` on a deploy-held `queued` run parks it `paused`/`operator`. Pre:
+//   such a run. Call: `controller.pause(id)`. Result: `status: 'paused'`,
+//   `pauseReason: 'operator'`, `holdBy: 'operator'`. Source: design C3
+//   `pause` bullet; R4 AC1, AC7.
+// - A fresh operator pause (no prior hold) writes `holdBy: 'operator'`
+//   alongside the existing `pauseReason`. Pre: an unheld `queued` run. Call:
+//   `controller.pause(id)`. Result: `status: 'paused'`, `pauseReason:
+//   'operator'`, `holdBy: 'operator'`. Source: design C3 "every pause patch
+//   sets `holdBy: 'operator'`"; R4 AC1.
+// - `resumeNow` on a deploy-held run gives `'deploy-open'` and changes
+//   nothing. Pre: a `holdBy: 'deploy'` run, no deploy record on disk (so the
+//   sentinel is proven to come from `holdBy` alone, not an open record).
+//   Call: `controller.resumeNow(id)`. Result: `'deploy-open'`; the record on
+//   disk is byte-identical. Source: design C3 `resumeNow` bullet; R4 AC8.
+// - `resumeNow` on an operator-held run gives `'deploy-open'` and changes
+//   nothing while a record is open. Pre: a `holdBy: 'operator'` run, an open
+//   record. Call: `controller.resumeNow(id)`. Result: `'deploy-open'`; the
+//   record on disk is byte-identical. Source: design C3 `resumeNow` bullet
+//   ("or a record is open"); R4 AC8.
+// - `resumeNow` with no record open clears `holdBy` and `pauseRequested` on
+//   an operator-held run (today's clearing branch also drops `holdBy` now).
+//   Pre: a `holdBy: 'operator'` run, no deploy record. Call:
+//   `controller.resumeNow(id)`. Result: `status: 'queued'`, `pauseRequested`
+//   and `holdBy` both undefined. Source: design C3 "Its held branch also
+//   clears `holdBy`"; R4 AC8.
+// - `enqueue` throws the stage text and writes no run while a record is
+//   open. Pre: an open `build` record. Call: `controller.enqueue(...)`.
+//   Result: rejects `enqueue: a deploy is open (stage build)`; `listRuns()`
+//   stays empty. Source: design C3 `enqueue` bullet; R4 AC9, D23.
+// - `enqueue` waits for a held deploy lock, then refuses once press writes
+//   an open record. Pre: a fake unit whose `state()` is held pending. Call:
+//   `controller.pressDeploy()` (unawaited), then `controller.enqueue(...)`
+//   (unawaited) while the lock is still held. Result: `listRuns()` is still
+//   empty while the lock holds; once the unit state resolves, press
+//   succeeds and the queued `enqueue` rejects `enqueue: a deploy is open
+//   (stage wait)`, still writing no run. Source: design C3 `enqueue` bullet
+//   ("runs inside `deploy.withLock`"); R4 AC9, D23.
+// - `launchBlock` gives the deploy text before the live-run text. Pre: a
+//   live run on the project/store AND an open record. Call:
+//   `controller.launchBlock(projectId, specStore)`. Result: the deploy
+//   message, not the live-run message. Source: design C3 `launchBlock`
+//   bullet ("first while a record is open"); R4 AC9.
+//
+// Regression guards (RED-IMPOSSIBLE at base: each already holds because no
+// code yet reads deploy state for these paths, or because an unrelated
+// mechanism — the terminal-status clear, D22 — already produces the result;
+// named for the implementer brief rather than red-tested):
+// - "`resumeNow` on an unknown id gives `undefined` with a record open": the
+//   existing assertion `expect(await controller.resumeNow('run-nope')).
+//   toBeUndefined()` (`Controller.pause and resumeNow`, no record present)
+//   covers the same `!run` branch, but never with an open record on disk;
+//   the test below adds that combination as a fresh guard.
+// - "`launchBlock` and `enqueue` both work as today with a `done` record":
+//   base code never reads the deploy record in either path, so a closed
+//   record already changes nothing; no existing assertion pins `launchBlock`
+//   returning `null` at the `Controller` level, so the test below adds it
+//   alongside the existing `enqueue` success path.
+// - "`cancel` and `discard` on a held run end it as today and a later
+//   release skips it" (requirement 4 AC11): `cancelRun`/`discardRun`
+//   (`runs.test.ts` "cancelRun and discardRun") already prove a terminal
+//   write on an unheld run; the terminal-status clear in `writeRunLocked`
+//   (task 1, D22) already drops `holdBy` on any terminal write, and
+//   `DeployCoordinator.release` already filters to `holdBy: 'deploy'`
+//   (task 3) — but no existing assertion combines a `holdBy: 'deploy'` run
+//   with cancel/discard and a later release. The test below adds that
+//   combination as a fresh guard.
+// - "a second pause on an operator-held run writes nothing": fully covered,
+//   branch-exact, by the existing test "pause returns undefined for an
+//   unknown run, null for a done run, and the unchanged record for an
+//   already-held run" (`Controller.pause and resumeNow`) — the early return
+//   `run.pauseRequested && run.holdBy !== 'deploy'` is unchanged for a run
+//   whose `holdBy` is `'operator'` (or absent, which R4 AC1 reads as
+//   `'operator'`), so that test needs no change and no new guard.
+describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open deploy (design C3, D23; requirement 4 AC1, AC7, AC8, AC9, AC11; task 6)', () => {
+  it('pause on a deploy-held waiting run moves the hold to operator; a later release leaves it held', async () => {
+    const id = 'run-20261105-dep0015';
+    const iso = '2026-11-05T05:00:15.000Z';
+    await writeHeldRun(fx, id, 'waiting', iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit() });
+    const held = await controller.pause(id);
+    expect(held?.holdBy).toBe('operator');
+    expect(held?.status).toBe('waiting');
+    expect(held?.pauseRequested).toBeTruthy();
+
+    writeOpenDeployRecord('restart', [id], iso, { unitStarted: true });
+    await controller.start();
+
+    const record = await readDeployRecord();
+    expect(record?.stage).toBe('done');
+
+    const after = await readRun(id);
+    expect(after?.holdBy).toBe('operator');
+    expect(after?.status).toBe('waiting');
+    expect(after?.pauseRequested).toBeTruthy();
+  });
+
+  it('pause on a deploy-held queued run parks it paused with reason operator', async () => {
+    const id = 'run-20261105-dep0016';
+    const iso = '2026-11-05T05:00:16.000Z';
+    await writeHeldRun(fx, id, 'queued', iso);
+
+    controller = makeController(fx);
+    const result = await controller.pause(id);
+    expect(result?.status).toBe('paused');
+    expect(result?.pauseReason).toBe('operator');
+    expect(result?.holdBy).toBe('operator');
+  });
+
+  it('a fresh operator pause writes holdBy operator', async () => {
+    const id = 'run-20261105-dep0017';
+    const iso = '2026-11-05T05:00:17.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    controller = makeController(fx);
+    const result = await controller.pause(id);
+    expect(result?.status).toBe('paused');
+    expect(result?.pauseReason).toBe('operator');
+    expect(result?.holdBy).toBe('operator');
+  });
+
+  it('resumeNow on a deploy-held run gives deploy-open and changes nothing', async () => {
+    const id = 'run-20261105-dep0018';
+    const iso = '2026-11-05T05:00:18.000Z';
+    await writeHeldRun(fx, id, 'paused', iso);
+
+    controller = makeController(fx);
+    const before = await readRun(id);
+    const result = await controller.resumeNow(id);
+    expect(result).toBe('deploy-open');
+    expect(await readRun(id)).toEqual(before);
+  });
+
+  it('resumeNow on an operator-held run gives deploy-open and changes nothing while a record is open', async () => {
+    const id = 'run-20261105-dep0019';
+    const iso = '2026-11-05T05:00:19.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'paused', pauseReason: 'operator', pauseRequested: iso, holdBy: 'operator',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:00.000Z');
+
+    controller = makeController(fx);
+    const before = await readRun(id);
+    const result = await controller.resumeNow(id);
+    expect(result).toBe('deploy-open');
+    expect(await readRun(id)).toEqual(before);
+  });
+
+  it('resumeNow with no record open clears holdBy and pauseRequested on an operator-held run', async () => {
+    const id = 'run-20261105-dep0020';
+    const iso = '2026-11-05T05:00:20.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'paused', pauseReason: 'operator', pauseRequested: iso, holdBy: 'operator',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    }, { ownsPauseRequest: true });
+
+    controller = makeController(fx);
+    const result = await controller.resumeNow(id) as RunRecord | null | undefined;
+    expect(result?.status).toBe('queued');
+    expect(result?.pauseRequested).toBeUndefined();
+    expect(result?.holdBy).toBeUndefined();
+  });
+
+  it('enqueue throws the stage text and writes no run while a record is open', async () => {
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:21.000Z');
+
+    controller = makeController(fx);
+    await expect(controller.enqueue({ projectId: 'p', spec: SPEC }))
+      .rejects.toThrow(/enqueue: a deploy is open \(stage build\)/);
+    expect(await listRuns()).toEqual([]);
+  });
+
+  it('enqueue waits for a held deploy lock, then refuses once press writes an open record', async () => {
+    let resolveState: (s: UnitState) => void = () => {};
+    const unit = fakeDeployUnit({
+      state: vi.fn(() => new Promise<UnitState>((resolve) => { resolveState = resolve; })),
+    });
+    controller = makeDeployController(fx, { deployUnit: unit });
+
+    const pressPromise = controller.pressDeploy();
+    await new Promise((r) => setTimeout(r, 50));
+    const enqueuePromise = controller.enqueue({ projectId: 'p', spec: SPEC });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(await listRuns()).toEqual([]);
+
+    resolveState('gone');
+    await expect(pressPromise).resolves.toEqual({ ok: true });
+    await expect(enqueuePromise).rejects.toThrow(/enqueue: a deploy is open \(stage wait\)/);
+    expect(await listRuns()).toEqual([]);
+  }, 10000);
+
+  it('launchBlock gives the deploy text before the live-run text', async () => {
+    const id = 'run-20261105-dep0022';
+    const iso = '2026-11-05T05:00:22.000Z';
+    await writeRun({
+      v: 1, id, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued', created: iso, updated: iso,
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    writeOpenDeployRecord('build', [id], iso);
+
+    controller = makeController(fx);
+    const block = await controller.launchBlock('p', fx.repo);
+    expect(block).toBe('A deploy is in progress (build); launch waits until it ends.');
+  });
+
+  // Regression guard: resumeNow('unknown') already returns undefined before
+  // ever consulting deploy state; this pins that an open record does not
+  // change that.
+  it('[regression guard] resumeNow on an unknown id gives undefined while a record is open', async () => {
+    writeOpenDeployRecord('build', [], '2026-11-05T05:00:23.000Z');
+    controller = makeController(fx);
+    expect(await controller.resumeNow('run-nope')).toBeUndefined();
+  });
+
+  // Regression guard: neither launchBlock nor enqueue reads deploy state for
+  // a closed (done) record, so both already behave as if there were no
+  // record at all; this pins that a done record changes nothing.
+  it('[regression guard] launchBlock and enqueue work as today with a done record', async () => {
+    writeOpenDeployRecord('done', [], '2026-11-05T05:00:24.000Z');
+    controller = makeController(fx);
+
+    expect(await controller.launchBlock('p', fx.repo)).toBeNull();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+    expect(id).toMatch(/^run-/);
+  });
+
+  // Regression guard: the terminal-status clear (task 1, D22) already drops
+  // holdBy on any cancel/discard write, and release (task 3) already skips
+  // any run whose holdBy isn't 'deploy'; this pins that combination for a
+  // run that started deploy-held.
+  it('[regression guard] cancel and discard on deploy-held runs clear the hold as today, and a later release skips them', async () => {
+    const cancelId = 'run-20261105-dep0025';
+    const discardId = 'run-20261105-dep0026';
+    const iso = '2026-11-05T05:00:25.000Z';
+    await writeHeldRun(fx, cancelId, 'queued', iso);
+    await writeHeldRun(fx, discardId, 'queued', iso);
+
+    controller = makeDeployController(fx, { deployUnit: fakeDeployUnit() });
+
+    const cancelled = await controller.cancel(cancelId);
+    expect(cancelled?.status).toBe('abandoned');
+
+    const discarded = await controller.discard(discardId);
+    expect(discarded?.status).toBe('abandoned');
+
+    // `cancelRun`/`discardRun` return their own in-memory patch, not the
+    // disk-side terminal clear, so `holdBy` is read back fresh (D22).
+    const beforeCancel = await readRun(cancelId);
+    const beforeDiscard = await readRun(discardId);
+    expect(beforeCancel?.holdBy).toBeUndefined();
+    expect(beforeDiscard?.holdBy).toBeUndefined();
+
+    writeOpenDeployRecord('restart', [], iso, { unitStarted: true });
+    await controller.start();
+
+    expect((await readDeployRecord())?.stage).toBe('done');
+    expect(await readRun(cancelId)).toEqual(beforeCancel);
+    expect(await readRun(discardId)).toEqual(beforeDiscard);
+  });
 });

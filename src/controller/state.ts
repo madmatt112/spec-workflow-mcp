@@ -89,6 +89,8 @@ export interface RunRecord {
    * or applied, cleared only by Resume or the run ending (design C1).
    */
   pauseRequested?: string;
+  /** Who is holding the run: an operator pause or the deploy gate (design C2, D22). */
+  holdBy?: 'operator' | 'deploy';
   /**
    * ISO time the run may resume: a usage window's `resetsAt` when `paused`, or
    * the next merge-rule re-check when `merging` (T7's `MERGE_POLL_INTERVAL_MS`).
@@ -422,23 +424,29 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
   const stopped = record.status === 'paused' || record.status === 'waiting';
   const terminal = record.status === 'done' || record.status === 'abandoned' || record.status === 'error';
   let pauseRequested = record.pauseRequested;
+  let holdBy = record.holdBy;
   // `lastActivity` has one writer (`writeLastActivity`); every other write to a
   // run carries it over from disk unchanged, ignoring whatever the caller's
   // record holds (design C1).
   let lastActivity = record.lastActivity;
   if (!terminal) {
     const onDisk = await readRun(record.id);
-    if (!opts?.ownsPauseRequest) pauseRequested = onDisk?.pauseRequested;
+    if (!opts?.ownsPauseRequest) {
+      pauseRequested = onDisk?.pauseRequested;
+      holdBy = onDisk?.holdBy;
+    }
     lastActivity = onDisk?.lastActivity;
   }
   if (terminal) {
     pauseRequested = undefined;
+    holdBy = undefined;
     lastActivity = undefined;
   }
   const out = {
     ...record,
     pausedAt: stopped ? (record.pausedAt ?? new Date().toISOString()) : undefined,
     pauseRequested,
+    holdBy,
     lastActivity,
   };
   return writeJsonAtomic(runPath(record.id), out);
@@ -451,6 +459,36 @@ export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean 
     () => writeRunLocked(record, opts),
   );
   writeChains.set(record.id, settled.catch(() => undefined));
+  return settled;
+}
+
+async function updateRunLocked(
+  id: string,
+  fn: (run: RunRecord) => RunRecord | undefined,
+): Promise<RunRecord | undefined> {
+  const record = await readRun(id);
+  if (!record) return undefined;
+  const next = fn(record);
+  if (next === undefined) return undefined;
+  await writeRunLocked(next, { ownsPauseRequest: true });
+  return readRun(id);
+}
+
+/**
+ * Read-modify-write one run inside its own write chain (design C2, D22): calls
+ * `writeRunLocked` directly, never `writeRun`, since queuing behind its own
+ * chain link would deadlock. `fn` sees the freshly re-read record even when
+ * raced against a `writeRun` for the same id; returning `undefined` from `fn`
+ * writes nothing. A missing id resolves `undefined` without calling `fn`.
+ */
+export function updateRun(
+  id: string,
+  fn: (run: RunRecord) => RunRecord | undefined,
+): Promise<RunRecord | undefined> {
+  const prior = writeChains.get(id) ?? Promise.resolve();
+  const run = () => updateRunLocked(id, fn);
+  const settled = prior.then(run, run);
+  writeChains.set(id, settled.then(() => undefined, () => undefined));
   return settled;
 }
 
