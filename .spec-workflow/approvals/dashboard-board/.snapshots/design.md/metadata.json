@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-board/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-06T20:11:43.759Z",
+      "trigger": "initial",
+      "approvalId": "approval_1793995903706_hbiwmet38",
+      "approvalTitle": "dashboard-board design v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-06T20:11:43.890Z",
+      "trigger": "approved",
+      "approvalId": "approval_1793995903706_hbiwmet38",
+      "approvalTitle": "dashboard-board design v2"
+    }
+  ]
+}
