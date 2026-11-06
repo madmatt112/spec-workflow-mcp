@@ -114,3 +114,50 @@
 - docs/SDD-HARNESS.md:99-100 — Launch on the Runs page
 - docs/SDD-HARNESS.md:120 — answer on the Now page
 - docs/SDD-HARNESS.md:469 — Now page acknowledgement
+
+## Run row writers (design phase)
+- src/controller/runs.ts:428-434 — patchRun, read-modify-write that emits change
+- src/controller/runs.ts:1428-1451 — ControllerRunRow
+- src/controller/runs.ts:1468-1471 — listRunsForWire
+- src/controller/runs.ts:840-842 — drive fills worktree and branch
+- src/controller/controller.ts:245-267 — enqueue under the store lock, writes branch ''
+- src/controller/controller.ts:788-791 — isLive, the moving status list
+- src/controller/state.ts:421 — writeRunLocked
+- src/controller/state.ts:751-762 — withStoreLock
+- src/controller/phases/implementation.ts:95 — onStepSpawn on ImplementationPhaseContext
+- src/controller/phases/implementation.ts:444-449 — runModelStep options, opts.task
+- src/controller/phases/implementation.ts:469 — onSpawn call
+- src/controller/activity.ts:35 — recordActivity
+- src/controller/activity.ts:41 — listActivityForWire
+- src/controller/merge.ts:556 — closeoutMergeTarget question id
+- src/dashboard/harness/worktree.ts:119-128 — branchExists, private at base
+
+## Removal edges (design phase)
+- src/dashboard/multi-server.ts:170-175 — hub construction, two send callbacks
+- src/dashboard/multi-server.ts:318-320 — connection.projectId from the socket URL
+- src/dashboard/multi-server.ts:353-366 — harness subscribe and unsubscribe branches
+- src/dashboard/multi-server.ts:938-952 — sendToHarness
+- src/dashboard/harness/hub.ts:53 — activityEvents listener
+- src/dashboard/harness/hub.ts:103-106 — overview-rows re-arms the feed
+- src/dashboard/harness/project-watch.ts:118 — ProjectHarnessWatch
+- src/dashboard/harness/overview-watch.ts:15 — parseHandoffRouting import
+- src/dashboard/harness/types.ts:33-42 — SetupView
+- src/dashboard/harness/types.ts:58-60 — ViewMessage
+- src/dashboard/shell/types.ts:195 — ControllerRun hand copy
+- src/dashboard/shell/now-model.ts:186-191 — buildNowModel
+- src/dashboard_frontend/src/modules/harness/types.ts:149-158 — SetupView hand copy
+- src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx:37-51 — view key and subscribe messages
+
+## Advisor actions (design phase)
+- src/advisor/actions.ts:37-50 — StagedAction record
+- src/advisor/actions.ts:431-465 — confirmAction, ok false on a failed executor
+- src/dashboard_frontend/src/modules/shell/NowPage.tsx:98-102 — actionTarget
+
+## Test seams (design phase)
+- src/dashboard/shell/__tests__/deploy-view.test.ts:12-17 — runtime import of frontend modules
+- src/dashboard/__tests__/frontend-style-scan.test.ts:338 — --sidebar-w as declared sample
+- src/controller/__tests__/runs.test.ts:506 — listRunsForWire suite
+- e2e/worktree-deploy.spec.ts:49-52 — writeRun seed helper
+- e2e/worktree-shell.spec.ts:446 — pause note assert, also :468 and :553
+- src/dashboard_frontend/vite.config.ts:28-36 — dev proxy Origin rewrite
+- playwright.worktree-pattern.ts:21 — WORKTREE_SPEC_PATTERN

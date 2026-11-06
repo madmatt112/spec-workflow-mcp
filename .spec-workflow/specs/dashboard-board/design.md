@@ -1,0 +1,261 @@
+# Design Document
+
+## Overview
+
+This spec replaces the sidebar, the Now, Runs and Run pages and the right panel with a top bar and a three-band Home of large tiles. It sits in the dashboard frontend, the shell feed and hub, and the controller's run record and `toRow`. It reuses `AnswerSheet`, `DeployControl`, `callHarness`, `buildLaunchInput`, `OpErrorView`, `pauseNote`, `storeGroups` and the existing routes.
+
+## Steering Document Alignment
+
+### Technical Standards (tech.md)
+`.spec-workflow/steering/` is empty; this design follows `.spec-workflow/agent-rules.md` and the entry: no model writes a tile field, and colour means state.
+
+### Project Structure (structure.md)
+No structure.md exists; new files go in `src/dashboard_frontend/src/modules/shell/`, `modules/projects/` and `src/controller/`.
+
+### Design System (design-system.md) — if applicable
+No design-system.md exists; `src/dashboard_frontend/src/modules/theme/tokens.css` stays the only file that declares token values, and `src/dashboard/__tests__/frontend-style-scan.test.ts` and `src/dashboard/__tests__/frontend-tokens.test.ts` stay the theme gates.
+
+## Architecture
+
+`board.ts` turns the `controller-waits`, `controller-runs` and `controller-actions` pushes plus one fetched setup view per store into three sorted tile lists, and `tiles.tsx` renders them. Presses go through one stage store on Home, which owns retained tiles. The controller gains three things on the run row: the in-flight step's start and task, a cached branch read, and a Discard-allowed flag. The feed loses `shell-now` and `controller-activity`; the hub loses its project watches.
+
+```mermaid
+graph TD
+    Step[implementation phase spawn] --> Rec[run.json inFlight]
+    Rec --> Row[toRow and listRunsForWire]
+    Git[branch-presence cache] --> Row
+    Row --> Feed[ShellFeed five topics]
+    Feed --> Shell[ShellProvider]
+    Setup[GET harness setup] --> Next[useNextViews]
+    Shell --> Board[board.ts]
+    Next --> Board
+    Board --> Tiles[tiles.tsx]
+    Tiles --> Stage[useStages]
+    Stage --> Rec
+```
+
+## Components and Interfaces
+
+### C1 — Run record and step spawn (R12 AC 2, 3)
+- **Purpose:** Hold the step's wall-clock start and task id for the step's lifetime.
+- **Interfaces:** `InFlightStep` (`src/controller/state.ts:39-46`) gains optional `startedAt?: string` and `task?: string`. `stepLifecycle`'s `onStepSpawn` (`src/controller/runs.ts:449-465`) takes `{ id, pid, startTime, task? }` and writes `startedAt` from `deps.now().toISOString()`.
+- **Post-conditions:** Both fields live inside `inFlight`, so `onStepEnd` and every `inFlight: undefined` write clear them with no new clear site. A record that predates them yields no start time.
+- **Task route:** `ImplementationPhaseContext.onStepSpawn` (`src/controller/phases/implementation.ts:95`) gains `task?: string`, and `runModelStep` passes `opts.task` (`src/controller/phases/implementation.ts:469`; `opts.task` already exists at `:446`, and every task step sets it). The other phases do not change: a callback that accepts an optional field still fits their narrower type.
+
+### C2 — Branch presence (R12 AC 1, NFR Performance, NFR Reliability)
+- **Purpose:** Answer "does this run's branch exist" at most once per stopped run per 60 s.
+- **Interfaces:** New `src/controller/branch-presence.ts`:
+  - `branchPresent(run: Pick<RunRecord, 'id'|'branch'|'codeRoot'>, read?: BranchRead, now?: () => number): Promise<boolean>`
+  - `forgetBranchPresence(runId: string): void`
+  - `type BranchRead = (codeRoot: string, branch: string) => Promise<boolean>`
+- **Post-conditions:** The cache maps run id to `{ at, value: Promise<boolean> }`, so two overlapping flushes share one read. An empty branch gives `false` with no read. A rejected read gives `false`. An entry older than 60,000 ms is re-read. `read` and `now` are optional trailing parameters for tests.
+- **Dependencies:** `branchExists` (`src/dashboard/harness/worktree.ts:119-128`), exported as is; it runs `git rev-parse --verify --quiet` with `scrubbedGitEnv()`.
+
+### C3 — Wire row (R12 AC 1, 4; R7 AC 6, 7)
+- **Purpose:** Carry every tile field with no path.
+- **Interfaces:** `ControllerRunRow` (`src/controller/runs.ts:1428-1451`) and both hand copies (`src/dashboard/shell/types.ts:195`, `src/dashboard_frontend/src/modules/shell/types.ts:215-239`) gain the fields in Data Models. `listRunsForWire(driven, branchRead?)` (`src/controller/runs.ts:1468-1471`) takes the read as an optional trailing parameter, resolves presence for stopped runs first, then maps `toRow`.
+- **Post-conditions:** `branchPresent` is the C2 read for `done`, `abandoned` and `error`; a moving run reports `run.branch !== ''` with no read. `discardAllowed` is `!branchHeld(run, allRuns)`. `driven`, `lastActivity`, `prReads`, `holdBy` and `stepKind` keep their base values.
+- **`branchHeld(run, runs)`:** New export of `runs.ts`. True when another run has a moving status and the same `codeRoot`, and either the same non-empty `branch` or an empty branch with the same `spec`. The second clause covers a queued relaunch: `enqueue` writes `branch: ''` (`src/controller/controller.ts:256-261`) and the drive fills it in later (`src/controller/runs.ts:840-842`).
+- **Moving statuses:** `isLive` (`src/controller/controller.ts:788-791`) already names R3 AC 7's list. It moves to `state.ts` as an export and `controller.ts` imports it.
+
+### C4 — Discard (R7 AC 7, 8)
+- **Interfaces:** `Controller.discard(runId)` (`src/controller/controller.ts:373-378`) returns `RunRecord | undefined | 'branch-in-use'`. The discard route (`src/dashboard/multi-server.ts:859-864`) answers 409 `{ error: 'branch-in-use' }` on the sentinel.
+- **Post-conditions:**
+  - The run read, the `branchHeld` check and the discard all run inside `withStoreLock(run.specStore, …)`, the lock `enqueue` holds (`src/controller/controller.ts:245`).
+  - On `branch-in-use` nothing changes: no `cancelled` entry, no queue edit, no write.
+  - `discardRun` (`src/controller/runs.ts:1400-1422`) skips `cancelRun` when the run is `done`, so status stays `done`.
+  - After the git and `gh` cleanup, `discardRun` calls `forgetBranchPresence(runId)`, then emits `runEvents` `change`. `cancelRun` emits before the cleanup and a `done` discard writes nothing, so the tile would otherwise wait out the 60 s cache.
+
+### C5 — Setup view order (R3 AC 9)
+- **Interfaces:** `SetupView` (`src/dashboard/harness/types.ts:33-42`, hand copy `src/dashboard_frontend/src/modules/harness/types.ts:149-158`) gains `launchableOrder: number | null`. `buildSetupView` (`src/dashboard/harness/run-setup.ts:146-218`) sets it from a new `decompositionPosition(workflowRoot, spec)`.
+- **Post-conditions:** The position is the zero-based index among lines that match the heading regex of `nextUnstartedSpec` (`src/dashboard/harness/run-setup.ts:224-233`), `(deferred)` headings included. A spec not named there, or a null `launchable`, gives `null`.
+
+### C6 — Feed, hub and server removal (R2 AC 2, 3)
+- **`src/dashboard/shell/shell-feed.ts:92-161`:** `flush` sends `shell-specs`, `controller-waits`, `controller-runs`, `controller-actions`, `controller-deploy`. `buildNowModel`, `buildSidebarRows` and `listActivityForWire` drop out. `liveRunsByProject` stays for spec rows.
+- **`src/dashboard/harness/hub.ts`:** Delete `projectWatches`, `sendHarness`, `snapshotFor`, `watchedProjects`, the watch loops at `:78-93`, and the `activityEvents` listener (`:53`, `:149`). `setRunHeartbeat` already emits `runEvents` `change` (`src/controller/runs.ts:441-446`), so tile heartbeats still push. `OverviewWatch` stays: it is the feed's file trigger (`:103-106`).
+- **`src/dashboard/multi-server.ts`:** Delete the `harness-subscribe` and `harness-unsubscribe` branches (`:353-366`), `sendToHarness` (`:938-952`), the hub's first callback (`:172`), the log route (`:866-875`), the summary route (`:593-617`) and the imports only they use. `views` narrows to `Set<'overview'>`. `sendToProjectOrOverview` keeps `connection.projectId`, which the socket URL sets (`:318-320`).
+- **`src/dashboard/harness/project-watch.ts`:** Keep `parseHandoffRouting` (`:28`) at its path. Delete `ProjectHarnessWatch` (`:118`) and `parseGateSections` (`:63`), whose only other reader is the deleted `waits.ts`.
+- **Deleted with their tests:** `src/dashboard/shell/now-model.ts`, `sidebar-rows.ts`, `waits.ts`, `run-detail.ts`.
+- **`src/controller/runs.ts`:** Delete `readRunLogTail` and its only helper `safeMtime` (`:1487-1536`).
+- **Types:** Delete `Wait` through `NowModel`, `RunDetail`, `ControllerActivity` and the matching message arms from `src/dashboard/shell/types.ts` and `src/dashboard_frontend/src/modules/shell/types.ts`; `harness-model`, `harness-gates`, `harness-run-detail` and the `harness-*` view messages from both `harness/types.ts`. Keep what `SpecDetail` reads (`PhaseRow`).
+
+### C7 — Shell frame (R1, R2 AC 1)
+- **`modules/app/App.tsx`:** `Shell` renders `TopBar` then `main`; the two `/runs` routes go and `/` renders `HomePage`. The catch-all (`:31`) stays and serves R2 AC 1.
+- **`TopBar.tsx` (new):** No props. One `header` with `flex flex-wrap items-center`, in order: `NavLink`s Home, Specs, Usage, Deferrals (`ui.navRow`, no counts, test ids `nav-home`, `nav-specs`, `nav-usage`, `nav-deferrals`), `DeployControl` with no props inside a `min-w-0 max-w-full` wrapper, `OpenAdvisor`, `Gear` with `ml-auto`.
+- **`OpenAdvisor.tsx` (new):** The logic of `src/dashboard_frontend/src/modules/shell/NowPage.tsx:105-139`, keeping test id `open-advisor`. The result line drops `truncate` and takes `whitespace-normal break-words`; the root drops `mb-3`.
+- **`Gear.tsx`:** The panel opens with `absolute right-0 top-full mt-2` (replaces `:64`). Lines `:75-99` go. The panel adds one switch per listed project, sorted by `projectName`, using the markup of `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:137-152` without the dot and live count, keeping test id `project-toggle-` plus the id.
+- **`ShellProvider.tsx`:** Delete `Density`, `DENSITY_KEY`, `readDensity`, `density`, `setDensity`, the `--row-h` effect (`:153-156`), `now`, `controllerActivity`, and `connected`, which only the sidebar read. `--row-h` then keeps its token default (`src/dashboard_frontend/src/modules/theme/tokens.css:54`).
+- **`modules/ws/WebSocketProvider.tsx`:** `WatchView` becomes `{ kind: 'overview' }`; `viewKey`, `subscribeMessage` and `unsubscribeMessage` lose the harness branch (`:37-51`).
+- **Unchanged:** `PageLayout.tsx` (Specs and Deferrals keep their panels), `primitives.tsx`, `harness.tsx` (`tiles.tsx` and `useStages.ts` read it), `DeployControl.tsx`, `ConnectionBanner.tsx`.
+- **Deleted:** `NowPage.tsx`, `RunsPage.tsx`, `RunPage.tsx`, `Sidebar.tsx`. `AnswerSheet` and its helpers move out of `NowPage.tsx` first (C10).
+
+### C8 — Project enable state (R1 AC 6, 7)
+- **Interfaces:** New pure `modules/projects/enable.ts`:
+  - `isEnabled(id, name, off: string[], on: string[]): boolean`
+  - `toggled(id, name, off, on): { off: string[]; on: string[] }`
+  - `DEFAULT_OFF_NAMES = ['sdd-fixture']`
+- **Post-conditions:** An id in `on` is enabled, else an id in `off` is disabled, else the project is enabled unless its name is in `DEFAULT_OFF_NAMES`. `toggled` flips the current value by moving the id into the other list.
+- **`ProjectProvider.tsx`:** `shell.projects` keeps its meaning (`:28-39`); a second key `shell.projects.on` holds explicit-on ids. `enabled(id)` and `toggle(id)` keep their signatures and look the name up in `projects`; an id not yet listed is enabled, as at base (`:74-77`). Every existing caller follows with no change.
+- Home renders no tile while `useProjects().loading` is true, so the fixture does not flash on first load.
+
+### C9 — Board model (R3, R4 AC 1-3, R5 AC 1-3, R6, R7 AC 1-4, 6, R8 AC 2-4, R10)
+- **Purpose:** All tile logic as pure functions over wire rows, with type-only imports, like `deploy.ts`.
+- **Interfaces:** New `modules/shell/board.ts`:
+
+| Function | Result |
+|---|---|
+| `needsYou(waits, actions, enabled)` | Open waits and `staged` or `running` actions on enabled projects, as `{ kind, created, … }`, oldest `created` first. An action with no string `target.project` skips the filter. |
+| `running(runs, enabled, now)` | Moving runs by `lastActivity ?? updated` ascending, then admitted stopped runs by `updated` descending. |
+| `stoppedAdmitted(run, now)` | R7 AC 6. |
+| `nextProjects(projects, enabled)` | Per `storeGroups` group with `enabled`: the representative when on, else the first enabled member. |
+| `nextTiles(views, projectName)` | Entries with non-null `launchable`, by `launchableOrder` (null last), then project name. |
+| `ageTone(ms)` | `neutral`, `warning` from 900,000 ms, `danger` from 3,600,000 ms. |
+| `runDot(run, now)` | `grey` with no step in flight or no heartbeat base; else green, amber, red by the age of `lastActivity ?? stepStarted` at 300,000 and 900,000 ms. |
+| `isStalled(run, waits)` | R6 AC 4. `DRIVE_CRASH_QUESTION = 'drive-crash'` is a hand copy of `src/controller/waits.ts:193`. |
+| `runControls(run, waits)` | `{ pause, resume, stop, discard, redrive }`, below. |
+| `mergeRead(wait, runs)` | R4 AC 3: question id `merge` takes the `kind: 'run'` read; `merge:` plus `repo#n` takes the matching read; else `null`. |
+| `waitSummary(wait)` | `ctrlSummary`, moved verbatim from `src/dashboard_frontend/src/modules/shell/NowPage.tsx:66-78`. |
+| `setupLine(view)` | `supervisor <model> · <n> roles · worktree <value> · gates record`. |
+| `compactAge(ms)` | R10 AC 2. Also the wait and action tile's display age. |
+| `tabTitle(waits, enabled, now, base)` | R10. |
+
+- **`runControls`:** `resume = isOperatorHeld(run) || (status === 'paused' && holdBy !== 'deploy')`; `pause = moving && !resume`; `stop = moving`; `discard = stopped && discardAllowed`; `redrive = isStalled`. A deploy-held run keeps Pause, because pause moves the hold to the operator (`src/controller/controller.ts:292-297`).
+- **`pause.ts` (R6 AC 6):** The two strings at `:43` and `:45` become `pausing after this step`. Nothing else in the file changes.
+
+### C10 — Home and tiles (R3 AC 1-5, R4 AC 2, 4, 5, R5, R6, R7 AC 5, R8 AC 1, 6, R11 AC 3)
+- **`HomePage.tsx` (new):** Owns a one-second tick, `useStages`, `useNextViews` and `openWaitId`.
+  - Each band is a `section` with test id `band-needs-you`, `band-running` or `band-next` and a `grid gap-(--tile-gap) lg:grid-cols-2` body. An empty band shows one quiet line.
+  - The open wait is re-derived from `needsYou` on each render. When the wait is gone, answered or filtered, `openWaitId` no longer matches and the board returns, which covers R4 AC 5 for any cause.
+  - While a wait is open, Home renders a "Back to board" link and `AnswerSheet` at full width instead of the bands.
+- **`AnswerSheet.tsx` (new):** `AnswerSheet`, `SecondOpinionButton` and their helpers, moved from `src/dashboard_frontend/src/modules/shell/NowPage.tsx:196-228` and `:433-701` with no behaviour change. `WaitDetail`, `WaitPanel` and the `Wait` branches do not move.
+- **`tiles.tsx` (new):** `WaitTile`, `ActionTile`, `RunTile`, `NextTile`, `StageLine`, all over a `Tile` frame. Test ids: `wait-tile-`, `action-tile-`, `run-tile-` plus the record id; `next-tile-` plus the project id.
+  - `Tile` stamps `data-tone` and uses `ui.tile(tone)`. The tile keeps `--surface-panel`; the tone colours the border and the age.
+  - `WaitTile` shows the R4 AC 1 fields, the age in `text-display`, one "Answer" button, and for `merge` a line from `mergeRead` or "PR not read yet". Summary text wraps.
+  - `ActionTile` shows the kind, the target line of `actionTarget` (moved from `src/dashboard_frontend/src/modules/shell/NowPage.tsx:98-102`), reason, age and, while `staged`, Confirm and Dismiss. The project tag shows only when `target.project` is a string.
+  - `RunTile` shows the spec, project tag, `stepKind`, `task`, step age from `stepStarted`, `pauseNote`, "last activity N ago" and a dot, or red "Stalled" and Re-drive when `isStalled`. A `merging` run adds the run read's PR, CI and verdict, plus "next check in N" from `resumeAt`. A `queued` run shows the word "queued". `discardAllowed: false` on a stopped run shows the quiet line "branch in use by a live run".
+  - Discard: the first press is a `secondary` button that arms local state; the armed button is `danger` and carries the text of `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:360`. Only that press calls the route.
+  - `NextTile` shows spec, project tag, `setupLine` and Launch, and no edit control.
+  - Buttons are `secondary` except the armed Discard. The dot classes copy `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:37-41`.
+- **`useNextViews.ts` (new):** `useNextViews(projects: Project[], runKey: string): Map<string, SetupView>`. It fetches `/api/projects/:id/harness/setup` for each project on mount, when `runKey` changes, and every 30 s. `runKey` is the sorted `id:status` list of all runs. A failed fetch removes that project's entry only; a stale response is dropped by a per-project sequence number. A run change arrives within the 1 s throttle (`src/dashboard/shell/shell-feed.ts:63-66`), inside R8 AC 5's 5 s.
+- **`TabTitle`:** A null-rendering component in `Shell` that sets `document.title` from `tabTitle` on each waits change and every 30 s. `base` is the title read once at module load, which is `index.html`'s value.
+
+### C11 — Stages (R9, R5 AC 2)
+- **Interfaces:** New pure `modules/shell/stage.ts` and hook `useStages.ts` (illustrative — verify against the test fake):
+
+```ts
+type StageName = 'pause'|'resume'|'stop'|'discard'|'redrive'|'launch'|'confirm'|'dismiss';
+interface Stage { name: StageName; phase: 'pressed'|'running'|'done'|'failed';
+  at: number; reason?: string; opError?: OpError; runId?: string }
+function failReason(status: number, body: any): string;      // reason, else error, else status
+function resolved(stage: Stage, seen: Observed): boolean;
+function advance(stage: Stage, seen: Observed, now: number): Stage | null;
+// useStages(): { stages, press(key, name, call), retained(key) }
+```
+
+- **Post-conditions of `press`:** Sets `pressed`, disabling the tile's stage controls. It awaits `callHarness`. A rejected fetch or a non-2xx gives `failed` with `failReason`; for `launch` it also keeps `opError` so the tile renders `OpErrorView`. A 2xx whose body has `ok === false` gives `failed` with the body's `error`, because `confirm` answers 200 on a failed executor (`src/dashboard/multi-server.ts:796-801`, `src/advisor/actions.ts:459-464`). Any other 2xx gives `running`.
+- **`resolved`:**
+
+| Stage | Result seen when |
+|---|---|
+| pause | `pauseRequested` set or status `paused` |
+| resume | not `isOperatorHeld` and status not `paused` |
+| stop | status `abandoned`, or row gone |
+| discard | `branchPresent` false, or row gone |
+| redrive | not `isStalled` |
+| launch | the response's `runId` is in `controllerRuns` |
+| confirm | action state `done`, `refused` or `failed` |
+| dismiss | action state `dismissed` |
+
+- **`advance`:** `running` plus `resolved` gives `done`, except a `confirm` that resolves as `refused` or `failed`, which gives `failed` with the outcome detail. `running` older than 30,000 ms gives `failed` with "no change seen in 30 s". `done` older than 5,000 ms gives `null`. `failed` stays until the next `press` on that key or until the tile leaves.
+- **Retained tiles:** Home keeps the last item per tile key. A key absent from its band stays rendered from that snapshot, with controls hidden, while its stage is `pressed`, `running` or `done`. An action tile also stays while `failed`, since no later press can reach it; R5 AC 2 has it stay until the outcome shows. A run or Next tile that leaves clears a `failed` stage. Leaving Home drops stage state, as a reload does.
+
+### C12 — Look (R11, R1 AC 5)
+- **`tokens.css`:** Inside `@theme static`, add `--text-display: 32px` with `--text-display--line-height: 40px`, `--text-tile: 15px` with `--text-tile--line-height: 22px`, `--tile-pad: 20px`, `--tile-gap: 16px`, `--band-gap: 32px`. Delete `--sidebar-w` and `--row-h-compact` (`:53`, `:56`). `--panel-w` stays for `src/dashboard_frontend/src/modules/shell/PageLayout.tsx:22`. Lines `:9-17` and `:61-160` do not change.
+- **Probe:** tailwindcss 4.1.18 `compile()` (2026-11-06), with `--text-*` reset as here, produced `text-display`, `text-tile`, `p-(--tile-pad)`, `gap-(--tile-gap)`, and `lg:grid-cols-2` under `width >= 64rem`: 1024 px at the default root size, which `src/dashboard_frontend/src/modules/theme/tailwind.css` leaves alone.
+- **`ui.tsx`:** Add `tile(tone)` to the `ui` constants (`:132-157`) for `neutral`, `warning` and `danger`.
+- **390 px:** `TopBar` wraps; tiles carry `min-w-0`; long text takes `break-words`.
+
+## Data Models
+
+### Run row additions (illustrative — verify against the test fake)
+```ts
+interface ControllerRunRow {          // existing fields unchanged
+  inFlight: boolean;                  // run.inFlight !== undefined
+  stepStarted?: string;               // run.inFlight?.startedAt
+  task?: string;                      // run.inFlight?.task
+  branchPresent: boolean;             // C3
+  discardAllowed: boolean;            // C3
+}
+```
+
+### Local storage
+`shell.projects.on` is a JSON array of explicit-on ids; an absent key reads as empty. `shell.density` is no longer read, and no migration clears it.
+
+## Error Handling
+
+1. **Branch read fails:** The stopped run shows no tile (C2).
+2. **Setup fetch fails:** That project alone shows no Next tile (C10).
+3. **Route answers non-2xx:** The stage shows `failReason`; a Launch refusal shows `OpErrorView`.
+4. **Confirm's executor fails:** The route answers 200 with `ok: false`; the stage shows failed and the tile stays.
+5. **A 2xx press changes nothing visible:** After 30 s the stage fails and the control enables again.
+6. **Discard races a relaunch:** The store lock orders them; a held branch answers 409 `branch-in-use`, shown as a failed stage.
+7. **In-flight record has no `startedAt`:** The tile omits the step age; with no `lastActivity` the dot is grey with no heartbeat line.
+
+## Testing Strategy
+
+Tests load frontend modules at runtime, as `src/dashboard/shell/__tests__/deploy-view.test.ts:12-17` does. No test asserts more of `child_process` than the read's success or failure, which node 20 guarantees.
+
+- **Unit, controller:**
+  - `src/controller/__tests__/branch-presence.test.ts` (new): one read per 60 s across overlapping calls, re-read after expiry, `forget`, empty branch, rejected read.
+  - `src/controller/__tests__/runs.test.ts`: row fields, `branchHeld` including the queued case, `done` stays `done` through discard, `change` after cleanup, spawn writes `startedAt`, end clears it, old record gives no start.
+  - `src/controller/phases/__tests__/implementation.test.ts`: task id reaches `onStepSpawn`.
+  - `src/controller/__tests__/controller.test.ts`: `discard` returns the sentinel and changes nothing.
+- **Unit, server:**
+  - `src/dashboard/harness/__tests__/run-setup.test.ts`: `launchableOrder` for a named, an unnamed and a deferred spec.
+  - `src/dashboard/shell/__tests__/shell-feed.test.ts`: five topics, no `shell-now`, no `controller-activity`.
+  - `src/dashboard/__tests__/controller-dashboard-routes.test.ts`: the two removed routes answer as unknown, discard 409; the log test at `:192` goes.
+  - `src/dashboard/__tests__/shell-routes.test.ts`, `src/dashboard/__tests__/harness-routes.test.ts`: lose the `shell-now` and `harness-model` cases.
+  - `src/dashboard/harness/__tests__/project-watch.test.ts` keeps only `parseHandoffRouting`.
+- **Unit, frontend pure:** `src/dashboard/shell/__tests__/board-view.test.ts` (new) covers `board.ts`, `stage.ts`, `enable.ts` and the two `pause.ts` strings: every sort, each tone and dot threshold, `runControls` per status, `mergeRead`'s outcomes, each `resolved` row, `advance`'s 5 s and 30 s, title formats.
+- **Tokens:** `src/dashboard/__tests__/frontend-tokens.test.ts:126-127` matches the new list. `src/dashboard/__tests__/frontend-style-scan.test.ts:338` uses `--sidebar-w` as its declared-token sample and moves to `--panel-w`.
+- **End-to-end:** New `e2e/worktree-board.spec.ts`, matched by `WORKTREE_SPEC_PATTERN`, seeds `run.json`, wait and action records as `e2e/worktree-deploy.spec.ts:49-52` does, and runs entry scenarios 1, 3, 4, 5, 6, 7 and 8, plus scenario 2's "Stalled" and Re-drive press. Mutating fetches rely on the dev proxy's Origin rewrite (`src/dashboard_frontend/vite.config.ts:28-36`). Scenario 2's "green within 15 s" needs a real step, so the end-to-end gate proves it on a fixture run.
+- **Rewrites (R2 AC 5):** `e2e/worktree-shell.spec.ts` (includes the "pause requested" asserts at `:446`, `:468`, `:553`), `e2e/worktree-project-list.spec.ts`, `e2e/worktree-no-shared.spec.ts`, `e2e/worktree-deploy.spec.ts`, `e2e/worktree-visual.spec.ts`, and the nav reads in `e2e/helpers/shell-seed.ts` and `e2e/helpers/worktree-harness.ts`.
+- **Docs:** `docs/SDD-HARNESS.md:99-100`, `:120` and `:469` name Home.
+
+## Decisions taken in this document
+
+Numbers continue from the requirements document.
+
+- D19 — Stages and retained tiles live on Home: options were state per tile, a store on Home, a store in the shell provider; chosen because only a store above the tile can show done after Discard or Launch removes it.
+- D20 — A stage still running after 30 seconds fails: options were wait forever, mark done, fail; chosen because the control stays disabled until the stage ends and a usage-window Resume may never change the row.
+- D21 — Stop has no confirm, stalled or not: options were a confirm always, on stalled runs only, or never; chosen because Stop keeps the worktree, branch and PR.
+- D22 — A merging tile adds the PR line and next check time, with a grey dot: options were the status word alone, or this; chosen because CI polling is the only thing moving.
+- D23 — A queued tile shows "queued", a grey dot, Pause and Stop: options were adding a queue position or not; chosen because the row carries none.
+- D24 — Both tradr entries default to on: options were one off, or both on; chosen because one tile per store already prevents a duplicate.
+- D25 — The branch guard also matches a moving run with an empty branch, the same spec and code root: options were literal equality, or this; chosen because a queued relaunch has no branch yet and would reuse the deleted one.
+- D26 — The guard runs under the store lock: options were a plain check, or the lock; chosen because a launch between check and delete is the case the guard exists for.
+- D27 — Step start and task sit on the in-flight record: options were top-level fields, the cursor, the in-flight record; chosen because every path that ends a step already clears it.
+- D28 — One controller module caches the branch-read promise: options were reading in the feed, caching in the feed, a module; chosen because the feed and the GET route share one 60-second budget.
+- D29 — Next order is a new setup view field: options were a route for the decomposition file, or a field; chosen because it adds no route.
+- D30 — Next refetches on a run id or status change and every 30 seconds: options were a 4-second poll, run changes only, both; chosen because the push meets 5 seconds and the slow poll catches window and slot changes.
+- D31 — The answer sheet is Home state: options were a hash route, or local state; chosen because spec 33 owns the ruling view.
+- D32 — Explicit-on ids take a second storage key: options were reshaping the key with a migration, or a second key; chosen because existing off lists stay valid.
+- D33 — Wait and action tiles show the compact age: options were the seconds-ticking span, or compact; chosen because it fits the display size.
+- D34 — A 2xx with ok false, or a refused or failed action, reads as failed: options were the literal 2xx-means-done rule, or this; chosen because Confirm answers 200 when its executor fails.
+- D35 — A failed action tile stays until reload: options were a timer, a clear control, reload; chosen because reload is a listed exit and needs no new control.
+- D36 — The first Discard press is secondary, the armed press danger: options were both danger, or this; chosen because the look requirement excepts only the danger press.
+- D37 — A stage disables every stage control on its tile: options were the pressed control alone, or all; chosen because a Stop during a pending Pause gains nothing.
+- D38 — An in-flight step with no heartbeat and no start shows a grey dot and no line: options were falling back to the updated time, or grey; chosen because updated moves for reasons other than liveness.
+- D39 — The step recorder and overview watch stay: options were deleting or keeping them; chosen because the recorder spans eleven step-loop sites and the watch is the feed's file trigger.
+
+## Scope notes
+
+- Carried items: none.
+- Cut from R2 AC 3: `src/controller/activity.ts` stays with no reader after the topic goes; deleting it touches six `src/controller/runs.ts` call sites and five phase contexts for no visible change. The `controller-activity` topic, its hub listener and its wire types do go.
+- Not a removal: `overview-rows` has no frontend reader at base, but `OverviewWatch` drives `feed.schedule()`, so it stays.
+- Left unedited: `docs/INTERFACES.md` and `docs/technical-documentation/file-structure.md` name the old pages; R2 AC 6 does not list them.
+- The requirements' "Left to design" items: D21, D22, D23, D24.
+
+## Revision History
+
+- **v1** (2026-11-06) — Initial draft.
