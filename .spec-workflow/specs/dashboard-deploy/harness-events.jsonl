@@ -277,3 +277,14 @@
 {"ts":"2026-11-05T23:37:28.144Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-verifier","input":"40","output":"21610","cacheWrite":"99216","cacheRead":"1523988","tokens":"1644854","cacheWrite5m":"0","cacheWrite1h":"99216","model":"claude-opus-4-8"}
 {"ts":"2026-11-05T23:37:28.144Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 13 round 4 narrow","result":"VERDICT: pass","phase":"implementation","task":"13","round":"4"}
 {"ts":"2026-11-05T23:37:28.145Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"13","rounds":"4","outcome":"adjudicated"}
+{"ts":"2026-11-05T23:37:28.307Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"14","title":"Prove the six scenarios with a real controller and script"}
+{"ts":"2026-11-05T23:37:28.315Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 14 pick head 1e54d324ae8c4f531128ea2d4a32b73b720600a9"}
+{"ts":"2026-11-05T23:37:28.364Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-test-author","role":"author task 14","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-05T23:37:35.922Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-test-author","input":"4","output":"398","cacheWrite":"22301","cacheRead":"78125","tokens":"100828","cacheWrite5m":"0","cacheWrite1h":"22301","model":"claude-sonnet-5"}
+{"ts":"2026-11-05T23:37:35.922Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-test-author","role":"author task 14","result":"none","phase":"implementation","task":"14"}
+{"ts":"2026-11-05T23:37:35.952Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"task 14 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-05T23:37:35.953Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement task 14","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-06T00:07:23.363Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"220","output":"137636","cacheWrite":"308196","cacheRead":"23848311","tokens":"24294363","cacheWrite5m":"0","cacheWrite1h":"308196","model":"claude-sonnet-5"}
+{"ts":"2026-11-06T00:07:23.363Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 14","result":"yes/14","phase":"implementation","task":"14"}
+{"ts":"2026-11-06T00:07:50.486Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: task 14 pass risk low"}
+{"ts":"2026-11-06T00:07:50.495Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"14","rounds":"0","outcome":"gate"}

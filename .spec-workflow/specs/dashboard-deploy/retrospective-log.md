@@ -89,3 +89,13 @@ Cost: 4 rounds
 task 13 closed: 4 fix round(s), outcome adjudicated
 Evidence: task 13 · mark run-20261105-155538 ae4f4421
 Cost: 5 implementer spawn(s)
+
+## 2026-11-05T23:37:35Z · implementation · task 14 · doc-gap
+red-impossible on every criterion: author report; routed implementer-only
+Evidence: task 14 · mark run-20261105-155538 0cdd741a
+Cost: 1 spawn
+
+## 2026-11-06T00:07:50Z · implementation · task 14 · gotcha
+task 14 closed: 0 fix round(s), outcome gate
+Evidence: task 14 · mark run-20261105-155538 60342b61
+Cost: 1 implementer spawn(s)
