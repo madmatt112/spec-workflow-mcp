@@ -1288,13 +1288,16 @@ Option A). A fix round that fails only on `file-outside-list`, with a `REQUIRED:
 (5) **Doc review cap** (retro P5 Option C). All phases stay. Doc review stops after round 1 when the
 round returns only MUST_FIX or SHOULD_FIX items that are all drafting defects and no design defects.
 (6) **Rules.** The G1 and G2 rule text of the `option-lifecycle-events` retro goes into
-`agent-rules.md`.
+`agent-rules.md`. (7) **Cancel stops the driver.** After a cancel, no new step starts, no error or
+escalation wait opens for that run, and no later write replaces `abandoned`. (8) **Live row.** The
+Live list on the Runs page shows the run's own phase and age. On 2026-11-06 it showed
+`implementation` and `460h 22m` for a run that was 2 minutes into requirements.
 
 **Decided.** The operator chose the rename on 2026-11-06 after two launches on the wrong tradr
 project in two days. Both projects stay: some specs change the infra repository. Items 3 to 6 are
 the operator's retro decisions that the close-out did not build: `d-83cc3ac1` and `d-37e510db`
-carry the detail. Resolve those two deferrals, and `d-aaf54e29` for the launch half, when this spec
-closes. No new eval role: the P6 eval named in that retro needs a role the framework lacks, so unit
+carry the detail. `d-4f6a6271` carries the cancel defect, with three reproductions. Resolve those
+three deferrals, and `d-aaf54e29` for the launch half, when this spec closes. No new eval role: the P6 eval named in that retro needs a role the framework lacks, so unit
 tests cover item 4. Do not hard-code tradr paths in harness code; the display names are registry
 data.
 
@@ -1305,14 +1308,18 @@ shows no warning. (3) A close-out over a plan with an approved proposal and a re
 never writes `skipped: no change chosen` for that proposal. (4) A stub fix round with a `REQUIRED:`
 flag and a sole `file-outside-list` reason patches `tasks.md`, writes the ledger row, re-runs the
 task and opens no wait. (5) A stub review round with only drafting defects ends doc review; a round
-with one design defect does not.
+with one design defect does not. (6) A cancel during a live step leaves the run `abandoned`, with no
+second `claude -p` for it, no new wait and no status change in the next 60 seconds. (7) A run 2
+minutes into requirements, on a project with an older run of the same store, shows `requirements`
+and its true age in the Live list.
 
 **Depends on** spec 32 (`dashboard-board`), which owns the shell the Launch card renders in.
 **Design MUST enumerate:** `src/core/project-registry.ts` (`generateProjectDisplayName`, the
 `projectName` field), `src/dashboard/harness/` (setup and `launchSpec`), the Launch card in the
 frontend, `src/controller/phases/closeout.ts`, `src/controller/phases/implementation.ts` (the P8
-`file-outside-list` branch), `src/controller/phases/document.ts` (the review round loop), and
-`.spec-workflow/agent-rules.md`.
+`file-outside-list` branch), `src/controller/phases/document.ts` (the review round loop),
+`src/controller/runs.ts` (`cancelRun`, the driver loop, `isCancelled`), the Live list's data source
+and `RunsPage.tsx`, and `.spec-workflow/agent-rules.md`.
 
 **Design should address:** how a reviewer labels a finding as a drafting defect or a design defect;
 where the display name is set; what the guard does for a spec that creates mostly new files.
