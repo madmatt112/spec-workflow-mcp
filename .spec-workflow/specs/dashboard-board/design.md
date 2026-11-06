@@ -72,7 +72,7 @@ graph TD
 
 ### C6 — Feed, hub and server removal (R2 AC 2, 3)
 - **`src/dashboard/shell/shell-feed.ts:92-161`:** `flush` sends `shell-specs`, `controller-waits`, `controller-runs`, `controller-actions`, `controller-deploy`. `buildNowModel`, `buildSidebarRows` and `listActivityForWire` drop out. `liveRunsByProject` stays for spec rows.
-- **`src/dashboard/harness/hub.ts`:** Delete `projectWatches`, `sendHarness`, `snapshotFor`, `watchedProjects` (`:119-132`), the watch loops at `:78-93`, and the `activityEvents` listener (`:53`, `:149`). `setRunHeartbeat` already emits `runEvents` `change` (`src/controller/runs.ts:441-446`), so tile heartbeats still push. `OverviewWatch` stays: it is the feed's file trigger (`src/dashboard/harness/hub.ts:103-106`).
+- **`src/dashboard/harness/hub.ts`:** Delete `projectWatches`, `sendHarness`, `snapshotFor` (`:118-121`), `watchedProjects` (`:131-134`), the watch loops at `:78-93`, and the `activityEvents` listener (`:53`, `:149`); `overviewSnapshot` (`:123-129`) stays. `setRunHeartbeat` already emits `runEvents` `change` (`src/controller/runs.ts:441-446`), so tile heartbeats still push. `OverviewWatch` stays: it is the feed's file trigger (`src/dashboard/harness/hub.ts:103-106`).
 - **`src/dashboard/multi-server.ts`:** Delete the `harness-subscribe` and `harness-unsubscribe` branches (`:353-366`), `sendToHarness` (`:938-952`), the hub's first callback (`:172`), the log route (`:866-875`), the summary route (`:593-617`) and the imports only they use. `views` narrows to `Set<'overview'>`. `sendToProjectOrOverview` (`:959`) keeps `connection.projectId`, which the socket URL sets (`:318-320`).
 - **`src/dashboard/harness/project-watch.ts`:** Keep `parseHandoffRouting` (`:28`) at its path. Delete `ProjectHarnessWatch` (`:118`) and `parseGateSections` (`:63`), whose only other reader is the deleted `waits.ts`.
 - **Deleted with their tests:** `src/dashboard/shell/now-model.ts`, `sidebar-rows.ts`, `waits.ts`, `run-detail.ts`.
@@ -83,8 +83,8 @@ graph TD
 - **`src/dashboard_frontend/src/modules/app/App.tsx`:** `Shell` renders `TopBar` then `main`; the two `/runs` routes go and `/` renders `HomePage`. The catch-all (`:31`) stays and serves R2 AC 1.
 - **`TopBar.tsx` (new):** No props. One `header` with `flex flex-wrap items-center`, in order: `NavLink`s Home, Specs, Usage, Deferrals (`ui.navRow`, no counts, test ids `nav-home`, `nav-specs`, `nav-usage`, `nav-deferrals`), `DeployControl` with no props inside a `min-w-0 max-w-full` wrapper, `OpenAdvisor`, `Gear` with `ml-auto`.
 - **`OpenAdvisor.tsx` (new):** The logic of `src/dashboard_frontend/src/modules/shell/NowPage.tsx:105-139`, keeping test id `open-advisor`. The result line drops `truncate` and takes `whitespace-normal break-words`; the root drops `mb-3`.
-- **`src/dashboard_frontend/src/modules/shell/Gear.tsx`:** The panel opens with `absolute right-0 top-full mt-2` (replaces `:64`). Lines `:75-99` go. The panel adds one switch per listed project, sorted by `projectName`, using the markup of `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:137-152` without the dot and live count, keeping test id `project-toggle-` plus the id.
-- **`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx`:** Delete `Density`, `DENSITY_KEY`, `readDensity`, `density`, `setDensity`, the `--row-h` effect (`:153-156`), and `now`, `controllerActivity`, `connected` (`:7-63`), which only the sidebar read. `--row-h` then keeps its token default (`src/dashboard_frontend/src/modules/theme/tokens.css:54`).
+- **`src/dashboard_frontend/src/modules/shell/Gear.tsx`:** The panel opens with `absolute right-0 top-full mt-2` (replaces `:64`). Lines `:75-99` and the `{ density, setDensity }` destructure (`:14`) go. The panel adds one switch per listed project, sorted by `projectName`, using the markup of `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:137-152` without the dot and live count, keeping test id `project-toggle-` plus the id.
+- **`src/dashboard_frontend/src/modules/shell/ShellProvider.tsx`:** Delete `Density`, `DENSITY_KEY`, `readDensity`, `density`, `setDensity`, the `--row-h` effect (`:153-156`), and `now`, `controllerActivity`, `connected` (`:7-63`), whose only readers are the deleted pages. `--row-h` then keeps its token default (`src/dashboard_frontend/src/modules/theme/tokens.css:54`).
 - **`src/dashboard_frontend/src/modules/ws/WebSocketProvider.tsx`:** `WatchView` becomes `{ kind: 'overview' }`; `viewKey`, `subscribeMessage` and `unsubscribeMessage` lose the harness branch (`:37-51`).
 - **Unchanged:** `PageLayout.tsx` (Specs and Deferrals keep their panels), `primitives.tsx`, `harness.tsx` (`tiles.tsx` and `useStages.ts` read it), `DeployControl.tsx`, `ConnectionBanner.tsx`.
 - **Deleted:** `NowPage.tsx`, `RunsPage.tsx`, `RunPage.tsx`, `Sidebar.tsx`. `AnswerSheet` and its helpers move out of `NowPage.tsx` first (C10).
@@ -135,7 +135,7 @@ graph TD
   - `RunTile` shows the spec, project tag, `stepKind`, `task`, step age from `stepStarted`, `pauseNote`, "last activity N ago" and a dot, or red "Stalled" and Re-drive when `isStalled`. A `merging` run adds the run read's PR, CI and verdict, plus "next check in N" from `resumeAt`. A `queued` run shows the word "queued". `discardAllowed: false` on a stopped run shows the quiet line "branch in use by a live run".
   - Discard: the first press is a `secondary` button that arms local state; the armed button is `danger` and carries the text of `src/dashboard_frontend/src/modules/shell/RunsPage.tsx:360`. Only that press calls the route.
   - `NextTile` shows spec, project tag, `setupLine` and Launch, and no edit control.
-  - Buttons are `secondary` except the armed Discard. The dot classes copy `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:37-41`.
+  - Buttons are `secondary` except the armed Discard. The dot maps green, amber and grey to the `bg-(--tone-*-fg)` classes of `src/dashboard_frontend/src/modules/shell/Sidebar.tsx:37-41`; that map has no red, so `red` takes `bg-(--tone-danger-fg)` (`src/dashboard_frontend/src/modules/theme/tokens.css:92`).
 - **`useNextViews.ts` (new):** `useNextViews(projects: Project[], runKey: string): Map<string, SetupView>`. It fetches `/api/projects/:id/harness/setup` for each project on mount, when `runKey` changes, and every 30 s. `runKey` is the sorted `id:status` list of all runs. A failed fetch removes that project's entry only; a stale response is dropped by a per-project sequence number. A run change arrives within the 1 s throttle (`src/dashboard/shell/shell-feed.ts:63-66`), inside R8 AC 5's 5 s.
 - **`TabTitle`:** A null-rendering component in `Shell` that sets `document.title` from `tabTitle` on each waits change and every 30 s. `base` is the title read once at module load, which is `index.html`'s value.
 
@@ -229,30 +229,29 @@ Numbers continue from the requirements document.
 - D19 — Stages and retained tiles live on Home: options were state per tile, a store on Home, a store in the shell provider; chosen because only a store above the tile can show done after Discard or Launch removes it.
 - D20 — A stage still running after 30 seconds fails: options were wait forever, mark done, fail; chosen because the control stays disabled until the stage ends and a usage-window Resume may never change the row.
 - D21 — Stop has no confirm, stalled or not: options were a confirm always, on stalled runs only, or never; chosen because Stop keeps the worktree, branch and PR.
-- D22 — A merging tile adds the PR line and next check time, with a grey dot: options were the status word alone, or this; chosen because CI polling is the only thing moving.
-- D23 — A queued tile shows "queued", a grey dot, Pause and Stop: options were adding a queue position or not; chosen because the row carries none.
-- D24 — Both tradr entries default to on: options were one off, or both on; chosen because one tile per store already prevents a duplicate.
-- D25 — The branch guard also matches a moving run with an empty branch, the same spec and code root: options were literal equality, or this; chosen because a queued relaunch has no branch yet and would reuse the deleted one.
-- D26 — The guard runs under the store lock: options were a plain check, or the lock; chosen because a launch between check and delete is the case the guard exists for.
+- D22 — A merging tile adds the PR line and next check time, with a grey dot, because CI polling is the only thing moving.
+- D23 — A queued tile shows "queued", a grey dot, Pause and Stop, because the row carries no queue position.
+- D24 — Both tradr entries default to on, because one tile per store already prevents a duplicate.
+- D25 — The branch guard also matches a moving run with an empty branch, the same spec and code root, because a queued relaunch has no branch yet and would reuse the deleted one.
+- D26 — The guard runs under the store lock, because a launch between check and delete is the case the guard exists for.
 - D27 — Step start and task sit on the in-flight record: options were top-level fields, the cursor, the in-flight record; chosen because every path that ends a step already clears it.
 - D28 — One controller module caches the branch-read promise: options were reading in the feed, caching in the feed, a module; chosen because the feed and the GET route share one 60-second budget.
-- D29 — Next order is a new setup view field: options were a route for the decomposition file, or a field; chosen because it adds no route.
-- D30 — Next refetches on a run id or status change and every 30 seconds: options were a 4-second poll, run changes only, both; chosen because the push meets 5 seconds and the slow poll catches window and slot changes.
-- D31 — The answer sheet is Home state: options were a hash route, or local state; chosen because spec 33 owns the ruling view.
-- D32 — Explicit-on ids take a second storage key: options were reshaping the key with a migration, or a second key; chosen because existing off lists stay valid.
-- D33 — Wait and action tiles show the compact age: options were the seconds-ticking span, or compact; chosen because it fits the display size.
+- D29 — Next order is a new setup view field rather than a route for the decomposition file, because it adds no route.
+- D30 — Next refetches on a run id or status change and every 30 seconds, because the push meets 5 seconds and the slow poll catches window and slot changes.
+- D31 — The answer sheet is Home state, not a hash route, because spec 33 owns the ruling view.
+- D32 — Explicit-on ids take a second storage key, because existing off lists stay valid.
+- D33 — Wait and action tiles show the compact age, because it fits the display size.
 - D34 — A 2xx with ok false, or a refused or failed action, reads as failed: options were the literal 2xx-means-done rule, or this; chosen because Confirm answers 200 when its executor fails.
 - D35 — A failed action tile stays until reload: options were a timer, a clear control, reload; chosen because reload is a listed exit and needs no new control.
-- D36 — The first Discard press is secondary, the armed press danger: options were both danger, or this; chosen because the look requirement excepts only the danger press.
-- D37 — A stage disables every stage control on its tile: options were the pressed control alone, or all; chosen because a Stop during a pending Pause gains nothing.
-- D38 — An in-flight step with no heartbeat and no start shows a grey dot and no line: options were falling back to the updated time, or grey; chosen because updated moves for reasons other than liveness.
-- D39 — The step recorder and overview watch stay: options were deleting or keeping them; chosen because the recorder spans eleven step-loop sites and the watch is the feed's file trigger.
+- D36 — The first Discard press is secondary, the armed press danger, because the look requirement excepts only the danger press.
+- D37 — A stage disables every stage control on its tile, because a Stop during a pending Pause gains nothing.
+- D38 — An in-flight step with no heartbeat and no start shows a grey dot and no line, not the updated time, because updated moves for reasons other than liveness.
+- D39 — The step recorder and overview watch stay, because the recorder spans eleven step-loop sites and the watch is the feed's file trigger.
 
 ## Scope notes
 
 - Carried items: none.
 - Cut from R2 AC 3: `src/controller/activity.ts` stays with no reader after the topic goes; deleting it touches six `src/controller/runs.ts` call sites and five phase contexts for no visible change. The `controller-activity` topic, its hub listener and its wire types do go.
-- Not a removal: `overview-rows` has no frontend reader at base, but `OverviewWatch` drives `feed.schedule()`, so it stays.
 - Left unedited: `docs/INTERFACES.md` and `docs/technical-documentation/file-structure.md` name the old pages; R2 AC 6 does not list them.
 - The requirements' "Left to design" items: D21, D22, D23, D24.
 
@@ -260,3 +259,8 @@ Numbers continue from the requirements document.
 
 - **v1** (2026-11-06) — Initial draft.
   - **Lint pass.** 29 fixed; rejected: L-1,L-2,L-5,L-7,L-8,L-28,L-29,L-32–L-47,L-52 (each names a new or cross-file identifier, not the cited range).
+- **v2** (2026-11-06) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/1/3).
+  - **R1-1 — Accepted (SHOULD_FIX).** C10 now sends red to the danger token the cited Sidebar map lacks; green/amber/grey keep its tone classes.
+  - **R1-2 — Accepted (MINOR).** Dropped C7's false "only the sidebar read"; probed every useShell reader of the three fields and all are deleted pages.
+  - **R1-3 — Accepted (MINOR).** Split C6's loose hub range: snapshotFor and watchedProjects cited at their own lines, overviewSnapshot kept.
+  - **R1-4 — Accepted (MINOR).** C7's Gear bullet now also removes the line-14 density destructure, so tsc holds.
