@@ -519,6 +519,34 @@ describe('runImplementationPhase', () => {
     expect(taskStatus(fx, '1')).toBe('completed');
   }, 60000);
 
+  it('adjudicates early when a fix round leaves the commit and gate verdict unchanged (retro P4)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-p4.json');
+    // The first implementer fails the gate on a failing check (not a file-list verdict).
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['false']) }],
+      commands: [`echo "a" >> src/a.js && git add src/a.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    // The fix round makes no new commit, so the gate returns the identical verdict.
+    const fixNoCommit: StubRun = {
+      result: result({ logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '', flag: 'none', retro: 'none' }),
+    };
+    writeScript(fx, [firstImpl, fixNoCommit, adjudicatorRun(), verifierRun('pass'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const r = rows(fx);
+    // One fix implementer, then the adjudicator — never a second (third overall) fix spawn.
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual([
+      'implement task 1', 'fix task 1 round 1', 'adjudicate task 1', 'verify task 1 round 2 narrow', 'end-to-end verification',
+    ]);
+    expect(r.find((e) => e.type === 'task.done')).toMatchObject({ task: '1', outcome: 'adjudicated' });
+    expect(readFileSync(join(fx.specDir, 'retrospective-log.md'), 'utf8')).toContain('adjudicated early');
+  }, 60000);
+
   it('a DESIGN-DEFECT flag reverts the task and stops the phase', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     writeScript(fx, [await implRun(fx, '1', 'src/a.js', { flag: 'DESIGN-DEFECT: the design names a seam that does not exist' })]);
