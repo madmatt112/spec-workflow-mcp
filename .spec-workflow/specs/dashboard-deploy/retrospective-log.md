@@ -119,3 +119,13 @@ Cost: see the ledger
 retrospective compiled: 15 findings, 11 proposals, 2 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261105-155538 0132fd60
 Cost: 2 spawns
+
+## 2026-11-06T02:18:40Z · closeout · store batch 1 · gotcha
+Eval case (new retro-compiler eval under harness/evals/) is outside this store batch's allowed paths; route it to the harness-surface batch. Routing change was fully achievable in agent-rules.md since the compiler reads it as project steering — no harness agent file edit needed.
+Evidence: batch 1 · mark run-20261105-155538 d5bbc654
+Cost: implementer
+
+## 2026-11-06T02:18:43Z · closeout · store batch 1 · cleanup
+store batch 1: 1 done of 1, 0 fix round(s)
+Evidence: batch 1 · mark run-20261105-155538 06ecf37b
+Cost: 1 implementer spawn(s)

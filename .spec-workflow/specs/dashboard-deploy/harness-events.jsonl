@@ -312,3 +312,25 @@
 {"ts":"2026-11-06T00:28:25.386Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-11-06T00:28:25.386Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"retro: 11 proposals for 15 findings"}
 {"ts":"2026-11-06T00:28:25.387Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"15 findings, 11 proposals"}
+{"ts":"2026-11-06T02:16:17.327Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/11"}
+{"ts":"2026-11-06T02:16:17.333Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P1","title":"P1 (F1) — Deploy POST proxy-Origin gap was anticipated, no change."}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P5","title":"P5 (F5) — Requirements' five rounds were variance, not a named defect; no change."}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P5","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P6","title":"P6 (F6) — Task 11's unnamed branch is covered by the existing sub-case rule; no new change."}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P6","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.334Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P7","title":"P7 (F7) — Task 14 was routed implementer-only correctly; the rule worked."}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P9","title":"P9 (F9) — Task 13's narrow pass (0 fixed, 3 ruled out) is the correct outcome of an artifact failure; no change beyond P3."}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P10","title":"P10 (F10) — Eight verifier-skipped tasks were intended routing; no change."}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P10","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P12","title":"P12 (F12) — Task 6's reused regression guard was correctly noted, not forced; no change."}
+{"ts":"2026-11-06T02:16:17.335Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P12","outcome":"skipped"}
+{"ts":"2026-11-06T02:16:17.345Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P8","title":"P8 (F8/F11) — Stop re-logging the decision-C unreviewed-final-task merge; extend the rule to cover a fully-unreviewed task."}
+{"ts":"2026-11-06T02:16:17.402Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-06T02:18:40.647Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"20","output":"10870","cacheWrite":"65679","cacheRead":"458337","tokens":"534906","cacheWrite5m":"0","cacheWrite1h":"65679","model":"claude-opus-4-8"}
+{"ts":"2026-11-06T02:18:40.647Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-06T02:18:40.675Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-06T02:18:43.843Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P8 pass risk low"}
+{"ts":"2026-11-06T02:18:43.869Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P8","outcome":"done"}
