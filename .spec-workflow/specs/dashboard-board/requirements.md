@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and Run page with one board of large tiles under a top bar. It is for the operator, who must see what waits, moves and starts next. It changes the shell, Home, the run row and the controller behind them (R7 and R12); Specs, Usage and Deferrals keep their content until spec 34.
+This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and Run page with one board of large tiles under a top bar, for the operator who must see what waits, moves and starts next. It changes the shell, Home, the run row and the controller behind them (R7 and R12); Specs, Usage and Deferrals keep their content until spec 34.
 
 ## Alignment with Product Vision
 
-`.spec-workflow/steering/` holds no `product.md`, so this document aligns to the "Dashboard board specs" preamble of `decomposition.md`: fewer things, larger, colour only for state. It gives specs 33 and 34 the shell they render into.
+`.spec-workflow/steering/` holds no `product.md`, so this document aligns to the "Dashboard board specs" preamble of `decomposition.md`: fewer things, larger, colour only for state. It gives specs 33 and 34 their shell.
 
 ## Requirements
 
@@ -60,7 +60,7 @@ This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and
 
 #### Acceptance Criteria
 
-1. WHEN a wait tile renders THEN it SHALL show the kind label, project tag, spec, the wait's summary line, the age in the display type size, and one action, "Answer". The summary line SHALL be `ctrlSummary` (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:66-78`): the decision, item or proposal count for `gate-a`, `gate-b` and `retro-plan`, else the first line of `questions[0].text`, else the kind's fixed line.
+1. WHEN a wait tile renders THEN it SHALL show the kind label, project tag, spec, the wait's summary line, the age in the display type size, and one action, "Answer". The summary line SHALL be `ctrlSummary` (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:66-78`): the decision, item or proposal count for `gate-a`, `gate-b` and `retro-plan`, else the whole of `questions[0].text`, else the kind's fixed line.
 2. WHEN the age is under 15 minutes THEN the tile SHALL be neutral; from 15 minutes to under 1 hour, amber; at 1 hour and after, red. The colour SHALL change with no reload.
 3. WHEN a `merge` wait tile renders THEN it SHALL show the PR number, the CI state and the rule verdict from the `prReads` (`src/controller/state.ts:112`) of the run named by `wait.run`. The read SHALL match the wait's question id: `merge` takes the `kind: 'run'` read (`src/controller/merge.ts:28`); `merge:` plus repo and number takes the read with that repo and number (`src/controller/merge.ts:556`). IF no read matches THEN the tile SHALL say "PR not read yet".
 4. WHEN "Answer" is pressed THEN the existing answer sheet (`src/dashboard_frontend/src/modules/shell/NowPage.tsx:500-701`) SHALL replace the board at full width, with a "Back to board" link and no panel beside it.
@@ -159,7 +159,7 @@ This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and
 #### Acceptance Criteria
 
 1. WHEN `toRow` builds a row (`src/controller/runs.ts:1453-1465`) THEN the row SHALL also carry, with no path: whether a step is in flight, the step's ISO start time, the task id when the step works one, whether the run's branch is present (for R7 AC 6), and whether Discard is allowed (R7 AC 7). The two differ: a branchless run is absent, a branch-in-use one shows without Discard. At base the row has none: `inFlight.startTime` is a `/proc` value (`src/controller/state.ts:39-46`) and nothing writes `cursor.task` (`src/controller/state.ts:26-36`).
-2. WHEN a step spawns THEN the run record SHALL hold the step's ISO start time (converted from the numeric spawn value) and, when the step works a task, its task id; both SHALL clear when the step ends. The task id is not on the spawn callback (`src/controller/runs.ts:455-458`); design SHALL route it from the implementation phase where the task is known (`src/controller/phases/implementation.ts:469`, `:616-617`).
+2. WHEN a step spawns THEN the run record SHALL hold the step's ISO start time (the wall-clock stamp taken at spawn from `deps.now()`, `src/controller/runs.ts:455`, not the `/proc` `startTime`) and, when the step works a task, its task id; both SHALL clear when the step ends. The task id is not on the spawn callback (`src/controller/runs.ts:455-458`); design SHALL route it from the implementation phase where the task is known (`src/controller/phases/implementation.ts:469`, `:616-617`).
 3. IF an in-flight record predates these fields THEN the row SHALL report no start time and the tile SHALL omit the step age.
 4. WHEN the row is sent THEN `driven`, `lastActivity`, `prReads`, `holdBy` and `stepKind` SHALL hold as at base (invariant, verified, not red-first), and no model SHALL write any tile field.
 
@@ -176,32 +176,31 @@ This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and
 
 ## Decisions taken in this document
 
-- D1 — No money, billing, personal-data or legal surface, so no refunds or credits; the one deletion is Discard of the operator's own worktree, branch and PR, irreversible, behind a second press, because the operator owns it and the confirm covers it.
-- D2 — A done run with its branch present keeps a tile for 24 hours, because 21 of 28 done runs still have their branch, which would otherwise fill Running with finished work.
-- D3 — Home shows controller waits only, because tiles derive from records and a stale draft plan would hold a retro tile forever.
-- D4 — Only the feeds the removed pages read are deleted here, not for spec 34, because the entry says removed with their components and tests, and lists the hub.
-- D5 — Discard refuses when a moving run shares the branch, because a relaunch reuses it, so Discard could delete a live run's work.
-- D6 — The controller records step start and task at spawn and the row carries them, because the fields do not reach the wire today. This adds controller files to the entry's list.
-- D7 — Stalled means running and not driven, or waiting on a drive-crash wait, because every other driven-false run is a normal wait or pause.
+- D1 — No money, billing, personal-data or legal surface; the one irreversible deletion, Discard of the operator's own worktree, branch and PR, sits behind a second press.
+- D2 — A done run with its branch present keeps a tile for 24 hours; 21 of 28 still have their branch and would otherwise crowd Running.
+- D3 — Home shows controller waits only; a stale draft plan would hold a retro tile forever.
+- D4 — Only the feeds the removed pages read are deleted here, not for spec 34, per the entry's list.
+- D5 — Discard refuses when a moving run shares the branch; a relaunch reuses it and could delete live work.
+- D6 — The controller records step start and task at spawn and the row carries them, because they do not reach the wire today.
+- D7 — Stalled means running and not driven, or waiting on a drive-crash wait; every other driven-false run is a normal wait or pause.
 - D8 — A discarded done run stays done, because it did finish.
-- D9 — Specs and Deferrals keep their panels until spec 34, because spec 34 rewrites those pages.
-- D10 — Next orders by heading position, then project name, because decompositions are per project.
-- D11 — One Next tile per store, because the second launch would be refused.
-- D12 — Staged actions take the wait age colours and order, because they are Needs-you tiles.
-- D13 — The gear keeps notifications and version, dropping the project dots, because Home shows project state.
-- D14 — Tile buttons are neutral, because colour means state.
-- D15 — The fixture default keys on the project name, because a registry flag adds a server field for one project.
-- D16 — Two columns from 1024 px, display type at least 32 px, tile text at least 14 px, old steps kept, because spec 34 has not rebuilt the others.
-- D17 — Stopped runs sort after moving runs, because a stopped run would always lead.
-- D18 — The tab title counts enabled waits only, because it should match the board.
+- D9 — Specs and Deferrals keep their panels until spec 34, which rewrites those pages.
+- D10 — Next orders by heading position, then project name; decompositions are per project.
+- D11 — One Next tile per store; the second launch would be refused.
+- D12 — Staged actions take the wait age colours and order, as Needs-you tiles.
+- D13 — The gear keeps notifications and version, not the project dots, since Home shows project state.
+- D14 — Tile buttons are neutral; colour means state.
+- D15 — The fixture default keys on the project name; a registry flag adds a server field for one project.
+- D16 — Two columns from 1024 px, display type ≥32 px, tile text ≥14 px, old steps kept until spec 34 rebuilds the rest.
+- D17 — Stopped runs sort after moving runs, else a stopped run would always lead.
+- D18 — The tab title counts enabled waits only, matching the board.
 
 ## Scope notes
 
 - Carried items: none.
-- Cut: the right panel stays on Specs and Deferrals until spec 34 (D9); `done` runs keep a tile for 24 hours only (D2).
-- Added: the `discard` guard (R7 AC 7), the `done` status fix (R7 AC 8) and the controller writes of R12. The entry's "Design MUST enumerate" list omits `src/controller/runs.ts`, `src/controller/state.ts` and the step-spawn path in `src/controller/phases/implementation.ts`; design adds them.
-- Narrowed: "A run with `driven: false`" reads as R6 AC 4 (D7).
-- Left to design: a confirm on Stop for a stalled run; the `merging` and `queued` tiles beyond R6 and R7; the enable default for the two tradr entries.
+- Cut: the right panel on Specs and Deferrals until spec 34 (D9); `done` tiles for 24 hours only (D2).
+- Added: the `discard` guard (R7 AC 7), the `done` status fix (R7 AC 8) and the controller writes of R12. Its "Design MUST enumerate" list omits `src/controller/runs.ts`, `src/controller/state.ts` and the implementation step-spawn path; design adds them.
+- Left to design: a Stop confirm for a stalled run; the `merging` and `queued` tiles beyond R6/R7; the enable default for the two tradr entries.
 
 ## Revision History
 
@@ -213,3 +212,7 @@ This spec replaces the dashboard's Now page, sidebar, right panel, Runs page and
   - **R1-3 — Accepted (SHOULD_FIX).** R4 AC 1 now reads the per-kind summary: a count for gate and retro-plan, else the first question line, else the fixed line.
   - **R1-4 — Accepted (SHOULD_FIX).** R6 AC 6 now fixes the waiting case: the suffix becomes "pausing after this step", the waiting text stays; both branches cited.
   - **R1-5 — Accepted (MINOR).** The intro now names the R7 and R12 controller changes.
+- **v3** (2026-11-06) — Round-2 adversarial response (adversarial-analysis-requirements-r2.md, verdict iterate 1/0/3).
+  - **R2-1 — Accepted (MUST_FIX).** R12 AC 2 now takes the ISO start time as the wall-clock stamp made at spawn, not a conversion of the boot-relative process value, which carries no wall-clock time.
+  - **O3 — Accepted (MINOR).** R4 AC 1 now names the whole first question text, as the summary helper returns, not its first line.
+  - **O1-O3 observations.** O3 accepted above; O1 (fail-safe already stated) and O2 (branch-presence predicate deliberate; worktree-presence out of scope) rejected.
