@@ -1271,6 +1271,52 @@ and states), `src/tools/deferrals.ts` (resolve), the usage action in `src/tools/
 **Design should address:** the state word for a spec whose run is paused or held; whether the
 Specs line links anywhere; the log's growth and rotation.
 
+### 36. `decisions-and-launch-guard` — close-out builds recorded decisions, and a launch names its repository
+
+**Delivers.** (1) **Project names.** A project can have a display name that replaces the generated
+`repo · worktree` name. The two tradr projects become `tradr app` (code root `/home/mcf/repo/tradr`)
+and `tradr infra` (code root `/home/mcf/repo/tradr-hosted`). Every page that shows a project uses
+the display name. (2) **Launch guard.** The Launch card shows the code root of the project. When the
+files of the next spec do not exist under that code root, the card shows a warning that names the
+code root and the project to use, and Launch needs a second press. A spec with no `tasks.md` yet has
+no file list to compare, so the design states what the guard reads in that case. (3) **Close-out
+decisions.** The close-out reads the `## Decisions` section of `retrospective-plan.md`. An approved
+proposal with a recorded answer is never `skipped: no change chosen`. When the close-out cannot
+build the item, it marks the item `to-do` with its reason. (4) **File-list patch** (retro P6
+Option A). A fix round that fails only on `file-outside-list`, with a `REQUIRED:` flag, applies a
+`tasks.md` File-list patch and re-runs the task without a human wait. The ledger records each patch.
+(5) **Doc review cap** (retro P5 Option C). All phases stay. Doc review stops after round 1 when the
+round returns only MUST_FIX or SHOULD_FIX items that are all drafting defects and no design defects.
+(6) **Rules.** The G1 and G2 rule text of the `option-lifecycle-events` retro goes into
+`agent-rules.md`.
+
+**Decided.** The operator chose the rename on 2026-11-06 after two launches on the wrong tradr
+project in two days. Both projects stay: some specs change the infra repository. Items 3 to 6 are
+the operator's retro decisions that the close-out did not build: `d-83cc3ac1` and `d-37e510db`
+carry the detail. Resolve those two deferrals, and `d-aaf54e29` for the launch half, when this spec
+closes. No new eval role: the P6 eval named in that retro needs a role the framework lacks, so unit
+tests cover item 4. Do not hard-code tradr paths in harness code; the display names are registry
+data.
+
+**End-to-end verification.** (1) The Runs page shows `tradr app` and `tradr infra`, and no page
+shows `tradr-hosted · tradr`. (2) With a next spec whose task files exist only in the app repository,
+the `tradr infra` card shows the warning and a first press does not launch; the `tradr app` card
+shows no warning. (3) A close-out over a plan with an approved proposal and a recorded decision
+never writes `skipped: no change chosen` for that proposal. (4) A stub fix round with a `REQUIRED:`
+flag and a sole `file-outside-list` reason patches `tasks.md`, writes the ledger row, re-runs the
+task and opens no wait. (5) A stub review round with only drafting defects ends doc review; a round
+with one design defect does not.
+
+**Depends on** spec 32 (`dashboard-board`), which owns the shell the Launch card renders in.
+**Design MUST enumerate:** `src/core/project-registry.ts` (`generateProjectDisplayName`, the
+`projectName` field), `src/dashboard/harness/` (setup and `launchSpec`), the Launch card in the
+frontend, `src/controller/phases/closeout.ts`, `src/controller/phases/implementation.ts` (the P8
+`file-outside-list` branch), `src/controller/phases/document.ts` (the review round loop), and
+`.spec-workflow/agent-rules.md`.
+
+**Design should address:** how a reviewer labels a finding as a drafting defect or a design defect;
+where the display name is set; what the guard does for a spec that creates mostly new files.
+
 ## Superseded entries (2026-10-10)
 
 Specs 16 (dashboard gates), 17 (dashboard merge and deferrals), 18 (dashboard usage), the
@@ -1448,6 +1494,10 @@ No release; each is live after a deploy.
 35 → 31 (added 2026-11-04 by the operator). 30 is closed, so 35 is the next spec, then
 31 → 32 → 33 → 34. 35 first: each of those specs ships through the eval gate, so each one
 gets the shorter gate.
+
+32 → 36 → 33 → 34 (added 2026-11-06 by the operator). 36 follows 32 because 32 owns the shell
+that the Launch card renders in, and it precedes 33 and 34 because the decisions it builds
+are already lost once per retro.
 
 ## Boundary notes
 
