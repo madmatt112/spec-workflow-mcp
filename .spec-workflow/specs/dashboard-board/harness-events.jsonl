@@ -1,0 +1,5 @@
+{"ts":"2026-11-06T18:11:12.904Z","run":"run-20261106-181042","spec":"dashboard-board","type":"run.start","model":"controller","setup":"controller","headless":"yes","specStore":"/home/mcf/repo/spec-workflow-mcp","codeRoot":"/home/mcf/repo/spec-workflow-mcp/.claude/worktrees/dashboard-board","worktree":"yes"}
+{"ts":"2026-11-06T18:11:12.983Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.start","phase":"requirements","mode":"normal","state":"v0"}
+{"ts":"2026-11-06T18:11:13.139Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-drafter","role":"draft v1","model":"claude-opus-5-5","effort":"high"}
+{"ts":"2026-11-06T18:19:58.177Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-drafter","input":"38","output":"59753","cacheWrite":"274155","cacheRead":"2902107","tokens":"3236053","cacheWrite5m":"0","cacheWrite1h":"274155","model":"claude-opus-5-5"}
+{"ts":"2026-11-06T18:19:58.177Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-drafter","role":"draft v1","result":"success","phase":"requirements","round":"1"}

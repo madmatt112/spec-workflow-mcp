@@ -1,0 +1,48 @@
+{
+  "items": [
+    {
+      "header": "Posture",
+      "question": "What is the top-level posture on money, personal data and erasure, and legal or compliance, including refunds, forfeiture and credits?",
+      "options": [
+        "No money, billing, personal data or legal surface, so no refunds, forfeiture or credits apply; the one deletion is Discard of the operator's own worktree, local branch and PR, irreversible, behind a second press that names what goes",
+        "One press with no confirm",
+        "A soft delete that keeps the branch for a period"
+      ]
+    },
+    {
+      "header": "Done runs",
+      "question": "How long does a done run with its branch still present keep a tile on the board?",
+      "options": [
+        "24 hours, then no tile",
+        "Every done run with a branch, as the entry says (21 tiles today)",
+        "No tile for done runs at all",
+        "A 7-day window"
+      ]
+    },
+    {
+      "header": "Derived waits",
+      "question": "Which waits does Home show?",
+      "options": [
+        "Controller waits only; the derived waits go",
+        "Both kinds, as today"
+      ]
+    },
+    {
+      "header": "Dead feeds",
+      "question": "When do server feeds that only the removed pages read get deleted?",
+      "options": [
+        "Delete them in this spec",
+        "Leave them for spec 34"
+      ]
+    },
+    {
+      "header": "Discard guard",
+      "question": "Does Discard refuse when a moving run shares the branch?",
+      "options": [
+        "Yes, on the tile and in the route",
+        "Tile only",
+        "No guard"
+      ]
+    }
+  ]
+}
