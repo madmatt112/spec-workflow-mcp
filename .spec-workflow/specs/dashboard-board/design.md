@@ -2,7 +2,7 @@
 
 ## Overview
 
-This spec replaces the sidebar, the Now, Runs and Run pages and the right panel with a top bar and a three-band Home of large tiles. It sits in the dashboard frontend, the shell feed and hub, and the controller's run record and `toRow`. It reuses `AnswerSheet`, `DeployControl`, `callHarness`, `buildLaunchInput`, `OpErrorView`, `pauseNote`, `storeGroups` and the existing routes.
+This spec replaces the sidebar, the Now, Runs and Run pages and the right panel with a top bar and a three-band Home of large tiles. It reuses `AnswerSheet`, `DeployControl`, `callHarness`, `buildLaunchInput`, `OpErrorView`, `pauseNote`, `storeGroups` and the routes.
 
 ## Steering Document Alignment
 
@@ -17,7 +17,7 @@ No design-system.md exists; `src/dashboard_frontend/src/modules/theme/tokens.css
 
 ## Architecture
 
-`board.ts` turns the `controller-waits`, `controller-runs` and `controller-actions` pushes plus one fetched setup view per store into three sorted tile lists, and `tiles.tsx` renders them. Presses go through one stage store on Home, which owns retained tiles. The controller gains three things on the run row: the in-flight step's start and task, a cached branch read, and a Discard-allowed flag. The feed loses `shell-now` and `controller-activity`; the hub loses its project watches.
+`board.ts` turns the `controller-waits`, `controller-runs` and `controller-actions` pushes plus one fetched setup view per store into three sorted tile lists, and `tiles.tsx` renders them. Presses go through one stage store on Home, which owns retained tiles. The controller adds three run-row fields: the in-flight step's start and task, a cached branch read, and a Discard-allowed flag. The feed loses `shell-now` and `controller-activity`; the hub loses its project watches.
 
 ```mermaid
 graph TD
@@ -40,7 +40,7 @@ graph TD
 - **Purpose:** Hold the step's wall-clock start and task id for the step's lifetime.
 - **Interfaces:** `InFlightStep` (`src/controller/state.ts:39-46`) gains optional `startedAt?: string` and `task?: string`. `stepLifecycle`'s `onStepSpawn` (`src/controller/runs.ts:449-465`) takes `{ id, pid, startTime, task? }` and writes `startedAt` from `deps.now().toISOString()`.
 - **Post-conditions:** Both fields live inside `inFlight`, so `onStepEnd` and every `inFlight: undefined` write clear them with no new clear site.
-- **Task route:** `ImplementationPhaseContext.onStepSpawn` (`src/controller/phases/implementation.ts:95`) gains `task?: string`, and `runModelStep` passes `opts.task` (`src/controller/phases/implementation.ts:444-469`; `opts.task` already exists at `:446`, and every task step sets it). The other phases do not change: a callback that accepts an optional field still fits their narrower type.
+- **Task route:** `ImplementationPhaseContext.onStepSpawn` (`src/controller/phases/implementation.ts:95`) gains `task?: string`, and `runModelStep` passes `opts.task` (`src/controller/phases/implementation.ts:444-469`; `opts.task` already exists at `:446`, and every task step sets it). The other phases do not change: a callback with an optional field still fits their narrower type.
 
 ### C2 — Branch presence (R12 AC 1, NFR Performance, NFR Reliability)
 - **Purpose:** Answer "does this run's branch exist" at most once per stopped run per 60 s.
@@ -95,7 +95,7 @@ graph TD
   - `toggled(id, name, off, on): { off: string[]; on: string[] }`
   - `DEFAULT_OFF_NAMES = ['sdd-fixture']`
 - **Post-conditions:** An id in `on` is enabled, else an id in `off` is disabled, else the project is enabled unless its name is in `DEFAULT_OFF_NAMES`. `toggled` flips the current value by moving the id into the other list.
-- **`src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx`:** `shell.projects` keeps its meaning (`:28-39`); a second key `shell.projects.on` holds explicit-on ids. `enabled(id)` and `toggle(id)` keep their signatures and look the name up in `projects`; an id not yet listed is enabled, as at base (`:74-77`). Every existing caller follows with no change.
+- **`src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx`:** `shell.projects` keeps its meaning (`:28-39`); a second key `shell.projects.on` holds explicit-on ids. `enabled(id)` and `toggle(id)` keep their signatures and look the name up in `projects`; an id not yet listed is enabled, as at base (`:74-91`). Every existing caller follows with no change.
 - Home renders no tile while `useProjects().loading` is true, so the fixture does not flash on first load.
 
 ### C9 — Board model (R3, R4 AC 1-3, R5 AC 1-3, R6, R7 AC 1-4, 6, R8 AC 2-4, R10)
@@ -125,7 +125,7 @@ graph TD
 ### C10 — Home and tiles (R3 AC 1-5, R4 AC 2, 4, 5, R5, R6, R7 AC 5, R8 AC 1, 6, R11 AC 3)
 - **`HomePage.tsx` (new):** Owns a one-second tick, `useStages`, `useNextViews` and `openWaitId`.
   - Each band is a `section` with test id `band-needs-you`, `band-running` or `band-next` and a `grid gap-(--tile-gap) lg:grid-cols-2` body. An empty band shows one quiet line.
-  - The open wait is re-derived from `needsYou` on each render. When the wait is gone, answered or filtered, `openWaitId` no longer matches and the board returns, which covers R4 AC 5 for any cause.
+  - The open wait is re-derived from `needsYou` on each render. When the wait is gone, answered or filtered, `openWaitId` no longer matches and the board returns (R4 AC 5, any cause).
   - While a wait is open, Home renders a "Back to board" link and `AnswerSheet` at full width instead of the bands.
 - **`AnswerSheet.tsx` (new):** `AnswerSheet`, `SecondOpinionButton` and their helpers, moved from `src/dashboard_frontend/src/modules/shell/NowPage.tsx:196-228` and `:433-701` with no behaviour change. `WaitDetail`, `WaitPanel` and the `Wait` branches do not move.
 - **`tiles.tsx` (new):** `WaitTile`, `ActionTile`, `RunTile`, `NextTile`, `StageLine`, all over a `Tile` frame. Test ids: `wait-tile-`, `action-tile-`, `run-tile-` plus the record id; `next-tile-` plus the project id.
@@ -171,7 +171,7 @@ function advance(stage: Stage, seen: Observed, now: number): Stage | null;
 
 ### C12 — Look (R11, R1 AC 5)
 - **`src/dashboard_frontend/src/modules/theme/tokens.css`:** Inside `@theme static`, add `--text-display: 32px` with `--text-display--line-height: 40px`, `--text-tile: 15px` with `--text-tile--line-height: 22px`, `--tile-pad: 20px`, `--tile-gap: 16px`, `--band-gap: 32px`. Delete `--sidebar-w` and `--row-h-compact` (`:56`, `:53`). Lines `:9-17` and `:61-160` do not change. `--panel-w` stays for `src/dashboard_frontend/src/modules/shell/PageLayout.tsx:22`.
-- **Probe:** tailwindcss 4.1.18 `compile()` (2026-11-06), with `--text-*` reset as here, produced `text-display`, `text-tile`, `p-(--tile-pad)`, `gap-(--tile-gap)`, and `lg:grid-cols-2` under `width >= 64rem`: 1024 px at the default root size, which `src/dashboard_frontend/src/modules/theme/tailwind.css` leaves alone.
+- **Probe:** tailwindcss 4.1.18 `compile()` (2026-11-06), with `--text-*` reset as here, produced `text-display`, `text-tile`, `p-(--tile-pad)`, `gap-(--tile-gap)`, and `lg:grid-cols-2` under `width >= 64rem`: 1024 px, which `src/dashboard_frontend/src/modules/theme/tailwind.css` leaves alone.
 - **`src/dashboard_frontend/src/modules/ui/ui.tsx`:** Add `tile(tone)` to the `ui` constants (`:132-157`) for `neutral`, `warning` and `danger`.
 - **390 px:** `TopBar` wraps; tiles carry `min-w-0`; long text takes `break-words`.
 
@@ -218,7 +218,7 @@ Tests load frontend modules at runtime, as `src/dashboard/shell/__tests__/deploy
   - `src/dashboard/harness/__tests__/project-watch.test.ts` keeps only `parseHandoffRouting`.
 - **Unit, frontend pure:** `src/dashboard/shell/__tests__/board-view.test.ts` (new) covers `board.ts`, `stage.ts`, `enable.ts` and the two `pause.ts` strings: every sort, each tone and dot threshold, `runControls` per status, `mergeRead`'s outcomes, each `resolved` row, `advance`'s 5 s and 30 s, title formats.
 - **Tokens:** `src/dashboard/__tests__/frontend-tokens.test.ts:126-127` matches the new list. `src/dashboard/__tests__/frontend-style-scan.test.ts:338` uses `--sidebar-w` as its declared-token sample and moves to `--panel-w`.
-- **End-to-end:** New `e2e/worktree-board.spec.ts`, matched by `WORKTREE_SPEC_PATTERN` (`playwright.worktree-pattern.ts:21`), seeds `run.json`, wait and action records as `e2e/worktree-deploy.spec.ts:49-52` does, and runs entry scenarios 1, 3, 4, 5, 6, 7 and 8, plus scenario 2's "Stalled" and Re-drive press. Mutating fetches rely on the dev proxy's Origin rewrite (`src/dashboard_frontend/vite.config.ts:28-36`). Scenario 2's "green within 15 s" needs a real step, so the end-to-end gate proves it on a fixture run.
+- **End-to-end:** New `e2e/worktree-board.spec.ts`, matched by `WORKTREE_SPEC_PATTERN` (`./playwright.worktree-pattern.ts:21`), seeds `run.json`, wait and action records as `e2e/worktree-deploy.spec.ts:49-52` does, and runs entry scenarios 1, 3, 4, 5, 6, 7 and 8, plus scenario 2's "Stalled" and Re-drive press. Mutating fetches rely on the dev proxy's Origin rewrite (`src/dashboard_frontend/vite.config.ts:28-36`). Scenario 2's "green within 15 s" needs a real step, so the end-to-end gate proves it on a fixture run.
 - **Rewrites (R2 AC 5):** `e2e/worktree-shell.spec.ts` (includes the "pause requested" asserts at `:446`, `:468`, `:553`), `e2e/worktree-project-list.spec.ts`, `e2e/worktree-no-shared.spec.ts`, `e2e/worktree-deploy.spec.ts`, `e2e/worktree-visual.spec.ts`, and the nav reads in `e2e/helpers/shell-seed.ts` and `e2e/helpers/worktree-harness.ts`.
 - **Docs:** `docs/SDD-HARNESS.md:99-100`, `:120` and `:469` name Home.
 
@@ -251,7 +251,7 @@ Numbers continue from the requirements document.
 ## Scope notes
 
 - Carried items: none.
-- Cut from R2 AC 3: `src/controller/activity.ts` stays with no reader after the topic goes; deleting it touches six `src/controller/runs.ts` call sites and five phase contexts for no visible change. The `controller-activity` topic, its hub listener and its wire types do go.
+- Cut from R2 AC 3: `src/controller/activity.ts` stays with no reader after the topic goes; deleting it touches six `src/controller/runs.ts` call sites and five phase contexts for no gain. The `controller-activity` topic, its hub listener and its wire types do go.
 - Left unedited: `docs/INTERFACES.md` and `docs/technical-documentation/file-structure.md` name the old pages; R2 AC 6 does not list them.
 - The requirements' "Left to design" items: D21, D22, D23, D24.
 
@@ -264,3 +264,4 @@ Numbers continue from the requirements document.
   - **R1-2 — Accepted (MINOR).** Dropped C7's false "only the sidebar read"; probed every useShell reader of the three fields and all are deleted pages.
   - **R1-3 — Accepted (MINOR).** Split C6's loose hub range: snapshotFor and watchedProjects cited at their own lines, overviewSnapshot kept.
   - **R1-4 — Accepted (MINOR).** C7's Gear bullet now also removes the line-14 density destructure, so tsc holds.
+  - **Lint pass.** 3 fixed: L-10 range →`:74-91` (adds `toggle`), L-36 path prefix `./`, L-35 clears with it; rejected L-1–L-9, L-11–L-34 — each a new or cross-file identifier defined elsewhere, not the cited anchor range.
