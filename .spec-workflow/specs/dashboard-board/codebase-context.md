@@ -161,3 +161,44 @@
 - e2e/worktree-shell.spec.ts:446 — pause note assert, also :468 and :553
 - src/dashboard_frontend/vite.config.ts:28-36 — dev proxy Origin rewrite
 - playwright.worktree-pattern.ts:21 — WORKTREE_SPEC_PATTERN
+
+## Test edges (tasks phase)
+- src/controller/__tests__/ledger.test.ts:10 — imports gateOrRuling from the deleted waits.ts
+- src/controller/__tests__/ledger.test.ts:241-245 — the gate-wait read inside the ledger test
+- src/controller/__tests__/controller.test.ts:2402-2403 — discard status read, needs narrowing
+- src/controller/__tests__/runs.test.ts:286-296 — in-flight read and clear seam
+- src/controller/phases/__tests__/implementation.test.ts:209 — ctxFor context builder
+- src/dashboard/harness/__tests__/run-setup.test.ts:317-323 — buildView typed SetupView fixture
+- src/dashboard/harness/__tests__/project-watch.test.ts:86 — parseHandoffRouting describe, kept
+- src/dashboard/harness/__tests__/project-watch.test.ts:128 — parseGateSections describe, goes
+- src/dashboard/harness/__tests__/project-watch.test.ts:320 — ProjectHarnessWatch describe, goes
+- src/dashboard/__tests__/harness-routes.test.ts:206 — harness-model snapshot case, goes
+- src/dashboard/__tests__/harness-routes.test.ts:226 — harness-only delivery case, goes
+- src/dashboard/__tests__/harness-routes.test.ts:249 — watchedProjects case, goes
+- src/dashboard/__tests__/harness-routes.test.ts:265 — overview gate-a row case, kept
+- src/dashboard/__tests__/shell-routes.test.ts:337 — first-message case, moves to shell-specs
+- src/dashboard/__tests__/shell-routes.test.ts:694 — direct HarnessHub construction
+- src/dashboard/shell/__tests__/shell-feed.test.ts:408 — topic order list
+- src/dashboard/shell/__tests__/shell-feed.test.ts:553 — snapshot length seven
+- src/dashboard/__tests__/frontend-build.test.ts:109-121 — built-CSS declaration counts
+- src/dashboard/__tests__/frontend-tokens.test.ts:193-197 — theme-independent name check
+- src/dashboard/__tests__/frontend-style-scan.test.ts:181 — row-height setProperty exemption
+- src/dashboard/__tests__/frontend-style-scan.test.ts:351-356 — exemption test
+
+## Browser seams (tasks phase)
+- e2e/worktree-shell.spec.ts:426-428 — pauseRequested keeps a seeded run from the scheduler
+- e2e/worktree-project-list.spec.ts:72-75 — navCount reads the nav count span
+- e2e/worktree-project-list.spec.ts:238 — sidebar dot describe
+- e2e/worktree-no-shared.spec.ts:56-86 — sidebar toggle cases
+- e2e/worktree-visual.spec.ts:23 — VIEWS list
+- e2e/helpers/shell-seed.ts:88 — sidebar comment, no nav read
+- e2e/helpers/worktree-harness.ts:240-242 — sidebar comment, no nav read
+- playwright.worktree.config.ts:46-60 — dashboard webServer with SDD_DEPLOY_DISABLED
+
+## Seeds and gates (tasks phase)
+- src/controller/state.ts:300-305 — waits directory and wait path
+- src/advisor/actions.ts:76-78 — actionPath
+- src/advisor/actions.ts:130 — dismissAction
+- src/dashboard/shell/shell-feed.ts:56 — 30 s tick, the only flush a seeded file gets alone
+- src/controller/phases/implementation.ts:266-272 — isWiringTask, App.tsx matches
+- src/dashboard_frontend/src/modules/projects/stores.ts:1-6 — header comment naming the sidebar
