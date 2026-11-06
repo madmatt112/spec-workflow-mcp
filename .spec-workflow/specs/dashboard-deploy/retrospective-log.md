@@ -129,3 +129,13 @@ Cost: implementer
 store batch 1: 1 done of 1, 0 fix round(s)
 Evidence: batch 1 · mark run-20261105-155538 06ecf37b
 Cost: 1 implementer spawn(s)
+
+## 2026-11-06T02:35:47Z · closeout · harness batch 2 · gotcha
+P4 breaker keyed on unchanged HEAD + identical gate verdict (generalises P8, routes to adjudicator); a fix round committing a different diff that repeats the verdict still runs to FIX_ROUNDS_CAP. Details: /tmp/scratchpad/sdd/dashboard-deploy/closeout-notes-harness-2.md
+Evidence: batch 2 · mark run-20261105-155538 a79edfd8
+Cost: implementer
+
+## 2026-11-06T02:35:59Z · closeout · harness batch 2 · cleanup
+harness batch 2: 3 done of 3, 0 fix round(s)
+Evidence: batch 2 · mark run-20261105-155538 3ff5000f
+Cost: 1 implementer spawn(s)

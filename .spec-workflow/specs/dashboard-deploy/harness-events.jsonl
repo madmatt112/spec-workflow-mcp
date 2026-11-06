@@ -334,3 +334,17 @@
 {"ts":"2026-11-06T02:18:40.675Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P8 files taken from the commit (no named path exists in the root)"}
 {"ts":"2026-11-06T02:18:43.843Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P8 pass risk low"}
 {"ts":"2026-11-06T02:18:43.869Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P8","outcome":"done"}
+{"ts":"2026-11-06T02:18:59.971Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P2","title":"P2 (F2) — A test that needs a built `dist/` must provision it, not assume it."}
+{"ts":"2026-11-06T02:18:59.971Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P3","title":"P3 (F3) — The TDD gate must not run a task-authorized config support file as a test."}
+{"ts":"2026-11-06T02:18:59.971Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.pick","task":"P4","title":"P4 (F4) — Add an identical-repeat circuit-breaker so an unfixable gate failure escalates sooner."}
+{"ts":"2026-11-06T02:18:59.985Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-implementer","role":"implement harness batch 2","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-06T02:35:47.360Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"134","output":"75643","cacheWrite":"186079","cacheRead":"9554782","tokens":"9816638","cacheWrite5m":"0","cacheWrite1h":"186079","model":"claude-opus-4-8"}
+{"ts":"2026-11-06T02:35:47.360Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement harness batch 2","result":"ok","phase":"closeout"}
+{"ts":"2026-11-06T02:35:54.746Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P2 pass risk low"}
+{"ts":"2026-11-06T02:35:54.772Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P3 test files from the commit added to the list"}
+{"ts":"2026-11-06T02:35:57.163Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P3 pass risk low"}
+{"ts":"2026-11-06T02:35:57.192Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P4 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-06T02:35:59.720Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"gate: item P4 pass risk low"}
+{"ts":"2026-11-06T02:35:59.784Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P2","outcome":"done"}
+{"ts":"2026-11-06T02:35:59.785Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P3","outcome":"done"}
+{"ts":"2026-11-06T02:35:59.786Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P4","outcome":"done"}
