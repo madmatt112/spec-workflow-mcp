@@ -25,6 +25,7 @@ import {
   taskBlock,
   taskNamesTests,
   isTestPath,
+  isConfigSupportPath,
   worstTypecheckState,
   truncateLine,
   scoreRisk,
@@ -246,6 +247,19 @@ describe('isTestPath', () => {
     expect(isTestPath('jest.setup.js')).toBe(true);
     expect(isTestPath('src/setup.ts')).toBe(false);
     expect(isTestPath('src/db-setup.ts')).toBe(false);
+  });
+});
+
+describe('isConfigSupportPath (P3)', () => {
+  it('is true for a *.config.{ts,js,cts,mts,cjs,mjs} basename, false otherwise', () => {
+    expect(isConfigSupportPath('playwright.worktree.config.ts')).toBe(true);
+    expect(isConfigSupportPath('vite.config.js')).toBe(true);
+    expect(isConfigSupportPath('src/dashboard_frontend/vite.config.mts')).toBe(true);
+    expect(isConfigSupportPath('a.config.cjs')).toBe(true);
+    // not a config support file
+    expect(isConfigSupportPath('src/config.ts')).toBe(false);
+    expect(isConfigSupportPath('src/foo.config.json')).toBe(false);
+    expect(isConfigSupportPath('src/foo.ts')).toBe(false);
   });
 });
 

@@ -194,6 +194,43 @@ describe('proveRedGreen outcome table', () => {
     expect(p.base).toBe('assertion-red');
     expect(proofReasons(p).risk).toContain('tdd-amended: sum.test.js');
   }, TEST_MS);
+
+  it('excludes a *.config.* file listed in File: from sourcePaths and from the run (retro P3)', async () => {
+    initRepo(root);
+    await write(root, 'impl.js', IMPL_WRONG);
+    commitAll(root, 'base');
+    // The red commit adds the real test plus a runner-config support file the task
+    // lists in File:. The config is a non-test path, yet it must be neither flagged
+    // as author-changed source nor executed as a test.
+    await write(root, 'sum.test.js', SUM_TEST);
+    await write(root, 'foo.config.ts', "throw new Error('config executed');\n");
+    const red = commitAll(root, 'test(x): red plus config');
+    await write(root, 'impl.js', IMPL_RIGHT);
+    commitAll(root, 'implement sum');
+
+    const p = await proveRedGreen(root, tdd(['sum.test.js', 'foo.config.ts'], red), NODE_RULES);
+    expect(p.sourcePaths).toEqual([]);
+    expect(proofReasons(p).fail).not.toContain('tdd: author changed source: foo.config.ts');
+    // The config was dropped from the run set, so `node foo.config.ts` never ran:
+    // the head run is the real test alone and passes (no head:fail from the config).
+    expect(p.head).toBe('pass');
+    expect(p.base).toBe('assertion-red');
+  }, TEST_MS);
+
+  it('still flags a *.config.* file as source when the task did not list it (retro P3)', async () => {
+    initRepo(root);
+    await write(root, 'impl.js', IMPL_WRONG);
+    commitAll(root, 'base');
+    await write(root, 'sum.test.js', SUM_TEST);
+    await write(root, 'foo.config.ts', 'module.exports = {};\n');
+    const red = commitAll(root, 'red plus unlisted config');
+    await write(root, 'impl.js', IMPL_RIGHT);
+    commitAll(root, 'implement sum');
+
+    // testFiles names only the test; the config is not in the task's File: list.
+    const p = await proveRedGreen(root, tdd(['sum.test.js'], red), NODE_RULES);
+    expect(p.sourcePaths).toContain('foo.config.ts');
+  }, TEST_MS);
 });
 
 describe('proveRedGreen quoting and inconclusive causes', () => {

@@ -46,6 +46,14 @@ export const TEST_DIR_SEGMENTS = ['__tests__', 'tests', 'test'];
  */
 export const TEST_SETUP_BASENAME_RE = /^(test[-.]setup|setup[-.]?tests|vitest[-.]setup|jest[-.]setup)\.[cm]?[jt]sx?$/i;
 
+/**
+ * A runner/build config support file (`playwright.worktree.config.ts`,
+ * `vite.config.js`, …): a basename matching `*.config.{ts,js,cts,mts,cjs,mjs}`.
+ * When the task lists such a file in its File: entries it is neither a runnable
+ * test nor an author-changed source edit (dashboard-deploy retro P3).
+ */
+export const CONFIG_SUPPORT_BASENAME_RE = /\.config\.[cm]?[jt]s$/i;
+
 /** Checkbox line, copied from `src/core/task-parser.ts:167`; bounds a task block. */
 export const TASK_CHECKBOX_RE = /^\s*[-*]\s+\[([ x\-])\]/;
 
@@ -264,6 +272,12 @@ export function isTestPath(relPath: string): boolean {
   const base = p.split('/').pop() ?? '';
   if (TEST_FILE_BASENAME_RE.test(base) || TEST_SETUP_BASENAME_RE.test(base)) return true;
   return p.split('/').some((seg) => TEST_DIR_SEGMENTS.includes(seg));
+}
+
+/** True when a basename matches `*.config.{ts,js,cts,mts,cjs,mjs}` (dashboard-deploy retro P3). */
+export function isConfigSupportPath(relPath: string): boolean {
+  const base = normalizePath(relPath).split('/').pop() ?? '';
+  return CONFIG_SUPPORT_BASENAME_RE.test(base);
 }
 
 /**

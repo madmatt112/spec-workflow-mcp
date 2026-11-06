@@ -840,6 +840,16 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
           + 'verdict — the fix is to list the file(s) in the task\'s File entries in tasks.md',
           { task, category: 'deviation' });
       }
+
+      // P4 (dashboard-deploy retro): an identical-repeat circuit-breaker for any
+      // other verdict. When a fix round left HEAD unchanged and the gate returned
+      // the identical reasons, no implementer edit moved the verdict, so escalate
+      // to the adjudicator now (below) rather than spend the remaining cap rounds
+      // on the same unchanged commit. Captured here before prevReasons is replaced.
+      const verdictUnmoved = Boolean(
+        gate.gate === 'fail' && prevReasons && gateHead && gateHead === prevGateHead
+        && sameReasons(gate.reasons, prevReasons),
+      );
       prevGateHead = gateHead;
       prevReasons = gate.reasons;
 
@@ -868,13 +878,17 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
 
       // 5. Fix round, or the adjudicator after the cap.
       rounds += 1;
-      if (rounds > FIX_ROUNDS_CAP) {
+      if (rounds > FIX_ROUNDS_CAP || verdictUnmoved) {
         const adj = await adjudicateTask(task, findings);
         if (adj) return adj;
         adjudicated = true;
         const narrow = await verifyTask(task, rounds, implementerFiles, gate, 'narrow', findings);
         if ('error' in narrow) return narrow.error;
-        retro(phase, `task ${id}`, 'ruling', `adjudicated after ${FIX_ROUNDS_CAP} fix rounds; narrow verdict ${narrow.verdict}`, `task ${id}`, `${rounds} rounds`);
+        retro(phase, `task ${id}`, 'ruling',
+          verdictUnmoved && rounds <= FIX_ROUNDS_CAP
+            ? `adjudicated early: a fix round left the commit and the gate verdict unchanged; narrow verdict ${narrow.verdict}`
+            : `adjudicated after ${FIX_ROUNDS_CAP} fix rounds; narrow verdict ${narrow.verdict}`,
+          `task ${id}`, `${rounds} rounds`);
         return complete(task, rounds, 'adjudicated');
       }
       const fixFindings = tdd ? `${buildRedTestsSection(authorFiles.join(', '), '', authorReport)}\n\n${findings}` : findings;
