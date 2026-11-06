@@ -33,11 +33,12 @@
 | 18 | eval-gate-runs | Complete | 6/6 |
 | 19 | harness-evals | Complete | 16/16 |
 | 20 | controller-liveness-and-push | Complete | 15/15 |
-| 21 | advisor | Complete | 19/19 |
-| 22 | dashboard-loop-views | Complete | 14/14 |
-| 23 | project-bootstrap | Complete | 11/11 |
-| 24 | verification-loop | Complete | 14/14 |
-| 25 | tighter-reviews | Complete | 29/29 |
+| 21 | dashboard-deploy | Complete | 15/15 |
+| 22 | advisor | Complete | 19/19 |
+| 23 | dashboard-loop-views | Complete | 14/14 |
+| 24 | project-bootstrap | Complete | 11/11 |
+| 25 | verification-loop | Complete | 14/14 |
+| 26 | tighter-reviews | Complete | 29/29 |
 
 ## Other specs (not in decomposition.md)
 

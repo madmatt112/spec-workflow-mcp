@@ -295,3 +295,8 @@
 {"ts":"2026-11-06T00:09:32.542Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-implementer","input":"38","output":"8426","cacheWrite":"50248","cacheRead":"1225939","tokens":"1284651","cacheWrite5m":"0","cacheWrite1h":"50248","model":"claude-sonnet-5"}
 {"ts":"2026-11-06T00:09:32.542Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 15","result":"yes/15","phase":"implementation","task":"15"}
 {"ts":"2026-11-06T00:09:32.575Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"15","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-06T00:09:32.758Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.start","agent":"sdd-verifier","role":"end-to-end verification","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-06T00:17:36.678Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.end","agent":"sdd-verifier","input":"54","output":"22821","cacheWrite":"102711","cacheRead":"1946213","tokens":"2071799","cacheWrite5m":"0","cacheWrite1h":"102711","model":"claude-opus-4-8"}
+{"ts":"2026-11-06T00:17:36.678Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"spawn.usage","agent":"sdd-verifier","role":"end-to-end verification","result":"VERIFY: pass","phase":"implementation"}
+{"ts":"2026-11-06T00:17:36.678Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"e2e verification passed"}
+{"ts":"2026-11-06T00:17:37.002Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"completion handoff written"}
