@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import { runGit } from './task-diff.js';
 import { runCaptured, CHECK_TIMEOUT_MS } from './check-runner.js';
-import { isTestPath } from './gate-rules.js';
+import { isTestPath, isConfigSupportPath, normalizePath } from './gate-rules.js';
 import type { BaseOutcome, HeadOutcome, TddArgs } from '../types.js';
 
 /**
@@ -197,6 +197,11 @@ export async function proveRedGreen(
 ): Promise<ProofResult> {
   const timeoutMs = opts?.timeoutMs ?? CHECK_TIMEOUT_MS;
   const testFiles = tdd.testFiles;
+  // A `*.config.*` support file the task lists in File: (so it reaches here in
+  // testFiles) is not a runnable test: run the rest, never vitest the config
+  // (dashboard-deploy retro P3). The set scopes the sourcePaths exemption below.
+  const testFileSet = new Set(testFiles.map(normalizePath));
+  const runFiles = testFiles.filter((f) => !isConfigSupportPath(f));
   const result: ProofResult = {
     baseSha: null,
     base: 'inconclusive',
@@ -225,7 +230,11 @@ export async function proveRedGreen(
     ]);
     if (changed.ok) {
       for (const p of splitLines(changed.stdout)) {
-        if (!isTestPath(p)) result.sourcePaths.push(p);
+        if (isTestPath(p)) continue;
+        // A `*.config.*` file the task lists in File: (so it is in testFiles) is a
+        // support edit the author legitimately made, not author-changed source (P3).
+        if (isConfigSupportPath(p) && testFileSet.has(normalizePath(p))) continue;
+        result.sourcePaths.push(p);
       }
     }
 
@@ -249,14 +258,14 @@ export async function proveRedGreen(
     } else if (result.sourcePaths.length > 0) {
       result.baseCause = 'author changed source';
     } else {
-      await runBaseWorktree(root, result.baseSha as string, result, rules, testFiles, timeoutMs);
+      await runBaseWorktree(root, result.baseSha as string, result, rules, runFiles, timeoutMs);
     }
   }
 
   // Step 6: the head run, whenever a test command is set (a failing head is a
   // fact even when the base is inconclusive or off — design D7).
   if (rules.testCommand !== null) {
-    const command = substituteFiles(rules.testCommand, testFiles);
+    const command = substituteFiles(rules.testCommand, runFiles);
     const headRun = await runCaptured(root, command, { timeoutMs });
     result.head = headRun.status === 'pass' && headRun.exitCode === 0 ? 'pass' : 'fail';
   }
