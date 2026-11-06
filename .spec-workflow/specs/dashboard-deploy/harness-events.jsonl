@@ -349,3 +349,11 @@
 {"ts":"2026-11-06T02:35:59.785Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P3","outcome":"done"}
 {"ts":"2026-11-06T02:35:59.786Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P4","outcome":"done"}
 {"ts":"2026-11-06T02:36:04.841Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"phase.end","phase":"closeout","result":"closed","state":"items 11/11","note":"4 done, 0 to-do, 7 skipped"}
+{"ts":"2026-11-06T02:36:06.714Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"close-out merge: close-out PR #206 of spec-workflow-mcp not-ready (no workflow run yet for 56a5556 (head or PR less than five minutes old); mergeability not yet computed (mergeable=UNKNOWN))"}
+{"ts":"2026-11-06T02:36:39.272Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"close-out merge: close-out PR #206 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-06T02:37:11.884Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"close-out merge: close-out PR #206 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-06T02:37:43.886Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"close-out merge: close-out PR #206 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-06T02:38:15.280Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"close-out merge: close-out PR #206 of spec-workflow-mcp blocked (workflow CI did not pass)"}
+{"ts":"2026-11-06T02:41:48.000Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"pr.merged","number":"206","sha":"31e858ed41da78bdb8cf62fd36b3a37858215c8d","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-06T02:41:48.825Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"note","text":"error answered by coordinator: retry"}
+{"ts":"2026-11-06T02:41:48.918Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"run.end","status":"done"}
