@@ -170,6 +170,8 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-05 | eval-gate-runs | closeout | items 10/10 | closed | 3 done, 1 to-do, 6 skipped |
 | 2026-11-05 | dashboard-deploy | requirements | v5 | approved | 5 rounds |
 | 2026-11-05 | dashboard-deploy | design | v3 | approved | 3 rounds |
+| 2026-11-05 | dashboard-deploy | tasks | v1 | approved | 1 rounds |
+| 2026-11-06 | dashboard-deploy | implementation | tasks 15/15 | complete | PR #205 |
 
 ## Current state — 2026-08-04
 
@@ -1448,7 +1450,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 15/15, implemented 2026-11-06 |
 | Implemented | 2026-11-06 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/205 |
 | Coverage | logCoverage 15/15; reviewCoverage 14/15 (unreviewed: 15); TDD 13 task(s): assertion-red 7, structural-red 5, vacuous 0, inconclusive 1 |
 | Deferrals | 2 added by this spec, 41 open in all |
 | Verifier-skipped | task 1, task 2, task 3, task 4, task 11, task 12, task 14, task 15 (gate-only review, retro P6/P15) |
