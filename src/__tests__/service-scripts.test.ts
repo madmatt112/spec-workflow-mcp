@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import http from 'http';
+import { build } from 'esbuild';
 
 // Contract for controller-tasks.md T9: the three scripts pass `bash -n`;
 // sdd-service.sh print emits the controller and watchdog units with the
@@ -111,10 +112,28 @@ function makeEvalSelectionCheckout(): { checkout: string; origin: string; home: 
   return { checkout, origin, home };
 }
 
+// The wrapper imports this repository's own built `dist/evals/cli.js`, which is
+// gitignored and absent in a checkout with no prior `npm run build` (P2/F2). The
+// test provisions it rather than assuming it: bundle just that one entry from
+// source (external packages resolved from the repo's node_modules), once per run.
+let evalCliBuilt: Promise<void> | null = null;
+function ensureEvalCliBuilt(): Promise<void> {
+  const cli = join(repoRoot, 'dist', 'evals', 'cli.js');
+  if (existsSync(cli)) return Promise.resolve();
+  if (!evalCliBuilt) {
+    evalCliBuilt = build({
+      entryPoints: [join(repoRoot, 'src', 'evals', 'cli.ts')],
+      bundle: true, platform: 'node', format: 'esm', outfile: cli, packages: 'external',
+    }).then(() => undefined);
+  }
+  return evalCliBuilt;
+}
+
 // A wrapper, not a symlink: a symlinked `dist` prints nothing (src/evals/cli.ts:208-215,
 // the entrypoint/currentFile comparison). The wrapper dynamic-imports this repository's
 // own built `dist/evals/cli.js`, calls `main`, and exits with its code.
-function writeEvalCliWrapper(checkout: string): void {
+async function writeEvalCliWrapper(checkout: string): Promise<void> {
+  await ensureEvalCliBuilt();
   mkdirSync(join(checkout, 'dist', 'evals'), { recursive: true });
   const realCli = pathToFileURL(join(repoRoot, 'dist', 'evals', 'cli.js')).href;
   writeFileSync(
@@ -361,7 +380,7 @@ describe('service scripts (controller T9)', () => {
   it('sdd-self-update.sh --dry-run prints the select counts for a role edit and an added case, and changes nothing', async () => {
     const { checkout, origin, home } = makeEvalSelectionCheckout();
     try {
-      writeEvalCliWrapper(checkout);
+      await writeEvalCliWrapper(checkout);
       // The dry run itself never fetches (scripts/sdd-self-update.sh:176-178), so the
       // test fetches origin/main before invoking it.
       git(checkout, 'fetch', 'origin');
