@@ -173,6 +173,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-05 | dashboard-deploy | tasks | v1 | approved | 1 rounds |
 | 2026-11-06 | dashboard-deploy | implementation | tasks 15/15 | complete | PR #205 |
 | 2026-11-06 | dashboard-deploy | retrospective |  | retro-ready | 15 findings, 11 proposals |
+| 2026-11-06 | dashboard-deploy | closeout | items 11/11 | closed | 4 done, 0 to-do, 7 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1457,3 +1458,13 @@ Gotchas:
 | Verifier-skipped | task 1, task 2, task 3, task 4, task 11, task 12, task 14, task 15 (gate-only review, retro P6/P15) |
 | Next | d-ae7a5d40 TDD gate runs a task-authorized non-test config in the red commit as a test (false head:fail); d-64ce8349 Task 6 regression-guard #4 reuses a pre-existing test instead of a fresh guard |
 | Gotchas | review coverage gap: completed task(s) 15 logged but unreviewed; merge allowed (retro P9) |
+
+## dashboard-deploy — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 11/11: 4 done, 0 to-do, 7 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/206 |
+| To-dos | none |
+| Gotchas | none |
+

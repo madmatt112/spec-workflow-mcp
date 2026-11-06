@@ -348,3 +348,4 @@
 {"ts":"2026-11-06T02:35:59.784Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P2","outcome":"done"}
 {"ts":"2026-11-06T02:35:59.785Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P3","outcome":"done"}
 {"ts":"2026-11-06T02:35:59.786Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"task.done","task":"P4","outcome":"done"}
+{"ts":"2026-11-06T02:36:04.841Z","run":"run-20261105-155538","spec":"dashboard-deploy","type":"phase.end","phase":"closeout","result":"closed","state":"items 11/11","note":"4 done, 0 to-do, 7 skipped"}

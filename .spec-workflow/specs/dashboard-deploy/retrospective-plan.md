@@ -1,6 +1,6 @@
 # Retrospective plan — dashboard-deploy
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-11-06
 
 ## Approved proposals
