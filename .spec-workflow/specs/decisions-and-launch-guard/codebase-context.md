@@ -170,3 +170,33 @@
 - src/controller/ledger.ts:53-73 — `RunLedger`
 - src/watch/ledger.ts:420-428 — row render, an unknown type renders empty
 - src/tools/harness.ts:574-576 — `isStorePath`
+
+## Tasks phase additions — frontend and e2e
+- src/dashboard_frontend/src/modules/shell/Gear.tsx:75-93 — project rows, switch inside a `label`
+- src/dashboard_frontend/src/modules/shell/harness.tsx:11-24 — `callHarness`, keeps a non-ok body
+- src/dashboard_frontend/src/modules/shell/harness.tsx:40-52 — `buildLaunchInput` body
+- src/dashboard_frontend/vite.config.ts:28-31 — dev proxy Origin rewrite for a mutating fetch
+- src/dashboard/__tests__/frontend-style-scan.test.ts:1-1 — style scanner over the frontend
+- src/dashboard/shell/__tests__/board-view.test.ts:521-535 — `running` stopped-run case
+- src/dashboard/shell/__tests__/board-view.test.ts:634-690 — `nextProjects` cases
+- e2e/worktree-board.spec.ts:79-93 — `baseRun`, `created` from `isoAgo` per call
+- e2e/worktree-board.spec.ts:304-316 — `registerSharedStoreProjects`
+- e2e/worktree-board.spec.ts:348-358 — band order test
+- e2e/worktree-board.spec.ts:2064-2092 — `(R7 AC7)` branch-held tile test
+- e2e/worktree-board.spec.ts:2372-2382 — `(R8 AC2)` representative tile test
+
+## Tasks phase additions — controller and tests
+- src/controller/controller.ts:806-813 — `Controller.save`, emits `change`
+- src/controller/phases/implementation.ts:266-272 — `isWiringTask`
+- src/controller/phases/implementation.ts:275-278 — `isVerificationOnly`, skips the gate for store-only tasks
+- src/controller/phases/__tests__/implementation.test.ts:484 — P8 unchanged-commit test
+- src/controller/__tests__/ledger.test.ts:118 — row types round-trip through the watch model
+- src/controller/__tests__/runs.test.ts:106 — `deps`, the `RunDeps` fake
+- src/controller/__tests__/runs.test.ts:476 — `cancelRun` and `discardRun` tests
+- src/controller/__tests__/runs.test.ts:946-1007 — `discardAllowed` seeds, one shared `created`
+- src/controller/__tests__/liveness-e2e.test.ts:315-341 — cancel during a stub step
+- src/watch/ledger.ts:18-24 — `LedgerEvent`, open string fields
+- src/advisor/tallies.ts:29 — `STEP_CLASSIFICATIONS`
+- src/advisor/tallies.ts:72-81 — `addFailure`, unknown class buckets as `unknown`
+- src/advisor/__tests__/push.test.ts:9 — `WaitPusher`, `buildMessage` import
+- src/tools/__tests__/harness.test.ts:943 — reviser variant brief test
