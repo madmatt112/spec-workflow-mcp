@@ -119,3 +119,13 @@ Cost: 1 implementer spawn(s)
 task 18 closed: 0 fix round(s), outcome pass
 Evidence: task 18 · mark run-20261106-181042 939ebf88
 Cost: 1 implementer spawn(s)
+
+## 2026-11-07T10:11:24Z · implementation · task 19 · gotcha
+the author test's zero-message assertion didn't account for the pre-existing per-connection `projects-update` push (multi-server.ts:327-332, outside task 19's scope), making it flaky (~1/5 passed) rather than deterministically red/green until filtered out
+Evidence: task 19 · mark run-20261106-181042 b89751c4
+Cost: implementer
+
+## 2026-11-07T10:15:27Z · implementation · task 19 · gotcha
+task 19 closed: 1 fix round(s), outcome pass
+Evidence: task 19 · mark run-20261106-181042 28f5a36f
+Cost: 2 implementer spawn(s)
