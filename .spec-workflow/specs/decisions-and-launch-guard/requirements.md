@@ -222,3 +222,4 @@ Carried items: none.
   - **R2-1 — Accepted (SHOULD_FIX).** Req 10 AC1 reserves danger for a stalled run, maps a not-stalled run to warning on amber or red and neutral on green or grey; AC2 says age alone never forces danger; AC3 makes a stalled run danger; D10 matches, so a healthy quiet run no longer reads as broken.
   - **R2-2 — Partially accepted (MINOR).** Req 2 Verification binds the design and tasks phase to make the no-tasks.md scenario a concrete pass/fail check once the source is fixed.
   - **R2-3 — Partially accepted (MINOR).** Req 9 AC3 keeps the testable clauses (below Next, hidden when empty) and defers the quieter-weight wording to the design, now in Scope notes.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-5 (`drafting`/`design`/`phase` are the labels and field Reqs 5 and 8 introduce; the citations deliberately show the base state that lacks them — unchanged since v1/v2 rejection, rule 11 suppress).
