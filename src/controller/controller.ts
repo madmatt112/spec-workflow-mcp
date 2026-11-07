@@ -493,6 +493,11 @@ export class Controller extends EventEmitter {
   private async runSchedule(): Promise<void> {
     if (!this.started) return;
 
+    // `deployDisabled` (set by `smoke`, or `SDD_DEPLOY_DISABLED=1`) gates only the
+    // deploy coordinator — this `deploy.tick()` and the start-up `onStart` pass. It
+    // does not stop the scheduler: `isStartable()` below still drives an on-disk run
+    // in `queued`, `merging` or `paused` every pass. A fixture that must stay frozen
+    // under the flag seeds `status: 'running'`, not a mid-pipeline stage (retro P1).
     if (!this.deployDisabled) await this.deploy.tick();
 
     await this.settlePass();

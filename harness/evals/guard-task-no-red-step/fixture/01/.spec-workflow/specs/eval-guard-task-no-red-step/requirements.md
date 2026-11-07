@@ -15,3 +15,11 @@
 #### Acceptance Criteria
 
 1. Component 2 SHALL export `loadConfig(path)` in `src/config/loader.ts`. It reads the file at `path`, returns an `AppConfig`, and throws when a required key is absent.
+
+## Requirement 3 — drop the legacy loader shim
+
+**User Story:** As a maintainer, I want no legacy loader shim left in the tree, so every caller uses only `loadConfig`.
+
+#### Acceptance Criteria
+
+1. Component 3 SHALL leave no `legacyLoad` symbol in `src/config/legacy.ts`. The shim was never written in this tree, so this scrub already holds at base: there is nothing to run and nothing a test could watch fail before the change.

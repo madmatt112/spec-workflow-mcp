@@ -31,6 +31,13 @@
         "doc": ".spec-workflow/specs/eval-guard-task-no-red-step/tasks.md",
         "file": "src/config/schema.ts"
       }
+    },
+    {
+      "name": "task-no-test-seam",
+      "args": {
+        "doc": ".spec-workflow/specs/eval-guard-task-no-red-step/tasks.md",
+        "file": "src/config/legacy.ts"
+      }
     }
   ]
 }

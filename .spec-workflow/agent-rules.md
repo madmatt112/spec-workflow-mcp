@@ -96,6 +96,11 @@ node-20 fields.
   The tasks-phase review rejects a task whose test must edit a file the `File:` list omits,
   before the run, rather than letting the phase end `design-defect` and re-enter for a
   no-op re-verify.
+- When a task's Success grep, or a "deleted symbols scrubbed" test, walks a whole root
+  (e.g. `FE_ROOT`) for a target symbol, the decomposition names every file that holds that
+  symbol in the task's `File:` list — a comment hit counts. The tasks-phase review rejects
+  a task whose root-walking scrub omits a file holding the symbol: no implementer edit can
+  move a file-outside-list verdict, so the task would stall on it (retro P12).
 
 ## Lint false positives
 
@@ -175,12 +180,21 @@ re-measured on the next real spec.
 - A verification result worse than baseline is recorded as a retro finding, not a silent
   pass and not a merge block (D9): the operator records the signal and lets the merge
   proceed.
+- When a gate fail carries only proxy or infra noise (a vite ws-proxy
+  `ECONNRESET`/`EPIPE` at teardown, a CPU-starvation timeout) and the same implementer
+  commit re-runs clean, the implementer and the gate record the flakiness as infra noise
+  and stop. One clean re-run settles it; no code fix is attempted against noise the code
+  did not cause, and the task does not chase it through further fix rounds (retro P11).
 - A check or suite that fails at base in two or more specs stops being an eternal D9
   signal. The next decomposition adds a tracked fix task for it, the same graduation the
   lint false-positive rule applies.
 - A task whose every acceptance criterion is a regression guard (holds at base) is marked
   implementer-only in the decomposition up front, with the verifier/test-author skip
-  stated; the routing is not discovered mid-run.
+  stated; the routing is not discovered mid-run. A deletion task (it removes a symbol,
+  file or call site) and an "already holds" task (its acceptance asserts a state the base
+  already satisfies) are the common regression-guard shapes: the tasks-phase review flags
+  each as an implementer-only candidate up front, not after a red-impossible test aborts
+  the test author mid-run (retro P10).
 - A spec may merge with its final task gate-reviewed but verifier-skipped, or with no
   review at all, when that final task is implementer-only / regression-guard (per the
   routing above), closing reviewCoverage at N−1 of N. The completion gate proceeds rather

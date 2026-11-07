@@ -8,6 +8,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import net from 'net';
 import { WebSocket } from 'ws';
+import { connect, collect, send, withoutConnectPush } from './ws-test-utils.js';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { ProjectRegistry, generateProjectId } from '../../core/project-registry.js';
 import { SPEC_WORKFLOW_HOME_ENV } from '../../core/global-dir.js';
@@ -84,26 +85,6 @@ function handoffFixture(spec: string): string {
     `> **READ FIRST — SDD routing.** Active spec **\`${spec}\`**.`,
     `> Live phase **document**, state **in-progress**, last result **gate-a**.`,
   ].join('\n');
-}
-
-function connect(port: number): Promise<WebSocket> {
-  return new Promise((resolvePromise, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
-    ws.once('open', () => resolvePromise(ws));
-    ws.once('error', reject);
-  });
-}
-
-function collect(ws: WebSocket): any[] {
-  const messages: any[] = [];
-  ws.on('message', (data: Buffer) => {
-    try { messages.push(JSON.parse(data.toString())); } catch { /* ignore */ }
-  });
-  return messages;
-}
-
-function send(ws: WebSocket, msg: object): void {
-  ws.send(JSON.stringify(msg));
 }
 
 describe('harness hub and websocket wiring (task 9)', () => {
@@ -184,9 +165,9 @@ describe('harness hub and websocket wiring (task 9)', () => {
 
     // Every socket gets a `projects-update` on connect regardless of view
     // (multi-server.ts's connection handler); that push races with this
-    // 300ms wait and is unrelated to harness-subscribe, so it is excluded
-    // here rather than asserted on raw length.
-    expect(messages.filter((m) => m.type !== 'projects-update')).toHaveLength(0);
+    // 300ms wait and is unrelated to harness-subscribe, so the shared helper
+    // drops it rather than asserting on raw length.
+    expect(withoutConnectPush(messages)).toHaveLength(0);
   });
 
   it('shows a gate-a row as waiting within five seconds, with two registered projects', async () => {
