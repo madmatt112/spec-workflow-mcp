@@ -210,6 +210,57 @@ interface SetupViewFixture {
   launchableOrder: number | null;
 }
 
+type Tone = 'neutral' | 'warning' | 'danger';
+type Dot = 'grey' | 'green' | 'amber' | 'red';
+
+interface CtrlWaitFixture {
+  id: string;
+  kind: string;
+  run: string;
+  project: string;
+  created: string;
+  questions: Array<{ id: string; text?: string }>;
+  state: WaitState;
+  proposals?: string[];
+}
+
+interface PrReadFixture {
+  kind: 'run' | 'closeout';
+  repo: string;
+  number: number;
+  ci: string;
+  verdict: string;
+  reasons: string[];
+  at: string;
+}
+
+interface CtrlRunFixture {
+  id: string;
+  project: string;
+  status: BoardRunStatus;
+  driven: boolean;
+  created: string;
+  updated: string;
+  pauseReason?: string;
+  pauseRequested?: string;
+  pausedAt?: string;
+  resumeAt?: string;
+  holdBy?: 'operator' | 'deploy';
+  lastActivity?: string;
+  inFlight?: boolean;
+  stepStarted?: string;
+  branchPresent?: boolean;
+  discardAllowed?: boolean;
+  prReads?: PrReadFixture[];
+}
+
+interface SetupLineViewFixture {
+  supervisor: { model: string };
+  roles: unknown[];
+  worktree: 'yes' | 'no';
+  gates: 'block' | 'record';
+}
+
 type BoardModule = {
   needsYou: (
     waits: WaitFixture[],
@@ -230,6 +281,22 @@ type BoardModule = {
     views: Map<string, SetupViewFixture>,
     projectName: (projectId: string) => string,
   ) => Array<[string, SetupViewFixture]>;
+  ageTone: (ms: number) => Tone;
+  runDot: (run: CtrlRunFixture, now: number) => Dot;
+  isStalled: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => boolean;
+  runControls: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => {
+    pause: boolean; resume: boolean; stop: boolean; discard: boolean; redrive: boolean;
+  };
+  mergeRead: (wait: CtrlWaitFixture, runs: CtrlRunFixture[]) => PrReadFixture | null;
+  waitSummary: (wait: CtrlWaitFixture) => string;
+  setupLine: (view: SetupLineViewFixture) => string;
+  compactAge: (ms: number) => string;
+  tabTitle: (
+    waits: CtrlWaitFixture[],
+    enabled: (projectId: string) => boolean,
+    now: number,
+    base: string,
+  ) => string;
 };
 
 function waitFixture(overrides: Partial<WaitFixture> & { id: string }): WaitFixture {
@@ -254,6 +321,29 @@ function boardProjectFixture(
 ): BoardProjectFixture {
   return {
     projectName: overrides.projectId, projectPath: '/none', instances: [],
+    ...overrides,
+  };
+}
+
+function ctrlWaitFixture(overrides: Partial<CtrlWaitFixture> & { id: string }): CtrlWaitFixture {
+  return {
+    kind: 'gate-a', run: 'r1', project: 'p1', created: '2026-01-01T00:00:00.000Z',
+    questions: [], state: 'open', ...overrides,
+  };
+}
+
+function prReadFixture(overrides: Partial<PrReadFixture> & { kind: 'run' | 'closeout' }): PrReadFixture {
+  return {
+    repo: 'repo', number: 1, ci: 'green', verdict: 'merged', reasons: [],
+    at: '2026-01-01T00:00:00.000Z', ...overrides,
+  };
+}
+
+function ctrlRunFixture(
+  overrides: Partial<CtrlRunFixture> & { id: string; status: BoardRunStatus },
+): CtrlRunFixture {
+  return {
+    project: 'p1', driven: true, created: '2026-01-01T00:00:00.000Z', updated: '2026-01-01T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -657,5 +747,648 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
       const result = board.nextTiles(views, (id) => names[id]);
       expect(result.map(([id]) => id)).toEqual(['pApple', 'pZebra']);
     });
+  });
+
+  // Contract for dashboard-board task 9 (design C9 "Board model", table rows
+  // `ageTone`, `runDot`, `isStalled`, `runControls`, `mergeRead`,
+  // `waitSummary`, `setupLine`, `compactAge`, `tabTitle`; Requirements 3.7,
+  // 4.1-4.3, 6.2-6.4, 6.6-6.7, 7.1-7.4, 8.3, 10.1-10.3).
+  //
+  // `isStalled`, `runControls` and `mergeRead` take wire-shaped run and wait
+  // fixtures (`CtrlRunFixture`, `CtrlWaitFixture`, `PrReadFixture` above),
+  // matching `ControllerRun`/`ControllerWait`/`ControllerPrRead`
+  // (`src/dashboard_frontend/src/modules/shell/types.ts:177-249`).
+
+  describe('ageTone(ms)', () => {
+    // Criterion "ageTone is neutral under 900,000ms" (design C9 "neutral,
+    // `warning` from 900,000 ms, `danger` from 3,600,000 ms"; task 9
+    // Success "neutral at 899,999 ms").
+    //   Pre-condition: none.
+    //   Test: ageTone(899999).
+    //   Observable result: 'neutral'.
+    //   Expected-value source: the literal 899,999ms boundary of the task
+    //   Success line.
+    it('is neutral just under 900000ms', () => {
+      expect(board.ageTone(899999)).toBe('neutral');
+    });
+
+    // Criterion "ageTone is warning from 900,000ms to under 3,600,000ms"
+    // (design C9; task 9 Success "warning at 900,000 and 3,599,999").
+    //   Pre-condition: none.
+    //   Test: ageTone(900000), ageTone(3599999).
+    //   Observable result: 'warning' for both.
+    //   Expected-value source: the literal 900,000 and 3,599,999ms
+    //   boundaries of the task Success line.
+    it('is warning from 900000ms up to just under 3600000ms', () => {
+      expect(board.ageTone(900000)).toBe('warning');
+      expect(board.ageTone(3599999)).toBe('warning');
+    });
+
+    // Criterion "ageTone is danger from 3,600,000ms" (design C9; task 9
+    // Success "danger at 3,600,000").
+    //   Pre-condition: none.
+    //   Test: ageTone(3600000).
+    //   Observable result: 'danger'.
+    //   Expected-value source: the literal 3,600,000ms boundary of the task
+    //   Success line.
+    it('is danger from 3600000ms', () => {
+      expect(board.ageTone(3600000)).toBe('danger');
+    });
+  });
+
+  describe('runDot(run, now)', () => {
+    const NOW = Date.parse('2026-01-02T00:00:00.000Z');
+
+    // Criterion "runDot is grey with no step in flight" (design C9 "`grey`
+    // with no step in flight or no heartbeat base"; task 9 Success "grey
+    // with no step in flight ... (D38)").
+    //   Pre-condition: `inFlight: false`, with a recent `lastActivity` set
+    //   (so a wrong implementation reading only the heartbeat would wrongly
+    //   go green).
+    //   Test: runDot(run, now).
+    //   Observable result: 'grey'.
+    //   Expected-value source: the literal "grey with no step in flight"
+    //   clause.
+    it('is grey with no step in flight, even with a recent lastActivity', () => {
+      const run = ctrlRunFixture({
+        id: 'r1', status: 'running', inFlight: false, lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      expect(board.runDot(run, NOW)).toBe('grey');
+    });
+
+    // Criterion "runDot is grey with no heartbeat base (D38)" (design C9;
+    // task 9 Success "and with no heartbeat base (D38)"; design D38 "no
+    // heartbeat and no start shows a grey dot").
+    //   Pre-condition: `inFlight: true`, no `lastActivity`, no
+    //   `stepStarted`.
+    //   Test: runDot(run, now).
+    //   Observable result: 'grey'.
+    //   Expected-value source: design D38's literal "grey dot ... not the
+    //   updated time" rule.
+    it('is grey with a step in flight but no lastActivity or stepStarted (D38)', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', inFlight: true });
+      expect(board.runDot(run, NOW)).toBe('grey');
+    });
+
+    // Criterion "runDot is green under 300,000ms and amber at 300,000 and
+    // 899,999ms" (design C9 "green, amber, red by the age of
+    // `lastActivity ?? stepStarted` at 300,000 and 900,000 ms"; task 9
+    // Success "green at 299,999 ms, amber at 300,000 and 899,999").
+    //   Pre-condition: `inFlight: true`, `lastActivity` set to each tested
+    //   age before `now`.
+    //   Test: runDot(run, now) at ages 299999, 300000, 899999ms.
+    //   Observable result: 'green', 'amber', 'amber'.
+    //   Expected-value source: the literal 299,999/300,000/899,999ms
+    //   boundaries of the task Success line.
+    it('is green just under 300000ms and amber at 300000 and 899999ms', () => {
+      const at = (ms: number) => ctrlRunFixture({
+        id: 'r1', status: 'running', inFlight: true, lastActivity: new Date(NOW - ms).toISOString(),
+      });
+      expect(board.runDot(at(299999), NOW)).toBe('green');
+      expect(board.runDot(at(300000), NOW)).toBe('amber');
+      expect(board.runDot(at(899999), NOW)).toBe('amber');
+    });
+
+    // Criterion "runDot is red at 900,000ms" (design C9; task 9 Success
+    // "red at 900,000").
+    //   Pre-condition: `inFlight: true`, `lastActivity` 900,000ms before
+    //   `now`.
+    //   Test: runDot(run, now).
+    //   Observable result: 'red'.
+    //   Expected-value source: the literal 900,000ms boundary of the task
+    //   Success line.
+    it('is red at 900000ms', () => {
+      const run = ctrlRunFixture({
+        id: 'r1', status: 'running', inFlight: true, lastActivity: new Date(NOW - 900000).toISOString(),
+      });
+      expect(board.runDot(run, NOW)).toBe('red');
+    });
+
+    // Criterion "the age runs from stepStarted when lastActivity is absent"
+    // (design C9 "the age of `lastActivity ?? stepStarted`"; task 9 Success
+    // "the age runs from `lastActivity` when set, else `stepStarted`").
+    //   Pre-condition: `inFlight: true`, no `lastActivity`, `stepStarted`
+    //   1,000ms before `now` (green zone).
+    //   Test: runDot(run, now).
+    //   Observable result: 'green'.
+    //   Expected-value source: the literal "else `stepStarted`" fallback
+    //   clause.
+    it('falls back to stepStarted when lastActivity is absent', () => {
+      const run = ctrlRunFixture({
+        id: 'r1', status: 'running', inFlight: true, stepStarted: new Date(NOW - 1000).toISOString(),
+      });
+      expect(board.runDot(run, NOW)).toBe('green');
+    });
+
+    // Criterion "the age runs from lastActivity when set, taking priority
+    // over stepStarted" (design C9's `??` operator; task 9 Success "the age
+    // runs from `lastActivity` when set").
+    //   Pre-condition: `inFlight: true`, `stepStarted` 900,000ms before
+    //   `now` (red zone), `lastActivity` 1,000ms before `now` (green zone).
+    //   Test: runDot(run, now).
+    //   Observable result: 'green' — `lastActivity` wins, not `stepStarted`.
+    //   Expected-value source: the literal "`lastActivity` when set" clause,
+    //   isolated from the fallback case by giving the two fields conflicting
+    //   ages.
+    it('prefers lastActivity over stepStarted when both are present', () => {
+      const run = ctrlRunFixture({
+        id: 'r1', status: 'running', inFlight: true,
+        stepStarted: new Date(NOW - 900000).toISOString(),
+        lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      expect(board.runDot(run, NOW)).toBe('green');
+    });
+  });
+
+  describe('isStalled(run, waits)', () => {
+    // Criterion "isStalled is true for running with driven false" (design
+    // C9 "R6 AC 4"; task 9 Success "true for `running` with `driven: false`
+    // ... (D7)"; Requirement 6.4).
+    //   Pre-condition: a `running` run, `driven: false`, no waits.
+    //   Test: isStalled(run, []).
+    //   Observable result: true.
+    //   Expected-value source: the literal "true for `running` with
+    //   `driven: false`" clause.
+    it('is true for a running run with driven false', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: false });
+      expect(board.isStalled(run, [])).toBe(true);
+    });
+
+    // Criterion "isStalled is true for waiting with an open drive-crash
+    // wait" (design C9 "`DRIVE_CRASH_QUESTION = 'drive-crash'`"; task 9
+    // Success "true ... for `waiting` with an open `drive-crash` wait";
+    // Requirement 6.4 citing `src/controller/waits.ts:193`).
+    //   Pre-condition: a `waiting` run, `driven: false`, and a wait on that
+    //   run's id, state `open`, with a question id `drive-crash`.
+    //   Test: isStalled(run, [wait]).
+    //   Observable result: true.
+    //   Expected-value source: the literal "open `drive-crash` wait" clause,
+    //   with `DRIVE_CRASH_QUESTION` read live from
+    //   `src/controller/waits.ts:193` ('drive-crash').
+    it('is true for a waiting run with an open drive-crash wait', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'waiting', driven: false });
+      const wait = ctrlWaitFixture({
+        id: 'w1', kind: 'error', run: 'r1', state: 'open', questions: [{ id: 'drive-crash', text: 'Retry?' }],
+      });
+      expect(board.isStalled(run, [wait])).toBe(true);
+    });
+
+    // Criterion "isStalled is false for waiting, paused, queued and merging
+    // with driven false and no such wait" (design C9; task 9 Success "false
+    // for `waiting`, `paused`, `queued` and `merging` with `driven: false`
+    // and no such wait (D7)"; design D7 "every other driven-false run is a
+    // normal wait or pause").
+    //   Pre-condition: a run in the status under test, `driven: false`, no
+    //   waits.
+    //   Test: isStalled(run, []).
+    //   Observable result: false.
+    //   Expected-value source: the literal status list of the task Success
+    //   line's false clause, each tested separately.
+    it.each(['waiting', 'paused', 'queued', 'merging'] as const)(
+      'is false for a %s run with driven false and no drive-crash wait',
+      (status) => {
+        const run = ctrlRunFixture({ id: 'r1', status, driven: false });
+        expect(board.isStalled(run, [])).toBe(false);
+      },
+    );
+  });
+
+  describe('runControls(run, waits)', () => {
+    // Criterion "runControls gives pause and stop for a moving unheld run"
+    // (design C9 "`pause = moving && !resume`; `stop = moving`"; task 9
+    // Success "pause and stop for a moving unheld run").
+    //   Pre-condition: a `running` run, `driven: true`, no pause, no hold.
+    //   Test: runControls(run, []).
+    //   Observable result: `{ pause: true, resume: false, stop: true,
+    //   discard: false, redrive: false }`.
+    //   Expected-value source: design C9's `runControls` formula applied to
+    //   an unheld moving run.
+    it('gives pause and stop, no resume/discard/redrive, for a moving unheld run', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: true });
+      expect(board.runControls(run, [])).toEqual({ pause: true, resume: false, stop: true, discard: false, redrive: false });
+    });
+
+    // Criterion "runControls gives resume and stop for an operator-held
+    // run" (design C9 "`resume = isOperatorHeld(run) || ...`"; task 9
+    // Success "resume and stop for an operator-held one").
+    //   Pre-condition: a `running` run with `pauseRequested` set (operator
+    //   hold pending), no `holdBy`.
+    //   Test: runControls(run, []).
+    //   Observable result: `{ pause: false, resume: true, stop: true,
+    //   discard: false, redrive: false }`.
+    //   Expected-value source: design C9's formula with
+    //   `isOperatorHeld(run)` true.
+    it('gives resume and stop, no pause, for an operator-held run', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: true, pauseRequested: '2026-01-01T00:00:00.000Z' });
+      expect(board.runControls(run, [])).toEqual({ pause: false, resume: true, stop: true, discard: false, redrive: false });
+    });
+
+    // Criterion "runControls gives resume for a usage pause" (design C9
+    // "`resume = ... || (status === 'paused' && holdBy !== 'deploy')`";
+    // task 9 Success "resume for a usage pause").
+    //   Pre-condition: a `paused` run with `pauseReason: 'usage-window'`,
+    //   no `pauseRequested`, no `holdBy`.
+    //   Test: runControls(run, []).
+    //   Observable result: `resume: true`.
+    //   Expected-value source: design C9's second `resume` clause, with
+    //   `holdBy` absent (not `'deploy'`).
+    it('gives resume for a usage-window pause', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'paused', driven: true, pauseReason: 'usage-window' });
+      expect(board.runControls(run, [])).toMatchObject({ resume: true });
+    });
+
+    // Criterion "runControls gives no resume and pause for a deploy-held
+    // run" (design C9's note "A deploy-held run keeps Pause, because pause
+    // moves the hold to the operator"; task 9 Success "no resume and pause
+    // for a deploy-held run (requirement 6 AC 7, regression guard for the
+    // note)"; Requirement 6.7, 7.2).
+    //   Pre-condition: a `paused` run with `holdBy: 'deploy'` and
+    //   `pauseRequested` set, as the deploy hold writes
+    //   (`src/controller/deploy.ts:264`).
+    //   Test: runControls(run, []).
+    //   Observable result: `{ pause: true, resume: false }`.
+    //   Expected-value source: design C9's formula: `isOperatorHeld` is
+    //   false for `holdBy === 'deploy'`, and the second `resume` clause is
+    //   false because `holdBy === 'deploy'`.
+    it('gives pause and no resume for a deploy-held run', () => {
+      const run = ctrlRunFixture({
+        id: 'r1', status: 'paused', driven: true, holdBy: 'deploy', pauseRequested: '2026-01-01T00:00:00.000Z',
+      });
+      expect(board.runControls(run, [])).toMatchObject({ pause: true, resume: false });
+    });
+
+    // Criterion "runControls never gives stop on a stopped run" (design C9
+    // "`stop = moving`"; task 9 Success "stop never on a stopped run").
+    //   Pre-condition: an `abandoned` run (a stopped status).
+    //   Test: runControls(run, []).
+    //   Observable result: `{ pause: false, resume: false, stop: false }`.
+    //   Expected-value source: the literal "stop never on a stopped run"
+    //   clause.
+    it('never gives stop, pause or resume on a stopped run', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'abandoned', driven: true, discardAllowed: false });
+      expect(board.runControls(run, [])).toMatchObject({ pause: false, resume: false, stop: false });
+    });
+
+    // Criterion "runControls gives discard for a stopped run only when
+    // discardAllowed" (design C9 "`discard = stopped && discardAllowed`";
+    // task 9 Success "discard for a stopped run only when
+    // discardAllowed").
+    //   Pre-condition: two `abandoned` runs, one with `discardAllowed:
+    //   true`, one with `discardAllowed: false`.
+    //   Test: runControls(run, []) for each.
+    //   Observable result: `discard: true` for the first, `discard: false`
+    //   for the second.
+    //   Expected-value source: the literal "only when discardAllowed"
+    //   clause.
+    it('gives discard on a stopped run only when discardAllowed is true', () => {
+      const allowed = ctrlRunFixture({ id: 'r1', status: 'abandoned', driven: true, discardAllowed: true });
+      const blocked = ctrlRunFixture({ id: 'r2', status: 'abandoned', driven: true, discardAllowed: false });
+      expect(board.runControls(allowed, [])).toMatchObject({ discard: true });
+      expect(board.runControls(blocked, [])).toMatchObject({ discard: false });
+    });
+
+    // Criterion "runControls gives redrive only when stalled" (design C9
+    // "`redrive = isStalled`"; task 9 Success "redrive only when stalled").
+    //   Pre-condition: a stalled `running` run (`driven: false`) and a
+    //   non-stalled `running` run (`driven: true`).
+    //   Test: runControls(run, []) for each.
+    //   Observable result: `redrive: true` for the stalled run,
+    //   `redrive: false` for the other.
+    //   Expected-value source: the literal "redrive only when stalled"
+    //   clause.
+    it('offers redrive only when the run reads as stalled', () => {
+      const stalled = ctrlRunFixture({ id: 'r1', status: 'running', driven: false });
+      const notStalled = ctrlRunFixture({ id: 'r2', status: 'running', driven: true });
+      expect(board.runControls(stalled, [])).toMatchObject({ redrive: true });
+      expect(board.runControls(notStalled, [])).toMatchObject({ redrive: false });
+    });
+  });
+
+  describe('mergeRead(wait, runs)', () => {
+    // Criterion "mergeRead takes the kind: 'run' read for question id
+    // 'merge'" (design C9 "R4 AC 3: question id `merge` takes the
+    // `kind: 'run'` read"; task 9 Success; Requirement 4.3).
+    //   Pre-condition: a run with two `prReads`, one `kind: 'run'` and one
+    //   `kind: 'closeout'`, same repo/number; a `merge` wait naming that
+    //   run, question id `merge`.
+    //   Test: mergeRead(wait, [run]).
+    //   Observable result: the `kind: 'run'` read, not the `closeout` one.
+    //   Expected-value source: the literal "takes the `kind: 'run'` read"
+    //   clause.
+    it("takes the run's own PR read for question id 'merge'", () => {
+      const runRead = prReadFixture({ kind: 'run', repo: 'repo', number: 3 });
+      const closeoutRead = prReadFixture({ kind: 'closeout', repo: 'repo', number: 3 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'merging', driven: true, prReads: [runRead, closeoutRead] });
+      const wait = ctrlWaitFixture({ id: 'w1', kind: 'merge', run: 'r1', questions: [{ id: 'merge', text: 'Merge PR #3?' }] });
+      expect(board.mergeRead(wait, [run])).toEqual(runRead);
+    });
+
+    // Criterion "mergeRead takes the matching read for merge:repo#7"
+    // (design C9 "`merge:` plus `repo#n` takes the matching read"; task 9
+    // Success "the matching read for `merge:repo#7`"; Requirement 4.3).
+    //   Pre-condition: a run with a `closeout` read for repo 'repo' number
+    //   7, plus an unrelated `run`-kind read; a wait naming that run,
+    //   question id `merge:repo#7`.
+    //   Test: mergeRead(wait, [run]).
+    //   Observable result: the closeout read for repo 'repo', number 7.
+    //   Expected-value source: the literal "`merge:` plus `repo#n`" clause,
+    //   with the exact id `merge:repo#7` from the task Success line.
+    it("takes the matching closeout read for question id 'merge:repo#7'", () => {
+      const runRead = prReadFixture({ kind: 'run', repo: 'repo', number: 3 });
+      const closeoutRead = prReadFixture({ kind: 'closeout', repo: 'repo', number: 7 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'merging', driven: true, prReads: [runRead, closeoutRead] });
+      const wait = ctrlWaitFixture({
+        id: 'w1', kind: 'merge', run: 'r1', questions: [{ id: 'merge:repo#7', text: 'Merge close-out PR #7 of repo?' }],
+      });
+      expect(board.mergeRead(wait, [run])).toEqual(closeoutRead);
+    });
+
+    // Criterion "mergeRead gives null when none matches" (design C9 "else
+    // `null`"; task 9 Success "and `null` when none matches").
+    //   Pre-condition: a run with no `prReads`, named by a `merge` wait.
+    //   Test: mergeRead(wait, [run]).
+    //   Observable result: null.
+    //   Expected-value source: the literal "null when none matches" clause.
+    it('gives null when no read matches', () => {
+      const run = ctrlRunFixture({ id: 'r1', status: 'merging', driven: true, prReads: [] });
+      const wait = ctrlWaitFixture({ id: 'w1', kind: 'merge', run: 'r1', questions: [{ id: 'merge', text: 'Merge PR #3?' }] });
+      expect(board.mergeRead(wait, [run])).toBeNull();
+    });
+  });
+
+  describe('waitSummary(wait)', () => {
+    // Criterion "waitSummary gives the count text for gate-a and gate-b"
+    // (design C9 "`ctrlSummary`, moved verbatim"; task 9 Success "the count
+    // text for `gate-a`, `gate-b` and `retro-plan`"; source text
+    // `src/dashboard_frontend/src/modules/shell/NowPage.tsx:69-70`).
+    //   Pre-condition: a wait of the kind under test, with `questions` of
+    //   the given length.
+    //   Test: waitSummary(wait).
+    //   Observable result: the literal count string.
+    //   Expected-value source: `ctrlSummary`'s literal `gate-a`/`gate-b`
+    //   template strings, read live at NowPage.tsx:69-70.
+    it.each([
+      ['gate-a', 3, 'Gate A — 3 decision(s)'],
+      ['gate-b', 2, 'Gate B — 2 item(s)'],
+    ] as const)('gives the count text for a %s wait', (kind, n, expected) => {
+      const wait = ctrlWaitFixture({
+        id: 'w1', kind, questions: Array.from({ length: n }, (_, i) => ({ id: `q${i}` })),
+      });
+      expect(board.waitSummary(wait)).toBe(expected);
+    });
+
+    // Criterion "waitSummary gives the count text for retro-plan, from
+    // proposals not questions" (design C9; task 9 Success; source text
+    // `NowPage.tsx:71`).
+    //   Pre-condition: a `retro-plan` wait with an empty `questions` array
+    //   and a `proposals` array of length 2 (isolating the count source from
+    //   `questions.length`).
+    //   Test: waitSummary(wait).
+    //   Observable result: 'Retro plan — 2 proposal(s)'.
+    //   Expected-value source: `ctrlSummary`'s literal `retro-plan` template
+    //   string, read live at NowPage.tsx:71.
+    it('gives the count text for a retro-plan wait, counting proposals not questions', () => {
+      const wait = ctrlWaitFixture({ id: 'w1', kind: 'retro-plan', questions: [], proposals: ['p1', 'p2'] });
+      expect(board.waitSummary(wait)).toBe('Retro plan — 2 proposal(s)');
+    });
+
+    // Criterion "waitSummary gives the whole first question text for the
+    // others" (design C9; task 9 Success "the whole first question text for
+    // the others"; Requirement 4.1, revision O3 "the whole of the first
+    // question text ... not its first line").
+    //   Pre-condition: a wait of each other kind (`merge`, `escalation`,
+    //   `error`, `question`), with a `questions[0].text` spanning two lines.
+    //   Test: waitSummary(wait).
+    //   Observable result: the exact two-line text, untruncated.
+    //   Expected-value source: the literal "whole first question text"
+    //   clause, isolated from a first-line-only reading by a multi-line
+    //   fixture text.
+    it.each(['merge', 'escalation', 'error', 'question'] as const)(
+      'gives the whole first question text, unmodified, for a %s wait',
+      (kind) => {
+        const text = 'Line one of the question.\nLine two, which a first-line-only reader would drop.';
+        const wait = ctrlWaitFixture({ id: 'w1', kind, questions: [{ id: 'q0', text }] });
+        expect(board.waitSummary(wait)).toBe(text);
+      },
+    );
+
+    // Criterion "waitSummary gives each kind's fixed line with no question"
+    // (design C9; task 9 Success; source text `NowPage.tsx:72-76`).
+    //   Pre-condition: a wait of each kind with an empty `questions` array.
+    //   Test: waitSummary(wait).
+    //   Observable result: the literal fixed line for that kind.
+    //   Expected-value source: `ctrlSummary`'s literal fallback strings,
+    //   read live at NowPage.tsx:72-76.
+    it.each([
+      ['merge', 'Ready to merge'],
+      ['escalation', 'A reviewer escalated'],
+      ['error', 'A step needs a decision'],
+      ['question', 'A step needs one fact'],
+    ] as const)('gives the fixed line for a %s wait with no question', (kind, expected) => {
+      const wait = ctrlWaitFixture({ id: 'w1', kind, questions: [] });
+      expect(board.waitSummary(wait)).toBe(expected);
+    });
+  });
+
+  describe('setupLine(view)', () => {
+    // Criterion "setupLine reads supervisor, role count, worktree and gates
+    // record" (design C9 "`supervisor <model> · <n> roles · worktree
+    // <value> · gates record`"; task 9 Success).
+    //   Pre-condition: a view with `supervisor.model: 'm'`, two roles,
+    //   `worktree: 'yes'`, `gates: 'record'`.
+    //   Test: setupLine(view).
+    //   Observable result: 'supervisor m · 2 roles · worktree yes · gates
+    //   record'.
+    //   Expected-value source: the literal template string of design C9.
+    it('reads supervisor, role count, worktree and gates record', () => {
+      const view: SetupLineViewFixture = { supervisor: { model: 'm' }, roles: [{}, {}], worktree: 'yes', gates: 'record' };
+      expect(board.setupLine(view)).toBe('supervisor m · 2 roles · worktree yes · gates record');
+    });
+
+    // Criterion "setupLine says record when view.gates is block" (design
+    // C9; task 9 Success "and says `record` when `view.gates` is `block`";
+    // Requirement 8.3 "`view.gates` SHALL NOT show").
+    //   Pre-condition: the same view, `gates: 'block'`.
+    //   Test: setupLine(view).
+    //   Observable result: the line still ends "gates record", not "gates
+    //   block".
+    //   Expected-value source: the literal "says `record` when `view.gates`
+    //   is `block`" clause.
+    it('still reads gates record when view.gates is block', () => {
+      const view: SetupLineViewFixture = { supervisor: { model: 'm' }, roles: [{}, {}], worktree: 'yes', gates: 'block' };
+      expect(board.setupLine(view)).toBe('supervisor m · 2 roles · worktree yes · gates record');
+    });
+  });
+
+  describe('compactAge(ms)', () => {
+    // Criterion "compactAge gives <m>m under one hour" (design C9 "R10 AC
+    // 2"; task 9 Success "`59m` ... with no space or seconds"; Requirement
+    // 10.2 "`<m>m` under one hour").
+    //   Pre-condition: none.
+    //   Test: compactAge(59 * 60 * 1000).
+    //   Observable result: '59m'.
+    //   Expected-value source: the literal '59m' example of the task
+    //   Success line.
+    it('gives <m>m under one hour', () => {
+      expect(board.compactAge(59 * 60 * 1000)).toBe('59m');
+    });
+
+    // Criterion "compactAge gives <h>h<m>m from one hour" (design C9;
+    // task 9 Success "`1h0m`, `4h20m` ... with no space or seconds";
+    // Requirement 10.2 "`<h>h<m>m` from one hour").
+    //   Pre-condition: none.
+    //   Test: compactAge(60*60*1000), compactAge(4h20m in ms).
+    //   Observable result: '1h0m', '4h20m'.
+    //   Expected-value source: the literal '1h0m' and '4h20m' examples of
+    //   the task Success line.
+    it('gives <h>h<m>m from one hour', () => {
+      expect(board.compactAge(60 * 60 * 1000)).toBe('1h0m');
+      expect(board.compactAge(4 * 3600 * 1000 + 20 * 60 * 1000)).toBe('4h20m');
+    });
+
+    // Criterion "compactAge gives <d>d<h>h from one day" (design C9;
+    // task 9 Success "`1d0h` ... with no space or seconds"; Requirement
+    // 10.2 "`<d>d<h>h` from one day").
+    //   Pre-condition: none.
+    //   Test: compactAge(24*60*60*1000).
+    //   Observable result: '1d0h'.
+    //   Expected-value source: the literal '1d0h' example of the task
+    //   Success line.
+    it('gives <d>d<h>h from one day', () => {
+      expect(board.compactAge(24 * 60 * 60 * 1000)).toBe('1d0h');
+    });
+  });
+
+  describe('tabTitle(waits, enabled, now, base)', () => {
+    // Criterion "tabTitle gives '2 · 4h20m' for two open enabled waits"
+    // (design C9 "R10"; task 9 Success; Requirement 10.1 "the count, ' ·
+    // ' and the oldest age, such as '2 · 4h20m'").
+    //   Pre-condition: two open waits on an enabled project, the older
+    //   created 4h20m before `now`.
+    //   Test: tabTitle([old, newer], () => true, now, base).
+    //   Observable result: '2 · 4h20m'.
+    //   Expected-value source: the literal '2 · 4h20m' example of
+    //   Requirement 10.1.
+    it('reads the count and oldest age for two open enabled waits', () => {
+      const now = Date.parse('2026-01-02T00:00:00.000Z');
+      const old = ctrlWaitFixture({ id: 'w1', created: new Date(now - (4 * 3600 + 20 * 60) * 1000).toISOString() });
+      const newer = ctrlWaitFixture({ id: 'w2', created: new Date(now - 60 * 1000).toISOString() });
+      expect(board.tabTitle([old, newer], () => true, now, 'Base')).toBe('2 · 4h20m');
+    });
+
+    // Criterion "tabTitle ignores answered waits and disabled projects"
+    // (design C9; task 9 Success; Requirement 10.1 "open controller waits
+    // ... on enabled projects").
+    //   Pre-condition: the same two open/enabled waits, plus an `answered`
+    //   wait and a wait on a disabled project, both older than the two
+    //   counted waits (so a bug that counted them would also change the
+    //   oldest age).
+    //   Test: tabTitle([old, newer, answered, offProject], enabled, now,
+    //   base).
+    //   Observable result: '2 · 4h20m', unchanged from the filtered-out
+    //   waits.
+    //   Expected-value source: the literal "on enabled projects" clause and
+    //   the `state === 'open'` filter, isolated by making the dropped waits
+    //   older (so they would otherwise change the reported age).
+    it('ignores an answered wait and a wait on a disabled project', () => {
+      const now = Date.parse('2026-01-02T00:00:00.000Z');
+      const old = ctrlWaitFixture({
+        id: 'w1', project: 'p-on', created: new Date(now - (4 * 3600 + 20 * 60) * 1000).toISOString(),
+      });
+      const newer = ctrlWaitFixture({ id: 'w2', project: 'p-on', created: new Date(now - 60 * 1000).toISOString() });
+      const answered = ctrlWaitFixture({
+        id: 'w3', project: 'p-on', state: 'answered', created: new Date(now - 10 * 3600 * 1000).toISOString(),
+      });
+      const offProject = ctrlWaitFixture({
+        id: 'w4', project: 'p-off', created: new Date(now - 20 * 3600 * 1000).toISOString(),
+      });
+      const enabled = (id: string) => id === 'p-on';
+      const result = board.tabTitle([old, newer, answered, offProject], enabled, now, 'Base');
+      expect(result).toBe('2 · 4h20m');
+    });
+
+    // Criterion "tabTitle returns base when none is left" (design C9; task
+    // 9 Success; Requirement 10.3 "the title SHALL be the base title").
+    //   Pre-condition: a single `answered` wait (filtered out, leaving no
+    //   open enabled wait).
+    //   Test: tabTitle([answered], () => true, now, base).
+    //   Observable result: the `base` string, unchanged.
+    //   Expected-value source: the literal "returns `base` when none is
+    //   left" clause.
+    it('returns the base title when no open enabled wait is left', () => {
+      const now = Date.parse('2026-01-02T00:00:00.000Z');
+      const answered = ctrlWaitFixture({ id: 'w1', state: 'answered' });
+      expect(board.tabTitle([answered], () => true, now, 'Base Title')).toBe('Base Title');
+    });
+  });
+});
+
+// Contract for dashboard-board task 9 (continued): pause.ts (design C9
+// "The two strings at `:43` and `:45` become `pausing after this step`";
+// Requirement 6.6).
+//
+// `pause.ts` lives under `src/dashboard_frontend/`, loaded the same way as
+// `board.ts` above (runtime `import()`, cast to a hand-written type) for the
+// same tsconfig/vitest-exclude reason given in the file header comment.
+// `deploy-view.test.ts` already imports this module for the deploy-hold
+// branch (holdBy === 'deploy') and the two operator-pause regression guards
+// (pauseReason === 'operator', with and without an explicit holdBy:
+// 'operator'); it asserts neither of the two strings this task changes, so
+// task 9's own Note holds and those two deploy-view.test.ts cases are not
+// duplicated here.
+//
+// Fold note: task 9 Success's "an applied operator pause reads 'paused by
+// you' and a deploy hold 'held for deploy' (regression guards)" is covered
+// by `deploy-view.test.ts:294-340` (the deploy-hold `it.each` and the two
+// operator-pause regression-guard tests) — not re-tested here.
+
+type PauseStringsModule = {
+  pauseNote: (run: CtrlRunFixture, now: number) => { text: string; overdue: boolean } | null;
+};
+
+describe('pause.ts "pausing after this step" (src/dashboard_frontend/src/modules/shell/pause.ts)', () => {
+  let pause: PauseStringsModule;
+
+  beforeAll(async () => {
+    pause = (await import(pathToFileURL(join(FE, 'shell', 'pause.ts')).href)) as PauseStringsModule;
+  });
+
+  // Criterion "pauseNote reads 'pausing after this step' for a running run"
+  // (design C9 "the two strings at `:43` and `:45` become `pausing after
+  // this step`"; task 9 Success "`pauseNote` reads 'pausing after this
+  // step' for a running run"; Requirement 6.6 "a running run's note reads
+  // just that").
+  //   Pre-condition: a `running` run with `pauseRequested` set (a pending
+  //   pause request, not yet applied).
+  //   Test: pauseNote(run, now).
+  //   Observable result: `{ text: 'pausing after this step', overdue:
+  //   false }`.
+  //   Expected-value source: the literal "pausing after this step" string of
+  //   Requirement 6.6, replacing the current "pause requested" text
+  //   (pause.ts:43).
+  it("reads 'pausing after this step' for a running run with a pending pause", () => {
+    const run = ctrlRunFixture({ id: 'r1', status: 'running', pauseRequested: '2026-01-01T00:00:00.000Z' });
+    const result = pause.pauseNote(run, Date.parse('2026-01-01T00:05:00.000Z'));
+    expect(result).toEqual({ text: 'pausing after this step', overdue: false });
+  });
+
+  // Criterion "pauseNote ends '· pausing after this step' for a waiting
+  // run" (design C9; task 9 Success "ends '· pausing after this step' for a
+  // waiting run"; Requirement 6.6 "a waiting run keeps its waiting text with
+  // a '· pausing after this step' suffix").
+  //   Pre-condition: a `waiting` run with `pauseRequested` and `pausedAt`
+  //   both set to the same time, 5 minutes before `now` (so the waiting
+  //   text reads "waiting 5m 0s").
+  //   Test: pauseNote(run, now).
+  //   Observable result: `{ text: 'waiting 5m 0s · pausing after this
+  //   step', overdue: false }`.
+  //   Expected-value source: the literal "· pausing after this step" suffix
+  //   of Requirement 6.6, appended to the unchanged waiting text computed by
+  //   `pausedOrWaitingNote` (pause.ts, unmodified by this task).
+  it("ends '· pausing after this step' for a waiting run, keeping its waiting text", () => {
+    const pausedAt = '2026-01-01T00:00:00.000Z';
+    const run = ctrlRunFixture({ id: 'r1', status: 'waiting', pauseRequested: pausedAt, pausedAt });
+    const result = pause.pauseNote(run, Date.parse('2026-01-01T00:05:00.000Z'));
+    expect(result).toEqual({ text: 'waiting 5m 0s · pausing after this step', overdue: false });
   });
 });
