@@ -181,6 +181,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-07 | dashboard-board | implementation | tasks 23/23 | verify-failed | ci: CI |
 | 2026-11-07 | dashboard-board | implementation | tasks 23/23 | complete | PR #207 |
 | 2026-11-07 | dashboard-board | retrospective |  | retro-ready | 22 findings, 16 proposals |
+| 2026-11-07 | dashboard-board | closeout | items 16/16 | closed | 6 done, 3 to-do, 7 skipped |
 
 ## Current state — 2026-08-04
 
@@ -1514,3 +1515,13 @@ Gotchas:
 | Verifier-skipped | none |
 | Next | none |
 | Gotchas | none |
+
+## dashboard-board — closeout
+
+| Field | Value |
+| --- | --- |
+| State | items 16/16: 6 done, 3 to-do, 7 skipped |
+| PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/208 |
+| To-dos | P1: REQUIRED: src/controller/controller.ts. The item mandates the controller source comment but backticks only docs/SDD-HARNESS.md as a path, so the gate allow-list (itemPaths, closeout.ts:151) excludes the controller and file-outside-list can never clear. Tree already correct in e125a64d (docs + comment + fixtures seed running). No implementer edit moves a file-list verdict (P12); fix is to name src/controller/controller.ts as a backticked path in P1's item block.; P5: Needs a live worktree e2e run to confirm the ECONNRESET/EPIPE noise is teardown-only (its stated prerequisite) and to design a filter that won't mask a real connection failure (medium risk). No reporter/vite-proxy config exists to edit safely without that run; e2e suites out of scope for this batch.; P16: Graduation rule already exists in agent-rules.md (two-spec base failure -> next decomposition adds a tracked fix task). push.test.ts fix task is next-spec decomposition work, no base-failures registry to edit; eval case needs a new grader. |
+| Gotchas | none |
+

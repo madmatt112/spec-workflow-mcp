@@ -496,3 +496,4 @@
 {"ts":"2026-11-07T15:53:28.495Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P3","outcome":"skipped"}
 {"ts":"2026-11-07T15:53:28.496Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P4","outcome":"skipped"}
 {"ts":"2026-11-07T15:53:28.497Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P14","outcome":"skipped"}
+{"ts":"2026-11-07T15:53:30.178Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.end","phase":"closeout","result":"closed","state":"items 16/16","note":"6 done, 3 to-do, 7 skipped"}
