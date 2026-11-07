@@ -8,75 +8,6 @@ import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
 
-export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
-
-export interface Wait {
-  kind: WaitKind;
-  projectId: string;
-  projectName: string;
-  spec: string | null;
-  since: string;            // ISO time the age runs from
-  summary: string;          // the one-line detail of the row
-  detail:
-    | { kind: 'gate'; gate: 'A' | 'B'; items: { header: string; question: string; options: string[] }[] | null; questions: string | null }
-    | { kind: 'ruling'; phase: string; state: string; note: string }
-    | { kind: 'retro'; count: number; lines: string[] }
-    | { kind: 'exited'; exitCode: number | null; signal: string | null; endedAt: string | null; logPath: string }
-    | { kind: 'quiet'; agent: string; lastTool: string | null; lastActivityAt: string };
-}
-
-export interface LiveRunRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string;
-  phase: string | null;
-  detail: string;
-  tokens: number;
-  startedAt: string | null;
-}
-
-export interface IdleRow {
-  projectId: string;
-  projectName: string;
-  launchable: string | null;
-  disabledReason: string | null;
-}
-
-export interface ClosedRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closedOn: string;
-}
-
-export interface RunListRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string | null;
-  state: 'live' | 'ended';
-  phase: string | null;
-  since: string | null;
-}
-
-export interface SidebarProjectRow {
-  projectId: string;
-  dot: 'waiting' | 'running' | 'idle';
-  liveCount: number;
-  lastActivity: string | null;
-}
-
-export interface NowModel {
-  waits: Wait[];
-  live: LiveRunRow[];
-  idle: IdleRow[];
-  closed: ClosedRow[];
-  runs: RunListRow[];
-  sidebar: SidebarProjectRow[];
-  generatedAt: string;
-}
-
 export interface SpecListRow {
   projectId: string;
   projectName: string;
@@ -226,25 +157,9 @@ export interface ControllerRun {
   discardAllowed?: boolean;
 }
 
-/**
- * One step's latest live tool activity for a run (controller-tasks.md T10;
- * controller-design.md §4). The Run page's "Live now" line reads the entry whose
- * `runId` matches the run. The frontend keeps a hand copy.
- */
-export interface ControllerActivity {
-  runId: string;
-  stepId: string;
-  role: string;
-  tool: string;
-  inputSummary: string;
-  ts?: string;
-}
-
 export type ShellMessage =
-  | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }
   | { type: 'controller-deploy'; data: { deploy: ControllerDeploy | null } };
