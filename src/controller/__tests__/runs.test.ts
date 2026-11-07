@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { execFileSync, spawn } from 'child_process';
 import {
   routeRun, parseProposals, buildRetroPlanMarkdown, runOnce, cancelRun, discardRun,
-  withPrRead, listRunsForWire, setRunHeartbeat, runEvents,
+  withPrRead, listRunsForWire, setRunHeartbeat, runEvents, stepLifecycle,
   type RunDeps, type CancelDeps,
 } from '../runs.js';
 import { NO_OP_GATES } from '../phases/document.js';
@@ -295,6 +295,36 @@ describe('runOnce in-flight step record', () => {
     const after = await readRun('run-20261011-000000');
     expect(after?.inFlight).toBeUndefined();
   }, 30000);
+});
+
+// Contract (task 1, requirement 12 AC 2):
+// - AC: onStepSpawn given a task writes inFlight.startedAt (the injected
+//   clock's ISO string) and inFlight.task (that task). Pre: a run record
+//   exists on disk. Call: stepLifecycle(deps, runId).onStepSpawn({ id, pid,
+//   startTime, task }). Observe: readRun(runId).inFlight.{startedAt,task}.
+//   Expected values: deps(fx).now() ISO string and the literal task string
+//   passed to the call.
+// - AC: onStepSpawn given no task writes startedAt and no task key. Same
+//   call/observe, omitting `task`; expected: inFlight has no `task` property.
+// - AC (regression guard, holds at base): onStepEnd clears inFlight (so both
+//   fields clear) — already asserted at `runOnce in-flight step record`
+//   above (`after?.inFlight` toBeUndefined, :296); unchanged by this task.
+describe('stepLifecycle onStepSpawn task and startedAt', () => {
+  it('writes startedAt from the clock and the given task', async () => {
+    await writeRun(seedRun(fx));
+    await stepLifecycle(deps(fx), 'run-20261011-000000').onStepSpawn({ id: 's1', pid: 123, startTime: 456, task: '3' });
+    const run = await readRun('run-20261011-000000');
+    expect(run?.inFlight?.startedAt).toBe('2026-10-11T00:00:00.000Z');
+    expect(run?.inFlight?.task).toBe('3');
+  });
+
+  it('writes startedAt and no task key when no task is given', async () => {
+    await writeRun(seedRun(fx));
+    await stepLifecycle(deps(fx), 'run-20261011-000000').onStepSpawn({ id: 's1', pid: 123, startTime: 456 });
+    const run = await readRun('run-20261011-000000');
+    expect(run?.inFlight?.startedAt).toBe('2026-10-11T00:00:00.000Z');
+    expect(run?.inFlight && 'task' in run.inFlight).toBe(false);
+  });
 });
 
 describe('runOnce gate-B annotation routing', () => {
