@@ -40,9 +40,9 @@ export function pauseNote(run: ControllerRun, now: number): PauseNote | null {
     return { text, overdue: false };
   }
   if (run.pauseRequested !== undefined && run.status !== 'paused') {
-    if (run.status !== 'waiting') return { text: 'pause requested', overdue: false };
+    if (run.status !== 'waiting') return { text: 'pausing after this step', overdue: false };
     const waiting = pausedOrWaitingNote(run, now);
-    return { text: `${waiting!.text} · pause requested`, overdue: waiting!.overdue };
+    return { text: `${waiting!.text} · pausing after this step`, overdue: waiting!.overdue };
   }
   return pausedOrWaitingNote(run, now);
 }

@@ -2,10 +2,11 @@
 //
 // Design C9 "Board model". Pure tile-selection helpers, type-only imports,
 // no DOM types and no React. No caller yet (task 11 wires Home to these).
-import type { ControllerWait, ControllerRun, StagedAction } from './types';
+import type { ControllerWait, ControllerRun, ControllerPrRead, StagedAction } from './types';
 import type { SetupView } from '../harness/types';
 import type { Project } from '../projects/ProjectProvider';
 import { storeGroups } from '../projects/stores';
+import { isOperatorHeld } from './pause';
 
 type NeedsYouItem = ControllerWait | StagedAction;
 
@@ -84,4 +85,105 @@ export function nextTiles(
       (viewA.launchableOrder ?? Infinity) - (viewB.launchableOrder ?? Infinity)
       || projectName(idA).localeCompare(projectName(idB))
     ));
+}
+
+export function ageTone(ms: number): 'neutral' | 'warning' | 'danger' {
+  if (ms >= 3_600_000) return 'danger';
+  if (ms >= 900_000) return 'warning';
+  return 'neutral';
+}
+
+export function runDot(run: ControllerRun, now: number): 'grey' | 'green' | 'amber' | 'red' {
+  if (!run.inFlight) return 'grey';
+  const base = run.lastActivity ?? run.stepStarted;
+  if (!base) return 'grey';
+  const age = now - Date.parse(base);
+  if (age >= 900_000) return 'red';
+  if (age >= 300_000) return 'amber';
+  return 'green';
+}
+
+/** The question id a drive-crash wait carries; a hand copy of src/controller/waits.ts:193. */
+const DRIVE_CRASH_QUESTION = 'drive-crash';
+
+export function isStalled(run: ControllerRun, waits: ControllerWait[]): boolean {
+  if (run.status === 'running' && !run.driven) return true;
+  if (run.status === 'waiting' && !run.driven) {
+    return waits.some((w) => (
+      w.run === run.id && w.state === 'open' && w.questions.some((q) => q.id === DRIVE_CRASH_QUESTION)
+    ));
+  }
+  return false;
+}
+
+export function runControls(
+  run: ControllerRun,
+  waits: ControllerWait[],
+): { pause: boolean; resume: boolean; stop: boolean; discard: boolean; redrive: boolean } {
+  const moving = MOVING_STATUSES.has(run.status);
+  const resume = isOperatorHeld(run) || (run.status === 'paused' && run.holdBy !== 'deploy');
+  return {
+    pause: moving && !resume,
+    resume,
+    stop: moving,
+    discard: !moving && Boolean(run.discardAllowed),
+    redrive: isStalled(run, waits),
+  };
+}
+
+export function mergeRead(wait: ControllerWait, runs: ControllerRun[]): ControllerPrRead | null {
+  const run = runs.find((r) => r.id === wait.run);
+  if (!run) return null;
+  const questionId = wait.questions[0]?.id ?? '';
+  if (questionId === 'merge') {
+    return run.prReads?.find((read) => read.kind === 'run') ?? null;
+  }
+  const match = /^merge:(.+)#(\d+)$/.exec(questionId);
+  if (!match) return null;
+  const [, repo, number] = match;
+  return run.prReads?.find((read) => read.repo === repo && read.number === Number(number)) ?? null;
+}
+
+/** One-line summary of a controller wait; `ctrlSummary` moved verbatim from NowPage.tsx:66-78. */
+export function waitSummary(wait: ControllerWait): string {
+  const q0 = wait.questions[0]?.text;
+  switch (wait.kind) {
+    case 'gate-a': return `Gate A — ${wait.questions.length} decision(s)`;
+    case 'gate-b': return `Gate B — ${wait.questions.length} item(s)`;
+    case 'retro-plan': return `Retro plan — ${wait.proposals?.length ?? 0} proposal(s)`;
+    case 'merge': return q0 ?? 'Ready to merge';
+    case 'escalation': return q0 ?? 'A reviewer escalated';
+    case 'error': return q0 ?? 'A step needs a decision';
+    case 'question': return q0 ?? 'A step needs one fact';
+    default: return q0 ?? '';
+  }
+}
+
+export function setupLine(view: SetupView): string {
+  return `supervisor ${view.supervisor.model} · ${view.roles.length} roles · worktree ${view.worktree} · gates record`;
+}
+
+export function compactAge(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60_000);
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours >= 24) {
+    const days = Math.floor(totalHours / 24);
+    return `${days}d${totalHours % 24}h`;
+  }
+  if (totalHours >= 1) {
+    return `${totalHours}h${totalMinutes % 60}m`;
+  }
+  return `${totalMinutes}m`;
+}
+
+export function tabTitle(
+  waits: ControllerWait[],
+  enabled: (projectId: string) => boolean,
+  now: number,
+  base: string,
+): string {
+  const open = waits.filter((wait) => wait.state === 'open' && enabled(wait.project));
+  if (open.length === 0) return base;
+  const oldest = Math.min(...open.map((wait) => Date.parse(wait.created)));
+  return `${open.length} · ${compactAge(now - oldest)}`;
 }
