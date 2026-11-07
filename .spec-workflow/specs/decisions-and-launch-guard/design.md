@@ -32,8 +32,8 @@ Display names live in one durable field and reach every page through the project
   - `POST /api/projects/:projectId/display-name`, body `{ displayName: string | null }`; answers in Data Models.
 - **Post-conditions:**
   - `rememberProject` keeps an existing row's `displayName` (`src/controller/state.ts:619-628`), for both callers (`src/dashboard/project-manager.ts:233`, `:355`).
-  - `syncOnce` maps id to `displayName` from `remembered` (`:115`) and applies it where it sets `existing.projectName` (`:145`) and creates a context (`:152`, `:216`).
-  - `addProject` still remembers the generated name as `name` (`:233-236`), because `src/advisor/summary.ts:111-112` matches `name` against operator config.
+  - `syncOnce` maps id to `displayName` from `remembered` (`src/dashboard/project-manager.ts:115`) and applies it where it sets `existing.projectName` (`:145`) and creates a context (`:152`, `:216`).
+  - `addProject` still remembers the generated name as `name` (`src/dashboard/project-manager.ts:233-236`), because `src/advisor/summary.ts:111-112` matches `name` against operator config.
   - `src/core/project-registry.ts` does not change: `generateProjectDisplayName` and `projectName` stay the fallback, so re-registration (`src/core/project-registry.ts:376`) cannot touch a display name. The registry cannot hold it, because an entry dies with its last instance (`src/core/project-registry.ts:427-434`).
   - `src/advisor/push.ts:92` returns `shownName(p)`.
   - `ActionTile` takes `projectName: (id: string) => string`, and `actionTarget` prints that for `t.project` (`src/dashboard_frontend/src/modules/shell/tiles.tsx:276-280`).
@@ -69,15 +69,15 @@ Display names live in one durable field and reach every page through the project
 - **Purpose:** Act on `## Decisions` answers and read `Target document:`.
 - **Interfaces, in `src/tools/harness.ts`:**
   - `parsePlanDecisions(content: string): Map<string, string>`: reads `- <id>: <question> → <answer>` lines inside `## Decisions`, split at the last ` → `. Empty or `no answer` gives no entry. A probe of every `retrospective-plan.md` in the swm and tradr-hosted stores found no line with two arrows.
-  - `itemTarget(block: string): string`: the value of `Target:` or `Target document:`. `classifyTarget` (`src/tools/harness.ts:542`) and Step 1 (`src/controller/phases/closeout.ts:368`) call it.
+  - `itemTarget(block: string): string`: the value of `Target:` or `Target document:`. `classifyTarget` (`src/tools/harness.ts:541-542`) and Step 1 (`src/controller/phases/closeout.ts:368`) call it.
   - `answerChoosesNoChange(answer: string): boolean`: removes a leading `Option <x>:`, then matches case-insensitively. Illustrative, verify against the test table: `^(no[ -]change|no[ -]action|do nothing|leave (it|as is|alone|unchanged|deferred)|keep as is)\b`, or the whole answer being `no`, `none`, `skip` or `n/a`.
 - **The match is narrow on purpose (AC 5):** `keep the design-defect stop but trigger it on the first verdict` and `drop the two moved paths` are real answers that change code.
 - **Flow in `runCloseoutPhase`:**
   - `openItems` (`src/controller/phases/closeout.ts:262-266`) adds `answer`.
   - New step before Step 1: an open item of any class whose answer chooses no change gets `skipped — <answer>`.
-  - Step 1 (`:362-375`): a class `none` item with an answer gets `to-do (human) — recorded decision: <answer>; its target gives no landing class, so no batch can build it`, and joins `todos` (AC 4). With no answer, Step 1 stays as at base (AC 8).
-  - `withAnswer(it)` returns `Recorded decision: <answer>`, a newline and the block. `itemsText` (`:404`), the verifier text (`:490`) and `findingsText` (`:526`) use it (AC 3). `itemPaths` keeps the raw block.
-  - The final line (`:633`): an answered item that did not land writes `to-do (human) — <reason>` and joins `todos`. The reverts (`:585-625`) do not change (AC 6).
+  - Step 1 (`src/controller/phases/closeout.ts:362-375`): a class `none` item with an answer gets `to-do (human) — recorded decision: <answer>; its target gives no landing class, so no batch can build it`, and joins `todos` (AC 4). With no answer, Step 1 stays as at base (AC 8).
+  - `withAnswer(it)` returns `Recorded decision: <answer>`, a newline and the block. `itemsText` (`src/controller/phases/closeout.ts:404`), the verifier text (`:490`) and `findingsText` (`:526`) use it (AC 3). `itemPaths` keeps the raw block.
+  - The final line (`src/controller/phases/closeout.ts:633`): an answered item that did not land writes `to-do (human) — <reason>` and joins `todos`. The reverts (`:585-625`) do not change (AC 6).
 - **Reference plan:** P6 goes to the harness batch with its answer. P11 (`project deferral queue`) has no class and becomes a to-do. G1 and G2 read `Target document:`, class `store` and go to a batch.
 
 ### C4 — File-list patch (Requirement 4)
@@ -88,7 +88,7 @@ Display names live in one durable field and reach every page through the project
   - `routeImplementerFlags(task, report, text, gateReasons?: string[])`: optional trailing parameter. `src/controller/phases/implementation.ts:912` passes `gate.reasons` only when `variant === 'gate'`; the first-pass call (`:754`) passes nothing.
   - `RunLedger.filePatch(fields: { task: string; round: string | number; file: string; reason: string })` (`src/controller/ledger.ts:53-73`). `src/watch/ledger.ts:420-428` gets a render arm, because an unknown type renders empty there.
 - **Flow,** at the `REQUIRED` branch (`src/controller/phases/implementation.ts:929-936`), after the `DESIGN-DEFECT` check: with `gateReasons` set and `fileListPatch` defined, write `tasks.md`, re-parse to confirm every file is listed, call `commitSpecStore` with `docs(sdd): <spec> task <id> file-list patch`, write the row, append to `task.files`, and return `undefined`. The loop reaches its top and `:805-807` gates the same commit with the new list.
-- **Rounds and risk:** the round was counted at `:880` and the cap at `:881` still applies (AC 6). A high-risk pass reaches the verifier at `:860` (AC 5). A round with no flag keeps P8 (`:834-835`) (AC 7).
+- **Rounds and risk:** the round was counted at `src/controller/phases/implementation.ts:880` and the cap at `:881` still applies (AC 6). A high-risk pass reaches the verifier at `:860` (AC 5). A round with no flag keeps P8 (`:834-835`) (AC 7).
 - **Failure (NFR Reliability):** restore the prior text, write a `note`, take the base `design-defect` stop.
 - **Text (AC 9):** `src/tools/brief-templates.ts:803-804` and `harness/agents/sdd-implementer.md:31` say a `REQUIRED` report adds the file and the gate reruns with no wait, and keep the self-exemption ban. The prefix stays, so `harness/evals/implementer-file-outside-list-classify/case.json:29` holds. `src/core/gate-rules.ts:520-530` does not change.
 
@@ -99,8 +99,8 @@ Display names live in one durable field and reach every page through the project
   - `isDraftingDefect(item: string): boolean` in `src/controller/phases/document.ts`: `/^\s*\[drafting\]/i`; anything else is design (AC 4).
   - `reviserStep` gains variant `'drafting-only'` (`src/controller/phases/document.ts:452-454`); `renderReviser` gains the descriptor `Drafting-only corrective pass.` (`src/tools/brief-templates.ts:457-462`).
 - **Flow:** after `openMustFix` (`src/controller/phases/document.ts:883`) and before the converged check (`:885-888`), with `items = [...openMustFix, ...shouldFix]`: when `ledgerRoundCount() === 1 && items.length > 0 && items.every(isDraftingDefect)`, run `reviserStep('drafting-only', ...)`, `lintStep` and `narrowCheck(D, analysisPath, items)`, set `narrowCheckRan`, write the note `review cap: round 1 drafting-only, <n> item(s), v<D> approved` (AC 7), and return `approve(D, 'drafting-only → converged')`.
-- **Why the ledger count:** `reviewRounds` restarts at 0 on re-entry (`:345`); `ledgerRoundCount` (`:522-523`) does not, and this round's row is already written (`:855`).
-- **Order:** the escalate return (`:861-864`) comes first (AC 5). One `[design]` item fails the test and the base loop runs (AC 3). All three phases share this loop (AC 6).
+- **Why the ledger count:** `reviewRounds` restarts at 0 on re-entry (`src/controller/phases/document.ts:345`); `ledgerRoundCount` (`:522-523`) does not, and this round's row is already written (`:855`).
+- **Order:** the escalate return (`src/controller/phases/document.ts:861-864`) comes first (AC 5). One `[design]` item fails the test and the base loop runs (AC 3). All three phases share this loop (AC 6).
 
 ### C6 — Rules and deferrals (Requirement 6)
 - **Rules:** two bullets at the end of `## Checks` in `.spec-workflow/agent-rules.md`, with the words of lines 143-148 and 155-159 of the tradr-hosted plan, `> ` markers removed. No bullet starts with a machine-read key (`src/dashboard/harness/run-setup.ts:72-141`). The implementer writes through scratch and `cp` (`.spec-workflow/agent-rules.md:51-55`).
@@ -115,9 +115,9 @@ Display names live in one durable field and reach every page through the project
 - **Wait guard (AC 2, 5):** `createWait` (`src/controller/waits.ts:87-104`) throws `RunAbandonedError` for an `abandoned` run. That covers `waitAnd`, both gates (`src/controller/phases/gates.ts:169`, `:256`) and the merge wait (`src/controller/merge.ts:732`). `Controller.drive` (`src/controller/controller.ts:592-604`) ends quietly on that class.
 - **Driver checks:**
   - New `runCancelled(deps, runId)`: `deps.isCancelled(runId) || readRunSync(runId)?.status === 'abandoned'`. The disk read gives AC 4. `stopReason` (`src/controller/runs.ts:419`), the loop top (`:868`) and the merge round (`:754`) call it.
-  - `runOnce` returns after its first read for an `abandoned` run, before `ensureWorktree` and the `running` write (`:846-851`).
-  - The four `handle*Outcome` functions return `'stop'` first when `runCancelled`: no retry, no wait (AC 2). `handleDocumentOutcome` checks again after its retry (`:1347`), and `runMergeStageStep` on entry (`:1024`).
-  - Both document `shouldStop` lambdas (`:989`, `:1345`) return `'cancelled'` before `'operator'`. They still skip the usage window. The comment at `src/controller/phases/document.ts:201-206` is corrected.
+  - `runOnce` returns after its first read for an `abandoned` run, before `ensureWorktree` and the `running` write (`src/controller/runs.ts:846-851`).
+  - The four `handle*Outcome` functions return `'stop'` first when `runCancelled`: no retry, no wait (AC 2). `handleDocumentOutcome` checks again after its retry (`src/controller/runs.ts:1347`), and `runMergeStageStep` on entry (`:1024`).
+  - Both document `shouldStop` lambdas (`src/controller/runs.ts:989`, `:1345`) return `'cancelled'` before `'operator'`. They still skip the usage window. The comment at `src/controller/phases/document.ts:201-206` is corrected.
 - **Crash wait (AC 7):** `src/controller/controller.ts:611-638` already skips a cancelled run; its status filter covers a restart.
 
 ### C8 — Phase and age (Requirement 8)
@@ -232,3 +232,4 @@ No test asserts a node-version-specific `child_process`, `fs` or stream field.
 ## Revision History
 
 - **v1** (2026-11-07) — Initial draft.
+  - **Lint pass.** 25 fixed (citation-bare L-2–L-6, L-22–L-27, L-34–L-37, L-41–L-44, L-53–L-57 given a directory-prefixed path on the first bare range of each bullet, which anchors its same-file siblings; L-20 harness.ts range widened to `:541-542` so `classifyTarget`'s declaration is in range). Rejected (citation-identifier, all false positives — each citation anchors the code location the design edits or references, and the named symbol is one this design adds or one defined elsewhere named for explanation, not a token expected at the cited line): L-1, L-7, L-8, L-9, L-10, L-11, L-12, L-13, L-14, L-15, L-16, L-17, L-18, L-19, L-21, L-28, L-29, L-30, L-31, L-32, L-33, L-38, L-39, L-40, L-45, L-46, L-47, L-48, L-49, L-50, L-51, L-52, L-58, L-59, L-60, L-61, L-62, L-63, L-64, L-65, L-66, L-67, L-68, L-69, L-70, L-71.
