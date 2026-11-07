@@ -2991,12 +2991,31 @@ test.describe('Shell (top bar, gear and tab title)', () => {
     });
 
     // `usage-closed-specs` only renders once some registered project has a
-    // closed spec, so this registers the real, shared project (the omitted
-    // `workflowRootPath` override reads `SPEC_WORKFLOW_SHARED_ROOT`, this
-    // repository's own `.spec-workflow`, per `registerProjectAt`'s doc
-    // comment), which has many.
-    const overflowDir = join(tmpdir(), `specwf-e2e-board-overflow-${randomBytes(4).toString('hex')}`);
-    const overflowProjectId = await registerProjectAt(page, overflowDir);
+    // closed spec, so this seeds one in its own store. It must not rely on
+    // `SPEC_WORKFLOW_SHARED_ROOT`: the review gate runs with that unset.
+    const { projectId: overflowProjectId, dir: overflowDir } = await registerNextProject(
+      page,
+      'overflow',
+      async (workflowRoot) => {
+        const specDir = join(workflowRoot, 'specs', 'closed-overflow');
+        await mkdir(specDir, { recursive: true });
+        await writeFile(join(specDir, 'tasks.md'), '- [x] 1. first task\n', 'utf-8');
+        await writeFile(
+          join(workflowRoot, 'HANDOFF.md'),
+          [
+            '# HANDOFF',
+            '',
+            '## Phase log',
+            '',
+            '| Date | Spec | Stage | State | Result | Note |',
+            '| --- | --- | --- | --- | --- | --- |',
+            '| 2026-03-10 | closed-overflow | closeout | complete | closed | done |',
+            '',
+          ].join('\n'),
+          'utf-8',
+        );
+      },
+    );
 
     try {
       await page.goto('/');
