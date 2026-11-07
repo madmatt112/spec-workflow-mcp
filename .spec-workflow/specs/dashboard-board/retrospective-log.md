@@ -49,3 +49,18 @@ Cost: 1 implementer spawn(s)
 task 10 closed: 0 fix round(s), outcome gate
 Evidence: task 10 · mark run-20261106-181042 165b92f1
 Cost: 1 implementer spawn(s)
+
+## 2026-11-07T03:40:48Z · implementation · task 11 · gotcha
+test file's header comment claims a seeded run.json "stays exactly as written" under SDD_DEPLOY_DISABLED, but that flag only gates deploy.tick(); the scheduler's isStartable() still drives any on-disk 'merging'/'queued'/'paused' run and can leak an untracked wait. Details in /tmp/scratchpad/sdd/dashboard-board/task-11-fix-1-report.md
+Evidence: task 11 · mark run-20261106-181042 f565fc56
+Cost: implementer
+
+## 2026-11-07T03:54:46Z · implementation · task 11 · harness-defect
+playwright.worktree.config.ts points sddHome()/SPEC_WORKFLOW_HOME at fixed, shared temp paths never wiped between invocations, so a stray controller-created record (e.g. a crash wait) from one run silently poisons every later run until a suite explicitly purges it
+Evidence: task 11 · mark run-20261106-181042 0ef965f6
+Cost: implementer
+
+## 2026-11-07T04:03:11Z · implementation · task 11 · inefficiency
+task 11 closed: 2 fix round(s), outcome pass
+Evidence: task 11 · mark run-20261106-181042 c222b80f
+Cost: 3 implementer spawn(s)

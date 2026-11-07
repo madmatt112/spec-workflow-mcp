@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-board.spec.ts"],"seams":{"e2e/worktree-board.spec.ts":"page.getByTestId('band-needs-you')"},"redCommit":"3d8f3a21098fbea663d997a64b63283dc5e8d93e","baseSha":"a569bfb7b7a72b34a269bf0aec4d243463966d13","base":"structural-red","head":"pass","amended":true,"judged":null}
