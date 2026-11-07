@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, isStalled, mergeRead, runControls, runDot, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, mergeRead, runControls, runDot, setupLine, waitSummary } from './board';
 import { pauseNote, pauseNoteClass } from './pause';
+import { OpErrorView } from './harness';
+import type { SetupView } from '../harness/types';
 import type { ControllerRun, ControllerWait, StagedAction } from './types';
 import type { Stage } from './stage';
 
-// Design C10 "Home and tiles" (tasks 11-14). The `Tile` frame, `WaitTile`,
-// `ActionTile`, `StageLine`, `RunTile` and its press controls exist so far;
-// `NextTile` arrives in a later task.
+// Design C10 "Home and tiles" (tasks 11-15). `Tile`, `WaitTile`, `ActionTile`,
+// `StageLine`, `RunTile` and `NextTile` with their press controls.
 
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
@@ -231,6 +232,41 @@ export function RunTile({
           )
         )}
       </div>
+    </Tile>
+  );
+}
+
+/** A launchable project as a tile (design C9, C10, D29, D30; R8, R9 AC 2):
+ *  spec, project tag, the setup line task 9 exports, and Launch through the
+ *  caller's stage hook. A launch refusal keeps the stage's `opError`
+ *  (`stage.ts`'s `responseStage`), which renders `OpErrorView` here, in
+ *  addition to `StageLine`'s `failReason` text. No edit control. */
+export function NextTile({
+  projectId,
+  projectName,
+  view,
+  stage,
+  onLaunch,
+}: {
+  projectId: string;
+  projectName: string;
+  view: SetupView;
+  stage: Stage | null;
+  onLaunch: () => void;
+}) {
+  const busy = stage !== null && (stage.phase === 'pressed' || stage.phase === 'running');
+  return (
+    <Tile tone="neutral" testId={`next-tile-${projectId}`}>
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{view.launchable}</span>
+      </div>
+      <p className="text-sm text-(--text-secondary)">{setupLine(view)}</p>
+      <StageLine stage={stage} />
+      {stage?.phase === 'failed' && stage.opError && <OpErrorView error={stage.opError} />}
+      <Button variant="secondary" disabled={busy} onClick={onLaunch} data-testid={`next-launch-${projectId}`}>
+        {'Launch'}
+      </Button>
     </Tile>
   );
 }

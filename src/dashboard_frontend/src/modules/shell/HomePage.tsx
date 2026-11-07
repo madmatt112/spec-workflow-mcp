@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
-import { needsYou, running } from './board';
-import { ActionTile, RunTile, WaitTile } from './tiles';
+import { needsYou, nextProjects, nextTiles, running } from './board';
+import { ActionTile, NextTile, RunTile, WaitTile } from './tiles';
 import { AnswerSheet } from './AnswerSheet';
 import { useStages } from './useStages';
+import { useNextViews } from './useNextViews';
+import { buildLaunchInput } from './harness';
 import type { ControllerWait, StagedAction } from './types';
 import type { Stage } from './stage';
 
@@ -74,6 +76,16 @@ export function HomePage() {
     () => new Set(needsYouItems.filter((item): item is StagedAction => !isControllerWait(item)).map((a) => a.id)),
     [needsYouItems],
   );
+  const runKey = useMemo(
+    () => controllerRuns.map((r) => `${r.id}:${r.status}`).sort().join('|'),
+    [controllerRuns],
+  );
+  const trackedProjects = useMemo(
+    () => (loading ? [] : nextProjects(projects, enabled)),
+    [loading, projects, enabled],
+  );
+  const nextViews = useNextViews(trackedProjects, runKey);
+  const nextTileViews = useMemo(() => nextTiles(nextViews, projectName), [nextViews, projectName]);
 
   // A pressed action's tile stays rendered from its last snapshot until the
   // stage clears, even once the real action has left `needsYou` (design
@@ -165,7 +177,24 @@ export function HomePage() {
           />
         ))}
       </Band>
-      <Band testId="band-next" title="Next" emptyText="Nothing launchable.">{[]}</Band>
+      <Band testId="band-next" title="Next" emptyText="Nothing launchable.">
+        {nextTileViews.map(([projectId, view]) => (
+          <NextTile
+            key={projectId}
+            projectId={projectId}
+            projectName={projectName(projectId)}
+            view={view}
+            stage={stages.retained(projectId, { controllerRuns: controllerRuns.map((r) => r.id) })}
+            onLaunch={() => stages.press(
+              projectId,
+              'launch',
+              `/api/projects/${projectId}/harness/launch`,
+              'POST',
+              buildLaunchInput(view),
+            )}
+          />
+        ))}
+      </Band>
     </div>
   );
 }

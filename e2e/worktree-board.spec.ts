@@ -230,14 +230,20 @@ async function writeDecomposition(workflowRoot: string, content: string): Promis
   await writeFile(join(dir, 'decomposition.md'), content, 'utf-8');
 }
 
-/** A real, incomplete spec directory: `routing.state` becomes `active` with
- *  this spec as `launchable` (`run-setup.ts`'s routing deriver). */
+/** A real, started, incomplete spec directory outside decomposition.md:
+ *  `deriveRouting` (`src/core/spec-routing-deriver.ts`) buckets a spec not
+ *  named in decomposition.md as `other`, and only a *started* `other` spec
+ *  (`taskProgress.completed + .inProgress > 0`) reads `routing.state` as
+ *  `active` with itself as `routing.spec` — an unstarted one instead leaves
+ *  routing `ambiguous` and falls back to `nextUnstartedSpec`'s decomposition
+ *  pick. `- [-] 1. a` (in progress) is what counts as started; `- [ ] 1. a`
+ *  does not. */
 async function writeActiveSpec(workflowRoot: string, name: string): Promise<void> {
   const dir = join(workflowRoot, 'specs', name);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, 'requirements.md'), '# R\n', 'utf-8');
   await writeFile(join(dir, 'design.md'), '# D\n', 'utf-8');
-  await writeFile(join(dir, 'tasks.md'), '- [ ] 1. a\n', 'utf-8');
+  await writeFile(join(dir, 'tasks.md'), '- [-] 1. a\n', 'utf-8');
 }
 
 /** Ensures `workflowRoot/specs` exists, then lets `setup` write whatever
