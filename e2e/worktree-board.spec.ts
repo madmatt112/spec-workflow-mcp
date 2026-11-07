@@ -216,6 +216,98 @@ async function removeGitRepo(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true });
 }
 
+/**
+ * Task 15's Next-tile fixtures. `writeDecomposition` and `writeActiveSpec`
+ * write the same `.spec-workflow` shapes `run-setup.test.ts`'s
+ * `writeDecomposition`/`createSpec` helpers build for the unit suite, read
+ * here through the real `GET /harness/setup` route (`buildSetupView`,
+ * `nextUnstartedSpec` and `decompositionPosition`,
+ * `src/dashboard/harness/run-setup.ts:150-259`).
+ */
+async function writeDecomposition(workflowRoot: string, content: string): Promise<void> {
+  const dir = join(workflowRoot, 'spec-decomposition');
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, 'decomposition.md'), content, 'utf-8');
+}
+
+/** A real, incomplete spec directory: `routing.state` becomes `active` with
+ *  this spec as `launchable` (`run-setup.ts`'s routing deriver). */
+async function writeActiveSpec(workflowRoot: string, name: string): Promise<void> {
+  const dir = join(workflowRoot, 'specs', name);
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, 'requirements.md'), '# R\n', 'utf-8');
+  await writeFile(join(dir, 'design.md'), '# D\n', 'utf-8');
+  await writeFile(join(dir, 'tasks.md'), '- [ ] 1. a\n', 'utf-8');
+}
+
+/** Ensures `workflowRoot/specs` exists, then lets `setup` write whatever
+ *  decomposition/specs fixture a Next-tile test needs. */
+async function prepareWorkflowRoot(
+  workflowRoot: string,
+  setup: (workflowRoot: string) => Promise<void>,
+): Promise<void> {
+  await mkdir(join(workflowRoot, 'specs'), { recursive: true });
+  await setup(workflowRoot);
+}
+
+/** Registers `dir` against the dashboard API directly (no browser), as
+ *  `registerGateLedgerProject` does, optionally on an explicit store
+ *  (`workflowRootPath`, design C10/D11; `stores.ts:25-43` groups listed
+ *  projects by it). */
+async function registerProjectAt(page: Page, dir: string, workflowRootPath?: string): Promise<string> {
+  await mkdir(dir, { recursive: true });
+  await login(page);
+  const data: { projectPath: string; workflowRootPath?: string } = { projectPath: dir };
+  if (workflowRootPath) data.workflowRootPath = workflowRootPath;
+  const res = await page.request.post('/api/projects/add', { data });
+  if (!res.ok()) throw new Error(`project registration failed (${res.status()})`);
+  const body = (await res.json()) as { projectId: string };
+  return body.projectId;
+}
+
+/** Registers a solo project at its own `.spec-workflow`, after `setup` has
+ *  written the decomposition/specs fixture a Next-tile test needs. Always
+ *  passes `dir` as the explicit `workflowRootPath` (not the no-override
+ *  branch): an operator session's `SPEC_WORKFLOW_SHARED_ROOT`
+ *  (`git-utils.ts:218-221`) would otherwise make every such registration's
+ *  `resolveGitRoot` return that shared root instead of `dir`, reading this
+ *  real repository's own `.spec-workflow` in place of the fixture. */
+async function registerNextProject(
+  page: Page,
+  dirHint: string,
+  setup: (workflowRoot: string) => Promise<void>,
+): Promise<{ projectId: string; dir: string; workflowRoot: string }> {
+  const dir = join(tmpdir(), `specwf-e2e-board-next-${dirHint}-${randomBytes(4).toString('hex')}`);
+  const workflowRoot = join(dir, '.spec-workflow');
+  await prepareWorkflowRoot(workflowRoot, setup);
+  const projectId = await registerProjectAt(page, dir, dir);
+  return { projectId, dir, workflowRoot };
+}
+
+/**
+ * Two listed projects on one store (design C10 "two listed projects share a
+ * store", D11): a shared `workflowRoot` directory IS the representative's
+ * own `projectPath` (so `stores.ts`'s `pickRepresentative` "own" match picks
+ * it over the name-sort fallback, deterministically), and a second project
+ * is registered at a different directory with the same explicit
+ * `workflowRootPath`. Both read the one decomposition `heading` names, since
+ * the server's `project.projectPath` for an explicit-store registration is
+ * the store itself (`project-manager.ts:23`, `:341-345`).
+ */
+async function registerSharedStoreProjects(
+  page: Page,
+  heading: string,
+): Promise<{ repId: string; memberId: string; sharedDir: string; memberDir: string }> {
+  const sharedDir = join(tmpdir(), `specwf-e2e-board-next-shared-${randomBytes(4).toString('hex')}`);
+  const memberDir = join(tmpdir(), `specwf-e2e-board-next-member-${randomBytes(4).toString('hex')}`);
+  await mkdir(sharedDir, { recursive: true });
+  await mkdir(memberDir, { recursive: true });
+  await prepareWorkflowRoot(join(sharedDir, '.spec-workflow'), async (wr) => writeDecomposition(wr, heading));
+  const repId = await registerProjectAt(page, sharedDir, sharedDir);
+  const memberId = await registerProjectAt(page, memberDir, sharedDir);
+  return { repId, memberId, sharedDir, memberDir };
+}
+
 test.describe('Home (board)', () => {
   test.setTimeout(60000);
 
@@ -2106,4 +2198,405 @@ test.describe('Home (board)', () => {
   // AC2) a run tile shows step kind, task, step age, last activity, and a
   // green dot" case above. Confirm's stubbed press adds nothing this task
   // changes. Left out of the red-test list per the standing rule.
+
+  // Task 15 "Add the Next tiles" (design C10, D29, D30; Requirements 8, 9.2).
+  // `buildLaunchInput` is design/requirement-pinned "invariant, verified,
+  // not red-first" (Requirement 8 AC 6; design C10's Error Handling list),
+  // and the task's own Note repeats it: "Launch posting `buildLaunchInput`
+  // holds at base: regression guard." No red test below presses Launch to
+  // check its request body; the 409 case below presses Launch only to prove
+  // the failed stage renders `OpErrorView`, per Requirement 9 AC 2.
+
+  // Criterion "a project with a launchable spec shows spec, tag, one setup
+  // line stating `gates record`, and Launch" (task 15 Success; Requirement
+  // 8 AC 1, AC 3).
+  //   Pre-condition: a registered project whose decomposition.md names one
+  //   unstarted spec at heading 1, so `buildSetupView` gives it as
+  //   `launchable` with no `launchBlock`.
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + projectId).
+  //   Observable result: the tile contains the spec name, the project's
+  //   display name, the exact line `setupLine` computes from the real
+  //   fetched view (`supervisor <model> · <n> roles · worktree <v> · gates
+  //   record`), and a "Launch" button.
+  //   Expected-value source: the real `GET .../harness/setup` response,
+  //   read directly in the test and used to build the expected line; design
+  //   C9's `setupLine`.
+  test('(R8 AC1, AC3) a launchable project\'s Next tile shows its spec, project tag, setup line and Launch', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-fields-spec';
+    const { projectId, dir } = await registerNextProject(page, 'fields', async (wr) => {
+      await writeDecomposition(wr, `### 1. \`${spec}\`\n`);
+    });
+    try {
+      const viewRes = await page.request.get(`/api/projects/${projectId}/harness/setup`);
+      expect(viewRes.ok()).toBeTruthy();
+      const view = await viewRes.json() as {
+        launchable: string | null; supervisor: { model: string }; roles: unknown[]; worktree: string;
+      };
+      expect(view.launchable).toBe(spec);
+      const expectedLine = `supervisor ${view.supervisor.model} · ${view.roles.length} roles · worktree ${view.worktree} · gates record`;
+
+      const listRes = await page.request.get('/api/projects/list');
+      const projects = await listRes.json() as Array<{ projectId: string; projectName: string }>;
+      const projectName = projects.find((p) => p.projectId === projectId)?.projectName ?? '';
+      expect(projectName.length).toBeGreaterThan(0);
+
+      await page.goto('/');
+      const tile = page.getByTestId(`next-tile-${projectId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText(spec);
+      await expect(tile).toContainText(projectName);
+      await expect(tile).toContainText(expectedLine);
+      await expect(tile.getByRole('button', { name: 'Launch', exact: true })).toBeVisible();
+    } finally {
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "a project with none shows no tile" (task 15 Success;
+  // Requirement 8 AC 1 read negatively). Paired with a launchable control
+  // project (same registration helper): "no tile for the empty project"
+  // alone would hold even with no Next-tile rendering at all, so the
+  // control's tile must show for this test to fail before the band is
+  // wired.
+  //   Pre-condition: a registered project with an empty `.spec-workflow`
+  //   (no decomposition.md, no spec directories), so `buildSetupView` gives
+  //   a null `launchable`; a second registered project whose decomposition
+  //   names an unstarted spec, so it stays launchable.
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + id) for
+  //   each project's id.
+  //   Observable result: band-next renders; the empty project's tile has
+  //   count 0 while the control's tile is visible.
+  //   Expected-value source: the real `GET .../harness/setup` responses'
+  //   `launchable`, read directly in the test; design C9's `nextTiles`
+  //   drops a null `launchable`.
+  test('(R8 AC1) a project with no launchable spec shows no Next tile, unlike a launchable control', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const { projectId, dir } = await registerNextProject(page, 'none', async () => {});
+    const controlSpec = 'e2e-board-next-none-control-spec';
+    const control = await registerNextProject(page, 'none-control', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${controlSpec}\`\n`)
+    ));
+    try {
+      const viewRes = await page.request.get(`/api/projects/${projectId}/harness/setup`);
+      const view = await viewRes.json() as { launchable: string | null };
+      expect(view.launchable).toBeNull();
+      const controlViewRes = await page.request.get(`/api/projects/${control.projectId}/harness/setup`);
+      const controlView = await controlViewRes.json() as { launchable: string | null };
+      expect(controlView.launchable).toBe(controlSpec);
+
+      await page.goto('/');
+      await expect(page.getByTestId('band-next')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${control.projectId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${projectId}`)).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, projectId, dir);
+      await unregisterProject(page, control.projectId, control.dir);
+    }
+  });
+
+  // Criterion "a `launchBlock` that nulls `launchable` shows no tile" (task
+  // 15 Success; Requirement 8 AC 4). Paired with an unblocked control
+  // project (same decomposition shape, no run): "no tile for the blocked
+  // project" alone would hold even with no Next-tile rendering at all, so
+  // the control's tile must show for this test to fail before the band is
+  // wired.
+  //   Pre-condition: two registered projects whose decomposition.md each
+  //   name an unstarted spec; the first alone gets a seeded `queued` run
+  //   (written before `page.goto`, so the first load already reflects it —
+  //   task 13's "A seeded file reaches an open page only on the 30 s tick"
+  //   note) whose `project` equals its id, making `launchBlock` see a live
+  //   run on it and null its setup view's `launchable` server-side
+  //   (`multi-server.ts:669-672`); the second has no run and stays
+  //   launchable.
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + id) for
+  //   each project's id.
+  //   Observable result: the queued run's tile is visible in band-running
+  //   (the block is real, not assumed); the blocked project's Next tile has
+  //   count 0 while the control's tile is visible.
+  //   Expected-value source: the real `GET .../harness/setup` responses'
+  //   `launchable` and `disabledReason`, read directly in the test.
+  test('(R8 AC4) a launchBlock that nulls launchable shows no Next tile, unlike an unblocked control', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-blocked-spec';
+    const { projectId, dir } = await registerNextProject(page, 'blocked', async (wr) => {
+      await writeDecomposition(wr, `### 1. \`${spec}\`\n`);
+    });
+    const controlSpec = 'e2e-board-next-blocked-control-spec';
+    const control = await registerNextProject(page, 'blocked-control', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${controlSpec}\`\n`)
+    ));
+    const runId = 'e2e-board-next-blocked-run';
+    const run = baseRun(runId, projectId, {
+      status: 'queued', spec, pauseRequested: isoAgo(0), holdBy: 'deploy',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      const viewRes = await page.request.get(`/api/projects/${projectId}/harness/setup`);
+      const view = await viewRes.json() as { launchable: string | null; disabledReason: string | null };
+      expect(view.launchable).toBeNull();
+      expect(view.disabledReason).toMatch(/queued or live run/i);
+      const controlViewRes = await page.request.get(`/api/projects/${control.projectId}/harness/setup`);
+      const controlView = await controlViewRes.json() as { launchable: string | null };
+      expect(controlView.launchable).toBe(controlSpec);
+
+      await page.goto('/');
+      await expect(page.getByTestId(`run-tile-${runId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${control.projectId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${projectId}`)).toHaveCount(0);
+    } finally {
+      await removeRunRecord(runDir);
+      await unregisterProject(page, projectId, dir);
+      await unregisterProject(page, control.projectId, control.dir);
+    }
+  });
+
+  // Criterion "two projects on one store show one tile: the representative
+  // ... when it is on" (task 15 Success; Requirement 8 AC 2, D11).
+  //   Pre-condition: a representative and a member project on one store
+  //   (`registerSharedStoreProjects`), both enabled by default (an id
+  //   absent from `shell.projects`/`shell.projects.on` is on).
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + repId) and
+  //   the member's id.
+  //   Observable result: exactly the representative's tile shows; the
+  //   member's id has count 0.
+  //   Expected-value source: design C9's `nextProjects`: "the representative
+  //   when it is on"; `stores.ts`'s `pickRepresentative` "own" match.
+  test('(R8 AC2) two projects on one store show only the representative\'s tile when it is on', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-shared-rep-spec';
+    const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId(`next-tile-${repId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${memberId}`)).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, repId, sharedDir);
+      await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "two projects on one store show one tile: ... else the
+  // enabled member" (task 15 Success; Requirement 8 AC 2, D11).
+  //   Pre-condition: the same pair, with the representative's id put in
+  //   `shell.projects` (the off-list) before the page loads, leaving the
+  //   member unset (on).
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + memberId)
+  //   and the representative's id.
+  //   Observable result: exactly the member's tile shows; the
+  //   representative's id has count 0.
+  //   Expected-value source: design C9's `nextProjects`: "else the first
+  //   enabled member".
+  test('(R8 AC2) two projects on one store fall back to the enabled member when the representative is off', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-shared-member-spec';
+    const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
+    try {
+      await page.addInitScript((offId) => {
+        window.localStorage.setItem('shell.projects', JSON.stringify([offId]));
+      }, repId);
+      await page.goto('/');
+      await expect(page.getByTestId(`next-tile-${memberId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${repId}`)).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, repId, sharedDir);
+      await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "tiles follow `launchableOrder`, unnamed last, ties by project
+  // name" (task 15 Success; Requirement 3 AC 9, design D10).
+  //   Pre-condition: four registered projects: two tied at decomposition
+  //   position 0 whose temp-dir names (and so, for a solo registration,
+  //   whose `projectName = basename(dir)`, `project-registry.ts:131-138`)
+  //   sort "...order-a..." before "...order-b..."; one at position 1 behind
+  //   a `(deferred)`-tagged heading 0; one whose real, incomplete spec no
+  //   heading names (`launchableOrder: null`).
+  //   Test: page.goto('/'), then the DOM order of
+  //   `[data-testid^="next-tile-"]`.
+  //   Observable result: the four tiles render in the order
+  //   [order-a, order-b, order-c, order-d] — ascending `launchableOrder`,
+  //   the null-order project last, the tied pair by project name.
+  //   Expected-value source: design C9's `nextTiles` sort rule, applied here
+  //   through the real fetched views, not the already-unit-tested pure
+  //   function alone.
+  test('(R3 AC9) Next tiles sort by launchableOrder ascending, unnamed last, ties by project name', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const projA = await registerNextProject(page, 'order-a', async (wr) => (
+      writeDecomposition(wr, '### 1. `e2e-board-next-order-a-spec`\n')
+    ));
+    const projB = await registerNextProject(page, 'order-b', async (wr) => (
+      writeDecomposition(wr, '### 1. `e2e-board-next-order-b-spec`\n')
+    ));
+    const projC = await registerNextProject(page, 'order-c', async (wr) => (
+      writeDecomposition(
+        wr,
+        '### 1. `e2e-board-next-order-skip-spec` (deferred)\n### 2. `e2e-board-next-order-c-spec`\n',
+      )
+    ));
+    const projD = await registerNextProject(page, 'order-d', async (wr) => {
+      await writeDecomposition(wr, '### 1. `e2e-board-next-order-other-spec`\n');
+      await writeActiveSpec(wr, 'e2e-board-next-order-d-spec');
+    });
+    try {
+      const expectedIds = [projA.projectId, projB.projectId, projC.projectId, projD.projectId]
+        .map((id) => `next-tile-${id}`);
+      await page.goto('/');
+      for (const id of expectedIds) {
+        await expect(page.getByTestId(id)).toBeVisible({ timeout: 15000 });
+      }
+      const ids = await page
+        .locator('[data-testid^="next-tile-"]')
+        .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
+      expect(ids).toEqual(expectedIds);
+    } finally {
+      await unregisterProject(page, projA.projectId, projA.dir);
+      await unregisterProject(page, projB.projectId, projB.dir);
+      await unregisterProject(page, projC.projectId, projC.dir);
+      await unregisterProject(page, projD.projectId, projD.dir);
+    }
+  });
+
+  // Criterion "a setup fetch answering 500 drops that project's tile and
+  // leaves the other" (task 15 Success; NFR Reliability "A failed setup
+  // fetch SHALL show no Next tile for that project only").
+  //   Pre-condition: two launchable projects; `page.route` answers only the
+  //   second's setup fetch with a 500, leaving the first's real route
+  //   untouched.
+  //   Test: page.goto('/'), then page.getByTestId('next-tile-' + id) for
+  //   each project.
+  //   Observable result: the first project's tile shows; the second
+  //   project's tile has count 0.
+  //   Expected-value source: NFR Reliability's per-project failure rule;
+  //   design C10's `useNextViews` "a failed fetch removes that project's
+  //   entry only".
+  test('(NFR Reliability) a 500 on one project\'s setup fetch drops only that project\'s tile', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const specGood = 'e2e-board-next-500-good-spec';
+    const specBad = 'e2e-board-next-500-bad-spec';
+    const good = await registerNextProject(page, '500-good', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${specGood}\`\n`)
+    ));
+    const bad = await registerNextProject(page, '500-bad', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${specBad}\`\n`)
+    ));
+    try {
+      await page.route(`**/api/projects/${bad.projectId}/harness/setup`, async (route) => {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) });
+      });
+      await page.goto('/');
+      await expect(page.getByTestId(`next-tile-${good.projectId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${bad.projectId}`)).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, good.projectId, good.dir);
+      await unregisterProject(page, bad.projectId, bad.dir);
+    }
+  });
+
+  // Criterion "a run status change refetches and the tile updates within
+  // 5 s with no reload" (task 15 Success; Requirement 8 AC 5). The task's
+  // own Note gives the trigger: "A real Pause on a seeded `queued` run
+  // pushes a run change within the throttle" — pressing Pause on a queued
+  // run flips its status to `paused` immediately (the task 14 "Pause on a
+  // queued run reads 'paused'" case), changing the `id:status` pair
+  // `useNextViews`'s `runKey` is built from (design C10, D30), without
+  // depending on the slower, page-reload-only path a bare file write takes
+  // (task 13's note on seeded files).
+  //   Pre-condition: a launchable project whose own setup route is
+  //   intercepted so the first response is forced `launchable: null`, with
+  //   every other field passed through unmodified from the real route; an
+  //   unrelated project's seeded `queued` run (dodging the live scheduler
+  //   with `pauseRequested`/`holdBy: 'deploy'`, as task 14's queued-pause
+  //   case does).
+  //   Test: page.goto('/'); assert no Next tile; flip the stub to pass
+  //   `launchable` through; press that queued run's real "Pause" button
+  //   (going through the dev proxy, no `page.route` on the pause route
+  //   itself); then page.getByTestId('next-tile-' + projectId) again, with
+  //   no further navigation.
+  //   Observable result: the Next tile is absent before the press and
+  //   visible within 5 s after it, with no `page.goto`/reload between.
+  //   Expected-value source: Requirement 8 AC 5's 5 s bound and "no
+  //   reload"; design D30's refetch trigger.
+  test('(R8 AC5) a run status change refetches Next within 5s with no reload', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-refetch-spec';
+    const { projectId, dir } = await registerNextProject(page, 'refetch', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${spec}\`\n`)
+    ));
+    const runId = 'e2e-board-next-refetch-run';
+    const run = baseRun(runId, 'e2e-board-next-refetch-other-proj', {
+      status: 'queued', spec: 'e2e-board-next-refetch-other-spec',
+      pauseRequested: isoAgo(0), holdBy: 'deploy',
+    });
+    const runDir = await writeRunRecord(run);
+    let launchableNow = false;
+    try {
+      await page.route(`**/api/projects/${projectId}/harness/setup`, async (route) => {
+        const response = await route.fetch();
+        const body = await response.json();
+        if (!launchableNow) {
+          body.launchable = null;
+          body.disabledReason = 'blocked for the test';
+        }
+        await route.fulfill({ status: response.status(), contentType: 'application/json', body: JSON.stringify(body) });
+      });
+      await page.goto('/');
+      const runTile = page.getByTestId(`run-tile-${runId}`);
+      await expect(runTile).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`next-tile-${projectId}`)).toHaveCount(0);
+
+      launchableNow = true;
+      await runTile.getByRole('button', { name: 'Pause', exact: true }).click();
+
+      await expect(page.getByTestId(`next-tile-${projectId}`)).toBeVisible({ timeout: 5000 });
+    } finally {
+      await removeRunRecord(runDir);
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "a stubbed 409 shows `OpErrorView`" (task 15 Success;
+  // Requirement 9 AC 2 "Launch refusals SHALL keep `OpErrorView`").
+  //   Pre-condition: a launchable project; `page.route` answers its launch
+  //   POST with a 409 `run-live` body (`reason`, `runId`, `pid`), the same
+  //   shape `OpErrorView`'s `run-live` branch renders as three distinct
+  //   fields (`harness.tsx:69-108`).
+  //   Test: press Launch on its tile, then read the tile's text.
+  //   Observable result: the tile shows "Run id", the stubbed run id and
+  //   the stubbed pid — `OpErrorView`'s multi-field rendering, not a plain
+  //   one-line `failReason` string (which would show only the `reason`
+  //   text).
+  //   Expected-value source: `harness.tsx`'s `OpErrorView` `run-live`
+  //   branch, read verbatim; design C11 "a `launch` non-2xx keeps `opError`
+  //   so the tile renders `OpErrorView`".
+  test('(R9 AC2) a stubbed Launch refusal renders OpErrorView', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-launch-409-spec';
+    const { projectId, dir } = await registerNextProject(page, 'launch-409', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${spec}\`\n`)
+    ));
+    try {
+      await page.route(`**/api/projects/${projectId}/harness/launch`, async (route) => {
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'run-live', reason: 'A run is already live',
+            runId: 'e2e-board-next-launch-live-run', pid: 4242,
+          }),
+        });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`next-tile-${projectId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Launch', exact: true }).click();
+
+      await expect(tile).toContainText('Run id', { timeout: 5000 });
+      await expect(tile).toContainText('e2e-board-next-launch-live-run');
+      await expect(tile).toContainText('4242');
+    } finally {
+      await unregisterProject(page, projectId, dir);
+    }
+  });
 });
