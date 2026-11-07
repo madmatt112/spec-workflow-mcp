@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
-import { needsYou } from './board';
-import { ActionTile, WaitTile } from './tiles';
+import { needsYou, running } from './board';
+import { ActionTile, RunTile, WaitTile } from './tiles';
 import { AnswerSheet } from './AnswerSheet';
 import { useStages } from './useStages';
 import type { ControllerWait, StagedAction } from './types';
@@ -66,6 +66,10 @@ export function HomePage() {
     [loading, controllerWaits, controllerActions, enabled],
   );
   const needsYouWaits = useMemo(() => needsYouItems.filter(isControllerWait), [needsYouItems]);
+  const runningTiles = useMemo(
+    () => (loading ? [] : running(controllerRuns, enabled, tick)),
+    [loading, controllerRuns, enabled, tick],
+  );
   const needsYouActionIds = useMemo(
     () => new Set(needsYouItems.filter((item): item is StagedAction => !isControllerWait(item)).map((a) => a.id)),
     [needsYouItems],
@@ -144,7 +148,11 @@ export function HomePage() {
       <Band testId="band-needs-you" title="Needs you" emptyText="Nothing waiting on you.">
         {boardTiles.map((tile) => tile.node)}
       </Band>
-      <Band testId="band-running" title="Running" emptyText="No live runs.">{[]}</Band>
+      <Band testId="band-running" title="Running" emptyText="No live runs.">
+        {runningTiles.map((run) => (
+          <RunTile key={run.id} run={run} waits={controllerWaits} projectName={projectName(run.project)} now={tick} />
+        ))}
+      </Band>
       <Band testId="band-next" title="Next" emptyText="Nothing launchable.">{[]}</Band>
     </div>
   );

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, mergeRead, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, mergeRead, runDot, waitSummary } from './board';
+import { pauseNote, pauseNoteClass } from './pause';
 import type { ControllerRun, ControllerWait, StagedAction } from './types';
 import type { Stage } from './stage';
 
-// Design C10 "Home and tiles" (tasks 11-12). The `Tile` frame, `WaitTile`,
-// `ActionTile` and `StageLine` exist so far; `RunTile` and `NextTile` arrive
-// in later tasks.
+// Design C10 "Home and tiles" (tasks 11-13). The `Tile` frame, `WaitTile`,
+// `ActionTile`, `StageLine` and `RunTile`'s read side exist so far;
+// `NextTile` and `RunTile`'s press controls arrive in later tasks.
 
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
@@ -92,6 +93,86 @@ export function WaitTile({
           {'Answer'}
         </Button>
       </div>
+    </Tile>
+  );
+}
+
+/** Dot colour classes (design C10): green/amber/grey from Sidebar.tsx:37-41, red from tokens.css:92. */
+const RUN_DOT_CLASS: Record<'green' | 'amber' | 'grey' | 'red', string> = {
+  green: 'bg-(--tone-success-fg)',
+  amber: 'bg-(--tone-warning-fg)',
+  grey: 'bg-(--tone-neutral-fg)',
+  red: 'bg-(--tone-danger-fg)',
+};
+
+function RunDot({ color }: { color: 'green' | 'amber' | 'grey' | 'red' }) {
+  return <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full ${RUN_DOT_CLASS[color]}`} />;
+}
+
+/** A controller run as a tile (design C9, C10, D22, D23, D38; R6, R12 AC 3):
+ *  spec, project tag, step kind, task, step age, the pause note, a heartbeat
+ *  line and dot while a step is in flight, or red "Stalled" in its place.
+ *  A `merging` run adds its PR, CI, verdict and "next check in N"; a
+ *  `queued` run shows "queued". No press wiring here (task 14). */
+export function RunTile({
+  run,
+  waits,
+  projectName,
+  now,
+}: {
+  run: ControllerRun;
+  waits: ControllerWait[];
+  projectName: string;
+  now: number;
+}) {
+  const age = now - Date.parse(run.created);
+  const tone = ageTone(age);
+  const stalled = isStalled(run, waits);
+  const note = pauseNote(run, now);
+  const heartbeatBase = run.lastActivity ?? run.stepStarted;
+  const prRead = run.prReads?.find((read) => read.kind === 'run') ?? null;
+  return (
+    <Tile tone={tone} testId={`run-tile-${run.id}`}>
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{run.spec}</span>
+      </div>
+      {(run.stepKind || run.task) && (
+        <p className="text-sm text-(--text-primary)">
+          {[run.stepKind, run.task].filter(Boolean).join(' · ')}
+        </p>
+      )}
+      {run.stepStarted && (
+        <span className="text-display tabular-nums text-(--text-primary)">
+          {compactAge(now - Date.parse(run.stepStarted))}
+        </span>
+      )}
+      {note && <p className={`text-sm ${pauseNoteClass(note)}`}>{note.text}</p>}
+      <div className="flex items-center gap-2">
+        {stalled ? (
+          <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
+        ) : run.inFlight && heartbeatBase ? (
+          <>
+            <RunDot color={runDot(run, now)} />
+            <span className="text-sm text-(--text-secondary)">
+              {`last activity ${compactAge(now - Date.parse(heartbeatBase))} ago`}
+            </span>
+          </>
+        ) : (
+          <RunDot color={runDot(run, now)} />
+        )}
+      </div>
+      {run.status === 'merging' && prRead && (
+        <p className="text-sm text-(--text-secondary)">
+          {`PR #${prRead.number} · ${prRead.ci} · ${prRead.verdict}`}
+        </p>
+      )}
+      {run.status === 'merging' && run.resumeAt && (
+        <p className="text-sm text-(--text-muted)">
+          {`next check in ${compactAge(Date.parse(run.resumeAt) - now)}`}
+        </p>
+      )}
+      {run.status === 'queued' && <p className="text-sm text-(--text-primary)">{'queued'}</p>}
     </Tile>
   );
 }
