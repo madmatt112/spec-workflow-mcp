@@ -1,10 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useWs } from '../ws/WebSocketProvider';
 import { useProjects } from '../projects/ProjectProvider';
 import { deployRetryCap } from './deploy';
-import type { NowModel, SpecListRow, ControllerWait, ControllerRun, ControllerActivity, StagedAction, ControllerDeploy } from './types';
-
-export type Density = 'comfortable' | 'compact';
+import type { SpecListRow, ControllerWait, ControllerRun, StagedAction, ControllerDeploy } from './types';
 
 export interface DeferralRecord {
   id: string;
@@ -21,17 +19,12 @@ export interface DeferralsPayload {
 }
 
 interface ShellContextType {
-  now: NowModel | null;
   specRows: SpecListRow[];
   controllerWaits: ControllerWait[];
   controllerRuns: ControllerRun[];
-  controllerActivity: ControllerActivity[];
   controllerActions: StagedAction[];
   controllerDeploy: ControllerDeploy | null;
   deferralsByProject: Record<string, DeferralsPayload>;
-  connected: boolean;
-  density: Density;
-  setDensity: (density: Density) => void;
 }
 
 /** One desktop notification per new wait (T4): no sound, no other kinds. */
@@ -47,28 +40,15 @@ function notifyWait(wait: ControllerWait): void {
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
 
-const DENSITY_KEY = 'shell.density';
-
-function readDensity(): Density {
-  try {
-    return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfortable';
-  } catch {
-    return 'comfortable';
-  }
-}
-
 export function ShellProvider({ children }: { children: React.ReactNode }) {
-  const { connected, subscribe, unsubscribe, watchView, setRetryCap } = useWs();
+  const { subscribe, unsubscribe, watchView, setRetryCap } = useWs();
   const { projects } = useProjects();
-  const [now, setNow] = useState<NowModel | null>(null);
   const [specRows, setSpecRows] = useState<SpecListRow[]>([]);
   const [controllerWaits, setControllerWaits] = useState<ControllerWait[]>([]);
   const [controllerRuns, setControllerRuns] = useState<ControllerRun[]>([]);
-  const [controllerActivity, setControllerActivity] = useState<ControllerActivity[]>([]);
   const [controllerActions, setControllerActions] = useState<StagedAction[]>([]);
   const [controllerDeploy, setControllerDeploy] = useState<ControllerDeploy | null>(null);
   const [deferralsByProject, setDeferralsByProject] = useState<Record<string, DeferralsPayload>>({});
-  const [density, setDensityState] = useState<Density>(() => readDensity());
 
   // Open wait ids already seen; the first payload seeds it so a reconnect or a
   // reload does not re-notify. One notification per newly appearing open wait.
@@ -77,7 +57,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   // Hold the overview view for the life of the page and listen for its pushes.
   useEffect(() => {
-    const onNow = (data: NowModel) => setNow(data);
     const onSpecs = (data: { rows: SpecListRow[] }) => setSpecRows(data?.rows ?? []);
     const onControllerWaits = (data: { waits: ControllerWait[] }) => {
       const waits = data?.waits ?? [];
@@ -96,8 +75,6 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       }
     };
     const onControllerRuns = (data: { runs: ControllerRun[] }) => setControllerRuns(data?.runs ?? []);
-    const onControllerActivity = (data: { activity: ControllerActivity[] }) =>
-      setControllerActivity(data?.activity ?? []);
     const onControllerActions = (data: { actions: StagedAction[] }) =>
       setControllerActions(data?.actions ?? []);
     const onControllerDeploy = (data: { deploy: ControllerDeploy | null }) =>
@@ -105,22 +82,18 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     const onDeferrals = (data: DeferralsPayload, projectId?: string) => {
       if (projectId) setDeferralsByProject((prev) => ({ ...prev, [projectId]: data }));
     };
-    subscribe('shell-now', onNow);
     subscribe('shell-specs', onSpecs);
     subscribe('controller-waits', onControllerWaits);
     subscribe('controller-runs', onControllerRuns);
-    subscribe('controller-activity', onControllerActivity);
     subscribe('controller-actions', onControllerActions);
     subscribe('controller-deploy', onControllerDeploy);
     subscribe('deferrals-update', onDeferrals);
     const release = watchView({ kind: 'overview' });
     return () => {
       release();
-      unsubscribe('shell-now', onNow);
       unsubscribe('shell-specs', onSpecs);
       unsubscribe('controller-waits', onControllerWaits);
       unsubscribe('controller-runs', onControllerRuns);
-      unsubscribe('controller-activity', onControllerActivity);
       unsubscribe('controller-actions', onControllerActions);
       unsubscribe('controller-deploy', onControllerDeploy);
       unsubscribe('deferrals-update', onDeferrals);
@@ -150,29 +123,14 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectKey]);
 
-  // Density drives the shared row height CSS variable.
-  useEffect(() => {
-    document.documentElement.style.setProperty('--row-h', density === 'compact' ? 'var(--row-h-compact)' : 'var(--row-h-comfortable)');
-  }, [density]);
-
-  const setDensity = useCallback((d: Density) => {
-    setDensityState(d);
-    try { localStorage.setItem(DENSITY_KEY, d); } catch { /* ignore */ }
-  }, []);
-
   const value = useMemo<ShellContextType>(() => ({
-    now,
     specRows,
     controllerWaits,
     controllerRuns,
-    controllerActivity,
     controllerActions,
     controllerDeploy,
     deferralsByProject,
-    connected,
-    density,
-    setDensity
-  }), [now, specRows, controllerWaits, controllerRuns, controllerActivity, controllerActions, controllerDeploy, deferralsByProject, connected, density, setDensity]);
+  }), [specRows, controllerWaits, controllerRuns, controllerActions, controllerDeploy, deferralsByProject]);
 
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }

@@ -2,103 +2,11 @@
 //
 // Wire shapes for the shell pages. The frontend compiles apart from the server
 // (the root tsconfig excludes src/dashboard_frontend/**), so it cannot import
-// the server's types. These are copied by hand from src/dashboard/shell/types.ts
-// and, for LedgerEvent and ActivityEvent, from src/watch/ledger.ts. Keep them in
-// step. PhaseRow reuses the existing harness hand copy.
+// the server's types. These are copied by hand from src/dashboard/shell/types.ts.
+// Keep them in step. PhaseRow reuses the existing harness hand copy.
 import type { PhaseRow } from '../harness/types';
 
-// --- Row types copied from src/watch/ledger.ts ---
-
-export interface LedgerEvent {
-  ts: string;
-  type: string;
-  run?: string;
-  spec?: string;
-  [key: string]: string | undefined;
-}
-
-export interface ActivityEvent {
-  ts: string;
-  agent: string;
-  event: 'tool' | 'agent.start' | 'agent.stop';
-  run?: string;
-  session?: string;
-  agentId?: string;
-  tool?: string;
-  summary?: string;
-  tokens?: number;
-}
-
 // --- Shell wire shapes copied from src/dashboard/shell/types.ts ---
-
-export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
-
-export interface Wait {
-  kind: WaitKind;
-  projectId: string;
-  projectName: string;
-  spec: string | null;
-  since: string;            // ISO time the age runs from
-  summary: string;          // the one-line detail of the row
-  detail:
-    | { kind: 'gate'; gate: 'A' | 'B'; items: { header: string; question: string; options: string[] }[] | null; questions: string | null }
-    | { kind: 'ruling'; phase: string; state: string; note: string }
-    | { kind: 'retro'; count: number; lines: string[] }
-    | { kind: 'exited'; exitCode: number | null; signal: string | null; endedAt: string | null; logPath: string }
-    | { kind: 'quiet'; agent: string; lastTool: string | null; lastActivityAt: string };
-}
-
-export interface LiveRunRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string;
-  phase: string | null;
-  detail: string;
-  tokens: number;
-  startedAt: string | null;
-}
-
-export interface IdleRow {
-  projectId: string;
-  projectName: string;
-  launchable: string | null;
-  disabledReason: string | null;
-}
-
-export interface ClosedRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closedOn: string;
-}
-
-export interface RunListRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string | null;
-  state: 'live' | 'ended';
-  phase: string | null;
-  since: string | null;
-}
-
-export interface SidebarProjectRow {
-  projectId: string;
-  dot: 'waiting' | 'running' | 'idle';
-  liveCount: number;
-  lastActivity: string | null;
-}
-
-export interface NowModel {
-  waits: Wait[];
-  live: LiveRunRow[];
-  idle: IdleRow[];
-  closed: ClosedRow[];
-  runs: RunListRow[];
-  sidebar: SidebarProjectRow[];
-  generatedAt: string;
-}
 
 export interface SpecListRow {
   projectId: string;
@@ -137,14 +45,6 @@ export interface UsageSpecRow {
   wPerTask: number | null;
   baseline: number | null;
   pctOfBaseline: number | null;
-}
-
-export interface RunDetail {
-  spec: string;
-  phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];
-  taskMeta: Record<string, { risk: 'low' | 'high' | null; fixRounds: number | null }>;
-  ledgerRows: LedgerEvent[];
-  activityRows: ActivityEvent[];
 }
 
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
@@ -190,7 +90,7 @@ export interface ControllerWait {
   proposals?: string[];
 }
 
-// --- Controller runs and activity (controller-tasks.md T6/T10) ----------------
+// --- Controller runs (controller-tasks.md T6/T10) ------------------------------
 // Hand copy of src/dashboard/shell/types.ts and src/controller/runs.ts; keep in step.
 
 export type ControllerRunStatus =
@@ -248,15 +148,6 @@ export interface ControllerRun {
   discardAllowed?: boolean;
 }
 
-export interface ControllerActivity {
-  runId: string;
-  stepId: string;
-  role: string;
-  tool: string;
-  inputSummary: string;
-  ts?: string;
-}
-
 // --- Advisor staged actions (src/advisor/actions.ts; design C8) --------------
 // Hand copy of StagedAction; keep in step.
 
@@ -290,10 +181,8 @@ export interface ControllerDeploy {
 }
 
 export type ShellMessage =
-  | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }
   | { type: 'controller-deploy'; data: { deploy: ControllerDeploy | null } };

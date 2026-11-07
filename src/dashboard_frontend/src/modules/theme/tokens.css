@@ -50,10 +50,8 @@
   --disabled-opacity: 0.4;
 
   --row-h-comfortable: 36px;
-  --row-h-compact: 32px;
   --row-h: var(--row-h-comfortable);
 
-  --sidebar-w: 256px;
   --panel-w: 384px;
   --content-max: 1600px;
 

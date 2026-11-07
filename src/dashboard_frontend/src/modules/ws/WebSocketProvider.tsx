@@ -2,10 +2,8 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState,
 import type { ViewMessage } from '../harness/types';
 import { retryDelayFor } from './retry-delay';
 
-/** A page's live view: the per-project harness pane, or the global overview. */
-export type WatchView =
-  | { kind: 'harness'; projectId: string }
-  | { kind: 'overview' };
+/** A page's live view: the global overview. */
+export type WatchView = { kind: 'overview' };
 
 type MessageHandler = (data: any, projectId?: string) => void;
 
@@ -34,20 +32,16 @@ const WsContext = createContext<WsContextType | undefined>(undefined);
 const MAX_RETRY_DELAY = 30000;
 const INITIAL_RETRY_DELAY = 1000;
 
-function viewKey(view: WatchView): string {
-  return view.kind === 'harness' ? `harness:${view.projectId}` : 'overview';
+function viewKey(): string {
+  return 'overview';
 }
 
-function subscribeMessage(view: WatchView): ViewMessage {
-  return view.kind === 'harness'
-    ? { type: 'harness-subscribe', projectId: view.projectId }
-    : { type: 'overview-subscribe' };
+function subscribeMessage(): ViewMessage {
+  return { type: 'overview-subscribe' };
 }
 
-function unsubscribeMessage(view: WatchView): ViewMessage {
-  return view.kind === 'harness'
-    ? { type: 'harness-unsubscribe', projectId: view.projectId }
-    : { type: 'overview-unsubscribe' };
+function unsubscribeMessage(): ViewMessage {
+  return { type: 'overview-unsubscribe' };
 }
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
@@ -76,8 +70,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       retryTimerRef.current = null;
     }
 
-    // One socket with no project; the run page binds one project at a time via a
-    // harness-subscribe message (design D11).
+    // One socket, subscribed to the global overview view.
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${location.host}/ws`);
     wsRef.current = ws;
@@ -88,8 +81,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       // Reset retry delay on successful connection
       retryDelayRef.current = INITIAL_RETRY_DELAY;
       // Re-subscribe every view that still has users, so a reconnect restores them.
-      viewsRef.current.forEach(({ view }) => {
-        ws.send(JSON.stringify(subscribeMessage(view)));
+      viewsRef.current.forEach(() => {
+        ws.send(JSON.stringify(subscribeMessage()));
       });
     };
 
@@ -166,7 +159,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const watchView = useCallback((view: WatchView) => {
-    const key = viewKey(view);
+    const key = viewKey();
     const entry = viewsRef.current.get(key);
     if (entry) {
       entry.count += 1;
@@ -174,7 +167,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       viewsRef.current.set(key, { view, count: 1 });
       // First user of this view: subscribe now if the socket is open; onopen
       // re-sends it after a reconnect.
-      sendView(subscribeMessage(view));
+      sendView(subscribeMessage());
     }
     return () => {
       const held = viewsRef.current.get(key);
@@ -182,7 +175,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       held.count -= 1;
       if (held.count <= 0) {
         viewsRef.current.delete(key);
-        sendView(unsubscribeMessage(view));
+        sendView(unsubscribeMessage());
       }
     };
   }, [sendView]);

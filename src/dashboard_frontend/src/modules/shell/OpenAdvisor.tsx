@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '../ui/ui';
 
 /**
- * Opens (or reports) the operator's advisor conversation (design C7, C12);
- * moved out of NowPage.tsx so the header can host it.
+ * Opens (or reports) the operator's advisor conversation (design C7, C12),
+ * hosted in the header.
  */
 export function OpenAdvisor() {
   const [opening, setOpening] = useState(false);

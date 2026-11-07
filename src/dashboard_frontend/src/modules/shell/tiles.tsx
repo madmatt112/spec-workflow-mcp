@@ -98,7 +98,7 @@ export function WaitTile({
   );
 }
 
-/** Dot colour classes (design C10): green/amber/grey from Sidebar.tsx:37-41, red from tokens.css:92. */
+/** Dot colour classes (design C10); red from tokens.css:92. */
 const RUN_DOT_CLASS: Record<'green' | 'amber' | 'grey' | 'red', string> = {
   green: 'bg-(--tone-success-fg)',
   amber: 'bg-(--tone-warning-fg)',
@@ -118,8 +118,9 @@ function RunDot({ color }: { color: 'green' | 'amber' | 'grey' | 'red' }) {
  *  Resume, Stop, Discard and Re-drive go through the caller's stage hook
  *  (`onPause`/`onResume`/`onStop`/`onDiscard`/`onRedrive`); which controls
  *  show comes from `runControls`. Discard's first press only arms local
- *  state (`secondary`); the armed press (`danger`) carries
- *  `RunsPage.tsx:360`'s text and is the only one that calls the route (D36).
+ *  state (`secondary`); the armed press (`danger`) carries "This deletes the
+ *  worktree and branch and closes the PR" and is the only one that calls the
+ *  route (D36).
  *  A stopped run with `discardAllowed: false` shows the quiet line "branch
  *  in use by a live run" instead of any control. */
 export function RunTile({
@@ -271,7 +272,7 @@ export function NextTile({
   );
 }
 
-/** One-line target of a staged action; moved verbatim from NowPage.tsx:98-102. */
+/** One-line target of a staged action. */
 function actionTarget(action: StagedAction): string {
   const t = action.target as { project?: string; spec?: string; pr?: number; wait?: string };
   const parts = [t.project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);

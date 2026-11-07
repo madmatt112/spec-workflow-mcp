@@ -1,6 +1,6 @@
 // Groups listed projects onto the `.spec-workflow` store they share
-// (design.md C10), so the Sidebar counts and the Specs/Deferrals pages key
-// on the store rather than on the listed project (Requirement 2). The
+// (design.md C10), so the Specs/Deferrals pages key on the store rather
+// than on the listed project (Requirement 2). The
 // representative is the project whose `projectPath` is the store itself,
 // else the first by `projectName` (localeCompare), then `projectId` — the
 // same rule the backend's `groupByStore` uses (design C8).

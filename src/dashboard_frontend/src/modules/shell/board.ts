@@ -144,7 +144,7 @@ export function mergeRead(wait: ControllerWait, runs: ControllerRun[]): Controll
   return run.prReads?.find((read) => read.repo === repo && read.number === Number(number)) ?? null;
 }
 
-/** One-line summary of a controller wait; `ctrlSummary` moved verbatim from NowPage.tsx:66-78. */
+/** One-line summary of a controller wait. */
 export function waitSummary(wait: ControllerWait): string {
   const q0 = wait.questions[0]?.text;
   switch (wait.kind) {

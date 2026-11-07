@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import type { ControllerWait } from './types';
 import { Button, ui } from '../ui/ui';
 
-// Moved verbatim from src/dashboard_frontend/src/modules/shell/NowPage.tsx:17-20,
-// :66-78, :80-86, :196-228, :433-451, :459-498, :500-701 (design C10, D31, D33;
-// task 11). `WaitDetail`, `WaitPanel` and the legacy `Wait` branches stay on
-// NowPage.tsx; this file holds only the controller-wait answer sheet.
+// The controller-wait answer sheet (design C10, D31, D33; task 11).
 
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',

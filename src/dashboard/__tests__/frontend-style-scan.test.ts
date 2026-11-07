@@ -178,7 +178,7 @@ function scanLine(file: string, lineNo: number, line: string, declared: Declared
   const declMatch = CSS_CUSTOM_PROP_DECL.exec(line);
   if (declMatch) push('custom-property-outside', declMatch[0]);
   const setMatch = SET_PROPERTY_CALL.exec(line);
-  if (setMatch && setMatch[2] !== 'row-h') push('custom-property-outside', setMatch[0]);
+  if (setMatch) push('custom-property-outside', setMatch[0]);
 
   if (checkClassSelector) {
     for (const m of line.matchAll(CLASS_SELECTOR)) {
@@ -335,7 +335,7 @@ describe('frontend-style-scan (design C7 T1)', () => {
       expect(flagged).toEqual([
         { file: 'modules/shell/Fixture.tsx', line: 1, rule: 'undeclared-var', text: '(--totally-fake-token)' },
       ]);
-      const allowed = scanFile('modules/shell/Fixture.tsx', 'text-(--accent) w-(--sidebar-w)', declared);
+      const allowed = scanFile('modules/shell/Fixture.tsx', 'text-(--accent) w-(--panel-w)', declared);
       expect(allowed.filter((h) => h.rule === 'undeclared-var')).toEqual([]);
     });
   });
@@ -346,13 +346,6 @@ describe('frontend-style-scan (design C7 T1)', () => {
       expect(cssDecl.map((h) => h.rule)).toContain('custom-property-outside');
       const setCall = scanFile('modules/shell/Fixture.tsx', "el.style.setProperty('--foo', 'red');", declared);
       expect(setCall.map((h) => h.rule)).toContain('custom-property-outside');
-    });
-
-    it('exempts the row-height setProperty call ShellProvider.tsx makes', () => {
-      const line =
-        "document.documentElement.style.setProperty('--row-h', density === 'compact' ? 'var(--row-h-compact)' : 'var(--row-h-comfortable)');";
-      const hits = scanFile('modules/shell/ShellProvider.tsx', line, declared);
-      expect(hits.filter((h) => h.rule === 'custom-property-outside')).toEqual([]);
     });
   });
 
