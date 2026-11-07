@@ -214,6 +214,16 @@ export interface ControllerRun {
   lastActivity?: string;
   /** Who is holding the run paused, when it is (design C8); undefined when not held. */
   holdBy?: 'operator' | 'deploy';
+  /** `run.inFlight !== undefined` (design C3, Data Models). */
+  inFlight?: boolean;
+  /** `run.inFlight?.startedAt` (design C3, Data Models); absent when the step predates it. */
+  stepStarted?: string;
+  /** `run.inFlight?.task` (design C3, Data Models). */
+  task?: string;
+  /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
+  branchPresent?: boolean;
+  /** `!branchHeld(run, allRuns)` (design C3). */
+  discardAllowed?: boolean;
 }
 
 /**

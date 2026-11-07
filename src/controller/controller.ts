@@ -17,7 +17,7 @@ import {
   acquireControllerLock, releaseControllerLock,
   readQueue, writeQueue, listRuns, readRun, readRunSync, writeRun,
   writeRateLimit, listWaits, withStoreLock,
-  isProcessAlive, OPERATOR_PAUSE,
+  isProcessAlive, isLive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
 import {
@@ -782,12 +782,6 @@ export class Controller extends EventEmitter {
     runEvents.emit('change', next);
     return next;
   }
-}
-
-/** A run that still holds (or is owed) a slot. */
-function isLive(status: RunRecord['status']): boolean {
-  return status === 'queued' || status === 'running' || status === 'paused'
-    || status === 'waiting' || status === 'merging';
 }
 
 /**

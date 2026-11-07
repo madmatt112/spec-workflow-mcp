@@ -67,6 +67,12 @@ export type RunStatus =
   | 'abandoned'
   | 'error';
 
+/** A run that still holds (or is owed) a slot. */
+export function isLive(status: RunStatus): boolean {
+  return status === 'queued' || status === 'running' || status === 'paused'
+    || status === 'waiting' || status === 'merging';
+}
+
 /** The `pauseReason` value of an applied operator pause. `pauseReason` stays a free string. */
 export const OPERATOR_PAUSE = 'operator';
 

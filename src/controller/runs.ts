@@ -30,8 +30,9 @@ import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
   writeRun, readRun, listRuns, listWaits, writeLastActivity,
-  isProcessAlive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
+  isProcessAlive, isLive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
+import { branchPresent as readBranchPresent, type BranchRead } from './branch-presence.js';
 import { createStepHeartbeat, type StepHeartbeat } from './heartbeat.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -1453,9 +1454,36 @@ export interface ControllerRunRow {
   lastActivity?: string;
   /** Who is holding the run paused, when it is (design C8); undefined when not held. */
   holdBy?: 'operator' | 'deploy';
+  /** `run.inFlight !== undefined` (design C3, Data Models). */
+  inFlight?: boolean;
+  /** `run.inFlight?.startedAt` (design C3, Data Models); absent when the step predates it. */
+  stepStarted?: string;
+  /** `run.inFlight?.task` (design C3, Data Models). */
+  task?: string;
+  /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
+  branchPresent?: boolean;
+  /** `!branchHeld(run, allRuns)` (design C3). */
+  discardAllowed?: boolean;
 }
 
-function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
+/**
+ * True when another run holds this run's worktree branch: a moving run with
+ * the same `codeRoot` and the same non-empty `branch`, or (D25) a moving run
+ * with no branch yet (a queued relaunch) sharing `codeRoot` and `spec`.
+ */
+export function branchHeld(run: RunRecord, runs: RunRecord[]): boolean {
+  return runs.some((other) => {
+    if (other.id === run.id || !isLive(other.status) || other.codeRoot !== run.codeRoot) return false;
+    if (other.branch !== '') return other.branch === run.branch;
+    return other.spec === run.spec;
+  });
+}
+
+async function toRow(
+  run: RunRecord, driven: ReadonlySet<string>, allRuns: RunRecord[], branchRead?: BranchRead,
+): Promise<ControllerRunRow> {
+  const stopped = run.status === 'done' || run.status === 'abandoned' || run.status === 'error';
+  const branchPresentValue = stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
   return {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
@@ -1466,13 +1494,21 @@ function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
     driven: driven.has(run.id),
     lastActivity: run.lastActivity,
     holdBy: run.holdBy,
+    inFlight: run.inFlight !== undefined,
+    stepStarted: run.inFlight?.startedAt,
+    task: run.inFlight?.task,
+    branchPresent: branchPresentValue,
+    discardAllowed: !branchHeld(run, allRuns),
   };
 }
 
 /** Every run as a path-free wire row, newest first (the GET route and WS payload). */
-export async function listRunsForWire(driven: ReadonlySet<string> = new Set()): Promise<ControllerRunRow[]> {
+export async function listRunsForWire(
+  driven: ReadonlySet<string> = new Set(), branchRead?: BranchRead,
+): Promise<ControllerRunRow[]> {
   const runs = await listRuns();
-  return runs.sort((a, b) => b.created.localeCompare(a.created)).map((r) => toRow(r, driven));
+  const sorted = runs.sort((a, b) => b.created.localeCompare(a.created));
+  return Promise.all(sorted.map((r) => toRow(r, driven, runs, branchRead)));
 }
 
 /** The step-log directory for a run (where supervisor/step streams are written). */
