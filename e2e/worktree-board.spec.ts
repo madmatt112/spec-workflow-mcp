@@ -1065,7 +1065,15 @@ test.describe('Home (board)', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const waitId = 'e2e-board-action-done-wait';
     const actionId = 'e2e-board-action-done-action';
-    const wait = baseWait(waitId, 'e2e-board-action-done-proj', 'e2e-board-action-done-spec', 5 * 60_000);
+    // `execAnswer`'s real `answerWait` appends a note under `record.specDir`
+    // (src/controller/waits.ts:135, :310) for any non-`retro-plan` kind, the
+    // same real mutation `(R4 AC5) answering in the sheet` seeds a `specDir`
+    // for; a bare `baseWait` here would crash that write on an undefined path.
+    const notesDir = join(tmpdir(), `specwf-e2e-board-notes-${waitId}`);
+    const wait: WaitRecord & { specDir: string } = {
+      ...baseWait(waitId, 'e2e-board-action-done-proj', 'e2e-board-action-done-spec', 5 * 60_000),
+      specDir: notesDir,
+    };
     const action = baseAction(actionId, {
       kind: 'answer',
       target: { wait: waitId },
@@ -1087,6 +1095,7 @@ test.describe('Home (board)', () => {
     } finally {
       await removeWaitRecord(waitId);
       await removeActionRecord(actionId);
+      await rm(notesDir, { recursive: true, force: true });
     }
   });
 

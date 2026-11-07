@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
 import { needsYou } from './board';
-import { WaitTile } from './tiles';
+import { ActionTile, WaitTile } from './tiles';
 import { AnswerSheet } from './AnswerSheet';
+import { useStages } from './useStages';
 import type { ControllerWait, StagedAction } from './types';
+import type { Stage } from './stage';
 
-/** Narrows a `needsYou` entry to a controller wait; `ActionTile` arrives in task 12. */
+/** Narrows a `needsYou` entry to a controller wait; `ActionTile` renders the other half. */
 function isControllerWait(item: ControllerWait | StagedAction): item is ControllerWait {
   return 'project' in item;
 }
@@ -45,6 +47,7 @@ export function HomePage() {
   const { controllerWaits, controllerRuns, controllerActions } = useShell();
   const [tick, setTick] = useState(Date.now());
   const [openWaitId, setOpenWaitId] = useState<string | null>(null);
+  const stages = useStages();
 
   useEffect(() => {
     const id = setInterval(() => setTick(Date.now()), 1000);
@@ -58,10 +61,58 @@ export function HomePage() {
 
   // No tile while the project list is loading, so a project the fixture
   // would otherwise filter out does not flash on first load (design C8).
-  const needsYouWaits = useMemo(
-    () => (loading ? [] : needsYou(controllerWaits, controllerActions, enabled).filter(isControllerWait)),
+  const needsYouItems = useMemo(
+    () => (loading ? [] : needsYou(controllerWaits, controllerActions, enabled)),
     [loading, controllerWaits, controllerActions, enabled],
   );
+  const needsYouWaits = useMemo(() => needsYouItems.filter(isControllerWait), [needsYouItems]);
+  const needsYouActionIds = useMemo(
+    () => new Set(needsYouItems.filter((item): item is StagedAction => !isControllerWait(item)).map((a) => a.id)),
+    [needsYouItems],
+  );
+
+  // A pressed action's tile stays rendered from its last snapshot until the
+  // stage clears, even once the real action has left `needsYou` (design
+  // C11's retained tile; `useStages`'s `retained` is task 10's export).
+  const actionTiles: Array<{ action: StagedAction; stage: Stage | null }> = [];
+  for (const action of controllerActions) {
+    const isLive = needsYouActionIds.has(action.id);
+    if (!isLive && !stages.stages.has(action.id)) continue;
+    const stage = stages.retained(action.id, {
+      actionState: action.state,
+      actionDetail: action.outcome?.detail.join('; '),
+    });
+    if (isLive || stage !== null) actionTiles.push({ action, stage });
+  }
+
+  const boardTiles = [
+    ...needsYouWaits.map((wait) => ({
+      created: wait.created,
+      node: (
+        <WaitTile
+          key={wait.id}
+          wait={wait}
+          runs={controllerRuns}
+          projectName={projectName(wait.project)}
+          now={tick}
+          onAnswer={() => setOpenWaitId(wait.id)}
+        />
+      ),
+    })),
+    ...actionTiles.map(({ action, stage }) => ({
+      created: action.created,
+      node: (
+        <ActionTile
+          key={action.id}
+          action={action}
+          now={tick}
+          stage={stage}
+          onConfirm={() => stages.press(action.id, 'confirm', `/api/controller/actions/${action.id}/confirm`, 'POST')}
+          onDismiss={() => stages.press(action.id, 'dismiss', `/api/controller/actions/${action.id}/dismiss`, 'POST')}
+        />
+      ),
+    })),
+  ].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
 
   // Re-derived on each render: gone, answered or filtered, and the board returns.
   const openWait = useMemo(
@@ -91,16 +142,7 @@ export function HomePage() {
   return (
     <div className="space-y-(--band-gap)">
       <Band testId="band-needs-you" title="Needs you" emptyText="Nothing waiting on you.">
-        {needsYouWaits.map((wait) => (
-          <WaitTile
-            key={wait.id}
-            wait={wait}
-            runs={controllerRuns}
-            projectName={projectName(wait.project)}
-            now={tick}
-            onAnswer={() => setOpenWaitId(wait.id)}
-          />
-        ))}
+        {boardTiles.map((tile) => tile.node)}
       </Band>
       <Band testId="band-running" title="Running" emptyText="No live runs.">{[]}</Band>
       <Band testId="band-next" title="Next" emptyText="Nothing launchable.">{[]}</Band>

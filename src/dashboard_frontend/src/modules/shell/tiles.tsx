@@ -1,15 +1,21 @@
 import React from 'react';
 import { Button, ui } from '../ui/ui';
 import { ageTone, compactAge, mergeRead, waitSummary } from './board';
-import type { ControllerRun, ControllerWait } from './types';
+import type { ControllerRun, ControllerWait, StagedAction } from './types';
+import type { Stage } from './stage';
 
-// Design C10 "Home and tiles" (task 11). Only the `Tile` frame and `WaitTile`
-// exist so far; `ActionTile`, `RunTile`, `NextTile` and `StageLine` arrive in
-// tasks 12-15.
+// Design C10 "Home and tiles" (tasks 11-12). The `Tile` frame, `WaitTile`,
+// `ActionTile` and `StageLine` exist so far; `RunTile` and `NextTile` arrive
+// in later tasks.
 
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
   merge: 'Merge', escalation: 'Escalation', error: 'Error', question: 'Question',
+};
+
+const STAGED_KIND_LABELS: Record<StagedAction['kind'], string> = {
+  merge: 'Merge', deploy: 'Deploy', launch: 'Launch', answer: 'Answer',
+  deferral: 'Deferral', decomposition: 'Decomposition', backlog: 'Backlog',
 };
 
 function KindBadge({ label }: { label: string }) {
@@ -85,6 +91,69 @@ export function WaitTile({
         <Button variant="secondary" onClick={onAnswer} data-testid={`wait-answer-${wait.id}`}>
           {'Answer'}
         </Button>
+      </div>
+    </Tile>
+  );
+}
+
+/** One-line target of a staged action; moved verbatim from NowPage.tsx:98-102. */
+function actionTarget(action: StagedAction): string {
+  const t = action.target as { project?: string; spec?: string; pr?: number; wait?: string };
+  const parts = [t.project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+/** The pressed control's stage text (design C11): the phase name, plus the
+ *  failure reason when the stage is `failed` (Requirement 9 AC 2). */
+export function StageLine({ stage }: { stage: Stage | null }) {
+  if (stage === null) return null;
+  const text = stage.phase === 'failed' && stage.reason ? `${stage.phase} — ${stage.reason}` : stage.phase;
+  return <p className="text-sm text-(--text-muted)">{text}</p>;
+}
+
+/** A staged advisor action as a tile (design C10, C11; R5, R9): kind, target,
+ *  reason, age and, while `staged`, Confirm and Dismiss. A `pressed` or
+ *  `running` stage disables both controls until it ends (D37); a tile kept
+ *  rendering only because its stage has not cleared (the action itself has
+ *  left `needsYou`) shows no controls, since it is never `staged` by then. */
+export function ActionTile({
+  action,
+  now,
+  stage,
+  onConfirm,
+  onDismiss,
+}: {
+  action: StagedAction;
+  now: number;
+  stage: Stage | null;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}) {
+  const age = now - Date.parse(action.created);
+  const tone = ageTone(age);
+  const busy = stage !== null && (stage.phase === 'pressed' || stage.phase === 'running');
+  return (
+    <Tile tone={tone} testId={`action-tile-${action.id}`}>
+      <div className="flex items-center gap-2">
+        <KindBadge label={STAGED_KIND_LABELS[action.kind] ?? action.kind} />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{actionTarget(action)}</span>
+      </div>
+      <p className="whitespace-normal break-words text-sm text-(--text-primary)">{action.reason}</p>
+      <StageLine stage={stage} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-display tabular-nums text-(--text-primary)">
+          {'Age '}{compactAge(age)}{' ago'}
+        </span>
+        {action.state === 'staged' && (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={onConfirm} disabled={busy} data-testid={`action-confirm-${action.id}`}>
+              {'Confirm'}
+            </Button>
+            <Button variant="secondary" onClick={onDismiss} disabled={busy} data-testid={`action-dismiss-${action.id}`}>
+              {'Dismiss'}
+            </Button>
+          </div>
+        )}
       </div>
     </Tile>
   );
