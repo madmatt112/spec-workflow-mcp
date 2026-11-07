@@ -180,7 +180,11 @@ re-measured on the next real spec.
   lint false-positive rule applies.
 - A task whose every acceptance criterion is a regression guard (holds at base) is marked
   implementer-only in the decomposition up front, with the verifier/test-author skip
-  stated; the routing is not discovered mid-run.
+  stated; the routing is not discovered mid-run. A deletion task (it removes a symbol,
+  file or call site) and an "already holds" task (its acceptance asserts a state the base
+  already satisfies) are the common regression-guard shapes: the tasks-phase review flags
+  each as an implementer-only candidate up front, not after a red-impossible test aborts
+  the test author mid-run (retro P10).
 - A spec may merge with its final task gate-reviewed but verifier-skipped, or with no
   review at all, when that final task is implementer-only / regression-guard (per the
   routing above), closing reviewCoverage at N−1 of N. The completion gate proceeds rather
