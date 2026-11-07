@@ -790,16 +790,43 @@ test.describe('Home (board)', () => {
 
   // Criterion "a `done`, `refused`, `failed` or `dismissed` one left alone
   // has no tile" (task 12 Success; Requirement 5 AC 2) is RED-IMPOSSIBLE at
-  // this commit: `needsYou` already excludes all four terminal states today
-  // (task 8, already shipped), proven branch by branch in
+  // the red commit: `needsYou` already excludes all four terminal states
+  // today (task 8, already shipped), proven branch by branch in
   // `src/dashboard/shell/__tests__/board-view.test.ts`'s
   // `it.each(['done', 'refused', 'failed', 'dismissed'])('drops an action in
-  // state %s', ...)`. Because no `ActionTile` exists yet, an e2e version of
-  // this check would pass for the unrelated reason that no action renders a
-  // tile at all, proving nothing about task 12's wiring — left out per
-  // agent-rules' regression-guard rule; the implementer brief should add a
-  // guard once `ActionTile` exists if it wants e2e coverage of the wiring
-  // itself.
+  // state %s', ...)`. The `done` and `dismissed` halves are now covered
+  // incidentally by the terminal-state e2e tests below, which press an
+  // action to one of those states and assert its tile count drops to 0. The
+  // `refused` and `failed` halves have no fresh negative test (review
+  // finding, retro P10): nothing seeds a left-alone `refused` or `failed`
+  // action and asserts no tile, so task 12's `ActionTile`/`HomePage` wiring
+  // for those two states is e2e-unproven. This closes that gap, mirroring
+  // the running-action test above.
+  //   Pre-condition: an action seeded directly in state `refused` and one
+  //   seeded directly in state `failed` (neither ever pressed in this
+  //   browser session).
+  //   Test: page.goto('/'), wait for the needs-you band, then each action's
+  //   tile.
+  //   Observable result: both tiles have count 0.
+  //   Expected-value source: Requirement 5 AC 2 "a `done`, `refused`,
+  //   `failed` or `dismissed` one left alone has no tile"; design C9
+  //   `needsYou` drops all four terminal states.
+  test('(R5 AC2) a refused or failed action left alone has no tile', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const refusedId = 'e2e-board-action-refused-action';
+    const failedId = 'e2e-board-action-failed-action';
+    await writeActionRecord(baseAction(refusedId, { state: 'refused' }));
+    await writeActionRecord(baseAction(failedId, { state: 'failed' }));
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`action-tile-${refusedId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`action-tile-${failedId}`)).toHaveCount(0);
+    } finally {
+      await removeActionRecord(refusedId);
+      await removeActionRecord(failedId);
+    }
+  });
 
   // Criterion "the age colours the tile by the wait rule (D12)" (task 12
   // Success; design D12 "Staged actions take the wait age colours and order,
