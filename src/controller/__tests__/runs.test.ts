@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   mkdtempSync, mkdirSync, writeFileSync, existsSync, chmodSync, rmSync, readFileSync,
 } from 'fs';
@@ -660,6 +660,297 @@ describe('listRunsForWire', () => {
     const row = rows.find((r) => r.id === 'run-20261011-000000');
 
     expect(row?.holdBy).toBeUndefined();
+  });
+
+  // Source: task 3 Success "A row with `inFlight` set reads `inFlight:
+  // true`, and one without reads `false`"; R12 AC 1; design C3's Data
+  // Models (`inFlight: boolean; // run.inFlight !== undefined`).
+  //
+  // Criterion "inFlight: true when the record has one": Pre-condition: a
+  // run record with `inFlight` set. Test: listRunsForWire(). Observable
+  // result: the row's `inFlight` is `true`. Expected-value source: the
+  // Data Models comment above.
+  it('reads inFlight: true for a run with an in-flight step', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-inflight-true',
+      inFlight: { id: 's1', pid: 1, startTime: 0 },
+    }));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-inflight-true');
+
+    expect(row?.inFlight).toBe(true);
+  });
+
+  // Criterion "inFlight: false when the record has none": Pre-condition: a
+  // run record with no `inFlight`. Test: listRunsForWire(). Observable
+  // result: the row's `inFlight` is `false`. Expected-value source: the
+  // same Data Models comment.
+  it('reads inFlight: false for a run with no in-flight step', async () => {
+    await writeRun(seedRun(fx, { id: 'run-inflight-false' }));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-inflight-false');
+
+    expect(row?.inFlight).toBe(false);
+  });
+
+  // Source: task 3 Success "`stepStarted` and `task` come from the
+  // record's `inFlight`"; R12 AC 1, AC 2; design C3's Data Models
+  // (`stepStarted?: string; // run.inFlight?.startedAt`, `task?: string;
+  // // run.inFlight?.task`).
+  //
+  // Criterion "stepStarted and task carried": Pre-condition: a run record
+  // whose `inFlight` has both `startedAt` and `task`. Test:
+  // listRunsForWire(). Observable result: the row's `stepStarted` equals
+  // `inFlight.startedAt` and `task` equals `inFlight.task`. Expected-value
+  // source: the literal values seeded into the record.
+  it('carries stepStarted and task from the in-flight record', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-inflight-fields',
+      inFlight: { id: 's1', pid: 1, startTime: 0, startedAt: '2026-11-06T00:00:00.000Z', task: 'task-1' },
+    }));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-inflight-fields');
+
+    expect(row?.stepStarted).toBe('2026-11-06T00:00:00.000Z');
+    expect(row?.task).toBe('task-1');
+  });
+
+  // Source: task 3 Success "an `inFlight` with no `startedAt` gives no
+  // `stepStarted`"; R12 AC 3 ("an in-flight record predates these fields
+  // ... the row shall report no start time").
+  //
+  // Criterion "stepStarted omitted when startedAt is absent": Pre-
+  // condition: a run record whose `inFlight` has `task` but no
+  // `startedAt` (a record predating the fields). Test: listRunsForWire().
+  // Observable result: the row's `inFlight` is `true`, `task` carries the
+  // seeded value (proving the row reflects this record, not a default),
+  // and `stepStarted` is undefined. Expected-value source: R12 AC 3.
+  it('omits stepStarted for an in-flight record with no startedAt', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-inflight-no-start',
+      inFlight: { id: 's1', pid: 1, startTime: 0, task: 'task-2' },
+    }));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-inflight-no-start');
+
+    expect(row?.inFlight).toBe(true);
+    expect(row?.task).toBe('task-2');
+    expect(row?.stepStarted).toBeUndefined();
+  });
+
+  // Source: task 3 Success "a stopped run's `branchPresent` is the read's
+  // value for each of `done`, `abandoned` and `error`"; R12 AC 1; design C3
+  // ("`branchPresent` is the C2 read for `done`, `abandoned` and
+  // `error`").
+  //
+  // Criterion "branchPresent for a done run": Pre-condition: a `done` run
+  // record with a non-empty branch. Test: listRunsForWire(driven,
+  // branchRead) with a `branchRead` resolving `true`. Observable result:
+  // the row's `branchPresent` is `true`. Expected-value source: the stub's
+  // return value.
+  it('reads branchPresent from the given read for a done run', async () => {
+    await writeRun(seedRun(fx, { id: 'run-done-present', status: 'done', branch: 'feat/x' }));
+
+    const rows = await listRunsForWire(new Set(), async () => true);
+    const row = rows.find((r) => r.id === 'run-done-present');
+
+    expect(row?.branchPresent).toBe(true);
+  });
+
+  // Criterion "branchPresent for an abandoned run": same shape as above
+  // with `status: 'abandoned'`.
+  it('reads branchPresent from the given read for an abandoned run', async () => {
+    await writeRun(seedRun(fx, { id: 'run-abandoned-present', status: 'abandoned', branch: 'feat/x' }));
+
+    const rows = await listRunsForWire(new Set(), async () => true);
+    const row = rows.find((r) => r.id === 'run-abandoned-present');
+
+    expect(row?.branchPresent).toBe(true);
+  });
+
+  // Criterion "branchPresent for an error run": same shape as above with
+  // `status: 'error'`.
+  it('reads branchPresent from the given read for an error run', async () => {
+    await writeRun(seedRun(fx, { id: 'run-error-present', status: 'error', branch: 'feat/x' }));
+
+    const rows = await listRunsForWire(new Set(), async () => true);
+    const row = rows.find((r) => r.id === 'run-error-present');
+
+    expect(row?.branchPresent).toBe(true);
+  });
+
+  // Source: task 3 Success "a rejected read gives `false`"; design C2
+  // post-conditions ("A rejected read gives `false`"), carried through C3.
+  //
+  // Criterion "rejected read gives false": Pre-condition: a `done` run
+  // record. Test: listRunsForWire(driven, branchRead) with a `branchRead`
+  // that rejects. Observable result: the row's `branchPresent` is `false`.
+  // Expected-value source: design C2's fail-safe.
+  it('reads branchPresent as false when the given read rejects', async () => {
+    await writeRun(seedRun(fx, { id: 'run-done-rejects', status: 'done', branch: 'feat/x' }));
+
+    const rows = await listRunsForWire(new Set(), async () => { throw new Error('git failed'); });
+    const row = rows.find((r) => r.id === 'run-done-rejects');
+
+    expect(row?.branchPresent).toBe(false);
+  });
+
+  // Source: task 3 Success "a moving run with a branch gives `true` and a
+  // moving run with `branch: ''` gives `false`, each with the read not
+  // called"; R12 AC 1; design C3 ("a moving run reports `run.branch !==
+  // ''` with no read").
+  //
+  // Criterion "moving run with a branch: true, no read": Pre-condition: a
+  // `running` run record with a non-empty branch. Test: listRunsForWire(
+  // driven, branchRead) with a `branchRead` spy. Observable result: the
+  // row's `branchPresent` is `true` and the spy was never called.
+  // Expected-value source: design C3.
+  it('reads branchPresent: true for a moving run with a branch, with no read', async () => {
+    await writeRun(seedRun(fx, { id: 'run-moving-branch', status: 'running', branch: 'feat/x' }));
+    const read = vi.fn(async () => false);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-moving-branch');
+
+    expect(row?.branchPresent).toBe(true);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // Criterion "moving run with branch '': false, no read": Pre-condition:
+  // a `running` run record with `branch: ''` (a queued relaunch, design
+  // C3/controller.ts:231-261). Test: listRunsForWire(driven, branchRead)
+  // with a `branchRead` spy. Observable result: the row's `branchPresent`
+  // is `false` and the spy was never called. Expected-value source:
+  // design C3.
+  it('reads branchPresent: false for a moving run with an empty branch, with no read', async () => {
+    await writeRun(seedRun(fx, { id: 'run-moving-no-branch', status: 'running', branch: '' }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-moving-no-branch');
+
+    expect(row?.branchPresent).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // Source: task 3 Success "`branchHeld` is true for another moving run
+  // with the same `codeRoot` and branch"; design C3 (`branchHeld(run,
+  // runs)`). The row's `discardAllowed` (`!branchHeld(run, allRuns)`, same
+  // clause) is the observable, since `branchHeld` is only reached through
+  // `listRunsForWire` per the task's seam.
+  //
+  // Criterion "held: same codeRoot and branch, other run moving":
+  // Pre-condition: a stopped run and another `running` run sharing
+  // `codeRoot` and `branch`. Test: listRunsForWire(). Observable result:
+  // the stopped run's row reads `discardAllowed: false`. Expected-value
+  // source: design C3.
+  it('discardAllowed is false when another moving run shares codeRoot and branch', async () => {
+    await writeRun(seedRun(fx, { id: 'run-held-a', status: 'done', branch: 'feat/x', codeRoot: fx.repo }));
+    await writeRun(seedRun(fx, { id: 'run-held-b', status: 'running', branch: 'feat/x', codeRoot: fx.repo }));
+
+    const rows = await listRunsForWire(new Set(), async () => false);
+    const row = rows.find((r) => r.id === 'run-held-a');
+
+    expect(row?.discardAllowed).toBe(false);
+  });
+
+  // Source: task 3 Success "true for a moving run with an empty branch,
+  // the same `codeRoot` and the same spec (D25)"; design D25 (a queued
+  // relaunch matches on spec, not branch, because it has none yet). Folds
+  // in the "`discardAllowed` is its negation" criterion, observed in the
+  // same assertion.
+  //
+  // Criterion "held: empty-branch relaunch, same codeRoot and spec":
+  // Pre-condition: a stopped run and another `queued` run sharing
+  // `codeRoot` and `spec`, the other's `branch` empty. Test:
+  // listRunsForWire(). Observable result: the stopped run's row reads
+  // `discardAllowed: false`. Expected-value source: design D25.
+  it('discardAllowed is false when a queued relaunch shares codeRoot and spec with no branch yet', async () => {
+    await writeRun(seedRun(fx, { id: 'run-relaunch-a', status: 'abandoned', branch: 'feat/y', codeRoot: fx.repo, spec: SPEC }));
+    await writeRun(seedRun(fx, { id: 'run-relaunch-b', status: 'queued', branch: '', codeRoot: fx.repo, spec: SPEC }));
+
+    const rows = await listRunsForWire(new Set(), async () => false);
+    const row = rows.find((r) => r.id === 'run-relaunch-a');
+
+    expect(row?.discardAllowed).toBe(false);
+  });
+
+  // Source: task 3 Success "false for a different `codeRoot`"; design C3.
+  //
+  // Criterion "not held: different codeRoot": Pre-condition: a stopped run
+  // and another `running` run sharing `branch` but not `codeRoot`. Test:
+  // listRunsForWire(). Observable result: the stopped run's row reads
+  // `discardAllowed: true`. Expected-value source: design C3.
+  it('discardAllowed is true when the other moving run has a different codeRoot', async () => {
+    await writeRun(seedRun(fx, { id: 'run-diffroot-a', status: 'done', branch: 'feat/x', codeRoot: fx.repo }));
+    await writeRun(seedRun(fx, { id: 'run-diffroot-b', status: 'running', branch: 'feat/x', codeRoot: `${fx.repo}-other` }));
+
+    const rows = await listRunsForWire(new Set(), async () => false);
+    const row = rows.find((r) => r.id === 'run-diffroot-a');
+
+    expect(row?.discardAllowed).toBe(true);
+  });
+
+  // Source: task 3 Success "false for ... a stopped other run"; design C3
+  // ("another run has a moving status").
+  //
+  // Criterion "not held: other run stopped": Pre-condition: a stopped run
+  // and another stopped run sharing `codeRoot` and `branch`. Test:
+  // listRunsForWire(). Observable result: the first row reads
+  // `discardAllowed: true`. Expected-value source: design C3.
+  it('discardAllowed is true when the other run sharing the branch is stopped', async () => {
+    await writeRun(seedRun(fx, { id: 'run-stopped-other-a', status: 'done', branch: 'feat/x', codeRoot: fx.repo }));
+    await writeRun(seedRun(fx, { id: 'run-stopped-other-b', status: 'done', branch: 'feat/x', codeRoot: fx.repo }));
+
+    const rows = await listRunsForWire(new Set(), async () => false);
+    const row = rows.find((r) => r.id === 'run-stopped-other-a');
+
+    expect(row?.discardAllowed).toBe(true);
+  });
+
+  // Source: task 3 Success "false for ... the run itself"; design C3
+  // (`branchHeld`'s "another run" wording).
+  //
+  // Criterion "not held: matches only itself": Pre-condition: one moving
+  // run, no other run on record, sharing its own codeRoot/branch/spec with
+  // itself. Test: listRunsForWire(). Observable result: its row reads
+  // `discardAllowed: true`, because the only codeRoot/branch match in the
+  // full run list is the run itself. Expected-value source: design C3's
+  // "another run" wording.
+  it('discardAllowed is true when the run only matches itself', async () => {
+    await writeRun(seedRun(fx, { id: 'run-self-only', status: 'running', branch: 'feat/x', codeRoot: fx.repo, spec: SPEC }));
+
+    const rows = await listRunsForWire(new Set(), async () => false);
+    const row = rows.find((r) => r.id === 'run-self-only');
+
+    expect(row?.discardAllowed).toBe(true);
+  });
+
+  // Source: task 3 Success "`JSON.stringify(row)` holds neither `codeRoot`
+  // nor `worktree`"; NFR Security ("The run row SHALL carry no filesystem
+  // path", `src/controller/runs.ts:1425`). RED-IMPOSSIBLE as a whole:
+  // `toRow` already omits both keys at base; kept here as a regression
+  // guard (retro P10/P12) since no existing assertion names this pair and
+  // this task edits `toRow` directly.
+  //
+  // Criterion "row carries no path": Pre-condition: a run record (codeRoot
+  // and worktree set to real filesystem paths). Test: listRunsForWire().
+  // Observable result: `JSON.stringify(row)` contains neither the
+  // substring "codeRoot" nor "worktree". Expected-value source: NFR
+  // Security.
+  it('carries no codeRoot or worktree in the serialized row', async () => {
+    await writeRun(seedRun(fx, { id: 'run-no-path' }));
+
+    const rows = await listRunsForWire();
+    const row = rows.find((r) => r.id === 'run-no-path');
+    const json = JSON.stringify(row);
+
+    expect(json).not.toContain('codeRoot');
+    expect(json).not.toContain('worktree');
   });
 });
 
