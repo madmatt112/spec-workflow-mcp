@@ -1,0 +1,12 @@
+{
+  "id": "approval_1794078133181_kq49449yk",
+  "title": "decisions-and-launch-guard requirements v3",
+  "filePath": ".spec-workflow/specs/decisions-and-launch-guard/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-07T19:02:13.181Z",
+  "category": "spec",
+  "categoryName": "decisions-and-launch-guard",
+  "response": "v3; 3 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-07T19:02:13.506Z"
+}
