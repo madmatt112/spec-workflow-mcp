@@ -96,6 +96,11 @@ node-20 fields.
   The tasks-phase review rejects a task whose test must edit a file the `File:` list omits,
   before the run, rather than letting the phase end `design-defect` and re-enter for a
   no-op re-verify.
+- When a task's Success grep, or a "deleted symbols scrubbed" test, walks a whole root
+  (e.g. `FE_ROOT`) for a target symbol, the decomposition names every file that holds that
+  symbol in the task's `File:` list — a comment hit counts. The tasks-phase review rejects
+  a task whose root-walking scrub omits a file holding the symbol: no implementer edit can
+  move a file-outside-list verdict, so the task would stall on it (retro P12).
 
 ## Lint false positives
 
