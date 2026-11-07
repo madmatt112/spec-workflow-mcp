@@ -53,13 +53,14 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
     }
   });
 
-  test('shows both worktree projects as sidebar toggles without the project dropdown', async ({ page }) => {
+  test('shows both worktree projects as gear switches without the project dropdown', async ({ page }) => {
     const projectA = getProjectByPathSuffix(registeredProjects, 'wt-a');
     const projectB = getProjectByPathSuffix(registeredProjects, 'wt-b');
 
     await page.goto('/');
 
-    // Each registered worktree project is a sidebar toggle; the dropdown shell is gone.
+    // Each registered worktree project is a switch in the gear panel; the dropdown shell is gone.
+    await page.getByTestId('gear-toggle').click();
     await expect(page.getByTestId(`project-toggle-${projectA.projectId}`)).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId(`project-toggle-${projectB.projectId}`)).toBeVisible();
 
@@ -78,7 +79,9 @@ test.describe.serial('No-shared worktree dashboard separation', () => {
     await expect(specRowA).toBeVisible({ timeout: 15000 });
     await expect(specRowB).toBeVisible();
 
-    // Toggling project B off hides its rows and keeps project A's.
+    // Toggling project B off hides its rows and keeps project A's. The
+    // toggle lives in the gear panel, so it opens first.
+    await page.getByTestId('gear-toggle').click();
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
     await expect(specRowB).toHaveCount(0);
     await expect(specRowA).toBeVisible();
