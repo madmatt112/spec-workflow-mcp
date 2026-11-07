@@ -217,3 +217,4 @@ Carried items: none.
   - **R1-3 — Accepted (MINOR).** Req 3 AC1 now states each decision is one line and the read takes that line, so a multi-line answer cannot truncate silently.
   - **R1-4 — Accepted (MINOR).** Req 3 AC5 now flags the no-change match as heuristic over free text, pinned and tested in the design.
   - **R1-5 — Accepted (MINOR).** Introduction now reads eleven operator items, not operator-reported defects, since items 4 and 5 are retro efficiency decisions.
+  - **Lint pass.** 0 fixed; rejected: L-1–L-5 (`drafting`/`design`/`phase` = labels/field Reqs 5, 8 add; absent from cited base ranges by design; v1 rejected same class as L-4–L-7, L-12).
