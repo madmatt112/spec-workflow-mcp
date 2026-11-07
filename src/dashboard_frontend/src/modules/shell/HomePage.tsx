@@ -150,7 +150,19 @@ export function HomePage() {
       </Band>
       <Band testId="band-running" title="Running" emptyText="No live runs.">
         {runningTiles.map((run) => (
-          <RunTile key={run.id} run={run} waits={controllerWaits} projectName={projectName(run.project)} now={tick} />
+          <RunTile
+            key={run.id}
+            run={run}
+            waits={controllerWaits}
+            projectName={projectName(run.project)}
+            now={tick}
+            stage={stages.retained(run.id, { run, waits: controllerWaits })}
+            onPause={() => stages.press(run.id, 'pause', `/api/controller/runs/${run.id}/pause`, 'POST')}
+            onResume={() => stages.press(run.id, 'resume', `/api/controller/runs/${run.id}/resume`, 'POST')}
+            onStop={() => stages.press(run.id, 'stop', `/api/controller/runs/${run.id}/cancel`, 'POST')}
+            onDiscard={() => stages.press(run.id, 'discard', `/api/controller/runs/${run.id}/discard`, 'POST')}
+            onRedrive={() => stages.press(run.id, 'redrive', `/api/controller/runs/${run.id}/redrive`, 'POST')}
+          />
         ))}
       </Band>
       <Band testId="band-next" title="Next" emptyText="Nothing launchable.">{[]}</Band>

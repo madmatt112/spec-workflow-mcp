@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, isStalled, mergeRead, runDot, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, mergeRead, runControls, runDot, waitSummary } from './board';
 import { pauseNote, pauseNoteClass } from './pause';
 import type { ControllerRun, ControllerWait, StagedAction } from './types';
 import type { Stage } from './stage';
 
-// Design C10 "Home and tiles" (tasks 11-13). The `Tile` frame, `WaitTile`,
-// `ActionTile`, `StageLine` and `RunTile`'s read side exist so far;
-// `NextTile` and `RunTile`'s press controls arrive in later tasks.
+// Design C10 "Home and tiles" (tasks 11-14). The `Tile` frame, `WaitTile`,
+// `ActionTile`, `StageLine`, `RunTile` and its press controls exist so far;
+// `NextTile` arrives in a later task.
 
 const CTRL_KIND_LABELS: Record<ControllerWait['kind'], string> = {
   'gate-a': 'Gate A', 'gate-b': 'Gate B', 'retro-plan': 'Retro plan',
@@ -109,21 +109,40 @@ function RunDot({ color }: { color: 'green' | 'amber' | 'grey' | 'red' }) {
   return <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full ${RUN_DOT_CLASS[color]}`} />;
 }
 
-/** A controller run as a tile (design C9, C10, D22, D23, D38; R6, R12 AC 3):
- *  spec, project tag, step kind, task, step age, the pause note, a heartbeat
- *  line and dot while a step is in flight, or red "Stalled" in its place.
- *  A `merging` run adds its PR, CI, verdict and "next check in N"; a
- *  `queued` run shows "queued". No press wiring here (task 14). */
+/** A controller run as a tile (design C9, C10, C11, D21-D23, D36-D38; R6, R7,
+ *  R9, R12 AC 3): spec, project tag, step kind, task, step age, the pause
+ *  note, a heartbeat line and dot while a step is in flight, or red
+ *  "Stalled" and Re-drive in its place. A `merging` run adds its PR, CI,
+ *  verdict and "next check in N"; a `queued` run shows "queued". Pause,
+ *  Resume, Stop, Discard and Re-drive go through the caller's stage hook
+ *  (`onPause`/`onResume`/`onStop`/`onDiscard`/`onRedrive`); which controls
+ *  show comes from `runControls`. Discard's first press only arms local
+ *  state (`secondary`); the armed press (`danger`) carries
+ *  `RunsPage.tsx:360`'s text and is the only one that calls the route (D36).
+ *  A stopped run with `discardAllowed: false` shows the quiet line "branch
+ *  in use by a live run" instead of any control. */
 export function RunTile({
   run,
   waits,
   projectName,
   now,
+  stage,
+  onPause,
+  onResume,
+  onStop,
+  onDiscard,
+  onRedrive,
 }: {
   run: ControllerRun;
   waits: ControllerWait[];
   projectName: string;
   now: number;
+  stage: Stage | null;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
+  onDiscard: () => void;
+  onRedrive: () => void;
 }) {
   const age = now - Date.parse(run.created);
   const tone = ageTone(age);
@@ -131,6 +150,10 @@ export function RunTile({
   const note = pauseNote(run, now);
   const heartbeatBase = run.lastActivity ?? run.stepStarted;
   const prRead = run.prReads?.find((read) => read.kind === 'run') ?? null;
+  const controls = runControls(run, waits);
+  const busy = stage !== null && (stage.phase === 'pressed' || stage.phase === 'running');
+  const [discardArmed, setDiscardArmed] = useState(false);
+  const noControls = !controls.pause && !controls.resume && !controls.stop && !controls.discard && !controls.redrive;
   return (
     <Tile tone={tone} testId={`run-tile-${run.id}`}>
       <div className="flex items-center gap-2">
@@ -150,7 +173,12 @@ export function RunTile({
       {note && <p className={`text-sm ${pauseNoteClass(note)}`}>{note.text}</p>}
       <div className="flex items-center gap-2">
         {stalled ? (
-          <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
+          <>
+            <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
+            <Button variant="secondary" size="sm" disabled={busy} onClick={onRedrive} data-testid={`run-redrive-${run.id}`}>
+              {'Re-drive'}
+            </Button>
+          </>
         ) : run.inFlight && heartbeatBase ? (
           <>
             <RunDot color={runDot(run, now)} />
@@ -173,6 +201,36 @@ export function RunTile({
         </p>
       )}
       {run.status === 'queued' && <p className="text-sm text-(--text-primary)">{'queued'}</p>}
+      {noControls && <p className="text-sm text-(--text-muted)">{'branch in use by a live run'}</p>}
+      <StageLine stage={stage} />
+      <div className="flex flex-wrap items-center gap-2">
+        {controls.pause && (
+          <Button variant="secondary" disabled={busy} onClick={onPause} data-testid={`run-pause-${run.id}`}>
+            {'Pause'}
+          </Button>
+        )}
+        {controls.resume && (
+          <Button variant="secondary" disabled={busy} onClick={onResume} data-testid={`run-resume-${run.id}`}>
+            {'Resume'}
+          </Button>
+        )}
+        {controls.stop && (
+          <Button variant="secondary" disabled={busy} onClick={onStop} data-testid={`run-stop-${run.id}`}>
+            {'Stop'}
+          </Button>
+        )}
+        {controls.discard && (
+          discardArmed ? (
+            <Button variant="danger" disabled={busy} onClick={onDiscard} data-testid={`run-discard-confirm-${run.id}`}>
+              {'This deletes the worktree and branch and closes the PR'}
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled={busy} onClick={() => setDiscardArmed(true)} data-testid={`run-discard-${run.id}`}>
+              {'Discard'}
+            </Button>
+          )
+        )}
+      </div>
     </Tile>
   );
 }
