@@ -1392,3 +1392,497 @@ describe('pause.ts "pausing after this step" (src/dashboard_frontend/src/modules
     expect(result).toEqual({ text: 'waiting 5m 0s · pausing after this step', overdue: false });
   });
 });
+
+// Contract for dashboard-board task 10 (design C11 "Stages", D20, D34, D37;
+// task 10 Note D42, D47; Requirements 9.1-9.4).
+//
+// `stage.ts` lives under `src/dashboard_frontend/`, loaded the same way as
+// `board.ts` and `pause.ts` above (runtime `import()`, cast to a
+// hand-written type) for the same tsconfig/vitest-exclude reason given in
+// the file header comment. The module does not exist yet at this commit, so
+// every `beforeAll` here is expected to reject (same bridge as task 8's
+// `board.ts` note).
+//
+// Design C11 marks the `Stage`/`Observed` interfaces illustrative ("verify
+// against the test fake"); only `failReason`, `resolved` and `advance` are
+// pinned by name. The task's own `_Prompt` names a fourth, unnamed pure
+// function — "a pure function that turns a `callHarness` result or a
+// rejected fetch into the next stage" — so this test file names it
+// `responseStage(name, result, now)` and passes `result: null` for the
+// rejected-fetch case; the implementer may pick any name, but must satisfy
+// this seam (D47 — the response rules sit in `stage.ts` precisely so a unit
+// test can reach them with no renderer).
+//
+// `Observed`'s fields are likewise this test's own choice, built from design
+// C11's `resolved` table row by row: `run` (undefined for "row gone") reuses
+// the `CtrlRunFixture` shape already defined above (it already carries
+// `status`, `pauseRequested`, `branchPresent`, `driven`, matching the
+// table's "pauseRequested set or status paused", "status abandoned, or row
+// gone" and "branchPresent false, or row gone" clauses verbatim), `waits`
+// is the same `CtrlWaitFixture[]` task 9's `isStalled` reads (the task Note
+// — "the stalled test comes from what task 9 exports" — pins `redrive`'s
+// rule to that real, already-tested function, not a restated one),
+// `controllerRuns` and `actionState`/`actionDetail` cover the `launch` and
+// `confirm`/`dismiss` rows.
+
+type StageName = 'pause' | 'resume' | 'stop' | 'discard' | 'redrive' | 'launch' | 'confirm' | 'dismiss';
+type StagePhase = 'pressed' | 'running' | 'done' | 'failed';
+
+interface StageFixture {
+  name: StageName;
+  phase: StagePhase;
+  at: number;
+  reason?: string;
+  opError?: { status: number; body: any } | null;
+  runId?: string;
+}
+
+interface ObservedFixture {
+  run?: CtrlRunFixture;
+  waits?: CtrlWaitFixture[];
+  controllerRuns?: string[];
+  actionState?: ActionState;
+  actionDetail?: string;
+}
+
+interface HarnessResultFixture {
+  ok: boolean;
+  status: number;
+  data: any;
+}
+
+type StageModule = {
+  failReason: (status: number, body: any) => string;
+  resolved: (stage: StageFixture, seen: ObservedFixture) => boolean;
+  advance: (stage: StageFixture, seen: ObservedFixture, now: number) => StageFixture | null;
+  responseStage: (name: StageName, result: HarnessResultFixture | null, now: number) => StageFixture;
+};
+
+function stageFixture(
+  overrides: Partial<StageFixture> & { name: StageName; phase: StagePhase; at: number },
+): StageFixture {
+  return { ...overrides };
+}
+
+describe('stage.ts (src/dashboard_frontend/src/modules/shell/stage.ts)', () => {
+  let stage: StageModule;
+
+  beforeAll(async () => {
+    stage = (await import(pathToFileURL(join(FE, 'shell', 'stage.ts')).href)) as StageModule;
+  });
+
+  describe('failReason(status, body)', () => {
+    // Criterion "failReason gives the body's reason" (design C11
+    // "function failReason(status, body): string; // reason, else error,
+    // else status"; task 10 Success; Requirement 9.2).
+    //   Pre-condition: a body carrying both `reason` and `error`.
+    //   Test: failReason(500, { reason, error }).
+    //   Observable result: the `reason` string, not the `error` string.
+    //   Expected-value source: the design comment's literal priority order.
+    it("gives the body's reason even when an error is also present", () => {
+      expect(stage.failReason(500, { reason: 'bad state', error: 'ignored' })).toBe('bad state');
+    });
+
+    // Criterion "failReason gives ... else its error" (same citations).
+    //   Pre-condition: a body with `error` only, no `reason`.
+    //   Test: failReason(500, { error }).
+    //   Observable result: the `error` string.
+    //   Expected-value source: the design comment's "else error" fallback.
+    it("gives the body's error when no reason is present", () => {
+      expect(stage.failReason(500, { error: 'boom' })).toBe('boom');
+    });
+
+    // Criterion "failReason gives ... else the status code" (same
+    // citations).
+    //   Pre-condition: a body with neither `reason` nor `error`.
+    //   Test: failReason(500, {}).
+    //   Observable result: '500' (the design's declared string return type
+    //   forces the status to be read as text).
+    //   Expected-value source: the design comment's "else status" fallback.
+    it('gives the status code when neither reason nor error is present', () => {
+      expect(stage.failReason(500, {})).toBe('500');
+    });
+  });
+
+  describe('responseStage(name, result, now) — the callHarness-result-to-stage rule', () => {
+    // Criterion "a non-2xx gives failed" (design C11 "A rejected fetch or a
+    // non-2xx gives failed with failReason"; task 10 Success; Requirement
+    // 9.2).
+    //   Pre-condition: a non-launch stage, a non-2xx HarnessResult.
+    //   Test: responseStage('pause', { ok: false, status: 400, data }, now).
+    //   Observable result: phase 'failed'.
+    //   Expected-value source: the literal "a non-2xx gives failed" clause.
+    it('gives failed for a non-2xx response', () => {
+      const result = stage.responseStage('pause', { ok: false, status: 400, data: { error: 'bad' } }, 1000);
+      expect(result.phase).toBe('failed');
+    });
+
+    // Criterion "a rejected fetch gives failed" (same citations).
+    //   Pre-condition: `result` is `null`, this test file's chosen
+    //   representation of a rejected fetch (header comment above).
+    //   Test: responseStage('pause', null, now).
+    //   Observable result: phase 'failed'.
+    //   Expected-value source: the literal "a rejected fetch gives failed"
+    //   clause.
+    it('gives failed for a rejected fetch', () => {
+      const result = stage.responseStage('pause', null, 1000);
+      expect(result.phase).toBe('failed');
+    });
+
+    // Criterion "a launch non-2xx keeps opError" (design C11 "for launch it
+    // also keeps opError so the tile renders OpErrorView"; task 10 Success;
+    // Requirement 9.2's "Launch refusals SHALL keep OpErrorView").
+    //   Pre-condition: name 'launch', a non-2xx HarnessResult.
+    //   Test: responseStage('launch', { ok: false, status: 409, data }, now).
+    //   Observable result: phase 'failed'; opError equals
+    //   { status: 409, body: data }.
+    //   Expected-value source: the literal "keeps opError" clause, and
+    //   harness.tsx's `OpError = { status, body }` shape (task 10 Leverage).
+    it('keeps opError on a launch non-2xx response', () => {
+      const result = stage.responseStage('launch', { ok: false, status: 409, data: { error: 'run-live' } }, 1000);
+      expect(result.phase).toBe('failed');
+      expect(result.opError).toEqual({ status: 409, body: { error: 'run-live' } });
+    });
+
+    // Criterion "a 2xx with ok === false gives failed with the body's error
+    // (D34)" (design C11 "A 2xx whose body has ok === false gives failed
+    // with the body's error, because confirm answers 200 when its executor
+    // fails"; D34; task 10 Success).
+    //   Pre-condition: name 'confirm', a 2xx HarnessResult whose body has
+    //   `ok: false` and an `error` string (the real shape of
+    //   `confirmAction`'s failure response, src/advisor/actions.ts:463).
+    //   Test: responseStage('confirm', { ok: true, status: 200, data }, now).
+    //   Observable result: phase 'failed'; reason 'refused'.
+    //   Expected-value source: the literal "failed with the body's error"
+    //   clause.
+    it("gives failed with the body's error for a 2xx response whose body has ok === false", () => {
+      const result = stage.responseStage('confirm', { ok: true, status: 200, data: { ok: false, error: 'refused' } }, 1000);
+      expect(result.phase).toBe('failed');
+      expect(result.reason).toBe('refused');
+    });
+
+    // Criterion "any other 2xx gives running" (design C11; task 10 Success;
+    // Requirement 9.3 "the stage SHALL read running").
+    //   Pre-condition: a 2xx HarnessResult whose body has no `ok: false`
+    //   (an empty body, not just an explicit `ok: true`, to prove the rule
+    //   is "not strictly false", not "strictly true").
+    //   Test: responseStage('pause', { ok: true, status: 200, data: {} }, now).
+    //   Observable result: phase 'running'.
+    //   Expected-value source: the literal "any other 2xx gives running"
+    //   clause.
+    it('gives running for any other 2xx response', () => {
+      const result = stage.responseStage('pause', { ok: true, status: 200, data: {} }, 1000);
+      expect(result.phase).toBe('running');
+    });
+  });
+
+  describe('resolved(stage, seen)', () => {
+    // Criterion "resolved is tested true ... for pause" (design C11 table
+    // row "pause | pauseRequested set or status paused"; task 10 Success).
+    //   Pre-condition: a running pause stage; a run with `pauseRequested`
+    //   set.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `pause` row.
+    it('resolves pause true when the run has pauseRequested set', () => {
+      const s = stageFixture({ name: 'pause', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', pauseRequested: '2026-01-01T00:00:00.000Z' });
+      expect(stage.resolved(s, { run })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for pause" (same citations).
+    //   Pre-condition: the same stage; a run with no `pauseRequested` and a
+    //   status other than `paused`.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `pause` row, negated.
+    it('resolves pause false when the run has no pauseRequested and is not paused', () => {
+      const s = stageFixture({ name: 'pause', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running' });
+      expect(stage.resolved(s, { run })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for resume" (design C11 table
+    // row "resume | not isOperatorHeld and status not paused"; task 10
+    // Success; task 10 Leverage pause.ts:27-30).
+    //   Pre-condition: a running resume stage; a run with no pause hold and
+    //   status 'running'.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `resume` row.
+    it('resolves resume true when the run is not operator-held and not paused', () => {
+      const s = stageFixture({ name: 'resume', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running' });
+      expect(stage.resolved(s, { run })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for resume" (same citations).
+    //   Pre-condition: the same stage; a run operator-held and paused.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `resume` row, negated via
+    //   `isOperatorHeld` (pause.ts:27-30): `status === 'paused' &&
+    //   pauseReason === 'operator'`.
+    it('resolves resume false when the run is operator-held and paused', () => {
+      const s = stageFixture({ name: 'resume', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'paused', pauseReason: 'operator' });
+      expect(stage.resolved(s, { run })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for stop" (design C11 table
+    // row "stop | status abandoned, or row gone"; task 10 Success).
+    //   Pre-condition: a running stop stage; a run with status 'abandoned'.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `stop` row.
+    it('resolves stop true when the run status is abandoned', () => {
+      const s = stageFixture({ name: 'stop', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'abandoned' });
+      expect(stage.resolved(s, { run })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for stop" (same citations).
+    //   Pre-condition: the same stage; a run still present and 'running'.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `stop` row, negated.
+    it('resolves stop false when the run is still present and running', () => {
+      const s = stageFixture({ name: 'stop', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running' });
+      expect(stage.resolved(s, { run })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for discard" (design C11 table
+    // row "discard | branchPresent false, or row gone"; task 10 Success).
+    //   Pre-condition: a running discard stage; a run with
+    //   `branchPresent: false`.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `discard` row.
+    it('resolves discard true when the run has branchPresent false', () => {
+      const s = stageFixture({ name: 'discard', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'done', branchPresent: false });
+      expect(stage.resolved(s, { run })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for discard" (same
+    // citations).
+    //   Pre-condition: the same stage; a run still present with
+    //   `branchPresent: true`.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `discard` row, negated.
+    it('resolves discard false when the run is still present with its branch present', () => {
+      const s = stageFixture({ name: 'discard', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'done', branchPresent: true });
+      expect(stage.resolved(s, { run })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for redrive" (design C11 table
+    // row "redrive | not isStalled"; task 10 Success and Note "the stalled
+    // test comes from what task 9 exports").
+    //   Pre-condition: a running redrive stage; a run 'running' and
+    //   `driven: true` — not stalled, per `board.ts`'s own `isStalled`
+    //   (task 9 Success: "true for running with driven: false").
+    //   Test: resolved(stage, { run }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `redrive` row.
+    it('resolves redrive true when the run is no longer stalled', () => {
+      const s = stageFixture({ name: 'redrive', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: true });
+      expect(stage.resolved(s, { run, waits: [] })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for redrive" (same
+    // citations).
+    //   Pre-condition: the same stage; a run 'running' with `driven: false`
+    //   — stalled, per `board.ts`'s `isStalled`.
+    //   Test: resolved(stage, { run }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `redrive` row, negated.
+    it('resolves redrive false when the run is still stalled', () => {
+      const s = stageFixture({ name: 'redrive', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: false });
+      expect(stage.resolved(s, { run, waits: [] })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for launch" (design C11 table
+    // row "launch | the response's runId is in controllerRuns"; task 10
+    // Success).
+    //   Pre-condition: a running launch stage carrying `runId: 'r1'`;
+    //   `controllerRuns` containing that id.
+    //   Test: resolved(stage, { controllerRuns }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `launch` row.
+    it("resolves launch true when the stage's runId is among controllerRuns", () => {
+      const s = stageFixture({ name: 'launch', phase: 'running', at: 0, runId: 'r1' });
+      expect(stage.resolved(s, { controllerRuns: ['r1', 'r2'] })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for launch" (same citations).
+    //   Pre-condition: the same stage; `controllerRuns` without that id.
+    //   Test: resolved(stage, { controllerRuns }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `launch` row, negated.
+    it("resolves launch false when the stage's runId is absent from controllerRuns", () => {
+      const s = stageFixture({ name: 'launch', phase: 'running', at: 0, runId: 'r1' });
+      expect(stage.resolved(s, { controllerRuns: ['r2'] })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for confirm" (design C11 table
+    // row "confirm | action state done, refused or failed"; task 10
+    // Success).
+    //   Pre-condition: a running confirm stage; `actionState: 'done'`.
+    //   Test: resolved(stage, { actionState }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `confirm` row.
+    it('resolves confirm true when the action state is done', () => {
+      const s = stageFixture({ name: 'confirm', phase: 'running', at: 0 });
+      expect(stage.resolved(s, { actionState: 'done' })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for confirm" (same
+    // citations).
+    //   Pre-condition: the same stage; `actionState: 'staged'`.
+    //   Test: resolved(stage, { actionState }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `confirm` row, negated.
+    it('resolves confirm false when the action is still staged', () => {
+      const s = stageFixture({ name: 'confirm', phase: 'running', at: 0 });
+      expect(stage.resolved(s, { actionState: 'staged' })).toBe(false);
+    });
+
+    // Criterion "resolved is tested true ... for dismiss" (design C11 table
+    // row "dismiss | action state dismissed"; task 10 Success).
+    //   Pre-condition: a running dismiss stage; `actionState: 'dismissed'`.
+    //   Test: resolved(stage, { actionState }).
+    //   Observable result: true.
+    //   Expected-value source: the design table's `dismiss` row.
+    it('resolves dismiss true when the action state is dismissed', () => {
+      const s = stageFixture({ name: 'dismiss', phase: 'running', at: 0 });
+      expect(stage.resolved(s, { actionState: 'dismissed' })).toBe(true);
+    });
+
+    // Criterion "resolved is tested ... false for dismiss" (same
+    // citations).
+    //   Pre-condition: the same stage; `actionState: 'staged'`.
+    //   Test: resolved(stage, { actionState }).
+    //   Observable result: false.
+    //   Expected-value source: the design table's `dismiss` row, negated.
+    it('resolves dismiss false when the action is still staged', () => {
+      const s = stageFixture({ name: 'dismiss', phase: 'running', at: 0 });
+      expect(stage.resolved(s, { actionState: 'staged' })).toBe(false);
+    });
+  });
+
+  describe('advance(stage, seen, now)', () => {
+    // Criterion "advance moves running to done when resolved" (design C11
+    // "running plus resolved gives done"; task 10 Success; Requirement
+    // 9.3's "then done").
+    //   Pre-condition: a running redrive stage; a run that resolves
+    //   `redrive` true (not stalled).
+    //   Test: advance(stage, seen, now).
+    //   Observable result: a stage with phase 'done'.
+    //   Expected-value source: the literal "running plus resolved gives
+    //   done" clause.
+    it('moves a resolved running stage to done', () => {
+      const s = stageFixture({ name: 'redrive', phase: 'running', at: 1000 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: true });
+      const result = stage.advance(s, { run, waits: [] }, 1500);
+      expect(result).toMatchObject({ name: 'redrive', phase: 'done' });
+    });
+
+    // Criterion "a confirm resolving as refused ... gives failed with the
+    // outcome detail" (design C11 "except a confirm that resolves as
+    // refused or failed, which gives failed with the outcome detail"; task
+    // 10 Success).
+    //   Pre-condition: a running confirm stage; `actionState: 'refused'`
+    //   with a detail string.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: phase 'failed'; reason equal to the detail.
+    //   Expected-value source: the literal "failed with the outcome
+    //   detail" clause.
+    it('fails a running confirm that resolves as refused, with the outcome detail as reason', () => {
+      const s = stageFixture({ name: 'confirm', phase: 'running', at: 1000 });
+      const result = stage.advance(s, { actionState: 'refused', actionDetail: 'declined by operator' }, 1500);
+      expect(result).toMatchObject({ phase: 'failed', reason: 'declined by operator' });
+    });
+
+    // Criterion "a confirm resolving as ... failed gives failed with the
+    // outcome detail" (same citations).
+    //   Pre-condition: the same stage; `actionState: 'failed'` with a
+    //   detail string.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: phase 'failed'; reason equal to the detail.
+    //   Expected-value source: the literal "failed with the outcome
+    //   detail" clause.
+    it('fails a running confirm that resolves as failed, with the outcome detail as reason', () => {
+      const s = stageFixture({ name: 'confirm', phase: 'running', at: 1000 });
+      const result = stage.advance(s, { actionState: 'failed', actionDetail: 'executor threw' }, 1500);
+      expect(result).toMatchObject({ phase: 'failed', reason: 'executor threw' });
+    });
+
+    // Criterion "running at 30,000 ms gives failed with 'no change seen in
+    // 30 s'" (design C11 "running older than 30,000 ms gives failed with
+    // 'no change seen in 30 s'"; D20; task 10 Success).
+    //   Pre-condition: a running redrive stage at `at: 0`, still unresolved
+    //   (stalled), now 30,000 ms later.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: phase 'failed'; reason 'no change seen in 30 s'.
+    //   Expected-value source: the literal message string, D20.
+    it('fails an unresolved running stage at exactly 30,000 ms with the timeout message', () => {
+      const s = stageFixture({ name: 'redrive', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: false });
+      const result = stage.advance(s, { run, waits: [] }, 30000);
+      expect(result).toMatchObject({ phase: 'failed', reason: 'no change seen in 30 s' });
+    });
+
+    // Criterion "... and at 29,999 stays" (same citations).
+    //   Pre-condition: the same stage, same unresolved seen, now 29,999 ms
+    //   after `at`.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: a non-null stage still at phase 'running'.
+    //   Expected-value source: the literal "at 29,999 stays" clause.
+    it('leaves an unresolved running stage running at 29,999 ms', () => {
+      const s = stageFixture({ name: 'redrive', phase: 'running', at: 0 });
+      const run = ctrlRunFixture({ id: 'r1', status: 'running', driven: false });
+      const result = stage.advance(s, { run, waits: [] }, 29999);
+      expect(result?.phase).toBe('running');
+    });
+
+    // Criterion "done at 5,000 ms gives null" (design C11 "done older than
+    // 5,000 ms gives null"; task 10 Success; Requirement 9.3's "clear
+    // after 5 s").
+    //   Pre-condition: a done stage at `at: 0`, now 5,000 ms later.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: null.
+    //   Expected-value source: the literal "gives null" clause.
+    it('clears a done stage at exactly 5,000 ms', () => {
+      const s = stageFixture({ name: 'pause', phase: 'done', at: 0 });
+      expect(stage.advance(s, {}, 5000)).toBeNull();
+    });
+
+    // Criterion "... and at 4,999 stays" (same citations).
+    //   Pre-condition: the same done stage, now 4,999 ms later.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: a non-null stage still at phase 'done'.
+    //   Expected-value source: the literal "at 4,999 stays" clause.
+    it('keeps a done stage done at 4,999 ms', () => {
+      const s = stageFixture({ name: 'pause', phase: 'done', at: 0 });
+      expect(stage.advance(s, {}, 4999)?.phase).toBe('done');
+    });
+
+    // Criterion "failed stays at any age" (design C11 "failed stays until
+    // the next press on that key or until the tile leaves"; task 10
+    // Success; Requirement 9.4).
+    //   Pre-condition: a failed stage at `at: 0`, now far in the future.
+    //   Test: advance(stage, seen, now).
+    //   Observable result: a non-null stage still at phase 'failed'.
+    //   Expected-value source: the literal "failed stays at any age"
+    //   clause.
+    it('leaves a failed stage failed at any age', () => {
+      const s = stageFixture({ name: 'pause', phase: 'failed', at: 0, reason: 'boom' });
+      expect(stage.advance(s, {}, 10_000_000)?.phase).toBe('failed');
+    });
+  });
+});
