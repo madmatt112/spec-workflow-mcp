@@ -236,5 +236,6 @@ No test asserts a node-version-specific `child_process`, `fs` or stream field.
   - **R1-3 — Accepted (MINOR).** The guard reads the decomposition only when the tasks file is absent; an existing tasks file with no file entries now gives no list.
   - **R1-4 — Accepted (MINOR).** The abandoned status guard now reads disk for terminal writes too, so a losing write cannot overwrite an abandoned run.
   - **R1-5 — Rejected (MINOR).** The close-out reference plan is illustrative, as the reviewer concurs; the close-out integration test pins the concrete behaviour.
+  - **Lint pass.** 0 fixed; rejected: L-1 — L-54, all citation-identifier false positives. Every cited range was read against the tree and anchors the code the design edits or references; the absent token is a newly-added symbol, a prose word, or a symbol defined near (not at) the anchor. Same class rejected at v1 (46) and suppressed under rule 11; none is a misstated artifact.
 - **v1** (2026-11-07) — Initial draft.
   - **Lint pass.** 25 citation-bare warnings fixed (directory-prefixed path per bullet; L-20 widened to `:541-542`); 46 citation-identifier warnings rejected as false positives, each anchoring the location the design edits.
