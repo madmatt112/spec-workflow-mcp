@@ -131,3 +131,14 @@
 {"ts":"2026-11-07T01:45:52.999Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 6","result":"yes/6","phase":"implementation","task":"6"}
 {"ts":"2026-11-07T01:46:08.144Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 6 pass risk low tdd assertion-red"}
 {"ts":"2026-11-07T01:46:08.154Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"6","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-07T01:46:08.305Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"7","title":"Add the project enable rules and the explicit-on key"}
+{"ts":"2026-11-07T01:46:08.314Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 7 pick head cb2ed4d47bdc7349506e56e1be870113d42e6c61"}
+{"ts":"2026-11-07T01:46:08.365Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-test-author","role":"author task 7","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T01:48:12.047Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-test-author","input":"36","output":"10408","cacheWrite":"66935","cacheRead":"1362392","tokens":"1439771","cacheWrite5m":"0","cacheWrite1h":"66935","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T01:48:12.048Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-test-author","role":"author task 7","result":"none","phase":"implementation","task":"7"}
+{"ts":"2026-11-07T01:48:12.093Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 7 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-07T01:48:12.093Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-implementer","role":"implement task 7","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T01:50:33.341Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-implementer","input":"64","output":"10083","cacheWrite":"63563","cacheRead":"2296611","tokens":"2370321","cacheWrite5m":"0","cacheWrite1h":"63563","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T01:50:33.342Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 7","result":"yes/7","phase":"implementation","task":"7"}
+{"ts":"2026-11-07T01:50:48.226Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 7 pass risk low tdd structural-red"}
+{"ts":"2026-11-07T01:50:48.235Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"7","rounds":"0","outcome":"gate"}

@@ -82,7 +82,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 11.1, 11.2_
   - _Prompt: Task: Per design C12 and D16, add to `@theme static` the seven names design pins: `--text-display` 32px with its line height 40px, `--text-tile` 15px with its line height 22px, `--tile-pad` 20px, `--tile-gap` 16px, `--band-gap` 32px. Add them to the test's name list. Add `tile(tone)` to the `ui` constants for `neutral`, `warning` and `danger`: `--surface-panel` stays the fill and the tone colours the border (design C10) | Restrictions: Delete no token here; change no line of `src/dashboard_frontend/src/modules/theme/tokens.css:9-17` or `:61-160`; declare no value outside `tokens.css` | Success: The seven names are declared in `@theme static` once each; `--text-display` is at least 32px and `--text-tile` at least 14px (requirement 11 AC 2); the steps at `:9-17` keep their values; every colour value keeps its value (regression guard, requirement 11 AC 1); `npx vitest run src/dashboard/__tests__/frontend-tokens.test.ts src/dashboard/__tests__/frontend-build.test.ts src/dashboard/__tests__/frontend-style-scan.test.ts` passes_
 
-- [ ] 7. Add the project enable rules and the explicit-on key
+- [x] 7. Add the project enable rules and the explicit-on key
   - File: src/dashboard_frontend/src/modules/projects/enable.ts
   - File: src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx
   - File: src/dashboard/shell/__tests__/board-view.test.ts

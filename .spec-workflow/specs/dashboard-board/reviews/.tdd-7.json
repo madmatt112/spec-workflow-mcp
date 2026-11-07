@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/board-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/board-view.test.ts":"isEnabled(id, name, off, on)"},"redCommit":"05e74cd9cadd1e769afdcf0950155eaffddb0e9f","baseSha":"cb2ed4d47bdc7349506e56e1be870113d42e6c61","base":"structural-red","head":"pass","amended":false,"judged":null}
