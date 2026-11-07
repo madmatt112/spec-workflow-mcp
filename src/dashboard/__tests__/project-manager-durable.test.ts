@@ -334,3 +334,142 @@ describe('ProjectManager.addProjectByPath with an explicit store root', () => {
     ]);
   });
 });
+
+// Contract for ProjectManager.setDisplayName(projectId, displayName) (design
+// C1; requirements.md Requirement 1 AC 1-5; task 2 _Prompt). setDisplayName
+// calls the setter task 1 exports (state.ts `setProjectDisplayName`), then
+// `syncWithRegistry()` — the only way the stored name reaches `projectName`
+// on the context and on `getProjectsList()`.
+//
+// AC 1 "a stored display name shows in place of the generated name" (1.1):
+//   Pre-condition: a fresh manager, one project added by path.
+//   Test: setDisplayName(id, '<name>').
+//   Observable result: getProjectsList() finds that id with
+//   projectName === '<name>'.
+//   Expected-value source: requirements.md 1.1.
+//
+// AC 2 "a re-registration keeps the stored display name" (1.2):
+//   Pre-condition: the AC 1 project, already named.
+//   Test: ProjectRegistry().registerProject(repo, process.pid) directly — a
+//   server re-registering the same workspace, which at base overwrites
+//   projectName with the generated name (src/core/project-registry.ts:376)
+//   — then a sync.
+//   Observable result: getProjectsList() still shows the stored name, not
+//   the generated one the registry just wrote.
+//   Expected-value source: requirements.md 1.2.
+//
+// AC 3 "the display name stays with no live registry entry, including on a
+//   fresh ProjectManager" (1.3):
+//   Pre-condition: the AC 1 project, named; the manager stops and its
+//   registry entry is unregistered (process-death simulation, the pattern
+//   used above for the restart-survival tests).
+//   Test: start a second, fresh ProjectManager.
+//   Observable result: its getProjectsList() shows the stored name for that
+//   id, though the registry holds nothing for it.
+//   Expected-value source: requirements.md 1.3.
+//
+// Design invariant "the remembered `name` stays generated" (design C1
+//   post-condition / Restrictions):
+//   Pre-condition: a project added by path; its generated `name` read from
+//   projects.json before any display name is set.
+//   Test: setDisplayName(id, '<name>'), then a sync.
+//   Observable result: projects.json's row for that id still has
+//   name === the generated value, with a separate displayName === '<name>'.
+//   Expected-value source: design C1 "`addProject` still remembers the
+//   generated name as `name` ... a display name must not reach that write".
+//
+// AC 4 "with no display name, the generated name shows" (requirements.md
+//   1.4, "invariant, verified, not red-first"; task 2 Note: regression
+//   guard):
+//   Pre-condition: the AC 1 project, named.
+//   Test: setDisplayName(id, null) (clear).
+//   Observable result: getProjectsList() reverts to the generated name read
+//   before the name was ever set.
+//   Expected-value source: requirements.md 1.4.
+//
+// AC 5 "the project id does not change" (requirements.md 1.5, "invariant,
+//   verified, not red-first"; task 2 Note: regression guard):
+//   Pre-condition: the AC 1 project, named.
+//   Test: setDisplayName(id, '<name>').
+//   Observable result: getProjectsList() still names exactly one project,
+//   the same id, and getProject(id) is still defined.
+//   Expected-value source: requirements.md 1.5.
+describe('ProjectManager.setDisplayName', () => {
+  it('shows the stored display name on getProjectsList (R1 AC1)', async () => {
+    const repo = makeRepo(base, 'disp-ac1');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+
+    const ok = await first.setDisplayName(id, 'Custom AC1 Name');
+
+    expect(ok).toBe(true);
+    expect(first.getProjectsList().find((p) => p.projectId === id)?.projectName).toBe('Custom AC1 Name');
+  });
+
+  it('keeps the display name after a re-registration and a sync (R1 AC2)', async () => {
+    const repo = makeRepo(base, 'disp-ac2');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+    await first.setDisplayName(id, 'Custom AC2 Name');
+
+    // A server re-registering the same workspace: base registerProjectLocked
+    // overwrites projectName with the generated name.
+    await new ProjectRegistry().registerProject(repo, process.pid);
+    await (first as unknown as { syncWithRegistry(): Promise<void> }).syncWithRegistry();
+
+    expect(first.getProjectsList().find((p) => p.projectId === id)?.projectName).toBe('Custom AC2 Name');
+  });
+
+  it('keeps the display name with no live registry entry, including on a fresh ProjectManager (R1 AC3)', async () => {
+    const repo = makeRepo(base, 'disp-ac3');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+    await first.setDisplayName(id, 'Custom AC3 Name');
+    await first.stop();
+    managers = [];
+
+    await new ProjectRegistry().unregisterProjectById(id);
+
+    const second = await start();
+    expect(second.getProjectsList().find((p) => p.projectId === id)?.projectName).toBe('Custom AC3 Name');
+  });
+
+  it("keeps the remembered row's generated name after a display name is set and synced (design C1)", async () => {
+    const repo = makeRepo(base, 'disp-name-invariant');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+    const generatedName = (await readProjects()).projects.find((p) => p.id === id)?.name;
+    expect(generatedName).toBeDefined();
+
+    await first.setDisplayName(id, 'Custom Invariant Name');
+    await (first as unknown as { syncWithRegistry(): Promise<void> }).syncWithRegistry();
+
+    const row = (await readProjects()).projects.find((p) => p.id === id);
+    expect(row?.name).toBe(generatedName);
+    expect(row?.displayName).toBe('Custom Invariant Name');
+  });
+
+  it('clearing the display name restores the generated name (R1 AC4, regression guard)', async () => {
+    const repo = makeRepo(base, 'disp-ac4');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+    const generatedName = first.getProjectsList().find((p) => p.projectId === id)?.projectName;
+
+    await first.setDisplayName(id, 'Temporary Name');
+    expect(first.getProjectsList().find((p) => p.projectId === id)?.projectName).toBe('Temporary Name');
+
+    await first.setDisplayName(id, null);
+    expect(first.getProjectsList().find((p) => p.projectId === id)?.projectName).toBe(generatedName);
+  });
+
+  it('does not change the project id when a display name is set (R1 AC5, regression guard)', async () => {
+    const repo = makeRepo(base, 'disp-ac5');
+    const first = await start();
+    const id = await first.addProjectByPath(repo);
+
+    await first.setDisplayName(id, 'Custom AC5 Name');
+
+    expect(first.getProjectsList().map((p) => p.projectId)).toEqual([id]);
+    expect(first.getProject(id)).toBeDefined();
+  });
+});
