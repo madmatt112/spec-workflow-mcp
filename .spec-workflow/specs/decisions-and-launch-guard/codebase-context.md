@@ -122,3 +122,51 @@
 ## Rules
 - .spec-workflow/agent-rules.md:24-39 — `## Checks`
 - src/dashboard/harness/run-setup.ts:72-141 — `readAgentRules`, the machine-read keys
+
+## Design phase additions — names and guard
+- src/dashboard/project-folding.ts:37-89 — `computeFolds`, linked worktrees fold into a parent and hold no context
+- src/dashboard/project-manager.ts:112-167 — `syncOnce`, the one reconcile
+- src/dashboard/project-manager.ts:233-236 — `addProject` remembers a project
+- src/dashboard/project-manager.ts:355-360 — `addProjectByPath` remembers an explicit-root project
+- src/advisor/summary.ts:111-112 — matches `project.name` against operator config
+- src/advisor/mcp-endpoint.ts:177 — MCP listing prints `project.name`
+- src/dashboard/shell/spec-rows.ts:83 — spec rows read `projectName` from the context
+- src/dashboard/shell/usage-rows.ts:37 — usage rows read `projectName` from the context
+- src/dashboard/harness/types.ts:31-41 — server `SetupView`
+- src/dashboard_frontend/src/modules/harness/types.ts:58 — client copy of `SetupView`
+- src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx:9-15 — `Project`, carries `projectPath`
+- src/dashboard_frontend/src/modules/projects/ProjectProvider.tsx:106 — `refreshProjects`
+
+## Design phase additions — cancel
+- src/controller/state.ts:417-423 — `readRunSync`
+- src/controller/state.ts:494-503 — `updateRun`, passes through `writeRunLocked`
+- src/controller/state.ts:505-518 — `writeLastActivityLocked`
+- src/controller/step.ts:72-78 — `StepClassification`
+- src/controller/step.ts:353-354 — `runStep` entry
+- src/controller/step.ts:506-511 — spawn and `onSpawn`
+- src/controller/waits.ts:87-104 — `createWait`
+- src/controller/phases/gates.ts:169-178 — gate A wait
+- src/controller/phases/gates.ts:256-265 — gate B wait
+- src/controller/merge.ts:729-742 — merge `ask` wait
+- src/controller/runs.ts:429-435 — `patchRun`
+- src/controller/runs.ts:450-471 — `stepLifecycle`
+- src/controller/runs.ts:750-754 — merge round cancel check
+- src/controller/controller.ts:382-395 — `Controller.discard`
+- src/controller/controller.ts:592-604 — `drive`, catches a thrown run
+- src/controller/controller.ts:731 — `isCancelled` dep, in-memory only
+- src/dashboard/multi-server.ts:817-823 — discard route, 409 on `branch-in-use`
+
+## Design phase additions — review loop and patch
+- src/controller/phases/document.ts:345 — `reviewRounds`, resets on re-entry
+- src/controller/phases/document.ts:452-468 — `reviserStep`
+- src/controller/phases/document.ts:522-523 — `ledgerRoundCount`, survives re-entry
+- src/tools/brief-templates.ts:457-462 — reviser variant descriptor
+- src/controller/phases/implementation.ts:231-239 — `flagText`
+- src/controller/phases/implementation.ts:389-390 — `commitSpecStore`
+- src/controller/phases/implementation.ts:533-545 — `stop`
+- src/controller/phases/implementation.ts:754 — first-pass `routeImplementerFlags` call
+- src/controller/phases/implementation.ts:912 — fix-round `routeImplementerFlags` call
+- src/core/task-parser.ts:424-444 — `taskBlock`, the task's line bounds
+- src/controller/ledger.ts:53-73 — `RunLedger`
+- src/watch/ledger.ts:420-428 — row render, an unknown type renders empty
+- src/tools/harness.ts:574-576 — `isStorePath`
