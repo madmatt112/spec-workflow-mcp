@@ -508,6 +508,35 @@ export class MultiProjectDashboardServer {
       return this.projectManager.getProjectsList();
     });
 
+    // Set or clear an operator display name (design C1; Data Models; Req 1.7).
+    this.app.post('/api/projects/:projectId/display-name', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const project = this.projectManager.getProject(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'project-not-found' });
+      }
+
+      const { displayName } = request.body as { displayName: unknown };
+      let value: string | null;
+      if (displayName === null) {
+        value = null;
+      } else if (typeof displayName === 'string') {
+        const trimmed = displayName.trim();
+        if (trimmed.length > 60 || /[\x00-\x1f\x7f]/.test(trimmed)) {
+          return reply.code(400).send({ error: 'display-name-invalid' });
+        }
+        value = trimmed.length > 0 ? trimmed : null;
+      } else {
+        return reply.code(400).send({ error: 'display-name-invalid' });
+      }
+
+      const ok = await this.projectManager.setDisplayName(projectId, value);
+      if (!ok) {
+        return reply.code(404).send({ error: 'project-not-remembered' });
+      }
+      return { success: true };
+    });
+
     // Add project manually
     this.app.post('/api/projects/add', async (request, reply) => {
       const { projectPath, workflowRootPath } = request.body as { projectPath: string; workflowRootPath?: unknown };
