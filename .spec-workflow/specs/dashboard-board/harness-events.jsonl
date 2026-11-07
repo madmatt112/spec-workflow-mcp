@@ -497,3 +497,11 @@
 {"ts":"2026-11-07T15:53:28.496Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P4","outcome":"skipped"}
 {"ts":"2026-11-07T15:53:28.497Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P14","outcome":"skipped"}
 {"ts":"2026-11-07T15:53:30.178Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.end","phase":"closeout","result":"closed","state":"items 16/16","note":"6 done, 3 to-do, 7 skipped"}
+{"ts":"2026-11-07T15:53:32.343Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"close-out merge: close-out PR #208 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-07T15:54:04.320Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"close-out merge: close-out PR #208 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-07T15:54:36.968Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"close-out merge: close-out PR #208 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-07T15:55:08.873Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"close-out merge: close-out PR #208 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #208 of spec-workflow-mcp)"}
+{"ts":"2026-11-07T15:55:56.082Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-11-07T15:56:01.717Z","run":"run-20261106-181042","spec":"dashboard-board","type":"pr.merged","number":"208","sha":"eb398376f185ad8cf294b6bec247c124f48481d1","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-07T15:56:01.721Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"close-out merge: close-out PR #208 of spec-workflow-mcp merged (merged close-out PR #208 of spec-workflow-mcp via merge)"}
+{"ts":"2026-11-07T15:56:01.724Z","run":"run-20261106-181042","spec":"dashboard-board","type":"run.end","status":"done"}
