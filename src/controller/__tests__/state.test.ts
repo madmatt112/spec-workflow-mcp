@@ -24,6 +24,8 @@ import {
   readProjects,
   rememberProject,
   pruneMissingProjects,
+  shownName,
+  setProjectDisplayName,
   type RunRecord,
   type WaitRecord,
   type QueueFile,
@@ -583,4 +585,133 @@ describe('pruneMissingProjects', () => {
     },
     15000
   );
+});
+
+// Contract for design C1 (requirement 1 AC 3): a durable displayName that
+// re-registration and a restart cannot touch.
+//
+// shownName(p) — pure, no seam I/O.
+//   - pre: p = { name: 'Proj A', displayName: 'tradr app' }
+//     call: shownName(p)
+//     result: 'tradr app' (design C1: "returns `displayName` when set")
+//   - pre: p = { name: 'Proj A' } (no displayName)
+//     call: shownName(p)
+//     result: 'Proj A' (design C1: "... and `name` when not")
+//
+// setProjectDisplayName(id, displayName) — under withProjectsLock.
+//   - pre: projects.json has a row with id 'proj-a'
+//     call: setProjectDisplayName('proj-a', 'tradr app')
+//     result: resolves true; the row in projects.json gains displayName
+//       'tradr app' (Success: "stores a name and returns true")
+//   - pre: the row for 'proj-a' already has displayName 'tradr app'
+//     call: setProjectDisplayName('proj-a', null)
+//     result: resolves true; the row has no `displayName` key at all
+//       (Success: "null removes the key and returns true"; Restriction:
+//       "never write a displayName key on a row that has none")
+//   - pre: projects.json has no row with id 'does-not-exist'
+//     call: setProjectDisplayName('does-not-exist', 'X')
+//     result: resolves false; projects.json's bytes and inode are
+//       unchanged (Success: "an unknown id returns false and writes
+//       nothing")
+//
+// rememberProject(project, now) — keeps an existing row's displayName.
+//   - pre: the row for 'proj-a' has displayName 'tradr app' and name 'Old Name'
+//     call: rememberProject({ id: 'proj-a', ..., name: 'New Generated Name' }, later)
+//     result: the row keeps displayName 'tradr app', and name/seen are
+//       refreshed to 'New Generated Name' / later's ISO time (Success:
+//       "rememberProject on a named row keeps displayName and refreshes
+//       name and seen")
+//   - pre: the row for 'proj-a' has no displayName
+//     call: rememberProject({ id: 'proj-a', ..., name: 'New Generated Name' }, now)
+//     result: the row still has no `displayName` key (Success: "rememberProject
+//       on an unnamed row adds no key")
+describe('display names (design C1)', () => {
+  const fixedNow = () => new Date('2026-11-07T00:00:00.000Z');
+  const laterNow = () => new Date('2026-11-07T01:00:00.000Z');
+
+  function sampleKnown(overrides: Partial<Omit<KnownProject, 'seen'>>): Omit<KnownProject, 'seen'> {
+    return {
+      id: 'proj-a',
+      workspacePath: '/code/proj-a',
+      workflowRootPath: '/code/proj-a',
+      name: 'Proj A',
+      ...overrides,
+    };
+  }
+
+  describe('shownName', () => {
+    it('returns the display name when set', () => {
+      expect(shownName({ name: 'Proj A', displayName: 'tradr app' })).toBe('tradr app');
+    });
+
+    it('returns the generated name when no display name is set', () => {
+      expect(shownName({ name: 'Proj A' })).toBe('Proj A');
+    });
+  });
+
+  describe('setProjectDisplayName', () => {
+    it('stores a name and returns true', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+
+      const result = await setProjectDisplayName('proj-a', 'tradr app');
+
+      expect(result).toBe(true);
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row?.displayName).toBe('tradr app');
+    });
+
+    it('null removes the key and returns true', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+      await setProjectDisplayName('proj-a', 'tradr app');
+
+      const result = await setProjectDisplayName('proj-a', null);
+
+      expect(result).toBe(true);
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row).toBeDefined();
+      expect(Object.keys(row!)).not.toContain('displayName');
+    });
+
+    it('an unknown id returns false and writes nothing', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+      const projectsFile = join(home, 'projects.json');
+      const before = await fs.stat(projectsFile);
+      const bytesBefore = await fs.readFile(projectsFile, 'utf-8');
+
+      const result = await setProjectDisplayName('does-not-exist', 'X');
+
+      expect(result).toBe(false);
+      const after = await fs.stat(projectsFile);
+      expect(after.ino).toBe(before.ino);
+      expect(await fs.readFile(projectsFile, 'utf-8')).toBe(bytesBefore);
+    });
+  });
+
+  describe('rememberProject keeps an existing displayName', () => {
+    it('on a named row keeps displayName and refreshes name and seen', async () => {
+      await rememberProject(sampleKnown({ name: 'Old Name' }), fixedNow);
+      await setProjectDisplayName('proj-a', 'tradr app');
+
+      await rememberProject(sampleKnown({ name: 'New Generated Name' }), laterNow);
+
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row?.displayName).toBe('tradr app');
+      expect(row?.name).toBe('New Generated Name');
+      expect(row?.seen).toBe('2026-11-07T01:00:00.000Z');
+    });
+
+    it('on an unnamed row adds no key', async () => {
+      await rememberProject(sampleKnown({ name: 'Old Name' }), fixedNow);
+
+      await rememberProject(sampleKnown({ name: 'New Generated Name' }), fixedNow);
+
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row).toBeDefined();
+      expect(Object.keys(row!)).not.toContain('displayName');
+    });
+  });
 });
