@@ -204,6 +204,11 @@ re-measured on the next real spec.
   proxy rewriting the request `Origin` on `/api` (`vite.config.ts`, fixed in 4064229c).
   The decomposition anticipates this so a worktree e2e suite's mutating fetch is not
   rediscovered mid-run as a proxy gap.
+- A negative e2e assertion — proving an element is absent after an action
+  (`toHaveCount(0)`) — first waits on the settling signal that action produces (here the
+  controller-actions snapshot updating), then asserts; it never asserts the absence
+  immediately after triggering the action. The decomposition names the settling signal in
+  the task's Success line so the test author writes the wait, not a later fix round.
 
 ## Sensitive paths
 
