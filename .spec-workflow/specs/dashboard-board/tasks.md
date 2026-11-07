@@ -93,7 +93,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 → 3 �
   - _Requirements: 1.6, 1.7_
   - _Prompt: Task: Per design C8, D15, D24 and D32, create pure `enable.ts` with `isEnabled`, `toggled` and `DEFAULT_OFF_NAMES`. `ProjectProvider` reads a second key `shell.projects.on` beside `shell.projects`, and `enabled(id)` and `toggle(id)` look the name up in `projects`. Create `board-view.test.ts` loading frontend modules at runtime as `deploy-view.test.ts` does, because a static import fails tsc | Restrictions: `shell.projects` keeps its meaning; an id not yet listed is enabled, as at base; no migration | Success: An id in `on` is enabled even when also in `off` and even when named `sdd-fixture`; an id in `off` only is disabled; an unset `sdd-fixture` is disabled; any other unset project, each tradr entry included, is enabled (D24); `toggled` on an unset `sdd-fixture` puts its id in `on`; `toggled` on an enabled project puts its id in `off` and removes it from `on`; toggling twice returns the first answer; `npx tsc --noEmit` and `npx vitest run src/dashboard/shell/__tests__/board-view.test.ts src/dashboard/__tests__/frontend-build.test.ts src/dashboard/__tests__/frontend-style-scan.test.ts` pass_
 
-- [ ] 8. Add the board's band lists
+- [x] 8. Add the board's band lists
   - File: src/dashboard_frontend/src/modules/shell/board.ts
   - File: src/dashboard/shell/__tests__/board-view.test.ts
   - Test: src/dashboard/shell/__tests__/board-view.test.ts — `needsYou(waits, actions, enabled)`

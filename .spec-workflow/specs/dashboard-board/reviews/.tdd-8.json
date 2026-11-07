@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/board-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/board-view.test.ts":"needsYou(waits, actions, enabled)"},"redCommit":"e14d6b431af92192dd289795773e78140182279b","baseSha":"c05d91b7272ec6773e3443795701c261b7fc7cde","base":"structural-red","head":"pass","amended":false,"judged":null}
