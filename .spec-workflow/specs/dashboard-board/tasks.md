@@ -18,7 +18,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 12.2_
   - _Prompt: Task: Per design C1 and D27, add optional `startedAt` and `task` strings to `InFlightStep` (`src/controller/state.ts:39-46`). Make `stepLifecycle`'s `onStepSpawn` (`src/controller/runs.ts:449-465`) accept an optional `task` and write both into `inFlight`, with `startedAt` from `deps.now().toISOString()` (requirement 12 AC 2). Export `stepLifecycle` so the test can call it (D46). Add `task?: string` to `onStepSpawn` on `ImplementationPhaseContext` (`src/controller/phases/implementation.ts:95`) and pass `opts.task` at the `onSpawn` call (`:469`) | Restrictions: Change no other phase's context (`document.ts`, `closeout.ts`, `retrospective.ts`, `merge-fix.ts` keep their narrower callback); add no new clear site; `startTime` stays the `/proc` value | Success: `onStepSpawn` with a task writes `inFlight.startedAt` equal to the injected clock's ISO string and `inFlight.task` equal to that task; `onStepSpawn` with no task writes `startedAt` and no `task` key; `onStepEnd` leaves `inFlight` undefined, so both fields clear (regression guard); during a task step the `onStepSpawn` passed to `runImplementationPhase` receives that task's id; `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/runs.test.ts src/controller/phases/__tests__/implementation.test.ts` pass_
 
-- [ ] 2. Add the cached branch-presence read
+- [x] 2. Add the cached branch-presence read
   - File: src/controller/branch-presence.ts
   - File: src/dashboard/harness/worktree.ts
   - File: src/controller/__tests__/branch-presence.test.ts

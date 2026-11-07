@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/branch-presence.test.ts"],"seams":{"src/controller/__tests__/branch-presence.test.ts":"branchPresent(run, read, now)"},"redCommit":"230b359cd504aca5c84f4c9778f5f37d934db219","baseSha":"07268e3434fecdad743aa669f32b7306ccf6fef1","base":"structural-red","head":"pass","amended":false,"judged":null}
