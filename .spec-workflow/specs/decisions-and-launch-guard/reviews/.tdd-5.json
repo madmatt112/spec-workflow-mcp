@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/launch-guard.test.ts"],"seams":{"src/dashboard/harness/__tests__/launch-guard.test.ts":"specFileList(workflowRoot, spec)"},"redCommit":"bd5b774ddf178dce18f02219718bb01fc10dc30c","baseSha":"8e4760b861a0838c081c891d638ffc078cf3d8e6","base":"structural-red","head":"pass","amended":false,"judged":null}
