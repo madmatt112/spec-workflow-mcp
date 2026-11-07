@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/frontend-style-scan.test.ts","src/dashboard/__tests__/frontend-tokens.test.ts"],"seams":{"src/dashboard/__tests__/frontend-tokens.test.ts":"declaredNames(themeBlock)"},"redCommit":"97447566623dcb09b991b9ad38f1cd81c369c88e","baseSha":"19f5eabeebcf63599e3f6399891f41efb2fe6473","base":"assertion-red","head":"pass","amended":true,"judged":null}

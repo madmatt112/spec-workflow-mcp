@@ -1503,4 +1503,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 16/23, stopped: design-defect — task 17: implementer reported REQUIRED for an off-list file — src/dashboard_frontend/src/modules/shell/board.ts, tiles.tsx, AnswerSheet.tsx, OpenAdvisor.tsx — each had a comment naming NowPage/RunsPage/Sidebar; the task's own Success grep and the author's "deleted symbols scrubbed" test walk all of FE_ROOT (not just File:), so passing required rewording these comments. tasks.md's File: list for task 17 should add these four.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
+| State | tasks 17/23, last commit face977e, next task 18 |

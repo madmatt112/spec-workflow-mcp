@@ -197,7 +197,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 → 3 �
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.1, 10.1, 10.2, 10.3, 11.5_
   - _Prompt: Task: Per design C7, C10 (`TabTitle`), D13 and D18, create `TopBar` and `OpenAdvisor` as design pins them, and a null-rendering `TabTitle.tsx` that sets `document.title` from the title function task 9 exports. In `App.tsx`, `Shell` renders `TopBar` then `main` with `TabTitle` beside it, and the two `/runs` routes go; the catch-all stays. In `src/dashboard_frontend/src/modules/shell/Gear.tsx`, the panel opens downward, `:75-99` and the `:14` destructure go, and one switch per project joins it, sorted by name, keeping test id `project-toggle-` plus the id; its header comment stops naming the sidebar and density | Restrictions: `DeployControl` takes no props; the links carry no counts; no project dot or live count in the gear (D13); the gear does not read `useShell` for density | Success: The header holds Home, Specs, Usage, Deferrals, Deploy, Open advisor and the gear in that order; no link shows a count; Open advisor posts as before and a long result wraps; the gear panel opens below its button; it holds the theme toggle, a named switch per project, the notification setting and the version; no density control exists; a switch persists across a reload and removes that project's wait, run and Next tiles; unset `sdd-fixture` is off on the board and in the gear; turned on it stays on across a reload; another unset project stays on; no `disconnected-marker` exists and `ConnectionBanner` still shows (regression guard); `/#/runs` and `/#/runs/x` land on Home; the title reads `2 · 4h20m` with two open waits; a staged action and a disabled project's wait do not count; with none it is the `index.html` title; at 390 px with the deploy strip open and an advisor result showing, `scrollWidth` does not exceed the viewport on Home, Specs, Usage and Deferrals; `npx playwright test -c playwright.worktree.config.ts e2e/worktree-board.spec.ts` and `npx vitest run src/dashboard/__tests__/frontend-build.test.ts src/dashboard/__tests__/frontend-style-scan.test.ts` pass_
 
-- [ ] 17. Delete the old pages and what only they read in the frontend
+- [x] 17. Delete the old pages and what only they read in the frontend
   - File: src/dashboard_frontend/src/modules/shell/NowPage.tsx
   - File: src/dashboard_frontend/src/modules/shell/RunsPage.tsx
   - File: src/dashboard_frontend/src/modules/shell/RunPage.tsx
@@ -210,6 +210,10 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 → 3 �
   - File: src/dashboard_frontend/src/modules/theme/tokens.css
   - File: src/dashboard/__tests__/frontend-tokens.test.ts
   - File: src/dashboard/__tests__/frontend-style-scan.test.ts
+  - File: src/dashboard_frontend/src/modules/shell/board.ts
+  - File: src/dashboard_frontend/src/modules/shell/tiles.tsx
+  - File: src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx
+  - File: src/dashboard_frontend/src/modules/shell/OpenAdvisor.tsx
   - Test: src/dashboard/__tests__/frontend-tokens.test.ts — `declaredNames(themeBlock)`
   - Note: count grep: `grep -rn -e sidebar-w -e row-h-compact src e2e`. `src/dashboard/__tests__/frontend-tokens.test.ts:126-127` and `src/dashboard/__tests__/frontend-style-scan.test.ts:338` change value; the literal paths at `:249` and `:311` do not.
   - Purpose: Nothing stale stays in the frontend.
