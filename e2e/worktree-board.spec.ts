@@ -77,7 +77,13 @@ function baseRun(id: string, project: string, overrides: Partial<RunRecord> = {}
     v: 1, id, project,
     codeRoot: '/tmp/e2e-board-nonexistent', specStore: '/tmp/e2e-board-nonexistent',
     spec: 'e2e-board-run-spec', worktree: '/tmp/e2e-board-nonexistent', branch: 'feat/e2e-board',
-    status: 'merging',
+    // 'running', not 'merging': the real Controller's scheduler (not gated by
+    // SDD_DEPLOY_DISABLED) treats any on-disk 'merging' run with no `resumeAt`
+    // as startable and drives it, raising its own "no pull request" error
+    // wait for this nonexistent codeRoot. `mergeRead`/the tile only read
+    // `prReads`, never `status`, so 'running' renders identically and stays
+    // untouched by the scheduler.
+    status: 'running',
     created: isoAgo(5 * 60_000), updated: isoAgo(60_000),
     tokens: BASE_TOKENS,
     ...overrides,
