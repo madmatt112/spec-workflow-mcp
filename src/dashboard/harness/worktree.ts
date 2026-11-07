@@ -116,7 +116,7 @@ async function remoteStartPoint(cwd: string): Promise<string | null> {
   return null;
 }
 
-async function branchExists(cwd: string, branch: string): Promise<boolean> {
+export async function branchExists(cwd: string, branch: string): Promise<boolean> {
   try {
     await execFileAsync('git', ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], {
       cwd, env: scrubbedGitEnv(),
