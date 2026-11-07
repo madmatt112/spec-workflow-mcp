@@ -8,12 +8,14 @@ import { secretPath } from '../src/controller/access.js';
 import type { PrRead, RunRecord } from '../src/controller/state.js';
 
 /**
- * Browser checks of the five-route dashboard shell (design Testing Strategy
+ * Browser checks of the four-route dashboard shell (design Testing Strategy
  * end-to-end; decomposition checks 5 and 6). Runs on the same two-worktree
  * `--no-shared-worktree-specs` harness as e2e/worktree-no-shared.spec.ts: nav
- * order, the catch-all redirect, the project toggle and its persistence, the
- * density radio, group-collapse persistence, a live gate-A wait with no reload,
- * and the no-sideways-scroll rule at two narrow widths.
+ * order, the catch-all redirect (including the removed Runs route), the
+ * project toggle opened from the gear and its persistence, the Specs panel
+ * stacking rule, the Deferrals and Usage pages, the no-sideways-scroll rule at
+ * two narrow widths, and the Home run tile's pause note text and Pause/Resume
+ * controls.
  *
  * The suite file name matches `WORKTREE_SPEC_PATTERN`, so it runs only under
  * playwright.worktree.config.ts, which isolates both SPEC_WORKFLOW_HOME and
@@ -22,10 +24,11 @@ import type { PrRead, RunRecord } from '../src/controller/state.js';
 
 const DASHBOARD_API_BASE_URL = 'http://127.0.0.1:5084';
 
-const NAV_ORDER = ['nav-now', 'nav-runs', 'nav-specs', 'nav-usage', 'nav-deferrals'];
-const SHELL_PAGES = ['/', '/runs', '/specs', '/usage', '/deferrals'];
-// Real routes with no page, and one unknown route: every one lands on `/`.
-const REDIRECTED = ['/approvals', '/steering', '/specs/view', '/harness', '/overview', '/nope'];
+const NAV_ORDER = ['nav-home', 'nav-specs', 'nav-usage', 'nav-deferrals'];
+const SHELL_PAGES = ['/', '/specs', '/usage', '/deferrals'];
+// Real routes with no page, the removed Runs route (bare and with a param),
+// and one unknown route: every one lands on `/`.
+const REDIRECTED = ['/approvals', '/steering', '/specs/view', '/harness', '/overview', '/nope', '/runs', '/runs/x'];
 
 function getProjectByPathSuffix(projects: RegisteredProject[], suffix: string): RegisteredProject {
   const project = projects.find((entry) => entry.projectPath.endsWith(`/${suffix}`) || entry.projectPath.endsWith(`\\${suffix}`));
@@ -202,7 +205,7 @@ test.describe.serial('Dashboard shell end to end', () => {
     }
   });
 
-  test('the five nav links appear in the fixed order', async ({ page }) => {
+  test('the four nav links appear in the fixed order', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/');
 
@@ -212,12 +215,12 @@ test.describe.serial('Dashboard shell end to end', () => {
     expect(ids).toEqual(NAV_ORDER);
   });
 
-  test('every path with no page redirects to Now', async ({ page }) => {
+  test('every path with no page, including the removed Runs route, redirects to Home', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     for (const path of REDIRECTED) {
       await page.goto(`/#${path}`);
-      // The Now page's first group proves we landed there, and the hash is reset.
-      await expect(page.getByTestId('group-now-waits')).toBeVisible({ timeout: 15000 });
+      // Home's Needs-you band proves we landed there, and the hash is reset.
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
       await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('#/');
     }
   });
@@ -231,6 +234,8 @@ test.describe.serial('Dashboard shell end to end', () => {
     await expect(rowA).toBeVisible({ timeout: 15000 });
     await expect(rowB).toBeVisible();
 
+    // The toggle lives in the gear panel now (task 16), so it opens first.
+    await page.getByTestId('gear-toggle').click();
     await page.getByTestId(`project-toggle-${projectB.projectId}`).click();
     await expect(rowB).toHaveCount(0);
     await expect(rowA).toBeVisible();
@@ -238,60 +243,6 @@ test.describe.serial('Dashboard shell end to end', () => {
     await page.reload();
     await expect(rowA).toBeVisible({ timeout: 15000 });
     await expect(rowB).toHaveCount(0);
-  });
-
-  test('the density radio switches a row height between 36 and 32 px', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/#/specs');
-
-    const rowA = page.getByTestId(`spec-row-${projectA.projectId}-spec-a`);
-    await expect(rowA).toBeVisible({ timeout: 15000 });
-    expect(Math.round((await rowA.boundingBox())!.height)).toBe(36);
-
-    await page.getByTestId('gear-toggle').click();
-    await page.getByTestId('density-compact').click();
-    await expect.poll(async () => Math.round((await rowA.boundingBox())!.height)).toBe(32);
-
-    await page.getByTestId('density-comfortable').click();
-    await expect.poll(async () => Math.round((await rowA.boundingBox())!.height)).toBe(36);
-  });
-
-  test('a collapsed group stays collapsed after a reload', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/');
-
-    const toggle = page.getByTestId('group-now-live').locator('button[aria-expanded]');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 15000 });
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-    await page.reload();
-    const toggleAfter = page.getByTestId('group-now-live').locator('button[aria-expanded]');
-    await expect(toggleAfter).toHaveAttribute('aria-expanded', 'false', { timeout: 15000 });
-  });
-
-  test('a live gate-A phase.end surfaces the gate wait within 5 s with no reload', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/');
-
-    // Only the `run.start` row is present, so there is no gate wait yet.
-    await expect(page.getByTestId('group-now-waits')).toBeVisible({ timeout: 15000 });
-    const gateRow = page.getByTestId(`wait-row-gate-${projectA.projectId}`);
-    await expect(gateRow).toHaveCount(0);
-
-    // Append the phase rows; the overview watch + shell feed push shell-now.
-    await appendFile(
-      ledgerPathA,
-      JSON.stringify({ ts: '2026-10-06T10:01:00.000Z', type: 'phase.start', run: 'run-1', spec: 'spec-a', phase: 'requirements' }) + '\n',
-      'utf-8'
-    );
-    await appendFile(
-      ledgerPathA,
-      JSON.stringify({ ts: '2026-10-06T10:02:00.000Z', type: 'phase.end', run: 'run-1', spec: 'spec-a', phase: 'requirements', result: 'gate-a' }) + '\n',
-      'utf-8'
-    );
-
-    await expect(gateRow).toBeVisible({ timeout: 5000 });
   });
 
   test('at 1000 px the panel stacks below the list', async ({ page }) => {
@@ -306,42 +257,6 @@ test.describe.serial('Dashboard shell end to end', () => {
     const listBox = (await page.getByTestId('page-list').boundingBox())!;
     const panelBox = (await page.getByTestId('page-panel').boundingBox())!;
     expect(panelBox.y).toBeGreaterThanOrEqual(listBox.y + listBox.height - 2);
-  });
-
-  test('(R1) the Run page shows the PR panel with both reads, the sha, reasons and CI chips', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    // Open the run from the Runs list — the operator's own path in. The Runs
-    // page makes no harness subscription, so its `controller-runs` arrives on the
-    // overview feed like the Now page's; its row (and the panel's Open-run
-    // button) are the DOM signal that the run reached the shared shell state,
-    // which the run page then reuses (ShellProvider stays mounted throughout).
-    await page.goto('/#/runs');
-    await page.getByTestId('ctrl-run-row-e2e-pr-panel').click({ timeout: 15000 });
-    await page.getByTestId('ctrl-open-run').click();
-
-    await expect(page.getByTestId('pr-panel')).toBeVisible({ timeout: 15000 });
-
-    const runRow = page.getByTestId('pr-row-alpha-service-42');
-    const closeoutRow = page.getByTestId('pr-row-beta-service-7');
-    await expect(runRow).toBeVisible();
-    await expect(closeoutRow).toBeVisible();
-
-    // The merged row shows the first 7 characters of the merge sha.
-    await expect(runRow).toContainText('cafef00');
-
-    // One CI chip per read, coloured by state.
-    await expect(page.getByTestId('pr-ci-alpha-service-42')).toHaveText('green');
-    await expect(page.getByTestId('pr-ci-beta-service-7')).toHaveText('red');
-
-    // Each reason of the blocked close-out read is its own line.
-    await expect(closeoutRow).toContainText('conflicts with the base branch');
-    await expect(closeoutRow).toContainText('a required check is failing');
-
-    // (R4) the read that adds a dependency shows the chip and the names joined
-    // by ", "; the read without the field shows no chip.
-    await expect(page.getByTestId('pr-deps-alpha-service-42')).toHaveText('new dependency');
-    await expect(runRow).toContainText('left-pad, ms');
-    await expect(page.getByTestId('pr-deps-beta-service-7')).toHaveCount(0);
   });
 
   test('(R2) the Deferrals page owner chip counts, filters by AND and shows the owner', async ({ page }) => {
@@ -390,7 +305,8 @@ test.describe.serial('Dashboard shell end to end', () => {
   });
 
   test('no page scrolls sideways at widths 1000 and 375', async ({ page }) => {
-    const markerFor = (path: string) => (path === '/usage' ? 'usage-closed-specs' : 'page-list');
+    const markerFor = (path: string) =>
+      path === '/usage' ? 'usage-closed-specs' : path === '/' ? 'band-needs-you' : 'page-list';
 
     for (const width of [1000, 375]) {
       await page.setViewportSize({ width, height: 900 });
@@ -412,7 +328,9 @@ test.describe.serial('Dashboard shell end to end', () => {
 
   // --- Pause note text (design C8; Requirement 6 AC 3/AC4/AC5) ---------------
   // Each test seeds its own run.json, as the PR-panel seed at lines 164-174
-  // does, and removes it at the end so later tests see a clean run list.
+  // does, and removes it at the end so later tests see a clean run list. The
+  // run now lives as a tile in Home's Running band (task 11-14), not a
+  // separate Runs page row, so each case reads the tile's text directly.
 
   test('(R5) an applied operator pause reads "paused by you" with no resume part', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -434,16 +352,16 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
-    await expect(note).toBeVisible({ timeout: 15000 });
-    await expect(note).toHaveText(/^paused by you/);
-    await expect(note).not.toContainText('resumes in');
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    await expect(tile).toContainText('paused by you');
+    await expect(tile).not.toContainText('resumes in');
 
     await rm(runDir, { recursive: true, force: true });
   });
 
-  test('(R5) a pending pause on a waiting run shows "pause requested"', async ({ page }) => {
+  test('(R5) a pending pause on a waiting run reads "pausing after this step"', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const runId = 'e2e-pause-pending-waiting';
@@ -462,10 +380,10 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
-    await expect(note).toBeVisible({ timeout: 15000 });
-    await expect(note).toContainText('pause requested');
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    await expect(tile).toContainText('pausing after this step');
 
     await rm(runDir, { recursive: true, force: true });
   });
@@ -492,19 +410,20 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    const note = page.getByTestId(`ctrl-run-pause-${runId}`);
-    await expect(note).toBeVisible({ timeout: 15000 });
-    await expect(note).toContainText('usage-limit');
-    await expect(note).toContainText('resumes in');
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    await expect(tile).toContainText('usage-limit');
+    await expect(tile).toContainText('resumes in');
 
     await rm(runDir, { recursive: true, force: true });
   });
 
   // --- Pause and Resume buttons (design C9; Requirement 6 AC 1 to AC 4) ------
   // Each test seeds its own run.json, as the pause-note tests above do, and
-  // removes it at the end. The row-click test performs a real mutation
-  // through the pause route, so it logs in first, the same way
+  // removes it at the end. Pause and Resume are pressed on the tile itself
+  // now (RunTile; no row or panel). The tile-click test performs a real
+  // mutation through the pause route, so it logs in first, the same way
   // worktree-visual.spec.ts's `login` does; the mocked-failure test never
   // reaches the server, so it needs no session.
 
@@ -513,7 +432,7 @@ test.describe.serial('Dashboard shell end to end', () => {
     await page.context().request.post('/api/login', { data: { secret } });
   }
 
-  test('(R6) clicking the row Pause of an unheld waiting run selects nothing and opens no panel, then the row shows the pending note with no Pause button', async ({ page }) => {
+  test('(R6) pressing an unheld waiting run tile\'s Pause removes the Pause button and shows "pausing after this step"', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await login(page);
 
@@ -532,10 +451,10 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    const row = page.getByTestId(`ctrl-run-row-${runId}`);
-    await expect(row).toBeVisible({ timeout: 15000 });
-    const pauseButton = page.getByTestId(`ctrl-row-pause-${runId}`);
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    const pauseButton = page.getByTestId(`run-pause-${runId}`);
     await expect(pauseButton).toBeVisible();
 
     // (F2 regression) the frontend runs on a non-default port, so this browser
@@ -546,16 +465,13 @@ test.describe.serial('Dashboard shell end to end', () => {
     await pauseButton.click();
     expect((await pauseResponse).ok()).toBe(true);
 
-    await expect(row).toHaveAttribute('data-selected', 'false');
-    await expect(page.getByTestId('ctrl-run-panel')).toHaveCount(0);
-
     await expect(pauseButton).toHaveCount(0, { timeout: 15000 });
-    await expect(page.getByTestId(`ctrl-run-pause-${runId}`)).toContainText('pause requested', { timeout: 15000 });
+    await expect(tile).toContainText('pausing after this step', { timeout: 15000 });
 
     await rm(runDir, { recursive: true, force: true });
   });
 
-  test('(R6) a failed row Pause shows "pause failed (500)" in a role alert and opens no panel', async ({ page }) => {
+  test('(R6) a failed tile Pause shows the failed stage and its reason', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const runId = 'e2e-pause-row-fail';
@@ -571,23 +487,23 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    const row = page.getByTestId(`ctrl-run-row-${runId}`);
-    await expect(row).toBeVisible({ timeout: 15000 });
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
 
     await page.route(`**/api/controller/runs/${runId}/pause`, (route) =>
       route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) }),
     );
 
-    await page.getByTestId(`ctrl-row-pause-${runId}`).click();
+    await page.getByTestId(`run-pause-${runId}`).click();
 
-    await expect(row.getByRole('alert')).toContainText('pause failed (500)', { timeout: 15000 });
-    await expect(page.getByTestId('ctrl-run-panel')).toHaveCount(0);
+    await expect(tile).toContainText('failed', { timeout: 15000 });
+    await expect(tile).toContainText('boom');
 
     await rm(runDir, { recursive: true, force: true });
   });
 
-  test('(R6) a held operator-paused run panel shows Resume (operator) and no Resume now', async ({ page }) => {
+  test('(R6) a held operator-paused run tile shows Resume and no Pause', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const runId = 'e2e-pause-panel-operator';
@@ -605,19 +521,18 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    await page.getByTestId(`ctrl-run-row-${runId}`).click();
-    await expect(page.getByTestId('ctrl-run-panel')).toBeVisible({ timeout: 15000 });
-
-    await expect(page.getByTestId('ctrl-resume-operator')).toBeVisible();
-    await expect(page.getByTestId('ctrl-resume')).toHaveCount(0);
+    await page.goto('/');
+    const tile = page.getByTestId(`run-tile-${runId}`);
+    await expect(tile).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId(`run-resume-${runId}`)).toBeVisible();
+    await expect(page.getByTestId(`run-pause-${runId}`)).toHaveCount(0);
 
     await rm(runDir, { recursive: true, force: true });
   });
 
   // Regression guard (task 8 Note, holds at base): any `paused` run already
-  // shows Resume now before this task, so this case stays green throughout.
-  test('(R6) a usage-limit paused run panel shows Resume now', async ({ page }) => {
+  // shows Resume before this task, so this case stays green throughout.
+  test('(R6) a usage-limit paused run tile shows Resume', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const runId = 'e2e-pause-panel-usage';
@@ -635,11 +550,8 @@ test.describe.serial('Dashboard shell end to end', () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(join(runDir, 'run.json'), JSON.stringify(runRecord, null, 2) + '\n', 'utf-8');
 
-    await page.goto('/#/runs');
-    await page.getByTestId(`ctrl-run-row-${runId}`).click();
-    await expect(page.getByTestId('ctrl-run-panel')).toBeVisible({ timeout: 15000 });
-
-    await expect(page.getByTestId('ctrl-resume')).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByTestId(`run-resume-${runId}`)).toBeVisible({ timeout: 15000 });
 
     await rm(runDir, { recursive: true, force: true });
   });
