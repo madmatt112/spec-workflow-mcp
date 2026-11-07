@@ -372,3 +372,14 @@
 {"ts":"2026-11-07T10:33:39.355Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 21","result":"yes/21","phase":"implementation","task":"21"}
 {"ts":"2026-11-07T10:33:54.688Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 21 pass risk low"}
 {"ts":"2026-11-07T10:33:54.697Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"21","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-07T10:33:54.839Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"22","title":"Rewrite the deploy and visual browser suites"}
+{"ts":"2026-11-07T10:33:54.848Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 22 pick head 99f22093d4512e1e8f81a9da129bc8994674de8d"}
+{"ts":"2026-11-07T10:33:54.894Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-test-author","role":"author task 22","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T10:36:03.447Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-test-author","input":"30","output":"9904","cacheWrite":"47866","cacheRead":"913230","tokens":"971030","cacheWrite5m":"0","cacheWrite1h":"47866","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T10:36:03.447Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-test-author","role":"author task 22","result":"RED-IMPOSSIBLE: all criteria of task 22 already hold at base","phase":"implementation","task":"22"}
+{"ts":"2026-11-07T10:36:03.493Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 22 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-07T10:36:03.493Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-implementer","role":"implement task 22","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T10:42:30.069Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-implementer","input":"116","output":"21027","cacheWrite":"103024","cacheRead":"5462150","tokens":"5586317","cacheWrite5m":"0","cacheWrite1h":"103024","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T10:42:30.069Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 22","result":"yes/22","phase":"implementation","task":"22"}
+{"ts":"2026-11-07T10:42:53.617Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 22 pass risk low"}
+{"ts":"2026-11-07T10:42:53.626Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"22","rounds":"0","outcome":"gate"}

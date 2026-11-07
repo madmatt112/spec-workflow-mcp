@@ -281,7 +281,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 1.1, 1.4, 2.5_
   - _Prompt: Task: Per requirement 2 AC 5, read test ids from the merged code. In `e2e/worktree-project-list.spec.ts` replace `navCount` (`:72-75`) with counts of rows on the Specs and Deferrals pages, open the gear before a toggle, and delete the describe at `:238`, whose dots, live counts and sidebar order no longer exist (D13). In `e2e/worktree-no-shared.spec.ts` the case at `:56` finds the toggles in the gear and the case at `:69` opens the gear before `:82`. Update file comments that name the sidebar | Restrictions: Test files only; keep the shared-store expectation that one store counts once; a product defect found here is reported, not fixed | Success: A shared store shows its spec and deferral once with every project on, and once with the representative off; turning both off shows none; both projects show as gear switches; a toggle hides that project's specs; `grep -n -e navCount -e project-dot -e project-live-count -e Sidebar e2e/worktree-project-list.spec.ts e2e/worktree-no-shared.spec.ts` finds nothing; `npx playwright test -c playwright.worktree.config.ts e2e/worktree-project-list.spec.ts e2e/worktree-no-shared.spec.ts` passes_
 
-- [ ] 22. Rewrite the deploy and visual browser suites
+- [x] 22. Rewrite the deploy and visual browser suites
   - File: e2e/worktree-deploy.spec.ts
   - File: e2e/worktree-visual.spec.ts
   - File: e2e/helpers/shell-seed.ts

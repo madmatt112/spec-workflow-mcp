@@ -149,3 +149,13 @@ Cost: 1 spawn
 task 21 closed: 0 fix round(s), outcome gate
 Evidence: task 21 · mark run-20261106-181042 178839f8
 Cost: 1 implementer spawn(s)
+
+## 2026-11-07T10:36:03Z · implementation · task 22 · doc-gap
+red-impossible on every criterion: all criteria of task 22 already hold at base; routed implementer-only
+Evidence: task 22 · mark run-20261106-181042 a9501ddf
+Cost: 1 spawn
+
+## 2026-11-07T10:42:53Z · implementation · task 22 · gotcha
+task 22 closed: 0 fix round(s), outcome gate
+Evidence: task 22 · mark run-20261106-181042 a2f11a2d
+Cost: 1 implementer spawn(s)
