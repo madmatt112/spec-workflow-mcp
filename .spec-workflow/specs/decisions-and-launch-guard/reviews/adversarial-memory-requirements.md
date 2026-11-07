@@ -1,11 +1,15 @@
 # Adversarial Review Memory — requirements
-
-Last updated: 2026-11-07 (round 1, v1)
+Last updated: 2026-11-07 (after v2 review)
 
 ## Cumulative Findings Summary
 
 ### Accepted
-- (none yet — round 1)
+- **R1-1 (SHOULD_FIX, v1)** — Req 2: no-`tasks.md` common branch unverified. v2 added a
+  second Verification scenario; under-two-roots disambiguation deferred to design.
+- **R1-2 (MINOR, v1)** — Req 2 AC5 now cites base one-press path `HomePage.tsx:188-194`.
+- **R1-3 (MINOR, v1)** — Req 3 AC1 now states each decision is one line (`runs.ts:356`).
+- **R1-4 (MINOR, v1)** — Req 3 AC5 now flags the no-change match as heuristic, design-tested.
+- **R1-5 (MINOR, v1)** — Intro now "eleven operator items", not "operator-reported defects".
 
 ### Partially Accepted
 - (none)
@@ -14,40 +18,35 @@ Last updated: 2026-11-07 (round 1, v1)
 - (none)
 
 ### Unresolved
-- **R1-1 (SHOULD_FIX, Novel)** — Req 2 AC7 calls the no-`tasks.md` path "the common case
-  at launch" and puts the novel guard logic there, but the only stated Verification (and
-  decomposition e2e item 2) exercise the `tasks.md` File:-entry branch. Common/risky
-  branch unverified. Fix: add a no-`tasks.md` verification or explicit design-owned
-  deferral; include the cross-repo path-disambiguation rule.
-- **R1-2 (MINOR)** — Req 2 AC5 invariant carries no citation (base one-press is
-  `HomePage.tsx:188-194`).
-- **R1-3 (MINOR)** — Req 3 AC1 `## Decisions` read assumes single-line answers
-  (`buildRetroPlanMarkdown` inlines, `runs.ts:356`); multi-line / `→` answers truncate.
-- **R1-4 (MINOR)** — Req 3 AC5 "chooses no change" is a heuristic free-text match, test
-  deferred; pin it in design.
-- **R1-5 (MINOR)** — Intro "eleven operator-reported defects": items 4 & 5 are retro
-  efficiency decisions, not operator-reported defects.
+- **R2-1 (SHOULD_FIX, Novel, v2)** — Req 10 AC1/AC2: tone via `runDot` colours a driven
+  (healthy) run `danger` after a ≥15-min activity gap in one step, defeating the user
+  story ("a long healthy run does not look broken"); AC2 "healthy run older than 1 hour →
+  neutral" contradicts AC1 for that case and leaves "healthy" undefined. Fix: reserve
+  `danger` for `isStalled`, or state that a driven activity-gap red is intended; reframe
+  AC2 as "age alone no longer forces danger".
+- **R2-2 (MINOR, Compounds R1-1, v2)** — Req 2 second Verification scenario states no
+  concrete pass/fail outcome (source design-deferred); bind design/tasks to supply it.
+- **R2-3 (MINOR, v2)** — Req 9 AC3 "less visual weight than Running" is unquantified.
 
 ## Patterns & Themes
-- Citations are strong: all diff-delta line corrections and all load-bearing artifact
-  cites verified accurate against code. No misstated artifact.
-- The board requirements (R8/R9/R10) ride existing `ControllerRunRow` wire fields — no new
-  wire contract needed. R2's guard rides the existing `/harness/setup` → `SetupView` fetch
-  (tied to the 30s poll by NFR Performance).
-- Recurring soft spot: phase-to-phase **text-format contracts** (`## Decisions` lines;
-  free-text "no change" answers) are specified behaviourally but their parse robustness is
-  deferred to design.
-- Verification lines lean on the `tasks.md` launch branch while AC7 says the no-`tasks.md`
-  branch is the common one.
+- Citations remain strong. v2's two new citations (`HomePage.tsx:188-194`, `runs.ts:356`)
+  both verified; the D1–D13 reformat dropped options lists without factual drift. No
+  misstated artifact in any round. No MUST_FIX in either round.
+- The board requirements lean on existing frontend helpers (`runDot`, `isStalled`,
+  `ageTone`, `MOVING_STATUSES`, `stoppedAdmitted`) — accurate to code — but Req 10 adopts
+  `runDot`'s thresholds without reconciling them to its own user-story intent. Soft spot:
+  ACs that cite a helper as the rule, then add an illustrative AC (AC2) on a different
+  axis than the helper actually uses.
+- Recurring theme carried from round 1: behaviour pinned to an existing mechanism, with
+  an edge case (quiet-but-driven run; no-`tasks.md` branch) left implicit.
 
 ## Guidance for Next Review
-- Fresh lenses already used: wire contracts (round 1). Pick a different lens next round
-  (e.g. failure-mode / idempotency, or testability of acceptance criteria).
-- If v2 adds a no-`tasks.md` verification, scope the re-check to that addition vs AC7
-  (fix-induced re-check), not a whole re-review.
-- Do not re-open: the translatePath equivalence (host-conditional but accepted), the
-  cross-project "name the project to use" mechanism (frontend combines per-project
-  booleans — implementable, no gap), AC8 "registry data" vs AC3 projects.json (read path
-  vs durable source — coherent).
-- Verify any NEW citations v2 introduces (especially around the guard source and the label
-  schema change in `document.ts`/`adversarial-review.ts`).
+- Fresh lenses used: wire contracts (r1), testability-vs-user-story (r2). Next round pick
+  another — e.g. idempotency/restart ordering (Req 7 AC3/AC4 across a restart), or the
+  close-out batch-brief dataflow (Req 3 AC3/AC4 `itemsText`).
+- If v3 re-words Req 10, scope the re-check to AC1/AC2/AC3 coherence (does `danger` now
+  track `isStalled`, and does "healthy" have a definition?) — fix-induced re-check.
+- Well-covered, do not re-mine: Req 1 durable-vs-read path, Req 2 cross-project tile
+  mechanism and one-run-per-store, Req 3 `## Decisions` single-line read, Req 5 label
+  contract, Req 7 the five `runStep` sites and the wait-site citations, the
+  translatePath host-conditional equivalence. All verified accurate.
