@@ -175,6 +175,11 @@ re-measured on the next real spec.
 - A verification result worse than baseline is recorded as a retro finding, not a silent
   pass and not a merge block (D9): the operator records the signal and lets the merge
   proceed.
+- When a gate fail carries only proxy or infra noise (a vite ws-proxy
+  `ECONNRESET`/`EPIPE` at teardown, a CPU-starvation timeout) and the same implementer
+  commit re-runs clean, the implementer and the gate record the flakiness as infra noise
+  and stop. One clean re-run settles it; no code fix is attempted against noise the code
+  did not cause, and the task does not chase it through further fix rounds (retro P11).
 - A check or suite that fails at base in two or more specs stops being an eternal D9
   signal. The next decomposition adds a tracked fix task for it, the same graduation the
   lint false-positive rule applies.
