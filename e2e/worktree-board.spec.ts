@@ -1042,6 +1042,55 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criterion "a staged action on a registered, named project shows the
+  // name and not the id" (task 4 Success; Requirement 1 AC 6 "WHEN a
+  // staged action tile renders THEN it SHALL show the project's display
+  // name"). The companion case — an action on an unknown project still
+  // shows the raw id — is the task's own Note: `(R5 AC1)` above already
+  // seeds an unregistered project and asserts its raw id shows, so that
+  // half is a regression guard, not retested here.
+  //   Pre-condition: a project registered through `POST /api/projects/add`,
+  //   given a display name through `POST /api/projects/:id/display-name`,
+  //   and a staged action whose `target.project` is that project's real id.
+  //   Test: page.goto('/'), then the action's tile's text content.
+  //   Observable result: the tile's text contains the display name and
+  //   does not contain the raw project id.
+  //   Expected-value source: design C1 "`ActionTile` takes `projectName:
+  //   (id: string) => string`, and `actionTarget` prints that for
+  //   `t.project`"; Requirement 1 AC 6.
+  test('(R1 AC6) a staged action on a registered, named project shows the display name, not the id', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-action-named-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath: a `setDisplayName` call needs a durable
+    // `projects.json` row, which `addProjectByPath`'s no-override branch
+    // never writes (`src/dashboard/project-manager.ts:321-341`).
+    const projectId = await registerProjectAt(page, dir, dir);
+    const displayName = 'Action Named Project';
+    const setRes = await page.request.post(`/api/projects/${projectId}/display-name`, {
+      data: { displayName },
+    });
+    expect(setRes.ok()).toBe(true);
+
+    const actionId = 'e2e-board-action-named-action';
+    const spec = 'e2e-board-action-named-spec';
+    const action = baseAction(actionId, {
+      kind: 'backlog',
+      target: { project: projectId, spec },
+      reason: 'Needs a name, not an id.',
+    });
+    await writeActionRecord(action);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText(displayName);
+      await expect(tile).not.toContainText(projectId);
+    } finally {
+      await removeActionRecord(actionId);
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
   // Criterion "pressing Confirm shows pressed, then running, with the
   // control disabled" (task 12 Success; Requirement 9 AC 1 "its tile SHALL
   // show the stages pressed, running, done, or failed ..., and the pressed
@@ -3048,6 +3097,151 @@ test.describe('Shell (top bar, gear and tab title)', () => {
     } finally {
       await removeDeployRecord();
       await unregisterProject(page, overflowProjectId, overflowDir);
+    }
+  });
+
+  // Criterion "saving a name shows it in the gear row and on a wait tile of
+  // that project with no reload" (task 4 Success; Requirement 1 AC 1, AC 7
+  // "The operator SHALL set a display name with no code change"). The gear
+  // row and the wait tile both read `ProjectProvider`'s one `projects` list
+  // (design C1 `syncOnce` maps every `displayName` into the same
+  // `remembered` map task 1-2 already wire into `getProjectsList()`), so a
+  // single rename reaching both with no `page.reload()` proves `Gear`'s
+  // save path calls `refreshProjects` rather than only updating local state.
+  //   Pre-condition: a project registered through `POST /api/projects/add`,
+  //   with one open wait on it; the gear panel open.
+  //   Test: fill `project-name-input-<projectId>` with a new name, then
+  //   `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains the new name, and
+  //   the wait's tile text contains the new name too — both reached with no
+  //   `page.reload()` anywhere in the test.
+  //   Expected-value source: design C1 "Save posts through `callHarness`
+  //   ..., then calls `refreshProjects`"; Requirement 1 AC 1 and AC 7.
+  test('(R1 AC1, AC7) saving a display name in the gear shows it on the gear row and a wait tile with no reload', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath, so a durable `projects.json` row backs the
+    // save (see the comment on the action-tile test above).
+    const projectId = await registerProjectAt(page, dir, dir);
+    const wait = baseWait('e2e-board-rename-wait', projectId, 'e2e-board-rename-spec', 5 * 60_000);
+    await writeWaitRecord(wait);
+    const newName = 'Rename Test Project';
+
+    try {
+      await page.goto('/');
+      const waitTile = page.getByTestId(`wait-tile-${wait.id}`);
+      await expect(waitTile).toBeVisible({ timeout: 15000 });
+      await expect(waitTile).not.toContainText(newName);
+
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await panel.getByTestId(`project-name-input-${projectId}`).fill(newName);
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      // A successful save may close the whole settings panel (design C1
+      // "... then calls `refreshProjects` and closes"); reopen it if so
+      // before reading the row, since the criterion is about the row's
+      // content, not the panel's open state.
+      await page.waitForTimeout(300);
+      if (!(await panel.isVisible())) {
+        await page.getByTestId('gear-toggle').click();
+      }
+      await expect(panel).toContainText(newName, { timeout: 15000 });
+      await expect(waitTile).toContainText(newName, { timeout: 15000 });
+    } finally {
+      await removeWaitRecord(wait.id);
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "a 61-character save shows `display-name-invalid` with the
+  // input still open" (task 4 Success; Requirement 1 AC 7; design Error
+  // Handling 6 "Display name save fails: the gear shows the route's error
+  // and keeps the input open").
+  //   Pre-condition: a registered project; the gear panel open.
+  //   Test: fill `project-name-input-<projectId>` with 61 "x" characters,
+  //   then `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains
+  //   `display-name-invalid`; the input is still visible (not removed or
+  //   replaced by a closed row).
+  //   Expected-value source: `src/dashboard/multi-server.ts`'s
+  //   `POST /api/projects/:projectId/display-name` route, `400 { error:
+  //   'display-name-invalid' }` for a trimmed value over 60 characters
+  //   (task 3, already shipped); design Error Handling 6 for the "stays
+  //   open" half.
+  test('(R1 AC7) a display name over 60 characters answers display-name-invalid and keeps the input open', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-invalid-${randomBytes(4).toString('hex')}`);
+    const projectId = await registerProjectAt(page, dir);
+    const longName = 'x'.repeat(61);
+
+    try {
+      await page.goto('/');
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      const input = panel.getByTestId(`project-name-input-${projectId}`);
+      await input.fill(longName);
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      await expect(panel).toContainText('display-name-invalid', { timeout: 15000 });
+      await expect(input).toBeVisible();
+    } finally {
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "saving an empty value restores the generated name" (task 4
+  // Success; Requirement 1 AC 7, design C1 "An empty value clears the
+  // name").
+  //   Pre-condition: a registered project whose display name was set to a
+  //   custom value directly through the route (setup, not the behaviour
+  //   under test); the gear panel open showing that custom name.
+  //   Test: clear `project-name-input-<projectId>`, then
+  //   `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains the project's
+  //   original generated name (read from `/api/projects/list` before any
+  //   display name was ever set) and no longer contains the custom name.
+  //   Expected-value source: design C1 "An empty value clears the name";
+  //   `src/dashboard/multi-server.ts`'s route, which clears to the
+  //   generated name on an empty trimmed body (task 3, already shipped).
+  test('(R1 AC7) saving an empty display name restores the generated name', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-clear-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath, so a durable `projects.json` row backs the
+    // setup call below (see the comment on the action-tile test above).
+    const projectId = await registerProjectAt(page, dir, dir);
+
+    const listRes = await page.request.get('/api/projects/list');
+    const projects = (await listRes.json()) as { projectId: string; projectName: string }[];
+    const generatedName = projects.find((p) => p.projectId === projectId)!.projectName;
+
+    const customName = 'Temporary Custom Name';
+    const setRes = await page.request.post(`/api/projects/${projectId}/display-name`, {
+      data: { displayName: customName },
+    });
+    expect(setRes.ok()).toBe(true);
+
+    try {
+      await page.goto('/');
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await expect(panel).toContainText(customName, { timeout: 15000 });
+
+      const input = panel.getByTestId(`project-name-input-${projectId}`);
+      await input.fill('');
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      await page.waitForTimeout(300);
+      if (!(await panel.isVisible())) {
+        await page.getByTestId('gear-toggle').click();
+      }
+      await expect(panel).toContainText(generatedName, { timeout: 15000 });
+      await expect(panel).not.toContainText(customName);
+    } finally {
+      await unregisterProject(page, projectId, dir);
     }
   });
 });
