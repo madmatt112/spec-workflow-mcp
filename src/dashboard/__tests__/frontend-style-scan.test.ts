@@ -178,7 +178,7 @@ function scanLine(file: string, lineNo: number, line: string, declared: Declared
   const declMatch = CSS_CUSTOM_PROP_DECL.exec(line);
   if (declMatch) push('custom-property-outside', declMatch[0]);
   const setMatch = SET_PROPERTY_CALL.exec(line);
-  if (setMatch && setMatch[2] !== 'row-h') push('custom-property-outside', setMatch[0]);
+  if (setMatch) push('custom-property-outside', setMatch[0]);
 
   if (checkClassSelector) {
     for (const m of line.matchAll(CLASS_SELECTOR)) {
@@ -335,7 +335,7 @@ describe('frontend-style-scan (design C7 T1)', () => {
       expect(flagged).toEqual([
         { file: 'modules/shell/Fixture.tsx', line: 1, rule: 'undeclared-var', text: '(--totally-fake-token)' },
       ]);
-      const allowed = scanFile('modules/shell/Fixture.tsx', 'text-(--accent) w-(--sidebar-w)', declared);
+      const allowed = scanFile('modules/shell/Fixture.tsx', 'text-(--accent) w-(--panel-w)', declared);
       expect(allowed.filter((h) => h.rule === 'undeclared-var')).toEqual([]);
     });
   });
@@ -346,13 +346,6 @@ describe('frontend-style-scan (design C7 T1)', () => {
       expect(cssDecl.map((h) => h.rule)).toContain('custom-property-outside');
       const setCall = scanFile('modules/shell/Fixture.tsx', "el.style.setProperty('--foo', 'red');", declared);
       expect(setCall.map((h) => h.rule)).toContain('custom-property-outside');
-    });
-
-    it('exempts the row-height setProperty call ShellProvider.tsx makes', () => {
-      const line =
-        "document.documentElement.style.setProperty('--row-h', density === 'compact' ? 'var(--row-h-compact)' : 'var(--row-h-comfortable)');";
-      const hits = scanFile('modules/shell/ShellProvider.tsx', line, declared);
-      expect(hits.filter((h) => h.rule === 'custom-property-outside')).toEqual([]);
     });
   });
 
@@ -418,6 +411,37 @@ describe('frontend-style-scan (design C7 T1)', () => {
         hits.push(...scanFile(rel, readFileSync(absPath, 'utf-8'), declared));
       }
       expect(hits, formatHits(hits)).toEqual([]);
+    });
+  });
+
+  // Contract for dashboard-board task 17 (design C7; Requirement 1.5, 2.1).
+  // Pre-condition: the real FE tree at base, where `ShellProvider.tsx` still
+  // reads `density`, `types.ts` still declares `SidebarProjectRow`, and
+  // other surviving files still comment-reference `NowPage`. Call: walking
+  // every file under FE_ROOT (the same `walk` the aggregate scan above
+  // uses) and testing each line against the literal substrings the task's
+  // own acceptance grep names. Observable: zero matching lines. Source of
+  // the expected value: the task's Success-line command, `grep -rn -e
+  // NowPage -e RunsPage -e RunPage -e Sidebar -e density
+  // src/dashboard_frontend/src`, and design C7 ("Deleted: NowPage.tsx,
+  // RunsPage.tsx, RunPage.tsx, Sidebar.tsx" and "Delete Density, ...
+  // density, setDensity"). Red now because NowPage.tsx, RunsPage.tsx,
+  // RunPage.tsx and Sidebar.tsx still exist and other surviving files still
+  // name these symbols.
+  describe('deleted symbols scrubbed from the frontend (design C7, Requirement 1.5, 2.1)', () => {
+    it('names no NowPage, RunsPage, RunPage, Sidebar or density anywhere under the frontend tree', () => {
+      const DELETED_SYMBOLS = ['NowPage', 'RunsPage', 'RunPage', 'Sidebar', 'density'];
+      const hits: string[] = [];
+      for (const absPath of walk(FE_ROOT)) {
+        const rel = relative(FE_ROOT, absPath).split(sep).join('/');
+        const text = readFileSync(absPath, 'utf-8');
+        text.split('\n').forEach((line, i) => {
+          if (DELETED_SYMBOLS.some((symbol) => line.includes(symbol))) {
+            hits.push(`${rel}:${i + 1} ${line.trim()}`);
+          }
+        });
+      }
+      expect(hits).toEqual([]);
     });
   });
 

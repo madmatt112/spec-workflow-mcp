@@ -43,6 +43,10 @@ export interface InFlightStep {
   startTime: number;
   /** The Claude Code session id, for `--resume`. */
   session?: string;
+  /** Wall-clock start of this step, for the tile's step age (design C1). */
+  startedAt?: string;
+  /** The task id this step is working, for the tile's task label (design C1). */
+  task?: string;
 }
 
 /** Running token totals for a run. */
@@ -62,6 +66,12 @@ export type RunStatus =
   | 'done'
   | 'abandoned'
   | 'error';
+
+/** A run that still holds (or is owed) a slot. */
+export function isLive(status: RunStatus): boolean {
+  return status === 'queued' || status === 'running' || status === 'paused'
+    || status === 'waiting' || status === 'merging';
+}
 
 /** The `pauseReason` value of an applied operator pause. `pauseReason` stays a free string. */
 export const OPERATOR_PAUSE = 'operator';

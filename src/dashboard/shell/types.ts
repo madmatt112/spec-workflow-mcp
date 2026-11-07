@@ -4,78 +4,9 @@
 // Data Models). Types only, no runtime code. The frontend keeps a hand copy in
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
-import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js';
+import type { PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
-
-export type WaitKind = 'gate' | 'ruling' | 'retro' | 'exited' | 'quiet';
-
-export interface Wait {
-  kind: WaitKind;
-  projectId: string;
-  projectName: string;
-  spec: string | null;
-  since: string;            // ISO time the age runs from
-  summary: string;          // the one-line detail of the row
-  detail:
-    | { kind: 'gate'; gate: 'A' | 'B'; items: { header: string; question: string; options: string[] }[] | null; questions: string | null }
-    | { kind: 'ruling'; phase: string; state: string; note: string }
-    | { kind: 'retro'; count: number; lines: string[] }
-    | { kind: 'exited'; exitCode: number | null; signal: string | null; endedAt: string | null; logPath: string }
-    | { kind: 'quiet'; agent: string; lastTool: string | null; lastActivityAt: string };
-}
-
-export interface LiveRunRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string;
-  phase: string | null;
-  detail: string;
-  tokens: number;
-  startedAt: string | null;
-}
-
-export interface IdleRow {
-  projectId: string;
-  projectName: string;
-  launchable: string | null;
-  disabledReason: string | null;
-}
-
-export interface ClosedRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  closedOn: string;
-}
-
-export interface RunListRow {
-  projectId: string;
-  projectName: string;
-  spec: string;
-  runId: string | null;
-  state: 'live' | 'ended';
-  phase: string | null;
-  since: string | null;
-}
-
-export interface SidebarProjectRow {
-  projectId: string;
-  dot: 'waiting' | 'running' | 'idle';
-  liveCount: number;
-  lastActivity: string | null;
-}
-
-export interface NowModel {
-  waits: Wait[];
-  live: LiveRunRow[];
-  idle: IdleRow[];
-  closed: ClosedRow[];
-  runs: RunListRow[];
-  sidebar: SidebarProjectRow[];
-  generatedAt: string;
-}
 
 export interface SpecListRow {
   projectId: string;
@@ -117,14 +48,6 @@ export interface UsageSpecRow {
   wPerTask: number | null;
   baseline: number | null;
   pctOfBaseline: number | null;
-}
-
-export interface RunDetail {
-  spec: string;
-  phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];
-  taskMeta: Record<string, { risk: 'low' | 'high' | null; fixRounds: number | null }>;
-  ledgerRows: LedgerEvent[];
-  activityRows: ActivityEvent[];
 }
 
 // --- Controller waits (controller-design.md §7; T4) ---------------------------
@@ -214,27 +137,21 @@ export interface ControllerRun {
   lastActivity?: string;
   /** Who is holding the run paused, when it is (design C8); undefined when not held. */
   holdBy?: 'operator' | 'deploy';
-}
-
-/**
- * One step's latest live tool activity for a run (controller-tasks.md T10;
- * controller-design.md §4). The Run page's "Live now" line reads the entry whose
- * `runId` matches the run. The frontend keeps a hand copy.
- */
-export interface ControllerActivity {
-  runId: string;
-  stepId: string;
-  role: string;
-  tool: string;
-  inputSummary: string;
-  ts?: string;
+  /** `run.inFlight !== undefined` (design C3, Data Models). */
+  inFlight?: boolean;
+  /** `run.inFlight?.startedAt` (design C3, Data Models); absent when the step predates it. */
+  stepStarted?: string;
+  /** `run.inFlight?.task` (design C3, Data Models). */
+  task?: string;
+  /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
+  branchPresent?: boolean;
+  /** `!branchHeld(run, allRuns)` (design C3). */
+  discardAllowed?: boolean;
 }
 
 export type ShellMessage =
-  | { type: 'shell-now'; data: NowModel }
   | { type: 'shell-specs'; data: { rows: SpecListRow[] } }
   | { type: 'controller-waits'; data: { waits: ControllerWait[] } }
   | { type: 'controller-runs'; data: { runs: ControllerRun[] } }
-  | { type: 'controller-activity'; data: { activity: ControllerActivity[] } }
   | { type: 'controller-actions'; data: { actions: StagedAction[] } }
   | { type: 'controller-deploy'; data: { deploy: ControllerDeploy | null } };

@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
 import { useProjects } from '../projects/ProjectProvider';
-import { useShell } from './ShellProvider';
 import { Button, ui } from '../ui/ui';
 
 /**
- * The settings gear at the foot of the sidebar: theme toggle, density, and the
- * version read from the first registered project's info route. With no project
- * there is no version.
+ * The settings gear in the top bar: theme toggle, a switch per project, the
+ * notification setting, and the version read from the first registered
+ * project's info route. With no project there is no version (D13).
  */
 export function Gear() {
   const { theme, toggleTheme } = useTheme();
-  const { density, setDensity } = useShell();
-  const { projects } = useProjects();
+  const { projects, enabled, toggle } = useProjects();
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState<string>('');
   const notifySupported = typeof Notification !== 'undefined';
@@ -42,6 +40,8 @@ export function Gear() {
     return () => { cancelled = true; };
   }, [firstProjectId]);
 
+  const sortedProjects = [...projects].sort((a, b) => a.projectName.localeCompare(b.projectName));
+
   return (
     <div className="relative">
       <button
@@ -49,7 +49,7 @@ export function Gear() {
         onClick={() => setOpen((o) => !o)}
         data-testid="gear-toggle"
         aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-(--text-secondary) hover:bg-(--surface-hover)"
+        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-(--text-secondary) hover:bg-(--surface-hover)"
         title="Settings"
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export function Gear() {
 
       {open && (
         <div
-          className={`absolute bottom-full left-0 mb-2 w-64 ${ui.popover}`}
+          className={`absolute right-0 top-full mt-2 w-64 ${ui.popover}`}
           data-testid="gear-panel"
         >
           <div className="space-y-3">
@@ -72,34 +72,28 @@ export function Gear() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-(--text-secondary)">Density</span>
-              <div className="flex gap-3 text-sm text-(--text-secondary)">
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="shell-density"
-                    checked={density === 'comfortable'}
-                    onChange={() => setDensity('comfortable')}
-                    data-testid="density-comfortable"
-                  />
-                  Comfortable
-                </label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="shell-density"
-                    checked={density === 'compact'}
-                    onChange={() => setDensity('compact')}
-                    data-testid="density-compact"
-                  />
-                  Compact
-                </label>
+            {sortedProjects.length > 0 && (
+              <div className="space-y-1.5 border-t border-(--border-default) pt-2">
+                {sortedProjects.map((p) => (
+                  <label
+                    key={p.projectId}
+                    className="flex items-center justify-between gap-2 text-sm text-(--text-secondary)"
+                  >
+                    <span className="min-w-0 truncate">{p.projectName}</span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={enabled(p.projectId)}
+                      onChange={() => toggle(p.projectId)}
+                      data-testid={`project-toggle-${p.projectId}`}
+                    />
+                  </label>
+                ))}
               </div>
-            </div>
+            )}
 
             {notifySupported && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t border-(--border-default) pt-2">
                 <span className="text-sm text-(--text-secondary)">Notifications</span>
                 {notifyPermission === 'granted' ? (
                   <span className="text-xs text-(--text-muted)" data-testid="notify-state">On</span>

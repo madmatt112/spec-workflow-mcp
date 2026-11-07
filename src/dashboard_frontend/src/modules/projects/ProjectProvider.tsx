@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { isEnabled, toggled } from './enable';
 
 export interface ProjectInstance {
   pid: number;
@@ -27,10 +28,12 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 // The off (disabled) project ids; an id absent from this list is on.
 const STORAGE_KEY = 'shell.projects';
+// The explicit-on project ids; an id in this list is on even when also in STORAGE_KEY.
+const ON_STORAGE_KEY = 'shell.projects.on';
 
-function readDisabled(): string[] {
+function readIdList(key: string): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
   } catch {
@@ -41,7 +44,8 @@ function readDisabled(): string[] {
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [disabledIds, setDisabledIds] = useState<string[]>(() => readDisabled());
+  const [disabledIds, setDisabledIds] = useState<string[]>(() => readIdList(STORAGE_KEY));
+  const [onIds, setOnIds] = useState<string[]>(() => readIdList(ON_STORAGE_KEY));
 
   // Fetch projects from API
   const fetchProjects = useCallback(async () => {
@@ -72,23 +76,28 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProjects]);
 
   const enabled = useCallback(
-    (projectId: string) => !disabledIds.includes(projectId),
-    [disabledIds]
+    (projectId: string) => {
+      const name = projects.find((p) => p.projectId === projectId)?.projectName ?? '';
+      return isEnabled(projectId, name, disabledIds, onIds);
+    },
+    [projects, disabledIds, onIds]
   );
 
-  const toggle = useCallback((projectId: string) => {
-    setDisabledIds((prev) => {
-      const next = prev.includes(projectId)
-        ? prev.filter((id) => id !== projectId)
-        : [...prev, projectId];
+  const toggle = useCallback(
+    (projectId: string) => {
+      const name = projects.find((p) => p.projectId === projectId)?.projectName ?? '';
+      const next = toggled(projectId, name, disabledIds, onIds);
+      setDisabledIds(next.off);
+      setOnIds(next.on);
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next.off));
+        localStorage.setItem(ON_STORAGE_KEY, JSON.stringify(next.on));
       } catch (error) {
         console.error('Failed to save project filter:', error);
       }
-      return next;
-    });
-  }, []);
+    },
+    [projects, disabledIds, onIds]
+  );
 
   const value = useMemo<ProjectContextType>(() => ({
     projects,

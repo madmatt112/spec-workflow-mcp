@@ -1,22 +1,10 @@
 // src/dashboard_frontend/src/modules/harness/types.ts
 //
-// Wire shapes for the harness control pane pages. The frontend compiles apart
-// from the server (the root tsconfig excludes src/dashboard_frontend/**, see
-// ../../../../tsconfig.json), so it cannot import the server's types. These are
-// copied by hand from src/dashboard/harness/types.ts and, for RunModel and the
-// rows it references, from src/watch/ledger.ts. Keep them in step.
-
-import type { RunDetail } from '../shell/types';
-
-// --- Row types copied from src/watch/ledger.ts ---
-
-export interface AgentProfile {
-  model: string;
-  effort: string;
-  role: string;
-  /** The declared prompt-cache lifetime; absent when the profile omits it or it is `default`. */
-  cacheTtl?: string;
-}
+// Wire shapes for launching a harness run (the Home page's Next tiles). The
+// frontend compiles apart from the server (the root tsconfig excludes
+// src/dashboard_frontend/**, see ../../../../tsconfig.json), so it cannot
+// import the server's types. These are copied by hand from
+// src/dashboard/harness/types.ts. Keep them in step.
 
 export interface PhaseRow {
   phase: string;
@@ -24,85 +12,6 @@ export interface PhaseRow {
   result: string;
   note: string;
   date?: string;
-}
-
-export interface SpawnNode {
-  agent: string;
-  role: string;
-  phase?: string;
-  task?: string;
-  round?: string;
-  startedAt: string;
-  endedAt?: string;
-  result?: string;
-  tokens?: number;
-  model?: string;
-  /** The provider that ran this spawn; absent means Anthropic. */
-  provider?: string;
-  input?: number;
-  output?: number;
-  cacheWrite?: number;
-  cacheRead?: number;
-  lastActivityAt?: string;
-  lastTool?: string;
-  lastSummary?: string;
-  /** The Claude Code agent id from the hook's spawn.end, when it carried one. */
-  agentId?: string;
-  /** Orchestrators are spawned by the supervisor; everything else by an orchestrator. */
-  level: 1 | 2;
-}
-
-export interface TaskRow {
-  id: string;
-  title: string;
-  status: 'done' | 'in-progress' | 'open';
-}
-
-export interface RoundRow {
-  phase: string;
-  round: string;
-  verdict: string;
-  version?: string;
-}
-
-/** A `task.pick` of the current run (a task id or a close-out item such as `P3`). */
-export interface PickRow {
-  task: string;
-  title: string;
-  done: boolean;
-  outcome?: string;
-}
-
-export interface TickerLine {
-  ts: string;
-  text: string;
-}
-
-export interface RunModel {
-  spec: string;
-  runId?: string;
-  runStartedAt?: string;
-  runEndedAt?: string;
-  status?: string;
-  model?: string;
-  codeRoot?: string;
-  worktree?: string;
-  headless?: string;
-  phases: PhaseRow[];
-  livePhase?: { phase: string; mode?: string; budget?: string; state?: string; startedAt: string };
-  spawns: SpawnNode[];
-  rounds: RoundRow[];
-  tasks: TaskRow[];
-  /** Items the orchestrator picked in this run; the queue for phases without a tasks.md. */
-  picks: PickRow[];
-  ticker: TickerLine[];
-  tokensTotal: number;
-  /** The run's provider map (`agent:provider[:model],...`), from run.start; absent or `none` when every role is Anthropic. */
-  providers?: string;
-  /** tokensTotal split by provider: the Anthropic figure the header prints as `tokens`, and DeepSeek beside it. */
-  tokensByProvider: { anthropic: number; deepseek: number };
-  /** True when at least one activity event exists for the run (the hook is installed). */
-  hasActivity: boolean;
 }
 
 // --- RoutingDecision copied from src/core/spec-routing-deriver.ts ---
@@ -151,18 +60,12 @@ export interface SetupView {
   routing: RoutingDecision;           // src/core/spec-routing-deriver.ts:20-30
   handoff: HandoffRouting | null;
   launchable: string | null; disabledReason: string | null;
+  launchableOrder: number | null;
   supervisor: { model: string; effort: 'high' };   // 'claude-opus-5-5'
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
   modelAliases: string[]; deepseekModels: string[]; eligibleRoles: string[];
 }
 
-export type HarnessMessage =          // server to client
-  | { type: 'harness-model'; projectId: string; data: { spec: string | null; model: RunModel | null;
-      profiles: Record<string, AgentProfile> } }
-  | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
-  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null };
-
 export type ViewMessage =             // client to server
-  | { type: 'harness-subscribe' | 'harness-unsubscribe'; projectId: string }
-  | { type: 'overview-subscribe' | 'overview-unsubscribe' };
+  { type: 'overview-subscribe' | 'overview-unsubscribe' };

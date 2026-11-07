@@ -1,29 +1,26 @@
 // src/dashboard/shell/shell-feed.ts
 //
-// The shell feed (design.md C7). One recompute of the Now model and the Specs
-// rows on every trigger and every `tickMs`, so a quiet wait shows even with no
-// file event (Requirement 2 AC 6, design D3, D4). `schedule` arms one
-// non-resetting `throttleMs` timer, so a steady trigger stream still flushes
-// within one throttle window (design D3, Requirement 2 AC 9). The feed adds no
-// file watcher (Requirement 8 AC 2); it reads only through the task-3 and task-4
-// builders and the controller's run records.
+// The shell feed (design.md C6/C7). One recompute of the Specs rows on every
+// trigger and every `tickMs`, so a quiet wait shows even with no file event
+// (Requirement 2 AC 6, design D3, D4). `schedule` arms one non-resetting
+// `throttleMs` timer, so a steady trigger stream still flushes within one
+// throttle window (design D3, Requirement 2 AC 9). The feed adds no file
+// watcher (Requirement 8 AC 2); it reads only through the task-4 builder and
+// the controller's run records.
 import type { ProjectManager } from '../project-manager.js';
 import { listRunsSync } from '../../controller/state.js';
 import { liveRunsByProject } from './live-runs.js';
-import { buildNowModel } from './now-model.js';
-import { buildSidebarRows } from './sidebar-rows.js';
 import { buildSpecRows } from './spec-rows.js';
 import { groupByStore } from './store-groups.js';
 import { FileCache } from './file-cache.js';
 import { listWaitsForWire } from '../../controller/waits.js';
 import { listRunsForWire } from '../../controller/runs.js';
-import { listActivityForWire } from '../../controller/activity.js';
 import { listActions } from '../../advisor/actions.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import { readDeployForWireSync } from '../../controller/deploy.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
 import type {
-  ShellMessage, SpecListRow, ControllerWait, ControllerRun, ControllerActivity,
+  ShellMessage, SpecListRow, ControllerWait, ControllerRun,
 } from './types.js';
 
 export class ShellFeed {
@@ -78,26 +75,21 @@ export class ShellFeed {
   }
 
   /**
-   * One recompute: read the run records once, run the Now builder over every project
-   * and the Specs-row builder once per `.spec-workflow` store, over that store's
-   * representative project (a group whose rows throw is left out and logged
-   * once), read the controller waits, runs, latest-per-run
-   * activity, the advisor's staged actions and the deploy record, keep the
-   * septet and send `shell-now`, `shell-specs`, `controller-waits`,
-   * `controller-runs`, `controller-activity`, `controller-actions` then
-   * `controller-deploy`. The controller topics ride the same broadcast path
-   * as the other shell topics (T4/T6/T10; controller-design.md §7, §4;
-   * design C8).
+   * One recompute: read the run records once, run the Specs-row builder once
+   * per `.spec-workflow` store, over that store's representative project (a
+   * group whose rows throw is left out and logged once), read the controller
+   * waits, runs, the advisor's staged actions and the deploy record, keep the
+   * five topics and send `shell-specs`, `controller-waits`, `controller-runs`,
+   * `controller-actions` then `controller-deploy` (design C6). The controller
+   * topics ride the same broadcast path as the other shell topics (T4/T6;
+   * controller-design.md §7; design C8).
    */
   private flush = async (): Promise<void> => {
     this.timer = undefined;
     if (this.closed) return;
 
     const liveRuns = liveRunsByProject(listRunsSync());
-    const now = this.now();
     const projects = this.projects.getAllProjects();
-
-    const nowModel = await buildNowModel(projects, liveRuns, now, this.cache);
 
     const rows: SpecListRow[] = [];
     for (const group of groupByStore(projects)) {
@@ -124,13 +116,6 @@ export class ShellFeed {
       console.error('ShellFeed: skipping controller runs', err);
     }
 
-    let activity: ControllerActivity[] = [];
-    try {
-      activity = listActivityForWire() as ControllerActivity[];
-    } catch (err) {
-      console.error('ShellFeed: skipping controller activity', err);
-    }
-
     let actions: StagedAction[] = [];
     try {
       actions = await listActions();
@@ -138,21 +123,12 @@ export class ShellFeed {
       console.error('ShellFeed: skipping controller actions', err);
     }
 
-    nowModel.sidebar = buildSidebarRows(
-      projects.map((p) => ({ projectId: p.projectId, projectName: p.projectName })),
-      nowModel,
-      waits,
-      runs,
-    );
-
     if (this.closed) return;
     const deploy = readDeployForWireSync();
     const messages: ShellMessage[] = [
-      { type: 'shell-now', data: nowModel },
       { type: 'shell-specs', data: { rows } },
       { type: 'controller-waits', data: { waits } },
       { type: 'controller-runs', data: { runs } },
-      { type: 'controller-activity', data: { activity } },
       { type: 'controller-actions', data: { actions } },
       { type: 'controller-deploy', data: { deploy } },
     ];

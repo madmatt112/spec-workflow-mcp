@@ -189,7 +189,17 @@ describe('controller dashboard routes (T10)', () => {
     expect(body.sevenDay.resetsAt).toBe('2026-10-18T00:00:00.000Z');
   });
 
-  it('GET /api/controller/runs/:id/log returns the last N lines of the in-flight step log, and 404s for an unknown run', async () => {
+  // Contract for task 19 (design C6; R2 AC 2). Pre-condition: a real run on
+  // disk with an in-flight step log (the exact fixture the deleted log route
+  // used to serve). Test: GET the log route for that run, and GET a
+  // sibling path under the same /api/controller/ prefix that no route
+  // matches. Observable result: both answer with the same status and the
+  // same fastify not-found error/statusCode fields (the `message` field is
+  // excluded because it echoes the request path, not the route's shape).
+  // Expected-value source: the route being gone leaves fastify's own
+  // default not-found handling as the only answer, identical for any
+  // unmatched /api/controller/ path.
+  it('GET /api/controller/runs/:id/log answers exactly as an unknown control path under /api does', async () => {
     const base = await startServer();
 
     const specStore = join(tempDir, 'store');
@@ -209,16 +219,36 @@ describe('controller dashboard routes (T10)', () => {
     writeFileSync(join(dir, 'drafter.jsonl'), lines.join('\n') + '\n');
 
     const res = await realFetch(`${base}/api/controller/runs/${run.id}/log?tail=50`, auth());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('text/plain');
-    const text = await res.text();
-    const out = text.split('\n').filter((l) => l.length > 0);
-    expect(out).toHaveLength(50);
-    expect(out[out.length - 1]).toContain('"n":119');
-    expect(out[0]).toContain('"n":70');
+    const unknown = await realFetch(`${base}/api/controller/runs/${run.id}/does-not-exist`, auth());
 
-    const missing = await realFetch(`${base}/api/controller/runs/run-nope/log`, auth());
-    expect(missing.status).toBe(404);
+    expect(res.status).toBe(unknown.status);
+    const resBody: any = await res.json();
+    const unknownBody: any = await unknown.json();
+    expect(resBody.statusCode).toBe(unknownBody.statusCode);
+    expect(resBody.error).toBe(unknownBody.error);
+  });
+
+  // Contract for task 19 (design C6; R2 AC 2). Pre-condition: a real
+  // registered project with a spec directory on disk (the exact fixture the
+  // deleted summary route used to serve). Test: GET the summary route for
+  // that project/spec, and GET a sibling path under the same project/spec
+  // prefix that no route matches. Observable result and expected-value
+  // source: same as the log-route criterion above — identical status and
+  // not-found shape, because the route is gone and fastify answers both
+  // the same way.
+  it('GET /api/projects/:projectId/specs/:specName/task-reviews/summary answers exactly as an unknown control path under /api does', async () => {
+    const spec = 'controller-dashboard';
+    const projectId = await prepareLaunchableProject(spec);
+    const base = await startServer();
+
+    const res = await realFetch(`${base}/api/projects/${projectId}/specs/${spec}/task-reviews/summary`);
+    const unknown = await realFetch(`${base}/api/projects/${projectId}/specs/${spec}/does-not-exist`);
+
+    expect(res.status).toBe(unknown.status);
+    const resBody: any = await res.json();
+    const unknownBody: any = await unknown.json();
+    expect(resBody.statusCode).toBe(unknownBody.statusCode);
+    expect(resBody.error).toBe(unknownBody.error);
   });
 
   it("GET /harness/setup folds the controller's live-run guard into the disabled reason", async () => {
@@ -741,6 +771,62 @@ describe('controller dashboard routes (T10)', () => {
       await server.start();
 
       expect((await readDeployRecord())?.stage).toBe('restart');
+    });
+  });
+
+  // Source: task 4 Success (design C4 "Discard"; requirement 7 AC7). Pre-
+  // condition for both: a `running` run and a `done` run seeded after the
+  // server starts (so the live controller never drives either), sharing
+  // `codeRoot`.
+  describe('POST /api/controller/runs/:id/discard — task 4', () => {
+    // Criterion "the route answers 409 with that body" (and the record
+    // underneath is untouched): Pre-condition: the `running` run holds the
+    // same non-empty `branch` as the `done` run. Call: fetch POST
+    // .../discard on the done run's id. Observable result: 409
+    // { error: 'branch-in-use' }, and `readRun` on the done run's id is
+    // unchanged. Expected-value source: design C4 ("the discard route
+    // answers 409 { error: 'branch-in-use' } on the sentinel"; "On
+    // branch-in-use nothing changes ... no write").
+    it('answers 409 branch-in-use when a moving run holds the branch, and changes nothing', async () => {
+      const base = await startServer();
+      const specStore = join(tempDir, 'store-discard-409');
+      const spec = 'controller-dashboard';
+      const movingRun: RunRecord = {
+        v: 1, id: 'run-discard-moving', project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/shared', status: 'running',
+        created: '2026-11-06T10:00:00.000Z', updated: '2026-11-06T10:00:00.000Z',
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(movingRun);
+      const doneRun: RunRecord = {
+        v: 1, id: 'run-discard-done', project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/shared', status: 'done',
+        created: '2026-11-06T10:00:00.000Z', updated: '2026-11-06T10:00:00.000Z',
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(doneRun);
+      const before = await readRun(doneRun.id);
+
+      const res = await realFetch(`${base}/api/controller/runs/${doneRun.id}/discard`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'branch-in-use' });
+      expect(await readRun(doneRun.id)).toEqual(before);
+    });
+
+    // Criterion "a missing id answers 404" (regression guard:
+    // `controller.discard` already returns `undefined` for an unknown id
+    // at base, and the route already 404s on that; holds with no change).
+    // Pre-condition: no run with this id. Call: fetch POST .../discard.
+    // Observable result: 404 { error: 'run-not-found' }. Expected-value
+    // source: the existing route body (`src/dashboard/multi-server.ts:859-864`).
+    it('[regression guard] answers 404 for a missing run id', async () => {
+      const base = await startServer();
+
+      const res = await realFetch(`${base}/api/controller/runs/run-nope/discard`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'run-not-found' });
     });
   });
 });

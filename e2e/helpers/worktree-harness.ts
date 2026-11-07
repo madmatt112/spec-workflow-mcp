@@ -237,9 +237,9 @@ const RESOLUTION_LOG_MARKERS = [
  *
  * It also empties the controller's durable project list (`projects.json` in the
  * home, controller-design.md §3), which `activeProjects.json` does not cover: left
- * alone it survives every prior run and the sidebar accumulates one dead
+ * alone it survives every prior run and the gear accumulates one dead
  * "remembered" entry per invocation. Truncating both here means a capturing suite
- * gets a clean sidebar with no per-config reset of its own.
+ * gets a clean gear with no per-config reset of its own.
  *
  * Call it from `beforeAll` in every suite that shares one dashboard.
  */

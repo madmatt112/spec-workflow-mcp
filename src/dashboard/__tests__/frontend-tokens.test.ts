@@ -123,9 +123,111 @@ const THEME_INDEPENDENT_NAMES = [
   '--focus-ring-width', '--focus-ring-offset',
   '--default-transition-duration', '--default-transition-timing-function',
   '--disabled-opacity',
-  '--row-h-comfortable', '--row-h-compact', '--row-h',
-  '--sidebar-w', '--panel-w', '--content-max',
+  '--row-h-comfortable', '--row-h',
+  '--panel-w', '--content-max',
+  '--text-display', '--text-display--line-height',
+  '--text-tile', '--text-tile--line-height',
+  '--tile-pad', '--tile-gap', '--band-gap',
 ];
+
+// Baseline values at tokens.css:9-17 (design C12, requirement 11.2: these
+// steps keep their values while the tile tokens are added).
+const BASE_TEXT_SCALE: Record<string, string> = {
+  '--text-xs': '11px',
+  '--text-xs--line-height': '16px',
+  '--text-sm': '12px',
+  '--text-sm--line-height': '18px',
+  '--text-base': '14px',
+  '--text-base--line-height': '20px',
+  '--text-lg': '16px',
+  '--text-lg--line-height': '24px',
+};
+
+// Baseline colour values at tokens.css:61-160 (requirement 11 AC 1: every
+// colour value stays unchanged while the tile tokens are added).
+const BASE_LIGHT_COLOURS: Record<string, string> = {
+  '--surface-base': '#fcfcfc',
+  '--surface-panel': '#ffffff',
+  '--surface-inset': '#f4f5f7',
+  '--surface-hover': '#f0f0f3',
+  '--surface-selected': '#ecedfa',
+  '--surface-overlay': '#ffffff',
+  '--text-primary': '#282a30',
+  '--text-secondary': '#4b505a',
+  '--text-muted': '#646975',
+  '--text-on-accent': '#ffffff',
+  '--border-default': '#e8e8ec',
+  '--border-strong': '#80858f',
+  '--accent': '#5e6ad2',
+  '--accent-solid': '#5e6ad2',
+  '--accent-solid-hover': '#4f5bc4',
+  '--danger-solid': '#c93b40',
+  '--danger-solid-hover': '#b0333a',
+  '--focus-ring': '#5e6ad2',
+  '--focus-ring-on-solid': '#000000',
+  '--tone-success-fg': '#1f7a48',
+  '--tone-success-bg': '#e6f3ec',
+  '--tone-warning-fg': '#8a5a00',
+  '--tone-warning-bg': '#f7eedb',
+  '--tone-danger-fg': '#c4343a',
+  '--tone-danger-bg': '#fce9ea',
+  '--tone-info-fg': '#1f63b8',
+  '--tone-info-bg': '#e5effa',
+  '--tone-accent-fg': '#4f5bc4',
+  '--tone-accent-bg': '#ecedfa',
+  '--tone-neutral-fg': '#646975',
+  '--tone-neutral-bg': '#f4f5f7',
+  '--chart-1': '#2a78d6',
+  '--chart-2': '#d5561f',
+  '--chart-3': '#138a5f',
+  '--chart-4': '#b07800',
+  '--chart-5': '#8e4ec6',
+  '--chart-6': '#0e7c86',
+  '--scrim': 'rgb(0 0 0 / 0.4)',
+  '--shadow-overlay': '0 4px 16px rgb(0 0 0 / 0.12)',
+};
+
+const BASE_DARK_COLOURS: Record<string, string> = {
+  '--surface-base': '#0f1011',
+  '--surface-panel': '#121314',
+  '--surface-inset': '#1b1d21',
+  '--surface-hover': '#1f2126',
+  '--surface-selected': '#21223a',
+  '--surface-overlay': '#18191b',
+  '--text-primary': '#e3e4e6',
+  '--text-secondary': '#b4b7bd',
+  '--text-muted': '#8a8f98',
+  '--text-on-accent': '#ffffff',
+  '--border-default': '#23252a',
+  '--border-strong': '#6a6f7b',
+  '--accent': '#7170ff',
+  '--accent-solid': '#5b5bd6',
+  '--accent-solid-hover': '#4c4cc4',
+  '--danger-solid': '#c62f35',
+  '--danger-solid-hover': '#a8282e',
+  '--focus-ring': '#7170ff',
+  '--focus-ring-on-solid': '#ffffff',
+  '--tone-success-fg': '#4cb782',
+  '--tone-success-bg': '#1b2d26',
+  '--tone-warning-fg': '#f2c94c',
+  '--tone-warning-bg': '#312c1c',
+  '--tone-danger-fg': '#f06a6a',
+  '--tone-danger-bg': '#351e1f',
+  '--tone-info-fg': '#5b9cf0',
+  '--tone-info-bg': '#182635',
+  '--tone-accent-fg': '#8f8fff',
+  '--tone-accent-bg': '#21223a',
+  '--tone-neutral-fg': '#8a8f98',
+  '--tone-neutral-bg': '#1b1d21',
+  '--chart-1': '#3987e5',
+  '--chart-2': '#d95926',
+  '--chart-3': '#199e70',
+  '--chart-4': '#c98500',
+  '--chart-5': '#a56de2',
+  '--chart-6': '#1fa3ad',
+  '--scrim': 'rgb(0 0 0 / 0.6)',
+  '--shadow-overlay': '0 4px 16px rgb(0 0 0 / 0.5)',
+};
 
 const THEME_TOKEN_NAMES = [
   '--surface-base', '--surface-panel', '--surface-inset', '--surface-hover', '--surface-selected', '--surface-overlay',
@@ -190,10 +292,54 @@ describe('tokens.css', () => {
     expect(overlap).toEqual([]);
   });
 
+  // Contract for dashboard-board task 17 (design C12; Requirement 1.5,
+  // 11.2). Pre-condition: tokens.css at base still declares both
+  // `--sidebar-w` (:56) and `--row-h-compact` (:53) inside `@theme static`.
+  // Call: `declaredNames(themeBlock)`, the same reader every other test in
+  // this file uses. Observable: neither name is a member of the returned
+  // Set. Source of the expected value: design C12 ("Delete `--sidebar-w`
+  // and `--row-h-compact`") and Requirement 11.2 ("`--sidebar-w` SHALL
+  // go"). Red now because both names are still declared at base.
+  it('no longer declares --sidebar-w or --row-h-compact in @theme static', () => {
+    const themeNames = declaredNames(themeBlock);
+    expect(themeNames.has('--sidebar-w')).toBe(false);
+    expect(themeNames.has('--row-h-compact')).toBe(false);
+  });
+
   it('declares every Data Models theme-independent token in @theme static', () => {
     const themeNames = declaredNames(themeBlock);
     const missing = THEME_INDEPENDENT_NAMES.filter((n) => !themeNames.has(n));
     expect(missing).toEqual([]);
+  });
+
+  it('gives --text-display a size of at least 32px and --text-tile a size of at least 14px (Requirement 11.2)', () => {
+    const values = declaredValues(themeBlock);
+    const displayPx = parseFloat(values.get('--text-display') ?? '');
+    const tilePx = parseFloat(values.get('--text-tile') ?? '');
+    expect(displayPx).toBeGreaterThanOrEqual(32);
+    expect(tilePx).toBeGreaterThanOrEqual(14);
+  });
+
+  it('keeps the type-scale steps at tokens.css:9-17 unchanged while the tile tokens are added (Requirement 11.2)', () => {
+    const values = declaredValues(themeBlock);
+    const actual: Record<string, string | undefined> = {};
+    for (const name of Object.keys(BASE_TEXT_SCALE)) {
+      actual[name] = values.get(name);
+    }
+    expect(actual).toEqual(BASE_TEXT_SCALE);
+  });
+
+  it('keeps every colour value at tokens.css:61-160 unchanged while the tile tokens are added (Requirement 11 AC 1)', () => {
+    const lightValues = declaredValues(rootBlock);
+    const darkValues = declaredValues(darkBlock);
+    const actualLight: Record<string, string | undefined> = {};
+    const actualDark: Record<string, string | undefined> = {};
+    for (const name of THEME_TOKEN_NAMES) {
+      actualLight[name] = lightValues.get(name);
+      actualDark[name] = darkValues.get(name);
+    }
+    expect(actualLight).toEqual(BASE_LIGHT_COLOURS);
+    expect(actualDark).toEqual(BASE_DARK_COLOURS);
   });
 
   it('declares every Data Models theme token in both :root and .dark', () => {

@@ -20,7 +20,7 @@ import { secretPath } from '../src/controller/access.js';
  * XDG_STATE_HOME to temporary directories.
  */
 
-const VIEWS = ['now', 'runs', 'run', 'specs', 'usage', 'deferrals'] as const;
+const VIEWS = ['home', 'specs', 'usage', 'deferrals'] as const;
 type View = (typeof VIEWS)[number];
 type Theme = 'light' | 'dark';
 
@@ -50,26 +50,15 @@ test.describe.serial('Dashboard visual suite', () => {
   });
 
   /**
-   * Navigates `page` to one of the six views, opening the first row's panel
-   * on Runs, Specs and Deferrals and the seeded run for the Run view, the
-   * same way `../worktree-shell.spec.ts`'s own tests do.
+   * Navigates `page` to one of the four views, opening the first row's panel
+   * on Specs and Deferrals, the same way `../worktree-shell.spec.ts`'s own
+   * tests do.
    */
   async function openView(page: Page, view: View): Promise<void> {
     switch (view) {
-      case 'now':
+      case 'home':
         await page.goto('/');
-        await expect(page.getByTestId('group-now-waits')).toBeVisible({ timeout: 15000 });
-        break;
-      case 'runs':
-        await page.goto('/#/runs');
-        await page.locator('[data-testid^="ctrl-run-row-"]').first().click({ timeout: 15000 });
-        await expect(page.getByTestId('ctrl-run-panel')).toBeVisible({ timeout: 15000 });
-        break;
-      case 'run':
-        await page.goto('/#/runs');
-        await page.getByTestId(`ctrl-run-row-${fixture.runRecord.id}`).click({ timeout: 15000 });
-        await page.getByTestId('ctrl-open-run').click();
-        await expect(page.getByTestId('pr-panel')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
         break;
       case 'specs':
         await page.goto('/#/specs');
@@ -101,7 +90,7 @@ test.describe.serial('Dashboard visual suite', () => {
       const page = await context.newPage();
       await page.addInitScript((t) => window.localStorage.setItem('theme', t), theme);
       await page.goto('/');
-      await expect(page.getByTestId('group-now-waits')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
       const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
       await context.close();
       return scheme;
@@ -243,7 +232,7 @@ test.describe.serial('Dashboard visual suite', () => {
   test('content is capped and centred at 1920', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     const page = await context.newPage();
-    await openView(page, 'now');
+    await openView(page, 'home');
     const result = await page.evaluate(() => {
       const main = document.querySelector('main');
       if (!main) {
@@ -272,9 +261,9 @@ test.describe.serial('Dashboard visual suite', () => {
   test('mouse focus shows no ring', async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await openView(page, 'now');
+    await openView(page, 'home');
 
-    const navLink = page.getByTestId('nav-runs');
+    const navLink = page.getByTestId('nav-specs');
     await navLink.click();
     const navOutline = await navLink.evaluate((el) => getComputedStyle(el).outlineStyle);
     expect(navOutline).toBe('none');
@@ -288,7 +277,7 @@ test.describe.serial('Dashboard visual suite', () => {
   });
 
   // Task 3 / design T4.7 (Requirement 5.6, regression guard, D10): none of
-  // the six views scrolls sideways at 360, 768, 1000, 1440 or 1920px wide, in
+  // the four views scrolls sideways at 360, 768, 1000, 1440 or 1920px wide, in
   // either theme.
   test('no view scrolls sideways at five widths in both themes', async ({ browser }) => {
     const widths = [360, 768, 1000, 1440, 1920];

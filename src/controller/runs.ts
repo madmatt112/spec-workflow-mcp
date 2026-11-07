@@ -18,7 +18,7 @@
 // and prose).
 import { execFileSync } from 'child_process';
 import {
-  existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync, statSync,
+  existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync,
 } from 'fs';
 import { basename, join } from 'path';
 import { EventEmitter } from 'events';
@@ -30,8 +30,9 @@ import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
   writeRun, readRun, listRuns, listWaits, writeLastActivity,
-  isProcessAlive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
+  isProcessAlive, isLive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
+import { branchPresent as readBranchPresent, forgetBranchPresence, type BranchRead } from './branch-presence.js';
 import { createStepHeartbeat, type StepHeartbeat } from './heartbeat.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -446,15 +447,20 @@ export async function setRunHeartbeat(
 }
 
 /** The in-flight step record callbacks every in-code phase gets (design §8). */
-function stepLifecycle(deps: RunDeps, runId: string): {
-  onStepSpawn: (s: { id: string; pid: number; startTime: number }) => Promise<void>;
+export function stepLifecycle(deps: RunDeps, runId: string): {
+  onStepSpawn: (s: { id: string; pid: number; startTime: number; task?: string }) => Promise<void>;
   onStepEnd: (id: string) => Promise<void>;
   stepHeartbeat: () => StepHeartbeat;
 } {
   return {
     onStepSpawn: (s) => {
       deps.setInFlight(s.pid, s.startTime);
-      return patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
+      return patchRun(deps, runId, {
+        inFlight: {
+          id: s.id, pid: s.pid, startTime: s.startTime, startedAt: deps.now().toISOString(),
+          ...(s.task !== undefined ? { task: s.task } : {}),
+        },
+      });
     },
     onStepEnd: () => patchRun(deps, runId, { inFlight: undefined }),
     stepHeartbeat: () => createStepHeartbeat({
@@ -1396,9 +1402,15 @@ export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRec
 /**
  * Discard a run: cancel it, then remove the worktree, delete the branch and close
  * the PR with `gh`. Each cleanup is best-effort; a failure is logged, not thrown.
+ * Skips `cancelRun` when the run is already `done` (design C4, requirement 7
+ * AC8), so a done run stays done. Forgets the cached branch presence and emits
+ * `runEvents` `change` only after the cleanup, so a listener sees the branch
+ * already gone.
  */
 export async function discardRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
-  const run = await cancelRun(deps, runId);
+  const existing = await readRun(runId);
+  if (!existing) return undefined;
+  const run = existing.status === 'done' ? existing : await cancelRun(deps, runId);
   if (!run) return undefined;
 
   const git = (cwd: string, args: string[]): void => {
@@ -1418,6 +1430,8 @@ export async function discardRun(deps: CancelDeps, runId: string): Promise<RunRe
       });
     } catch { /* no PR, or gh unavailable: best effort */ }
   }
+  forgetBranchPresence(runId);
+  runEvents.emit('change', run);
   return run;
 }
 
@@ -1448,9 +1462,36 @@ export interface ControllerRunRow {
   lastActivity?: string;
   /** Who is holding the run paused, when it is (design C8); undefined when not held. */
   holdBy?: 'operator' | 'deploy';
+  /** `run.inFlight !== undefined` (design C3, Data Models). */
+  inFlight?: boolean;
+  /** `run.inFlight?.startedAt` (design C3, Data Models); absent when the step predates it. */
+  stepStarted?: string;
+  /** `run.inFlight?.task` (design C3, Data Models). */
+  task?: string;
+  /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
+  branchPresent?: boolean;
+  /** `!branchHeld(run, allRuns)` (design C3). */
+  discardAllowed?: boolean;
 }
 
-function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
+/**
+ * True when another run holds this run's worktree branch: a moving run with
+ * the same `codeRoot` and the same non-empty `branch`, or (D25) a moving run
+ * with no branch yet (a queued relaunch) sharing `codeRoot` and `spec`.
+ */
+export function branchHeld(run: RunRecord, runs: RunRecord[]): boolean {
+  return runs.some((other) => {
+    if (other.id === run.id || !isLive(other.status) || other.codeRoot !== run.codeRoot) return false;
+    if (other.branch !== '') return other.branch === run.branch;
+    return other.spec === run.spec;
+  });
+}
+
+async function toRow(
+  run: RunRecord, driven: ReadonlySet<string>, allRuns: RunRecord[], branchRead?: BranchRead,
+): Promise<ControllerRunRow> {
+  const stopped = run.status === 'done' || run.status === 'abandoned' || run.status === 'error';
+  const branchPresentValue = stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
   return {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
@@ -1461,13 +1502,21 @@ function toRow(run: RunRecord, driven: ReadonlySet<string>): ControllerRunRow {
     driven: driven.has(run.id),
     lastActivity: run.lastActivity,
     holdBy: run.holdBy,
+    inFlight: run.inFlight !== undefined,
+    stepStarted: run.inFlight?.startedAt,
+    task: run.inFlight?.task,
+    branchPresent: branchPresentValue,
+    discardAllowed: !branchHeld(run, allRuns),
   };
 }
 
 /** Every run as a path-free wire row, newest first (the GET route and WS payload). */
-export async function listRunsForWire(driven: ReadonlySet<string> = new Set()): Promise<ControllerRunRow[]> {
+export async function listRunsForWire(
+  driven: ReadonlySet<string> = new Set(), branchRead?: BranchRead,
+): Promise<ControllerRunRow[]> {
   const runs = await listRuns();
-  return runs.sort((a, b) => b.created.localeCompare(a.created)).map((r) => toRow(r, driven));
+  const sorted = runs.sort((a, b) => b.created.localeCompare(a.created));
+  return Promise.all(sorted.map((r) => toRow(r, driven, runs, branchRead)));
 }
 
 /** The step-log directory for a run (where supervisor/step streams are written). */
@@ -1484,53 +1533,3 @@ export function listStepLogs(runId: string): string[] {
   }
 }
 
-/**
- * The last `tail` lines of a run's in-flight (or, with none, most recently
- * written) step stream log, as plain text (T10; the Run page's "Live now" log
- * tail). `null` when the run does not exist; `''` when it has no step log yet.
- * The in-flight step is `run.inFlight.id`; otherwise the newest `.jsonl` in the
- * run's step-log directory.
- */
-export async function readRunLogTail(runId: string, tail: number): Promise<string | null> {
-  const run = await readRun(runId);
-  if (!run) return null;
-  const dir = stepLogDir(runId);
-
-  let file: string | undefined;
-  if (run.inFlight?.id) {
-    const candidate = join(dir, `${run.inFlight.id}.jsonl`);
-    if (existsSync(candidate)) file = candidate;
-  }
-  if (!file) {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return ''; // no step-log directory yet
-    }
-    const logs = entries
-      .filter((e) => e.endsWith('.jsonl'))
-      .map((e) => ({ path: join(dir, e), mtime: safeMtime(join(dir, e)) }))
-      .sort((a, b) => b.mtime - a.mtime);
-    if (logs.length === 0) return '';
-    file = logs[0].path;
-  }
-
-  let text: string;
-  try {
-    text = readFileSync(file, 'utf-8');
-  } catch {
-    return '';
-  }
-  const lines = text.split('\n').filter((l) => l.length > 0);
-  const n = Number.isFinite(tail) && tail > 0 ? Math.floor(tail) : 50;
-  return lines.slice(-n).join('\n');
-}
-
-function safeMtime(path: string): number {
-  try {
-    return statSync(path).mtimeMs;
-  } catch {
-    return 0;
-  }
-}

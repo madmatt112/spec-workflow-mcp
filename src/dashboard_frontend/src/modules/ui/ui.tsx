@@ -129,6 +129,12 @@ export function Tab({
 
 // --- Class constants (design C3) ----------------------------------------
 
+const TILE_TONE: Record<'neutral' | 'warning' | 'danger', string> = {
+  neutral: 'border-(--border-default)',
+  warning: 'border-(--tone-warning-fg)',
+  danger: 'border-(--tone-danger-fg)',
+};
+
 export const ui = {
   panel: 'rounded-lg border border-(--border-default) bg-(--surface-panel)',
   popover: 'rounded-lg border border-(--border-default) bg-(--surface-panel) p-3 shadow-(--shadow-overlay)',
@@ -153,5 +159,8 @@ export const ui = {
         ? 'bg-(--surface-selected) text-(--text-primary) font-medium'
         : 'text-(--text-secondary) hover:bg-(--surface-hover)',
     );
+  },
+  tile(tone: 'neutral' | 'warning' | 'danger'): string {
+    return cx('rounded-lg border bg-(--surface-panel) p-(--tile-pad)', TILE_TONE[tone]);
   },
 };

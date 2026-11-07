@@ -342,6 +342,24 @@ describe('runImplementationPhase', () => {
     expect(git(fx.repo, ['log', '--format=%B'])).not.toMatch(/Co-Authored-By|Generated with/);
   }, 60000);
 
+  // Contract (task 1, requirement 12 AC 2): pre-condition a single unmarked
+  // low-risk task; call runImplementationPhase with a context whose
+  // onStepSpawn captures every call; observe the call for the task's
+  // implementer step carries `task` equal to the task's id; expected value
+  // ("1") is the task id from tasks.md, per design D27/C1.
+  it('passes the task id to onStepSpawn during a task step', async () => {
+    fx = await setup([taskMd('1', 'Add the first module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js'), e2eRun('pass')]);
+    const spawns: { id: string; pid: number; startTime: number; task?: string }[] = [];
+    const onStepSpawn = (s: { id: string; pid: number; startTime: number; task?: string }): void => { spawns.push(s); };
+
+    const outcome = await runImplementationPhase(ctxFor(fx, { onStepSpawn }));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const implSpawn = spawns.find((s) => s.id === 'implementer-task-1');
+    expect(implSpawn?.task).toBe('1');
+  }, 60000);
+
   it('routes an unflagged task to the Sonnet route and a sensitive-path task to the Opus profile, with matching spawn rows and one route note per task', async () => {
     fx = await setup([
       taskMd('1', 'Add the first module', ['src/a.js']),

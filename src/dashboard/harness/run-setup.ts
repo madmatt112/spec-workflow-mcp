@@ -18,6 +18,10 @@ import type {
   Provider, SetupInput, SetupView, ValidationError, SpecRow, RoleRow,
 } from './types.js';
 
+/** The decomposition heading regex (design C5), shared by `nextUnstartedSpec`
+ * and `decompositionPosition`. */
+const DECOMPOSITION_HEADING = /^###\s+\d+\.\s+`([\w.-]+)`(.*)$/;
+
 /** The model aliases an anthropic role may name (design D4). */
 export const MODEL_ALIASES: readonly string[] = ['opus', 'sonnet', 'fable'];
 /** The DeepSeek models a deepseek role may name (sdd-providers.sh:29). */
@@ -200,6 +204,7 @@ export async function buildSetupView(
     : null;
   const launchable = routing.state === 'active' ? routing.spec : unstarted;
   const disabledReason = launchable ? null : routing.reason;
+  const launchableOrder = decompositionPosition(workflowRoot, launchable);
 
   return {
     specs,
@@ -207,6 +212,7 @@ export async function buildSetupView(
     handoff,
     launchable,
     disabledReason,
+    launchableOrder,
     supervisor: { model: 'claude-opus-5-5', effort: 'high' },
     roles,
     worktree: rules.worktree,
@@ -225,9 +231,29 @@ export function nextUnstartedSpec(workflowRoot: string): string | null {
   const decomposition = readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
   if (!decomposition) return null;
   for (const line of decomposition.split('\n')) {
-    const m = /^###\s+\d+\.\s+`([\w.-]+)`(.*)$/.exec(line);
+    const m = DECOMPOSITION_HEADING.exec(line);
     if (!m || /\(deferred\)/i.test(m[2])) continue;
     if (!existsSync(join(workflowRoot, 'specs', m[1]))) return m[1];
+  }
+  return null;
+}
+
+/**
+ * The zero-based index among `decomposition.md` lines matching the heading
+ * regex of `nextUnstartedSpec` (`(deferred)` headings included) whose name is
+ * `spec`, else null — a `null` `spec` or a missing `decomposition.md` also
+ * give null (design C5).
+ */
+export function decompositionPosition(workflowRoot: string, spec: string | null): number | null {
+  if (spec === null) return null;
+  const decomposition = readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
+  if (!decomposition) return null;
+  let index = -1;
+  for (const line of decomposition.split('\n')) {
+    const m = DECOMPOSITION_HEADING.exec(line);
+    if (!m) continue;
+    index += 1;
+    if (m[1] === spec) return index;
   }
   return null;
 }

@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { ShellFeed } from '../shell-feed.js';
-import { recordActivity, _resetActivityForTests } from '../../../controller/activity.js';
 import { writeRun, writeJsonAtomic, type RunRecord, type PrRead } from '../../../controller/state.js';
 import { deployRecordPath, type ControllerDeploy } from '../../../controller/deploy.js';
-import type { LedgerEvent } from '../../../watch/ledger.js';
 import type { ProjectContext } from '../../project-manager.js';
 import type { ProjectManager } from '../../project-manager.js';
 import type { ShellMessage } from '../types.js';
@@ -31,27 +29,6 @@ import type { ShellMessage } from '../types.js';
 //   schedule() call, even though the trigger keeps firing past that point.
 //   Expected-value source: the literal "within 100 ms" / "every 10 ms" /
 //   "throttleMs 50" figures of the _Prompt sentence.
-//
-// Criterion "tick-driven quiet appear and clear" (task 6 _Prompt: "A tickMs
-//   interval (default 30000...) calls schedule() ... with tickMs 50, an
-//   open spawn under a pointer line, an activity mtime 14 minutes before
-//   the injected now and then the injected now moved 2 minutes later, a
-//   quiet wait appears with no file event, and moving the activity mtime
-//   forward clears it on a later tick"; Requirement 2.6):
-//   Pre-condition: one project with a pointer line naming a spec whose
-//   ledger has an open (no spawn.end) spawn.start, and an activity file
-//   whose mtime is 14 minutes before the injected `now`.
-//   Test: feed.start() (one flush at the 14-minute gap), then the injected
-//   `now` is moved 2 minutes later with no file touched, then the tick
-//   interval alone drives further flushes.
-//   Observable result: the latest shell-now message's `waits` has no
-//   'quiet' entry for the spec right after start(); after the clock moves,
-//   a later shell-now message's `waits` gains a 'quiet' entry for that spec
-//   with no file having been written; after the activity file's mtime is
-//   then moved forward, a still later shell-now message's `waits` has lost
-//   that entry again.
-//   Expected-value source: the 15-minute threshold design.md C3 states
-//   (14 min < it, 16 min > it) combined with the fixture's own spec name.
 //
 // Criterion "snapshot order" (task 6 _Prompt: "snapshot() returns the last
 //   pair, or [] before the first flush"):
@@ -114,20 +91,6 @@ import type { ShellMessage } from '../types.js';
 //   Expected-value source: the literal "once per group with the
 //   representative" of the C8/_Prompt sentence.
 //
-// Criterion "shell-now carries sidebar" (design.md C9 "`flush` fills it
-//   after reading waits and runs, before sending `shell-now`"; task 10
-//   _Prompt "a feed snapshot whose shell-now carries sidebar"; Requirement
-//   5.9 — sidebar rides the existing shell-now message, no new topic):
-//   Pre-condition: one listed project with no controller wait and no
-//   controller run record.
-//   Test: feed.start(), then read the shell-now message of
-//   feed.snapshot().
-//   Observable result: its `data.sidebar` is `[{ projectId: <the
-//   project's id>, dot: 'idle', liveCount: 0, lastActivity: null }]`.
-//   Expected-value source: the fixture's own project id, combined with
-//   design C9's idle/zero/null defaults for a project with no wait or
-//   run record.
-//
 // Criterion "drivenRuns reaches the controller-runs row" (task 6 _Prompt:
 //   "Add the `drivenRuns` option to `ShellFeed` ... whose flush passes its
 //   result to `listRunsForWire`"; design C4; Requirements 1.9, 2.1, 2.2):
@@ -186,6 +149,35 @@ import type { ShellMessage } from '../types.js';
 //   Expected-value source: the literal "sends nothing" of the _Prompt
 //   sentence.
 
+// Contract additions for task 18 (design.md C6; task 18 _Prompt;
+// Requirements 2.3, 2.4). Reached only through `feed.start()`,
+// `feed.pushDeploy(deploy)` and `feed.snapshot()`.
+//
+// Criterion "flush sends exactly the five topics in order, shell-now and
+//   controller-activity gone" (task 18 _Prompt: "Per design C6, flush
+//   sends shell-specs, controller-waits, controller-runs, controller-actions
+//   and controller-deploy"; Requirements 2.3, 2.4):
+//   Pre-condition: a fresh ShellFeed over no projects.
+//   Test: feed.snapshot() before any flush, then feed.start(), then
+//   feed.snapshot() again.
+//   Observable result: [] before start(); after start(), the message types
+//   in order are exactly ['shell-specs', 'controller-waits',
+//   'controller-runs', 'controller-actions', 'controller-deploy'] — an
+//   exact-array equality that also proves no message is 'shell-now' or
+//   'controller-activity'.
+//   Expected-value source: the literal topic list of the task 18 _Prompt
+//   sentence ("flush sends shell-specs, controller-waits, controller-runs,
+//   controller-actions and controller-deploy").
+//
+// Criterion "pushDeploy keeps the snapshot five long" (task 18 Success:
+//   "a pushDeploy keeps the snapshot five long"):
+//   Pre-condition: a started ShellFeed over no projects.
+//   Test: feed.pushDeploy(deploy), observed synchronously with no await.
+//   Observable result: feed.snapshot() has length 5 and its
+//   controller-deploy entry carries the pushed data.
+//   Expected-value source: the literal "five long" of the task 18 Success
+//   sentence.
+
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 10): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
@@ -223,25 +215,6 @@ function makeProject(base: string, spec: string, name = spec): { project: Projec
     workflowRootPath: projectPath,
   } as ProjectContext;
   return { project, specDir };
-}
-
-function writeLedger(specDir: string, events: LedgerEvent[]): void {
-  writeFileSync(join(specDir, 'harness-events.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
-}
-
-/** An open (no spawn.end) spawn under `specDir`, plus an activity file with one tool row. */
-function writeOpenSpawnFixture(specDir: string): string {
-  const events: LedgerEvent[] = [
-    { ts: '2026-01-01T00:00:00.000Z', type: 'run.start', run: 'r1' },
-    { ts: '2026-01-01T00:01:00.000Z', type: 'spawn.start', run: 'r1', agent: 'sdd-implementation-orchestrator', role: 'implementation phase, spawn 1' },
-  ];
-  writeLedger(specDir, events);
-  const activityPath = join(specDir, 'harness-activity.jsonl');
-  writeFileSync(activityPath, [
-    JSON.stringify({ ts: '2026-01-01T00:01:00.000Z', agent: 'sdd-implementation-orchestrator', event: 'agent.start' }),
-    JSON.stringify({ ts: '2026-01-01T00:02:00.000Z', agent: 'sdd-implementation-orchestrator', event: 'tool', tool: 'Read' }),
-  ].join('\n') + '\n');
-  return activityPath;
 }
 
 function stubProjects(projects: ProjectContext[]): ProjectManager {
@@ -298,51 +271,8 @@ describe('ShellFeed', () => {
       clearInterval(interval);
     }
 
-    expect(sends.some((m) => m.type === 'shell-now')).toBe(true);
+    expect(sends.some((m) => m.type === 'shell-specs')).toBe(true);
     expect(firstFlushAt! - t0).toBeLessThan(100);
-  });
-
-  it('shows a quiet wait only after the injected clock crosses the fifteen-minute gap, with no file event, then clears it once the activity mtime moves forward', async () => {
-    const base = tmpBase();
-    bases.push(base);
-    const spec = 'quiet-spec';
-    const { project, specDir } = makeProject(base, spec);
-    const activityPath = writeOpenSpawnFixture(specDir);
-    await writeRun(runRecord(project, spec, 'run-1'));
-
-    const now0 = Date.now();
-    const nowRef = { value: now0 };
-    const fourteenMinAgo = new Date(now0 - 14 * 60 * 1000);
-    utimesSync(activityPath, fourteenMinAgo, fourteenMinAgo);
-
-    const sends: ShellMessage[] = [];
-    const feed = new ShellFeed(stubProjects([project]), (m) => sends.push(m), {
-      throttleMs: 20, tickMs: 50, now: () => nowRef.value,
-    });
-    feeds.push(feed);
-
-    await feed.start();
-    const afterStart = ofType(sends, 'shell-now').slice(-1)[0];
-    expect(afterStart.data.waits.some((w) => w.kind === 'quiet' && w.spec === spec)).toBe(false);
-
-    // Move the injected clock 2 minutes later with no file touched: the gap
-    // is now 16 minutes, past the 15-minute threshold.
-    nowRef.value = now0 + 2 * 60 * 1000;
-
-    await waitFor(() => {
-      const latest = ofType(sends, 'shell-now').slice(-1)[0];
-      return latest.data.waits.some((w) => w.kind === 'quiet' && w.spec === spec);
-    });
-
-    // Fresh activity (mtime moved to the current injected now) clears it on
-    // a later tick.
-    const fresh = new Date(nowRef.value);
-    utimesSync(activityPath, fresh, fresh);
-
-    await waitFor(() => {
-      const latest = ofType(sends, 'shell-now').slice(-1)[0];
-      return !latest.data.waits.some((w) => w.kind === 'quiet' && w.spec === spec);
-    });
   });
 
   it('carries a run record prReads on its controller-runs wire row within the throttle', async () => {
@@ -396,7 +326,7 @@ describe('ShellFeed', () => {
     expect(row?.driven).toBe(true);
   });
 
-  it('returns [] before the first flush and the last shell-now/shell-specs/controller-waits/controller-runs/controller-activity/controller-actions/controller-deploy septet in order after it', async () => {
+  it('returns [] before the first flush and the last shell-specs/controller-waits/controller-runs/controller-actions/controller-deploy quintet in order after it, with no shell-now or controller-activity', async () => {
     const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
 
@@ -405,28 +335,8 @@ describe('ShellFeed', () => {
     await feed.start();
     const snap = feed.snapshot();
     expect(snap.map((m) => m.type)).toEqual([
-      'shell-now', 'shell-specs', 'controller-waits', 'controller-runs', 'controller-activity', 'controller-actions',
-      'controller-deploy',
+      'shell-specs', 'controller-waits', 'controller-runs', 'controller-actions', 'controller-deploy',
     ]);
-  });
-
-  it('carries the latest-per-run controller activity in the controller-activity message', async () => {
-    _resetActivityForTests();
-    recordActivity({ runId: 'run-1', stepId: 'drafter', role: 'sdd-drafter', tool: 'Read', inputSummary: 'requirements.md' });
-    // A newer activity for the same run replaces the older one (latest per run).
-    recordActivity({ runId: 'run-1', stepId: 'reviewer-r1', role: 'sdd-reviewer', tool: 'Grep', inputSummary: 'TODO' });
-    recordActivity({ runId: 'run-2', stepId: 'drafter', role: 'sdd-drafter', tool: 'Edit', inputSummary: 'design.md' });
-
-    const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
-    feeds.push(feed);
-    await feed.start();
-
-    const msg = ofType(feed.snapshot(), 'controller-activity')[0];
-    expect(msg).toBeDefined();
-    const byRun = new Map(msg.data.activity.map((a) => [a.runId, a]));
-    expect(byRun.get('run-1')).toMatchObject({ stepId: 'reviewer-r1', role: 'sdd-reviewer', tool: 'Grep' });
-    expect(byRun.get('run-2')).toMatchObject({ stepId: 'drafter', tool: 'Edit' });
-    expect(msg.data.activity).toHaveLength(2);
   });
 
   it('sends nothing for 200 ms once close() is called', async () => {
@@ -493,22 +403,6 @@ describe('ShellFeed', () => {
     }
   });
 
-  it('carries a sidebar row for a listed project with no wait or run record on the shell-now message', async () => {
-    const base = tmpBase();
-    bases.push(base);
-    const { project } = makeProject(base, 'spec-sidebar', 'Sidebar Project');
-
-    const feed = new ShellFeed(stubProjects([project]), () => {}, { tickMs: 1_000_000 });
-    feeds.push(feed);
-    await feed.start();
-
-    const nowMsg = ofType(feed.snapshot(), 'shell-now')[0];
-    expect(nowMsg).toBeDefined();
-    expect((nowMsg!.data as unknown as { sidebar: unknown }).sidebar).toEqual([
-      { projectId: project.projectId, dot: 'idle', liveCount: 0, lastActivity: null },
-    ]);
-  });
-
   it('sends controller-deploy with { deploy: null } when no record exists on disk', async () => {
     const feed = new ShellFeed(stubProjects([]), () => {}, { tickMs: 1_000_000 });
     feeds.push(feed);
@@ -536,7 +430,7 @@ describe('ShellFeed', () => {
     expect(msg.data).toEqual({ deploy: { stage: 'build', runs: ['run-1'], started } });
   });
 
-  it('pushDeploy sends controller-deploy at once and snapshot holds it, still seven long', async () => {
+  it('pushDeploy sends controller-deploy at once and snapshot holds it, still five long', async () => {
     const sends: ShellMessage[] = [];
     const feed = new ShellFeed(stubProjects([]), (m) => sends.push(m), { tickMs: 1_000_000 });
     feeds.push(feed);
@@ -550,7 +444,7 @@ describe('ShellFeed', () => {
     expect(sends[sends.length - 1]).toEqual({ type: 'controller-deploy', data: { deploy } });
 
     const snap = feed.snapshot();
-    expect(snap).toHaveLength(7);
+    expect(snap).toHaveLength(5);
     expect(ofType(snap, 'controller-deploy')[0]?.data).toEqual({ deploy });
   });
 

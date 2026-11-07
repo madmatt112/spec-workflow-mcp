@@ -17,7 +17,7 @@ import {
   acquireControllerLock, releaseControllerLock,
   readQueue, writeQueue, listRuns, readRun, readRunSync, writeRun,
   writeRateLimit, listWaits, withStoreLock,
-  isProcessAlive, OPERATOR_PAUSE,
+  isProcessAlive, isLive, OPERATOR_PAUSE,
   type RunRecord, type RateLimitFile, type RateLimitWindow,
 } from './state.js';
 import {
@@ -29,7 +29,7 @@ import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
-  runOnce, cancelRun, discardRun, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
+  runOnce, cancelRun, discardRun, branchHeld, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
 import {
@@ -90,6 +90,7 @@ export class Controller extends EventEmitter {
   private readonly cancelled = new Set<string>();
   private readonly resumeTimers = new Set<NodeJS.Timeout>();
   private readonly drives = new Map<string, Promise<void>>();
+  private readonly schedules = new Set<Promise<void>>();
   private tickTimer?: NodeJS.Timeout;
   private started = false;
   private locked = false;
@@ -151,7 +152,7 @@ export class Controller extends EventEmitter {
     if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = undefined; }
     for (const t of this.resumeTimers) clearTimeout(t);
     this.resumeTimers.clear();
-    const drained = Promise.allSettled([...this.drives.values()]);
+    const drained = Promise.allSettled([...this.drives.values(), ...this.schedules]);
     await Promise.race([drained, new Promise((r) => setTimeout(r, 5000))]);
     if (this.locked) {
       await releaseControllerLock();
@@ -370,11 +371,27 @@ export class Controller extends EventEmitter {
     });
   }
 
-  async discard(runId: string): Promise<RunRecord | undefined> {
-    this.cancelled.add(runId);
-    await this.dropFromQueue(runId);
-    clearRunActivity(runId);
-    return discardRun(this.cancelDeps(), runId);
+  /**
+   * Discard a run, or the sentinel `'branch-in-use'` when another moving run
+   * still holds its worktree branch (design C4, D25, D26; requirement 7 AC7).
+   * The branch-in-use check and the discard itself run inside one
+   * `withStoreLock` so admission's read of the live runs can't change
+   * underneath it; the sentinel leaves the run file, the queue and
+   * `cancelled` untouched.
+   */
+  async discard(runId: string): Promise<RunRecord | undefined | 'branch-in-use'> {
+    const initial = await readRun(runId);
+    if (!initial) return undefined;
+    return withStoreLock(initial.specStore, async () => {
+      const run = await readRun(runId);
+      if (!run) return undefined;
+      if (branchHeld(run, await listRuns())) return 'branch-in-use';
+
+      this.cancelled.add(runId);
+      await this.dropFromQueue(runId);
+      clearRunActivity(runId);
+      return discardRun(this.cancelDeps(), runId);
+    });
   }
 
   /**
@@ -466,7 +483,14 @@ export class Controller extends EventEmitter {
 
   // --- scheduler (design §9) -----------------------------------------------
 
-  private async schedule(): Promise<void> {
+  /** Track each in-flight pass so `stop()` can drain it before it writes (design §8). */
+  private schedule(): Promise<void> {
+    const pass = this.runSchedule().finally(() => { this.schedules.delete(pass); });
+    this.schedules.add(pass);
+    return pass;
+  }
+
+  private async runSchedule(): Promise<void> {
     if (!this.started) return;
 
     if (!this.deployDisabled) await this.deploy.tick();
@@ -782,12 +806,6 @@ export class Controller extends EventEmitter {
     runEvents.emit('change', next);
     return next;
   }
-}
-
-/** A run that still holds (or is owed) a slot. */
-function isLive(status: RunRecord['status']): boolean {
-  return status === 'queued' || status === 'running' || status === 'paused'
-    || status === 'waiting' || status === 'merging';
 }
 
 /**

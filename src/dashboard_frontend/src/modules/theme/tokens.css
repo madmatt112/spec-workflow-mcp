@@ -50,12 +50,18 @@
   --disabled-opacity: 0.4;
 
   --row-h-comfortable: 36px;
-  --row-h-compact: 32px;
   --row-h: var(--row-h-comfortable);
 
-  --sidebar-w: 256px;
   --panel-w: 384px;
   --content-max: 1600px;
+
+  --text-display: 32px;
+  --text-display--line-height: 40px;
+  --text-tile: 15px;
+  --text-tile--line-height: 22px;
+  --tile-pad: 20px;
+  --tile-gap: 16px;
+  --band-gap: 32px;
 }
 
 :root {

@@ -4,9 +4,7 @@
 // home for the setup view, the overview rows and the server/client message
 // unions. The setup file, launch records and pointer lines of the supervisor
 // launcher went with step (d) of the foundation rework.
-import type { RunModel, AgentProfile } from '../../watch/ledger.js';
 import type { RoutingDecision } from '../../core/spec-routing-deriver.js';
-import type { RunDetail } from '../shell/types.js';
 
 export type Provider = 'anthropic' | 'deepseek';
 
@@ -35,6 +33,7 @@ export interface SetupView {
   routing: RoutingDecision;           // src/core/spec-routing-deriver.ts:20-30
   handoff: HandoffRouting | null;
   launchable: string | null; disabledReason: string | null;
+  launchableOrder: number | null;
   supervisor: { model: string; effort: 'high' };   // 'claude-opus-5-5'
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
@@ -49,12 +48,7 @@ export interface OverviewRow {
 }
 
 export type HarnessMessage =          // server to client
-  | { type: 'harness-model'; projectId: string; data: { spec: string | null; model: RunModel | null;
-      profiles: Record<string, AgentProfile> } }
-  | { type: 'harness-gates'; projectId: string; data: { spec: string | null; gateA: string | null; gateB: string | null } }
-  | { type: 'harness-run-detail'; projectId: string; data: RunDetail | null }
   | { type: 'overview-rows'; data: { rows: OverviewRow[] } };
 
 export type ViewMessage =             // client to server
-  | { type: 'harness-subscribe' | 'harness-unsubscribe'; projectId: string }
   | { type: 'overview-subscribe' | 'overview-unsubscribe' };

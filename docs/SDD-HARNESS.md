@@ -96,8 +96,8 @@ and starts it when it has a slot (ADR 0004). It allows one run per spec store.
   heading is `### N. \`<name>\`` and which has no `.spec-workflow/specs/<name>/`
   directory yet. An entry marked `(deferred)` is skipped. `GET
   /api/projects/:id/harness/setup` shows the spec, or the reason nothing is launchable.
-- **Launch.** The Launch card on the Runs page, or `POST /api/projects/:id/harness/launch`
-  with `{"spec", "supervisorModel", "worktree", "gates", "roles"}` (the Runs page builds
+- **Launch.** The Launch tile on Home, or `POST /api/projects/:id/harness/launch`
+  with `{"spec", "supervisorModel", "worktree", "gates", "roles"}` (Home builds
   this from the setup view). The route makes the spec directory, forces `gates: record`
   and enqueues. It answers `409` when the spec is not the launchable one, when another
   run is live on the same spec store, or when a usage window blocks launches.
@@ -116,9 +116,9 @@ and starts it when it has a slot (ADR 0004). It allows one run per spec store.
 ### Waits
 
 A wait is the only way a run speaks to the operator. The controller writes a wait, parks
-the run, and carries on with other work. The operator answers the wait on the dashboard
-Now page, or with `POST /api/controller/waits/:id/answer {"answers": {"<question id>":
-"<value>"}, "by": "<name>"}`. The answer resumes the run.
+the run, and carries on with other work. The operator answers the wait on the answer
+sheet opened from a wait tile on Home, or with `POST /api/controller/waits/:id/answer
+{"answers": {"<question id>": "<value>"}, "by": "<name>"}`. The answer resumes the run.
 
 A wait is one of these kinds: `gate-a`, `gate-b`, `retro-plan`, `merge`, `escalation`,
 `error`, `question`. When the operator answers a gate wait, the controller renders the
@@ -466,7 +466,7 @@ condition clears.
 
 An alert goes to three places: a line in `watchdog-alerts.log` in the harness home
 (always), a desktop notification with `notify-send` (best effort), and an `error` wait
-in the harness home, so the dashboard's Now page shows it until the operator acknowledges
+in the harness home, so a wait tile on Home shows it until the operator acknowledges
 it (best effort: it needs the checkout's `dist/` and the node binary the unit carries).
 The watchdog is plain bash and needs only `curl` and `systemctl`, so it cannot die of the
 broken `PATH` that takes the controller down. It never runs a model.

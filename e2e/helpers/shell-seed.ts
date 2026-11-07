@@ -85,7 +85,7 @@ export async function seedVisualSuite(options: {
   specWorkflowHome: string;
 }): Promise<SeededVisualFixture> {
   // Empties both `activeProjects.json` and the controller's durable
-  // `projects.json`, so the sidebar carries no "remembered" entry from a prior
+  // `projects.json`, so the gear carries no "remembered" entry from a prior
   // invocation and the before/after screenshots are reproducible.
   await resetSpecWorkflowHome(options.specWorkflowHome);
 

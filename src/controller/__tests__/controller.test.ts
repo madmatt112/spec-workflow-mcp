@@ -7,7 +7,8 @@ import { execFileSync, spawn } from 'child_process';
 import { Controller, type ControllerOptions } from '../controller.js';
 import {
   writeRun, readRun, listRuns, writeRateLimit, readRateLimit, readWait, writeLastActivity, processStartTime,
-  type RunRecord,
+  readQueue, writeQueue,
+  type RunRecord, type QueueFile,
 } from '../state.js';
 import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
@@ -1785,6 +1786,22 @@ function makeDeployController(fx: Fixture, extra: Partial<ControllerOptions> = {
   });
 }
 
+/**
+ * Pump until the deploy unit starts, bounded. The deploy tick is
+ * eventually-consistent (D16: a tick that finds the lock held returns and the
+ * next retries), and the controller's own `tickMs` interval pumps alongside
+ * this call, so a single `pump()` can find the lock held by a concurrent tick
+ * and no-op; the start then lands on a later tick. The `unitStarted` guard
+ * keeps the total at one start.
+ */
+async function pumpUntilStarted(c: Controller, unit: DeployUnit, ms = 2000): Promise<void> {
+  const deadline = Date.now() + ms;
+  while (vi.mocked(unit.start).mock.calls.length === 0 && Date.now() < deadline) {
+    await c.pump();
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
 async function writeHeldRun(
   fx: Fixture, id: string, status: RunRecord['status'], iso: string, extra: Partial<RunRecord> = {},
 ): Promise<void> {
@@ -1933,10 +1950,15 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
     expect(unit.start).not.toHaveBeenCalled();
     expect((await readDeployRecord())?.unitStarted).not.toBe(true);
 
-    child.kill('SIGKILL');
-    await new Promise((r) => setTimeout(r, 150));
-    await controller.pump();
+    // Wait for the kill to be reaped (its /proc entry gone), not a fixed sleep:
+    // until the process is reaped `isProcessAlive` still reads the lingering
+    // zombie as live, and a loaded runner can lag the reap past any fixed wait.
+    await new Promise<void>((resolve) => {
+      child.on('exit', () => resolve());
+      child.kill('SIGKILL');
+    });
 
+    await pumpUntilStarted(controller, unit);
     expect(unit.start).toHaveBeenCalledTimes(1);
   }, 10000);
 
@@ -1967,7 +1989,7 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
     }
     expect(controller.drivenRuns().has(id)).toBe(false);
 
-    await controller.pump();
+    await pumpUntilStarted(controller, unit);
     expect(unit.start).toHaveBeenCalledTimes(1);
   }, 10000);
 });
@@ -2400,6 +2422,7 @@ describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open d
     expect(cancelled?.status).toBe('abandoned');
 
     const discarded = await controller.discard(discardId);
+    if (discarded === 'branch-in-use') throw new Error('unexpected branch-in-use');
     expect(discarded?.status).toBe('abandoned');
 
     // `cancelRun`/`discardRun` return their own in-memory patch, not the
@@ -2415,5 +2438,74 @@ describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open d
     expect((await readDeployRecord())?.stage).toBe('done');
     expect(await readRun(cancelId)).toEqual(beforeCancel);
     expect(await readRun(discardId)).toEqual(beforeDiscard);
+  });
+});
+
+// Source: task 4 Success (design C4 "Discard", D25, D26; requirement 7
+// AC7). Two criteria through this seam: the branch-held sentinel changes
+// nothing, and the D25 empty-branch queued-relaunch case also triggers it.
+describe('Controller.discard guards a branch another run holds (design C4, D25, D26; requirement 7 AC7; task 4)', () => {
+  // Criterion "controller.discard on a run whose branch a moving run holds
+  // returns the sentinel, leaves the run file byte-identical, leaves the
+  // queue unchanged and leaves the run out of cancelled": Pre-condition: a
+  // `running` run and a `done` run sharing `codeRoot` and a non-empty
+  // `branch`, with the done run's id in the queue. Test:
+  // controller.discard(doneId). Observable result: `'branch-in-use'`,
+  // `readRun(doneId)` unchanged, `readQueue()` unchanged, and the
+  // controller's own `cancelled` set does not gain the id. Expected-value
+  // source: design C4 ("On branch-in-use nothing changes: no cancelled
+  // entry, no queue edit, no write").
+  it('returns the sentinel and changes nothing when a moving run holds the branch', async () => {
+    const movingId = 'run-20261106-mv0001';
+    const doneId = 'run-20261106-dn0001';
+    const iso = '2026-11-06T00:00:01.000Z';
+    await writeRun({
+      v: 1, id: movingId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'feat/shared', status: 'running',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    await writeRun({
+      v: 1, id: doneId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'feat/shared', status: 'done',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    const queueBefore: QueueFile = { v: 1, runs: [doneId] };
+    await writeQueue(queueBefore);
+    const before = await readRun(doneId);
+
+    controller = makeController(fx);
+    const result = await controller.discard(doneId);
+
+    expect(result).toBe('branch-in-use');
+    expect(await readRun(doneId)).toEqual(before);
+    expect(await readQueue()).toEqual(queueBefore);
+    expect((controller as any).cancelled.has(doneId)).toBe(false);
+  });
+
+  // Criterion "the same call with an empty-branch queued relaunch of that
+  // spec returns the sentinel": Pre-condition: a `queued` run with
+  // `branch: ''` sharing `codeRoot` and `spec` with a `done` run. Test:
+  // controller.discard(doneId). Observable result: `'branch-in-use'`.
+  // Expected-value source: design C3 `branchHeld`'s D25 clause ("a moving
+  // run with no branch yet ... sharing codeRoot and spec").
+  it('returns the sentinel for an empty-branch queued relaunch of the same spec (D25)', async () => {
+    const movingId = 'run-20261106-mv0002';
+    const doneId = 'run-20261106-dn0002';
+    const iso = '2026-11-06T00:00:02.000Z';
+    await writeRun({
+      v: 1, id: movingId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: '', branch: '', status: 'queued',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    await writeRun({
+      v: 1, id: doneId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch: 'feat/old', status: 'done',
+      created: iso, updated: iso, tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+
+    controller = makeController(fx);
+    const result = await controller.discard(doneId);
+
+    expect(result).toBe('branch-in-use');
   });
 });
