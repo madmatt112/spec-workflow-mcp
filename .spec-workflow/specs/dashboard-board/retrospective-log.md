@@ -84,3 +84,23 @@ Cost: 1 implementer spawn(s)
 task 15 closed: 0 fix round(s), outcome pass
 Evidence: task 15 · mark run-20261106-181042 eb704eab
 Cost: 1 implementer spawn(s)
+
+## 2026-11-07T08:26:12Z · implementation · task 16 · tool-error
+gate's playwright e2e run reported fail with `ws proxy error: ECONNRESET` noise; re-running at the same commit twice passed 9/9 and 62/62, so the gate failure was infra flakiness, not a real red test
+Evidence: task 16 · mark run-20261106-181042 cd8b0fe0
+Cost: implementer
+
+## 2026-11-07T08:39:16Z · implementation · task 16 · gotcha
+gate's fail (1) on this check reproduced clean 3/3 after the fact; HEAD (d0470e85) already satisfies the brief, no change needed. Webserver stdout noise (EPIPE/ECONNRESET from the vite ws proxy) interleaves with Playwright's line reporter and can make a transient run look failed in captured logs.
+Evidence: task 16 · mark run-20261106-181042 114150cb
+Cost: implementer
+
+## 2026-11-07T08:59:49Z · implementation · task 16 · ruling
+adjudicated after 3 fix rounds; narrow verdict pass
+Evidence: task 16 · mark run-20261106-181042 533c158f
+Cost: 4 rounds
+
+## 2026-11-07T08:59:49Z · implementation · task 16 · inefficiency
+task 16 closed: 4 fix round(s), outcome adjudicated
+Evidence: task 16 · mark run-20261106-181042 4927bf08
+Cost: 5 implementer spawn(s)
