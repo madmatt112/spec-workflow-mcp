@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { execFileSync } from 'child_process';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
@@ -173,6 +174,45 @@ async function registerGateLedgerProject(page: Page): Promise<{ projectId: strin
 
 async function unregisterProject(page: Page, projectId: string, dir: string): Promise<void> {
   await page.request.delete(`/api/projects/${projectId}`).catch(() => undefined);
+  await rm(dir, { recursive: true, force: true });
+}
+
+/**
+ * A throwaway local git repository with no remote and a real branch at
+ * HEAD's one commit, for task 14's stopped-run tiles: `toRow`'s branch read
+ * (`branchPresent`, design C2) runs `git rev-parse --verify refs/heads/<branch>`
+ * against `codeRoot` for any `done`/`abandoned`/`error` run
+ * (`src/controller/branch-presence.ts`), and a real two-press Discard runs
+ * `git branch -D <branch>` there too (`src/controller/runs.ts:1416-1425`). A
+ * bogus `codeRoot` makes that read fail (caught, reported `false`), and R7
+ * AC6 shows no tile at all for a stopped run with no branch — the task's own
+ * Note.
+ */
+async function makeGitRepo(branch: string): Promise<string> {
+  const dir = join(tmpdir(), `specwf-e2e-board-repo-${randomBytes(4).toString('hex')}`);
+  await mkdir(dir, { recursive: true });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'ignore' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'e2e-board@example.com']);
+  git(['config', 'user.name', 'e2e-board']);
+  await writeFile(join(dir, 'README.md'), 'e2e-board fixture\n', 'utf-8');
+  git(['add', '.']);
+  git(['commit', '-q', '-m', 'init']);
+  git(['branch', branch]);
+  return dir;
+}
+
+/** Whether `branch` still exists as a local ref in the repo at `dir`. */
+function branchExistsInRepo(dir: string, branch: string): boolean {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], { cwd: dir, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function removeGitRepo(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true });
 }
 
@@ -1576,4 +1616,494 @@ test.describe('Home (board)', () => {
       await removeRunRecord(runDir);
     }
   });
+
+  // --- RunTile presses and stopped runs (task 14; design C10, C11, D21, D36) ---
+  //
+  // `RunTile` has no button at all until this task wires it: every test
+  // below is red on the current tree for that reason alone, on top of
+  // whichever behaviour it presses or reads. Pause, Resume, Stop and the
+  // real half of Discard go through the dev proxy to the real `Controller`
+  // this server runs (`playwright.worktree.config.ts` disables only its
+  // deploy coordinator, `SDD_DEPLOY_DISABLED`); Re-drive and Confirm are
+  // stubbed with `page.route` (D52). A `queued` or unguarded `paused`
+  // fixture would otherwise be swept by that live scheduler within its 1 s
+  // tick the same way task 13's own `queued` fixture had to dodge it
+  // (`isStartable`, `src/controller/controller.ts:549-562`); each fixture
+  // below that needs such a dodge says so inline.
+
+  // Criterion "Pause on a `running` run reads `pausing after this step`"
+  // (task 14 Success; Requirement 7 AC 1 "the tile SHALL offer Pause";
+  // Requirement 6 AC 6 "'pause requested' SHALL become 'pausing after this
+  // step' ... a running run's note reads just that").
+  //   Pre-condition: a `running` run, unheld (status `running` is never
+  //   auto-started by the live scheduler, so no defensive field is needed).
+  //   Test: page.goto('/'), then tile.getByRole('button', { name: 'Pause' }).click().
+  //   Observable result: the tile's text eventually contains "pausing after
+  //   this step".
+  //   Expected-value source: `src/controller/controller.ts:299-318`
+  //   `pause()`'s pending branch (status stays `running`, `pauseRequested`
+  //   set); `src/dashboard_frontend/src/modules/shell/pause.ts:42-43`
+  //   `pauseNote`'s literal text.
+  test('(R7 AC1, R6 AC6) Pause on a running run reads "pausing after this step"', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-pause-running-run';
+    const run = baseRun(runId, 'e2e-board-run-pause-running-proj', {
+      status: 'running', spec: 'e2e-board-run-pause-running-spec',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Pause', exact: true }).click();
+      await expect(tile).toContainText('pausing after this step', { timeout: 15000 });
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "Pause on a `queued` run reads `paused`" (task 14 Success;
+  // Requirement 7 AC 1; Requirement 6 AC 6 "Once applied, the note SHALL
+  // start with 'paused'").
+  //   Pre-condition: a `queued` run with `pauseRequested` already set (the
+  //   scheduler dodge: `isStartable` checks `pauseRequested` before the
+  //   status at all) and `holdBy: 'deploy'` (so `isOperatorHeld` still
+  //   reads false — `pause.ts:28` returns false unconditionally whenever
+  //   `holdBy === 'deploy'` — and `runControls` offers Pause rather than
+  //   Resume). Pressing Pause always rewrites `holdBy: 'operator'`
+  //   (`controller.ts:305`), so the press itself needs no further defence.
+  //   Test: page.goto('/'), then tile.getByRole('button', { name: 'Pause' }).click().
+  //   Observable result: the tile's text eventually contains "paused".
+  //   Expected-value source: `controller.ts:299-318` `pause()`'s applied
+  //   branch for a `queued`, not-active run (`status: 'paused'`,
+  //   `pauseReason: 'operator'`); `pause.ts:37-40` `pauseNote`'s "paused by
+  //   you" text.
+  test('(R7 AC1, R6 AC6) Pause on a queued run reads "paused"', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-pause-queued-run';
+    const run = baseRun(runId, 'e2e-board-run-pause-queued-proj', {
+      status: 'queued', spec: 'e2e-board-run-pause-queued-spec',
+      pauseRequested: isoAgo(0), holdBy: 'deploy',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Pause', exact: true }).click();
+      await expect(tile).toContainText(/paused/i, { timeout: 15000 });
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "Resume on a held run shows the stage and returns Pause"
+  // (task 14 Success; Requirement 7 AC 2 "the tile SHALL offer Resume in
+  // place of Pause"; Requirement 9 AC 1 "its tile SHALL show the stages
+  // pressed, running, done, or failed").
+  //   Pre-condition: a `running` run with `pauseRequested` set and no
+  //   `holdBy` (an operator-held pending pause; `running` needs no
+  //   scheduler dodge).
+  //   Test: tile.getByRole('button', { name: /^resume/i }).click().
+  //   Observable result: the tile's text passes through one of
+  //   pressed/running/done; a `Pause` button is visible again once the
+  //   press resolves.
+  //   Expected-value source: `controller.ts:337-371` `resumeNow`'s pending
+  //   branch (`pauseRequested`/`holdBy` cleared, status stays `running`);
+  //   `board.ts` `runControls`'s `resume`/`pause` disjunction once
+  //   `isOperatorHeld` reads false again.
+  test('(R7 AC2, R9 AC1) Resume on a held run shows the stage and returns Pause', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-resume-held-run';
+    const run = baseRun(runId, 'e2e-board-run-resume-held-proj', {
+      status: 'running', spec: 'e2e-board-run-resume-held-spec',
+      pauseRequested: isoAgo(2 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const resumeButton = tile.getByRole('button', { name: /^resume/i });
+      await expect(resumeButton).toBeVisible();
+      await resumeButton.click();
+      await expect(tile).toContainText(/pressed|running|done/i, { timeout: 5000 });
+      await expect(tile.getByRole('button', { name: 'Pause', exact: true })).toBeVisible({ timeout: 15000 });
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a usage pause offers Resume" (task 14 Success; Requirement 7
+  // AC 2; design C9 `runControls`'s table row "resume for a usage pause").
+  //   Pre-condition: a `paused` run with `pauseReason: 'usage-window'`,
+  //   `pauseRequested` set (scheduler dodge — a `paused` usage-window run
+  //   is otherwise `isStartable` at once) and a past `resumeAt`.
+  //   Test: page.goto('/'), then the tile's Resume button, with no press.
+  //   Observable result: a button whose name starts with "Resume" is
+  //   visible on the tile.
+  //   Expected-value source: `board.ts` `runControls`: `resume =
+  //   isOperatorHeld(run) || (run.status === 'paused' && run.holdBy !==
+  //   'deploy')` — true for any non-deploy `paused` run, usage-window or not.
+  test('(R7 AC2) a usage pause offers Resume', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-usage-pause-run';
+    const run = baseRun(runId, 'e2e-board-run-usage-pause-proj', {
+      status: 'paused', spec: 'e2e-board-run-usage-pause-spec',
+      pauseReason: 'usage-window', pauseRequested: isoAgo(0), resumeAt: isoAgo(60 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile.getByRole('button', { name: /^resume/i })).toBeVisible();
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "Stop posts `cancel`, and the tile turns `abandoned` with its
+  // branch kept" (task 14 Success; Requirement 7 AC 3 "the tile SHALL offer
+  // Stop, which SHALL call the `cancel` route and keep the worktree, branch
+  // and PR").
+  //   Pre-condition: a `running` run whose `codeRoot` is a real temporary
+  //   git repository with a real branch (so the post-cancel `abandoned`
+  //   row's branch-presence read, needed for the tile to keep showing at
+  //   all, reads true — the task's own Note).
+  //   Test: tile.getByRole('button', { name: 'Stop' }).click().
+  //   Observable result: the tile keeps showing with a Discard button and
+  //   no Stop, Pause or Resume button; the branch still exists in the repo.
+  //   Expected-value source: `controller.ts:282-287` `cancel` →
+  //   `cancelRun` writes `status: 'abandoned'` and never touches
+  //   `branch`/`worktree`; `board.ts` `runControls`'s stopped-run row
+  //   (Discard only); `discardRun`'s own branch-delete step never ran.
+  test('(R7 AC3) Stop posts cancel, and the tile turns abandoned with its branch kept', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-stop-run';
+    const branch = 'feat/e2e-board-stop';
+    const repoDir = await makeGitRepo(branch);
+    const run = baseRun(runId, 'e2e-board-run-stop-proj', {
+      status: 'running', spec: 'e2e-board-run-stop-spec',
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Stop', exact: true }).click();
+      await expect(tile.getByRole('button', { name: 'Discard', exact: true })).toBeVisible({ timeout: 15000 });
+      await expect(tile.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
+      await expect(tile.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
+      await expect(tile.getByRole('button', { name: /^resume/i })).toHaveCount(0);
+      expect(branchExistsInRepo(repoDir, branch)).toBe(true);
+    } finally {
+      await removeRunRecord(runDir);
+      await removeGitRepo(repoDir);
+    }
+  });
+
+  // Criterion "an `abandoned`, an `error` and a recent `done` run with a
+  // branch each show Discard and no Stop, Pause or Resume" (task 14
+  // Success; Requirement 7 AC 4 "the tile SHALL offer Discard in place of
+  // Stop, and no Pause or Resume"; Requirement 7 AC 6's admission rule for
+  // each status), folded into one test over three fixtures the way task
+  // 13's own stalled test bundled three run shapes.
+  //   Pre-condition: an `abandoned`, an `error`, and a `done` run updated
+  //   one hour ago, each with its own real git repo and branch.
+  //   Test: page.goto('/'), then each run's tile's buttons.
+  //   Observable result: each tile shows exactly one Discard button and no
+  //   Stop, Pause or Resume button.
+  //   Expected-value source: Requirement 7 AC 4 and AC 6 verbatim; `board.ts`
+  //   `runControls`'s stopped-row branch (`discard: !moving &&
+  //   discardAllowed`, `stop`/`pause`/`resume` all false for a non-moving
+  //   status) and `stoppedAdmitted`'s three admitted shapes.
+  test('(R7 AC4, R7 AC6) an abandoned, an error and a recent done run with a branch each show Discard and no Stop, Pause or Resume', async ({ page }) => {
+    test.setTimeout(60000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const abandonedId = 'e2e-board-run-stopped-abandoned-run';
+    const errorId = 'e2e-board-run-stopped-error-run';
+    const doneId = 'e2e-board-run-stopped-done-run';
+    const abandonedBranch = 'feat/e2e-board-stopped-abandoned';
+    const errorBranch = 'feat/e2e-board-stopped-error';
+    const doneBranch = 'feat/e2e-board-stopped-done';
+    const abandonedRepo = await makeGitRepo(abandonedBranch);
+    const errorRepo = await makeGitRepo(errorBranch);
+    const doneRepo = await makeGitRepo(doneBranch);
+    const abandonedRun = baseRun(abandonedId, 'e2e-board-run-stopped-abandoned-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-stopped-abandoned-spec',
+      codeRoot: abandonedRepo, specStore: abandonedRepo, worktree: abandonedRepo, branch: abandonedBranch,
+    });
+    const errorRun = baseRun(errorId, 'e2e-board-run-stopped-error-proj', {
+      status: 'error', spec: 'e2e-board-run-stopped-error-spec',
+      codeRoot: errorRepo, specStore: errorRepo, worktree: errorRepo, branch: errorBranch,
+    });
+    const doneRun = baseRun(doneId, 'e2e-board-run-stopped-done-proj', {
+      status: 'done', spec: 'e2e-board-run-stopped-done-spec', updated: isoAgo(60 * 60_000),
+      codeRoot: doneRepo, specStore: doneRepo, worktree: doneRepo, branch: doneBranch,
+    });
+    const abandonedDir = await writeRunRecord(abandonedRun);
+    const errorDir = await writeRunRecord(errorRun);
+    const doneDir = await writeRunRecord(doneRun);
+    try {
+      await page.goto('/');
+      for (const id of [abandonedId, errorId, doneId]) {
+        const tile = page.getByTestId(`run-tile-${id}`);
+        await expect(tile).toBeVisible({ timeout: 15000 });
+        await expect(tile.getByRole('button', { name: 'Discard', exact: true })).toBeVisible();
+        await expect(tile.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
+        await expect(tile.getByRole('button', { name: 'Pause', exact: true })).toHaveCount(0);
+        await expect(tile.getByRole('button', { name: /^resume/i })).toHaveCount(0);
+      }
+    } finally {
+      await removeRunRecord(abandonedDir);
+      await removeRunRecord(errorDir);
+      await removeRunRecord(doneDir);
+      await removeGitRepo(abandonedRepo);
+      await removeGitRepo(errorRepo);
+      await removeGitRepo(doneRepo);
+    }
+  });
+
+  // Criteria "a branchless one shows no tile", "a 25-hour-old `done` run
+  // shows no tile" and "stopped runs sort after moving ones, newest first"
+  // (task 14 Success; Requirement 7 AC 6; design C9 `running`) are
+  // RED-IMPOSSIBLE: `HomePage.tsx` already fills the Running band from
+  // `running(controllerRuns, enabled, tick)` (task 11), whose admission
+  // (`stoppedAdmitted`) and sort order are task 8's `board.ts`, wired in
+  // before this task and untouched by it — none of the three needs a
+  // button, so all three already pass with no press wiring at all. Each
+  // already has its own unit assertion, branch by branch, in task 8's own
+  // Success line, covered in `src/dashboard/shell/__tests__/board-view.test.ts`:
+  // "refuses each without it" and "refuses it at exactly 24 hours and with
+  // no branch" (the branchless and 25-hour branches) and "admitted stopped
+  // runs follow, newest `updated` first" (the sort order). Left out of the
+  // red-test list per the standing green-regression-guard rule.
+
+  // Criteria "the first Discard press posts nothing and shows the armed
+  // text" and "the second posts, the branch and worktree are gone and the
+  // tile leaves" (task 14 Success; Requirement 7 AC 5 "the tile SHALL ask
+  // for a second press that names what goes ... only that press SHALL call
+  // the route"; design D36 "The first Discard press is secondary, the
+  // armed press danger"), folded into one test as one linear two-press
+  // flow, plus the button-variant half of Requirement 11 AC 3 ("Tile
+  // buttons SHALL use the secondary variant ... except the danger Discard
+  // press").
+  //   Pre-condition: an `abandoned` run with a real repo and branch.
+  //   Test: tile.getByRole('button', { name: 'Discard' }).click(), then the
+  //   armed button's click, with a `page.on('request', ...)` tap counting
+  //   POSTs to the discard route.
+  //   Observable result: after the first click, zero discard POSTs, the
+  //   armed button (`data-variant="danger"`) carries the exact confirm text
+  //   of `RunsPage.tsx:360`; the first button carried `data-variant`
+  //   `"secondary"`; after the second click, exactly one discard POST, the
+  //   run's tile leaves, and the branch no longer exists in the repo.
+  //   Expected-value source: design C10 "the first press is a `secondary`
+  //   button ... the armed button is `danger` and carries the text of
+  //   `RunsPage.tsx:360`. Only that press calls the route"; `ui.tsx`'s
+  //   `data-variant` attribute; `discardRun`'s `git branch -D`.
+  test('(R7 AC5, D36, R11 AC3) the first Discard press posts nothing and shows the armed text; the second posts and the branch is gone', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-discard-run';
+    const branch = 'feat/e2e-board-discard';
+    const repoDir = await makeGitRepo(branch);
+    const run = baseRun(runId, 'e2e-board-run-discard-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-discard-spec',
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+    });
+    const runDir = await writeRunRecord(run);
+    let discardPosts = 0;
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes(`/api/controller/runs/${runId}/discard`)) discardPosts++;
+    });
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const firstPress = tile.getByRole('button', { name: 'Discard', exact: true });
+      await expect(firstPress).toHaveAttribute('data-variant', 'secondary');
+      await firstPress.click();
+
+      const armedPress = tile.getByRole('button', {
+        name: 'This deletes the worktree and branch and closes the PR', exact: true,
+      });
+      await expect(armedPress).toBeVisible();
+      await expect(armedPress).toHaveAttribute('data-variant', 'danger');
+      expect(discardPosts).toBe(0);
+
+      await armedPress.click();
+      await expect(page.getByTestId(`run-tile-${runId}`)).toHaveCount(0, { timeout: 15000 });
+      expect(discardPosts).toBe(1);
+      expect(branchExistsInRepo(repoDir, branch)).toBe(false);
+    } finally {
+      await removeRunRecord(runDir);
+      await removeGitRepo(repoDir);
+    }
+  });
+
+  // Criterion "a run sharing its branch with a moving run shows no Discard
+  // and the quiet line" (task 14 Success; Requirement 7 AC 7 "the tile
+  // SHALL NOT offer Discard"; design C10 "`discardAllowed: false` on a
+  // stopped run shows the quiet line 'branch in use by a live run'").
+  //   Pre-condition: an `abandoned` run and a `running` run sharing the
+  //   same `codeRoot` and real branch.
+  //   Test: page.goto('/'), then the stopped run's tile.
+  //   Observable result: the tile's text contains "branch in use by a live
+  //   run"; it has no Discard button.
+  //   Expected-value source: `branchHeld` (`src/controller/runs.ts:1482-1488`):
+  //   a moving run with the same `codeRoot` and `branch` holds it;
+  //   `discardAllowed: !branchHeld(...)`; design C10's quiet-line text
+  //   verbatim.
+  test('(R7 AC7) a run sharing its branch with a moving run shows no Discard and the quiet line', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const stoppedId = 'e2e-board-run-branchheld-stopped-run';
+    const movingId = 'e2e-board-run-branchheld-moving-run';
+    const branch = 'feat/e2e-board-branchheld';
+    const repoDir = await makeGitRepo(branch);
+    const stoppedRun = baseRun(stoppedId, 'e2e-board-run-branchheld-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-branchheld-stopped-spec',
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+    });
+    const movingRun = baseRun(movingId, 'e2e-board-run-branchheld-proj', {
+      status: 'running', spec: 'e2e-board-run-branchheld-moving-spec',
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+    });
+    const stoppedDir = await writeRunRecord(stoppedRun);
+    const movingDir = await writeRunRecord(movingRun);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${stoppedId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('branch in use by a live run');
+      await expect(tile.getByRole('button', { name: 'Discard', exact: true })).toHaveCount(0);
+    } finally {
+      await removeRunRecord(stoppedDir);
+      await removeRunRecord(movingDir);
+      await removeGitRepo(repoDir);
+    }
+  });
+
+  // Criterion "a stubbed 409 `branch-in-use` shows that as the failed
+  // reason and it stays until the next press" (task 14 Success; Requirement
+  // 9 AC 2 "the failed stage SHALL show the body's `reason`, else its
+  // `error`"; Requirement 9 AC 4 "it SHALL stay until the next press on
+  // that tile"). Stubbed rather than the real guard (unlike the rest of
+  // this task's Discard presses), because the real 409 case is already
+  // proven read-side by the test above; this one proves only the stage
+  // wiring's reaction to it.
+  //   Pre-condition: an `abandoned` run with a real repo and branch;
+  //   `page.route` answers its first discard POST 409 `{ error:
+  //   'branch-in-use' }`, then flips to 200 `{ ok: true }` for the next one.
+  //   Test: arm then press Discard (409), wait 6 s, then press the still-
+  //   armed button again (now 200).
+  //   Observable result: right after the 409, the tile shows "failed" and
+  //   "branch-in-use"; six seconds later it still does (no auto-clear); the
+  //   next press makes "branch-in-use" go.
+  //   Expected-value source: design C11 `failReason`: the body's `reason`;
+  //   `advance`: "A `failed` stage stays until the next `press` on that key".
+  test('(R7 AC7, R9 AC2, R9 AC4) a stubbed 409 branch-in-use shows that as the failed reason and it stays until the next press', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-discard-409-run';
+    const branch = 'feat/e2e-board-discard-409';
+    const repoDir = await makeGitRepo(branch);
+    const run = baseRun(runId, 'e2e-board-run-discard-409-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-discard-409-spec',
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+    });
+    const runDir = await writeRunRecord(run);
+    let fail = true;
+    try {
+      await page.route(`**/api/controller/runs/${runId}/discard`, async (route) => {
+        if (fail) {
+          await route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'branch-in-use' }) });
+        } else {
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+        }
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Discard', exact: true }).click();
+      const armedPress = tile.getByRole('button', {
+        name: 'This deletes the worktree and branch and closes the PR', exact: true,
+      });
+      await armedPress.click();
+      await expect(tile).toContainText(/failed/i, { timeout: 5000 });
+      await expect(tile).toContainText('branch-in-use');
+
+      await page.waitForTimeout(6000);
+      await expect(tile).toBeVisible();
+      await expect(tile).toContainText('branch-in-use');
+
+      fail = false;
+      await armedPress.click();
+      await expect(tile).not.toContainText('branch-in-use', { timeout: 5000 });
+    } finally {
+      await removeRunRecord(runDir);
+      await removeGitRepo(repoDir);
+    }
+  });
+
+  // Criterion "Re-drive on a stalled tile shows its stages" (task 14
+  // Success; Requirement 6 AC 4 "the tile SHALL show red 'Stalled' and
+  // Re-drive in place of the dot"; Requirement 9 AC 1).
+  //   Pre-condition: a `running` run with no driver (`isStalled` true);
+  //   `page.route` gates its redrive POST on a manually-released promise
+  //   (D52 stub), the same pattern task 12's Confirm press test uses.
+  //   Test: tile.getByRole('button', { name: 'Re-drive' }).click().
+  //   Observable result: the tile shows "pressed" and the button disables;
+  //   once released, the tile shows "running".
+  //   Expected-value source: design C11 `responseStage`: a 2xx gives
+  //   `running`; D37 "a stage disables every stage control on its tile".
+  test('(R6 AC4, R9 AC1) Re-drive on a stalled tile shows its stages', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-redrive-run';
+    const run = baseRun(runId, 'e2e-board-run-redrive-proj', {
+      status: 'running', spec: 'e2e-board-run-redrive-spec',
+    });
+    const runDir = await writeRunRecord(run);
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+    try {
+      await page.route(`**/api/controller/runs/${runId}/redrive`, async (route) => {
+        await gate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('Stalled');
+      const redriveButton = tile.getByRole('button', { name: 'Re-drive', exact: true });
+
+      await redriveButton.click();
+      await expect(tile).toContainText(/pressed/i, { timeout: 5000 });
+      await expect(redriveButton).toBeDisabled();
+
+      releaseGate();
+      await expect(tile).toContainText(/running/i, { timeout: 5000 });
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a stubbed Confirm plus a seeded run shows that run's tile in
+  // Running (requirement 5 AC 4)" is RED-IMPOSSIBLE: Requirement 5 AC 4
+  // itself says so ("the launch itself is an invariant (verified, not
+  // red-first: `src/dashboard/multi-server.ts:796-801`)"), and a seeded
+  // `running` run's tile shows in band-running from `HomePage.tsx`'s
+  // existing `running()` wiring (task 11) and `RunTile`'s read side (task
+  // 13) with no press at all — already asserted by task 13's own "(R6 AC1,
+  // AC2) a run tile shows step kind, task, step age, last activity, and a
+  // green dot" case above. Confirm's stubbed press adds nothing this task
+  // changes. Left out of the red-test list per the standing rule.
 });
