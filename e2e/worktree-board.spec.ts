@@ -9,6 +9,7 @@ import { secretPath } from '../src/controller/access.js';
 import { advisorActionsDir } from '../src/advisor/home.js';
 import type { RunRecord, WaitRecord, PrRead } from '../src/controller/state.js';
 import type { StagedAction } from '../src/advisor/actions.js';
+import type { DeployRecord } from '../src/controller/deploy.js';
 
 /**
  * Browser checks of Home (design C10 "Home and tiles"; decomposition task 11;
@@ -2603,6 +2604,422 @@ test.describe('Home (board)', () => {
       await expect(tile).toContainText('4242');
     } finally {
       await unregisterProject(page, projectId, dir);
+    }
+  });
+});
+
+/**
+ * Browser checks of the top bar, the gear and the tab title (design C7
+ * "Shell frame", C9's `tabTitle`, C10's `TabTitle`; decomposition task 16;
+ * Requirements 1, 2 AC 1, 10, 11 AC 5). `Sidebar.tsx` is still the page's
+ * only chrome at base, so every element this file asserts on through the
+ * new top bar (`nav-home`, `deploy-button`, `open-advisor`, a project switch
+ * reached through `gear-panel`) is absent or wrongly placed until the task
+ * lands; each test below fails on its first assertion at base.
+ */
+function deployRecordPath(): string {
+  return join(sddHome(), 'deploy.json');
+}
+
+async function writeDeployRecord(record: DeployRecord): Promise<void> {
+  await writeFile(deployRecordPath(), JSON.stringify(record, null, 2) + '\n', 'utf-8');
+}
+
+async function removeDeployRecord(): Promise<void> {
+  await rm(deployRecordPath(), { force: true });
+}
+
+test.describe('Shell (top bar, gear and tab title)', () => {
+  test.setTimeout(60000);
+
+  // Criterion "the header holds Home, Specs, Usage, Deferrals, Deploy, Open
+  // advisor and the gear in that order, and no link shows a count" (task 16
+  // Success; Requirement 1 AC 1).
+  //   Pre-condition: a fresh Home, no project registered.
+  //   Test: page.locator('[data-testid^="nav-"]') widened to the full header
+  //   set named by design C7 (`nav-home`, `nav-specs`, `nav-usage`,
+  //   `nav-deferrals`, `deploy-button`, `open-advisor`, `gear-toggle`).
+  //   Observable result: exactly those 7 elements exist, in that DOM order;
+  //   none of the four nav labels' text contains a digit.
+  //   Expected-value source: design C7's explicit order and test ids;
+  //   Requirement 1 AC 1's "no counts" clause.
+  test('(R1 AC1) the header holds the links, Deploy, Open advisor and the gear in order with no link counts', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+
+    const order = ['nav-home', 'nav-specs', 'nav-usage', 'nav-deferrals', 'deploy-button', 'open-advisor', 'gear-toggle'];
+    const selector = order.map((id) => `[data-testid="${id}"]`).join(', ');
+    const els = page.locator(selector);
+    await expect(els).toHaveCount(order.length, { timeout: 15000 });
+    const ids = await els.evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-testid')));
+    expect(ids).toEqual(order);
+
+    for (const navId of ['nav-home', 'nav-specs', 'nav-usage', 'nav-deferrals']) {
+      const text = (await page.getByTestId(navId).textContent()) ?? '';
+      expect(text).not.toMatch(/\d/);
+    }
+  });
+
+  // Criterion "Open advisor posts as before and a long result wraps" (task
+  // 16 Success; Requirement 1 AC 3).
+  //   Pre-condition: a stubbed 200 answer to the advisor-open POST, with a
+  //   long `command` string; viewport narrowed to 480 px.
+  //   Test: click `open-advisor` once.
+  //   Observable result: exactly one POST reaches the route; the rendered
+  //   result text is found; its bounding box is taller than one line
+  //   (wrapped, not truncated to a single ellipsised line).
+  //   Expected-value source: design C7 "the result line drops `truncate`
+  //   and takes `whitespace-normal break-words`"; Requirement 1 AC 3.
+  test('(R1 AC3) Open advisor posts once and a long result wraps onto more than one line', async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 900 });
+    const longWord = 'wraptestword';
+    let postCount = 0;
+    await page.route('**/api/controller/advisor/open', async (route) => {
+      postCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ state: 'command', command: Array(40).fill(longWord).join(' ') }),
+      });
+    });
+
+    await page.goto('/');
+    const button = page.getByTestId('open-advisor');
+    await expect(button).toBeVisible({ timeout: 15000 });
+    await button.click();
+
+    const result = page.getByText(longWord, { exact: false }).first();
+    await expect(result).toBeVisible({ timeout: 15000 });
+    expect(postCount).toBe(1);
+
+    const box = (await result.boundingBox())!;
+    expect(box.height).toBeGreaterThan(30);
+  });
+
+  // Criterion "the gear panel opens below its button and holds the theme
+  // toggle, a named switch per project, the notification setting and the
+  // version, with no density control, project dot or live count" (task 16
+  // Success; Requirement 1 AC 4, AC 5; D13; Restrictions "no project dot or
+  // live count in the gear", "the gear does not read useShell for
+  // density"). The theme toggle, notification setting and version already
+  // render inside `Gear.tsx` at base — only the switch-inside-the-panel and
+  // the absent density control are new; folded into one test because they
+  // describe the one panel's final contents (folds recorded in the report).
+  //   Pre-condition: one registered project.
+  //   Test: click `gear-toggle`, then read `gear-panel`'s content and
+  //   position.
+  //   Observable result: the panel's top sits at or below the button's
+  //   bottom edge; it contains that project's switch and display name, no
+  //   `project-dot-`/`project-live-count-` element, no density radio
+  //   anywhere on the page, and the words "Theme" and "Notifications".
+  //   Expected-value source: design C7's panel markup and D13's rationale;
+  //   Requirement 1 AC 4 and AC 5's deletions.
+  test('(R1 AC4, AC5, D13) the gear panel opens downward and holds the theme toggle, a named project switch, notifications and the version, with no density, dot or live count', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-gear-${randomBytes(4).toString('hex')}`);
+    const projectId = await registerProjectAt(page, dir);
+    const listRes = await page.request.get('/api/projects/list');
+    const projects = (await listRes.json()) as { projectId: string; projectName: string }[];
+    const projectName = projects.find((p) => p.projectId === projectId)!.projectName;
+
+    try {
+      await page.goto('/');
+      const toggle = page.getByTestId('gear-toggle');
+      await expect(toggle).toBeVisible({ timeout: 15000 });
+      const panel = page.getByTestId('gear-panel');
+      await toggle.click();
+      await expect(panel).toBeVisible();
+
+      const toggleBox = (await toggle.boundingBox())!;
+      const panelBox = (await panel.boundingBox())!;
+      expect(panelBox.y).toBeGreaterThanOrEqual(toggleBox.y + toggleBox.height - 2);
+
+      await expect(panel.getByTestId(`project-toggle-${projectId}`)).toBeVisible();
+      await expect(panel).toContainText(projectName);
+      await expect(panel.getByTestId(`project-dot-${projectId}`)).toHaveCount(0);
+      await expect(panel.getByTestId(`project-live-count-${projectId}`)).toHaveCount(0);
+
+      await expect(page.getByTestId('density-comfortable')).toHaveCount(0);
+      await expect(page.getByTestId('density-compact')).toHaveCount(0);
+
+      await expect(panel).toContainText('Theme');
+      await expect(panel).toContainText('Notifications');
+    } finally {
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "a switch persists across a reload and removes that
+  // project's wait, run and Next tiles" (task 16 Success; Requirement 1 AC
+  // 6). No renderer exercises `ProjectProvider.toggle` before this task
+  // (task 7's Note), so this is this behaviour's first browser proof. Two
+  // projects, not one: `launchBlock` nulls `launchable` for a project with
+  // a live run (Requirement 8 AC 4), so one project cannot carry a run tile
+  // and a Next tile at once.
+  //   Pre-condition: project A has an open wait and a moving run; project B
+  //   is registered with a launchable spec and no run.
+  //   Test: open the gear, switch project A off, then project B off; reload
+  //   after each.
+  //   Observable result: project A's wait and run tiles, and project B's
+  //   Next tile, each drop to 0 right after their switch and stay 0 after a
+  //   reload; both switches read unchecked after the reload.
+  //   Expected-value source: design C9's `enabled` filter threaded through
+  //   `needsYou`/`running`/`nextProjects`; design C8's persisted storage.
+  test('(R1 AC6) a project switch persists across a reload and removes that project\'s wait, run and Next tiles', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dirA = join(tmpdir(), `specwf-e2e-board-toggle-a-${randomBytes(4).toString('hex')}`);
+    const projectA = await registerProjectAt(page, dirA);
+    const wait = baseWait('e2e-board-toggle-wait', projectA, 'e2e-board-toggle-wait-spec', 5 * 60_000);
+    await writeWaitRecord(wait);
+    const runId = 'e2e-board-toggle-run';
+    const runDir = await writeRunRecord(baseRun(runId, projectA));
+
+    const spec = 'e2e-board-toggle-next-spec';
+    const { projectId: projectB, dir } = await registerNextProject(page, 'toggle', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${spec}\`\n`)
+    ));
+
+    try {
+      await page.goto('/');
+      const waitTile = page.getByTestId(`wait-tile-${wait.id}`);
+      const runTile = page.getByTestId(`run-tile-${runId}`);
+      const nextTile = page.getByTestId(`next-tile-${projectB}`);
+      await expect(waitTile).toBeVisible({ timeout: 15000 });
+      await expect(runTile).toBeVisible();
+      await expect(nextTile).toBeVisible();
+
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      const switchA = panel.getByTestId(`project-toggle-${projectA}`);
+      const switchB = panel.getByTestId(`project-toggle-${projectB}`);
+      await expect(switchA).toBeChecked();
+      await expect(switchB).toBeChecked();
+      await switchA.click();
+      await expect(switchA).not.toBeChecked();
+      await switchB.click();
+      await expect(switchB).not.toBeChecked();
+
+      await expect(waitTile).toHaveCount(0);
+      await expect(runTile).toHaveCount(0);
+      await expect(nextTile).toHaveCount(0);
+
+      await page.reload();
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect(waitTile).toHaveCount(0);
+      await expect(runTile).toHaveCount(0);
+      await expect(nextTile).toHaveCount(0);
+
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await expect(panel.getByTestId(`project-toggle-${projectA}`)).not.toBeChecked();
+      await expect(panel.getByTestId(`project-toggle-${projectB}`)).not.toBeChecked();
+    } finally {
+      await removeWaitRecord(wait.id);
+      await removeRunRecord(runDir);
+      await unregisterProject(page, projectA, dirA);
+      await unregisterProject(page, projectB, dir);
+    }
+  });
+
+  // Criterion "unset `sdd-fixture` is off on the board and in the gear;
+  // turned on it stays on across a reload; another unset project stays on"
+  // (task 16 Success; Requirement 1 AC 7).
+  //   Pre-condition: two registered projects, one at a directory named
+  //   exactly `sdd-fixture` (so its display name matches `DEFAULT_OFF_NAMES`
+  //   exactly), the other at a randomly named directory; each with one open
+  //   wait.
+  //   Test: open the gear and read both switches, then click the
+  //   `sdd-fixture` switch on and reload.
+  //   Observable result: before any click, the other project's wait tile
+  //   and gear switch read on while `sdd-fixture`'s wait tile has count 0
+  //   and its switch reads unchecked; after the click its tile appears;
+  //   after a reload both the tile and the switch still read on.
+  //   Expected-value source: design C8's `DEFAULT_OFF_NAMES = ['sdd-fixture']`
+  //   and D15/D24.
+  test('(R1 AC7) an unset sdd-fixture is off by default, turning it on persists, and another unset project stays on', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const fixtureDir = join(tmpdir(), `specwf-e2e-board-fixture-${randomBytes(4).toString('hex')}`, 'sdd-fixture');
+    const otherDir = join(tmpdir(), `specwf-e2e-board-other-${randomBytes(4).toString('hex')}`);
+    const fixtureId = await registerProjectAt(page, fixtureDir, fixtureDir);
+    const otherId = await registerProjectAt(page, otherDir, otherDir);
+    const fixtureWait = baseWait('e2e-board-fixture-wait', fixtureId, 'e2e-board-fixture-spec', 5 * 60_000);
+    const otherWait = baseWait('e2e-board-other-wait', otherId, 'e2e-board-other-spec', 5 * 60_000);
+    await writeWaitRecord(fixtureWait);
+    await writeWaitRecord(otherWait);
+
+    try {
+      await page.goto('/');
+      const fixtureTile = page.getByTestId(`wait-tile-${fixtureWait.id}`);
+      const otherTile = page.getByTestId(`wait-tile-${otherWait.id}`);
+      await expect(otherTile).toBeVisible({ timeout: 15000 });
+      await expect(fixtureTile).toHaveCount(0);
+
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await expect(panel.getByTestId(`project-toggle-${otherId}`)).toBeChecked();
+      const fixtureSwitch = panel.getByTestId(`project-toggle-${fixtureId}`);
+      await expect(fixtureSwitch).not.toBeChecked();
+
+      await fixtureSwitch.click();
+      await expect(fixtureSwitch).toBeChecked();
+      await expect(fixtureTile).toBeVisible();
+
+      await page.reload();
+      await expect(fixtureTile).toBeVisible({ timeout: 15000 });
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await expect(panel.getByTestId(`project-toggle-${fixtureId}`)).toBeChecked();
+    } finally {
+      await removeWaitRecord(fixtureWait.id);
+      await removeWaitRecord(otherWait.id);
+      await unregisterProject(page, fixtureId, fixtureDir);
+      await unregisterProject(page, otherId, otherDir);
+    }
+  });
+
+  // Criterion "`/#/runs` and `/#/runs/x` land on Home" (task 16 Success;
+  // Requirement 2 AC 1).
+  //   Pre-condition: none.
+  //   Test: page.goto('/#/runs') and page.goto('/#/runs/x').
+  //   Observable result: each lands on the hash `#/` with `band-needs-you`
+  //   visible.
+  //   Expected-value source: design C7 "the two `/runs` routes go ... the
+  //   catch-all stays"; Requirement 2 AC 1.
+  test('(R2 AC1) /#/runs and /#/runs/x land on Home', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    for (const path of ['/runs', '/runs/some-id']) {
+      await page.goto(`/#${path}`);
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('#/');
+    }
+  });
+
+  // Criterion "the title reads `2 · 4h20m` with two open waits; a staged
+  // action and a disabled project's wait do not count" (task 16 Success;
+  // Requirement 10 AC 1).
+  //   Pre-condition: two open waits on one enabled project, the older
+  //   created 4h20m30s ago (so `compactAge` reads `4h20m` regardless of a
+  //   few seconds of test latency); one open wait on a project disabled
+  //   through `localStorage shell.projects`; one staged action, which
+  //   `tabTitle` never reads at all.
+  //   Test: page.goto('/'), then `document.title`.
+  //   Observable result: the title reads exactly `2 · 4h20m`.
+  //   Expected-value source: design C9's `tabTitle` table entry; Requirement
+  //   10 AC 1 and AC 2's format.
+  test('(R10 AC1) the tab title counts open enabled waits and excludes a staged action and a disabled project\'s wait', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const enabledProject = 'e2e-board-title-enabled-proj';
+    const disabledProject = 'e2e-board-title-disabled-proj';
+    const spec = 'e2e-board-title-spec';
+    const oldest = baseWait('e2e-board-title-oldest', enabledProject, spec, 4 * 3600_000 + 20 * 60_000 + 30_000);
+    const newer = baseWait('e2e-board-title-newer', enabledProject, spec, 60 * 60_000);
+    const disabledWait = baseWait('e2e-board-title-disabled-wait', disabledProject, spec, 10 * 60_000);
+    await writeWaitRecord(oldest);
+    await writeWaitRecord(newer);
+    await writeWaitRecord(disabledWait);
+    const action = baseAction('e2e-board-title-action', {
+      target: { project: enabledProject, spec },
+      created: isoAgo(60_000),
+    });
+    await writeActionRecord(action);
+
+    try {
+      await page.addInitScript((id) => {
+        window.localStorage.setItem('shell.projects', JSON.stringify([id]));
+      }, disabledProject);
+      await page.goto('/');
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect.poll(() => page.evaluate(() => document.title), { timeout: 15000 }).toBe('2 · 4h20m');
+    } finally {
+      await removeWaitRecord(oldest.id);
+      await removeWaitRecord(newer.id);
+      await removeWaitRecord(disabledWait.id);
+      await removeActionRecord(action.id);
+    }
+  });
+
+  // Criterion "with none it is the `index.html` title" (task 16 Success;
+  // Requirement 10 AC 3).
+  //   Pre-condition: one open wait, so the title first reads a count.
+  //   Test: remove the wait record, reload, then `document.title`.
+  //   Observable result: the title first matches `/^1 · /`, then — after
+  //   the record is gone and the page reloads — reads exactly the
+  //   `index.html` title `Spec Dashboard`.
+  //   Expected-value source: Requirement 10 AC 3; `src/dashboard_frontend/index.html:6`.
+  test('(R10 AC3) the title reverts to the index.html base once no open wait remains', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const wait = baseWait('e2e-board-title-revert-wait', 'e2e-board-title-revert-proj', 'e2e-board-title-revert-spec', 5 * 60_000);
+    await writeWaitRecord(wait);
+
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect.poll(() => page.evaluate(() => document.title), { timeout: 15000 }).toMatch(/^1 · /);
+
+      await removeWaitRecord(wait.id);
+      await page.reload();
+      await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      await expect.poll(() => page.evaluate(() => document.title), { timeout: 15000 }).toBe('Spec Dashboard');
+    } finally {
+      await removeWaitRecord(wait.id);
+    }
+  });
+
+  // Criterion "at 390 px with the deploy strip open and an advisor result
+  // showing, `scrollWidth` does not exceed the viewport on Home, Specs,
+  // Usage and Deferrals" (task 16 Success; Requirement 11 AC 5).
+  //   Pre-condition: a seeded `deploy.json` at stage `build` (opens
+  //   `deploy-strip`); a stubbed long advisor result.
+  //   Test: at 390x844, visit Home then follow the top bar's own `nav-*`
+  //   links to Specs, Usage and Deferrals (so the persistent `TopBar`, not a
+  //   fresh navigation, carries the strip and the result across pages).
+  //   Observable result: on every one of the four pages,
+  //   `document.documentElement.scrollWidth` does not exceed `clientWidth`.
+  //   Expected-value source: Requirement 11 AC 5, read literally.
+  test('(R11 AC5) at 390 px no page scrolls sideways with the deploy strip open and an advisor result showing', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await writeDeployRecord({ v: 1, stage: 'build', runs: [], started: isoAgo(0) });
+    const longWord = 'wraptestword';
+    await page.route('**/api/controller/advisor/open', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ state: 'command', command: Array(40).fill(longWord).join(' ') }),
+      });
+    });
+
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId('deploy-strip')).toBeVisible({ timeout: 15000 });
+      await page.getByTestId('open-advisor').click();
+      await expect(page.getByText(longWord, { exact: false }).first()).toBeVisible({ timeout: 15000 });
+
+      const checkNoOverflow = async (label: string) => {
+        await expect
+          .poll(
+            () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+            { message: `${label} @ 390px overflows horizontally`, timeout: 5000 },
+          )
+          .toBeLessThanOrEqual(0);
+      };
+      await checkNoOverflow('Home');
+
+      await page.getByTestId('nav-specs').click();
+      await expect(page.getByTestId('page-list')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('deploy-strip')).toBeVisible();
+      await checkNoOverflow('Specs');
+
+      await page.getByTestId('nav-usage').click();
+      await expect(page.getByTestId('usage-closed-specs')).toBeVisible({ timeout: 15000 });
+      await checkNoOverflow('Usage');
+
+      await page.getByTestId('nav-deferrals').click();
+      await expect(page.getByTestId('page-list')).toBeVisible({ timeout: 15000 });
+      await checkNoOverflow('Deferrals');
+    } finally {
+      await removeDeployRecord();
     }
   });
 });
