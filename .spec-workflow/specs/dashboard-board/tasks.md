@@ -4,7 +4,7 @@ Document version: v1
 
 Dependency order: run the tasks in number order; the chains are 1 and 2 → 3 → 4, 5 → 15, 6 → 11, 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19, then 16 to 19 → 20 to 22 → 23. Each task leaves `npx tsc --noEmit` and every vitest suite green, and the frontend stays buildable, but the Playwright suites other than `e2e/worktree-board.spec.ts` go red at task 11 and stay red until tasks 20 to 22 rewrite them (D41). Line citations are to base `59fc65f3`; where an earlier task here edited the file, the named symbol is the anchor and the implementer re-resolves the line.
 
-- [ ] 1. Record the step's wall-clock start and task on the in-flight record
+- [x] 1. Record the step's wall-clock start and task on the in-flight record
   - File: src/controller/state.ts
   - File: src/controller/runs.ts
   - File: src/controller/phases/implementation.ts

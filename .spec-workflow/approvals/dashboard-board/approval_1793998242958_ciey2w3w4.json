@@ -1,0 +1,12 @@
+{
+  "id": "approval_1793998242958_ciey2w3w4",
+  "title": "dashboard-board tasks v1",
+  "filePath": ".spec-workflow/specs/dashboard-board/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-06T20:50:42.958Z",
+  "category": "spec",
+  "categoryName": "dashboard-board",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-06T20:50:43.147Z"
+}

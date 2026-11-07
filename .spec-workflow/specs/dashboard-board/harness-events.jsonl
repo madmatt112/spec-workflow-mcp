@@ -55,3 +55,21 @@
 {"ts":"2026-11-06T20:25:22.667Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-reviser","role":"lint v1","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-11-06T20:39:26.805Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-reviser","input":"56","output":"69184","cacheWrite":"162836","cacheRead":"3591208","tokens":"3823284","cacheWrite5m":"0","cacheWrite1h":"162836","model":"claude-opus-4-8"}
 {"ts":"2026-11-06T20:39:26.805Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-reviser","role":"lint v1","result":"success","phase":"tasks"}
+{"ts":"2026-11-06T20:39:26.925Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-reviewer","role":"review v1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-06T20:50:42.859Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-reviewer","input":"52","output":"51370","cacheWrite":"174537","cacheRead":"3443373","tokens":"3669332","cacheWrite5m":"0","cacheWrite1h":"174537","model":"claude-opus-4-8"}
+{"ts":"2026-11-06T20:50:42.860Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-reviewer","role":"review v1","result":"success","phase":"tasks","round":"1"}
+{"ts":"2026-11-06T20:50:42.860Z","run":"run-20261106-181042","spec":"dashboard-board","type":"round","phase":"tasks","round":"1","verdict":"converged 0/0/0","version":"v1"}
+{"ts":"2026-11-06T20:50:43.537Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.end","phase":"tasks","result":"approved","state":"v1","note":"1 rounds"}
+{"ts":"2026-11-07T00:35:11.294Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate-b answered by operator: Approve"}
+{"ts":"2026-11-07T00:35:11.639Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.start","phase":"implementation","mode":"normal","state":"tasks 0/23"}
+{"ts":"2026-11-07T00:35:12.286Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"1","title":"Record the step's wall-clock start and task on the in-flight record"}
+{"ts":"2026-11-07T00:35:12.294Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 1 pick head 59fc65f3678f5012efdc383789b0b201c5f59a79"}
+{"ts":"2026-11-07T00:35:12.532Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-test-author","role":"author task 1","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T00:39:18.616Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-test-author","input":"60","output":"19336","cacheWrite":"113553","cacheRead":"2317857","tokens":"2450806","cacheWrite5m":"0","cacheWrite1h":"113553","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T00:39:18.617Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-test-author","role":"author task 1","result":"none","phase":"implementation","task":"1"}
+{"ts":"2026-11-07T00:39:18.675Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 1 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-07T00:39:18.675Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-implementer","role":"implement task 1","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T00:41:09.469Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-implementer","input":"50","output":"6042","cacheWrite":"81373","cacheRead":"1605555","tokens":"1693020","cacheWrite5m":"0","cacheWrite1h":"81373","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T00:41:09.469Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
+{"ts":"2026-11-07T00:42:07.012Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
+{"ts":"2026-11-07T00:42:07.022Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
