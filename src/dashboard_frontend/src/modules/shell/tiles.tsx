@@ -272,10 +272,13 @@ export function NextTile({
   );
 }
 
-/** One-line target of a staged action. */
-function actionTarget(action: StagedAction): string {
+/** One-line target of a staged action; `t.project` renders through
+ *  `projectName` (design C1) so a registered project shows its display
+ *  name, not the raw id. */
+function actionTarget(action: StagedAction, projectName: (id: string) => string): string {
   const t = action.target as { project?: string; spec?: string; pr?: number; wait?: string };
-  const parts = [t.project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
+  const project = typeof t.project === 'string' ? projectName(t.project) : undefined;
+  const parts = [project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
@@ -296,12 +299,14 @@ export function ActionTile({
   action,
   now,
   stage,
+  projectName,
   onConfirm,
   onDismiss,
 }: {
   action: StagedAction;
   now: number;
   stage: Stage | null;
+  projectName: (id: string) => string;
   onConfirm: () => void;
   onDismiss: () => void;
 }) {
@@ -312,7 +317,7 @@ export function ActionTile({
     <Tile tone={tone} testId={`action-tile-${action.id}`}>
       <div className="flex items-center gap-2">
         <KindBadge label={STAGED_KIND_LABELS[action.kind] ?? action.kind} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{actionTarget(action)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{actionTarget(action, projectName)}</span>
       </div>
       <p className="whitespace-normal break-words text-sm text-(--text-primary)">{action.reason}</p>
       <StageLine stage={stage} />

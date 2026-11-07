@@ -123,6 +123,7 @@ export function HomePage() {
           action={action}
           now={tick}
           stage={stage}
+          projectName={projectName}
           onConfirm={() => stages.press(action.id, 'confirm', `/api/controller/actions/${action.id}/confirm`, 'POST')}
           onDismiss={() => stages.press(action.id, 'dismiss', `/api/controller/actions/${action.id}/dismiss`, 'POST')}
         />
