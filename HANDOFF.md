@@ -178,6 +178,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-06 | dashboard-board | design | v2 | approved | 2 rounds |
 | 2026-11-06 | dashboard-board | tasks | v1 | approved | 1 rounds |
 | 2026-11-07 | dashboard-board | implementation | tasks 16/23 | design-defect | task 17: implementer reported REQUIRED for an off-list file — src/dashboard_frontend/src/modules/shell/board.ts, tiles.tsx, AnswerSheet.tsx, OpenAdvisor.tsx — each had a comment naming NowPage/RunsPage/Sidebar; the task's own Success grep and the author's "deleted symbols scrubbed" test walk all of FE_ROOT (not just File:), so passing required rewording these comments. tasks.md's File: list for task 17 should add these four.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
+| 2026-11-07 | dashboard-board | implementation | tasks 23/23 | verify-failed | ci: CI |
 
 ## Current state — 2026-08-04
 
@@ -1503,7 +1504,7 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 23/23, implemented 2026-11-07 |
+| State | tasks 23/23, stopped: verify-failed — ci: CI |
 | Implemented | 2026-11-07 |
 | PR | pending |
 | Coverage | logCoverage 23/23; reviewCoverage 23/23; TDD 19 task(s): assertion-red 7, structural-red 11, vacuous 0, inconclusive 1 |

@@ -169,3 +169,23 @@ Cost: 1 implementer spawn(s)
 implementation complete: 23 tasks, 8 fix rounds, 1 adjudications, 84 spawns, 0 deferrals added
 Evidence: completion gate · mark run-20261106-181042 c075678f
 Cost: see the ledger
+
+## 2026-11-07T11:04:15Z · implementation · phase · tool-error
+ci infrastructure failure: push.test.ts (n,m) waitFor timeout is 2-core runner event-loop starvation; another spec's test, already budget-widened, passes everywhere locally — no code change
+Evidence: CI · mark run-20261106-181042 e45954e5
+Cost: round 1
+
+## 2026-11-07T11:36:37Z · implementation · phase · bug
+ci red (CI), fix round 2, verifier pass
+Evidence: CI f3f7079 · mark run-20261106-181042 444eb9b8
+Cost: round 2
+
+## 2026-11-07T11:59:48Z · implementation · phase · bug
+ci red (CI), fix round 3, verifier pass
+Evidence: CI e7396b6 · mark run-20261106-181042 87293918
+Cost: round 3
+
+## 2026-11-07T12:28:04Z · implementation · phase · escalation
+PR checks red after 3 reconcile rounds and an adjudication: CI
+Evidence: PR #207 · mark run-20261106-181042 05dd7aa6
+Cost: 4 rounds
