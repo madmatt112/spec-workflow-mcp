@@ -179,6 +179,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-06 | dashboard-board | tasks | v1 | approved | 1 rounds |
 | 2026-11-07 | dashboard-board | implementation | tasks 16/23 | design-defect | task 17: implementer reported REQUIRED for an off-list file — src/dashboard_frontend/src/modules/shell/board.ts, tiles.tsx, AnswerSheet.tsx, OpenAdvisor.tsx — each had a comment naming NowPage/RunsPage/Sidebar; the task's own Success grep and the author's "deleted symbols scrubbed" test walk all of FE_ROOT (not just File:), so passing required rewording these comments. tasks.md's File: list for task 17 should add these four.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md |
 | 2026-11-07 | dashboard-board | implementation | tasks 23/23 | verify-failed | ci: CI |
+| 2026-11-07 | dashboard-board | implementation | tasks 23/23 | complete | PR #207 |
 
 ## Current state — 2026-08-04
 
@@ -1506,7 +1507,7 @@ Gotchas:
 | --- | --- |
 | State | tasks 23/23, implemented 2026-11-07 |
 | Implemented | 2026-11-07 |
-| PR | pending |
+| PR | https://github.com/madmatt112/spec-workflow-mcp/pull/207 |
 | Coverage | logCoverage 23/23; reviewCoverage 23/23; TDD 19 task(s): assertion-red 7, structural-red 11, vacuous 0, inconclusive 1 |
 | Deferrals | 0 added by this spec, 44 open in all |
 | Verifier-skipped | none |
