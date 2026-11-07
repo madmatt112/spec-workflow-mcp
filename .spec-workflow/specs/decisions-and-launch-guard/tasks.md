@@ -15,7 +15,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 1.3_
   - _Prompt: Task: Per design C1 and design D1 (requirement 1 AC 3), add `displayName?: string` to `KnownProject` (`src/controller/state.ts:256-266`). Export `shownName` and `setProjectDisplayName` as design C1 pins them, the second under `withProjectsLock` (`:610-616`). `rememberProject` (`:619-628`) keeps an existing row's `displayName` | Restrictions: Do not change `src/core/project-registry.ts` (design C1); keep the sort by `name`; never write a `displayName` key on a row that has none | Success: `shownName` returns `displayName` when set and `name` when not; `setProjectDisplayName` stores a name and returns true; `null` removes the key and returns true; an unknown id returns false and writes nothing; `rememberProject` on a named row keeps `displayName` and refreshes `name` and `seen`; `rememberProject` on an unnamed row adds no key; `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/state.test.ts` pass_
 
-- [ ] 2. Apply the display name to contexts and the push text
+- [x] 2. Apply the display name to contexts and the push text
   - File: src/dashboard/project-manager.ts
   - File: src/advisor/push.ts
   - File: src/dashboard/__tests__/project-manager-durable.test.ts

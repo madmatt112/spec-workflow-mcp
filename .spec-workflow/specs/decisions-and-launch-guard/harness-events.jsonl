@@ -78,3 +78,14 @@
 {"ts":"2026-11-07T22:35:44.837Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 1","result":"yes/1","phase":"implementation","task":"1"}
 {"ts":"2026-11-07T22:36:12.141Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"gate: task 1 pass risk low tdd structural-red"}
 {"ts":"2026-11-07T22:36:12.150Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"1","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-07T22:36:12.300Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"2","title":"Apply the display name to contexts and the push text"}
+{"ts":"2026-11-07T22:36:12.308Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"task 2 pick head afd98c87c376aa782a5c0990b9fee50fa15c2390"}
+{"ts":"2026-11-07T22:36:12.345Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.start","agent":"sdd-test-author","role":"author task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T22:41:27.345Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.end","agent":"sdd-test-author","input":"54","output":"27117","cacheWrite":"172868","cacheRead":"4089450","tokens":"4289489","cacheWrite5m":"0","cacheWrite1h":"172868","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T22:41:27.345Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-test-author","role":"author task 2","result":"none","phase":"implementation","task":"2"}
+{"ts":"2026-11-07T22:41:27.387Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"task 2 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-07T22:41:27.387Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.start","agent":"sdd-implementer","role":"implement task 2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T22:46:11.247Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.end","agent":"sdd-implementer","input":"74","output":"18794","cacheWrite":"98315","cacheRead":"3492904","tokens":"3610087","cacheWrite5m":"0","cacheWrite1h":"98315","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T22:46:11.247Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 2","result":"yes/2","phase":"implementation","task":"2"}
+{"ts":"2026-11-07T22:47:11.727Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"gate: task 2 pass risk low tdd structural-red"}
+{"ts":"2026-11-07T22:47:11.735Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"2","rounds":"0","outcome":"gate"}
