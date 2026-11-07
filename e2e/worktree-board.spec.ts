@@ -5,7 +5,9 @@ import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
 import { secretPath } from '../src/controller/access.js';
+import { advisorActionsDir } from '../src/advisor/home.js';
 import type { RunRecord, WaitRecord, PrRead } from '../src/controller/state.js';
+import type { StagedAction } from '../src/advisor/actions.js';
 
 /**
  * Browser checks of Home (design C10 "Home and tiles"; decomposition task 11;
@@ -101,6 +103,35 @@ async function removeRunRecord(dir: string): Promise<void> {
   await rm(dir, { recursive: true, force: true });
 }
 
+/** Where `actionPath` (`src/advisor/actions.ts:76-78`) puts a staged action record. */
+function actionRecordPath(id: string): string {
+  return join(advisorActionsDir(), `${id}.json`);
+}
+
+function baseAction(id: string, overrides: Partial<StagedAction> = {}): StagedAction {
+  return {
+    v: 1,
+    id,
+    kind: 'backlog',
+    target: { project: 'e2e-board-action-proj', spec: 'e2e-board-action-spec' },
+    params: {},
+    reason: 'Add this to the backlog.',
+    conversation: 'e2e-board-action-conversation',
+    created: isoAgo(5 * 60_000),
+    state: 'staged',
+    ...overrides,
+  };
+}
+
+async function writeActionRecord(action: StagedAction): Promise<void> {
+  await mkdir(advisorActionsDir(), { recursive: true });
+  await writeFile(actionRecordPath(action.id), JSON.stringify(action, null, 2) + '\n', 'utf-8');
+}
+
+async function removeActionRecord(id: string): Promise<void> {
+  await rm(actionRecordPath(id), { force: true });
+}
+
 /** A fresh PrRead, letting a test override only the fields it cares about. */
 function prRead(overrides: Partial<PrRead> & Pick<PrRead, 'kind' | 'repo' | 'number' | 'ci' | 'verdict'>): PrRead {
   return { reasons: [], at: isoAgo(60_000), ...overrides };
@@ -159,6 +190,7 @@ test.describe('Home (board)', () => {
     // invocation's debris can never bleed into this one's.
     await rm(join(sddHome(), 'waits'), { recursive: true, force: true });
     await rm(join(sddHome(), 'runs'), { recursive: true, force: true });
+    await rm(advisorActionsDir(), { recursive: true, force: true });
   });
 
   // Criteria "Home shows Needs you, Running and Next in that order with no
@@ -675,6 +707,418 @@ test.describe('Home (board)', () => {
       }
     } finally {
       await removeWaitRecord(wait.id);
+    }
+  });
+
+  // Criterion "A `staged` action shows kind, target, reason, age, Confirm and
+  // Dismiss" (task 12 Success; Requirement 5 AC 1 "Needs you SHALL show a
+  // tile with its kind, target, reason, age and, while `staged`, Confirm and
+  // Dismiss"). Also covers the neutral half of D12's tone rule (the
+  // warning/danger half is the dedicated tone test below), the same split
+  // task 11 used for the wait tile.
+  //   Pre-condition: a `staged` action with kind `backlog`, a target naming a
+  //   project, spec and PR, created 5 minutes ago.
+  //   Test: page.goto('/'), then page.getByTestId('action-tile-' + id).
+  //   Observable result: the tile is visible, `data-tone` is `neutral`, and
+  //   its text contains "Backlog", the project id, the spec id, "#11", the
+  //   reason text and an age like "5m"; a "Confirm" and a "Dismiss" button
+  //   are both visible.
+  //   Expected-value source: design C10 "ActionTile shows the kind, the
+  //   target line of `actionTarget` ..., reason, age and, while `staged`,
+  //   Confirm and Dismiss"; `actionTarget` (`NowPage.tsx:98-102`) joins
+  //   `project`, `spec` and `#<pr>`; `STAGED_KIND_LABELS.backlog` is
+  //   "Backlog" (`NowPage.tsx:22-25`); design C9 `ageTone` is `neutral`
+  //   under 900,000 ms.
+  test('(R5 AC1) a staged action shows kind, target, reason, age, Confirm and Dismiss', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-fields-action';
+    const project = 'e2e-board-action-fields-proj';
+    const spec = 'e2e-board-action-fields-spec';
+    const action = baseAction(actionId, {
+      kind: 'backlog',
+      target: { project, spec, pr: 11 },
+      reason: 'Needs a backlog entry for this.',
+    });
+    await writeActionRecord(action);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toHaveAttribute('data-tone', 'neutral');
+      await expect(tile).toContainText('Backlog');
+      await expect(tile).toContainText(project);
+      await expect(tile).toContainText(spec);
+      await expect(tile).toContainText('#11');
+      await expect(tile).toContainText('Needs a backlog entry for this.');
+      await expect(tile).toContainText(/\b\d+m\b/);
+      await expect(tile.getByRole('button', { name: 'Confirm', exact: true })).toBeVisible();
+      await expect(tile.getByRole('button', { name: 'Dismiss', exact: true })).toBeVisible();
+    } finally {
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "a `running` one shows no Confirm or Dismiss" (task 12
+  // Success; Requirement 5 AC 1 "... and, while `staged`, Confirm and
+  // Dismiss" — the tile still shows for `running`, per AC 1's first clause,
+  // but only `staged` gets the two buttons).
+  //   Pre-condition: an action seeded directly in state `running` (never
+  //   pressed in this browser session).
+  //   Test: page.goto('/'), then the action's tile.
+  //   Observable result: the tile is visible and contains the kind and
+  //   reason text; a "Confirm" and a "Dismiss" button both have count 0.
+  //   Expected-value source: Requirement 5 AC 1's "while `staged`" qualifier
+  //   on the two buttons, and design C10's field list for the rest of the
+  //   tile, which does not depend on state.
+  test('(R5 AC1) a running action shows a tile with no Confirm or Dismiss', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-running-action';
+    const action = baseAction(actionId, { kind: 'merge', reason: 'Merging now.', state: 'running' });
+    await writeActionRecord(action);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('Merge');
+      await expect(tile).toContainText('Merging now.');
+      await expect(tile.getByRole('button', { name: 'Confirm', exact: true })).toHaveCount(0);
+      await expect(tile.getByRole('button', { name: 'Dismiss', exact: true })).toHaveCount(0);
+    } finally {
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "a `done`, `refused`, `failed` or `dismissed` one left alone
+  // has no tile" (task 12 Success; Requirement 5 AC 2) is RED-IMPOSSIBLE at
+  // this commit: `needsYou` already excludes all four terminal states today
+  // (task 8, already shipped), proven branch by branch in
+  // `src/dashboard/shell/__tests__/board-view.test.ts`'s
+  // `it.each(['done', 'refused', 'failed', 'dismissed'])('drops an action in
+  // state %s', ...)`. Because no `ActionTile` exists yet, an e2e version of
+  // this check would pass for the unrelated reason that no action renders a
+  // tile at all, proving nothing about task 12's wiring — left out per
+  // agent-rules' regression-guard rule; the implementer brief should add a
+  // guard once `ActionTile` exists if it wants e2e coverage of the wiring
+  // itself.
+
+  // Criterion "the age colours the tile by the wait rule (D12)" (task 12
+  // Success; design D12 "Staged actions take the wait age colours and order,
+  // as Needs-you tiles"). The neutral case is covered by the fields test
+  // above, matching the split task 11 used for `WaitTile`'s tone criterion.
+  //   Pre-condition: two staged actions on the same target, one created 20
+  //   minutes ago, one 2 hours ago.
+  //   Test: page.goto('/'), then each action's tile's `data-tone` attribute.
+  //   Observable result: the 20-minute tile's `data-tone` is `warning`; the
+  //   2-hour tile's is `danger`.
+  //   Expected-value source: design C9 `ageTone(ms)`: `warning` from
+  //   900,000 ms, `danger` from 3,600,000 ms, the same function `WaitTile`
+  //   uses (D12 ties action tone to the wait rule).
+  test('(D12) an action tile is warning at 20 minutes and danger at 2 hours old', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const warnId = 'e2e-board-action-tone-warn';
+    const dangerId = 'e2e-board-action-tone-danger';
+    await writeActionRecord(baseAction(warnId, { created: isoAgo(20 * 60_000) }));
+    await writeActionRecord(baseAction(dangerId, { created: isoAgo(2 * 3_600_000) }));
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId(`action-tile-${warnId}`)).toHaveAttribute('data-tone', 'warning', { timeout: 15000 });
+      await expect(page.getByTestId(`action-tile-${dangerId}`)).toHaveAttribute('data-tone', 'danger');
+    } finally {
+      await removeActionRecord(warnId);
+      await removeActionRecord(dangerId);
+    }
+  });
+
+  // Criterion "an action with no project shows no tag and stays with every
+  // project off" (task 12 Success; Requirement 5 AC 3 "WHEN an action's
+  // target names no project THEN the tile SHALL show with no project tag
+  // and SHALL ignore the project filter").
+  //   Pre-condition: a staged action whose `target` carries no `project`
+  //   field (only `spec` and `pr`); `localStorage.shell.projects` (the
+  //   off-list) set to `['']` before the page loads, so a bug that treats a
+  //   missing project as the empty string would hide the tile.
+  //   Test: page.goto('/'), then the action's tile.
+  //   Observable result: the tile is visible despite the off-list entry,
+  //   and contains the kind and target fields it does have (spec, "#9") with
+  //   no literal "undefined" or "null" text (the regression a missing
+  //   project-tag render would produce).
+  //   Expected-value source: design C9 `needsYou`'s `passesProjectFilter`:
+  //   `targetProject(action)` returns `null` when `target.project` is not a
+  //   string, which short-circuits the filter regardless of `enabled`;
+  //   design C10 "The project tag shows only when `target.project` is a
+  //   string."
+  test('(R5 AC3) an action with no project shows no tag and ignores the project filter', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-noproject-action';
+    const spec = 'e2e-board-action-noproject-spec';
+    const action = baseAction(actionId, {
+      kind: 'decomposition',
+      target: { spec, pr: 9 },
+      reason: 'No project on this one.',
+    });
+    await writeActionRecord(action);
+    try {
+      await page.addInitScript(() => {
+        window.localStorage.setItem('shell.projects', JSON.stringify(['']));
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('Decomposition');
+      await expect(tile).toContainText(spec);
+      await expect(tile).toContainText('#9');
+      const text = (await tile.textContent()) ?? '';
+      expect(text).not.toMatch(/\bundefined\b|\bnull\b|\[object/i);
+    } finally {
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "pressing Confirm shows pressed, then running, with the
+  // control disabled" (task 12 Success; Requirement 9 AC 1 "its tile SHALL
+  // show the stages pressed, running, done, or failed ..., and the pressed
+  // control SHALL be disabled until the stage ends"). Confirm is stubbed
+  // with `page.route`, per the task's Note, because the real route runs the
+  // executor (D52); a controllable gate lets the test observe `pressed`
+  // (before the stubbed response lands) separately from `running` (after).
+  //   Pre-condition: a staged action; `page.route` intercepts its confirm
+  //   POST and withholds the response until the test releases a gate.
+  //   Test: tile.getByRole('button', { name: 'Confirm' }).click(), observed
+  //   before and after releasing the gate.
+  //   Observable result: right after the click (gate still held) the tile's
+  //   text contains "pressed" and the Confirm button is disabled; after the
+  //   gate releases and the stub answers 200, the tile's text contains
+  //   "running" and the Confirm button is still disabled.
+  //   Expected-value source: design C11's `Stage.phase` literals `pressed`
+  //   and `running`, which Requirement 9 AC 1 names verbatim; `useStages`'s
+  //   `press` "Sets pressed, disabling the tile's stage controls... Any
+  //   other 2xx gives running" (design C11 post-conditions); design D37
+  //   disables every stage control until the stage ends.
+  test('(R9 AC1) pressing Confirm shows pressed then running, with the control disabled throughout', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-press-action';
+    const action = baseAction(actionId, { kind: 'merge', reason: 'Press me.' });
+    await writeActionRecord(action);
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+    try {
+      await page.route('**/api/controller/actions/*/confirm', async (route) => {
+        await gate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const confirmButton = tile.getByRole('button', { name: 'Confirm', exact: true });
+
+      await confirmButton.click();
+      await expect(tile).toContainText(/pressed/i, { timeout: 5000 });
+      await expect(confirmButton).toBeDisabled();
+
+      releaseGate();
+      await expect(tile).toContainText(/running/i, { timeout: 5000 });
+      await expect(confirmButton).toBeDisabled();
+    } finally {
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criteria "a 500 with a `reason` shows that reason, one with only
+  // `error` shows the error, one with neither shows the status code" (task
+  // 12 Success; Requirement 9 AC 2 "the failed stage SHALL show the body's
+  // `reason`, else its `error`, else the status code"). `failReason` itself
+  // is already unit-tested (task 10, `board-view.test.ts`); this folds the
+  // three wiring cases — that `ActionTile`/`StageLine` actually render
+  // whichever field `failReason` picked — into one test over three seeded
+  // actions, rather than three near-identical browser tests that only differ
+  // in the stubbed response body.
+  //   Pre-condition: three staged actions; `page.route` answers each one's
+  //   confirm POST with status 500 and a body keyed by which action is
+  //   pressed: `{ reason: 'blocked by policy' }`, `{ error: 'boom' }`, `{}`.
+  //   Test: each action's Confirm button pressed in turn.
+  //   Observable result: the first tile's text contains "blocked by
+  //   policy"; the second's contains "boom"; the third's contains "500".
+  //   Expected-value source: design C11 `failReason(status, body)`: the
+  //   body's `reason`, else its `error`, else the status code as text; the
+  //   seeded bodies and status pin each expected value directly.
+  test('(R9 AC2) a failed confirm shows the body reason, else the error, else the status code', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const reasonId = 'e2e-board-action-reason-action';
+    const errorId = 'e2e-board-action-error-action';
+    const codeId = 'e2e-board-action-code-action';
+    await writeActionRecord(baseAction(reasonId, { kind: 'merge', reason: 'Has a reason body.' }));
+    await writeActionRecord(baseAction(errorId, { kind: 'merge', reason: 'Has an error-only body.' }));
+    await writeActionRecord(baseAction(codeId, { kind: 'merge', reason: 'Has neither field.' }));
+    try {
+      await page.route('**/api/controller/actions/*/confirm', async (route) => {
+        const url = route.request().url();
+        if (url.includes(reasonId)) {
+          await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ reason: 'blocked by policy' }) });
+        } else if (url.includes(errorId)) {
+          await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) });
+        } else {
+          await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({}) });
+        }
+      });
+      await page.goto('/');
+
+      const reasonTile = page.getByTestId(`action-tile-${reasonId}`);
+      await expect(reasonTile).toBeVisible({ timeout: 15000 });
+      await reasonTile.getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect(reasonTile).toContainText('blocked by policy', { timeout: 5000 });
+
+      const errorTile = page.getByTestId(`action-tile-${errorId}`);
+      await errorTile.getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect(errorTile).toContainText('boom', { timeout: 5000 });
+
+      const codeTile = page.getByTestId(`action-tile-${codeId}`);
+      await codeTile.getByRole('button', { name: 'Confirm', exact: true }).click();
+      await expect(codeTile).toContainText('500', { timeout: 5000 });
+    } finally {
+      await removeActionRecord(reasonId);
+      await removeActionRecord(errorId);
+      await removeActionRecord(codeId);
+    }
+  });
+
+  // Criterion "a 200 with `ok: false` shows failed and the tile stays until
+  // reload (D35)" (task 12 Success; design D34 "A 2xx with ok false ...
+  // reads as failed"; D35 "A failed action tile stays until reload").
+  //   Pre-condition: a staged action; `page.route` answers its confirm POST
+  //   with 200 and `{ ok: false, error: 'executor refused' }` — the shape
+  //   `confirmAction` itself returns when its executor fails
+  //   (`src/advisor/actions.ts:459-464`).
+  //   Test: press Confirm, wait past the 5-second `done`-clear window,
+  //   then `page.reload()`.
+  //   Observable result: right after the press the tile shows "failed" and
+  //   "executor refused", and the Confirm button re-enables (D37: disabled
+  //   only until the stage ends); six seconds later the failed text is
+  //   still showing (no auto-clear, unlike `done`); after reload the tile
+  //   is visible again with Confirm and Dismiss and no "executor refused"
+  //   text, because the underlying record was never actually mutated (the
+  //   confirm was stubbed) and reload drops the local stage state.
+  //   Expected-value source: design C11 `responseStage`: "a 2xx whose body
+  //   has `ok === false` gives `failed` with the body's `error`"; D20/D35's
+  //   failed-stays-until-next-press-or-reload rule; design C11 "Leaving Home
+  //   drops stage state, as a reload does."
+  test('(R9 AC2, D35) a 200 with ok false shows failed and the tile stays failed until reload', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-okfalse-action';
+    const action = baseAction(actionId, { kind: 'merge', reason: 'Executor will refuse.' });
+    await writeActionRecord(action);
+    try {
+      await page.route('**/api/controller/actions/*/confirm', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'executor refused' }) });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const confirmButton = tile.getByRole('button', { name: 'Confirm', exact: true });
+
+      await confirmButton.click();
+      await expect(tile).toContainText(/failed/i, { timeout: 5000 });
+      await expect(tile).toContainText('executor refused');
+      await expect(confirmButton).toBeEnabled();
+
+      await page.waitForTimeout(6000);
+      await expect(tile).toBeVisible();
+      await expect(tile).toContainText('executor refused');
+
+      await page.reload();
+      const reloadedTile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(reloadedTile).toBeVisible({ timeout: 15000 });
+      await expect(reloadedTile).not.toContainText('executor refused');
+      await expect(reloadedTile.getByRole('button', { name: 'Confirm', exact: true })).toBeVisible();
+      await expect(reloadedTile.getByRole('button', { name: 'Dismiss', exact: true })).toBeVisible();
+    } finally {
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "a seeded `done` action moves the stage to done and it clears
+  // after 5 s; the tile stays until then (requirement 5 AC 2)" (task 12
+  // Success; Requirement 5 AC 2 "except a tile pressed in this view stays
+  // until R9 has shown the outcome"; Requirement 9 AC 3 "the stage SHALL
+  // read running until ... then done, then clear after 5 s"). Confirm is a
+  // real, unstubbed press: the target is an `answer` action on a seeded
+  // wait with no questions, so `confirmAction`'s real executor
+  // (`execAnswer`) resolves it to `done` almost at once and emits the
+  // `actionEvents` change the hub needs to push within the throttle window
+  // (design C11; `src/advisor/actions.ts:170-177`), rather than relying on
+  // a raw file rewrite reaching the feed only on its slow poll.
+  //   Pre-condition: an open wait with no questions; a staged `answer`
+  //   action targeting that wait.
+  //   Test: tile.getByRole('button', { name: 'Confirm' }).click(), then the
+  //   tile's content and presence over time.
+  //   Observable result: the tile's text eventually contains "done"; the
+  //   tile is still visible at that point; within the next 10 seconds the
+  //   tile's count drops to 0.
+  //   Expected-value source: design C11 `advance`: a resolved `running`
+  //   stage becomes `done`; "A `done` stage older than 5,000 ms gives
+  //   `null`"; "Retained tiles: ... stays rendered from that snapshot ...
+  //   while its stage is `pressed`, `running` or `done`" — once the stage
+  //   clears and the real action is `done` (no longer `staged`/`running`),
+  //   `needsYou` no longer has a reason to render it.
+  test('(R5 AC2, R9 AC3) a confirmed action moves its stage to done then clears after 5s, the tile staying until then', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const waitId = 'e2e-board-action-done-wait';
+    const actionId = 'e2e-board-action-done-action';
+    const wait = baseWait(waitId, 'e2e-board-action-done-proj', 'e2e-board-action-done-spec', 5 * 60_000);
+    const action = baseAction(actionId, {
+      kind: 'answer',
+      target: { wait: waitId },
+      reason: 'Answer this wait with no questions.',
+    });
+    await writeWaitRecord(wait);
+    await writeActionRecord(action);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Confirm', exact: true }).click();
+
+      await expect(tile).toContainText(/done/i, { timeout: 15000 });
+      await expect(tile).toBeVisible();
+
+      await expect(page.getByTestId(`action-tile-${actionId}`)).toHaveCount(0, { timeout: 10000 });
+    } finally {
+      await removeWaitRecord(waitId);
+      await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "Dismiss on a real route ends with no tile" (task 12 Success;
+  // the task's Note: "a real Dismiss on a second seeded action forces one
+  // [flush]"). Unlike Confirm, Dismiss never runs an executor
+  // (`src/dashboard/multi-server.ts:796-812`), so pressing it for real has
+  // no side effect beyond the action record itself.
+  //   Pre-condition: a staged action.
+  //   Test: tile.getByRole('button', { name: 'Dismiss' }).click(), through
+  //   the real route (no `page.route` stub).
+  //   Observable result: the action's tile count eventually drops to 0.
+  //   Expected-value source: design C11 `resolved`'s `dismiss` row:
+  //   resolved when `actionState === 'dismissed'`; `advance` then moves
+  //   `running` to `done`, which clears after 5 s per the same rule R9 AC 3
+  //   states; the real `dismiss` route sets exactly that state
+  //   (`src/advisor/actions.ts` `dismissAction`).
+  test('(R5 AC2, R9) Dismiss through the real route ends with no tile', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const actionId = 'e2e-board-action-dismiss-action';
+    const action = baseAction(actionId, { kind: 'backlog', reason: 'Dismiss me for real.' });
+    await writeActionRecord(action);
+    try {
+      await login(page);
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await tile.getByRole('button', { name: 'Dismiss', exact: true }).click();
+      await expect(page.getByTestId(`action-tile-${actionId}`)).toHaveCount(0, { timeout: 15000 });
+    } finally {
+      await removeActionRecord(actionId);
     }
   });
 });
