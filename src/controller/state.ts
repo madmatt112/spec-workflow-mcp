@@ -261,6 +261,8 @@ export interface KnownProject {
   /** The root that holds `.spec-workflow` (the spec store). */
   workflowRootPath: string;
   name: string;
+  /** Operator-set name; `rememberProject` never overwrites it (design C1). */
+  displayName?: string;
   /** ISO time the project was last seen (registered, added or listed). */
   seen: string;
 }
@@ -619,11 +621,39 @@ async function withProjectsLock<T>(fn: () => Promise<T>): Promise<T> {
 export async function rememberProject(project: Omit<KnownProject, 'seen'>, now: () => Date = () => new Date()): Promise<void> {
   await withProjectsLock(async () => {
     const file = await readProjects();
+    const existing = file.projects.find((p) => p.id === project.id);
     const next: KnownProject = { ...project, seen: now().toISOString() };
+    if (existing?.displayName !== undefined) next.displayName = existing.displayName;
     const rest = file.projects.filter((p) => p.id !== project.id);
     rest.push(next);
     rest.sort((a, b) => a.name.localeCompare(b.name));
     await writeProjects({ v: 1, projects: rest });
+  });
+}
+
+/** The name shown in the project list: the operator's `displayName` when set, else `name`. */
+export function shownName(project: { name: string; displayName?: string }): string {
+  return project.displayName ?? project.name;
+}
+
+/**
+ * Set or clear one project's operator display name (design C1). `null` removes
+ * the key entirely rather than storing an empty/undefined value. Returns false
+ * and writes nothing for an unknown id.
+ */
+export async function setProjectDisplayName(id: string, displayName: string | null): Promise<boolean> {
+  return withProjectsLock(async () => {
+    const file = await readProjects();
+    const index = file.projects.findIndex((p) => p.id === id);
+    if (index === -1) return false;
+    const existing = file.projects[index];
+    const next: KnownProject = { ...existing };
+    if (displayName === null) delete next.displayName;
+    else next.displayName = displayName;
+    const projects = [...file.projects];
+    projects[index] = next;
+    await writeProjects({ v: 1, projects });
+    return true;
   });
 }
 
