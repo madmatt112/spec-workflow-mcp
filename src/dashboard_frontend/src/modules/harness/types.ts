@@ -55,6 +55,17 @@ export interface RoleRow {
   defaultModel: string; defaultProvider: Provider; providerEditable: boolean;
 }
 
+// --- LaunchGuard copied from src/dashboard/harness/launch-guard.ts ---
+
+export interface LaunchGuard {
+  state: 'clear' | 'warn' | 'no-list';
+  source: 'tasks' | 'decomposition' | 'none';
+  listed: number;
+  compared: number;
+  held: number;
+  useProject?: string;
+}
+
 export interface SetupView {
   specs: SpecRow[];                   // active, deferred, other (INDEX order)
   routing: RoutingDecision;           // src/core/spec-routing-deriver.ts:20-30
@@ -65,6 +76,7 @@ export interface SetupView {
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
   modelAliases: string[]; deepseekModels: string[]; eligibleRoles: string[];
+  guard?: LaunchGuard;                 // unset when the launchable spec is unset, or the read failed
 }
 
 export type ViewMessage =             // client to server
