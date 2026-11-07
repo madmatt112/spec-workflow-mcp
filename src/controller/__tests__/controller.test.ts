@@ -1786,6 +1786,22 @@ function makeDeployController(fx: Fixture, extra: Partial<ControllerOptions> = {
   });
 }
 
+/**
+ * Pump until the deploy unit starts, bounded. The deploy tick is
+ * eventually-consistent (D16: a tick that finds the lock held returns and the
+ * next retries), and the controller's own `tickMs` interval pumps alongside
+ * this call, so a single `pump()` can find the lock held by a concurrent tick
+ * and no-op; the start then lands on a later tick. The `unitStarted` guard
+ * keeps the total at one start.
+ */
+async function pumpUntilStarted(c: Controller, unit: DeployUnit, ms = 2000): Promise<void> {
+  const deadline = Date.now() + ms;
+  while (vi.mocked(unit.start).mock.calls.length === 0 && Date.now() < deadline) {
+    await c.pump();
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
 async function writeHeldRun(
   fx: Fixture, id: string, status: RunRecord['status'], iso: string, extra: Partial<RunRecord> = {},
 ): Promise<void> {
@@ -1934,10 +1950,15 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
     expect(unit.start).not.toHaveBeenCalled();
     expect((await readDeployRecord())?.unitStarted).not.toBe(true);
 
-    child.kill('SIGKILL');
-    await new Promise((r) => setTimeout(r, 150));
-    await controller.pump();
+    // Wait for the kill to be reaped (its /proc entry gone), not a fixed sleep:
+    // until the process is reaped `isProcessAlive` still reads the lingering
+    // zombie as live, and a loaded runner can lag the reap past any fixed wait.
+    await new Promise<void>((resolve) => {
+      child.on('exit', () => resolve());
+      child.kill('SIGKILL');
+    });
 
+    await pumpUntilStarted(controller, unit);
     expect(unit.start).toHaveBeenCalledTimes(1);
   }, 10000);
 
@@ -1968,7 +1989,7 @@ describe('DeployCoordinator.tick: isQuiet gates pump() (design D17, R1 AC4; task
     }
     expect(controller.drivenRuns().has(id)).toBe(false);
 
-    await controller.pump();
+    await pumpUntilStarted(controller, unit);
     expect(unit.start).toHaveBeenCalledTimes(1);
   }, 10000);
 });
