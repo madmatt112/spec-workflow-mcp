@@ -476,3 +476,234 @@ describe('harness routes: setup and launch (task 10)', () => {
     expect(body.reason).toContain('bogus-spec');
   });
 });
+
+// -----------------------------------------------------------------------------
+// Contract for task 3 (design.md C1 "Interfaces"; D2; task 3 _Prompt;
+// Requirement 1 AC 7). Every test below drives the server only through real
+// fetch() calls against a fresh MultiProjectDashboardServer, with a fixture
+// registry holding two live projects: `solo` (workspace and workflow root are
+// the same directory, so `ProjectManager.addProject` remembers it —
+// `src/dashboard/project-manager.ts:236` — giving it a `projects.json` row)
+// and `transient` (workspace and workflow root differ, the worktree shape
+// that same line never remembers — live, but no row). No collaborator inside
+// multi-server.ts is mocked.
+//
+// Criterion "a string answers 200 `{ success: true }` and `/api/projects/list`
+//   shows it" (task 3 _Prompt; design Data Models row 1; Req 1.7):
+//   Pre-condition: `solo` registered, no display name set yet.
+//   Test: `POST .../solo/display-name` with `{ displayName: 'tradr app' }`.
+//   Observable result: 200; body deep-equals `{ success: true }`; a
+//   following `GET /api/projects/list` row for `solo` has
+//   `projectName === 'tradr app'`.
+//   Expected-value source: the literal body this test sends, surfaced by
+//   `ProjectManager.getProjectsList()` reading the saved name back.
+//
+// Criterion "`null` ... each answer 200 and clear it" (null case) (task 3
+//   _Prompt; design Data Models row 1; Req 1.7):
+//   Pre-condition: `solo` already has a saved display name.
+//   Test: `POST .../solo/display-name` with `{ displayName: null }`.
+//   Observable result: 200; body deep-equals `{ success: true }`; the
+//   following list row's `projectName` equals `solo`'s generated name (the
+//   value the list showed before any display name was ever set).
+//   Expected-value source: design C1 post-condition ("`null` removes the key
+//   entirely", `src/controller/state.ts:644-658`) and the generated name read
+//   from the list before the test set anything.
+//
+// Criterion "... a blank string each answer 200 and clear it" (blank-string
+//   case) (task 3 _Prompt; design Data Models row 1; Req 1.7):
+//   Pre-condition: `solo` already has a saved display name.
+//   Test: `POST .../solo/display-name` with `{ displayName: '   ' }`.
+//   Observable result: 200; body deep-equals `{ success: true }`; the
+//   following list row's `projectName` equals `solo`'s generated name.
+//   Expected-value source: the task 3 _Prompt ("Trim a string body; an empty
+//   result clears the name") and the generated name read before the test.
+//
+// Criterion "a number answers 400 `display-name-invalid`" (task 3 _Prompt;
+//   design Data Models row 2; Req 1.7):
+//   Pre-condition: `solo` registered.
+//   Test: `POST .../solo/display-name` with `{ displayName: 42 }`.
+//   Observable result: 400; `body.error === 'display-name-invalid'`.
+//   Expected-value source: design Data Models row 2 ("not a string or null
+//   ... gives 400 `display-name-invalid`").
+//
+// Criterion "61 characters after trim answer 400" (task 3 _Prompt; design
+//   Data Models row 2; Req 1.7):
+//   Pre-condition: `solo` registered.
+//   Test: `POST .../solo/display-name` with a body whose `displayName` is
+//   61 `'a'` characters padded with leading/trailing spaces (trim leaves 61).
+//   Observable result: 400; `body.error === 'display-name-invalid'`.
+//   Expected-value source: design Data Models row 2 ("over 60 characters
+//   after trim").
+//
+// Criterion "60 [characters after trim] answer 200" (task 3 _Prompt; design
+//   Data Models row 1; Req 1.7):
+//   Pre-condition: `solo` registered.
+//   Test: `POST .../solo/display-name` with a body whose `displayName` is
+//   60 `'a'` characters padded with leading/trailing spaces (trim leaves 60).
+//   Observable result: 200; body deep-equals `{ success: true }`.
+//   Expected-value source: design Data Models row 1 vs row 2's 60/61
+//   boundary.
+//
+// Criterion "a control character answers 400" (task 3 _Prompt; design Data
+//   Models row 2; Req 1.7):
+//   Pre-condition: `solo` registered.
+//   Test: `POST .../solo/display-name` with `{ displayName: 'bad\u0007name' }`.
+//   Observable result: 400; `body.error === 'display-name-invalid'`.
+//   Expected-value source: design Data Models row 2 ("or a control
+//   character").
+//
+// Criterion "an unknown id answers 404 `project-not-found`" (task 3 _Prompt;
+//   design Data Models row 3; Req 1.7):
+//   Pre-condition: no project registered with id `nonexistent-project-id`.
+//   Test: `POST .../nonexistent-project-id/display-name` with
+//   `{ displayName: 'x' }`.
+//   Observable result: 404; `body.error === 'project-not-found'`.
+//   Expected-value source: design Data Models row 3 ("no live context").
+//
+// Criterion "a live project with no `projects.json` row answers 404
+//   `project-not-remembered`" (task 3 _Prompt; design Data Models row 4; Req
+//   1.7):
+//   Pre-condition: `transient` registered (live context, no durable row).
+//   Test: `POST .../transient/display-name` with `{ displayName: 'x' }`.
+//   Observable result: 404; `body.error === 'project-not-remembered'`.
+//   Expected-value source: design Data Models row 4 ("no `projects.json` row
+//   (a transient worktree project)").
+
+describe('harness routes: display-name (task 3)', () => {
+  let tempDir: string;
+  let server: MultiProjectDashboardServer | null = null;
+  let port: number;
+  let soloId: string;
+  let transientId: string;
+  let secret: string;
+  const originalEnv = { ...process.env };
+
+  beforeEach(async () => {
+    tempDir = join(tmpdir(), `harness-routes-display-name-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const stateHomeDir = join(tempDir, '.xdg-state');
+    await fsp.mkdir(stateHomeDir, { recursive: true });
+    process.env[SPEC_WORKFLOW_HOME_ENV] = join(tempDir, '.global-state');
+    process.env.XDG_STATE_HOME = stateHomeDir;
+    // The real Controller the server starts writes run/wait records under the
+    // controller home; isolate it so a late async write never hits the real home.
+    process.env.SDD_HOME = join(tempDir, '.sdd-home');
+
+    // `solo`: workspace and workflow root are the same directory, so
+    // ProjectManager remembers it (src/dashboard/project-manager.ts:236),
+    // giving it a `projects.json` row.
+    const soloRoot = join(tempDir, 'solo-project');
+    await fsp.mkdir(join(soloRoot, '.spec-workflow'), { recursive: true });
+
+    // `transient`: workspace and workflow root differ, the worktree shape
+    // the same line never remembers — live, but no durable row.
+    const transientWorkspace = join(tempDir, 'transient-workspace');
+    const transientWorkflowRoot = join(tempDir, 'transient-project');
+    await fsp.mkdir(join(transientWorkflowRoot, '.spec-workflow'), { recursive: true });
+    await fsp.mkdir(transientWorkspace, { recursive: true });
+
+    const registry = new ProjectRegistry();
+    await registry.registerProject(soloRoot, process.pid, {});
+    await registry.registerProject(transientWorkspace, process.pid, { workflowRootPath: transientWorkflowRoot });
+    soloId = generateProjectId(soloRoot);
+    transientId = generateProjectId(transientWorkspace);
+
+    (globalThis as any).fetch = async () => ({ ok: false, json: async () => ({}) });
+
+    port = await getFreePort();
+    server = new MultiProjectDashboardServer({ port });
+    await server.start();
+    // A mutating route needs the shared secret (access control,
+    // controller-design.md §17).
+    secret = await loadOrCreateSecret();
+    _resetMultiServerWarningsForTests();
+  });
+
+  afterEach(async () => {
+    if (server) {
+      await server.stop();
+      server = null;
+    }
+    process.env = { ...originalEnv };
+    await fsp.rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function postDisplayName(id: string, body: unknown): Promise<{ status: number; body: any }> {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/projects/${id}/display-name`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${secret}` },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, body: await res.json() };
+  }
+
+  async function listProjectName(id: string): Promise<string> {
+    const res = await realFetch(`http://127.0.0.1:${port}/api/projects/list`);
+    const rows = await res.json() as any[];
+    return rows.find((p) => p.projectId === id).projectName;
+  }
+
+  it('saves a string, answers 200, and /api/projects/list shows it', async () => {
+    const { status, body } = await postDisplayName(soloId, { displayName: 'tradr app' });
+    expect(status).toBe(200);
+    expect(body).toEqual({ success: true });
+    expect(await listProjectName(soloId)).toBe('tradr app');
+  });
+
+  it('null clears a saved name back to the generated one', async () => {
+    const generated = await listProjectName(soloId);
+    await postDisplayName(soloId, { displayName: 'tradr app' });
+    expect(await listProjectName(soloId)).toBe('tradr app');
+
+    const { status, body } = await postDisplayName(soloId, { displayName: null });
+    expect(status).toBe(200);
+    expect(body).toEqual({ success: true });
+    expect(await listProjectName(soloId)).toBe(generated);
+  });
+
+  it('a blank string clears a saved name back to the generated one', async () => {
+    const generated = await listProjectName(soloId);
+    await postDisplayName(soloId, { displayName: 'tradr app' });
+    expect(await listProjectName(soloId)).toBe('tradr app');
+
+    const { status, body } = await postDisplayName(soloId, { displayName: '   ' });
+    expect(status).toBe(200);
+    expect(body).toEqual({ success: true });
+    expect(await listProjectName(soloId)).toBe(generated);
+  });
+
+  it('a number gives 400 display-name-invalid', async () => {
+    const { status, body } = await postDisplayName(soloId, { displayName: 42 });
+    expect(status).toBe(400);
+    expect(body.error).toBe('display-name-invalid');
+  });
+
+  it('61 characters after trim gives 400 display-name-invalid', async () => {
+    const { status, body } = await postDisplayName(soloId, { displayName: `  ${'a'.repeat(61)}  ` });
+    expect(status).toBe(400);
+    expect(body.error).toBe('display-name-invalid');
+  });
+
+  it('60 characters after trim gives 200', async () => {
+    const { status, body } = await postDisplayName(soloId, { displayName: `  ${'a'.repeat(60)}  ` });
+    expect(status).toBe(200);
+    expect(body).toEqual({ success: true });
+  });
+
+  it('a control character gives 400 display-name-invalid', async () => {
+    const { status, body } = await postDisplayName(soloId, { displayName: 'bad\u0007name' });
+    expect(status).toBe(400);
+    expect(body.error).toBe('display-name-invalid');
+  });
+
+  it('an unknown id gives 404 project-not-found', async () => {
+    const { status, body } = await postDisplayName('nonexistent-project-id', { displayName: 'x' });
+    expect(status).toBe(404);
+    expect(body.error).toBe('project-not-found');
+  });
+
+  it('a live project with no projects.json row gives 404 project-not-remembered', async () => {
+    const { status, body } = await postDisplayName(transientId, { displayName: 'x' });
+    expect(status).toBe(404);
+    expect(body.error).toBe('project-not-remembered');
+  });
+});
