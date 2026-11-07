@@ -29,7 +29,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 12.1, NFR Performance, NFR Reliability_
   - _Prompt: Task: Per design C2 and D28, create `src/controller/branch-presence.ts` with `branchPresent`, `forgetBranchPresence` and the `BranchRead` type as design pins them. The default read is `branchExists` (`src/dashboard/harness/worktree.ts:119-128`), exported as is. The cache maps run id to the time and the read's promise | Restrictions: Change nothing else in `worktree.ts`; assert only the read's success or failure, never `child_process` fields; each test calls `forgetBranchPresence` first, because the cache outlives a test | Success: Two overlapping calls for one run call the read once and both resolve to its value; a call 59,999 ms after the first calls no read; a call 60,000 ms or more after it reads again (NFR Performance); `forgetBranchPresence` makes the next call read; an empty branch gives `false` with no read; a rejected read gives `false` (NFR Reliability); two run ids hold separate entries; `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/branch-presence.test.ts src/dashboard/harness/__tests__/worktree.test.ts` pass_
 
-- [ ] 3. Carry the tile fields on the run row
+- [x] 3. Carry the tile fields on the run row
   - File: src/controller/state.ts
   - File: src/controller/controller.ts
   - File: src/controller/runs.ts
