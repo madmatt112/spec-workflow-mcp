@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-board.spec.ts"],"seams":{"e2e/worktree-board.spec.ts":"page.getByTestId('run-tile-' + id).getByRole('button')"},"redCommit":"22be7a92b0ff36c65ef265425392bbd88fba3d16","baseSha":"dcaa068c2b111268b6a09294bf931f6a6f6bef7e","base":"inconclusive","head":"pass","amended":false,"judged":null}
