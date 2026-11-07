@@ -234,3 +234,23 @@ Cost: unknown
 harness batch 2: 5 done of 11, 1 fix round(s)
 Evidence: batch 2 · mark run-20261106-181042 d8280e31
 Cost: 2 implementer spawn(s)
+
+## 2026-11-07T15:53:28Z · closeout · code batch 3 · deviation
+P3 skipped: no change needed; controller stop-drain bug already fixed in e7396b64, record-only
+Evidence: P3 · mark run-20261106-181042 f5673025
+Cost: unknown
+
+## 2026-11-07T15:53:28Z · closeout · code batch 3 · deviation
+P4 skipped: no change needed; advisor waits-dir bug already fixed in 90f6e1dc, record-only
+Evidence: P4 · mark run-20261106-181042 d69fd5f4
+Cost: unknown
+
+## 2026-11-07T15:53:28Z · closeout · code batch 3 · deviation
+P14 skipped: no change needed; no standalone change, covered by P3/P4 fixes, record-only
+Evidence: P14 · mark run-20261106-181042 a6c5fdaf
+Cost: unknown
+
+## 2026-11-07T15:53:28Z · closeout · code batch 3 · cleanup
+code batch 3: 0 done of 3, 0 fix round(s)
+Evidence: batch 3 · mark run-20261106-181042 085fafcb
+Cost: 1 implementer spawn(s)

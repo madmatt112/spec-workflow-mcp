@@ -189,3 +189,6 @@ One line per proposal, written by the close-out phase.
 - P15: skipped — No separate change; the ruling was correct; folded into P5/P11.
 - P16: to-do (human) — Graduation rule already exists in agent-rules.md (two-spec base failure -> next decomposition adds a tracked fix task). push.test.ts fix task is next-spec decomposition work, no base-failures registry to edit; eval case needs a new grader.
 - spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/208
+- P3: skipped — no change needed; controller stop-drain bug already fixed in e7396b64, record-only
+- P4: skipped — no change needed; advisor waits-dir bug already fixed in 90f6e1dc, record-only
+- P14: skipped — no change needed; no standalone change, covered by P3/P4 fixes, record-only
