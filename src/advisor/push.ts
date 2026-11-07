@@ -24,7 +24,7 @@ import { promises as fs } from 'fs';
 import { basename, join } from 'path';
 import { once } from 'events';
 import chokidar from 'chokidar';
-import { controllerHome, readProjects, readWait, writeJsonAtomic, type WaitRecord } from '../controller/state.js';
+import { controllerHome, readProjects, readWait, shownName, writeJsonAtomic, type WaitRecord } from '../controller/state.js';
 import { listOpenWaits } from '../controller/waits.js';
 import { notifyConfigIsLoose, pushedPath, readNotifyConfig, appendEvent, type NotifyConfig } from './home.js';
 
@@ -85,11 +85,12 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-/** The entry in the durable project list whose id is `wait.project`, its `name`; else, or on a read failure, `wait.project` (design C9). */
+/** The entry in the durable project list whose id is `wait.project`, its `shownName` (the operator's display name, else the generated name); else, or on a read failure, `wait.project` (design C9, C1). */
 async function projectName(wait: WaitRecord): Promise<string> {
   try {
     const { projects } = await readProjects();
-    return projects.find((p) => p.id === wait.project)?.name ?? wait.project;
+    const project = projects.find((p) => p.id === wait.project);
+    return project ? shownName(project) : wait.project;
   } catch {
     return wait.project;
   }
