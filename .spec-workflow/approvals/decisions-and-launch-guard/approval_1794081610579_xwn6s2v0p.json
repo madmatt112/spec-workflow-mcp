@@ -1,0 +1,12 @@
+{
+  "id": "approval_1794081610579_xwn6s2v0p",
+  "title": "decisions-and-launch-guard design v2",
+  "filePath": ".spec-workflow/specs/decisions-and-launch-guard/design.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-07T20:00:10.579Z",
+  "category": "spec",
+  "categoryName": "decisions-and-launch-guard",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-07T20:00:10.823Z"
+}
