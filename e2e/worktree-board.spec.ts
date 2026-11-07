@@ -820,6 +820,8 @@ test.describe('Home (board)', () => {
     try {
       await page.goto('/');
       await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
+      // Give the controller-actions WS snapshot time to land before asserting absence.
+      await page.waitForTimeout(3000);
       await expect(page.getByTestId(`action-tile-${refusedId}`)).toHaveCount(0);
       await expect(page.getByTestId(`action-tile-${failedId}`)).toHaveCount(0);
     } finally {
