@@ -272,6 +272,76 @@ import { IndexGenerator } from '../../../core/index-generator.js';
 //   Expected-value source: design D14 ("deletes the setup file only when
 //   its written-at time matches").
 
+// Contract addendum for task 5 (design.md C5, D29; task 5 _Prompt;
+// Requirement 3.9). All four criteria below call buildSetupView(project,
+// {}); none reach decompositionPosition directly.
+//
+// Criterion "third heading gives 2" (Requirement 3.9; design C5):
+//   Pre-condition: decomposition.md with three plain headings naming
+//   `alpha`, `bravo`, `charlie` in order; spec directories for `alpha` and
+//   `bravo`, both with every task checked; no directory for `charlie`.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is 'charlie'; view.launchableOrder
+//   is 2.
+//   Expected-value source: design C5 ("the zero-based index among lines
+//   that match the heading regex") — charlie is the third heading, index 2.
+//
+// Criterion "a (deferred) heading counts toward the index" (Requirement 3.9;
+//   design C5):
+//   Pre-condition: decomposition.md with headings naming `alpha` (done),
+//   `middle` tagged `(deferred)`, then `target`; a spec directory for
+//   `alpha` only, complete; no directory for `middle` or `target`.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is 'target'; view.launchableOrder
+//   is 2, not 1.
+//   Expected-value source: design C5 ("`(deferred)` headings included") —
+//   if the deferred heading did not count, target would sit at index 1.
+//
+// Criterion "a launchable spec no heading names gives null" (Requirement
+//   3.9; design C5):
+//   Pre-condition: one spec `alpha` on disk, outside decomposition.md, with
+//   one task done and one open (the lone started spec outside the
+//   decomposition order, so routing state is 'active' per
+//   spec-routing-deriver.ts's single-started-spec rule, launchable
+//   'alpha'); decomposition.md's only heading names `other`.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is 'alpha'; view.launchableOrder is
+//   null.
+//   Expected-value source: design C5 ("A spec not named there ... gives
+//   null").
+//
+// Criterion "a null launchable gives null" (Requirement 3.9; design C5):
+//   Pre-condition: decomposition.md with no heading line at all ('Nothing
+//   sequenced yet.'); two unstarted spec directories (`un-a`, `un-b`) it
+//   does not mention (routing state 'ambiguous', launchable null).
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is null; view.launchableOrder is
+//   null.
+//   Expected-value source: design C5 ("a null launchable gives null").
+//
+// Criterion "a store with no decomposition.md gives null" (Requirement 3.9;
+//   design C5):
+//   Pre-condition: one spec `alpha` on disk with an unchecked task (routing
+//   state 'active', launchable 'alpha'); no decomposition.md file anywhere
+//   in the workflow root.
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is 'alpha'; view.launchableOrder is
+//   null.
+//   Expected-value source: design C5 ("a store with no decomposition.md
+//   gives null").
+//
+// Criterion "the decomposition fallback spec gets its position too"
+//   (Requirement 3.9; design C5):
+//   Pre-condition: decomposition.md naming `nextspec` as its only heading;
+//   two unstarted spec directories (`un-a`, `un-b`) it does not mention
+//   (routing state 'ambiguous', launchable falls back to `nextspec` via
+//   nextUnstartedSpec).
+//   Test: buildSetupView(project, {}).
+//   Observable result: view.launchable is 'nextspec'; view.launchableOrder
+//   is 0.
+//   Expected-value source: design C5 — the fallback spec's position is
+//   computed the same way as a routing.spec launchable.
+
 const here = dirname(fileURLToPath(import.meta.url));
 const PROVIDERS_SCRIPT = join(here, '../../../../harness/skills/sdd-continue/references/sdd-providers.sh');
 
@@ -321,6 +391,7 @@ function buildView(): SetupView {
     handoff: null,
     launchable: 'alpha',
     disabledReason: null,
+    launchableOrder: null,
     supervisor: { model: 'claude-opus-5-5', effort: 'high' },
     roles: [
       {
@@ -691,6 +762,92 @@ describe('run-setup', () => {
       expect(view.routing.state).toBe('active');
       expect(view.launchable).toBe('alpha');
       expect(view.disabledReason).toBeNull();
+    });
+
+    it('gives the zero-based index of the heading naming the launchable spec (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, [
+        '### 1. `alpha`', '', '### 2. `bravo`', '', '### 3. `charlie`', '',
+      ].join('\n'));
+      await createSpec(workflowRoot, 'alpha', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n',
+      });
+      await createSpec(workflowRoot, 'bravo', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n',
+      });
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.launchable).toBe('charlie');
+      expect(view.launchableOrder).toBe(2);
+    });
+
+    it('counts a (deferred)-tagged heading toward the index (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, [
+        '### 1. `alpha` — done', '', '### 2. `middle` — parked (deferred)', '', '### 3. `target` — next', '',
+      ].join('\n'));
+      await createSpec(workflowRoot, 'alpha', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n',
+      });
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.launchable).toBe('target');
+      expect(view.launchableOrder).toBe(2);
+    });
+
+    it('gives launchableOrder null when no heading names the launchable spec (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'alpha', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [x] 1. a\n- [ ] 2. b\n',
+      });
+      await writeDecomposition(workflowRoot, '### 1. `other`\n');
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('active');
+      expect(view.launchable).toBe('alpha');
+      expect(view.launchableOrder).toBeNull();
+    });
+
+    it('gives launchableOrder null when launchable is null (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\nNothing sequenced yet.\n');
+      await createSpec(workflowRoot, 'un-a', {});
+      await createSpec(workflowRoot, 'un-b', {});
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('ambiguous');
+      expect(view.launchable).toBeNull();
+      expect(view.launchableOrder).toBeNull();
+    });
+
+    it('gives launchableOrder null when the store has no decomposition.md (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await createSpec(workflowRoot, 'alpha', {
+        requirements: '# R\n', design: '# D\n', tasks: '- [ ] 1. a\n',
+      });
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('active');
+      expect(view.launchable).toBe('alpha');
+      expect(view.launchableOrder).toBeNull();
+    });
+
+    it('gives the decomposition fallback spec its position too (Req 3.9)', async () => {
+      const { projectPath, workflowRoot } = await makeWorkflowRoot();
+      await writeDecomposition(workflowRoot, '# Plan\n\n### 1. `nextspec` — next\n');
+      await createSpec(workflowRoot, 'un-a', {});
+      await createSpec(workflowRoot, 'un-b', {});
+
+      const view = await buildSetupView(projectFor(projectPath), {});
+
+      expect(view.routing.state).toBe('ambiguous');
+      expect(view.launchable).toBe('nextspec');
+      expect(view.launchableOrder).toBe(0);
     });
   });
 
