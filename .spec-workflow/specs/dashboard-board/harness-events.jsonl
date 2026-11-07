@@ -250,3 +250,21 @@
 {"ts":"2026-11-07T06:23:20.084Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 14","result":"yes/14","phase":"implementation","task":"14"}
 {"ts":"2026-11-07T06:31:09.933Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 14 pass risk low tdd inconclusive"}
 {"ts":"2026-11-07T06:31:09.943Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"14","rounds":"0","outcome":"gate"}
+{"ts":"2026-11-07T06:31:10.105Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"15","title":"Add the Next tiles"}
+{"ts":"2026-11-07T06:31:10.113Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 15 pick head ff5d78ed72259e5d16992958f9f9875695f48160"}
+{"ts":"2026-11-07T06:31:10.161Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-test-author","role":"author task 15","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T06:59:26.761Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-test-author","input":"200","output":"99697","cacheWrite":"254545","cacheRead":"17621414","tokens":"17975856","cacheWrite5m":"0","cacheWrite1h":"254545","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T06:59:26.761Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-test-author","role":"author task 15","result":"turn-cap","phase":"implementation","task":"15"}
+{"ts":"2026-11-07T07:00:15.182Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"error answered by coordinator: retry"}
+{"ts":"2026-11-07T07:00:16.139Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-test-author","role":"author task 15","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T07:05:58.373Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-test-author","input":"72","output":"11486","cacheWrite":"148787","cacheRead":"4178182","tokens":"4338527","cacheWrite5m":"0","cacheWrite1h":"148787","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T07:05:58.373Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-test-author","role":"author task 15","result":"none","phase":"implementation","task":"15"}
+{"ts":"2026-11-07T07:05:58.428Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"task 15 route claude-sonnet-5 high: no sensitive-path flag"}
+{"ts":"2026-11-07T07:05:58.428Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-implementer","role":"implement task 15","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-07T07:19:05.781Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-implementer","input":"138","output":"42485","cacheWrite":"166199","cacheRead":"9016192","tokens":"9225014","cacheWrite5m":"0","cacheWrite1h":"166199","model":"claude-sonnet-5"}
+{"ts":"2026-11-07T07:19:05.782Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement task 15","result":"yes/98a74b82-5132-40cc-ad8e-8182e9e04c60","phase":"implementation","task":"15"}
+{"ts":"2026-11-07T07:25:36.590Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: task 15 pass risk high tdd structural-red"}
+{"ts":"2026-11-07T07:25:36.603Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-verifier","role":"verify task 15","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-07T07:28:57.206Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-verifier","input":"42","output":"14330","cacheWrite":"108061","cacheRead":"1416976","tokens":"1539409","cacheWrite5m":"0","cacheWrite1h":"108061","model":"claude-opus-4-8"}
+{"ts":"2026-11-07T07:28:57.207Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-verifier","role":"verify task 15","result":"VERDICT: pass","phase":"implementation","task":"15"}
+{"ts":"2026-11-07T07:28:57.208Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"15","rounds":"0","outcome":"pass"}
