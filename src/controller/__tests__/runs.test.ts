@@ -11,6 +11,7 @@ import {
   withPrRead, listRunsForWire, setRunHeartbeat, runEvents, stepLifecycle,
   type RunDeps, type CancelDeps,
 } from '../runs.js';
+import { branchPresent, type BranchRead } from '../branch-presence.js';
 import { NO_OP_GATES } from '../phases/document.js';
 import { createDocumentGates } from '../phases/gates.js';
 import {
@@ -511,6 +512,100 @@ describe('cancelRun and discardRun', () => {
     expect(log).toContain('"pr"');
     expect(log).toContain('"close"');
     expect(log).toContain('feat/x');
+  });
+
+  // Source: task 4 Success (design C4 "Discard"; requirement 7 AC7, AC8).
+  // Four criteria through this seam. Two sub-cases named in the task text
+  // as regression guards are handled below without forcing a red test;
+  // the "running ends abandoned as today" sub-case is already covered,
+  // branch-exact, by the "discard removes the worktree, deletes the
+  // branch and closes the PR with gh" test above (its seeded run defaults
+  // to status `running`, and its `expect(run?.status).toBe('abandoned')`
+  // is the same branch) — no new test added for it.
+  //
+  // Criterion "a done run discarded stays done, with its worktree and
+  // branch gone": Pre-condition: a `done` run with a real worktree and
+  // branch. Test: discardRun(deps, runId). Observable result: the
+  // returned record's `status` is `'done'`, the worktree directory is
+  // gone and the branch no longer resolves. Expected-value source: design
+  // C4 ("discardRun skips cancelRun when the run is done, so status stays
+  // done"), requirement 7 AC8.
+  it('discard on a done run keeps it done, with the worktree and branch gone', async () => {
+    git(fx.repo, ['branch', 'feat/done']);
+    const worktree = join(fx.repo, '.claude', 'worktrees', 'done-run');
+    git(fx.repo, ['worktree', 'add', worktree, 'feat/done']);
+    expect(existsSync(worktree)).toBe(true);
+
+    await writeRun(seedRun(fx, { status: 'done', worktree, branch: 'feat/done' }));
+
+    const run = await discardRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(run?.status).toBe('done');
+    expect(existsSync(worktree)).toBe(false);
+    expect(() => git(fx.repo, ['rev-parse', '--verify', 'feat/done'])).toThrow();
+  });
+
+  // Criterion "an abandoned run discarded stays abandoned" (regression
+  // guard: `cancelRun`'s unconditional write already re-writes the same
+  // status on a run that starts abandoned, so this holds at base; named
+  // here for the implementer brief since no existing assertion discards a
+  // run that starts abandoned).
+  it('[regression guard] discard on an already-abandoned run leaves it abandoned', async () => {
+    await writeRun(seedRun(fx, { status: 'abandoned' }));
+
+    const run = await discardRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(run?.status).toBe('abandoned');
+  });
+
+  // Criterion "change fires after the cleanup, seen as the branch already
+  // gone when the listener runs": Pre-condition: a `done` run with a real
+  // branch. Test: discardRun(deps, runId), with a `runEvents.once(
+  // 'change', ...)` listener registered first. Observable result: when
+  // the listener runs, `git rev-parse --verify` on the branch already
+  // throws. Expected-value source: design C4 ("After the git and gh
+  // cleanup, discardRun calls forgetBranchPresence(runId), then emits
+  // runEvents change").
+  it('emits change only after cleanup, so the branch is already gone when the listener runs', async () => {
+    git(fx.repo, ['branch', 'feat/emit']);
+    const worktree = join(fx.repo, '.claude', 'worktrees', 'emit');
+    git(fx.repo, ['worktree', 'add', worktree, 'feat/emit']);
+    await writeRun(seedRun(fx, { status: 'done', worktree, branch: 'feat/emit' }));
+
+    let branchGoneWhenEmitted = false;
+    runEvents.once('change', () => {
+      branchGoneWhenEmitted = (() => {
+        try { git(fx.repo, ['rev-parse', '--verify', 'feat/emit']); return false; } catch { return true; }
+      })();
+    });
+
+    await discardRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(branchGoneWhenEmitted).toBe(true);
+  });
+
+  // Criterion "the next presence read after discard calls the read
+  // again": Pre-condition: a `done` run whose `branchPresent` has already
+  // been read and cached. Test: discardRun(deps, runId), then
+  // branchPresent(run, read, now) again inside the same 60s window.
+  // Observable result: the read function runs a second time. Expected-
+  // value source: design C4's `forgetBranchPresence(runId)` call.
+  it('forgets the cached branch presence after discard, so the next read runs again', async () => {
+    const run = seedRun(fx, { id: 'run-discard-forgets', status: 'done', branch: 'main' });
+    await writeRun(run);
+
+    let calls = 0;
+    const read: BranchRead = async () => { calls += 1; return true; };
+    const at = () => 1_000;
+    await branchPresent(run, read, at);
+    expect(calls).toBe(1);
+    await branchPresent(run, read, at);
+    expect(calls).toBe(1);
+
+    await discardRun(cancelDeps(fx), run.id);
+
+    await branchPresent(run, read, at);
+    expect(calls).toBe(2);
   });
 });
 

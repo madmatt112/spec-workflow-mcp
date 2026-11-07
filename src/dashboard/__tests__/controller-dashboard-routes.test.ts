@@ -743,4 +743,60 @@ describe('controller dashboard routes (T10)', () => {
       expect((await readDeployRecord())?.stage).toBe('restart');
     });
   });
+
+  // Source: task 4 Success (design C4 "Discard"; requirement 7 AC7). Pre-
+  // condition for both: a `running` run and a `done` run seeded after the
+  // server starts (so the live controller never drives either), sharing
+  // `codeRoot`.
+  describe('POST /api/controller/runs/:id/discard — task 4', () => {
+    // Criterion "the route answers 409 with that body" (and the record
+    // underneath is untouched): Pre-condition: the `running` run holds the
+    // same non-empty `branch` as the `done` run. Call: fetch POST
+    // .../discard on the done run's id. Observable result: 409
+    // { error: 'branch-in-use' }, and `readRun` on the done run's id is
+    // unchanged. Expected-value source: design C4 ("the discard route
+    // answers 409 { error: 'branch-in-use' } on the sentinel"; "On
+    // branch-in-use nothing changes ... no write").
+    it('answers 409 branch-in-use when a moving run holds the branch, and changes nothing', async () => {
+      const base = await startServer();
+      const specStore = join(tempDir, 'store-discard-409');
+      const spec = 'controller-dashboard';
+      const movingRun: RunRecord = {
+        v: 1, id: 'run-discard-moving', project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/shared', status: 'running',
+        created: '2026-11-06T10:00:00.000Z', updated: '2026-11-06T10:00:00.000Z',
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(movingRun);
+      const doneRun: RunRecord = {
+        v: 1, id: 'run-discard-done', project: 'proj-1', codeRoot: specStore, specStore, spec,
+        worktree: specStore, branch: 'feat/shared', status: 'done',
+        created: '2026-11-06T10:00:00.000Z', updated: '2026-11-06T10:00:00.000Z',
+        tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      };
+      await writeRun(doneRun);
+      const before = await readRun(doneRun.id);
+
+      const res = await realFetch(`${base}/api/controller/runs/${doneRun.id}/discard`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'branch-in-use' });
+      expect(await readRun(doneRun.id)).toEqual(before);
+    });
+
+    // Criterion "a missing id answers 404" (regression guard:
+    // `controller.discard` already returns `undefined` for an unknown id
+    // at base, and the route already 404s on that; holds with no change).
+    // Pre-condition: no run with this id. Call: fetch POST .../discard.
+    // Observable result: 404 { error: 'run-not-found' }. Expected-value
+    // source: the existing route body (`src/dashboard/multi-server.ts:859-864`).
+    it('[regression guard] answers 404 for a missing run id', async () => {
+      const base = await startServer();
+
+      const res = await realFetch(`${base}/api/controller/runs/run-nope/discard`, auth({ method: 'POST' }));
+
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'run-not-found' });
+    });
+  });
 });
