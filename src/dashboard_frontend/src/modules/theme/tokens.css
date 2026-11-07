@@ -56,6 +56,14 @@
   --sidebar-w: 256px;
   --panel-w: 384px;
   --content-max: 1600px;
+
+  --text-display: 32px;
+  --text-display--line-height: 40px;
+  --text-tile: 15px;
+  --text-tile--line-height: 22px;
+  --tile-pad: 20px;
+  --tile-gap: 16px;
+  --band-gap: 32px;
 }
 
 :root {
