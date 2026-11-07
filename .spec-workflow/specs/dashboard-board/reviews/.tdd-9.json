@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/board-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/board-view.test.ts":"runControls(run, waits)"},"redCommit":"40dbbce374f00b86dee7020df521c39bec86fb71","baseSha":"193ccabd5ea7fa0a8ad9491b0067c87eaad93085","base":"structural-red","head":"pass","amended":false,"judged":null}
