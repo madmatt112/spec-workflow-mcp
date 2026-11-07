@@ -21,47 +21,22 @@ import { loadOrCreateSecret } from '../../controller/access.js';
 const realFetch: typeof fetch = globalThis.fetch;
 
 // Contract for the task 9 hub/websocket wiring (design.md C7; task 9 _Prompt;
-// Requirements 3.12, 4.2, 4.7, 4.8, 4.9, 5.9, 5.10). Every test drives the
-// server only through a real `ws` client on the `/ws` endpoint, with a temp
+// Requirements 3.12, 5.9, 5.10), as cut down by task 19 (design C6; R2 AC 2,
+// 3, 4): the harness per-project view and its messages are gone, so a
+// `harness-subscribe` is now inert. Every test drives the server only
+// through a real `ws` client on the `/ws` endpoint, with a temp
 // SPEC_WORKFLOW_HOME (registry, launch records) and a temp XDG_STATE_HOME
 // (pointer file, HUD file) — never the real state home.
 //
-// Criterion "harness subscriber gets the snapshot, then a fresh harness-model
-// within five seconds of a ledger append" (task 9 _Prompt: "a harness
-// subscriber gets the snapshot, then a harness-model within five seconds of a
-// ledger append"; Req 4.2, 4.8):
+// Criterion "a harness-subscribe message changes nothing and sends no
+// reply" (task 19 Success line; R2 AC 2, 3):
 //   Pre-condition: project alpha registered with a ledger holding only a
-//   `run.start` row (no open phase); a ws client connected to `/ws`.
-//   Test: send `{ type: 'harness-subscribe', projectId: alphaId }`, wait for
-//   a `harness-model` message (the snapshot), then append a `phase.start`
-//   row (phase `document`) to alpha's ledger file.
-//   Observable result: within five seconds a `harness-model` message for
-//   alphaId arrives whose `data.model.livePhase.phase === 'document'`.
-//   Expected-value source: the literal `phase: 'document'` value written
-//   into the appended ledger row, folded by the existing model builder
-//   (src/watch/ledger.ts:243-457) that C5 already reuses.
-//
-// Criterion "a Specs-page (`subscribe`-only) client gets no harness-*
-// message" (task 9 _Prompt: "a second client with only subscribe on the
-// same project gets no harness-* message"; Req 4.9):
-//   Pre-condition: one harness subscriber and one `subscribe`-only client
-//   both on project alpha.
-//   Test: append a `phase.start` row to alpha's ledger, and wait until the
-//   harness subscriber's collected messages show the updated model.
-//   Observable result: the `subscribe`-only client's collected messages
-//   contain zero entries whose `type` starts with `harness-`.
-//   Expected-value source: the _Prompt sentence — harness pushes are filtered
-//   on the harness view, never broadcast to every client of the project.
-//
-// Criterion "watchedProjects() empties after the last harness subscriber
-// closes" (task 9 _Prompt literal test name; Req 4.7):
-//   Pre-condition: one harness subscriber on project alpha, confirmed by
-//   `hub.watchedProjects()` containing alphaId.
-//   Test: close that client's socket.
-//   Observable result: within five seconds `hub.watchedProjects()` no
-//   longer contains alphaId.
-//   Expected-value source: the _Prompt sentence ("watchedProjects() empties
-//   after the last harness subscriber closes").
+//   `run.start` row; a ws client connected to `/ws`.
+//   Test: send `{ type: 'harness-subscribe', projectId: alphaId }`, then
+//   wait 300ms.
+//   Observable result: the client's collected messages are empty.
+//   Expected-value source: the task 19 Success line — the per-project
+//   harness view and its reply are gone, so the message is a no-op.
 //
 // Criterion "with two registered projects, an overview subscriber sees a
 // gate-a row as waiting within five seconds" (task 9 _Prompt; Req 5.9, 5.10):
@@ -199,67 +174,15 @@ describe('harness hub and websocket wiring (task 9)', () => {
     await fsp.rm(tempDir, { recursive: true, force: true });
   });
 
-  function getHub(): { watchedProjects: () => Iterable<string> } {
-    return (server as any).harnessHub;
-  }
-
-  it('sends the snapshot, then a fresh harness-model within five seconds of a ledger append', async () => {
+  it('changes nothing and sends no reply to a harness-subscribe message', async () => {
     const ws = await connect(port);
     sockets.push(ws);
     const messages = collect(ws);
 
     send(ws, { type: 'harness-subscribe', projectId: alphaId });
-    await waitFor(() => messages.some((m) => m.type === 'harness-model' && m.projectId === alphaId));
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-    appendFileSync(alphaLedgerPath, JSON.stringify({
-      ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-alpha-1', phase: 'document', mode: 'auto', state: 'in-progress',
-    }) + '\n');
-
-    await waitFor(() => messages.some((m) =>
-      m.type === 'harness-model' && m.projectId === alphaId && m.data?.model?.livePhase?.phase === 'document'
-    ), 5000);
-
-    const updated = messages.filter((m) => m.type === 'harness-model' && m.projectId === alphaId).pop();
-    expect(updated.data.model.livePhase.phase).toBe('document');
-  });
-
-  it('sends no harness-* message to a client that only sent subscribe', async () => {
-    const harnessWs = await connect(port);
-    sockets.push(harnessWs);
-    const harnessMessages = collect(harnessWs);
-    send(harnessWs, { type: 'harness-subscribe', projectId: alphaId });
-    await waitFor(() => harnessMessages.some((m) => m.type === 'harness-model' && m.projectId === alphaId));
-
-    const specsWs = await connect(port);
-    sockets.push(specsWs);
-    const specsMessages = collect(specsWs);
-    send(specsWs, { type: 'subscribe', projectId: alphaId });
-
-    appendFileSync(alphaLedgerPath, JSON.stringify({
-      ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-alpha-1', phase: 'document', mode: 'auto', state: 'in-progress',
-    }) + '\n');
-
-    await waitFor(() => harnessMessages.some((m) =>
-      m.type === 'harness-model' && m.projectId === alphaId && m.data?.model?.livePhase?.phase === 'document'
-    ), 5000);
-
-    expect(specsMessages.some((m) => typeof m.type === 'string' && m.type.startsWith('harness-'))).toBe(false);
-  });
-
-  it('empties watchedProjects() after the last harness subscriber closes', async () => {
-    const ws = await connect(port);
-    sockets.push(ws);
-    const messages = collect(ws);
-    send(ws, { type: 'harness-subscribe', projectId: alphaId });
-    await waitFor(() => messages.some((m) => m.type === 'harness-model' && m.projectId === alphaId));
-
-    const hub = getHub();
-    await waitFor(() => Array.from(hub.watchedProjects()).includes(alphaId));
-
-    ws.close();
-    sockets.splice(sockets.indexOf(ws), 1);
-
-    await waitFor(() => !Array.from(hub.watchedProjects()).includes(alphaId));
+    expect(messages).toHaveLength(0);
   });
 
   it('shows a gate-a row as waiting within five seconds, with two registered projects', async () => {

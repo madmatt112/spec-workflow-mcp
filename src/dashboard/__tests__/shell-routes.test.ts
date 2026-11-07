@@ -77,14 +77,12 @@ const realFetch: typeof fetch = globalThis.fetch;
 //   triggers; the count increase is the push itself, which Requirement 5 AC
 //   7 requires with no reload.
 //
-// Criterion "a deferral write reaches an overview-only socket exactly once
-// and a socket holding both views of that project exactly once" (task 7
-// _Prompt; design D12, Requirement 7 AC 2):
-//   Pre-condition: socket A sends only `{ type: 'overview-subscribe' }`
-//   (views holds only `overview`, no bound project); socket B sends
-//   `{ type: 'overview-subscribe' }` then `{ type: 'harness-subscribe',
-//   projectId: alphaId }` (views holds `overview` and `harness`, projectId
-//   alphaId — so it matches D12's rule on both grounds at once).
+// Criterion "a deferral write reaches each of two overview-subscribed
+// sockets exactly once" (task 7 _Prompt; design D12, Requirement 7 AC 2),
+// as cut down by task 19 (design C6; R2 AC 2, 3): the harness per-project
+// view is gone, so both sockets below are now plain overview subscribers:
+//   Pre-condition: socket A and socket B each send only
+//   `{ type: 'overview-subscribe' }`.
 //   Test: `new DeferralStorage(alphaWorkflowRoot).create(...)`.
 //   Observable result: within five seconds each socket's collected messages
 //   contain exactly one `deferrals-update` message for alphaId; after a
@@ -363,7 +361,7 @@ describe('shell hub wiring and routes (task 7)', () => {
     await waitFor(() => messages.filter((m) => m.type === 'shell-specs').length > baseline, 5000);
   });
 
-  it('sends a deferral push exactly once to an overview-only socket and once to a dual-view socket', async () => {
+  it('sends a deferral push exactly once to each of two overview-subscribed sockets', async () => {
     const overviewOnly = await connect(port);
     sockets.push(overviewOnly);
     const overviewOnlyMessages = collect(overviewOnly);
@@ -374,8 +372,7 @@ describe('shell hub wiring and routes (task 7)', () => {
     sockets.push(dualView);
     const dualViewMessages = collect(dualView);
     send(dualView, { type: 'overview-subscribe' });
-    send(dualView, { type: 'harness-subscribe', projectId: alphaId });
-    await waitFor(() => dualViewMessages.some((m) => m.type === 'harness-model' && m.projectId === alphaId));
+    await waitFor(() => dualViewMessages.some((m) => m.type === 'shell-specs'));
 
     await new DeferralStorage(alphaWorkflowRoot).create({
       title: 'Another deferred decision',

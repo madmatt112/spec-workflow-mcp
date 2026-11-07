@@ -189,7 +189,17 @@ describe('controller dashboard routes (T10)', () => {
     expect(body.sevenDay.resetsAt).toBe('2026-10-18T00:00:00.000Z');
   });
 
-  it('GET /api/controller/runs/:id/log returns the last N lines of the in-flight step log, and 404s for an unknown run', async () => {
+  // Contract for task 19 (design C6; R2 AC 2). Pre-condition: a real run on
+  // disk with an in-flight step log (the exact fixture the deleted log route
+  // used to serve). Test: GET the log route for that run, and GET a
+  // sibling path under the same /api/controller/ prefix that no route
+  // matches. Observable result: both answer with the same status and the
+  // same fastify not-found error/statusCode fields (the `message` field is
+  // excluded because it echoes the request path, not the route's shape).
+  // Expected-value source: the route being gone leaves fastify's own
+  // default not-found handling as the only answer, identical for any
+  // unmatched /api/controller/ path.
+  it('GET /api/controller/runs/:id/log answers exactly as an unknown control path under /api does', async () => {
     const base = await startServer();
 
     const specStore = join(tempDir, 'store');
@@ -209,16 +219,36 @@ describe('controller dashboard routes (T10)', () => {
     writeFileSync(join(dir, 'drafter.jsonl'), lines.join('\n') + '\n');
 
     const res = await realFetch(`${base}/api/controller/runs/${run.id}/log?tail=50`, auth());
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('text/plain');
-    const text = await res.text();
-    const out = text.split('\n').filter((l) => l.length > 0);
-    expect(out).toHaveLength(50);
-    expect(out[out.length - 1]).toContain('"n":119');
-    expect(out[0]).toContain('"n":70');
+    const unknown = await realFetch(`${base}/api/controller/runs/${run.id}/does-not-exist`, auth());
 
-    const missing = await realFetch(`${base}/api/controller/runs/run-nope/log`, auth());
-    expect(missing.status).toBe(404);
+    expect(res.status).toBe(unknown.status);
+    const resBody: any = await res.json();
+    const unknownBody: any = await unknown.json();
+    expect(resBody.statusCode).toBe(unknownBody.statusCode);
+    expect(resBody.error).toBe(unknownBody.error);
+  });
+
+  // Contract for task 19 (design C6; R2 AC 2). Pre-condition: a real
+  // registered project with a spec directory on disk (the exact fixture the
+  // deleted summary route used to serve). Test: GET the summary route for
+  // that project/spec, and GET a sibling path under the same project/spec
+  // prefix that no route matches. Observable result and expected-value
+  // source: same as the log-route criterion above — identical status and
+  // not-found shape, because the route is gone and fastify answers both
+  // the same way.
+  it('GET /api/projects/:projectId/specs/:specName/task-reviews/summary answers exactly as an unknown control path under /api does', async () => {
+    const spec = 'controller-dashboard';
+    const projectId = await prepareLaunchableProject(spec);
+    const base = await startServer();
+
+    const res = await realFetch(`${base}/api/projects/${projectId}/specs/${spec}/task-reviews/summary`);
+    const unknown = await realFetch(`${base}/api/projects/${projectId}/specs/${spec}/does-not-exist`);
+
+    expect(res.status).toBe(unknown.status);
+    const resBody: any = await res.json();
+    const unknownBody: any = await unknown.json();
+    expect(resBody.statusCode).toBe(unknownBody.statusCode);
+    expect(resBody.error).toBe(unknownBody.error);
   });
 
   it("GET /harness/setup folds the controller's live-run guard into the disabled reason", async () => {
