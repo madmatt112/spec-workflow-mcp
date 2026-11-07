@@ -104,3 +104,8 @@ Cost: 4 rounds
 task 16 closed: 4 fix round(s), outcome adjudicated
 Evidence: task 16 · mark run-20261106-181042 4927bf08
 Cost: 5 implementer spawn(s)
+
+## 2026-11-07T09:16:38Z · implementation · task 17 · deviation
+task 17: implementer reported REQUIRED for an off-list file — src/dashboard_frontend/src/modules/shell/board.ts, tiles.tsx, AnswerSheet.tsx, OpenAdvisor.tsx — each had a comment naming NowPage/RunsPage/Sidebar; the task's own Success grep and the author's "deleted symbols scrubbed" test walk all of FE_ROOT (not just File:), so passing required rewording these comments. tasks.md's File: list for task 17 should add these four.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md
+Evidence: task 17 · mark run-20261106-181042 3b8a7fd1
+Cost: unknown
