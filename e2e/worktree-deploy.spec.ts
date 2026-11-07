@@ -15,8 +15,8 @@ import type { DeployRecord } from '../src/controller/deploy.js';
  * as written and a seeded `run.json` is never picked up for a real launch.
  * No project is registered for this suite: `ProjectProvider.enabled()` reads
  * an id absent from its disabled list as on, and `listRunsForWire()` reads
- * `run.json` straight off disk, so neither the Now nor the Runs page needs a
- * registered project to show a controller run.
+ * `run.json` straight off disk, so Home needs no registered project to show
+ * a controller run.
  *
  * Every mutating POST is stubbed with `page.route`, so none reaches the
  * server (the vite dev proxy's Origin rewrite is therefore not exercised
@@ -268,7 +268,7 @@ test.describe('Deploy control', () => {
 
   // --- AC 4: a deploy-held run --------------------------------------------
 
-  test('(AC4) a deploy-held run reads "held for deploy" on both pages and offers no Resume', async ({ page }) => {
+  test('(AC4) a deploy-held run reads "held for deploy" on its tile and offers no Resume', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
 
     const runId = 'e2e-deploy-held';
@@ -281,21 +281,11 @@ test.describe('Deploy control', () => {
 
     try {
       await page.goto('/');
-      const nowRow = page.getByTestId(`live-row-${PROJECT_ID}`);
-      await expect(nowRow).toBeVisible({ timeout: 15000 });
-      await expect(nowRow).toContainText('held for deploy');
-
-      await page.goto('/#/runs');
-      const runsRow = page.getByTestId(`ctrl-run-row-${runId}`);
-      await expect(runsRow).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId(`ctrl-run-pause-${runId}`)).toContainText('held for deploy');
-
-      await runsRow.click();
-      const panel = page.getByTestId('ctrl-run-panel');
-      await expect(panel).toBeVisible({ timeout: 15000 });
-      await expect(panel.getByTestId('ctrl-resume')).toHaveCount(0);
-      await expect(panel.getByTestId('ctrl-resume-operator')).toHaveCount(0);
-      await expect(panel.getByTestId('ctrl-pause')).toBeVisible();
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('held for deploy');
+      await expect(page.getByTestId(`run-resume-${runId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`run-pause-${runId}`)).toBeVisible();
     } finally {
       await removeRun(runDir);
     }
