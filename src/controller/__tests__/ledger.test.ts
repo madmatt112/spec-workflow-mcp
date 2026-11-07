@@ -7,7 +7,6 @@ import { execFileSync } from 'child_process';
 import { openRunLedger, newRunId, checkpoint, commitSpecStore, specStorePaths, StepUsage } from '../ledger.js';
 import { buildModel, parseJsonl, LedgerEvent } from '../../watch/ledger.js';
 import { render } from '../../watch/render.js';
-import { gateOrRuling } from '../../dashboard/shell/waits.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -238,11 +237,7 @@ describe('now-model / waits read a controller run as live', () => {
     expect(live.livePhase?.budget).toBe('4 review rounds');
     expect(live.rounds).toEqual([{ phase: 'requirements', round: '1', verdict: 'iterate 0/2/4', version: 'v2' }]);
 
-    // A gate-a phase.end with no later phase.start is the gate wait waits.ts derives.
     led.phaseEnd('requirements', { result: 'gate-a', state: 'v1' });
-    const gr = gateOrRuling(readRows(led.path));
-    expect(gr?.kind).toBe('gate');
-    expect(gr?.row.result).toBe('gate-a');
 
     // run.end flips the shared model to not-live.
     led.runEnd('x:s requirements v1 - gate-a');

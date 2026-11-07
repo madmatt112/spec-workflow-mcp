@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fsp, writeFileSync, appendFileSync, chmodSync, mkdtempSync, mkdirSync, rmSync } from 'fs';
+import { promises as fsp, writeFileSync, chmodSync, mkdtempSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -34,49 +34,19 @@ const realFetch: typeof fetch = globalThis.fetch;
 // carry no test here: Requirement 6 AC 6 (every base route still registered)
 // and Requirement 8 AC 2 (the watch sets and WATCHED_FILES are unchanged).
 //
-// Criterion "an overview subscriber gets shell-now and shell-specs after
-// subscribing" (task 7 _Prompt literal test; design C7 "`start` computes and
-// sends both messages"):
+// Criterion "an overview subscriber gets shell-specs and never shell-now"
+// (task 18 _Prompt; design C6 "flush sends shell-specs, controller-waits,
+// controller-runs, controller-actions and controller-deploy"; Requirements
+// 2.3, 2.4 — `shell-now` and its `NowModel` builder are gone):
 //   Pre-condition: two registered projects (alpha routed to spec-a with a
 //   ledger holding only `run.start`; beta idle, no ledger); a ws client
 //   connected to `/ws`.
-//   Test: send `{ type: 'overview-subscribe' }`.
-//   Observable result: within five seconds the client's collected messages
-//   include at least one `shell-now` message and at least one `shell-specs`
-//   message.
-//   Expected-value source: the task 7 _Prompt sentence ("Tests ...: an
-//   overview subscriber gets shell-now and shell-specs after subscribing"),
-//   which this criterion's bounded-latency cases (2.9, 3.9, 5.7) all presume.
-//
-// Criterion "a gate-a phase.end gives a gate wait within five seconds" (task
-// 7 _Prompt; Requirement 2 AC 9):
-//   Pre-condition: the same fixture; an overview subscriber already
-//   collecting `shell-now` messages.
-//   Test: append a `phase.start` then a `phase.end` row with
-//   `result: 'gate-a'` to alpha's ledger.
-//   Observable result: within five seconds a `shell-now` message arrives
-//   whose `data.waits` holds an entry with `kind === 'gate'`,
-//   `projectId === alphaId` and `spec === 'spec-a'`.
-//   Expected-value source: the literal `result: 'gate-a'` value written into
-//   the appended row, folded by the already-tested `deriveProjectWaits`
-//   (task 2) that C7's feed reuses.
-//
-// Criterion "a retrospective-proposals write gives a retro wait within five
-// seconds, and an APPROVED plan clears it within five seconds" (task 7
-// _Prompt; Requirement 3 AC 9):
-//   Pre-condition: the same fixture; an overview subscriber already
-//   collecting `shell-now` messages; no retro files yet under spec-a.
-//   Test: write `retrospective-proposals.md` under spec-a, wait for the
-//   wait to appear, then write `retrospective-plan.md` with a `Status:
-//   APPROVED` line.
-//   Observable result: within five seconds of the first write, a
-//   `shell-now` message arrives whose `data.waits` holds a `kind ===
-//   'retro'`, `projectId === alphaId` entry; within five seconds of the
-//   second write, a later `shell-now` message arrives whose `data.waits`
-//   holds no such entry.
-//   Expected-value source: the literal absent/DRAFT-vs-APPROVED `Status:`
-//   values written into the two files, folded by the already-tested
-//   `deriveProjectWaits` retro branch (task 2).
+//   Test: send `{ type: 'overview-subscribe' }`, wait for a `shell-specs`
+//   message, then wait 500 ms more.
+//   Observable result: at least one `shell-specs` message arrives; no
+//   message of type `shell-now` is ever collected.
+//   Expected-value source: the task 18 _Prompt/design C6 literal topic list,
+//   which omits `shell-now`.
 //
 // Criterion "an exited launch-update gives an exited wait within five
 // seconds" (task 7 _Prompt; Requirement 3 AC 9):
@@ -334,60 +304,16 @@ describe('shell hub wiring and routes (task 7)', () => {
     await fsp.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('sends shell-now and shell-specs to an overview subscriber', async () => {
+  it('sends shell-specs to an overview subscriber and never sends shell-now', async () => {
     const ws = await connect(port);
     sockets.push(ws);
     const messages = collect(ws);
 
     send(ws, { type: 'overview-subscribe' });
 
-    await waitFor(() => messages.some((m) => m.type === 'shell-now'));
     await waitFor(() => messages.some((m) => m.type === 'shell-specs'));
-  });
-
-  it('shows a gate wait within five seconds of a gate-a phase.end append', async () => {
-    const ws = await connect(port);
-    sockets.push(ws);
-    const messages = collect(ws);
-    send(ws, { type: 'overview-subscribe' });
-    await waitFor(() => messages.some((m) => m.type === 'shell-now'));
-
-    appendFileSync(alphaLedgerPath, JSON.stringify({
-      ts: '2026-01-01T00:00:05.000Z', type: 'phase.start', run: 'run-alpha-1', phase: 'document', mode: 'auto', state: 'in-progress',
-    }) + '\n');
-    appendFileSync(alphaLedgerPath, JSON.stringify({
-      ts: '2026-01-01T00:00:10.000Z', type: 'phase.end', run: 'run-alpha-1', phase: 'document', result: 'gate-a',
-    }) + '\n');
-
-    await waitFor(() => {
-      const last = messages.filter((m) => m.type === 'shell-now').pop();
-      if (!last) return false;
-      return last.data.waits.some((w: any) => w.kind === 'gate' && w.projectId === alphaId && w.spec === 'spec-a');
-    }, 5000);
-  });
-
-  it('shows a retro wait within five seconds of a proposals write, cleared by an APPROVED plan', async () => {
-    const ws = await connect(port);
-    sockets.push(ws);
-    const messages = collect(ws);
-    send(ws, { type: 'overview-subscribe' });
-    await waitFor(() => messages.some((m) => m.type === 'shell-now'));
-
-    writeFileSync(join(alphaSpecDir, 'retrospective-proposals.md'), '- DECISION NEEDED: yes — pick a thing\n');
-
-    await waitFor(() => {
-      const last = messages.filter((m) => m.type === 'shell-now').pop();
-      if (!last) return false;
-      return last.data.waits.some((w: any) => w.kind === 'retro' && w.projectId === alphaId);
-    }, 5000);
-
-    writeFileSync(join(alphaSpecDir, 'retrospective-plan.md'), 'Status: APPROVED\n');
-
-    await waitFor(() => {
-      const last = messages.filter((m) => m.type === 'shell-now').pop();
-      if (!last) return false;
-      return !last.data.waits.some((w: any) => w.kind === 'retro' && w.projectId === alphaId);
-    }, 5000);
+    await sleep(500);
+    expect(messages.some((m) => m.type === 'shell-now')).toBe(false);
   });
 
   it('gives a new shell-specs within five seconds of a spec markdown write', async () => {
@@ -442,7 +368,7 @@ describe('shell hub wiring and routes (task 7)', () => {
     sockets.push(overviewOnly);
     const overviewOnlyMessages = collect(overviewOnly);
     send(overviewOnly, { type: 'overview-subscribe' });
-    await waitFor(() => overviewOnlyMessages.some((m) => m.type === 'shell-now'));
+    await waitFor(() => overviewOnlyMessages.some((m) => m.type === 'shell-specs'));
 
     const dualView = await connect(port);
     sockets.push(dualView);
