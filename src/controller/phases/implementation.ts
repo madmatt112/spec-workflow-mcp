@@ -92,7 +92,7 @@ export interface ImplementationPhaseContext {
   onStepActivity?: (e: { stepId: string; role: string; tool: string; inputSummary: string; ts?: string }) => void;
   onRateLimit?: (w: RateLimitWindows) => void;
   /** A step process started (the controller records it as the run's in-flight step). */
-  onStepSpawn?: (s: { id: string; pid: number; startTime: number }) => Promise<void> | void;
+  onStepSpawn?: (s: { id: string; pid: number; startTime: number; task?: string }) => Promise<void> | void;
   /** A step process ended (the controller clears the in-flight step); awaited before the step's result is acted on. */
   onStepEnd?: (id: string) => Promise<void> | void;
   /** A fresh heartbeat for one step's stream (design C3); unset leaves the step's `heartbeat` unset. */
@@ -466,7 +466,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       sharedRoot: ctx.specStoreRoot,
       onActivity: (a) => ctx.onStepActivity?.({ stepId: opts.stepId, role: opts.role, tool: a.tool, inputSummary: a.inputSummary, ts: a.ts }),
       onRateLimit: ctx.onRateLimit,
-      onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
+      onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime, task: opts.task }); },
       heartbeat: ctx.stepHeartbeat?.(),
     };
     const result = await runStep(spec);

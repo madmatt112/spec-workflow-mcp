@@ -446,15 +446,20 @@ export async function setRunHeartbeat(
 }
 
 /** The in-flight step record callbacks every in-code phase gets (design §8). */
-function stepLifecycle(deps: RunDeps, runId: string): {
-  onStepSpawn: (s: { id: string; pid: number; startTime: number }) => Promise<void>;
+export function stepLifecycle(deps: RunDeps, runId: string): {
+  onStepSpawn: (s: { id: string; pid: number; startTime: number; task?: string }) => Promise<void>;
   onStepEnd: (id: string) => Promise<void>;
   stepHeartbeat: () => StepHeartbeat;
 } {
   return {
     onStepSpawn: (s) => {
       deps.setInFlight(s.pid, s.startTime);
-      return patchRun(deps, runId, { inFlight: { id: s.id, pid: s.pid, startTime: s.startTime } });
+      return patchRun(deps, runId, {
+        inFlight: {
+          id: s.id, pid: s.pid, startTime: s.startTime, startedAt: deps.now().toISOString(),
+          ...(s.task !== undefined ? { task: s.task } : {}),
+        },
+      });
     },
     onStepEnd: () => patchRun(deps, runId, { inFlight: undefined }),
     stepHeartbeat: () => createStepHeartbeat({

@@ -43,6 +43,10 @@ export interface InFlightStep {
   startTime: number;
   /** The Claude Code session id, for `--resume`. */
   session?: string;
+  /** Wall-clock start of this step, for the tile's step age (design C1). */
+  startedAt?: string;
+  /** The task id this step is working, for the tile's task label (design C1). */
+  task?: string;
 }
 
 /** Running token totals for a run. */
