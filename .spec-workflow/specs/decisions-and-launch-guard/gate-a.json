@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "header": "Doc review cap",
+      "question": "When round 1 returns only drafting defects, how does doc review end?",
+      "options": [
+        "One corrective reviser version, lint and narrow check, then approve",
+        "Approve at once with the findings open",
+        "Carry the findings to the next phase"
+      ]
+    },
+    {
+      "header": "Next tiles",
+      "question": "How many Next tiles does a shared store show?",
+      "options": [
+        "One tile per enabled project (overrides dashboard-board D11)",
+        "Keep one tile per store with the warning only",
+        "Keep one tile and add a project picker"
+      ]
+    },
+    {
+      "header": "File-list patch",
+      "question": "After the controller patches tasks.md, what re-runs?",
+      "options": [
+        "Re-gate the existing commit",
+        "Spawn a new implementer"
+      ]
+    },
+    {
+      "header": "Unbuildable decisions",
+      "question": "What does close-out do with a recorded answer that no batch can build?",
+      "options": [
+        "A to-do with the reason",
+        "Infer a landing class from the answer text",
+        "Send it to the store batch"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the top-level money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ],
+      "basis": "Checked all eleven items: no billing, payment, refund, credit or pricing code; no user accounts or personal data. The only deletion is Discard removing a git worktree, branch and PR of a dev run, which is not personal-data erasure. Project names and paths are operator tooling config."
+    }
+  ]
+}
