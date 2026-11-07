@@ -35,6 +35,7 @@ export interface SetupView {
   routing: RoutingDecision;           // src/core/spec-routing-deriver.ts:20-30
   handoff: HandoffRouting | null;
   launchable: string | null; disabledReason: string | null;
+  launchableOrder: number | null;
   supervisor: { model: string; effort: 'high' };   // 'claude-opus-5-5'
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
