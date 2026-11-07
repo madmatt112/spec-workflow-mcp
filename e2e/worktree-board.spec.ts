@@ -1159,4 +1159,421 @@ test.describe('Home (board)', () => {
       await removeActionRecord(actionId);
     }
   });
+
+  // --- RunTile read side (task 13; design C9, C10, D22, D23, D38) ----------
+  //
+  // The Running band is `[]` at base (`HomePage.tsx`'s hardcoded empty
+  // array): no `[data-testid^="run-tile-"]` element can exist yet, so every
+  // test below is red until the band is wired to `board.ts`'s `running()`
+  // and a `RunTile` exists in `tiles.tsx`. None presses a control — task 13's
+  // Restriction defers press wiring to task 14.
+  //
+  // The dot is read by CSS class, not a dedicated test id: design C10 pins
+  // the exact classes verbatim ("The dot maps green, amber and grey to the
+  // classes of Sidebar.tsx:37-41 ... red takes bg-(--tone-danger-fg)"), and
+  // `Sidebar.tsx`'s own `DOT_COLOUR` map (`bg-(--tone-success-fg)` for
+  // green, `bg-(--tone-warning-fg)` for amber/waiting, `bg-(--tone-neutral-fg)`
+  // for grey/idle) gives the other three. None of these `bg-(--tone-*-fg)`
+  // strings appears elsewhere in a tile (the `Tile` frame's tone border uses
+  // `border-(--tone-*-fg)`; `pauseNoteClass` uses `text-(--tone-*-fg)`), so a
+  // class-substring locator identifies the dot unambiguously.
+  //
+  // A `queued` or `merging` run record, unlike every other status fixture in
+  // this file, is one the real Controller's live, undisabled 1-second
+  // scheduler tick (`SDD_DEPLOY_DISABLED` only disables the deploy
+  // coordinator) would otherwise drive at once (`isStartable`). The queued
+  // fixture below sets `pauseRequested`, which `isStartable` checks before
+  // the status at all, to hold it still for the test to read — the same
+  // dodge this file's own `baseRun()` comment uses by picking `running`
+  // over `merging` for its own fixture. The merging fixture below instead
+  // gives `resumeAt` a future timestamp, which `isStartable`'s `merging`
+  // branch already treats as not yet due.
+
+  // Criterion "A run with `inFlight`, `startedAt`, `task` and a recent
+  // `lastActivity` shows step kind, task, step age, `last activity`, and a
+  // green dot" (task 13 Success; Requirement 6 AC 1 "the tile SHALL show
+  // the spec, project tag, step kind, the task when there is one, the step
+  // age while a step is in flight ..."; Requirement 6 AC 2 "the tile SHALL
+  // show 'last activity N ago' and a dot ... under 5 minutes green").
+  //   Pre-condition: a `waiting` run (moving; never stalled with no
+  //   drive-crash wait; never auto-driven) with `cursor.stepKind`, an
+  //   `inFlight.startedAt` 4 minutes ago, `inFlight.task`, and
+  //   `lastActivity` 1 minute ago.
+  //   Test: page.goto('/'), then page.getByTestId('run-tile-' + id).
+  //   Observable result: the tile's text contains the step kind, the task
+  //   label, "4m" (the step age) and the literal "last activity 1m ago";
+  //   exactly one descendant carries a class containing
+  //   `bg-(--tone-success-fg)` (the green dot).
+  //   Expected-value source: Requirement 6 AC 1's field list; Requirement 6
+  //   AC 2's literal "last activity N ago" phrase and "under 5 minutes
+  //   green"; design C9 `runDot`'s thresholds and Sidebar.tsx's green class.
+  test('(R6 AC1, AC2) a run tile shows step kind, task, step age, last activity, and a green dot', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-green-run';
+    const run = baseRun(runId, 'e2e-board-run-green-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-green-spec',
+      cursor: { phase: 'implementation', stepKind: 'implementer', attempt: 1 },
+      inFlight: { id: 'step-green', pid: 999991, startTime: 0, startedAt: isoAgo(4 * 60_000), task: 'alpha-task' },
+      lastActivity: isoAgo(60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('implementer');
+      await expect(tile).toContainText('alpha-task');
+      await expect(tile).toContainText('4m');
+      await expect(tile).toContainText('last activity 1m ago');
+      await expect(tile.locator('[class*="bg-(--tone-success-fg)"]')).toHaveCount(1);
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criteria "an activity 10 minutes old shows amber" and "20 minutes old
+  // shows red" (task 13 Success; Requirement 6 AC 2 "from 5 to under 15
+  // minutes amber; at 15 minutes and after red"), folded into one test the
+  // same way the wait tile's tone test bundled its two ages.
+  //   Pre-condition: two `waiting` runs, one with `lastActivity` 10 minutes
+  //   old, one 20 minutes old.
+  //   Test: page.goto('/'), then each run's tile.
+  //   Observable result: the 10-minute tile has exactly one descendant
+  //   whose class contains `bg-(--tone-warning-fg)`; the 20-minute tile has
+  //   exactly one whose class contains `bg-(--tone-danger-fg)`.
+  //   Expected-value source: design C9 `runDot`: amber at 300,000 ms, red
+  //   at 900,000 ms; Sidebar.tsx's amber class, design C10's red class.
+  test('(R6 AC2) activity 10 minutes old shows amber, 20 minutes old shows red', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const amberId = 'e2e-board-run-amber-run';
+    const redId = 'e2e-board-run-red-run';
+    const amber = baseRun(amberId, 'e2e-board-run-amber-proj', {
+      status: 'waiting', spec: 'e2e-board-run-amber-spec',
+      inFlight: { id: 'step-amber', pid: 999992, startTime: 0, startedAt: isoAgo(30 * 60_000) },
+      lastActivity: isoAgo(10 * 60_000),
+    });
+    const red = baseRun(redId, 'e2e-board-run-red-proj', {
+      status: 'waiting', spec: 'e2e-board-run-red-spec',
+      inFlight: { id: 'step-red', pid: 999993, startTime: 0, startedAt: isoAgo(40 * 60_000) },
+      lastActivity: isoAgo(20 * 60_000),
+    });
+    const amberDir = await writeRunRecord(amber);
+    const redDir = await writeRunRecord(red);
+    try {
+      await page.goto('/');
+      const amberTile = page.getByTestId(`run-tile-${amberId}`);
+      const redTile = page.getByTestId(`run-tile-${redId}`);
+      await expect(amberTile).toBeVisible({ timeout: 15000 });
+      await expect(amberTile.locator('[class*="bg-(--tone-warning-fg)"]')).toHaveCount(1);
+      await expect(redTile).toBeVisible();
+      await expect(redTile.locator('[class*="bg-(--tone-danger-fg)"]')).toHaveCount(1);
+    } finally {
+      await removeRunRecord(amberDir);
+      await removeRunRecord(redDir);
+    }
+  });
+
+  // Criterion "with no `lastActivity` the age runs from the step's start"
+  // (task 13 Success; Requirement 6 AC 2 "The heartbeat age SHALL run from
+  // `lastActivity`, else from the step's start").
+  //   Pre-condition: a `waiting` run with `inFlight.startedAt` 6 minutes
+  //   ago and no `lastActivity` field at all.
+  //   Test: page.goto('/'), then the run's tile.
+  //   Observable result: the tile's text contains the literal
+  //   "last activity 6m ago" (the displayed age itself, not just its
+  //   colour, comes from `stepStarted`); exactly one descendant's class
+  //   contains `bg-(--tone-warning-fg)` (6 minutes is amber).
+  //   Expected-value source: Requirement 6 AC 2's fallback rule verbatim;
+  //   design C9 `runDot`'s `lastActivity ?? stepStarted` base.
+  test('(R6 AC2) with no lastActivity the heartbeat age runs from the step start', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-fallback-run';
+    const run = baseRun(runId, 'e2e-board-run-fallback-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-fallback-spec',
+      inFlight: { id: 'step-fallback', pid: 999994, startTime: 0, startedAt: isoAgo(6 * 60_000) },
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('last activity 6m ago');
+      await expect(tile.locator('[class*="bg-(--tone-warning-fg)"]')).toHaveCount(1);
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "an `inFlight` with no `startedAt` omits the step age
+  // (requirement 12 AC 3)" (task 13 Success; Requirement 12 AC 3 "the row
+  // SHALL report no start time and the tile SHALL omit the step age").
+  //   Pre-condition: a `waiting` run with an `inFlight` record carrying a
+  //   `task` but no `startedAt`, and a recent (2-minute) `lastActivity`.
+  //   Test: page.goto('/'), then the run's tile.
+  //   Observable result: the tile shows the task and "last activity 2m
+  //   ago" with a green dot (so the heartbeat, driven by `lastActivity`
+  //   alone, is unaffected); the tile's full text contains no "NaN" (the
+  //   value a step-age calculation over the missing `startedAt` would
+  //   produce if it were not omitted).
+  //   Expected-value source: Requirement 12 AC 3's omission rule; design
+  //   Error Handling 7 "the tile omits the step age"; `Date.parse(undefined)`
+  //   is `NaN`, so an un-omitted computation leaks visibly.
+  test('(R12 AC3) an inFlight with no startedAt omits the step age', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-nostart-run';
+    const run = baseRun(runId, 'e2e-board-run-nostart-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-nostart-spec',
+      inFlight: { id: 'step-nostart', pid: 999995, startTime: 0, task: 'beta-task' },
+      lastActivity: isoAgo(2 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('beta-task');
+      await expect(tile).toContainText('last activity 2m ago');
+      await expect(tile.locator('[class*="bg-(--tone-success-fg)"]')).toHaveCount(1);
+      const text = (await tile.textContent()) ?? '';
+      expect(text).not.toMatch(/NaN/);
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a run between steps shows a grey dot and no heartbeat line"
+  // (task 13 Success; Requirement 6 AC 3 "WHEN no step is in flight THEN
+  // the dot SHALL be grey and no heartbeat line SHALL show").
+  //   Pre-condition: a `waiting` run with no `inFlight` field at all, but a
+  //   recent (2-minute) `lastActivity`, so a bug that read the heartbeat
+  //   base before checking `inFlight` would still show green.
+  //   Test: page.goto('/'), then the run's tile.
+  //   Observable result: exactly one descendant's class contains
+  //   `bg-(--tone-neutral-fg)` (grey); the tile's text does not contain
+  //   "last activity".
+  //   Expected-value source: Requirement 6 AC 3 verbatim; design C9
+  //   `runDot`'s `if (!run.inFlight) return 'grey'` guard, checked first.
+  test('(R6 AC3) a run between steps shows a grey dot and no heartbeat line', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-betweensteps-run';
+    const run = baseRun(runId, 'e2e-board-run-betweensteps-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-betweensteps-spec',
+      lastActivity: isoAgo(2 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile.locator('[class*="bg-(--tone-neutral-fg)"]')).toHaveCount(1);
+      await expect(tile).not.toContainText('last activity');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criteria "`running` with no driver shows red `Stalled` and no dot",
+  // "`waiting` with an open `drive-crash` wait shows the same" and "a plain
+  // `waiting` run with `driven: false` does not" (task 13 Success;
+  // Requirement 6 AC 4 "the tile SHALL show red 'Stalled' and Re-drive in
+  // place of the dot ... No other run with `driven: false` SHALL read as
+  // stalled"), folded into one test over three run fixtures, the same way
+  // task 9's unit test bundled D7's branches.
+  //   Pre-condition: a `running` run (never driven by this fixture-only
+  //   server, so `driven` reads false); a `waiting` run with an open wait
+  //   whose question id is `drive-crash` for its id; a plain `waiting` run
+  //   with no such wait.
+  //   Test: page.goto('/'), then each run's tile.
+  //   Observable result: the `running` and the drive-crash `waiting` tiles
+  //   both contain "Stalled" and have no descendant whose class contains
+  //   `bg-(--tone-success-fg)`, `bg-(--tone-warning-fg)` or
+  //   `bg-(--tone-neutral-fg)` (no ordinary dot); the plain `waiting`
+  //   tile's text does not contain "Stalled".
+  //   Expected-value source: Requirement 6 AC 4 and design D7 verbatim;
+  //   design C9 `isStalled`'s two true branches and its default `false`.
+  test('(R6 AC4) running with no driver or a drive-crash wait shows red Stalled with no dot; a plain waiting run does not', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runningId = 'e2e-board-run-stalled-running-run';
+    const crashId = 'e2e-board-run-stalled-crash-run';
+    const plainId = 'e2e-board-run-stalled-plain-run';
+    const runningRun = baseRun(runningId, 'e2e-board-run-stalled-running-proj', {
+      status: 'running', spec: 'e2e-board-run-stalled-running-spec',
+    });
+    const crashRun = baseRun(crashId, 'e2e-board-run-stalled-crash-proj', {
+      status: 'waiting', spec: 'e2e-board-run-stalled-crash-spec',
+    });
+    const plainRun = baseRun(plainId, 'e2e-board-run-stalled-plain-proj', {
+      status: 'waiting', spec: 'e2e-board-run-stalled-plain-spec',
+    });
+    const crashWait = baseWait('e2e-board-run-stalled-crash-wait', crashRun.project, crashRun.spec, 60_000, {
+      run: crashId,
+      questions: [{ id: 'drive-crash', text: 'step crashed' }],
+    });
+    const runningDir = await writeRunRecord(runningRun);
+    const crashDir = await writeRunRecord(crashRun);
+    const plainDir = await writeRunRecord(plainRun);
+    await writeWaitRecord(crashWait);
+    const noDot = '[class*="bg-(--tone-success-fg)"], [class*="bg-(--tone-warning-fg)"], [class*="bg-(--tone-neutral-fg)"]';
+    try {
+      await page.goto('/');
+      const runningTile = page.getByTestId(`run-tile-${runningId}`);
+      const crashTile = page.getByTestId(`run-tile-${crashId}`);
+      const plainTile = page.getByTestId(`run-tile-${plainId}`);
+
+      await expect(runningTile).toBeVisible({ timeout: 15000 });
+      await expect(runningTile).toContainText('Stalled');
+      await expect(runningTile.locator(noDot)).toHaveCount(0);
+
+      await expect(crashTile).toBeVisible();
+      await expect(crashTile).toContainText('Stalled');
+      await expect(crashTile.locator(noDot)).toHaveCount(0);
+
+      await expect(plainTile).toBeVisible();
+      await expect(plainTile).not.toContainText('Stalled');
+    } finally {
+      await removeRunRecord(runningDir);
+      await removeRunRecord(crashDir);
+      await removeRunRecord(plainDir);
+      await removeWaitRecord(crashWait.id);
+    }
+  });
+
+  // Criterion "moving runs sort most stale first" (task 13 Success;
+  // Requirement 3 AC 7 "Moving runs SHALL sort most stale first, by
+  // `lastActivity`, else `updated`, oldest first").
+  //   Pre-condition: two `waiting` runs, one with `lastActivity` 20 minutes
+  //   old, one 2 minutes old.
+  //   Test: page.goto('/'), then the ordered `[data-testid^="run-tile-"]`
+  //   list.
+  //   Observable result: the DOM order is [20-minute run, 2-minute run].
+  //   Expected-value source: design C9 `running`'s `lastActivity`-ascending
+  //   sort for moving runs (the earlier timestamp, i.e. more stale, first).
+  test('(R3 AC7) moving runs sort most stale first', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const staleId = 'e2e-board-run-sort-stale-run';
+    const freshId = 'e2e-board-run-sort-fresh-run';
+    const stale = baseRun(staleId, 'e2e-board-run-sort-proj', {
+      status: 'waiting', spec: 'e2e-board-run-sort-stale-spec', lastActivity: isoAgo(20 * 60_000),
+    });
+    const fresh = baseRun(freshId, 'e2e-board-run-sort-proj', {
+      status: 'waiting', spec: 'e2e-board-run-sort-fresh-spec', lastActivity: isoAgo(2 * 60_000),
+    });
+    const staleDir = await writeRunRecord(stale);
+    const freshDir = await writeRunRecord(fresh);
+    try {
+      await page.goto('/');
+      await expect(page.getByTestId(`run-tile-${staleId}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId(`run-tile-${freshId}`)).toBeVisible();
+      const ids = await page
+        .locator('[data-testid^="run-tile-"]')
+        .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
+      expect(ids).toEqual([`run-tile-${staleId}`, `run-tile-${freshId}`]);
+    } finally {
+      await removeRunRecord(staleDir);
+      await removeRunRecord(freshDir);
+    }
+  });
+
+  // Criterion "a `merging` tile shows the PR line" (task 13 Success; design
+  // C10 "A `merging` run adds the run read's PR, CI and verdict").
+  //   Pre-condition: a `merging` run with one `prReads` entry of `kind:
+  //   'run'`, PR #42, `ci: 'green'`, `verdict: 'waiting'`, and a `resumeAt`
+  //   in the future (so the live scheduler's `merging` re-check does not
+  //   treat it as due and drive it away mid-test).
+  //   Test: page.goto('/'), then the run's tile's text content.
+  //   Observable result: the tile's text contains "42", "green" and
+  //   "waiting".
+  //   Expected-value source: design C10's merging-tile bullet; the PR
+  //   number, ci and verdict are the seeded `PrRead`'s own field values,
+  //   the same source `WaitTile`'s merge-read tests use.
+  test('(design C10, D22) a merging tile shows the PR line', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-merging-run';
+    const run = baseRun(runId, 'e2e-board-run-merging-proj', {
+      status: 'merging',
+      spec: 'e2e-board-run-merging-spec',
+      resumeAt: isoAgo(-10 * 60_000),
+      prReads: [prRead({ kind: 'run', repo: 'acme/widgets', number: 42, ci: 'green', verdict: 'waiting' })],
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('42');
+      await expect(tile).toContainText('green');
+      await expect(tile).toContainText('waiting');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a `queued` tile shows `queued`" and the grey half of its dot
+  // (task 13 Success; design D23 "A queued tile shows 'queued', a grey
+  // dot, Pause and Stop").
+  //   Pre-condition: a `queued` run with `pauseRequested` set (so the live
+  //   scheduler's 1-second tick, which would otherwise drive any on-disk
+  //   `queued` run at once, treats it as not startable and leaves it
+  //   `queued` for the test to read).
+  //   Test: page.goto('/'), then the run's tile.
+  //   Observable result: the tile's text contains "queued"; exactly one
+  //   descendant's class contains `bg-(--tone-neutral-fg)`.
+  //   Expected-value source: design D23 verbatim; design C9 `runDot`'s
+  //   grey case (no `inFlight` on a queued record), Sidebar.tsx's grey
+  //   class.
+  test('(design D23) a queued tile shows "queued" and a grey dot', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-queued-run';
+    const run = baseRun(runId, 'e2e-board-run-queued-proj', {
+      status: 'queued',
+      spec: 'e2e-board-run-queued-spec',
+      pauseRequested: isoAgo(0),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('queued');
+      await expect(tile.locator('[class*="bg-(--tone-neutral-fg)"]')).toHaveCount(1);
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a deploy-held run reads `held for deploy` (regression
+  // guard)" (task 13 Note: "The `held for deploy` case is a regression
+  // guard for the note"; Requirement 6 AC 7, invariant per the requirements
+  // document). `pauseNote` itself already returns this text at base (task
+  // 9's unit test); this proves only that `RunTile` — new in this task —
+  // wires that existing function in, which does not hold until the tile
+  // exists.
+  //   Pre-condition: a `waiting` run with `holdBy: 'deploy'`.
+  //   Test: page.goto('/'), then the run's tile's text content.
+  //   Observable result: the tile's text contains "held for deploy".
+  //   Expected-value source: `src/dashboard_frontend/src/modules/shell/pause.ts:34-36`
+  //   `pauseNote`'s `holdBy === 'deploy'` branch, checked first regardless
+  //   of status.
+  test('(R6 AC7) a deploy-held run reads "held for deploy"', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-deployheld-run';
+    const run = baseRun(runId, 'e2e-board-run-deployheld-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-deployheld-spec',
+      holdBy: 'deploy',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('held for deploy');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
 });
