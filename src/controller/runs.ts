@@ -32,7 +32,7 @@ import {
   writeRun, readRun, listRuns, listWaits, writeLastActivity,
   isProcessAlive, isLive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
-import { branchPresent as readBranchPresent, type BranchRead } from './branch-presence.js';
+import { branchPresent as readBranchPresent, forgetBranchPresence, type BranchRead } from './branch-presence.js';
 import { createStepHeartbeat, type StepHeartbeat } from './heartbeat.js';
 import { openRunLedger, commitSpecStore, pushSpecStore, type RunLedger } from './ledger.js';
 import type { ControllerActivity } from './activity.js';
@@ -1402,9 +1402,15 @@ export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRec
 /**
  * Discard a run: cancel it, then remove the worktree, delete the branch and close
  * the PR with `gh`. Each cleanup is best-effort; a failure is logged, not thrown.
+ * Skips `cancelRun` when the run is already `done` (design C4, requirement 7
+ * AC8), so a done run stays done. Forgets the cached branch presence and emits
+ * `runEvents` `change` only after the cleanup, so a listener sees the branch
+ * already gone.
  */
 export async function discardRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
-  const run = await cancelRun(deps, runId);
+  const existing = await readRun(runId);
+  if (!existing) return undefined;
+  const run = existing.status === 'done' ? existing : await cancelRun(deps, runId);
   if (!run) return undefined;
 
   const git = (cwd: string, args: string[]): void => {
@@ -1424,6 +1430,8 @@ export async function discardRun(deps: CancelDeps, runId: string): Promise<RunRe
       });
     } catch { /* no PR, or gh unavailable: best effort */ }
   }
+  forgetBranchPresence(runId);
+  runEvents.emit('change', run);
   return run;
 }
 

@@ -859,6 +859,7 @@ export class MultiProjectDashboardServer {
     this.app.post('/api/controller/runs/:id/discard', async (request, reply) => {
       const { id } = request.params as { id: string };
       const run = await this.controller.discard(id);
+      if (run === 'branch-in-use') return reply.code(409).send({ error: 'branch-in-use' });
       if (!run) return reply.code(404).send({ error: 'run-not-found' });
       return { ok: true };
     });

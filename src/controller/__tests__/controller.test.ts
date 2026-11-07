@@ -2401,6 +2401,7 @@ describe('Controller.pause, resumeNow, enqueue and launchBlock respect an open d
     expect(cancelled?.status).toBe('abandoned');
 
     const discarded = await controller.discard(discardId);
+    if (discarded === 'branch-in-use') throw new Error('unexpected branch-in-use');
     expect(discarded?.status).toBe('abandoned');
 
     // `cancelRun`/`discardRun` return their own in-memory patch, not the
