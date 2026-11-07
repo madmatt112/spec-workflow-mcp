@@ -149,7 +149,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 5.1, 5.2, 5.3, 9.1, 9.2, 9.3, 9.4_
   - _Prompt: Task: Per design C10, C11 and D35, add `ActionTile` and `StageLine` to `tiles.tsx`, moving `actionTarget` in. Add the retained-tile snapshot to `HomePage` through the hook task 10 exports. Seed action records where `actionPath` puts them | Restrictions: Controls hide on a retained tile; Confirm and Dismiss are `secondary`; a pressed tile's stage controls disable until the stage ends (D37) | Success: A `staged` action shows kind, target, reason, age, Confirm and Dismiss; a `running` one shows no Confirm or Dismiss; a `done`, `refused`, `failed` or `dismissed` one left alone has no tile; the age colours the tile by the wait rule (D12); an action with no project shows no tag and stays with every project off; pressing Confirm shows pressed, then running, with the control disabled; a seeded `done` action moves the stage to done and it clears after 5 s; the tile stays until then (requirement 5 AC 2); a 500 with a `reason` shows that reason, one with only `error` shows the error, one with neither shows the status code; a 200 with `ok: false` shows failed and the tile stays until reload (D35); Dismiss on a real route ends with no tile; `npx playwright test -c playwright.worktree.config.ts e2e/worktree-board.spec.ts` and `npx vitest run src/dashboard/__tests__/frontend-build.test.ts src/dashboard/__tests__/frontend-style-scan.test.ts` pass_
 
-- [ ] 13. Add the run tile's facts
+- [x] 13. Add the run tile's facts
   - File: src/dashboard_frontend/src/modules/shell/tiles.tsx
   - File: src/dashboard_frontend/src/modules/shell/HomePage.tsx
   - File: e2e/worktree-board.spec.ts
