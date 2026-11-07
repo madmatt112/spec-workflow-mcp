@@ -90,6 +90,7 @@ export class Controller extends EventEmitter {
   private readonly cancelled = new Set<string>();
   private readonly resumeTimers = new Set<NodeJS.Timeout>();
   private readonly drives = new Map<string, Promise<void>>();
+  private readonly schedules = new Set<Promise<void>>();
   private tickTimer?: NodeJS.Timeout;
   private started = false;
   private locked = false;
@@ -151,7 +152,7 @@ export class Controller extends EventEmitter {
     if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = undefined; }
     for (const t of this.resumeTimers) clearTimeout(t);
     this.resumeTimers.clear();
-    const drained = Promise.allSettled([...this.drives.values()]);
+    const drained = Promise.allSettled([...this.drives.values(), ...this.schedules]);
     await Promise.race([drained, new Promise((r) => setTimeout(r, 5000))]);
     if (this.locked) {
       await releaseControllerLock();
@@ -482,7 +483,14 @@ export class Controller extends EventEmitter {
 
   // --- scheduler (design §9) -----------------------------------------------
 
-  private async schedule(): Promise<void> {
+  /** Track each in-flight pass so `stop()` can drain it before it writes (design §8). */
+  private schedule(): Promise<void> {
+    const pass = this.runSchedule().finally(() => { this.schedules.delete(pass); });
+    this.schedules.add(pass);
+    return pass;
+  }
+
+  private async runSchedule(): Promise<void> {
     if (!this.started) return;
 
     if (!this.deployDisabled) await this.deploy.tick();
