@@ -640,6 +640,11 @@ seeded `deploy.json` record stays at its stage. It does not stop the scheduler:
 on every pass. A test fixture that must stay frozen under the flag therefore
 seeds `status: 'running'`, because a mid-pipeline run still moves.
 
+A `/ws` client also gets one `projects-update` push on connect, before any
+test acts. That push is baseline noise for a zero/count message assertion. The
+shared `withoutConnectPush` helper in `src/dashboard/__tests__/ws-test-utils.ts`
+drops it, so a test asserts only the messages its own action produced.
+
 The live test bed is the fixture repository `madmatt112/sdd-fixture`: a small Node CLI
 whose decomposition holds five specs (`greeting-endpoint`, `farewell`, `shout`, `whisper`,
 `repeat`). A fixture run's gates and retro plan are answered by the operating session with

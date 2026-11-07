@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
 import net from 'net';
 import { WebSocket } from 'ws';
+import { connect, collect, send } from './ws-test-utils.js';
 import { MultiProjectDashboardServer, _resetMultiServerWarningsForTests } from '../multi-server.js';
 import { HarnessHub } from '../harness/hub.js';
 import type { ProjectManager } from '../project-manager.js';
@@ -167,26 +168,6 @@ function handoffFixture(spec: string): string {
     `> **READ FIRST — SDD routing.** Active spec **\`${spec}\`**.`,
     `> Live phase **document**, state **in-progress**, last result **gate-a**.`,
   ].join('\n');
-}
-
-function connect(port: number): Promise<WebSocket> {
-  return new Promise((resolvePromise, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
-    ws.once('open', () => resolvePromise(ws));
-    ws.once('error', reject);
-  });
-}
-
-function collect(ws: WebSocket): any[] {
-  const messages: any[] = [];
-  ws.on('message', (data: Buffer) => {
-    try { messages.push(JSON.parse(data.toString())); } catch { /* ignore */ }
-  });
-  return messages;
-}
-
-function send(ws: WebSocket, msg: object): void {
-  ws.send(JSON.stringify(msg));
 }
 
 describe('shell hub wiring and routes (task 7)', () => {
