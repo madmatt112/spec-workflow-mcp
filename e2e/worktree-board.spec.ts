@@ -2990,6 +2990,14 @@ test.describe('Shell (top bar, gear and tab title)', () => {
       });
     });
 
+    // `usage-closed-specs` only renders once some registered project has a
+    // closed spec, so this registers the real, shared project (the omitted
+    // `workflowRootPath` override reads `SPEC_WORKFLOW_SHARED_ROOT`, this
+    // repository's own `.spec-workflow`, per `registerProjectAt`'s doc
+    // comment), which has many.
+    const overflowDir = join(tmpdir(), `specwf-e2e-board-overflow-${randomBytes(4).toString('hex')}`);
+    const overflowProjectId = await registerProjectAt(page, overflowDir);
+
     try {
       await page.goto('/');
       await expect(page.getByTestId('deploy-strip')).toBeVisible({ timeout: 15000 });
@@ -3020,6 +3028,7 @@ test.describe('Shell (top bar, gear and tab title)', () => {
       await checkNoOverflow('Deferrals');
     } finally {
       await removeDeployRecord();
+      await unregisterProject(page, overflowProjectId, overflowDir);
     }
   });
 });
