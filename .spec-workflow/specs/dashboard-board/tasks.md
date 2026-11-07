@@ -270,7 +270,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 → 3 �
   - _Requirements: 2.5_
   - _Prompt: Task: Rewrite `e2e/worktree-shell.spec.ts` per requirement 2 AC 5 and design Testing Strategy, reading test ids from the merged code. At least these, and widen to every case the change touches: `NAV_ORDER` and `SHELL_PAGES` (`:25-26`) drop the Now and Runs entries, and the redirect case adds `/runs` and `/runs/x` and looks for a band; project toggles open the gear first; delete the density (`:243`), collapsed-group (`:259`), derived gate wait (`:273`) and Run page PR panel (`:311`) cases; the pause note cases (`:417`, `:446`, `:477`) read the run tile, and `:446` becomes `pausing after this step`; the row Pause cases (`:516`, `:558`) and panel Resume cases (`:590`, `:620`) press the tile; keep the Specs panel, Deferrals and Usage cases | Restrictions: Test files only; a product defect found here is reported, not fixed; do not edit `e2e/worktree-board.spec.ts` | Success: No case names a removed page, row, panel or density control, checked by `grep -n -e nav-now -e nav-runs -e ctrl-run -e density -e group-now e2e/worktree-shell.spec.ts`; the four links read in order; a failed tile Pause shows its reason; `npx playwright test -c playwright.worktree.config.ts e2e/worktree-shell.spec.ts` passes_
 
-- [ ] 21. Rewrite the project-list and no-shared browser suites
+- [x] 21. Rewrite the project-list and no-shared browser suites
   - File: e2e/worktree-project-list.spec.ts
   - File: e2e/worktree-no-shared.spec.ts
   - Test: e2e/worktree-project-list.spec.ts — `page.getByTestId('project-toggle-' + id)`
