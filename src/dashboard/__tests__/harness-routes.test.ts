@@ -182,7 +182,11 @@ describe('harness hub and websocket wiring (task 9)', () => {
     send(ws, { type: 'harness-subscribe', projectId: alphaId });
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    expect(messages).toHaveLength(0);
+    // Every socket gets a `projects-update` on connect regardless of view
+    // (multi-server.ts's connection handler); that push races with this
+    // 300ms wait and is unrelated to harness-subscribe, so it is excluded
+    // here rather than asserted on raw length.
+    expect(messages.filter((m) => m.type !== 'projects-update')).toHaveLength(0);
   });
 
   it('shows a gate-a row as waiting within five seconds, with two registered projects', async () => {
