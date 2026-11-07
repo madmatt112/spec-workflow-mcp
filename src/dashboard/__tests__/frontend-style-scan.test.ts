@@ -421,6 +421,37 @@ describe('frontend-style-scan (design C7 T1)', () => {
     });
   });
 
+  // Contract for dashboard-board task 17 (design C7; Requirement 1.5, 2.1).
+  // Pre-condition: the real FE tree at base, where `ShellProvider.tsx` still
+  // reads `density`, `types.ts` still declares `SidebarProjectRow`, and
+  // other surviving files still comment-reference `NowPage`. Call: walking
+  // every file under FE_ROOT (the same `walk` the aggregate scan above
+  // uses) and testing each line against the literal substrings the task's
+  // own acceptance grep names. Observable: zero matching lines. Source of
+  // the expected value: the task's Success-line command, `grep -rn -e
+  // NowPage -e RunsPage -e RunPage -e Sidebar -e density
+  // src/dashboard_frontend/src`, and design C7 ("Deleted: NowPage.tsx,
+  // RunsPage.tsx, RunPage.tsx, Sidebar.tsx" and "Delete Density, ...
+  // density, setDensity"). Red now because NowPage.tsx, RunsPage.tsx,
+  // RunPage.tsx and Sidebar.tsx still exist and other surviving files still
+  // name these symbols.
+  describe('deleted symbols scrubbed from the frontend (design C7, Requirement 1.5, 2.1)', () => {
+    it('names no NowPage, RunsPage, RunPage, Sidebar or density anywhere under the frontend tree', () => {
+      const DELETED_SYMBOLS = ['NowPage', 'RunsPage', 'RunPage', 'Sidebar', 'density'];
+      const hits: string[] = [];
+      for (const absPath of walk(FE_ROOT)) {
+        const rel = relative(FE_ROOT, absPath).split(sep).join('/');
+        const text = readFileSync(absPath, 'utf-8');
+        text.split('\n').forEach((line, i) => {
+          if (DELETED_SYMBOLS.some((symbol) => line.includes(symbol))) {
+            hits.push(`${rel}:${i + 1} ${line.trim()}`);
+          }
+        });
+      }
+      expect(hits).toEqual([]);
+    });
+  });
+
   describe('Usage trend series colours (Requirement 2.4, design C6)', () => {
     it('declares SERIES as var(--chart-1) through var(--chart-6) in that order', () => {
       const text = readFileSync(join(FE_ROOT, 'modules', 'shell', 'UsageTrend.tsx'), 'utf-8');

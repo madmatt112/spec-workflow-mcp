@@ -292,6 +292,20 @@ describe('tokens.css', () => {
     expect(overlap).toEqual([]);
   });
 
+  // Contract for dashboard-board task 17 (design C12; Requirement 1.5,
+  // 11.2). Pre-condition: tokens.css at base still declares both
+  // `--sidebar-w` (:56) and `--row-h-compact` (:53) inside `@theme static`.
+  // Call: `declaredNames(themeBlock)`, the same reader every other test in
+  // this file uses. Observable: neither name is a member of the returned
+  // Set. Source of the expected value: design C12 ("Delete `--sidebar-w`
+  // and `--row-h-compact`") and Requirement 11.2 ("`--sidebar-w` SHALL
+  // go"). Red now because both names are still declared at base.
+  it('no longer declares --sidebar-w or --row-h-compact in @theme static', () => {
+    const themeNames = declaredNames(themeBlock);
+    expect(themeNames.has('--sidebar-w')).toBe(false);
+    expect(themeNames.has('--row-h-compact')).toBe(false);
+  });
+
   it('declares every Data Models theme-independent token in @theme static', () => {
     const themeNames = declaredNames(themeBlock);
     const missing = THEME_INDEPENDENT_NAMES.filter((n) => !themeNames.has(n));
