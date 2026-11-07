@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/board-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/board-view.test.ts":"advance(stage, seen, now)"},"redCommit":"51f88925c528524935ab900569075ee01073c08a","baseSha":"7a11fa247049085a5eba32c26892d9483ea0485e","base":"structural-red","head":"pass","amended":false,"judged":null}
