@@ -209,3 +209,28 @@ Cost: unknown
 store batch 1: 1 done of 2, 0 fix round(s)
 Evidence: batch 1 · mark run-20261106-181042 e2278e15
 Cost: 1 implementer spawn(s)
+
+## 2026-11-07T15:45:08Z · closeout · harness batch 2 · gotcha
+Six named Eval-case ids do not fit the harness/evals role-eval model (they need new graders and would break the hardcoded SEED_IDS in cases.test.ts); those fixes were verified via tsc/vitest instead, and only P10/P12 role-eval cases were extended in place.
+Evidence: batch 2 · mark run-20261106-181042 c191fc97
+Cost: implementer
+
+## 2026-11-07T15:52:22Z · closeout · harness batch 2 · deviation
+P7 skipped: No separate change; the mental-model error is removed by P1's documented contract.
+Evidence: P7 · mark run-20261106-181042 ebddd493
+Cost: unknown
+
+## 2026-11-07T15:52:22Z · closeout · harness batch 2 · deviation
+P13 skipped: No separate change; folded into P5/P11.
+Evidence: P13 · mark run-20261106-181042 a3025688
+Cost: unknown
+
+## 2026-11-07T15:52:22Z · closeout · harness batch 2 · deviation
+P15 skipped: No separate change; the ruling was correct; folded into P5/P11.
+Evidence: P15 · mark run-20261106-181042 603ccbdd
+Cost: unknown
+
+## 2026-11-07T15:52:22Z · closeout · harness batch 2 · cleanup
+harness batch 2: 5 done of 11, 1 fix round(s)
+Evidence: batch 2 · mark run-20261106-181042 d8280e31
+Cost: 2 implementer spawn(s)

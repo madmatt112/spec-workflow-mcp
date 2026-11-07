@@ -177,3 +177,15 @@ None.
 One line per proposal, written by the close-out phase.
 - P8: skipped — no standalone change; W/task re-measure already stands in agent-rules.md run-ledger note
 - P9: done — 9e99ff788f90d2ca0527d70b6c93941f3f952770
+- P1: to-do (human) — REQUIRED: src/controller/controller.ts. The item mandates the controller source comment but backticks only docs/SDD-HARNESS.md as a path, so the gate allow-list (itemPaths, closeout.ts:151) excludes the controller and file-outside-list can never clear. Tree already correct in e125a64d (docs + comment + fixtures seed running). No implementer edit moves a file-list verdict (P12); fix is to name src/controller/controller.ts as a backticked path in P1's item block. (commit e125a64 left on the branch: revert failed)
+- P2: done — c9e47ef2d5a2bdc13c6990e7f11df37b1d4b1ec3
+- P5: to-do (human) — Needs a live worktree e2e run to confirm the ECONNRESET/EPIPE noise is teardown-only (its stated prerequisite) and to design a filter that won't mask a real connection failure (medium risk). No reporter/vite-proxy config exists to edit safely without that run; e2e suites out of scope for this batch.
+- P6: done — 04220a4283507e99147d2cf90ae4c1e3ea932a01
+- P7: skipped — No separate change; the mental-model error is removed by P1's documented contract.
+- P10: done — 824c15b73ec7f0fcf2ff727dd8cd64913878fe76
+- P11: done — acc4493ea013b6d85169dbdd8ed0700c6aa03ca9
+- P12: done — 1337e284a531266558d0acf8112833c1ad94da2b
+- P13: skipped — No separate change; folded into P5/P11.
+- P15: skipped — No separate change; the ruling was correct; folded into P5/P11.
+- P16: to-do (human) — Graduation rule already exists in agent-rules.md (two-spec base failure -> next decomposition adds a tracked fix task). push.test.ts fix task is next-spec decomposition work, no base-failures registry to edit; eval case needs a new grader.
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/208
