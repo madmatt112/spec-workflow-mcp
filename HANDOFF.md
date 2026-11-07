@@ -1503,4 +1503,4 @@ Gotchas:
 
 | Field | Value |
 | --- | --- |
-| State | tasks 22/23, last commit 9bd2393f, next task 23 |
+| State | tasks 23/23, last commit 4022287b, next completion gate |
