@@ -798,11 +798,8 @@ describe('WaitPusher', () => {
     expect(result.code).toBe(0);
 
     // The two failing fetches + retry delay + file-watch + append must all run
-    // after the wait lands. On a loaded CI runner (node 20, 2 cores, the whole
-    // suite in parallel) the event loop is starved, so `waitFor`'s wall-clock
-    // deadline needs headroom far beyond the ~600ms this takes unloaded: 15s
-    // still timed out here, so the budget is 30s (test timeout raised to match).
-    await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'), 30000);
+    // after the wait lands: ~600ms unloaded, so 15s is headroom for a loaded runner.
+    await waitFor(async () => (await readEventRows()).some((r) => r.type === 'push.failure'), 15000);
     await sleep(200);
 
     expect(failing.counter.count).toBe(2);
@@ -819,7 +816,15 @@ describe('WaitPusher', () => {
     expect(wait!.advice).toBeUndefined();
 
     expect(await readPushedIds()).toContain(wait!.id);
-  }, 45000);
+  }, 20000);
+
+  it('start creates the waits directory before arming the watch, so the first wait in a fresh home is not missed', async () => {
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    expect((await fs.stat(join(controllerHome(), 'waits'))).isDirectory()).toBe(true);
+  });
 
   it('(o) regression guard: on the very first start, with an open wait already on disk and no pushed.json, records the id but sends nothing (4.6)', async () => {
     const wait = await makeOpenWait('spec-o', 'proj-o');
@@ -1304,10 +1309,7 @@ describe('sweepReminders', () => {
     expect(errorSpy).toHaveBeenCalledTimes(1);
 
     const wait = await makeOpenWait('spec-rem-j', 'proj-rem-j');
-    await sleep(200);
-
-    const raw = await readPushedRaw();
-    expect(raw?.reminded).toContain(wait.id);
+    await waitFor(async () => (await readPushedRaw())?.reminded?.includes(wait.id) ?? false);
 
     const capture = await startCaptureServer();
     servers.push(capture);

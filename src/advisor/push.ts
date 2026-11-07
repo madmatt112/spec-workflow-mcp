@@ -173,6 +173,9 @@ export class WaitPusher {
 
   /** Arm the `waits/` watch, log the config state once, run the start-up scan (D2, D3), then run and arm the reminder sweep (C9 Start). */
   async start(): Promise<void> {
+    // The directory must exist before the watch is armed: chokidar misses a
+    // file written just after it creates a directory it was waiting for.
+    await fs.mkdir(waitsDir(), { recursive: true });
     this.watcher = chokidar.watch(waitsDir(), WATCH_OPTS);
     this.watcher.on('add', this.onFile).on('change', this.onFile);
     await once(this.watcher, 'ready');
