@@ -38,7 +38,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 1.7_
   - _Prompt: Task: Per design C1, Data Models and design D2 (requirement 1 AC 7), add `POST /api/projects/:projectId/display-name` beside `GET /api/projects/list`, calling the method task 2 adds. Trim a string body; an empty result clears the name | Restrictions: Follow the status and error table in design Data Models exactly; add no other route | Success: a string answers 200 `{ success: true }` and `/api/projects/list` shows it; `null` and a blank string each answer 200 and clear it; a number answers 400 `display-name-invalid`; 61 characters after trim answer 400 and 60 answer 200; a control character answers 400; an unknown id answers 404 `project-not-found`; a live project with no `projects.json` row answers 404 `project-not-remembered`; `npx tsc --noEmit` and `npx vitest run src/dashboard/__tests__/harness-routes.test.ts` pass_
 
-- [ ] 4. Rename in the gear and name the project on action tiles
+- [x] 4. Rename in the gear and name the project on action tiles
   - File: src/dashboard_frontend/src/modules/shell/Gear.tsx
   - File: src/dashboard_frontend/src/modules/shell/tiles.tsx
   - File: src/dashboard_frontend/src/modules/shell/HomePage.tsx

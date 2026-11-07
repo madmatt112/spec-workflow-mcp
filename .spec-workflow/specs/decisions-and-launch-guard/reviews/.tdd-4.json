@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-board.spec.ts"],"seams":{"e2e/worktree-board.spec.ts":"page.getByTestId('project-name-save-' + projectId).click()"},"redCommit":"87fd18e6c12651d9f9b5f761fac1249cfff6b3d3","baseSha":"b75db35143fef0cad9d0864554cb4b6baed914b8","base":"structural-red","head":"pass","amended":false,"judged":null}
