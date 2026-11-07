@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/harness/__tests__/run-setup.test.ts"],"seams":{"src/dashboard/harness/__tests__/run-setup.test.ts":"buildSetupView(project, {})"},"redCommit":"c5aac8b85468ba6c910a479a2f4f79b82b58bb3a","baseSha":"b30e93e3a79e7e097074b9c086944a835999a673","base":"assertion-red","head":"pass","amended":false,"judged":null}
