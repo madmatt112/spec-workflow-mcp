@@ -633,6 +633,13 @@ commits. `scripts/stub-gh.mjs` stands in for `gh` in the merge, discard and PR-c
 tests. A test points `CONTROLLER_CLAUDE_BIN` at the first stub and `CONTROLLER_GH_BIN` at
 the second. `npm test` runs them all.
 
+`SDD_DEPLOY_DISABLED=1` (the `--smoke` boot sets it too) gates the deploy
+coordinator only. It stops `deploy.tick()` and the start-up deploy pass, so a
+seeded `deploy.json` record stays at its stage. It does not stop the scheduler:
+`isStartable()` still drives an on-disk run in `queued`, `merging` or `paused`
+on every pass. A test fixture that must stay frozen under the flag therefore
+seeds `status: 'running'`, because a mid-pipeline run still moves.
+
 The live test bed is the fixture repository `madmatt112/sdd-fixture`: a small Node CLI
 whose decomposition holds five specs (`greeting-endpoint`, `farewell`, `shout`, `whisper`,
 `repeat`). A fixture run's gates and retro plan are answered by the operating session with
