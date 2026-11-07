@@ -614,7 +614,7 @@ describe('controller-deploy change events on the harness hub (task 10)', () => {
   }
 
   async function reconciledHub(onOverview: (m: unknown) => void): Promise<HarnessHub> {
-    const hub = new HarnessHub(stubProjectManager(), () => { /* no harness subscribers */ }, onOverview);
+    const hub = new HarnessHub(stubProjectManager(), onOverview);
     hubs.push(hub);
     await hub.reconcile([{ views: new Set(['overview']) }]);
     return hub;

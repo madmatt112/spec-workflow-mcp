@@ -4,7 +4,7 @@
 // Data Models). Types only, no runtime code. The frontend keeps a hand copy in
 // src/dashboard_frontend/src/modules/shell/types.ts, because root tsc excludes
 // the frontend.
-import type { LedgerEvent, ActivityEvent, PhaseRow } from '../../watch/ledger.js';
+import type { PhaseRow } from '../../watch/ledger.js';
 import type { StagedAction } from '../../advisor/actions.js';
 import type { ControllerDeploy } from '../../controller/deploy.js';
 
@@ -48,14 +48,6 @@ export interface UsageSpecRow {
   wPerTask: number | null;
   baseline: number | null;
   pctOfBaseline: number | null;
-}
-
-export interface RunDetail {
-  spec: string;
-  phaseStrip: { phase: string; version: string | null; rounds: number; approvedOn: string | null; live: boolean }[];
-  taskMeta: Record<string, { risk: 'low' | 'high' | null; fixRounds: number | null }>;
-  ledgerRows: LedgerEvent[];
-  activityRows: ActivityEvent[];
 }
 
 // --- Controller waits (controller-design.md §7; T4) ---------------------------

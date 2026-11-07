@@ -18,7 +18,7 @@
 // and prose).
 import { execFileSync } from 'child_process';
 import {
-  existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync, statSync,
+  existsSync, readFileSync, mkdirSync, readdirSync, writeFileSync,
 } from 'fs';
 import { basename, join } from 'path';
 import { EventEmitter } from 'events';
@@ -1533,53 +1533,3 @@ export function listStepLogs(runId: string): string[] {
   }
 }
 
-/**
- * The last `tail` lines of a run's in-flight (or, with none, most recently
- * written) step stream log, as plain text (T10; the Run page's "Live now" log
- * tail). `null` when the run does not exist; `''` when it has no step log yet.
- * The in-flight step is `run.inFlight.id`; otherwise the newest `.jsonl` in the
- * run's step-log directory.
- */
-export async function readRunLogTail(runId: string, tail: number): Promise<string | null> {
-  const run = await readRun(runId);
-  if (!run) return null;
-  const dir = stepLogDir(runId);
-
-  let file: string | undefined;
-  if (run.inFlight?.id) {
-    const candidate = join(dir, `${run.inFlight.id}.jsonl`);
-    if (existsSync(candidate)) file = candidate;
-  }
-  if (!file) {
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return ''; // no step-log directory yet
-    }
-    const logs = entries
-      .filter((e) => e.endsWith('.jsonl'))
-      .map((e) => ({ path: join(dir, e), mtime: safeMtime(join(dir, e)) }))
-      .sort((a, b) => b.mtime - a.mtime);
-    if (logs.length === 0) return '';
-    file = logs[0].path;
-  }
-
-  let text: string;
-  try {
-    text = readFileSync(file, 'utf-8');
-  } catch {
-    return '';
-  }
-  const lines = text.split('\n').filter((l) => l.length > 0);
-  const n = Number.isFinite(tail) && tail > 0 ? Math.floor(tail) : 50;
-  return lines.slice(-n).join('\n');
-}
-
-function safeMtime(path: string): number {
-  try {
-    return statSync(path).mtimeMs;
-  } catch {
-    return 0;
-  }
-}

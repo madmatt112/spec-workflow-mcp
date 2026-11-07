@@ -10,7 +10,6 @@ import { fileURLToPath } from 'url';
 import { WebSocket } from 'ws';
 import { validateAndCheckPort, DASHBOARD_TEST_MESSAGE } from './utils.js';
 import { ProjectManager } from './project-manager.js';
-import { TaskReviewManager } from '../core/task-review-manager.js';
 import { DeferralStorage } from '../core/deferral-storage.js';
 import { IndexGenerator } from '../core/index-generator.js';
 import { DashboardSessionManager } from '../core/dashboard-session.js';
@@ -23,7 +22,7 @@ import {
   isLocalhostAddress,
   DEFAULT_SECURITY_CONFIG
 } from '../core/security-utils.js';
-import { SecurityConfig, TddBlock } from '../types.js';
+import { SecurityConfig } from '../types.js';
 import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
 import { buildSetupView, defaultSetupInput, validateSetup, readAgentRules } from './harness/run-setup.js';
@@ -39,7 +38,7 @@ import { startSecondOpinion } from '../advisor/opinion.js';
 import { registerAdvisorMcp, type AdvisorMcpDeps } from '../advisor/mcp-endpoint.js';
 import { openAdvisorSession } from '../advisor/cli.js';
 import { WaitPusher } from '../advisor/push.js';
-import { listRunsForWire, readRunLogTail } from '../controller/runs.js';
+import { listRunsForWire } from '../controller/runs.js';
 import { Controller } from '../controller/controller.js';
 import { createDocumentGates } from '../controller/phases/gates.js';
 import { listRuns, readRateLimit, readWait } from '../controller/state.js';
@@ -65,7 +64,7 @@ interface WebSocketConnection {
   socket: WebSocket;
   projectId?: string;
   isAlive?: boolean;
-  views?: Set<'harness' | 'overview'>;
+  views?: Set<'overview'>;
 }
 
 export interface MultiDashboardOptions {
@@ -165,11 +164,10 @@ export class MultiProjectDashboardServer {
     this.projectManager = new ProjectManager();
     this.sessionManager = new DashboardSessionManager();
 
-    // Harness hub (design C7). The hub starts a watch only while a page of its
-    // view is open, and pushes reach only that view's subscribers.
+    // Harness hub (design C7). The hub starts the overview watch only while a
+    // page of the overview view is open, and pushes reach only its subscribers.
     this.harnessHub = new HarnessHub(
       this.projectManager,
-      (m: HarnessMessage) => this.sendToHarness((m as { projectId: string }).projectId, m),
       (m: HarnessMessage | ShellMessage) => this.sendToOverview(m),
       { drivenRuns: () => this.controller.drivenRuns() },
     );
@@ -350,21 +348,7 @@ export class MultiProjectDashboardServer {
         socket.on('message', (data) => {
           try {
             const msg = JSON.parse(data.toString());
-            if (msg.type === 'harness-subscribe' && msg.projectId) {
-              // Watch this project's harness view; snapshot to this socket alone.
-              connection.projectId = msg.projectId;
-              (connection.views ??= new Set()).add('harness');
-              self.harnessHub.reconcile(self.clients)
-                .then(() => {
-                  for (const m of self.harnessHub.snapshotFor(msg.projectId)) {
-                    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(m));
-                  }
-                })
-                .catch((error) => console.error('Error handling harness-subscribe:', error));
-            } else if (msg.type === 'harness-unsubscribe') {
-              connection.views?.delete('harness');
-              void self.harnessHub.reconcile(self.clients);
-            } else if (msg.type === 'overview-subscribe') {
+            if (msg.type === 'overview-subscribe') {
               (connection.views ??= new Set()).add('overview');
               self.harnessHub.reconcile(self.clients)
                 .then(() => {
@@ -588,32 +572,6 @@ export class MultiProjectDashboardServer {
         return reply.code(404).send({ error: 'Project not found' });
       }
       return await this.buildDeferralsPayload(project.projectPath);
-    });
-
-    // Per-spec task review summary
-    this.app.get('/api/projects/:projectId/specs/:specName/task-reviews/summary', async (request, reply) => {
-      const { projectId, specName } = request.params as { projectId: string; specName: string };
-      const project = this.projectManager.getProject(projectId);
-      if (!project) return reply.code(404).send({ error: 'Project not found' });
-
-      try {
-        const specPath = join(project.projectPath, '.spec-workflow', 'specs', specName);
-        const reviewManager = new TaskReviewManager(specPath);
-        const allReviews = await reviewManager.loadAllReviews();
-
-        // Group by taskId, keep latest version
-        const summary: Record<string, { verdict: string; version: number; tdd?: TddBlock }> = {};
-        for (const review of allReviews) {
-          const existing = summary[review.taskId];
-          if (!existing || review.version > existing.version) {
-            summary[review.taskId] = { verdict: review.verdict, version: review.version, tdd: review.tdd };
-          }
-        }
-
-        return { summary };
-      } catch (error: any) {
-        return reply.code(500).send({ error: error.message });
-      }
     });
 
     // Shell spec detail panel (design C8). 404 for an unknown project or a bad,
@@ -864,17 +822,6 @@ export class MultiProjectDashboardServer {
       return { ok: true };
     });
 
-    // The tail of a run's in-flight (or last) step stream log, as plain text
-    // (controller-tasks.md T10; the Run page's "Live now" log tail).
-    this.app.get('/api/controller/runs/:id/log', async (request, reply) => {
-      const { id } = request.params as { id: string };
-      const { tail } = (request.query ?? {}) as { tail?: string };
-      const n = Math.min(Math.max(Number(tail) || 50, 1), 1000);
-      const text = await readRunLogTail(id, n);
-      if (text === null) return reply.code(404).type('text/plain').send('');
-      return reply.type('text/plain').send(text);
-    });
-
     // The latest five-hour and seven-day usage windows, or null (§9; the Usage page).
     this.app.get('/api/controller/rate-limit', async () => {
       return (await readRateLimit()) ?? null;
@@ -930,23 +877,6 @@ export class MultiProjectDashboardServer {
         }
       } catch (error) {
         console.error('Error broadcasting to client:', error);
-        this.scheduleConnectionCleanup(connection);
-      }
-    });
-  }
-
-  /** Send to open clients whose harness view watches this project (design C7). */
-  private sendToHarness(projectId: string, message: any) {
-    const messageStr = JSON.stringify(message);
-    this.clients.forEach((connection) => {
-      try {
-        if (connection.socket.readyState === WebSocket.OPEN
-          && connection.projectId === projectId
-          && connection.views?.has('harness')) {
-          connection.socket.send(messageStr);
-        }
-      } catch (error) {
-        console.error('Error sending to harness client:', error);
         this.scheduleConnectionCleanup(connection);
       }
     });
