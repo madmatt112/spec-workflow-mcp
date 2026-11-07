@@ -150,6 +150,15 @@ test.describe('Home (board)', () => {
 
   test.beforeAll(async () => {
     await mkdir(sddHome(), { recursive: true });
+    // `sddHome()` is a fixed, shared temp path across invocations of this
+    // config (`playwright.worktree.config.ts`), so an orphaned wait a past
+    // run's `openCrashWait` left behind — created before this file's
+    // `baseRun()` moved off `status: 'merging'` — survives on disk and leaks
+    // into every later run's tile-count assertions as an extra tile with no
+    // test-known id. Start every run from an empty `waits`/`runs` so a past
+    // invocation's debris can never bleed into this one's.
+    await rm(join(sddHome(), 'waits'), { recursive: true, force: true });
+    await rm(join(sddHome(), 'runs'), { recursive: true, force: true });
   });
 
   // Criteria "Home shows Needs you, Running and Next in that order with no
