@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/__tests__/frontend-tokens.test.ts"],"seams":{"src/dashboard/__tests__/frontend-tokens.test.ts":"`THEME_INDEPENDENT_NAMES` against the `@theme static` block"},"redCommit":"fe59047e4556271729bc851c670d8399e62eaa4b","baseSha":"78680cc4505db12d0d34a633b447db4ffc44cda3","base":"assertion-red","head":"pass","amended":false,"judged":null}

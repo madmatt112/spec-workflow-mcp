@@ -71,7 +71,7 @@ Dependency order: run the tasks in number order; the chains are 1 and 2 â†’ 3 â†
   - _Requirements: 3.9_
   - _Prompt: Task: Per design C5 and D29, add `launchableOrder: number or null` to `SetupView` and its hand copy, and a `decompositionPosition(workflowRoot, spec)` that `buildSetupView` uses. Reuse the heading regex of `nextUnstartedSpec` (`src/dashboard/harness/run-setup.ts:224-233`) through one shared constant | Restrictions: Leave `nextUnstartedSpec`'s behaviour alone; no new route | Success: A launchable spec named in the third heading gives `2`; a heading tagged `(deferred)` counts toward the index; a launchable spec no heading names gives `null`; a null `launchable` gives `null`; a store with no `decomposition.md` gives `null`; the decomposition fallback spec gets its position too; `npx tsc --noEmit` and `npx vitest run src/dashboard/harness/__tests__/run-setup.test.ts` pass_
 
-- [ ] 6. Add the display, tile and band tokens and the tile class
+- [x] 6. Add the display, tile and band tokens and the tile class
   - File: src/dashboard_frontend/src/modules/theme/tokens.css
   - File: src/dashboard_frontend/src/modules/ui/ui.tsx
   - File: src/dashboard/__tests__/frontend-tokens.test.ts
