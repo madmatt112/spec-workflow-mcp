@@ -1,0 +1,12 @@
+{
+  "id": "approval_1794083181061_hgc6nl4v1",
+  "title": "decisions-and-launch-guard tasks v1",
+  "filePath": ".spec-workflow/specs/decisions-and-launch-guard/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-07T20:26:21.061Z",
+  "category": "spec",
+  "categoryName": "decisions-and-launch-guard",
+  "response": "v1; 1 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-07T20:26:21.290Z"
+}

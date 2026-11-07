@@ -4,7 +4,7 @@ Document version: v1
 
 Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 → 4, 5 → 6 → 7, 8 → 9, 10 → 11, 12 → 13, 15 → 16 → 17 → 18 and 19 → 20; tasks 14, 21 and 22 stand alone; task 23 runs last. Each task leaves `npx tsc --noEmit` and every vitest suite green, and each task that changes a tile updates the `e2e/worktree-board.spec.ts` cases it moves. Line citations are to base `7a24a3b7`; where an earlier task here edited the file, the named symbol is the anchor and the implementer re-resolves the line.
 
-- [ ] 1. Keep a durable display name in the project list
+- [x] 1. Keep a durable display name in the project list
   - File: src/controller/state.ts
   - File: src/controller/__tests__/state.test.ts
   - Test: src/controller/__tests__/state.test.ts — `setProjectDisplayName(id, displayName)`

@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/decisions-and-launch-guard/tasks.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-07T20:26:21.129Z",
+      "trigger": "initial",
+      "approvalId": "approval_1794083181061_hgc6nl4v1",
+      "approvalTitle": "decisions-and-launch-guard tasks v1"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-07T20:26:21.288Z",
+      "trigger": "approved",
+      "approvalId": "approval_1794083181061_hgc6nl4v1",
+      "approvalTitle": "decisions-and-launch-guard tasks v1"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/state.test.ts"],"seams":{"src/controller/__tests__/state.test.ts":"setProjectDisplayName(id, displayName)"},"redCommit":"2fb96386437104718c9082a2e28d96abc1b16aa5","baseSha":"7a24a3b7dda7e69fa73dcd897ece8dd35e9524c9","base":"structural-red","head":"pass","amended":false,"judged":null}
