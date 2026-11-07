@@ -1,15 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { mkdtempSync } from 'fs';
 import { WORKTREE_SPEC_PATTERN } from './playwright.worktree-pattern.js';
 
 const DASHBOARD_PORT = 5084;
 const FRONTEND_PORT = 5184;
-const SPEC_WORKFLOW_HOME = process.env.SPEC_WORKFLOW_HOME || join(tmpdir(), 'specwf-e2e-worktree-state');
+// A unique temp dir per `playwright test` invocation, created once here and
+// shared with the test workers and the spawned web servers through the env
+// block below. A fixed, shared path was never wiped, so a stray record (an
+// orphaned wait, a seeded run) from one run leaked into the next and poisoned
+// its assertions; a per-invocation dir cannot carry cross-run state (retro P6).
+const SPEC_WORKFLOW_HOME = process.env.SPEC_WORKFLOW_HOME || mkdtempSync(join(tmpdir(), 'specwf-e2e-worktree-state-'));
 // The shared active-run pointer lives under `$XDG_STATE_HOME/sdd` (state-files.ts).
-// Point it at a temporary directory, the same way SPEC_WORKFLOW_HOME is handled,
-// so the suite never reads or disturbs the operator's real pointer file.
-const XDG_STATE_HOME = process.env.XDG_STATE_HOME || join(tmpdir(), 'specwf-e2e-worktree-xdg-state');
+// Point it at a per-invocation temporary directory, the same way
+// SPEC_WORKFLOW_HOME is handled, so the suite never reads or disturbs the
+// operator's real pointer file and no run inherits the last run's pointer.
+const XDG_STATE_HOME = process.env.XDG_STATE_HOME || mkdtempSync(join(tmpdir(), 'specwf-e2e-worktree-xdg-state-'));
 
 // Share the same global state paths between test workers and spawned web servers.
 process.env.SPEC_WORKFLOW_HOME = SPEC_WORKFLOW_HOME;
