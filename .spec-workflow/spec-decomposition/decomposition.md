@@ -1276,8 +1276,8 @@ Specs line links anywhere; the log's growth and rotation.
 **Delivers.** (1) **Project names.** A project can have a display name that replaces the generated
 `repo · worktree` name. The two tradr projects become `tradr app` (code root `/home/mcf/repo/tradr`)
 and `tradr infra` (code root `/home/mcf/repo/tradr-hosted`). Every page that shows a project uses
-the display name. (2) **Launch guard.** The Launch card shows the code root of the project. When the
-files of the next spec do not exist under that code root, the card shows a warning that names the
+the display name. (2) **Launch guard.** The Next tile on Home shows the code root of the project. When the
+files of the next spec do not exist under that code root, the tile shows a warning that names the
 code root and the project to use, and Launch needs a second press. A spec with no `tasks.md` yet has
 no file list to compare, so the design states what the guard reads in that case. (3) **Close-out
 decisions.** The close-out reads the `## Decisions` section of `retrospective-plan.md`. An approved
@@ -1289,21 +1289,31 @@ Option A). A fix round that fails only on `file-outside-list`, with a `REQUIRED:
 round returns only MUST_FIX or SHOULD_FIX items that are all drafting defects and no design defects.
 (6) **Rules.** The G1 and G2 rule text of the `option-lifecycle-events` retro goes into
 `agent-rules.md`. (7) **Cancel stops the driver.** After a cancel, no new step starts, no error or
-escalation wait opens for that run, and no later write replaces `abandoned`. (8) **Live row.** The
-Live list on the Runs page shows the run's own phase and age. On 2026-11-06 it showed
-`implementation` and `460h 22m` for a run that was 2 minutes into requirements.
+escalation wait opens for that run, and no later write replaces `abandoned`. (8) **True phase and
+age.** Every run tile shows the run's own phase and age. On 2026-11-06 the old Live list showed
+`implementation` and `460h 22m` for a run that was 2 minutes into requirements; spec 32 deleted that
+list, so confirm the new tile reads the run record and not a ledger of an older run. (9) **Running
+band.** The Running band on Home holds only moving runs (`queued`, `running`, `merging`, `paused`,
+`waiting`). Done and abandoned runs go in a separate, quieter band with a plain status word. (10)
+**Tile colour.** A run tile's outline follows the run's health (the same signal as its dot: step
+activity, stalled state), and a healthy run has a neutral outline at any age. Age tone stays on
+wait tiles. (11) **Deploy alignment.** The Deploy control lines up vertically with the other top
+bar items: remove the `mb-3` at `DeployControl.tsx:57`.
 
 **Decided.** The operator chose the rename on 2026-11-06 after two launches on the wrong tradr
 project in two days. Both projects stay: some specs change the infra repository. Items 3 to 6 are
 the operator's retro decisions that the close-out did not build: `d-83cc3ac1` and `d-37e510db`
 carry the detail. `d-4f6a6271` carries the cancel defect, with three reproductions. Resolve those
-three deferrals, and `d-aaf54e29` for the launch half, when this spec closes. No new eval role: the P6 eval named in that retro needs a role the framework lacks, so unit
+three deferrals, and `d-aaf54e29` for the launch half, when this spec closes. Items 9 to 11 are the
+operator's corrections after the first look at the board on 2026-11-07: the band labelled Running
+held 1 running run out of 5, and every tile was red because `ageTone` turns red at 1 hour, which
+every real run passes. No new eval role: the P6 eval named in that retro needs a role the framework lacks, so unit
 tests cover item 4. Do not hard-code tradr paths in harness code; the display names are registry
 data.
 
-**End-to-end verification.** (1) The Runs page shows `tradr app` and `tradr infra`, and no page
+**End-to-end verification.** (1) Home shows `tradr app` and `tradr infra`, and no page
 shows `tradr-hosted · tradr`. (2) With a next spec whose task files exist only in the app repository,
-the `tradr infra` card shows the warning and a first press does not launch; the `tradr app` card
+the `tradr infra` tile shows the warning and a first press does not launch; the `tradr app` tile
 shows no warning. (3) A close-out over a plan with an approved proposal and a recorded decision
 never writes `skipped: no change chosen` for that proposal. (4) A stub fix round with a `REQUIRED:`
 flag and a sole `file-outside-list` reason patches `tasks.md`, writes the ledger row, re-runs the
@@ -1311,18 +1321,24 @@ task and opens no wait. (5) A stub review round with only drafting defects ends 
 with one design defect does not. (6) A cancel during a live step leaves the run `abandoned`, with no
 second `claude -p` for it, no new wait and no status change in the next 60 seconds. (7) A run 2
 minutes into requirements, on a project with an older run of the same store, shows `requirements`
-and its true age in the Live list.
+and its true age on its tile. (8) With one running run, one done run and one abandoned run with a
+branch, the Running band holds only the running run, and the other two appear in the stopped band.
+(9) A healthy run older than 1 hour has a neutral outline; a stalled run does not. (10) At desktop
+width, the Deploy control's vertical centre matches the nav links' centre within 1 px.
 
-**Depends on** spec 32 (`dashboard-board`), which owns the shell the Launch card renders in.
+**Depends on** spec 32 (`dashboard-board`, closed), which owns the shell and the Next tile.
 **Design MUST enumerate:** `src/core/project-registry.ts` (`generateProjectDisplayName`, the
-`projectName` field), `src/dashboard/harness/` (setup and `launchSpec`), the Launch card in the
-frontend, `src/controller/phases/closeout.ts`, `src/controller/phases/implementation.ts` (the P8
+`projectName` field), `src/dashboard/harness/` (setup and `launchSpec`), the Next tile in `tiles.tsx`,
+`src/controller/phases/closeout.ts`, `src/controller/phases/implementation.ts` (the P8
 `file-outside-list` branch), `src/controller/phases/document.ts` (the review round loop),
-`src/controller/runs.ts` (`cancelRun`, the driver loop, `isCancelled`), the Live list's data source
-and `RunsPage.tsx`, and `.spec-workflow/agent-rules.md`.
+`src/controller/runs.ts` (`cancelRun`, the driver loop, `isCancelled`), `board.ts` (`running`,
+`stoppedAdmitted`, `ageTone`, `runDot`), `HomePage.tsx`, `tiles.tsx` (`RunTile`), `DeployControl.tsx`,
+and `.spec-workflow/agent-rules.md`.
 
 **Design should address:** how a reviewer labels a finding as a drafting defect or a design defect;
-where the display name is set; what the guard does for a spec that creates mostly new files.
+where the display name is set; what the guard does for a spec that creates mostly new files; how
+long an abandoned run stays in the stopped band; how Discard treats an old abandoned run whose branch
+name a later run reused (`dashboard-deploy` run-20261104-205502 is that case).
 
 ## Superseded entries (2026-10-10)
 
@@ -1503,7 +1519,7 @@ No release; each is live after a deploy.
 gets the shorter gate.
 
 32 → 36 → 33 → 34 (added 2026-11-06 by the operator). 36 follows 32 because 32 owns the shell
-that the Launch card renders in, and it precedes 33 and 34 because the decisions it builds
+and the Next tile, and it precedes 33 and 34 because the decisions it builds
 are already lost once per retro.
 
 ## Boundary notes
