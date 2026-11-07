@@ -9,7 +9,7 @@ import { Sidebar } from '../shell/Sidebar';
 import { ConnectionBanner } from './ConnectionBanner';
 import { UsagePage } from '../shell/UsagePage';
 import { DeferralsPage } from '../shell/DeferralsPage';
-import { NowPage } from '../shell/NowPage';
+import { HomePage } from '../shell/HomePage';
 import { RunsPage } from '../shell/RunsPage';
 import { RunPage } from '../shell/RunPage';
 import { SpecsPage } from '../shell/SpecsPage';
@@ -22,7 +22,7 @@ function Shell() {
         <div className="mx-auto w-full max-w-(--content-max)">
           <ConnectionBanner />
           <Routes>
-            <Route path="/" element={<NowPage />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/runs" element={<RunsPage />} />
             <Route path="/runs/:projectId" element={<RunPage />} />
             <Route path="/specs" element={<SpecsPage />} />

@@ -582,6 +582,9 @@ test.describe('Home (board)', () => {
       await tile.getByRole('button', { name: 'Answer', exact: true }).click();
       await expect(page.getByTestId('now-answer-sheet')).toBeVisible({ timeout: 15000 });
 
+      // A real mutation through the answer route needs a session, the same
+      // way the row Pause press does (e2e/worktree-shell.spec.ts:505-508).
+      await login(page);
       await page.getByTestId('answer-submit').click();
 
       await expect(page.getByTestId('band-needs-you')).toBeVisible({ timeout: 15000 });
