@@ -34,7 +34,7 @@ Display names live in one durable field and reach every page through the project
   - `rememberProject` keeps an existing row's `displayName` (`src/controller/state.ts:619-628`), for both callers (`src/dashboard/project-manager.ts:233`, `:355`).
   - `syncOnce` maps id to `displayName` from `remembered` (`src/dashboard/project-manager.ts:115`) and applies it where it sets `existing.projectName` (`:145`) and creates a context (`:152`, `:216`).
   - `addProject` still remembers the generated name as `name` (`src/dashboard/project-manager.ts:233-236`), because `src/advisor/summary.ts:111-112` matches `name` against operator config.
-  - `src/core/project-registry.ts` does not change: `generateProjectDisplayName` and `projectName` stay the fallback, so re-registration (`src/core/project-registry.ts:376`) cannot touch a display name. The registry cannot hold it, because an entry dies with its last instance (`src/core/project-registry.ts:427-434`).
+  - `src/core/project-registry.ts` does not change: `generateProjectDisplayName` and `projectName` stay the fallback, so re-registration (`src/core/project-registry.ts:376`) cannot touch a display name. The registry cannot hold it (D1).
   - `src/advisor/push.ts:92` returns `shownName(p)`.
   - `ActionTile` takes `projectName: (id: string) => string`, and `actionTarget` prints that for `t.project` (`src/dashboard_frontend/src/modules/shell/tiles.tsx:276-280`).
   - Specs, Usage and Deferrals need no edit: they read the context (`src/dashboard/shell/spec-rows.ts:83`, `src/dashboard/shell/usage-rows.ts:37`) or `/api/projects/list`.
@@ -47,9 +47,9 @@ Display names live in one durable field and reach every page through the project
   - `decompositionEntry(workflowRoot: string, spec: string): string | null` in `src/dashboard/harness/run-setup.ts`: uses `DECOMPOSITION_HEADING` (`:23`), returns the entry up to the next `### ` line.
   - `SetupView.guard?: LaunchGuard` in `src/dashboard/harness/types.ts:31-41` and its copy `src/dashboard_frontend/src/modules/harness/types.ts:58`.
 - **Route:** `GET .../harness/setup` (`src/dashboard/multi-server.ts:620-632`) sets `view.guard` after `launchBlock`, only while `view.launchable` is set. `storeProjects` is `getAllProjects()` filtered on `projectPath === project.projectPath`. A `try/catch` leaves `guard` unset on failure (AC 9). `buildSetupView` does not change, so `launchSpec` does not (AC 10).
-- **File list, first non-empty source wins (AC 7):**
-  1. `tasks.md`: the union of `task.files` (`src/core/task-parser.ts:332-345`). Source `tasks`.
-  2. The decomposition entry: backticked tokens holding a `/`, with a trailing `:<line>` or `:<start>-<end>` removed. A bare name such as `tiles.tsx` names no location and is dropped. Source `decomposition`.
+- **File list, by source (AC 7):**
+  1. When `tasks.md` exists: the union of `task.files` (`src/core/task-parser.ts:332-345`), source `tasks`. The decomposition is read only when `tasks.md` is absent, so an existing `tasks.md` with no `File:` entries gives `no-list`.
+  2. Otherwise the decomposition entry: backticked tokens holding a `/`, with a trailing `:<line>` or `:<start>-<end>` removed. A bare name such as `tiles.tsx` names no location and is dropped. Source `decomposition`.
   3. Otherwise source `none`, state `no-list`.
 - **Filters on both sources (NFR Security):** drop a path that is absolute, holds a `..` segment, starts with `~`, holds whitespace, `*` or `<`, or starts with `.spec-workflow/` (a store path says nothing about a code root). If nothing survives, the state is `no-list`.
 - **Compare rule (AC 3, 6, 8):**
@@ -98,7 +98,7 @@ Display names live in one durable field and reach every page through the project
 - **Interfaces:**
   - `isDraftingDefect(item: string): boolean` in `src/controller/phases/document.ts`: `/^\s*\[drafting\]/i`; anything else is design (AC 4).
   - `reviserStep` gains variant `'drafting-only'` (`src/controller/phases/document.ts:452-454`); `renderReviser` gains the descriptor `Drafting-only corrective pass.` (`src/tools/brief-templates.ts:457-462`).
-- **Flow:** after `openMustFix` (`src/controller/phases/document.ts:883`) and before the converged check (`:885-888`), with `items = [...openMustFix, ...shouldFix]`: when `ledgerRoundCount() === 1 && items.length > 0 && items.every(isDraftingDefect)`, run `reviserStep('drafting-only', ...)`, `lintStep` and `narrowCheck(D, analysisPath, items)`, set `narrowCheckRan`, write the note `review cap: round 1 drafting-only, <n> item(s), v<D> approved` (AC 7), and return `approve(D, 'drafting-only → converged')`.
+- **Flow:** after `openMustFix` (`src/controller/phases/document.ts:883`) and before the converged check (`:885-888`), with `items = [...openMustFix, ...shouldFix]`: when `ledgerRoundCount() === 1 && items.length > 0 && items.every(isDraftingDefect)`, run `reviserStep('drafting-only', D, ...)` (it writes v(D+1)), then `D += 1`, `lintStep(D)` and `narrowCheck(D, analysisPath, items)`, as the should-fix-only path does (`:893-900`), set `narrowCheckRan`, write the note `review cap: round 1 drafting-only, <n> item(s), v<D> approved` (now v(D+1)) (AC 7), and return `approve(D, 'drafting-only → converged')`.
 - **Why the ledger count:** `reviewRounds` restarts at 0 on re-entry (`src/controller/phases/document.ts:345`); `ledgerRoundCount` (`:522-523`) does not, and this round's row is already written (`:855`).
 - **Order:** the escalate return (`src/controller/phases/document.ts:861-864`) comes first (AC 5). One `[design]` item fails the test and the base loop runs (AC 3). All three phases share this loop (AC 6).
 
@@ -109,7 +109,7 @@ Display names live in one durable field and reach every page through the project
 ### C7 — Cancel stops the driver (Requirement 7)
 - **Purpose:** Make `abandoned` on disk final and honoured on every driver path.
 - **Order change:** `cancelRun` (`src/controller/runs.ts:1380-1400`) writes `abandoned` first, then signals the pid it read, so a step killed by the signal always finds `abandoned` on disk. The worktree, branch and PR stay (AC 6).
-- **Status guard (AC 3):** `writeRunLocked` (`src/controller/state.ts:431-463`) reads the disk record first; when that is `abandoned` and `record.status` is not, it writes nothing and returns `false`. `writeRun` resolves that `boolean`. `updateRun` passes through it, and `writeLastActivityLocked` already skips a terminal run (`:512-513`). `save` and `patchRun` (`src/controller/runs.ts:566-571`, `:429-435`) emit `change` only when written; a dropped `save` returns the disk record.
+- **Status guard (AC 3):** `writeRunLocked` (`src/controller/state.ts:431-463`) reads the disk record first — for terminal writes too, not only under the current `if (!terminal)` gate (`:442`) — and when disk is `abandoned` and `record.status` is not, it writes nothing and returns `false`, so a losing `error` or `done` write cannot clobber `abandoned`. `writeRun` resolves that `boolean`. `updateRun` passes through it, and `writeLastActivityLocked` already skips a terminal run (`:512-513`). `save` and `patchRun` (`src/controller/runs.ts:566-571`, `:429-435`) emit `change` only when written; a dropped `save` returns the disk record.
 - **Step guard (AC 1):** `runStep` (`src/controller/step.ts:353`) first checks `spec.runId && readRunSync(spec.runId)?.status === 'abandoned'` and resolves classification `cancelled` with no spawn. All five sites pass `runId` (`src/controller/phases/document.ts:389`, `src/controller/phases/implementation.ts:463`, `src/controller/phases/retrospective.ts:163`, `src/controller/phases/closeout.ts:313`, `src/controller/merge-fix.ts:220`). `StepClassification` gains `'cancelled'` (`src/controller/step.ts:72-78`); every consumer treats non-`ok` as failure.
 - **Spawn race:** `stepLifecycle.onStepSpawn` (`src/controller/runs.ts:456-464`) signals the new pid and records nothing when the run is cancelled, for a cancel landing between the guard and the spawn (`src/controller/step.ts:511`).
 - **Wait guard (AC 2, 5):** `createWait` (`src/controller/waits.ts:87-104`) throws `RunAbandonedError` for an `abandoned` run. That covers `waitAnd`, both gates (`src/controller/phases/gates.ts:169`, `:256`) and the merge wait (`src/controller/merge.ts:732`). `Controller.drive` (`src/controller/controller.ts:592-604`) ends quietly on that class.
@@ -117,24 +117,24 @@ Display names live in one durable field and reach every page through the project
   - New `runCancelled(deps, runId)`: `deps.isCancelled(runId) || readRunSync(runId)?.status === 'abandoned'`. The disk read gives AC 4. `stopReason` (`src/controller/runs.ts:419`), the loop top (`:868`) and the merge round (`:754`) call it.
   - `runOnce` returns after its first read for an `abandoned` run, before `ensureWorktree` and the `running` write (`src/controller/runs.ts:846-851`).
   - The four `handle*Outcome` functions return `'stop'` first when `runCancelled`: no retry, no wait (AC 2). `handleDocumentOutcome` checks again after its retry (`src/controller/runs.ts:1347`), and `runMergeStageStep` on entry (`:1024`).
-  - Both document `shouldStop` lambdas (`src/controller/runs.ts:989`, `:1345`) return `'cancelled'` before `'operator'`. They still skip the usage window. The comment at `src/controller/phases/document.ts:201-206` is corrected.
+  - Both document `shouldStop` lambdas (`src/controller/runs.ts:989`, `:1345`) return `'cancelled'` before `'operator'`. The comment at `src/controller/phases/document.ts:201-206` is corrected.
 - **Crash wait (AC 7):** `src/controller/controller.ts:611-638` already skips a cancelled run; its status filter covers a restart.
 
 ### C8 — Phase and age (Requirement 8)
-`RunTile` (`src/dashboard_frontend/src/modules/shell/tiles.tsx:165-174`) joins `[run.phase, run.stepKind, run.task]` in the step line and adds `run-age-<id>` reading `run ${compactAge(now - Date.parse(run.created))}`. The step age stays. Both values come from the run's own row (`src/controller/runs.ts:1495-1500`); no ledger is read, which answers the decomposition's question.
+`RunTile` (`src/dashboard_frontend/src/modules/shell/tiles.tsx:165-174`) joins `[run.phase, run.stepKind, run.task]` in the step line and adds `run-age-<id>` reading `run ${compactAge(now - Date.parse(run.created))}`. The step age stays. Both values come from the run's own row (`src/controller/runs.ts:1495-1500`); no ledger is read.
 
 ### C9 — Running and stopped bands (Requirement 9)
 - **Interfaces:** `running(runs, enabled)` returns moving runs in the base order (`src/dashboard_frontend/src/modules/shell/board.ts:46-59`). New `stopped(runs, enabled, now)` returns `stoppedAdmitted` runs, newest `updated` first. `Band` gains `quiet?: boolean` and `hideWhenEmpty?: boolean` (`src/dashboard_frontend/src/modules/shell/HomePage.tsx:18-39`). `RunTile` gains `quiet?: boolean`. New `branchReused(run: RunRecord, runs: RunRecord[]): boolean` in `src/controller/runs.ts`.
 - **Placement:** `band-stopped`, title `Stopped`, after `band-next`, absent when empty.
 - **Quieter weight (AC 3):** the heading is `text-xs font-medium text-(--text-muted)`. A `quiet` tile shows `run-status-<id>` with `done`, `abandoned` or `error` in `text-sm text-(--text-muted)`, in place of the display-size age and the dot row. `runControls` is unchanged (AC 4).
 - **How long an abandoned run stays (AC 5):** until its branch is gone, with no time limit, as at base (`src/dashboard_frontend/src/modules/shell/board.ts:38-44`). The band holds the only Discard press, and the worktree stays until that press.
-- **Reused branch (AC 6):** `branchReused` is true when another run has the same `codeRoot`, the same non-empty `branch` and a later `created`, in any status. `dashboard-deploy` run-20261104-205502 is abandoned on `feat/dashboard-deploy`; run-20261105-155538 reused that branch and worktree. `toRow` (`src/controller/runs.ts:1490-1511`) gives a reused run `branchPresent: false` and `discardAllowed: false`, with no branch read, so it leaves the band. `Controller.discard` (`src/controller/controller.ts:382-395`) also returns `'branch-in-use'`, so a direct POST deletes nothing. `branchHeld` keeps its meaning.
+- **Reused branch (AC 6):** `branchReused` is true when another run has the same `codeRoot`, the same non-empty `branch` and a later `created`, in any status. `dashboard-deploy` run-20261104-205502 is abandoned on `feat/dashboard-deploy`; run-20261105-155538 reused that branch and worktree. `toRow` (`src/controller/runs.ts:1490-1511`) sets `discardAllowed: !(branchHeld(run, runs) || branchReused(run, runs))` and `branchPresent: false` with no branch read, so a reused run leaves the band. `Controller.discard`'s guard (`src/controller/controller.ts:388`) gains the same `|| branchReused`, so a direct POST returns `'branch-in-use'` and deletes nothing. `branchHeld` stays live-only and unchanged; since the `dashboard-deploy` reuser is not live, `branchHeld` alone would miss it.
 
 ### C10 — Tile colour (Requirement 10)
 `runTone(run: ControllerRun, waits: ControllerWait[], now: number): 'neutral' | 'warning' | 'danger'` in `src/dashboard_frontend/src/modules/shell/board.ts`: `danger` when `isStalled`; else `warning` when `runDot` is `amber` or `red`; else `neutral`. It replaces `ageTone` at `src/dashboard_frontend/src/modules/shell/tiles.tsx:149-150`. Wait and action tiles keep `ageTone` (`:78-79`, `:308-309`).
 
 ### C11 — Deploy alignment (Requirement 11)
-Remove `mb-3` at `src/dashboard_frontend/src/modules/shell/DeployControl.tsx:57`. The header is already an `items-center` row (`src/dashboard_frontend/src/modules/shell/TopBar.tsx:28`). A Playwright box check at 1280 px proves the 1 px rule.
+Remove `mb-3` at `src/dashboard_frontend/src/modules/shell/DeployControl.tsx:57`. The header is already an `items-center` row (`src/dashboard_frontend/src/modules/shell/TopBar.tsx:28`). A Playwright box check at 1280 px proves alignment.
 
 ## Data Models
 
@@ -201,7 +201,7 @@ No test asserts a node-version-specific `child_process`, `fs` or stream field.
   - `src/controller/phases/__tests__/document.test.ts`: all-`[drafting]` round 1 ends with one reviser and one narrow check; a `[design]` or unlabelled item does not; a resumed round does not cap.
   - `src/controller/__tests__/liveness-e2e.test.ts` with `scripts/stub-claude.mjs`: a cancel during a document step leaves `abandoned`, one spawn, no wait, no retry, also with the in-memory set empty and in a merge stage.
   - `src/dashboard/__tests__/harness-routes.test.ts`, the concrete no-`tasks.md` check Requirement 2 asks for: a two-project fixture store, no spec directory, a decomposition entry naming one path that exists only under the app root. Pass means infra's setup returns `state: 'warn'`, `source: 'decomposition'`, `compared: 1`, `held: 0`, `useProject` the app id, and app's returns `state: 'clear'`, `held: 1`. The same suite covers the four display-name answers.
-  - `src/controller/__tests__/controller.test.ts`: `discard` of a reused run answers `branch-in-use`.
+  - `src/controller/__tests__/controller.test.ts`: `discard` of a reused run whose reuser is not live answers `branch-in-use`.
 - **End-to-end:** `e2e/worktree-board.spec.ts` covers scenarios 2, 7, 8, 9 and 10; its band-order test (`:343-358`) gains `band-stopped`. Scenarios 3, 4 and 5 are the integration tests above.
 - **Live:** scenario 1, after the operator sets the names, and scenario 6, against a live step with 60 seconds of watching, are `verification-evidence.md` lines that must read `passed` before the retrospective opens.
 
@@ -216,8 +216,8 @@ No test asserts a node-version-specific `child_process`, `fs` or stream field.
 - D7 — The no-change match is narrow and is honoured for any class before Step 1: options were a broad word list or a model call; chosen because a false skip loses an approved decision.
 - D8 — The label is a prefix of the finding string: options were a parallel array or objects; chosen because the string paths stay unchanged and a missing prefix fails safe to design.
 - D9 — The cap counts round 1 from the ledger: options were the in-memory counter; chosen because the counter resets on re-entry.
-- D10 — Cancel writes the status before it signals, and the step, wait and status writes each refuse at one choke point: options were checks at every call site; chosen because a later call site cannot forget it.
-- D11 — A refused wait throws and the drive ends quietly: options were a nullable return at four callers; chosen because stopping the drive is the wanted effect.
+- D10 — Cancel writes the status before it signals, and the step, wait and status writes each refuse at one choke point, not at every call site, because a later call site cannot forget it.
+- D11 — A refused wait throws and the drive ends quietly: options were a nullable return; chosen because stopping the drive is the wanted effect.
 - D12 — An abandoned run stays in the stopped band until its branch is gone: options were a timed expiry; chosen because the band holds the only Discard press.
 - D13 — An older run whose branch was reused leaves the band and cannot be discarded: options were a control-less tile or a Discard that skips deletion; chosen because a control-less tile could never leave.
 - D14 — The patch writes a typed ledger row: options were a note; chosen because its four fixed fields stay parseable.
@@ -227,9 +227,14 @@ No test asserts a node-version-specific `child_process`, `fs` or stream field.
 - The advisor's MCP listing (`src/advisor/mcp-endpoint.ts:177`) and summary keep the generated `name`: Requirement 1 AC 1 names only the push text.
 - A wait already open at a cancel stays as at base: Requirement 7 covers new waits.
 - Cut by the requirements, unchanged here: the eval `file-outside-list-emits-tasks-patch`, the no-PR half of `d-aaf54e29`, the recreated spec folder of `d-4f6a6271`, and retro P11.
-- Carried items: none.
 
 ## Revision History
 
+- **v2** (2026-11-07) — Round-1 adversarial response (adversarial-analysis-design.md, verdict iterate 0/2/3).
+  - **R1-1 — Accepted (SHOULD_FIX).** The drafting-only cap now increments the version after the reviser, so the lint, narrow check, approval and note name the revised version, not the stale one.
+  - **R1-2 — Accepted (SHOULD_FIX).** Both discard guards now also refuse a run whose branch a later run reused, and the test uses a non-live reuser, so a direct discard of a reused branch deletes nothing.
+  - **R1-3 — Accepted (MINOR).** The guard reads the decomposition only when the tasks file is absent; an existing tasks file with no file entries now gives no list.
+  - **R1-4 — Accepted (MINOR).** The abandoned status guard now reads disk for terminal writes too, so a losing write cannot overwrite an abandoned run.
+  - **R1-5 — Rejected (MINOR).** The close-out reference plan is illustrative, as the reviewer concurs; the close-out integration test pins the concrete behaviour.
 - **v1** (2026-11-07) — Initial draft.
-  - **Lint pass.** 25 fixed (citation-bare L-2–L-6, L-22–L-27, L-34–L-37, L-41–L-44, L-53–L-57 given a directory-prefixed path on the first bare range of each bullet, which anchors its same-file siblings; L-20 harness.ts range widened to `:541-542` so `classifyTarget`'s declaration is in range). Rejected (citation-identifier, all false positives — each citation anchors the code location the design edits or references, and the named symbol is one this design adds or one defined elsewhere named for explanation, not a token expected at the cited line): L-1, L-7, L-8, L-9, L-10, L-11, L-12, L-13, L-14, L-15, L-16, L-17, L-18, L-19, L-21, L-28, L-29, L-30, L-31, L-32, L-33, L-38, L-39, L-40, L-45, L-46, L-47, L-48, L-49, L-50, L-51, L-52, L-58, L-59, L-60, L-61, L-62, L-63, L-64, L-65, L-66, L-67, L-68, L-69, L-70, L-71.
+  - **Lint pass.** 25 citation-bare warnings fixed (directory-prefixed path per bullet; L-20 widened to `:541-542`); 46 citation-identifier warnings rejected as false positives, each anchoring the location the design edits.
