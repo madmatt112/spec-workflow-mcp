@@ -438,3 +438,13 @@
 {"ts":"2026-11-07T12:59:21.710Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-11-07T12:59:21.710Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"retro: 16 proposals for 22 findings"}
 {"ts":"2026-11-07T12:59:21.711Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"22 findings, 16 proposals"}
+{"ts":"2026-11-07T15:22:00.758Z","run":"run-20261106-181042","spec":"dashboard-board","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/16"}
+{"ts":"2026-11-07T15:22:00.769Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"P8","title":"P8 (F8) — 91 spawns for 23 tasks; 8 fix rounds."}
+{"ts":"2026-11-07T15:22:00.769Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.pick","task":"P9","title":"P9 (F9) — negative e2e assertion needed a settle wait before `toHaveCount(0)`."}
+{"ts":"2026-11-07T15:22:00.781Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-07T15:24:16.637Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.end","agent":"sdd-implementer","input":"32","output":"10237","cacheWrite":"64488","cacheRead":"799651","tokens":"874408","cacheWrite5m":"0","cacheWrite1h":"64488","model":"claude-opus-4-8"}
+{"ts":"2026-11-07T15:24:16.637Z","run":"run-20261106-181042","spec":"dashboard-board","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-07T15:24:16.661Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: item P9 files taken from the commit (no named path exists in the root)"}
+{"ts":"2026-11-07T15:24:25.868Z","run":"run-20261106-181042","spec":"dashboard-board","type":"note","text":"gate: item P9 pass risk low"}
+{"ts":"2026-11-07T15:24:25.899Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P8","outcome":"skipped"}
+{"ts":"2026-11-07T15:24:25.900Z","run":"run-20261106-181042","spec":"dashboard-board","type":"task.done","task":"P9","outcome":"done"}

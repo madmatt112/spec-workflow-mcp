@@ -199,3 +199,13 @@ Cost: see the ledger
 retrospective compiled: 22 findings, 16 proposals, 2 decisions needed
 Evidence: retrospective.md, retrospective-proposals.md · mark run-20261106-181042 c1e6d326
 Cost: 2 spawns
+
+## 2026-11-07T15:24:25Z · closeout · store batch 1 · deviation
+P8 skipped: no standalone change; W/task re-measure already stands in agent-rules.md run-ledger note
+Evidence: P8 · mark run-20261106-181042 1a9efac0
+Cost: unknown
+
+## 2026-11-07T15:24:25Z · closeout · store batch 1 · cleanup
+store batch 1: 1 done of 2, 0 fix round(s)
+Evidence: batch 1 · mark run-20261106-181042 e2278e15
+Cost: 1 implementer spawn(s)
