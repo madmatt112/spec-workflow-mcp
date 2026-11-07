@@ -5,7 +5,7 @@ import {
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { runStep, loadRole, type StepSpec, type ActivityEvent, type RateLimitWindows } from '../step.js';
+import { runStep, runStepWithNullRetry, isNullSpawn, loadRole, type StepSpec, type ActivityEvent, type RateLimitWindows } from '../step.js';
 import type { StepHeartbeat } from '../heartbeat.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -48,7 +48,11 @@ afterEach(() => {
   }
 });
 
-async function runWithScript(runs: Run[], overrides: Partial<StepSpec> = {}): Promise<RunOutcome> {
+async function runWithScript(
+  runs: Run[],
+  overrides: Partial<StepSpec> = {},
+  runner: (spec: StepSpec) => Promise<Awaited<ReturnType<typeof runStep>>> = runStep,
+): Promise<RunOutcome> {
   const dir = mkdtempSync(join(tmpdir(), 'ctrl-step-'));
   const worktree = join(dir, 'wt');
   mkdirSync(worktree, { recursive: true });
@@ -74,7 +78,7 @@ async function runWithScript(runs: Run[], overrides: Partial<StepSpec> = {}): Pr
     onRateLimit: (w) => windows.push(w),
     ...overrides,
   };
-  const result = await runStep(spec);
+  const result = await runner(spec);
 
   const lines = readFileSync(logPath, 'utf8')
     .split('\n')
@@ -386,6 +390,76 @@ describe('runStep', () => {
     expect(bad.classification).toBe('error');
     expect(bad.isError).toBe(true);
     expect(bad.exitCode).toBeNull();
+  });
+});
+
+describe('runStep 0-token null-spawn retry (P4)', () => {
+  // A run entry with no `result` (and no stream) makes the stub emit only the
+  // init event and exit 0, so runStep sees no result event: a 0-token null spawn.
+  it('auto-retries a null spawn in place, then returns the recovered result', async () => {
+    const { result, dir } = await runWithScript([
+      {},
+      {
+        result: {
+          subtype: 'success', is_error: false, num_turns: 2, session_id: 's2',
+          result: 'recovered', usage: { input_tokens: 5, output_tokens: 9 },
+        },
+      },
+    ], {}, runStepWithNullRetry);
+    expect(result.classification).toBe('ok');
+    expect(result.resultText).toBe('recovered');
+    const invocations = Number(readFileSync(join(dir, 'script.json.counter'), 'utf8').trim());
+    expect(invocations).toBe(2); // one null spawn, then one retry that recovered
+  });
+
+  it('surfaces the null spawn after the retry cap (one initial plus two retries)', async () => {
+    const { result, dir } = await runWithScript([{}, {}, {}], {}, runStepWithNullRetry);
+    expect(result.classification).toBe('error');
+    expect(isNullSpawn(result)).toBe(true);
+    const invocations = Number(readFileSync(join(dir, 'script.json.counter'), 'utf8').trim());
+    expect(invocations).toBe(3);
+  });
+
+  it('does not retry a real error result (a turn-cap exit)', async () => {
+    const { result, dir } = await runWithScript([
+      {
+        result: {
+          subtype: 'error_max_turns', is_error: true, num_turns: 8, session_id: 's',
+          result: 'hit the cap', usage: {},
+        },
+        exitCode: 1,
+      },
+      {
+        result: {
+          subtype: 'success', is_error: false, num_turns: 1, session_id: 's',
+          result: 'should not run', usage: {},
+        },
+      },
+    ], {}, runStepWithNullRetry);
+    expect(result.classification).toBe('turn-cap');
+    const invocations = Number(readFileSync(join(dir, 'script.json.counter'), 'utf8').trim());
+    expect(invocations).toBe(1);
+  });
+
+  it('runStep itself does not retry a null spawn (the raw single spawn)', async () => {
+    const { result, dir } = await runWithScript([{}, {}]);
+    expect(isNullSpawn(result)).toBe(true);
+    const invocations = Number(readFileSync(join(dir, 'script.json.counter'), 'utf8').trim());
+    expect(invocations).toBe(1);
+  });
+
+  it('isNullSpawn is false for a result that carried usage or text', () => {
+    const base = {
+      structuredOutput: null, sessionId: null, isError: true, subtype: null,
+      exitCode: 0, durationMs: null,
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
+    };
+    expect(isNullSpawn({ ...base, classification: 'error', numTurns: 0, resultText: null })).toBe(true);
+    expect(isNullSpawn({ ...base, classification: 'error', numTurns: 0, resultText: '' })).toBe(false);
+    expect(isNullSpawn({ ...base, classification: 'error', numTurns: 1, resultText: null })).toBe(false);
+    expect(isNullSpawn({ ...base, classification: 'error', numTurns: 0, resultText: null, subtype: 'spawn_error:ENOENT' })).toBe(false);
+    expect(isNullSpawn({ ...base, classification: 'error', numTurns: 0, resultText: null, usage: { input: 3, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 } })).toBe(false);
+    expect(isNullSpawn({ ...base, classification: 'ok', numTurns: 0, resultText: null })).toBe(false);
   });
 });
 

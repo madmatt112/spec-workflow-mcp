@@ -24,7 +24,7 @@ import {
 import { join, basename } from 'path';
 import { execFile, execFileSync } from 'child_process';
 import {
-  runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
+  runStepWithNullRetry, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
 import type { StepHeartbeat } from '../heartbeat.js';
 import { routeForTask } from '../implementer-route.js';
@@ -469,7 +469,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime, task: opts.task }); },
       heartbeat: ctx.stepHeartbeat?.(),
     };
-    const result = await runStep(spec);
+    const result = await runStepWithNullRetry(spec);
     // Both record writes land before the result is acted on, so a status the
     // caller writes next is never overwritten by a late in-flight update.
     await spawnWrite;

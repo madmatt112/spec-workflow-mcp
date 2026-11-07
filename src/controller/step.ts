@@ -7,6 +7,7 @@
 // `claude`. The module is deep: `runStep` and `loadRole` and the types are the
 // whole public surface.
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { dirname, basename, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -340,8 +341,49 @@ function classify(
 // runStep.
 // ---------------------------------------------------------------------------
 
+/** Auto-retries per step when the spawn produced nothing (P4, ibkr-flex-import retro). */
+const NULL_SPAWN_RETRY_CAP = 2;
+
 function asConfigArg(value: string | Record<string, unknown>): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/**
+ * A 0-token spawn (P4, ibkr-flex-import retro): the `claude` process started and
+ * exited but produced no `result` event at all — no usage, no turns, no text and
+ * no structured output. The model never ran, so it is a transient failure to
+ * retry in place, not a real result to surface to the coordinator. A spawn that
+ * never started (an `spawn_error:` subtype) and a spawn that ran and then errored
+ * (a subtype, token usage or result text is present) are both real failures and
+ * are not treated as null.
+ */
+export function isNullSpawn(result: StepResult): boolean {
+  const u = result.usage;
+  return result.classification === 'error'
+    && result.subtype === null
+    && result.resultText === null
+    && result.structuredOutput === null
+    && result.numTurns === 0
+    && u.input === 0 && u.output === 0 && u.cacheRead === 0
+    && u.cacheWrite5m === 0 && u.cacheWrite1h === 0;
+}
+
+/**
+ * Runs one model step, auto-retrying a 0-token spawn (P4, ibkr-flex-import retro).
+ * A {@link isNullSpawn} result means the process exited without ever running the
+ * model, so it is retried in place up to {@link NULL_SPAWN_RETRY_CAP} times —
+ * each retry on a fresh session id (a resume keeps its id) — before the last
+ * result is surfaced to the coordinator as the step's outcome. Every other result
+ * (ok or a real failure) is returned on the first spawn. The phase loops call
+ * this rather than {@link runStep} directly, so a null drafter/implementer spawn
+ * no longer abandons the run on the first try.
+ */
+export async function runStepWithNullRetry(spec: StepSpec): Promise<StepResult> {
+  let result = await runStep(spec);
+  for (let retry = 1; retry <= NULL_SPAWN_RETRY_CAP && isNullSpawn(result); retry++) {
+    result = await runStep(spec.resume ? spec : { ...spec, sessionId: randomUUID() });
+  }
+  return result;
 }
 
 /**
