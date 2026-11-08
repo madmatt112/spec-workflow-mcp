@@ -54,7 +54,7 @@ export function DeployControl() {
     'ending the advisor session opened from the dashboard';
 
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {confirming ? (
         <Button variant="primary" size="sm" onClick={press} disabled={busy} data-testid="deploy-confirm">
           {busy ? 'Deploying…' : confirmText}
