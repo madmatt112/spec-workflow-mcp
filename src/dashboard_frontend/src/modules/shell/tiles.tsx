@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, isStalled, launchPress, mergeRead, runControls, runDot, setupLine, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, launchPress, mergeRead, runControls, runDot, runTone, setupLine, waitSummary } from './board';
 import { pauseNote, pauseNoteClass } from './pause';
 import { OpErrorView } from './harness';
 import type { SetupView } from '../harness/types';
@@ -146,8 +146,7 @@ export function RunTile({
   onDiscard: () => void;
   onRedrive: () => void;
 }) {
-  const age = now - Date.parse(run.created);
-  const tone = ageTone(age);
+  const tone = runTone(run, waits, now);
   const stalled = isStalled(run, waits);
   const note = pauseNote(run, now);
   const heartbeatBase = run.lastActivity ?? run.stepStarted;
@@ -161,10 +160,13 @@ export function RunTile({
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{run.spec}</span>
+        <span className="shrink-0 text-xs text-(--text-muted)" data-testid={`run-age-${run.id}`}>
+          {`run ${compactAge(now - Date.parse(run.created))}`}
+        </span>
       </div>
-      {(run.stepKind || run.task) && (
+      {(run.phase || run.stepKind || run.task) && (
         <p className="text-sm text-(--text-primary)">
-          {[run.stepKind, run.task].filter(Boolean).join(' · ')}
+          {[run.phase, run.stepKind, run.task].filter(Boolean).join(' · ')}
         </p>
       )}
       {run.stepStarted && (

@@ -116,6 +116,20 @@ export function isStalled(run: ControllerRun, waits: ControllerWait[]): boolean 
   return false;
 }
 
+/** Tile tone for a run (design C10 "Tile colour"). `danger` when stalled,
+ *  whatever the dot; else `warning` for an `amber`/`red` dot; else `neutral`
+ *  — never driven by age alone (requirement 10 AC 2). */
+export function runTone(
+  run: ControllerRun,
+  waits: ControllerWait[],
+  now: number,
+): 'neutral' | 'warning' | 'danger' {
+  if (isStalled(run, waits)) return 'danger';
+  const dot = runDot(run, now);
+  if (dot === 'amber' || dot === 'red') return 'warning';
+  return 'neutral';
+}
+
 export function runControls(
   run: ControllerRun,
   waits: ControllerWait[],
