@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/phases/__tests__/closeout.test.ts"],"seams":{"src/controller/phases/__tests__/closeout.test.ts":"runCloseoutPhase(ctx)"},"redCommit":"3af015c044abc5868eda5d9e2d548770ac54a744","baseSha":"7fedd9939bd5d3016e6657b729d14694bea0acc5","base":"assertion-red","head":"pass","amended":false,"judged":null}

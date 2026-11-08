@@ -101,7 +101,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 3.1, 3.5, 3.7_
   - _Prompt: Task: Per design C3 and design D7 (requirement 3 AC 1, AC 5, AC 7), add and export `parsePlanDecisions`, `itemTarget` and `answerChoosesNoChange` to `src/tools/harness.ts`, and make `classifyTarget` (`:541-542`) read `itemTarget`. Verify design's illustrative regex against the table below, not the reverse | Restrictions: Change no class rule in `classifyTarget`; the match stays narrow on purpose (design C3) | Success: `parsePlanDecisions` maps ids to answers inside `## Decisions` only, splits at the last ` → `, and gives no entry for an empty answer or `no answer`; `itemTarget` reads `Target:` and `Target document:`; a block with `Target document:` naming `agent-rules.md` classifies `store`; `answerChoosesNoChange` is true for `No change — the rule already requires`, `leave it; agents correctly flag`, `Option A: no change`, `no`, `none`, `skip` and `n/a`; it is false for `keep the design-defect stop but trigger it on the first verdict`, `drop the two moved paths` and `add the 30/60s per-user limiter`; `npx tsc --noEmit` and `npx vitest run src/tools/__tests__/harness.test.ts src/controller/phases/__tests__/closeout.test.ts` pass_
 
-- [ ] 9. Act on recorded answers in the close-out
+- [x] 9. Act on recorded answers in the close-out
   - File: src/controller/phases/closeout.ts
   - File: src/controller/phases/__tests__/closeout.test.ts
   - Test: src/controller/phases/__tests__/closeout.test.ts — `runCloseoutPhase(ctx)`
