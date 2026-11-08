@@ -69,9 +69,14 @@ export function buildFixture(c: EvalCase, caseDir: string): Fixture {
       git(root, ['worktree', 'add', '-b', worktree.branch, rel]);
       bases[rel] = git(join(root, rel), ['rev-parse', 'HEAD']);
     }
+    // The MCP server the role runs with writes its default templates into the
+    // project on start; they are server scaffolding, not the role's change, so a
+    // clean-tree grader must not see them (d-a4b19458).
+    const excludes = ['.spec-workflow/templates/', '.spec-workflow/user-templates/'];
     if ((c.fixture.worktrees?.length ?? 0) > 0) {
-      appendFileSync(join(root, '.git', 'info', 'exclude'), '\n.claude/worktrees/\n');
+      excludes.push('.claude/worktrees/');
     }
+    appendFileSync(join(root, '.git', 'info', 'exclude'), `\n${excludes.join('\n')}\n`);
 
     return { root, parent, bases };
   } catch (err) {

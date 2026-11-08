@@ -131,6 +131,30 @@ describe('buildFixture(c, caseDir)', () => {
     rmSync(caseDir, { recursive: true, force: true });
   });
 
+  // Pre-condition: a case with one setup commit and no worktrees. After buildFixture, a
+  // file appears under `.spec-workflow/templates/` and `.spec-workflow/user-templates/`,
+  // as the MCP server writes them when the role under eval starts it.
+  // Observable result: the root's `git status --porcelain --untracked-files=all` prints
+  // nothing, so a clean-tree grader does not count server scaffolding as the role's change.
+  // Expected-value source: d-a4b19458 — closeout-landing-root failed repo-unchanged on
+  // `?? .spec-workflow/templates/design-system-template.md` written by the server.
+  it('excludes the templates the MCP server writes into the fixture', () => {
+    const caseDir = mkdtempSync(join(tmpdir(), 'fixture-case-'));
+    writeTree(caseDir, 'fixture/01', { 'a.txt': 'one\n' });
+    const c = baseCase({ commits: [{ message: 'init', tree: 'fixture/01' }] });
+
+    const f = buildFixture(c, caseDir);
+    mkdirSync(join(f.root, '.spec-workflow', 'templates'), { recursive: true });
+    writeFileSync(join(f.root, '.spec-workflow', 'templates', 'design-system-template.md'), 'x\n');
+    mkdirSync(join(f.root, '.spec-workflow', 'user-templates'), { recursive: true });
+    writeFileSync(join(f.root, '.spec-workflow', 'user-templates', 'README.md'), 'x\n');
+
+    expect(git(f.root, 'status', '--porcelain', '--untracked-files=all')).toBe('');
+
+    disposeFixture(f);
+    rmSync(caseDir, { recursive: true, force: true });
+  });
+
   // Pre-condition: same fixture as the worktree test above: one setup commit, one
   // worktree `{ dir: 'landing', branch: 'chore/demo-retro' }`.
   // Test: buildFixture(c, caseDir).
