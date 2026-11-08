@@ -74,7 +74,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 2.3, 2.7, 2.9, 2.10_
   - _Prompt: Task: Per design C2 "Route" (requirement 2 AC 3, AC 7, AC 9), set `view.guard` after `launchBlock`, only while `view.launchable` is set, from what task 5 exports. `storeProjects` is `getAllProjects()` filtered on `projectPath === project.projectPath`. A `try/catch` leaves `guard` unset | Restrictions: Change neither `buildSetupView`, `launchSpec` nor the launch route (AC 10); no path enters `SetupView` | Success: the design's no-`tasks.md` check passes: in a two-project fixture store with no spec directory and a decomposition entry naming one path that exists only under the app root, infra answers `state: 'warn'`, `source: 'decomposition'`, `compared: 1`, `held: 0`, `useProject` the app id, and app answers `state: 'clear'`, `held: 1`; with a `tasks.md` listing a file only under the app root, infra warns with `source: 'tasks'`; a `tasks.md` that cannot be read (a directory at that path) answers 200 with `guard` unset (AC 9); a blocked launch has no `guard`; the launch POST body and result are unchanged (regression guard); `npx tsc --noEmit` and `npx vitest run src/dashboard/__tests__/harness-routes.test.ts` pass_
 
-- [ ] 7. Show one guarded Next tile per project
+- [x] 7. Show one guarded Next tile per project
   - File: src/dashboard_frontend/src/modules/shell/board.ts
   - File: src/dashboard_frontend/src/modules/shell/tiles.tsx
   - File: src/dashboard_frontend/src/modules/shell/HomePage.tsx
