@@ -1032,6 +1032,8 @@ describe('security pass loop (design C6, R3 AC 1-3, 6-12)', () => {
     const secNotes = r.filter((e) => e.type === 'note' && (e.text ?? '').startsWith('security:')).map((e) => e.text ?? '');
     expect(secNotes[0]).toMatch(/^security: epoch 1\b/);
     expect(secNotes.filter((t) => t.startsWith('security: pass'))).toHaveLength(1);
+    // P2: the pass records each finding's text (title + file), not only the count.
+    expect(secNotes).toContain(`security: finding ${finding.title} (${finding.file})`);
     expect(secNotes.filter((t) => t.startsWith('security: fix round'))).toHaveLength(2);
     expect(secNotes.filter((t) => t.startsWith('security: recheck adjudicated'))).toHaveLength(1);
     expect(secNotes.filter((t) => t.startsWith('security: recheck ') && !t.startsWith('security: recheck adjudicated'))).toHaveLength(2);

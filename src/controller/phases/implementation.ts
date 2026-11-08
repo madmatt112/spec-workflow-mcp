@@ -24,7 +24,7 @@ import {
 import { join, basename } from 'path';
 import { execFile, execFileSync } from 'child_process';
 import {
-  runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
+  runStepWithNullRetry, loadRole, type StepResult, type StepSpec, type RateLimitWindows,
 } from '../step.js';
 import type { StepHeartbeat } from '../heartbeat.js';
 import { routeForTask } from '../implementer-route.js';
@@ -46,7 +46,7 @@ import { handoffPath } from '../../watch/index.js';
 import { scrubbedGitEnv, defaultBranchIfOnIt } from '../../core/git-utils.js';
 import { findPullRequest, readCiState, type CiState } from '../merge.js';
 import {
-  e2ePassStands, readSecurityState, classifySecurityReport, suspicionKey,
+  e2ePassStands, readSecurityState, classifySecurityReport, suspicionKey, securityFindingNote,
   SECURITY_SCHEMA, type SecurityFinding, type SecuritySuspicion, type SecurityState,
 } from './security-pass.js';
 import { parseSensitivePaths, isSensitivePath } from '../../core/gate-rules.js';
@@ -469,7 +469,7 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime, task: opts.task }); },
       heartbeat: ctx.stepHeartbeat?.(),
     };
-    const result = await runStep(spec);
+    const result = await runStepWithNullRetry(spec);
     // Both record writes land before the result is acted on, so a status the
     // caller writes next is never overwritten by a late in-flight update.
     await spawnWrite;
@@ -1100,6 +1100,9 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       const { findings, suspicions } = classifySecurityReport(step.result.structuredOutput);
       await createSuspicionDeferrals(suspicions);
       ctx.ledger.note(`security: pass: findings ${findings.length}, suspicions ${suspicions.length}`);
+      // P2 (ibkr-flex-import retro): record each finding's text, not only the count,
+      // so the retro can say what the pass found and what was fixed.
+      for (const f of findings) ctx.ledger.note(securityFindingNote(f));
       ctx.ledger.note(`security: open ${JSON.stringify(findings)}`);
       return undefined;
     }
