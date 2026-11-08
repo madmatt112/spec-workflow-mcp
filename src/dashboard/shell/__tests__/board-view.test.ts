@@ -293,6 +293,7 @@ type BoardModule = {
   ageTone: (ms: number) => Tone;
   runDot: (run: CtrlRunFixture, now: number) => Dot;
   isStalled: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => boolean;
+  runTone: (run: CtrlRunFixture, waits: CtrlWaitFixture[], now: number) => Tone;
   runControls: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => {
     pause: boolean; resume: boolean; stop: boolean; discard: boolean; redrive: boolean;
   };
@@ -1011,6 +1012,82 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         expect(board.isStalled(run, [])).toBe(false);
       },
     );
+  });
+
+  // Contract for decisions-and-launch-guard task 19 (design C10 "Tile
+  // colour"; Requirement 10 AC 1-3).
+  describe('runTone(run, waits, now)', () => {
+    const NOW = Date.parse('2026-01-02T00:00:00.000Z');
+
+    // Criterion "runTone is danger for a stalled run whatever its dot"
+    // (design C10 "`danger` when `isStalled`"; task 19 Success "`danger`
+    // for a stalled run whatever its dot"; Requirement 10 AC 1 "a stalled
+    // run is `danger`", AC 3 "WHEN a run is stalled THEN its tone SHALL be
+    // `danger`").
+    //   Pre-condition: a `running` run with `driven: false` (stalled, per
+    //   `isStalled`), tested once with a fresh `lastActivity` (green dot)
+    //   and once with a 900,000ms-old one (red dot).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'danger' both times — the dot does not change
+    //   the answer.
+    //   Expected-value source: the task Success line's literal "whatever
+    //   its dot" clause, isolated by giving the two cases opposite dots.
+    it('is danger for a stalled run whatever its dot', () => {
+      const greenDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: false, inFlight: true,
+        lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      const redDot = ctrlRunFixture({
+        id: 'r2', status: 'running', driven: false, inFlight: true,
+        lastActivity: new Date(NOW - 900000).toISOString(),
+      });
+      expect(board.runTone(greenDot, [], NOW)).toBe('danger');
+      expect(board.runTone(redDot, [], NOW)).toBe('danger');
+    });
+
+    // Criterion "runTone is warning for a not-stalled run with an amber or
+    // a red dot" (design C10 "else `warning` when `runDot` is `amber` or
+    // `red`"; task 19 Success; Requirement 10 AC 1 "`warning` when
+    // `runDot` is `amber` or `red`").
+    //   Pre-condition: a `running` run with `driven: true` (not stalled),
+    //   tested once with `lastActivity` 300,000ms old (amber) and once
+    //   900,000ms old (red).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'warning' both times.
+    //   Expected-value source: the task Success line's literal "amber or a
+    //   red dot" clause.
+    it('is warning for a not-stalled run with an amber or a red dot', () => {
+      const amberDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 300000).toISOString(),
+      });
+      const redDot = ctrlRunFixture({
+        id: 'r2', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 900000).toISOString(),
+      });
+      expect(board.runTone(amberDot, [], NOW)).toBe('warning');
+      expect(board.runTone(redDot, [], NOW)).toBe('warning');
+    });
+
+    // Criterion "runTone is neutral for green and grey" (design C10
+    // "else `neutral`"; task 19 Success; Requirement 10 AC 1 "`neutral`
+    // when it is `green` or `grey`").
+    //   Pre-condition: a `running` run with `driven: true` (not stalled),
+    //   tested once with a fresh `lastActivity` (green) and once with no
+    //   `inFlight` at all (grey).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'neutral' both times.
+    //   Expected-value source: the task Success line's literal "neutral
+    //   for green and grey" clause.
+    it('is neutral for a not-stalled run with a green or a grey dot', () => {
+      const greenDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      const greyDot = ctrlRunFixture({ id: 'r2', status: 'running', driven: true, inFlight: false });
+      expect(board.runTone(greenDot, [], NOW)).toBe('neutral');
+      expect(board.runTone(greyDot, [], NOW)).toBe('neutral');
+    });
   });
 
   describe('runControls(run, waits)', () => {

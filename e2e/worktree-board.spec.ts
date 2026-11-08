@@ -1642,6 +1642,155 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criterion "a moving run with a phase shows it, and the run's own age"
+  // (task 19 Success; Requirement 8 AC 1 "WHEN a moving run has a phase
+  // THEN its tile SHALL show it", AC 2 "its tile SHALL show the age since
+  // created"; Verification "a run 2 minutes into requirements, on a
+  // project with an older run of the same store, shows requirements and
+  // its true age").
+  //   Pre-condition: an older `waiting` run on the same project and
+  //   `specStore` with phase `implementation`, plus a `waiting` run with
+  //   phase `requirements`, `created` 2 minutes ago.
+  //   Test: page.goto('/'), then the newer run's tile and
+  //   `page.getByTestId('run-age-' + runId)`.
+  //   Observable result: the tile's text contains "requirements"; the
+  //   run-age element's text is "run 2m".
+  //   Expected-value source: the Verification scenario's literal phase
+  //   name and age, and design C8's `run <compactAge> ` format.
+  test('(R8 AC1, AC2) a healthy run 2 minutes into requirements, on a project with an older run of the same store, shows requirements and run 2m', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const project = 'e2e-board-run-phase-proj';
+    const specStore = '/tmp/e2e-board-run-phase-store';
+    const olderId = 'e2e-board-run-phase-older-run';
+    const runId = 'e2e-board-run-phase-run';
+    const olderRun = baseRun(olderId, project, {
+      specStore,
+      spec: 'e2e-board-run-phase-older-spec',
+      status: 'waiting',
+      phase: 'implementation',
+      cursor: { phase: 'implementation', stepKind: 'implementer', attempt: 1 },
+      created: isoAgo(2 * 60 * 60_000), updated: isoAgo(2 * 60 * 60_000),
+    });
+    const run = baseRun(runId, project, {
+      specStore,
+      spec: 'e2e-board-run-phase-spec',
+      status: 'waiting',
+      phase: 'requirements',
+      cursor: { phase: 'requirements', stepKind: 'drafter', attempt: 1 },
+      created: isoAgo(2 * 60_000), updated: isoAgo(60_000),
+    });
+    const olderDir = await writeRunRecord(olderRun);
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('requirements');
+      await expect(page.getByTestId(`run-age-${runId}`)).toHaveText('run 2m');
+    } finally {
+      await removeRunRecord(olderDir);
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a run with no phase shows no phase text" (task 19 Success;
+  // Requirement 8 AC 4 "IF a run has no phase THEN the tile SHALL show no
+  // phase text").
+  //   Pre-condition: a `waiting` run with `cursor.stepKind` and
+  //   `inFlight.task` set, but no top-level `phase` field at all (a
+  //   `waiting` run always carries a pause-note `<p>` too, via the
+  //   `pausedAt` fallback to `updated` in `toRow`, so the step line is
+  //   picked out by its own text rather than by `<p>` count).
+  //   Test: page.goto('/'), then the run's tile's step-line `<p>`
+  //   (filtered to the one containing "implementer").
+  //   Observable result: exactly one such `<p>`, with text exactly
+  //   "implementer · gamma-task" — no leading "undefined" or stray
+  //   separator from a phase slot that should have been filtered out.
+  //   Expected-value source: Requirement 8 AC 4 verbatim; design C8's
+  //   `[run.phase, run.stepKind, run.task]` join, which drops a falsy
+  //   `phase` via `filter(Boolean)`.
+  test('(R8 AC4) a run with no phase shows no phase text, with step kind and task unaffected', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-nophase-run';
+    const run = baseRun(runId, 'e2e-board-run-nophase-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-nophase-spec',
+      cursor: { phase: 'implementation', stepKind: 'implementer', attempt: 1 },
+      inFlight: { id: 'step-nophase', pid: 999996, startTime: 0, task: 'gamma-task' },
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const stepLine = tile.locator('p').filter({ hasText: 'implementer' });
+      await expect(stepLine).toHaveCount(1);
+      await expect(stepLine).toHaveText('implementer · gamma-task');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a healthy run older than 1 hour has data-tone neutral, not
+  // forced danger by age alone" (task 19 Success; Requirement 10 AC 2
+  // "its age alone SHALL NOT force danger").
+  //   Pre-condition: a `waiting` run (not stalled, no drive-crash wait),
+  //   no `inFlight` (grey dot), `created` 2 hours ago — a byte-identical
+  //   base read of `ageTone(7200000)` would be 'danger'.
+  //   Test: page.goto('/'), then the run's tile's `data-tone` attribute.
+  //   Observable result: 'neutral'.
+  //   Expected-value source: design C10's `runTone` formula ("else
+  //   `neutral`" for a grey dot), isolated from `ageTone`'s age-based
+  //   `danger` by picking a 2-hour-old run.
+  test('(R10 AC2) a healthy run older than 1 hour has data-tone neutral', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-oldhealthy-run';
+    const run = baseRun(runId, 'e2e-board-run-oldhealthy-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-oldhealthy-spec',
+      created: isoAgo(2 * 60 * 60_000), updated: isoAgo(2 * 60 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toHaveAttribute('data-tone', 'neutral');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a stalled run has data-tone danger" (task 19 Success;
+  // Requirement 10 AC 3 "WHEN a run is stalled THEN its tone SHALL be
+  // danger").
+  //   Pre-condition: a `running` run with no driver (stalled, per
+  //   `isStalled`), `created` 5 minutes ago — a byte-identical base read
+  //   of `ageTone(300000)` would be 'neutral'.
+  //   Test: page.goto('/'), then the run's tile's `data-tone` attribute.
+  //   Observable result: 'danger'.
+  //   Expected-value source: design C10's `runTone` formula ("`danger`
+  //   when `isStalled`"), isolated from `ageTone`'s age-based `neutral` by
+  //   picking a freshly-created stalled run.
+  test('(R10 AC3) a stalled run has data-tone danger', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-stalleddanger-run';
+    const run = baseRun(runId, 'e2e-board-run-stalleddanger-proj', {
+      status: 'running',
+      spec: 'e2e-board-run-stalleddanger-spec',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('Stalled');
+      await expect(tile).toHaveAttribute('data-tone', 'danger');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
   // Criterion "moving runs sort most stale first" (task 13 Success;
   // Requirement 3 AC 7 "Moving runs SHALL sort most stale first, by
   // `lastActivity`, else `updated`, oldest first").
