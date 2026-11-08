@@ -2560,4 +2560,50 @@ describe('Controller.discard guards a branch another run holds (design C4, D25, 
 
     expect(result).toBe('branch-in-use');
   });
+
+  // Source: task 21 Prompt Success ("discard of an older run whose reuser
+  // is `done` answers `'branch-in-use'`, deletes no branch, closes no PR
+  // and leaves the record unchanged"); requirement 9 AC 6; design C9
+  // "Reused branch" (`Controller.discard`'s guard gaining `||
+  // branchReused`, "since the dashboard-deploy reuser is not live,
+  // branchHeld alone would miss it").
+  //
+  // Criterion "discard of a reused run's older side is refused even when
+  // the reuser is not live": Pre-condition: an `abandoned` run with a real
+  // git branch and a `done` run sharing that `codeRoot` and `branch` with
+  // a later `created`. Test: controller.discard(olderId). Observable
+  // result: `'branch-in-use'`, the branch still resolves in the repo, no
+  // `gh` invocation reached the log, and `readRun(olderId)` is unchanged.
+  // Expected-value source: design C9 ("Controller.discard's guard ... gains
+  // the same || branchReused, so a direct POST returns 'branch-in-use' and
+  // deletes nothing").
+  it('returns the sentinel for discard of an older run whose branch a non-live reuser reused', async () => {
+    const olderId = 'run-20261106-reused-older';
+    const newerId = 'run-20261106-reused-newer';
+    const branch = 'feat/reused-controller';
+    git(fx.repo, ['branch', branch]);
+    const ghLog = join(fx.base, 'gh-reused.log');
+    process.env.STUB_GH_LOG = ghLog;
+    await writeRun({
+      v: 1, id: olderId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch, status: 'abandoned',
+      created: '2026-11-06T00:00:01.000Z', updated: '2026-11-06T00:00:01.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    await writeRun({
+      v: 1, id: newerId, project: 'p', codeRoot: fx.repo, specStore: fx.repo, spec: SPEC,
+      worktree: fx.repo, branch, status: 'done',
+      created: '2026-11-06T00:05:01.000Z', updated: '2026-11-06T00:05:01.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    });
+    const before = await readRun(olderId);
+
+    controller = makeController(fx);
+    const result = await controller.discard(olderId);
+
+    expect(result).toBe('branch-in-use');
+    expect(await readRun(olderId)).toEqual(before);
+    expect(() => git(fx.repo, ['rev-parse', '--verify', branch])).not.toThrow();
+    expect(existsSync(ghLog)).toBe(false);
+  });
 });

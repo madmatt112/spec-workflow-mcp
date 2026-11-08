@@ -2408,13 +2408,18 @@ test.describe('Home (board)', () => {
     const movingId = 'e2e-board-run-branchheld-moving-run';
     const branch = 'feat/e2e-board-branchheld';
     const repoDir = await makeGitRepo(branch);
+    // One shared `created` for both runs (not two separate `isoAgo()` calls):
+    // a later `created` on the moving run would make the stopped run read as
+    // branch-reused (design C9), dropping its `branchPresent` read and
+    // leaving the stopped tile out of the band this test asserts on.
+    const created = isoAgo(5 * 60_000);
     const stoppedRun = baseRun(stoppedId, 'e2e-board-run-branchheld-proj', {
       status: 'abandoned', spec: 'e2e-board-run-branchheld-stopped-spec',
-      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch, created,
     });
     const movingRun = baseRun(movingId, 'e2e-board-run-branchheld-proj', {
       status: 'running', spec: 'e2e-board-run-branchheld-moving-spec',
-      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch, created,
     });
     const stoppedDir = await writeRunRecord(stoppedRun);
     const movingDir = await writeRunRecord(movingRun);

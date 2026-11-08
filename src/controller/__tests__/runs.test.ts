@@ -1293,6 +1293,141 @@ describe('listRunsForWire', () => {
     expect(json).not.toContain('codeRoot');
     expect(json).not.toContain('worktree');
   });
+
+  // Source: task 21 Prompt Success ("a run with a later `created`, the
+  // same `codeRoot` and the same non-empty `branch`, in any status, makes
+  // the older row `discardAllowed: false`, `branchPresent: false`, and its
+  // branch read is not called"); requirement 9 AC 6; design C9 "Reused
+  // branch" (new `branchReused`, `toRow`'s `discardAllowed:
+  // !(branchHeld(run, runs) || branchReused(run, runs))` and
+  // `branchPresent: false` with no read).
+  //
+  // Criterion "reused branch leaves the older row with no Discard and no
+  // read": Pre-condition: an `abandoned` run and another run sharing
+  // `codeRoot` and a non-empty `branch`, the other's `created` later and
+  // its status `done` (not live, so `branchHeld` alone would miss it).
+  // Test: listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the older row's `discardAllowed` is `false`, its
+  // `branchPresent` is `false`, and the spy was never called.
+  // Expected-value source: design C9's "Reused branch" clause.
+  it('discardAllowed and branchPresent are false, with no branch read, when a later run reused the branch', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-reused-older', status: 'abandoned', branch: 'feat/reused',
+      codeRoot: fx.repo, created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-reused-newer', status: 'done', branch: 'feat/reused',
+      codeRoot: fx.repo, created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-reused-older');
+
+    expect(row?.discardAllowed).toBe(false);
+    expect(row?.branchPresent).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("an equal `created` ... [is] not
+  // reused"). [regression guard] Holds at base: at base `toRow` has no
+  // `branchReused` check at all, so an equal-`created` pair's
+  // `discardAllowed` already comes only from `branchHeld` — `true` for
+  // this pair since the other run is not live — named here per the
+  // implementer brief (agent-rules P10/P12).
+  //
+  // Criterion "not reused: equal created": Pre-condition: a `done` run and
+  // another `done` (not live) run sharing `codeRoot`, a non-empty `branch`
+  // and the same `created`. Test: listRunsForWire(driven, branchRead) with
+  // a `branchRead` spy. Observable result: the first row's
+  // `discardAllowed` is `true`, its `branchPresent` is `true`, and the spy
+  // was called. Expected-value source: design C9's "a later `created`"
+  // wording (equal is not later).
+  it('[regression guard] discardAllowed stays true when the other run shares created exactly, not later', async () => {
+    const tie = '2026-10-11T00:00:00.000Z';
+    await writeRun(seedRun(fx, {
+      id: 'run-tie-a', status: 'done', branch: 'feat/tie', codeRoot: fx.repo, created: tie,
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-tie-b', status: 'done', branch: 'feat/tie', codeRoot: fx.repo, created: tie,
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-tie-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(true);
+    expect(read).toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("a different `codeRoot` ... [is] not
+  // reused"). [regression guard] Holds at base: at base `discardAllowed`
+  // comes only from `branchHeld`, which already requires the same
+  // `codeRoot`; a different `codeRoot` already leaves it `true` with no
+  // `branchReused` in play — named here per the implementer brief
+  // (agent-rules P10/P12).
+  //
+  // Criterion "not reused: different codeRoot": Pre-condition: a `done`
+  // run and another `done` (not live) run sharing a non-empty `branch`,
+  // the other's `created` later, but a different `codeRoot`. Test:
+  // listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the first row's `discardAllowed` is `true`, its
+  // `branchPresent` is `true`, and the spy was called. Expected-value
+  // source: design C9's "the same `codeRoot`" wording.
+  it('[regression guard] discardAllowed stays true when the later run has a different codeRoot', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-diffroot-reuse-a', status: 'done', branch: 'feat/diffroot', codeRoot: fx.repo,
+      created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-diffroot-reuse-b', status: 'done', branch: 'feat/diffroot', codeRoot: `${fx.repo}-other`,
+      created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-diffroot-reuse-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(true);
+    expect(read).toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("an empty `branch` ... [is] not
+  // reused"). [regression guard] Holds at base: `branchPresent`
+  // (`src/controller/branch-presence.ts`) already returns `false` with no
+  // read for an empty branch, and `discardAllowed` already comes only from
+  // `branchHeld` (false here, the other run is not live) — named here per
+  // the implementer brief (agent-rules P10/P12), since no existing
+  // assertion covers a stopped run with an empty branch through this seam.
+  //
+  // Criterion "not reused: empty branch": Pre-condition: an `abandoned`
+  // run with `branch: ''` and another `done` (not live) run sharing
+  // `codeRoot`, a later `created` and `branch: ''`. Test:
+  // listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the first row's `discardAllowed` is `true`, its
+  // `branchPresent` is `false`, and the spy was never called.
+  // Expected-value source: design C9's "the same non-empty `branch`"
+  // wording and `branch-presence.ts`'s empty-branch short-circuit.
+  it('[regression guard] discardAllowed stays true and branchPresent stays false, with no read, when the stopped run has no branch', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-nobranch-reuse-a', status: 'abandoned', branch: '', codeRoot: fx.repo,
+      created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-nobranch-reuse-b', status: 'done', branch: '', codeRoot: fx.repo,
+      created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-nobranch-reuse-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
 });
 
 // Contract for the implementation-phase final error wait's own cancel check
