@@ -278,7 +278,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 11.1, 11.2_
   - _Prompt: Task: Per design C11 (requirement 11), remove `mb-3` at `src/dashboard_frontend/src/modules/shell/DeployControl.tsx:57`. Add a Playwright box check at 1280 px. Run `npx playwright install chromium` first | Restrictions: Change no other class; `TopBar.tsx` does not change | Success: at 1280 px the vertical centre of `deploy-button` is within 1 px of the centre of `nav-home`; `grep -n 'mb-3' src/dashboard_frontend/src/modules/shell/DeployControl.tsx` finds nothing; `npx playwright test -c playwright.worktree.config.ts e2e/worktree-board.spec.ts` passes_
 
-- [ ] 23. Record the live scenarios and resolve the deferrals
+- [x] 23. Record the live scenarios and resolve the deferrals
   - File: .spec-workflow/specs/decisions-and-launch-guard/verification-evidence.md
   - File: .spec-workflow/deferrals/d-83cc3ac1.md
   - File: .spec-workflow/deferrals/d-37e510db.md
