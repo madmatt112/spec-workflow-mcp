@@ -16,8 +16,10 @@ const STUB = join(HERE, '..', '..', '..', '..', 'scripts', 'stub-claude.mjs');
 const SPEC = 'ctrl-doc';
 const DOC_REL = `.spec-workflow/specs/${SPEC}/requirements.md`;
 const CTX_REL = `.spec-workflow/specs/${SPEC}/codebase-context.md`;
-const ANALYSIS = (suffix: string) =>
-  `.spec-workflow/specs/${SPEC}/reviews/adversarial-analysis-requirements${suffix}.md`;
+const analysisFor = (phase: string, suffix: string) =>
+  `.spec-workflow/specs/${SPEC}/reviews/adversarial-analysis-${phase}${suffix}.md`;
+const ANALYSIS = (suffix: string) => analysisFor('requirements', suffix);
+const docRel = (phase: string) => `.spec-workflow/specs/${SPEC}/${phase}.md`;
 
 const savedEnv = { ...process.env };
 
@@ -69,10 +71,10 @@ function drafterRun(content: string): StubRun {
 
 function reviewerRun(opts: {
   verdict: 'converged' | 'iterate'; mustFix?: string[]; shouldFix?: string[];
-  recurring?: string[]; escalate?: string; suffix: string;
+  recurring?: string[]; escalate?: string; suffix: string; phase?: string;
 }): StubRun {
   return {
-    edits: [{ path: ANALYSIS(opts.suffix), content: `analysis\nVERDICT: ${opts.verdict}\n` }],
+    edits: [{ path: analysisFor(opts.phase ?? 'requirements', opts.suffix), content: `analysis\nVERDICT: ${opts.verdict}\n` }],
     result: {
       subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'reviewed',
       structured_output: {
@@ -100,16 +102,16 @@ function adjudicatorRun(content: string, report: {
   };
 }
 
-function reviserRun(content: string): StubRun {
+function reviserRun(content: string, path: string = DOC_REL): StubRun {
   return {
-    edits: [{ path: DOC_REL, content }],
+    edits: [{ path, content }],
     result: { subtype: 'success', is_error: false, num_turns: 2, session_id: 's', result: 'revised', usage: USAGE },
   };
 }
 
-function checkerRun(suffix: string): StubRun {
+function checkerRun(suffix: string, phase: string = 'requirements'): StubRun {
   return {
-    edits: [{ path: ANALYSIS(suffix), content: 'narrow check\nVERIFIED: 1/1\n' }],
+    edits: [{ path: analysisFor(phase, suffix), content: 'narrow check\nVERIFIED: 1/1\n' }],
     result: {
       subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'checked',
       structured_output: { verified: true, items: [{ item: 'S-1', status: 'addressed' }] }, usage: USAGE,
@@ -136,6 +138,19 @@ function setup(): Fixture {
   mkdirSync(home, { recursive: true });
   mkdirSync(logs, { recursive: true });
   return { base, repo, specDir, home, logs };
+}
+
+/**
+ * Seed `<phase>.md` at v1 directly on disk (no drafter spawn), simulating a
+ * document already drafted — and, for requirements, gate-A-resolved — in an
+ * earlier session. `cleanDoc`'s content is phase-agnostic for spec-lint
+ * purposes (word-cap, citations, mdx; no phase checks structural headers).
+ */
+function seedDoc(fx: Fixture, phase: string, version: number): void {
+  writeFileSync(join(fx.specDir, `${phase}.md`), cleanDoc(version));
+  writeFileSync(join(fx.specDir, 'codebase-context.md'), `# Codebase context — ${SPEC}\n`);
+  git(fx.repo, ['add', '-A']);
+  git(fx.repo, ['commit', '-q', '-m', `seed ${phase} v${version}`]);
 }
 
 function makeContext(fx: Fixture, runs: StubRun[], gates?: DocumentGates): DocumentPhaseContext {
@@ -446,5 +461,105 @@ describe('runDocumentPhase', () => {
     expect(outcome).toMatchObject({ result: 'stopped', version: 1, rounds: 0, reason: 'operator' });
     const rows = ledgerRows(fx);
     expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual(['sdd-drafter']);
+  });
+
+  it('caps after round 1 when every item is drafting-only: one reviser, lint, one narrow check, approves v2, no second reviewer (requirement 5 AC 2, AC 7)', async () => {
+    seedDoc(fx, 'requirements', 1);
+    const ctx = makeContext(fx, [
+      reviewerRun({ verdict: 'iterate', mustFix: ['[drafting] M1'], shouldFix: ['[drafting] S1'], suffix: '' }),
+      reviserRun(cleanDoc(2)),
+      checkerRun('-r2'),
+    ]);
+
+    const outcome = await runDocumentPhase(ctx);
+
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual([
+      'sdd-reviewer', 'sdd-reviser', 'sdd-checker',
+    ]);
+    // Only one review round ran: the cap ended the phase with no second reviewer.
+    expect(rows.filter((r) => r.type === 'spawn.start' && r.agent === 'sdd-reviewer')).toHaveLength(1);
+    const notes = rows.filter((r) => r.type === 'note');
+    expect(notes.some((n) => n.text === 'review cap: round 1 drafting-only, 2 item(s), v2 approved')).toBe(true);
+    expect(await approvedRecords(fx)).toHaveLength(1);
+  });
+
+  it('caps after round 1 when every item is drafting-only (design)', async () => {
+    seedDoc(fx, 'design', 1);
+    const ctx: DocumentPhaseContext = {
+      ...makeContext(fx, [
+        reviewerRun({ verdict: 'iterate', mustFix: ['[drafting] M1'], suffix: '', phase: 'design' }),
+        reviserRun(cleanDoc(2), docRel('design')),
+        checkerRun('-r2', 'design'),
+      ]),
+      phase: 'design',
+    };
+
+    const outcome = await runDocumentPhase(ctx);
+
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual([
+      'sdd-reviewer', 'sdd-reviser', 'sdd-checker',
+    ]);
+  });
+
+  it('caps after round 1 when every item is drafting-only (tasks)', async () => {
+    seedDoc(fx, 'tasks', 1);
+    const ctx: DocumentPhaseContext = {
+      ...makeContext(fx, [
+        reviewerRun({ verdict: 'iterate', mustFix: ['[drafting] M1'], suffix: '', phase: 'tasks' }),
+        reviserRun(cleanDoc(2), docRel('tasks')),
+        checkerRun('-r2', 'tasks'),
+      ]),
+      phase: 'tasks',
+    };
+
+    const outcome = await runDocumentPhase(ctx);
+
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).toEqual([
+      'sdd-reviewer', 'sdd-reviser', 'sdd-checker',
+    ]);
+  });
+
+  it('does not cap when the ledger already holds a round from an earlier entry (design D9: ledgerRoundCount survives re-entry, reviewRounds resets)', async () => {
+    seedDoc(fx, 'requirements', 1);
+    const ctx = makeContext(fx, [
+      reviewerRun({ verdict: 'iterate', mustFix: ['[drafting] M1'], suffix: '' }),
+      reviserRun(cleanDoc(2)),
+      reviewerRun({ verdict: 'converged', suffix: '-r2' }),
+    ]);
+    // A prior round already recorded in this run's ledger, as if an earlier
+    // process invocation ran round 1 before this one resumed.
+    ctx.ledger.round({ phase: 'requirements', round: 1, verdict: 'iterate 1/0/0', version: 'v1' });
+
+    const outcome = await runDocumentPhase(ctx);
+
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    // The base loop ran a plain reviser round, not the drafting-only cap: no
+    // checker spawn, no cap note, a second reviewer round closed it out.
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).not.toContain('sdd-checker');
+    expect(rows.filter((r) => r.type === 'note').some((n) => /review cap/.test(n.text))).toBe(false);
+    expect(commitSubjects(fx)).toContain(`docs(sdd): ${SPEC} requirements v2 after round 1`);
+  });
+
+  it('does not cap on an explicit [design] item at round 1 (requirement 5 AC 3 regression guard)', async () => {
+    seedDoc(fx, 'requirements', 1);
+    const ctx = makeContext(fx, [
+      reviewerRun({ verdict: 'iterate', mustFix: ['[design] M1'], suffix: '' }),
+      reviserRun(cleanDoc(2)),
+      reviewerRun({ verdict: 'converged', suffix: '-r2' }),
+    ]);
+
+    const outcome = await runDocumentPhase(ctx);
+
+    expect(outcome).toMatchObject({ result: 'approved', version: 2 });
+    const rows = ledgerRows(fx);
+    expect(rows.filter((r) => r.type === 'spawn.start').map((r) => r.agent)).not.toContain('sdd-checker');
+    expect(rows.filter((r) => r.type === 'note').some((n) => /review cap/.test(n.text))).toBe(false);
   });
 });
