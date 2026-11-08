@@ -240,7 +240,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 10.1, 10.2, 10.3, 10.4_
   - _Prompt: Task: Per design C8, C10 and requirements D10 and D11 (requirements 8 and 10), add `runTone` to `board.ts` and use it in place of `ageTone` at `src/dashboard_frontend/src/modules/shell/tiles.tsx:149-150`. Join `[run.phase, run.stepKind, run.task]` in the step line (`:165-169`) and add `run-age-<id>` reading `run ` and `compactAge(now - Date.parse(run.created))`. Run `npx playwright install chromium` first | Restrictions: The step age stays; wait and action tiles keep `ageTone`; read only the run's own row, never a ledger | Success: `runTone` is `danger` for a stalled run whatever its dot; `warning` for a not-stalled run with an `amber` or a `red` dot; `neutral` for `green` and `grey`; a healthy `requirements` run created 2 minutes ago, on a project with an older run of the same store, shows `requirements` and `run 2m`; a run with no `phase` shows no phase text (AC 4); the step age still shows; a healthy run created 2 hours ago has `data-tone` `neutral`; a stalled run has `danger`; `(R4 AC2)` and `(D12)` tones hold (regression guard); `npx vitest run src/dashboard/shell/__tests__/board-view.test.ts src/dashboard/__tests__/frontend-style-scan.test.ts` and `npx playwright test -c playwright.worktree.config.ts e2e/worktree-board.spec.ts` pass_
 
-- [ ] 20. Split the Running band from a quiet stopped band
+- [x] 20. Split the Running band from a quiet stopped band
   - File: src/dashboard_frontend/src/modules/shell/board.ts
   - File: src/dashboard_frontend/src/modules/shell/tiles.tsx
   - File: src/dashboard_frontend/src/modules/shell/HomePage.tsx
