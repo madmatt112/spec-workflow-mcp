@@ -201,7 +201,7 @@ export interface DocumentPhaseContext {
   /**
    * Checked once at the top of each review round, before the adversarial
    * review (design C6). A non-null reason stops the phase there; it reads
-   * only the operator hold, never cancel or the usage window (design D7).
+   * cancel and the operator hold, never the usage window (design D7).
    */
   shouldStop?: () => string | null;
 }

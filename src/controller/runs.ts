@@ -698,6 +698,9 @@ export function withPrRead(reads: PrRead[] | undefined, read: PrRead): PrRead[] 
 async function runMergeStageStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
 ): Promise<MergeStepOutcome> {
+  // Cancel entry check (design C7 "Driver checks", Requirement 7 AC 5): a run
+  // cancelled while resuming the merge stage opens no wait and writes no status.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (hasMerged(specDir, run.id)) return 'none';
 
   // The implementation phase exits into the merge stage by a direct call that
@@ -783,8 +786,9 @@ async function runMergeStageStep(
         // The merge resume path runs before `runOnce`'s own cancel, cap and
         // window checks, so guard the round here: a cancelled run stops, a full
         // cap opens the cap wait and a blocked window pauses, each with no round.
-        if (deps.isCancelled(run.id)) return 'stop';
-        if (deps.isPauseRequested?.(run.id)) {
+        const reason = stopReason(deps, run.id);
+        if (reason === 'cancelled') return 'stop';
+        if (reason === 'operator') {
           await pause(deps, run, OPERATOR_PAUSE);
           return 'stop';
         }
@@ -797,9 +801,8 @@ async function runMergeStageStep(
           }]);
           return 'stop';
         }
-        const window = deps.windowBlock();
-        if (window.blocked) {
-          await pause(deps, run, 'usage-window', window.resumeAt);
+        if (reason === 'usage-window') {
+          await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
           return 'stop';
         }
         const outcome = await runMergeFixRound({
@@ -864,6 +867,9 @@ async function runMergeStageStep(
 export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   let run = await readRun(runId);
   if (!run) return;
+  // An already-abandoned run returns here, before `ensureWorktree` and the
+  // `running` write below (design C7 "Driver checks", Requirement 7 AC 3).
+  if (run.status === 'abandoned') return;
 
   // The merge stage may be mid-flight on this re-entry: a `merging` status (an
   // auto re-check after `not-ready`) or an open `merge` wait (the ask path just
@@ -1018,7 +1024,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         ...stepLifecycle(deps, run.id),
         now: deps.now,
-        shouldStop: () => (deps.isPauseRequested?.(runId) ? 'operator' : null),
+        shouldStop: () => (runCancelled(deps, runId) ? 'cancelled' : (deps.isPauseRequested?.(runId) ? 'operator' : null)),
       };
       const outcome = await runDocumentPhase(ctx);
       const handled = await handleDocumentOutcome(deps, run, ledger, specDir, decision.phase, outcome);
@@ -1147,6 +1153,8 @@ async function runCloseoutMergeStep(
 async function handleCloseoutOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: CloseoutPhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'closed') {
     if (outcome.prs.length > 0) await save(deps, run, { closeoutPrs: outcome.prs });
     return 'go';
@@ -1234,6 +1242,8 @@ async function hasOpenSecurityWait(runId: string): Promise<boolean> {
 async function handleImplementationOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: ImplementationPhaseOutcome,
 ): Promise<'stop' | 'go' | 'retry'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'complete') {
     if (outcome.pr && run.pr !== outcome.pr.number) await save(deps, run, { pr: outcome.pr.number });
     return 'go';
@@ -1302,6 +1312,8 @@ async function handleImplementationOutcome(
 async function handleRetrospectiveOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: RetrospectivePhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'retro-ready') return 'go';
   if (outcome.result === 'stopped') {
     if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
@@ -1329,6 +1341,8 @@ async function handleDocumentOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
   phase: DocumentPhase, outcome: DocumentPhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 1, AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'approved') return 'go';
   if (outcome.result === 'waiting') {
     // T5b's gate A/B already wrote the wait; the controller only parks the run.
@@ -1349,8 +1363,8 @@ async function handleDocumentOutcome(
     return 'stop';
   }
   if (outcome.result === 'stopped') {
-    await pause(deps, run, OPERATOR_PAUSE);
-    return 'stop';
+    if (outcome.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
+    return 'stop'; // cancelled: the cancel path already marked the run
   }
   // outcome.result === 'error'.
   if (outcome.reason === 'usage-limit') {
@@ -1374,15 +1388,21 @@ async function handleDocumentOutcome(
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
       ...stepLifecycle(deps, run.id),
       now: deps.now,
-      shouldStop: () => (deps.isPauseRequested?.(run.id) ? 'operator' : null),
+      shouldStop: () => (runCancelled(deps, run.id) ? 'cancelled' : (deps.isPauseRequested?.(run.id) ? 'operator' : null)),
     });
     if (retry.result === 'approved') return 'go';
     if (retry.result === 'waiting') { await save(deps, run, { status: 'waiting', inFlight: undefined }); return 'stop'; }
-    if (retry.result === 'stopped') { await pause(deps, run, OPERATOR_PAUSE); return 'stop'; }
+    if (retry.result === 'stopped') {
+      if (retry.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
+      return 'stop'; // cancelled: the cancel path already marked the run
+    }
     if (retry.result === 'error' && retry.reason === 'usage-limit') {
       await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
       return 'stop';
     }
+    // The retry's own step may have failed from a cancel that landed mid-step
+    // (design C7 "Driver checks"): check again before the `error` wait below.
+    if (runCancelled(deps, run.id)) return 'stop';
   }
   await waitAnd(deps, run, ledger, 'error', specDir, [{
     id: 'error', text: `${phase} failed: ${outcome.reason ?? 'unknown'}. Retry or abandon.`,

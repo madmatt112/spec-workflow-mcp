@@ -1346,6 +1346,7 @@ describe('runOnce retrospective-phase cancel suppresses the final error wait (de
     await approve(fx, 'design');
     await approve(fx, 'tasks');
     openRunLedger({ specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC }).phaseEnd('implementation', { result: 'complete' });
+    writeFileSync(join(fx.specDir, 'retrospective-log.md'), `# Retrospective log — ${SPEC}\n`);
     writeScript(fx, [{
       stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
       result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
