@@ -7,6 +7,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { runStep, loadRole, type StepSpec, type ActivityEvent, type RateLimitWindows } from '../step.js';
 import type { StepHeartbeat } from '../heartbeat.js';
+import { writeRun, type RunRecord } from '../state.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STUB = join(HERE, '..', '..', '..', 'scripts', 'stub-claude.mjs');
@@ -386,6 +387,98 @@ describe('runStep', () => {
     expect(bad.classification).toBe('error');
     expect(bad.isError).toBe(true);
     expect(bad.exitCode).toBeNull();
+  });
+});
+
+function stepGuardRun(id: string, patch: Partial<RunRecord> = {}): RunRecord {
+  const iso = '2026-11-07T00:00:00.000Z';
+  return {
+    v: 1, id, project: 'p', codeRoot: '/tmp', specStore: '/tmp', spec: 'x',
+    worktree: '/tmp', branch: 'main', status: 'abandoned', created: iso, updated: iso,
+    tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }, ...patch,
+  };
+}
+
+// Contract (design C7 "Step guard", Requirement 7 AC 1; tasks.md task 16).
+// Pre-condition: a run record on disk with status `abandoned`, and
+// `spec.runId` naming it. Test: runStep(spec). Observable result: the
+// resolved StepResult equals the design's "Skipped step StepResult" data
+// model exactly (`structuredOutput: null`, `usage` all zero,
+// `sessionId: null`, `numTurns: 0`, `isError: true`, `subtype: 'cancelled'`,
+// `resultText: null`, `exitCode: null`, `classification: 'cancelled'`,
+// `durationMs: null`), with no `claude` process ever spawned.
+// `CONTROLLER_CLAUDE_BIN` is pointed at a path that does not exist, and no
+// stub script is wired, so a code path that falls through the guard and
+// spawns anyway resolves `classification: 'error'` (per "classifies a
+// failed spawn as error" above), never `'cancelled'` — proving the guard,
+// not the spawn's own failure handling, produced the result.
+describe('runStep abandoned-run guard (design C7 Step guard, Requirement 7 AC 1)', () => {
+  it('resolves cancelled with no spawn for a run abandoned on disk', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctrl-step-abandon-'));
+    const worktree = join(dir, 'wt');
+    mkdirSync(worktree, { recursive: true });
+    const briefPath = join(dir, 'brief.md');
+    writeFileSync(briefPath, 'x');
+    const logPath = join(dir, 'logs', 'step-1.jsonl');
+    const runId = 'run-20261107-000001';
+
+    await writeRun(stepGuardRun(runId, { worktree }));
+
+    process.env.CONTROLLER_CLAUDE_BIN = '/does/not/exist/claude-xyz';
+    delete process.env.STUB_CLAUDE_SCRIPT;
+
+    const result = await runStep({
+      role: 'sdd-reviewer', briefPath, worktree, logPath, maxTurns: 4, sessionId: 's', runId,
+    });
+
+    expect(result).toEqual({
+      structuredOutput: null,
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0 },
+      sessionId: null,
+      numTurns: 0,
+      isError: true,
+      subtype: 'cancelled',
+      resultText: null,
+      exitCode: null,
+      classification: 'cancelled',
+      durationMs: null,
+    });
+  });
+
+  // [regression guard] Criterion "a running run and a spec with no runId
+  // spawn" (tasks.md task 16 Success), sub-case "a running run spawns":
+  // holds at base (no guard exists yet) and continues to hold once the
+  // guard only short-circuits on disk status `abandoned`. No prior
+  // assertion in this file exercises `runStep` with a `runId` whose disk
+  // record explicitly reads `running`; named here per the implementer
+  // brief. The sibling sub-case, "a spec with no runId spawns", is covered
+  // branch-exact by every other test in this `describe('runStep', ...)`
+  // block above (none sets `runId`), e.g. "parses a clean run with a
+  // tool_use and a result" (`step.test.ts:174`) — no new test added for it.
+  it('[regression guard] a running run with a matching disk record still spawns', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctrl-step-running-'));
+    const worktree = join(dir, 'wt');
+    mkdirSync(worktree, { recursive: true });
+    const briefPath = join(dir, 'brief.md');
+    writeFileSync(briefPath, 'x');
+    const scriptPath = join(dir, 'script.json');
+    writeFileSync(scriptPath, JSON.stringify([{
+      result: { subtype: 'success', is_error: false, num_turns: 1, session_id: 's', result: 'ok', usage: {} },
+    }]));
+    const logPath = join(dir, 'logs', 'step-1.jsonl');
+    const runId = 'run-20261107-000002';
+
+    await writeRun(stepGuardRun(runId, { worktree, status: 'running' }));
+
+    process.env.CONTROLLER_CLAUDE_BIN = STUB;
+    process.env.STUB_CLAUDE_SCRIPT = scriptPath;
+
+    const result = await runStep({
+      role: 'sdd-reviewer', briefPath, worktree, logPath, maxTurns: 4, sessionId: 's', runId,
+    });
+
+    expect(result.classification).toBe('ok');
+    expect(result.resultText).toBe('ok');
   });
 });
 

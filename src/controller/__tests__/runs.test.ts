@@ -15,7 +15,7 @@ import { branchPresent, type BranchRead } from '../branch-presence.js';
 import { NO_OP_GATES } from '../phases/document.js';
 import { createDocumentGates } from '../phases/gates.js';
 import {
-  writeRun, readRun, listWaits, processStartTime, isProcessAlive, writeLastActivity,
+  writeRun, readRun, readRunSync, listWaits, processStartTime, isProcessAlive, writeLastActivity,
   type RunRecord, type PrRead,
 } from '../state.js';
 import { answerWait } from '../waits.js';
@@ -328,6 +328,48 @@ describe('stepLifecycle onStepSpawn task and startedAt', () => {
   });
 });
 
+// Contract (design C7 "Spawn race", Requirement 7 AC 4; tasks.md task 16):
+// "stepLifecycle.onStepSpawn ... signals the new pid and records nothing
+// when the run is cancelled, for a cancel landing between the guard and the
+// spawn." Two sub-cases, each its own test per the task's Success line ("for
+// isCancelled true and for disk abandoned with isCancelled false"):
+// `deps.isCancelled` reporting true, and `deps.isCancelled` reporting false
+// but the disk record already reading `abandoned`. Pre-condition in both: a
+// real, live child process standing in for the just-spawned step. Test:
+// stepLifecycle(deps, runId).onStepSpawn({ id, pid, startTime }). Observable
+// result: the pid is signalled (the same process-gone check cancelRun's
+// tests use) and the run's `inFlight` on disk stays absent. Expected value
+// source: the quoted design clause and the task's Success line.
+describe('stepLifecycle onStepSpawn cancel guard (design C7 Spawn race, Requirement 7 AC 4)', () => {
+  it('signals the pid and writes no inFlight when deps.isCancelled is true', async () => {
+    await writeRun(seedRun(fx, { status: 'running' }));
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+
+    const { onStepSpawn } = stepLifecycle(deps(fx, { isCancelled: () => true }), 'run-20261011-000000');
+    await onStepSpawn({ id: 's1', pid, startTime });
+
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect((await readRun('run-20261011-000000'))?.inFlight).toBeUndefined();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  it('signals the pid and writes no inFlight when disk is abandoned though deps.isCancelled is false', async () => {
+    await writeRun(seedRun(fx, { status: 'abandoned' }));
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+
+    const { onStepSpawn } = stepLifecycle(deps(fx, { isCancelled: () => false }), 'run-20261011-000000');
+    await onStepSpawn({ id: 's1', pid, startTime });
+
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect((await readRun('run-20261011-000000'))?.inFlight).toBeUndefined();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+});
+
 describe('runOnce gate-B annotation routing', () => {
   /** Approved requirements, design and tasks, and a gate-b wait answered with `reply`. */
   async function seedAnsweredGateB(reply: string, tasksMd?: string): Promise<RunRecord> {
@@ -525,6 +567,63 @@ describe('cancelRun and discardRun', () => {
     // The process group is gone.
     expect(() => process.kill(pid, 0)).toThrow();
     try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  // Contract (design C7 "Order change", Requirement 7 AC 1/4; tasks.md task
+  // 16). Pre-condition: a run with a real, live `inFlight` process.
+  // Test: cancelRun(deps, runId), with `process.kill` spied so the test
+  // reads the on-disk run record (via `readRunSync`, a synchronous read)
+  // the instant the first `process.kill` call fires, before letting the
+  // real signal through. Observable result: at that instant the disk
+  // record already reads `status: 'abandoned'` with `inFlight` absent, and
+  // the live step is still stopped afterward (the same process-gone check
+  // the preceding test uses). Expected value source: design C7 "Order
+  // change" ("`cancelRun` ... writes `abandoned` first, then signals the
+  // pid it read, so a step killed by the signal always finds `abandoned`
+  // on disk") and the task's own Success line.
+  it('writes abandoned with no inFlight before the first process.kill, and still stops the live step', async () => {
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+    await writeRun(seedRun(fx, { inFlight: { id: 's1', pid, startTime } }));
+
+    const realKill = process.kill.bind(process);
+    let diskAtFirstKill: RunRecord | undefined;
+    let killCalls = 0;
+    const spy = vi.spyOn(process, 'kill').mockImplementation((killPid: number, signal?: string | number) => {
+      if (killCalls === 0) diskAtFirstKill = readRunSync('run-20261011-000000');
+      killCalls += 1;
+      return realKill(killPid, signal as NodeJS.Signals | number | undefined);
+    });
+
+    try {
+      const run = await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+      expect(run?.status).toBe('abandoned');
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(killCalls).toBeGreaterThan(0);
+    expect(diskAtFirstKill?.status).toBe('abandoned');
+    expect(diskAtFirstKill?.inFlight).toBeUndefined();
+    // The process group is gone.
+    expect(() => process.kill(pid, 0)).toThrow();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  // [regression guard] Requirement 7 AC 6: "A cancel SHALL keep the
+  // worktree, branch and PR" (invariant, verified, not red-first per
+  // requirements.md). Holds at base because `cancelRun` spreads the run it
+  // read into its write. No existing assertion in this describe block
+  // checks `worktree`/`branch` on a cancelled run's returned record; named
+  // here per the implementer brief (agent-rules P10/P12).
+  it('[regression guard] cancel keeps the worktree and branch unchanged', async () => {
+    await writeRun(seedRun(fx, { worktree: fx.repo, branch: 'feat/keep-me' }));
+
+    const run = await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(run?.worktree).toBe(fx.repo);
+    expect(run?.branch).toBe('feat/keep-me');
   });
 
   it('discard removes the worktree, deletes the branch and closes the PR with gh', async () => {
