@@ -89,3 +89,8 @@ Cost: 1 implementer spawn(s)
 task 16 closed: 0 fix round(s), outcome gate
 Evidence: task 16 · mark run-20261107-174258 fd8e2395
 Cost: 1 implementer spawn(s)
+
+## 2026-11-08T02:28:40Z · implementation · task 17 · gotcha
+task 17 closed: 0 fix round(s), outcome gate
+Evidence: task 17 · mark run-20261107-174258 e43d6a21
+Cost: 1 implementer spawn(s)
