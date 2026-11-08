@@ -59,3 +59,13 @@ Cost: 1 implementer spawn(s)
 task 11 closed: 0 fix round(s), outcome gate
 Evidence: task 11 · mark run-20261107-174258 d5528bd6
 Cost: 1 implementer spawn(s)
+
+## 2026-11-08T01:35:08Z · implementation · task 12 · doc-gap
+red-impossible: \"a prompt with no verdictBlock holds neither [drafting]/[design] prefix\" — already true at base since the label text exists only inside the new HARNESS_VERDICT_SECTION bullet, which is omitted when verdictBlock is unset; wrote the test anyway (adversarial-review.test.ts, \"names neither label prefix…\") as the regression guard, confirmed green pre-implementation."}
+Evidence: task 12 · mark run-20261107-174258 b8d5a39d
+Cost: 1 spawn
+
+## 2026-11-08T01:39:21Z · implementation · task 12 · gotcha
+task 12 closed: 0 fix round(s), outcome gate
+Evidence: task 12 · mark run-20261107-174258 cff5d55f
+Cost: 1 implementer spawn(s)
