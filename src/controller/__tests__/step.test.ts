@@ -441,6 +441,27 @@ describe('runStep 0-token null-spawn retry (P4)', () => {
     expect(invocations).toBe(1);
   });
 
+  it('does not retry a step that ran and then died without a result (a cancel or crash)', async () => {
+    const { result, dir } = await runWithScript([
+      {
+        stream: [
+          { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'a.ts' } }] } },
+        ],
+        exitCode: 143,
+      },
+      {
+        result: {
+          subtype: 'success', is_error: false, num_turns: 1, session_id: 's',
+          result: 'should not run', usage: {},
+        },
+      },
+    ], {}, runStepWithNullRetry);
+    expect(result.sawModelOutput).toBe(true);
+    expect(isNullSpawn(result)).toBe(false);
+    const invocations = Number(readFileSync(join(dir, 'script.json.counter'), 'utf8').trim());
+    expect(invocations).toBe(1);
+  });
+
   it('runStep itself does not retry a null spawn (the raw single spawn)', async () => {
     const { result, dir } = await runWithScript([{}, {}]);
     expect(isNullSpawn(result)).toBe(true);

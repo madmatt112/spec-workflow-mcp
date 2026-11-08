@@ -90,6 +90,10 @@ export interface StepResult {
   exitCode: number | null;
   classification: StepClassification;
   durationMs: number | null;
+  /** True when the stream held at least one `assistant` event: the model ran. A
+   *  step killed mid-run has no `result` event, so its usage and turns read 0;
+   *  this field is what tells it apart from a spawn that never ran. */
+  sawModelOutput?: boolean;
 }
 
 /** Everything one step needs. The caller resolves the brief, schema and roots. */
@@ -365,7 +369,10 @@ export function isNullSpawn(result: StepResult): boolean {
     && result.structuredOutput === null
     && result.numTurns === 0
     && u.input === 0 && u.output === 0 && u.cacheRead === 0
-    && u.cacheWrite5m === 0 && u.cacheWrite1h === 0;
+    && u.cacheWrite5m === 0 && u.cacheWrite1h === 0
+    // A cancelled or crashed step that had started work also has no `result`
+    // event; retrying it would respawn a cancelled step or redo paid work.
+    && result.sawModelOutput !== true;
 }
 
 /**
@@ -450,6 +457,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
     // plain-text afterthought. Keep the latest one that carried a report.
     let structuredEvent: Record<string, unknown> | null = null;
     let lastRateLimit: RateLimitWindows | null = null;
+    let sawModelOutput = false;
     let settled = false;
 
     const handleEvent = (event: Record<string, unknown>): void => {
@@ -457,6 +465,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
       if (type === 'system' && event.subtype === 'init') {
         if (typeof event.session_id === 'string') initSessionId = event.session_id;
       } else if (type === 'assistant') {
+        sawModelOutput = true;
         const message = (event.message ?? {}) as Record<string, unknown>;
         const content = Array.isArray(message.content) ? message.content : [];
         for (const block of content) {
@@ -535,6 +544,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         exitCode,
         classification,
         durationMs: result && typeof result.duration_ms === 'number' ? result.duration_ms : null,
+        sawModelOutput,
       };
       // Resolve only once the raw-stream log has flushed to disk. Callers (and
       // the tests) read the log file the instant runStep resolves; a write
