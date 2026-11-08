@@ -473,6 +473,42 @@ describe('runOnce document-phase stop (design C6)', () => {
   });
 });
 
+// Contract for the abandoned-final status guard on the driver path (design
+// C7 "Status guard", D10; requirement 7 AC 3). Per success criterion: a run
+// abandoned on disk during `ensureWorktree` stays abandoned, with no
+// `change` event carrying `running`. Pre: a run on disk at `queued` with no
+// worktree. Call: `runOnce(deps(fx, { ensureWorktree }), runId)` where
+// `ensureWorktree` writes the run `abandoned` on disk before it returns (a
+// cancel landing while the worktree is being resolved). Result: the
+// run stays `abandoned` on disk and no `change` event ever carries
+// `status: 'running'`. Source: design C7 "Status guard"; Requirement 7 AC 3.
+// `isCancelled` is forced `true` only so the loop top (a later, unrelated
+// check) stops the drive right after the guarded write is observed, instead
+// of falling through to a real step spawn when the guard is missing.
+describe('runOnce keeps a run abandoned during ensureWorktree (design C7, Requirement 7 AC 3)', () => {
+  it('a run abandoned on disk during ensureWorktree stays abandoned, with no change event carrying running', async () => {
+    await writeRun(seedRun(fx, { status: 'queued', worktree: '' }));
+    const statuses: string[] = [];
+    const onChange = (r: RunRecord) => statuses.push(r.status);
+    runEvents.on('change', onChange);
+
+    try {
+      await runOnce(deps(fx, {
+        isCancelled: () => true,
+        ensureWorktree: async (run) => {
+          await writeRun({ ...run, status: 'abandoned' });
+          return { worktree: run.codeRoot, branch: 'main' };
+        },
+      }), 'run-20261011-000000');
+    } finally {
+      runEvents.off('change', onChange);
+    }
+
+    expect((await readRun('run-20261011-000000'))?.status).toBe('abandoned');
+    expect(statuses).not.toContain('running');
+  });
+});
+
 describe('cancelRun and discardRun', () => {
   function cancelDeps(fx: Fixture): CancelDeps {
     return { now: () => new Date(), ghBin: () => STUB_GH, graceMs: 2000 };

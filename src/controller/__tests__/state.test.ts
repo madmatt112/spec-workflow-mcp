@@ -8,6 +8,7 @@ import {
   listRuns,
   readRun,
   writeRun,
+  updateRun,
   writeLastActivity,
   listWaits,
   readWait,
@@ -278,6 +279,78 @@ describe('writeLastActivity and the lastActivity carry-over in writeRun', () => 
       lastActivity: '2026-11-03T13:00:00.000Z',
       updated: '2026-11-03T13:00:05.000Z',
     });
+  });
+});
+
+// Contract for the abandoned-final status guard (design C7 "Status guard",
+// D10; requirement 7 AC 3, AC 4). Per success criterion:
+// - A `running`, `waiting`, `queued`, `done` or `error` write over an
+//   `abandoned` run resolves `false` and leaves the on-disk record
+//   byte-identical. Pre: a run on disk at `abandoned`. Call:
+//   `writeRun(record)` with that status. Result: `false`, raw file bytes
+//   unchanged. Source: design C7 "Status guard"; Requirement 7 AC 3.
+// - An `abandoned` write over an `abandoned` run resolves `true`. Pre: a run
+//   on disk at `abandoned`. Call: `writeRun(record)` with status
+//   `abandoned`. Result: `true`. Source: design C7 "Status guard".
+// - A first write (no on-disk record yet) resolves `true`. Pre: no record
+//   for the id. Call: `writeRun(record)`. Result: `true`. Source: design C7
+//   "Status guard" (the guard only fires when disk already holds
+//   `abandoned`).
+// - A write over a non-abandoned run resolves `true`. Pre: a run on disk at
+//   `running`. Call: `writeRun(record)` with status `waiting`. Result:
+//   `true`. Source: design C7 "Status guard".
+// - `updateRun` whose `fn` sets `running` on an abandoned run returns the
+//   abandoned record, unwritten. Pre: a run on disk at `abandoned`. Call:
+//   `updateRun(id, (run) => ({ ...run, status: 'running' }))`. Result: the
+//   resolved record's `status` is `abandoned`. Source: design C7 "Status
+//   guard" ("`updateRun` passes through it"); Requirement 7 AC 3, AC 4.
+describe('writeRun resolves whether it wrote (design C7, Requirement 7 AC 3, AC 4)', () => {
+  it.each(['running', 'waiting', 'queued', 'done', 'error'] as const)(
+    'a %s write over an abandoned run resolves false and leaves the record byte-identical',
+    async (status) => {
+      const id = `run-abandoned-guard-${status}`;
+      await writeRun({ ...sampleRun(id), status: 'abandoned' });
+      const runJson = join(controllerHome(), 'runs', id, 'run.json');
+      const before = readFileSync(runJson, 'utf-8');
+
+      const wrote = await writeRun({ ...sampleRun(id), status });
+
+      expect(wrote).toBe(false);
+      expect(readFileSync(runJson, 'utf-8')).toBe(before);
+    },
+  );
+
+  it('an abandoned write over an abandoned run resolves true', async () => {
+    const id = 'run-abandoned-over-abandoned';
+    await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    const wrote = await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    expect(wrote).toBe(true);
+  });
+
+  it('a first write for a new run resolves true', async () => {
+    const wrote = await writeRun(sampleRun('run-first-write'));
+
+    expect(wrote).toBe(true);
+  });
+
+  it('a write over a non-abandoned run resolves true', async () => {
+    const id = 'run-non-abandoned-overwrite';
+    await writeRun({ ...sampleRun(id), status: 'running' });
+
+    const wrote = await writeRun({ ...sampleRun(id), status: 'waiting' });
+
+    expect(wrote).toBe(true);
+  });
+
+  it('updateRun setting running on an abandoned run returns the abandoned record, unwritten', async () => {
+    const id = 'run-updateRun-abandoned';
+    await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    const result = await updateRun(id, (run) => ({ ...run, status: 'running' }));
+
+    expect(result?.status).toBe('abandoned');
   });
 });
 
