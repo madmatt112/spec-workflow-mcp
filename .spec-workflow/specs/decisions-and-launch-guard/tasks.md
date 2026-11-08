@@ -268,7 +268,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 9.6_
   - _Prompt: Task: Per design C9 "Reused branch" and design D13 (requirement 9 AC 6), export `branchReused` from `src/controller/runs.ts`. `toRow` (`:1490-1511`) sets `discardAllowed` and `branchPresent` as design states, with no branch read for a reused run. `Controller.discard`'s guard (`src/controller/controller.ts:388`) gains the same test. In e2e `(R7 AC7)`, `baseRun` calls `isoAgo` per run, so the moving run can read later and the stopped tile would leave the band: give both runs at `e2e/worktree-board.spec.ts:2071-2078` one `created` | Restrictions: `branchHeld` and `discardRun` do not change | Success: a run with a later `created`, the same `codeRoot` and the same non-empty `branch`, in any status, makes the older row `discardAllowed: false`, `branchPresent: false`, and its branch read is not called; an equal `created`, a different `codeRoot`, an empty `branch` and the later run itself are not reused; `discard` of an older run whose reuser is `done` answers `'branch-in-use'`, deletes no branch, closes no PR and leaves the record unchanged; `npx tsc --noEmit`, `npx vitest run src/controller/__tests__/runs.test.ts src/controller/__tests__/controller.test.ts` and `npx playwright test -c playwright.worktree.config.ts e2e/worktree-board.spec.ts -g "R7 AC7"` pass_
 
-- [ ] 22. Line up the Deploy control
+- [x] 22. Line up the Deploy control
   - File: src/dashboard_frontend/src/modules/shell/DeployControl.tsx
   - File: e2e/worktree-board.spec.ts
   - Test: e2e/worktree-board.spec.ts — `page.getByTestId('deploy-button').boundingBox()`

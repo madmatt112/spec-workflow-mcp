@@ -1,0 +1,1 @@
+{"testFiles":["e2e/worktree-board.spec.ts"],"seams":{"e2e/worktree-board.spec.ts":"page.getByTestId('deploy-button').boundingBox()"},"redCommit":"d07feadf40198aa00b7ebbe846e1781b7c6d9af1","baseSha":"2fb251f1e171731af14a9f571bf02c49cc16ec12","base":"structural-red","head":"pass","amended":false,"judged":null}
