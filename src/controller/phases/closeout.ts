@@ -21,7 +21,7 @@ import { runStep, loadRole, type StepResult, type StepSpec, type RateLimitWindow
 import type { StepHeartbeat } from '../heartbeat.js';
 import { type RunRecord, withStoreLock } from '../state.js';
 import { commitSpecStore, type RunLedger, type Serialize } from '../ledger.js';
-import { harnessHandler, parsePlanItems, parseCloseoutDone, classifyTarget, type TargetClass, type PlanItem } from '../../tools/harness.js';
+import { harnessHandler, parsePlanItems, parseCloseoutDone, classifyTarget, parsePlanDecisions, answerChoosesNoChange, itemTarget, type TargetClass, type PlanItem } from '../../tools/harness.js';
 import { reviewTaskHandler } from '../../tools/review-task.js';
 import type { GateData } from '../../tools/review-gate.js';
 import { PathUtils } from '../../core/path-utils.js';
@@ -259,10 +259,11 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
   // --- the plan ---------------------------------------------------------------
   const readPlan = (): string => readFileSync(planPath, 'utf-8');
   const status = (): string | undefined => readPlan().match(/^Status:\s*([A-Za-z]+)/m)?.[1]?.toUpperCase();
-  const openItems = (): (PlanItem & { cls: TargetClass; title: string })[] => {
+  const openItems = (): (PlanItem & { cls: TargetClass; title: string; answer?: string })[] => {
     const text = readPlan();
     const done = parseCloseoutDone(text);
-    return parsePlanItems(text).filter((it) => !done.has(it.id)).map((it) => ({ ...it, cls: classifyTarget(it.block), title: itemTitle(it.block) }));
+    const decisions = parsePlanDecisions(text);
+    return parsePlanItems(text).filter((it) => !done.has(it.id)).map((it) => ({ ...it, cls: classifyTarget(it.block), title: itemTitle(it.block), answer: decisions.get(it.id) }));
   };
   const counts = (): CloseoutPhaseOutcome['items'] => {
     const text = readPlan();
@@ -361,11 +362,22 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
   // =========================================================================
   for (const it of openItems().filter((i) => i.cls === 'none')) {
     ctx.ledger.taskPick({ task: it.id, title: it.title });
+    // A recorded `## Decisions` answer overrides the body: a real-change answer
+    // has nowhere to land (the item's target gives no landing class), so it goes
+    // to the operator; a no-change answer is skipped with the answer as its line.
+    if (it.answer) {
+      const line = answerChoosesNoChange(it.answer)
+        ? `skipped — ${it.answer}`
+        : `to-do (human) — recorded decision: ${it.answer}; its target gives no landing class, so no batch can build it`;
+      closeoutLine(it.id, line);
+      if (!answerChoosesNoChange(it.answer)) todos.push(`${it.id}: ${it.answer}`);
+      continue;
+    }
     const decision = it.block.match(/Decision:\s*([^\n]*)/i)?.[1]?.trim().replace(/\.$/, '');
     // A human action is one the Target or Decision line names, not one the body
     // mentions: a "no change" item that argues about what the human might want is
     // skipped, not handed back as a to-do (shout close-out, P8).
-    const target = it.block.match(/Target:\s*([^\n]*)/i)?.[1] ?? '';
+    const target = itemTarget(it.block);
     const human = /\bhuman\b|\boperator\b|matthew/i.test(`${target} ${decision ?? ''}`);
     const line = human
       ? `to-do (human) — ${decision ?? 'a human action'}`
@@ -379,10 +391,20 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
   // =========================================================================
   let batchNo = 0;
   for (const cls of CLASS_ORDER) {
-    const items = openItems().filter((i) => i.cls === cls);
-    if (items.length === 0) continue;
+    const clsItems = openItems().filter((i) => i.cls === cls);
+    if (clsItems.length === 0) continue;
     const halt = ctx.shouldStop?.();
     if (halt) return { result: 'stopped', reason: halt, items: counts(), prs };
+
+    // A recorded answer that chooses no change is skipped here, with no step
+    // spawned and never reaching the batch (Requirement 3 AC 5).
+    const noChange = clsItems.filter((it) => it.answer && answerChoosesNoChange(it.answer));
+    for (const it of noChange) {
+      ctx.ledger.taskPick({ task: it.id, title: it.title });
+      closeoutLine(it.id, `skipped — ${it.answer}`);
+    }
+    const items = clsItems.filter((it) => !noChange.includes(it));
+    if (items.length === 0) continue;
     batchNo += 1;
 
     // 1. Landing.
@@ -401,7 +423,7 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
 
     // 2. Brief and 3. implement.
     for (const it of items) ctx.ledger.taskPick({ task: it.id, title: it.title });
-    const itemsText = items.map((it) => `### ${it.id} — ${it.title}\n${it.block}`).join('\n\n');
+    const itemsText = items.map((it) => `### ${it.id} — ${it.title}\n${it.block}${it.answer ? `\n\nRecorded decision: ${it.answer}` : ''}`).join('\n\n');
     let briefPath: string;
     try {
       briefPath = await brief('closeout-batch', join(scratch, `closeout-brief-${cls}-${batchNo}.md`), {
@@ -487,7 +509,7 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       const text = ids.map((id) => {
         const it = items.find((i) => i.id === id)!;
         const s = state.get(id)!;
-        return `### ${id} — ${it.title} · implementer: ${s.report.status}${s.report.commit ? ` ${s.report.commit.slice(0, 7)}` : ''}\n${it.block}\n\n#### Gate results (verbatim)\n\`\`\`json\n${JSON.stringify(s.gate ? { reasons: s.gate.reasons, checks: s.gate.checks, stats: s.gate.stats, touched: s.gate.touched, typecheck: s.gate.typecheck } : null)}\n\`\`\``;
+        return `### ${id} — ${it.title} · implementer: ${s.report.status}${s.report.commit ? ` ${s.report.commit.slice(0, 7)}` : ''}\n${it.block}${it.answer ? `\n\nRecorded decision: ${it.answer}` : ''}\n\n#### Gate results (verbatim)\n\`\`\`json\n${JSON.stringify(s.gate ? { reasons: s.gate.reasons, checks: s.gate.checks, stats: s.gate.stats, touched: s.gate.touched, typecheck: s.gate.typecheck } : null)}\n\`\`\``;
       }).join('\n\n');
       let vb: string;
       try {
@@ -523,7 +545,7 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       const failing = items.filter((i) => state.get(i.id)!.report.status === 'done' && !state.get(i.id)!.ok);
       if (failing.length === 0) break;
       round += 1;
-      const findingsText = failing.map((it) => `### ${it.id} — ${it.title} · ${state.get(it.id)!.findings ?? 'not done'}\n${it.block}`).join('\n\n');
+      const findingsText = failing.map((it) => `### ${it.id} — ${it.title} · ${state.get(it.id)!.findings ?? 'not done'}\n${it.block}${it.answer ? `\n\nRecorded decision: ${it.answer}` : ''}`).join('\n\n');
       if (round > FIX_ROUNDS_CAP) {
         let ab: string;
         try {
@@ -629,7 +651,9 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
     for (const it of items) {
       const s = state.get(it.id)!;
       if (s.report.status === 'done' && s.ok) { closeoutLine(it.id, `done — ${s.report.commit ?? 'in place'}`); done += 1; }
-      else if (s.report.status === 'to-do') { closeoutLine(it.id, `to-do (human) — ${s.report.reason ?? 'not landed'}${leftOnBranch.get(it.id) ?? ''}`); todos.push(`${it.id}: ${s.report.reason ?? it.title}`); }
+      // A recorded answer that did not land goes to the operator, not skipped,
+      // even when the implementer/adjudicator reports it `skipped` (Requirement 3 AC 6).
+      else if (s.report.status === 'to-do' || it.answer) { closeoutLine(it.id, `to-do (human) — ${s.report.reason ?? s.findings ?? 'not landed'}${leftOnBranch.get(it.id) ?? ''}`); todos.push(`${it.id}: ${s.report.reason ?? s.findings ?? it.title}`); }
       else { closeoutLine(it.id, `skipped — ${s.report.reason ?? s.findings ?? 'not landed'}${leftOnBranch.get(it.id) ?? ''}`); retro(`${cls} batch ${batchNo}`, 'deviation', `${it.id} skipped: ${s.report.reason ?? s.findings ?? 'not landed'}`, it.id, 'unknown'); }
     }
     retro(`${cls} batch ${batchNo}`, 'cleanup', `${cls} batch ${batchNo}: ${done} done of ${items.length}, ${round} fix round(s)`, `batch ${batchNo}`, `${1 + round} implementer spawn(s)`);
