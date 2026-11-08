@@ -188,7 +188,11 @@ re-measured on the next real spec.
 - A live-verification scenario that cannot run inside the normal loop stays `pending`
   and is gated by a tracked `verification-evidence.md` whose every line must read
   `passed` before the retrospective opens; an operator runs it in a rebuilt, restarted
-  session. Do not close it with a silent harness decision.
+  session. Do not close it with a silent harness decision. The retro-open gate blocks
+  while any line still reads `pending`: it does not open the retrospective and surfaces
+  the owed operator run as a wait-on-operator, naming the pending scenario. The merge is
+  not blocked — it proceeds — but the retrospective waits until every line reads
+  `passed` (retro F6).
 - A verification result worse than baseline is recorded as a retro finding, not a silent
   pass and not a merge block (D9): the operator records the signal and lets the merge
   proceed.
