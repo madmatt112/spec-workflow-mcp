@@ -5,7 +5,6 @@
 import type { ControllerWait, ControllerRun, ControllerPrRead, StagedAction } from './types';
 import type { SetupView } from '../harness/types';
 import type { Project } from '../projects/ProjectProvider';
-import { storeGroups } from '../projects/stores';
 import { isOperatorHeld } from './pause';
 
 type NeedsYouItem = ControllerWait | StagedAction;
@@ -62,17 +61,18 @@ export function nextProjects(
   projects: Project[],
   enabled: (projectId: string) => boolean,
 ): Project[] {
-  const result: Project[] = [];
-  for (const group of storeGroups(projects, enabled)) {
-    if (!group.enabled) continue;
-    if (enabled(group.representative.projectId)) {
-      result.push(group.representative);
-      continue;
-    }
-    const member = group.projects.find((p) => enabled(p.projectId));
-    if (member) result.push(member);
-  }
-  return result;
+  return projects.filter((p) => enabled(p.projectId));
+}
+
+/** Two-press arming for a `warn` guard (design C2 "Two press (AC 4)"). Every
+ *  other guard state launches on one press. */
+export function launchPress(
+  view: { launchable: string | null; guard?: { state: 'clear' | 'warn' | 'no-list' } },
+  armedSpec: string | null,
+): 'arm' | 'launch' {
+  if (view.guard?.state !== 'warn') return 'launch';
+  if (armedSpec !== view.launchable) return 'arm';
+  return 'launch';
 }
 
 export function nextTiles(

@@ -60,6 +60,10 @@ export function HomePage() {
     const byId = new Map(projects.map((p) => [p.projectId, p.projectName]));
     return (id: string) => byId.get(id) ?? id;
   }, [projects]);
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.projectId, p])),
+    [projects],
+  );
 
   // No tile while the project list is loading, so a project the fixture
   // would otherwise filter out does not flash on first load (design C8).
@@ -179,22 +183,28 @@ export function HomePage() {
         ))}
       </Band>
       <Band testId="band-next" title="Next" emptyText="Nothing launchable.">
-        {nextTileViews.map(([projectId, view]) => (
-          <NextTile
-            key={projectId}
-            projectId={projectId}
-            projectName={projectName(projectId)}
-            view={view}
-            stage={stages.retained(projectId, { controllerRuns: controllerRuns.map((r) => r.id) })}
-            onLaunch={() => stages.press(
-              projectId,
-              'launch',
-              `/api/projects/${projectId}/harness/launch`,
-              'POST',
-              buildLaunchInput(view),
-            )}
-          />
-        ))}
+        {nextTileViews.map(([projectId, view]) => {
+          const useProjectId = view.guard?.state === 'warn' ? view.guard.useProject : undefined;
+          const useProjectInfo = useProjectId ? projectById.get(useProjectId) : undefined;
+          return (
+            <NextTile
+              key={projectId}
+              projectId={projectId}
+              projectName={projectName(projectId)}
+              codeRoot={projectById.get(projectId)?.projectPath ?? ''}
+              useProject={useProjectInfo ? { name: useProjectInfo.projectName, codeRoot: useProjectInfo.projectPath } : undefined}
+              view={view}
+              stage={stages.retained(projectId, { controllerRuns: controllerRuns.map((r) => r.id) })}
+              onLaunch={() => stages.press(
+                projectId,
+                'launch',
+                `/api/projects/${projectId}/harness/launch`,
+                'POST',
+                buildLaunchInput(view),
+              )}
+            />
+          );
+        })}
       </Band>
     </div>
   );

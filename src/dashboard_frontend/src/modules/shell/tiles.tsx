@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, isStalled, mergeRead, runControls, runDot, setupLine, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, launchPress, mergeRead, runControls, runDot, setupLine, waitSummary } from './board';
 import { pauseNote, pauseNoteClass } from './pause';
 import { OpErrorView } from './harness';
 import type { SetupView } from '../harness/types';
@@ -237,36 +237,71 @@ export function RunTile({
   );
 }
 
-/** A launchable project as a tile (design C9, C10, D29, D30; R8, R9 AC 2):
- *  spec, project tag, the setup line task 9 exports, and Launch through the
- *  caller's stage hook. A launch refusal keeps the stage's `opError`
- *  (`stage.ts`'s `responseStage`), which renders `OpErrorView` here, in
- *  addition to `StageLine`'s `failReason` text. No edit control. */
+/** A launchable project as a tile (design C9, C10, C2, D29, D30; R8, R9 AC 2;
+ *  Requirement 2 AC 1-5, 9): spec, project tag, code root, the setup line
+ *  task 9 exports, the guard's warning, and Launch through the caller's
+ *  stage hook. A `warn` guard arms on the first press and only calls
+ *  `onLaunch` on the second, keyed on the launchable spec so arming a stale
+ *  tile does not carry over to a new spec (`launchPress`). A launch refusal
+ *  keeps the stage's `opError` (`stage.ts`'s `responseStage`), which renders
+ *  `OpErrorView` here, in addition to `StageLine`'s `failReason` text. No
+ *  edit control. */
 export function NextTile({
   projectId,
   projectName,
+  codeRoot,
+  useProject,
   view,
   stage,
   onLaunch,
 }: {
   projectId: string;
   projectName: string;
+  codeRoot: string;
+  useProject?: { name: string; codeRoot: string };
   view: SetupView;
   stage: Stage | null;
   onLaunch: () => void;
 }) {
   const busy = stage !== null && (stage.phase === 'pressed' || stage.phase === 'running');
+  const [armedSpec, setArmedSpec] = useState<string | null>(null);
+  const guard = view.guard;
+  const armed = guard?.state === 'warn' && armedSpec === view.launchable;
+  const tone: 'neutral' | 'warning' | 'danger' = guard?.state === 'warn' ? 'warning' : 'neutral';
+  const handleLaunch = () => {
+    if (launchPress(view, armedSpec) === 'arm') {
+      setArmedSpec(view.launchable);
+      return;
+    }
+    onLaunch();
+  };
   return (
-    <Tile tone="neutral" testId={`next-tile-${projectId}`}>
+    <Tile tone={tone} testId={`next-tile-${projectId}`}>
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{view.launchable}</span>
       </div>
       <p className="text-sm text-(--text-secondary)">{setupLine(view)}</p>
+      <p className="text-sm text-(--text-muted)" data-testid={`next-code-root-${projectId}`}>{codeRoot}</p>
+      {guard?.state === 'warn' && useProject && (
+        <p className="text-sm text-(--tone-warning-fg)" data-testid={`next-guard-${projectId}`}>
+          {`${guard.held} of ${guard.compared} spec files are under ${codeRoot}. Use ${useProject.name} (${useProject.codeRoot}).`}
+        </p>
+      )}
+      {guard?.state === 'no-list' && (
+        <p className="text-sm text-(--text-muted)" data-testid={`next-guard-${projectId}`}>
+          {'No file list to compare'}
+        </p>
+      )}
       <StageLine stage={stage} />
       {stage?.phase === 'failed' && stage.opError && <OpErrorView error={stage.opError} />}
-      <Button variant="secondary" disabled={busy} onClick={onLaunch} data-testid={`next-launch-${projectId}`}>
-        {'Launch'}
+      <Button
+        variant={armed ? 'danger' : 'secondary'}
+        disabled={busy}
+        onClick={handleLaunch}
+        data-testid={`next-launch-${projectId}`}
+      >
+        {armed ? 'Launch anyway' : 'Launch'}
       </Button>
     </Tile>
   );
