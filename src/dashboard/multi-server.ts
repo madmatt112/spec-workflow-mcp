@@ -26,6 +26,7 @@ import { SecurityConfig } from '../types.js';
 import { ensureWorktree } from './harness/worktree.js';
 import { HarnessHub } from './harness/hub.js';
 import { buildSetupView, defaultSetupInput, validateSetup, readAgentRules } from './harness/run-setup.js';
+import { evaluateLaunchGuard } from './harness/launch-guard.js';
 import type { HarnessMessage, SetupInput, SetupView, ValidationError } from './harness/types.js';
 import type { ProjectContext } from './project-manager.js';
 import { buildSpecDetail } from './shell/spec-rows.js';
@@ -656,6 +657,15 @@ export class MultiProjectDashboardServer {
       if (view.launchable) {
         const block = await this.controller.launchBlock(projectId, project.projectPath);
         if (block) { view.launchable = null; view.disabledReason = block; }
+      }
+      if (view.launchable) {
+        try {
+          const storeProjects = this.projectManager.getAllProjects()
+            .filter((p) => p.projectPath === project.projectPath);
+          view.guard = evaluateLaunchGuard(view.launchable, project, storeProjects);
+        } catch {
+          // A try/catch leaves `guard` unset on failure (design C2 "Route", AC 9).
+        }
       }
       return view;
     });
