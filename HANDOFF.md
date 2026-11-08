@@ -186,6 +186,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-07 | decisions-and-launch-guard | design | v2 | approved | 2 rounds |
 | 2026-11-07 | decisions-and-launch-guard | tasks | v1 | approved | 1 rounds |
 | 2026-11-08 | decisions-and-launch-guard | implementation | tasks 23/23 | complete | PR #210 |
+| 2026-11-08 | decisions-and-launch-guard | retrospective |  | retro-ready | 17 findings, 14 proposals |
 
 ## Current state — 2026-08-04
 
