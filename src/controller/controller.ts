@@ -29,7 +29,7 @@ import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
-  runOnce, cancelRun, discardRun, branchHeld, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
+  runOnce, cancelRun, discardRun, branchHeld, branchReused, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
 import {
@@ -385,7 +385,8 @@ export class Controller extends EventEmitter {
     return withStoreLock(initial.specStore, async () => {
       const run = await readRun(runId);
       if (!run) return undefined;
-      if (branchHeld(run, await listRuns())) return 'branch-in-use';
+      const runs = await listRuns();
+      if (branchHeld(run, runs) || branchReused(run, runs)) return 'branch-in-use';
 
       this.cancelled.add(runId);
       await this.dropFromQueue(runId);

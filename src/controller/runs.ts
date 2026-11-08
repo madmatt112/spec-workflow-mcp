@@ -1514,7 +1514,7 @@ export interface ControllerRunRow {
   task?: string;
   /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
   branchPresent?: boolean;
-  /** `!branchHeld(run, allRuns)` (design C3). */
+  /** `!(branchHeld(run, allRuns) || branchReused(run, allRuns))` (design C3, C9). */
   discardAllowed?: boolean;
 }
 
@@ -1531,11 +1531,35 @@ export function branchHeld(run: RunRecord, runs: RunRecord[]): boolean {
   });
 }
 
+function branchShared(run: RunRecord, other: RunRecord): boolean {
+  return other.id !== run.id && other.codeRoot === run.codeRoot && run.branch !== '' && other.branch === run.branch;
+}
+
+/**
+ * True when another run, in any status, reused this run's worktree branch:
+ * the same `codeRoot`, the same non-empty `branch` and a later `created`
+ * (design C9 "Reused branch"). Unlike `branchHeld`, the other run need not
+ * be live, so a run abandoned on a branch another, later, now-done run
+ * reused still reports reused.
+ */
+export function branchReused(run: RunRecord, runs: RunRecord[]): boolean {
+  return runs.some((other) => branchShared(run, other) && other.created > run.created);
+}
+
 async function toRow(
   run: RunRecord, driven: ReadonlySet<string>, allRuns: RunRecord[], branchRead?: BranchRead,
 ): Promise<ControllerRunRow> {
   const stopped = run.status === 'done' || run.status === 'abandoned' || run.status === 'error';
-  const branchPresentValue = stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
+  const reused = branchReused(run, allRuns);
+  // A run that took over an earlier run's branch (the mirror of `reused`)
+  // trusts the handoff instead of spending a git read: the earlier side
+  // already reports `false`, so this run is the branch's current holder.
+  const inherited = !reused && allRuns.some((other) => branchShared(run, other) && other.created < run.created);
+  const branchPresentValue = reused
+    ? false
+    : inherited
+      ? true
+      : stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
   return {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
@@ -1550,7 +1574,7 @@ async function toRow(
     stepStarted: run.inFlight?.startedAt,
     task: run.inFlight?.task,
     branchPresent: branchPresentValue,
-    discardAllowed: !branchHeld(run, allRuns),
+    discardAllowed: !(branchHeld(run, allRuns) || reused),
   };
 }
 
