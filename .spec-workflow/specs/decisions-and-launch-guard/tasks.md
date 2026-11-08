@@ -214,7 +214,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 7.2, 7.4, 7.5, 7.7_
   - _Prompt: Task: Per design C7 "Wait guard", Data Models and design D11 (requirement 7 AC 2, AC 5), add and export `RunAbandonedError` in `src/controller/waits.ts`. `createWait` (`:87-104`) throws it, before any write, for a run whose disk status is `abandoned`. `Controller.drive` (`src/controller/controller.ts:592-604`) ends quietly on that class: no `console.error`, no `openCrashWait`, and `finally` and the reschedule still run | Restrictions: `createWait` for a run with no record behaves as at base; a wait already open stays (design Scope notes) | Success: `createWait` on an abandoned run rejects with `code: 'run-abandoned'` and writes no wait record; on a running run and on an unknown id it writes the wait (regression guard); a drive ending in `RunAbandonedError` logs no error and opens no wait; any other throw still opens the crash wait (regression guard); a cancelled run's crash opens none (AC 7, regression guard); `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/waits.test.ts src/controller/__tests__/controller.test.ts` pass_
 
-- [ ] 18. Stop the driver on every cancel path
+- [x] 18. Stop the driver on every cancel path
   - File: src/controller/runs.ts
   - File: src/controller/phases/document.ts
   - File: src/controller/__tests__/runs.test.ts
