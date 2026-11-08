@@ -533,13 +533,47 @@ export function parseCloseoutDone(content: string): Set<string> {
   return done;
 }
 
+/** `- <id>: <question> → <answer>` lines inside `## Decisions`, split at the last ` → `. */
+export function parsePlanDecisions(content: string): Map<string, string> {
+  const decisions = new Map<string, string>();
+  let inSection = false;
+  for (const line of content.split('\n')) {
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      inSection = heading[1].trim() === 'Decisions';
+      continue;
+    }
+    if (!inSection) continue;
+    const m = line.match(/^-\s+([A-Za-z0-9]+):\s*(.*)$/);
+    if (!m) continue;
+    const idx = m[2].lastIndexOf(' → ');
+    if (idx === -1) continue;
+    const answer = m[2].slice(idx + 3).trim();
+    if (!answer || answer.toLowerCase() === 'no answer') continue;
+    decisions.set(m[1], answer);
+  }
+  return decisions;
+}
+
+/** True when a `## Decisions` answer picks no change, e.g. `no`, `none`, `skip`, `n/a` or a `no change`/`leave it` phrase. */
+export function answerChoosesNoChange(answer: string): boolean {
+  const stripped = answer.replace(/^option\s+\S+:\s*/i, '').trim().toLowerCase();
+  if (['no', 'none', 'skip', 'n/a'].includes(stripped)) return true;
+  return /^(no[ -]change|no[ -]action|do nothing|leave (it|as is|alone|unchanged|deferred)|keep as is)\b/.test(stripped);
+}
+
+/** The value of an item block's `Target:` or `Target document:` line. */
+export function itemTarget(block: string): string {
+  return block.match(/Target(?: document)?:\s*([^\n]*)/i)?.[1] ?? '';
+}
+
 /**
- * Target class of one open item from its `Target:` and `Decision:` text, first
- * match wins down the Step 0 table (SKILL.md:68-76). The `HARNESS_REPO: none`
- * adjustment is a launch-time value the skill applies, not the server.
+ * Target class of one open item from its `Target:`/`Target document:` and `Decision:`
+ * text, first match wins down the Step 0 table (SKILL.md:68-76). The `HARNESS_REPO:
+ * none` adjustment is a launch-time value the skill applies, not the server.
  */
 export function classifyTarget(block: string): TargetClass {
-  const target = (block.match(/Target:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
+  const target = itemTarget(block).toLowerCase();
   const decision = (block.match(/Decision:\s*([^\n]*)/i)?.[1] ?? '').toLowerCase();
   // `none` reads the whole item — its marker often sits in Decision. The class regexes
   // match the Target value alone, so Decision text cannot misfile an item (retro P3).
