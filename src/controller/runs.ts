@@ -430,8 +430,8 @@ async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>)
   const current = await readRun(runId);
   if (!current) return;
   const next: RunRecord = { ...current, ...patch, updated: deps.now().toISOString() };
-  await writeRun(next);
-  runEvents.emit('change', next);
+  const wrote = await writeRun(next);
+  if (wrote) runEvents.emit('change', next);
 }
 
 /**
@@ -565,7 +565,8 @@ const RUN_FRESH_RETRY = 1; // one fresh retry for a non-usage step error (design
 
 async function save(deps: RunDeps, run: RunRecord, patch: Partial<RunRecord>): Promise<RunRecord> {
   const next: RunRecord = { ...run, ...patch, updated: deps.now().toISOString() };
-  await writeRun(next);
+  const wrote = await writeRun(next);
+  if (!wrote) return (await readRun(run.id)) ?? next;
   runEvents.emit('change', next);
   return next;
 }

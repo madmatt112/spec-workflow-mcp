@@ -807,7 +807,8 @@ export class Controller extends EventEmitter {
     run: RunRecord, patch: Partial<RunRecord>, opts?: { ownsPauseRequest?: boolean },
   ): Promise<RunRecord> {
     const next: RunRecord = { ...run, ...patch, updated: this.now().toISOString() };
-    await writeRun(next, opts);
+    const wrote = await writeRun(next, opts);
+    if (!wrote) return (await readRun(run.id)) ?? next;
     runEvents.emit('change', next);
     return next;
   }

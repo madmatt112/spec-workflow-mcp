@@ -430,7 +430,12 @@ export function readRunSync(id: string): RunRecord | undefined {
 // writes for that id.
 const writeChains = new Map<string, Promise<void>>();
 
-async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
+// Status guard (design C7, Requirement 7 AC 3, AC 4): once disk holds
+// `abandoned`, no later write with a different status may replace it.
+async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<boolean> {
+  const onDisk = await readRun(record.id);
+  if (onDisk?.status === 'abandoned' && record.status !== 'abandoned') return false;
+
   // Every writer spreads the record it read, so `pausedAt` carries over while the
   // run stays stopped and is stamped only on the write that stops it.
   const stopped = record.status === 'paused' || record.status === 'waiting';
@@ -442,7 +447,6 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
   // record holds (design C1).
   let lastActivity = record.lastActivity;
   if (!terminal) {
-    const onDisk = await readRun(record.id);
     if (!opts?.ownsPauseRequest) {
       pauseRequested = onDisk?.pauseRequested;
       holdBy = onDisk?.holdBy;
@@ -461,16 +465,18 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
     holdBy,
     lastActivity,
   };
-  return writeJsonAtomic(runPath(record.id), out);
+  await writeJsonAtomic(runPath(record.id), out);
+  return true;
 }
 
-export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
+/** Resolves `false`, writing nothing, when the status guard drops the write. */
+export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<boolean> {
   const prior = writeChains.get(record.id) ?? Promise.resolve();
   const settled = prior.then(
     () => writeRunLocked(record, opts),
     () => writeRunLocked(record, opts),
   );
-  writeChains.set(record.id, settled.catch(() => undefined));
+  writeChains.set(record.id, settled.then(() => undefined, () => undefined));
   return settled;
 }
 
