@@ -185,10 +185,6 @@ re-measured on the next real spec.
   artifacts and no source change) is still reviewed and counted in reviewCoverage. It
   writes its artifacts on the feature branch and the orchestrator relocates them to the
   main spec store at the merge gate; the brief states this relocation step explicitly.
-  The same merge-gate step sweeps the worktree's `.spec-workflow/deferrals/` for records
-  absent from the main store and relocates each one (a duplicate id is a no-op copy),
-  then re-runs the "deferrals added" count so it reflects the swept records; a deferral
-  created only in the worktree store is otherwise invisible to the index (retro F5).
 - A live-verification scenario that cannot run inside the normal loop stays `pending`
   and is gated by a tracked `verification-evidence.md` whose every line must read
   `passed` before the retrospective opens; an operator runs it in a rebuilt, restarted
