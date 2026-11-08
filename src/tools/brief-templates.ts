@@ -374,7 +374,7 @@ function renderReviewer(v: Record<string, string>): string {
   return lines.join('\n') + '\n';
 }
 
-// --- reviser (round, should-fix-only, revision, lint-fix) --------------------
+// --- reviser (round, should-fix-only, drafting-only, revision, lint-fix) ----
 
 /** The reviser disposition rules (briefs.md:298-358), `revDescriptor` filling rule 4. */
 function reviserDispositionRules(dPlus1: string, revDescriptor: string, closedByRuling: string): string[] {
@@ -457,6 +457,8 @@ function renderReviser(v: Record<string, string>): string {
   const revDescriptor =
     v.variant === 'should-fix-only'
       ? 'SHOULD_FIX-only corrective pass.'
+      : v.variant === 'drafting-only'
+      ? 'Drafting-only corrective pass.'
       : v.variant === 'revision'
       ? 'Revision from the input below.'
       : 'Round-<A> adversarial response (<analysis file name>, verdict iterate <m>/<s>/<k>).';
