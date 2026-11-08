@@ -1330,6 +1330,25 @@ describe('harnessHandler', () => {
     expect(written).not.toContain('## Findings (from the verifier)');
   });
 
+  it('brief fix (variant: gate, round 1) tells the implementer the gate reruns, not that REQUIRED escalates immediately (task 11, AC 9)', async () => {
+    const outPath = join(tempDir, 'fix-gate-required.md');
+    const findings = 'file-outside-list: test/extra.ts';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: '3', round: '1', variant: 'gate', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).not.toContain('escalates immediately');
+    expect(written).toMatch(/gate reruns/i);
+    expect(written).toMatch(/no wait/i);
+  });
+
   it('brief fix (variants ci and reconcile) both render the CI-fix content byte for byte, with the C9 report block replacing the old sentence', async () => {
     const ciPath = join(tempDir, 'fix-ci.md');
     const reconcilePath = join(tempDir, 'fix-reconcile.md');
