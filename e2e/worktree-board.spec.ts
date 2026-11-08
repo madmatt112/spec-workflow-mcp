@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { execFileSync } from 'child_process';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
@@ -293,23 +293,35 @@ async function registerNextProject(
 
 /**
  * Two listed projects on one store (design C10 "two listed projects share a
- * store", D11): a shared `workflowRoot` directory IS the representative's
- * own `projectPath` (so `stores.ts`'s `pickRepresentative` "own" match picks
- * it over the name-sort fallback, deterministically), and a second project
- * is registered at a different directory with the same explicit
- * `workflowRootPath`. Both read the one decomposition `heading` names, since
- * the server's `project.projectPath` for an explicit-store registration is
- * the store itself (`project-manager.ts:23`, `:341-345`).
+ * store", D11; decisions-and-launch-guard design C2 "Route": `storeProjects`
+ * is `getAllProjects()` filtered on `projectPath === project.projectPath`):
+ * a shared `workflowRoot` directory IS the first project's own `projectPath`
+ * (the store identity both share), and a second project is registered at a
+ * different directory with the same explicit `workflowRootPath` (so its own
+ * `workspacePath`, the code root the guard's `existsSync` reads, differs).
+ * Both read the one decomposition `heading` names, since the server's
+ * `project.projectPath` for an explicit-store registration is the store
+ * itself (`project-manager.ts:23`, `:341-345`). When `heldFile` is given (a
+ * relative path, decisions-and-launch-guard task 7), a real empty file is
+ * written at that path under `sharedDir` only, so a decomposition entry
+ * naming that path as a backtick token (`decisions-and-launch-guard` design
+ * C2 "File list, by source") makes `sharedDir`'s project hold it and
+ * `memberDir`'s project lack it.
  */
 async function registerSharedStoreProjects(
   page: Page,
   heading: string,
+  heldFile?: string,
 ): Promise<{ repId: string; memberId: string; sharedDir: string; memberDir: string }> {
   const sharedDir = join(tmpdir(), `specwf-e2e-board-next-shared-${randomBytes(4).toString('hex')}`);
   const memberDir = join(tmpdir(), `specwf-e2e-board-next-member-${randomBytes(4).toString('hex')}`);
   await mkdir(sharedDir, { recursive: true });
   await mkdir(memberDir, { recursive: true });
   await prepareWorkflowRoot(join(sharedDir, '.spec-workflow'), async (wr) => writeDecomposition(wr, heading));
+  if (heldFile) {
+    await mkdir(join(sharedDir, dirname(heldFile)), { recursive: true });
+    await writeFile(join(sharedDir, heldFile), '', 'utf-8');
+  }
   const repId = await registerProjectAt(page, sharedDir, sharedDir);
   const memberId = await registerProjectAt(page, memberDir, sharedDir);
   return { repId, memberId, sharedDir, memberDir };
@@ -2407,43 +2419,55 @@ test.describe('Home (board)', () => {
     }
   });
 
-  // Criterion "two projects on one store show one tile: the representative
-  // ... when it is on" (task 15 Success; Requirement 8 AC 2, D11).
+  // Criterion "two enabled projects on one store give two projects" —
+  // supersedes the base "one tile, the representative, when it is on" rule
+  // (decisions-and-launch-guard design C2 "Next tiles": "`nextProjects`
+  // ... becomes `projects.filter((p) => enabled(p.projectId))`", overriding
+  // dashboard-board D11's one-tile-per-store rule; task 7 Success "two
+  // enabled projects on one store give two projects"; Requirement 2 AC 2
+  // "WHEN two enabled projects share a store and the spec is launchable
+  // THEN Next SHALL show one tile per enabled project").
   //   Pre-condition: a representative and a member project on one store
   //   (`registerSharedStoreProjects`), both enabled by default (an id
   //   absent from `shell.projects`/`shell.projects.on` is on).
   //   Test: page.goto('/'), then page.getByTestId('next-tile-' + repId) and
   //   the member's id.
-  //   Observable result: exactly the representative's tile shows; the
-  //   member's id has count 0.
-  //   Expected-value source: design C9's `nextProjects`: "the representative
-  //   when it is on"; `stores.ts`'s `pickRepresentative` "own" match.
-  test('(R8 AC2) two projects on one store show only the representative\'s tile when it is on', async ({ page }) => {
+  //   Observable result: both tiles are visible — no representative-only
+  //   selection.
+  //   Expected-value source: design C2's `nextProjects` filter, which keeps
+  //   every enabled project regardless of its store.
+  test('(R8 AC2) two enabled projects on one store both show a Next tile', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const spec = 'e2e-board-next-shared-rep-spec';
     const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
     try {
       await page.goto('/');
       await expect(page.getByTestId(`next-tile-${repId}`)).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId(`next-tile-${memberId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`next-tile-${memberId}`)).toBeVisible({ timeout: 15000 });
     } finally {
       await unregisterProject(page, repId, sharedDir);
       await unregisterProject(page, memberId, memberDir);
     }
   });
 
-  // Criterion "two projects on one store show one tile: ... else the
-  // enabled member" (task 15 Success; Requirement 8 AC 2, D11).
+  // Criterion "a disabled one is left out" (decisions-and-launch-guard
+  // design C2 "`nextProjects` ... becomes `projects.filter((p) =>
+  // enabled(p.projectId))`"; task 7 Success "a disabled one is left out";
+  // Requirement 2 AC 2). This exact scenario's outcome is unchanged from
+  // the base representative/member rule (one project off, the other on):
+  // both the old grouping rule and the new plain filter leave the disabled
+  // project's tile out, so this is a regression guard for the new filter,
+  // not a fresh red case.
   //   Pre-condition: the same pair, with the representative's id put in
   //   `shell.projects` (the off-list) before the page loads, leaving the
   //   member unset (on).
   //   Test: page.goto('/'), then page.getByTestId('next-tile-' + memberId)
   //   and the representative's id.
-  //   Observable result: exactly the member's tile shows; the
-  //   representative's id has count 0.
-  //   Expected-value source: design C9's `nextProjects`: "else the first
-  //   enabled member".
-  test('(R8 AC2) two projects on one store fall back to the enabled member when the representative is off', async ({ page }) => {
+  //   Observable result: exactly the member's tile shows; the disabled
+  //   project's id has count 0.
+  //   Expected-value source: design C2's `nextProjects` filter: a project
+  //   failing `enabled(p.projectId)` is dropped.
+  test('(R8 AC2) a disabled project on a shared store leaves its tile out', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const spec = 'e2e-board-next-shared-member-spec';
     const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
@@ -2457,6 +2481,144 @@ test.describe('Home (board)', () => {
     } finally {
       await unregisterProject(page, repId, sharedDir);
       await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "each tile shows its code root; the project lacking the file
+  // shows `0 of 1 spec files are under` its root and the other project's
+  // name and root, tone `warning`; the holder shows no warning; after the
+  // first warned press, wait for `Launch anyway`, then launch POSTs are 0;
+  // the second press makes one POST with the `buildLaunchInput` body"
+  // (decisions-and-launch-guard design C2 "Next tiles"/"`NextTile`" "Two
+  // press (AC 4)"; task 7 Success; Requirement 2 AC 1, AC 3, AC 4).
+  //   Pre-condition: two projects sharing one store (`registerSharedStoreProjects`);
+  //   a real file `src/held.ts` under the shared project's own code root
+  //   only, named by the decomposition entry's backticked `src/held.ts`
+  //   token, so the shared project holds the spec's one listed file and
+  //   the member project does not.
+  //   Test: page.goto('/'), read both tiles' `next-code-root-<id>` text and
+  //   `data-tone`, read the lacking tile's `next-guard-<id>` text, press
+  //   its Launch button once, read the armed button and the launch-POST
+  //   count tapped with `page.on('request', ...)`, then press again.
+  //   Observable result: both code-root elements contain the registered
+  //   project's own code root (`sharedDir`/`memberDir`); the holder's tile
+  //   has no `next-guard-<id>` and `data-tone` `neutral`; the lacking
+  //   tile's `next-guard-<id>` contains "0 of 1 spec files are under", its
+  //   own root, the holder's root and the holder's registered name, and
+  //   `data-tone` `warning`; after the first press, "Launch anyway"
+  //   (`data-variant` `danger`) is visible and 0 launch POSTs were made;
+  //   after the second press, exactly 1 launch POST was made, carrying the
+  //   launched spec id.
+  //   Expected-value source: design C2's warning-text template and
+  //   two-press rule, read literally; the registered code roots and
+  //   project name, read from the real `/api/projects/list` response
+  //   rather than hard-coded.
+  test('(R8 AC1, AC3, AC4) a guarded Next tile names both code roots, warns the project lacking the file, and arms Launch for a two-press confirm', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-guard-warn-spec';
+    const heading = `### 1. \`${spec}\`\n- File: \`src/held.ts\`\n`;
+    const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, heading, 'src/held.ts');
+    let launchPosts = 0;
+    let lastLaunchBody: { spec?: string } | null = null;
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes(`/api/projects/${memberId}/harness/launch`)) {
+        launchPosts++;
+        try { lastLaunchBody = req.postDataJSON(); } catch { /* no body to parse */ }
+      }
+    });
+    try {
+      await login(page);
+      const listRes = await page.request.get('/api/projects/list');
+      const list = (await listRes.json()) as Array<{ projectId: string; projectName: string }>;
+      const repName = list.find((p) => p.projectId === repId)?.projectName ?? '';
+      expect(repName.length).toBeGreaterThan(0);
+
+      await page.route(`**/api/projects/${memberId}/harness/launch`, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ runId: 'e2e-board-next-guard-warn-run' }),
+        });
+      });
+
+      await page.goto('/');
+      const holderTile = page.getByTestId(`next-tile-${repId}`);
+      const warnTile = page.getByTestId(`next-tile-${memberId}`);
+      await expect(holderTile).toBeVisible({ timeout: 15000 });
+      await expect(warnTile).toBeVisible({ timeout: 15000 });
+
+      await expect(holderTile.getByTestId(`next-code-root-${repId}`)).toContainText(sharedDir);
+      await expect(warnTile.getByTestId(`next-code-root-${memberId}`)).toContainText(memberDir);
+
+      await expect(holderTile.getByTestId(`next-guard-${repId}`)).toHaveCount(0);
+      await expect(holderTile).toHaveAttribute('data-tone', 'neutral');
+
+      const warnGuard = warnTile.getByTestId(`next-guard-${memberId}`);
+      await expect(warnGuard).toBeVisible();
+      await expect(warnGuard).toContainText('0 of 1 spec files are under');
+      await expect(warnGuard).toContainText(memberDir);
+      await expect(warnGuard).toContainText(sharedDir);
+      await expect(warnGuard).toContainText(repName);
+      await expect(warnTile).toHaveAttribute('data-tone', 'warning');
+
+      await warnTile.getByTestId(`next-launch-${memberId}`).click();
+      const armed = warnTile.getByRole('button', { name: 'Launch anyway', exact: true });
+      await expect(armed).toBeVisible();
+      await expect(armed).toHaveAttribute('data-variant', 'danger');
+      expect(launchPosts).toBe(0);
+
+      await armed.click();
+      await expect.poll(() => launchPosts).toBe(1);
+      expect(lastLaunchBody?.spec).toBe(spec);
+    } finally {
+      await unregisterProject(page, repId, sharedDir);
+      await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "a spec with no list shows `No file list to compare` and
+  // launches on one press" (decisions-and-launch-guard design C2 "On
+  // `no-list`: `next-guard-<id>` reads `No file list to compare`; one
+  // press"; task 7 Success; Requirement 2 AC 7 "WHEN no source gives a file
+  // list THEN the tile SHALL say so and Launch SHALL need one press").
+  //   Pre-condition: a solo registered project whose decomposition heading
+  //   names the spec with no backticked repository path, so no file-list
+  //   source gives a path and the guard state is `no-list`.
+  //   Test: page.goto('/'), read `next-guard-<id>`, then press Launch once,
+  //   counting launch POSTs with `page.on('request', ...)`.
+  //   Observable result: `next-guard-<id>` reads exactly "No file list to
+  //   compare"; after one press, exactly one launch POST fires and no
+  //   "Launch anyway" button ever appears.
+  //   Expected-value source: the literal "No file list to compare" text and
+  //   "one press" clause of design C2 and the task Success line.
+  test('(R8 AC7) a spec with no file list shows "No file list to compare" and still launches on one press', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-guard-nolist-spec';
+    const { projectId, dir } = await registerNextProject(page, 'guard-nolist', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${spec}\`\n`)
+    ));
+    let launchPosts = 0;
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes(`/api/projects/${projectId}/harness/launch`)) launchPosts++;
+    });
+    try {
+      await page.route(`**/api/projects/${projectId}/harness/launch`, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ runId: 'e2e-board-next-guard-nolist-run' }),
+        });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`next-tile-${projectId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile.getByTestId(`next-guard-${projectId}`)).toHaveText('No file list to compare');
+
+      await tile.getByTestId(`next-launch-${projectId}`).click();
+      await expect.poll(() => launchPosts).toBe(1);
+      await expect(tile.getByRole('button', { name: 'Launch anyway' })).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, projectId, dir);
     }
   });
 

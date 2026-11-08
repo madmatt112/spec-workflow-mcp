@@ -152,10 +152,13 @@ describe('enable.ts (src/dashboard_frontend/src/modules/projects/enable.ts)', ()
 // The module does not exist yet at this commit (task 8 Note: "new module
 // with no caller yet"), so every `beforeAll` here is expected to reject.
 //
-// `nextProjects` calls the real `storeGroups` from
-// `src/dashboard_frontend/src/modules/projects/stores.ts` (D45, value
-// import, not mocked); the fixtures below give it the `projectPath` /
-// `workflowRootPath` shape that module reads.
+// `nextProjects` is a straight filter over `projects` by `enabled`
+// (decisions-and-launch-guard design C2 "Next tiles": `projects.filter((p)
+// => enabled(p.projectId))`, overriding D2/D11's per-store representative
+// rule; `storeGroups` is no longer read). The fixtures below still carry
+// `projectPath` / `workflowRootPath` because `BoardProjectFixture` mirrors
+// the frontend `Project` shape; `nextProjects` itself reads only
+// `projectId`.
 //
 // `needsYou`'s inputs are the controller wait and staged-action wire shapes
 // (`src/dashboard_frontend/src/modules/shell/types.ts:177-191, 263-278`),
@@ -208,6 +211,11 @@ interface BoardProjectFixture {
 interface SetupViewFixture {
   launchable: string | null;
   launchableOrder: number | null;
+}
+
+interface LaunchPressViewFixture {
+  launchable: string;
+  guard?: { state: 'clear' | 'warn' | 'no-list' };
 }
 
 type Tone = 'neutral' | 'warning' | 'danger';
@@ -281,6 +289,7 @@ type BoardModule = {
     views: Map<string, SetupViewFixture>,
     projectName: (projectId: string) => string,
   ) => Array<[string, SetupViewFixture]>;
+  launchPress: (view: LaunchPressViewFixture, armedSpec: string | null) => 'arm' | 'launch';
   ageTone: (ms: number) => Tone;
   runDot: (run: CtrlRunFixture, now: number) => Dot;
   isStalled: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => boolean;
@@ -632,59 +641,110 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
   });
 
   describe('nextProjects(projects, enabled)', () => {
-    // Criterion "nextProjects gives ... the representative when on" (design
-    // C9 "Per `storeGroups` group with `enabled`: the representative when
-    // on, else the first enabled member"; task 8 Success; Requirement 8.2
-    // "using the group's representative ... when it is on").
-    //   Pre-condition: two projects sharing a store; the representative
-    //   (`projectPath === store`) and a member, both enabled.
-    //   Test: nextProjects([rep, member], enabled).
-    //   Observable result: only the representative's id.
-    //   Expected-value source: the literal "the representative when on"
-    //   clause.
-    it('gives the store representative when it is enabled', () => {
+    // Criterion "nextProjects becomes a plain filter: two enabled projects
+    // on one store give two projects and a disabled one is left out"
+    // (decisions-and-launch-guard design C2 "Next tiles": "`nextProjects`
+    // ... becomes `projects.filter((p) => enabled(p.projectId))`"; task 7
+    // Success "two enabled projects on one store give two projects and a
+    // disabled one is left out"; Requirement 2 AC 2 "WHEN two enabled
+    // projects share a store and the spec is launchable THEN Next SHALL
+    // show one tile per enabled project").
+    //   Pre-condition: three projects sharing one store, in array order
+    //   [enabled-a, disabled, enabled-b], so the dropped middle entry
+    //   cannot be mistaken for a slice of the array.
+    //   Test: nextProjects([a, disabled, b], enabled) where `enabled` is
+    //   true for 'a' and 'b' and false for 'disabled'.
+    //   Observable result: exactly ['a', 'b'] — both enabled projects, in
+    //   their original order, the disabled one left out.
+    //   Expected-value source: the literal `projects.filter((p) =>
+    //   enabled(p.projectId))` body design C2 gives `nextProjects`.
+    it('gives every enabled project on a shared store and leaves a disabled one out', () => {
       const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const member = boardProjectFixture({ projectId: 'mem', projectPath: '/other', workflowRootPath: store, projectName: 'mem-name' });
-      const enabled = (id: string) => id === 'rep' || id === 'mem';
-      const result = board.nextProjects([rep, member], enabled);
-      expect(result.map((p) => p.projectId)).toEqual(['rep']);
+      const a = boardProjectFixture({ projectId: 'a', projectPath: '/code/a', workflowRootPath: store, projectName: 'a-name' });
+      const disabled = boardProjectFixture({ projectId: 'disabled', projectPath: '/code/d', workflowRootPath: store, projectName: 'disabled-name' });
+      const b = boardProjectFixture({ projectId: 'b', projectPath: '/code/b', workflowRootPath: store, projectName: 'b-name' });
+      const enabled = (id: string) => id === 'a' || id === 'b';
+      const result = board.nextProjects([a, disabled, b], enabled);
+      expect(result.map((p) => p.projectId)).toEqual(['a', 'b']);
+    });
+  });
+
+  // Contract for decisions-and-launch-guard task 7 (design C2 "NextTile",
+  // "Two press (AC 4)"; Requirement 2 AC 4, AC 5, AC 9).
+  //
+  // `launchPress` is pure: it reads only `view.guard?.state` and
+  // `view.launchable` against the caller's local `armedSpec`, so these
+  // fixtures carry no more than those two fields.
+  describe('launchPress(view, armedSpec)', () => {
+    // Criterion "launchPress gives 'launch' with no guard, on `clear` and
+    // on `no-list`" (design C2 "On `warn`, a press with `armedSpec !==
+    // view.launchable` only sets it" — every other state launches
+    // outright; task 7 Success "launchPress gives `'launch'` with no
+    // guard, on `clear` and on `no-list`"; Requirement 2 AC 5 "WHEN no
+    // warning shows THEN one press SHALL launch"; Requirement 2 AC 9 "IF
+    // the guard's read fails THEN the tile SHALL still render, with no
+    // warning" — a failed read is the no-`guard` case).
+    //   Pre-condition: three views for the same spec, differing only in
+    //   `guard` — absent, `{ state: 'clear' }` and `{ state: 'no-list' }` —
+    //   with `armedSpec` unarmed (`null`) in every case, so arming cannot
+    //   be the cause of a `'launch'` answer.
+    //   Test: launchPress(view, null) for each of the three views.
+    //   Observable result: `'launch'` in every case.
+    //   Expected-value source: the task Success line's literal "gives
+    //   `'launch'` with no guard, on `clear` and on `no-list`" clause.
+    const noWarnGuards: Array<[string, LaunchPressViewFixture['guard']]> = [
+      ['no guard', undefined],
+      ['clear', { state: 'clear' }],
+      ['no-list', { state: 'no-list' }],
+    ];
+    it.each(noWarnGuards)('gives \'launch\' when the guard is %s', (_label, guard) => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard };
+      expect(board.launchPress(view, null)).toBe('launch');
     });
 
-    // Criterion "else the first enabled member" (design C9; task 8 Success;
-    // Requirement 8.2 "else the enabled member").
-    //   Pre-condition: a disabled representative and two enabled members,
-    //   named and ordered so array order and project-name order agree
-    //   (`mem1-name` < `mem2-name`), isolating "first" from either reading.
-    //   Test: nextProjects([rep, member1, member2], enabled) where
-    //   `enabled` is false for `rep` and true for both members.
-    //   Observable result: only `member1`'s id.
-    //   Expected-value source: the literal "the first enabled member"
+    // Criterion "launchPress gives 'arm' on `warn` unarmed" (design C2 "a
+    // press with `armedSpec !== view.launchable` only sets it"; task 7
+    // Success; Requirement 2 AC 4 "a first press of Launch SHALL send no
+    // request and SHALL arm the tile").
+    //   Pre-condition: a `warn` view, `armedSpec` is `null` (never
+    //   pressed).
+    //   Test: launchPress(view, null).
+    //   Observable result: `'arm'`.
+    //   Expected-value source: the literal "'arm' on `warn` unarmed"
     //   clause.
-    it('gives the first enabled member when the representative is disabled', () => {
-      const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const member1 = boardProjectFixture({ projectId: 'mem1', projectPath: '/other1', workflowRootPath: store, projectName: 'mem1-name' });
-      const member2 = boardProjectFixture({ projectId: 'mem2', projectPath: '/other2', workflowRootPath: store, projectName: 'mem2-name' });
-      const enabled = (id: string) => id === 'mem1' || id === 'mem2';
-      const result = board.nextProjects([rep, member1, member2], enabled);
-      expect(result.map((p) => p.projectId)).toEqual(['mem1']);
+    it('gives \'arm\' on warn when unarmed', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, null)).toBe('arm');
     });
 
-    // Criterion "and none when the group is off" (design C9; task 8
-    // Success; Requirement 8.2 implies the whole store, R3 AC5's "no tile"
-    // rule applied to a wholly disabled store).
-    //   Pre-condition: a single project (the store's only member,
-    //   disabled).
-    //   Test: nextProjects([rep], () => false).
-    //   Observable result: an empty array — no project for this store.
-    //   Expected-value source: the literal "none when the group is off"
-    //   clause.
-    it('gives no project when the whole store group is disabled', () => {
-      const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const result = board.nextProjects([rep], () => false);
-      expect(result).toEqual([]);
+    // Criterion "launchPress gives 'arm' on `warn` armed for another spec"
+    // (design C2 "Keying on the spec clears the arm when the spec
+    // changes"; task 7 Success; Requirement 2 AC 4).
+    //   Pre-condition: a `warn` view for 'spec-a'; `armedSpec` is
+    //   'spec-b' — armed, but for a different spec.
+    //   Test: launchPress(view, 'spec-b').
+    //   Observable result: `'arm'`.
+    //   Expected-value source: the literal "armed for another spec"
+    //   clause, cross-checked against design C2's spec-keyed clearing
+    //   rule.
+    it('gives \'arm\' on warn when armed for a different spec', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, 'spec-b')).toBe('arm');
+    });
+
+    // Criterion "launchPress gives 'launch' on `warn` armed for this spec"
+    // (design C2 "the armed press calls `onLaunch`, so the body stays
+    // `buildLaunchInput(view)`"; task 7 Success; Requirement 2 AC 4 "a
+    // second press SHALL post the same `buildLaunchInput` body").
+    //   Pre-condition: a `warn` view for 'spec-a'; `armedSpec` is
+    //   'spec-a' — the same spec is already armed.
+    //   Test: launchPress(view, 'spec-a').
+    //   Observable result: `'launch'`.
+    //   Expected-value source: the literal "'launch' on `warn` armed for
+    //   this spec" clause.
+    it('gives \'launch\' on warn when armed for this spec', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, 'spec-a')).toBe('launch');
     });
   });
 
