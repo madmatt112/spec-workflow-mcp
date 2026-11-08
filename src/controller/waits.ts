@@ -20,6 +20,7 @@ import { randomBytes } from 'crypto';
 import { EventEmitter } from 'events';
 import {
   listWaits,
+  readRunSync,
   readWait,
   writeWait,
   type WaitRecord,
@@ -29,6 +30,11 @@ import {
   type WaitOpinion,
   type WaitOpinionStatus,
 } from './state.js';
+
+/** Thrown by `createWait` for a run whose disk status is `abandoned` (design C7 "Wait guard"). */
+export class RunAbandonedError extends Error {
+  readonly code = 'run-abandoned';
+}
 
 /**
  * A stored wait: T2's `WaitRecord` plus the spec dir its receipt and note are
@@ -83,8 +89,16 @@ function enqueueWaitWrite<T>(id: string, run: () => Promise<T>): Promise<T> {
   return next;
 }
 
-/** Open a wait: write the record (`state: open`, id `w-<8 hex>`) and emit. */
+/**
+ * Open a wait: write the record (`state: open`, id `w-<8 hex>`) and emit.
+ * Throws `RunAbandonedError` before any write when the run's disk status is
+ * `abandoned` (design C7 "Wait guard"); a run with no record, or any other
+ * status, still writes the wait.
+ */
 export async function createWait(input: CreateWaitInput): Promise<ControllerWaitRecord> {
+  if (readRunSync(input.runId)?.status === 'abandoned') {
+    throw new RunAbandonedError();
+  }
   const record: ControllerWaitRecord = {
     v: 1,
     id: `w-${randomBytes(4).toString('hex')}`,

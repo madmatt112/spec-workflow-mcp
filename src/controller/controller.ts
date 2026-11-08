@@ -22,7 +22,7 @@ import {
 } from './state.js';
 import {
   waitEvents, createWait, answerWait, openDriveCrashWait, expireWait,
-  DRIVE_CRASH_QUESTION, type ControllerWaitRecord,
+  DRIVE_CRASH_QUESTION, RunAbandonedError, type ControllerWaitRecord,
 } from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
@@ -595,8 +595,10 @@ export class Controller extends EventEmitter {
     try {
       await runOnce(this.runDeps(), runId);
     } catch (err) {
-      console.error(`[controller] run ${runId} errored`, err);
-      await this.openCrashWait(runId, err);
+      if (!(err instanceof RunAbandonedError)) {
+        console.error(`[controller] run ${runId} errored`, err);
+        await this.openCrashWait(runId, err);
+      }
     } finally {
       this.active.delete(runId);
     }
