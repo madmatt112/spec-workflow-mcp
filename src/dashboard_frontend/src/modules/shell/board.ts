@@ -45,16 +45,20 @@ export function stoppedAdmitted(run: ControllerRun, now: number): boolean {
 export function running(
   runs: ControllerRun[],
   enabled: (projectId: string) => boolean,
+): ControllerRun[] {
+  return runs
+    .filter((run) => enabled(run.project) && MOVING_STATUSES.has(run.status))
+    .sort((a, b) => Date.parse(a.lastActivity ?? a.updated) - Date.parse(b.lastActivity ?? b.updated));
+}
+
+export function stopped(
+  runs: ControllerRun[],
+  enabled: (projectId: string) => boolean,
   now: number,
 ): ControllerRun[] {
-  const onProject = runs.filter((run) => enabled(run.project));
-  const moving = onProject
-    .filter((run) => MOVING_STATUSES.has(run.status))
-    .sort((a, b) => Date.parse(a.lastActivity ?? a.updated) - Date.parse(b.lastActivity ?? b.updated));
-  const stopped = onProject
-    .filter((run) => !MOVING_STATUSES.has(run.status) && stoppedAdmitted(run, now))
+  return runs
+    .filter((run) => enabled(run.project) && !MOVING_STATUSES.has(run.status) && stoppedAdmitted(run, now))
     .sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
-  return [...moving, ...stopped];
 }
 
 export function nextProjects(

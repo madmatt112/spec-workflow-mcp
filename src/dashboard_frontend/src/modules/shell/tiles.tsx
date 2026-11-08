@@ -122,13 +122,16 @@ function RunDot({ color }: { color: 'green' | 'amber' | 'grey' | 'red' }) {
  *  worktree and branch and closes the PR" and is the only one that calls the
  *  route (D36).
  *  A stopped run with `discardAllowed: false` shows the quiet line "branch
- *  in use by a live run" instead of any control. */
+ *  in use by a live run" instead of any control.
+ *  A `quiet` tile (design C9 "Quieter weight") shows `run-status-<id>` with
+ *  the run's status word in place of the display-size age and the dot row. */
 export function RunTile({
   run,
   waits,
   projectName,
   now,
   stage,
+  quiet,
   onPause,
   onResume,
   onStop,
@@ -140,6 +143,7 @@ export function RunTile({
   projectName: string;
   now: number;
   stage: Stage | null;
+  quiet?: boolean;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
@@ -169,31 +173,35 @@ export function RunTile({
           {[run.phase, run.stepKind, run.task].filter(Boolean).join(' · ')}
         </p>
       )}
-      {run.stepStarted && (
+      {!quiet && run.stepStarted && (
         <span className="text-display tabular-nums text-(--text-primary)">
           {compactAge(now - Date.parse(run.stepStarted))}
         </span>
       )}
       {note && <p className={`text-sm ${pauseNoteClass(note)}`}>{note.text}</p>}
-      <div className="flex items-center gap-2">
-        {stalled ? (
-          <>
-            <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
-            <Button variant="secondary" size="sm" disabled={busy} onClick={onRedrive} data-testid={`run-redrive-${run.id}`}>
-              {'Re-drive'}
-            </Button>
-          </>
-        ) : run.inFlight && heartbeatBase ? (
-          <>
+      {quiet ? (
+        <p className="text-sm text-(--text-muted)" data-testid={`run-status-${run.id}`}>{run.status}</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          {stalled ? (
+            <>
+              <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
+              <Button variant="secondary" size="sm" disabled={busy} onClick={onRedrive} data-testid={`run-redrive-${run.id}`}>
+                {'Re-drive'}
+              </Button>
+            </>
+          ) : run.inFlight && heartbeatBase ? (
+            <>
+              <RunDot color={runDot(run, now)} />
+              <span className="text-sm text-(--text-secondary)">
+                {`last activity ${compactAge(now - Date.parse(heartbeatBase))} ago`}
+              </span>
+            </>
+          ) : (
             <RunDot color={runDot(run, now)} />
-            <span className="text-sm text-(--text-secondary)">
-              {`last activity ${compactAge(now - Date.parse(heartbeatBase))} ago`}
-            </span>
-          </>
-        ) : (
-          <RunDot color={runDot(run, now)} />
-        )}
-      </div>
+          )}
+        </div>
+      )}
       {run.status === 'merging' && prRead && (
         <p className="text-sm text-(--text-secondary)">
           {`PR #${prRead.number} · ${prRead.ci} · ${prRead.verdict}`}
