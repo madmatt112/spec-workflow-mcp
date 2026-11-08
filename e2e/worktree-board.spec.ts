@@ -861,6 +861,49 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criteria "the mb-3 class at DeployControl.tsx:57 SHALL be removed" and
+  // "the Deploy control's vertical centre SHALL match the nav links' centre
+  // within 1 px" (task 22 Success; Requirement 11 AC 1, AC 2). One test
+  // covers both: `mb-3` is a margin-bottom on the Deploy control's row,
+  // which is what pushes its vertical centre below the nav row's centre at
+  // base; removing it is the only change the task makes (task 22
+  // Restrictions: "Change no other class"), so the alignment assertion
+  // below is red at base for exactly the reason AC 1 names, and green only
+  // once `mb-3` is gone. The `grep -n 'mb-3' ...` text noted in the task's
+  // own Success line is a static check on the source file, not a call
+  // through the `page.getByTestId('deploy-button').boundingBox()` seam, so
+  // it is left for the implementer to run directly rather than duplicated
+  // as a test here.
+  //   Pre-condition: the top bar rendered at 1280 px desktop width, with no
+  //   wait, run or action seeded (the top bar renders on every route
+  //   regardless of board content).
+  //   Test: page.getByTestId('deploy-button').boundingBox(), compared
+  //   against page.getByTestId('nav-home').boundingBox().
+  //   Observable result: the absolute difference between the two boxes'
+  //   vertical centres (`y + height / 2`) is less than 1 px.
+  //   Expected-value source: Requirement 11 AC 2's "within 1 px" tolerance,
+  //   stated verbatim; the two test ids come from the task's own `File:`
+  //   list (`DeployControl.tsx:68` for `deploy-button`) and
+  //   `TopBar.tsx:16`'s `NAV_ITEMS` entry for `nav-home`.
+  test('(R11 AC1, AC2) the Deploy control sits level with the nav links at 1280px', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+
+    const deployButton = page.getByTestId('deploy-button');
+    const navHome = page.getByTestId('nav-home');
+    await expect(deployButton).toBeVisible({ timeout: 15000 });
+    await expect(navHome).toBeVisible();
+
+    const deployBox = await deployButton.boundingBox();
+    const navBox = await navHome.boundingBox();
+    expect(deployBox).not.toBeNull();
+    expect(navBox).not.toBeNull();
+
+    const deployCentre = deployBox!.y + deployBox!.height / 2;
+    const navCentre = navBox!.y + navBox!.height / 2;
+    expect(Math.abs(deployCentre - navCentre)).toBeLessThan(1);
+  });
+
   // Criterion "A `staged` action shows kind, target, reason, age, Confirm and
   // Dismiss" (task 12 Success; Requirement 5 AC 1 "Needs you SHALL show a
   // tile with its kind, target, reason, age and, while `staged`, Confirm and
