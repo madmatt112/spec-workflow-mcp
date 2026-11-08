@@ -52,7 +52,7 @@ const USAGE = {
   cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
 };
 
-interface StubRun { edits?: { path: string; content: string }[]; appends?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; }
+interface StubRun { edits?: { path: string; content: string }[]; appends?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; eventDelayMs?: number; }
 
 interface Fixture { base: string; repo: string; specDir: string; home: string; logs: string; }
 
@@ -548,6 +548,117 @@ describe('runOnce keeps a run abandoned during ensureWorktree (design C7, Requir
 
     expect((await readRun('run-20261011-000000'))?.status).toBe('abandoned');
     expect(statuses).not.toContain('running');
+  });
+});
+
+// Contract for the driver's early-return on an already-abandoned run (design
+// C7 "Driver checks", Requirement 7 AC 3). Per success criterion: "runOnce on
+// an abandoned run calls no ensureWorktree and writes no running." Pre: a run
+// on disk already `abandoned`, with no worktree so the base code's
+// `!run.worktree` branch would otherwise call `ensureWorktree` unconditionally
+// (`src/controller/runs.ts`, the block before the for-loop). Call:
+// `runOnce(deps(fx, { ensureWorktree }), runId)`. Result: `ensureWorktree` is
+// never invoked and no `change` event ever carries `status: 'running'`.
+// Expected value source: the task's own Success line and design C7 "Driver
+// checks" ("`runOnce` returns after its first read for an `abandoned` run,
+// before `ensureWorktree` and the `running` write").
+describe('runOnce returns before ensureWorktree for an already-abandoned run (design C7 "Driver checks", Requirement 7 AC 3)', () => {
+  it('calls no ensureWorktree and writes no running for a run already abandoned at the first read', async () => {
+    await writeRun(seedRun(fx, { status: 'abandoned', worktree: '' }));
+    const ensureWorktree = vi.fn(async (run: RunRecord) => ({ worktree: run.codeRoot, branch: 'main' }));
+    const statuses: string[] = [];
+    const onChange = (r: RunRecord) => statuses.push(r.status);
+    runEvents.on('change', onChange);
+
+    try {
+      await runOnce(deps(fx, { ensureWorktree }), 'run-20261011-000000');
+    } finally {
+      runEvents.off('change', onChange);
+    }
+
+    expect(ensureWorktree).not.toHaveBeenCalled();
+    expect(statuses).not.toContain('running');
+    expect((await readRun('run-20261011-000000'))?.status).toBe('abandoned');
+  });
+});
+
+// Contract for the document-phase retry's own cancel check (design C7 "Driver
+// checks", Requirement 7 AC 1, AC 2). Per success criterion: "a cancel during
+// a document step leaves abandoned, one claude -p spawn, no wait and no
+// retry". Pre: a fresh run (no requirements.md yet), a scripted drafter step
+// that fails. Call: `runOnce(deps(fx, { isCancelled, onActivity }), runId)`,
+// where `onActivity` (fired while the drafter step streams, before its
+// failing result is read) flips `isCancelled` true — a cancel landing while
+// the step the retry would redo is still in flight. Result: `runOnce`
+// resolves with no second drafter spawn and no wait opened. Expected value
+// source: design C7 "Driver checks" ("The four handle*Outcome functions
+// return 'stop' first when runCancelled: no retry, no wait (AC 2)") and the
+// task's own Success line. At base `handleDocumentOutcome`'s retry branch
+// (`src/controller/runs.ts`, the fresh-retry block) calls `runDocumentPhase`
+// again with no cancel check, reaching the review round (the drafted
+// `requirements.md` already exists from the first step's edits) and a second
+// real `spawn.start` row, then the final `error` wait.
+describe('runOnce document-phase cancel suppresses the fresh retry (design C7 "Driver checks", Requirement 7 AC 1, AC 2)', () => {
+  it('a cancel detected after the drafter fails starts no second drafter and opens no wait', async () => {
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: USAGE },
+    }]);
+    await writeRun(seedRun(fx));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await expect(runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000')).resolves.toBeUndefined();
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.filter((r) => r.type === 'spawn.start')).toHaveLength(1);
+  });
+});
+
+// Contract for the same check firing from the disk read alone (design C7
+// "Driver checks", Requirement 7 AC 4): "the same holds with the in-memory
+// set empty (isCancelled false, disk abandoned)." Pre/Call: identical to the
+// test above, except `isCancelled` always returns `false` (an empty in-memory
+// set, as after a controller restart) and the cancel signal is instead a real
+// disk write of `status: 'abandoned'`, made from the same `onActivity` hook.
+// Result: `runOnce` still resolves with no throw and the run still reads
+// `abandoned` with no wait opened. Expected value source: Requirement 7 AC 4
+// ("AC 1 to AC 3 SHALL hold after a controller restart, when the in-memory
+// set is empty") read against design C7's `runCancelled` helper, which ORs
+// `deps.isCancelled` with the disk read — at base `handleDocumentOutcome`'s
+// retry branch has no such check at all, so its final `waitAnd` call reaches
+// `createWait`'s abandoned-run guard (task 17) and `runOnce` rejects instead
+// of resolving.
+describe('runOnce document-phase cancel via disk alone, no in-memory flag (design C7 "Driver checks", Requirement 7 AC 4)', () => {
+  it('the same holds with isCancelled always false once disk already reads abandoned', async () => {
+    writeScript(fx, [{
+      stream: [
+        { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } },
+        { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } },
+      ],
+      eventDelayMs: 150,
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: USAGE },
+    }]);
+    await writeRun(seedRun(fx));
+    let flipped = false;
+    const onActivity = () => {
+      if (flipped) return;
+      flipped = true;
+      void (async () => {
+        const current = await readRun('run-20261011-000000');
+        if (current) await writeRun({ ...current, status: 'abandoned', inFlight: undefined });
+      })();
+    };
+
+    await expect(runOnce(deps(fx, { isCancelled: () => false, onActivity }), 'run-20261011-000000')).resolves.toBeUndefined();
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('abandoned');
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
   });
 });
 
@@ -1182,6 +1293,110 @@ describe('listRunsForWire', () => {
     expect(json).not.toContain('codeRoot');
     expect(json).not.toContain('worktree');
   });
+});
+
+// Contract for the implementation-phase final error wait's own cancel check
+// (design C7 "Driver checks", Requirement 7 AC 2). Per success criterion: "a
+// step failure after a cancel opens no error or escalation wait in each of
+// the four phases." Pre: approved requirements/design/tasks (no tasks, so the
+// phase runs one step: the end-to-end verifier), the run's cursor already at
+// attempt 2 (the one fresh retry already spent), so a failing step falls
+// straight to `handleImplementationOutcome`'s final `error` wait — a branch
+// the loop-top's own abandoned/cancel check never reaches (that check only
+// intercepts the next loop iteration, not this direct call within the
+// current one). Call: `runOnce(deps(fx, { isCancelled, onActivity }),
+// runId)`, with `onActivity` (fired on the verifier step's `tool_use`
+// activity, before its failing result is read) flipping `isCancelled` true.
+// Result: no `error` wait opens for this run. Expected value source: design
+// C7 "Driver checks" ("The four handle*Outcome functions return 'stop' first
+// when runCancelled: no retry, no wait (AC 2)") and the task's own Success
+// line; at base `handleImplementationOutcome`'s final branch
+// (`src/controller/runs.ts`, after the exhausted-retry check) calls
+// `waitAnd` unconditionally.
+describe('runOnce implementation-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'implementation', stepKind: 'implementation', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
+});
+
+// Same contract, the retrospective phase (design C7 "Driver checks",
+// Requirement 7 AC 2). Pre: approved documents, implementation already
+// marked complete on the ledger (so `routeRun` resolves `retrospective`), the
+// cursor already at attempt 2. Call/Result: as the implementation-phase test
+// above, for the compile step. Expected value source: the same design C7
+// text and task Success line; at base `handleRetrospectiveOutcome`'s final
+// branch (`src/controller/runs.ts`, after the exhausted-retry check) calls
+// `waitAnd` unconditionally.
+describe('runOnce retrospective-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    openRunLedger({ specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC }).phaseEnd('implementation', { result: 'complete' });
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'retrospective', stepKind: 'retrospective', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
+});
+
+// Same contract, the close-out phase (design C7 "Driver checks", Requirement
+// 7 AC 2). Pre: approved documents, an `APPROVED` retrospective-plan.md with
+// one `store`-class item (lands as a commit in the spec store itself, no
+// retro worktree needed), the cursor already at attempt 2. Call/Result: as
+// the implementation-phase test above, for the close-out implementer batch.
+// Expected value source: the same design C7 text and task Success line; at
+// base `handleCloseoutOutcome`'s final branch (`src/controller/runs.ts`,
+// after the exhausted-retry check) calls `waitAnd` unconditionally.
+describe('runOnce close-out-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.repo, '.spec-workflow', 'agent-rules.md'), '# Agent rules\n\nmerge: auto\n\n## Sensitive paths\n\n- package.json\n');
+    writeFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), '# H\n\n## Phase log\n\n| Date | Spec | Stage | State | Result | Note |\n| --- | --- | --- | --- | --- | --- |\n');
+    writeFileSync(join(fx.specDir, 'retrospective-log.md'), `# Retrospective log — ${SPEC}\n`);
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), [
+      `# Retrospective plan — ${SPEC}`, '', 'Status: APPROVED', 'Date: 2026-10-11', '',
+      '## Approved proposals', '',
+      '- **P1 (F1) — Tidy the ledger.** Make it nicer.',
+      '  Target: steering (`.spec-workflow/agent-rules.md`).', '  Decision: do it.', '',
+      '## Decisions', 'None.', '', '## Rejected proposals', 'None.', '',
+    ].join('\n'));
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'seed close-out plan']);
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'closeout', stepKind: 'closeout', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
 });
 
 // Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
@@ -1973,6 +2188,40 @@ describe('runOnce merge stage', () => {
       expect(run?.status).toBe('waiting');
       expect(run?.phase).toBe('retrospective');
       expect((await listWaits()).some((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000')).toBe(true);
+    }, 30000);
+  });
+
+  // Contract for `runMergeStageStep`'s own cancel check on entry (design C7
+  // "Driver checks", Requirement 7 AC 5). Per success criterion: "a run
+  // cancelled at the merge stage opens no wait and writes no status". Pre: a
+  // run on disk at `merging` (so `resumingMerge` is true at the top of the
+  // loop) on a feature branch with no open PR. Call: `runOnce(deps(fx, {
+  // isCancelled }), runId)`, where `isCancelled` is a counter that reads
+  // `false` on its first call (the loop-top abandoned/cancel check, which
+  // must still let the resume through) and `true` on every call after (the
+  // merge-stage entry check, called immediately next with no step run and no
+  // other `isCancelled` read in between). Result: the run's status is left
+  // at `running` (the pre-loop resume write, unaffected by the fix) with no
+  // `cursor` and no wait opened — not `waiting` with a `merge` error wait, as
+  // the base `findPullRequest`/`waitAnd` path produces. Expected value
+  // source: design C7 "Driver checks" ("runMergeStageStep on entry") and the
+  // task's own Success line; at base `runMergeStageStep`
+  // (`src/controller/runs.ts`) has no cancel check before its "no PR" branch
+  // saves a `merge` cursor and opens an `error` wait.
+  describe('runMergeStageStep cancel entry check (design C7 "Driver checks", Requirement 7 AC 5)', () => {
+    it('a run cancelled while resuming the merge stage opens no wait and writes no status', async () => {
+      onFeatureBranch(fx);
+      writeGhScript(fx, [{ argvIncludes: ['pr', 'list'], stdout: [] }]);
+      await writeRun(seedRun(fx, { status: 'merging', branch: BRANCH, worktree: fx.repo }));
+      let calls = 0;
+      const isCancelled = () => { calls += 1; return calls > 1; };
+
+      await runOnce(deps(fx, { isCancelled }), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('running');
+      expect(run?.cursor).toBeUndefined();
+      expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
     }, 30000);
   });
 });
