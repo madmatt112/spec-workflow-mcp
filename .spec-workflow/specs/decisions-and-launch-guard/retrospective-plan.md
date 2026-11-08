@@ -1,6 +1,6 @@
 # Retrospective plan — decisions-and-launch-guard
 
-Status: APPROVED
+Status: CLOSED
 Date: 2026-11-08
 
 ## Approved proposals

@@ -169,3 +169,8 @@ Cost: unknown
 code batch 3: 0 done of 1, 0 fix round(s)
 Evidence: batch 3 · mark run-20261107-174258 bce6854d
 Cost: 1 implementer spawn(s)
+
+## 2026-11-08T16:09:53Z · closeout · phase · cleanup
+close-out: 1 done, 1 to-do, 12 skipped of 14; 75 spawns
+Evidence: retrospective-plan.md · mark run-20261107-174258 24edaa23
+Cost: see the ledger
