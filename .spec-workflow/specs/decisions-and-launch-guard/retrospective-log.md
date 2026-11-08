@@ -144,3 +144,18 @@ Cost: 2 spawns
 store batch 1: 0 done of 1, 0 fix round(s)
 Evidence: batch 1 · mark run-20261107-174258 51015b0f
 Cost: 1 implementer spawn(s)
+
+## 2026-11-08T16:04:33Z · closeout · harness batch 2 · gotcha
+tooling — the eval framework (src/evals) only runs the four agent roles across implementation/document/closeout; it has no orchestrator/operator role for merge-gate relocation or retro-open gate cases, and adding any harness/evals/<id>/ directory breaks cases.test.ts's exact 11-seed-id assertion (harness-evals-owned). The named eval cases (orchestrator-relocates-worktree-deferrals, retro-gate-blocks-pending-verification) were therefore NOT added; route them to a harness-evals change that adds an orchestrator-eval capability. Precedent: dashboard-board P9 landed an agent-rules rule with no eval case; dashboard-project-list's identical worktree-deferral proposal was marked to-do/human for the same orchestrator-surface reason. Detail: /tmp/scratchpad/sdd/decisions-and-launch-guard/closeout-harness-2-notes.md
+Evidence: batch 2 · mark run-20261107-174258 36c9f992
+Cost: implementer
+
+## 2026-11-08T16:08:35Z · closeout · harness batch 2 · deviation
+P5 skipped: file-outside-list fail on .spec-workflow/agent-rules.md, which is genuinely required — the merge-gate relocation rule this item extends lives only there; no committed harness orchestrator skill exists (orchestrator under ~/.claude, uncommitted; precedent dashboard-board P9). Sweep already committed in 182650b6; per the file-outside-list rule I did not re-commit the unchanged tree and did not revert. REQUIRED: add .spec-workflow/agent-rules.md to P5's allowed files and rerun the gate on commit 182650b6.
+Evidence: P5 · mark run-20261107-174258 4b14c036
+Cost: unknown
+
+## 2026-11-08T16:08:35Z · closeout · harness batch 2 · cleanup
+harness batch 2: 1 done of 2, 1 fix round(s)
+Evidence: batch 2 · mark run-20261107-174258 27ec37ca
+Cost: 2 implementer spawn(s)

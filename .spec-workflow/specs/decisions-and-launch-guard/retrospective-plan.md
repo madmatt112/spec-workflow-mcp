@@ -178,3 +178,6 @@ One line per proposal, written by the close-out phase.
 - P13: skipped — no change chosen
 - P14: skipped — no change chosen
 - P11: to-do (human) — Core change is the completion-gate behavior plus the eval harness/evals/completion-gate-midspec-review-required/, both outside .spec-workflow; needs the worktree/CI spec flow, not a direct main commit. agent-rules.md:214 still states the Option-C 'surfaces as a finding' behavior the recorded Option-A decision supersedes, so a partial agent-rules-only edit would assert a rule the gate code does not enforce.
+- P5: skipped — file-outside-list fail on .spec-workflow/agent-rules.md, which is genuinely required — the merge-gate relocation rule this item extends lives only there; no committed harness orchestrator skill exists (orchestrator under ~/.claude, uncommitted; precedent dashboard-board P9). Sweep already committed in 182650b6; per the file-outside-list rule I did not re-commit the unchanged tree and did not revert. REQUIRED: add .spec-workflow/agent-rules.md to P5's allowed files and rerun the gate on commit 182650b6.
+- P6: done — 7ae573d94b4205488b8e3c956d410a7f8e977faa
+- spec-workflow-mcp: PR https://github.com/madmatt112/spec-workflow-mcp/pull/211
