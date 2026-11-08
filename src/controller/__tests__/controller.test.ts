@@ -10,7 +10,7 @@ import {
   readQueue, writeQueue,
   type RunRecord, type QueueFile,
 } from '../state.js';
-import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION } from '../waits.js';
+import { listOpenWaits, answerWait, createWait, DRIVE_CRASH_QUESTION, RunAbandonedError } from '../waits.js';
 import { approvalsHandler } from '../../tools/approvals.js';
 import { runEvents } from '../runs.js';
 import {
@@ -1324,6 +1324,58 @@ describe('Controller drivenRuns(), drive-crash wait and drive-end change (design
     const after = await waitForStatus(id, 'abandoned');
     expect(after.status).toBe('abandoned');
   });
+});
+
+// Contract for the wait guard ending a drive quietly (design C7 "Wait guard",
+// D11; Requirement 7 AC 2, AC 5; task 17 Success).
+//
+// - "a drive ending in RunAbandonedError logs no error and opens no wait" —
+//   Pre: a controller started with no runs, whose `mcpConfigFor` (the
+//   test's crash seam, design D15) throws `new RunAbandonedError()`. Call:
+//   `controller.enqueue({ projectId: 'p', spec: SPEC })`, then give the
+//   25ms-tick scheduler time to admit and drive it (the same fixed-delay
+//   style the sibling crash-seam tests above use, e.g. "(e) opens no wait
+//   when the run is cancelled before the re-read"). Observable:
+//   `console.error` is never called, no open wait carries the drive-crash
+//   question for that id, and the drive has ended (`drivenRuns()` excludes
+//   the id — proof `drive`'s `finally` ran and the reschedule was reached,
+//   design C7 "Controller.drive ... ends quietly on that class"). Source:
+//   design C7 "Wait guard" ("`Controller.drive` ... ends quietly on that
+//   class"), task 17 Success ("a drive ending in `RunAbandonedError` logs
+//   no error and opens no wait").
+// - [regression guard] "any other throw still opens the crash wait" — Pre/
+//   Call/Observable: identical in shape to the existing "(a)(b) opens a
+//   retry/abandon error wait naming the cursor step and message, and clears
+//   inFlight" test above (`controller.test.ts`, `describe('Controller
+//   drivenRuns(), drive-crash wait and drive-end change (design C5)')`),
+//   which throws a plain `Error('boom')` (not `RunAbandonedError`) from
+//   `mcpConfigFor` and asserts the crash wait opens with the exact
+//   retry/abandon question. Source: task 17 Success ("any other throw
+//   still opens the crash wait (regression guard)"); already asserted —
+//   no new test added.
+// - [regression guard] "a cancelled run's crash opens none" (Requirement 7
+//   AC 7) — Pre/Call/Observable: identical in shape to the existing
+//   "(e) opens no wait when the run is cancelled before the re-read" test
+//   above, which cancels the run from inside `mcpConfigFor` before the
+//   throw and asserts no crash wait opens and the run reads `abandoned`.
+//   Source: task 17 Success ("a cancelled run's crash opens none (AC 7,
+//   regression guard)"); already asserted — no new test added.
+describe('Controller.drive ends quietly on RunAbandonedError (design C7 "Wait guard", Requirement 7 AC 2, AC 5)', () => {
+  it('logs no error and opens no wait when mcpConfigFor throws RunAbandonedError, and the drive still ends', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      controller = makeCrashingController(fx, () => { throw new RunAbandonedError(); });
+      await controller.start();
+      const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+      await new Promise((r) => setTimeout(r, 300));
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(crashWaitFor(await listOpenWaits(), id)).toBeUndefined();
+      expect(controller.drivenRuns().has(id)).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  }, 20000);
 });
 
 // Contract for `controller.redrive(runId)` (design C5 "redrive" post-conditions;
