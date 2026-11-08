@@ -159,3 +159,13 @@ Cost: unknown
 harness batch 2: 1 done of 2, 1 fix round(s)
 Evidence: batch 2 · mark run-20261107-174258 27ec37ca
 Cost: 2 implementer spawn(s)
+
+## 2026-11-08T16:09:52Z · closeout · code batch 3 · deviation
+P4 skipped: No change needed; existing regression test controller.test.ts:2580 already asserts a non-live reuser's discard returns 'branch-in-use', leaves the record unchanged, deletes no branch and closes no PR. Confirmed green via vitest. Fix already in at controller.ts:389 (guard || branchReused).
+Evidence: P4 · mark run-20261107-174258 7ceb90a1
+Cost: unknown
+
+## 2026-11-08T16:09:52Z · closeout · code batch 3 · cleanup
+code batch 3: 0 done of 1, 0 fix round(s)
+Evidence: batch 3 · mark run-20261107-174258 bce6854d
+Cost: 1 implementer spawn(s)
