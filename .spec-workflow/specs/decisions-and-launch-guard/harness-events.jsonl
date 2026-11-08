@@ -349,3 +349,29 @@
 {"ts":"2026-11-08T05:22:06.024Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-retro-analyst","role":"proposals","result":"ok","phase":"retrospective"}
 {"ts":"2026-11-08T05:22:06.024Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"retro: 14 proposals for 17 findings"}
 {"ts":"2026-11-08T05:22:06.025Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"phase.end","phase":"retrospective","result":"retro-ready","note":"17 findings, 14 proposals"}
+{"ts":"2026-11-08T15:53:19.092Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"phase.start","phase":"closeout","mode":"normal","state":"items 0/14"}
+{"ts":"2026-11-08T15:53:19.096Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P1","title":"P1 (F1) — Clean implementation needs no change."}
+{"ts":"2026-11-08T15:53:19.097Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P1","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.097Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P2","title":"P2 (F2) — Red-impossible regression guards need no change."}
+{"ts":"2026-11-08T15:53:19.097Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P2","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.097Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P3","title":"P3 (F3) — Final task resolving four foreign deferrals needs no change."}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P3","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P7","title":"P7 (F7) — Gate-only verifier-skipped tail needs no change."}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P7","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P8","title":"P8 (F8) — Two guard-only author spawns need no change."}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P8","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P9","title":"P9 (F9) — \"Operator-reported defects\" wording needs no change."}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P9","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.098Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P10","title":"P10 (F10) — SHOULD_FIX all resolved in-round needs no change."}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P10","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P12","title":"P12 (F12) — Reviser ruling on R1-5 needs no change."}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P12","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P13","title":"P13 (F13) — Gate A single-option posture needs no change."}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P13","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P14","title":"P14 (F14) — Merge-past-coverage under decision C needs no change."}
+{"ts":"2026-11-08T15:53:19.099Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P14","outcome":"skipped"}
+{"ts":"2026-11-08T15:53:19.107Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.pick","task":"P11","title":"P11 (F11) — A mid-spec implementer-only task must still take a gate review."}
+{"ts":"2026-11-08T15:53:19.178Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.start","agent":"sdd-implementer","role":"implement store batch 1","model":"claude-opus-4-8","effort":"xhigh"}
+{"ts":"2026-11-08T15:55:24.173Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.end","agent":"sdd-implementer","input":"12","output":"9642","cacheWrite":"53857","cacheRead":"220973","tokens":"284484","cacheWrite5m":"0","cacheWrite1h":"53857","model":"claude-opus-4-8"}
+{"ts":"2026-11-08T15:55:24.174Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-implementer","role":"implement store batch 1","result":"ok","phase":"closeout"}
+{"ts":"2026-11-08T15:55:24.189Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P11","outcome":"to-do"}
