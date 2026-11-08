@@ -69,6 +69,8 @@ export interface RunLedger {
   judge(fields: { task: string; site: string } & Record<string, string>): void;
   /** A PR merged by the controller's merge rule (T7): number, merge sha, method. */
   prMerged(fields: { number: string | number; sha: string; method: string; repo?: string }): void;
+  /** A `File:` line added to a task's block mid-run (a `REQUIRED` fix round). */
+  filePatch(fields: { task: string; round: string | number; file: string; reason: string }): void;
   note(text: string): void;
 }
 
@@ -167,6 +169,9 @@ export function openRunLedger(options: OpenRunLedgerOptions): RunLedger {
     },
     prMerged(fields) {
       write('pr.merged', { number: String(fields.number), sha: fields.sha, method: fields.method, ...(fields.repo ? { repo: fields.repo } : {}) });
+    },
+    filePatch(fields) {
+      write('file-list.patch', { task: fields.task, round: String(fields.round), file: fields.file, reason: fields.reason });
     },
     note(text) {
       write('note', { text });

@@ -89,7 +89,7 @@ describe('openRunLedger row formats', () => {
   it('writes ts/run/spec/type first and every count as a string', () => {
     const lines = readFileSync(writeImplRun(), 'utf8').trim().split('\n');
     for (const line of lines) {
-      expect(line).toMatch(/^\{"ts":"[^"]+","run":"run-20260912-190000","spec":"s","type":"[a-z.]+"/);
+      expect(line).toMatch(/^\{"ts":"[^"]+","run":"run-20260912-190000","spec":"s","type":"[a-z.-]+"/);
     }
     const spawnEnd = lines.find((l) => l.includes('"type":"spawn.end"') && l.includes('"agent":"sdd-implementer"'))!;
     // tokens = input+output+cacheRead+cacheWrite5m+cacheWrite1h; cacheWrite = 5m+1h; all quoted strings.

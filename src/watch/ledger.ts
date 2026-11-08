@@ -425,7 +425,8 @@ export function buildModel(input: {
       e.type === 'phase.start' ? `${e.phase ?? ''}  ${e.mode ?? ''} ${e.state ?? ''}`.trim() :
       e.type === 'phase.end' ? `${e.phase ?? ''}  ${e.result ?? ''}  ${e.state ?? ''}` :
       e.type === 'run.end' ? `${e.status ?? ''}` :
-      e.type === 'note' ? `${e.text ?? e.note ?? ''}` : '';
+      e.type === 'note' ? `${e.text ?? e.note ?? ''}` :
+      e.type === 'file-list.patch' ? `task ${e.task ?? ''}  ${e.file ?? ''}  ${e.reason ?? ''}` : '';
     tickerSource.push({ ts: e.ts, text: `${e.type.padEnd(11)} ${detail}`.trimEnd() });
   }
   for (const a of runActivity) {
