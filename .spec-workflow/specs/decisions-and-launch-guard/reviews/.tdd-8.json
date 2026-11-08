@@ -1,0 +1,1 @@
+{"testFiles":["src/tools/__tests__/harness.test.ts"],"seams":{"src/tools/__tests__/harness.test.ts":"parsePlanDecisions(content)"},"redCommit":"f4e2af1d223bc3eea908cb64b226b3d5cebc0e13","baseSha":"2e74112ca22bb614521067d6a0195341ba9b8cfc","base":"structural-red","head":"pass","amended":false,"judged":null}
