@@ -901,8 +901,9 @@ describe('harnessHandler', () => {
     await expect(fs.access(target)).rejects.toThrow();
   });
 
-  // The reviser kind's four variants (design C6 table): `round`, `should-fix-only`,
-  // `revision` (Step R) and `lint-fix` (the lint brief, briefs.md:361-417).
+  // The reviser kind's five variants (design C6 table): `round`, `should-fix-only`,
+  // `drafting-only` (design C5), `revision` (Step R) and `lint-fix` (the lint brief,
+  // briefs.md:361-417).
 
   const reviserBase = () => ({
     phase: 'design',
@@ -959,6 +960,31 @@ describe('harnessHandler', () => {
 
     // SKILL.md:201-204: the SHOULD_FIX-only pass ends the Revision History line this way.
     expect(written).toContain('SHOULD_FIX-only corrective pass');
+    expect(written).not.toContain('Round-<A> adversarial response');
+  });
+
+  // Contract — design C5 (Requirement 5 AC 1):
+  // Pre: variant 'drafting-only'. Test: harnessHandler({ action: 'brief', specName, template: 'reviser',
+  // values: { ...reviserBase(), path, docPath, D, findings, variant: 'drafting-only' } }, context).
+  // Observe: the written brief carries `Drafting-only corrective pass.` in place of the default
+  // Round-<A> text. Source: design C5 ("`renderReviser` gains the descriptor `Drafting-only corrective
+  // pass.` ... for variant `drafting-only`", `src/tools/brief-templates.ts:457-462`).
+  it('brief reviser (variant: drafting-only) tells the reviser to end the Revision History line "Drafting-only corrective pass." instead', async () => {
+    const outPath = join(tempDir, 'reviser-drafting-only.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = join(specDir, 'reviews', 'adversarial-analysis-design-r1.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '1', findings, variant: 'drafting-only' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain('Drafting-only corrective pass.');
     expect(written).not.toContain('Round-<A> adversarial response');
   });
 
