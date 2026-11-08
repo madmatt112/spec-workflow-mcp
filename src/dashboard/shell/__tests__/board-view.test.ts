@@ -278,6 +278,10 @@ type BoardModule = {
   running: (
     runs: BoardRunFixture[],
     enabled: (projectId: string) => boolean,
+  ) => BoardRunFixture[];
+  stopped: (
+    runs: BoardRunFixture[],
+    enabled: (projectId: string) => boolean,
     now: number,
   ) => BoardRunFixture[];
   stoppedAdmitted: (run: BoardRunFixture, now: number) => boolean;
@@ -478,14 +482,14 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
     });
   });
 
-  describe('running(runs, enabled, now)', () => {
+  describe('running(runs, enabled)', () => {
     // Criterion "running holds each of queued, running, merging, paused and
     // waiting" (design C9 "Moving runs by ..."; task 8 Success; Requirement
     // 3.7 "one tile per run in status `queued`, `running`, `merging`,
     // `paused` or `waiting`").
     //   Pre-condition: five runs, one per moving status, same enabled
     //   project, ascending `updated` times, none with `lastActivity`.
-    //   Test: running(runs, () => true, now).
+    //   Test: running(runs, () => true).
     //   Observable result: all five ids present, in `updated`-ascending
     //   order (queued, running, merging, paused, waiting).
     //   Expected-value source: the literal status list of Requirement 3 AC7.
@@ -494,7 +498,7 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
       const runs = statuses.map((status, i) => boardRunFixture({
         id: `r-${status}`, status, updated: `2026-01-01T0${i}:00:00.000Z`,
       }));
-      const result = board.running(runs, () => true, Date.parse('2026-01-02T00:00:00.000Z'));
+      const result = board.running(runs, () => true);
       expect(result.map((r) => r.id)).toEqual(['r-queued', 'r-running', 'r-merging', 'r-paused', 'r-waiting']);
     });
 
@@ -507,7 +511,7 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
     //   of 01-05, which sits between A's two values. Sorting by `updated`
     //   alone would put B before A; sorting by `lastActivity ?? updated`
     //   puts A before B.
-    //   Test: running([runA, runB], () => true, now).
+    //   Test: running([runA, runB], () => true).
     //   Observable result: [runA, runB].
     //   Expected-value source: the literal "by lastActivity, else updated"
     //   fallback rule, distinguished from a plain `updated` sort by this
@@ -517,23 +521,71 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         id: 'rA', status: 'running', updated: '2026-01-10T00:00:00.000Z', lastActivity: '2026-01-01T00:00:00.000Z',
       });
       const runB = boardRunFixture({ id: 'rB', status: 'running', updated: '2026-01-05T00:00:00.000Z' });
-      const result = board.running([runA, runB], () => true, Date.parse('2026-01-11T00:00:00.000Z'));
+      const result = board.running([runA, runB], () => true);
       expect(result.map((r) => r.id)).toEqual(['rA', 'rB']);
     });
 
-    // Criterion "admitted stopped runs follow, newest updated first"
-    // (design C9 "... then admitted stopped runs by `updated` descending";
-    // task 8 Success; Requirement 3.7 "stopped runs SHALL sort after them,
-    // newest `updated` first").
+    // Criterion "running holds only moving runs, dropping a stopped run"
+    // (design C9 "Interfaces": "`running(runs, enabled)` returns moving
+    // runs in the base order"; task 20 Success "running drops a stopped
+    // run and keeps the base order"; Requirement 9 AC 1 "it SHALL hold
+    // only runs in queued, running, merging, paused or waiting", replacing
+    // dashboard-board Requirement 3 AC 7's mixed running+stopped list).
     //   Pre-condition: one moving run and two admitted stopped runs
     //   (`abandoned`, `branchPresent: true`) with different `updated`
-    //   times.
-    //   Test: running([stoppedOld, moving, stoppedNew], () => true, now).
-    //   Observable result: [moving, stoppedNew, stoppedOld] — the moving
-    //   run leads, then the stopped runs newest-updated first.
-    //   Expected-value source: the literal "stopped runs follow ... newest
-    //   updated first" clause.
-    it('places admitted stopped runs after moving runs, newest updated first', () => {
+    //   times, so a leftover mixing behaviour would still have an
+    //   observable (wrong) order to report.
+    //   Test: running([stoppedOld, moving, stoppedNew], () => true).
+    //   Observable result: [moving] only — both stopped runs are dropped.
+    //   Expected-value source: Requirement 9 AC 1's "only" clause: a run
+    //   outside the five moving statuses SHALL NOT appear, however it
+    //   would otherwise sort.
+    it('drops a stopped run, holding only moving runs', () => {
+      const moving = boardRunFixture({ id: 'rM', status: 'running', updated: '2026-01-01T00:00:00.000Z' });
+      const stoppedOld = boardRunFixture({
+        id: 'rS-old', status: 'abandoned', updated: '2026-01-02T00:00:00.000Z', branchPresent: true,
+      });
+      const stoppedNew = boardRunFixture({
+        id: 'rS-new', status: 'abandoned', updated: '2026-01-03T00:00:00.000Z', branchPresent: true,
+      });
+      const result = board.running([stoppedOld, moving, stoppedNew], () => true);
+      expect(result.map((r) => r.id)).toEqual(['rM']);
+    });
+
+    // Criterion "a disabled project's run is dropped" (design C9 "... on
+    // enabled projects"; task 8 Success; Requirement 3.5).
+    //   Pre-condition: a moving run on a disabled project and a moving run
+    //   on an enabled project.
+    //   Test: running([offRun, onRun], enabled) where `enabled` is
+    //   true only for the "on" project id.
+    //   Observable result: only the "on" run's id.
+    //   Expected-value source: Requirement 3.5's "SHALL show no tile for
+    //   it", applied to `running`'s own project filter.
+    it('drops a moving run on a disabled project', () => {
+      const offRun = boardRunFixture({ id: 'rOff', status: 'running', project: 'p-off' });
+      const onRun = boardRunFixture({ id: 'rOn', status: 'running', project: 'p-on' });
+      const result = board.running([offRun, onRun], (id) => id === 'p-on');
+      expect(result.map((r) => r.id)).toEqual(['rOn']);
+    });
+  });
+
+  describe('stopped(runs, enabled, now)', () => {
+    // Criterion "stopped holds admitted runs, newest updated first"
+    // (design C9 "Interfaces": "New `stopped(runs, enabled, now)` returns
+    // `stoppedAdmitted` runs, newest `updated` first"; task 20 Success
+    // "`stopped` holds admitted runs, newest `updated` first"; Requirement
+    // 9 AC 2 "it SHALL appear in a separate stopped band, newest `updated`
+    // first").
+    //   Pre-condition: one moving run (which `stoppedAdmitted` never
+    //   admits) and two admitted stopped runs (`abandoned`,
+    //   `branchPresent: true`) with different `updated` times.
+    //   Test: stopped([stoppedOld, moving, stoppedNew], () => true, now).
+    //   Observable result: [stoppedNew, stoppedOld] — the moving run is
+    //   absent and the two stopped runs sort newest-updated first.
+    //   Expected-value source: the literal "newest updated first" clause,
+    //   distinguished from a plain input-order pass-through by this
+    //   fixture's out-of-order input.
+    it('holds admitted stopped runs, newest updated first, and excludes a moving run', () => {
       const moving = boardRunFixture({ id: 'rM', status: 'running', updated: '2026-01-01T00:00:00.000Z' });
       const stoppedOld = boardRunFixture({
         id: 'rS-old', status: 'abandoned', updated: '2026-01-02T00:00:00.000Z', branchPresent: true,
@@ -542,23 +594,30 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         id: 'rS-new', status: 'abandoned', updated: '2026-01-03T00:00:00.000Z', branchPresent: true,
       });
       const now = Date.parse('2026-01-04T00:00:00.000Z');
-      const result = board.running([stoppedOld, moving, stoppedNew], () => true, now);
-      expect(result.map((r) => r.id)).toEqual(['rM', 'rS-new', 'rS-old']);
+      const result = board.stopped([stoppedOld, moving, stoppedNew], () => true, now);
+      expect(result.map((r) => r.id)).toEqual(['rS-new', 'rS-old']);
     });
 
-    // Criterion "a disabled project's run is dropped" (design C9 "... on
-    // enabled projects"; task 8 Success; Requirement 3.5).
-    //   Pre-condition: a moving run on a disabled project and a moving run
-    //   on an enabled project.
-    //   Test: running([offRun, onRun], enabled, now) where `enabled` is
+    // Criterion "stopped drops a disabled project's run" (design C9
+    // "Interfaces"; task 20 Success "and drops a disabled project's run";
+    // Requirement 9.2 reached through the same `enabled` filter
+    // Requirement 3.5 states for `running`).
+    //   Pre-condition: an admitted stopped run on a disabled project and
+    //   an admitted stopped run on an enabled project.
+    //   Test: stopped([offRun, onRun], enabled, now) where `enabled` is
     //   true only for the "on" project id.
     //   Observable result: only the "on" run's id.
     //   Expected-value source: Requirement 3.5's "SHALL show no tile for
-    //   it", applied to `running`'s own project filter.
-    it('drops a moving run on a disabled project', () => {
-      const offRun = boardRunFixture({ id: 'rOff', status: 'running', project: 'p-off' });
-      const onRun = boardRunFixture({ id: 'rOn', status: 'running', project: 'p-on' });
-      const result = board.running([offRun, onRun], (id) => id === 'p-on', Date.parse('2026-01-02T00:00:00.000Z'));
+    //   it", applied to `stopped`'s own project filter.
+    it("drops a disabled project's stopped run", () => {
+      const now = Date.parse('2026-01-02T00:00:00.000Z');
+      const offRun = boardRunFixture({
+        id: 'rOff', status: 'abandoned', project: 'p-off', branchPresent: true, updated: '2026-01-01T00:00:00.000Z',
+      });
+      const onRun = boardRunFixture({
+        id: 'rOn', status: 'abandoned', project: 'p-on', branchPresent: true, updated: '2026-01-01T00:00:00.000Z',
+      });
+      const result = board.stopped([offRun, onRun], (id) => id === 'p-on', now);
       expect(result.map((r) => r.id)).toEqual(['rOn']);
     });
   });

@@ -2180,6 +2180,136 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criterion "a running, a done and an abandoned run split into
+  // band-running and band-stopped, with the full band order" (design C9
+  // "Placement"; task 20 Success "with one running, one done and one
+  // abandoned run, each stopped run with its branch present, band-running
+  // holds only the running run and band-stopped the other two (the
+  // decomposition's scenario 8)" and "the bands order needs you, running,
+  // next, stopped"; "its heading has text-xs and font-medium";
+  // Requirement 9 AC 1, AC 2, AC 3).
+  //   Pre-condition: one `running` run, and a `done` and an `abandoned`
+  //   run each with a real repo and branch so `stoppedAdmitted` admits
+  //   them.
+  //   Test: page.goto('/'), then the four `[data-testid^="band-"]`
+  //   sections, the run tiles inside band-running and band-stopped, and
+  //   band-stopped's heading element.
+  //   Observable result: four bands in order band-needs-you,
+  //   band-running, band-next, band-stopped; band-running holds exactly
+  //   the running run's tile; band-stopped holds exactly the done and
+  //   abandoned runs' tiles; band-stopped's heading carries both
+  //   `text-xs` and `font-medium`.
+  //   Expected-value source: design C9 "Placement" ("after band-next,
+  //   absent when empty") and "Quieter weight" ("the heading is `text-xs
+  //   font-medium ...`"), Requirement 9 AC 1-AC 3 verbatim, and the
+  //   task's own "scenario 8" fixture shape.
+  test('(R9 AC1-AC3, decomposition scenario 8) a running, a done and an abandoned run split into band-running and band-stopped, with the full band order', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runningId = 'e2e-board-run-split-running-run';
+    const doneId = 'e2e-board-run-split-done-run';
+    const abandonedId = 'e2e-board-run-split-abandoned-run';
+    const doneBranch = 'feat/e2e-board-split-done';
+    const abandonedBranch = 'feat/e2e-board-split-abandoned';
+    const doneRepo = await makeGitRepo(doneBranch);
+    const abandonedRepo = await makeGitRepo(abandonedBranch);
+    const runningRun = baseRun(runningId, 'e2e-board-run-split-running-proj', {
+      status: 'running', spec: 'e2e-board-run-split-running-spec',
+    });
+    const doneRun = baseRun(doneId, 'e2e-board-run-split-done-proj', {
+      status: 'done', spec: 'e2e-board-run-split-done-spec', updated: isoAgo(60_000),
+      codeRoot: doneRepo, specStore: doneRepo, worktree: doneRepo, branch: doneBranch,
+    });
+    const abandonedRun = baseRun(abandonedId, 'e2e-board-run-split-abandoned-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-split-abandoned-spec',
+      codeRoot: abandonedRepo, specStore: abandonedRepo, worktree: abandonedRepo, branch: abandonedBranch,
+    });
+    const runningDir = await writeRunRecord(runningRun);
+    const doneDir = await writeRunRecord(doneRun);
+    const abandonedDir = await writeRunRecord(abandonedRun);
+    try {
+      await page.goto('/');
+
+      const bands = page.locator('[data-testid^="band-"]');
+      await expect(bands).toHaveCount(4, { timeout: 15000 });
+      await expect(bands.nth(0)).toHaveAttribute('data-testid', 'band-needs-you');
+      await expect(bands.nth(1)).toHaveAttribute('data-testid', 'band-running');
+      await expect(bands.nth(2)).toHaveAttribute('data-testid', 'band-next');
+      await expect(bands.nth(3)).toHaveAttribute('data-testid', 'band-stopped');
+
+      const runningBand = page.getByTestId('band-running');
+      await expect(runningBand.getByTestId(`run-tile-${runningId}`)).toBeVisible();
+      await expect(runningBand.locator('[data-testid^="run-tile-"]')).toHaveCount(1);
+
+      const stoppedBand = page.getByTestId('band-stopped');
+      await expect(stoppedBand.getByTestId(`run-tile-${doneId}`)).toBeVisible();
+      await expect(stoppedBand.getByTestId(`run-tile-${abandonedId}`)).toBeVisible();
+      await expect(stoppedBand.locator('[data-testid^="run-tile-"]')).toHaveCount(2);
+
+      const heading = stoppedBand.locator('h2');
+      await expect(heading).toHaveClass(/text-xs/);
+      await expect(heading).toHaveClass(/font-medium/);
+    } finally {
+      await removeRunRecord(runningDir);
+      await removeRunRecord(doneDir);
+      await removeRunRecord(abandonedDir);
+      await removeGitRepo(doneRepo);
+      await removeGitRepo(abandonedRepo);
+    }
+  });
+
+  // Criterion "a quiet tile shows run-status-<id> reading done, abandoned
+  // or error, with no display-size age and no dot row" (design C9
+  // "Quieter weight (AC 3)": "A `quiet` tile shows `run-status-<id>` with
+  // `done`, `abandoned` or `error` ... in place of the display-size age
+  // and the dot row"; task 20 Success).
+  //   Pre-condition: a `done`, an `abandoned` and an `error` run, each
+  //   with a real repo and branch so `stoppedAdmitted` admits it.
+  //   Test: page.goto('/'), then each run's `run-status-<id>` element and
+  //   its tile's display-size age and dot elements.
+  //   Observable result: `run-status-<id>` is visible and reads the run's
+  //   own status word; the tile has no `.text-display` element (the
+  //   display-size age) and no `[aria-hidden]` element (the dot).
+  //   Expected-value source: design C9's quiet-tile text verbatim, and
+  //   `tiles.tsx`'s own classes for the display-size age (`text-display`,
+  //   `:173`) and the dot (`RunDot`'s `aria-hidden` span, `:110`) that a
+  //   quiet tile must not render.
+  test('(design C9 "Quieter weight") a quiet stopped tile shows run-status-<id> with no display-size age and no dot row', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const cases: Array<{ id: string; status: 'done' | 'abandoned' | 'error'; branch: string }> = [
+      { id: 'e2e-board-run-quiet-done-run', status: 'done', branch: 'feat/e2e-board-quiet-done' },
+      { id: 'e2e-board-run-quiet-abandoned-run', status: 'abandoned', branch: 'feat/e2e-board-quiet-abandoned' },
+      { id: 'e2e-board-run-quiet-error-run', status: 'error', branch: 'feat/e2e-board-quiet-error' },
+    ];
+    const repos: string[] = [];
+    const dirs: string[] = [];
+    try {
+      for (const c of cases) {
+        const repo = await makeGitRepo(c.branch);
+        repos.push(repo);
+        const run = baseRun(c.id, `e2e-board-run-quiet-${c.status}-proj`, {
+          status: c.status, spec: `e2e-board-run-quiet-${c.status}-spec`, updated: isoAgo(60_000),
+          codeRoot: repo, specStore: repo, worktree: repo, branch: c.branch,
+        });
+        dirs.push(await writeRunRecord(run));
+      }
+      await page.goto('/');
+      for (const c of cases) {
+        const tile = page.getByTestId(`run-tile-${c.id}`);
+        await expect(tile).toBeVisible({ timeout: 15000 });
+        const status = page.getByTestId(`run-status-${c.id}`);
+        await expect(status).toBeVisible();
+        await expect(status).toHaveText(c.status);
+        await expect(tile.locator('.text-display')).toHaveCount(0);
+        await expect(tile.locator('[aria-hidden]')).toHaveCount(0);
+      }
+    } finally {
+      for (const dir of dirs) await removeRunRecord(dir);
+      for (const repo of repos) await removeGitRepo(repo);
+    }
+  });
+
   // Criteria "a branchless one shows no tile", "a 25-hour-old `done` run
   // shows no tile" and "stopped runs sort after moving ones, newest first"
   // (task 14 Success; Requirement 7 AC 6; design C9 `running`) are
