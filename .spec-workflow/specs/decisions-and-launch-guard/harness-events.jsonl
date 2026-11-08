@@ -395,3 +395,11 @@
 {"ts":"2026-11-08T16:09:52.124Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"spawn.usage","agent":"sdd-implementer","role":"implement code batch 3","result":"ok","phase":"closeout"}
 {"ts":"2026-11-08T16:09:52.140Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"task.done","task":"P4","outcome":"skipped"}
 {"ts":"2026-11-08T16:09:53.722Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"phase.end","phase":"closeout","result":"closed","state":"items 14/14","note":"1 done, 1 to-do, 12 skipped"}
+{"ts":"2026-11-08T16:09:55.466Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"close-out merge: close-out PR #211 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-08T16:10:27.564Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"close-out merge: close-out PR #211 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-08T16:10:59.714Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"close-out merge: close-out PR #211 of spec-workflow-mcp not-ready (workflow CI is still running)"}
+{"ts":"2026-11-08T16:11:31.866Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"close-out merge: close-out PR #211 of spec-workflow-mcp waiting (waiting for the operator to approve merging close-out PR #211 of spec-workflow-mcp)"}
+{"ts":"2026-11-08T16:12:08.879Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"merge answered by coordinator: merge"}
+{"ts":"2026-11-08T16:12:15.839Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"pr.merged","number":"211","sha":"ed35b5a04c61f3c5b6f33a83d3da6aa7618c0466","method":"merge","repo":"spec-workflow-mcp"}
+{"ts":"2026-11-08T16:12:15.845Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"note","text":"close-out merge: close-out PR #211 of spec-workflow-mcp merged (merged close-out PR #211 of spec-workflow-mcp via merge)"}
+{"ts":"2026-11-08T16:12:15.848Z","run":"run-20261107-174258","spec":"decisions-and-launch-guard","type":"run.end","status":"done"}
