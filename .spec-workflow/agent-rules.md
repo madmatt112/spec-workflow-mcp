@@ -38,6 +38,18 @@ guarantee, and the design says which. A design probe that informs a timing or
 stream-ordering decision runs under node 20 too, not just the tests that assert the
 node-20 fields.
 
+- When a task's fix must touch a file absent from its `File:` list, the verdict is
+  `file-outside-list` and no implementer commit can clear it — the only resolution is a `tasks.md`
+  File-list amendment. The task-review gate treats this as an authoring omission: it surfaces the
+  exact File-list patch for the orchestrator to apply and re-runs the task, rather than routing a
+  design-defect fix loop. Authors derive File entries from the symbol's import/re-export graph;
+  over-listing is harmless, under-listing surfaces here.
+- A task whose success criterion is a measurement, a regression guard, or a behaviour already
+  enforced by a sibling mechanism cannot be made to fail first. Mark it implementer-only at
+  tasks-authoring time so no test-author or TDD-red step is routed to it, and the tasks-review gate
+  flags any such task that still carries a `- Test:` seam. An author or implementer never reports
+  another task's commit as its own red commit.
+
 ## Git
 
 - Use `/usr/bin/git` in scripts. A shell hook may rewrite a bare `git` or `diff`

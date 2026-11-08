@@ -22,14 +22,14 @@ import {
 } from './state.js';
 import {
   waitEvents, createWait, answerWait, openDriveCrashWait, expireWait,
-  DRIVE_CRASH_QUESTION, type ControllerWaitRecord,
+  DRIVE_CRASH_QUESTION, RunAbandonedError, type ControllerWaitRecord,
 } from './waits.js';
 import { readMergeRules, type MergeRules } from './merge.js';
 import { recordActivity, clearRunActivity } from './activity.js';
 import { NO_OP_GATES, type DocumentGates } from './phases/document.js';
 import type { RateLimitWindows } from './step.js';
 import {
-  runOnce, cancelRun, discardRun, branchHeld, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
+  runOnce, cancelRun, discardRun, branchHeld, branchReused, writeApprovedRetroPlan, setRunHeartbeat, runEvents,
   type RunDeps, type CancelDeps,
 } from './runs.js';
 import {
@@ -385,7 +385,8 @@ export class Controller extends EventEmitter {
     return withStoreLock(initial.specStore, async () => {
       const run = await readRun(runId);
       if (!run) return undefined;
-      if (branchHeld(run, await listRuns())) return 'branch-in-use';
+      const runs = await listRuns();
+      if (branchHeld(run, runs) || branchReused(run, runs)) return 'branch-in-use';
 
       this.cancelled.add(runId);
       await this.dropFromQueue(runId);
@@ -595,8 +596,10 @@ export class Controller extends EventEmitter {
     try {
       await runOnce(this.runDeps(), runId);
     } catch (err) {
-      console.error(`[controller] run ${runId} errored`, err);
-      await this.openCrashWait(runId, err);
+      if (!(err instanceof RunAbandonedError)) {
+        console.error(`[controller] run ${runId} errored`, err);
+        await this.openCrashWait(runId, err);
+      }
     } finally {
       this.active.delete(runId);
     }
@@ -807,7 +810,8 @@ export class Controller extends EventEmitter {
     run: RunRecord, patch: Partial<RunRecord>, opts?: { ownsPauseRequest?: boolean },
   ): Promise<RunRecord> {
     const next: RunRecord = { ...run, ...patch, updated: this.now().toISOString() };
-    await writeRun(next, opts);
+    const wrote = await writeRun(next, opts);
+    if (!wrote) return (await readRun(run.id)) ?? next;
     runEvents.emit('change', next);
     return next;
   }

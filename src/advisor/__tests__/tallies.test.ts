@@ -160,6 +160,34 @@ describe('src/advisor/tallies.ts buildTallies', () => {
     expect(result.weeks['2026-W16'].failures.success).toBeUndefined();
   });
 
+  // Requirement 7 AC 1/6 (tasks.md task 16); design C7 "Step guard" adds
+  // `'cancelled'` to `StepClassification` (src/controller/step.ts:71-78) for
+  // a step skipped on an abandoned run, and task 16 adds it to
+  // `STEP_CLASSIFICATIONS` (src/advisor/tallies.ts:29) so the row tallies
+  // under its own name rather than falling into the `unknown` bucket the
+  // preceding test proves for a non-StepClassification result. Pre-
+  // condition: one project's harness-events.jsonl holds one spawn.usage row
+  // with result 'cancelled' at 2026-05-18T09:00:00.000Z (ISO week 2026-W21,
+  // independently confirmed via `date -u -d 2026-05-18 +%V-%G` → `21-2026`).
+  // Test: buildTallies covering that week. Observable result:
+  // weeks['2026-W21'].failures['cancelled'] === 1 and failures.unknown is
+  // undefined. Expected value source: the task's own Success line ("a
+  // cancelled row tallies under cancelled").
+  it('counts a spawn.usage row with result cancelled under its own name, not unknown', async () => {
+    const root = projectRoot('sdd-advisor-tallies-proj-');
+    const specDir = specDirFor(root, 'spec-cancelled');
+    await writeProjects({ v: 1, projects: [makeProject('proj-cancelled', root)] });
+
+    const TS = '2026-05-18T09:00:00.000Z';
+    const led = openRunLedger({ specDir, runId: 'run-cancel', spec: 'spec-cancelled', now: () => new Date(TS) });
+    led.spawnUsage({ agent: 'sdd-implementer', role: 'implement task 1', result: 'cancelled', phase: 'implementation', task: '1' });
+
+    const result: any = await buildTallies({ from: '2026-05-01T00:00:00.000Z', to: '2026-05-20T00:00:00.000Z' });
+
+    expect(result.weeks['2026-W21'].failures['cancelled']).toBe(1);
+    expect(result.weeks['2026-W21'].failures.unknown).toBeUndefined();
+  });
+
   // AC 3.3: a row missing a needed field counts as unknown and sets
   // floor:true on that column, never dropped. Pre-condition: one project's
   // harness-events.jsonl holds one spawn.end row at 2026-05-11T09:00:00.000Z

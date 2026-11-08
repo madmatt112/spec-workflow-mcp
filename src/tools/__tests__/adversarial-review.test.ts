@@ -629,4 +629,38 @@ describe('adversarial-review tool — verdictBlock', () => {
   it('declares verdictBlock in the input schema', () => {
     expect((adversarialReviewTool.inputSchema as any).properties.verdictBlock.type).toBe('boolean');
   });
+
+  // Contract — Requirement 5 AC 1 (design C5, D8):
+  // 1. Pre: verdictBlock: true. Test: adversarialReviewHandler({ specName, phase, verdictBlock: true },
+  //    context). Observe: the written prompt names both the `[drafting] ` and `[design] ` prefixes and
+  //    the drafting-defect examples. Source: requirements.md Requirement 5 AC 1 ("a wrong citation, a
+  //    stale count, wording, or a lint failure").
+  // 2. Pre: no verdictBlock. Test: adversarialReviewHandler({ specName, phase }, context). Observe: the
+  //    written prompt names neither prefix. Source: design C5 — the label text lives only inside the
+  //    verdict-block addition to `HARNESS_VERDICT_SECTION`, which is omitted when verdictBlock is unset.
+
+  it('names the drafting/design label prefixes and the drafting-defect examples when verdictBlock is set', async () => {
+    const { project } = await createSpec();
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements', verdictBlock: true },
+      { projectPath: project, workspacePath: project }
+    );
+    expect(result.success).toBe(true);
+    const prompt = await fs.readFile(result.data.promptOutputPath, 'utf-8');
+    expect(prompt).toContain('[drafting] ');
+    expect(prompt).toContain('[design] ');
+    expect(prompt).toContain('a wrong citation, a stale count, wording, or a lint failure');
+  });
+
+  it('names neither label prefix when verdictBlock is not set', async () => {
+    const { project } = await createSpec();
+    const result = await adversarialReviewHandler(
+      { specName: 'test-spec', phase: 'requirements' },
+      { projectPath: project, workspacePath: project }
+    );
+    expect(result.success).toBe(true);
+    const prompt = await fs.readFile(result.data.promptOutputPath, 'utf-8');
+    expect(prompt).not.toContain('[drafting] ');
+    expect(prompt).not.toContain('[design] ');
+  });
 });

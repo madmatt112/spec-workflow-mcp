@@ -7,7 +7,7 @@
 // `controller.test.ts:95-117` (`setup`) and `:163-172` (`makeController`).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync, existsSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -335,6 +335,54 @@ describe('liveness e2e: Controller.enqueue with a stub step that streams lines',
     expect(run?.status).toBe('abandoned');
     expect(run?.lastActivity).toBeUndefined();
   });
+});
+
+// Contract for `controller.cancel` leaving the driver final on every cancel
+// path (design C7 "Driver checks", Requirement 7 AC 1, AC 2; the design
+// Verification line: "a cancel during a live step leaves the run abandoned,
+// with no second claude -p, no new wait and no status change in the next 60
+// seconds"). Pre: a live drafter step streaming, a second scripted run that
+// would be a second drafter if the fix is missing. Test: `controller.cancel(id)`
+// while the step is in flight. Observable result: the signalled step's
+// `error` classification reaches `handleDocumentOutcome`'s fresh-retry
+// branch; the run is `abandoned` with exactly one `spawn.start` row (no
+// second drafter), no wait open, and the status still reads `abandoned` on a
+// later read. Expected value source: the task's own Success line and design
+// C7 "Driver checks" ("The four handle*Outcome functions return 'stop' first
+// when runCancelled: no retry, no wait").
+describe('liveness e2e: a cancel during a document step leaves the driver final (design C7 "Driver checks", Requirement 7 AC 1, AC 2)', () => {
+  it('controller.cancel during the drafter step spawns no second drafter and opens no wait', async () => {
+    writeScript(fx, [
+      streamingDraftRun('requirements', 20, 150),
+      streamingDraftRun('requirements', 1, 0), // the second drafter, if the fix is missing
+    ]);
+    controller = makeController(fx);
+    await controller.start();
+    const id = await controller.enqueue({ projectId: 'p', spec: SPEC });
+
+    await waitForRun(
+      id,
+      (run) => typeof run?.lastActivity === 'string',
+      3000,
+      'lastActivity never appeared before cancel',
+    );
+
+    await controller.cancel(id);
+
+    // Let the driver finish processing the killed step's outcome.
+    await new Promise((r) => setTimeout(r, 1000));
+
+    const run = await readRun(id);
+    expect(run?.status).toBe('abandoned');
+    expect((await listOpenWaits()).filter((w) => w.run === id)).toHaveLength(0);
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.filter((r) => r.type === 'spawn.start')).toHaveLength(1);
+
+    // The status holds at a later read (the design Verification window).
+    await new Promise((r) => setTimeout(r, 500));
+    expect((await readRun(id))?.status).toBe('abandoned');
+  }, 15000);
 });
 
 // Design end-to-end scenario 2 (design.md "Testing Strategy"): a throw through

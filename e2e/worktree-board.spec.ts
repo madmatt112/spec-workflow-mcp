@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { execFileSync } from 'child_process';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { sddHome } from '../src/dashboard/harness/state-files.js';
@@ -293,23 +293,35 @@ async function registerNextProject(
 
 /**
  * Two listed projects on one store (design C10 "two listed projects share a
- * store", D11): a shared `workflowRoot` directory IS the representative's
- * own `projectPath` (so `stores.ts`'s `pickRepresentative` "own" match picks
- * it over the name-sort fallback, deterministically), and a second project
- * is registered at a different directory with the same explicit
- * `workflowRootPath`. Both read the one decomposition `heading` names, since
- * the server's `project.projectPath` for an explicit-store registration is
- * the store itself (`project-manager.ts:23`, `:341-345`).
+ * store", D11; decisions-and-launch-guard design C2 "Route": `storeProjects`
+ * is `getAllProjects()` filtered on `projectPath === project.projectPath`):
+ * a shared `workflowRoot` directory IS the first project's own `projectPath`
+ * (the store identity both share), and a second project is registered at a
+ * different directory with the same explicit `workflowRootPath` (so its own
+ * `workspacePath`, the code root the guard's `existsSync` reads, differs).
+ * Both read the one decomposition `heading` names, since the server's
+ * `project.projectPath` for an explicit-store registration is the store
+ * itself (`project-manager.ts:23`, `:341-345`). When `heldFile` is given (a
+ * relative path, decisions-and-launch-guard task 7), a real empty file is
+ * written at that path under `sharedDir` only, so a decomposition entry
+ * naming that path as a backtick token (`decisions-and-launch-guard` design
+ * C2 "File list, by source") makes `sharedDir`'s project hold it and
+ * `memberDir`'s project lack it.
  */
 async function registerSharedStoreProjects(
   page: Page,
   heading: string,
+  heldFile?: string,
 ): Promise<{ repId: string; memberId: string; sharedDir: string; memberDir: string }> {
   const sharedDir = join(tmpdir(), `specwf-e2e-board-next-shared-${randomBytes(4).toString('hex')}`);
   const memberDir = join(tmpdir(), `specwf-e2e-board-next-member-${randomBytes(4).toString('hex')}`);
   await mkdir(sharedDir, { recursive: true });
   await mkdir(memberDir, { recursive: true });
   await prepareWorkflowRoot(join(sharedDir, '.spec-workflow'), async (wr) => writeDecomposition(wr, heading));
+  if (heldFile) {
+    await mkdir(join(sharedDir, dirname(heldFile)), { recursive: true });
+    await writeFile(join(sharedDir, heldFile), '', 'utf-8');
+  }
   const repId = await registerProjectAt(page, sharedDir, sharedDir);
   const memberId = await registerProjectAt(page, memberDir, sharedDir);
   return { repId, memberId, sharedDir, memberDir };
@@ -849,6 +861,49 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criteria "the mb-3 class at DeployControl.tsx:57 SHALL be removed" and
+  // "the Deploy control's vertical centre SHALL match the nav links' centre
+  // within 1 px" (task 22 Success; Requirement 11 AC 1, AC 2). One test
+  // covers both: `mb-3` is a margin-bottom on the Deploy control's row,
+  // which is what pushes its vertical centre below the nav row's centre at
+  // base; removing it is the only change the task makes (task 22
+  // Restrictions: "Change no other class"), so the alignment assertion
+  // below is red at base for exactly the reason AC 1 names, and green only
+  // once `mb-3` is gone. The `grep -n 'mb-3' ...` text noted in the task's
+  // own Success line is a static check on the source file, not a call
+  // through the `page.getByTestId('deploy-button').boundingBox()` seam, so
+  // it is left for the implementer to run directly rather than duplicated
+  // as a test here.
+  //   Pre-condition: the top bar rendered at 1280 px desktop width, with no
+  //   wait, run or action seeded (the top bar renders on every route
+  //   regardless of board content).
+  //   Test: page.getByTestId('deploy-button').boundingBox(), compared
+  //   against page.getByTestId('nav-home').boundingBox().
+  //   Observable result: the absolute difference between the two boxes'
+  //   vertical centres (`y + height / 2`) is less than 1 px.
+  //   Expected-value source: Requirement 11 AC 2's "within 1 px" tolerance,
+  //   stated verbatim; the two test ids come from the task's own `File:`
+  //   list (`DeployControl.tsx:68` for `deploy-button`) and
+  //   `TopBar.tsx:16`'s `NAV_ITEMS` entry for `nav-home`.
+  test('(R11 AC1, AC2) the Deploy control sits level with the nav links at 1280px', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+
+    const deployButton = page.getByTestId('deploy-button');
+    const navHome = page.getByTestId('nav-home');
+    await expect(deployButton).toBeVisible({ timeout: 15000 });
+    await expect(navHome).toBeVisible();
+
+    const deployBox = await deployButton.boundingBox();
+    const navBox = await navHome.boundingBox();
+    expect(deployBox).not.toBeNull();
+    expect(navBox).not.toBeNull();
+
+    const deployCentre = deployBox!.y + deployBox!.height / 2;
+    const navCentre = navBox!.y + navBox!.height / 2;
+    expect(Math.abs(deployCentre - navCentre)).toBeLessThan(1);
+  });
+
   // Criterion "A `staged` action shows kind, target, reason, age, Confirm and
   // Dismiss" (task 12 Success; Requirement 5 AC 1 "Needs you SHALL show a
   // tile with its kind, target, reason, age and, while `staged`, Confirm and
@@ -1039,6 +1094,55 @@ test.describe('Home (board)', () => {
       expect(text).not.toMatch(/\bundefined\b|\bnull\b|\[object/i);
     } finally {
       await removeActionRecord(actionId);
+    }
+  });
+
+  // Criterion "a staged action on a registered, named project shows the
+  // name and not the id" (task 4 Success; Requirement 1 AC 6 "WHEN a
+  // staged action tile renders THEN it SHALL show the project's display
+  // name"). The companion case — an action on an unknown project still
+  // shows the raw id — is the task's own Note: `(R5 AC1)` above already
+  // seeds an unregistered project and asserts its raw id shows, so that
+  // half is a regression guard, not retested here.
+  //   Pre-condition: a project registered through `POST /api/projects/add`,
+  //   given a display name through `POST /api/projects/:id/display-name`,
+  //   and a staged action whose `target.project` is that project's real id.
+  //   Test: page.goto('/'), then the action's tile's text content.
+  //   Observable result: the tile's text contains the display name and
+  //   does not contain the raw project id.
+  //   Expected-value source: design C1 "`ActionTile` takes `projectName:
+  //   (id: string) => string`, and `actionTarget` prints that for
+  //   `t.project`"; Requirement 1 AC 6.
+  test('(R1 AC6) a staged action on a registered, named project shows the display name, not the id', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-action-named-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath: a `setDisplayName` call needs a durable
+    // `projects.json` row, which `addProjectByPath`'s no-override branch
+    // never writes (`src/dashboard/project-manager.ts:321-341`).
+    const projectId = await registerProjectAt(page, dir, dir);
+    const displayName = 'Action Named Project';
+    const setRes = await page.request.post(`/api/projects/${projectId}/display-name`, {
+      data: { displayName },
+    });
+    expect(setRes.ok()).toBe(true);
+
+    const actionId = 'e2e-board-action-named-action';
+    const spec = 'e2e-board-action-named-spec';
+    const action = baseAction(actionId, {
+      kind: 'backlog',
+      target: { project: projectId, spec },
+      reason: 'Needs a name, not an id.',
+    });
+    await writeActionRecord(action);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`action-tile-${actionId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText(displayName);
+      await expect(tile).not.toContainText(projectId);
+    } finally {
+      await removeActionRecord(actionId);
+      await unregisterProject(page, projectId, dir);
     }
   });
 
@@ -1581,6 +1685,155 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criterion "a moving run with a phase shows it, and the run's own age"
+  // (task 19 Success; Requirement 8 AC 1 "WHEN a moving run has a phase
+  // THEN its tile SHALL show it", AC 2 "its tile SHALL show the age since
+  // created"; Verification "a run 2 minutes into requirements, on a
+  // project with an older run of the same store, shows requirements and
+  // its true age").
+  //   Pre-condition: an older `waiting` run on the same project and
+  //   `specStore` with phase `implementation`, plus a `waiting` run with
+  //   phase `requirements`, `created` 2 minutes ago.
+  //   Test: page.goto('/'), then the newer run's tile and
+  //   `page.getByTestId('run-age-' + runId)`.
+  //   Observable result: the tile's text contains "requirements"; the
+  //   run-age element's text is "run 2m".
+  //   Expected-value source: the Verification scenario's literal phase
+  //   name and age, and design C8's `run <compactAge> ` format.
+  test('(R8 AC1, AC2) a healthy run 2 minutes into requirements, on a project with an older run of the same store, shows requirements and run 2m', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const project = 'e2e-board-run-phase-proj';
+    const specStore = '/tmp/e2e-board-run-phase-store';
+    const olderId = 'e2e-board-run-phase-older-run';
+    const runId = 'e2e-board-run-phase-run';
+    const olderRun = baseRun(olderId, project, {
+      specStore,
+      spec: 'e2e-board-run-phase-older-spec',
+      status: 'waiting',
+      phase: 'implementation',
+      cursor: { phase: 'implementation', stepKind: 'implementer', attempt: 1 },
+      created: isoAgo(2 * 60 * 60_000), updated: isoAgo(2 * 60 * 60_000),
+    });
+    const run = baseRun(runId, project, {
+      specStore,
+      spec: 'e2e-board-run-phase-spec',
+      status: 'waiting',
+      phase: 'requirements',
+      cursor: { phase: 'requirements', stepKind: 'drafter', attempt: 1 },
+      created: isoAgo(2 * 60_000), updated: isoAgo(60_000),
+    });
+    const olderDir = await writeRunRecord(olderRun);
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('requirements');
+      await expect(page.getByTestId(`run-age-${runId}`)).toHaveText('run 2m');
+    } finally {
+      await removeRunRecord(olderDir);
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a run with no phase shows no phase text" (task 19 Success;
+  // Requirement 8 AC 4 "IF a run has no phase THEN the tile SHALL show no
+  // phase text").
+  //   Pre-condition: a `waiting` run with `cursor.stepKind` and
+  //   `inFlight.task` set, but no top-level `phase` field at all (a
+  //   `waiting` run always carries a pause-note `<p>` too, via the
+  //   `pausedAt` fallback to `updated` in `toRow`, so the step line is
+  //   picked out by its own text rather than by `<p>` count).
+  //   Test: page.goto('/'), then the run's tile's step-line `<p>`
+  //   (filtered to the one containing "implementer").
+  //   Observable result: exactly one such `<p>`, with text exactly
+  //   "implementer · gamma-task" — no leading "undefined" or stray
+  //   separator from a phase slot that should have been filtered out.
+  //   Expected-value source: Requirement 8 AC 4 verbatim; design C8's
+  //   `[run.phase, run.stepKind, run.task]` join, which drops a falsy
+  //   `phase` via `filter(Boolean)`.
+  test('(R8 AC4) a run with no phase shows no phase text, with step kind and task unaffected', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-nophase-run';
+    const run = baseRun(runId, 'e2e-board-run-nophase-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-nophase-spec',
+      cursor: { phase: 'implementation', stepKind: 'implementer', attempt: 1 },
+      inFlight: { id: 'step-nophase', pid: 999996, startTime: 0, task: 'gamma-task' },
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      const stepLine = tile.locator('p').filter({ hasText: 'implementer' });
+      await expect(stepLine).toHaveCount(1);
+      await expect(stepLine).toHaveText('implementer · gamma-task');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a healthy run older than 1 hour has data-tone neutral, not
+  // forced danger by age alone" (task 19 Success; Requirement 10 AC 2
+  // "its age alone SHALL NOT force danger").
+  //   Pre-condition: a `waiting` run (not stalled, no drive-crash wait),
+  //   no `inFlight` (grey dot), `created` 2 hours ago — a byte-identical
+  //   base read of `ageTone(7200000)` would be 'danger'.
+  //   Test: page.goto('/'), then the run's tile's `data-tone` attribute.
+  //   Observable result: 'neutral'.
+  //   Expected-value source: design C10's `runTone` formula ("else
+  //   `neutral`" for a grey dot), isolated from `ageTone`'s age-based
+  //   `danger` by picking a 2-hour-old run.
+  test('(R10 AC2) a healthy run older than 1 hour has data-tone neutral', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-oldhealthy-run';
+    const run = baseRun(runId, 'e2e-board-run-oldhealthy-proj', {
+      status: 'waiting',
+      spec: 'e2e-board-run-oldhealthy-spec',
+      created: isoAgo(2 * 60 * 60_000), updated: isoAgo(2 * 60 * 60_000),
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toHaveAttribute('data-tone', 'neutral');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
+  // Criterion "a stalled run has data-tone danger" (task 19 Success;
+  // Requirement 10 AC 3 "WHEN a run is stalled THEN its tone SHALL be
+  // danger").
+  //   Pre-condition: a `running` run with no driver (stalled, per
+  //   `isStalled`), `created` 5 minutes ago — a byte-identical base read
+  //   of `ageTone(300000)` would be 'neutral'.
+  //   Test: page.goto('/'), then the run's tile's `data-tone` attribute.
+  //   Observable result: 'danger'.
+  //   Expected-value source: design C10's `runTone` formula ("`danger`
+  //   when `isStalled`"), isolated from `ageTone`'s age-based `neutral` by
+  //   picking a freshly-created stalled run.
+  test('(R10 AC3) a stalled run has data-tone danger', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runId = 'e2e-board-run-stalleddanger-run';
+    const run = baseRun(runId, 'e2e-board-run-stalleddanger-proj', {
+      status: 'running',
+      spec: 'e2e-board-run-stalleddanger-spec',
+    });
+    const runDir = await writeRunRecord(run);
+    try {
+      await page.goto('/');
+      const tile = page.getByTestId(`run-tile-${runId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile).toContainText('Stalled');
+      await expect(tile).toHaveAttribute('data-tone', 'danger');
+    } finally {
+      await removeRunRecord(runDir);
+    }
+  });
+
   // Criterion "moving runs sort most stale first" (task 13 Success;
   // Requirement 3 AC 7 "Moving runs SHALL sort most stale first, by
   // `lastActivity`, else `updated`, oldest first").
@@ -1970,6 +2223,136 @@ test.describe('Home (board)', () => {
     }
   });
 
+  // Criterion "a running, a done and an abandoned run split into
+  // band-running and band-stopped, with the full band order" (design C9
+  // "Placement"; task 20 Success "with one running, one done and one
+  // abandoned run, each stopped run with its branch present, band-running
+  // holds only the running run and band-stopped the other two (the
+  // decomposition's scenario 8)" and "the bands order needs you, running,
+  // next, stopped"; "its heading has text-xs and font-medium";
+  // Requirement 9 AC 1, AC 2, AC 3).
+  //   Pre-condition: one `running` run, and a `done` and an `abandoned`
+  //   run each with a real repo and branch so `stoppedAdmitted` admits
+  //   them.
+  //   Test: page.goto('/'), then the four `[data-testid^="band-"]`
+  //   sections, the run tiles inside band-running and band-stopped, and
+  //   band-stopped's heading element.
+  //   Observable result: four bands in order band-needs-you,
+  //   band-running, band-next, band-stopped; band-running holds exactly
+  //   the running run's tile; band-stopped holds exactly the done and
+  //   abandoned runs' tiles; band-stopped's heading carries both
+  //   `text-xs` and `font-medium`.
+  //   Expected-value source: design C9 "Placement" ("after band-next,
+  //   absent when empty") and "Quieter weight" ("the heading is `text-xs
+  //   font-medium ...`"), Requirement 9 AC 1-AC 3 verbatim, and the
+  //   task's own "scenario 8" fixture shape.
+  test('(R9 AC1-AC3, decomposition scenario 8) a running, a done and an abandoned run split into band-running and band-stopped, with the full band order', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const runningId = 'e2e-board-run-split-running-run';
+    const doneId = 'e2e-board-run-split-done-run';
+    const abandonedId = 'e2e-board-run-split-abandoned-run';
+    const doneBranch = 'feat/e2e-board-split-done';
+    const abandonedBranch = 'feat/e2e-board-split-abandoned';
+    const doneRepo = await makeGitRepo(doneBranch);
+    const abandonedRepo = await makeGitRepo(abandonedBranch);
+    const runningRun = baseRun(runningId, 'e2e-board-run-split-running-proj', {
+      status: 'running', spec: 'e2e-board-run-split-running-spec',
+    });
+    const doneRun = baseRun(doneId, 'e2e-board-run-split-done-proj', {
+      status: 'done', spec: 'e2e-board-run-split-done-spec', updated: isoAgo(60_000),
+      codeRoot: doneRepo, specStore: doneRepo, worktree: doneRepo, branch: doneBranch,
+    });
+    const abandonedRun = baseRun(abandonedId, 'e2e-board-run-split-abandoned-proj', {
+      status: 'abandoned', spec: 'e2e-board-run-split-abandoned-spec',
+      codeRoot: abandonedRepo, specStore: abandonedRepo, worktree: abandonedRepo, branch: abandonedBranch,
+    });
+    const runningDir = await writeRunRecord(runningRun);
+    const doneDir = await writeRunRecord(doneRun);
+    const abandonedDir = await writeRunRecord(abandonedRun);
+    try {
+      await page.goto('/');
+
+      const bands = page.locator('[data-testid^="band-"]');
+      await expect(bands).toHaveCount(4, { timeout: 15000 });
+      await expect(bands.nth(0)).toHaveAttribute('data-testid', 'band-needs-you');
+      await expect(bands.nth(1)).toHaveAttribute('data-testid', 'band-running');
+      await expect(bands.nth(2)).toHaveAttribute('data-testid', 'band-next');
+      await expect(bands.nth(3)).toHaveAttribute('data-testid', 'band-stopped');
+
+      const runningBand = page.getByTestId('band-running');
+      await expect(runningBand.getByTestId(`run-tile-${runningId}`)).toBeVisible();
+      await expect(runningBand.locator('[data-testid^="run-tile-"]')).toHaveCount(1);
+
+      const stoppedBand = page.getByTestId('band-stopped');
+      await expect(stoppedBand.getByTestId(`run-tile-${doneId}`)).toBeVisible();
+      await expect(stoppedBand.getByTestId(`run-tile-${abandonedId}`)).toBeVisible();
+      await expect(stoppedBand.locator('[data-testid^="run-tile-"]')).toHaveCount(2);
+
+      const heading = stoppedBand.locator('h2');
+      await expect(heading).toHaveClass(/text-xs/);
+      await expect(heading).toHaveClass(/font-medium/);
+    } finally {
+      await removeRunRecord(runningDir);
+      await removeRunRecord(doneDir);
+      await removeRunRecord(abandonedDir);
+      await removeGitRepo(doneRepo);
+      await removeGitRepo(abandonedRepo);
+    }
+  });
+
+  // Criterion "a quiet tile shows run-status-<id> reading done, abandoned
+  // or error, with no display-size age and no dot row" (design C9
+  // "Quieter weight (AC 3)": "A `quiet` tile shows `run-status-<id>` with
+  // `done`, `abandoned` or `error` ... in place of the display-size age
+  // and the dot row"; task 20 Success).
+  //   Pre-condition: a `done`, an `abandoned` and an `error` run, each
+  //   with a real repo and branch so `stoppedAdmitted` admits it.
+  //   Test: page.goto('/'), then each run's `run-status-<id>` element and
+  //   its tile's display-size age and dot elements.
+  //   Observable result: `run-status-<id>` is visible and reads the run's
+  //   own status word; the tile has no `.text-display` element (the
+  //   display-size age) and no `[aria-hidden]` element (the dot).
+  //   Expected-value source: design C9's quiet-tile text verbatim, and
+  //   `tiles.tsx`'s own classes for the display-size age (`text-display`,
+  //   `:173`) and the dot (`RunDot`'s `aria-hidden` span, `:110`) that a
+  //   quiet tile must not render.
+  test('(design C9 "Quieter weight") a quiet stopped tile shows run-status-<id> with no display-size age and no dot row', async ({ page }) => {
+    test.setTimeout(45000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const cases: Array<{ id: string; status: 'done' | 'abandoned' | 'error'; branch: string }> = [
+      { id: 'e2e-board-run-quiet-done-run', status: 'done', branch: 'feat/e2e-board-quiet-done' },
+      { id: 'e2e-board-run-quiet-abandoned-run', status: 'abandoned', branch: 'feat/e2e-board-quiet-abandoned' },
+      { id: 'e2e-board-run-quiet-error-run', status: 'error', branch: 'feat/e2e-board-quiet-error' },
+    ];
+    const repos: string[] = [];
+    const dirs: string[] = [];
+    try {
+      for (const c of cases) {
+        const repo = await makeGitRepo(c.branch);
+        repos.push(repo);
+        const run = baseRun(c.id, `e2e-board-run-quiet-${c.status}-proj`, {
+          status: c.status, spec: `e2e-board-run-quiet-${c.status}-spec`, updated: isoAgo(60_000),
+          codeRoot: repo, specStore: repo, worktree: repo, branch: c.branch,
+        });
+        dirs.push(await writeRunRecord(run));
+      }
+      await page.goto('/');
+      for (const c of cases) {
+        const tile = page.getByTestId(`run-tile-${c.id}`);
+        await expect(tile).toBeVisible({ timeout: 15000 });
+        const status = page.getByTestId(`run-status-${c.id}`);
+        await expect(status).toBeVisible();
+        await expect(status).toHaveText(c.status);
+        await expect(tile.locator('.text-display')).toHaveCount(0);
+        await expect(tile.locator('[aria-hidden]')).toHaveCount(0);
+      }
+    } finally {
+      for (const dir of dirs) await removeRunRecord(dir);
+      for (const repo of repos) await removeGitRepo(repo);
+    }
+  });
+
   // Criteria "a branchless one shows no tile", "a 25-hour-old `done` run
   // shows no tile" and "stopped runs sort after moving ones, newest first"
   // (task 14 Success; Requirement 7 AC 6; design C9 `running`) are
@@ -2068,13 +2451,18 @@ test.describe('Home (board)', () => {
     const movingId = 'e2e-board-run-branchheld-moving-run';
     const branch = 'feat/e2e-board-branchheld';
     const repoDir = await makeGitRepo(branch);
+    // One shared `created` for both runs (not two separate `isoAgo()` calls):
+    // a later `created` on the moving run would make the stopped run read as
+    // branch-reused (design C9), dropping its `branchPresent` read and
+    // leaving the stopped tile out of the band this test asserts on.
+    const created = isoAgo(5 * 60_000);
     const stoppedRun = baseRun(stoppedId, 'e2e-board-run-branchheld-proj', {
       status: 'abandoned', spec: 'e2e-board-run-branchheld-stopped-spec',
-      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch, created,
     });
     const movingRun = baseRun(movingId, 'e2e-board-run-branchheld-proj', {
       status: 'running', spec: 'e2e-board-run-branchheld-moving-spec',
-      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch,
+      codeRoot: repoDir, specStore: repoDir, worktree: repoDir, branch, created,
     });
     const stoppedDir = await writeRunRecord(stoppedRun);
     const movingDir = await writeRunRecord(movingRun);
@@ -2358,43 +2746,55 @@ test.describe('Home (board)', () => {
     }
   });
 
-  // Criterion "two projects on one store show one tile: the representative
-  // ... when it is on" (task 15 Success; Requirement 8 AC 2, D11).
+  // Criterion "two enabled projects on one store give two projects" —
+  // supersedes the base "one tile, the representative, when it is on" rule
+  // (decisions-and-launch-guard design C2 "Next tiles": "`nextProjects`
+  // ... becomes `projects.filter((p) => enabled(p.projectId))`", overriding
+  // dashboard-board D11's one-tile-per-store rule; task 7 Success "two
+  // enabled projects on one store give two projects"; Requirement 2 AC 2
+  // "WHEN two enabled projects share a store and the spec is launchable
+  // THEN Next SHALL show one tile per enabled project").
   //   Pre-condition: a representative and a member project on one store
   //   (`registerSharedStoreProjects`), both enabled by default (an id
   //   absent from `shell.projects`/`shell.projects.on` is on).
   //   Test: page.goto('/'), then page.getByTestId('next-tile-' + repId) and
   //   the member's id.
-  //   Observable result: exactly the representative's tile shows; the
-  //   member's id has count 0.
-  //   Expected-value source: design C9's `nextProjects`: "the representative
-  //   when it is on"; `stores.ts`'s `pickRepresentative` "own" match.
-  test('(R8 AC2) two projects on one store show only the representative\'s tile when it is on', async ({ page }) => {
+  //   Observable result: both tiles are visible — no representative-only
+  //   selection.
+  //   Expected-value source: design C2's `nextProjects` filter, which keeps
+  //   every enabled project regardless of its store.
+  test('(R8 AC2) two enabled projects on one store both show a Next tile', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const spec = 'e2e-board-next-shared-rep-spec';
     const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
     try {
       await page.goto('/');
       await expect(page.getByTestId(`next-tile-${repId}`)).toBeVisible({ timeout: 15000 });
-      await expect(page.getByTestId(`next-tile-${memberId}`)).toHaveCount(0);
+      await expect(page.getByTestId(`next-tile-${memberId}`)).toBeVisible({ timeout: 15000 });
     } finally {
       await unregisterProject(page, repId, sharedDir);
       await unregisterProject(page, memberId, memberDir);
     }
   });
 
-  // Criterion "two projects on one store show one tile: ... else the
-  // enabled member" (task 15 Success; Requirement 8 AC 2, D11).
+  // Criterion "a disabled one is left out" (decisions-and-launch-guard
+  // design C2 "`nextProjects` ... becomes `projects.filter((p) =>
+  // enabled(p.projectId))`"; task 7 Success "a disabled one is left out";
+  // Requirement 2 AC 2). This exact scenario's outcome is unchanged from
+  // the base representative/member rule (one project off, the other on):
+  // both the old grouping rule and the new plain filter leave the disabled
+  // project's tile out, so this is a regression guard for the new filter,
+  // not a fresh red case.
   //   Pre-condition: the same pair, with the representative's id put in
   //   `shell.projects` (the off-list) before the page loads, leaving the
   //   member unset (on).
   //   Test: page.goto('/'), then page.getByTestId('next-tile-' + memberId)
   //   and the representative's id.
-  //   Observable result: exactly the member's tile shows; the
-  //   representative's id has count 0.
-  //   Expected-value source: design C9's `nextProjects`: "else the first
-  //   enabled member".
-  test('(R8 AC2) two projects on one store fall back to the enabled member when the representative is off', async ({ page }) => {
+  //   Observable result: exactly the member's tile shows; the disabled
+  //   project's id has count 0.
+  //   Expected-value source: design C2's `nextProjects` filter: a project
+  //   failing `enabled(p.projectId)` is dropped.
+  test('(R8 AC2) a disabled project on a shared store leaves its tile out', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const spec = 'e2e-board-next-shared-member-spec';
     const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, `### 1. \`${spec}\`\n`);
@@ -2408,6 +2808,144 @@ test.describe('Home (board)', () => {
     } finally {
       await unregisterProject(page, repId, sharedDir);
       await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "each tile shows its code root; the project lacking the file
+  // shows `0 of 1 spec files are under` its root and the other project's
+  // name and root, tone `warning`; the holder shows no warning; after the
+  // first warned press, wait for `Launch anyway`, then launch POSTs are 0;
+  // the second press makes one POST with the `buildLaunchInput` body"
+  // (decisions-and-launch-guard design C2 "Next tiles"/"`NextTile`" "Two
+  // press (AC 4)"; task 7 Success; Requirement 2 AC 1, AC 3, AC 4).
+  //   Pre-condition: two projects sharing one store (`registerSharedStoreProjects`);
+  //   a real file `src/held.ts` under the shared project's own code root
+  //   only, named by the decomposition entry's backticked `src/held.ts`
+  //   token, so the shared project holds the spec's one listed file and
+  //   the member project does not.
+  //   Test: page.goto('/'), read both tiles' `next-code-root-<id>` text and
+  //   `data-tone`, read the lacking tile's `next-guard-<id>` text, press
+  //   its Launch button once, read the armed button and the launch-POST
+  //   count tapped with `page.on('request', ...)`, then press again.
+  //   Observable result: both code-root elements contain the registered
+  //   project's own code root (`sharedDir`/`memberDir`); the holder's tile
+  //   has no `next-guard-<id>` and `data-tone` `neutral`; the lacking
+  //   tile's `next-guard-<id>` contains "0 of 1 spec files are under", its
+  //   own root, the holder's root and the holder's registered name, and
+  //   `data-tone` `warning`; after the first press, "Launch anyway"
+  //   (`data-variant` `danger`) is visible and 0 launch POSTs were made;
+  //   after the second press, exactly 1 launch POST was made, carrying the
+  //   launched spec id.
+  //   Expected-value source: design C2's warning-text template and
+  //   two-press rule, read literally; the registered code roots and
+  //   project name, read from the real `/api/projects/list` response
+  //   rather than hard-coded.
+  test('(R8 AC1, AC3, AC4) a guarded Next tile names both code roots, warns the project lacking the file, and arms Launch for a two-press confirm', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-guard-warn-spec';
+    const heading = `### 1. \`${spec}\`\n- File: \`src/held.ts\`\n`;
+    const { repId, memberId, sharedDir, memberDir } = await registerSharedStoreProjects(page, heading, 'src/held.ts');
+    let launchPosts = 0;
+    let lastLaunchBody: { spec?: string } | null = null;
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes(`/api/projects/${memberId}/harness/launch`)) {
+        launchPosts++;
+        try { lastLaunchBody = req.postDataJSON(); } catch { /* no body to parse */ }
+      }
+    });
+    try {
+      await login(page);
+      const listRes = await page.request.get('/api/projects/list');
+      const list = (await listRes.json()) as Array<{ projectId: string; projectName: string }>;
+      const repName = list.find((p) => p.projectId === repId)?.projectName ?? '';
+      expect(repName.length).toBeGreaterThan(0);
+
+      await page.route(`**/api/projects/${memberId}/harness/launch`, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ runId: 'e2e-board-next-guard-warn-run' }),
+        });
+      });
+
+      await page.goto('/');
+      const holderTile = page.getByTestId(`next-tile-${repId}`);
+      const warnTile = page.getByTestId(`next-tile-${memberId}`);
+      await expect(holderTile).toBeVisible({ timeout: 15000 });
+      await expect(warnTile).toBeVisible({ timeout: 15000 });
+
+      await expect(holderTile.getByTestId(`next-code-root-${repId}`)).toContainText(sharedDir);
+      await expect(warnTile.getByTestId(`next-code-root-${memberId}`)).toContainText(memberDir);
+
+      await expect(holderTile.getByTestId(`next-guard-${repId}`)).toHaveCount(0);
+      await expect(holderTile).toHaveAttribute('data-tone', 'neutral');
+
+      const warnGuard = warnTile.getByTestId(`next-guard-${memberId}`);
+      await expect(warnGuard).toBeVisible();
+      await expect(warnGuard).toContainText('0 of 1 spec files are under');
+      await expect(warnGuard).toContainText(memberDir);
+      await expect(warnGuard).toContainText(sharedDir);
+      await expect(warnGuard).toContainText(repName);
+      await expect(warnTile).toHaveAttribute('data-tone', 'warning');
+
+      await warnTile.getByTestId(`next-launch-${memberId}`).click();
+      const armed = warnTile.getByRole('button', { name: 'Launch anyway', exact: true });
+      await expect(armed).toBeVisible();
+      await expect(armed).toHaveAttribute('data-variant', 'danger');
+      expect(launchPosts).toBe(0);
+
+      await armed.click();
+      await expect.poll(() => launchPosts).toBe(1);
+      expect(lastLaunchBody?.spec).toBe(spec);
+    } finally {
+      await unregisterProject(page, repId, sharedDir);
+      await unregisterProject(page, memberId, memberDir);
+    }
+  });
+
+  // Criterion "a spec with no list shows `No file list to compare` and
+  // launches on one press" (decisions-and-launch-guard design C2 "On
+  // `no-list`: `next-guard-<id>` reads `No file list to compare`; one
+  // press"; task 7 Success; Requirement 2 AC 7 "WHEN no source gives a file
+  // list THEN the tile SHALL say so and Launch SHALL need one press").
+  //   Pre-condition: a solo registered project whose decomposition heading
+  //   names the spec with no backticked repository path, so no file-list
+  //   source gives a path and the guard state is `no-list`.
+  //   Test: page.goto('/'), read `next-guard-<id>`, then press Launch once,
+  //   counting launch POSTs with `page.on('request', ...)`.
+  //   Observable result: `next-guard-<id>` reads exactly "No file list to
+  //   compare"; after one press, exactly one launch POST fires and no
+  //   "Launch anyway" button ever appears.
+  //   Expected-value source: the literal "No file list to compare" text and
+  //   "one press" clause of design C2 and the task Success line.
+  test('(R8 AC7) a spec with no file list shows "No file list to compare" and still launches on one press', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const spec = 'e2e-board-next-guard-nolist-spec';
+    const { projectId, dir } = await registerNextProject(page, 'guard-nolist', async (wr) => (
+      writeDecomposition(wr, `### 1. \`${spec}\`\n`)
+    ));
+    let launchPosts = 0;
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes(`/api/projects/${projectId}/harness/launch`)) launchPosts++;
+    });
+    try {
+      await page.route(`**/api/projects/${projectId}/harness/launch`, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ runId: 'e2e-board-next-guard-nolist-run' }),
+        });
+      });
+      await page.goto('/');
+      const tile = page.getByTestId(`next-tile-${projectId}`);
+      await expect(tile).toBeVisible({ timeout: 15000 });
+      await expect(tile.getByTestId(`next-guard-${projectId}`)).toHaveText('No file list to compare');
+
+      await tile.getByTestId(`next-launch-${projectId}`).click();
+      await expect.poll(() => launchPosts).toBe(1);
+      await expect(tile.getByRole('button', { name: 'Launch anyway' })).toHaveCount(0);
+    } finally {
+      await unregisterProject(page, projectId, dir);
     }
   });
 
@@ -3048,6 +3586,151 @@ test.describe('Shell (top bar, gear and tab title)', () => {
     } finally {
       await removeDeployRecord();
       await unregisterProject(page, overflowProjectId, overflowDir);
+    }
+  });
+
+  // Criterion "saving a name shows it in the gear row and on a wait tile of
+  // that project with no reload" (task 4 Success; Requirement 1 AC 1, AC 7
+  // "The operator SHALL set a display name with no code change"). The gear
+  // row and the wait tile both read `ProjectProvider`'s one `projects` list
+  // (design C1 `syncOnce` maps every `displayName` into the same
+  // `remembered` map task 1-2 already wire into `getProjectsList()`), so a
+  // single rename reaching both with no `page.reload()` proves `Gear`'s
+  // save path calls `refreshProjects` rather than only updating local state.
+  //   Pre-condition: a project registered through `POST /api/projects/add`,
+  //   with one open wait on it; the gear panel open.
+  //   Test: fill `project-name-input-<projectId>` with a new name, then
+  //   `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains the new name, and
+  //   the wait's tile text contains the new name too — both reached with no
+  //   `page.reload()` anywhere in the test.
+  //   Expected-value source: design C1 "Save posts through `callHarness`
+  //   ..., then calls `refreshProjects`"; Requirement 1 AC 1 and AC 7.
+  test('(R1 AC1, AC7) saving a display name in the gear shows it on the gear row and a wait tile with no reload', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath, so a durable `projects.json` row backs the
+    // save (see the comment on the action-tile test above).
+    const projectId = await registerProjectAt(page, dir, dir);
+    const wait = baseWait('e2e-board-rename-wait', projectId, 'e2e-board-rename-spec', 5 * 60_000);
+    await writeWaitRecord(wait);
+    const newName = 'Rename Test Project';
+
+    try {
+      await page.goto('/');
+      const waitTile = page.getByTestId(`wait-tile-${wait.id}`);
+      await expect(waitTile).toBeVisible({ timeout: 15000 });
+      await expect(waitTile).not.toContainText(newName);
+
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await panel.getByTestId(`project-name-input-${projectId}`).fill(newName);
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      // A successful save may close the whole settings panel (design C1
+      // "... then calls `refreshProjects` and closes"); reopen it if so
+      // before reading the row, since the criterion is about the row's
+      // content, not the panel's open state.
+      await page.waitForTimeout(300);
+      if (!(await panel.isVisible())) {
+        await page.getByTestId('gear-toggle').click();
+      }
+      await expect(panel).toContainText(newName, { timeout: 15000 });
+      await expect(waitTile).toContainText(newName, { timeout: 15000 });
+    } finally {
+      await removeWaitRecord(wait.id);
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "a 61-character save shows `display-name-invalid` with the
+  // input still open" (task 4 Success; Requirement 1 AC 7; design Error
+  // Handling 6 "Display name save fails: the gear shows the route's error
+  // and keeps the input open").
+  //   Pre-condition: a registered project; the gear panel open.
+  //   Test: fill `project-name-input-<projectId>` with 61 "x" characters,
+  //   then `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains
+  //   `display-name-invalid`; the input is still visible (not removed or
+  //   replaced by a closed row).
+  //   Expected-value source: `src/dashboard/multi-server.ts`'s
+  //   `POST /api/projects/:projectId/display-name` route, `400 { error:
+  //   'display-name-invalid' }` for a trimmed value over 60 characters
+  //   (task 3, already shipped); design Error Handling 6 for the "stays
+  //   open" half.
+  test('(R1 AC7) a display name over 60 characters answers display-name-invalid and keeps the input open', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-invalid-${randomBytes(4).toString('hex')}`);
+    const projectId = await registerProjectAt(page, dir);
+    const longName = 'x'.repeat(61);
+
+    try {
+      await page.goto('/');
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      const input = panel.getByTestId(`project-name-input-${projectId}`);
+      await input.fill(longName);
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      await expect(panel).toContainText('display-name-invalid', { timeout: 15000 });
+      await expect(input).toBeVisible();
+    } finally {
+      await unregisterProject(page, projectId, dir);
+    }
+  });
+
+  // Criterion "saving an empty value restores the generated name" (task 4
+  // Success; Requirement 1 AC 7, design C1 "An empty value clears the
+  // name").
+  //   Pre-condition: a registered project whose display name was set to a
+  //   custom value directly through the route (setup, not the behaviour
+  //   under test); the gear panel open showing that custom name.
+  //   Test: clear `project-name-input-<projectId>`, then
+  //   `page.getByTestId('project-name-save-' + projectId).click()`.
+  //   Observable result: the gear panel's text contains the project's
+  //   original generated name (read from `/api/projects/list` before any
+  //   display name was ever set) and no longer contains the custom name.
+  //   Expected-value source: design C1 "An empty value clears the name";
+  //   `src/dashboard/multi-server.ts`'s route, which clears to the
+  //   generated name on an empty trimmed body (task 3, already shipped).
+  test('(R1 AC7) saving an empty display name restores the generated name', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const dir = join(tmpdir(), `specwf-e2e-board-rename-clear-${randomBytes(4).toString('hex')}`);
+    // Explicit workflowRootPath, so a durable `projects.json` row backs the
+    // setup call below (see the comment on the action-tile test above).
+    const projectId = await registerProjectAt(page, dir, dir);
+
+    const listRes = await page.request.get('/api/projects/list');
+    const projects = (await listRes.json()) as { projectId: string; projectName: string }[];
+    const generatedName = projects.find((p) => p.projectId === projectId)!.projectName;
+
+    const customName = 'Temporary Custom Name';
+    const setRes = await page.request.post(`/api/projects/${projectId}/display-name`, {
+      data: { displayName: customName },
+    });
+    expect(setRes.ok()).toBe(true);
+
+    try {
+      await page.goto('/');
+      const panel = page.getByTestId('gear-panel');
+      await page.getByTestId('gear-toggle').click();
+      await expect(panel).toBeVisible();
+      await expect(panel).toContainText(customName, { timeout: 15000 });
+
+      const input = panel.getByTestId(`project-name-input-${projectId}`);
+      await input.fill('');
+      await page.getByTestId('project-name-save-' + projectId).click();
+
+      await page.waitForTimeout(300);
+      if (!(await panel.isVisible())) {
+        await page.getByTestId('gear-toggle').click();
+      }
+      await expect(panel).toContainText(generatedName, { timeout: 15000 });
+      await expect(panel).not.toContainText(customName);
+    } finally {
+      await unregisterProject(page, projectId, dir);
     }
   });
 });

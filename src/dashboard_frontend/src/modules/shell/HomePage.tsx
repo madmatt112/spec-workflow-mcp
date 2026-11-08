@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProjects } from '../projects/ProjectProvider';
 import { useShell } from './ShellProvider';
-import { needsYou, nextProjects, nextTiles, running } from './board';
+import { needsYou, nextProjects, nextTiles, running, stopped } from './board';
 import { ActionTile, NextTile, RunTile, WaitTile } from './tiles';
 import { AnswerSheet } from './AnswerSheet';
 import { useStages } from './useStages';
@@ -19,16 +19,21 @@ function Band({
   testId,
   title,
   emptyText,
+  quiet,
+  hideWhenEmpty,
   children,
 }: {
   testId: string;
   title: string;
   emptyText: string;
+  quiet?: boolean;
+  hideWhenEmpty?: boolean;
   children: React.ReactNode[];
 }) {
+  if (hideWhenEmpty && children.length === 0) return null;
   return (
     <section data-testid={testId} className="space-y-3">
-      <h2 className="text-sm font-semibold text-(--text-secondary)">{title}</h2>
+      <h2 className={quiet ? 'text-xs font-medium text-(--text-muted)' : 'text-sm font-semibold text-(--text-secondary)'}>{title}</h2>
       {children.length === 0 ? (
         <p className="text-sm text-(--text-muted)">{emptyText}</p>
       ) : (
@@ -39,10 +44,11 @@ function Band({
 }
 
 /**
- * Home (design C10; Requirements 3, 4, 11.3, 11.4). Replaces the Now page:
- * three fixed, uncollapsible bands (Needs you, Running, Next) of large
- * tiles, with the controller-wait answer sheet replacing the board at full
- * width while a wait is open (D31).
+ * Home (design C10, C9; Requirements 3, 4, 9, 11.3, 11.4). Replaces the Now
+ * page: four fixed, uncollapsible bands (Needs you, Running, Next, Stopped)
+ * of large tiles, with the controller-wait answer sheet replacing the board
+ * at full width while a wait is open (D31). Stopped is quieter and absent
+ * when empty (design C9 "Placement", "Quieter weight").
  */
 export function HomePage() {
   const { enabled, loading, projects } = useProjects();
@@ -60,6 +66,10 @@ export function HomePage() {
     const byId = new Map(projects.map((p) => [p.projectId, p.projectName]));
     return (id: string) => byId.get(id) ?? id;
   }, [projects]);
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.projectId, p])),
+    [projects],
+  );
 
   // No tile while the project list is loading, so a project the fixture
   // would otherwise filter out does not flash on first load (design C8).
@@ -69,7 +79,11 @@ export function HomePage() {
   );
   const needsYouWaits = useMemo(() => needsYouItems.filter(isControllerWait), [needsYouItems]);
   const runningTiles = useMemo(
-    () => (loading ? [] : running(controllerRuns, enabled, tick)),
+    () => (loading ? [] : running(controllerRuns, enabled)),
+    [loading, controllerRuns, enabled],
+  );
+  const stoppedTiles = useMemo(
+    () => (loading ? [] : stopped(controllerRuns, enabled, tick)),
     [loading, controllerRuns, enabled, tick],
   );
   const needsYouActionIds = useMemo(
@@ -123,6 +137,7 @@ export function HomePage() {
           action={action}
           now={tick}
           stage={stage}
+          projectName={projectName}
           onConfirm={() => stages.press(action.id, 'confirm', `/api/controller/actions/${action.id}/confirm`, 'POST')}
           onDismiss={() => stages.press(action.id, 'dismiss', `/api/controller/actions/${action.id}/dismiss`, 'POST')}
         />
@@ -178,20 +193,44 @@ export function HomePage() {
         ))}
       </Band>
       <Band testId="band-next" title="Next" emptyText="Nothing launchable.">
-        {nextTileViews.map(([projectId, view]) => (
-          <NextTile
-            key={projectId}
-            projectId={projectId}
-            projectName={projectName(projectId)}
-            view={view}
-            stage={stages.retained(projectId, { controllerRuns: controllerRuns.map((r) => r.id) })}
-            onLaunch={() => stages.press(
-              projectId,
-              'launch',
-              `/api/projects/${projectId}/harness/launch`,
-              'POST',
-              buildLaunchInput(view),
-            )}
+        {nextTileViews.map(([projectId, view]) => {
+          const useProjectId = view.guard?.state === 'warn' ? view.guard.useProject : undefined;
+          const useProjectInfo = useProjectId ? projectById.get(useProjectId) : undefined;
+          return (
+            <NextTile
+              key={projectId}
+              projectId={projectId}
+              projectName={projectName(projectId)}
+              codeRoot={projectById.get(projectId)?.projectPath ?? ''}
+              useProject={useProjectInfo ? { name: useProjectInfo.projectName, codeRoot: useProjectInfo.projectPath } : undefined}
+              view={view}
+              stage={stages.retained(projectId, { controllerRuns: controllerRuns.map((r) => r.id) })}
+              onLaunch={() => stages.press(
+                projectId,
+                'launch',
+                `/api/projects/${projectId}/harness/launch`,
+                'POST',
+                buildLaunchInput(view),
+              )}
+            />
+          );
+        })}
+      </Band>
+      <Band testId="band-stopped" title="Stopped" emptyText="" quiet hideWhenEmpty>
+        {stoppedTiles.map((run) => (
+          <RunTile
+            key={run.id}
+            run={run}
+            waits={controllerWaits}
+            projectName={projectName(run.project)}
+            now={tick}
+            quiet
+            stage={stages.retained(run.id, { run, waits: controllerWaits })}
+            onPause={() => stages.press(run.id, 'pause', `/api/controller/runs/${run.id}/pause`, 'POST')}
+            onResume={() => stages.press(run.id, 'resume', `/api/controller/runs/${run.id}/resume`, 'POST')}
+            onStop={() => stages.press(run.id, 'stop', `/api/controller/runs/${run.id}/cancel`, 'POST')}
+            onDiscard={() => stages.press(run.id, 'discard', `/api/controller/runs/${run.id}/discard`, 'POST')}
+            onRedrive={() => stages.press(run.id, 'redrive', `/api/controller/runs/${run.id}/redrive`, 'POST')}
           />
         ))}
       </Band>

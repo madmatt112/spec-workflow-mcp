@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, ui } from '../ui/ui';
-import { ageTone, compactAge, isStalled, mergeRead, runControls, runDot, setupLine, waitSummary } from './board';
+import { ageTone, compactAge, isStalled, launchPress, mergeRead, runControls, runDot, runTone, setupLine, waitSummary } from './board';
 import { pauseNote, pauseNoteClass } from './pause';
 import { OpErrorView } from './harness';
 import type { SetupView } from '../harness/types';
@@ -122,13 +122,16 @@ function RunDot({ color }: { color: 'green' | 'amber' | 'grey' | 'red' }) {
  *  worktree and branch and closes the PR" and is the only one that calls the
  *  route (D36).
  *  A stopped run with `discardAllowed: false` shows the quiet line "branch
- *  in use by a live run" instead of any control. */
+ *  in use by a live run" instead of any control.
+ *  A `quiet` tile (design C9 "Quieter weight") shows `run-status-<id>` with
+ *  the run's status word in place of the display-size age and the dot row. */
 export function RunTile({
   run,
   waits,
   projectName,
   now,
   stage,
+  quiet,
   onPause,
   onResume,
   onStop,
@@ -140,14 +143,14 @@ export function RunTile({
   projectName: string;
   now: number;
   stage: Stage | null;
+  quiet?: boolean;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
   onDiscard: () => void;
   onRedrive: () => void;
 }) {
-  const age = now - Date.parse(run.created);
-  const tone = ageTone(age);
+  const tone = runTone(run, waits, now);
   const stalled = isStalled(run, waits);
   const note = pauseNote(run, now);
   const heartbeatBase = run.lastActivity ?? run.stepStarted;
@@ -161,37 +164,44 @@ export function RunTile({
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{run.spec}</span>
+        <span className="shrink-0 text-xs text-(--text-muted)" data-testid={`run-age-${run.id}`}>
+          {`run ${compactAge(now - Date.parse(run.created))}`}
+        </span>
       </div>
-      {(run.stepKind || run.task) && (
+      {(run.phase || run.stepKind || run.task) && (
         <p className="text-sm text-(--text-primary)">
-          {[run.stepKind, run.task].filter(Boolean).join(' · ')}
+          {[run.phase, run.stepKind, run.task].filter(Boolean).join(' · ')}
         </p>
       )}
-      {run.stepStarted && (
+      {!quiet && run.stepStarted && (
         <span className="text-display tabular-nums text-(--text-primary)">
           {compactAge(now - Date.parse(run.stepStarted))}
         </span>
       )}
       {note && <p className={`text-sm ${pauseNoteClass(note)}`}>{note.text}</p>}
-      <div className="flex items-center gap-2">
-        {stalled ? (
-          <>
-            <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
-            <Button variant="secondary" size="sm" disabled={busy} onClick={onRedrive} data-testid={`run-redrive-${run.id}`}>
-              {'Re-drive'}
-            </Button>
-          </>
-        ) : run.inFlight && heartbeatBase ? (
-          <>
+      {quiet ? (
+        <p className="text-sm text-(--text-muted)" data-testid={`run-status-${run.id}`}>{run.status}</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          {stalled ? (
+            <>
+              <span className="text-sm font-medium text-(--tone-danger-fg)">{'Stalled'}</span>
+              <Button variant="secondary" size="sm" disabled={busy} onClick={onRedrive} data-testid={`run-redrive-${run.id}`}>
+                {'Re-drive'}
+              </Button>
+            </>
+          ) : run.inFlight && heartbeatBase ? (
+            <>
+              <RunDot color={runDot(run, now)} />
+              <span className="text-sm text-(--text-secondary)">
+                {`last activity ${compactAge(now - Date.parse(heartbeatBase))} ago`}
+              </span>
+            </>
+          ) : (
             <RunDot color={runDot(run, now)} />
-            <span className="text-sm text-(--text-secondary)">
-              {`last activity ${compactAge(now - Date.parse(heartbeatBase))} ago`}
-            </span>
-          </>
-        ) : (
-          <RunDot color={runDot(run, now)} />
-        )}
-      </div>
+          )}
+        </div>
+      )}
       {run.status === 'merging' && prRead && (
         <p className="text-sm text-(--text-secondary)">
           {`PR #${prRead.number} · ${prRead.ci} · ${prRead.verdict}`}
@@ -237,45 +247,83 @@ export function RunTile({
   );
 }
 
-/** A launchable project as a tile (design C9, C10, D29, D30; R8, R9 AC 2):
- *  spec, project tag, the setup line task 9 exports, and Launch through the
- *  caller's stage hook. A launch refusal keeps the stage's `opError`
- *  (`stage.ts`'s `responseStage`), which renders `OpErrorView` here, in
- *  addition to `StageLine`'s `failReason` text. No edit control. */
+/** A launchable project as a tile (design C9, C10, C2, D29, D30; R8, R9 AC 2;
+ *  Requirement 2 AC 1-5, 9): spec, project tag, code root, the setup line
+ *  task 9 exports, the guard's warning, and Launch through the caller's
+ *  stage hook. A `warn` guard arms on the first press and only calls
+ *  `onLaunch` on the second, keyed on the launchable spec so arming a stale
+ *  tile does not carry over to a new spec (`launchPress`). A launch refusal
+ *  keeps the stage's `opError` (`stage.ts`'s `responseStage`), which renders
+ *  `OpErrorView` here, in addition to `StageLine`'s `failReason` text. No
+ *  edit control. */
 export function NextTile({
   projectId,
   projectName,
+  codeRoot,
+  useProject,
   view,
   stage,
   onLaunch,
 }: {
   projectId: string;
   projectName: string;
+  codeRoot: string;
+  useProject?: { name: string; codeRoot: string };
   view: SetupView;
   stage: Stage | null;
   onLaunch: () => void;
 }) {
   const busy = stage !== null && (stage.phase === 'pressed' || stage.phase === 'running');
+  const [armedSpec, setArmedSpec] = useState<string | null>(null);
+  const guard = view.guard;
+  const armed = guard?.state === 'warn' && armedSpec === view.launchable;
+  const tone: 'neutral' | 'warning' | 'danger' = guard?.state === 'warn' ? 'warning' : 'neutral';
+  const handleLaunch = () => {
+    if (launchPress(view, armedSpec) === 'arm') {
+      setArmedSpec(view.launchable);
+      return;
+    }
+    onLaunch();
+  };
   return (
-    <Tile tone="neutral" testId={`next-tile-${projectId}`}>
+    <Tile tone={tone} testId={`next-tile-${projectId}`}>
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-xs text-(--text-muted)">{projectName}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{view.launchable}</span>
       </div>
       <p className="text-sm text-(--text-secondary)">{setupLine(view)}</p>
+      <p className="text-sm text-(--text-muted)" data-testid={`next-code-root-${projectId}`}>{codeRoot}</p>
+      {guard?.state === 'warn' && useProject && (
+        <p className="text-sm text-(--tone-warning-fg)" data-testid={`next-guard-${projectId}`}>
+          {`${guard.held} of ${guard.compared} spec files are under ${codeRoot}. Use ${useProject.name} (${useProject.codeRoot}).`}
+        </p>
+      )}
+      {guard?.state === 'no-list' && (
+        <p className="text-sm text-(--text-muted)" data-testid={`next-guard-${projectId}`}>
+          {'No file list to compare'}
+        </p>
+      )}
       <StageLine stage={stage} />
       {stage?.phase === 'failed' && stage.opError && <OpErrorView error={stage.opError} />}
-      <Button variant="secondary" disabled={busy} onClick={onLaunch} data-testid={`next-launch-${projectId}`}>
-        {'Launch'}
+      <Button
+        variant={armed ? 'danger' : 'secondary'}
+        disabled={busy}
+        onClick={handleLaunch}
+        data-testid={`next-launch-${projectId}`}
+      >
+        {armed ? 'Launch anyway' : 'Launch'}
       </Button>
     </Tile>
   );
 }
 
-/** One-line target of a staged action. */
-function actionTarget(action: StagedAction): string {
+/** One-line target of a staged action; `t.project` renders through
+ *  `projectName` (design C1) so a registered project shows its display
+ *  name, not the raw id. */
+function actionTarget(action: StagedAction, projectName: (id: string) => string): string {
   const t = action.target as { project?: string; spec?: string; pr?: number; wait?: string };
-  const parts = [t.project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
+  const project = typeof t.project === 'string' ? projectName(t.project) : undefined;
+  const parts = [project, t.spec, t.pr ? `#${t.pr}` : undefined, t.wait].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
@@ -296,12 +344,14 @@ export function ActionTile({
   action,
   now,
   stage,
+  projectName,
   onConfirm,
   onDismiss,
 }: {
   action: StagedAction;
   now: number;
   stage: Stage | null;
+  projectName: (id: string) => string;
   onConfirm: () => void;
   onDismiss: () => void;
 }) {
@@ -312,7 +362,7 @@ export function ActionTile({
     <Tile tone={tone} testId={`action-tile-${action.id}`}>
       <div className="flex items-center gap-2">
         <KindBadge label={STAGED_KIND_LABELS[action.kind] ?? action.kind} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{actionTarget(action)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-(--text-primary)">{actionTarget(action, projectName)}</span>
       </div>
       <p className="whitespace-normal break-words text-sm text-(--text-primary)">{action.reason}</p>
       <StageLine stage={stage} />

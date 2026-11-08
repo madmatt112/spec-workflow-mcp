@@ -201,7 +201,7 @@ export interface DocumentPhaseContext {
   /**
    * Checked once at the top of each review round, before the adversarial
    * review (design C6). A non-null reason stops the phase there; it reads
-   * only the operator hold, never cancel or the usage window (design D7).
+   * cancel and the operator hold, never the usage window (design D7).
    */
   shouldStop?: () => string | null;
 }
@@ -450,7 +450,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
   // Step R for the `revision` variant, where `findings` is the revision comments
   // text rather than an analysis path).
   const reviserStep = async (
-    variant: 'round' | 'should-fix-only' | 'revision', D: number, findings: string, commitMsg: string,
+    variant: 'round' | 'should-fix-only' | 'drafting-only' | 'revision', D: number, findings: string, commitMsg: string,
   ): Promise<DocumentPhaseOutcome | null> => {
     const briefPath = join(reviewsDir, `reviser-brief-${phase}-v${D + 1}.md`);
     writeBrief(briefPath, 'reviser', {
@@ -882,6 +882,25 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
     }
     const openMustFix = mustFix.filter((f) => !ruledOut.has(f));
 
+    // Drafting-only cap (requirement 5 AC 2; design C5): round 1, at least one
+    // open item, and every one of them a drafting defect ⇒ one corrective
+    // reviser version, lint, the narrow check over all items, then approve
+    // with no second adversarial round.
+    const capItems = [...openMustFix, ...shouldFix];
+    if (ledgerRoundCount() === 1 && capItems.length > 0 && capItems.every(isDraftingDefect)) {
+      const reviseErr = await reviserStep('drafting-only', D, analysisPath, `v${D + 1} drafting-only corrective pass`);
+      if (reviseErr) return reviseErr;
+      D += 1;
+      const lintErr = await lintStep(D);
+      if (lintErr) return lintErr;
+
+      const checkErr = await narrowCheck(D, analysisPath, capItems);
+      if (checkErr) return checkErr;
+      narrowCheckRan = true;
+      ctx.ledger.note(`review cap: round 1 drafting-only, ${capItems.length} item(s), v${D} approved`);
+      return approve(D, 'drafting-only → converged');
+    }
+
     // Converged, or MINOR-only (open MUST_FIX 0 and SHOULD_FIX 0) ⇒ approve.
     if (verdict === 'converged' || (openMustFix.length === 0 && shouldFix.length === 0)) {
       return approve(D, 'converged');
@@ -1076,6 +1095,16 @@ function writeHandoffSection(
 // ---------------------------------------------------------------------------
 
 interface RoundFinding { mustFix: string[]; shouldFix: string[]; recurring: string[] }
+
+/**
+ * A drafting defect (requirement 5 AC 1, design C5): the reviewer prefixes
+ * every MUST_FIX/SHOULD_FIX with `[drafting] ` or `[design] `; an unlabelled
+ * item counts as design (AC 4), so only an explicit `[drafting]` prefix
+ * qualifies.
+ */
+export function isDraftingDefect(item: string): boolean {
+  return /^\s*\[drafting\]/i.test(item);
+}
 
 /**
  * The cap's "MUST_FIX strictly decreased" test (convergence.md "Cap convergence

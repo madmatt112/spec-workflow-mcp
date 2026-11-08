@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { harnessHandler, harnessTool, codeGraphSection } from '../harness.js';
+import {
+  harnessHandler, harnessTool, codeGraphSection, parsePlanDecisions, answerChoosesNoChange, classifyTarget,
+} from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
@@ -899,8 +901,9 @@ describe('harnessHandler', () => {
     await expect(fs.access(target)).rejects.toThrow();
   });
 
-  // The reviser kind's four variants (design C6 table): `round`, `should-fix-only`,
-  // `revision` (Step R) and `lint-fix` (the lint brief, briefs.md:361-417).
+  // The reviser kind's five variants (design C6 table): `round`, `should-fix-only`,
+  // `drafting-only` (design C5), `revision` (Step R) and `lint-fix` (the lint brief,
+  // briefs.md:361-417).
 
   const reviserBase = () => ({
     phase: 'design',
@@ -957,6 +960,31 @@ describe('harnessHandler', () => {
 
     // SKILL.md:201-204: the SHOULD_FIX-only pass ends the Revision History line this way.
     expect(written).toContain('SHOULD_FIX-only corrective pass');
+    expect(written).not.toContain('Round-<A> adversarial response');
+  });
+
+  // Contract — design C5 (Requirement 5 AC 1):
+  // Pre: variant 'drafting-only'. Test: harnessHandler({ action: 'brief', specName, template: 'reviser',
+  // values: { ...reviserBase(), path, docPath, D, findings, variant: 'drafting-only' } }, context).
+  // Observe: the written brief carries `Drafting-only corrective pass.` in place of the default
+  // Round-<A> text. Source: design C5 ("`renderReviser` gains the descriptor `Drafting-only corrective
+  // pass.` ... for variant `drafting-only`", `src/tools/brief-templates.ts:457-462`).
+  it('brief reviser (variant: drafting-only) tells the reviser to end the Revision History line "Drafting-only corrective pass." instead', async () => {
+    const outPath = join(tempDir, 'reviser-drafting-only.md');
+    const docPath = join(specDir, 'design.md');
+    const findings = join(specDir, 'reviews', 'adversarial-analysis-design-r1.md');
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'reviser',
+        values: { ...reviserBase(), path: outPath, docPath, D: '1', findings, variant: 'drafting-only' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).toContain('Drafting-only corrective pass.');
     expect(written).not.toContain('Round-<A> adversarial response');
   });
 
@@ -1326,6 +1354,25 @@ describe('harnessHandler', () => {
     expect(written).toContain("Fix every reason below, re-run the task's checks");
     expect(written).toContain('## Gate output');
     expect(written).not.toContain('## Findings (from the verifier)');
+  });
+
+  it('brief fix (variant: gate, round 1) tells the implementer the gate reruns, not that REQUIRED escalates immediately (task 11, AC 9)', async () => {
+    const outPath = join(tempDir, 'fix-gate-required.md');
+    const findings = 'file-outside-list: test/extra.ts';
+
+    const res = await harnessHandler(
+      {
+        action: 'brief', specName: SPEC, template: 'fix',
+        values: { path: outPath, taskId: '3', round: '1', variant: 'gate', findings, commit: 'none' },
+      },
+      context,
+    );
+    expect(res.success).toBe(true);
+    const written = await fs.readFile(outPath, 'utf-8');
+
+    expect(written).not.toContain('escalates immediately');
+    expect(written).toMatch(/gate reruns/i);
+    expect(written).toMatch(/no wait/i);
   });
 
   it('brief fix (variants ci and reconcile) both render the CI-fix content byte for byte, with the C9 report block replacing the old sentence', async () => {
@@ -2294,5 +2341,87 @@ describe('harnessHandler', () => {
       + 'source. Without it the action reads only the spec store.',
     );
     expect(harnessTool.description).toContain('never spawns a process');
+  });
+
+  describe('parsePlanDecisions', () => {
+    it('maps ids to answers only inside ## Decisions, splitting at the last arrow, dropping empty and "no answer" lines (Req 3.1)', () => {
+      // Pre-condition: a plan with a decision-shaped line in `## Approved proposals` and
+      // another in `## Rejected proposals` (outside the section), and inside `## Decisions`
+      // (buildRetroPlanMarkdown's line shape, src/controller/runs.ts:356): a normal answer,
+      // an empty answer, the literal `no answer`, and an answer that itself holds an arrow.
+      const content = [
+        '# Retrospective plan — spec',
+        '',
+        '## Approved proposals',
+        '',
+        '- P9: looks like a decision → should not count',
+        '',
+        '## Decisions',
+        '',
+        '- P1: Keep the limiter as is → no change — the rule already requires it',
+        '- P2: What about caching → ',
+        '- P3: Should we batch → no answer',
+        '- P4: Pick A or B → Option A → 20s',
+        '',
+        '## Rejected proposals',
+        '',
+        '- P10: another fake → nope',
+        '',
+      ].join('\n');
+
+      // Test: parsePlanDecisions(content). Observable result and source: design C3's spec
+      // for the function (`- <id>: <question> → <answer>`, split at the LAST ' → ').
+      const decisions = parsePlanDecisions(content);
+
+      expect(decisions.get('P1')).toBe('no change — the rule already requires it');
+      expect(decisions.get('P4')).toBe('20s');
+      expect(decisions.has('P2')).toBe(false);
+      expect(decisions.has('P3')).toBe(false);
+      expect(decisions.has('P9')).toBe(false);
+      expect(decisions.has('P10')).toBe(false);
+      expect(decisions.size).toBe(2);
+    });
+  });
+
+  describe('answerChoosesNoChange', () => {
+    it('is true for the no-change answers and false for the real-change answers (Req 3.5)', () => {
+      // Pre-condition: none — pure function. Test: answerChoosesNoChange(answer) for each
+      // example. Observable result and source: task 8's Success line, verified against
+      // design C3's illustrative regex, not the reverse.
+      for (const answer of [
+        'No change — the rule already requires',
+        'leave it; agents correctly flag',
+        'Option A: no change',
+        'no',
+        'none',
+        'skip',
+        'n/a',
+      ]) {
+        expect(answerChoosesNoChange(answer)).toBe(true);
+      }
+      for (const answer of [
+        'keep the design-defect stop but trigger it on the first verdict',
+        'drop the two moved paths',
+        'add the 30/60s per-user limiter',
+      ]) {
+        expect(answerChoosesNoChange(answer)).toBe(false);
+      }
+    });
+  });
+
+  describe('classifyTarget reading Target document', () => {
+    it('classifies an item whose only target line is `Target document:` naming agent-rules.md as store (Req 3.7)', () => {
+      // Pre-condition: an item block with `Target document:`, not `Target:` — the shape
+      // G1/G2 use. At base `classifyTarget` matches only `Target:`, so this block reads
+      // `none` (empty target). Test: classifyTarget(block). Observable result and source:
+      // task 8's Success line and design C3 (`itemTarget` reads `Target:` and `Target
+      // document:`; `classifyTarget` is made to call it).
+      const block = [
+        '- **G1 (F9) — Tighten the rule.** Add a line.',
+        '  Target document: `.spec-workflow/agent-rules.md`.',
+      ].join('\n');
+
+      expect(classifyTarget(block)).toBe('store');
+    });
   });
 });

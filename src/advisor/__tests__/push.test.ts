@@ -306,6 +306,21 @@ describe('buildMessage', () => {
 //   Expected-value source: design C9 "... else, or on a read failure,
 //   wait.project".
 //
+// Criterion (dn) "a project with a stored display name pushes the display
+//   name, not the generated name" (decisions-and-launch-guard task 2
+//   _Prompt: "a pushed wait for a named project equals buildMessage(wait,
+//   displayName, false)"; requirements.md 1.1):
+//   Pre-condition: `projects.json` holds an entry whose id matches the
+//   wait's project, with a distinct `name` and a distinct `displayName`.
+//   Test: a wait is created in-process for that project id, with a
+//   `WaitPusher` running.
+//   Observable result: the request body equals buildMessage(wait,
+//   displayName, false), not buildMessage(wait, name, false).
+//   Expected-value source: design C1 "`src/advisor/push.ts:92` returns
+//   `shownName(p)`" and `shownName`'s contract in
+//   src/controller/state.ts ("the operator's `displayName` when set, else
+//   `name`").
+//
 // Criteria (j) "a missing or malformed file sends nothing and logs one
 //   push-off line per start, and the wait is still written" (4.1), split
 //   into its two sub-cases:
@@ -690,6 +705,25 @@ describe('WaitPusher', () => {
 
     expect(capture.requests).toHaveLength(1);
     const expected = buildMessage(wait, 'proj-i', false);
+    expect(capture.requests[0].body).toBe(expected.body);
+  });
+
+  it('(dn) a project with a stored display name pushes the display name, not the generated name (R1 AC1)', async () => {
+    const capture = await startCaptureServer();
+    servers.push(capture);
+    await writeNotifyConfig(capture.url, 'sdd-ops');
+    await writeProjectList([{ ...makeProject('proj-dn', 'tradr-hosted'), displayName: 'tradr infra' }]);
+
+    const pusher = new WaitPusher({});
+    pushers.push(pusher);
+    await pusher.start();
+
+    const wait = await makeOpenWait('spec-dn', 'proj-dn', 'question text for dn');
+    await waitFor(() => capture.requests.length > 0);
+    await sleep(300);
+
+    expect(capture.requests).toHaveLength(1);
+    const expected = buildMessage(wait, 'tradr infra', false);
     expect(capture.requests[0].body).toBe(expected.body);
   });
 

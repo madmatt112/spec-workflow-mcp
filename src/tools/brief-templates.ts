@@ -374,7 +374,7 @@ function renderReviewer(v: Record<string, string>): string {
   return lines.join('\n') + '\n';
 }
 
-// --- reviser (round, should-fix-only, revision, lint-fix) --------------------
+// --- reviser (round, should-fix-only, drafting-only, revision, lint-fix) ----
 
 /** The reviser disposition rules (briefs.md:298-358), `revDescriptor` filling rule 4. */
 function reviserDispositionRules(dPlus1: string, revDescriptor: string, closedByRuling: string): string[] {
@@ -457,6 +457,8 @@ function renderReviser(v: Record<string, string>): string {
   const revDescriptor =
     v.variant === 'should-fix-only'
       ? 'SHOULD_FIX-only corrective pass.'
+      : v.variant === 'drafting-only'
+      ? 'Drafting-only corrective pass.'
       : v.variant === 'revision'
       ? 'Revision from the input below.'
       : 'Round-<A> adversarial response (<analysis file name>, verdict iterate <m>/<s>/<k>).';
@@ -800,9 +802,9 @@ function renderFix(v: Record<string, string>): string {
         'If the gate output below lists a `file-outside-list: <file>` reason as its only actionable ' +
           'finding, do not re-commit the unchanged tree: revert the off-list change when it was ' +
           'accidental, or — when the task genuinely requires that file — report ' +
-          '`REQUIRED: <file> — <why>` instead of committing. A `REQUIRED` report escalates immediately ' +
-          "(the fix is to list the file in the task's `File:` entries in tasks.md); never use it to " +
-          'self-exempt an accidental off-list edit.',
+          '`REQUIRED: <file> — <why>` instead of committing. A `REQUIRED` report adds the file to the ' +
+          "task's `File:` entries in tasks.md and the gate reruns on the same commit with no wait; " +
+          'never use it to self-exempt an accidental off-list edit.',
       );
     }
   } else {

@@ -5,6 +5,7 @@
 // unions. The setup file, launch records and pointer lines of the supervisor
 // launcher went with step (d) of the foundation rework.
 import type { RoutingDecision } from '../../core/spec-routing-deriver.js';
+import type { LaunchGuard } from './launch-guard.js';
 
 export type Provider = 'anthropic' | 'deepseek';
 
@@ -38,6 +39,7 @@ export interface SetupView {
   roles: RoleRow[];                   // empty without profiles
   worktree: 'yes' | 'no'; gates: 'block' | 'record';
   modelAliases: string[]; deepseekModels: string[]; eligibleRoles: string[];
+  guard?: LaunchGuard;                 // unset when the launchable spec is unset, or the read failed
 }
 
 export interface OverviewRow {

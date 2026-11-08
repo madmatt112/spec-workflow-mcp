@@ -15,7 +15,7 @@ import { branchPresent, type BranchRead } from '../branch-presence.js';
 import { NO_OP_GATES } from '../phases/document.js';
 import { createDocumentGates } from '../phases/gates.js';
 import {
-  writeRun, readRun, listWaits, processStartTime, isProcessAlive, writeLastActivity,
+  writeRun, readRun, readRunSync, listWaits, processStartTime, isProcessAlive, writeLastActivity,
   type RunRecord, type PrRead,
 } from '../state.js';
 import { answerWait } from '../waits.js';
@@ -52,7 +52,7 @@ const USAGE = {
   cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 20 },
 };
 
-interface StubRun { edits?: { path: string; content: string }[]; appends?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; }
+interface StubRun { edits?: { path: string; content: string }[]; appends?: { path: string; content: string }[]; result: Record<string, unknown>; stream?: unknown[]; exitCode?: number; eventDelayMs?: number; }
 
 interface Fixture { base: string; repo: string; specDir: string; home: string; logs: string; }
 
@@ -328,6 +328,48 @@ describe('stepLifecycle onStepSpawn task and startedAt', () => {
   });
 });
 
+// Contract (design C7 "Spawn race", Requirement 7 AC 4; tasks.md task 16):
+// "stepLifecycle.onStepSpawn ... signals the new pid and records nothing
+// when the run is cancelled, for a cancel landing between the guard and the
+// spawn." Two sub-cases, each its own test per the task's Success line ("for
+// isCancelled true and for disk abandoned with isCancelled false"):
+// `deps.isCancelled` reporting true, and `deps.isCancelled` reporting false
+// but the disk record already reading `abandoned`. Pre-condition in both: a
+// real, live child process standing in for the just-spawned step. Test:
+// stepLifecycle(deps, runId).onStepSpawn({ id, pid, startTime }). Observable
+// result: the pid is signalled (the same process-gone check cancelRun's
+// tests use) and the run's `inFlight` on disk stays absent. Expected value
+// source: the quoted design clause and the task's Success line.
+describe('stepLifecycle onStepSpawn cancel guard (design C7 Spawn race, Requirement 7 AC 4)', () => {
+  it('signals the pid and writes no inFlight when deps.isCancelled is true', async () => {
+    await writeRun(seedRun(fx, { status: 'running' }));
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+
+    const { onStepSpawn } = stepLifecycle(deps(fx, { isCancelled: () => true }), 'run-20261011-000000');
+    await onStepSpawn({ id: 's1', pid, startTime });
+
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect((await readRun('run-20261011-000000'))?.inFlight).toBeUndefined();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  it('signals the pid and writes no inFlight when disk is abandoned though deps.isCancelled is false', async () => {
+    await writeRun(seedRun(fx, { status: 'abandoned' }));
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+
+    const { onStepSpawn } = stepLifecycle(deps(fx, { isCancelled: () => false }), 'run-20261011-000000');
+    await onStepSpawn({ id: 's1', pid, startTime });
+
+    expect(() => process.kill(pid, 0)).toThrow();
+    expect((await readRun('run-20261011-000000'))?.inFlight).toBeUndefined();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+});
+
 describe('runOnce gate-B annotation routing', () => {
   /** Approved requirements, design and tasks, and a gate-b wait answered with `reply`. */
   async function seedAnsweredGateB(reply: string, tasksMd?: string): Promise<RunRecord> {
@@ -473,6 +515,153 @@ describe('runOnce document-phase stop (design C6)', () => {
   });
 });
 
+// Contract for the abandoned-final status guard on the driver path (design
+// C7 "Status guard", D10; requirement 7 AC 3). Per success criterion: a run
+// abandoned on disk during `ensureWorktree` stays abandoned, with no
+// `change` event carrying `running`. Pre: a run on disk at `queued` with no
+// worktree. Call: `runOnce(deps(fx, { ensureWorktree }), runId)` where
+// `ensureWorktree` writes the run `abandoned` on disk before it returns (a
+// cancel landing while the worktree is being resolved). Result: the
+// run stays `abandoned` on disk and no `change` event ever carries
+// `status: 'running'`. Source: design C7 "Status guard"; Requirement 7 AC 3.
+// `isCancelled` is forced `true` only so the loop top (a later, unrelated
+// check) stops the drive right after the guarded write is observed, instead
+// of falling through to a real step spawn when the guard is missing.
+describe('runOnce keeps a run abandoned during ensureWorktree (design C7, Requirement 7 AC 3)', () => {
+  it('a run abandoned on disk during ensureWorktree stays abandoned, with no change event carrying running', async () => {
+    await writeRun(seedRun(fx, { status: 'queued', worktree: '' }));
+    const statuses: string[] = [];
+    const onChange = (r: RunRecord) => statuses.push(r.status);
+    runEvents.on('change', onChange);
+
+    try {
+      await runOnce(deps(fx, {
+        isCancelled: () => true,
+        ensureWorktree: async (run) => {
+          await writeRun({ ...run, status: 'abandoned' });
+          return { worktree: run.codeRoot, branch: 'main' };
+        },
+      }), 'run-20261011-000000');
+    } finally {
+      runEvents.off('change', onChange);
+    }
+
+    expect((await readRun('run-20261011-000000'))?.status).toBe('abandoned');
+    expect(statuses).not.toContain('running');
+  });
+});
+
+// Contract for the driver's early-return on an already-abandoned run (design
+// C7 "Driver checks", Requirement 7 AC 3). Per success criterion: "runOnce on
+// an abandoned run calls no ensureWorktree and writes no running." Pre: a run
+// on disk already `abandoned`, with no worktree so the base code's
+// `!run.worktree` branch would otherwise call `ensureWorktree` unconditionally
+// (`src/controller/runs.ts`, the block before the for-loop). Call:
+// `runOnce(deps(fx, { ensureWorktree }), runId)`. Result: `ensureWorktree` is
+// never invoked and no `change` event ever carries `status: 'running'`.
+// Expected value source: the task's own Success line and design C7 "Driver
+// checks" ("`runOnce` returns after its first read for an `abandoned` run,
+// before `ensureWorktree` and the `running` write").
+describe('runOnce returns before ensureWorktree for an already-abandoned run (design C7 "Driver checks", Requirement 7 AC 3)', () => {
+  it('calls no ensureWorktree and writes no running for a run already abandoned at the first read', async () => {
+    await writeRun(seedRun(fx, { status: 'abandoned', worktree: '' }));
+    const ensureWorktree = vi.fn(async (run: RunRecord) => ({ worktree: run.codeRoot, branch: 'main' }));
+    const statuses: string[] = [];
+    const onChange = (r: RunRecord) => statuses.push(r.status);
+    runEvents.on('change', onChange);
+
+    try {
+      await runOnce(deps(fx, { ensureWorktree }), 'run-20261011-000000');
+    } finally {
+      runEvents.off('change', onChange);
+    }
+
+    expect(ensureWorktree).not.toHaveBeenCalled();
+    expect(statuses).not.toContain('running');
+    expect((await readRun('run-20261011-000000'))?.status).toBe('abandoned');
+  });
+});
+
+// Contract for the document-phase retry's own cancel check (design C7 "Driver
+// checks", Requirement 7 AC 1, AC 2). Per success criterion: "a cancel during
+// a document step leaves abandoned, one claude -p spawn, no wait and no
+// retry". Pre: a fresh run (no requirements.md yet), a scripted drafter step
+// that fails. Call: `runOnce(deps(fx, { isCancelled, onActivity }), runId)`,
+// where `onActivity` (fired while the drafter step streams, before its
+// failing result is read) flips `isCancelled` true — a cancel landing while
+// the step the retry would redo is still in flight. Result: `runOnce`
+// resolves with no second drafter spawn and no wait opened. Expected value
+// source: design C7 "Driver checks" ("The four handle*Outcome functions
+// return 'stop' first when runCancelled: no retry, no wait (AC 2)") and the
+// task's own Success line. At base `handleDocumentOutcome`'s retry branch
+// (`src/controller/runs.ts`, the fresh-retry block) calls `runDocumentPhase`
+// again with no cancel check, reaching the review round (the drafted
+// `requirements.md` already exists from the first step's edits) and a second
+// real `spawn.start` row, then the final `error` wait.
+describe('runOnce document-phase cancel suppresses the fresh retry (design C7 "Driver checks", Requirement 7 AC 1, AC 2)', () => {
+  it('a cancel detected after the drafter fails starts no second drafter and opens no wait', async () => {
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: USAGE },
+    }]);
+    await writeRun(seedRun(fx));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await expect(runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000')).resolves.toBeUndefined();
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    expect(rows.filter((r) => r.type === 'spawn.start')).toHaveLength(1);
+  });
+});
+
+// Contract for the same check firing from the disk read alone (design C7
+// "Driver checks", Requirement 7 AC 4): "the same holds with the in-memory
+// set empty (isCancelled false, disk abandoned)." Pre/Call: identical to the
+// test above, except `isCancelled` always returns `false` (an empty in-memory
+// set, as after a controller restart) and the cancel signal is instead a real
+// disk write of `status: 'abandoned'`, made from the same `onActivity` hook.
+// Result: `runOnce` still resolves with no throw and the run still reads
+// `abandoned` with no wait opened. Expected value source: Requirement 7 AC 4
+// ("AC 1 to AC 3 SHALL hold after a controller restart, when the in-memory
+// set is empty") read against design C7's `runCancelled` helper, which ORs
+// `deps.isCancelled` with the disk read — at base `handleDocumentOutcome`'s
+// retry branch has no such check at all, so its final `waitAnd` call reaches
+// `createWait`'s abandoned-run guard (task 17) and `runOnce` rejects instead
+// of resolving.
+describe('runOnce document-phase cancel via disk alone, no in-memory flag (design C7 "Driver checks", Requirement 7 AC 4)', () => {
+  it('the same holds with isCancelled always false once disk already reads abandoned', async () => {
+    writeScript(fx, [{
+      stream: [
+        { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } },
+        { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } },
+      ],
+      eventDelayMs: 150,
+      edits: [{ path: `.spec-workflow/specs/${SPEC}/requirements.md`, content: cleanDoc('requirements', 1) }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: USAGE },
+    }]);
+    await writeRun(seedRun(fx));
+    let flipped = false;
+    const onActivity = () => {
+      if (flipped) return;
+      flipped = true;
+      void (async () => {
+        const current = await readRun('run-20261011-000000');
+        if (current) await writeRun({ ...current, status: 'abandoned', inFlight: undefined });
+      })();
+    };
+
+    await expect(runOnce(deps(fx, { isCancelled: () => false, onActivity }), 'run-20261011-000000')).resolves.toBeUndefined();
+
+    const run = await readRun('run-20261011-000000');
+    expect(run?.status).toBe('abandoned');
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
+  });
+});
+
 describe('cancelRun and discardRun', () => {
   function cancelDeps(fx: Fixture): CancelDeps {
     return { now: () => new Date(), ghBin: () => STUB_GH, graceMs: 2000 };
@@ -489,6 +678,63 @@ describe('cancelRun and discardRun', () => {
     // The process group is gone.
     expect(() => process.kill(pid, 0)).toThrow();
     try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  // Contract (design C7 "Order change", Requirement 7 AC 1/4; tasks.md task
+  // 16). Pre-condition: a run with a real, live `inFlight` process.
+  // Test: cancelRun(deps, runId), with `process.kill` spied so the test
+  // reads the on-disk run record (via `readRunSync`, a synchronous read)
+  // the instant the first `process.kill` call fires, before letting the
+  // real signal through. Observable result: at that instant the disk
+  // record already reads `status: 'abandoned'` with `inFlight` absent, and
+  // the live step is still stopped afterward (the same process-gone check
+  // the preceding test uses). Expected value source: design C7 "Order
+  // change" ("`cancelRun` ... writes `abandoned` first, then signals the
+  // pid it read, so a step killed by the signal always finds `abandoned`
+  // on disk") and the task's own Success line.
+  it('writes abandoned with no inFlight before the first process.kill, and still stops the live step', async () => {
+    const child = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const pid = child.pid as number;
+    const startTime = processStartTime(pid) ?? 0;
+    await writeRun(seedRun(fx, { inFlight: { id: 's1', pid, startTime } }));
+
+    const realKill = process.kill.bind(process);
+    let diskAtFirstKill: RunRecord | undefined;
+    let killCalls = 0;
+    const spy = vi.spyOn(process, 'kill').mockImplementation((killPid: number, signal?: string | number) => {
+      if (killCalls === 0) diskAtFirstKill = readRunSync('run-20261011-000000');
+      killCalls += 1;
+      return realKill(killPid, signal as NodeJS.Signals | number | undefined);
+    });
+
+    try {
+      const run = await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+      expect(run?.status).toBe('abandoned');
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(killCalls).toBeGreaterThan(0);
+    expect(diskAtFirstKill?.status).toBe('abandoned');
+    expect(diskAtFirstKill?.inFlight).toBeUndefined();
+    // The process group is gone.
+    expect(() => process.kill(pid, 0)).toThrow();
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  });
+
+  // [regression guard] Requirement 7 AC 6: "A cancel SHALL keep the
+  // worktree, branch and PR" (invariant, verified, not red-first per
+  // requirements.md). Holds at base because `cancelRun` spreads the run it
+  // read into its write. No existing assertion in this describe block
+  // checks `worktree`/`branch` on a cancelled run's returned record; named
+  // here per the implementer brief (agent-rules P10/P12).
+  it('[regression guard] cancel keeps the worktree and branch unchanged', async () => {
+    await writeRun(seedRun(fx, { worktree: fx.repo, branch: 'feat/keep-me' }));
+
+    const run = await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(run?.worktree).toBe(fx.repo);
+    expect(run?.branch).toBe('feat/keep-me');
   });
 
   it('discard removes the worktree, deletes the branch and closes the PR with gh', async () => {
@@ -1047,6 +1293,246 @@ describe('listRunsForWire', () => {
     expect(json).not.toContain('codeRoot');
     expect(json).not.toContain('worktree');
   });
+
+  // Source: task 21 Prompt Success ("a run with a later `created`, the
+  // same `codeRoot` and the same non-empty `branch`, in any status, makes
+  // the older row `discardAllowed: false`, `branchPresent: false`, and its
+  // branch read is not called"); requirement 9 AC 6; design C9 "Reused
+  // branch" (new `branchReused`, `toRow`'s `discardAllowed:
+  // !(branchHeld(run, runs) || branchReused(run, runs))` and
+  // `branchPresent: false` with no read).
+  //
+  // Criterion "reused branch leaves the older row with no Discard and no
+  // read": Pre-condition: an `abandoned` run and another run sharing
+  // `codeRoot` and a non-empty `branch`, the other's `created` later and
+  // its status `done` (not live, so `branchHeld` alone would miss it).
+  // Test: listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the older row's `discardAllowed` is `false`, its
+  // `branchPresent` is `false`, and the spy was never called.
+  // Expected-value source: design C9's "Reused branch" clause.
+  it('discardAllowed and branchPresent are false, with no branch read, when a later run reused the branch', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-reused-older', status: 'abandoned', branch: 'feat/reused',
+      codeRoot: fx.repo, created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-reused-newer', status: 'done', branch: 'feat/reused',
+      codeRoot: fx.repo, created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-reused-older');
+
+    expect(row?.discardAllowed).toBe(false);
+    expect(row?.branchPresent).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("an equal `created` ... [is] not
+  // reused"). [regression guard] Holds at base: at base `toRow` has no
+  // `branchReused` check at all, so an equal-`created` pair's
+  // `discardAllowed` already comes only from `branchHeld` — `true` for
+  // this pair since the other run is not live — named here per the
+  // implementer brief (agent-rules P10/P12).
+  //
+  // Criterion "not reused: equal created": Pre-condition: a `done` run and
+  // another `done` (not live) run sharing `codeRoot`, a non-empty `branch`
+  // and the same `created`. Test: listRunsForWire(driven, branchRead) with
+  // a `branchRead` spy. Observable result: the first row's
+  // `discardAllowed` is `true`, its `branchPresent` is `true`, and the spy
+  // was called. Expected-value source: design C9's "a later `created`"
+  // wording (equal is not later).
+  it('[regression guard] discardAllowed stays true when the other run shares created exactly, not later', async () => {
+    const tie = '2026-10-11T00:00:00.000Z';
+    await writeRun(seedRun(fx, {
+      id: 'run-tie-a', status: 'done', branch: 'feat/tie', codeRoot: fx.repo, created: tie,
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-tie-b', status: 'done', branch: 'feat/tie', codeRoot: fx.repo, created: tie,
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-tie-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(true);
+    expect(read).toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("a different `codeRoot` ... [is] not
+  // reused"). [regression guard] Holds at base: at base `discardAllowed`
+  // comes only from `branchHeld`, which already requires the same
+  // `codeRoot`; a different `codeRoot` already leaves it `true` with no
+  // `branchReused` in play — named here per the implementer brief
+  // (agent-rules P10/P12).
+  //
+  // Criterion "not reused: different codeRoot": Pre-condition: a `done`
+  // run and another `done` (not live) run sharing a non-empty `branch`,
+  // the other's `created` later, but a different `codeRoot`. Test:
+  // listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the first row's `discardAllowed` is `true`, its
+  // `branchPresent` is `true`, and the spy was called. Expected-value
+  // source: design C9's "the same `codeRoot`" wording.
+  it('[regression guard] discardAllowed stays true when the later run has a different codeRoot', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-diffroot-reuse-a', status: 'done', branch: 'feat/diffroot', codeRoot: fx.repo,
+      created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-diffroot-reuse-b', status: 'done', branch: 'feat/diffroot', codeRoot: `${fx.repo}-other`,
+      created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-diffroot-reuse-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(true);
+    expect(read).toHaveBeenCalled();
+  });
+
+  // Source: task 21 Prompt Success ("an empty `branch` ... [is] not
+  // reused"). [regression guard] Holds at base: `branchPresent`
+  // (`src/controller/branch-presence.ts`) already returns `false` with no
+  // read for an empty branch, and `discardAllowed` already comes only from
+  // `branchHeld` (false here, the other run is not live) — named here per
+  // the implementer brief (agent-rules P10/P12), since no existing
+  // assertion covers a stopped run with an empty branch through this seam.
+  //
+  // Criterion "not reused: empty branch": Pre-condition: an `abandoned`
+  // run with `branch: ''` and another `done` (not live) run sharing
+  // `codeRoot`, a later `created` and `branch: ''`. Test:
+  // listRunsForWire(driven, branchRead) with a `branchRead` spy.
+  // Observable result: the first row's `discardAllowed` is `true`, its
+  // `branchPresent` is `false`, and the spy was never called.
+  // Expected-value source: design C9's "the same non-empty `branch`"
+  // wording and `branch-presence.ts`'s empty-branch short-circuit.
+  it('[regression guard] discardAllowed stays true and branchPresent stays false, with no read, when the stopped run has no branch', async () => {
+    await writeRun(seedRun(fx, {
+      id: 'run-nobranch-reuse-a', status: 'abandoned', branch: '', codeRoot: fx.repo,
+      created: '2026-10-11T00:00:00.000Z',
+    }));
+    await writeRun(seedRun(fx, {
+      id: 'run-nobranch-reuse-b', status: 'done', branch: '', codeRoot: fx.repo,
+      created: '2026-10-11T00:05:00.000Z',
+    }));
+    const read = vi.fn(async () => true);
+
+    const rows = await listRunsForWire(new Set(), read);
+    const row = rows.find((r) => r.id === 'run-nobranch-reuse-a');
+
+    expect(row?.discardAllowed).toBe(true);
+    expect(row?.branchPresent).toBe(false);
+    expect(read).not.toHaveBeenCalled();
+  });
+});
+
+// Contract for the implementation-phase final error wait's own cancel check
+// (design C7 "Driver checks", Requirement 7 AC 2). Per success criterion: "a
+// step failure after a cancel opens no error or escalation wait in each of
+// the four phases." Pre: approved requirements/design/tasks (no tasks, so the
+// phase runs one step: the end-to-end verifier), the run's cursor already at
+// attempt 2 (the one fresh retry already spent), so a failing step falls
+// straight to `handleImplementationOutcome`'s final `error` wait — a branch
+// the loop-top's own abandoned/cancel check never reaches (that check only
+// intercepts the next loop iteration, not this direct call within the
+// current one). Call: `runOnce(deps(fx, { isCancelled, onActivity }),
+// runId)`, with `onActivity` (fired on the verifier step's `tool_use`
+// activity, before its failing result is read) flipping `isCancelled` true.
+// Result: no `error` wait opens for this run. Expected value source: design
+// C7 "Driver checks" ("The four handle*Outcome functions return 'stop' first
+// when runCancelled: no retry, no wait (AC 2)") and the task's own Success
+// line; at base `handleImplementationOutcome`'s final branch
+// (`src/controller/runs.ts`, after the exhausted-retry check) calls
+// `waitAnd` unconditionally.
+describe('runOnce implementation-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'implementation', stepKind: 'implementation', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
+});
+
+// Same contract, the retrospective phase (design C7 "Driver checks",
+// Requirement 7 AC 2). Pre: approved documents, implementation already
+// marked complete on the ledger (so `routeRun` resolves `retrospective`), the
+// cursor already at attempt 2. Call/Result: as the implementation-phase test
+// above, for the compile step. Expected value source: the same design C7
+// text and task Success line; at base `handleRetrospectiveOutcome`'s final
+// branch (`src/controller/runs.ts`, after the exhausted-retry check) calls
+// `waitAnd` unconditionally.
+describe('runOnce retrospective-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    openRunLedger({ specDir: fx.specDir, runId: 'run-20261011-000000', spec: SPEC }).phaseEnd('implementation', { result: 'complete' });
+    writeFileSync(join(fx.specDir, 'retrospective-log.md'), `# Retrospective log — ${SPEC}\n`);
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'retrospective', stepKind: 'retrospective', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
+});
+
+// Same contract, the close-out phase (design C7 "Driver checks", Requirement
+// 7 AC 2). Pre: approved documents, an `APPROVED` retrospective-plan.md with
+// one `store`-class item (lands as a commit in the spec store itself, no
+// retro worktree needed), the cursor already at attempt 2. Call/Result: as
+// the implementation-phase test above, for the close-out implementer batch.
+// Expected value source: the same design C7 text and task Success line; at
+// base `handleCloseoutOutcome`'s final branch (`src/controller/runs.ts`,
+// after the exhausted-retry check) calls `waitAnd` unconditionally.
+describe('runOnce close-out-phase cancel suppresses the final error wait (design C7 "Driver checks", Requirement 7 AC 2)', () => {
+  it('a step failure after a cancel opens no error wait', async () => {
+    await approve(fx, 'requirements');
+    await approve(fx, 'design');
+    await approve(fx, 'tasks');
+    writeFileSync(join(fx.repo, '.spec-workflow', 'agent-rules.md'), '# Agent rules\n\nmerge: auto\n\n## Sensitive paths\n\n- package.json\n');
+    writeFileSync(join(fx.repo, '.spec-workflow', 'HANDOFF.md'), '# H\n\n## Phase log\n\n| Date | Spec | Stage | State | Result | Note |\n| --- | --- | --- | --- | --- | --- |\n');
+    writeFileSync(join(fx.specDir, 'retrospective-log.md'), `# Retrospective log — ${SPEC}\n`);
+    writeFileSync(join(fx.specDir, 'retrospective-plan.md'), [
+      `# Retrospective plan — ${SPEC}`, '', 'Status: APPROVED', 'Date: 2026-10-11', '',
+      '## Approved proposals', '',
+      '- **P1 (F1) — Tidy the ledger.** Make it nicer.',
+      '  Target: steering (`.spec-workflow/agent-rules.md`).', '  Decision: do it.', '',
+      '## Decisions', 'None.', '', '## Rejected proposals', 'None.', '',
+    ].join('\n'));
+    git(fx.repo, ['add', '-A']);
+    git(fx.repo, ['commit', '-q', '-m', 'seed close-out plan']);
+    writeScript(fx, [{
+      stream: [{ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: {} }] } }],
+      result: { subtype: 'error_during_execution', is_error: true, num_turns: 1, session_id: 's', result: 'boom', usage: {} },
+    }]);
+    await writeRun(seedRun(fx, { cursor: { phase: 'closeout', stepKind: 'closeout', attempt: 2 } }));
+    let cancelled = false;
+    const onActivity = () => { cancelled = true; };
+
+    await runOnce(deps(fx, { isCancelled: () => cancelled, onActivity }), 'run-20261011-000000');
+
+    expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000' && w.kind === 'error')).toHaveLength(0);
+  }, 30000);
 });
 
 // Source: tasks.md task 4, Success (a)-(b); design C3 `setRunHeartbeat`.
@@ -1838,6 +2324,40 @@ describe('runOnce merge stage', () => {
       expect(run?.status).toBe('waiting');
       expect(run?.phase).toBe('retrospective');
       expect((await listWaits()).some((w) => w.kind === 'retro-plan' && w.run === 'run-20261011-000000')).toBe(true);
+    }, 30000);
+  });
+
+  // Contract for `runMergeStageStep`'s own cancel check on entry (design C7
+  // "Driver checks", Requirement 7 AC 5). Per success criterion: "a run
+  // cancelled at the merge stage opens no wait and writes no status". Pre: a
+  // run on disk at `merging` (so `resumingMerge` is true at the top of the
+  // loop) on a feature branch with no open PR. Call: `runOnce(deps(fx, {
+  // isCancelled }), runId)`, where `isCancelled` is a counter that reads
+  // `false` on its first call (the loop-top abandoned/cancel check, which
+  // must still let the resume through) and `true` on every call after (the
+  // merge-stage entry check, called immediately next with no step run and no
+  // other `isCancelled` read in between). Result: the run's status is left
+  // at `running` (the pre-loop resume write, unaffected by the fix) with no
+  // `cursor` and no wait opened — not `waiting` with a `merge` error wait, as
+  // the base `findPullRequest`/`waitAnd` path produces. Expected value
+  // source: design C7 "Driver checks" ("runMergeStageStep on entry") and the
+  // task's own Success line; at base `runMergeStageStep`
+  // (`src/controller/runs.ts`) has no cancel check before its "no PR" branch
+  // saves a `merge` cursor and opens an `error` wait.
+  describe('runMergeStageStep cancel entry check (design C7 "Driver checks", Requirement 7 AC 5)', () => {
+    it('a run cancelled while resuming the merge stage opens no wait and writes no status', async () => {
+      onFeatureBranch(fx);
+      writeGhScript(fx, [{ argvIncludes: ['pr', 'list'], stdout: [] }]);
+      await writeRun(seedRun(fx, { status: 'merging', branch: BRANCH, worktree: fx.repo }));
+      let calls = 0;
+      const isCancelled = () => { calls += 1; return calls > 1; };
+
+      await runOnce(deps(fx, { isCancelled }), 'run-20261011-000000');
+
+      const run = await readRun('run-20261011-000000');
+      expect(run?.status).toBe('running');
+      expect(run?.cursor).toBeUndefined();
+      expect((await listWaits()).filter((w) => w.run === 'run-20261011-000000')).toHaveLength(0);
     }, 30000);
   });
 });

@@ -152,10 +152,13 @@ describe('enable.ts (src/dashboard_frontend/src/modules/projects/enable.ts)', ()
 // The module does not exist yet at this commit (task 8 Note: "new module
 // with no caller yet"), so every `beforeAll` here is expected to reject.
 //
-// `nextProjects` calls the real `storeGroups` from
-// `src/dashboard_frontend/src/modules/projects/stores.ts` (D45, value
-// import, not mocked); the fixtures below give it the `projectPath` /
-// `workflowRootPath` shape that module reads.
+// `nextProjects` is a straight filter over `projects` by `enabled`
+// (decisions-and-launch-guard design C2 "Next tiles": `projects.filter((p)
+// => enabled(p.projectId))`, overriding D2/D11's per-store representative
+// rule; `storeGroups` is no longer read). The fixtures below still carry
+// `projectPath` / `workflowRootPath` because `BoardProjectFixture` mirrors
+// the frontend `Project` shape; `nextProjects` itself reads only
+// `projectId`.
 //
 // `needsYou`'s inputs are the controller wait and staged-action wire shapes
 // (`src/dashboard_frontend/src/modules/shell/types.ts:177-191, 263-278`),
@@ -208,6 +211,11 @@ interface BoardProjectFixture {
 interface SetupViewFixture {
   launchable: string | null;
   launchableOrder: number | null;
+}
+
+interface LaunchPressViewFixture {
+  launchable: string;
+  guard?: { state: 'clear' | 'warn' | 'no-list' };
 }
 
 type Tone = 'neutral' | 'warning' | 'danger';
@@ -270,6 +278,10 @@ type BoardModule = {
   running: (
     runs: BoardRunFixture[],
     enabled: (projectId: string) => boolean,
+  ) => BoardRunFixture[];
+  stopped: (
+    runs: BoardRunFixture[],
+    enabled: (projectId: string) => boolean,
     now: number,
   ) => BoardRunFixture[];
   stoppedAdmitted: (run: BoardRunFixture, now: number) => boolean;
@@ -281,9 +293,11 @@ type BoardModule = {
     views: Map<string, SetupViewFixture>,
     projectName: (projectId: string) => string,
   ) => Array<[string, SetupViewFixture]>;
+  launchPress: (view: LaunchPressViewFixture, armedSpec: string | null) => 'arm' | 'launch';
   ageTone: (ms: number) => Tone;
   runDot: (run: CtrlRunFixture, now: number) => Dot;
   isStalled: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => boolean;
+  runTone: (run: CtrlRunFixture, waits: CtrlWaitFixture[], now: number) => Tone;
   runControls: (run: CtrlRunFixture, waits: CtrlWaitFixture[]) => {
     pause: boolean; resume: boolean; stop: boolean; discard: boolean; redrive: boolean;
   };
@@ -468,14 +482,14 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
     });
   });
 
-  describe('running(runs, enabled, now)', () => {
+  describe('running(runs, enabled)', () => {
     // Criterion "running holds each of queued, running, merging, paused and
     // waiting" (design C9 "Moving runs by ..."; task 8 Success; Requirement
     // 3.7 "one tile per run in status `queued`, `running`, `merging`,
     // `paused` or `waiting`").
     //   Pre-condition: five runs, one per moving status, same enabled
     //   project, ascending `updated` times, none with `lastActivity`.
-    //   Test: running(runs, () => true, now).
+    //   Test: running(runs, () => true).
     //   Observable result: all five ids present, in `updated`-ascending
     //   order (queued, running, merging, paused, waiting).
     //   Expected-value source: the literal status list of Requirement 3 AC7.
@@ -484,7 +498,7 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
       const runs = statuses.map((status, i) => boardRunFixture({
         id: `r-${status}`, status, updated: `2026-01-01T0${i}:00:00.000Z`,
       }));
-      const result = board.running(runs, () => true, Date.parse('2026-01-02T00:00:00.000Z'));
+      const result = board.running(runs, () => true);
       expect(result.map((r) => r.id)).toEqual(['r-queued', 'r-running', 'r-merging', 'r-paused', 'r-waiting']);
     });
 
@@ -497,7 +511,7 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
     //   of 01-05, which sits between A's two values. Sorting by `updated`
     //   alone would put B before A; sorting by `lastActivity ?? updated`
     //   puts A before B.
-    //   Test: running([runA, runB], () => true, now).
+    //   Test: running([runA, runB], () => true).
     //   Observable result: [runA, runB].
     //   Expected-value source: the literal "by lastActivity, else updated"
     //   fallback rule, distinguished from a plain `updated` sort by this
@@ -507,23 +521,71 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         id: 'rA', status: 'running', updated: '2026-01-10T00:00:00.000Z', lastActivity: '2026-01-01T00:00:00.000Z',
       });
       const runB = boardRunFixture({ id: 'rB', status: 'running', updated: '2026-01-05T00:00:00.000Z' });
-      const result = board.running([runA, runB], () => true, Date.parse('2026-01-11T00:00:00.000Z'));
+      const result = board.running([runA, runB], () => true);
       expect(result.map((r) => r.id)).toEqual(['rA', 'rB']);
     });
 
-    // Criterion "admitted stopped runs follow, newest updated first"
-    // (design C9 "... then admitted stopped runs by `updated` descending";
-    // task 8 Success; Requirement 3.7 "stopped runs SHALL sort after them,
-    // newest `updated` first").
+    // Criterion "running holds only moving runs, dropping a stopped run"
+    // (design C9 "Interfaces": "`running(runs, enabled)` returns moving
+    // runs in the base order"; task 20 Success "running drops a stopped
+    // run and keeps the base order"; Requirement 9 AC 1 "it SHALL hold
+    // only runs in queued, running, merging, paused or waiting", replacing
+    // dashboard-board Requirement 3 AC 7's mixed running+stopped list).
     //   Pre-condition: one moving run and two admitted stopped runs
     //   (`abandoned`, `branchPresent: true`) with different `updated`
-    //   times.
-    //   Test: running([stoppedOld, moving, stoppedNew], () => true, now).
-    //   Observable result: [moving, stoppedNew, stoppedOld] — the moving
-    //   run leads, then the stopped runs newest-updated first.
-    //   Expected-value source: the literal "stopped runs follow ... newest
-    //   updated first" clause.
-    it('places admitted stopped runs after moving runs, newest updated first', () => {
+    //   times, so a leftover mixing behaviour would still have an
+    //   observable (wrong) order to report.
+    //   Test: running([stoppedOld, moving, stoppedNew], () => true).
+    //   Observable result: [moving] only — both stopped runs are dropped.
+    //   Expected-value source: Requirement 9 AC 1's "only" clause: a run
+    //   outside the five moving statuses SHALL NOT appear, however it
+    //   would otherwise sort.
+    it('drops a stopped run, holding only moving runs', () => {
+      const moving = boardRunFixture({ id: 'rM', status: 'running', updated: '2026-01-01T00:00:00.000Z' });
+      const stoppedOld = boardRunFixture({
+        id: 'rS-old', status: 'abandoned', updated: '2026-01-02T00:00:00.000Z', branchPresent: true,
+      });
+      const stoppedNew = boardRunFixture({
+        id: 'rS-new', status: 'abandoned', updated: '2026-01-03T00:00:00.000Z', branchPresent: true,
+      });
+      const result = board.running([stoppedOld, moving, stoppedNew], () => true);
+      expect(result.map((r) => r.id)).toEqual(['rM']);
+    });
+
+    // Criterion "a disabled project's run is dropped" (design C9 "... on
+    // enabled projects"; task 8 Success; Requirement 3.5).
+    //   Pre-condition: a moving run on a disabled project and a moving run
+    //   on an enabled project.
+    //   Test: running([offRun, onRun], enabled) where `enabled` is
+    //   true only for the "on" project id.
+    //   Observable result: only the "on" run's id.
+    //   Expected-value source: Requirement 3.5's "SHALL show no tile for
+    //   it", applied to `running`'s own project filter.
+    it('drops a moving run on a disabled project', () => {
+      const offRun = boardRunFixture({ id: 'rOff', status: 'running', project: 'p-off' });
+      const onRun = boardRunFixture({ id: 'rOn', status: 'running', project: 'p-on' });
+      const result = board.running([offRun, onRun], (id) => id === 'p-on');
+      expect(result.map((r) => r.id)).toEqual(['rOn']);
+    });
+  });
+
+  describe('stopped(runs, enabled, now)', () => {
+    // Criterion "stopped holds admitted runs, newest updated first"
+    // (design C9 "Interfaces": "New `stopped(runs, enabled, now)` returns
+    // `stoppedAdmitted` runs, newest `updated` first"; task 20 Success
+    // "`stopped` holds admitted runs, newest `updated` first"; Requirement
+    // 9 AC 2 "it SHALL appear in a separate stopped band, newest `updated`
+    // first").
+    //   Pre-condition: one moving run (which `stoppedAdmitted` never
+    //   admits) and two admitted stopped runs (`abandoned`,
+    //   `branchPresent: true`) with different `updated` times.
+    //   Test: stopped([stoppedOld, moving, stoppedNew], () => true, now).
+    //   Observable result: [stoppedNew, stoppedOld] — the moving run is
+    //   absent and the two stopped runs sort newest-updated first.
+    //   Expected-value source: the literal "newest updated first" clause,
+    //   distinguished from a plain input-order pass-through by this
+    //   fixture's out-of-order input.
+    it('holds admitted stopped runs, newest updated first, and excludes a moving run', () => {
       const moving = boardRunFixture({ id: 'rM', status: 'running', updated: '2026-01-01T00:00:00.000Z' });
       const stoppedOld = boardRunFixture({
         id: 'rS-old', status: 'abandoned', updated: '2026-01-02T00:00:00.000Z', branchPresent: true,
@@ -532,23 +594,30 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         id: 'rS-new', status: 'abandoned', updated: '2026-01-03T00:00:00.000Z', branchPresent: true,
       });
       const now = Date.parse('2026-01-04T00:00:00.000Z');
-      const result = board.running([stoppedOld, moving, stoppedNew], () => true, now);
-      expect(result.map((r) => r.id)).toEqual(['rM', 'rS-new', 'rS-old']);
+      const result = board.stopped([stoppedOld, moving, stoppedNew], () => true, now);
+      expect(result.map((r) => r.id)).toEqual(['rS-new', 'rS-old']);
     });
 
-    // Criterion "a disabled project's run is dropped" (design C9 "... on
-    // enabled projects"; task 8 Success; Requirement 3.5).
-    //   Pre-condition: a moving run on a disabled project and a moving run
-    //   on an enabled project.
-    //   Test: running([offRun, onRun], enabled, now) where `enabled` is
+    // Criterion "stopped drops a disabled project's run" (design C9
+    // "Interfaces"; task 20 Success "and drops a disabled project's run";
+    // Requirement 9.2 reached through the same `enabled` filter
+    // Requirement 3.5 states for `running`).
+    //   Pre-condition: an admitted stopped run on a disabled project and
+    //   an admitted stopped run on an enabled project.
+    //   Test: stopped([offRun, onRun], enabled, now) where `enabled` is
     //   true only for the "on" project id.
     //   Observable result: only the "on" run's id.
     //   Expected-value source: Requirement 3.5's "SHALL show no tile for
-    //   it", applied to `running`'s own project filter.
-    it('drops a moving run on a disabled project', () => {
-      const offRun = boardRunFixture({ id: 'rOff', status: 'running', project: 'p-off' });
-      const onRun = boardRunFixture({ id: 'rOn', status: 'running', project: 'p-on' });
-      const result = board.running([offRun, onRun], (id) => id === 'p-on', Date.parse('2026-01-02T00:00:00.000Z'));
+    //   it", applied to `stopped`'s own project filter.
+    it("drops a disabled project's stopped run", () => {
+      const now = Date.parse('2026-01-02T00:00:00.000Z');
+      const offRun = boardRunFixture({
+        id: 'rOff', status: 'abandoned', project: 'p-off', branchPresent: true, updated: '2026-01-01T00:00:00.000Z',
+      });
+      const onRun = boardRunFixture({
+        id: 'rOn', status: 'abandoned', project: 'p-on', branchPresent: true, updated: '2026-01-01T00:00:00.000Z',
+      });
+      const result = board.stopped([offRun, onRun], (id) => id === 'p-on', now);
       expect(result.map((r) => r.id)).toEqual(['rOn']);
     });
   });
@@ -632,59 +701,110 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
   });
 
   describe('nextProjects(projects, enabled)', () => {
-    // Criterion "nextProjects gives ... the representative when on" (design
-    // C9 "Per `storeGroups` group with `enabled`: the representative when
-    // on, else the first enabled member"; task 8 Success; Requirement 8.2
-    // "using the group's representative ... when it is on").
-    //   Pre-condition: two projects sharing a store; the representative
-    //   (`projectPath === store`) and a member, both enabled.
-    //   Test: nextProjects([rep, member], enabled).
-    //   Observable result: only the representative's id.
-    //   Expected-value source: the literal "the representative when on"
-    //   clause.
-    it('gives the store representative when it is enabled', () => {
+    // Criterion "nextProjects becomes a plain filter: two enabled projects
+    // on one store give two projects and a disabled one is left out"
+    // (decisions-and-launch-guard design C2 "Next tiles": "`nextProjects`
+    // ... becomes `projects.filter((p) => enabled(p.projectId))`"; task 7
+    // Success "two enabled projects on one store give two projects and a
+    // disabled one is left out"; Requirement 2 AC 2 "WHEN two enabled
+    // projects share a store and the spec is launchable THEN Next SHALL
+    // show one tile per enabled project").
+    //   Pre-condition: three projects sharing one store, in array order
+    //   [enabled-a, disabled, enabled-b], so the dropped middle entry
+    //   cannot be mistaken for a slice of the array.
+    //   Test: nextProjects([a, disabled, b], enabled) where `enabled` is
+    //   true for 'a' and 'b' and false for 'disabled'.
+    //   Observable result: exactly ['a', 'b'] — both enabled projects, in
+    //   their original order, the disabled one left out.
+    //   Expected-value source: the literal `projects.filter((p) =>
+    //   enabled(p.projectId))` body design C2 gives `nextProjects`.
+    it('gives every enabled project on a shared store and leaves a disabled one out', () => {
       const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const member = boardProjectFixture({ projectId: 'mem', projectPath: '/other', workflowRootPath: store, projectName: 'mem-name' });
-      const enabled = (id: string) => id === 'rep' || id === 'mem';
-      const result = board.nextProjects([rep, member], enabled);
-      expect(result.map((p) => p.projectId)).toEqual(['rep']);
+      const a = boardProjectFixture({ projectId: 'a', projectPath: '/code/a', workflowRootPath: store, projectName: 'a-name' });
+      const disabled = boardProjectFixture({ projectId: 'disabled', projectPath: '/code/d', workflowRootPath: store, projectName: 'disabled-name' });
+      const b = boardProjectFixture({ projectId: 'b', projectPath: '/code/b', workflowRootPath: store, projectName: 'b-name' });
+      const enabled = (id: string) => id === 'a' || id === 'b';
+      const result = board.nextProjects([a, disabled, b], enabled);
+      expect(result.map((p) => p.projectId)).toEqual(['a', 'b']);
+    });
+  });
+
+  // Contract for decisions-and-launch-guard task 7 (design C2 "NextTile",
+  // "Two press (AC 4)"; Requirement 2 AC 4, AC 5, AC 9).
+  //
+  // `launchPress` is pure: it reads only `view.guard?.state` and
+  // `view.launchable` against the caller's local `armedSpec`, so these
+  // fixtures carry no more than those two fields.
+  describe('launchPress(view, armedSpec)', () => {
+    // Criterion "launchPress gives 'launch' with no guard, on `clear` and
+    // on `no-list`" (design C2 "On `warn`, a press with `armedSpec !==
+    // view.launchable` only sets it" — every other state launches
+    // outright; task 7 Success "launchPress gives `'launch'` with no
+    // guard, on `clear` and on `no-list`"; Requirement 2 AC 5 "WHEN no
+    // warning shows THEN one press SHALL launch"; Requirement 2 AC 9 "IF
+    // the guard's read fails THEN the tile SHALL still render, with no
+    // warning" — a failed read is the no-`guard` case).
+    //   Pre-condition: three views for the same spec, differing only in
+    //   `guard` — absent, `{ state: 'clear' }` and `{ state: 'no-list' }` —
+    //   with `armedSpec` unarmed (`null`) in every case, so arming cannot
+    //   be the cause of a `'launch'` answer.
+    //   Test: launchPress(view, null) for each of the three views.
+    //   Observable result: `'launch'` in every case.
+    //   Expected-value source: the task Success line's literal "gives
+    //   `'launch'` with no guard, on `clear` and on `no-list`" clause.
+    const noWarnGuards: Array<[string, LaunchPressViewFixture['guard']]> = [
+      ['no guard', undefined],
+      ['clear', { state: 'clear' }],
+      ['no-list', { state: 'no-list' }],
+    ];
+    it.each(noWarnGuards)('gives \'launch\' when the guard is %s', (_label, guard) => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard };
+      expect(board.launchPress(view, null)).toBe('launch');
     });
 
-    // Criterion "else the first enabled member" (design C9; task 8 Success;
-    // Requirement 8.2 "else the enabled member").
-    //   Pre-condition: a disabled representative and two enabled members,
-    //   named and ordered so array order and project-name order agree
-    //   (`mem1-name` < `mem2-name`), isolating "first" from either reading.
-    //   Test: nextProjects([rep, member1, member2], enabled) where
-    //   `enabled` is false for `rep` and true for both members.
-    //   Observable result: only `member1`'s id.
-    //   Expected-value source: the literal "the first enabled member"
+    // Criterion "launchPress gives 'arm' on `warn` unarmed" (design C2 "a
+    // press with `armedSpec !== view.launchable` only sets it"; task 7
+    // Success; Requirement 2 AC 4 "a first press of Launch SHALL send no
+    // request and SHALL arm the tile").
+    //   Pre-condition: a `warn` view, `armedSpec` is `null` (never
+    //   pressed).
+    //   Test: launchPress(view, null).
+    //   Observable result: `'arm'`.
+    //   Expected-value source: the literal "'arm' on `warn` unarmed"
     //   clause.
-    it('gives the first enabled member when the representative is disabled', () => {
-      const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const member1 = boardProjectFixture({ projectId: 'mem1', projectPath: '/other1', workflowRootPath: store, projectName: 'mem1-name' });
-      const member2 = boardProjectFixture({ projectId: 'mem2', projectPath: '/other2', workflowRootPath: store, projectName: 'mem2-name' });
-      const enabled = (id: string) => id === 'mem1' || id === 'mem2';
-      const result = board.nextProjects([rep, member1, member2], enabled);
-      expect(result.map((p) => p.projectId)).toEqual(['mem1']);
+    it('gives \'arm\' on warn when unarmed', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, null)).toBe('arm');
     });
 
-    // Criterion "and none when the group is off" (design C9; task 8
-    // Success; Requirement 8.2 implies the whole store, R3 AC5's "no tile"
-    // rule applied to a wholly disabled store).
-    //   Pre-condition: a single project (the store's only member,
-    //   disabled).
-    //   Test: nextProjects([rep], () => false).
-    //   Observable result: an empty array — no project for this store.
-    //   Expected-value source: the literal "none when the group is off"
-    //   clause.
-    it('gives no project when the whole store group is disabled', () => {
-      const store = '/store/a';
-      const rep = boardProjectFixture({ projectId: 'rep', projectPath: store, workflowRootPath: store, projectName: 'rep-name' });
-      const result = board.nextProjects([rep], () => false);
-      expect(result).toEqual([]);
+    // Criterion "launchPress gives 'arm' on `warn` armed for another spec"
+    // (design C2 "Keying on the spec clears the arm when the spec
+    // changes"; task 7 Success; Requirement 2 AC 4).
+    //   Pre-condition: a `warn` view for 'spec-a'; `armedSpec` is
+    //   'spec-b' — armed, but for a different spec.
+    //   Test: launchPress(view, 'spec-b').
+    //   Observable result: `'arm'`.
+    //   Expected-value source: the literal "armed for another spec"
+    //   clause, cross-checked against design C2's spec-keyed clearing
+    //   rule.
+    it('gives \'arm\' on warn when armed for a different spec', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, 'spec-b')).toBe('arm');
+    });
+
+    // Criterion "launchPress gives 'launch' on `warn` armed for this spec"
+    // (design C2 "the armed press calls `onLaunch`, so the body stays
+    // `buildLaunchInput(view)`"; task 7 Success; Requirement 2 AC 4 "a
+    // second press SHALL post the same `buildLaunchInput` body").
+    //   Pre-condition: a `warn` view for 'spec-a'; `armedSpec` is
+    //   'spec-a' — the same spec is already armed.
+    //   Test: launchPress(view, 'spec-a').
+    //   Observable result: `'launch'`.
+    //   Expected-value source: the literal "'launch' on `warn` armed for
+    //   this spec" clause.
+    it('gives \'launch\' on warn when armed for this spec', () => {
+      const view: LaunchPressViewFixture = { launchable: 'spec-a', guard: { state: 'warn' } };
+      expect(board.launchPress(view, 'spec-a')).toBe('launch');
     });
   });
 
@@ -951,6 +1071,82 @@ describe('board.ts (src/dashboard_frontend/src/modules/shell/board.ts)', () => {
         expect(board.isStalled(run, [])).toBe(false);
       },
     );
+  });
+
+  // Contract for decisions-and-launch-guard task 19 (design C10 "Tile
+  // colour"; Requirement 10 AC 1-3).
+  describe('runTone(run, waits, now)', () => {
+    const NOW = Date.parse('2026-01-02T00:00:00.000Z');
+
+    // Criterion "runTone is danger for a stalled run whatever its dot"
+    // (design C10 "`danger` when `isStalled`"; task 19 Success "`danger`
+    // for a stalled run whatever its dot"; Requirement 10 AC 1 "a stalled
+    // run is `danger`", AC 3 "WHEN a run is stalled THEN its tone SHALL be
+    // `danger`").
+    //   Pre-condition: a `running` run with `driven: false` (stalled, per
+    //   `isStalled`), tested once with a fresh `lastActivity` (green dot)
+    //   and once with a 900,000ms-old one (red dot).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'danger' both times — the dot does not change
+    //   the answer.
+    //   Expected-value source: the task Success line's literal "whatever
+    //   its dot" clause, isolated by giving the two cases opposite dots.
+    it('is danger for a stalled run whatever its dot', () => {
+      const greenDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: false, inFlight: true,
+        lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      const redDot = ctrlRunFixture({
+        id: 'r2', status: 'running', driven: false, inFlight: true,
+        lastActivity: new Date(NOW - 900000).toISOString(),
+      });
+      expect(board.runTone(greenDot, [], NOW)).toBe('danger');
+      expect(board.runTone(redDot, [], NOW)).toBe('danger');
+    });
+
+    // Criterion "runTone is warning for a not-stalled run with an amber or
+    // a red dot" (design C10 "else `warning` when `runDot` is `amber` or
+    // `red`"; task 19 Success; Requirement 10 AC 1 "`warning` when
+    // `runDot` is `amber` or `red`").
+    //   Pre-condition: a `running` run with `driven: true` (not stalled),
+    //   tested once with `lastActivity` 300,000ms old (amber) and once
+    //   900,000ms old (red).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'warning' both times.
+    //   Expected-value source: the task Success line's literal "amber or a
+    //   red dot" clause.
+    it('is warning for a not-stalled run with an amber or a red dot', () => {
+      const amberDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 300000).toISOString(),
+      });
+      const redDot = ctrlRunFixture({
+        id: 'r2', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 900000).toISOString(),
+      });
+      expect(board.runTone(amberDot, [], NOW)).toBe('warning');
+      expect(board.runTone(redDot, [], NOW)).toBe('warning');
+    });
+
+    // Criterion "runTone is neutral for green and grey" (design C10
+    // "else `neutral`"; task 19 Success; Requirement 10 AC 1 "`neutral`
+    // when it is `green` or `grey`").
+    //   Pre-condition: a `running` run with `driven: true` (not stalled),
+    //   tested once with a fresh `lastActivity` (green) and once with no
+    //   `inFlight` at all (grey).
+    //   Test: runTone(run, [], now) for each.
+    //   Observable result: 'neutral' both times.
+    //   Expected-value source: the task Success line's literal "neutral
+    //   for green and grey" clause.
+    it('is neutral for a not-stalled run with a green or a grey dot', () => {
+      const greenDot = ctrlRunFixture({
+        id: 'r1', status: 'running', driven: true, inFlight: true,
+        lastActivity: new Date(NOW - 1000).toISOString(),
+      });
+      const greyDot = ctrlRunFixture({ id: 'r2', status: 'running', driven: true, inFlight: false });
+      expect(board.runTone(greenDot, [], NOW)).toBe('neutral');
+      expect(board.runTone(greyDot, [], NOW)).toBe('neutral');
+    });
   });
 
   describe('runControls(run, waits)', () => {

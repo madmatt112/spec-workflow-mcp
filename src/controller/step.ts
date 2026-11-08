@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import {
   SPEC_WORKFLOW_WORKSPACE_ENV, SPEC_WORKFLOW_SHARED_ROOT_ENV,
 } from '../core/git-utils.js';
-import { processStartTime } from './state.js';
+import { processStartTime, readRunSync } from './state.js';
 import type { StepHeartbeat } from './heartbeat.js';
 
 /** Environment variables the controller never passes to a step (design §4). */
@@ -76,7 +76,8 @@ export type StepClassification =
   | 'usage-limit'
   | 'login-expired'
   | 'schema-invalid'
-  | 'error';
+  | 'error'
+  | 'cancelled';
 
 /** What one step tells the controller. */
 export interface StepResult {
@@ -400,6 +401,23 @@ export async function runStepWithNullRetry(spec: StepSpec): Promise<StepResult> 
  * failed spawn or an exit is a classified result.
  */
 export function runStep(spec: StepSpec): Promise<StepResult> {
+  // Step guard (design C7, requirement 7 AC 1): a cancel may have abandoned
+  // this run after the caller resolved `spec`, before the process spawned.
+  // No `claude` process ever starts for it.
+  if (spec.runId && readRunSync(spec.runId)?.status === 'abandoned') {
+    return Promise.resolve({
+      structuredOutput: null,
+      usage: mapUsage(null),
+      sessionId: null,
+      numTurns: 0,
+      isError: true,
+      subtype: 'cancelled',
+      resultText: null,
+      exitCode: null,
+      classification: 'cancelled',
+      durationMs: null,
+    });
+  }
   const role = loadRole(spec.role);
   const model = spec.model ?? role.model;
   const effort = spec.effort ?? role.effort;

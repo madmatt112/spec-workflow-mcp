@@ -318,6 +318,7 @@ const GENERIC_PHASE_GUIDANCE: PhaseGuidance = {
 export const HARNESS_VERDICT_SECTION = `## Standing directives
 
 - Ground every claim in the real codebase. Read the files the document cites before you judge them. A misstated artifact (wrong path, wrong line range, wrong signature, wrong behaviour) is an automatic MUST_FIX.
+- Label every MUST_FIX and SHOULD_FIX, in the analysis and the report arrays, with a \`[drafting] \` or \`[design] \` prefix. A drafting defect is one the reviser can fix with no change to a requirement, a design choice or the scope: a wrong citation, a stale count, wording, or a lint failure. Every other item is a design defect.
 - Attack the deltas since the previous version first, then apply one fresh lens the prior rounds did not use.
 - Rulings recorded in the document's Revision History are closed. Do not re-open them.
 - Do not pad. MINOR-only findings do not keep the loop alive. A clean round is a valid result: show your work (what you checked and how) and say converged.

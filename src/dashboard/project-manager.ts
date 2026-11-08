@@ -6,7 +6,7 @@ import { ApprovalStorage } from './approval-storage.js';
 import { ProjectRegistry, ProjectRegistryEntry, ProjectInstance } from '../core/project-registry.js';
 import { PathUtils } from '../core/path-utils.js';
 import { resolveGitRoot, resolveGitWorkspaceRoot, normalizeIdentityPath, linkedWorktreeInfo } from '../core/git-utils.js';
-import { readProjects, rememberProject, forgetProject, pruneMissingProjects } from '../controller/state.js';
+import { readProjects, rememberProject, forgetProject, pruneMissingProjects, setProjectDisplayName } from '../controller/state.js';
 import { isPathMissing } from './path-missing.js';
 import { computeFolds, FoldCandidate } from './project-folding.js';
 
@@ -114,6 +114,11 @@ export class ProjectManager extends EventEmitter {
       const entries = await this.registry.getAllProjects();
       const remembered = (await readProjects()).projects;
 
+      const displayNames = new Map<string, string>();
+      for (const p of remembered) {
+        if (p.displayName !== undefined) displayNames.set(p.id, p.displayName);
+      }
+
       const fullEntries = new Map<string, ProjectRegistryEntry>();
       for (const entry of entries) {
         fullEntries.set(entry.projectId, entry);
@@ -142,14 +147,14 @@ export class ProjectManager extends EventEmitter {
         const entry = fullEntries.get(candidate.projectId)!;
         const existing = this.projects.get(entry.projectId);
         if (existing) {
-          existing.projectName = entry.projectName;
+          existing.projectName = displayNames.get(entry.projectId) ?? entry.projectName;
           existing.originalProjectPath = entry.projectPath;
           existing.workflowRootPath = entry.workflowRootPath;
           existing.projectPath = PathUtils.translatePath(entry.workflowRootPath);
           existing.workspacePath = PathUtils.translatePath(entry.projectPath);
           existing.instances = entry.instances || [];
         } else {
-          await this.addProject(entry);
+          await this.addProject(entry, displayNames.get(entry.projectId));
         }
       }
 
@@ -169,7 +174,7 @@ export class ProjectManager extends EventEmitter {
   /**
    * Add a project context
    */
-  private async addProject(entry: ProjectRegistryEntry): Promise<void> {
+  private async addProject(entry: ProjectRegistryEntry, displayName?: string): Promise<void> {
     try {
       // Translate paths once at entry point (components should not know about Docker)
       const translatedWorkspacePath = PathUtils.translatePath(entry.projectPath);
@@ -213,7 +218,7 @@ export class ProjectManager extends EventEmitter {
         workspacePath: translatedWorkspacePath,
         originalProjectPath: entry.projectPath, // Keep workspace path for display/registry
         workflowRootPath: entry.workflowRootPath,
-        projectName: entry.projectName,
+        projectName: displayName ?? entry.projectName,
         instances: entry.instances || [],       // Track MCP server instances
         parser,
         watcher,
@@ -371,6 +376,16 @@ export class ProjectManager extends EventEmitter {
     await forgetProject(projectId);
     await this.registry.unregisterProjectById(projectId);
     await this.syncWithRegistry();
+  }
+
+  /**
+   * Set or clear a project's operator display name (design C1), then sync
+   * so it shows immediately. Returns false for an unknown id.
+   */
+  async setDisplayName(projectId: string, displayName: string | null): Promise<boolean> {
+    const ok = await setProjectDisplayName(projectId, displayName);
+    await this.syncWithRegistry();
+    return ok;
   }
 
   /**

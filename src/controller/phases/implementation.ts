@@ -37,7 +37,7 @@ import { specStatusHandler } from '../../tools/spec-status.js';
 import { buildRedTestsSection } from '../../tools/brief-templates.js';
 import type { GateData } from '../../tools/review-gate.js';
 import {
-  parseTasksFromMarkdown, updateTaskStatus, taskBlock, type ParsedTask,
+  parseTasksFromMarkdown, updateTaskStatus, taskBlock, addTaskFiles, type ParsedTask,
 } from '../../core/task-parser.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
@@ -314,6 +314,39 @@ function prNumberFromUrl(text: string): number | undefined {
 /** Two gate-reason lists, equal when they hold the same entries in the same order. */
 function sameReasons(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((r, i) => r === b[i]);
+}
+
+/**
+ * Risk-only reason prefixes `scoreRisk` (core/gate-rules.ts) can add alongside a
+ * `file-outside-list` fail reason: they raise the gate's risk score but never fail
+ * it on their own, so they may accompany file-outside-list without making the gate
+ * a "mixed" one (task 11, design C4, requirement 4 AC 5).
+ */
+const RISK_ONLY_REASON_PREFIXES = [
+  'sensitive-path:', 'sensitive-paths:', 'line-count:', 'tests-not-touched:',
+  'no-diff:', 'typecheck-unavailable:', 'no-range:', 'hygiene-rejected:',
+  'tdd-inconclusive', 'tdd-structural-red',
+];
+
+/**
+ * The files a `REQUIRED: <file[, file]> — <why>` report may patch onto the task's
+ * `File:` list (design C4, requirement 4): only when every gate reason besides its
+ * `file-outside-list` ones is risk-only, and every file the report names is among
+ * the file-outside-list reasons. Returns undefined for a mixed gate (another fail
+ * reason present), a file outside the gate's reasons, or no gate context at all
+ * (P5's design-defect stop stands in every other case).
+ */
+function fileListPatch(gateReasons: string[], required: string): string[] | undefined {
+  const outsideList = gateReasons.filter((r) => r.startsWith('file-outside-list:'));
+  if (outsideList.length === 0) return undefined;
+  const other = gateReasons.filter((r) => !r.startsWith('file-outside-list:'));
+  if (other.some((r) => !RISK_ONLY_REASON_PREFIXES.some((p) => r.startsWith(p)))) return undefined;
+  const outside = new Set(outsideList.map((r) => r.slice('file-outside-list:'.length).trim()));
+  const sep = required.indexOf(' — ');
+  const files = (sep === -1 ? required : required.slice(0, sep))
+    .split(',').map((f) => f.trim()).filter((f) => f.length > 0);
+  if (files.length === 0 || !files.every((f) => outside.has(f))) return undefined;
+  return files;
 }
 
 // ---------------------------------------------------------------------------
@@ -909,7 +942,8 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
       });
       if (fix.error) return fix.error;
       const fixReport = (fix.result.structuredOutput ?? {}) as ImplementerReport;
-      const flagged = await routeImplementerFlags(task, fixReport, fix.result.resultText);
+      const flagged = await routeImplementerFlags(task, fixReport, fix.result.resultText,
+        variant === 'gate' ? { round: rounds, reasons: gate.reasons } : undefined);
       if (flagged) return flagged;
       const fixChecks = readChecksFile(fixReport.checksFile, ctx.codeRoot);
       if (fixChecks) { checks = fixChecks; fixChecks.forEach((c) => checksRun.add(c)); }
@@ -917,17 +951,41 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
     }
   }
 
-  /** The implementer flags that stop the phase or leave a trace (SKILL.md step 3). */
+  /**
+   * The implementer flags that stop the phase or leave a trace (SKILL.md step 3).
+   * `gateReasons` is the fix round's own gate (task 11, design C4): passed only
+   * when this report answers a `variant: 'gate'` fix brief, never a verifier one
+   * and never the first implementer pass, before any gate has run.
+   */
   async function routeImplementerFlags(
     task: ParsedTask, report: ImplementerReport, text: string | null,
+    gateReasons?: { round: number; reasons: string[] },
   ): Promise<ImplementationPhaseOutcome | undefined> {
     const defect = flagText('DESIGN-DEFECT', report.flag, text);
     if (defect) return stop('design-defect', defect, { task, category: 'deviation' });
     // P5: a file-outside-list fix round where the off-list file is genuinely required.
     // No implementer edit can move a file-list verdict, so escalate at once rather than
-    // spend a second gate on the unchanged commit — the fix is in tasks.md.
+    // spend a second gate on the unchanged commit — the fix is in tasks.md. Task 11: unless
+    // the flagged file(s) are exactly what the gate's own file-outside-list reasons named,
+    // in which case the patcher adds them and the gate reruns on the same commit instead.
     const required = flagText('REQUIRED', report.flag, text);
     if (required) {
+      const files = gateReasons && fileListPatch(gateReasons.reasons, required);
+      if (files) {
+        const patched = addTaskFiles(readFileSync(tasksPath, 'utf-8'), task.id, files);
+        if (patched !== undefined) {
+          writeFileSync(tasksPath, patched, 'utf-8');
+          task.files = [...(task.files ?? []), ...files];
+          ctx.ledger.filePatch({ task: task.id, round: gateReasons!.round, file: files.join(', '), reason: required });
+          await commitSpecStore(`docs(sdd): ${specName} task ${task.id} file-list patch`);
+          return undefined;
+        }
+        ctx.ledger.note(`task ${task.id}: the file-list patcher refused ${files.join(', ')}; tasks.md was left unchanged`);
+        return stop('design-defect',
+          `task ${task.id}: the file-list patcher refused ${files.join(', ')} — tasks.md was left unchanged; `
+          + 'fix the path(s) (no comma, parenthesis or whitespace) and report REQUIRED again',
+          { task, category: 'deviation' });
+      }
       return stop('design-defect',
         `task ${task.id}: implementer reported REQUIRED for an off-list file — ${required}; `
         + 'no implementer edit can move a file-list verdict — the fix is to list the file in the '

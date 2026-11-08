@@ -1,16 +1,16 @@
 ---
 id: "d-aaf54e29"
-status: "deferred"
+status: "resolved"
 title: "A run launched on the store project gates the store repo and leaves the code branch without a PR"
 createdAt: "2026-11-03T20:54:16.223Z"
-updatedAt: "2026-11-03T20:54:16.223Z"
-resolvedAt: null
+updatedAt: "2026-11-08T04:38:00.864Z"
+resolvedAt: "2026-11-08T04:38:00.864Z"
 originSpec: "ca-acb-pool-perf"
 originPhase: "implementation"
 revisitTrigger: "Next swm harness batch; before the next tradr launch, check the run's project is jw-DAU9PDsLBNYBp"
 tags: ["controller", "launcher", "harness-defect"]
-resolution: null
-resolvedInSpec: null
+resolution: "Covers the launch half only: the Next tile launch guard (Requirement 2) now warns when a spec's files sit under a different project's code root, so a launch on the wrong store project is caught before it starts. The no-PR path on a project without a remote is not addressed here."
+resolvedInSpec: "decisions-and-launch-guard"
 supersededBy: null
 supersedes: null
 owner: "harness"

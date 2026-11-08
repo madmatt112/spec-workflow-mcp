@@ -537,6 +537,280 @@ describe('runImplementationPhase', () => {
     expect(taskStatus(fx, '1')).toBe('completed');
   }, 60000);
 
+  // --- REQUIRED file-list patch (task 11, design C4, requirement 4) ---------
+
+  it('patches a genuine off-list file onto a REQUIRED report, re-gates and completes with no wait (AC 1-3)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-patch-happy.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "t" > test/a.test.js && git add src/a.js test/a.test.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/a.test.js — the task genuinely needs this fixture file', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired, e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    expect(taskStatus(fx, '1')).toBe('completed');
+
+    const tasksMd = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8');
+    expect(tasksMd.match(/- File: test\/a\.test\.js/g)).toHaveLength(1);
+    expect(parseTasksFromMarkdown(tasksMd).tasks.find((t) => t.id === '1')?.files).toEqual(['src/a.js', 'test/a.test.js']);
+    expect(git(fx.repo, ['log', '--format=%s'])).toContain(`docs(sdd): ${fx.spec} task 1 file-list patch`);
+
+    const r = rows(fx);
+    const patches = r.filter((e) => e.type === 'file-list.patch');
+    expect(patches).toHaveLength(1);
+    expect(patches[0]).toMatchObject({
+      task: '1', round: '1', file: 'test/a.test.js',
+      reason: 'test/a.test.js — the task genuinely needs this fixture file',
+    });
+    const notes = r.filter((e) => e.type === 'note' && e.text.startsWith('gate: task 1')).map((e) => e.text);
+    expect(notes[0]).toMatch(/^gate: task 1 fail/);
+    expect(notes[1]).toMatch(/^gate: task 1 pass/);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement task 1', 'fix task 1 round 1', 'end-to-end verification']);
+  }, 60000);
+
+  it('patches two listed files together when the REQUIRED report names both (AC 3)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-patch-two.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [
+        'echo "a" >> src/a.js && mkdir -p test && echo "t" > test/strayA.js && echo "t" > test/strayB.js '
+        + '&& git add src/a.js test/strayA.js test/strayB.js && git commit -qm "feat: task 1"',
+      ],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/strayA.js, test/strayB.js — both are genuinely required fixtures', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired, e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const tasksMd = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8');
+    const files1 = parseTasksFromMarkdown(tasksMd).tasks.find((t) => t.id === '1')?.files;
+    expect(files1).toEqual(['src/a.js', 'test/strayA.js', 'test/strayB.js']);
+
+    const patches = rows(fx).filter((e) => e.type === 'file-list.patch');
+    expect(patches).toHaveLength(1);
+    expect(patches[0]).toMatchObject({ task: '1', round: '1', file: 'test/strayA.js, test/strayB.js' });
+  }, 60000);
+
+  it('leaves tasks.md unchanged and writes a note when the patcher refuses the flagged path (Failure, NFR Reliability)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const before = readFileSync(join(fx.specDir, 'tasks.md'), 'utf8');
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-patch-refused.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p src && echo "t" > "src/a(b).ts" && git add src/a.js "src/a(b).ts" && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: src/a(b).ts — the task genuinely needs this file', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toContain('src/a(b).ts');
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    expect(readFileSync(join(fx.specDir, 'tasks.md'), 'utf8')).toBe(before);
+    const r = rows(fx);
+    expect(r.some((e) => e.type === 'file-list.patch')).toBe(false);
+    // Distinct from the regular `gate: task 1 fail ...: file-outside-list: ...`
+    // note every gate call writes: a fresh note the patch-failure path writes.
+    expect(r.some((e) => e.type === 'note' && !e.text.startsWith('gate:') && e.text.includes('src/a(b).ts'))).toBe(true);
+    expect(taskStatus(fx, '1')).toBe('pending');
+  }, 60000);
+
+  it('reaches the verifier when the patched re-gate reports high risk (AC 5)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-patch-highrisk.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && echo "b" >> package.json && git add src/a.js package.json && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: package.json — the task genuinely needs the manifest change', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired, verifierRun('pass'), e2eRun('pass'), securityPassRun([], [])]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    expect(taskStatus(fx, '1')).toBe('completed');
+    const roles = rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role);
+    expect(roles).toEqual(expect.arrayContaining(['implement task 1', 'fix task 1 round 1', 'verify task 1 round 1']));
+    const patches = rows(fx).filter((e) => e.type === 'file-list.patch');
+    expect(patches).toHaveLength(1);
+    expect(patches[0]).toMatchObject({ task: '1', round: '1', file: 'package.json' });
+    expect(parseTasksFromMarkdown(readFileSync(join(fx.specDir, 'tasks.md'), 'utf8')).tasks.find((t) => t.id === '1')?.files)
+      .toEqual(['src/a.js', 'package.json']);
+  }, 60000);
+
+  it('counts a patched round against the fix-round cap, reaching the adjudicator (AC 6)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-patch-cap.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "1" > test/s1.txt && git add src/a.js test/s1.txt && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fix1: StubRun = {
+      commands: ['echo "2" > test/s2.txt && git add test/s2.txt && git commit -qm "fix: add s2"'],
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/s1.txt — the task genuinely needs this fixture', retro: 'none',
+      }),
+    };
+    const fix2: StubRun = {
+      commands: ['echo "3" > test/s3.txt && git add test/s3.txt && git commit -qm "fix: add s3"'],
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/s2.txt — the task genuinely needs this fixture', retro: 'none',
+      }),
+    };
+    const fix3: StubRun = {
+      commands: ['echo "4" > test/s4.txt && git add test/s4.txt && git commit -qm "fix: add s4"'],
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/s3.txt — the task genuinely needs this fixture', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fix1, fix2, fix3, adjudicatorRun(), verifierRun('pass'), e2eRun('pass')]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'complete', reason: undefined });
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual([
+      'implement task 1', 'fix task 1 round 1', 'fix task 1 round 2', 'fix task 1 round 3',
+      'adjudicate task 1', 'verify task 1 round 4 narrow', 'end-to-end verification',
+    ]);
+    expect(r.find((e) => e.type === 'task.done')).toMatchObject({ task: '1', outcome: 'adjudicated' });
+    const patches = r.filter((e) => e.type === 'file-list.patch');
+    expect(patches.map((e) => ({ round: e.round, file: e.file }))).toEqual([
+      { round: '1', file: 'test/s1.txt' }, { round: '2', file: 'test/s2.txt' }, { round: '3', file: 'test/s3.txt' },
+    ]);
+    const files1 = parseTasksFromMarkdown(readFileSync(join(fx.specDir, 'tasks.md'), 'utf8')).tasks.find((t) => t.id === '1')?.files;
+    expect(files1).toEqual(['src/a.js', 'test/s1.txt', 'test/s2.txt', 'test/s3.txt']);
+  }, 60000);
+
+  // Regression guards (AC 4, invariant/not-red-first): a REQUIRED report still
+  // stops as a design defect whenever a patch cannot be attempted — no existing
+  // assertion named any of these four branches before this task.
+  it('keeps the design-defect stop when another gate reason accompanies file-outside-list (AC 4, regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-mixed.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['false']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "t" > test/stray.js && git add src/a.js test/stray.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/stray.js — the task genuinely needs this fixture', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toContain('test/stray.js');
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    expect(rows(fx).some((e) => e.type === 'file-list.patch')).toBe(false);
+  }, 60000);
+
+  it('keeps the design-defect stop when the REQUIRED flag names a file outside the gate reasons (AC 4, regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    const log = await logFile(fx, '1', ['src/a.js']);
+    const checksPath = join(fx.scratch, 'checks-outside-flag.json');
+    const firstImpl: StubRun = {
+      edits: [log, { path: checksPath, content: JSON.stringify(['true']) }],
+      commands: [`echo "a" >> src/a.js && mkdir -p test && echo "t" > test/strayA.js && git add src/a.js test/strayA.js && git commit -qm "feat: task 1"`],
+      result: result({ logged: 'yes/1', commit: 'none', checks: 'ran', checksFile: checksPath, green: '', flag: 'none', retro: 'none' }),
+    };
+    const fixRequired: StubRun = {
+      result: result({
+        logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+        flag: 'REQUIRED: test/strayB.js — the task genuinely needs a different fixture', retro: 'none',
+      }),
+    };
+    writeScript(fx, [firstImpl, fixRequired]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toContain('test/strayB.js');
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    expect(rows(fx).some((e) => e.type === 'file-list.patch')).toBe(false);
+  }, 60000);
+
+  it('keeps the design-defect stop for a REQUIRED report during a verifier-originated fix round (AC 4, regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the --bye flag', ['src/cli.js'])]);
+    writeScript(fx, [
+      await implRun(fx, '1', 'src/cli.js'),
+      verifierRun('fix-required', 'The flag is case-insensitive; the design says exact.'),
+      {
+        commands: ['mkdir -p docs && echo "x" > docs/extra.md && git add docs/extra.md && git commit -qm "fix: exact flag"'],
+        result: result({
+          logged: 'yes/1', commit: 'none', checks: '', checksFile: '', green: '',
+          flag: 'REQUIRED: docs/extra.md — the task genuinely needs this doc', retro: 'none',
+        }),
+      },
+    ]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toContain('docs/extra.md');
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    expect(rows(fx).some((e) => e.type === 'file-list.patch')).toBe(false);
+  }, 60000);
+
+  it('keeps the design-defect stop for a REQUIRED report on the first implementer pass, before any gate (AC 1/4, regression guard)', async () => {
+    fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
+    writeScript(fx, [await implRun(fx, '1', 'src/a.js', { flag: 'REQUIRED: src/a.js — the task genuinely needs this file' })]);
+
+    const outcome = await runImplementationPhase(ctxFor(fx));
+
+    expect(outcome.result).toBe('design-defect');
+    expect(outcome.reason).toContain('src/a.js');
+    expect(outcome.reason).toMatch(/tasks\.md/);
+    const r = rows(fx);
+    expect(r.filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement task 1']);
+    expect(r.some((e) => e.type === 'file-list.patch')).toBe(false);
+  }, 60000);
+
   it('adjudicates early when a fix round leaves the commit and gate verdict unchanged (retro P4)', async () => {
     fx = await setup([taskMd('1', 'Add the module', ['src/a.js'])]);
     const log = await logFile(fx, '1', ['src/a.js']);

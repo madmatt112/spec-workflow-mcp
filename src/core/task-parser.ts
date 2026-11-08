@@ -443,6 +443,51 @@ export function taskBlock(content: string, taskId: string): string | undefined {
   return lines.slice(lineNumber, endLine).join('\n');
 }
 
+/** Matches a `- File:`/`- Files:` bullet by its own marker, so the word inside a `_Prompt:` line never matches. */
+const FILE_BULLET_RE = /^(\s*)[-*]\s+Files?:/;
+
+/**
+ * Insert one `- File:` line per given path into the task's block, after its last
+ * `File:`/`Files:` bullet (or after the checkbox line when it has none), and return
+ * the patched content (design C4, D14, requirement 4 AC 2/AC 3). Every other line stays
+ * byte-identical. Returns undefined for an unknown task id, or when any path holds a
+ * comma, a parenthesis or whitespace.
+ */
+export function addTaskFiles(content: string, taskId: string, files: string[]): string | undefined {
+  if (files.some(f => /[,()\s]/.test(f))) return undefined;
+
+  const { tasks } = parseTasksFromMarkdown(content);
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return undefined;
+
+  const lines = content.split('\n');
+
+  const checkboxIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(/^\s*[-*]\s+\[([ x\-])\]/)) {
+      checkboxIndices.push(i);
+    }
+  }
+
+  const lineNumber = task.lineNumber;
+  const idx = checkboxIndices.indexOf(lineNumber);
+  const endLine = idx < checkboxIndices.length - 1 ? checkboxIndices[idx + 1] : lines.length;
+
+  let insertAfter = lineNumber;
+  let indent = (lines[lineNumber].match(/^(\s*)/)![1]) + '  ';
+  for (let i = lineNumber + 1; i < endLine; i++) {
+    const m = lines[i].match(FILE_BULLET_RE);
+    if (m) {
+      insertAfter = i;
+      indent = m[1];
+    }
+  }
+
+  const newLines = files.map(f => `${indent}- File: ${f}`);
+  lines.splice(insertAfter + 1, 0, ...newLines);
+  return lines.join('\n');
+}
+
 /**
  * Update task status in markdown content
  * Handles any indentation level and task numbering format

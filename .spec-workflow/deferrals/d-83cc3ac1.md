@@ -1,16 +1,16 @@
 ---
 id: "d-83cc3ac1"
-status: "deferred"
+status: "resolved"
 title: "Operator decisions from the option-lifecycle-events retro not built: P6 Option A, G1, G2; close-out skips recorded answers"
 createdAt: "2026-11-06T18:25:11.720Z"
-updatedAt: "2026-11-06T18:25:11.720Z"
-resolvedAt: null
+updatedAt: "2026-11-08T04:37:55.417Z"
+resolvedAt: "2026-11-08T04:37:55.417Z"
 originSpec: "option-lifecycle-events"
 originPhase: null
 revisitTrigger: "Next swm harness batch or spec"
 tags: ["controller", "harness-defect"]
-resolution: null
-resolvedInSpec: null
+resolution: "G1 and G2 text went verbatim into .spec-workflow/agent-rules.md ## Checks; P6 Option A and the close-out \"skipped: no change chosen\" fix were built in this spec."
+resolvedInSpec: "decisions-and-launch-guard"
 supersededBy: null
 supersedes: null
 owner: "harness"

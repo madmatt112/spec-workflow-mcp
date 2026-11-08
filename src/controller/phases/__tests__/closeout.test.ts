@@ -33,8 +33,8 @@ interface Fixture { base: string; repo: string; specDir: string; home: string; l
 
 let counter = 0;
 
-function plan(spec: string, items: string[]): string {
-  return [`# Retrospective plan — ${spec}`, '', 'Status: APPROVED', 'Date: 2026-10-11', '', '## Approved proposals', '', ...items, '', '## Decisions', 'None.', '', '## Rejected proposals', 'None.', ''].join('\n');
+function plan(spec: string, items: string[], decisions: string[] = ['None.']): string {
+  return [`# Retrospective plan — ${spec}`, '', 'Status: APPROVED', 'Date: 2026-10-11', '', '## Approved proposals', '', ...items, '', '## Decisions', ...decisions, '', '## Rejected proposals', 'None.', ''].join('\n');
 }
 
 const P_NONE = ['- **P1 (F1) — Keep the ledger as it is.** Nothing to change.', '  Target: none.', '  Decision: ratified as it stands.'].join('\n');
@@ -42,7 +42,7 @@ const P_STORE = ['- **P2 (F2) — Name the typecheck rule.** Add `typecheck: non
 const P_CODE = ['- **P3 (F3) — Add a README line.** Append one line to `README.md`.', '  Target: product code.', '  Decision: do it.'].join('\n');
 const P_HARNESS = ['- **P4 (F4) — Tidy the skill.** Add a note to `harness/notes.md`.', '  Target: harness skills or agents.', '  Decision: do it.'].join('\n');
 
-function setup(items: string[], opts: { sensitive?: string } = {}): Fixture {
+function setup(items: string[], opts: { sensitive?: string; decisions?: string[] } = {}): Fixture {
   const spec = `ctrl-close-${process.pid}-${counter++}`;
   const base = mkdtempSync(join(tmpdir(), 'ctrl-close-'));
   const repo = join(base, 'repo');
@@ -58,7 +58,7 @@ function setup(items: string[], opts: { sensitive?: string } = {}): Fixture {
   writeFileSync(join(wf, 'HANDOFF.md'), `# H\n\n## Phase log\n\n| Date | Spec | Stage | State | Result | Note |\n| --- | --- | --- | --- | --- | --- |\n`);
   writeFileSync(join(specDir, 'tasks.md'), '# Tasks\n\n- [x] 1. Done\n');
   writeFileSync(join(specDir, 'retrospective-log.md'), `# Retrospective log — ${spec}\n`);
-  writeFileSync(join(specDir, 'retrospective-plan.md'), plan(spec, items));
+  writeFileSync(join(specDir, 'retrospective-plan.md'), plan(spec, items, opts.decisions));
   git(repo, ['add', '-A']);
   git(repo, ['commit', '-q', '-m', 'init']);
   const home = join(base, 'home');
@@ -381,5 +381,115 @@ describe('runCloseoutPhase', () => {
     expect(r.some((e) => e.type === 'note' && /^gate: item P2 pass/.test(e.text))).toBe(true);
     // The unrelated non-test file still fails: P2's rule never rescues P3.
     expect(r.some((e) => e.type === 'note' && /^gate: item P3 pass/.test(e.text))).toBe(false);
+  }, 60000);
+
+  it('acts on recorded ## Decisions answers: carries them into the batch brief, routes a Target-document item to the store batch, and hands a class-none item with no landing class to the operator', async () => {
+    // P6 (harness, answered), P11 (none, answered — its target gives no landing class),
+    // G1/G2 (store, via `Target document:`, both answered). Req 3 AC 2-4, AC 7: a plan
+    // shaped like option-lifecycle-events never writes `skipped — no change chosen` for
+    // any of these, P11 becomes a to-do naming its answer, and G1/G2 land in the store
+    // batch with their answers carried into the brief.
+    const pP6 = ['- **P6 (F6) — Raise the retry cap.** A flaky step should not stall the run.', '  Target: harness skills or agents (merge-error handling).', '  Decision: do it.'].join('\n');
+    const pP11 = ['- **P11 (F11) — Route the follow-up.** No change lands here directly.', '  Target: none.', '  Decision: route it.'].join('\n');
+    const pG1 = ['- **G1 (F12) — Add the first rule note.** Keep a follow-up note in the rules file.', '  Target document: `.spec-workflow/agent-rules.md`.', '  Decision: add it.'].join('\n');
+    const pG2 = ['- **G2 (F13) — Add the second rule note.** Keep another follow-up note in the rules file.', '  Target document: `.spec-workflow/agent-rules.md`.', '  Decision: add it.'].join('\n');
+    fx = setup([pP6, pP11, pG1, pG2], {
+      decisions: [
+        '- P6: Should the retry cap rise? → add the 30/60s per-user limiter',
+        '- P11: Where should this item go? → add it to the project deferral queue',
+        '- G1: Keep the first note? → add the note as a permanent rule',
+        '- G2: Keep the second note? → add the second note as a rule',
+      ],
+    });
+    writeScript(fx, [
+      batchRun(fx, [{ id: 'G1', file: '.spec-workflow/agent-rules.md' }, { id: 'G2', file: '.spec-workflow/agent-rules.md' }]), // store batch 1 (CLASS_ORDER); both name the same file as their Target document
+      batchRun(fx, [{ id: 'P6', file: 'harness/notes-p6.md' }]),                                                          // harness batch 2
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 4, done: 3, todo: 1, skipped: 0 });
+    const text = planText(fx);
+    expect(text).not.toMatch(/skipped — no change chosen/);
+    expect(text).toMatch(/^- P6: done — [0-9a-f]{40}$/m);
+    expect(text).toMatch(/^- G1: done — [0-9a-f]{40}$/m);
+    expect(text).toMatch(/^- G2: done — [0-9a-f]{40}$/m);
+    expect(text).toMatch(/^- P11: to-do \(human\) — recorded decision: add it to the project deferral queue; its target gives no landing class, so no batch can build it$/m);
+    const storeBrief = readFileSync(join(fx.scratch, 'closeout-brief-store-1.md'), 'utf8');
+    expect(storeBrief).toContain('Recorded decision: add the note as a permanent rule');
+    expect(storeBrief).toContain('Recorded decision: add the second note as a rule');
+    const harnessBrief = readFileSync(join(fx.scratch, 'closeout-brief-harness-2.md'), 'utf8');
+    expect(harnessBrief).toContain('Recorded decision: add the 30/60s per-user limiter');
+    expect(rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement store batch 1', 'implement harness batch 2']);
+    expect(rows(fx).filter((e) => e.type === 'task.done').map((e) => e.task)).toEqual(expect.arrayContaining(['P11']));
+  }, 60000);
+
+  it('skips a no-change answer with no step spawned, and carries a landing item\'s answer into the verifier and fix briefs', async () => {
+    // P8 (code, answered with a no-change answer) must never reach a batch; P10 (code,
+    // high-risk, answered with a real-change answer) needs a fix round, and every brief
+    // along the way — the batch, the verifier and the fix — carries its answer. Req 3 AC 3, AC 5.
+    const pP8 = ['- **P8 (F8) — Add a per-user limiter.** A reviewer flagged a missing per-user cap.', '  Target: product code.', '  Decision: leave it as is.'].join('\n');
+    const pP10 = ['- **P10 (F10) — Pin the package version.** Edit `package.json`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([pP8, pP10], {
+      decisions: [
+        '- P8: Should we add a limiter? → No change — the rule already requires',
+        '- P10: How should we handle the pin? → keep the design-defect stop but trigger it on the first verdict',
+      ],
+    });
+    writeScript(fx, [
+      batchRun(fx, [{ id: 'P10', file: 'package.json' }]),
+      { result: result({ items: [{ id: 'P10', status: 'not done', reason: 'the field is wrong' }], verdict: 'fix-required' }) },
+      batchRun(fx, [{ id: 'P10', file: 'package.json' }]),
+      { result: result({ items: [{ id: 'P10', status: 'ok' }], verdict: 'pass' }) },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 2, done: 1, todo: 0, skipped: 1 });
+    expect(planText(fx)).toMatch(/^- P8: skipped — No change — the rule already requires$/m);
+    expect(planText(fx)).toMatch(/^- P10: done — [0-9a-f]{40}$/m);
+    const brief = readFileSync(join(fx.scratch, 'closeout-brief-code-1.md'), 'utf8');
+    expect(brief).not.toContain('P8');
+    expect(brief).toContain('Recorded decision: keep the design-defect stop but trigger it on the first verdict');
+    const verify0 = readFileSync(join(fx.scratch, 'closeout-verify-code-1-r0.md'), 'utf8');
+    expect(verify0).toContain('Recorded decision: keep the design-defect stop but trigger it on the first verdict');
+    const fix1 = readFileSync(join(fx.scratch, 'closeout-fix-code-1-r1.md'), 'utf8');
+    expect(fix1).toContain('Recorded decision: keep the design-defect stop but trigger it on the first verdict');
+    expect(rows(fx).filter((e) => e.type === 'spawn.usage').map((e) => e.role)).toEqual(['implement code batch 1', 'verify code batch 1', 'fix code batch 1 round 1', 'verify code batch 1 round 1']);
+  }, 60000);
+
+  it('hands an answered item that does not land to the operator as a to-do, not skipped, while still reverting its commit', async () => {
+    // P9 carries a real-change answer but the batch's commit fails to land (the fix round
+    // reports it `skipped`, as the implementer does when it cannot build it). Req 3 AC 6:
+    // the line reads `to-do (human)`, not `skipped`, and the commit revert is unchanged
+    // from the base behaviour (proved by the earlier "reverts the commit" test).
+    const pP9 = ['- **P9 (F9) — Move two config paths.** Edit `package.json`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    const pDone = ['- **P3 (F3) — Add a README line.** Append one line to `README.md`.', '  Target: product code.', '  Decision: do it.'].join('\n');
+    fx = setup([pP9, pDone], { decisions: ['- P9: How should we handle the stale paths? → drop the two moved paths'] });
+    writeScript(fx, [
+      {
+        commands: [
+          `echo P9 >> package.json && echo P9 >> package-lock.json && git add package.json package-lock.json && git commit -qm "chore(retro): ${fx.spec} P9 landed"`,
+          `echo P3 >> README.md && git add README.md && git commit -qm "chore(retro): ${fx.spec} P3 landed"`,
+        ],
+        result: result({ items: [{ id: 'P9', status: 'done', commit: 'none' }, { id: 'P3', status: 'done', commit: 'none' }], retro: 'none' }),
+      },
+      // Fix round 1: the implementer reports it cannot be fixed (status `skipped`, not `to-do`).
+      { result: result({ items: [{ id: 'P9', status: 'skipped', reason: 'needs the operator' }], retro: 'none' }) },
+    ]);
+
+    const outcome = await runCloseoutPhase(ctxFor(fx));
+
+    expect({ result: outcome.result, reason: outcome.reason }).toEqual({ result: 'closed', reason: undefined });
+    expect(outcome.items).toEqual({ total: 2, done: 1, todo: 1, skipped: 0 });
+    expect(planText(fx)).toMatch(/^- P9: to-do \(human\) — needs the operator$/m);
+    expect(planText(fx)).toMatch(/^- P3: done — [0-9a-f]{40}$/m);
+    const wt = join(fx.repo, '.claude', 'worktrees', `${fx.spec}-retro`);
+    expect(existsSync(join(wt, 'package.json'))).toBe(false);
+    expect(existsSync(join(wt, 'package-lock.json'))).toBe(false);
+    expect(git(wt, ['log', '-1', '--format=%s'])).toMatch(new RegExp(`^Revert "chore\\(retro\\): ${fx.spec} P9 landed"$`));
+    expect(readFileSync(join(wt, 'README.md'), 'utf8')).toContain('P3');
   }, 60000);
 });

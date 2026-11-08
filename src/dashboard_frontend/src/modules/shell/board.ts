@@ -5,7 +5,6 @@
 import type { ControllerWait, ControllerRun, ControllerPrRead, StagedAction } from './types';
 import type { SetupView } from '../harness/types';
 import type { Project } from '../projects/ProjectProvider';
-import { storeGroups } from '../projects/stores';
 import { isOperatorHeld } from './pause';
 
 type NeedsYouItem = ControllerWait | StagedAction;
@@ -46,33 +45,38 @@ export function stoppedAdmitted(run: ControllerRun, now: number): boolean {
 export function running(
   runs: ControllerRun[],
   enabled: (projectId: string) => boolean,
+): ControllerRun[] {
+  return runs
+    .filter((run) => enabled(run.project) && MOVING_STATUSES.has(run.status))
+    .sort((a, b) => Date.parse(a.lastActivity ?? a.updated) - Date.parse(b.lastActivity ?? b.updated));
+}
+
+export function stopped(
+  runs: ControllerRun[],
+  enabled: (projectId: string) => boolean,
   now: number,
 ): ControllerRun[] {
-  const onProject = runs.filter((run) => enabled(run.project));
-  const moving = onProject
-    .filter((run) => MOVING_STATUSES.has(run.status))
-    .sort((a, b) => Date.parse(a.lastActivity ?? a.updated) - Date.parse(b.lastActivity ?? b.updated));
-  const stopped = onProject
-    .filter((run) => !MOVING_STATUSES.has(run.status) && stoppedAdmitted(run, now))
+  return runs
+    .filter((run) => enabled(run.project) && !MOVING_STATUSES.has(run.status) && stoppedAdmitted(run, now))
     .sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
-  return [...moving, ...stopped];
 }
 
 export function nextProjects(
   projects: Project[],
   enabled: (projectId: string) => boolean,
 ): Project[] {
-  const result: Project[] = [];
-  for (const group of storeGroups(projects, enabled)) {
-    if (!group.enabled) continue;
-    if (enabled(group.representative.projectId)) {
-      result.push(group.representative);
-      continue;
-    }
-    const member = group.projects.find((p) => enabled(p.projectId));
-    if (member) result.push(member);
-  }
-  return result;
+  return projects.filter((p) => enabled(p.projectId));
+}
+
+/** Two-press arming for a `warn` guard (design C2 "Two press (AC 4)"). Every
+ *  other guard state launches on one press. */
+export function launchPress(
+  view: { launchable: string | null; guard?: { state: 'clear' | 'warn' | 'no-list' } },
+  armedSpec: string | null,
+): 'arm' | 'launch' {
+  if (view.guard?.state !== 'warn') return 'launch';
+  if (armedSpec !== view.launchable) return 'arm';
+  return 'launch';
 }
 
 export function nextTiles(
@@ -114,6 +118,20 @@ export function isStalled(run: ControllerRun, waits: ControllerWait[]): boolean 
     ));
   }
   return false;
+}
+
+/** Tile tone for a run (design C10 "Tile colour"). `danger` when stalled,
+ *  whatever the dot; else `warning` for an `amber`/`red` dot; else `neutral`
+ *  — never driven by age alone (requirement 10 AC 2). */
+export function runTone(
+  run: ControllerRun,
+  waits: ControllerWait[],
+  now: number,
+): 'neutral' | 'warning' | 'danger' {
+  if (isStalled(run, waits)) return 'danger';
+  const dot = runDot(run, now);
+  if (dot === 'amber' || dot === 'red') return 'warning';
+  return 'neutral';
 }
 
 export function runControls(

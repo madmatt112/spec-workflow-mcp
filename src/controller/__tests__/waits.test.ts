@@ -14,6 +14,7 @@ import {
   openDriveCrashWait,
   DRIVE_CRASH_QUESTION,
   waitEvents,
+  RunAbandonedError,
   type ControllerWaitRecord,
 } from '../waits.js';
 import { readWait, readRun, writeRun, writeWait } from '../state.js';
@@ -569,5 +570,104 @@ describe("listWaitsForView hides an expired wait (regression guard, holds at bas
 
     const ids = (await listWaitsForView()).map((w) => w.id);
     expect(ids).not.toContain(record.id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 17 — the wait guard refuses a wait on an abandoned run (design C7
+// "Wait guard", D11; Requirement 7 AC 2, AC 5).
+//
+// Contract:
+// - "createWait on an abandoned run rejects with code 'run-abandoned' and
+//   writes no wait record" — Pre: a run record on disk (`writeRun`) with
+//   `status: 'abandoned'`, named by `runId`; no open wait exists yet
+//   (`listOpenWaits()` empty). Call: `createWait({ ..., runId })` for that
+//   run. Observable: the call rejects with a `RunAbandonedError` whose
+//   `code` is `'run-abandoned'`; `listOpenWaits()` is still empty afterward
+//   (no record written). Source: design C7 "Wait guard" ("`createWait`
+//   throws `RunAbandonedError` for an `abandoned` run"), Data Models
+//   (`class RunAbandonedError extends Error { readonly code =
+//   'run-abandoned'; }`), task 17 Success.
+// - [regression guard] "on a running run ... it writes the wait" — Pre: a
+//   run record on disk with `status: 'running'`, named by `runId`. Call:
+//   `createWait({ ..., runId })`. Observable: the call resolves with a
+//   record whose `state` is `'open'`, and `listOpenWaits()` includes its
+//   id. Source: task 17 Success ("on a running run and on an unknown id it
+//   writes the wait (regression guard)"). This sub-case holds at base (no
+//   status guard exists yet) and after the guard lands (the guard only
+//   fires on `abandoned`); no existing assertion in this file calls
+//   `createWait` against a `running` disk record — the closest, "attachAdvice
+//   leaves the wait state and the run file unchanged (5.3)" above, uses
+//   `status: 'waiting'` — so this is a fresh guard test named for the
+//   implementer brief, not a red test (see the report). The sibling
+//   sub-case, "an unknown id (no disk record) still writes the wait",
+//   is covered branch-exact by the existing "createWait and the round
+//   trip" tests above (e.g. `waits.test.ts` "writes a record with a w-<8
+//   hex> id that reads back unchanged", which calls `createWait` with a
+//   `runId` that has no backing run record on disk): no new test added for
+//   it.
+describe('createWait refuses an abandoned run (design C7 "Wait guard", Requirement 7 AC 2, AC 5)', () => {
+  function guardRun(id: string, status: RunRecord['status']): RunRecord {
+    return {
+      v: 1,
+      id,
+      project: 'proj-1',
+      codeRoot: '/tmp/guard-code',
+      specStore: '/tmp/guard-store',
+      spec: 'controller-waits',
+      worktree: '/tmp/guard-worktree',
+      branch: 'feat/controller-waits',
+      status,
+      created: '2026-11-07T00:00:00.000Z',
+      updated: '2026-11-07T00:00:00.000Z',
+      tokens: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+    };
+  }
+
+  it('rejects with a RunAbandonedError (code run-abandoned) and writes no wait record', async () => {
+    const runId = 'run-17-abandoned';
+    await writeRun(guardRun(runId, 'abandoned'));
+    expect(await listOpenWaits()).toEqual([]);
+
+    await expect(
+      createWait({
+        kind: 'gate-a',
+        runId,
+        projectId: 'proj-1',
+        spec: 'controller-waits',
+        specDir,
+        questions: GATE_A_QUESTIONS,
+      }),
+    ).rejects.toMatchObject({ code: 'run-abandoned' });
+
+    await expect(
+      createWait({
+        kind: 'gate-a',
+        runId,
+        projectId: 'proj-1',
+        spec: 'controller-waits',
+        specDir,
+        questions: GATE_A_QUESTIONS,
+      }),
+    ).rejects.toBeInstanceOf(RunAbandonedError);
+
+    expect(await listOpenWaits()).toEqual([]);
+  });
+
+  it('[regression guard] a running run still writes the wait', async () => {
+    const runId = 'run-17-running';
+    await writeRun(guardRun(runId, 'running'));
+
+    const record = await createWait({
+      kind: 'gate-a',
+      runId,
+      projectId: 'proj-1',
+      spec: 'controller-waits',
+      specDir,
+      questions: GATE_A_QUESTIONS,
+    });
+
+    expect(record.state).toBe('open');
+    expect((await listOpenWaits()).map((w) => w.id)).toEqual([record.id]);
   });
 });

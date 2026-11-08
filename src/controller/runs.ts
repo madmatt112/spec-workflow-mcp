@@ -29,7 +29,7 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
-  writeRun, readRun, listRuns, listWaits, writeLastActivity,
+  writeRun, readRun, readRunSync, listRuns, listWaits, writeLastActivity,
   isProcessAlive, isLive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
 import { branchPresent as readBranchPresent, forgetBranchPresence, type BranchRead } from './branch-presence.js';
@@ -423,6 +423,29 @@ function stopReason(deps: RunDeps, runId: string): string | null {
 }
 
 /**
+ * Is this run cancelled, by the operator's flag or by disk already reading
+ * `abandoned` (design C7 "Spawn race", Requirement 7 AC 4)? The disk read
+ * catches a cancel that landed between `runStep`'s own guard and the spawn
+ * callback firing.
+ */
+function runCancelled(deps: RunDeps, runId: string): boolean {
+  return deps.isCancelled(runId) || readRunSync(runId)?.status === 'abandoned';
+}
+
+/** Signals a live step (SIGTERM, then SIGKILL after `graceMs`) and waits for it to exit. */
+async function killStep(pid: number, startTime: number, graceMs: number): Promise<void> {
+  try { process.kill(-pid, 'SIGTERM'); } catch { try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ } }
+  const deadline = Date.now() + graceMs;
+  while (isProcessAlive(pid, startTime)) {
+    if (Date.now() >= deadline) {
+      try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
+/**
  * Read-modify-write one field set of a run: the record on disk may have moved
  * on (a cancel, a wait) since the caller read it, so never write a stale copy.
  */
@@ -430,8 +453,8 @@ async function patchRun(deps: RunDeps, runId: string, patch: Partial<RunRecord>)
   const current = await readRun(runId);
   if (!current) return;
   const next: RunRecord = { ...current, ...patch, updated: deps.now().toISOString() };
-  await writeRun(next);
-  runEvents.emit('change', next);
+  const wrote = await writeRun(next);
+  if (wrote) runEvents.emit('change', next);
 }
 
 /**
@@ -453,9 +476,17 @@ export function stepLifecycle(deps: RunDeps, runId: string): {
   stepHeartbeat: () => StepHeartbeat;
 } {
   return {
-    onStepSpawn: (s) => {
+    onStepSpawn: async (s) => {
+      // Spawn race (design C7, Requirement 7 AC 4): a cancel landed between
+      // `runStep`'s own guard and this callback firing. Signal the pid the
+      // guard missed and record nothing, rather than resurrecting `inFlight`
+      // on an abandoned run.
+      if (runCancelled(deps, runId)) {
+        if (isProcessAlive(s.pid, s.startTime)) await killStep(s.pid, s.startTime, 10000);
+        return;
+      }
       deps.setInFlight(s.pid, s.startTime);
-      return patchRun(deps, runId, {
+      await patchRun(deps, runId, {
         inFlight: {
           id: s.id, pid: s.pid, startTime: s.startTime, startedAt: deps.now().toISOString(),
           ...(s.task !== undefined ? { task: s.task } : {}),
@@ -565,7 +596,8 @@ const RUN_FRESH_RETRY = 1; // one fresh retry for a non-usage step error (design
 
 async function save(deps: RunDeps, run: RunRecord, patch: Partial<RunRecord>): Promise<RunRecord> {
   const next: RunRecord = { ...run, ...patch, updated: deps.now().toISOString() };
-  await writeRun(next);
+  const wrote = await writeRun(next);
+  if (!wrote) return (await readRun(run.id)) ?? next;
   runEvents.emit('change', next);
   return next;
 }
@@ -666,6 +698,9 @@ export function withPrRead(reads: PrRead[] | undefined, read: PrRead): PrRead[] 
 async function runMergeStageStep(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
 ): Promise<MergeStepOutcome> {
+  // Cancel entry check (design C7 "Driver checks", Requirement 7 AC 5): a run
+  // cancelled while resuming the merge stage opens no wait and writes no status.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (hasMerged(specDir, run.id)) return 'none';
 
   // The implementation phase exits into the merge stage by a direct call that
@@ -751,8 +786,9 @@ async function runMergeStageStep(
         // The merge resume path runs before `runOnce`'s own cancel, cap and
         // window checks, so guard the round here: a cancelled run stops, a full
         // cap opens the cap wait and a blocked window pauses, each with no round.
-        if (deps.isCancelled(run.id)) return 'stop';
-        if (deps.isPauseRequested?.(run.id)) {
+        const reason = stopReason(deps, run.id);
+        if (reason === 'cancelled') return 'stop';
+        if (reason === 'operator') {
           await pause(deps, run, OPERATOR_PAUSE);
           return 'stop';
         }
@@ -765,9 +801,8 @@ async function runMergeStageStep(
           }]);
           return 'stop';
         }
-        const window = deps.windowBlock();
-        if (window.blocked) {
-          await pause(deps, run, 'usage-window', window.resumeAt);
+        if (reason === 'usage-window') {
+          await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
           return 'stop';
         }
         const outcome = await runMergeFixRound({
@@ -832,6 +867,9 @@ async function runMergeStageStep(
 export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
   let run = await readRun(runId);
   if (!run) return;
+  // An already-abandoned run returns here, before `ensureWorktree` and the
+  // `running` write below (design C7 "Driver checks", Requirement 7 AC 3).
+  if (run.status === 'abandoned') return;
 
   // The merge stage may be mid-flight on this re-entry: a `merging` status (an
   // auto re-check after `not-ready`) or an open `merge` wait (the ask path just
@@ -986,7 +1024,7 @@ export async function runOnce(deps: RunDeps, runId: string): Promise<void> {
         onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
         ...stepLifecycle(deps, run.id),
         now: deps.now,
-        shouldStop: () => (deps.isPauseRequested?.(runId) ? 'operator' : null),
+        shouldStop: () => (runCancelled(deps, runId) ? 'cancelled' : (deps.isPauseRequested?.(runId) ? 'operator' : null)),
       };
       const outcome = await runDocumentPhase(ctx);
       const handled = await handleDocumentOutcome(deps, run, ledger, specDir, decision.phase, outcome);
@@ -1115,6 +1153,8 @@ async function runCloseoutMergeStep(
 async function handleCloseoutOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: CloseoutPhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'closed') {
     if (outcome.prs.length > 0) await save(deps, run, { closeoutPrs: outcome.prs });
     return 'go';
@@ -1202,6 +1242,8 @@ async function hasOpenSecurityWait(runId: string): Promise<boolean> {
 async function handleImplementationOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: ImplementationPhaseOutcome,
 ): Promise<'stop' | 'go' | 'retry'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'complete') {
     if (outcome.pr && run.pr !== outcome.pr.number) await save(deps, run, { pr: outcome.pr.number });
     return 'go';
@@ -1270,6 +1312,8 @@ async function handleImplementationOutcome(
 async function handleRetrospectiveOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string, outcome: RetrospectivePhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'retro-ready') return 'go';
   if (outcome.result === 'stopped') {
     if (outcome.reason === 'usage-window') await pause(deps, run, 'usage-window', deps.windowBlock().resumeAt);
@@ -1297,6 +1341,8 @@ async function handleDocumentOutcome(
   deps: RunDeps, run: RunRecord, ledger: RunLedger, specDir: string,
   phase: DocumentPhase, outcome: DocumentPhaseOutcome,
 ): Promise<'stop' | 'go'> {
+  // Cancel first (design C7 "Driver checks", Requirement 7 AC 1, AC 2): no retry, no wait.
+  if (runCancelled(deps, run.id)) return 'stop';
   if (outcome.result === 'approved') return 'go';
   if (outcome.result === 'waiting') {
     // T5b's gate A/B already wrote the wait; the controller only parks the run.
@@ -1317,8 +1363,8 @@ async function handleDocumentOutcome(
     return 'stop';
   }
   if (outcome.result === 'stopped') {
-    await pause(deps, run, OPERATOR_PAUSE);
-    return 'stop';
+    if (outcome.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
+    return 'stop'; // cancelled: the cancel path already marked the run
   }
   // outcome.result === 'error'.
   if (outcome.reason === 'usage-limit') {
@@ -1342,15 +1388,21 @@ async function handleDocumentOutcome(
       onRateLimit: deps.onRateLimit, onStepActivity: stepActivityForwarder(deps, run.id),
       ...stepLifecycle(deps, run.id),
       now: deps.now,
-      shouldStop: () => (deps.isPauseRequested?.(run.id) ? 'operator' : null),
+      shouldStop: () => (runCancelled(deps, run.id) ? 'cancelled' : (deps.isPauseRequested?.(run.id) ? 'operator' : null)),
     });
     if (retry.result === 'approved') return 'go';
     if (retry.result === 'waiting') { await save(deps, run, { status: 'waiting', inFlight: undefined }); return 'stop'; }
-    if (retry.result === 'stopped') { await pause(deps, run, OPERATOR_PAUSE); return 'stop'; }
+    if (retry.result === 'stopped') {
+      if (retry.reason === 'operator') await pause(deps, run, OPERATOR_PAUSE);
+      return 'stop'; // cancelled: the cancel path already marked the run
+    }
     if (retry.result === 'error' && retry.reason === 'usage-limit') {
       await pause(deps, run, 'usage-limit', deps.windowBlock().resumeAt ?? fifteenMinutes(deps));
       return 'stop';
     }
+    // The retry's own step may have failed from a cancel that landed mid-step
+    // (design C7 "Driver checks"): check again before the `error` wait below.
+    if (runCancelled(deps, run.id)) return 'stop';
   }
   await waitAnd(deps, run, ledger, 'error', specDir, [{
     id: 'error', text: `${phase} failed: ${outcome.reason ?? 'unknown'}. Retry or abandon.`,
@@ -1374,28 +1426,20 @@ export interface CancelDeps {
 }
 
 /**
- * Cancel a run: signal the in-flight step (SIGTERM, then SIGKILL after the
- * grace), mark the run `abandoned`, and keep the worktree, branch and PR. The phase loop stops at its next step boundary.
+ * Cancel a run: mark it `abandoned` first, then signal the in-flight step
+ * (SIGTERM, then SIGKILL after the grace), so a step killed by the signal
+ * always finds `abandoned` on disk (design C7 "Order change"). Keeps the
+ * worktree, branch and PR. The phase loop stops at its next step boundary.
  */
 export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
   const run = await readRun(runId);
   if (!run) return undefined;
-  if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
-    const pid = run.inFlight.pid;
-    try { process.kill(-pid, 'SIGTERM'); } catch { try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ } }
-    const grace = deps.graceMs ?? 10000;
-    const deadline = Date.now() + grace;
-    while (isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
-      if (Date.now() >= deadline) {
-        try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
   const next: RunRecord = { ...run, status: 'abandoned' as RunStatus, inFlight: undefined, updated: deps.now().toISOString() };
   await writeRun(next);
   runEvents.emit('change', next);
+  if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
+    await killStep(run.inFlight.pid, run.inFlight.startTime, deps.graceMs ?? 10000);
+  }
   return next;
 }
 
@@ -1470,7 +1514,7 @@ export interface ControllerRunRow {
   task?: string;
   /** The C2 branch read for a stopped run; `run.branch !== ''` for a moving one (design C3). */
   branchPresent?: boolean;
-  /** `!branchHeld(run, allRuns)` (design C3). */
+  /** `!(branchHeld(run, allRuns) || branchReused(run, allRuns))` (design C3, C9). */
   discardAllowed?: boolean;
 }
 
@@ -1487,11 +1531,35 @@ export function branchHeld(run: RunRecord, runs: RunRecord[]): boolean {
   });
 }
 
+function branchShared(run: RunRecord, other: RunRecord): boolean {
+  return other.id !== run.id && other.codeRoot === run.codeRoot && run.branch !== '' && other.branch === run.branch;
+}
+
+/**
+ * True when another run, in any status, reused this run's worktree branch:
+ * the same `codeRoot`, the same non-empty `branch` and a later `created`
+ * (design C9 "Reused branch"). Unlike `branchHeld`, the other run need not
+ * be live, so a run abandoned on a branch another, later, now-done run
+ * reused still reports reused.
+ */
+export function branchReused(run: RunRecord, runs: RunRecord[]): boolean {
+  return runs.some((other) => branchShared(run, other) && other.created > run.created);
+}
+
 async function toRow(
   run: RunRecord, driven: ReadonlySet<string>, allRuns: RunRecord[], branchRead?: BranchRead,
 ): Promise<ControllerRunRow> {
   const stopped = run.status === 'done' || run.status === 'abandoned' || run.status === 'error';
-  const branchPresentValue = stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
+  const reused = branchReused(run, allRuns);
+  // A run that took over an earlier run's branch (the mirror of `reused`)
+  // trusts the handoff instead of spending a git read: the earlier side
+  // already reports `false`, so this run is the branch's current holder.
+  const inherited = !reused && allRuns.some((other) => branchShared(run, other) && other.created < run.created);
+  const branchPresentValue = reused
+    ? false
+    : inherited
+      ? true
+      : stopped ? await readBranchPresent(run, branchRead) : run.branch !== '';
   return {
     id: run.id, project: run.project, spec: run.spec, status: run.status,
     phase: run.phase, stepKind: run.cursor?.stepKind,
@@ -1506,7 +1574,7 @@ async function toRow(
     stepStarted: run.inFlight?.startedAt,
     task: run.inFlight?.task,
     branchPresent: branchPresentValue,
-    discardAllowed: !branchHeld(run, allRuns),
+    discardAllowed: !(branchHeld(run, allRuns) || reused),
   };
 }
 

@@ -261,6 +261,8 @@ export interface KnownProject {
   /** The root that holds `.spec-workflow` (the spec store). */
   workflowRootPath: string;
   name: string;
+  /** Operator-set name; `rememberProject` never overwrites it (design C1). */
+  displayName?: string;
   /** ISO time the project was last seen (registered, added or listed). */
   seen: string;
 }
@@ -428,7 +430,12 @@ export function readRunSync(id: string): RunRecord | undefined {
 // writes for that id.
 const writeChains = new Map<string, Promise<void>>();
 
-async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
+// Status guard (design C7, Requirement 7 AC 3, AC 4): once disk holds
+// `abandoned`, no later write with a different status may replace it.
+async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<boolean> {
+  const onDisk = await readRun(record.id);
+  if (onDisk?.status === 'abandoned' && record.status !== 'abandoned') return false;
+
   // Every writer spreads the record it read, so `pausedAt` carries over while the
   // run stays stopped and is stamped only on the write that stops it.
   const stopped = record.status === 'paused' || record.status === 'waiting';
@@ -440,7 +447,6 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
   // record holds (design C1).
   let lastActivity = record.lastActivity;
   if (!terminal) {
-    const onDisk = await readRun(record.id);
     if (!opts?.ownsPauseRequest) {
       pauseRequested = onDisk?.pauseRequested;
       holdBy = onDisk?.holdBy;
@@ -459,16 +465,18 @@ async function writeRunLocked(record: RunRecord, opts?: { ownsPauseRequest?: boo
     holdBy,
     lastActivity,
   };
-  return writeJsonAtomic(runPath(record.id), out);
+  await writeJsonAtomic(runPath(record.id), out);
+  return true;
 }
 
-export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<void> {
+/** Resolves `false`, writing nothing, when the status guard drops the write. */
+export function writeRun(record: RunRecord, opts?: { ownsPauseRequest?: boolean }): Promise<boolean> {
   const prior = writeChains.get(record.id) ?? Promise.resolve();
   const settled = prior.then(
     () => writeRunLocked(record, opts),
     () => writeRunLocked(record, opts),
   );
-  writeChains.set(record.id, settled.catch(() => undefined));
+  writeChains.set(record.id, settled.then(() => undefined, () => undefined));
   return settled;
 }
 
@@ -619,11 +627,39 @@ async function withProjectsLock<T>(fn: () => Promise<T>): Promise<T> {
 export async function rememberProject(project: Omit<KnownProject, 'seen'>, now: () => Date = () => new Date()): Promise<void> {
   await withProjectsLock(async () => {
     const file = await readProjects();
+    const existing = file.projects.find((p) => p.id === project.id);
     const next: KnownProject = { ...project, seen: now().toISOString() };
+    if (existing?.displayName !== undefined) next.displayName = existing.displayName;
     const rest = file.projects.filter((p) => p.id !== project.id);
     rest.push(next);
     rest.sort((a, b) => a.name.localeCompare(b.name));
     await writeProjects({ v: 1, projects: rest });
+  });
+}
+
+/** The name shown in the project list: the operator's `displayName` when set, else `name`. */
+export function shownName(project: { name: string; displayName?: string }): string {
+  return project.displayName ?? project.name;
+}
+
+/**
+ * Set or clear one project's operator display name (design C1). `null` removes
+ * the key entirely rather than storing an empty/undefined value. Returns false
+ * and writes nothing for an unknown id.
+ */
+export async function setProjectDisplayName(id: string, displayName: string | null): Promise<boolean> {
+  return withProjectsLock(async () => {
+    const file = await readProjects();
+    const index = file.projects.findIndex((p) => p.id === id);
+    if (index === -1) return false;
+    const existing = file.projects[index];
+    const next: KnownProject = { ...existing };
+    if (displayName === null) delete next.displayName;
+    else next.displayName = displayName;
+    const projects = [...file.projects];
+    projects[index] = next;
+    await writeProjects({ v: 1, projects });
+    return true;
   });
 }
 

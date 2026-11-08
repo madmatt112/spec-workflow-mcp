@@ -8,6 +8,7 @@ import {
   listRuns,
   readRun,
   writeRun,
+  updateRun,
   writeLastActivity,
   listWaits,
   readWait,
@@ -24,6 +25,8 @@ import {
   readProjects,
   rememberProject,
   pruneMissingProjects,
+  shownName,
+  setProjectDisplayName,
   type RunRecord,
   type WaitRecord,
   type QueueFile,
@@ -276,6 +279,78 @@ describe('writeLastActivity and the lastActivity carry-over in writeRun', () => 
       lastActivity: '2026-11-03T13:00:00.000Z',
       updated: '2026-11-03T13:00:05.000Z',
     });
+  });
+});
+
+// Contract for the abandoned-final status guard (design C7 "Status guard",
+// D10; requirement 7 AC 3, AC 4). Per success criterion:
+// - A `running`, `waiting`, `queued`, `done` or `error` write over an
+//   `abandoned` run resolves `false` and leaves the on-disk record
+//   byte-identical. Pre: a run on disk at `abandoned`. Call:
+//   `writeRun(record)` with that status. Result: `false`, raw file bytes
+//   unchanged. Source: design C7 "Status guard"; Requirement 7 AC 3.
+// - An `abandoned` write over an `abandoned` run resolves `true`. Pre: a run
+//   on disk at `abandoned`. Call: `writeRun(record)` with status
+//   `abandoned`. Result: `true`. Source: design C7 "Status guard".
+// - A first write (no on-disk record yet) resolves `true`. Pre: no record
+//   for the id. Call: `writeRun(record)`. Result: `true`. Source: design C7
+//   "Status guard" (the guard only fires when disk already holds
+//   `abandoned`).
+// - A write over a non-abandoned run resolves `true`. Pre: a run on disk at
+//   `running`. Call: `writeRun(record)` with status `waiting`. Result:
+//   `true`. Source: design C7 "Status guard".
+// - `updateRun` whose `fn` sets `running` on an abandoned run returns the
+//   abandoned record, unwritten. Pre: a run on disk at `abandoned`. Call:
+//   `updateRun(id, (run) => ({ ...run, status: 'running' }))`. Result: the
+//   resolved record's `status` is `abandoned`. Source: design C7 "Status
+//   guard" ("`updateRun` passes through it"); Requirement 7 AC 3, AC 4.
+describe('writeRun resolves whether it wrote (design C7, Requirement 7 AC 3, AC 4)', () => {
+  it.each(['running', 'waiting', 'queued', 'done', 'error'] as const)(
+    'a %s write over an abandoned run resolves false and leaves the record byte-identical',
+    async (status) => {
+      const id = `run-abandoned-guard-${status}`;
+      await writeRun({ ...sampleRun(id), status: 'abandoned' });
+      const runJson = join(controllerHome(), 'runs', id, 'run.json');
+      const before = readFileSync(runJson, 'utf-8');
+
+      const wrote = await writeRun({ ...sampleRun(id), status });
+
+      expect(wrote).toBe(false);
+      expect(readFileSync(runJson, 'utf-8')).toBe(before);
+    },
+  );
+
+  it('an abandoned write over an abandoned run resolves true', async () => {
+    const id = 'run-abandoned-over-abandoned';
+    await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    const wrote = await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    expect(wrote).toBe(true);
+  });
+
+  it('a first write for a new run resolves true', async () => {
+    const wrote = await writeRun(sampleRun('run-first-write'));
+
+    expect(wrote).toBe(true);
+  });
+
+  it('a write over a non-abandoned run resolves true', async () => {
+    const id = 'run-non-abandoned-overwrite';
+    await writeRun({ ...sampleRun(id), status: 'running' });
+
+    const wrote = await writeRun({ ...sampleRun(id), status: 'waiting' });
+
+    expect(wrote).toBe(true);
+  });
+
+  it('updateRun setting running on an abandoned run returns the abandoned record, unwritten', async () => {
+    const id = 'run-updateRun-abandoned';
+    await writeRun({ ...sampleRun(id), status: 'abandoned' });
+
+    const result = await updateRun(id, (run) => ({ ...run, status: 'running' }));
+
+    expect(result?.status).toBe('abandoned');
   });
 });
 
@@ -583,4 +658,133 @@ describe('pruneMissingProjects', () => {
     },
     15000
   );
+});
+
+// Contract for design C1 (requirement 1 AC 3): a durable displayName that
+// re-registration and a restart cannot touch.
+//
+// shownName(p) — pure, no seam I/O.
+//   - pre: p = { name: 'Proj A', displayName: 'tradr app' }
+//     call: shownName(p)
+//     result: 'tradr app' (design C1: "returns `displayName` when set")
+//   - pre: p = { name: 'Proj A' } (no displayName)
+//     call: shownName(p)
+//     result: 'Proj A' (design C1: "... and `name` when not")
+//
+// setProjectDisplayName(id, displayName) — under withProjectsLock.
+//   - pre: projects.json has a row with id 'proj-a'
+//     call: setProjectDisplayName('proj-a', 'tradr app')
+//     result: resolves true; the row in projects.json gains displayName
+//       'tradr app' (Success: "stores a name and returns true")
+//   - pre: the row for 'proj-a' already has displayName 'tradr app'
+//     call: setProjectDisplayName('proj-a', null)
+//     result: resolves true; the row has no `displayName` key at all
+//       (Success: "null removes the key and returns true"; Restriction:
+//       "never write a displayName key on a row that has none")
+//   - pre: projects.json has no row with id 'does-not-exist'
+//     call: setProjectDisplayName('does-not-exist', 'X')
+//     result: resolves false; projects.json's bytes and inode are
+//       unchanged (Success: "an unknown id returns false and writes
+//       nothing")
+//
+// rememberProject(project, now) — keeps an existing row's displayName.
+//   - pre: the row for 'proj-a' has displayName 'tradr app' and name 'Old Name'
+//     call: rememberProject({ id: 'proj-a', ..., name: 'New Generated Name' }, later)
+//     result: the row keeps displayName 'tradr app', and name/seen are
+//       refreshed to 'New Generated Name' / later's ISO time (Success:
+//       "rememberProject on a named row keeps displayName and refreshes
+//       name and seen")
+//   - pre: the row for 'proj-a' has no displayName
+//     call: rememberProject({ id: 'proj-a', ..., name: 'New Generated Name' }, now)
+//     result: the row still has no `displayName` key (Success: "rememberProject
+//       on an unnamed row adds no key")
+describe('display names (design C1)', () => {
+  const fixedNow = () => new Date('2026-11-07T00:00:00.000Z');
+  const laterNow = () => new Date('2026-11-07T01:00:00.000Z');
+
+  function sampleKnown(overrides: Partial<Omit<KnownProject, 'seen'>>): Omit<KnownProject, 'seen'> {
+    return {
+      id: 'proj-a',
+      workspacePath: '/code/proj-a',
+      workflowRootPath: '/code/proj-a',
+      name: 'Proj A',
+      ...overrides,
+    };
+  }
+
+  describe('shownName', () => {
+    it('returns the display name when set', () => {
+      expect(shownName({ name: 'Proj A', displayName: 'tradr app' })).toBe('tradr app');
+    });
+
+    it('returns the generated name when no display name is set', () => {
+      expect(shownName({ name: 'Proj A' })).toBe('Proj A');
+    });
+  });
+
+  describe('setProjectDisplayName', () => {
+    it('stores a name and returns true', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+
+      const result = await setProjectDisplayName('proj-a', 'tradr app');
+
+      expect(result).toBe(true);
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row?.displayName).toBe('tradr app');
+    });
+
+    it('null removes the key and returns true', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+      await setProjectDisplayName('proj-a', 'tradr app');
+
+      const result = await setProjectDisplayName('proj-a', null);
+
+      expect(result).toBe(true);
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row).toBeDefined();
+      expect(Object.keys(row!)).not.toContain('displayName');
+    });
+
+    it('an unknown id returns false and writes nothing', async () => {
+      await rememberProject(sampleKnown({}), fixedNow);
+      const projectsFile = join(home, 'projects.json');
+      const before = await fs.stat(projectsFile);
+      const bytesBefore = await fs.readFile(projectsFile, 'utf-8');
+
+      const result = await setProjectDisplayName('does-not-exist', 'X');
+
+      expect(result).toBe(false);
+      const after = await fs.stat(projectsFile);
+      expect(after.ino).toBe(before.ino);
+      expect(await fs.readFile(projectsFile, 'utf-8')).toBe(bytesBefore);
+    });
+  });
+
+  describe('rememberProject keeps an existing displayName', () => {
+    it('on a named row keeps displayName and refreshes name and seen', async () => {
+      await rememberProject(sampleKnown({ name: 'Old Name' }), fixedNow);
+      await setProjectDisplayName('proj-a', 'tradr app');
+
+      await rememberProject(sampleKnown({ name: 'New Generated Name' }), laterNow);
+
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row?.displayName).toBe('tradr app');
+      expect(row?.name).toBe('New Generated Name');
+      expect(row?.seen).toBe('2026-11-07T01:00:00.000Z');
+    });
+
+    it('on an unnamed row adds no key', async () => {
+      await rememberProject(sampleKnown({ name: 'Old Name' }), fixedNow);
+
+      await rememberProject(sampleKnown({ name: 'New Generated Name' }), fixedNow);
+
+      const file = await readProjects();
+      const row = file.projects.find((p) => p.id === 'proj-a');
+      expect(row).toBeDefined();
+      expect(Object.keys(row!)).not.toContain('displayName');
+    });
+  });
 });

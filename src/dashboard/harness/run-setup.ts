@@ -239,6 +239,28 @@ export function nextUnstartedSpec(workflowRoot: string): string | null {
 }
 
 /**
+ * The `decomposition.md` entry naming `spec`: its heading line through, but
+ * not including, the next `### ` line, else null when no heading names it or
+ * `decomposition.md` is absent (design C2).
+ */
+export function decompositionEntry(workflowRoot: string, spec: string): string | null {
+  const decomposition = readIfExists(join(workflowRoot, 'spec-decomposition', 'decomposition.md'));
+  if (!decomposition) return null;
+  const lines = decomposition.split('\n');
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const m = DECOMPOSITION_HEADING.exec(lines[i]);
+    if (m && m[1] === spec) { start = i; break; }
+  }
+  if (start === -1) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^###\s/.test(lines[i])) { end = i; break; }
+  }
+  return lines.slice(start, end).join('\n');
+}
+
+/**
  * The zero-based index among `decomposition.md` lines matching the heading
  * regex of `nextUnstartedSpec` (`(deferred)` headings included) whose name is
  * `spec`, else null — a `null` `spec` or a missing `decomposition.md` also

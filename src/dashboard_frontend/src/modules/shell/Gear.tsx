@@ -1,7 +1,56 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
-import { useProjects } from '../projects/ProjectProvider';
-import { Button, ui } from '../ui/ui';
+import { useProjects, type Project } from '../projects/ProjectProvider';
+import { Button, TextInput, ui } from '../ui/ui';
+import { callHarness } from './harness';
+
+/**
+ * A project's display-name control (design C1): an input seeded with the
+ * current name and a Save button. Save posts through `callHarness`, then on
+ * success refreshes the project list and closes the whole gear panel; on
+ * failure it shows the route's error and leaves the input open (Error
+ * Handling 6).
+ */
+function ProjectRename({ project, closePanel }: { project: Project; closePanel: () => void }) {
+  const { refreshProjects } = useProjects();
+  const [name, setName] = useState(project.projectName);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    const trimmed = name.trim();
+    const result = await callHarness(
+      `/api/projects/${project.projectId}/display-name`,
+      'POST',
+      { displayName: trimmed.length > 0 ? trimmed : null },
+    );
+    if (!result.ok) {
+      setError(result.data?.error ?? 'save failed');
+      return;
+    }
+    setError(null);
+    await refreshProjects();
+    closePanel();
+  };
+
+  return (
+    <div className="flex items-center gap-1.5" data-testid={`project-rename-${project.projectId}`}>
+      <TextInput
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        data-testid={`project-name-input-${project.projectId}`}
+      />
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={save}
+        data-testid={`project-name-save-${project.projectId}`}
+      >
+        {'Save'}
+      </Button>
+      {error && <span className="text-xs text-(--tone-danger-fg)">{error}</span>}
+    </div>
+  );
+}
 
 /**
  * The settings gear in the top bar: theme toggle, a switch per project, the
@@ -75,19 +124,19 @@ export function Gear() {
             {sortedProjects.length > 0 && (
               <div className="space-y-1.5 border-t border-(--border-default) pt-2">
                 {sortedProjects.map((p) => (
-                  <label
-                    key={p.projectId}
-                    className="flex items-center justify-between gap-2 text-sm text-(--text-secondary)"
-                  >
-                    <span className="min-w-0 truncate">{p.projectName}</span>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={enabled(p.projectId)}
-                      onChange={() => toggle(p.projectId)}
-                      data-testid={`project-toggle-${p.projectId}`}
-                    />
-                  </label>
+                  <div key={p.projectId} className="space-y-1">
+                    <label className="flex items-center justify-between gap-2 text-sm text-(--text-secondary)">
+                      <span className="min-w-0 truncate">{p.projectName}</span>
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={enabled(p.projectId)}
+                        onChange={() => toggle(p.projectId)}
+                        data-testid={`project-toggle-${p.projectId}`}
+                      />
+                    </label>
+                    <ProjectRename project={p} closePanel={() => setOpen(false)} />
+                  </div>
                 ))}
               </div>
             )}
