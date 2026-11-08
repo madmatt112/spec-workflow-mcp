@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/phases/__tests__/document.test.ts"],"seams":{"src/controller/phases/__tests__/document.test.ts":"runDocumentPhase(ctx)"},"redCommit":"1c434db01fe6eb1e55246b54c0c0f1f2f2541a57","baseSha":"bb33b932c7bb64a33e0e672dae8ffdb08b6326ce","base":"assertion-red","head":"pass","amended":false,"judged":null}

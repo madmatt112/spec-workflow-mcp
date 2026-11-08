@@ -152,7 +152,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 5.1_
   - _Prompt: Task: Per design C5 and design D8 (requirement 5 AC 1), add one bullet to `HARNESS_VERDICT_SECTION` (`src/tools/adversarial-review.ts:318-325`): the AC 1 definition, and a `[drafting] ` or `[design] ` prefix required on every MUST_FIX and SHOULD_FIX, in the analysis and the report arrays. `renderReviser` gains the descriptor `Drafting-only corrective pass.` for variant `drafting-only` (`src/tools/brief-templates.ts:457-462`) | Restrictions: `REVIEWER_SCHEMA` stays plain strings; keep the verdict block field names and order | Success: a `verdictBlock` prompt holds both prefixes and names a wrong citation, a stale count, wording and a lint failure as drafting defects; a prompt with no `verdictBlock` holds neither; a reviser brief with variant `drafting-only` carries `Drafting-only corrective pass.`; the other reviser variants render as before (regression guard); `npx tsc --noEmit` and `npx vitest run src/tools/__tests__/adversarial-review.test.ts src/tools/__tests__/harness.test.ts` pass_
 
-- [ ] 13. End doc review after a drafting-only round 1
+- [x] 13. End doc review after a drafting-only round 1
   - File: src/controller/phases/document.ts
   - File: src/controller/phases/__tests__/document.test.ts
   - Test: src/controller/phases/__tests__/document.test.ts — `runDocumentPhase(ctx)`
