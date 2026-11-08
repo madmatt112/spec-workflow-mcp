@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { harnessHandler, harnessTool, codeGraphSection } from '../harness.js';
+import {
+  harnessHandler, harnessTool, codeGraphSection, parsePlanDecisions, answerChoosesNoChange, classifyTarget,
+} from '../harness.js';
 import { taskBlock } from '../../core/task-parser.js';
 import { ToolContext } from '../../types.js';
 
@@ -2294,5 +2296,87 @@ describe('harnessHandler', () => {
       + 'source. Without it the action reads only the spec store.',
     );
     expect(harnessTool.description).toContain('never spawns a process');
+  });
+
+  describe('parsePlanDecisions', () => {
+    it('maps ids to answers only inside ## Decisions, splitting at the last arrow, dropping empty and "no answer" lines (Req 3.1)', () => {
+      // Pre-condition: a plan with a decision-shaped line in `## Approved proposals` and
+      // another in `## Rejected proposals` (outside the section), and inside `## Decisions`
+      // (buildRetroPlanMarkdown's line shape, src/controller/runs.ts:356): a normal answer,
+      // an empty answer, the literal `no answer`, and an answer that itself holds an arrow.
+      const content = [
+        '# Retrospective plan — spec',
+        '',
+        '## Approved proposals',
+        '',
+        '- P9: looks like a decision → should not count',
+        '',
+        '## Decisions',
+        '',
+        '- P1: Keep the limiter as is → no change — the rule already requires it',
+        '- P2: What about caching → ',
+        '- P3: Should we batch → no answer',
+        '- P4: Pick A or B → Option A → 20s',
+        '',
+        '## Rejected proposals',
+        '',
+        '- P10: another fake → nope',
+        '',
+      ].join('\n');
+
+      // Test: parsePlanDecisions(content). Observable result and source: design C3's spec
+      // for the function (`- <id>: <question> → <answer>`, split at the LAST ' → ').
+      const decisions = parsePlanDecisions(content);
+
+      expect(decisions.get('P1')).toBe('no change — the rule already requires it');
+      expect(decisions.get('P4')).toBe('20s');
+      expect(decisions.has('P2')).toBe(false);
+      expect(decisions.has('P3')).toBe(false);
+      expect(decisions.has('P9')).toBe(false);
+      expect(decisions.has('P10')).toBe(false);
+      expect(decisions.size).toBe(2);
+    });
+  });
+
+  describe('answerChoosesNoChange', () => {
+    it('is true for the no-change answers and false for the real-change answers (Req 3.5)', () => {
+      // Pre-condition: none — pure function. Test: answerChoosesNoChange(answer) for each
+      // example. Observable result and source: task 8's Success line, verified against
+      // design C3's illustrative regex, not the reverse.
+      for (const answer of [
+        'No change — the rule already requires',
+        'leave it; agents correctly flag',
+        'Option A: no change',
+        'no',
+        'none',
+        'skip',
+        'n/a',
+      ]) {
+        expect(answerChoosesNoChange(answer)).toBe(true);
+      }
+      for (const answer of [
+        'keep the design-defect stop but trigger it on the first verdict',
+        'drop the two moved paths',
+        'add the 30/60s per-user limiter',
+      ]) {
+        expect(answerChoosesNoChange(answer)).toBe(false);
+      }
+    });
+  });
+
+  describe('classifyTarget reading Target document', () => {
+    it('classifies an item whose only target line is `Target document:` naming agent-rules.md as store (Req 3.7)', () => {
+      // Pre-condition: an item block with `Target document:`, not `Target:` — the shape
+      // G1/G2 use. At base `classifyTarget` matches only `Target:`, so this block reads
+      // `none` (empty target). Test: classifyTarget(block). Observable result and source:
+      // task 8's Success line and design C3 (`itemTarget` reads `Target:` and `Target
+      // document:`; `classifyTarget` is made to call it).
+      const block = [
+        '- **G1 (F9) — Tighten the rule.** Add a line.',
+        '  Target document: `.spec-workflow/agent-rules.md`.',
+      ].join('\n');
+
+      expect(classifyTarget(block)).toBe('store');
+    });
   });
 });
