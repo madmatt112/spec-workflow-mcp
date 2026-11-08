@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTestLine, parseTasksFromMarkdown, TEST_BULLET_RE } from '../task-parser.js';
+import { parseTestLine, parseTasksFromMarkdown, addTaskFiles, TEST_BULLET_RE } from '../task-parser.js';
 
 // The Test line splits the test path from the call on a space-padded em dash
 // (U+2014). Fixtures use single-quoted strings so backticks stay literal.
@@ -132,5 +132,105 @@ describe('parseTasksFromMarkdown — Test lines', () => {
     ].join('\n');
     const { tasks } = parseTasksFromMarkdown(md);
     expect(tasks[0].files).toEqual(['ind-register.txt']);
+  });
+});
+
+describe('addTaskFiles', () => {
+  it('inserts a new File: line after the task\'s only File: line, and the parser lists it', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n');
+    const patched = addTaskFiles(md, '1', ['src/b.ts']);
+    expect(patched).toBe([
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - File: src/b.ts',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n'));
+    const { tasks } = parseTasksFromMarkdown(patched!);
+    expect(tasks[0].files).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
+  it('follows the last of two File:/Files: lines, leaving every other line byte-identical', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - Files: src/b.ts, src/c.ts',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n');
+    const patched = addTaskFiles(md, '1', ['src/d.ts']);
+    expect(patched).toBe([
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - Files: src/b.ts, src/c.ts',
+      '  - File: src/d.ts',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n'));
+  });
+
+  it('inserts after the checkbox line when the task has no File: line', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n');
+    const patched = addTaskFiles(md, '1', ['src/a.ts']);
+    expect(patched).toBe([
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - Purpose: do a thing',
+      '',
+    ].join('\n'));
+  });
+
+  it('adds two files as two separate File: lines, and the parser lists both, every other line byte-identical', () => {
+    const md = [
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - Purpose: do a thing',
+      '- [ ] 2. Another task',
+      '  - File: src/other.ts',
+      '',
+    ].join('\n');
+    const patched = addTaskFiles(md, '1', ['src/b.ts', 'src/c.ts']);
+    expect(patched).toBe([
+      '- [ ] 1. A task',
+      '  - File: src/a.ts',
+      '  - File: src/b.ts',
+      '  - File: src/c.ts',
+      '  - Purpose: do a thing',
+      '- [ ] 2. Another task',
+      '  - File: src/other.ts',
+      '',
+    ].join('\n'));
+    const { tasks } = parseTasksFromMarkdown(patched!);
+    expect(tasks[0].files).toEqual(['src/a.ts', 'src/b.ts', 'src/c.ts']);
+    expect(tasks[1].files).toEqual(['src/other.ts']);
+  });
+
+  it('returns undefined for an unknown task id', () => {
+    const md = '- [ ] 1. A task\n  - File: src/a.ts\n';
+    expect(addTaskFiles(md, '99', ['src/b.ts'])).toBeUndefined();
+  });
+
+  it('returns undefined for a path holding a comma', () => {
+    const md = '- [ ] 1. A task\n  - File: src/a.ts\n';
+    expect(addTaskFiles(md, '1', ['src/b.ts, src/c.ts'])).toBeUndefined();
+  });
+
+  it('returns undefined for a path holding a parenthesis', () => {
+    const md = '- [ ] 1. A task\n  - File: src/a.ts\n';
+    expect(addTaskFiles(md, '1', ['src/b(1).ts'])).toBeUndefined();
+  });
+
+  it('returns undefined for a path holding whitespace', () => {
+    const md = '- [ ] 1. A task\n  - File: src/a.ts\n';
+    expect(addTaskFiles(md, '1', ['src/b file.ts'])).toBeUndefined();
   });
 });

@@ -49,6 +49,7 @@ const IMPL_TS = [
   '2026-09-12T19:06:01.000Z', // spawn.usage implementer
   '2026-09-12T19:06:10.000Z', // note
   '2026-09-12T19:06:20.000Z', // task.done
+  '2026-09-12T19:06:25.000Z', // file-list.patch
   '2026-09-12T19:10:00.000Z', // spawn.end orchestrator
   '2026-09-12T19:10:05.000Z', // phase.end
   '2026-09-12T19:10:10.000Z', // run.end
@@ -72,6 +73,7 @@ function writeImplRun(): string {
   led.spawnUsage({ agent: 'sdd-implementer', role: 'implement task 3', result: 'logged: yes/3', phase: 'implementation', task: '3' });
   led.note('ruling: proceed despite flaky e2e');
   led.taskDone({ task: '3', rounds: 1, outcome: 'pass' });
+  led.filePatch({ task: '3', round: 1, file: 'src/extra-helper.ts', reason: 'REQUIRED: used by the new error mapper' });
   led.spawnEnd({
     agent: 'sdd-implementation-orchestrator',
     usage: { input: 50, output: 500, cacheRead: 1000000, cacheWrite5m: 0, cacheWrite1h: 80000 },
@@ -113,6 +115,18 @@ describe('openRunLedger row formats', () => {
     // cacheWrite has no unknown addends, so it is still a number.
     expect(line).toContain('"cacheWrite":"30000"');
   });
+
+  it('writes a filePatch row of type file-list.patch with task, round, file, reason as strings', () => {
+    const dir = tmpDir('ctrl-ledger-');
+    const led = openRunLedger({ specDir: dir, runId: RUN, spec: SPEC, now: clockFrom(['2026-09-12T19:06:25.000Z']) });
+    led.filePatch({ task: '3', round: 1, file: 'src/extra-helper.ts', reason: 'REQUIRED: used by the new error mapper' });
+    const row = readRows(led.path)[0];
+    expect(row.type).toBe('file-list.patch');
+    expect(row.task).toBe('3');
+    expect(row.round).toBe('1');
+    expect(row.file).toBe('src/extra-helper.ts');
+    expect(row.reason).toBe('REQUIRED: used by the new error mapper');
+  });
 });
 
 describe('every row type round-trips through the watch model', () => {
@@ -150,6 +164,12 @@ describe('every row type round-trips through the watch model', () => {
     expect(rows.some((e) => e.type === 'run.end' && e.status === 'fable:s implementation tasks 3/8 - complete')).toBe(true);
     // A note that lands in the last four events does surface in the model ticker.
     expect(model.ticker.some((t) => t.text.startsWith('phase.end'))).toBe(true);
+  });
+
+  it('renders the file-list.patch row in the ticker, naming the file and task, not just the bare type', () => {
+    const line = model.ticker.find((t) => t.text.includes('src/extra-helper.ts'));
+    expect(line).toBeDefined();
+    expect(line!.text).toContain('3');
   });
 });
 
