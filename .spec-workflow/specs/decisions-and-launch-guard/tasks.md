@@ -170,7 +170,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 6.1, 6.2_
   - _Prompt: Task: Per design C6 and requirements D13 (requirement 6 AC 1), add two bullets after line 39, the end of `## Checks` in `.spec-workflow/agent-rules.md`, before `## Git`. Their words are lines 143-148 and lines 155-159 of /home/mcf/repo/tradr-hosted/.spec-workflow/specs/option-lifecycle-events/retrospective-plan.md, with the `> ` markers removed. Write through scratch and `cp` (`.spec-workflow/agent-rules.md:51-55`) | Restrictions: Change no other line; no bullet starts with a key `readAgentRules` reads; edit nothing in the tradr-hosted store | Success: `grep -c 'no implementer commit can clear it' .spec-workflow/agent-rules.md` and `grep -c 'cannot be made to fail first' .spec-workflow/agent-rules.md` each print 1; the bullets match the source lines word for word; `/usr/bin/git diff --stat` shows one file with additions only; `npx vitest run src/dashboard/harness/__tests__/run-setup.test.ts` passes (AC 2, regression guard)_
 
-- [ ] 15. Make abandoned final on disk
+- [x] 15. Make abandoned final on disk
   - File: src/controller/state.ts
   - File: src/controller/runs.ts
   - File: src/controller/controller.ts
