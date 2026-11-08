@@ -800,9 +800,9 @@ function renderFix(v: Record<string, string>): string {
         'If the gate output below lists a `file-outside-list: <file>` reason as its only actionable ' +
           'finding, do not re-commit the unchanged tree: revert the off-list change when it was ' +
           'accidental, or — when the task genuinely requires that file — report ' +
-          '`REQUIRED: <file> — <why>` instead of committing. A `REQUIRED` report escalates immediately ' +
-          "(the fix is to list the file in the task's `File:` entries in tasks.md); never use it to " +
-          'self-exempt an accidental off-list edit.',
+          '`REQUIRED: <file> — <why>` instead of committing. A `REQUIRED` report adds the file to the ' +
+          "task's `File:` entries in tasks.md and the gate reruns on the same commit with no wait; " +
+          'never use it to self-exempt an accidental off-list edit.',
       );
     }
   } else {
