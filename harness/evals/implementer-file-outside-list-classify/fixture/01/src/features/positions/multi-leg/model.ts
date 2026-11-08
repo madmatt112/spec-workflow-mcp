@@ -6,3 +6,5 @@ export interface Leg {
 export interface Position {
   legs: Leg[];
 }
+
+export { oldAggregate } from './aggregate.js';
