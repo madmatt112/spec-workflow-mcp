@@ -29,7 +29,7 @@ import { deriveDocumentApprovalStates } from '../core/approval-records.js';
 import { parseJsonl } from '../watch/ledger.js';
 import {
   type RunRecord, type RunStatus, type TokenTotals, type PrRead,
-  writeRun, readRun, listRuns, listWaits, writeLastActivity,
+  writeRun, readRun, readRunSync, listRuns, listWaits, writeLastActivity,
   isProcessAlive, isLive, runStepsDir, withStoreLock, OPERATOR_PAUSE,
 } from './state.js';
 import { branchPresent as readBranchPresent, forgetBranchPresence, type BranchRead } from './branch-presence.js';
@@ -423,6 +423,29 @@ function stopReason(deps: RunDeps, runId: string): string | null {
 }
 
 /**
+ * Is this run cancelled, by the operator's flag or by disk already reading
+ * `abandoned` (design C7 "Spawn race", Requirement 7 AC 4)? The disk read
+ * catches a cancel that landed between `runStep`'s own guard and the spawn
+ * callback firing.
+ */
+function runCancelled(deps: RunDeps, runId: string): boolean {
+  return deps.isCancelled(runId) || readRunSync(runId)?.status === 'abandoned';
+}
+
+/** Signals a live step (SIGTERM, then SIGKILL after `graceMs`) and waits for it to exit. */
+async function killStep(pid: number, startTime: number, graceMs: number): Promise<void> {
+  try { process.kill(-pid, 'SIGTERM'); } catch { try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ } }
+  const deadline = Date.now() + graceMs;
+  while (isProcessAlive(pid, startTime)) {
+    if (Date.now() >= deadline) {
+      try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
+/**
  * Read-modify-write one field set of a run: the record on disk may have moved
  * on (a cancel, a wait) since the caller read it, so never write a stale copy.
  */
@@ -453,9 +476,17 @@ export function stepLifecycle(deps: RunDeps, runId: string): {
   stepHeartbeat: () => StepHeartbeat;
 } {
   return {
-    onStepSpawn: (s) => {
+    onStepSpawn: async (s) => {
+      // Spawn race (design C7, Requirement 7 AC 4): a cancel landed between
+      // `runStep`'s own guard and this callback firing. Signal the pid the
+      // guard missed and record nothing, rather than resurrecting `inFlight`
+      // on an abandoned run.
+      if (runCancelled(deps, runId)) {
+        if (isProcessAlive(s.pid, s.startTime)) await killStep(s.pid, s.startTime, 10000);
+        return;
+      }
       deps.setInFlight(s.pid, s.startTime);
-      return patchRun(deps, runId, {
+      await patchRun(deps, runId, {
         inFlight: {
           id: s.id, pid: s.pid, startTime: s.startTime, startedAt: deps.now().toISOString(),
           ...(s.task !== undefined ? { task: s.task } : {}),
@@ -1375,28 +1406,20 @@ export interface CancelDeps {
 }
 
 /**
- * Cancel a run: signal the in-flight step (SIGTERM, then SIGKILL after the
- * grace), mark the run `abandoned`, and keep the worktree, branch and PR. The phase loop stops at its next step boundary.
+ * Cancel a run: mark it `abandoned` first, then signal the in-flight step
+ * (SIGTERM, then SIGKILL after the grace), so a step killed by the signal
+ * always finds `abandoned` on disk (design C7 "Order change"). Keeps the
+ * worktree, branch and PR. The phase loop stops at its next step boundary.
  */
 export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRecord | undefined> {
   const run = await readRun(runId);
   if (!run) return undefined;
-  if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
-    const pid = run.inFlight.pid;
-    try { process.kill(-pid, 'SIGTERM'); } catch { try { process.kill(pid, 'SIGTERM'); } catch { /* gone */ } }
-    const grace = deps.graceMs ?? 10000;
-    const deadline = Date.now() + grace;
-    while (isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
-      if (Date.now() >= deadline) {
-        try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
   const next: RunRecord = { ...run, status: 'abandoned' as RunStatus, inFlight: undefined, updated: deps.now().toISOString() };
   await writeRun(next);
   runEvents.emit('change', next);
+  if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
+    await killStep(run.inFlight.pid, run.inFlight.startTime, deps.graceMs ?? 10000);
+  }
   return next;
 }
 

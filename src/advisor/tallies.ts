@@ -25,8 +25,8 @@ export interface Tallies {
 
 type Week = Tallies['weeks'][string];
 
-/** The step runner's own classifications (src/controller/step.ts:71-77); `ok` is never a failure. */
-const STEP_CLASSIFICATIONS = new Set(['turn-cap', 'usage-limit', 'login-expired', 'schema-invalid', 'error']);
+/** The step runner's own classifications (src/controller/step.ts:72-79); `ok` is never a failure. */
+const STEP_CLASSIFICATIONS = new Set(['turn-cap', 'usage-limit', 'login-expired', 'schema-invalid', 'error', 'cancelled']);
 
 function emptyWeek(): Week {
   return { tokens: { byAgent: {}, bySpec: {} }, failures: {}, findings: {}, floor: {} };
