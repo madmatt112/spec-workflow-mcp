@@ -7,6 +7,7 @@
 // `claude`. The module is deep: `runStep` and `loadRole` and the types are the
 // whole public surface.
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { dirname, basename, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -90,6 +91,10 @@ export interface StepResult {
   exitCode: number | null;
   classification: StepClassification;
   durationMs: number | null;
+  /** True when the stream held at least one `assistant` event: the model ran. A
+   *  step killed mid-run has no `result` event, so its usage and turns read 0;
+   *  this field is what tells it apart from a spawn that never ran. */
+  sawModelOutput?: boolean;
 }
 
 /** Everything one step needs. The caller resolves the brief, schema and roots. */
@@ -341,8 +346,52 @@ function classify(
 // runStep.
 // ---------------------------------------------------------------------------
 
+/** Auto-retries per step when the spawn produced nothing (P4, ibkr-flex-import retro). */
+const NULL_SPAWN_RETRY_CAP = 2;
+
 function asConfigArg(value: string | Record<string, unknown>): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/**
+ * A 0-token spawn (P4, ibkr-flex-import retro): the `claude` process started and
+ * exited but produced no `result` event at all — no usage, no turns, no text and
+ * no structured output. The model never ran, so it is a transient failure to
+ * retry in place, not a real result to surface to the coordinator. A spawn that
+ * never started (an `spawn_error:` subtype) and a spawn that ran and then errored
+ * (a subtype, token usage or result text is present) are both real failures and
+ * are not treated as null.
+ */
+export function isNullSpawn(result: StepResult): boolean {
+  const u = result.usage;
+  return result.classification === 'error'
+    && result.subtype === null
+    && result.resultText === null
+    && result.structuredOutput === null
+    && result.numTurns === 0
+    && u.input === 0 && u.output === 0 && u.cacheRead === 0
+    && u.cacheWrite5m === 0 && u.cacheWrite1h === 0
+    // A cancelled or crashed step that had started work also has no `result`
+    // event; retrying it would respawn a cancelled step or redo paid work.
+    && result.sawModelOutput !== true;
+}
+
+/**
+ * Runs one model step, auto-retrying a 0-token spawn (P4, ibkr-flex-import retro).
+ * A {@link isNullSpawn} result means the process exited without ever running the
+ * model, so it is retried in place up to {@link NULL_SPAWN_RETRY_CAP} times —
+ * each retry on a fresh session id (a resume keeps its id) — before the last
+ * result is surfaced to the coordinator as the step's outcome. Every other result
+ * (ok or a real failure) is returned on the first spawn. The phase loops call
+ * this rather than {@link runStep} directly, so a null drafter/implementer spawn
+ * no longer abandons the run on the first try.
+ */
+export async function runStepWithNullRetry(spec: StepSpec): Promise<StepResult> {
+  let result = await runStep(spec);
+  for (let retry = 1; retry <= NULL_SPAWN_RETRY_CAP && isNullSpawn(result); retry++) {
+    result = await runStep(spec.resume ? spec : { ...spec, sessionId: randomUUID() });
+  }
+  return result;
 }
 
 /**
@@ -426,6 +475,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
     // plain-text afterthought. Keep the latest one that carried a report.
     let structuredEvent: Record<string, unknown> | null = null;
     let lastRateLimit: RateLimitWindows | null = null;
+    let sawModelOutput = false;
     let settled = false;
 
     const handleEvent = (event: Record<string, unknown>): void => {
@@ -433,6 +483,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
       if (type === 'system' && event.subtype === 'init') {
         if (typeof event.session_id === 'string') initSessionId = event.session_id;
       } else if (type === 'assistant') {
+        sawModelOutput = true;
         const message = (event.message ?? {}) as Record<string, unknown>;
         const content = Array.isArray(message.content) ? message.content : [];
         for (const block of content) {
@@ -511,6 +562,7 @@ export function runStep(spec: StepSpec): Promise<StepResult> {
         exitCode,
         classification,
         durationMs: result && typeof result.duration_ms === 'number' ? result.duration_ms : null,
+        sawModelOutput,
       };
       // Resolve only once the raw-stream log has flushed to disk. Callers (and
       // the tests) read the log file the instant runStep resolves; a write

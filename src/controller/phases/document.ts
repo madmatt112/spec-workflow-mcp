@@ -21,7 +21,7 @@ import {
 import { join, relative, dirname } from 'path';
 import { execFileSync } from 'child_process';
 import {
-  runStep, loadRole, type StepResult, type StepSpec, type ActivityEvent, type RateLimitWindows,
+  runStepWithNullRetry, loadRole, type StepResult, type StepSpec, type ActivityEvent, type RateLimitWindows,
 } from '../step.js';
 import type { StepHeartbeat } from '../heartbeat.js';
 import { type RunRecord, withStoreLock } from '../state.js';
@@ -398,7 +398,7 @@ export async function runDocumentPhase(ctx: DocumentPhaseContext): Promise<Docum
       onSpawn: (pid, startTime) => { spawnWrite = ctx.onStepSpawn?.({ id: opts.stepId, pid, startTime }); },
       heartbeat: ctx.stepHeartbeat?.(),
     };
-    const result = await runStep(spec);
+    const result = await runStepWithNullRetry(spec);
     // Both record writes land before the result is acted on, so a status the
     // caller writes next is never overwritten by a late in-flight update.
     await spawnWrite;

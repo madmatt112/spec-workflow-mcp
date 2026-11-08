@@ -214,3 +214,11 @@ export function readSecurityState(rows: Record<string, unknown>[]): SecurityStat
 export function suspicionKey(s: SecuritySuspicion): string {
   return createHash('sha1').update(`${s.file}|${s.title}`).digest('hex').slice(0, 8);
 }
+
+// A readable ledger note for one security finding (P2, ibkr-flex-import retro): the
+// finding's title and file, so the retro can say what the security pass found, not
+// only how many. The epoch-1 pass logged only the count, so the retro could not tell
+// what was fixed.
+export function securityFindingNote(f: SecurityFinding): string {
+  return `security: finding ${f.title} (${f.file})`;
+}

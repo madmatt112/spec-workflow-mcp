@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  classifySecurityReport, e2ePassStands, readSecurityState, suspicionKey,
+  classifySecurityReport, e2ePassStands, readSecurityState, suspicionKey, securityFindingNote,
   type SecurityFinding,
 } from '../security-pass.js';
 
@@ -215,5 +215,26 @@ describe('suspicionKey', () => {
     const differentTitle = suspicionKey({ title: 'Other', file: 'src/a.ts', why: 'one reason' });
     expect(differentFile).not.toBe(a);
     expect(differentTitle).not.toBe(a);
+  });
+});
+
+describe('securityFindingNote (P2)', () => {
+  it('names the finding title and file so the retro can say what was found', () => {
+    expect(securityFindingNote({ title: 'Hardcoded secret', file: 'package.json', command: 'c', output: 'o' }))
+      .toBe('security: finding Hardcoded secret (package.json)');
+  });
+
+  it('is a note readSecurityState ignores (no stage, round count or open-set change)', () => {
+    const rows = rowsFor([
+      'security: epoch 1',
+      'security: pass: findings 1, suspicions 0',
+      securityFindingNote(FINDING),
+      OPEN_ONE,
+    ]);
+    const state = readSecurityState(rows);
+    expect(state.epoch).toBe(1);
+    expect(state.fixRounds).toBe(0);
+    expect(state.open).toEqual([FINDING]);
+    expect(state.next).toBe('fix');
   });
 });
