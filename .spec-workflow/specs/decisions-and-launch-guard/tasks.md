@@ -125,7 +125,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 2 → 3 �
   - _Requirements: 4.2, 4.3_
   - _Prompt: Task: Per design C4, Data Models and design D14 (requirement 4 AC 2, AC 3), add `addTaskFiles` to `src/core/task-parser.ts`, using the bounds of `taskBlock` (`:424-444`). Add `filePatch` to `RunLedger` (`src/controller/ledger.ts:53-73`), writing row type `file-list.patch`, and a render arm in `src/watch/ledger.ts:419-428` | Restrictions: Match `File:` lines by their bullet, so a `_Prompt:` holding the word never matches; change no other line | Success: a new `File:` line follows the task's last `File:` or `Files:` line at its indent; with no `File:` line it follows the checkbox line; the parser then lists the file; every other line is byte-identical; two files give two lines; an unknown task returns `undefined`; a path with a comma, a parenthesis or whitespace returns `undefined`; the row holds `task`, `round`, `file` and `reason` as strings; the watch ticker renders the row with non-empty text; `npx tsc --noEmit` and `npx vitest run src/core/__tests__/task-parser-tests.test.ts src/controller/__tests__/ledger.test.ts src/watch/__tests__/ledger.test.ts` pass_
 
-- [ ] 11. Patch the file list on a REQUIRED report
+- [x] 11. Patch the file list on a REQUIRED report
   - File: src/controller/phases/implementation.ts
   - File: src/tools/brief-templates.ts
   - File: harness/agents/sdd-implementer.md
