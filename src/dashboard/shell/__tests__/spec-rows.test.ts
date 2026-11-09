@@ -350,6 +350,30 @@ describe('buildSpecRows', () => {
     expect(row?.state).toBe('in-progress');
   });
 
+  // Pre-condition: a spec whose ledger's newest run ended `abandoned`, a second spec
+  // whose abandoned run was followed by a new run that has not ended.
+  // Observable result: the first row is 'abandoned'; the second stays 'in-progress'.
+  // Expected-value source: a spec whose only run was abandoned (tradr ca-acb-pool-perf)
+  // showed 'In progress' forever.
+  it('gives state abandoned when the newest run ended abandoned', async () => {
+    const { project, specsDir } = makeProject(base);
+    const gone = makeSpecDir(specsDir, 'gone-spec');
+    writeLedger(gone, [
+      { ts: '2026-11-02T21:33:00.000Z', type: 'run.start', run: 'run-a', spec: 'gone-spec' },
+      { ts: '2026-11-03T05:00:00.000Z', type: 'run.end', run: 'run-a', spec: 'gone-spec', status: 'abandoned' },
+    ]);
+    const retried = makeSpecDir(specsDir, 'retried-spec');
+    writeLedger(retried, [
+      { ts: '2026-11-02T21:33:00.000Z', type: 'run.start', run: 'run-a', spec: 'retried-spec' },
+      { ts: '2026-11-03T05:00:00.000Z', type: 'run.end', run: 'run-a', spec: 'retried-spec', status: 'abandoned' },
+      { ts: '2026-11-04T05:00:00.000Z', type: 'run.start', run: 'run-b', spec: 'retried-spec' },
+    ]);
+
+    const rows = await buildSpecRows(project, null);
+    expect(rows.find((r) => r.spec === 'gone-spec')?.state).toBe('abandoned');
+    expect(rows.find((r) => r.spec === 'retried-spec')?.state).toBe('in-progress');
+  });
+
   it('gives versions the newest v-plus-digits phase-log State per document phase, else null', async () => {
     const { project, workflowRoot, specsDir } = makeProject(base);
     makeSpecDir(specsDir, 'ver-spec');

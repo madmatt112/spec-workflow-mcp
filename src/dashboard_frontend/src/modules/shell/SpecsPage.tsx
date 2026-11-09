@@ -9,13 +9,13 @@ import type { SpecListRow, SpecDetail } from './types';
 import { Button, Pill, ui, type Tone } from '../ui/ui';
 
 const STATE_LABELS: Record<string, string> = {
-  live: 'Live', 'in-progress': 'In progress', closed: 'Closed',
+  live: 'Live', 'in-progress': 'In progress', abandoned: 'Abandoned', closed: 'Closed',
   deferred: 'Deferred', 'not-started': 'Not started',
 };
 
 /**
  * The read-only Specs page (design C10 Specs, D9; Requirement 5). Every spec of
- * every enabled project grouped by project, with the shell list primitives: five
+ * every enabled project grouped by project, with the shell list primitives: six
  * state chips, a search box over the spec name and a pager. Selecting a row
  * fetches the C8 spec detail route and shows the decomposition order and depends
  * paragraph, one row per run, the phase table, the deferral records and each
@@ -27,11 +27,12 @@ const STATE_LABELS: Record<string, string> = {
  * open panel refresh with no reload (Requirement 5 AC 7).
  */
 
-const STATES = ['live', 'in-progress', 'closed', 'deferred', 'not-started'] as const;
+const STATES = ['live', 'in-progress', 'abandoned', 'closed', 'deferred', 'not-started'] as const;
 
 const STATE_TONE: Record<string, Tone> = {
   live: 'accent',
   'in-progress': 'accent',
+  abandoned: 'neutral',
   closed: 'success',
   deferred: 'neutral',
   'not-started': 'neutral',
@@ -86,7 +87,7 @@ export function SpecsPage() {
   // State counts across every enabled store's rows (not the search / chip).
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {
-      live: 0, 'in-progress': 0, closed: 0, deferred: 0, 'not-started': 0,
+      live: 0, 'in-progress': 0, abandoned: 0, closed: 0, deferred: 0, 'not-started': 0,
     };
     const enabledStores = new Set(enabledGroups.map((g) => g.store));
     for (const r of specRows) {

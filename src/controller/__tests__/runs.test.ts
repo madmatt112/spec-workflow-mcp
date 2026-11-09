@@ -680,6 +680,31 @@ describe('cancelRun and discardRun', () => {
     try { child.kill('SIGKILL'); } catch { /* already gone */ }
   });
 
+  // Pre-condition: a running run with no step in flight; its spec directory exists.
+  // Test: cancelRun twice.
+  // Observable result: the spec ledger holds exactly one `run.end` row for the run,
+  // with status `abandoned` — the Specs page reads it to show the spec abandoned,
+  // not in progress, after the run record is gone; a second cancel adds no row.
+  it('cancel writes one run.end abandoned row to the spec ledger', async () => {
+    await writeRun(seedRun(fx));
+
+    await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+    await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+
+    const rows = readFileSync(join(fx.specDir, 'harness-events.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map((l) => JSON.parse(l) as Record<string, string>);
+    const ends = rows.filter((r) => r.type === 'run.end');
+    expect(ends).toEqual([expect.objectContaining({ run: 'run-20261011-000000', spec: SPEC, status: 'abandoned' })]);
+  });
+
+  it('cancel leaves a done run without a run.end abandoned row', async () => {
+    await writeRun(seedRun(fx, { status: 'done' }));
+
+    await cancelRun(cancelDeps(fx), 'run-20261011-000000');
+
+    expect(existsSync(join(fx.specDir, 'harness-events.jsonl'))).toBe(false);
+  });
+
   // Contract (design C7 "Order change", Requirement 7 AC 1/4; tasks.md task
   // 16). Pre-condition: a run with a real, live `inFlight` process.
   // Test: cancelRun(deps, runId), with `process.kill` spied so the test

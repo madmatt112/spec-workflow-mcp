@@ -12,7 +12,7 @@ export interface SpecListRow {
   projectId: string;
   projectName: string;
   spec: string;
-  state: 'live' | 'in-progress' | 'closed' | 'deferred' | 'not-started';
+  state: 'live' | 'in-progress' | 'abandoned' | 'closed' | 'deferred' | 'not-started';
   phase: string | null;
   versions: { requirements: string | null; design: string | null; tasks: string | null };
   tasks: { done: number; total: number };

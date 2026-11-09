@@ -1436,6 +1436,16 @@ export async function cancelRun(deps: CancelDeps, runId: string): Promise<RunRec
   if (!run) return undefined;
   const next: RunRecord = { ...run, status: 'abandoned' as RunStatus, inFlight: undefined, updated: deps.now().toISOString() };
   await writeRun(next);
+  // The spec's ledger records the end too, so the Specs page can tell an
+  // abandoned spec from one in progress after the run record is gone.
+  const specDir = PathUtils.getSpecPath(run.specStore, run.spec);
+  if (run.status !== 'abandoned' && run.status !== 'done' && existsSync(specDir) && !runEnded(specDir, run.id)) {
+    try {
+      openRunLedger({ specDir, runId: run.id, spec: run.spec, now: deps.now }).runEnd('abandoned');
+    } catch (err) {
+      console.error(`[controller] cancel ${runId}: could not write run.end: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   runEvents.emit('change', next);
   if (run.inFlight && isProcessAlive(run.inFlight.pid, run.inFlight.startTime)) {
     await killStep(run.inFlight.pid, run.inFlight.startTime, deps.graceMs ?? 10000);

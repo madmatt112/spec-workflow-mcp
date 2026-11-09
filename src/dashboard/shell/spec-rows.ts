@@ -60,6 +60,17 @@ function firstStatusValue(text: string | undefined): string | null {
 }
 
 /**
+ * True when the ledger's newest run ended `abandoned`: its last `run.start` has a
+ * `run.end` row with status `abandoned` and no later run started.
+ */
+export function newestRunAbandoned(ledger: LedgerEvent[]): boolean {
+  const starts = ledger.filter((e) => e.type === 'run.start' && e.run);
+  const newest = starts[starts.length - 1]?.run;
+  if (!newest) return false;
+  return ledger.some((e) => e.type === 'run.end' && e.run === newest && e.status === 'abandoned');
+}
+
+/**
  * The one closed-spec rule for the Specs page and the usage rows (design D15):
  * true when a phase-log row has phase `closeout` and result `closed`, or when
  * the first word of the plan's first `Status:` value is `CLOSED`.
@@ -73,7 +84,8 @@ export function isSpecClosed(phaseRows: PhaseRow[], planText: string | undefined
 /**
  * One row per snapshot spec (every spec directory) with its harness state
  * (design.md C5). State precedence is first-match (D10): `live`, `closed`,
- * `deferred`, `not-started`, else `in-progress`.
+ * `deferred`, `not-started`, `abandoned` (the newest run ended abandoned), else
+ * `in-progress`.
  */
 export async function buildSpecRows(
   project: ProjectContext,
@@ -117,6 +129,7 @@ export async function buildSpecRows(
     else if (isSpecClosed(phaseRows, retroText)) state = 'closed';
     else if (entry.deferred) state = 'deferred';
     else if (!hasDocOrLedger) state = 'not-started';
+    else if (newestRunAbandoned(ledger)) state = 'abandoned';
     else state = 'in-progress';
 
     // phase — live phase, else newest phase-log stage, else the entry's currentPhase.
