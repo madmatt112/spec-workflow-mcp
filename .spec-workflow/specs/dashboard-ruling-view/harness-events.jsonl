@@ -39,3 +39,8 @@
 {"ts":"2026-11-09T04:18:58.273Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-reviser","role":"lint v2","model":"claude-opus-4-8","effort":"high"}
 {"ts":"2026-11-09T04:23:01.926Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-reviser","input":"66","output":"18298","cacheWrite":"78824","cacheRead":"2530533","tokens":"2627721","cacheWrite5m":"0","cacheWrite1h":"78824","model":"claude-opus-4-8"}
 {"ts":"2026-11-09T04:23:01.927Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-reviser","role":"lint v2","result":"success","phase":"design"}
+{"ts":"2026-11-09T04:23:02.015Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.start","agent":"sdd-checker","role":"narrow check v2","model":"claude-sonnet-5","effort":"high"}
+{"ts":"2026-11-09T04:23:34.263Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.end","agent":"sdd-checker","input":"20","output":"1813","cacheWrite":"37427","cacheRead":"516063","tokens":"555323","cacheWrite5m":"0","cacheWrite1h":"37427","model":"claude-sonnet-5"}
+{"ts":"2026-11-09T04:23:34.263Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"spawn.usage","agent":"sdd-checker","role":"narrow check v2","result":"success","phase":"design"}
+{"ts":"2026-11-09T04:23:34.264Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"note","text":"review cap: round 1 drafting-only, 1 item(s), v2 approved"}
+{"ts":"2026-11-09T04:23:34.785Z","run":"run-20261109-030116","spec":"dashboard-ruling-view","type":"phase.end","phase":"design","result":"approved","state":"v2","note":"2 rounds"}

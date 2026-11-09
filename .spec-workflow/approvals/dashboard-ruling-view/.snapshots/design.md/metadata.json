@@ -1,0 +1,22 @@
+{
+  "filePath": ".spec-workflow/specs/dashboard-ruling-view/design.md",
+  "currentVersion": 2,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2026-11-09T04:23:34.391Z",
+      "trigger": "initial",
+      "approvalId": "approval_1794198214325_xpmcypm1z",
+      "approvalTitle": "dashboard-ruling-view design v2"
+    },
+    {
+      "version": 2,
+      "filename": "snapshot-002.json",
+      "timestamp": "2026-11-09T04:23:34.562Z",
+      "trigger": "approved",
+      "approvalId": "approval_1794198214325_xpmcypm1z",
+      "approvalTitle": "dashboard-ruling-view design v2"
+    }
+  ]
+}
