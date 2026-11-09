@@ -130,3 +130,36 @@
 - src/dashboard/shell/__tests__/board-view.test.ts:19-33 — dynamic import of frontend modules.
 - e2e/worktree-board.spec.ts:699-789 — Home answer-sheet cases on `now-answer-sheet`.
 - playwright.worktree.config.ts:67 — `SDD_DEPLOY_DISABLED`; the real controller still runs.
+
+## Implementation phase (tasks additions)
+- src/controller/phases/implementation.ts:777-795 — implementer attempts: flagged return at 787-788, never-logged error stop at 795.
+- src/controller/phases/implementation.ts:843-844 — gate tool error stop, no task option.
+- src/controller/phases/implementation.ts:945-947 — fix-round flagged return.
+- src/controller/phases/implementation.ts:952 — closing brace of `runTask`.
+
+## Run driver (tasks additions)
+- src/controller/runs.ts:1259-1271 — ruling `escalation` wait, question id `ruling`, task tag.
+- src/controller/runs.ts:1283-1289 — security wait create call.
+- src/controller/runs.ts:1303-1307 — final implementation `error` wait.
+- src/controller/__tests__/runs.test.ts:1451-1467 — `runOnce` driven by a scripted worker step (cancel case).
+- src/controller/__tests__/runs.test.ts:2263 — security wait case, asserts question id, options, no recommendation.
+- src/controller/controller.ts:671-673 — answer patch: `paused` with `pauseRequested`, else `queued`.
+
+## Tests and e2e (tasks additions)
+- src/controller/__tests__/waits.test.ts:106-152 — gate receipt and note row exact-value cases.
+- src/controller/phases/__tests__/implementation.test.ts:842-873 — DESIGN-DEFECT stop and the ruling-to-brief re-entry case.
+- src/dashboard/__tests__/controller-waits-routes.test.ts:93-169 — five route cases; no 401 case at base.
+- src/dashboard/shell/__tests__/board-view.test.ts:1624 — local stage-name fixture type.
+- e2e/worktree-board.spec.ts:47-106 — `baseWait`, wait and run record seed helpers (local, not exported).
+- e2e/worktree-board.spec.ts:699-835 — four answer-sheet cases on `now-answer-sheet`; comment at 697 names `AnswerSheet`.
+- e2e/worktree-board.spec.ts:770 — answering in the sheet returns to the board; its run is absent.
+- playwright.worktree-pattern.ts:21 — `WORKTREE_SPEC_PATTERN`, basename `worktree-*.spec.ts`.
+
+## Frontend (tasks additions)
+- src/dashboard_frontend/src/modules/shell/board.ts:34-52 — `MOVING_STATUSES` (includes `paused`, `waiting`) and `running`.
+- src/dashboard_frontend/src/modules/shell/HomePage.tsx:6 — the only `AnswerSheet` import.
+- src/dashboard_frontend/src/modules/shell/stage.ts:13 — `StageName`.
+
+## Build and checks
+- tsconfig.json:20 — `tsc` excludes `src/dashboard_frontend/`.
+- package.json:35 — `test` is `vitest`; the repo has no ESLint script, binary or config.
