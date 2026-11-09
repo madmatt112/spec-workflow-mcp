@@ -141,7 +141,7 @@ type WaitDiff =
   | { state: 'unreadable'; error: string };
 ```
 
-`DiffCommit.hash` is 7 characters: `%h` for a found commit, else the stored hash's first 7.
+`DiffCommit.hash` holds git's abbreviated short hash: `%h` for a found commit (≥7 characters, 8 in this repo), else the stored full hash sliced to that same width.
 
 ## Error Handling
 
@@ -202,4 +202,6 @@ type WaitDiff =
 ## Revision History
 
 - **v1** (2026-11-08) — Initial draft.
+- **v2** (2026-11-08) — Drafting-only corrective pass.
+  - **R1-1 (M1) — Accepted (MUST_FIX drafting).** The Data Models short-hash note claimed the hash is 7 characters. Probed: git show with the short-hash format returns 8 characters at this repo's HEAD, so the found arm and the not-found "first 7" arm disagreed in length. The note now reads that a found commit uses git's abbreviated short hash of at least 7 characters (8 in this repo, widening as the object count grows) and a not-found commit slices the stored hash to that same width. No requirement, decision or parse/cap behaviour changed.
   - **Lint pass.** 17 fixed: 12 citation-bare ranges (L-3–L-14) given their directory-prefixed paths (`src/controller/phases/implementation.ts`, `src/controller/runs.ts`, `src/controller/waits.ts`), the first range of each block carrying the path and later ranges inheriting it; 5 bare-filename errors repaired — `AnswerSheet.tsx` → `src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx` (L-34, L-50, L-51, the inherited L-52 cleared by the same edit) and `playwright.worktree.config.ts` → `./playwright.worktree.config.ts` (L-80). Three prose tokens that the newly-resolvable citations would otherwise trip (`JSON.stringify`, `escalation`, `error`) were de-ticked on lines 51/65. Rejected: L-1, L-2, L-15–L-33, L-35–L-49, L-53–L-79 (all citation-identifier) — each verified citation anchors its real symbol; the flagged token is a new symbol/field this design adds or a prose word, so its absence from the base ranges is expected, not a wrong citation.
