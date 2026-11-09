@@ -1,0 +1,46 @@
+{
+  "items": [
+    {
+      "header": "D1 note on a pick",
+      "question": "Where does a note go when the answer is a picked option?",
+      "options": [
+        "Keep it out of the value; send it as a separate field written to the receipt and the ledger note",
+        "Append it to every answer value",
+        "Store it as a new field on the stored answer"
+      ]
+    },
+    {
+      "header": "D3 preselection",
+      "question": "With no recommended pick, what does the form preselect?",
+      "options": [
+        "Nothing; the answer button waits for a pick",
+        "The first option, as the sheet does today"
+      ]
+    },
+    {
+      "header": "D2 commits shown",
+      "question": "Which commits make up the task's diff?",
+      "options": [
+        "The test author's red commit, then the task commits",
+        "The task commits alone, as the phase computes them today"
+      ]
+    },
+    {
+      "header": "D4 caps",
+      "question": "How are the stored detail and the live diff capped?",
+      "options": [
+        "12,000 + 8,000 characters for the detail; 60 files, 400 lines per file, 512 KiB for the diff",
+        "One combined detail cap",
+        "No cap"
+      ]
+    },
+    {
+      "header": "Posture",
+      "question": "What is the money, personal-data-and-erasure, and legal/compliance posture (refunds and forfeiture, credits, legal framing)?",
+      "options": [
+        "n/a — the spec touches no money, personal data, or legal surface"
+      ],
+      "basis": "Checked: the spec adds two wait-record fields (worker report text, commit hashes), a read-only git diff route and a dashboard view over local controller state. It has no billing, payment, refund or credit surface, deletes no records or user data, and handles no personal data beyond the operator's own code and rulings on their own machine."
+    }
+  ]
+}
