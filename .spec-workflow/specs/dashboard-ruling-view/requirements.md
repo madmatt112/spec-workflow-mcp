@@ -2,11 +2,11 @@
 
 ## Introduction
 
-The ruling view is one full-width screen, opened from a wait tile, that holds everything the operator needs to answer a controller wait. For a task escalation it shows the wait text, the task row, the stopping worker's report, the task review and the task's diff, then the answer form. It is for the operator, who today must open the scratch folder, the editor and git to rule on a wait.
+The ruling view is one full-width screen, opened from a wait tile, that holds everything the operator needs to answer a controller wait. For a task escalation it shows the wait text, the task row, the worker report, the task review and the diff, then the answer form. Today the operator must open the scratch folder, the editor and git to rule on a wait.
 
 ## Alignment with Product Vision
 
-The steering file `product.md` does not exist in this spec store, so this section aligns with the decomposition entry 33 and the dashboard board plan (decomposition "Dashboard board specs"). That plan wants fewer, larger things on screen and one page per question; the ruling view answers "what do I rule here, and on what evidence". It moves the evidence into the wait record and git, so the dashboard never reads the scratch folder.
+The steering file `product.md` does not exist in this spec store, so this section aligns with decomposition entry 33 and the dashboard board plan. That plan wants fewer, larger things on screen and one page per question; the ruling view answers "what do I rule here, and on what evidence".
 
 ## Requirements
 
@@ -16,7 +16,7 @@ The steering file `product.md` does not exist in this spec store, so this sectio
 
 #### Acceptance Criteria
 
-1. WHEN the operator presses Answer on a wait tile THEN the dashboard SHALL replace the board with the ruling view at full width, with a "Back to board" link above it, and no band of the board SHALL be visible. Invariant (verified, not red-first): this holds at base (`src/dashboard_frontend/src/modules/shell/HomePage.tsx:154-171`).
+1. WHEN the operator presses Answer on a wait tile THEN the dashboard SHALL replace the board with the ruling view in that content slot, with a "Back to board" link above it, and no band of the board SHALL be visible. The board-swap, the link and the hidden board hold at base and are the invariant (verified, not red-first): `src/dashboard_frontend/src/modules/shell/HomePage.tsx:154-171`. The ruling view that fills the slot — its header, task row and diff (AC 1.2 onward) — is new and SHALL be red-first.
 2. WHEN the view is open THEN its header SHALL show the wait kind, the project name, the spec, the wait id, the age in the display type size (the class the wait tile uses at `src/dashboard_frontend/src/modules/shell/tiles.tsx:90`), the run id, and the run's phase and step kind.
 3. WHEN the wait's first question carries a `task` tag THEN the header SHALL also show "task" and that id.
 4. IF the wait's run is not in the controller's run list THEN the header SHALL show "run record gone" in place of the phase and step, and the rest of the view SHALL still render.
@@ -41,7 +41,7 @@ The steering file `product.md` does not exist in this spec store, so this sectio
 9. WHEN `handleImplementationOutcome` (`src/controller/runs.ts:1242-1309`) opens the ruling `escalation` wait or the implementation `error` wait THEN it SHALL write the outcome's `detail` and `commits` into the wait, and the `error` question SHALL carry the outcome's `task` tag when it has one.
 10. Waits from the document, merge, retrospective and close-out paths, and the security escalation, SHALL carry neither field. Invariant (verified, not red-first) for every path this spec does not touch.
 11. No file under `harness/agents/` or `harness/skills/` and no report schema in `src/controller/phases/implementation.ts:152-182` SHALL change: the worker roles stay as they are.
-12. The wire copies of the wait shape (`src/dashboard/shell/types.ts:57-95` and `src/dashboard_frontend/src/modules/shell/types.ts:53-91`) SHALL gain `detail`, `commits` and the question `task` tag. `listWaitsForWire` SHALL still strip `specDir`.
+12. The wire copies of the wait shape (`src/dashboard/shell/types.ts:57-95` and `src/dashboard_frontend/src/modules/shell/types.ts:53-91`) SHALL gain `detail` and the question `task` tag; they SHALL NOT carry `commits`, which the diff route reads from the server-side record. `listWaitsForWire` SHALL still strip `specDir`.
 
 ### Requirement 3 — The task section of an escalation or error wait
 
@@ -63,7 +63,7 @@ The steering file `product.md` does not exist in this spec store, so this sectio
 #### Acceptance Criteria
 
 1. The server SHALL serve `GET /api/controller/waits/:id/diff`. It SHALL answer 404 for an unknown wait id.
-2. WHEN the wait has commits and the run's worktree exists THEN the route SHALL run `git show` for each commit in the run's `worktree` and return, per commit (oldest first) its short hash and subject, and per file its repo-relative path and its hunks with each line marked added, removed or context.
+2. WHEN the wait has commits and the run's worktree exists THEN the route SHALL run `git show` for each commit in the run's `worktree` and answer with state `ok` and a `commits` array holding, per commit (oldest first), its short hash and subject, and per file its repo-relative path and its hunks with each line marked added, removed or context.
 3. Each hash SHALL match `^[0-9a-f]{7,40}$` before it reaches git. git SHALL run with an argument array, never a shell string.
 4. The response SHALL be capped: at most 60 files with hunks across all commits; at most 400 diff lines per file; at most 512 KiB of JSON. A file cut by the line cap SHALL say how many lines were dropped. Files past the 60th SHALL be listed by path only, with the count of such files. A binary file SHALL be listed as "binary".
 5. IF the run's worktree path does not exist THEN the route SHALL answer with state `worktree-gone`, and the view SHALL show "worktree gone" in the diff section.
@@ -86,7 +86,7 @@ The steering file `product.md` does not exist in this spec store, so this sectio
 4. WHEN the wait is `retro-plan` THEN the view SHALL show its questions first, then the proposals as a list of checkboxes, all ticked by default, each with its title and details. Invariant (verified, not red-first): `src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx:210-260`.
 5. WHEN the wait is `merge` THEN the view SHALL show the PR number (a link when the read has an https URL), the CI state, the mergeable value, the rule's verdict and every reason, from the `PrRead` that `mergeRead` selects (`src/dashboard_frontend/src/modules/shell/board.ts:152-163`), then Merge and Hold. IF no read exists THEN it SHALL show "PR not read yet" and still offer Merge and Hold.
 6. WHEN the wait is an `escalation` whose question id is `security` THEN the view SHALL show each finding line of the question text as a list item, then the options accept, retry and abandon as radios with none preselected.
-7. WHEN the wait is an `escalation` or `error` with no `task` tag (a document-phase escalation at `src/controller/runs.ts:1359-1364`, a merge or close-out error) THEN the view SHALL show the wait text and "no task: raised in the X phase" with X the run's phase, and SHALL show no task row and no diff section.
+7. WHEN the wait is an `escalation` or `error` with no `task` tag and whose question id is not `security` (a document-phase escalation at `src/controller/runs.ts:1359-1364`, a merge or close-out error) THEN the view SHALL show the wait text and "no task: raised in the X phase" with X the run's phase, SHALL show no task row and no diff section, and SHALL still show the answer form. The security escalation (question id `security`) is governed by AC 6, which takes precedence.
 8. WHEN the wait is `question` THEN the view SHALL show each question by the rules of Requirement 6 AC 1.
 
 ### Requirement 6 — The answer form
@@ -127,25 +127,30 @@ The steering file `product.md` does not exist in this spec store, so this sectio
 
 ## Decisions taken in this document
 
-- D1 — A note on a picked option stays out of the answer value: options were keep it out and send it as a separate field written to the gate receipt and the ledger note, append it to every value, store it as a new field on the stored answer; chosen because the controller, the merge rule and gate B match option values exactly, so an appended note would turn Approve into an annotation or Merge into an unknown decision.
-- D2 — The task's commits include the test author's red commit before the task commits: options were red commit plus task commits, task commits alone as the phase computes them today; chosen because the operator ruling on a test-first task needs to see the tests the implementer worked against.
-- D3 — With no recommended pick, nothing is preselected and the answer button waits for a pick: options were no preselection, keep preselecting the first option as the sheet does today; chosen because the security escalation has no recommendation and a preselected accept would record open findings on one careless press.
-- D4 — The caps are 12,000 plus 8,000 characters for the detail and 60 files, 400 lines per file and 512 KiB for the diff: options were these caps, one combined detail cap, no cap; chosen because a capped wait file stays small enough to push to every client and a capped diff still shows a normal task whole.
-- D5 — A task ruling keeps an "Abandon the run" control: options were keep it, drop it and leave the run tile's Stop as the only way out; chosen because the sheet offers Abandon on escalations today and removing it is a regression the entry does not ask for.
-- D6 — The phase and step in the header come from the run record, not from new wait fields: options were read the run record, add phase and step fields to the wait; chosen because the entry fixes the new wait fields at two and a waiting run's phase and cursor are the ones that raised the wait.
-- D7 — The risk shown on the task row is read from the newest gate note in the spec ledger: options were the ledger gate note, a new risk field on the outcome, leave risk out; chosen because tasks do not record a risk and the gate note is the only stored score.
-- D8 — The task row is read live from the spec's tasks file on open: options were read it live, copy it into the wait record; chosen because the entry puts only the detail and the commits into the record, and a live read shows any file-list patch made since the stop.
-- D9 — Escalation and error answers add a section per wait id to the questions receipt: options were one section per wait id, one replaced section per kind, no receipt for these kinds; chosen because the entry's verification wants the ruling in the receipt and several rulings in one run must all stay readable.
-- D10 — The diff is grouped per commit, then per file: options were per commit then per file, one combined diff across the range; chosen because the entry names a show per commit and a rewritten hash can then be reported alone.
+- D1 — A note on a picked option stays out of the answer value, travelling as a separate field to the gate receipt and the ledger note; chosen because the controller, the merge rule and gate B match option values exactly, so an appended note would turn Approve into an annotation or Merge into an unknown decision.
+- D2 — The task's commits include the test author's red commit before the task commits; chosen because the operator ruling on a test-first task needs to see the tests the implementer worked against.
+- D3 — With no recommended pick, nothing is preselected and the answer button waits for a pick; chosen because the security escalation has no recommendation and a preselected accept would record open findings on one careless press.
+- D4 — The caps are 12,000 plus 8,000 characters for the detail and 60 files, 400 lines per file and 512 KiB for the diff; chosen because a capped wait file stays small enough to push to every client and a capped diff still shows a normal task whole.
+- D5 — A task ruling keeps an "Abandon the run" control; chosen because the sheet offers Abandon on escalations today and removing it is a regression the entry does not ask for.
+- D6 — The phase and step in the header come from the run record, not from new wait fields; chosen because the entry fixes the new wait fields at two and a waiting run's phase and cursor are the ones that raised the wait.
+- D7 — The risk shown on the task row is read from the newest gate note in the spec ledger; chosen because tasks do not record a risk and the gate note is the only stored score.
+- D8 — The task row is read live from the spec's tasks file on open; chosen because the entry puts only the detail and the commits into the record, and a live read shows any file-list patch made since the stop.
+- D9 — Escalation and error answers add a section per wait id to the questions receipt; chosen because the entry's verification wants the ruling in the receipt and several rulings in one run must all stay readable.
+- D10 — The diff is grouped per commit, then per file; chosen because the entry names a show per commit and a rewritten hash can then be reported alone.
 
 ## Scope notes
 
 - Carried from the decomposition: none.
-- The steering file `product.md` is absent from this spec store; the alignment section rests on the decomposition instead.
 - Nothing the entry lists is cut. The entry's "resumes at the fix step" is read as "the next implementer step for the task, with the ruling in its brief", because an escalation resets the task to pending (`src/controller/phases/implementation.ts:570`) and the next pass spawns a fresh implementer, not a fix round.
 - Out of scope: a deep link URL to the view, a document-phase `detail`, and any change to the worker roles or their report schemas.
 
 ## Revision History
 
+- **v2** (2026-11-08) — Round-1 adversarial response (adversarial-analysis-requirements.md, verdict iterate 0/3/2).
+  - **R1-1 — Accepted (SHOULD_FIX).** R5 AC 7 now excludes the escalation whose question id is security, so AC 6 alone governs it and the taskless layout can no longer hide the accept, retry and abandon radios (line 89).
+  - **R1-2 — Accepted (SHOULD_FIX).** R4 AC 2 now names the success discriminant state ok and the response array holding the commits, matching the four failure states (line 66).
+  - **R1-3 — Accepted (SHOULD_FIX).** R1 AC 1 is split: the board-swap, the link and the hidden board stay the base invariant; the ruling view that fills the slot is new and red-first (line 19).
+  - **R1-4 — Accepted (MINOR).** R5 AC 7 now states the answer form still renders for a taskless escalation or error (line 89).
+  - **R1-5 — Accepted (MINOR).** R2 AC 12 drops the unused raw hash list from the wire copies; the client reads the diff server-side, so only the detail and the question task tag ride the wire, while the hash list stays on the server record for the diff route (line 44).
 - **v1** (2026-11-08) — Initial draft.
-  - **Lint pass.** 20 citation-path errors fixed — each bare filename given its directory prefix (`HomePage.tsx`, `implementation.ts`, `gates.ts`, `AnswerSheet.tsx`, `controller.ts`, `board.ts`); the bare sibling range `313-317` on line 107 repaired to carry its full path too. Rejected: L-7, L-8, L-9, L-11, L-12, L-13, L-14, L-15, L-16, L-17, L-23, L-24, L-26, L-27, L-28 — each flags a backticked token the cited range does not define while the citation correctly anchors the symbol or behaviour it follows: `detail`/`commits`/the question `task` tag are this spec's new fields ("SHALL gain"), `isTddMarked`, `listWaitsForWire` and `specDir` carry their own citations elsewhere, `Success` is a prompt-section label, and `escalation`/`error`/`task` are wait kinds, not symbols at the range.
+  - **Lint pass.** 20 citation-path errors fixed — each bare filename given its directory prefix and the bare sibling range on line 107 repaired. Rejected L-7, L-8, L-9, L-11 through L-17, L-23, L-24, L-26, L-27, L-28: each flags a token the cited range does not define while the citation correctly anchors the symbol or behaviour it follows (new fields, prompt-section labels, wait kinds, and symbols cited elsewhere).
