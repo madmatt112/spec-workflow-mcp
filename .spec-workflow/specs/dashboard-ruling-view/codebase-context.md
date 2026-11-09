@@ -80,3 +80,53 @@
 - src/controller/__tests__/waits.test.ts:1-673 — waits module tests.
 - src/controller/__tests__/runs.test.ts — run driver tests.
 - e2e/worktree-board.spec.ts:1-3736 — worktree board Playwright suite.
+
+## Implementation phase (design additions)
+- src/controller/phases/implementation.ts:356-371 — `runImplementationPhase` start: tasks path, scratch dir, log manager.
+- src/controller/phases/implementation.ts:374-378 — `git` and `gitTry` over `execFileSync` with `scrubbedGitEnv`.
+- src/controller/phases/implementation.ts:477-517 — `runModelStep`; a non-ok step returns an `error` outcome with no task.
+- src/controller/phases/implementation.ts:618-639 — per-task loop: orient, pick the queue head, `runTask`.
+- src/controller/phases/implementation.ts:1063-1074 — `complete`: task done, retro entry, spec-store commit.
+
+## Run driver and controller (design additions)
+- src/controller/runs.ts:1283-1289 — security escalation wait: question id `security`, options accept, retry, abandon.
+- src/controller/runs.ts:1296-1308 — one fresh retry on `error`, then the implementation `error` wait.
+- src/controller/controller.ts:660 — a deploy-held run stays `waiting` after an answer.
+- src/controller/controller.ts:671-673 — answer patch: `paused` when `pauseRequested`, else `queued`.
+
+## Wait wire and routes (design additions)
+- src/dashboard/multi-server.ts:34-47 — server imports: waits, actions, state readers (`readWait`, `listRuns`).
+- src/dashboard/multi-server.ts:701-715 — answer route: body `answers` and `by`, `checkAnswerKeys`, `answerWait`.
+- src/dashboard/shell/shell-feed.ts:107 — shell push reads `listWaitsForWire`.
+
+## Gates (design additions)
+- src/controller/phases/gates.ts:148-159 — gate A defer question: free with options.
+- src/controller/phases/gates.ts:229-243 — gate B question: free with options Approve and Annotate.
+
+## Review records and git helpers
+- src/core/task-review-manager.ts:33-40 — `TaskReviewManager` over `<specDir>/reviews`.
+- src/tools/get-task-review.ts:58 — spec path from project path and spec name.
+- src/tools/get-task-review.ts:73 — the tool builds a `TaskReviewManager` on the spec path.
+- src/core/git-utils.ts:45-51 — `scrubbedGitEnv`.
+- src/tools/review-gate.ts:73-74 — `GateData` gate verdict and risk values.
+
+## Dashboard frontend (design additions)
+- src/dashboard_frontend/src/modules/shell/stage.ts:55-70 — `responseStage`: non-2xx to failed with reason.
+- src/dashboard_frontend/src/modules/shell/stage.ts:73-96 — `resolved` per stage name.
+- src/dashboard_frontend/src/modules/shell/stage.ts:106-123 — `advance`: 30 s running timeout, 5 s done clear.
+- src/dashboard_frontend/src/modules/shell/useStages.ts:24-49 — `useStages`: press and retained.
+- src/dashboard_frontend/src/modules/shell/harness.tsx:11-24 — `callHarness`.
+- src/dashboard_frontend/src/modules/shell/HomePage.tsx:60-63 — one-second tick.
+- src/dashboard_frontend/src/modules/shell/HomePage.tsx:148-171 — `openWait` re-derived; board swap.
+- src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx:45-78 — `SecondOpinionButton`.
+- src/dashboard_frontend/src/modules/shell/AnswerSheet.tsx:210-260 — retro-plan proposals checkboxes.
+- src/dashboard_frontend/src/modules/shell/board.ts:165-178 — `waitSummary`.
+- src/dashboard_frontend/src/modules/shell/board.ts:184-195 — `compactAge`.
+- src/dashboard_frontend/src/modules/shell/tiles.tsx:13-16 — wait kind labels.
+
+## Tests (design additions)
+- src/controller/phases/__tests__/implementation.test.ts:842-867 — DESIGN-DEFECT and ESCALATE flag cases, `operatorRulings`.
+- src/dashboard/__tests__/controller-waits-routes.test.ts:1-169 — wait route tests over a real server.
+- src/dashboard/shell/__tests__/board-view.test.ts:19-33 — dynamic import of frontend modules.
+- e2e/worktree-board.spec.ts:699-789 — Home answer-sheet cases on `now-answer-sheet`.
+- playwright.worktree.config.ts:67 — `SDD_DEPLOY_DISABLED`; the real controller still runs.
