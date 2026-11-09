@@ -188,6 +188,7 @@ Rolling state for the SDD loops. The implementation loop updates this at its com
 | 2026-11-08 | decisions-and-launch-guard | implementation | tasks 23/23 | complete | PR #210 |
 | 2026-11-08 | decisions-and-launch-guard | retrospective |  | retro-ready | 17 findings, 14 proposals |
 | 2026-11-08 | decisions-and-launch-guard | closeout | items 14/14 | closed | 1 done, 1 to-do, 12 skipped |
+| 2026-11-09 | dashboard-ruling-view | requirements | v2 | approved | 2 rounds |
 
 ## Current state — 2026-08-04
 
@@ -1579,4 +1580,17 @@ Gotchas:
 | PRs | https://github.com/madmatt112/spec-workflow-mcp/pull/211 |
 | To-dos | P11: Core change is the completion-gate behavior plus the eval harness/evals/completion-gate-midspec-review-required/, both outside .spec-workflow; needs the worktree/CI spec flow, not a direct main commit. agent-rules.md:214 still states the Option-C 'surfaces as a finding' behavior the recorded Option-A decision supersedes, so a partial agent-rules-only edit would assert a rule the gate code does not enforce. |
 | Gotchas | none |
+
+
+## dashboard-ruling-view — requirements
+
+| Field | Value |
+| --- | --- |
+| State | approved at v2 on 2026-11-09 |
+| Rounds | 2; verdicts converged |
+| Approval | `approval_1794195479820_ykx6rv11h` |
+| Rulings | none |
+| Cut scope | none |
+| Carried items | none |
+| Next phase loads | codebase-context.md |
 

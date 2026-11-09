@@ -1,0 +1,12 @@
+{
+  "id": "approval_1794195479820_ykx6rv11h",
+  "title": "dashboard-ruling-view requirements v2",
+  "filePath": ".spec-workflow/specs/dashboard-ruling-view/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2026-11-09T03:37:59.820Z",
+  "category": "spec",
+  "categoryName": "dashboard-ruling-view",
+  "response": "v2; 2 review rounds; final verdict MUST_FIX 0 / SHOULD_FIX 0 / MINOR 0; rulings: none; cap: not hit",
+  "respondedAt": "2026-11-09T03:38:00.210Z"
+}
