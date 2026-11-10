@@ -64,3 +64,8 @@ Cost: author
 task 10 closed: 0 fix round(s), outcome gate
 Evidence: task 10 · mark run-20261109-030116 165b92f1
 Cost: 1 implementer spawn(s)
+
+## 2026-11-10T03:51:33Z · implementation · task 11 · deviation
+task 11: implementer reported REQUIRED for an off-list file — src/dashboard/shell/__tests__/ruling-view.test.ts — task 11's own success check `grep -rn AnswerSheet src e2e` hits this task-10 author test's prose comments (lines ~313/321, citing "AnswerSheet.tsx:254-257"); the file is absent from task 11's File: list, so no implementer edit can clear this per the agent-rules.md root-walking-scrub rule — add it to tasks.md's File: list and the comment can be reworded.; no implementer edit can move a file-list verdict — the fix is to list the file in the task's File entries in tasks.md
+Evidence: task 11 · mark run-20261109-030116 c6d94477
+Cost: unknown
