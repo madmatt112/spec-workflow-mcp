@@ -10,7 +10,8 @@ import { isOperatorHeld } from './pause';
 import { isStalled } from './board';
 import type { HarnessResult } from './harness';
 
-export type StageName = 'pause' | 'resume' | 'stop' | 'discard' | 'redrive' | 'launch' | 'confirm' | 'dismiss';
+export type StageName =
+  | 'pause' | 'resume' | 'stop' | 'discard' | 'redrive' | 'launch' | 'confirm' | 'dismiss' | 'answer';
 export type StagePhase = 'pressed' | 'running' | 'done' | 'failed';
 
 export interface Stage {
@@ -92,6 +93,8 @@ export function resolved(stage: Stage, seen: Observed): boolean {
       return seen.actionState === 'done' || seen.actionState === 'refused' || seen.actionState === 'failed';
     case 'dismiss':
       return seen.actionState === 'dismissed';
+    case 'answer':
+      return seen.run === undefined || seen.run.status !== 'waiting';
   }
 }
 
