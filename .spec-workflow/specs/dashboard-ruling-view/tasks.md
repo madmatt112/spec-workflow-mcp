@@ -103,7 +103,7 @@ Dependency order: run the tasks in number order. The chains are 1 â†’ 4 and 1 â†
   - _Requirements: 2.12, 3.4, 4.1, 4.10, 4.11_
   - _Prompt: Task: Per design C5, C6 and design D1 (requirement 3 AC 4, requirement 4 AC 1, AC 11), add `GET /api/controller/waits/:id/task` and `GET /api/controller/waits/:id/diff` beside the wait routes (`src/dashboard/multi-server.ts:693-735`). Both read the record with `readWait` (`:45`); the task route calls the reader task 7 exports with the first question's `task`, the diff route calls the reader task 8 exports with the run from `readRun` (`src/controller/state.ts:414-416`) | Restrictions: No auth exemption; no response field holds `specDir` or the worktree path | Success: each route answers 404 `wait-not-found` for an unknown id; the task route answers `no-task` for an untagged wait, `ok` with the row for a tagged wait whose spec dir holds `tasks.md`, and `not-found` for an id missing from it, and no response contains the spec dir path; the diff route answers `run-gone` with no run record and `no-commits` for a wait with none; each route answers 401 without a session; the waits list carries no `commits` or `specDir`; `npx tsc --noEmit` and `npx vitest run src/dashboard/__tests__/controller-waits-routes.test.ts` pass_
 
-- [ ] 10. Build the view's pure rules and the answer stage
+- [x] 10. Build the view's pure rules and the answer stage
   - File: src/dashboard_frontend/src/modules/shell/ruling.ts
   - File: src/dashboard_frontend/src/modules/shell/stage.ts
   - File: src/dashboard/shell/__tests__/ruling-view.test.ts

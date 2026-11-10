@@ -54,3 +54,13 @@ Cost: 1 implementer spawn(s)
 task 9 closed: 0 fix round(s), outcome gate
 Evidence: task 9 · mark run-20261109-030116 cc343b3d
 Cost: 1 implementer spawn(s)
+
+## 2026-11-10T03:12:26Z · implementation · task 10 · ruling
+view.test.ts"],"flag":"none","tests":22,"folds":"none","redImpossible":"none","retro":"none"}
+Evidence: task 10 · mark run-20261109-030116 f2ea92e2
+Cost: author
+
+## 2026-11-10T03:17:44Z · implementation · task 10 · gotcha
+task 10 closed: 0 fix round(s), outcome gate
+Evidence: task 10 · mark run-20261109-030116 165b92f1
+Cost: 1 implementer spawn(s)

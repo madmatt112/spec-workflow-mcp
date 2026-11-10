@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/ruling-view.test.ts"],"seams":{"src/dashboard/shell/__tests__/ruling-view.test.ts":"answerPayload(wait, picks, texts, notes)"},"redCommit":"ee09d69ad70b82edd05161c4f3eb83dd034ea626","baseSha":"e1bb9feabb57c4fdb86f40db8c76d6bcac9bdf2c","base":"structural-red","head":"pass","amended":false,"judged":null}
