@@ -39,6 +39,7 @@ import type { GateData } from '../../tools/review-gate.js';
 import {
   parseTasksFromMarkdown, updateTaskStatus, taskBlock, addTaskFiles, type ParsedTask,
 } from '../../core/task-parser.js';
+import { isTddMarked } from '../../core/tdd-mark.js';
 import { ImplementationLogManager } from '../../dashboard/implementation-log-manager.js';
 import { DeferralStorage } from '../../core/deferral-storage.js';
 import { PathUtils } from '../../core/path-utils.js';
@@ -267,21 +268,10 @@ const RETRO_CATEGORIES = new Set([
   'inefficiency', 'doc-gap', 'model-behaviour', 'ruling', 'escalation', 'cleanup', 'deviation',
 ]);
 
-/**
- * The `kind: e2e` marker, anchored to its own line in the task block (retro F4/P4):
- * a standalone `kind: e2e` line (optionally a `- `/`* ` bullet), never an inline
- * mention or a code-span quote inside prose. The block-wide match it replaces flipped
- * a real TDD task whenever prose merely quoted the marker.
- */
-const E2E_MARKER_RE = /^\s*[-*]?\s*kind:\s*e2e\b/im;
-
-/** Is this a `[-]`/`[ ]` task whose `- Test:` seam routes it to the test author? A task
- * with a seam is TDD-marked unless its block carries a standalone `kind: e2e` marker
- * line; prose that merely quotes the marker does not route (retro F4/P4). */
-export function isTddMarked(task: ParsedTask, block: string): boolean {
-  if (!task.tests || task.tests.length === 0) return false;
-  return !E2E_MARKER_RE.test(block);
-}
+// The TDD-routing predicate is shared with the brief tool so the two surfaces
+// can never disagree again (retro F5/P5); re-exported here for the dashboard and
+// the phase tests that read it from this module.
+export { isTddMarked };
 
 /**
  * A task that adds or changes wiring (SKILL.md step 4, retro P6): an entrypoint,
@@ -815,9 +805,10 @@ export async function runImplementationPhase(ctx: ImplementationPhaseContext): P
         values.authorReport = authorReport;
       } else if (task.tests && task.tests.length > 0) {
         // A task with a `- Test:` seam routed implementer-only (red-impossible on
-        // every criterion, nothing committed, or a `kind: e2e` block): the brief
-        // tool treats any task with tests as marked and requires both keys, so
-        // pass them empty; the brief then has no red tests.
+        // every criterion, or nothing committed) stays TDD-marked for the shared
+        // predicate, so the brief tool still requires both keys: pass them empty
+        // and the brief carries no red tests. A `kind: e2e` block is not TDD-marked,
+        // so this branch does not apply to it (the brief tool defaults the keys).
         values.authorFiles = '';
         values.authorReport = '';
       }
