@@ -160,6 +160,18 @@ export function itemPaths(block: string): string[] {
   return [...out];
 }
 
+/**
+ * Paths an implementer report names as `REQUIRED: <path>`: a file the item
+ * genuinely needs that the gate's file list lacks (the implementation phase's
+ * file-outside-list escape, implementer rules).
+ */
+export function requiredPaths(text: string | undefined): string[] {
+  if (!text) return [];
+  const out = new Set<string>();
+  for (const m of text.matchAll(/REQUIRED:\s*`?([^\s`,;]+)`?/g)) out.add(m[1].replace(/^\.\//, ''));
+  return [...out];
+}
+
 /** Report lines `P1: done <sha>` | `P1: to-do — <reason>` | `P1: skipped — <reason>` from text, as a fallback. */
 export function parseItemLines(text: string): ItemReport[] {
   const out: ItemReport[] = [];
@@ -444,7 +456,7 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
     if (retroFlag && !/^\s*(none|n\/a)?\s*$/i.test(retroFlag)) retro(`${cls} batch ${batchNo}`, 'gotcha', retroFlag, `batch ${batchNo}`, 'implementer');
 
     // 3b-5. Gate, verify and fix rounds for the done items.
-    const state = new Map<string, { report: ItemReport; gate?: GateData; ok: boolean; findings?: string }>();
+    const state = new Map<string, { report: ItemReport; gate?: GateData; ok: boolean; findings?: string; extra?: string[] }>();
     for (const it of items) state.set(it.id, { report: reports.find((r) => r.id === it.id) ?? { id: it.id, status: 'to-do', reason: 'no report line' }, ok: false });
     const resolveCommit = (id: string, sha?: string): string | undefined => {
       if (sha && /^[0-9a-f]{7,40}$/i.test(sha) && git(landing.root, ['cat-file', '-e', `${sha}^{commit}`]) !== undefined) return git(landing.root, ['rev-parse', sha]);
@@ -491,6 +503,8 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
         const tests = commitFiles.filter((p) => isTestPath(p) && !files.includes(p));
         if (tests.length > 0) { files = [...files, ...tests]; ctx.ledger.note(`gate: item ${id} test files from the commit added to the list`); }
       }
+      // Files a fix round reported REQUIRED (and the commit touched) join the list.
+      if (s.extra && s.extra.length > 0) files = [...new Set([...files, ...s.extra])];
       if (files.length === 0) { s.ok = true; ctx.ledger.note(`gate: item ${id} ok (no path named)`); return; }
       const res = await reviewTaskHandler({ action: 'gate', specName, taskId: id, root: landing.root, commit, files, checks: landing.checks }, toolContext);
       if (!res.success) { s.ok = false; s.findings = `gate error: ${res.message}`; ctx.ledger.note(`gate: item ${id} error`); return; }
@@ -589,7 +603,24 @@ export async function runCloseoutPhase(ctx: CloseoutPhaseContext): Promise<Close
       for (const it of failing) {
         const r = fixed.find((x) => x.id === it.id);
         const s = state.get(it.id)!;
-        if (r && r.status !== 'done') { s.report = r; continue; }
+        if (r && r.status !== 'done') {
+          // A `REQUIRED: <path>` hand-back for a file the item's own commit
+          // touched is a file-list verdict no edit can move: add the file to the
+          // item's list and gate the same commit again, as the implementation
+          // phase does, instead of reverting a correct change.
+          const commitFiles = s.report.commit
+            ? (git(landing.root, ['show', '--name-only', '--format=', s.report.commit]) ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
+            : [];
+          const accepted = requiredPaths(r.reason).filter((p) => commitFiles.includes(p));
+          if (accepted.length > 0) {
+            s.extra = [...new Set([...(s.extra ?? []), ...accepted])];
+            ctx.ledger.note(`gate: item ${it.id} REQUIRED ${accepted.join(', ')} added to its file list`);
+            await gateItem(it.id, round);
+            continue;
+          }
+          s.report = r;
+          continue;
+        }
         if (r?.commit) s.report.commit = r.commit;
         await gateItem(it.id, round);
       }
