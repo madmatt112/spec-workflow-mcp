@@ -1,0 +1,1 @@
+{"testFiles":["src/dashboard/shell/__tests__/wait-diff.test.ts"],"seams":{"src/dashboard/shell/__tests__/wait-diff.test.ts":"parseShow(text)"},"redCommit":"4ef768749cbd96ea09cd19c849c614723e8c559a","baseSha":"b3764709f8c76da3899eeb6b2ca0dc8cb6482624","base":"structural-red","head":"pass","amended":false,"judged":null}

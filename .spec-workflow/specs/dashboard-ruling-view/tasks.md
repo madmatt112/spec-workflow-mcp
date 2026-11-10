@@ -80,7 +80,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 4 and 1 �
   - _Requirements: 3.2, 3.3, 3.4, 3.5_
   - _Prompt: Task: Per design C5 and design D8, D9 (requirement 3 AC 2, AC 3, AC 5), create `src/dashboard/shell/ruling-rows.ts` with `riskFromLedger` and `readTaskRow` as design C5 pins them, returning the `WaitTaskRow` type task 6 adds. Export `isTddMarked` (`src/controller/phases/implementation.ts:256-259`) with its body unchanged and use it | Restrictions: Read only `tasks.md` and `harness-events.jsonl` under the given spec dir; the row holds no path but the task's own `Files` entries | Success: `riskFromLedger` returns the risk of the newest matching gate note; ignores notes for another task id (task `1` does not match a `gate: task 12` note); skips a torn line; returns `null` with no note; `readTaskRow` returns `ok` with id, title, the `Success` text, `tdd` true for a task with a `Test:` line, `risk` and `files`; `tdd` is false for a block marked `kind: e2e`; `success` is `null` with no `Success` section; an absent id and a missing `tasks.md` each give `not-found` with the id; `npx tsc --noEmit` and `npx vitest run src/dashboard/shell/__tests__/ruling-rows.test.ts` pass_
 
-- [ ] 8. Build the diff reader
+- [x] 8. Build the diff reader
   - File: src/dashboard/shell/wait-diff.ts
   - File: src/dashboard/shell/__tests__/wait-diff.test.ts
   - Test: src/dashboard/shell/__tests__/wait-diff.test.ts — `parseShow(text)`
