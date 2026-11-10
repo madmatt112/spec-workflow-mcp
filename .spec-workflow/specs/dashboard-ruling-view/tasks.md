@@ -47,7 +47,7 @@ Dependency order: run the tasks in number order. The chains are 1 â†’ 4 and 1 â†
   - _Requirements: 2.9, 2.10_
   - _Prompt: Task: Per design C3 (requirement 2 AC 9, AC 10), give `waitAnd` (`src/controller/runs.ts:622-631`) a trailing optional evidence argument passed to `createWait`. In `handleImplementationOutcome` (`:1242-1309`) the ruling wait (`:1259-1271`) and the final `error` wait (`:1303-1307`) pass the outcome's `detail` and `commits`, and the `error` question gains `task: outcome.task` when set. Drive the cases through `runOnce` with a scripted worker, as the cancel case at `src/controller/__tests__/runs.test.ts:1451-1467` does | Restrictions: The security wait (`:1283-1289`), the document escalation (`:1359-1364`) and every other `waitAnd` caller pass no evidence; do not change `escalationRulings` (`:1188-1204`) | Success: a DESIGN-DEFECT flag opens an `escalation` wait whose record holds `detail` and `commits` and whose `ruling` question carries the task tag; a never-logged `error` raised again after the fresh retry opens an `error` wait whose record holds `commits` and whose `error` question carries `task` `1`; the security wait holds neither field (regression guard); `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/runs.test.ts` pass_
 
-- [ ] 5. Take a note with an answer and write the ruling receipt
+- [x] 5. Take a note with an answer and write the ruling receipt
   - File: src/controller/waits.ts
   - File: src/dashboard/multi-server.ts
   - File: src/controller/__tests__/waits.test.ts
