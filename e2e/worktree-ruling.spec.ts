@@ -34,9 +34,12 @@ import type { RunRecord, WaitRecord } from '../src/controller/state.js';
  *    holds the title, the Success text, "TDD yes", the ledger risk and both
  *    files; the detail (`ruling-detail`) holds "Worker report" and the
  *    seeded report text; the diff (`ruling-diff`) holds the fixture
- *    commit's added line.
+ *    commit's added line; the wait text, task row, detail, diff and the
+ *    form's "Answer and continue the run" button appear in that order; an
+ *    "Abandon the run" control (`ruling-abandon`) is offered.
  *    Source: task 11 Success, first clause; Requirements 1.2, 1.3, 1.5, 3.1,
- *    3.2, 3.3, 3.6, 4.2, 4.5 (added line), 4.7 (worker report before review).
+ *    3.2, 3.3, 3.6, 4.2, 4.5 (added line), 4.7 (worker report before review),
+ *    6.8, 6.9.
  * 2. An `escalation` wait whose `run` names no run record.
  *    Call: same press.
  *    Result: the view shows "run record gone" and the answer form
@@ -49,7 +52,24 @@ import type { RunRecord, WaitRecord } from '../src/controller/state.js';
  *    checked; "(recommended)" and "The plan" are visible, with the seeded
  *    proposal line under it.
  *    Source: task 11 Success "a gate-B wait shows Approve checked with
- *    (recommended) and The plan"; Requirements 5.1, 5.3, 6.2.
+ *    (recommended) and The plan"; Requirements 5.1, 5.3, 6.2, 6.8.
+ * 3a. A `gate-a` wait with one asked decision (`recommended` set) and one
+ *    recorded-not-asked proposal line.
+ *    Call: same press.
+ *    Result: the first of two `answer-opt-D1` radios is checked;
+ *    "(recommended)" and "Recorded without asking" are visible, with the
+ *    seeded recorded-decision line under it.
+ *    Source: Requirements 5.1, 5.3 (the gate-a branch of the heading design
+ *    C8 Interfaces names, distinct from gate-b's "The plan").
+ * 3b. An `escalation` wait tagged to a task id absent from `tasks.md`, with
+ *    no `detail` and no `commits`.
+ *    Call: same press.
+ *    Result: the task row (`ruling-task-row`) reads "task 99 not found in
+ *    tasks.md"; the detail (`ruling-detail`) reads "no worker report or
+ *    task review"; the diff (`ruling-diff`) reads "no commits for this
+ *    task"; the answer form still renders.
+ *    Source: Requirements 3.5, 3.6 (detail absent), 4.7 (no commits), 4.9
+ *    (the form still renders and works).
  * 4. A `merge` wait (question id `merge`) with a run carrying one `run`-kind
  *    `PrRead`.
  *    Call: same press.
@@ -245,6 +265,24 @@ test('(task 11) a tagged escalation shows the header, task row, detail and diff 
 
     const diff = page.getByTestId('ruling-diff');
     await expect(diff).toContainText('operator added this fixture line', { timeout: 15000 });
+
+    // Order (Requirement 3 AC 1): wait text, task row, detail, diff, then the form.
+    const sheetText = await page.getByTestId('now-answer-sheet').innerText();
+    const idxWaitText = sheetText.indexOf('the greeting banner misses a comma');
+    const idxTaskRow = sheetText.indexOf('Render a cheerful greeting banner');
+    const idxDetail = sheetText.indexOf('Worker report');
+    const idxDiffText = sheetText.indexOf('operator added this fixture line');
+    const idxForm = sheetText.indexOf('Answer and continue the run');
+    expect(idxWaitText).toBeGreaterThanOrEqual(0);
+    expect(idxTaskRow).toBeGreaterThan(idxWaitText);
+    expect(idxDetail).toBeGreaterThan(idxTaskRow);
+    expect(idxDiffText).toBeGreaterThan(idxDetail);
+    expect(idxForm).toBeGreaterThan(idxDiffText);
+
+    // Requirement 6 AC 8 (the shared label) and AC 9 (Abandon offered: the
+    // `ruling` question carries no `abandon` option).
+    await expect(page.getByTestId('answer-submit')).toContainText('Answer and continue the run');
+    await expect(page.getByTestId('ruling-abandon')).toBeVisible();
   } finally {
     await removeWaitRecord(waitId);
     await removeRunRecord(runDir);
@@ -313,8 +351,96 @@ test('(task 11) a gate-B wait shows Approve checked with (recommended) and The p
     await expect(page.getByTestId('now-answer-sheet')).toContainText('(recommended)');
     await expect(page.getByTestId('now-answer-sheet')).toContainText('The plan');
     await expect(page.getByTestId('now-answer-sheet')).toContainText('Task 1: Render a cheerful greeting banner');
+    await expect(page.getByTestId('answer-submit')).toContainText('Answer and continue the run');
   } finally {
     await removeWaitRecord(waitId);
+  }
+});
+
+test('(task 11) a gate-A wait shows its recorded decisions under Recorded without asking', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const waitId = 'e2e-ruling-gatea-wait';
+  const wait: WaitRecord & { specDir: string } = {
+    v: 1,
+    id: waitId,
+    kind: 'gate-a',
+    run: 'e2e-ruling-gatea-run',
+    project: 'e2e-ruling-gatea-proj',
+    spec: 'e2e-ruling-gatea-spec',
+    created: isoAgo(60_000),
+    questions: [{
+      id: 'D1',
+      text: 'Use library X or roll our own?',
+      options: ['Use library X', 'Roll our own'],
+      recommended: 'Use library X',
+      reason: 'direction-setting decision',
+    }],
+    state: 'open',
+    specDir: join(tmpdir(), 'e2e-ruling-gatea-nonexistent-specdir'),
+    proposals: ['D2 — Use caching — recorded without asking as "yes"'],
+  };
+  await writeWaitRecord(wait);
+
+  try {
+    await pressAnswer(page, waitId);
+
+    const radios = page.getByTestId('answer-opt-D1');
+    await expect(radios).toHaveCount(2);
+    await expect(radios.first()).toBeChecked();
+    await expect(page.getByTestId('now-answer-sheet')).toContainText('(recommended)');
+    await expect(page.getByTestId('now-answer-sheet')).toContainText('Recorded without asking');
+    await expect(page.getByTestId('now-answer-sheet')).toContainText('D2 — Use caching — recorded without asking as "yes"');
+  } finally {
+    await removeWaitRecord(waitId);
+  }
+});
+
+test('(task 11) a wait tagged to an unknown task shows task-not-found, no detail and no commits, with the form still rendering', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const specDir = makeSpecDir();
+  const waitId = 'e2e-ruling-notask-wait';
+  const runId = 'e2e-ruling-notask-run';
+  const project = 'e2e-ruling-notask-proj';
+  const spec = 'e2e-ruling-notask-spec';
+
+  const run = baseRun(runId, project, '/tmp/e2e-ruling-notask-nonexistent', {
+    spec,
+    phase: 'implementation',
+    cursor: { phase: 'implementation', stepKind: 'implementer', task: '99', attempt: 1 },
+  });
+  const runDir = await writeRunRecord(run);
+
+  const wait: WaitRecord & { specDir: string } = {
+    v: 1,
+    id: waitId,
+    kind: 'escalation',
+    run: runId,
+    project,
+    spec,
+    created: isoAgo(60_000),
+    questions: [{ id: 'ruling', text: 'Design defect concerning an unlisted task.', free: true, task: '99' }],
+    state: 'open',
+    specDir,
+  };
+  await writeWaitRecord(wait);
+
+  try {
+    await pressAnswer(page, waitId);
+
+    const row = page.getByTestId('ruling-task-row');
+    await expect(row).toContainText('task 99 not found in tasks.md', { timeout: 15000 });
+
+    const detail = page.getByTestId('ruling-detail');
+    await expect(detail).toContainText('no worker report or task review');
+
+    const diff = page.getByTestId('ruling-diff');
+    await expect(diff).toContainText('no commits for this task', { timeout: 15000 });
+
+    await expect(page.getByTestId('answer-submit')).toBeVisible();
+  } finally {
+    await removeWaitRecord(waitId);
+    await removeRunRecord(runDir);
+    await rm(specDir, { recursive: true, force: true });
   }
 });
 
