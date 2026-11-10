@@ -16,7 +16,7 @@ Dependency order: run the tasks in number order. The chains are 1 → 4 and 1 �
   - _Requirements: 2.1, 2.12_
   - _Prompt: Task: Per design C1 (requirement 2 AC 1, AC 12), add `detail?: string` and `commits?: string[]` to `WaitRecord` (`src/controller/state.ts:207-226`) and `CreateWaitInput` (`src/controller/waits.ts:52-62`). `createWait` (`:98-118`) copies `detail` when present and `commits` when non-empty, as it copies `proposals` (`:114`). `listWaitsForWire` (`:241-243`) strips `commits` as well as `specDir`, and its return type omits both | Restrictions: Add no other record field; do not change `answerWait` here (a later task does) | Success: a wait created with `detail` and `commits` reads back with both; a wait created with an empty `commits` array stores no `commits` key; a wait created with neither has no `detail` or `commits` key (regression guard); `listWaitsForWire` returns the wait with `detail` and with no `commits` or `specDir`; `npx tsc --noEmit` and `npx vitest run src/controller/__tests__/waits.test.ts` pass_
 
-- [ ] 2. Build the ruling detail module
+- [x] 2. Build the ruling detail module
   - File: src/controller/ruling-detail.ts
   - File: src/controller/__tests__/ruling-detail.test.ts
   - Test: src/controller/__tests__/ruling-detail.test.ts — `buildRulingDetail(report, review)`

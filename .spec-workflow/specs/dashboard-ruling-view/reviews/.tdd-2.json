@@ -1,0 +1,1 @@
+{"testFiles":["src/controller/__tests__/ruling-detail.test.ts"],"seams":{"src/controller/__tests__/ruling-detail.test.ts":"buildRulingDetail(report, review)"},"redCommit":"db71567c920fc43bb4badfca68ad1095fea7ec22","baseSha":"c484b51716a85d8086c5474e3c116dc076d3c335","base":"structural-red","head":"pass","amended":false,"judged":null}
